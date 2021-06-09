@@ -4730,7 +4730,7 @@ class WasmOpcodeLengthTest : public TestWithZone {
 
   template <typename... Bytes>
   void ExpectLength(unsigned expected, Bytes... bytes) {
-    const byte code[] = {bytes..., 0, 0, 0, 0, 0, 0, 0, 0};
+    const byte code[] = {static_cast<byte>(bytes)..., 0, 0, 0, 0, 0, 0, 0, 0};
     EXPECT_EQ(expected, OpcodeLength(code, code + sizeof(code)))
         << PrintOpcodes{code, code + sizeof...(bytes)};
   }
@@ -4751,7 +4751,7 @@ class WasmOpcodeLengthTest : public TestWithZone {
 
   template <typename... Bytes>
   void ExpectFailure(Bytes... bytes) {
-    const byte code[] = {bytes..., 0, 0, 0, 0, 0, 0, 0, 0};
+    const byte code[] = {static_cast<byte>(bytes)..., 0, 0, 0, 0, 0, 0, 0, 0};
     WasmFeatures no_features = WasmFeatures::None();
     WasmDecoder<Decoder::kFullValidation> decoder(
         this->zone(), nullptr, no_features, &no_features, nullptr, code,

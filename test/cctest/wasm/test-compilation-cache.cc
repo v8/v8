@@ -74,7 +74,7 @@ class StreamTester {
 };
 
 // Create a valid module such that the bytes depend on {n}.
-ZoneBuffer GetValidModuleBytes(Zone* zone, int n) {
+ZoneBuffer GetValidModuleBytes(Zone* zone, uint8_t n) {
   ZoneBuffer buffer(zone);
   TestSignatures sigs;
   WasmModuleBuilder builder(zone);

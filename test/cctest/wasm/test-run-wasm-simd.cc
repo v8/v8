@@ -2976,10 +2976,10 @@ WASM_SIMD_TEST(S128Load64Zero) {
 template <typename T>
 void RunLoadLaneTest(TestExecutionTier execution_tier, WasmOpcode load_op,
                      WasmOpcode splat_op) {
-  WasmOpcode const_op =
-      splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
+  byte const_op = static_cast<byte>(
+      splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const);
 
-  constexpr int lanes_s = kSimd128Size / sizeof(T);
+  constexpr byte lanes_s = kSimd128Size / sizeof(T);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
   constexpr int splat_value = 33;
   T sentinel = T{-1};
@@ -2988,7 +2988,8 @@ void RunLoadLaneTest(TestExecutionTier execution_tier, WasmOpcode load_op,
   T* global;
 
   auto build_fn = [=, &memory, &global](WasmRunner<int32_t>& r, int mem_index,
-                                        int lane, int alignment, int offset) {
+                                        byte lane, byte alignment,
+                                        byte offset) {
     memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
     global = r.builder().AddGlobal<T>(kWasmS128);
     r.builder().WriteMemory(&memory[lanes_s], sentinel);
@@ -3001,13 +3002,13 @@ void RunLoadLaneTest(TestExecutionTier execution_tier, WasmOpcode load_op,
 
   auto check_results = [=](T* global, int sentinel_lane = 0) {
     // Only one lane is loaded, the rest of the lanes are unchanged.
-    for (int i = 0; i < lanes_s; i++) {
+    for (byte i = 0; i < lanes_s; i++) {
       T expected = i == sentinel_lane ? sentinel : static_cast<T>(splat_value);
       CHECK_EQ(expected, ReadLittleEndianValue<T>(&global[i]));
     }
   };
 
-  for (int lane_index = 0; lane_index < lanes_s; ++lane_index) {
+  for (byte lane_index = 0; lane_index < lanes_s; ++lane_index) {
     WasmRunner<int32_t> r(execution_tier);
     build_fn(r, mem_index, lane_index, /*alignment=*/0, /*offset=*/0);
     r.Call();
@@ -3073,16 +3074,16 @@ WASM_SIMD_TEST(S128Load64Lane) {
 template <typename T>
 void RunStoreLaneTest(TestExecutionTier execution_tier, WasmOpcode store_op,
                       WasmOpcode splat_op) {
-  constexpr int lanes = kSimd128Size / sizeof(T);
+  constexpr byte lanes = kSimd128Size / sizeof(T);
   constexpr int mem_index = 16;  // Store to mem index 16 (bytes).
   constexpr int splat_value = 33;
-  WasmOpcode const_op =
-      splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
+  byte const_op = static_cast<byte>(
+      splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const);
 
   T* memory;  // Will be set by build_fn.
 
   auto build_fn = [=, &memory](WasmRunner<int32_t>& r, int mem_index,
-                               int lane_index, int alignment, int offset) {
+                               byte lane_index, byte alignment, byte offset) {
     memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
     // Splat splat_value, then only Store and replace a single lane.
     BUILD(r, WASM_I32V(mem_index), const_op, splat_value,
@@ -3092,18 +3093,18 @@ void RunStoreLaneTest(TestExecutionTier execution_tier, WasmOpcode store_op,
   };
 
   auto check_results = [=](WasmRunner<int32_t>& r, T* memory) {
-    for (int i = 0; i < lanes; i++) {
+    for (byte i = 0; i < lanes; i++) {
       CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
     }
 
     CHECK_EQ(splat_value, r.builder().ReadMemory(&memory[lanes]));
 
-    for (int i = lanes + 1; i < lanes * 2; i++) {
+    for (byte i = lanes + 1; i < lanes * 2; i++) {
       CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
     }
   };
 
-  for (int lane_index = 0; lane_index < lanes; lane_index++) {
+  for (byte lane_index = 0; lane_index < lanes; lane_index++) {
     WasmRunner<int32_t> r(execution_tier);
     build_fn(r, mem_index, lane_index, ZERO_ALIGNMENT, ZERO_OFFSET);
     r.Call();
