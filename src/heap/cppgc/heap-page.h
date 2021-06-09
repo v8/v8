@@ -284,7 +284,7 @@ const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
   SynchronizedLoad();
   const HeapObjectHeader* header =
       ObjectHeaderFromInnerAddressImpl<mode>(this, address);
-  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
+  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex<mode>());
   return *header;
 }
 
