@@ -2831,8 +2831,8 @@ void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem) {
   lxvx(dst, mem);
 }
 
-void TurboAssembler::StoreDouble(DoubleRegister src, const MemOperand& mem,
-                                 Register scratch) {
+void TurboAssembler::StoreF64(DoubleRegister src, const MemOperand& mem,
+                              Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -2844,8 +2844,9 @@ void TurboAssembler::StoreDouble(DoubleRegister src, const MemOperand& mem,
   }
 }
 
-void TurboAssembler::StoreDoubleU(DoubleRegister src, const MemOperand& mem,
-                                  Register scratch) {
+void TurboAssembler::StoreF64WithUpdate(DoubleRegister src,
+                                        const MemOperand& mem,
+                                        Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -2857,8 +2858,8 @@ void TurboAssembler::StoreDoubleU(DoubleRegister src, const MemOperand& mem,
   }
 }
 
-void TurboAssembler::StoreSingle(DoubleRegister src, const MemOperand& mem,
-                                 Register scratch) {
+void TurboAssembler::StoreF32(DoubleRegister src, const MemOperand& mem,
+                              Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -2870,8 +2871,9 @@ void TurboAssembler::StoreSingle(DoubleRegister src, const MemOperand& mem,
   }
 }
 
-void TurboAssembler::StoreSingleU(DoubleRegister src, const MemOperand& mem,
-                                  Register scratch) {
+void TurboAssembler::StoreF32WithUpdate(DoubleRegister src,
+                                        const MemOperand& mem,
+                                        Register scratch) {
   Register base = mem.ra();
   int offset = mem.offset();
 
@@ -2974,7 +2976,7 @@ void TurboAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
   DCHECK(!AreAliased(src, scratch));
   fmr(scratch, src);
   LoadF32(src, dst, r0);
-  StoreSingle(scratch, dst, r0);
+  StoreF32(scratch, dst, r0);
 }
 
 void TurboAssembler::SwapFloat32(MemOperand src, MemOperand dst,
@@ -2983,8 +2985,8 @@ void TurboAssembler::SwapFloat32(MemOperand src, MemOperand dst,
   DCHECK(!AreAliased(scratch_0, scratch_1));
   LoadF32(scratch_0, src, r0);
   LoadF32(scratch_1, dst, r0);
-  StoreSingle(scratch_0, dst, r0);
-  StoreSingle(scratch_1, src, r0);
+  StoreF32(scratch_0, dst, r0);
+  StoreF32(scratch_1, src, r0);
 }
 
 void TurboAssembler::SwapDouble(DoubleRegister src, DoubleRegister dst,
@@ -3001,7 +3003,7 @@ void TurboAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
   DCHECK(!AreAliased(src, scratch));
   fmr(scratch, src);
   LoadF64(src, dst, r0);
-  StoreDouble(scratch, dst, r0);
+  StoreF64(scratch, dst, r0);
 }
 
 void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
@@ -3010,8 +3012,8 @@ void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
   DCHECK(!AreAliased(scratch_0, scratch_1));
   LoadF64(scratch_0, src, r0);
   LoadF64(scratch_1, dst, r0);
-  StoreDouble(scratch_0, dst, r0);
-  StoreDouble(scratch_1, src, r0);
+  StoreF64(scratch_0, dst, r0);
+  StoreF64(scratch_1, src, r0);
 }
 
 void TurboAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,

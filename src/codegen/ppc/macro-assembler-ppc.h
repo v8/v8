@@ -155,15 +155,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
 
-  void StoreDouble(DoubleRegister src, const MemOperand& mem,
-                   Register scratch = no_reg);
-  void StoreDoubleU(DoubleRegister src, const MemOperand& mem,
-                    Register scratch = no_reg);
+  void StoreF64(DoubleRegister src, const MemOperand& mem,
+                Register scratch = no_reg);
+  void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem,
+                          Register scratch = no_reg);
 
-  void StoreSingle(DoubleRegister src, const MemOperand& mem,
-                   Register scratch = no_reg);
-  void StoreSingleU(DoubleRegister src, const MemOperand& mem,
-                    Register scratch = no_reg);
+  void StoreF32(DoubleRegister src, const MemOperand& mem,
+                Register scratch = no_reg);
+  void StoreF32WithUpdate(DoubleRegister src, const MemOperand& mem,
+                          Register scratch = no_reg);
   void StoreSimd128(Simd128Register src, const MemOperand& mem);
 
   void Cmpi(Register src1, const Operand& src2, Register scratch,
