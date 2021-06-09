@@ -830,8 +830,8 @@ MaybeHandle<Map> GetInternalizedStringMap(Factory* f, Handle<String> string) {
 
 MaybeHandle<Map> Factory::InternalizedStringMapForString(
     Handle<String> string) {
-  // If the string is in the young generation, it cannot be used as
-  // internalized.
+  // Do not internalize young strings: This allows us to ignore both string
+  // table and stub cache on scavenges.
   if (Heap::InYoungGeneration(*string)) return MaybeHandle<Map>();
   return GetInternalizedStringMap(this, string);
 }
