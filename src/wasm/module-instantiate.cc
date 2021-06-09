@@ -35,42 +35,6 @@ namespace wasm {
 using base::ReadLittleEndianValue;
 using base::WriteLittleEndianValue;
 
-uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
-                            const WasmInitExpr& expr) {
-  switch (expr.kind()) {
-    case WasmInitExpr::kI32Const:
-      return expr.immediate().i32_const;
-    case WasmInitExpr::kGlobalGet: {
-      const auto& global = instance->module()->globals[expr.immediate().index];
-      DCHECK_EQ(kWasmI32, global.type);
-      auto raw_addr = reinterpret_cast<Address>(
-                          instance->untagged_globals_buffer().backing_store()) +
-                      global.offset;
-      return ReadLittleEndianValue<uint32_t>(raw_addr);
-    }
-    default:
-      UNREACHABLE();
-  }
-}
-
-uint64_t EvalUint64InitExpr(Handle<WasmInstanceObject> instance,
-                            const WasmInitExpr& expr) {
-  switch (expr.kind()) {
-    case WasmInitExpr::kI64Const:
-      return expr.immediate().i64_const;
-    case WasmInitExpr::kGlobalGet: {
-      const auto& global = instance->module()->globals[expr.immediate().index];
-      DCHECK_EQ(kWasmI64, global.type);
-      auto raw_addr = reinterpret_cast<Address>(
-                          instance->untagged_globals_buffer().backing_store()) +
-                      global.offset;
-      return ReadLittleEndianValue<uint64_t>(raw_addr);
-    }
-    default:
-      UNREACHABLE();
-  }
-}
-
 namespace {
 
 byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
@@ -908,14 +872,16 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
 
     size_t dest_offset;
     if (module_->is_memory64) {
-      uint64_t dest_offset_64 = EvalUint64InitExpr(instance, segment.dest_addr);
+      uint64_t dest_offset_64 =
+          EvaluateInitExpression(segment.dest_addr, instance).to_u64();
       // Clamp to {std::numeric_limits<size_t>::max()}, which is always an
       // invalid offset.
       DCHECK_GT(std::numeric_limits<size_t>::max(), instance->memory_size());
       dest_offset = static_cast<size_t>(std::min(
           dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
     } else {
-      dest_offset = EvalUint32InitExpr(instance, segment.dest_addr);
+      dest_offset =
+          EvaluateInitExpression(segment.dest_addr, instance).to_u32();
     }
 
     if (!base::IsInBounds<size_t>(dest_offset, size, instance->memory_size())) {
@@ -2058,7 +2024,8 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
     uint32_t table_index = elem_segment.table_index;
-    uint32_t dst = EvalUint32InitExpr(instance, elem_segment.offset);
+    uint32_t dst =
+        EvaluateInitExpression(elem_segment.offset, instance).to_u32();
     uint32_t src = 0;
     size_t count = elem_segment.entries.size();
 
