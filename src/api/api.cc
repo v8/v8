@@ -1222,7 +1222,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-    const MemorySpan<const CFunction>& c_function_overloads = {}) {
+    const MemorySpan<const CFunction>& c_function_overloads = {},
+    uint8_t instance_type = 0, uint8_t allowed_receiver_range_start = 0,
+    uint8_t allowed_receiver_range_end = 0) {
   i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
       i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
@@ -1244,6 +1246,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
             ? i::ReadOnlyRoots(isolate).the_hole_value()
             : *Utils::OpenHandle(*cached_property_name));
     if (behavior == ConstructorBehavior::kThrow) raw.set_remove_prototype(true);
+    raw.SetInstanceType(instance_type);
+    raw.set_allowed_receiver_range_start(allowed_receiver_range_start);
+    raw.set_allowed_receiver_range_end(allowed_receiver_range_end);
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
@@ -1255,7 +1260,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
 Local<FunctionTemplate> FunctionTemplate::New(
     Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
-    SideEffectType side_effect_type, const CFunction* c_function) {
+    SideEffectType side_effect_type, const CFunction* c_function,
+    uint8_t instance_type, uint8_t allowed_receiver_range_start,
+    uint8_t allowed_receiver_range_end) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
@@ -1265,7 +1272,8 @@ Local<FunctionTemplate> FunctionTemplate::New(
       i_isolate, callback, data, signature, length, behavior, false,
       Local<Private>(), side_effect_type,
       c_function ? MemorySpan<const CFunction>{c_function, 1}
-                 : MemorySpan<const CFunction>{});
+                 : MemorySpan<const CFunction>{},
+      instance_type, allowed_receiver_range_start, allowed_receiver_range_end);
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(

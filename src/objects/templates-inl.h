@@ -38,6 +38,11 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, published, PublishedBit::kShift)
 
+BIT_FIELD_ACCESSORS(FunctionTemplateInfo, flag, allowed_receiver_range_start,
+                    FunctionTemplateInfo::AllowedReceiverRangeStartBits)
+BIT_FIELD_ACCESSORS(FunctionTemplateInfo, flag, allowed_receiver_range_end,
+                    FunctionTemplateInfo::AllowedReceiverRangeEndBits)
+
 // static
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
@@ -79,6 +84,12 @@ RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject, undefined)
 RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
                GetReadOnlyRoots(cage_base).empty_fixed_array())
 #undef RARE_ACCESSORS
+
+int FunctionTemplateInfo::InstanceType() const { return instance_type(); }
+
+void FunctionTemplateInfo::SetInstanceType(int instance_type) {
+  set_instance_type(instance_type);
+}
 
 bool TemplateInfo::should_cache() const {
   return serial_number() != kDoNotCache;
