@@ -767,8 +767,12 @@ Handle<String> WasmSimd128ToString(Isolate* isolate, wasm::Simd128 s128) {
 
 Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
                               wasm::NativeModule* module) {
-  const char* nullable = type.kind() == wasm::kOptRef ? " null" : "";
-  EmbeddedVector<char, 64> type_name;
+  bool is_nullable = type.kind() == wasm::kOptRef;
+  const char* null_str = is_nullable ? " null" : "";
+  // This length only needs to be enough for generated names like
+  // "(ref null $type12345)". For names coming from the name section,
+  // we'll dynamically allocate an appropriately sized vector.
+  EmbeddedVector<char, 32> type_name;
   size_t len;
   if (type.heap_type().is_generic()) {
     const char* generic_name = "";
@@ -795,23 +799,32 @@ Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
       default:
         UNREACHABLE();
     }
-    len = SNPrintF(type_name, "(ref%s %s)", nullable, generic_name);
+    len = SNPrintF(type_name, "(ref%s %s)", null_str, generic_name);
   } else {
     int type_index = type.ref_index();
     wasm::ModuleWireBytes module_wire_bytes(module->wire_bytes());
     Vector<const char> name_vec = module_wire_bytes.GetNameOrNull(
         module->GetDebugInfo()->GetTypeName(type_index));
     if (name_vec.empty()) {
-      len = SNPrintF(type_name, "(ref%s $type%u)", nullable, type_index);
+      len = SNPrintF(type_name, "(ref%s $type%u)", null_str, type_index);
     } else {
-      len = SNPrintF(type_name, "(ref%s $", nullable);
-      Vector<char> suffix = type_name.SubVector(len, type_name.size());
+      size_t required_length =
+          name_vec.size() +       // length of provided name
+          7 +                     // length of "(ref $)"
+          (is_nullable ? 5 : 0);  // length of " null" (optional)
+      Vector<char> long_type_name = Vector<char>::New(required_length);
+      len = SNPrintF(long_type_name, "(ref%s $", null_str);
+      Vector<char> suffix =
+          long_type_name.SubVector(len, long_type_name.size());
+      // StrNCpy requires that there is room for an assumed trailing \0...
+      DCHECK_EQ(suffix.size(), name_vec.size() + 1);
       StrNCpy(suffix, name_vec.data(), name_vec.size());
-      len += std::min(suffix.size(), name_vec.size());
-      if (len < type_name.size()) {
-        type_name[len] = ')';
-        len++;
-      }
+      // ...but we actually write ')' into that byte.
+      long_type_name[required_length - 1] = ')';
+      Handle<String> result =
+          isolate->factory()->InternalizeString(long_type_name);
+      long_type_name.Dispose();
+      return result;
     }
   }
   return isolate->factory()->InternalizeString(type_name.SubVector(0, len));
