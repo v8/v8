@@ -1830,7 +1830,8 @@ class ModuleDecoderImpl : public Decoder {
               WasmInitExpr* stack_args = &stack.back() - type->field_count();
               for (uint32_t i = 0; i < type->field_count(); i++) {
                 WasmInitExpr& argument = stack_args[i];
-                if (!IsSubtypeOf(TypeOf(argument), type->field(i), module)) {
+                if (!IsSubtypeOf(TypeOf(argument), type->field(i).Unpacked(),
+                                 module)) {
                   errorf(pc(), "struct.new[%u]: expected %s, found %s instead",
                          i, type->field(i).name().c_str(),
                          TypeOf(argument).name().c_str());

@@ -150,6 +150,16 @@ class WasmValue {
   void CopyToWithSystemEndianness(byte* to) {
     DCHECK(type_.is_numeric());
     switch (type_.kind()) {
+      case kI8: {
+        int8_t value = to_i8();
+        base::Memcpy(static_cast<void*>(to), &value, sizeof(value));
+        break;
+      }
+      case kI16: {
+        int16_t value = to_i16();
+        base::Memcpy(static_cast<void*>(to), &value, sizeof(value));
+        break;
+      }
       case kI32: {
         int32_t value = to_i32();
         base::Memcpy(static_cast<void*>(to), &value, sizeof(value));
@@ -179,10 +189,22 @@ class WasmValue {
       case kOptRef:
       case kBottom:
       case kVoid:
-      case kI8:
-      case kI16:
         UNREACHABLE();
     }
+  }
+
+  // If {packed_type.is_packed()}, create a new value of {packed_type()}.
+  // Otherwise, return this object.
+  WasmValue Packed(ValueType packed_type) const {
+    if (packed_type == kWasmI8) {
+      DCHECK_EQ(type_, kWasmI32);
+      return WasmValue(static_cast<int8_t>(to_i32()));
+    }
+    if (packed_type == kWasmI16) {
+      DCHECK_EQ(type_, kWasmI32);
+      return WasmValue(static_cast<int16_t>(to_i32()));
+    }
+    return *this;
   }
 
   template <typename T>

@@ -109,10 +109,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var struct_index = builder.addStruct([{type: kWasmI32, mutability: false}]);
   var composite_struct_index = builder.addStruct(
       [{type: kWasmI32, mutability: false},
-       {type: wasmRefType(struct_index), mutability: false}]);
+       {type: wasmRefType(struct_index), mutability: false},
+       {type: kWasmI8, mutability: true}]);
 
   let field1_value = 432;
   let field2_value = -123;
+  let field3_value = -555;
 
   var global0 = builder.addGlobal(
       wasmRefType(struct_index), false,
@@ -127,6 +129,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
           composite_struct_index,
           [WasmInitExpr.I32Const(field1_value),
            WasmInitExpr.GlobalGet(global0.index),
+           WasmInitExpr.I32Const(field3_value),
            WasmInitExpr.RttCanon(composite_struct_index)]));
 
   builder.addFunction("field_1", kSig_i_v)
@@ -144,8 +147,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     ])
     .exportFunc();
 
+  builder.addFunction("field_3", kSig_i_v)
+    .addBody([
+      kExprGlobalGet, global.index,
+      kGCPrefix, kExprStructGetS, composite_struct_index, 2])
+    .exportFunc();
   var instance = builder.instantiate({});
 
   assertEquals(field1_value, instance.exports.field_1());
   assertEquals(field2_value, instance.exports.field_2());
+  assertEquals((field3_value << 24) >> 24, instance.exports.field_3());
 })();
