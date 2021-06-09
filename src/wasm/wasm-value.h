@@ -113,6 +113,13 @@ class WasmValue {
   FOREACH_PRIMITIVE_WASMVAL_TYPE(DEFINE_TYPE_SPECIFIC_METHODS)
 #undef DEFINE_TYPE_SPECIFIC_METHODS
 
+  // Instantiate a numeric WasmValue from a byte pointer to a little endian
+  // value.
+  WasmValue(byte* raw_bytes, ValueType type) : type_(type), bit_pattern_{} {
+    DCHECK(type_.is_numeric());
+    base::Memcpy(bit_pattern_, raw_bytes, type.element_size_bytes());
+  }
+
   WasmValue(Handle<Object> ref, ValueType type) : type_(type), bit_pattern_{} {
     static_assert(sizeof(Handle<Object>) <= sizeof(bit_pattern_),
                   "bit_pattern_ must be large enough to fit a Handle");
@@ -133,12 +140,13 @@ class WasmValue {
            !memcmp(bit_pattern_, other.bit_pattern_, 16);
   }
 
-  void CopyTo(byte* to) {
+  // Copy the underlying value to a byte pointer to a little endian value.
+  void CopyTo(byte* to) const {
     DCHECK(type_.is_numeric());
-    base::Memcpy(static_cast<void*>(to), static_cast<void*>(bit_pattern_),
-                 type_.element_size_bytes());
+    base::Memcpy(to, bit_pattern_, type_.element_size_bytes());
   }
 
+  // Store the undelying value to a byte pointer, using the system's endianness.
   void CopyToWithSystemEndianness(byte* to) {
     DCHECK(type_.is_numeric());
     switch (type_.kind()) {
@@ -187,6 +195,40 @@ class WasmValue {
     using type =
         std::conditional<kSystemPointerSize == 8, uint64_t, uint32_t>::type;
     return WasmValue{type{value}};
+  }
+
+  inline std::string to_string() const {
+    switch (type_.kind()) {
+      case kI8:
+        return std::to_string(to_i8());
+      case kI16:
+        return std::to_string(to_i16());
+      case kI32:
+        return std::to_string(to_i32());
+      case kI64:
+        return std::to_string(to_i64());
+      case kF32:
+        return std::to_string(to_f32());
+      case kF64:
+        return std::to_string(to_f64());
+      case kS128: {
+        std::stringstream stream;
+        stream << "0x" << std::hex;
+        for (int8_t byte : bit_pattern_) {
+          if (!(byte & 0xf0)) stream << '0';
+          stream << byte;
+        }
+        return stream.str();
+      }
+      case kOptRef:
+      case kRef:
+      case kRtt:
+      case kRttWithDepth:
+        return "Handle [" + std::to_string(to_ref().address()) + "]";
+      case kVoid:
+      case kBottom:
+        UNREACHABLE();
+    }
   }
 
  private:
