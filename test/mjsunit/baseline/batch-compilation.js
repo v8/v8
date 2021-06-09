@@ -3,8 +3,13 @@
 // found in the LICENSE file.
 
 // Flags: --sparkplug --no-always-sparkplug --sparkplug-filter="-"
-// Flags: --allow-natives-syntax --expose-gc --lazy-feedback-allocation
+// Flags: --allow-natives-syntax --expose-gc
 // Flags: --baseline-batch-compilation --baseline-batch-compilation-threshold=200
+
+// Flags to drive Fuzzers into the right direction
+// TODO(v8:11853): Remove these flags once fuzzers handle flag implications
+// better.
+// Flags: --lazy-feedback-allocation --no-stress-concurrent-inlining
 
 // Basic test
 (function() {
