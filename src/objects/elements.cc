@@ -3297,7 +3297,17 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     ElementType scalar = FromHandle(value);
     ElementType* data = static_cast<ElementType*>(typed_array->DataPtr());
-    if (COMPRESS_POINTERS_BOOL && alignof(ElementType) > kTaggedSize) {
+    if (typed_array->buffer().is_shared()) {
+      // TypedArrays backed by shared buffers need to be filled using atomic
+      // operations. Since 8-byte data are not currently always 8-byte aligned,
+      // manually fill using SetImpl, which abstracts over alignment and atomic
+      // complexities.
+      ElementType* first = data + start;
+      ElementType* last = data + end;
+      for (; first != last; ++first) {
+        AccessorClass::SetImpl(first, scalar, kShared);
+      }
+    } else if (COMPRESS_POINTERS_BOOL && alignof(ElementType) > kTaggedSize) {
       // TODO(ishell, v8:8875): See UnalignedSlot<T> for details.
       std::fill(UnalignedSlot<ElementType>(data + start),
                 UnalignedSlot<ElementType>(data + end), scalar);
@@ -3486,7 +3496,19 @@ class TypedElementsAccessor
     if (len == 0) return;
 
     ElementType* data = static_cast<ElementType*>(typed_array.DataPtr());
-    if (COMPRESS_POINTERS_BOOL && alignof(ElementType) > kTaggedSize) {
+    if (typed_array.buffer().is_shared()) {
+      // TypedArrays backed by shared buffers need to be reversed using atomic
+      // operations. Since 8-byte data are not currently always 8-byte aligned,
+      // manually reverse using GetImpl and SetImpl, which abstract over
+      // alignment and atomic complexities.
+      for (ElementType *first = data, *last = data + len - 1; first < last;
+           ++first, --last) {
+        ElementType first_value = AccessorClass::GetImpl(first, kShared);
+        ElementType last_value = AccessorClass::GetImpl(last, kShared);
+        AccessorClass::SetImpl(first, last_value, kShared);
+        AccessorClass::SetImpl(last, first_value, kShared);
+      }
+    } else if (COMPRESS_POINTERS_BOOL && alignof(ElementType) > kTaggedSize) {
       // TODO(ishell, v8:8875): See UnalignedSlot<T> for details.
       std::reverse(UnalignedSlot<ElementType>(data),
                    UnalignedSlot<ElementType>(data + len));
