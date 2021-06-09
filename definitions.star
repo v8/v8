@@ -5,7 +5,7 @@
 versions = {
     "beta": "9.2",
     "stable": "9.1",
-    "extended" : "9.0",
+    "extended": "9.0",
 }
 
 branch_names = [

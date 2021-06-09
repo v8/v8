@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "in_console", "v8_builder")
+load("//lib/lib.star", "GOMA", "greedy_batching_of_1", "in_console", "v8_builder")
 
 in_category = in_console("official")
 
@@ -12,10 +12,7 @@ in_category(
         name = "V8 Official Arm32",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32, "target_arch": "arm"},
@@ -25,10 +22,7 @@ in_category(
         name = "V8 Official Arm64",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
@@ -38,10 +32,7 @@ in_category(
         name = "V8 Official Android Arm32",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.official", "target_bits": 32, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
@@ -51,10 +42,7 @@ in_category(
         name = "V8 Official Android Arm64",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.official", "target_bits": 64, "build_config": "Release", "target_platform": "android", "target_arch": "arm"},
@@ -64,10 +52,7 @@ in_category(
         name = "V8 Official Linux32",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32},
@@ -77,10 +62,7 @@ in_category(
         name = "V8 Official Linux32 Debug",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 32},
@@ -90,10 +72,7 @@ in_category(
         name = "V8 Official Linux64",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
@@ -103,10 +82,7 @@ in_category(
         name = "V8 Official Linux64 Debug",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
@@ -120,10 +96,7 @@ in_category(
         name = "V8 Official Win32",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 32},
@@ -133,10 +106,7 @@ in_category(
         name = "V8 Official Win32 Debug",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 32},
@@ -146,10 +116,7 @@ in_category(
         name = "V8 Official Win64",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
@@ -159,10 +126,7 @@ in_category(
         name = "V8 Official Win64 Debug",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
@@ -175,10 +139,7 @@ in_category(
         name = "V8 Official Mac64",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
@@ -188,10 +149,7 @@ in_category(
         name = "V8 Official Mac64 Debug",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
@@ -201,10 +159,7 @@ in_category(
         name = "V8 Official Mac ARM64",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},
@@ -214,10 +169,7 @@ in_category(
         name = "V8 Official Mac ARM64 Debug",
         bucket = "ci",
         triggered_by = ["v8-trigger-official"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/archive",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64, "target_arch": "arm"},

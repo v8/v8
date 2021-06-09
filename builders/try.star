@@ -116,7 +116,7 @@ try_builder(
     use_goma = GOMA.DEFAULT,
     # TODO(machenbach): Remove this as soon as the builder's blueprint
     # (linux-blink-rel-dummy) has switched to CAS.
-    experiments={"chromium.chromium_tests.use_rbe_cas": 100},
+    experiments = {"chromium.chromium_tests.use_rbe_cas": 100},
 )
 
 try_builder(

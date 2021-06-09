@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//definitions.star", "beta_re", "stable_re", "extended_re")
+load("//definitions.star", "beta_re", "extended_re", "stable_re")
 
 def console_view(name, title, repo, refs, exclude_ref = None, header = "//consoles/header_main.textpb"):
     luci.console_view(
@@ -63,7 +63,6 @@ console_view(
     refs = ["refs/branch-heads/\\d+\\.\\d+", "refs/heads/\\d+\\.\\d+\\.\\d+"],
     exclude_ref = "refs/heads/master",
 )
-
 
 branch_console_view("br.beta", "Beta Main", beta_re)
 branch_console_view("br.beta.ports", "Beta Ports", beta_re)

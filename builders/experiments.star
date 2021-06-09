@@ -93,7 +93,7 @@ experiment_builder(
     use_goma = GOMA.NO,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -106,7 +106,7 @@ experiment_builder(
     use_goma = GOMA.NO,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -158,7 +158,7 @@ experiment_builder_pair(
     to_notify = [
         "saelo@chromium.org",
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -172,7 +172,7 @@ experiment_builder_pair(
     to_notify = [
         "dinfuehr@chromium.org",
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -186,7 +186,7 @@ experiment_builder(
     use_goma = GOMA.NO,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -199,7 +199,7 @@ experiment_builder(
     use_goma = GOMA.DEFAULT,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -210,7 +210,7 @@ experiment_builder(
     properties = {"builder_group": "client.v8"},
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -236,7 +236,7 @@ experiment_builder(
     close_tree = True,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -248,7 +248,7 @@ experiment_builder(
     properties = {"builder_group": "client.v8"},
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -261,7 +261,7 @@ experiment_builder(
     use_goma = GOMA.DEFAULT,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -273,7 +273,7 @@ experiment_builder(
     properties = {"builder_group": "client.v8"},
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -286,7 +286,7 @@ experiment_builder(
     use_goma = GOMA.DEFAULT,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -298,7 +298,7 @@ experiment_builder(
     properties = {"builder_group": "client.v8"},
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -311,7 +311,7 @@ experiment_builder(
     use_goma = GOMA.DEFAULT,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 
@@ -323,6 +323,6 @@ experiment_builder(
     properties = {"builder_group": "client.v8"},
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )

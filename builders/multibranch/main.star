@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "in_branch_console", "multibranch_builder", "v8_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "greedy_batching_of_1", "in_branch_console", "multibranch_builder", "v8_builder")
 
 def main_multibranch_builder(**kwargs):
     props = kwargs.pop("properties", {})
@@ -36,10 +36,7 @@ exceptions(
         name = "V8 Linux64 - builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64", "V8 Linux64 - fyi"], "track_build_dependencies": True, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
@@ -49,10 +46,7 @@ exceptions(
         name = "V8 Linux64 - debug builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug", "V8 Linux64 - debug - fyi"]},
         gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
@@ -72,10 +66,7 @@ exceptions(
         name = "V8 Linux64 - builder",
         bucket = "ci.br.beta",
         triggered_by = ["v8-trigger-br-beta"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64"], "track_build_dependencies": True, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
@@ -86,10 +77,7 @@ exceptions(
         name = "V8 Linux64 - debug builder",
         bucket = "ci.br.beta",
         triggered_by = ["v8-trigger-br-beta"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
         gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
@@ -111,10 +99,7 @@ exceptions(
         name = "V8 Linux64 - builder",
         bucket = "ci.br.stable",
         triggered_by = ["v8-trigger-br-stable"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "triggers": ["V8 Linux64"], "track_build_dependencies": True, "binary_size_tracking": {"category": "linux64", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
@@ -125,10 +110,7 @@ exceptions(
         name = "V8 Linux64 - debug builder",
         bucket = "ci.br.stable",
         triggered_by = ["v8-trigger-br-stable"],
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8", "triggers": ["V8 Fuzzer", "V8 Linux64 - debug"]},
         gclient_vars = [GCLIENT_VARS.JSFUNFUZZ],
@@ -154,10 +136,7 @@ in_category(
     "Linux",
     main_multibranch_builder(
         name = "V8 Linux - builder",
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"triggers": ["V8 Linux"], "binary_size_tracking": {"category": "linux32", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
@@ -454,10 +433,7 @@ in_category(
     "Misc",
     main_multibranch_builder(
         name = "V8 Presubmit",
-        triggering_policy = scheduler.policy(
-            kind = scheduler.GREEDY_BATCHING_KIND,
-            max_batch_size = 1,
-        ),
+        triggering_policy = greedy_batching_of_1,
         executable = "recipe:v8/presubmit",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},

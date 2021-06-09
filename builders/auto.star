@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "defaults_ci", "v8_builder")
+load("//lib/lib.star", "defaults_ci", "greedy_batching_of_1", "v8_builder")
 
 def auto_builder(name, execution_timeout = None, properties = None, **kwargs):
     properties = dict((properties or {}))
@@ -76,7 +76,7 @@ auto_builder(
             ],
             "reviewers": [
                 "v8-waterfall-sheriff@grotations.appspotmail.com",
-                "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+                "mtv-sf-v8-sheriff@grotations.appspotmail.com",
             ],
             "show_commit_log": False,
         },
@@ -156,10 +156,7 @@ auto_builder(
     execution_timeout = 21600,
     properties = {"builder_group": "client.v8.branches"},
     schedule = "triggered",
-    triggering_policy = scheduler.policy(
-        kind = scheduler.GREEDY_BATCHING_KIND,
-        max_batch_size = 1,
-    ),
+    triggering_policy = greedy_batching_of_1,
     triggered_by = ["v8-trigger-branches-auto-tag"],
 )
 

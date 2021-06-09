@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//definitions.star", "beta_re", "stable_re", "extended_re")
+load("//definitions.star", "beta_re", "extended_re", "stable_re")
 
 luci.gitiles_poller(
     name = "chromium-trigger",

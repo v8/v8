@@ -10,7 +10,7 @@ luci.notifier(
     failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
     notify_emails = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com"
+        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
 )
 

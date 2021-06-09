@@ -67,6 +67,7 @@ defaults_dict = {
     "try.triggered": defaults_triggered,
     "ci.br.beta": defaults_ci_br,
     "ci.br.stable": defaults_ci_br,
+    "ci.br.extended": defaults_ci_br,
 }
 
 trigger_dict = {
@@ -309,3 +310,8 @@ def v8_notifier(**kwargs):
         on_new_status = ["FAILURE", "INFRA_FAILURE"],
         **kwargs
     )
+
+greedy_batching_of_1 = scheduler.policy(
+    kind = scheduler.GREEDY_BATCHING_KIND,
+    max_batch_size = 1,
+)
