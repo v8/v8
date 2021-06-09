@@ -773,27 +773,12 @@ class RegExpBoilerplateDescriptionData : public HeapObjectData {
  public:
   RegExpBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<RegExpBoilerplateDescription> object)
-      : HeapObjectData(broker, storage, object) {}
-
-  void Serialize(JSHeapBroker* broker);
-  ObjectData* data() const {
-    CHECK(serialized_);
-    return data_;
+      : HeapObjectData(broker, storage, object) {
+    // RegExpBoilerplateDescription is NeverEverSerialize.
+    // TODO(jgruber): Remove this class once all kNeverSerialized types are
+    // NeverEverSerialize.
+    UNREACHABLE();
   }
-  ObjectData* source() const {
-    CHECK(serialized_);
-    return source_;
-  }
-  int flags() const {
-    CHECK(serialized_);
-    return flags_;
-  }
-
- private:
-  bool serialized_ = false;
-  ObjectData* data_ = nullptr;
-  ObjectData* source_ = nullptr;
-  int flags_;
 };
 
 class HeapNumberData : public HeapObjectData {
@@ -2486,19 +2471,6 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
   }
 }
 
-void RegExpBoilerplateDescriptionData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;  // Only serialize once.
-  serialized_ = true;
-
-  TraceScope tracer(broker, this,
-                    "RegExpBoilerplateDescriptionData::Serialize");
-  auto boilerplate = Handle<RegExpBoilerplateDescription>::cast(object());
-
-  data_ = broker->GetOrCreateData(boilerplate->data());
-  source_ = broker->GetOrCreateData(boilerplate->source());
-  flags_ = boilerplate->flags();
-}
-
 #ifdef DEBUG
 bool ObjectRef::IsNeverSerializedHeapObject() const {
   return data_->kind() == ObjectDataKind::kNeverSerializedHeapObject;
@@ -2753,6 +2725,25 @@ struct CreateDataFunctor<RefSerializationKind::kBackgroundSerialized, DataT,
   }
 };
 
+template <class T>
+bool NeverEverSerialize() {
+  return false;
+}
+
+// This list is to help with the transition of kNeverSerialize types (which are
+// currently still serialized if concurrent inlining is disabled) to actually
+// be never serialized. It should be removed once all types have been migrated
+// here.
+#define NEVER_EVER_SERIALIZE(Type)  \
+  template <>                       \
+  bool NeverEverSerialize<Type>() { \
+    return true;                    \
+  }
+
+NEVER_EVER_SERIALIZE(RegExpBoilerplateDescription)
+
+#undef NEVER_EVER_SERIALIZE
+
 template <class DataT, class ObjectT>
 struct CreateDataFunctor<RefSerializationKind::kNeverSerialized, DataT,
                          ObjectT> {
@@ -2761,7 +2752,7 @@ struct CreateDataFunctor<RefSerializationKind::kNeverSerialized, DataT,
     // TODO(solanes, v8:10866): Remove the `(mode() == kSerializing)` case
     // below when all classes skip serialization. Same for similar spots if we
     // end up keeping them.
-    if (broker->is_concurrent_inlining()) {
+    if (broker->is_concurrent_inlining() || NeverEverSerialize<ObjectT>()) {
       RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
       *object_data_out = broker->zone()->New<ObjectData>(
           broker, &entry->value, object, kNeverSerializedHeapObject);
@@ -3360,9 +3351,17 @@ BIMODAL_ACCESSOR_C(ObjectBoilerplateDescription, int, size)
 BIMODAL_ACCESSOR(PropertyCell, Object, value)
 BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 
-BIMODAL_ACCESSOR(RegExpBoilerplateDescription, FixedArray, data)
-BIMODAL_ACCESSOR(RegExpBoilerplateDescription, String, source)
-BIMODAL_ACCESSOR_C(RegExpBoilerplateDescription, int, flags)
+FixedArrayRef RegExpBoilerplateDescriptionRef::data() const {
+  // Immutable after initialization.
+  return MakeRefAssumeMemoryFence(broker(), object()->data());
+}
+
+StringRef RegExpBoilerplateDescriptionRef::source() const {
+  // Immutable after initialization.
+  return MakeRefAssumeMemoryFence(broker(), object()->source());
+}
+
+int RegExpBoilerplateDescriptionRef::flags() const { return object()->flags(); }
 
 base::Optional<CallHandlerInfoRef> FunctionTemplateInfoRef::call_code() const {
   if (data_->should_access_heap()) {
@@ -4211,9 +4210,11 @@ bool NameRef::IsUniqueName() const {
 }
 
 void RegExpBoilerplateDescriptionRef::Serialize() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  HeapObjectRef::data()->AsRegExpBoilerplateDescription()->Serialize(broker());
+  // TODO(jgruber,v8:7790): Remove once member types are also never serialized.
+  // Until then, we have to call these functions once on the main thread to
+  // trigger serialization.
+  data();
+  source();
 }
 
 Handle<Object> ObjectRef::object() const {
