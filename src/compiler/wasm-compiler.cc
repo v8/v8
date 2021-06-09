@@ -6848,7 +6848,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       return false;
     }
 
-    // The callable is passed as the last parameter, after Wasm arguments.
+    // The Wasm-to-JS wrapper gets passed a pair of (instance, JS callable) in
+    // parameter kWasmInstanceParameterIndex, instead of just the instance, like
+    // most wasm functions. In {CodeGenerator::AssembleConstructFrame}, the pair
+    // expanded into kWasmInstanceRegister and kJSFunctionRegister. The TF call
+    // descriptor for import wrappers is then adapted to contain an additional
+    // parameter mapped to kJSFunctionRegister (in {GetWasmCallDescriptor}).
     Node* callable_node = Param(wasm_count + 1);
 
     Node* undefined_node = UndefinedValue();
