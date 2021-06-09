@@ -59,11 +59,22 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
   }
   Detachedness GetDetachedness() final { return detachedness_; }
 
+  // Edge names are passed to V8 but are required to be held alive from the
+  // embedder until the snapshot is compiled.
+  const char* InternalizeEdgeName(std::string edge_name) {
+    const size_t edge_name_len = edge_name.length();
+    char* raw_edge_name_str = new char[edge_name_len + 1];
+    snprintf(raw_edge_name_str, edge_name_len + 1, "%s", edge_name.c_str());
+    named_edges_.emplace_back(raw_edge_name_str);
+    return named_edges_.back().get();
+  }
+
  private:
   const char* name_;
   size_t size_;
   Node* wrapper_node_ = nullptr;
   Detachedness detachedness_ = Detachedness::kUnknown;
+  std::vector<std::unique_ptr<const char>> named_edges_;
 };
 
 // Node representing an artificial root group, e.g., set of Persistent handles.
@@ -235,24 +246,37 @@ class State final : public StateBase {
       }
     }
   }
+
+  void MarkAsEphemeronContainer() { is_ephemeron_container_ = true; }
+  bool IsEphemeronContainer() const { return is_ephemeron_container_; }
+
+  void AddEphemeronEdge(const HeapObjectHeader& value) {
+    // This ignores duplicate entries (in different containers) for the same
+    // Key->Value pairs. Only one edge will be emitted in this case.
+    ephemeron_edges_.insert(&value);
+  }
+
+  template <typename Callback>
+  void ForAllEphemeronEdges(Callback callback) {
+    for (const HeapObjectHeader* value : ephemeron_edges_) {
+      callback(*value);
+    }
+  }
+
+ private:
+  bool is_ephemeron_container_ = false;
+  // Values that are values that are held alive through ephemerons by this
+  // particular key.
+  std::unordered_set<const HeapObjectHeader*> ephemeron_edges_;
 };
 
-// Root states are similar to regular states with the difference that they can
-// have named edges (source location of the root) that aid debugging.
+// Root states are similar to regular states with the difference that they are
+// always visible.
 class RootState final : public StateBase {
  public:
   RootState(EmbedderRootNode* node, size_t state_count)
       // Root states are always visited, visible, and have a node attached.
       : StateBase(node, state_count, Visibility::kVisible, node, true) {}
-
-  void AddNamedEdge(std::unique_ptr<const char> edge_name) {
-    named_edges_.push_back(std::move(edge_name));
-  }
-
- private:
-  // Edge names are passed to V8 but are required to be held alive from the
-  // embedder until the snapshot is compiled.
-  std::vector<std::unique_ptr<const char>> named_edges_;
 };
 
 // Abstraction for storing states. Storage allows for creation and lookup of
@@ -370,6 +394,9 @@ class CppGraphBuilderImpl final {
 
   void VisitForVisibility(State* parent, const HeapObjectHeader&);
   void VisitForVisibility(State& parent, const TracedReferenceBase&);
+  void VisitEphemeronForVisibility(const HeapObjectHeader& key,
+                                   const HeapObjectHeader& value);
+  void VisitEphemeronContainerForVisibility(const HeapObjectHeader&);
   void VisitRootForGraphBuilding(RootState&, const HeapObjectHeader&,
                                  const cppgc::SourceLocation&);
   void ProcessPendingObjects();
@@ -385,7 +412,8 @@ class CppGraphBuilderImpl final {
             new EmbedderNode(header.GetName().value, header.AllocatedSize())}));
   }
 
-  void AddEdge(State& parent, const HeapObjectHeader& header) {
+  void AddEdge(State& parent, const HeapObjectHeader& header,
+               const std::string& edge_name = {}) {
     DCHECK(parent.IsVisibleNotDependent());
     auto& current = states_.GetExistingState(header);
     if (!current.IsVisibleNotDependent()) return;
@@ -398,7 +426,13 @@ class CppGraphBuilderImpl final {
     if (!current.get_node()) {
       current.set_node(AddNode(header));
     }
-    graph_.AddEdge(parent.get_node(), current.get_node());
+
+    if (!edge_name.empty()) {
+      graph_.AddEdge(parent.get_node(), current.get_node(),
+                     parent.get_node()->InternalizeEdgeName(edge_name));
+    } else {
+      graph_.AddEdge(parent.get_node(), current.get_node());
+    }
   }
 
   void AddEdge(State& parent, const TracedReferenceBase& ref) {
@@ -442,15 +476,8 @@ class CppGraphBuilderImpl final {
     }
 
     if (!edge_name.empty()) {
-      // V8's API is based on raw C strings. Allocate and temporarily keep the
-      // edge name alive from the corresponding node.
-      const size_t len = edge_name.length();
-      char* raw_location_string = new char[len + 1];
-      strncpy(raw_location_string, edge_name.c_str(), len);
-      raw_location_string[len] = 0;
-      std::unique_ptr<const char> holder(raw_location_string);
-      graph_.AddEdge(root.get_node(), child.get_node(), holder.get());
-      root.AddNamedEdge(std::move(holder));
+      graph_.AddEdge(root.get_node(), child.get_node(),
+                     root.get_node()->InternalizeEdgeName(edge_name));
       return;
     }
     graph_.AddEdge(root.get_node(), child.get_node());
@@ -527,10 +554,28 @@ class VisiblityVisitor final : public JSVisitor {
       return;
     }
     // Heap snapshot is always run after a GC so we know there are no dead
-    // entries in the backing store, thus it safe to trace it strongly.
+    // entries in the container.
     if (object) {
-      Visit(object, strong_desc);
+      // The container will itself be traced strongly via the regular Visit()
+      // handling that iterates over all live objects. The visibility visitor
+      // will thus see (because of strongly treating the container):
+      // 1. the container itself;
+      // 2. for each {key} in container: container->key;
+      // 3. for each {key, value} in container: key->value;
+      //
+      // Mark the container here as ephemeron container to exclude the edges of
+      // case 2. in the second pass (that adds edges) as the key must be held
+      // alive from somewhere else. (Could be some other object, or case 3. if
+      // there's is a chain of ephemerons.)
+      graph_builder_.VisitEphemeronContainerForVisibility(
+          HeapObjectHeader::FromObject(strong_desc.base_object_payload));
     }
+  }
+  void VisitEphemeron(const void* key, const void* value,
+                      cppgc::TraceDescriptor value_desc) final {
+    // For ephemerons, the key retains the value.
+    graph_builder_.VisitEphemeronForVisibility(
+        HeapObjectHeader::FromObject(key), HeapObjectHeader::FromObject(value));
   }
 
   // JS handling.
@@ -662,6 +707,18 @@ void CppGraphBuilderImpl::VisitForVisibility(State* parent,
   }
 }
 
+void CppGraphBuilderImpl::VisitEphemeronForVisibility(
+    const HeapObjectHeader& key, const HeapObjectHeader& value) {
+  auto& key_state = states_.GetOrCreateState(key);
+  VisitForVisibility(&key_state, value);
+  key_state.AddEphemeronEdge(value);
+}
+
+void CppGraphBuilderImpl::VisitEphemeronContainerForVisibility(
+    const HeapObjectHeader& container_header) {
+  states_.GetOrCreateState(container_header).MarkAsEphemeronContainer();
+}
+
 void CppGraphBuilderImpl::VisitForVisibility(State& parent,
                                              const TracedReferenceBase& ref) {
   v8::Local<v8::Value> v8_value = ref.Get(cpp_heap_.isolate());
@@ -688,11 +745,21 @@ void CppGraphBuilderImpl::Run() {
   LiveObjectsForVisibilityIterator visitor(*this);
   visitor.Traverse(cpp_heap_.raw_heap());
   // Second pass: Add graph nodes for objects that must be shown.
-  states_.ForAllVisibleStates([this](StateBase* state) {
-    ParentScope parent_scope(*state);
-    GraphBuildingVisitor object_visitor(*this, parent_scope);
+  states_.ForAllVisibleStates([this](StateBase* state_base) {
     // No roots have been created so far, so all StateBase objects are State.
-    static_cast<State*>(state)->header()->Trace(&object_visitor);
+    State& state = *static_cast<State*>(state_base);
+
+    // Emit no edges for the contents of the ephemeron containers. Since
+    // snapshot generation runs after GCs, the keys should be alive from
+    // somewhere else, and values are retained by their keys.
+    if (state.IsEphemeronContainer()) return;
+
+    ParentScope parent_scope(state);
+    GraphBuildingVisitor object_visitor(*this, parent_scope);
+    state.header()->Trace(&object_visitor);
+    state.ForAllEphemeronEdges([this, &state](const HeapObjectHeader& value) {
+      AddEdge(state, value, "part of key -> value pair in ephemeron table");
+    });
   });
   // Add roots.
   {
