@@ -186,7 +186,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
 
   // Copy the elements into the backing store of the array buffer.
   if (byte_length > 0) {
-    base::Memcpy(backing_store->buffer_start(), self->DataPtr(), byte_length);
+    memcpy(backing_store->buffer_start(), self->DataPtr(), byte_length);
   }
 
   // Attach the backing store to the array buffer.

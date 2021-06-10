@@ -445,7 +445,7 @@ struct ImmF32Immediate {
     // returns a float would potentially flip NaN bits per C++ semantics, so we
     // have to inline the memcpy call directly.
     uint32_t tmp = decoder->read_u32<validate>(pc, "immf32");
-    base::Memcpy(&value, &tmp, sizeof(value));
+    memcpy(&value, &tmp, sizeof(value));
   }
 };
 
@@ -456,7 +456,7 @@ struct ImmF64Immediate {
   inline ImmF64Immediate(Decoder* decoder, const byte* pc) {
     // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
     uint64_t tmp = decoder->read_u64<validate>(pc, "immf64");
-    base::Memcpy(&value, &tmp, sizeof(value));
+    memcpy(&value, &tmp, sizeof(value));
   }
 };
 

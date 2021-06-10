@@ -334,7 +334,7 @@ void ValueSerializer::WriteBigIntContents(BigInt bigint) {
 void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
   uint8_t* dest;
   if (ReserveRawBytes(length).To(&dest) && length > 0) {
-    base::Memcpy(dest, source, length);
+    memcpy(dest, source, length);
   }
 }
 
@@ -1226,7 +1226,7 @@ Maybe<double> ValueDeserializer::ReadDouble() {
   if (sizeof(double) > static_cast<unsigned>(end_ - position_))
     return Nothing<double>();
   double value;
-  base::Memcpy(&value, position_, sizeof(double));
+  memcpy(&value, position_, sizeof(double));
   position_ += sizeof(double);
   if (std::isnan(value)) value = std::numeric_limits<double>::quiet_NaN();
   return Just(value);
@@ -1465,7 +1465,7 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
   DisallowGarbageCollection no_gc;
-  base::Memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
+  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.length());
   return string;
 }
 
@@ -1826,7 +1826,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
   if (!result.ToHandle(&array_buffer)) return result;
 
   if (byte_length > 0) {
-    base::Memcpy(array_buffer->backing_store(), position_, byte_length);
+    memcpy(array_buffer->backing_store(), position_, byte_length);
   }
   position_ += byte_length;
   AddObjectWithID(id, array_buffer);

@@ -2034,7 +2034,7 @@ void Assembler::Nop(int n) {
     EnsureSpace ensure_space(this);
     int nop_bytes = std::min(n, 9);
     const char* sequence = kNopSequences + kNopOffsets[nop_bytes];
-    base::Memcpy(pc_, sequence, nop_bytes);
+    memcpy(pc_, sequence, nop_bytes);
     pc_ += nop_bytes;
     n -= nop_bytes;
   } while (n);

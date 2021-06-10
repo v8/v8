@@ -257,7 +257,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   }
 
   char* buffer = new char[full_filename.length() + 1];
-  base::Memcpy(buffer, full_filename.begin(), full_filename.length());
+  memcpy(buffer, full_filename.begin(), full_filename.length());
   buffer[full_filename.length()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }

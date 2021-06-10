@@ -5375,7 +5375,7 @@ static int WriteUtf8Impl(i::Vector<const Char> string, char* write_start,
       for (int i = read_index; i < up_to; i++) char_mask |= read_start[i];
       if ((char_mask & 0x80) == 0) {
         int copy_length = up_to - read_index;
-        base::Memcpy(current_write, read_start + read_index, copy_length);
+        memcpy(current_write, read_start + read_index, copy_length);
         current_write += copy_length;
         read_index = up_to;
       } else {
@@ -7592,7 +7592,7 @@ void* v8::ArrayBuffer::Allocator::Reallocate(void* data, size_t old_length,
       reinterpret_cast<uint8_t*>(AllocateUninitialized(new_length));
   if (new_data == nullptr) return nullptr;
   size_t bytes_to_copy = std::min(old_length, new_length);
-  base::Memcpy(new_data, data, bytes_to_copy);
+  memcpy(new_data, data, bytes_to_copy);
   if (new_length > bytes_to_copy) {
     memset(new_data + bytes_to_copy, 0, new_length - bytes_to_copy);
   }
@@ -7726,7 +7726,7 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
                                              isolate);
       source = reinterpret_cast<char*>(typed_array->DataPtr());
     }
-    base::Memcpy(dest, source + byte_offset, bytes_to_copy);
+    memcpy(dest, source + byte_offset, bytes_to_copy);
   }
   return bytes_to_copy;
 }

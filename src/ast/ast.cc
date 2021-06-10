@@ -259,7 +259,7 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     }
   }
   std::unique_ptr<char[]> result(new char[result_vec.size() + 1]);
-  base::Memcpy(result.get(), result_vec.data(), result_vec.size());
+  memcpy(result.get(), result_vec.data(), result_vec.size());
   result[result_vec.size()] = '\0';
   return result;
 }

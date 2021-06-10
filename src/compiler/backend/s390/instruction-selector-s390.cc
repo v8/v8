@@ -2763,7 +2763,7 @@ static int32_t Pack4Lanes(const uint8_t* shuffle) {
 void InstructionSelector::VisitS128Const(Node* node) {
   S390OperandGenerator g(this);
   uint32_t val[kSimd128Size / sizeof(uint32_t)];
-  base::Memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
   // If all bytes are zeros, avoid emitting code for generic constants.
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
   bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&

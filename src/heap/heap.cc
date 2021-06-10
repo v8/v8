@@ -4926,12 +4926,12 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
 void Heap::AddToRingBuffer(const char* string) {
   size_t first_part =
       std::min(strlen(string), kTraceRingBufferSize - ring_buffer_end_);
-  base::Memcpy(trace_ring_buffer_ + ring_buffer_end_, string, first_part);
+  memcpy(trace_ring_buffer_ + ring_buffer_end_, string, first_part);
   ring_buffer_end_ += first_part;
   if (first_part < strlen(string)) {
     ring_buffer_full_ = true;
     size_t second_part = strlen(string) - first_part;
-    base::Memcpy(trace_ring_buffer_, string + first_part, second_part);
+    memcpy(trace_ring_buffer_, string + first_part, second_part);
     ring_buffer_end_ = second_part;
   }
 }
@@ -4940,9 +4940,9 @@ void Heap::GetFromRingBuffer(char* buffer) {
   size_t copied = 0;
   if (ring_buffer_full_) {
     copied = kTraceRingBufferSize - ring_buffer_end_;
-    base::Memcpy(buffer, trace_ring_buffer_ + ring_buffer_end_, copied);
+    memcpy(buffer, trace_ring_buffer_ + ring_buffer_end_, copied);
   }
-  base::Memcpy(buffer + copied, trace_ring_buffer_, ring_buffer_end_);
+  memcpy(buffer + copied, trace_ring_buffer_, ring_buffer_end_);
 }
 
 void Heap::ConfigureHeapDefault() {

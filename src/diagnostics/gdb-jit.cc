@@ -629,7 +629,7 @@ class ELF {
 #else
 #error Unsupported target architecture.
 #endif
-    base::Memcpy(header->ident, ident, 16);
+    memcpy(header->ident, ident, 16);
     header->type = 1;
 #if V8_TARGET_ARCH_IA32
     header->machine = 3;

@@ -3926,7 +3926,7 @@ class LiftoffCompiler {
     LiftoffRegister dst = __ GetUnusedRegister(result_rc, {lhs, rhs}, {});
 
     uint8_t shuffle[kSimd128Size];
-    base::Memcpy(shuffle, imm.value, sizeof(shuffle));
+    memcpy(shuffle, imm.value, sizeof(shuffle));
     bool is_swizzle;
     bool needs_swap;
     wasm::SimdShuffle::CanonicalizeShuffle(lhs == rhs, shuffle, &needs_swap,

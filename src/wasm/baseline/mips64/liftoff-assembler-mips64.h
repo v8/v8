@@ -1936,7 +1936,7 @@ void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
                                        const uint8_t imms[16]) {
   MSARegister dst_msa = dst.fp().toW();
   uint64_t vals[2];
-  base::Memcpy(vals, imms, sizeof(vals));
+  memcpy(vals, imms, sizeof(vals));
   li(kScratchReg, vals[0]);
   insert_d(dst_msa, 0, kScratchReg);
   li(kScratchReg, vals[1]);

@@ -4402,8 +4402,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     if (has_effect) ++input_count_with_deps;
     Node** buffer = EnsureInputBufferSize(input_count_with_deps);
     if (value_input_count > 0) {
-      base::Memcpy(buffer, value_inputs,
-                   kSystemPointerSize * value_input_count);
+      memcpy(buffer, value_inputs, kSystemPointerSize * value_input_count);
     }
     Node** current_input = buffer + value_input_count;
     if (has_context) {

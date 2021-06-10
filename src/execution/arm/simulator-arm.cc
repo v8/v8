@@ -673,7 +673,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
                        cache_page->CachedData(offset), kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
-    base::Memcpy(cached_line, line, CachePage::kLineLength);
+    memcpy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -778,14 +778,14 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[2 * sizeof(vfp_registers_[0])];
-  base::Memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
-  base::Memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
   return (dm_val);
 }
 
 void Simulator::set_register_pair_from_double(int reg, double* value) {
   DCHECK((reg >= 0) && (reg < num_registers) && ((reg % 2) == 0));
-  base::Memcpy(registers_ + reg, value, sizeof(*value));
+  memcpy(registers_ + reg, value, sizeof(*value));
 }
 
 void Simulator::set_dw_register(int dreg, const int* dbl) {
@@ -796,22 +796,22 @@ void Simulator::set_dw_register(int dreg, const int* dbl) {
 
 void Simulator::get_d_register(int dreg, uint64_t* value) {
   DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
-  base::Memcpy(value, vfp_registers_ + dreg * 2, sizeof(*value));
+  memcpy(value, vfp_registers_ + dreg * 2, sizeof(*value));
 }
 
 void Simulator::set_d_register(int dreg, const uint64_t* value) {
   DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
-  base::Memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value));
+  memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value));
 }
 
 void Simulator::get_d_register(int dreg, uint32_t* value) {
   DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
-  base::Memcpy(value, vfp_registers_ + dreg * 2, sizeof(*value) * 2);
+  memcpy(value, vfp_registers_ + dreg * 2, sizeof(*value) * 2);
 }
 
 void Simulator::set_d_register(int dreg, const uint32_t* value) {
   DCHECK((dreg >= 0) && (dreg < DwVfpRegister::SupportedRegisterCount()));
-  base::Memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value) * 2);
+  memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value) * 2);
 }
 
 template <typename T, int SIZE>
@@ -819,7 +819,7 @@ void Simulator::get_neon_register(int reg, T (&value)[SIZE / sizeof(T)]) {
   DCHECK(SIZE == kSimd128Size || SIZE == kDoubleSize);
   DCHECK_LE(0, reg);
   DCHECK_GT(SIZE == kSimd128Size ? num_q_registers : num_d_registers, reg);
-  base::Memcpy(value, vfp_registers_ + reg * (SIZE / 4), SIZE);
+  memcpy(value, vfp_registers_ + reg * (SIZE / 4), SIZE);
 }
 
 template <typename T, int SIZE>
@@ -827,7 +827,7 @@ void Simulator::set_neon_register(int reg, const T (&value)[SIZE / sizeof(T)]) {
   DCHECK(SIZE == kSimd128Size || SIZE == kDoubleSize);
   DCHECK_LE(0, reg);
   DCHECK_GT(SIZE == kSimd128Size ? num_q_registers : num_d_registers, reg);
-  base::Memcpy(vfp_registers_ + reg * (SIZE / 4), value, SIZE);
+  memcpy(vfp_registers_ + reg * (SIZE / 4), value, SIZE);
 }
 
 // Raw access to the PC register.
@@ -863,7 +863,7 @@ void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
   if (register_size == 2)
     DCHECK(reg_index < DwVfpRegister::SupportedRegisterCount());
 
-  base::Memcpy(&vfp_registers_[reg_index * register_size], &value, bytes);
+  memcpy(&vfp_registers_[reg_index * register_size], &value, bytes);
 }
 
 template <class ReturnType, int register_size>
@@ -876,7 +876,7 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
     DCHECK(reg_index < DwVfpRegister::SupportedRegisterCount());
 
   ReturnType value;
-  base::Memcpy(&value, &vfp_registers_[register_size * reg_index], bytes);
+  memcpy(&value, &vfp_registers_[register_size * reg_index], bytes);
   return value;
 }
 
@@ -930,14 +930,14 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
 void Simulator::SetFpResult(const double& result) {
   if (use_eabi_hardfloat()) {
     char buffer[2 * sizeof(vfp_registers_[0])];
-    base::Memcpy(buffer, &result, sizeof(buffer));
+    memcpy(buffer, &result, sizeof(buffer));
     // Copy result to d0.
-    base::Memcpy(vfp_registers_, buffer, sizeof(buffer));
+    memcpy(vfp_registers_, buffer, sizeof(buffer));
   } else {
     char buffer[2 * sizeof(registers_[0])];
-    base::Memcpy(buffer, &result, sizeof(buffer));
+    memcpy(buffer, &result, sizeof(buffer));
     // Copy result to r0 and r1.
-    base::Memcpy(registers_, buffer, sizeof(buffer));
+    memcpy(registers_, buffer, sizeof(buffer));
   }
 }
 
@@ -3457,7 +3457,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         // NeonS32 / NeonU32
         DCHECK_EQ(0, instr->Bit(23));
         int32_t int_data[2];
-        base::Memcpy(int_data, &data, sizeof(int_data));
+        memcpy(int_data, &data, sizeof(int_data));
         set_register(rt, int_data[instr->Bit(21)]);
       } else {
         uint64_t data;
@@ -4098,7 +4098,7 @@ void VmovImmediate(Simulator* simulator, Instruction* instr) {
       // Set all bytes of register.
       std::fill_n(imms, kSimd128Size, imm);
       uint64_t imm64;
-      base::Memcpy(&imm64, imms, 8);
+      memcpy(&imm64, imms, 8);
       for (int r = 0; r < regs; r++) {
         simulator->set_d_register(vd + r, &imm64);
       }
@@ -4314,9 +4314,9 @@ void MultiplyLong(Simulator* simulator, int Vd, int Vn, int Vm) {
   // underlying datatype easily.
   uint64_t tmp;
   simulator->get_d_register(Vn, &tmp);
-  base::Memcpy(src1, &tmp, sizeof(tmp));
+  memcpy(src1, &tmp, sizeof(tmp));
   simulator->get_d_register(Vm, &tmp);
-  base::Memcpy(src2, &tmp, sizeof(tmp));
+  memcpy(src2, &tmp, sizeof(tmp));
 
   for (int i = 0; i < kElems; i++) {
     dst[i] = WideType{src1[i]} * WideType{src2[i]};
@@ -6279,9 +6279,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
-  base::Memcpy(reinterpret_cast<intptr_t*>(entry_stack),
-               arguments + reg_arg_count,
-               (argument_count - reg_arg_count) * sizeof(*arguments));
+  memcpy(reinterpret_cast<intptr_t*>(entry_stack), arguments + reg_arg_count,
+         (argument_count - reg_arg_count) * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);

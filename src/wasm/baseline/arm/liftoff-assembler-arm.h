@@ -3831,7 +3831,7 @@ void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
                                        const uint8_t imms[16]) {
   uint64_t vals[2];
-  base::Memcpy(vals, imms, sizeof(vals));
+  memcpy(vals, imms, sizeof(vals));
   vmov(dst.low_fp(), Double(vals[0]));
   vmov(dst.high_fp(), Double(vals[1]));
 }

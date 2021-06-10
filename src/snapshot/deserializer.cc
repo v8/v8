@@ -192,7 +192,7 @@ class SlotAccessorForHandle {
 template <typename TSlot>
 int Deserializer::WriteAddress(TSlot dest, Address value) {
   DCHECK(!next_reference_is_weak_);
-  base::Memcpy(dest.ToVoidPtr(), &value, kSystemPointerSize);
+  memcpy(dest.ToVoidPtr(), &value, kSystemPointerSize);
   STATIC_ASSERT(IsAligned(kSystemPointerSize, TSlot::kSlotDataSize));
   return (kSystemPointerSize / TSlot::kSlotDataSize);
 }

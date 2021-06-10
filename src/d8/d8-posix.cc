@@ -318,7 +318,7 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
               .ToLocalChecked();
       accumulator = String::Concat(isolate, accumulator, addition);
       fullness = bytes_read + fullness - length;
-      base::Memcpy(buffer, buffer + length, fullness);
+      memcpy(buffer, buffer + length, fullness);
     }
   } while (bytes_read != 0);
   return accumulator;

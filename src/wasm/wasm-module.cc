@@ -547,9 +547,9 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
       thrower->RangeError("out of memory allocating custom section data");
       return Handle<JSArray>();
     }
-    base::Memcpy(array_buffer->backing_store(),
-                 wire_bytes.begin() + section.payload.offset(),
-                 section.payload.length());
+    memcpy(array_buffer->backing_store(),
+           wire_bytes.begin() + section.payload.offset(),
+           section.payload.length());
 
     matching_sections.push_back(array_buffer);
   }

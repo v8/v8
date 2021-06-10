@@ -33,10 +33,6 @@ inline void Free(void* memory) { return free(memory); }
 
 inline void* Calloc(size_t count, size_t size) { return calloc(count, size); }
 
-inline void* Memcpy(void* dest, const void* source, size_t count) {
-  return memcpy(dest, source, count);
-}
-
 inline FILE* Fopen(const char* filename, const char* mode) {
   return fopen(filename, mode);
 }
@@ -55,10 +51,6 @@ inline void Free(void* memory) { return SbMemoryDeallocate(memory); }
 
 inline void* Calloc(size_t count, size_t size) {
   return SbMemoryCalloc(count, size);
-}
-
-inline void* Memcpy(void* dest, const void* source, size_t count) {
-  return SbMemoryCopy(dest, source, count);
 }
 
 inline FILE* Fopen(const char* filename, const char* mode) { return NULL; }

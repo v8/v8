@@ -2851,7 +2851,7 @@ void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
                                        const uint8_t imms[16]) {
   uint64_t vals[2];
-  base::Memcpy(vals, imms, sizeof(vals));
+  memcpy(vals, imms, sizeof(vals));
   TurboAssembler::Move(dst.fp(), vals[0]);
   movq(kScratchRegister, vals[1]);
   Pinsrq(dst.fp(), kScratchRegister, uint8_t{1});

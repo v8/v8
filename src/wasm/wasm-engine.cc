@@ -631,7 +631,7 @@ void WasmEngine::AsyncCompile(
     if (is_shared) {
       // Make a copy of the wire bytes to avoid concurrent modification.
       std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
-      base::Memcpy(copy.get(), bytes.start(), bytes.length());
+      memcpy(copy.get(), bytes.start(), bytes.length());
       ModuleWireBytes bytes_copy(copy.get(), copy.get() + bytes.length());
       module_object = SyncCompile(isolate, enabled, &thrower, bytes_copy);
     } else {
@@ -659,7 +659,7 @@ void WasmEngine::AsyncCompile(
   // Make a copy of the wire bytes in case the user program changes them
   // during asynchronous compilation.
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
-  base::Memcpy(copy.get(), bytes.start(), bytes.length());
+  memcpy(copy.get(), bytes.start(), bytes.length());
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
       isolate, enabled, std::move(copy), bytes.length(),

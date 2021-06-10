@@ -404,7 +404,7 @@ const AstRawString* AstValueFactory::GetString(
         // Copy literal contents for later comparison.
         int length = literal_bytes.length();
         byte* new_literal_bytes = zone()->NewArray<byte>(length);
-        base::Memcpy(new_literal_bytes, literal_bytes.begin(), length);
+        memcpy(new_literal_bytes, literal_bytes.begin(), length);
         AstRawString* new_string = zone()->New<AstRawString>(
             is_one_byte, Vector<const byte>(new_literal_bytes, length),
             raw_hash_field);

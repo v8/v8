@@ -2342,22 +2342,22 @@ struct borrowed_vec {
   }
 
 // Vectors with no ownership management of elements
-#define WASM_DEFINE_VEC_PLAIN(name, Name)                               \
-  WASM_DEFINE_VEC_BASE(name, Name,                                      \
-                       wasm::vec, ) /* NOLINT(whitespace/parens) */     \
-                                                                        \
-  void wasm_##name##_vec_new(wasm_##name##_vec_t* out, size_t size,     \
-                             const wasm_##name##_t data[]) {            \
-    auto v2 = wasm::vec<Name>::make_uninitialized(size);                \
-    if (v2.size() != 0) {                                               \
-      v8::base::Memcpy(v2.get(), data, size * sizeof(wasm_##name##_t)); \
-    }                                                                   \
-    *out = release_##name##_vec(std::move(v2));                         \
-  }                                                                     \
-                                                                        \
-  void wasm_##name##_vec_copy(wasm_##name##_vec_t* out,                 \
-                              wasm_##name##_vec_t* v) {                 \
-    wasm_##name##_vec_new(out, v->size, v->data);                       \
+#define WASM_DEFINE_VEC_PLAIN(name, Name)                           \
+  WASM_DEFINE_VEC_BASE(name, Name,                                  \
+                       wasm::vec, ) /* NOLINT(whitespace/parens) */ \
+                                                                    \
+  void wasm_##name##_vec_new(wasm_##name##_vec_t* out, size_t size, \
+                             const wasm_##name##_t data[]) {        \
+    auto v2 = wasm::vec<Name>::make_uninitialized(size);            \
+    if (v2.size() != 0) {                                           \
+      memcpy(v2.get(), data, size * sizeof(wasm_##name##_t));       \
+    }                                                               \
+    *out = release_##name##_vec(std::move(v2));                     \
+  }                                                                 \
+                                                                    \
+  void wasm_##name##_vec_copy(wasm_##name##_vec_t* out,             \
+                              wasm_##name##_vec_t* v) {             \
+    wasm_##name##_vec_new(out, v->size, v->data);                   \
   }
 
 // Vectors that own their elements

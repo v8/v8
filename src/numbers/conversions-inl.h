@@ -51,7 +51,7 @@ inline unsigned int FastD2UI(double x) {
         reinterpret_cast<void*>(reinterpret_cast<Address>(&x) + kInt32Size);
 #endif
     // Copy least significant 32 bits of mantissa.
-    base::Memcpy(&result, mantissa_ptr, sizeof(result));
+    memcpy(&result, mantissa_ptr, sizeof(result));
     return negative ? ~result + 1 : result;
   }
   // Large number (outside uint32 range), Infinity or NaN.

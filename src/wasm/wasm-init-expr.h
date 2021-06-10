@@ -63,7 +63,7 @@ class WasmInitExpr {
     immediate_.f64_const = v;
   }
   explicit WasmInitExpr(uint8_t v[kSimd128Size]) : kind_(kS128Const) {
-    base::Memcpy(immediate_.s128_const.data(), v, kSimd128Size);
+    memcpy(immediate_.s128_const.data(), v, kSimd128Size);
   }
 
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmInitExpr);

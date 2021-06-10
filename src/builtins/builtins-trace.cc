@@ -42,8 +42,8 @@ class MaybeUtf8 {
         // strings, the bytes we get from SeqOneByteString are not. buf_ is
         // guaranteed to be null terminated.
         DisallowGarbageCollection no_gc;
-        base::Memcpy(
-            buf_, Handle<SeqOneByteString>::cast(string)->GetChars(no_gc), len);
+        memcpy(buf_, Handle<SeqOneByteString>::cast(string)->GetChars(no_gc),
+               len);
       }
     } else {
       Local<v8::String> local = Utils::ToLocal(string);

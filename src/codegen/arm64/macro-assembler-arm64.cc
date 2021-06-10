@@ -393,7 +393,7 @@ void TurboAssembler::Movi32bitHelper(const VRegister& vd, uint64_t imm) {
   DCHECK(is_uint32(imm));
 
   uint8_t bytes[sizeof(imm)];
-  base::Memcpy(bytes, &imm, sizeof(imm));
+  memcpy(bytes, &imm, sizeof(imm));
 
   // All bytes are either 0x00 or 0xFF.
   {
