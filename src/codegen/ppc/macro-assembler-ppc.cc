@@ -2732,113 +2732,51 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
     }                                                            \
   }
 
-void TurboAssembler::LoadU64(Register dst, const MemOperand& mem,
-                             Register scratch) {
-  GenerateMemoryOperationWithAlign(dst, mem, ld, ldx);
-}
+#define MEM_OP_WITH_ALIGN_LIST(V) \
+  V(LoadU64, ld, ldx)             \
+  V(LoadS32, lwa, lwax)           \
+  V(StoreU64, std, stdx)          \
+  V(StoreU64WithUpdate, stdu, stdux)
 
-void TurboAssembler::LoadU64WithUpdate(Register dst, const MemOperand& mem,
-                                       Register scratch) {
-  GenerateMemoryOperation(dst, mem, ldu, ldux);
-}
+#define MEM_OP_WITH_ALIGN_FUNCTION(name, ri_op, rr_op)           \
+  void TurboAssembler::name(Register reg, const MemOperand& mem, \
+                            Register scratch) {                  \
+    GenerateMemoryOperationWithAlign(reg, mem, ri_op, rr_op);    \
+  }
+MEM_OP_WITH_ALIGN_LIST(MEM_OP_WITH_ALIGN_FUNCTION)
+#undef MEM_OP_WITH_ALIGN_LIST
+#undef MEM_OP_WITH_ALIGN_FUNCTION
 
-void TurboAssembler::StoreU64(Register src, const MemOperand& mem,
-                              Register scratch) {
-  GenerateMemoryOperationWithAlign(src, mem, std, stdx);
-}
+#define MEM_OP_LIST(V)                                 \
+  V(LoadU32, Register, lwz, lwzx)                      \
+  V(LoadS16, Register, lha, lhax)                      \
+  V(LoadU16, Register, lhz, lhzx)                      \
+  V(LoadU8, Register, lbz, lbzx)                       \
+  V(StoreU32, Register, stw, stwx)                     \
+  V(StoreU16, Register, sth, sthx)                     \
+  V(StoreU8, Register, stb, stbx)                      \
+  V(LoadF64, DoubleRegister, lfd, lfdx)                \
+  V(LoadF32, DoubleRegister, lfs, lfsx)                \
+  V(StoreF64, DoubleRegister, stfd, stfdx)             \
+  V(StoreF32, DoubleRegister, stfs, stfsx)             \
+  V(LoadU64WithUpdate, Register, ldu, ldux)            \
+  V(LoadF64WithUpdate, DoubleRegister, lfdu, lfdux)    \
+  V(LoadF32WithUpdate, DoubleRegister, lfsu, lfsux)    \
+  V(StoreF64WithUpdate, DoubleRegister, stfdu, stfdux) \
+  V(StoreF32WithUpdate, DoubleRegister, stfsu, stfsux)
 
-void TurboAssembler::StoreU64WithUpdate(Register src, const MemOperand& mem,
-                                        Register scratch) {
-  GenerateMemoryOperationWithAlign(src, mem, stdu, stdux);
-}
+#define MEM_OP_FUNCTION(name, result_t, ri_op, rr_op)            \
+  void TurboAssembler::name(result_t reg, const MemOperand& mem, \
+                            Register scratch) {                  \
+    GenerateMemoryOperation(reg, mem, ri_op, rr_op);             \
+  }
+MEM_OP_LIST(MEM_OP_FUNCTION)
+#undef MEM_OP_LIST
+#undef MEM_OP_FUNCTION
 
-void TurboAssembler::LoadS32(Register dst, const MemOperand& mem,
-                             Register scratch) {
-  GenerateMemoryOperationWithAlign(dst, mem, lwa, lwax);
-}
-
-void TurboAssembler::LoadU32(Register dst, const MemOperand& mem,
-                             Register scratch) {
-  GenerateMemoryOperation(dst, mem, lwz, lwzx);
-}
-
-void TurboAssembler::StoreU32(Register src, const MemOperand& mem,
-                              Register scratch) {
-  GenerateMemoryOperation(src, mem, stw, stwx);
-}
-
-void TurboAssembler::LoadS16(Register dst, const MemOperand& mem,
-                             Register scratch) {
-  GenerateMemoryOperation(dst, mem, lha, lhax);
-}
-
-void TurboAssembler::LoadU16(Register dst, const MemOperand& mem,
-                             Register scratch) {
-  GenerateMemoryOperation(dst, mem, lhz, lhzx);
-}
-
-void TurboAssembler::StoreU16(Register src, const MemOperand& mem,
-                              Register scratch) {
-  GenerateMemoryOperation(src, mem, sth, sthx);
-}
-
-void TurboAssembler::LoadU8(Register dst, const MemOperand& mem,
-                            Register scratch) {
-  GenerateMemoryOperation(dst, mem, lbz, lbzx);
-}
-
-void TurboAssembler::StoreU8(Register src, const MemOperand& mem,
-                             Register scratch) {
-  GenerateMemoryOperation(src, mem, stb, stbx);
-}
-
-void TurboAssembler::LoadF64(DoubleRegister dst, const MemOperand& mem,
-                             Register scratch) {
-  GenerateMemoryOperation(dst, mem, lfd, lfdx);
-}
-
-void TurboAssembler::LoadF32(DoubleRegister dst, const MemOperand& mem,
-                             Register scratch) {
-  GenerateMemoryOperation(dst, mem, lfs, lfsx);
-}
-
-void TurboAssembler::LoadF64WithUpdate(DoubleRegister dst,
-                                       const MemOperand& mem,
-                                       Register scratch) {
-  GenerateMemoryOperation(dst, mem, lfdu, lfdux);
-}
-
-void TurboAssembler::LoadF32WithUpdate(DoubleRegister dst,
-                                       const MemOperand& mem,
-                                       Register scratch) {
-  GenerateMemoryOperation(dst, mem, lfsu, lfsux);
-}
-
-void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem) {
+void TurboAssembler::LoadSimd128(Simd128Register src, const MemOperand& mem) {
   DCHECK(mem.rb().is_valid());
-  lxvx(dst, mem);
-}
-
-void TurboAssembler::StoreF64(DoubleRegister src, const MemOperand& mem,
-                              Register scratch) {
-  GenerateMemoryOperation(src, mem, stfd, stfdx);
-}
-
-void TurboAssembler::StoreF64WithUpdate(DoubleRegister src,
-                                        const MemOperand& mem,
-                                        Register scratch) {
-  GenerateMemoryOperation(src, mem, stfdu, stfdux);
-}
-
-void TurboAssembler::StoreF32(DoubleRegister src, const MemOperand& mem,
-                              Register scratch) {
-  GenerateMemoryOperation(src, mem, stfs, stfsx);
-}
-
-void TurboAssembler::StoreF32WithUpdate(DoubleRegister src,
-                                        const MemOperand& mem,
-                                        Register scratch) {
-  GenerateMemoryOperation(src, mem, stfsu, stfsux);
+  lxvx(src, mem);
 }
 
 void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
