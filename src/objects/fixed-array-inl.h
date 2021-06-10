@@ -534,6 +534,10 @@ void ArrayList::Set(int index, Object obj, WriteBarrierMode mode) {
   FixedArray::cast(*this).set(kFirstIndex + index, obj, mode);
 }
 
+void ArrayList::Set(int index, Smi value) {
+  DCHECK(Object(value).IsSmi());
+  Set(index, value, SKIP_WRITE_BARRIER);
+}
 void ArrayList::Clear(int index, Object undefined) {
   DCHECK(undefined.IsUndefined());
   FixedArray::cast(*this).set(kFirstIndex + index, undefined,

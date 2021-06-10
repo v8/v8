@@ -4018,8 +4018,12 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
   array = EnsureSpace(isolate, array, length + 1);
   // Check that GC didn't remove elements from the array.
   DCHECK_EQ(array->Length(), length);
-  array->Set(length, *obj);
-  array->SetLength(length + 1);
+  {
+    DisallowGarbageCollection no_gc;
+    ArrayList raw_array = *array;
+    raw_array.Set(length, *obj);
+    raw_array.SetLength(length + 1);
+  }
   return array;
 }
 
@@ -4030,9 +4034,30 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
   array = EnsureSpace(isolate, array, length + 2);
   // Check that GC didn't remove elements from the array.
   DCHECK_EQ(array->Length(), length);
-  array->Set(length, *obj1);
-  array->Set(length + 1, *obj2);
-  array->SetLength(length + 2);
+  {
+    DisallowGarbageCollection no_gc;
+    ArrayList raw_array = *array;
+    raw_array.Set(length, *obj1);
+    raw_array.Set(length + 1, *obj2);
+    raw_array.SetLength(length + 2);
+  }
+  return array;
+}
+
+Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
+                                 Handle<Object> obj1, Smi obj2, Smi obj3) {
+  int length = array->Length();
+  array = EnsureSpace(isolate, array, length + 3);
+  // Check that GC didn't remove elements from the array.
+  DCHECK_EQ(array->Length(), length);
+  {
+    DisallowGarbageCollection no_gc;
+    ArrayList raw_array = *array;
+    raw_array.Set(length, *obj1);
+    raw_array.Set(length + 1, obj2);
+    raw_array.Set(length + 2, obj3);
+    raw_array.SetLength(length + 3);
+  }
   return array;
 }
 

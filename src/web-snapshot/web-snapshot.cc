@@ -378,6 +378,7 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context,
 
 void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object,
                                             uint32_t& id) {
+  // TODO(v8:11525): Serialize the leaf objects first.
   DCHECK(!object->IsJSFunction());
   if (InsertIntoIndexMap(object_ids_, object, id)) {
     return;
@@ -539,6 +540,7 @@ bool WebSnapshotDeserializer::UseWebSnapshot(const uint8_t* data,
   }
 
   deserializer_.reset(new ValueDeserializer(isolate_, data, buffer_size));
+  deferred_references_ = ArrayList::New(isolate_, 30);
   DeserializeStrings();
   DeserializeMaps();
   DeserializeContexts();
@@ -642,6 +644,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
     Handle<Map> map = isolate_->factory()->NewMap(
         JS_OBJECT_TYPE, JSObject::kHeaderSize * kTaggedSize, HOLEY_ELEMENTS, 0);
     map->InitializeDescriptors(isolate_, *descriptors);
+    // TODO(v8:11525): Set 'constructor'.
 
     maps_->set(i, *map);
   }
@@ -710,7 +713,8 @@ void WebSnapshotDeserializer::DeserializeContexts() {
 
       Handle<Object> value;
       Representation representation;
-      ReadValue(value, representation);
+      ReadValue(value, representation, context,
+                scope_info->ContextHeaderLength() + variable_index);
       context->set(scope_info->ContextHeaderLength() + variable_index, *value);
     }
   }
@@ -861,7 +865,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
   }
   STATIC_ASSERT(kMaxItemCount <= FixedArray::kMaxLength);
   objects_ = isolate_->factory()->NewFixedArray(object_count_);
-  for (size_t object_ix = 0; object_ix < object_count_; ++object_ix) {
+  for (; current_object_count_ < object_count_; ++current_object_count_) {
     uint32_t map_id;
     if (!deserializer_->ReadUint32(&map_id) || map_id >= map_count_) {
       Throw("Web snapshot: Malformed object");
@@ -871,12 +875,13 @@ void WebSnapshotDeserializer::DeserializeObjects() {
     Handle<DescriptorArray> descriptors =
         handle(map->instance_descriptors(kRelaxedLoad), isolate_);
     int no_properties = map->NumberOfOwnDescriptors();
+    // TODO(v8:11525): In-object properties.
     Handle<PropertyArray> property_array =
         isolate_->factory()->NewPropertyArray(no_properties);
     for (int i = 0; i < no_properties; ++i) {
       Handle<Object> value;
       Representation wanted_representation = Representation::None();
-      ReadValue(value, wanted_representation);
+      ReadValue(value, wanted_representation, property_array, i);
       // Read the representation from the map.
       PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
       CHECK_EQ(details.location(), kField);
@@ -894,8 +899,9 @@ void WebSnapshotDeserializer::DeserializeObjects() {
     }
     Handle<JSObject> object = isolate_->factory()->NewJSObjectFromMap(map);
     object->set_raw_properties_or_hash(*property_array);
-    objects_->set(static_cast<int>(object_ix), *object);
+    objects_->set(static_cast<int>(current_object_count_), *object);
   }
+  ProcessDeferredReferences();
 }
 
 void WebSnapshotDeserializer::DeserializeExports() {
@@ -909,6 +915,8 @@ void WebSnapshotDeserializer::DeserializeExports() {
     Handle<String> export_name = ReadString(true);
     Handle<Object> export_value;
     Representation representation;
+    // No deferred references should occur at this point, since all objects have
+    // been deserialized.
     ReadValue(export_value, representation);
 
     // Check for the correctness of the snapshot (thus far) before producing
@@ -928,8 +936,10 @@ void WebSnapshotDeserializer::DeserializeExports() {
   }
 }
 
-void WebSnapshotDeserializer::ReadValue(Handle<Object>& value,
-                                        Representation& representation) {
+void WebSnapshotDeserializer::ReadValue(
+    Handle<Object>& value, Representation& representation,
+    Handle<Object> object_for_deferred_reference,
+    uint32_t index_for_deferred_reference) {
   uint32_t value_type;
   // TODO(v8:11525): Consider adding a ReadByte.
   if (!deserializer_->ReadUint32(&value_type)) {
@@ -984,14 +994,22 @@ void WebSnapshotDeserializer::ReadValue(Handle<Object>& value,
     }
     case ValueType::OBJECT_ID:
       uint32_t object_id;
-      if (!deserializer_->ReadUint32(&object_id) ||
-          object_id >= object_count_) {
-        // TODO(v8:11525): Handle circular references + contexts referencing
-        // objects.
+      if (!deserializer_->ReadUint32(&object_id) || object_id > kMaxItemCount) {
         Throw("Web snapshot: Malformed variable");
         return;
       }
-      value = handle(objects_->get(object_id), isolate_);
+      if (object_id < current_object_count_) {
+        value = handle(objects_->get(object_id), isolate_);
+      } else {
+        // The object hasn't been deserialized yet.
+        value = isolate_->factory()->undefined_value();
+        if (object_for_deferred_reference.is_null()) {
+          Throw("Web snapshot: Invalid object reference");
+          return;
+        }
+        AddDeferredReference(object_for_deferred_reference,
+                             index_for_deferred_reference, object_id);
+      }
       representation = Representation::Tagged();
       break;
     case ValueType::FUNCTION_ID:
@@ -1028,6 +1046,42 @@ void WebSnapshotDeserializer::ReadValue(Handle<Object>& value,
       // TODO(v8:11525): Handle other value types.
       Throw("Web snapshot: Unsupported value type");
       return;
+  }
+}
+
+void WebSnapshotDeserializer::AddDeferredReference(
+    Handle<Object> container, uint32_t index, uint32_t target_object_index) {
+  deferred_references_ =
+      ArrayList::Add(isolate_, deferred_references_, container,
+                     Smi::FromInt(index), Smi::FromInt(target_object_index));
+}
+
+void WebSnapshotDeserializer::ProcessDeferredReferences() {
+  DisallowGarbageCollection no_gc;
+  ArrayList raw_deferred_references = *deferred_references_;
+  FixedArray raw_objects = *objects_;
+  // Deferred references is a list of (object, index, target object index)
+  // tuples.
+  for (int i = 0; i < raw_deferred_references.Length() - 2; i += 3) {
+    Object container = raw_deferred_references.Get(i);
+    int index = raw_deferred_references.Get(i + 1).ToSmi().value();
+    int object_index = raw_deferred_references.Get(i + 2).ToSmi().value();
+    if (static_cast<uint32_t>(object_index) >= object_count_) {
+      // Throw can allocate, but it's ok, since we're not using the raw pointers
+      // after that.
+      AllowGarbageCollection allow_gc;
+
+      Throw("Web Snapshots: Invalid object reference");
+      return;
+    }
+    Object object = raw_objects.get(object_index);
+    if (container.IsPropertyArray()) {
+      PropertyArray::cast(container).set(index, object);
+    } else if (container.IsContext()) {
+      Context::cast(container).set(index, object);
+    } else {
+      UNREACHABLE();
+    }
   }
 }
 

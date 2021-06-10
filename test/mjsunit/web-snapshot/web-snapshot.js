@@ -187,3 +187,39 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   assertTrue(re.test('aBc'));
   assertFalse(re.test('ac'));
 })();
+
+(function TestObjectReferencingObject() {
+  function createObjects() {
+    globalThis.foo = {
+      bar: {baz: 11525}
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(11525, foo.bar.baz);
+})();
+
+(function TestContextReferencingObject() {
+  function createObjects() {
+    function outer() {
+      let o = {value: 11525};
+      function inner() { return o; }
+      return inner;
+    }
+    globalThis.foo = {
+      func: outer()
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(11525, foo.func().value);
+})();
+
+(function TestCircularObjectReference() {
+  function createObjects() {
+    globalThis.foo = {
+      bar: {}
+    };
+    globalThis.foo.bar.circular = globalThis.foo;
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertSame(foo, foo.bar.circular);
+})();

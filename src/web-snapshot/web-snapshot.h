@@ -176,8 +176,14 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeFunctions();
   void DeserializeObjects();
   void DeserializeExports();
-  void ReadValue(Handle<Object>& value, Representation& representation);
+  void ReadValue(
+      Handle<Object>& value, Representation& representation,
+      Handle<Object> object_for_deferred_reference = Handle<Object>(),
+      uint32_t index_for_deferred_reference = 0);
 
+  void AddDeferredReference(Handle<Object> container, uint32_t index,
+                            uint32_t target_object_index);
+  void ProcessDeferredReferences();
   // Not virtual, on purpose (because it doesn't need to be).
   void Throw(const char* message);
 
@@ -186,12 +192,14 @@ class V8_EXPORT WebSnapshotDeserializer
   Handle<FixedArray> contexts_;
   Handle<FixedArray> functions_;
   Handle<FixedArray> objects_;
+  Handle<ArrayList> deferred_references_;
 
   uint32_t string_count_ = 0;
   uint32_t map_count_ = 0;
   uint32_t context_count_ = 0;
   uint32_t function_count_ = 0;
   uint32_t object_count_ = 0;
+  uint32_t current_object_count_ = 0;
 
   std::unique_ptr<ValueDeserializer> deserializer_;
 
