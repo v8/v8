@@ -11,17 +11,17 @@ import {TimelineTrackBase} from './timeline-track-base.mjs'
 
 class Flame {
   constructor(time, entry, depth, id) {
-    this.start = time;
-    this.end = this.start;
+    this.time = time;
     this.entry = entry;
     this.depth = depth;
     this.id = id;
   }
   stop(time) {
-    this.end = time;
-    this.duration = time - this.start
+    this.duration = time - this.time
   }
 }
+
+const kFlameHeight = 10;
 
 DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
                         (templateText) =>
@@ -31,6 +31,8 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
 
   constructor() {
     super(templateText);
+    this._annotations = new Annotations(this);
+    this.timelineNode.style.overflowY = 'scroll';
   }
 
   _updateChunks() {
@@ -62,9 +64,11 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
     const tmpFlames = [];
     const stack = [];
     const ticks = this._timeline.values;
+    let maxDepth = 0;
 
     for (let tickIndex = 0; tickIndex < ticks.length; tickIndex++) {
       const tick = ticks[tickIndex];
+      maxDepth = Math.max(maxDepth, tick.stack.length);
       for (let stackIndex = 0; stackIndex < tick.stack.length; stackIndex++) {
         const entry = tick.stack[stackIndex];
         if (stack.length <= stackIndex) {
@@ -91,6 +95,10 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
       stack[stackIndex].stop(lastTime);
     }
     this._flames = new Timeline(Flame, tmpFlames);
+    this._annotations.flames = this._flames;
+    // Account for empty top line
+    maxDepth++;
+    this._adjustHeight(maxDepth * kFlameHeight);
   }
 
   _scaleContent(currentWidth) {
@@ -123,19 +131,23 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
     add();
   }
 
-  drawFlame(flame) {
+  drawFlame(flame, outline = false) {
+    const x = this.timeToPosition(flame.time);
+    const y = (flame.depth + 1) * kFlameHeight;
+    let width = (flame.duration * this._timeToPixel) * 0.9;
+    let height = kFlameHeight - 1;
+
+    if (outline) {
+      return `<rect x=${x} y=${y} width=${width} height=${
+          height} class=flameSelected />`;
+    }
+
     let type = 'native';
     if (flame.entry?.state) {
       type = Profile.getKindFromState(flame.entry.state);
     }
-    const kHeight = 9;
-    const x = this.timeToPosition(flame.start);
-    const y = flame.depth * (kHeight + 1);
-    let width = flame.duration * this._timeToPixel;
-    width -= width * 0.1;
     const color = this._legend.colorForType(type);
-
-    return `<rect x=${x} y=${y} width=${width} height=${kHeight} fill=${
+    return `<rect x=${x} y=${y} width=${width} height=${height} fill=${
         color} data-id=${flame.id} />`;
   }
 
@@ -145,7 +157,7 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
       type = Profile.getKindFromState(flame.entry.state);
     }
     const kHeight = 9;
-    const x = this.timeToPosition(flame.start);
+    const x = this.timeToPosition(flame.time);
     const y = flame.depth * (kHeight + 1);
     let width = flame.duration * this._timeToPixel;
     width -= width * 0.1;
@@ -160,4 +172,69 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
     buffer += `<text x=${x + 1} y=${y - 3} class=txt>${text}</text>`
     return buffer;
   }
+
+  _drawAnnotations(logEntry, time) {
+    if (time === undefined) {
+      time = this.relativePositionToTime(this.timelineNode.scrollLeft);
+    }
+    this._annotations.update(logEntry, time);
+  }
 })
+
+class Annotations {
+  _flames;
+  _logEntry;
+  _buffer;
+
+  constructor(track) {
+    this._track = track;
+  }
+
+  set flames(flames) {
+    this._flames = flames;
+  }
+
+  get _node() {
+    return this._track.timelineAnnotationsNode;
+  }
+
+  async update(logEntry, time) {
+    if (this._logEntry == logEntry) return;
+    this._logEntry = logEntry;
+    this._node.innerHTML = '';
+    if (logEntry === undefined) return;
+    this._buffer = '';
+    const start = this._flames.find(time);
+    let offset = 0;
+    // Draw annotations gradually outwards starting form the given time.
+    for (let range = 0; range < this._flames.length; range += 10000) {
+      this._markFlames(start - range, start - offset);
+      this._markFlames(start + offset, start + range);
+      offset = range;
+      await delay(50);
+      // Abort if we started another update asynchronously.
+      if (this._logEntry != logEntry) return;
+    }
+  }
+
+  _markFlames(start, end) {
+    const rawFlames = this._flames.values;
+    if (start < 0) start = 0;
+    if (end > rawFlames.length) end = rawFlames.length;
+    const code = this._logEntry.entry;
+    for (let i = start; i < end; i++) {
+      const flame = rawFlames[i];
+      if (flame.entry != code) continue;
+      this._buffer += this._track.drawFlame(flame, true);
+    }
+    this._drawBuffer();
+  }
+
+  _drawBuffer() {
+    if (this._buffer.length == 0) return;
+    const svg = SVG.svg();
+    svg.innerHTML = this._buffer;
+    this._node.appendChild(svg);
+    this._buffer = '';
+  }
+}

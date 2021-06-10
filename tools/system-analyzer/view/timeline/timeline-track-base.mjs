@@ -191,6 +191,11 @@ export class TimelineTrackBase extends V8CustomElement {
     this._scalableContentNode.style.transform = `scale(${ratio}, 1)`;
   }
 
+  _adjustHeight(height) {
+    this.querySelectorAll('.dataSized')
+        .forEach(node => {node.style.height = height + 'px'});
+  }
+
   _update() {
     this._legend.update();
     this._drawContent();
@@ -261,7 +266,7 @@ export class TimelineTrackBase extends V8CustomElement {
     this.timelineMarkersNode.innerHTML = buffer;
   }
 
-  _drawAnnotations(logEntry) {
+  _drawAnnotations(logEntry, time) {
     // Subclass responsibility.
   }
 
@@ -288,7 +293,8 @@ export class TimelineTrackBase extends V8CustomElement {
     const {logEntry, target} = this._getEntryForEvent(event);
     if (!logEntry) return false;
     this.dispatchEvent(new ToolTipEvent(logEntry, target));
-    this._drawAnnotations(logEntry);
+    const time = this.positionToTime(event.pageX);
+    this._drawAnnotations(logEntry, time);
   }
 
   _getEntryForEvent(event) {
