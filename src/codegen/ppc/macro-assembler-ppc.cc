@@ -513,18 +513,6 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src, RCBit rc,
   SmiUntag(dst, rc);
 }
 
-void TurboAssembler::StoreTaggedFieldX(const Register& value,
-                                       const MemOperand& dst_field_operand,
-                                       const Register& scratch) {
-  if (COMPRESS_POINTERS_BOOL) {
-    RecordComment("[ StoreTagged");
-    stwx(value, dst_field_operand);
-    RecordComment("]");
-  } else {
-    StoreU64(value, dst_field_operand);
-  }
-}
-
 void TurboAssembler::StoreTaggedField(const Register& value,
                                       const MemOperand& dst_field_operand,
                                       const Register& scratch) {

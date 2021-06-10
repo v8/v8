@@ -1236,7 +1236,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         ool = zone()->New<OutOfLineRecordWrite>(
             this, object, offset, value, scratch0, scratch1, mode,
             DetermineStubCallMode(), &unwinding_info_writer_);
-        __ StoreTaggedFieldX(value, MemOperand(object, offset), r0);
+        __ StoreTaggedField(value, MemOperand(object, offset), r0);
       }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
@@ -3824,7 +3824,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_StoreCompressTagged: {
-      ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedFieldX);
+      ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedField);
       break;
     }
     case kPPC_LoadDecompressTaggedSigned: {

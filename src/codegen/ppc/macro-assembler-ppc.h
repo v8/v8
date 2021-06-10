@@ -666,9 +666,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreTaggedField(const Register& value,
                         const MemOperand& dst_field_operand,
                         const Register& scratch = no_reg);
-  void StoreTaggedFieldX(const Register& value,
-                         const MemOperand& dst_field_operand,
-                         const Register& scratch = no_reg);
 
   void DecompressTaggedSigned(Register destination, MemOperand field_operand);
   void DecompressTaggedSigned(Register destination, Register src);
