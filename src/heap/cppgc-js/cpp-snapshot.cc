@@ -247,8 +247,8 @@ class State final : public StateBase {
     }
   }
 
-  void MarkAsEphemeronContainer() { is_ephemeron_container_ = true; }
-  bool IsEphemeronContainer() const { return is_ephemeron_container_; }
+  void MarkAsWeakContainer() { is_weak_container_ = true; }
+  bool IsWeakContainer() const { return is_weak_container_; }
 
   void AddEphemeronEdge(const HeapObjectHeader& value) {
     // This ignores duplicate entries (in different containers) for the same
@@ -264,9 +264,8 @@ class State final : public StateBase {
   }
 
  private:
-  bool is_ephemeron_container_ = false;
-  // Values that are values that are held alive through ephemerons by this
-  // particular key.
+  bool is_weak_container_ = false;
+  // Values that are held alive through ephemerons by this particular key.
   std::unordered_set<const HeapObjectHeader*> ephemeron_edges_;
 };
 
@@ -396,7 +395,7 @@ class CppGraphBuilderImpl final {
   void VisitForVisibility(State& parent, const TracedReferenceBase&);
   void VisitEphemeronForVisibility(const HeapObjectHeader& key,
                                    const HeapObjectHeader& value);
-  void VisitEphemeronContainerForVisibility(const HeapObjectHeader&);
+  void VisitWeakContainerForVisibility(const HeapObjectHeader&);
   void VisitRootForGraphBuilding(RootState&, const HeapObjectHeader&,
                                  const cppgc::SourceLocation&);
   void ProcessPendingObjects();
@@ -538,28 +537,24 @@ class ParentScope final {
   StateBase& parent_;
 };
 
-class VisiblityVisitor final : public JSVisitor {
+// This visitor can be used stand-alone to handle fully weak and ephemeron
+// containers or as part of the VisibilityVisitor that recursively traverses
+// the object graph.
+class WeakVisitor : public JSVisitor {
  public:
-  explicit VisiblityVisitor(CppGraphBuilderImpl& graph_builder,
-                            const ParentScope& parent_scope)
+  explicit WeakVisitor(CppGraphBuilderImpl& graph_builder)
       : JSVisitor(cppgc::internal::VisitorFactory::CreateKey()),
-        graph_builder_(graph_builder),
-        parent_scope_(parent_scope) {}
+        graph_builder_(graph_builder) {}
 
-  // C++ handling.
-  void Visit(const void*, cppgc::TraceDescriptor desc) final {
-    graph_builder_.VisitForVisibility(
-        &parent_scope_.ParentAsRegularState(),
-        HeapObjectHeader::FromObject(desc.base_object_payload));
-  }
-  void VisitRoot(const void*, cppgc::TraceDescriptor,
-                 const cppgc::SourceLocation&) final {}
-  void VisitWeakRoot(const void*, cppgc::TraceDescriptor, cppgc::WeakCallback,
-                     const void*, const cppgc::SourceLocation&) final {}
   void VisitWeakContainer(const void* object,
                           cppgc::TraceDescriptor strong_desc,
                           cppgc::TraceDescriptor weak_desc, cppgc::WeakCallback,
                           const void*) final {
+    const auto& container_header =
+        HeapObjectHeader::FromObject(strong_desc.base_object_payload);
+
+    graph_builder_.VisitWeakContainerForVisibility(container_header);
+
     if (!weak_desc.callback) {
       // Weak container does not contribute to liveness.
       return;
@@ -574,12 +569,10 @@ class VisiblityVisitor final : public JSVisitor {
       // 2. for each {key} in container: container->key;
       // 3. for each {key, value} in container: key->value;
       //
-      // Mark the container here as ephemeron container to exclude the edges of
-      // case 2. in the second pass (that adds edges) as the key must be held
-      // alive from somewhere else. (Could be some other object, or case 3. if
-      // there's is a chain of ephemerons.)
-      graph_builder_.VisitEphemeronContainerForVisibility(
-          HeapObjectHeader::FromObject(strong_desc.base_object_payload));
+      // In case the visitor is used stand-alone, we trace through the container
+      // here to create the same state as we would when the container is traced
+      // separately.
+      container_header.Trace(this);
     }
   }
   void VisitEphemeron(const void* key, const void* value,
@@ -589,6 +582,27 @@ class VisiblityVisitor final : public JSVisitor {
         HeapObjectHeader::FromObject(key), HeapObjectHeader::FromObject(value));
   }
 
+ protected:
+  CppGraphBuilderImpl& graph_builder_;
+};
+
+class VisiblityVisitor final : public WeakVisitor {
+ public:
+  VisiblityVisitor(CppGraphBuilderImpl& graph_builder,
+                   const ParentScope& parent_scope)
+      : WeakVisitor(graph_builder), parent_scope_(parent_scope) {}
+
+  // C++ handling.
+  void Visit(const void*, cppgc::TraceDescriptor desc) final {
+    graph_builder_.VisitForVisibility(
+        &parent_scope_.ParentAsRegularState(),
+        HeapObjectHeader::FromObject(desc.base_object_payload));
+  }
+  void VisitRoot(const void*, cppgc::TraceDescriptor,
+                 const cppgc::SourceLocation&) final {}
+  void VisitWeakRoot(const void*, cppgc::TraceDescriptor, cppgc::WeakCallback,
+                     const void*, const cppgc::SourceLocation&) final {}
+
   // JS handling.
   void Visit(const TracedReferenceBase& ref) final {
     graph_builder_.VisitForVisibility(parent_scope_.ParentAsRegularState(),
@@ -596,7 +610,6 @@ class VisiblityVisitor final : public JSVisitor {
   }
 
  private:
-  CppGraphBuilderImpl& graph_builder_;
   const ParentScope& parent_scope_;
 };
 
@@ -613,6 +626,16 @@ class GraphBuildingVisitor final : public JSVisitor {
     graph_builder_.AddEdge(
         parent_scope_.ParentAsRegularState(),
         HeapObjectHeader::FromObject(desc.base_object_payload));
+  }
+  void VisitWeakContainer(const void* object,
+                          cppgc::TraceDescriptor strong_desc,
+                          cppgc::TraceDescriptor weak_desc, cppgc::WeakCallback,
+                          const void*) final {
+    // Add an edge from the object holding the weak container to the weak
+    // container itself.
+    graph_builder_.AddEdge(
+        parent_scope_.ParentAsRegularState(),
+        HeapObjectHeader::FromObject(strong_desc.base_object_payload));
   }
   void VisitRoot(const void*, cppgc::TraceDescriptor desc,
                  const cppgc::SourceLocation& loc) final {
@@ -711,6 +734,10 @@ void CppGraphBuilderImpl::VisitForVisibility(State* parent,
   } else {
     // No need to mark/unmark pending as the node is immediately processed.
     current.MarkVisible();
+    // In case the names are visible, the graph is no traversed in this phase.
+    // Explicitly trace one level to handle weak containers.
+    WeakVisitor weak_visitor(*this);
+    header.Trace(&weak_visitor);
     if (parent) {
       // Eagerly update a parent object as its visibility state is now fixed.
       parent->MarkVisible();
@@ -725,9 +752,11 @@ void CppGraphBuilderImpl::VisitEphemeronForVisibility(
   key_state.AddEphemeronEdge(value);
 }
 
-void CppGraphBuilderImpl::VisitEphemeronContainerForVisibility(
+void CppGraphBuilderImpl::VisitWeakContainerForVisibility(
     const HeapObjectHeader& container_header) {
-  states_.GetOrCreateState(container_header).MarkAsEphemeronContainer();
+  // Mark the container here as weak container to avoid creating any
+  // outgoing edges in the second phase.
+  states_.GetOrCreateState(container_header).MarkAsWeakContainer();
 }
 
 void CppGraphBuilderImpl::VisitForVisibility(State& parent,
@@ -760,10 +789,10 @@ void CppGraphBuilderImpl::Run() {
     // No roots have been created so far, so all StateBase objects are State.
     State& state = *static_cast<State*>(state_base);
 
-    // Emit no edges for the contents of the ephemeron containers. Since
-    // snapshot generation runs after GCs, the keys should be alive from
-    // somewhere else, and values are retained by their keys.
-    if (state.IsEphemeronContainer()) return;
+    // Emit no edges for the contents of the weak containers. For both, fully
+    // weak and ephemeron containers, the contents should be retained from
+    // somewhere else.
+    if (state.IsWeakContainer()) return;
 
     ParentScope parent_scope(state);
     GraphBuildingVisitor object_visitor(*this, parent_scope);
