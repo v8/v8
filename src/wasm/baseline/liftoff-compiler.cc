@@ -1255,7 +1255,23 @@ class LiftoffCompiler {
 
     // Test the condition, jump to else if zero.
     Register value = __ PopToRegister().gp();
-    __ emit_cond_jump(kEqual, if_block->else_state->label.get(), kI32, value);
+    if (!has_outstanding_op()) {
+      // Unary "equal" means "equals zero".
+      __ emit_cond_jump(kEqual, if_block->else_state->label.get(), kI32, value);
+    } else if (outstanding_op_ == kExprI32Eqz) {
+      // Unary "unequal" means "not equals zero".
+      __ emit_cond_jump(kUnequal, if_block->else_state->label.get(), kI32,
+                        value);
+      outstanding_op_ = kNoOutstandingOp;
+    } else {
+      // Otherwise, it's an i32 compare opcode.
+      LiftoffCondition cond = Negate(GetCompareCondition(outstanding_op_));
+      Register rhs = value;
+      Register lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs)).gp();
+      __ emit_cond_jump(cond, if_block->else_state->label.get(), kI32, lhs,
+                        rhs);
+      outstanding_op_ = kNoOutstandingOp;
+    }
 
     // Store the state (after popping the value) for executing the else branch.
     if_block->else_state->state.Split(*__ cache_state());
@@ -1702,7 +1718,8 @@ class LiftoffCompiler {
   template <WasmOpcode opcode>
   void EmitI32CmpOp(FullDecoder* decoder) {
     DCHECK(decoder->lookahead(0, opcode));
-    if (decoder->lookahead(1, kExprBrIf) && !for_debugging_) {
+    if ((decoder->lookahead(1, kExprBrIf) || decoder->lookahead(1, kExprIf)) &&
+        !for_debugging_) {
       DCHECK(!has_outstanding_op());
       outstanding_op_ = opcode;
       return;
