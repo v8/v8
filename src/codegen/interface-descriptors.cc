@@ -132,8 +132,6 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Verify(
 // static
 void WriteBarrierDescriptor::Verify(CallInterfaceDescriptorData* data) {
   DCHECK(!AreAliased(ObjectRegister(), SlotAddressRegister(), ValueRegister()));
-// TODO(cbruni): enable on all platforms.
-#if V8_TARGET_ARCH_X64
   // The default parameters should not clobber vital registers in order to
   // reduce code size:
   DCHECK(!AreAliased(ObjectRegister(), kContextRegister,
@@ -142,9 +140,9 @@ void WriteBarrierDescriptor::Verify(CallInterfaceDescriptorData* data) {
                      kInterpreterAccumulatorRegister));
   DCHECK(!AreAliased(ValueRegister(), kContextRegister,
                      kInterpreterAccumulatorRegister));
+  DCHECK(!AreAliased(SlotAddressRegister(), kJavaScriptCallNewTargetRegister));
   // Coincidental: to make calling from various builtins easier.
   DCHECK_EQ(ObjectRegister(), kJSFunctionRegister);
-#endif
   // We need a certain set of registers by default:
   RegList allocatable_regs = data->allocatable_registers();
   DCHECK(allocatable_regs | kContextRegister.bit());

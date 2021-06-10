@@ -592,12 +592,15 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- edx    : the JSGeneratorObject to resume
   //  -- esp[0] : return address
   // -----------------------------------
-  __ AssertGeneratorObject(edx);
-
   // Store input value into generator object.
   __ mov(FieldOperand(edx, JSGeneratorObject::kInputOrDebugPosOffset), eax);
-  __ RecordWriteField(edx, JSGeneratorObject::kInputOrDebugPosOffset, eax, ecx,
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  __ mov(object, edx);
+  __ RecordWriteField(object, JSGeneratorObject::kInputOrDebugPosOffset, eax,
+                      WriteBarrierDescriptor::SlotAddressRegister(),
                       SaveFPRegsMode::kIgnore);
+  // Check that edx is still valid, RecordWrite might have clobbered it.
+  __ AssertGeneratorObject(edx);
 
   // Load suspended function and context.
   __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
@@ -731,12 +734,12 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
                                                 Register optimized_code,
                                                 Register closure,
-                                                Register scratch1,
-                                                Register scratch2) {
+                                                Register value,
+                                                Register slot_address) {
   // Store the optimized code in the closure.
   __ mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
-  __ mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
-  __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
+  __ mov(value, optimized_code);  // Write barrier clobbers slot_address below.
+  __ RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
                       SaveFPRegsMode::kIgnore, RememberedSetAction::kOmit,
                       SmiCheck::kOmit);
 }
@@ -816,9 +819,11 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Optimized code is good, get it into the closure and link the closure
   // into the optimized functions list, then tail call the optimized code.
+  __ Push(optimized_code_entry);
   ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure, edx,
-                                      eax);
+                                      ecx);
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
+  __ Pop(optimized_code_entry);
   __ LoadCodeObjectEntry(ecx, optimized_code_entry);
   __ Pop(edx);
   __ Pop(eax);
@@ -1255,9 +1260,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ mov(ecx, FieldOperand(ecx, BaselineData::kBaselineCodeOffset));
     static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
     __ push(edx);  // Spill.
+    __ push(ecx);
     __ Push(xmm0, eax);  // Save the argument count (currently in xmm0).
-    ReplaceClosureCodeWithOptimizedCode(masm, ecx, closure, eax, edx);
+    ReplaceClosureCodeWithOptimizedCode(masm, ecx, closure, eax, ecx);
     __ pop(eax);  // Restore the argument count.
+    __ pop(ecx);
     __ pop(edx);
     __ JumpCodeObject(ecx);
 

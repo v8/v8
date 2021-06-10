@@ -672,6 +672,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
+    DCHECK(!AreAliased(object, value, scratch));
     add(scratch, object, Operand(offset - kHeapObjectTag));
     tst(scratch, Operand(kPointerSize - 1));
     b(eq, &ok);
@@ -810,13 +811,12 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  SmiCheck smi_check) {
   DCHECK(!AreAliased(object, value));
   if (FLAG_debug_code) {
-    {
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      add(scratch, object, offset);
-      ldr(scratch, MemOperand(scratch));
-      cmp(scratch, value);
-    }
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    DCHECK(!AreAliased(object, value, scratch));
+    add(scratch, object, offset);
+    ldr(scratch, MemOperand(scratch));
+    cmp(scratch, value);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
@@ -843,11 +843,17 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   if (lr_status == kLRHasNotBeenSaved) {
     push(lr);
   }
-  CallRecordWriteStubSaveRegisters(object, offset, remembered_set_action,
-                                   fp_mode);
+
+  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
+  DCHECK(!AreAliased(object, value, slot_address));
+  DCHECK(!offset.IsRegister());
+  add(slot_address, object, offset);
+  CallRecordWriteStub(object, slot_address, remembered_set_action, fp_mode);
   if (lr_status == kLRHasNotBeenSaved) {
     pop(lr);
   }
+
+  if (FLAG_debug_code) Move(slot_address, Operand(kZapValue));
 
   bind(&done);
 }
@@ -2573,6 +2579,7 @@ void TurboAssembler::CheckPageFlag(Register object, int mask, Condition cc,
                                    Label* condition_met) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
+  DCHECK(!AreAliased(object, scratch));
   DCHECK(cc == eq || cc == ne);
   Bfc(scratch, object, 0, kPageSizeBits);
   ldr(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));

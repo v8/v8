@@ -681,7 +681,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- rdx    : the JSGeneratorObject to resume
   //  -- rsp[0] : return address
   // -----------------------------------
-  __ AssertGeneratorObject(rdx);
 
   // Store input value into generator object.
   __ StoreTaggedField(
@@ -691,6 +690,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ RecordWriteField(object, JSGeneratorObject::kInputOrDebugPosOffset, rax,
                       WriteBarrierDescriptor::SlotAddressRegister(),
                       SaveFPRegsMode::kIgnore);
+  // Check that rdx is still valid, RecordWrite might have clobbered it.
+  __ AssertGeneratorObject(rdx);
 
   Register decompr_scratch1 = COMPRESS_POINTERS_BOOL ? r8 : no_reg;
 

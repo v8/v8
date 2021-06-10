@@ -437,13 +437,14 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- x1 : the JSGeneratorObject to resume
   //  -- lr : return address
   // -----------------------------------
-  __ AssertGeneratorObject(x1);
 
   // Store input value into generator object.
   __ StoreTaggedField(
       x0, FieldMemOperand(x1, JSGeneratorObject::kInputOrDebugPosOffset));
   __ RecordWriteField(x1, JSGeneratorObject::kInputOrDebugPosOffset, x0,
                       kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore);
+  // Check that x1 is still valid, RecordWrite might have clobbered it.
+  __ AssertGeneratorObject(x1);
 
   // Load suspended function and context.
   __ LoadTaggedPointerField(
@@ -963,6 +964,7 @@ void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
 static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
                                                 Register optimized_code,
                                                 Register closure) {
+  DCHECK(!AreAliased(optimized_code, closure));
   // Store code entry in the closure.
   __ StoreTaggedField(optimized_code,
                       FieldMemOperand(closure, JSFunction::kCodeOffset));
@@ -1179,6 +1181,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 static void LoadOptimizationStateAndJumpIfNeedsProcessing(
     MacroAssembler* masm, Register optimization_state, Register feedback_vector,
     Label* has_optimized_code_or_marker) {
+  DCHECK(!AreAliased(optimization_state, feedback_vector));
   __ RecordComment("[ Check optimization state");
 
   __ Ldr(optimization_state,
@@ -1194,6 +1197,7 @@ static void LoadOptimizationStateAndJumpIfNeedsProcessing(
 static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
     MacroAssembler* masm, Register optimization_state,
     Register feedback_vector) {
+  DCHECK(!AreAliased(optimization_state, feedback_vector));
   Label maybe_has_optimized_code;
   // Check if optimized code is available
   __ TestAndBranchIfAllClear(

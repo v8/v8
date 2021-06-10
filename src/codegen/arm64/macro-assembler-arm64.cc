@@ -2921,6 +2921,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.AcquireX();
+    DCHECK(!AreAliased(object, value, scratch));
     Add(scratch, object, offset - kHeapObjectTag);
     Tst(scratch, kTaggedSize - 1);
     B(eq, &ok);
@@ -3059,7 +3060,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   if (FLAG_debug_code) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
-
+    DCHECK(!AreAliased(object, value, temp));
     Add(temp, object, offset);
     LoadTaggedPointerField(temp, MemOperand(temp));
     Cmp(temp, value);
@@ -3090,11 +3091,16 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   if (lr_status == kLRHasNotBeenSaved) {
     Push<TurboAssembler::kSignLR>(padreg, lr);
   }
-  CallRecordWriteStubSaveRegisters(object, offset, remembered_set_action,
-                                   fp_mode);
+  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
+  DCHECK(!AreAliased(object, slot_address, value));
+  // TODO(cbruni): Turn offset into int.
+  DCHECK(offset.IsImmediate());
+  Add(slot_address, object, offset);
+  CallRecordWriteStub(object, slot_address, remembered_set_action, fp_mode);
   if (lr_status == kLRHasNotBeenSaved) {
     Pop<TurboAssembler::kAuthLR>(lr, padreg);
   }
+  if (FLAG_debug_code) Mov(slot_address, Operand(kZapValue));
 
   Bind(&done);
 }

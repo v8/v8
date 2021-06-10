@@ -349,6 +349,7 @@ void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
 void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          int offset,
                                                          Register value) {
+  DCHECK(!AreAliased(target, value));
   __ str(value, FieldMemOperand(target, offset));
   __ RecordWriteField(target, offset, value, kLRHasNotBeenSaved,
                       SaveFPRegsMode::kIgnore);

@@ -1023,10 +1023,7 @@ class WriteBarrierDescriptor final
   DECLARE_DESCRIPTOR(WriteBarrierDescriptor)
   static constexpr auto registers();
   static constexpr bool kRestrictAllocatableRegisters = true;
-#if V8_TARGET_ARCH_X64
-  // TODO(cbruni): Extend to all platforms.
   static constexpr bool kCalleeSaveRegisters = true;
-#endif
   static constexpr inline Register ObjectRegister();
   static constexpr inline Register SlotAddressRegister();
   // A temporary register used in helpers.

@@ -38,7 +38,6 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::
 
 // static
 constexpr auto WriteBarrierDescriptor::registers() {
-  STATIC_ASSERT(kReturnRegister0 == r2);
   return RegisterArray(r2, r3, r4, r5, r6);
 }
 

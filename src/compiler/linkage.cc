@@ -493,13 +493,8 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   RegList allocatable_registers = descriptor.allocatable_registers();
   RegList callee_saved_registers = kNoCalleeSaved;
   if (descriptor.CalleeSaveRegisters()) {
-#if V8_TARGET_ARCH_X64
-    // TODO(cbruni): Extend to all architectures.
     callee_saved_registers = allocatable_registers;
     DCHECK(callee_saved_registers);
-#else
-    UNREACHABLE();
-#endif
   }
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   return zone->New<CallDescriptor>(          // --

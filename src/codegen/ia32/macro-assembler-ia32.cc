@@ -363,7 +363,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 }
 
 void MacroAssembler::RecordWriteField(Register object, int offset,
-                                      Register value, Register dst,
+                                      Register value, Register slot_address,
                                       SaveFPRegsMode save_fp,
                                       RememberedSetAction remembered_set_action,
                                       SmiCheck smi_check) {
@@ -380,16 +380,16 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so so offset must be a multiple of kTaggedSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  lea(dst, FieldOperand(object, offset));
+  lea(slot_address, FieldOperand(object, offset));
   if (FLAG_debug_code) {
     Label ok;
-    test_b(dst, Immediate(kTaggedSize - 1));
+    test_b(slot_address, Immediate(kTaggedSize - 1));
     j(zero, &ok, Label::kNear);
     int3();
     bind(&ok);
   }
 
-  RecordWrite(object, dst, value, save_fp, remembered_set_action,
+  RecordWrite(object, slot_address, value, save_fp, remembered_set_action,
               SmiCheck::kOmit);
 
   bind(&done);
@@ -398,7 +398,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // turned on to provoke errors.
   if (FLAG_debug_code) {
     mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
-    mov(dst, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(slot_address, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -498,11 +498,11 @@ void TurboAssembler::CallRecordWriteStub(
   }
 }
 
-void MacroAssembler::RecordWrite(Register object, Register address,
+void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  Register value, SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
-  DCHECK(!AreAliased(object, value, address));
+  DCHECK(!AreAliased(object, value, slot_address));
   AssertNotSmi(object);
 
   if ((remembered_set_action == RememberedSetAction::kOmit &&
@@ -513,7 +513,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
   if (FLAG_debug_code) {
     Label ok;
-    cmp(value, Operand(address, 0));
+    cmp(value, Operand(slot_address, 0));
     j(equal, &ok, Label::kNear);
     int3();
     bind(&ok);
@@ -536,16 +536,16 @@ void MacroAssembler::RecordWrite(Register object, Register address,
                 value,  // Used as scratch.
                 MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
                 Label::kNear);
+  RecordComment("CheckPageFlag]");
 
-  CallRecordWriteStubSaveRegisters(object, address, remembered_set_action,
-                                   fp_mode);
+  CallRecordWriteStub(object, slot_address, remembered_set_action, fp_mode);
 
   bind(&done);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    mov(address, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(slot_address, Immediate(bit_cast<int32_t>(kZapValue)));
     mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
