@@ -9,6 +9,7 @@
 
 #include "src/base/optional.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/source-position-table.h"
 #include "src/compiler/backend/gap-resolver.h"
@@ -16,12 +17,11 @@
 #include "src/compiler/backend/unwinding-info-writer.h"
 #include "src/compiler/osr.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/objects/code-kind.h"
 #include "src/trap-handler/trap-handler.h"
 
 namespace v8 {
 namespace internal {
-
-class OptimizedCompilationInfo;
 
 namespace compiler {
 
@@ -187,6 +187,8 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   //    These are not accounted for by the initial frame setup.
   bool ShouldApplyOffsetToStackCheck(Instruction* instr, uint32_t* offset);
   uint32_t GetStackCheckOffset();
+
+  CodeKind code_kind() const { return info_->code_kind(); }
 
  private:
   GapResolver* resolver() { return &resolver_; }
