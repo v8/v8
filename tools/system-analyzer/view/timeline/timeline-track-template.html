@@ -148,23 +148,6 @@ found in the LICENSE file. -->
     flex: initial;
   }
 
-  .flame {
-    background-color: gray;
-    overflow: hidden;
-    height: 10px;
-    position: absolute;
-    font-size: 8px;
-    content-visibility: auto;
-  }
-  .flame.Opt{
-    background-color: red;
-  }
-  .flame.Baseline{
-    background-color: blue;
-  }
-  .flame.default {
-    background-color: black;
-  }
   .txt {
     font: 8px monospace;
   }
@@ -190,11 +173,19 @@ found in the LICENSE file. -->
     dominant-baseline: hanging;
     font-size: 9px;
   }
+  .flame {
+    stroke: var(--background-color);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
   .flameSelected {
     fill: none;
     stroke: var(--on-background-color);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
   }
-  #scalableContent {
+  svg {
+    shape-rendering: optimizeSpeed;
   }
 </style>
 

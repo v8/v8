@@ -204,6 +204,7 @@ export class TimelineTrackBase extends V8CustomElement {
 
   async _drawContent() {
     await delay(5);
+    if (this._timeline.isEmpty()) return;
     if (this.chunks?.length != this.nofChunks) {
       this._chunks =
           this._timeline.chunks(this.nofChunks, this._legend.filterPredicate);

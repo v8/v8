@@ -15,6 +15,7 @@ class Flame {
     this.entry = entry;
     this.depth = depth;
     this.id = id;
+    this.duration = -1;
   }
   stop(time) {
     this.duration = time - this.time
@@ -62,37 +63,41 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
 
   _updateFlames() {
     const tmpFlames = [];
-    const stack = [];
+    // flameStack = [bottom, ..., top];
+    const flameStack = [];
     const ticks = this._timeline.values;
     let maxDepth = 0;
 
     for (let tickIndex = 0; tickIndex < ticks.length; tickIndex++) {
       const tick = ticks[tickIndex];
       maxDepth = Math.max(maxDepth, tick.stack.length);
-      for (let stackIndex = 0; stackIndex < tick.stack.length; stackIndex++) {
+      // tick.stack = [top, .... , bottom];
+      for (let stackIndex = tick.stack.length - 1; stackIndex >= 0;
+           stackIndex--) {
         const entry = tick.stack[stackIndex];
-        if (stack.length <= stackIndex) {
-          const newFlame =
-              new Flame(tick.time, entry, stackIndex, tmpFlames.length);
-          tmpFlames.push(newFlame);
-          stack.push(newFlame);
-        } else {
-          if (stack[stackIndex].entry !== entry) {
-            for (let k = stackIndex; k < stack.length; k++) {
-              stack[k].stop(tick.time);
-            }
-            stack.length = stackIndex;
-            const replacementFlame =
-                new Flame(tick.time, entry, stackIndex, tmpFlames.length);
-            tmpFlames.push(replacementFlame);
-            stack[stackIndex] = replacementFlame;
+        const flameStackIndex = tick.stack.length - stackIndex - 1;
+        if (flameStackIndex < flameStack.length) {
+          if (flameStack[flameStackIndex].entry === entry) continue;
+          for (let k = flameStackIndex; k < flameStack.length; k++) {
+            flameStack[k].stop(tick.time);
           }
+          flameStack.length = flameStackIndex;
         }
+        const newFlame =
+            new Flame(tick.time, entry, flameStack.length, tmpFlames.length);
+        tmpFlames.push(newFlame);
+        flameStack.push(newFlame);
+      }
+      if (tick.stack.length < flameStack.length) {
+        for (let k = tick.stack.length; k < flameStack.length; k++) {
+          flameStack[k].stop(tick.time);
+        }
+        flameStack.length = tick.stack.length;
       }
     }
     const lastTime = ticks[ticks.length - 1].time;
-    for (let stackIndex = 0; stackIndex < stack.length; stackIndex++) {
-      stack[stackIndex].stop(lastTime);
+    for (let k = 0; k < flameStack.length; k++) {
+      flameStack[k].stop(lastTime);
     }
     this._flames = new Timeline(Flame, tmpFlames);
     this._annotations.flames = this._flames;
@@ -134,12 +139,11 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
   drawFlame(flame, outline = false) {
     const x = this.timeToPosition(flame.time);
     const y = (flame.depth + 1) * kFlameHeight;
-    let width = (flame.duration * this._timeToPixel) * 0.9;
-    let height = kFlameHeight - 1;
+    let width = flame.duration * this._timeToPixel;
 
     if (outline) {
       return `<rect x=${x} y=${y} width=${width} height=${
-          height} class=flameSelected />`;
+          kFlameHeight} class=flameSelected />`;
     }
 
     let type = 'native';
@@ -147,8 +151,8 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
       type = Profile.getKindFromState(flame.entry.state);
     }
     const color = this._legend.colorForType(type);
-    return `<rect x=${x} y=${y} width=${width} height=${height} fill=${
-        color} data-id=${flame.id} />`;
+    return `<rect x=${x} y=${y} width=${width} height=${kFlameHeight} fill=${
+        color} data-id=${flame.id} class=flame />`;
   }
 
   drawFlameText(flame) {
