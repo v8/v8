@@ -130,7 +130,7 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond, Register src1,
                               const Operand& src2) {
   Label skip;
-  Branch(&skip, NegateCondition(cond), src1, src2);
+  BranchShort(&skip, NegateCondition(cond), src1, src2);
   Ld(destination,
      MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
   bind(&skip);
@@ -194,7 +194,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Label ok;
     DCHECK(!AreAliased(value, dst, scratch, object));
     And(scratch, dst, Operand(kTaggedSize - 1));
-    Branch(&ok, eq, scratch, Operand(zero_reg));
+    BranchShort(&ok, eq, scratch, Operand(zero_reg));
     ebreak();
     bind(&ok);
   }
@@ -2300,28 +2300,28 @@ void TurboAssembler::Clz32(Register rd, Register xx) {
   Move(x, xx);
   li(n, Operand(32));
   srliw(y, x, 16);
-  Branch(&L0, eq, y, Operand(zero_reg));
+  BranchShort(&L0, eq, y, Operand(zero_reg));
   Move(x, y);
   addiw(n, n, -16);
   bind(&L0);
   srliw(y, x, 8);
-  Branch(&L1, eq, y, Operand(zero_reg));
+  BranchShort(&L1, eq, y, Operand(zero_reg));
   addiw(n, n, -8);
   Move(x, y);
   bind(&L1);
   srliw(y, x, 4);
-  Branch(&L2, eq, y, Operand(zero_reg));
+  BranchShort(&L2, eq, y, Operand(zero_reg));
   addiw(n, n, -4);
   Move(x, y);
   bind(&L2);
   srliw(y, x, 2);
-  Branch(&L3, eq, y, Operand(zero_reg));
+  BranchShort(&L3, eq, y, Operand(zero_reg));
   addiw(n, n, -2);
   Move(x, y);
   bind(&L3);
   srliw(y, x, 1);
   subw(rd, n, x);
-  Branch(&L4, eq, y, Operand(zero_reg));
+  BranchShort(&L4, eq, y, Operand(zero_reg));
   addiw(rd, n, -2);
   bind(&L4);
 }
@@ -2349,33 +2349,33 @@ void TurboAssembler::Clz64(Register rd, Register xx) {
   Move(x, xx);
   li(n, Operand(64));
   srli(y, x, 32);
-  Branch(&L0, eq, y, Operand(zero_reg));
+  BranchShort(&L0, eq, y, Operand(zero_reg));
   addiw(n, n, -32);
   Move(x, y);
   bind(&L0);
   srli(y, x, 16);
-  Branch(&L1, eq, y, Operand(zero_reg));
+  BranchShort(&L1, eq, y, Operand(zero_reg));
   addiw(n, n, -16);
   Move(x, y);
   bind(&L1);
   srli(y, x, 8);
-  Branch(&L2, eq, y, Operand(zero_reg));
+  BranchShort(&L2, eq, y, Operand(zero_reg));
   addiw(n, n, -8);
   Move(x, y);
   bind(&L2);
   srli(y, x, 4);
-  Branch(&L3, eq, y, Operand(zero_reg));
+  BranchShort(&L3, eq, y, Operand(zero_reg));
   addiw(n, n, -4);
   Move(x, y);
   bind(&L3);
   srli(y, x, 2);
-  Branch(&L4, eq, y, Operand(zero_reg));
+  BranchShort(&L4, eq, y, Operand(zero_reg));
   addiw(n, n, -2);
   Move(x, y);
   bind(&L4);
   srli(y, x, 1);
   subw(rd, n, x);
-  Branch(&L5, eq, y, Operand(zero_reg));
+  BranchShort(&L5, eq, y, Operand(zero_reg));
   addiw(rd, n, -2);
   bind(&L5);
 }
