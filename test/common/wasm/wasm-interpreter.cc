@@ -3698,8 +3698,7 @@ class WasmInterpreterInternals {
   case valuetype: {                                                     \
     uint8_t* ptr =                                                      \
         WasmInstanceObject::GetGlobalStorage(instance_object_, global); \
-    WriteLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr),       \
-                                  Pop().to<ctype>());                   \
+    *reinterpret_cast<ctype*>(ptr) = Pop().to<ctype>();                 \
     break;                                                              \
   }
             FOREACH_WASMVALUE_CTYPES(CASE_TYPE)

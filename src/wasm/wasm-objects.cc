@@ -1612,7 +1612,7 @@ wasm::WasmValue WasmInstanceObject::GetGlobalValue(
   switch (global.type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
   case wasm::valuetype:             \
-    return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(ptr));
+    return wasm::WasmValue(base::ReadUnalignedValue<ctype>(ptr));
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
     default:
@@ -1628,7 +1628,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
   switch (field_type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
   case wasm::valuetype:             \
-    return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(field_address));
+    return wasm::WasmValue(base::ReadUnalignedValue<ctype>(field_address));
     CASE_TYPE(kI8, int8_t)
     CASE_TYPE(kI16, int16_t)
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
@@ -1658,7 +1658,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
   switch (element_type.kind()) {
 #define CASE_TYPE(value_type, ctype) \
   case wasm::value_type:             \
-    return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(element_address));
+    return wasm::WasmValue(base::ReadUnalignedValue<ctype>(element_address));
     CASE_TYPE(kI8, int8_t)
     CASE_TYPE(kI16, int16_t)
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)

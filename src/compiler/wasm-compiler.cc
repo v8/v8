@@ -3649,11 +3649,7 @@ Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
   GetGlobalBaseAndOffset(mem_type, global, &base, &offset);
   // TODO(manoskouk): Cannot use LoadFromObject here due to
   // GetGlobalBaseAndOffset pointer arithmetic.
-  Node* result = gasm_->Load(mem_type, base, offset);
-#if defined(V8_TARGET_BIG_ENDIAN)
-  result = BuildChangeEndiannessLoad(result, mem_type, global.type);
-#endif
-  return result;
+  return gasm_->Load(mem_type, base, offset);
 }
 
 void WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
@@ -3684,9 +3680,6 @@ void WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
   GetGlobalBaseAndOffset(mem_type, global, &base, &offset);
   auto store_rep =
       StoreRepresentation(mem_type.representation(), kNoWriteBarrier);
-#if defined(V8_TARGET_BIG_ENDIAN)
-  val = BuildChangeEndiannessStore(val, mem_type.representation(), global.type);
-#endif
   // TODO(manoskouk): Cannot use StoreToObject here due to
   // GetGlobalBaseAndOffset pointer arithmetic.
   gasm_->Store(store_rep, base, offset, val);

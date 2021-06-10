@@ -160,19 +160,19 @@ Address WasmGlobalObject::address() const {
 }
 
 int32_t WasmGlobalObject::GetI32() {
-  return base::ReadLittleEndianValue<int32_t>(address());
+  return base::ReadUnalignedValue<int32_t>(address());
 }
 
 int64_t WasmGlobalObject::GetI64() {
-  return base::ReadLittleEndianValue<int64_t>(address());
+  return base::ReadUnalignedValue<int64_t>(address());
 }
 
 float WasmGlobalObject::GetF32() {
-  return base::ReadLittleEndianValue<float>(address());
+  return base::ReadUnalignedValue<float>(address());
 }
 
 double WasmGlobalObject::GetF64() {
-  return base::ReadLittleEndianValue<double>(address());
+  return base::ReadUnalignedValue<double>(address());
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
@@ -182,19 +182,19 @@ Handle<Object> WasmGlobalObject::GetRef() {
 }
 
 void WasmGlobalObject::SetI32(int32_t value) {
-  base::WriteLittleEndianValue<int32_t>(address(), value);
+  base::WriteUnalignedValue(address(), value);
 }
 
 void WasmGlobalObject::SetI64(int64_t value) {
-  base::WriteLittleEndianValue<int64_t>(address(), value);
+  base::WriteUnalignedValue(address(), value);
 }
 
 void WasmGlobalObject::SetF32(float value) {
-  base::WriteLittleEndianValue<float>(address(), value);
+  base::WriteUnalignedValue(address(), value);
 }
 
 void WasmGlobalObject::SetF64(double value) {
-  base::WriteLittleEndianValue<double>(address(), value);
+  base::WriteUnalignedValue(address(), value);
 }
 
 void WasmGlobalObject::SetExternRef(Handle<Object> value) {

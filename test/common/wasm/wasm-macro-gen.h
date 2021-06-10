@@ -975,6 +975,15 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_SIMD_LOAD_OP_ALIGNMENT(opcode, index, alignment) \
   index, WASM_SIMD_OP(opcode), alignment, ZERO_OFFSET
 
+// Load a Simd lane from a numeric pointer. We need this because lanes are
+// reversed in big endian. Note: a Simd value has {kSimd128Size / sizeof(*ptr)}
+// lanes.
+#ifdef V8_TARGET_BIG_ENDIAN
+#define LANE(ptr, index) ptr[kSimd128Size / sizeof(*ptr) - (index)-1]
+#else
+#define LANE(ptr, index) ptr[index]
+#endif
+
 //------------------------------------------------------------------------------
 // Compilation Hints.
 //------------------------------------------------------------------------------

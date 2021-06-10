@@ -1468,9 +1468,7 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
   for (uint32_t i = 0; i < type->field_count(); i++) {
     Address address = result.RawFieldAddress(type->field_offset(i));
     if (type->field(i).is_numeric()) {
-      args[i]
-          .Packed(type->field(i))
-          .CopyToWithSystemEndianness(reinterpret_cast<byte*>(address));
+      args[i].Packed(type->field(i)).CopyTo(reinterpret_cast<byte*>(address));
     } else {
       base::WriteUnalignedValue<Object>(address, *args[i].to_ref());
     }

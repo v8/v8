@@ -268,12 +268,12 @@ WASM_SIMD_TEST(S128Globals) {
 
   FOR_INT32_INPUTS(x) {
     for (int i = 0; i < 4; i++) {
-      WriteLittleEndianValue<int32_t>(&g0[i], x);
+      LANE(g0, i) = x;
     }
     r.Call();
     int32_t expected = x;
     for (int i = 0; i < 4; i++) {
-      int32_t actual = ReadLittleEndianValue<int32_t>(&g1[i]);
+      int32_t actual = LANE(g1, i);
       CHECK_EQ(actual, expected);
     }
   }
@@ -291,7 +291,7 @@ WASM_SIMD_TEST(F32x4Splat) {
     r.Call(x);
     float expected = x;
     for (int i = 0; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
+      float actual = LANE(g, i);
       if (std::isnan(expected)) {
         CHECK(std::isnan(actual));
       } else {
@@ -320,7 +320,7 @@ WASM_SIMD_TEST(F32x4ReplaceLane) {
 
   r.Call();
   for (int i = 0; i < 4; i++) {
-    CHECK_EQ(static_cast<float>(i), ReadLittleEndianValue<float>(&g[i]));
+    CHECK_EQ(static_cast<float>(i), LANE(g, i));
   }
 }
 
@@ -345,8 +345,8 @@ WASM_SIMD_TEST(F32x4ConvertI32x4) {
     float expected_signed = static_cast<float>(x);
     float expected_unsigned = static_cast<float>(static_cast<uint32_t>(x));
     for (int i = 0; i < 4; i++) {
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<float>(&g0[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<float>(&g1[i]));
+      CHECK_EQ(expected_signed, LANE(g0, i));
+      CHECK_EQ(expected_unsigned, LANE(g1, i));
     }
   }
 }
@@ -442,7 +442,7 @@ WASM_SIMD_TEST(I64x2Splat) {
     r.Call(x);
     int64_t expected = x;
     for (int i = 0; i < 2; i++) {
-      int64_t actual = ReadLittleEndianValue<int64_t>(&g[i]);
+      int64_t actual = LANE(g, i);
       CHECK_EQ(actual, expected);
     }
   }
@@ -476,7 +476,7 @@ WASM_SIMD_TEST(I64x2ReplaceLane) {
 
   r.Call();
   for (int64_t i = 0; i < 2; i++) {
-    CHECK_EQ(i, ReadLittleEndianValue<int64_t>(&g[i]));
+    CHECK_EQ(i, LANE(g, i));
   }
 }
 
@@ -544,7 +544,7 @@ WASM_SIMD_TEST(F64x2Splat) {
     r.Call(x);
     double expected = x;
     for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
+      double actual = LANE(g, i);
       if (std::isnan(expected)) {
         CHECK(std::isnan(actual));
       } else {
@@ -593,10 +593,10 @@ WASM_SIMD_TEST(F64x2ReplaceLane) {
         WASM_ONE);
 
   r.Call();
-  CHECK_EQ(0., ReadLittleEndianValue<double>(&g0[0]));
-  CHECK_EQ(1e100, ReadLittleEndianValue<double>(&g0[1]));
-  CHECK_EQ(1e100, ReadLittleEndianValue<double>(&g1[0]));
-  CHECK_EQ(1., ReadLittleEndianValue<double>(&g1[1]));
+  CHECK_EQ(0., LANE(g0, 0));
+  CHECK_EQ(1e100, LANE(g0, 1));
+  CHECK_EQ(1e100, LANE(g1, 0));
+  CHECK_EQ(1., LANE(g1, 1));
 }
 
 WASM_SIMD_TEST(F64x2ExtractLaneWithI64x2) {
@@ -666,7 +666,7 @@ void RunF64x2ConvertLowI32x4Test(TestExecutionTier execution_tier,
     r.Call(x);
     double expected = static_cast<double>(x);
     for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
+      double actual = LANE(g, i);
       CheckDoubleResult(x, x, expected, actual, true);
     }
   }
@@ -697,12 +697,12 @@ void RunI32x4TruncSatF64x2Test(TestExecutionTier execution_tier,
     r.Call(x);
     SrcType expected = base::saturated_cast<SrcType>(x);
     for (int i = 0; i < 2; i++) {
-      SrcType actual = ReadLittleEndianValue<SrcType>(&g[i]);
+      SrcType actual = LANE(g, i);
       CHECK_EQ(expected, actual);
     }
     // Top lanes are zero-ed.
     for (int i = 2; i < 4; i++) {
-      CHECK_EQ(0, ReadLittleEndianValue<SrcType>(&g[i]));
+      CHECK_EQ(0, LANE(g, i));
     }
   }
 }
@@ -730,11 +730,11 @@ WASM_SIMD_TEST(F32x4DemoteF64x2Zero) {
     r.Call(x);
     float expected = DoubleToFloat32(x);
     for (int i = 0; i < 2; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
+      float actual = LANE(g, i);
       CheckFloatResult(x, x, expected, actual, true);
     }
     for (int i = 2; i < 4; i++) {
-      float actual = ReadLittleEndianValue<float>(&g[i]);
+      float actual = LANE(g, i);
       CheckFloatResult(x, x, 0, actual, true);
     }
   }
@@ -753,7 +753,7 @@ WASM_SIMD_TEST(F64x2PromoteLowF32x4) {
     r.Call(x);
     double expected = static_cast<double>(x);
     for (int i = 0; i < 2; i++) {
-      double actual = ReadLittleEndianValue<double>(&g[i]);
+      double actual = LANE(g, i);
       CheckDoubleResult(x, x, expected, actual, true);
     }
   }
@@ -831,7 +831,7 @@ WASM_SIMD_TEST(I32x4Splat) {
     r.Call(x);
     int32_t expected = x;
     for (int i = 0; i < 4; i++) {
-      int32_t actual = ReadLittleEndianValue<int32_t>(&g[i]);
+      int32_t actual = LANE(g, i);
       CHECK_EQ(actual, expected);
     }
   }
@@ -856,7 +856,7 @@ WASM_SIMD_TEST(I32x4ReplaceLane) {
 
   r.Call();
   for (int32_t i = 0; i < 4; i++) {
-    CHECK_EQ(i, ReadLittleEndianValue<int32_t>(&g[i]));
+    CHECK_EQ(i, LANE(g, i));
   }
 }
 
@@ -872,7 +872,7 @@ WASM_SIMD_TEST(I16x8Splat) {
     r.Call(x);
     int16_t expected = x;
     for (int i = 0; i < 8; i++) {
-      int16_t actual = ReadLittleEndianValue<int16_t>(&g[i]);
+      int16_t actual = LANE(g, i);
       CHECK_EQ(actual, expected);
     }
   }
@@ -882,7 +882,7 @@ WASM_SIMD_TEST(I16x8Splat) {
     r.Call(x);
     int16_t expected = truncate_to_int16(x);
     for (int i = 0; i < 8; i++) {
-      int16_t actual = ReadLittleEndianValue<int16_t>(&g[i]);
+      int16_t actual = LANE(g, i);
       CHECK_EQ(actual, expected);
     }
   }
@@ -915,7 +915,7 @@ WASM_SIMD_TEST(I16x8ReplaceLane) {
 
   r.Call();
   for (int16_t i = 0; i < 8; i++) {
-    CHECK_EQ(i, ReadLittleEndianValue<int16_t>(&g[i]));
+    CHECK_EQ(i, LANE(g, i));
   }
 }
 
@@ -1005,7 +1005,7 @@ WASM_SIMD_TEST(I8x16Splat) {
     r.Call(x);
     int8_t expected = x;
     for (int i = 0; i < 16; i++) {
-      int8_t actual = ReadLittleEndianValue<int8_t>(&g[i]);
+      int8_t actual = LANE(g, i);
       CHECK_EQ(actual, expected);
     }
   }
@@ -1015,7 +1015,7 @@ WASM_SIMD_TEST(I8x16Splat) {
     r.Call(x);
     int8_t expected = truncate_to_int8(x);
     for (int i = 0; i < 16; i++) {
-      int8_t actual = ReadLittleEndianValue<int8_t>(&g[i]);
+      int8_t actual = LANE(g, i);
       CHECK_EQ(actual, expected);
     }
   }
@@ -1064,7 +1064,7 @@ WASM_SIMD_TEST(I8x16ReplaceLane) {
 
   r.Call();
   for (int8_t i = 0; i < 16; i++) {
-    CHECK_EQ(i, ReadLittleEndianValue<int8_t>(&g[i]));
+    CHECK_EQ(i, LANE(g, i));
   }
 }
 
@@ -1104,8 +1104,8 @@ WASM_SIMD_TEST(I32x4ConvertF32x4) {
     int32_t expected_signed = ConvertToInt(x, false);
     int32_t expected_unsigned = ConvertToInt(x, true);
     for (int i = 0; i < 4; i++) {
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int32_t>(&g0[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int32_t>(&g1[i]));
+      CHECK_EQ(expected_signed, LANE(g0, i));
+      CHECK_EQ(expected_unsigned, LANE(g1, i));
     }
   }
 }
@@ -1137,10 +1137,10 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
     int32_t expected_signed = static_cast<int32_t>(x);
     int32_t expected_unsigned = static_cast<int32_t>(static_cast<uint16_t>(x));
     for (int i = 0; i < 4; i++) {
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int32_t>(&g0[i]));
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int32_t>(&g1[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int32_t>(&g2[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int32_t>(&g3[i]));
+      CHECK_EQ(expected_signed, LANE(g0, i));
+      CHECK_EQ(expected_signed, LANE(g1, i));
+      CHECK_EQ(expected_unsigned, LANE(g2, i));
+      CHECK_EQ(expected_unsigned, LANE(g3, i));
     }
   }
 }
@@ -1173,10 +1173,10 @@ WASM_SIMD_TEST(I64x2ConvertI32x4) {
     uint64_t expected_unsigned =
         static_cast<uint64_t>(static_cast<uint32_t>(x));
     for (int i = 0; i < 2; i++) {
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int64_t>(&g0[i]));
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int64_t>(&g1[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<uint64_t>(&g2[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<uint64_t>(&g3[i]));
+      CHECK_EQ(expected_signed, LANE(g0, i));
+      CHECK_EQ(expected_signed, LANE(g1, i));
+      CHECK_EQ(expected_unsigned, LANE(g2, i));
+      CHECK_EQ(expected_unsigned, LANE(g3, i));
     }
   }
 }
@@ -1213,7 +1213,7 @@ void RunExtAddPairwiseTest(TestExecutionTier execution_tier,
     r.Call(*i, *j);
     Wide expected = AddLong<Wide>(*i, *j);
     for (int i = 0; i < num_lanes; i++) {
-      CHECK_EQ(expected, ReadLittleEndianValue<Wide>(&g[i]));
+      CHECK_EQ(expected, LANE(g, i));
     }
   }
 }
@@ -1377,10 +1377,10 @@ WASM_SIMD_TEST(I16x8ConvertI8x16) {
     int16_t expected_signed = static_cast<int16_t>(x);
     int16_t expected_unsigned = static_cast<int16_t>(static_cast<uint8_t>(x));
     for (int i = 0; i < 8; i++) {
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int16_t>(&g0[i]));
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int16_t>(&g1[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int16_t>(&g2[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int16_t>(&g3[i]));
+      CHECK_EQ(expected_signed, LANE(g0, i));
+      CHECK_EQ(expected_signed, LANE(g1, i));
+      CHECK_EQ(expected_unsigned, LANE(g2, i));
+      CHECK_EQ(expected_unsigned, LANE(g3, i));
     }
   }
 }
@@ -1408,8 +1408,8 @@ WASM_SIMD_TEST(I16x8ConvertI32x4) {
     int16_t expected_signed = base::saturated_cast<int16_t>(x);
     int16_t expected_unsigned = base::saturated_cast<uint16_t>(x);
     for (int i = 0; i < 8; i++) {
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int16_t>(&g0[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int16_t>(&g1[i]));
+      CHECK_EQ(expected_signed, LANE(g0, i));
+      CHECK_EQ(expected_unsigned, LANE(g1, i));
     }
   }
 }
@@ -1548,7 +1548,7 @@ void RunExtMulTest(TestExecutionTier execution_tier, WasmOpcode opcode,
       r.Call(x, y);
       T expected = expected_op(x, y);
       for (int i = 0; i < lanes; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<T>(&g[i]));
+        CHECK_EQ(expected, LANE(g, i));
       }
     }
   }
@@ -1642,7 +1642,7 @@ WASM_SIMD_TEST(I32x4DotI16x8S) {
       // x * y * 2 can overflow (0x8000), the behavior is to wraparound.
       int32_t expected = base::MulWithWraparound(x * y, 2);
       for (int i = 0; i < 4; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g[i]));
+        CHECK_EQ(expected, LANE(g, i));
       }
     }
   }
@@ -1684,7 +1684,7 @@ WASM_SIMD_TEST(I8x16Popcnt) {
     r.Call(x);
     unsigned expected = base::bits::CountPopulation(x);
     for (int i = 0; i < 16; i++) {
-      CHECK_EQ(expected, ReadLittleEndianValue<int8_t>(&g[i]));
+      CHECK_EQ(expected, LANE(g, i));
     }
   }
 }
@@ -1712,8 +1712,8 @@ WASM_SIMD_TEST(I8x16ConvertI16x8) {
     int8_t expected_signed = base::saturated_cast<int8_t>(x);
     uint8_t expected_unsigned = base::saturated_cast<uint8_t>(x);
     for (int i = 0; i < 16; i++) {
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<int8_t>(&g_s[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<uint8_t>(&g_u[i]));
+      CHECK_EQ(expected_signed, LANE(g_s, i));
+      CHECK_EQ(expected_unsigned, LANE(g_u, i));
     }
   }
 }
@@ -1905,8 +1905,8 @@ void RunBinaryLaneOpTest(
   T* src1 = r.builder().AddGlobal<T>(kWasmS128);
   static const int kElems = kSimd128Size / sizeof(T);
   for (int i = 0; i < kElems; i++) {
-    WriteLittleEndianValue<T>(&src0[i], i);
-    WriteLittleEndianValue<T>(&src1[i], kElems + i);
+    LANE(src0, i) = i;
+    LANE(src1, i) = kElems + i;
   }
   if (simd_op == kExprI8x16Shuffle) {
     BUILD(r,
@@ -1923,7 +1923,7 @@ void RunBinaryLaneOpTest(
 
   CHECK_EQ(1, r.Call());
   for (size_t i = 0; i < expected.size(); i++) {
-    CHECK_EQ(ReadLittleEndianValue<T>(&src0[i]), expected[i]);
+    CHECK_EQ(LANE(src0, i), expected[i]);
   }
 }
 
@@ -2157,14 +2157,14 @@ WASM_SIMD_TEST(I8x16Swizzle) {
 
   for (SwizzleTestArgs si : swizzle_test_vector) {
     for (int i = 0; i < kElems; i++) {
-      WriteLittleEndianValue<uint8_t>(&src0[i], si.input[i]);
-      WriteLittleEndianValue<uint8_t>(&src1[i], si.indices[i]);
+      LANE(src0, i) = si.input[i];
+      LANE(src1, i) = si.indices[i];
     }
 
     CHECK_EQ(1, r.Call());
 
     for (int i = 0; i < kElems; i++) {
-      CHECK_EQ(ReadLittleEndianValue<uint8_t>(&dst[i]), si.expected[i]);
+      CHECK_EQ(LANE(dst, i), si.expected[i]);
     }
   }
 
@@ -2181,13 +2181,13 @@ WASM_SIMD_TEST(I8x16Swizzle) {
             WASM_ONE);
 
       for (int i = 0; i < kSimd128Size; i++) {
-        WriteLittleEndianValue<uint8_t>(&src0[i], si.input[i]);
+        LANE(src0, i) = si.input[i];
       }
 
       CHECK_EQ(1, r.Call());
 
       for (int i = 0; i < kSimd128Size; i++) {
-        CHECK_EQ(ReadLittleEndianValue<uint8_t>(&dst[i]), si.expected[i]);
+        CHECK_EQ(LANE(dst, i), si.expected[i]);
       }
     }
   }
@@ -2255,13 +2255,13 @@ void RunWasmCode(TestExecutionTier execution_tier,
   int8_t* src0 = r.builder().AddGlobal<int8_t>(kWasmS128);
   int8_t* src1 = r.builder().AddGlobal<int8_t>(kWasmS128);
   for (int i = 0; i < kSimd128Size; ++i) {
-    WriteLittleEndianValue<int8_t>(&src0[i], i);
-    WriteLittleEndianValue<int8_t>(&src1[i], kSimd128Size + i);
+    LANE(src0, i) = i;
+    LANE(src1, i) = kSimd128Size + i;
   }
   r.Build(code.data(), code.data() + code.size());
   CHECK_EQ(1, r.Call());
   for (size_t i = 0; i < kSimd128Size; i++) {
-    (*result)[i] = ReadLittleEndianValue<int8_t>(&src0[i]);
+    (*result)[i] = LANE(src0, i);
   }
 }
 
@@ -2526,17 +2526,15 @@ WASM_SIMD_TEST(SimdF32x4For) {
 template <typename T, int numLanes = 4>
 void SetVectorByLanes(T* v, const std::array<T, numLanes>& arr) {
   for (int lane = 0; lane < numLanes; lane++) {
-    WriteLittleEndianValue<T>(&v[lane], arr[lane]);
+    LANE(v, lane) = arr[lane];
   }
 }
 
 template <typename T>
 const T GetScalar(T* v, int lane) {
-  constexpr int kElems = kSimd128Size / sizeof(T);
-  const int index = lane;
-  USE(kElems);
-  DCHECK(index >= 0 && index < kElems);
-  return ReadLittleEndianValue<T>(&v[index]);
+  DCHECK_GE(lane, 0);
+  DCHECK_LT(static_cast<uint32_t>(lane), kSimd128Size / sizeof(T));
+  return LANE(v, lane);
 }
 
 WASM_SIMD_TEST(SimdI32x4GetGlobal) {
@@ -2742,7 +2740,7 @@ WASM_SIMD_TEST(S128Load8SplatOffset) {
   r.builder().WriteMemory(&memory[offset], x);
   r.Call();
   for (int i = 0; i < 16; i++) {
-    CHECK_EQ(x, ReadLittleEndianValue<int8_t>(&global[i]));
+    CHECK_EQ(x, LANE(global, i));
   }
 }
 
@@ -2761,7 +2759,7 @@ void RunLoadSplatTest(TestExecutionTier execution_tier, WasmOpcode op) {
     r.builder().WriteMemory(&memory[lanes], x);
     r.Call();
     for (int i = 0; i < lanes; i++) {
-      CHECK_EQ(x, ReadLittleEndianValue<T>(&global[i]));
+      CHECK_EQ(x, LANE(global, i));
     }
   }
 
@@ -2822,7 +2820,7 @@ void RunLoadExtendTest(TestExecutionTier execution_tier, WasmOpcode op) {
       }
       r.Call();
       for (int i = 0; i < lanes_t; i++) {
-        CHECK_EQ(static_cast<T>(x), ReadLittleEndianValue<T>(&global[i]));
+        CHECK_EQ(static_cast<T>(x), LANE(global, i));
       }
     }
   }
@@ -2851,7 +2849,7 @@ void RunLoadExtendTest(TestExecutionTier execution_tier, WasmOpcode op) {
     for (int i = 0; i < lanes_t; i++) {
       // Integer promotion due to -, static_cast to narrow.
       T expected = static_cast<T>(max_s - i - 1);
-      CHECK_EQ(expected, ReadLittleEndianValue<T>(&global[i]));
+      CHECK_EQ(expected, LANE(global, i));
     }
   }
 
@@ -2922,10 +2920,10 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, WasmOpcode op) {
     r.Call();
 
     // Only first lane is set to sentinel.
-    CHECK_EQ(sentinel, ReadLittleEndianValue<S>(&global[0]));
+    CHECK_EQ(sentinel, LANE(global, 0));
     // The other lanes are zero.
     for (int i = 1; i < lanes_s; i++) {
-      CHECK_EQ(S{0}, ReadLittleEndianValue<S>(&global[i]));
+      CHECK_EQ(S{0}, LANE(global, i));
     }
   }
 
@@ -2941,10 +2939,10 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, WasmOpcode op) {
     r.Call();
 
     // Only first lane is set to sentinel.
-    CHECK_EQ(sentinel, ReadLittleEndianValue<S>(&global[0]));
+    CHECK_EQ(sentinel, LANE(global, 0));
     // The other lanes are zero.
     for (int i = 1; i < lanes_s; i++) {
-      CHECK_EQ(S{0}, ReadLittleEndianValue<S>(&global[i]));
+      CHECK_EQ(S{0}, LANE(global, i));
     }
   }
 
@@ -3004,7 +3002,7 @@ void RunLoadLaneTest(TestExecutionTier execution_tier, WasmOpcode load_op,
     // Only one lane is loaded, the rest of the lanes are unchanged.
     for (byte i = 0; i < lanes_s; i++) {
       T expected = i == sentinel_lane ? sentinel : static_cast<T>(splat_value);
-      CHECK_EQ(expected, ReadLittleEndianValue<T>(&global[i]));
+      CHECK_EQ(expected, LANE(global, i));
     }
   };
 
@@ -3232,7 +3230,7 @@ void RunSimdConstTest(TestExecutionTier execution_tier,
   BUILD(r, WASM_GLOBAL_SET(temp1, WASM_SIMD_CONSTANT(expected)), WASM_ONE);
   CHECK_EQ(1, r.Call());
   for (size_t i = 0; i < expected.size(); i++) {
-    CHECK_EQ(ReadLittleEndianValue<uint8_t>(&src0[i]), expected[i]);
+    CHECK_EQ(LANE(src0, i), expected[i]);
   }
 }
 
@@ -3326,11 +3324,11 @@ void RunAddExtAddPairwiseTest(
   WasmRunner<int32_t> r(execution_tier);
   T* x = r.builder().AddGlobal<T>(kWasmS128);
   for (size_t i = 0; i < addInput.size(); i++) {
-    WriteLittleEndianValue<T>(&x[i], addInput[i]);
+    LANE(x, i) = addInput[i];
   }
   U* y = r.builder().AddGlobal<U>(kWasmS128);
   for (size_t i = 0; i < extAddInput.size(); i++) {
-    WriteLittleEndianValue<U>(&y[i], extAddInput[i]);
+    LANE(y, i) = extAddInput[i];
   }
   switch (extAddSide) {
     case LEFT:
@@ -3358,7 +3356,7 @@ void RunAddExtAddPairwiseTest(
   r.Call();
 
   for (size_t i = 0; i < expectedOutput.size(); i++) {
-    CHECK_EQ(expectedOutput[i], ReadLittleEndianValue<T>(&x[i]));
+    CHECK_EQ(expectedOutput[i], LANE(x, i));
   }
 }
 

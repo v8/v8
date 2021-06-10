@@ -727,8 +727,8 @@ WASM_EXEC_TEST(Select_s128_parameters) {
   int32_t* output = r.builder().AddGlobal<int32_t>(kWasmS128);
   // select(v128(0, 1, 2, 3), v128(4, 5, 6, 7), 1) == v128(0, 1, 2, 3)
   for (int i = 0; i < 4; i++) {
-    WriteLittleEndianValue<int32_t>(&g0[i], i);
-    WriteLittleEndianValue<int32_t>(&g1[i], i + 4);
+    LANE(g0, i) = i;
+    LANE(g1, i) = i + 4;
   }
   BUILD(r,
         WASM_GLOBAL_SET(2, WASM_SELECT(WASM_GLOBAL_GET(0), WASM_GLOBAL_GET(1),
@@ -736,7 +736,7 @@ WASM_EXEC_TEST(Select_s128_parameters) {
         WASM_ONE);
   r.Call(1);
   for (int i = 0; i < 4; i++) {
-    CHECK_EQ(i, ReadLittleEndianValue<int32_t>(&output[i]));
+    CHECK_EQ(i, LANE(output, i));
   }
 }
 
@@ -2119,11 +2119,11 @@ WASM_EXEC_TEST(Int32Global) {
         WASM_GLOBAL_SET(0, WASM_I32_ADD(WASM_GLOBAL_GET(0), WASM_LOCAL_GET(0))),
         WASM_ZERO);
 
-  WriteLittleEndianValue<int32_t>(global, 116);
+  *global = 116;
   for (int i = 9; i < 444444; i += 111111) {
-    int32_t expected = ReadLittleEndianValue<int32_t>(global) + i;
+    int32_t expected = *global + i;
     r.Call(i);
-    CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(global));
+    CHECK_EQ(expected, *global);
   }
 }
 
@@ -2142,17 +2142,16 @@ WASM_EXEC_TEST(Int32Globals_DontAlias) {
         WASM_GLOBAL_GET(g));
 
     // Check that reading/writing global number {g} doesn't alter the others.
-    WriteLittleEndianValue<int32_t>(globals[g], 116 * g);
+    *(globals[g]) = 116 * g;
     int32_t before[kNumGlobals];
     for (int i = 9; i < 444444; i += 111113) {
-      int32_t sum = ReadLittleEndianValue<int32_t>(globals[g]) + i;
-      for (int j = 0; j < kNumGlobals; ++j)
-        before[j] = ReadLittleEndianValue<int32_t>(globals[j]);
+      int32_t sum = *(globals[g]) + i;
+      for (int j = 0; j < kNumGlobals; ++j) before[j] = *(globals[j]);
       int32_t result = r.Call(i);
       CHECK_EQ(sum, result);
       for (int j = 0; j < kNumGlobals; ++j) {
         int32_t expected = j == g ? sum : before[j];
-        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(globals[j]));
+        CHECK_EQ(expected, *(globals[j]));
       }
     }
   }
@@ -2168,11 +2167,11 @@ WASM_EXEC_TEST(Float32Global) {
                                      WASM_F32_SCONVERT_I32(WASM_LOCAL_GET(0)))),
         WASM_ZERO);
 
-  WriteLittleEndianValue<float>(global, 1.25);
+  *global = 1.25;
   for (int i = 9; i < 4444; i += 1111) {
-    volatile float expected = ReadLittleEndianValue<float>(global) + i;
+    volatile float expected = *global + i;
     r.Call(i);
-    CHECK_EQ(expected, ReadLittleEndianValue<float>(global));
+    CHECK_EQ(expected, *global);
   }
 }
 
@@ -2186,11 +2185,11 @@ WASM_EXEC_TEST(Float64Global) {
                                      WASM_F64_SCONVERT_I32(WASM_LOCAL_GET(0)))),
         WASM_ZERO);
 
-  WriteLittleEndianValue<double>(global, 1.25);
+  *global = 1.25;
   for (int i = 9; i < 4444; i += 1111) {
-    volatile double expected = ReadLittleEndianValue<double>(global) + i;
+    volatile double expected = *global + i;
     r.Call(i);
-    CHECK_EQ(expected, ReadLittleEndianValue<double>(global));
+    CHECK_EQ(expected, *global);
   }
 }
 
@@ -2221,13 +2220,10 @@ WASM_EXEC_TEST(MixedGlobals) {
   memory[7] = 0x99;
   r.Call(1);
 
-  CHECK(static_cast<int32_t>(0xEE55CCAA) ==
-        ReadLittleEndianValue<int32_t>(var_int32));
-  CHECK(static_cast<uint32_t>(0xEE55CCAA) ==
-        ReadLittleEndianValue<uint32_t>(var_uint32));
-  CHECK(bit_cast<float>(0xEE55CCAA) == ReadLittleEndianValue<float>(var_float));
-  CHECK(bit_cast<double>(0x99112233EE55CCAAULL) ==
-        ReadLittleEndianValue<double>(var_double));
+  CHECK_EQ(static_cast<int32_t>(0xEE55CCAA), *var_int32);
+  CHECK_EQ(static_cast<uint32_t>(0xEE55CCAA), *var_uint32);
+  CHECK_EQ(bit_cast<float>(0xEE55CCAA), *var_float);
+  CHECK_EQ(bit_cast<double>(0x99112233EE55CCAAULL), *var_double);
 
   USE(unused);
 }

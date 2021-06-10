@@ -2271,7 +2271,7 @@ class LiftoffCompiler {
     LiftoffRegister value =
         pinned.set(__ GetUnusedRegister(reg_class_for(kind), pinned));
     LoadType type = LoadType::ForValueKind(kind);
-    __ Load(value, addr, no_reg, offset, type, pinned, nullptr, true);
+    __ Load(value, addr, no_reg, offset, type, pinned, nullptr, false);
     __ PushRegister(kind, value);
   }
 
@@ -2312,7 +2312,7 @@ class LiftoffCompiler {
     Register addr = GetGlobalBaseAndOffset(global, &pinned, &offset);
     LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
     StoreType type = StoreType::ForValueKind(kind);
-    __ Store(addr, no_reg, offset, reg, type, {}, nullptr, true);
+    __ Store(addr, no_reg, offset, reg, type, {}, nullptr, false);
   }
 
   void TableGet(FullDecoder* decoder, const Value&, Value*,
