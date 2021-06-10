@@ -200,6 +200,7 @@ class LiftoffAssembler : public TurboAssembler {
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
     Register cached_instance = no_reg;
+    Register cached_mem_start = no_reg;
 
     bool has_unused_register(RegClass rc, LiftoffRegList pinned = {}) const {
       if (kNeedI64RegPair && rc == kGpRegPair) {
@@ -250,29 +251,45 @@ class LiftoffAssembler : public TurboAssembler {
     // Volatile registers are registers which are used for caching values that
     // can easily be reloaded. Those are returned first if we run out of free
     // registers.
-    // Note: This interface is a bit more generic than currently needed, in
-    // anticipation of more "volatile registers" being added later.
     bool has_volatile_register(LiftoffRegList candidates) {
-      return cached_instance != no_reg && candidates.has(cached_instance);
+      return (cached_instance != no_reg && candidates.has(cached_instance)) ||
+             (cached_mem_start != no_reg && candidates.has(cached_mem_start));
     }
 
     LiftoffRegister take_volatile_register(LiftoffRegList candidates) {
-      DCHECK(candidates.has(cached_instance));
-      LiftoffRegister ret{cached_instance};
+      DCHECK(has_volatile_register(candidates));
+      Register reg = no_reg;
+      if (cached_instance != no_reg && candidates.has(cached_instance)) {
+        reg = cached_instance;
+        cached_instance = no_reg;
+      } else {
+        DCHECK(candidates.has(cached_mem_start));
+        reg = cached_mem_start;
+        cached_mem_start = no_reg;
+      }
+
+      LiftoffRegister ret{reg};
       DCHECK_EQ(1, register_use_count[ret.liftoff_code()]);
       register_use_count[ret.liftoff_code()] = 0;
       used_registers.clear(ret);
-      cached_instance = no_reg;
       return ret;
     }
 
-    void SetInstanceCacheRegister(Register reg) {
-      DCHECK_EQ(no_reg, cached_instance);
-      cached_instance = reg;
+    void SetCacheRegister(Register* cache, Register reg) {
+      DCHECK_EQ(no_reg, *cache);
+      *cache = reg;
       int liftoff_code = LiftoffRegister{reg}.liftoff_code();
       DCHECK_EQ(0, register_use_count[liftoff_code]);
       register_use_count[liftoff_code] = 1;
       used_registers.set(reg);
+    }
+
+    void SetInstanceCacheRegister(Register reg) {
+      SetCacheRegister(&cached_instance, reg);
+    }
+
+    void SetMemStartCacheRegister(Register reg) {
+      SetCacheRegister(&cached_mem_start, reg);
     }
 
     Register TrySetCachedInstanceRegister(LiftoffRegList pinned) {
@@ -290,13 +307,24 @@ class LiftoffAssembler : public TurboAssembler {
       return new_cache_reg;
     }
 
-    void ClearCachedInstanceRegister() {
-      if (cached_instance == no_reg) return;
-      int liftoff_code = LiftoffRegister{cached_instance}.liftoff_code();
+    void ClearCacheRegister(Register* cache) {
+      if (*cache == no_reg) return;
+      int liftoff_code = LiftoffRegister{*cache}.liftoff_code();
       DCHECK_EQ(1, register_use_count[liftoff_code]);
       register_use_count[liftoff_code] = 0;
-      used_registers.clear(cached_instance);
-      cached_instance = no_reg;
+      used_registers.clear(*cache);
+      *cache = no_reg;
+    }
+
+    void ClearCachedInstanceRegister() { ClearCacheRegister(&cached_instance); }
+
+    void ClearCachedMemStartRegister() {
+      ClearCacheRegister(&cached_mem_start);
+    }
+
+    void ClearAllCacheRegisters() {
+      ClearCacheRegister(&cached_instance);
+      ClearCacheRegister(&cached_mem_start);
     }
 
     void inc_used(LiftoffRegister reg) {
@@ -551,6 +579,8 @@ class LiftoffAssembler : public TurboAssembler {
       if (cache_state_.is_free(r)) continue;
       if (r.is_gp() && cache_state_.cached_instance == r.gp()) {
         cache_state_.ClearCachedInstanceRegister();
+      } else if (r.is_gp() && cache_state_.cached_mem_start == r.gp()) {
+        cache_state_.ClearCachedMemStartRegister();
       } else {
         SpillRegister(r);
       }
