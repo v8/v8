@@ -1447,10 +1447,6 @@ class Heap {
   // Excludes external memory held by those objects.
   V8_EXPORT_PRIVATE size_t OldGenerationSizeOfObjects();
 
-  // Returns the size of objects held by the EmbedderHeapTracer.
-  V8_EXPORT_PRIVATE size_t EmbedderSizeOfObjects() const;
-
-  // Returns the global size of objects (embedder + V8 non-new spaces).
   V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects();
 
   // We allow incremental marking to overshoot the V8 and global allocation
@@ -2027,12 +2023,7 @@ class Heap {
 
   double PercentToOldGenerationLimit();
   double PercentToGlobalMemoryLimit();
-  enum class IncrementalMarkingLimit {
-    kNoLimit,
-    kSoftLimit,
-    kHardLimit,
-    kFallbackForEmbedderLimit
-  };
+  enum class IncrementalMarkingLimit { kNoLimit, kSoftLimit, kHardLimit };
   IncrementalMarkingLimit IncrementalMarkingLimitReached();
 
   bool ShouldStressCompaction() const;
