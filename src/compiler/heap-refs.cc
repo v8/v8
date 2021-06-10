@@ -1196,16 +1196,13 @@ class MapData : public HeapObjectData {
     return prototype_;
   }
 
-  void SerializeForElementLoad(JSHeapBroker* broker);
-
   void SerializeForElementStore(JSHeapBroker* broker);
 
   bool has_extra_serialized_data() const {
     return serialized_elements_kind_generalizations_ ||
            serialized_own_descriptors_ || serialized_constructor_ ||
            serialized_backpointer_ || serialized_prototype_ ||
-           serialized_root_map_ || serialized_for_element_load_ ||
-           serialized_for_element_store_;
+           serialized_root_map_ || serialized_for_element_store_;
   }
 
  private:
@@ -1254,8 +1251,6 @@ class MapData : public HeapObjectData {
 
   bool serialized_root_map_ = false;
   ObjectData* root_map_ = nullptr;
-
-  bool serialized_for_element_load_ = false;
 
   bool serialized_for_element_store_ = false;
 };
@@ -2897,24 +2892,10 @@ base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
   return base::Optional<MapRef>();
 }
 
-void MapRef::SerializeForElementLoad() {
-  if (data()->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsMap()->SerializeForElementLoad(broker());
-}
-
 void MapRef::SerializeForElementStore() {
   if (data()->should_access_heap()) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeForElementStore(broker());
-}
-
-void MapData::SerializeForElementLoad(JSHeapBroker* broker) {
-  if (serialized_for_element_load_) return;
-  serialized_for_element_load_ = true;
-
-  TraceScope tracer(broker, this, "MapData::SerializeForElementLoad");
-  SerializePrototype(broker);
 }
 
 void MapData::SerializeForElementStore(JSHeapBroker* broker) {
@@ -3560,7 +3541,7 @@ base::Optional<HeapObjectRef> MapRef::prototype() const {
 }
 
 void MapRef::SerializeRootMap() {
-  if (data_->should_access_heap()) return;
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeRootMap(broker());
 }
@@ -4484,7 +4465,7 @@ bool MapRef::serialized_own_descriptor(InternalIndex descriptor_index) const {
 }
 
 void MapRef::SerializeBackPointer() {
-  if (data_->should_access_heap()) return;
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) return;
   CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
                 broker()->mode() == JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeBackPointer(broker());

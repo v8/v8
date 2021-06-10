@@ -1655,8 +1655,7 @@ base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
 void JSNativeContextSpecialization::RemoveImpossibleMaps(
     Node* object, ZoneVector<Handle<Map>>* maps) const {
   base::Optional<MapRef> root_map = InferRootMap(object);
-  if (root_map.has_value()) {
-    DCHECK(!root_map->is_abandoned_prototype_map());
+  if (root_map.has_value() && !root_map->is_abandoned_prototype_map()) {
     maps->erase(
         std::remove_if(maps->begin(), maps->end(),
                        [root_map, this](Handle<Map> map) {

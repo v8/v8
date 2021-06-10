@@ -706,8 +706,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool TrySerializePrototype();
   base::Optional<HeapObjectRef> prototype() const;
 
-  void SerializeForElementLoad();
-
   void SerializeForElementStore();
   bool HasOnlyStablePrototypesWithFastElements(
       ZoneVector<MapRef>* prototype_maps);

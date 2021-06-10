@@ -3309,7 +3309,7 @@ void SerializerForBackgroundCompilation::ProcessElementAccess(
       switch (access_mode) {
         case AccessMode::kHas:
         case AccessMode::kLoad:
-          map.SerializeForElementLoad();
+          map.SerializePrototype();
           break;
         case AccessMode::kStore:
           map.SerializeForElementStore();
