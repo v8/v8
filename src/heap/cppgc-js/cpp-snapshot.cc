@@ -329,21 +329,21 @@ class StateStorage final {
   size_t state_count_ = 0;
 };
 
-bool HasEmbedderDataBackref(Isolate* isolate, v8::Local<v8::Value> v8_value,
-                            void* expected_backref) {
+void* ExtractEmbedderDataBackref(Isolate* isolate,
+                                 v8::Local<v8::Value> v8_value) {
   // See LocalEmbedderHeapTracer::VerboseWrapperTypeInfo for details on how
   // wrapper objects are set up.
-  if (!v8_value->IsObject()) return false;
+  if (!v8_value->IsObject()) return nullptr;
 
   Handle<Object> v8_object = Utils::OpenHandle(*v8_value);
   if (!v8_object->IsJSObject() || !JSObject::cast(*v8_object).IsApiWrapper())
-    return false;
+    return nullptr;
 
   JSObject js_object = JSObject::cast(*v8_object);
   return LocalEmbedderHeapTracer::VerboseWrapperInfo(
              isolate->heap()->local_embedder_heap_tracer()->ExtractWrapperInfo(
                  isolate, js_object))
-             .instance() == expected_backref;
+      .instance();
 }
 
 // The following implements a snapshotting algorithm for C++ objects that also
@@ -450,15 +450,26 @@ class CppGraphBuilderImpl final {
       // that the snapshot generator  can merge the nodes appropriately.
       if (!ref.WrapperClassId()) return;
 
-      if (HasEmbedderDataBackref(
-              reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
-              v8_value, parent.header()->ObjectStart())) {
-        parent.get_node()->SetWrapperNode(v8_node);
+      void* back_reference_object = ExtractEmbedderDataBackref(
+          reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
+          v8_value);
+      if (back_reference_object) {
+        // Generally the back reference will point to `parent.header()`. In the
+        // case of global proxy set up the backreference will point to a
+        // different object. Merge the nodes nevertheless as Window objects need
+        // to be able to query their detachedness state.
+        //
+        // TODO(chromium:1218404): See bug description on how to fix this
+        // inconsistency and only merge states when the backref points back
+        // to the same object.
+        auto& back_state = states_.GetExistingState(
+            HeapObjectHeader::FromObject(back_reference_object));
+        back_state.get_node()->SetWrapperNode(v8_node);
 
         auto* profiler =
             reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
         if (profiler->HasGetDetachednessCallback()) {
-          parent.get_node()->SetDetachedness(
+          back_state.get_node()->SetDetachedness(
               profiler->GetDetachedness(v8_value, ref.WrapperClassId()));
         }
       }
