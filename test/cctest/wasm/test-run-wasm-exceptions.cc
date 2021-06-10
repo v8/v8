@@ -531,6 +531,10 @@ void TestTrapNotCaught(byte* code, size_t code_size,
   constexpr uint32_t kResultSuccess = 23;
   constexpr uint32_t kResultCaught = 47;
 
+  // Add an indirect function table.
+  const int kTableSize = 2;
+  r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
+
   // Build a trapping helper function.
   WasmFunctionCompiler& trap_func = r.NewFunction(sigs.i_ii());
   trap_func.Build(code, code + code_size);
@@ -571,6 +575,17 @@ WASM_EXEC_TEST(TryCatchTrapDivByZero) {
 
 WASM_EXEC_TEST(TryCatchTrapRemByZero) {
   byte code[] = {WASM_I32_REMS(WASM_LOCAL_GET(0), WASM_I32V_1(0))};
+  TestTrapNotCaught(code, arraysize(code), execution_tier);
+}
+
+WASM_EXEC_TEST(TryCatchTrapTableFill) {
+  EXPERIMENTAL_FLAG_SCOPE(reftypes);
+  int table_index = 0;
+  int length = 10;  // OOB.
+  int start = 10;   // OOB.
+  byte code[] = {WASM_TABLE_FILL(table_index, WASM_I32V(length),
+                                 WASM_REF_NULL(kFuncRefCode), WASM_I32V(start)),
+                 WASM_I32V_1(42)};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 

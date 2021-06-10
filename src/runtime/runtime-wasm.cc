@@ -85,7 +85,6 @@ class V8_NODISCARD ClearThreadInWasmScope {
 };
 
 Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
-  HandleScope scope(isolate);
   Handle<JSObject> error_obj = isolate->factory()->NewWasmRuntimeError(message);
   JSObject::AddProperty(isolate, error_obj,
                         isolate->factory()->wasm_uncatchable_symbol(),
@@ -133,6 +132,7 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   ClearThreadInWasmScope flag_scope(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   return ThrowWasmError(isolate, MessageTemplateFromInt(message_id));
@@ -381,9 +381,7 @@ Object ThrowTableOutOfBounds(Isolate* isolate,
   if (isolate->context().is_null()) {
     isolate->set_context(instance->native_context());
   }
-  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
-      MessageTemplate::kWasmTrapTableOutOfBounds);
-  return isolate->Throw(*error_obj);
+  return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
 }
 }  // namespace
 

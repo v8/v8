@@ -1006,8 +1006,11 @@ auto Trap::make(Store* store_abs, const Message& message) -> own<Trap> {
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::String> string = VecToString(isolate, message);
-  i::Handle<i::JSReceiver> exception = i::Handle<i::JSReceiver>::cast(
-      isolate->factory()->NewError(isolate->error_function(), string));
+  i::Handle<i::JSObject> exception =
+      isolate->factory()->NewError(isolate->error_function(), string);
+  i::JSObject::AddProperty(isolate, exception,
+                           isolate->factory()->wasm_uncatchable_symbol(),
+                           isolate->factory()->true_value(), i::NONE);
   return implement<Trap>::type::make(store, exception);
 }
 
