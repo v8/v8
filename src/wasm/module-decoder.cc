@@ -174,27 +174,27 @@ class WasmSectionIterator {
     next();
   }
 
-  inline bool more() const { return decoder_->ok() && decoder_->more(); }
+  bool more() const { return decoder_->ok() && decoder_->more(); }
 
-  inline SectionCode section_code() const { return section_code_; }
+  SectionCode section_code() const { return section_code_; }
 
-  inline const byte* section_start() const { return section_start_; }
+  const byte* section_start() const { return section_start_; }
 
-  inline uint32_t section_length() const {
+  uint32_t section_length() const {
     return static_cast<uint32_t>(section_end_ - section_start_);
   }
 
-  inline Vector<const uint8_t> payload() const {
+  Vector<const uint8_t> payload() const {
     return {payload_start_, payload_length()};
   }
 
-  inline const byte* payload_start() const { return payload_start_; }
+  const byte* payload_start() const { return payload_start_; }
 
-  inline uint32_t payload_length() const {
+  uint32_t payload_length() const {
     return static_cast<uint32_t>(section_end_ - payload_start_);
   }
 
-  inline const byte* section_end() const { return section_end_; }
+  const byte* section_end() const { return section_end_; }
 
   // Advances to the next section, checking that decoding the current section
   // stopped at {section_end_}.

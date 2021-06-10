@@ -206,7 +206,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
 
   WasmModuleBuilder* builder() const { return builder_; }
   uint32_t func_index() { return func_index_; }
-  FunctionSig* signature();
+  inline FunctionSig* signature();
 
  private:
   explicit WasmFunctionBuilder(WasmModuleBuilder* builder);
@@ -383,7 +383,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 #endif
 };
 
-inline FunctionSig* WasmFunctionBuilder::signature() {
+FunctionSig* WasmFunctionBuilder::signature() {
   return builder_->types_[signature_index_].sig;
 }
 

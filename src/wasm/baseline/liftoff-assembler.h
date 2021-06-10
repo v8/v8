@@ -653,13 +653,13 @@ class LiftoffAssembler : public TurboAssembler {
                                  int32_t offset_imm, LiftoffRegister src,
                                  LiftoffRegList pinned,
                                  SkipWriteBarrier = kNoSkipWriteBarrier);
-  inline void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
-                                          LiftoffRegList pinned) {
+  void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
+                                   LiftoffRegList pinned) {
     int offset = FixedArray::kLengthOffset - kHeapObjectTag;
     LoadSmiAsInt32(dst, array, offset, pinned);
   }
-  inline void LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
-                             int32_t offset, LiftoffRegList pinned) {
+  void LoadSmiAsInt32(LiftoffRegister dst, Register src_addr, int32_t offset,
+                      LiftoffRegList pinned) {
     if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
       DCHECK_EQ(kSmiShiftSize + kSmiTagSize, 4 * kBitsPerByte);
@@ -822,7 +822,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void emit_u32_to_intptr(Register dst, Register src);
 
-  inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs) {
+  void emit_ptrsize_add(Register dst, Register lhs, Register rhs) {
     if (kSystemPointerSize == 8) {
       emit_i64_add(LiftoffRegister(dst), LiftoffRegister(lhs),
                    LiftoffRegister(rhs));
@@ -830,7 +830,7 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i32_add(dst, lhs, rhs);
     }
   }
-  inline void emit_ptrsize_sub(Register dst, Register lhs, Register rhs) {
+  void emit_ptrsize_sub(Register dst, Register lhs, Register rhs) {
     if (kSystemPointerSize == 8) {
       emit_i64_sub(LiftoffRegister(dst), LiftoffRegister(lhs),
                    LiftoffRegister(rhs));
@@ -838,7 +838,7 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i32_sub(dst, lhs, rhs);
     }
   }
-  inline void emit_ptrsize_and(Register dst, Register lhs, Register rhs) {
+  void emit_ptrsize_and(Register dst, Register lhs, Register rhs) {
     if (kSystemPointerSize == 8) {
       emit_i64_and(LiftoffRegister(dst), LiftoffRegister(lhs),
                    LiftoffRegister(rhs));
@@ -846,7 +846,7 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i32_and(dst, lhs, rhs);
     }
   }
-  inline void emit_ptrsize_shri(Register dst, Register src, int amount) {
+  void emit_ptrsize_shri(Register dst, Register src, int amount) {
     if (kSystemPointerSize == 8) {
       emit_i64_shri(LiftoffRegister(dst), LiftoffRegister(src), amount);
     } else {
@@ -854,7 +854,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
   }
 
-  inline void emit_ptrsize_addi(Register dst, Register lhs, intptr_t imm) {
+  void emit_ptrsize_addi(Register dst, Register lhs, intptr_t imm) {
     if (kSystemPointerSize == 8) {
       emit_i64_addi(LiftoffRegister(dst), LiftoffRegister(lhs), imm);
     } else {
@@ -862,8 +862,8 @@ class LiftoffAssembler : public TurboAssembler {
     }
   }
 
-  inline void emit_ptrsize_set_cond(LiftoffCondition condition, Register dst,
-                                    LiftoffRegister lhs, LiftoffRegister rhs) {
+  void emit_ptrsize_set_cond(LiftoffCondition condition, Register dst,
+                             LiftoffRegister lhs, LiftoffRegister rhs) {
     if (kSystemPointerSize == 8) {
       emit_i64_set_cond(condition, dst, lhs, rhs);
     } else {
@@ -871,7 +871,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
   }
 
-  inline void emit_ptrsize_zeroextend_i32(Register dst, Register src) {
+  void emit_ptrsize_zeroextend_i32(Register dst, Register src) {
     if (kSystemPointerSize == 8) {
       emit_type_conversion(kExprI64UConvertI32, LiftoffRegister(dst),
                            LiftoffRegister(src));
