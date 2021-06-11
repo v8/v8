@@ -84,9 +84,9 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   WasmCompilationUnit(int index, ExecutionTier tier, ForDebugging for_debugging)
       : func_index_(index), tier_(tier), for_debugging_(for_debugging) {}
 
-  WasmCompilationResult ExecuteCompilation(
-      WasmEngine*, CompilationEnv*, const std::shared_ptr<WireBytesStorage>&,
-      Counters*, WasmFeatures* detected);
+  WasmCompilationResult ExecuteCompilation(WasmEngine*, CompilationEnv*,
+                                           const WireBytesStorage*, Counters*,
+                                           WasmFeatures* detected);
 
   ExecutionTier tier() const { return tier_; }
   int func_index() const { return func_index_; }
@@ -96,13 +96,13 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
                                   ExecutionTier);
 
  private:
-  WasmCompilationResult ExecuteFunctionCompilation(
-      WasmEngine* wasm_engine, CompilationEnv* env,
-      const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
-      Counters* counters, WasmFeatures* detected);
+  WasmCompilationResult ExecuteFunctionCompilation(WasmEngine*, CompilationEnv*,
+                                                   const WireBytesStorage*,
+                                                   Counters*,
+                                                   WasmFeatures* detected);
 
-  WasmCompilationResult ExecuteImportWrapperCompilation(WasmEngine* engine,
-                                                        CompilationEnv* env);
+  WasmCompilationResult ExecuteImportWrapperCompilation(WasmEngine*,
+                                                        CompilationEnv*);
 
   int func_index_;
   ExecutionTier tier_;

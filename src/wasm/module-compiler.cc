@@ -632,7 +632,7 @@ class CompilationStateImpl {
   void SetWireBytesStorage(
       std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
     base::MutexGuard guard(&mutex_);
-    wire_bytes_storage_ = wire_bytes_storage;
+    wire_bytes_storage_ = std::move(wire_bytes_storage);
   }
 
   std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const {
@@ -1127,8 +1127,9 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmFeatures detected_features;
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
-      isolate->wasm_engine(), &env, compilation_state->GetWireBytesStorage(),
-      counters, &detected_features);
+      isolate->wasm_engine(), &env,
+      compilation_state->GetWireBytesStorage().get(), counters,
+      &detected_features);
   compilation_state->OnCompilationStopped(detected_features);
 
   // During lazy compilation, we can only get compilation errors when
@@ -1314,7 +1315,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
     while (unit->tier() == current_tier) {
       // (asynchronous): Execute the compilation.
       WasmCompilationResult result = unit->ExecuteCompilation(
-          engine, &env.value(), wire_bytes, counters, &detected_features);
+          engine, &env.value(), wire_bytes.get(), counters, &detected_features);
       results_to_publish.emplace_back(std::move(result));
 
       bool yield = delegate && delegate->ShouldYield();

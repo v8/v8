@@ -122,8 +122,8 @@ ExecutionTier WasmCompilationUnit::GetBaselineExecutionTier(
 
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     WasmEngine* engine, CompilationEnv* env,
-    const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
-    Counters* counters, WasmFeatures* detected) {
+    const WireBytesStorage* wire_bytes_storage, Counters* counters,
+    WasmFeatures* detected) {
   WasmCompilationResult result;
   if (func_index_ < static_cast<int>(env->module->num_imported_functions)) {
     result = ExecuteImportWrapperCompilation(engine, env);
@@ -159,8 +159,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
 
 WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     WasmEngine* wasm_engine, CompilationEnv* env,
-    const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
-    Counters* counters, WasmFeatures* detected) {
+    const WireBytesStorage* wire_bytes_storage, Counters* counters,
+    WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
@@ -267,7 +267,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
       isolate->wasm_engine(), &env,
-      native_module->compilation_state()->GetWireBytesStorage(),
+      native_module->compilation_state()->GetWireBytesStorage().get(),
       isolate->counters(), detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;

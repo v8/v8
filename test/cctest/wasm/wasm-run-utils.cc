@@ -564,7 +564,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                              for_debugging);
     result.emplace(unit.ExecuteCompilation(
         isolate()->wasm_engine(), &env,
-        native_module->compilation_state()->GetWireBytesStorage(),
+        native_module->compilation_state()->GetWireBytesStorage().get(),
         isolate()->counters(), &unused_detected_features));
   }
   WasmCode* code = native_module->PublishCode(
