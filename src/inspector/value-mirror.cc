@@ -50,7 +50,7 @@ Response objectToProtocolValue(
   std::unique_ptr<protocol::DictionaryValue> jsonObject =
       protocol::DictionaryValue::create();
   v8::Local<v8::Array> propertyNames;
-  if (!object->GetPropertyNames(context).ToLocal(&propertyNames))
+  if (!object->GetOwnPropertyNames(context).ToLocal(&propertyNames))
     return Response::InternalError();
   uint32_t length = propertyNames->Length();
   for (uint32_t i = 0; i < length; i++) {
