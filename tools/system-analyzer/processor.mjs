@@ -25,9 +25,10 @@ export class Processor extends LogReader {
   _formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
   _lastTimestamp = 0;
   _lastCodeLogEntry;
+  _chunkRemainder = '';
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
-  constructor(logString) {
+  constructor() {
     super();
     const propertyICParser = [
       parseInt, parseInt, parseInt, parseInt, parseString, parseString,
@@ -136,7 +137,6 @@ export class Processor extends LogReader {
         processor: this.processApiEvent
       },
     };
-    if (logString) this.processString(logString);
   }
 
   printError(str) {
@@ -144,26 +144,29 @@ export class Processor extends LogReader {
     throw str
   }
 
-  processString(string) {
-    let end = string.length;
+  processChunk(chunk) {
+    let end = chunk.length;
     let current = 0;
     let next = 0;
     let line;
-    let i = 0;
-    let entry;
     try {
       while (current < end) {
-        next = string.indexOf('\n', current);
-        if (next === -1) break;
-        i++;
-        line = string.substring(current, next);
+        next = chunk.indexOf('\n', current);
+        if (next === -1) {
+          this._chunkRemainder = chunk.substring(current);
+          break;
+        }
+        line = chunk.substring(current, next);
+        if (this._chunkRemainder) {
+          line = this._chunkRemainder + line;
+          this._chunkRemainder = '';
+        }
         current = next + 1;
         this.processLogLine(line);
       }
     } catch (e) {
       console.error(`Error occurred during parsing, trying to continue: ${e}`);
     }
-    this.finalize();
   }
 
   processLogFile(fileName) {

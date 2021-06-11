@@ -58,27 +58,33 @@ DOM.defineCustomElement('view/log-file-reader',
     return this.$('#root');
   }
 
-  readFile(file) {
+  async readFile(file) {
     if (!file) {
       this.error = 'Failed to load file.';
       return;
     }
     this.fileReader.blur();
     this.root.className = 'loading';
-    const reader = new FileReader();
-    reader.onload = (e) => this.handleFileLoad(e, file);
-    // Delay the loading a bit to allow for CSS animations to happen.
-    setTimeout(() => reader.readAsText(file), 0);
-  }
 
-  handleFileLoad(e, file) {
-    const chunk = e.target.result;
+    const stream = file.stream().pipeThrough(new TextDecoderStream());
+    const reader = stream.getReader();
+    let chunk, readerDone;
+    do {
+      const readResult = await reader.read();
+      chunk = readResult.value;
+      readerDone = readResult.done;
+      if (!chunk) continue;
+
+      this.dispatchEvent(new CustomEvent('fileuploadchunk', {
+        bubbles: true,
+        composed: true,
+        detail: chunk,
+      }));
+    } while (!readerDone);
+
     this._updateLabel(`Finished loading '${file.name}'.`);
-    this.dispatchEvent(new CustomEvent('fileuploadend', {
-      bubbles: true,
-      composed: true,
-      detail: chunk,
-    }));
+    this.dispatchEvent(
+        new CustomEvent('fileuploadend', {bubbles: true, composed: true}));
     this.root.className = 'done';
   }
 });

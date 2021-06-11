@@ -50,6 +50,8 @@ class App {
     this._view.logFileReader.addEventListener(
         'fileuploadstart', (e) => this.handleFileUploadStart(e));
     this._view.logFileReader.addEventListener(
+        'fileuploadchunk', (e) => this.handleFileUploadChunk(e));
+    this._view.logFileReader.addEventListener(
         'fileuploadend', (e) => this.handleFileUploadEnd(e));
     this._startupPromise = this.runAsyncInitialize();
     this._view.codeTrack.svg = true;
@@ -307,20 +309,28 @@ class App {
     this._view.toolTip.content = content;
   }
 
-  handleFileUploadStart(e) {
-    this.restartApp();
-    $('#container').className = 'initial';
-  }
-
   restartApp() {
     this._state = new State();
     this._navigation = new Navigation(this._state, this._view);
   }
 
+  handleFileUploadStart(e) {
+    this.restartApp();
+    $('#container').className = 'initial';
+    this._processor = new Processor();
+  }
+
+  handleFileUploadChunk(e) {
+    this._processor.processChunk(e.detail);
+  }
+
   async handleFileUploadEnd(e) {
-    await this._startupPromise;
     try {
-      const processor = new Processor(e.detail);
+      const processor = this._processor;
+      processor.finalize();
+
+      await this._startupPromise;
+
       this._state.profile = processor.profile;
       const mapTimeline = processor.mapTimeline;
       const icTimeline = processor.icTimeline;

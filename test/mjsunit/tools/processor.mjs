@@ -34,7 +34,8 @@ const result = doWork();
 
 const logString = d8.log.getAndStop();
 const processor = new Processor();
-processor.processString(logString);
+processor.processChunk(logString);
+processor.finalize();
 
 const maps = processor.mapTimeline;
 const ics = processor.icTimeline;
