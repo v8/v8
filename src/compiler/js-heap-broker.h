@@ -356,12 +356,11 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // occurrence. This is done to have a recursive shared lock on {mutex}.
   class V8_NODISCARD RecursiveSharedMutexGuardIfNeeded {
    protected:
-    RecursiveSharedMutexGuardIfNeeded(LocalIsolate* local_isolate,
-                                      base::SharedMutex* mutex,
+    RecursiveSharedMutexGuardIfNeeded(base::SharedMutex* mutex,
                                       int* mutex_depth_address)
         : mutex_depth_address_(mutex_depth_address),
           initial_mutex_depth_(*mutex_depth_address_),
-          shared_mutex_guard_(local_isolate, mutex, initial_mutex_depth_ == 0) {
+          shared_mutex_guard_(mutex, initial_mutex_depth_ == 0) {
       (*mutex_depth_address_)++;
     }
 
@@ -374,7 +373,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
    private:
     int* const mutex_depth_address_;
     const int initial_mutex_depth_;
-    ParkedSharedMutexGuardIf<base::kShared> shared_mutex_guard_;
+    base::SharedMutexGuardIf<base::kShared> shared_mutex_guard_;
   };
 
   class MapUpdaterGuardIfNeeded final
@@ -382,7 +381,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
    public:
     explicit MapUpdaterGuardIfNeeded(JSHeapBroker* broker)
         : RecursiveSharedMutexGuardIfNeeded(
-              broker->local_isolate(), broker->isolate()->map_updater_access(),
+              broker->isolate()->map_updater_access(),
               &broker->map_updater_mutex_depth_) {}
   };
 
@@ -391,7 +390,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
    public:
     explicit BoilerplateMigrationGuardIfNeeded(JSHeapBroker* broker)
         : RecursiveSharedMutexGuardIfNeeded(
-              broker->local_isolate(),
               broker->isolate()->boilerplate_migration_access(),
               &broker->boilerplate_migration_mutex_depth_) {}
   };
