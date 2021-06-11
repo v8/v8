@@ -77,7 +77,11 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
     // If we're not looking at a TypedArray, we will need the key represented
     // as an internalized string.
     if (index_ > JSObject::kMaxElementIndex &&
-        !lookup_start_object->IsJSTypedArray()) {
+        !lookup_start_object->IsJSTypedArray(isolate_)
+#if V8_ENABLE_WEBASSEMBLY
+        && !lookup_start_object->IsWasmArray(isolate_)
+#endif  // V8_ENABLE_WEBASSEMBLY
+    ) {
       if (name_.is_null()) {
         name_ = isolate->factory()->SizeToString(index_);
       }
@@ -173,7 +177,7 @@ Handle<Name> LookupIterator::GetName() {
 bool LookupIterator::IsElement(JSReceiver object) const {
   return index_ <= JSObject::kMaxElementIndex ||
          (index_ != kInvalidIndex &&
-          object.map().has_typed_array_or_rab_gsab_typed_array_elements());
+          object.map().has_any_typed_array_or_wasm_array_elements());
 }
 
 bool LookupIterator::is_dictionary_holder() const {

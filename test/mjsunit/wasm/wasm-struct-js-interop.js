@@ -73,6 +73,8 @@ function createStruct_i() {
     for (let i = 0; i < kIterationsCountForICProgression; i++) {
       let v = o.$field0;
       assertEquals(153, v);
+      v = o[i];
+      assertEquals(undefined, v);
     }
   }
 

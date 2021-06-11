@@ -1158,6 +1158,11 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       if (map.IsJSProxyMap()) {
         if (is_element || !name_->IsPrivate(isolate_)) return JSPROXY;
       }
+#if V8_ENABLE_WEBASSEMBLY
+      if (map.IsWasmObjectMap()) {
+        return LookupInRegularHolder<is_element>(map, holder);
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
       if (map.is_access_check_needed()) {
         if (is_element || !name_->IsPrivate(isolate_)) return ACCESS_CHECK;
       }
@@ -1208,20 +1213,38 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   }
 
   if (is_element && IsElement(holder)) {
-    JSObject js_object = JSObject::cast(holder);
-    ElementsAccessor* accessor = js_object.GetElementsAccessor(isolate_);
-    FixedArrayBase backing_store = js_object.elements(isolate_);
-    number_ =
-        accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
-    if (number_.is_not_found()) {
-      return holder.IsJSTypedArray(isolate_) ? INTEGER_INDEXED_EXOTIC
-                                             : NOT_FOUND;
-    }
-    property_details_ = accessor->GetDetails(js_object, number_);
-    if (map.has_frozen_elements()) {
-      property_details_ = property_details_.CopyAddAttributes(FROZEN);
-    } else if (map.has_sealed_elements()) {
-      property_details_ = property_details_.CopyAddAttributes(SEALED);
+#if V8_ENABLE_WEBASSEMBLY
+    if (V8_UNLIKELY(holder.IsWasmObject())) {
+      // TODO(ishell): consider supporting indexed access to WasmStruct fields.
+      if (holder.IsWasmArray()) {
+        WasmArray wasm_array = WasmArray::cast(holder);
+        number_ = index_ < wasm_array.length() ? InternalIndex(index_)
+                                               : InternalIndex::NotFound();
+        property_details_ =
+            PropertyDetails(kData, SEALED, PropertyCellType::kNoCell);
+
+      } else {
+        DCHECK(holder.IsWasmStruct());
+        DCHECK(number_.is_not_found());
+      }
+    } else  // NOLINT(readability/braces)
+#endif      // V8_ENABLE_WEBASSEMBLY
+    {
+      JSObject js_object = JSObject::cast(holder);
+      ElementsAccessor* accessor = js_object.GetElementsAccessor(isolate_);
+      FixedArrayBase backing_store = js_object.elements(isolate_);
+      number_ = accessor->GetEntryForIndex(isolate_, js_object, backing_store,
+                                           index_);
+      if (number_.is_not_found()) {
+        return holder.IsJSTypedArray(isolate_) ? INTEGER_INDEXED_EXOTIC
+                                               : NOT_FOUND;
+      }
+      property_details_ = accessor->GetDetails(js_object, number_);
+      if (map.has_frozen_elements()) {
+        property_details_ = property_details_.CopyAddAttributes(FROZEN);
+      } else if (map.has_sealed_elements()) {
+        property_details_ = property_details_.CopyAddAttributes(SEALED);
+      }
     }
   } else if (!map.is_dictionary_map()) {
     DescriptorArray descriptors = map.instance_descriptors(isolate_);

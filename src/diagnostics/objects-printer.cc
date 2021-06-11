@@ -529,6 +529,10 @@ void JSObject::PrintElements(std::ostream& os) {
       PrintSloppyArgumentElements(os, map().elements_kind(),
                                   SloppyArgumentsElements::cast(elements()));
       break;
+    case WASM_ARRAY_ELEMENTS:
+      // WasmArrayPrint() should be called intead.
+      UNREACHABLE();
+      break;
     case NO_ELEMENTS:
       break;
   }

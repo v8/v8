@@ -2540,6 +2540,7 @@ class FastSmiOrObjectElementsAccessor
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
         RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
+      case WASM_ARRAY_ELEMENTS:
         // This function is currently only used for JSArrays with non-zero
         // length.
         UNREACHABLE();
@@ -2951,6 +2952,7 @@ class FastDoubleElementsAccessor
       case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
       case FAST_STRING_WRAPPER_ELEMENTS:
       case SLOW_STRING_WRAPPER_ELEMENTS:
+      case WASM_ARRAY_ELEMENTS:
       case NO_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
         TYPED_ARRAYS(TYPED_ARRAY_CASE)

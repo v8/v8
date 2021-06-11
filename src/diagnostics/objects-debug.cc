@@ -1832,6 +1832,7 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+    case WASM_ARRAY_ELEMENTS:
     case NO_ELEMENTS:
       break;
   }

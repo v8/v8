@@ -72,14 +72,12 @@ function createArray_i() {
 
 (function TestSimpleArrayInterop() {
   function f(o) {
-    for (let i = 0; i < kIterationsCountForICProgression; i++) {
+    assertEquals(10, o.length);
+    for (let i = 0; i < o.length; i++) {
       let len = o.length;
       assertEquals(10, len);
-      // Keyed loads are not supported yet
-      // let v0 = o[0];
-      // %DebugPrint(v0);
-      // let v1 = o[1];
-      // %DebugPrint(v1);
+      let v = o[i];
+      assertEquals(i, v);
     }
   }
 

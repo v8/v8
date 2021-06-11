@@ -607,6 +607,15 @@ bool Map::has_typed_array_or_rab_gsab_typed_array_elements() const {
   return IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind());
 }
 
+bool Map::has_any_typed_array_or_wasm_array_elements() const {
+  ElementsKind kind = elements_kind();
+  return IsTypedArrayOrRabGsabTypedArrayElementsKind(kind) ||
+#if V8_ENABLE_WEBASSEMBLY
+         IsWasmArrayElementsKind(kind) ||
+#endif  // V8_ENABLE_WEBASSEMBLY
+         false;
+}
+
 bool Map::has_dictionary_elements() const {
   return IsDictionaryElementsKind(elements_kind());
 }

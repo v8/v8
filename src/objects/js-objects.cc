@@ -5,6 +5,7 @@
 #include "src/objects/js-objects.h"
 
 #include "src/api/api-arguments-inl.h"
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/arguments.h"
@@ -4255,6 +4256,9 @@ bool JSObject::HasEnumerableElements() {
         return true;
       }
       return object.elements().length() > 0;
+    case WASM_ARRAY_ELEMENTS:
+      UNIMPLEMENTED();
+
     case NO_ELEMENTS:
       return false;
   }
@@ -5038,6 +5042,7 @@ int JSObject::GetFastElementsUsage() {
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
     case DICTIONARY_ELEMENTS:
+    case WASM_ARRAY_ELEMENTS:
     case NO_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 

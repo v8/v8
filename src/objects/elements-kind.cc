@@ -58,6 +58,7 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
       return kTaggedSizeLog2;
+    case WASM_ARRAY_ELEMENTS:
     case NO_ELEMENTS:
       UNREACHABLE();
   }
@@ -122,6 +123,8 @@ const char* ElementsKindToString(ElementsKind kind) {
       TYPED_ARRAYS(PRINT_NAME);
       RAB_GSAB_TYPED_ARRAYS(PRINT_NAME);
 #undef PRINT_NAME
+    case WASM_ARRAY_ELEMENTS:
+      return "WASM_ARRAY_ELEMENTS";
     case NO_ELEMENTS:
       return "NO_ELEMENTS";
   }
