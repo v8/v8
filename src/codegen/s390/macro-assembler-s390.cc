@@ -805,7 +805,7 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
   RecordComment("]");
 }
 void MacroAssembler::RecordWriteField(Register object, int offset,
-                                      Register value, Register dst,
+                                      Register value, Register slot_address,
                                       LinkRegisterStatus lr_status,
                                       SaveFPRegsMode save_fp,
                                       RememberedSetAction remembered_set_action,
@@ -823,17 +823,17 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so so offset must be a multiple of kSystemPointerSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  lay(dst, MemOperand(object, offset - kHeapObjectTag));
+  lay(slot_address, MemOperand(object, offset - kHeapObjectTag));
   if (FLAG_debug_code) {
     Label ok;
-    AndP(r0, dst, Operand(kTaggedSize - 1));
+    AndP(r0, slot_address, Operand(kTaggedSize - 1));
     beq(&ok, Label::kNear);
     stop();
     bind(&ok);
   }
 
-  RecordWrite(object, dst, value, lr_status, save_fp, remembered_set_action,
-              SmiCheck::kOmit);
+  RecordWrite(object, slot_address, value, lr_status, save_fp,
+              remembered_set_action, SmiCheck::kOmit);
 
   bind(&done);
 
@@ -841,7 +841,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // turned on to provoke errors.
   if (FLAG_debug_code) {
     mov(value, Operand(bit_cast<intptr_t>(kZapValue + 4)));
-    mov(dst, Operand(bit_cast<intptr_t>(kZapValue + 8)));
+    mov(slot_address, Operand(bit_cast<intptr_t>(kZapValue + 8)));
   }
 }
 
@@ -951,14 +951,14 @@ void TurboAssembler::CallRecordWriteStub(
 // Will clobber 4 registers: object, address, scratch, ip.  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
-void MacroAssembler::RecordWrite(Register object, Register address,
+void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  Register value, LinkRegisterStatus lr_status,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
-  DCHECK(!AreAliased(object, address, value));
+  DCHECK(!AreAliased(object, slot_address, value));
   if (FLAG_debug_code) {
-    LoadTaggedPointerField(r0, MemOperand(address));
+    LoadTaggedPointerField(r0, MemOperand(slot_address));
     CmpS64(value, r0);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
@@ -987,18 +987,20 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   if (lr_status == kLRHasNotBeenSaved) {
     push(r14);
   }
-  CallRecordWriteStubSaveRegisters(object, address, remembered_set_action,
+  CallRecordWriteStubSaveRegisters(object, slot_address, remembered_set_action,
                                    fp_mode);
   if (lr_status == kLRHasNotBeenSaved) {
     pop(r14);
   }
+
+  if (FLAG_debug_code) mov(slot_address, Operand(kZapValue));
 
   bind(&done);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    mov(address, Operand(bit_cast<intptr_t>(kZapValue + 12)));
+    mov(slot_address, Operand(bit_cast<intptr_t>(kZapValue + 12)));
     mov(value, Operand(bit_cast<intptr_t>(kZapValue + 16)));
   }
 }
