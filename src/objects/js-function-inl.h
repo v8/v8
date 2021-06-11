@@ -12,11 +12,10 @@
 // clang-format from merging that include into the following ones).
 #include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
-#include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/feedback-cell-inl.h"
-#include "src/strings/string-builder-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

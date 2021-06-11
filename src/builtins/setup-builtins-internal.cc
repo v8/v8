@@ -11,6 +11,7 @@
 #include "src/compiler/code-assembler.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-generator.h"

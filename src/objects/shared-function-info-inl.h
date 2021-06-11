@@ -9,16 +9,16 @@
 #include "src/base/platform/mutex.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/local-heap-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/feedback-vector-inl.h"
-#include "src/objects/scope-info.h"
+#include "src/objects/scope-info-inl.h"
+#include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 // Has to be the last include (doesn't have include guards):

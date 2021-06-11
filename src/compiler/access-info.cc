@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <ostream>
-
 #include "src/compiler/access-info.h"
+
+#include <ostream>
 
 #include "src/builtins/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -12,6 +12,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
+#include "src/ic/handler-configuration.h"
 #include "src/logging/counters.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/field-index-inl.h"

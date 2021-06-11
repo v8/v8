@@ -31,6 +31,7 @@
 #include "src/objects/code.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/roots/roots.h"
 

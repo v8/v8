@@ -14,6 +14,7 @@
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-function-inl.h"
 

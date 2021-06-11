@@ -5,6 +5,7 @@
 #include "src/debug/debug-interface.h"
 
 #include "src/api/api-inl.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-property-iterator.h"
@@ -13,6 +14,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
+#include "src/profiler/heap-profiler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/string-builder-inl.h"
 

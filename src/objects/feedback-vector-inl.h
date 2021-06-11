@@ -6,7 +6,6 @@
 #define V8_OBJECTS_FEEDBACK_VECTOR_INL_H_
 
 #include "src/common/globals.h"
-#include "src/heap/factory-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/feedback-cell-inl.h"
@@ -14,6 +13,7 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+#include "src/roots/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -328,15 +328,15 @@ ForInHint ForInHintFromFeedback(ForInFeedback type_feedback) {
 }
 
 Handle<Symbol> FeedbackVector::UninitializedSentinel(Isolate* isolate) {
-  return isolate->factory()->uninitialized_symbol();
+  return ReadOnlyRoots(isolate).uninitialized_symbol_handle();
 }
 
 Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->megamorphic_symbol();
+  return ReadOnlyRoots(isolate).megamorphic_symbol_handle();
 }
 
 Handle<Symbol> FeedbackVector::MegaDOMSentinel(Isolate* isolate) {
-  return isolate->factory()->mega_dom_symbol();
+  return ReadOnlyRoots(isolate).mega_dom_symbol_handle();
 }
 
 Symbol FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {

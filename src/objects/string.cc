@@ -949,6 +949,17 @@ ComparisonResult String::Compare(Isolate* isolate, Handle<String> x,
   return result;
 }
 
+namespace {
+
+uint32_t ToValidIndex(String str, Object number) {
+  uint32_t index = PositiveNumberToUint32(number);
+  uint32_t length_value = static_cast<uint32_t>(str.length());
+  if (index > length_value) return length_value;
+  return index;
+}
+
+}  // namespace
+
 Object String::IndexOf(Isolate* isolate, Handle<Object> receiver,
                        Handle<Object> search, Handle<Object> position) {
   if (receiver->IsNullOrUndefined(isolate)) {
@@ -968,7 +979,7 @@ Object String::IndexOf(Isolate* isolate, Handle<Object> receiver,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
                                      Object::ToInteger(isolate, position));
 
-  uint32_t index = receiver_string->ToValidIndex(*position);
+  uint32_t index = ToValidIndex(*receiver_string, *position);
   return Smi::FromInt(
       String::IndexOf(isolate, receiver_string, search_string, index));
 }
@@ -1241,7 +1252,7 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
                                        Object::ToInteger(isolate, position));
-    start_index = receiver_string->ToValidIndex(*position);
+    start_index = ToValidIndex(*receiver_string, *position);
   }
 
   uint32_t pattern_length = search_string->length();

@@ -392,7 +392,6 @@ class String : public TorqueGeneratedString<String, Name> {
   // if 0 <= val <= INT_MAX, returns val
   static int32_t ToArrayIndex(Address addr);
 
-  uint32_t inline ToValidIndex(Object number);
   // "integer index": the string is the decimal representation of an
   // integer in the range of a size_t. Useful for TypedArray accesses.
   inline bool AsIntegerIndex(size_t* index);

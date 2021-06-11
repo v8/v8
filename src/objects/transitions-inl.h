@@ -5,7 +5,6 @@
 #ifndef V8_OBJECTS_TRANSITIONS_INL_H_
 #define V8_OBJECTS_TRANSITIONS_INL_H_
 
-#include "src/ic/handler-configuration-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"

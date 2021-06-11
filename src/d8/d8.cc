@@ -34,6 +34,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/base/sanitizer/msan.h"
 #include "src/base/sys-info.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/d8/d8-console.h"
 #include "src/d8/d8-platforms.h"
 #include "src/d8/d8.h"

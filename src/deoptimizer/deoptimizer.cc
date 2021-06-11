@@ -15,6 +15,7 @@
 #include "src/execution/pointer-authentication.h"
 #include "src/execution/v8threads.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"

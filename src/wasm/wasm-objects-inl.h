@@ -9,13 +9,11 @@
 #ifndef V8_WASM_WASM_OBJECTS_INL_H_
 #define V8_WASM_WASM_OBJECTS_INL_H_
 
-#include "src/wasm/wasm-objects.h"
-
 #include "src/base/memory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/contexts-inl.h"
-#include "src/objects/foreign-inl.h"
-#include "src/objects/heap-number-inl.h"
+#include "src/objects/foreign.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects-inl.h"
@@ -25,6 +23,7 @@
 #include "src/roots/roots.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"

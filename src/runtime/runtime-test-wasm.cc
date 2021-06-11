@@ -6,6 +6,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/smi.h"
 #include "src/runtime/runtime-utils.h"
