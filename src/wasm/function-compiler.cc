@@ -163,6 +163,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
+  DCHECK_LT(0, code.size());
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end()};
 

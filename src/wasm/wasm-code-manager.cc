@@ -2137,6 +2137,11 @@ bool NativeModule::IsTieredDown() {
 }
 
 void NativeModule::RecompileForTiering() {
+  // If baseline compilation is not finished yet, we do not tier down now. This
+  // would be tricky because not all code is guaranteed to be available yet.
+  // Instead, we tier down after streaming compilation finished.
+  if (!compilation_state_->baseline_compilation_finished()) return;
+
   // Read the tiering state under the lock, then trigger recompilation after
   // releasing the lock. If the tiering state was changed when the triggered
   // compilation units finish, code installation will handle that correctly.
