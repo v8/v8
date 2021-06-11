@@ -1825,21 +1825,8 @@ Type Typer::Visitor::TypeJSCallWithSpread(Node* node) {
 
 Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
   switch (CallRuntimeParametersOf(node->op()).id()) {
-    case Runtime::kInlineIsJSReceiver:
-      return TypeUnaryOp(node, ObjectIsReceiver);
-    case Runtime::kInlineIsSmi:
-      return TypeUnaryOp(node, ObjectIsSmi);
-    case Runtime::kInlineIsArray:
-    case Runtime::kInlineIsRegExp:
-      return Type::Boolean();
     case Runtime::kInlineCreateIterResultObject:
       return Type::OtherObject();
-    case Runtime::kInlineToLength:
-      return TypeUnaryOp(node, ToLength);
-    case Runtime::kInlineToNumber:
-      return TypeUnaryOp(node, ToNumber);
-    case Runtime::kInlineToObject:
-      return TypeUnaryOp(node, ToObject);
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
     default:

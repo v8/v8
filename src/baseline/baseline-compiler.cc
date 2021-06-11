@@ -1274,56 +1274,6 @@ void BaselineCompiler::VisitInvokeIntrinsic() {
   }
 }
 
-void BaselineCompiler::VisitIntrinsicIsJSReceiver(
-    interpreter::RegisterList args) {
-  SelectBooleanConstant(
-      kInterpreterAccumulatorRegister,
-      [&](Label* is_true, Label::Distance distance) {
-        BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
-        __ LoadRegister(kInterpreterAccumulatorRegister, args[0]);
-
-        Label is_smi;
-        __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
-
-        // If we ever added more instance types after LAST_JS_RECEIVER_TYPE,
-        // this would have to become a range check.
-        STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-        __ JumpIfObjectType(Condition::kGreaterThanEqual,
-                            kInterpreterAccumulatorRegister,
-                            FIRST_JS_RECEIVER_TYPE,
-                            scratch_scope.AcquireScratch(), is_true, distance);
-
-        __ Bind(&is_smi);
-      });
-}
-
-void BaselineCompiler::VisitIntrinsicIsArray(interpreter::RegisterList args) {
-  SelectBooleanConstant(
-      kInterpreterAccumulatorRegister,
-      [&](Label* is_true, Label::Distance distance) {
-        BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
-        __ LoadRegister(kInterpreterAccumulatorRegister, args[0]);
-
-        Label is_smi;
-        __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
-
-        __ JumpIfObjectType(Condition::kEqual, kInterpreterAccumulatorRegister,
-                            JS_ARRAY_TYPE, scratch_scope.AcquireScratch(),
-                            is_true, distance);
-
-        __ Bind(&is_smi);
-      });
-}
-
-void BaselineCompiler::VisitIntrinsicIsSmi(interpreter::RegisterList args) {
-  SelectBooleanConstant(
-      kInterpreterAccumulatorRegister,
-      [&](Label* is_true, Label::Distance distance) {
-        __ LoadRegister(kInterpreterAccumulatorRegister, args[0]);
-        __ JumpIfSmi(kInterpreterAccumulatorRegister, is_true, distance);
-      });
-}
-
 void BaselineCompiler::VisitIntrinsicCopyDataProperties(
     interpreter::RegisterList args) {
   CallBuiltin<Builtin::kCopyDataProperties>(args);
@@ -1332,19 +1282,6 @@ void BaselineCompiler::VisitIntrinsicCopyDataProperties(
 void BaselineCompiler::VisitIntrinsicCreateIterResultObject(
     interpreter::RegisterList args) {
   CallBuiltin<Builtin::kCreateIterResultObject>(args);
-}
-
-void BaselineCompiler::VisitIntrinsicHasProperty(
-    interpreter::RegisterList args) {
-  CallBuiltin<Builtin::kHasProperty>(args);
-}
-
-void BaselineCompiler::VisitIntrinsicToLength(interpreter::RegisterList args) {
-  CallBuiltin<Builtin::kToLength>(args);
-}
-
-void BaselineCompiler::VisitIntrinsicToObject(interpreter::RegisterList args) {
-  CallBuiltin<Builtin::kToObject>(args);
 }
 
 void BaselineCompiler::VisitIntrinsicCall(interpreter::RegisterList args) {

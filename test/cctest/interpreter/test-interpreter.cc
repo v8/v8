@@ -2452,27 +2452,6 @@ TEST(InterpreterCallRuntime) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(55));
 }
 
-TEST(InterpreterInvokeIntrinsic) {
-  HandleAndZoneScope handles;
-  Isolate* isolate = handles.main_isolate();
-  Zone* zone = handles.main_zone();
-
-  BytecodeArrayBuilder builder(zone, 1, 2);
-
-  builder.LoadLiteral(Smi::FromInt(15))
-      .StoreAccumulatorInRegister(Register(0))
-      .CallRuntime(Runtime::kInlineIsArray, Register(0))
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-
-  InterpreterTester tester(isolate, bytecode_array);
-  auto callable = tester.GetCallable<>();
-
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK(return_val->IsBoolean());
-  CHECK_EQ(return_val->BooleanValue(isolate), false);
-}
-
 TEST(InterpreterFunctionLiteral) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();

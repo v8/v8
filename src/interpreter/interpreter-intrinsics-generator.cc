@@ -166,32 +166,6 @@ TNode<Object> IntrinsicsGenerator::IntrinsicAsBuiltinCall(
   }
 }
 
-TNode<Object> IntrinsicsGenerator::IsJSReceiver(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  TNode<Object> input = __ LoadRegisterFromRegisterList(args, 0);
-  TNode<Oddball> result = __ Select<Oddball>(
-      __ TaggedIsSmi(input), [=] { return __ FalseConstant(); },
-      [=] {
-        return __ SelectBooleanConstant(__ IsJSReceiver(__ CAST(input)));
-      });
-  return result;
-}
-
-TNode<Object> IntrinsicsGenerator::IsArray(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  TNode<Object> input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_ARRAY_TYPE);
-}
-
-TNode<Object> IntrinsicsGenerator::IsSmi(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  TNode<Object> input = __ LoadRegisterFromRegisterList(args, 0);
-  return __ SelectBooleanConstant(__ TaggedIsSmi(input));
-}
-
 TNode<Object> IntrinsicsGenerator::CopyDataProperties(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {
@@ -204,25 +178,6 @@ TNode<Object> IntrinsicsGenerator::CreateIterResultObject(
     int arg_count) {
   return IntrinsicAsBuiltinCall(args, context, Builtin::kCreateIterResultObject,
                                 arg_count);
-}
-
-TNode<Object> IntrinsicsGenerator::HasProperty(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  return IntrinsicAsBuiltinCall(args, context, Builtin::kHasProperty,
-                                arg_count);
-}
-
-TNode<Object> IntrinsicsGenerator::ToLength(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  return IntrinsicAsBuiltinCall(args, context, Builtin::kToLength, arg_count);
-}
-
-TNode<Object> IntrinsicsGenerator::ToObject(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  return IntrinsicAsBuiltinCall(args, context, Builtin::kToObject, arg_count);
 }
 
 TNode<Object> IntrinsicsGenerator::Call(

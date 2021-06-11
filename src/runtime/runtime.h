@@ -46,7 +46,7 @@ namespace internal {
   F(ArrayIsArray, 1, 1)                \
   F(ArraySpeciesConstructor, 1, 1)     \
   F(GrowArrayElements, 2, 1)           \
-  I(IsArray, 1, 1)                     \
+  F(IsArray, 1, 1)                     \
   F(NewArray, -1 /* >= 3 */, 1)        \
   F(NormalizeElements, 1, 1)           \
   F(TransitionElementsKind, 2, 1)      \
@@ -276,7 +276,7 @@ namespace internal {
   F(ArrayBufferMaxByteLength, 0, 1)      \
   F(GetHoleNaNLower, 0, 1)               \
   F(GetHoleNaNUpper, 0, 1)               \
-  I(IsSmi, 1, 1)                         \
+  F(IsSmi, 1, 1)                         \
   F(MaxSmi, 0, 1)                        \
   F(NumberToStringSlow, 1, 1)            \
   F(StringParseFloat, 1, 1)              \
@@ -308,9 +308,9 @@ namespace internal {
   F(GetProperty, -1 /* [2, 3] */, 1)                            \
   F(HasFastPackedElements, 1, 1)                                \
   F(HasInPrototypeChain, 2, 1)                                  \
-  I(HasProperty, 2, 1)                                          \
+  F(HasProperty, 2, 1)                                          \
   F(InternalSetPrototype, 2, 1)                                 \
-  I(IsJSReceiver, 1, 1)                                         \
+  F(IsJSReceiver, 1, 1)                                         \
   F(JSReceiverPreventExtensionsDontThrow, 1, 1)                 \
   F(JSReceiverPreventExtensionsThrow, 1, 1)                     \
   F(JSReceiverGetPrototypeOf, 1, 1)                             \
@@ -338,11 +338,11 @@ namespace internal {
   F(ShrinkNameDictionary, 1, 1)                                 \
   F(ShrinkSwissNameDictionary, 1, 1)                            \
   F(ToFastProperties, 1, 1)                                     \
-  I(ToLength, 1, 1)                                             \
+  F(ToLength, 1, 1)                                             \
   F(ToName, 1, 1)                                               \
-  I(ToNumber, 1, 1)                                             \
+  F(ToNumber, 1, 1)                                             \
   F(ToNumeric, 1, 1)                                            \
-  I(ToObject, 1, 1)                                             \
+  F(ToObject, 1, 1)                                             \
   F(ToString, 1, 1)                                             \
   F(TryMigrateInstance, 1, 1)                                   \
   F(SwissTableAdd, 4, 1)                                        \
@@ -397,7 +397,7 @@ namespace internal {
   F(SetPropertyWithReceiver, 4, 1)
 
 #define FOR_EACH_INTRINSIC_REGEXP(F, I)                          \
-  I(IsRegExp, 1, 1)                                              \
+  F(IsRegExp, 1, 1)                                              \
   F(RegExpBuildIndices, 3, 1)                                    \
   F(RegExpExec, 4, 1)                                            \
   F(RegExpExecTreatMatchAtEndAsFailure, 4, 1)                    \

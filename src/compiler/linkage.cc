@@ -260,10 +260,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineGeneratorClose:
     case Runtime::kInlineGeneratorGetResumeMode:
     case Runtime::kInlineCreateJSGeneratorObject:
-    case Runtime::kInlineIsArray:
-    case Runtime::kInlineIsJSReceiver:
-    case Runtime::kInlineIsRegExp:
-    case Runtime::kInlineIsSmi:
       return false;
 
     default:
