@@ -71,6 +71,7 @@ class WasmJSFunctionData;
 class WeakCell;
 #if V8_ENABLE_WEBASSEMBLY
 namespace wasm {
+class ArrayType;
 class StructType;
 class WasmValue;
 }  // namespace wasm
@@ -578,6 +579,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Code> wrapper_code);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args, Handle<Map> map);
+  Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type,
+                                 const std::vector<wasm::WasmValue>& elements,
+                                 Handle<Map> map);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
       Handle<String> name, Handle<WasmExportedFunctionData> data);

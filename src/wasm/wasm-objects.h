@@ -1000,6 +1000,9 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
                                           Handle<WasmArray> array,
                                           uint32_t index);
 
+  // Returns the Address of the element at {index}.
+  Address ElementAddress(uint32_t index);
+
   DECL_CAST(WasmArray)
   DECL_PRINTER(WasmArray)
 

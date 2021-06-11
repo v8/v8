@@ -1457,6 +1457,29 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   return handle(result, isolate());
 }
 
+Handle<WasmArray> Factory::NewWasmArray(
+    const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
+    Handle<Map> map) {
+  uint32_t length = static_cast<uint32_t>(elements.size());
+  HeapObject raw =
+      AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
+  raw.set_map_after_allocation(*map);
+  WasmArray result = WasmArray::cast(raw);
+  result.set_raw_properties_or_hash(*empty_fixed_array());
+  result.set_length(length);
+  for (uint32_t i = 0; i < length; i++) {
+    Address address = result.ElementAddress(i);
+    if (type->element_type().is_numeric()) {
+      elements[i]
+          .Packed(type->element_type())
+          .CopyTo(reinterpret_cast<byte*>(address));
+    } else {
+      base::WriteUnalignedValue<Object>(address, *elements[i].to_ref());
+    }
+  }
+  return handle(result, isolate());
+}
+
 Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
                                           wasm::WasmValue* args,
                                           Handle<Map> map) {

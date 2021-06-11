@@ -396,6 +396,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(ArraySet, "array.set")
     CASE_OP(ArrayLen, "array.len")
     CASE_OP(ArrayCopy, "array.copy")
+    CASE_OP(ArrayInit, "array.init")
     CASE_OP(I31New, "i31.new")
     CASE_OP(I31GetS, "i31.get_s")
     CASE_OP(I31GetU, "i31.get_u")

@@ -1685,6 +1685,12 @@ ObjectSlot WasmArray::ElementSlot(uint32_t index) {
   return RawField(kHeaderSize + kTaggedSize * index);
 }
 
+Address WasmArray::ElementAddress(uint32_t index) {
+  DCHECK_LE(index, length());
+  return ptr() + WasmArray::kHeaderSize +
+         index * type()->element_type().element_size_bytes() - kHeapObjectTag;
+}
+
 // static
 Handle<WasmExceptionObject> WasmExceptionObject::New(
     Isolate* isolate, const wasm::FunctionSig* sig,

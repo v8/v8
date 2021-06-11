@@ -560,6 +560,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   dst_array, dst_index, src_array, src_index, length,                      \
       WASM_GC_OP(kExprArrayCopy), static_cast<byte>(dst_idx),              \
       static_cast<byte>(src_idx)
+#define WASM_ARRAY_INIT(index, length, ...)                          \
+  __VA_ARGS__, WASM_GC_OP(kExprArrayInit), static_cast<byte>(index), \
+      static_cast<byte>(length)
 
 #define WASM_RTT_WITH_DEPTH(depth, typeidx) \
   kRttWithDepthCode, U32V_1(depth), U32V_1(typeidx)

@@ -170,6 +170,7 @@ std::ostream& operator<<(std::ostream& os, const WasmInitExpr& expr) {
     case WasmInitExpr::kRttFreshSub:
     case WasmInitExpr::kRefNullConst:
     case WasmInitExpr::kStructNewWithRtt:
+    case WasmInitExpr::kArrayInit:
       // TODO(manoskouk): Implement these.
       UNIMPLEMENTED();
     case WasmInitExpr::kGlobalGet:

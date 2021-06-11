@@ -526,6 +526,16 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
       buffer->write_u8(static_cast<uint8_t>(kExprStructNewWithRtt));
       buffer->write_u32v(init.immediate().index);
       break;
+    case WasmInitExpr::kArrayInit:
+      STATIC_ASSERT((kExprArrayInit >> 8) == kGCPrefix);
+      for (const WasmInitExpr& operand : init.operands()) {
+        WriteInitializerExpression(buffer, operand, kWasmBottom);
+      }
+      buffer->write_u8(kGCPrefix);
+      buffer->write_u8(static_cast<uint8_t>(kExprArrayInit));
+      buffer->write_u32v(init.immediate().index);
+      buffer->write_u32v(static_cast<uint32_t>(init.operands().size() - 1));
+      break;
     case WasmInitExpr::kRttCanon:
       STATIC_ASSERT((kExprRttCanon >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);

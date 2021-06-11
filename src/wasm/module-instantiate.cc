@@ -1576,6 +1576,17 @@ WasmValue InstanceBuilder::EvaluateInitExpression(
           isolate_->factory()->NewWasmStruct(type, fields.data(), rtt),
           init.type(module_, enabled_));
     }
+    case WasmInitExpr::kArrayInit: {
+      const ArrayType* type = module_->array_type(init.immediate().index);
+      std::vector<WasmValue> elements(init.operands().size() - 1);
+      for (uint32_t i = 0; i < elements.size(); i++) {
+        elements[i] = EvaluateInitExpression(init.operands()[i], instance);
+      }
+      auto rtt = Handle<Map>::cast(
+          EvaluateInitExpression(init.operands().back(), instance).to_ref());
+      return WasmValue(isolate_->factory()->NewWasmArray(type, elements, rtt),
+                       init.type(module_, enabled_));
+    }
     case WasmInitExpr::kRttCanon: {
       int map_index = init.immediate().index;
       return WasmValue(

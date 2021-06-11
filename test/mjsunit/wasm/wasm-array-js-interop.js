@@ -15,7 +15,7 @@ let instances = [];
 function createArray_i() {
   let builder = new WasmModuleBuilder();
 
-  const type_index = builder.addArray(kWasmI32);
+  const type_index = builder.addArray(kWasmI32, true);
 
   let sig_a_i = makeSig_r_x(kWasmDataRef, kWasmI32);
   let sig_i_ai = makeSig([kWasmDataRef, kWasmI32], [kWasmI32]);

@@ -458,6 +458,8 @@ let kExprArrayGetS = 0x14;
 let kExprArrayGetU = 0x15;
 let kExprArraySet = 0x16;
 let kExprArrayLen = 0x17;
+let kExprArrayCopy = 0x18;
+let kExprArrayInit = 0x19;
 let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
@@ -982,6 +984,15 @@ class Binary {
         this.emit_u8(kExprStructNewWithRtt);
         this.emit_u32v(expr.value);
         break;
+      case kExprArrayInit:
+        for (let operand of expr.operands) {
+          this.emit_init_expr_recursive(operand);
+        }
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(kExprArrayInit);
+        this.emit_u32v(expr.value);
+        this.emit_u32v(expr.operands.length - 1);
+        break;
       case kExprRttCanon:
         this.emit_u8(kGCPrefix);
         this.emit_u8(kExprRttCanon);
@@ -992,11 +1003,13 @@ class Binary {
         this.emit_u8(kGcPrefix);
         this.emit_u8(kExprRttSub);
         this.emit_u32v(expr.value);
+        break;
       case kExprRttFreshSub:
         this.emit_init_expr_recursive(expr.parent);
         this.emit_u8(kGcPrefix);
         this.emit_u8(kExprRttFreshSub);
         this.emit_u32v(expr.value);
+        break;
     }
   }
 
@@ -1129,6 +1142,9 @@ class WasmInitExpr {
   static StructNewWithRtt(type, args) {
     return {kind: kExprStructNewWithRtt, value: type, operands: args};
   }
+  static ArrayInit(type, args) {
+    return {kind: kExprArrayInit, value: type, operands: args};
+  }
   static RttCanon(type) {
     return {kind: kExprRttCanon, value: type};
   }
@@ -1212,8 +1228,10 @@ class WasmStruct {
 }
 
 class WasmArray {
-  constructor(type) {
+  constructor(type, mutability) {
     this.type = type;
+    if (!mutability) throw new Error("Immutable arrays are not supported yet");
+    this.mutability = mutability;
   }
 }
 
@@ -1339,8 +1357,8 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
-  addArray(type) {
-    this.types.push(new WasmArray(type));
+  addArray(type, mutability) {
+    this.types.push(new WasmArray(type, mutability));
     return this.types.length - 1;
   }
 
@@ -1581,7 +1599,7 @@ class WasmModuleBuilder {
           } else if (type instanceof WasmArray) {
             section.emit_u8(kWasmArrayTypeForm);
             section.emit_type(type.type);
-            section.emit_u8(1);  // Only mutable arrays supported currently.
+            section.emit_u8(type.mutability ? 1 : 0);
           } else {
             section.emit_u8(kWasmFunctionTypeForm);
             section.emit_u32v(type.params.length);

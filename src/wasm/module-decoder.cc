@@ -1823,7 +1823,10 @@ class ModuleDecoderImpl : public Decoder {
               len += imm.length;
               const StructType* type = module->struct_type(imm.index);
               if (!V8_LIKELY(stack.size() >= type->field_count() + 1)) {
-                error(pc(), "not enough arguments for struct.new");
+                errorf(pc(),
+                       "not enough arguments on the stack for struct.new: "
+                       "expected %u, found %zu",
+                       type->field_count() + 1, stack.size());
                 return {};
               }
               std::vector<WasmInitExpr> arguments(type->field_count() + 1);
@@ -1854,6 +1857,71 @@ class ModuleDecoderImpl : public Decoder {
               }
               stack.push_back(WasmInitExpr::StructNewWithRtt(
                   imm.index, std::move(arguments)));
+              break;
+            }
+            case kExprArrayInit: {
+              if (!V8_LIKELY(enabled_features_.has_gc_experiments())) {
+                error(pc(),
+                      "invalid opcode array.init in init. expression, enable "
+                      "with --experimental-wasm-gc-experiments");
+                return {};
+              }
+              IndexImmediate<validate> array_imm(this, pc() + len,
+                                                 "array index");
+              if (!V8_LIKELY(module->has_array(array_imm.index))) {
+                errorf(pc() + len, "invalid array type index #%u",
+                       array_imm.index);
+                return {};
+              }
+              IndexImmediate<validate> length_imm(
+                  this, pc() + len + array_imm.length, "array.init length");
+              uint32_t elem_count = length_imm.index;
+              if (elem_count > kV8MaxWasmArrayInitLength) {
+                errorf(pc() + len + array_imm.length,
+                       "Requested length %u for array.init too large, maximum "
+                       "is %zu",
+                       length_imm.index, kV8MaxWasmArrayInitLength);
+                return {};
+              }
+              len += array_imm.length + length_imm.length;
+              const ArrayType* array_type =
+                  module_->array_type(array_imm.index);
+              if (stack.size() < elem_count + 1) {
+                errorf(pc(),
+                       "not enough arguments on the stack for array.init: "
+                       "expected %u, found %zu",
+                       elem_count + 1, stack.size());
+                return {};
+              }
+              std::vector<WasmInitExpr> arguments(elem_count + 1);
+              WasmInitExpr* stack_args = &stack.back() - elem_count;
+              for (uint32_t i = 0; i < elem_count; i++) {
+                WasmInitExpr& argument = stack_args[i];
+                if (!IsSubtypeOf(TypeOf(argument),
+                                 array_type->element_type().Unpacked(),
+                                 module)) {
+                  errorf(pc(), "array.init[%u]: expected %s, found %s instead",
+                         i, array_type->element_type().name().c_str(),
+                         TypeOf(argument).name().c_str());
+                  return {};
+                }
+                arguments[i] = std::move(argument);
+              }
+              WasmInitExpr& rtt = stack.back();
+              if (!IsSubtypeOf(TypeOf(rtt), ValueType::Rtt(array_imm.index),
+                               module)) {
+                errorf(pc(), "array.init[%u]: expected %s, found %s instead",
+                       elem_count,
+                       ValueType::Rtt(array_imm.index).name().c_str(),
+                       TypeOf(rtt).name().c_str());
+                return {};
+              }
+              arguments[elem_count] = std::move(rtt);
+              for (uint32_t i = 0; i <= elem_count; i++) {
+                stack.pop_back();
+              }
+              stack.push_back(WasmInitExpr::ArrayInit(array_imm.index,
+                                                      std::move(arguments)));
               break;
             }
             case kExprRttCanon: {
@@ -2049,7 +2117,7 @@ class ModuleDecoderImpl : public Decoder {
     ValueType field = consume_storage_type();
     if (failed()) return nullptr;
     bool mutability = consume_mutability();
-    if (!mutability) {
+    if (!V8_LIKELY(mutability)) {
       error(this->pc() - 1, "immutable arrays are not supported yet");
     }
     return zone->New<ArrayType>(field, mutability);
