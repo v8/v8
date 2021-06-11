@@ -687,10 +687,6 @@ void WebSnapshotDeserializer::DeserializeContexts() {
       parent_context = handle(isolate_->context(), isolate_);
     }
 
-    Handle<Context> context =
-        isolate_->factory()->NewFunctionContext(parent_context, scope_info);
-    contexts_->set(i, *context);
-
     const int context_local_base = ScopeInfo::kVariablePartIndex;
     const int context_local_info_base = context_local_base + variable_count;
     for (int variable_index = 0;
@@ -710,13 +706,21 @@ void WebSnapshotDeserializer::DeserializeContexts() {
           ScopeInfo::IsStaticFlagBit::encode(IsStaticFlag::kNotStatic);
       scope_info->set(context_local_info_base + variable_index,
                       Smi::FromInt(info));
+    }
 
+    // Allocate the FunctionContext after setting up the ScopeInfo to avoid
+    // pointing to a ScopeInfo which is not set up yet.
+    Handle<Context> context =
+        isolate_->factory()->NewFunctionContext(parent_context, scope_info);
+    for (int variable_index = 0;
+         variable_index < static_cast<int>(variable_count); ++variable_index) {
       Handle<Object> value;
       Representation representation;
       ReadValue(value, representation, context,
                 scope_info->ContextHeaderLength() + variable_index);
       context->set(scope_info->ContextHeaderLength() + variable_index, *value);
     }
+    contexts_->set(i, *context);
   }
 }
 
