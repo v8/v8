@@ -45,18 +45,24 @@ class V8_NODISCARD UnparkedScope {
 };
 
 class V8_NODISCARD ParkedMutexGuard {
-  base::Mutex* guard_;
-
  public:
-  explicit ParkedMutexGuard(LocalIsolate* local_isolate, base::Mutex* guard)
-      : ParkedMutexGuard(local_isolate->heap(), guard) {}
-  explicit ParkedMutexGuard(LocalHeap* local_heap, base::Mutex* guard)
-      : guard_(guard) {
-    ParkedScope scope(local_heap);
-    guard_->Lock();
+  explicit ParkedMutexGuard(LocalIsolate* local_isolate, base::Mutex* mutex)
+      : ParkedMutexGuard(local_isolate->heap(), mutex) {}
+  explicit ParkedMutexGuard(LocalHeap* local_heap, base::Mutex* mutex)
+      : mutex_(mutex) {
+    if (!mutex_->TryLock()) {
+      ParkedScope scope(local_heap);
+      mutex_->Lock();
+    }
   }
 
-  ~ParkedMutexGuard() { guard_->Unlock(); }
+  ParkedMutexGuard(const ParkedMutexGuard&) = delete;
+  ParkedMutexGuard& operator=(const ParkedMutexGuard&) = delete;
+
+  ~ParkedMutexGuard() { mutex_->Unlock(); }
+
+ private:
+  base::Mutex* mutex_;
 };
 
 }  // namespace internal
