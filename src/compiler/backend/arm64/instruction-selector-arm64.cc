@@ -3757,6 +3757,24 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
            g.UseRegister(left->InputAt(0)));                                   \
       return;                                                                  \
     }                                                                          \
+    /* Select Uadalp(x, y) for Add(x, ExtAddPairwiseU(y)). */                  \
+    if (right->opcode() ==                                                     \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U &&              \
+        CanCover(node, right)) {                                               \
+      Emit(kArm64Uadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(left),                     \
+           g.UseRegister(right->InputAt(0)));                                  \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Uadalp(y, x) for Add(ExtAddPairwiseU(x), y). */                  \
+    if (left->opcode() ==                                                      \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U &&              \
+        CanCover(node, left)) {                                                \
+      Emit(kArm64Uadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(right),                    \
+           g.UseRegister(left->InputAt(0)));                                   \
+      return;                                                                  \
+    }                                                                          \
     VisitRRR(this, kArm64##Type##Add, node);                                   \
   }
 

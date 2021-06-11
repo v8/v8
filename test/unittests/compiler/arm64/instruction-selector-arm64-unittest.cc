@@ -961,11 +961,13 @@ std::ostream& operator<<(std::ostream& os, const PairwiseAddSide& side) {
 struct AddWithPairwiseAddSideAndWidth {
   PairwiseAddSide side;
   int32_t width;
+  bool isSigned;
 };
 
 std::ostream& operator<<(std::ostream& os,
                          const AddWithPairwiseAddSideAndWidth& sw) {
-  return os << "{ side: " << sw.side << ", width: " << sw.width << " }";
+  return os << "{ side: " << sw.side << ", width: " << sw.width
+            << ", isSigned: " << sw.isSigned << " }";
 }
 
 using InstructionSelectorAddWithPairwiseAddTest =
@@ -978,9 +980,16 @@ TEST_P(InstructionSelectorAddWithPairwiseAddTest, AddWithPairwiseAdd) {
 
   Node* x = m.Parameter(0);
   Node* y = m.Parameter(1);
-  const Operator* pairwiseAddOp =
-      params.width == 32 ? m.machine()->I32x4ExtAddPairwiseI16x8S()
-                         : m.machine()->I16x8ExtAddPairwiseI8x16S();
+  const Operator* pairwiseAddOp;
+  if (params.width == 32 && params.isSigned) {
+    pairwiseAddOp = m.machine()->I32x4ExtAddPairwiseI16x8S();
+  } else if (params.width == 16 && params.isSigned) {
+    pairwiseAddOp = m.machine()->I16x8ExtAddPairwiseI8x16S();
+  } else if (params.width == 32 && !params.isSigned) {
+    pairwiseAddOp = m.machine()->I32x4ExtAddPairwiseI16x8U();
+  } else {
+    pairwiseAddOp = m.machine()->I16x8ExtAddPairwiseI8x16U();
+  }
   Node* pairwiseAdd = m.AddNode(pairwiseAddOp, x);
   const Operator* addOp =
       params.width == 32 ? m.machine()->I32x4Add() : m.machine()->I16x8Add();
@@ -989,15 +998,17 @@ TEST_P(InstructionSelectorAddWithPairwiseAddTest, AddWithPairwiseAdd) {
   m.Return(add);
   Stream s = m.Build();
 
-  // Should be fused to Sadalp
+  // Should be fused to Sadalp/Uadalp
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Sadalp, s[0]->arch_opcode());
+  EXPECT_EQ(params.isSigned ? kArm64Sadalp : kArm64Uadalp, s[0]->arch_opcode());
   EXPECT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
 const AddWithPairwiseAddSideAndWidth kAddWithPairAddTestCases[] = {
-    {LEFT, 16}, {RIGHT, 16}, {LEFT, 32}, {RIGHT, 32}};
+    {LEFT, 16, true},  {RIGHT, 16, true}, {LEFT, 32, true},
+    {RIGHT, 32, true}, {LEFT, 16, false}, {RIGHT, 16, false},
+    {LEFT, 32, false}, {RIGHT, 32, false}};
 
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorAddWithPairwiseAddTest,

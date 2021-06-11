@@ -1217,6 +1217,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputSimd128Register(0).Format(src_f));
       break;
     }
+    case kArm64Uadalp: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));
+      VectorFormat src_f = VectorFormatHalfWidthDoubleLanes(dst_f);
+      __ Uadalp(i.OutputSimd128Register().Format(dst_f),
+                i.InputSimd128Register(1).Format(src_f));
+      break;
+    }
     case kArm64Uaddlp: {
       VectorFormat dst_f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VectorFormat src_f = VectorFormatHalfWidthDoubleLanes(dst_f);

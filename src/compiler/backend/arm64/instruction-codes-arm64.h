@@ -43,6 +43,7 @@ namespace compiler {
   V(Arm64Mul32)                             \
   V(Arm64Smull)                             \
   V(Arm64Smull2)                            \
+  V(Arm64Uadalp)                            \
   V(Arm64Uaddlp)                            \
   V(Arm64Umull)                             \
   V(Arm64Umull2)                            \

@@ -3363,21 +3363,23 @@ void RunAddExtAddPairwiseTest(
 WASM_SIMD_TEST(AddExtAddPairwiseI32Right) {
   RunAddExtAddPairwiseTest<int32_t, int16_t>(
       execution_tier, RIGHT, kExprI32x4Add, {1, 2, 3, 4},
-      kExprI32x4ExtAddPairwiseI16x8S, {1, 2, 3, 4, 5, 6, 7, 8}, {4, 9, 14, 19});
+      kExprI32x4ExtAddPairwiseI16x8S, {-1, -2, -3, -4, -5, -6, -7, -8},
+      {-2, -5, -8, -11});
 }
 
 WASM_SIMD_TEST(AddExtAddPairwiseI32Left) {
   RunAddExtAddPairwiseTest<int32_t, int16_t>(
       execution_tier, LEFT, kExprI32x4Add, {1, 2, 3, 4},
-      kExprI32x4ExtAddPairwiseI16x8S, {1, 2, 3, 4, 5, 6, 7, 8}, {4, 9, 14, 19});
+      kExprI32x4ExtAddPairwiseI16x8S, {-1, -2, -3, -4, -5, -6, -7, -8},
+      {-2, -5, -8, -11});
 }
 
 WASM_SIMD_TEST(AddExtAddPairwiseI16Right) {
   RunAddExtAddPairwiseTest<int16_t, int8_t>(
       execution_tier, RIGHT, kExprI16x8Add, {1, 2, 3, 4, 5, 6, 7, 8},
       kExprI16x8ExtAddPairwiseI8x16S,
-      {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
-      {4, 9, 14, 19, 24, 29, 34, 39});
+      {-1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -11, -12, -13, -14, -15, -16},
+      {-2, -5, -8, -11, -14, -17, -20, -23});
 }
 
 WASM_SIMD_TEST(AddExtAddPairwiseI16Left) {
@@ -3386,6 +3388,18 @@ WASM_SIMD_TEST(AddExtAddPairwiseI16Left) {
       kExprI16x8ExtAddPairwiseI8x16S,
       {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
       {4, 9, 14, 19, 24, 29, 34, 39});
+}
+
+WASM_SIMD_TEST(AddExtAddPairwiseI32RightUnsigned) {
+  RunAddExtAddPairwiseTest<uint32_t, uint16_t>(
+      execution_tier, RIGHT, kExprI32x4Add, {1, 2, 3, 4},
+      kExprI32x4ExtAddPairwiseI16x8U, {1, 2, 3, 4, 5, 6, 7, 8}, {4, 9, 14, 19});
+}
+
+WASM_SIMD_TEST(AddExtAddPairwiseI32LeftUnsigned) {
+  RunAddExtAddPairwiseTest<uint32_t, uint16_t>(
+      execution_tier, LEFT, kExprI32x4Add, {1, 2, 3, 4},
+      kExprI32x4ExtAddPairwiseI16x8U, {1, 2, 3, 4, 5, 6, 7, 8}, {4, 9, 14, 19});
 }
 
 #define WASM_EXTRACT_I16x8_TEST(Sign, Type)                                    \
