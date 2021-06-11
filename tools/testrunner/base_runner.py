@@ -284,6 +284,11 @@ class BaseTestRunner(object):
         # this less cryptic by printing it ourselves.
         print(' '.join(sys.argv))
 
+        # TODO(machenbach): Print used Python version until we have switched to
+        # Python3 everywhere.
+        print('Running with:')
+        print(sys.version)
+
         # Kill stray processes from previous tasks on swarming.
         util.kill_processes_linux()
 
