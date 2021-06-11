@@ -1287,9 +1287,8 @@ class LiftoffCompiler {
     }
     DCHECK(!c->is_try_catchall());
     if (c->is_try_catch()) {
-      // Drop the implicit exception ref.
-      DCHECK_EQ(c->label_state.stack_height() + 1,
-                __ cache_state()->stack_height());
+      // Drop the implicit exception ref if any. There may be none if this is a
+      // catch-less try block.
       __ MergeStackWith(c->label_state, c->br_merge()->arity,
                         LiftoffAssembler::kForwardJump);
     } else {

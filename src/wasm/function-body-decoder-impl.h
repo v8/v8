@@ -2718,6 +2718,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   DECODE(End) {
     DCHECK(!control_.empty());
     Control* c = &control_.back();
+    if (c->is_incomplete_try()) {
+      // Catch-less try, fall through to the implicit catch-all.
+      c->kind = kControlTryCatch;
+      current_catch_ = c->previous_catch;  // Pop try scope.
+    }
     if (c->is_try_catch()) {
       // Emulate catch-all + re-throw.
       FallThrough();
@@ -2729,10 +2734,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       EndControl();
       PopControl();
       return 1;
-    }
-    if (!VALIDATE(!c->is_incomplete_try())) {
-      this->DecodeError("missing catch or catch-all in try");
-      return 0;
     }
     if (c->is_onearmed_if()) {
       if (!VALIDATE(TypeCheckOneArmedIf(c))) return 0;

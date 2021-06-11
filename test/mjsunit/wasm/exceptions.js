@@ -1112,3 +1112,22 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   let instance = builder.instantiate();
   assertEquals(42, instance.exports.throw_with_local());
 })();
+
+(function TestCatchlessTry() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  builder.addFunction('catchless_try', kSig_v_i)
+    .addBody([
+        kExprTry, kWasmVoid,
+          kExprLocalGet, 0,
+          kExprIf, kWasmVoid,
+            kExprThrow, except,
+          kExprEnd,
+        kExprEnd,
+    ]).exportFunc();
+
+  let instance = builder.instantiate();
+  assertDoesNotThrow(() => instance.exports.catchless_try(0));
+  assertWasmThrows(instance, except, [], () => instance.exports.catchless_try(1));
+})();

@@ -2956,14 +2956,13 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprEnd});
   ExpectValidates(sigs.v_v(),
                   {WASM_TRY_OP, kExprCatch, ex, kExprCatchAll, kExprEnd});
+  ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprEnd}, kAppendEnd);
   ExpectFailure(sigs.v_v(),
                 {WASM_TRY_OP, kExprCatchAll, kExprCatch, ex, kExprEnd},
                 kAppendEnd, "catch after catch-all for try");
   ExpectFailure(sigs.v_v(),
                 {WASM_TRY_OP, kExprCatchAll, kExprCatchAll, kExprEnd},
                 kAppendEnd, "catch-all already present for try");
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprEnd}, kAppendEnd,
-                "missing catch or catch-all in try");
   ExpectFailure(sigs.v_v(), {kExprCatch, ex, kExprEnd}, kAppendEnd,
                 "catch does not match a try");
 }
