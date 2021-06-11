@@ -96,6 +96,8 @@ deps = {
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c793cca886a1d820d03b3cb440d2f1c26a3381cc',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '99803d74e35962f63a775f29477882afd4d57d94',
+  'third_party/logdog/logdog':
+    Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '9a84af84d3fa62b230569cf1d3abf69cc7c576e2',
   'buildtools/linux64': {
     'packages': [
       {
