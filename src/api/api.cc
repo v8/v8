@@ -109,11 +109,11 @@
 #include "src/strings/string-hasher.h"
 #include "src/strings/unicode-inl.h"
 #include "src/tracing/trace-event.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils/detachable-vector.h"
 #include "src/utils/version.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-engine.h"
@@ -5854,8 +5854,9 @@ bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
   // code rather than the wasm code, so the trap handler cannot find the landing
   // pad and lets the process crash. Therefore, only enable trap handlers if
   // the host and target arch are the same.
-#if (V8_TARGET_ARCH_X64 && !V8_OS_ANDROID) || \
-    (V8_HOST_ARCH_ARM64 && V8_TARGET_ARCH_ARM64 && V8_OS_MACOSX)
+#if V8_ENABLE_WEBASSEMBLY &&                   \
+    ((V8_TARGET_ARCH_X64 && !V8_OS_ANDROID) || \
+     (V8_HOST_ARCH_ARM64 && V8_TARGET_ARCH_ARM64 && V8_OS_MACOSX))
   return i::trap_handler::TryHandleSignal(sig_code, info, context);
 #else
   return false;
@@ -5870,15 +5871,20 @@ bool V8::TryHandleSignal(int signum, void* info, void* context) {
 
 #if V8_OS_WIN
 bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
-#if V8_TARGET_ARCH_X64
+#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
   return i::trap_handler::TryHandleWasmTrap(exception);
-#endif
+#else
   return false;
+#endif
 }
 #endif
 
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
+#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
   return v8::internal::trap_handler::EnableTrapHandler(use_v8_signal_handler);
+#else
+  return false;
+#endif
 }
 
 #if defined(V8_OS_WIN)

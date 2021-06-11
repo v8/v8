@@ -10,9 +10,9 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
-#include "src/trap-handler/trap-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
@@ -349,7 +349,12 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   TRACE_BS("BSw:try   %zu pages, %zu max\n", initial_pages, maximum_pages);
 
+#if V8_ENABLE_WEBASSEMBLY
   bool guards = is_wasm_memory && trap_handler::IsTrapHandlerEnabled();
+#else
+  CHECK(!is_wasm_memory);
+  bool guards = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // For accounting purposes, whether a GC was necessary.
   bool did_retry = false;
