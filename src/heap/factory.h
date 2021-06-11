@@ -411,7 +411,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Allocates and initializes a new Map.
   Handle<Map> NewMap(InstanceType type, int instance_size,
                      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
-                     int inobject_properties = 0);
+                     int inobject_properties = 0,
+                     AllocationType allocation_type = AllocationType::kMap);
   // Initializes the fields of a newly created Map. Exposed for tests and
   // heap setup; other code should just call NewMap which takes care of it.
   Map InitializeMap(Map map, InstanceType type, int instance_size,

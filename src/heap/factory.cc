@@ -1599,15 +1599,17 @@ Handle<AllocationSite> Factory::NewAllocationSite(bool with_weak_next) {
 }
 
 Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
-                            ElementsKind elements_kind,
-                            int inobject_properties) {
+                            ElementsKind elements_kind, int inobject_properties,
+                            AllocationType allocation_type) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   DCHECK_IMPLIES(InstanceTypeChecker::IsJSObject(type) &&
                      !Map::CanHaveFastTransitionableElementsKind(type),
                  IsDictionaryElementsKind(elements_kind) ||
                      IsTerminalElementsKind(elements_kind));
+  DCHECK(allocation_type == AllocationType::kMap ||
+         allocation_type == AllocationType::kSharedMap);
   HeapObject result = isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(
-      Map::kSize, AllocationType::kMap);
+      Map::kSize, allocation_type);
   DisallowGarbageCollection no_gc;
   result.set_map_after_allocation(*meta_map(), SKIP_WRITE_BARRIER);
   return handle(InitializeMap(Map::cast(result), type, instance_size,
