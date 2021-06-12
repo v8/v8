@@ -65,6 +65,49 @@ class V8_NODISCARD ParkedMutexGuard {
   base::Mutex* mutex_;
 };
 
+template <base::MutexSharedType kIsShared,
+          base::NullBehavior Behavior = base::NullBehavior::kRequireNotNull>
+class V8_NODISCARD ParkedSharedMutexGuardIf final {
+ public:
+  ParkedSharedMutexGuardIf(LocalIsolate* local_isolate,
+                           base::SharedMutex* mutex, bool enable_mutex)
+      : ParkedSharedMutexGuardIf(local_isolate->heap(), mutex, enable_mutex) {}
+  ParkedSharedMutexGuardIf(LocalHeap* local_heap, base::SharedMutex* mutex,
+                           bool enable_mutex) {
+    DCHECK_IMPLIES(Behavior == base::NullBehavior::kRequireNotNull,
+                   mutex != nullptr);
+    if (!enable_mutex) return;
+    mutex_ = mutex;
+
+    if (kIsShared) {
+      if (!mutex_->TryLockShared()) {
+        ParkedScope scope(local_heap);
+        mutex_->LockShared();
+      }
+    } else {
+      if (!mutex_->TryLockExclusive()) {
+        ParkedScope scope(local_heap);
+        mutex_->LockExclusive();
+      }
+    }
+  }
+  ParkedSharedMutexGuardIf(const ParkedSharedMutexGuardIf&) = delete;
+  ParkedSharedMutexGuardIf& operator=(const ParkedSharedMutexGuardIf&) = delete;
+
+  ~ParkedSharedMutexGuardIf() {
+    if (!mutex_) return;
+
+    if (kIsShared) {
+      mutex_->UnlockShared();
+    } else {
+      mutex_->UnlockExclusive();
+    }
+  }
+
+ private:
+  base::SharedMutex* mutex_ = nullptr;
+};
+
 }  // namespace internal
 }  // namespace v8
 
