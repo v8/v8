@@ -223,3 +223,72 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
   assertSame(foo, foo.bar.circular);
 })();
+
+(function TestArray() {
+  function createObjects() {
+    globalThis.foo = {
+      array: [5, 6, 7]
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([5, 6, 7], foo.array);
+})();
+
+(function TestArray() {
+  function createObjects() {
+    globalThis.foo = {
+      array: []
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(0, foo.array.length);
+  assertEquals([], foo.array);
+})();
+
+(function TestArrayContainingArray() {
+  function createObjects() {
+    globalThis.foo = {
+      array: [[2, 3], [4, 5]]
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals([[2, 3], [4, 5]], foo.array);
+})();
+
+
+(function TestArrayContainingObject() {
+  function createObjects() {
+    globalThis.foo = {
+      array: [{a: 1}, {b: 2}]
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(1, foo.array[0].a);
+  assertEquals(2, foo.array[1].b);
+})();
+
+(function TestArrayContainingFunction() {
+  function createObjects() {
+    globalThis.foo = {
+      array: [function() { return 5; }]
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(5, foo.array[0]());
+})();
+
+
+(function TestContextReferencingArray() {
+  function createObjects() {
+    function outer() {
+      let o = [11525];
+      function inner() { return o; }
+      return inner;
+    }
+    globalThis.foo = {
+      func: outer()
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(11525, foo.func()[0]);
+})();

@@ -4045,9 +4045,10 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
 }
 
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 Handle<Object> obj1, Smi obj2, Smi obj3) {
+                                 Handle<Object> obj1, Smi obj2, Smi obj3,
+                                 Smi obj4) {
   int length = array->Length();
-  array = EnsureSpace(isolate, array, length + 3);
+  array = EnsureSpace(isolate, array, length + 4);
   // Check that GC didn't remove elements from the array.
   DCHECK_EQ(array->Length(), length);
   {
@@ -4056,7 +4057,8 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
     raw_array.Set(length, *obj1);
     raw_array.Set(length + 1, obj2);
     raw_array.Set(length + 2, obj3);
-    raw_array.SetLength(length + 3);
+    raw_array.Set(length + 3, obj4);
+    raw_array.SetLength(length + 4);
   }
   return array;
 }

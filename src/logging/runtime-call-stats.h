@@ -470,6 +470,7 @@ class RuntimeCallTimer final {
   V(TestCounter2)                              \
   V(TestCounter3)                              \
   V(WebSnapshotDeserialize)                    \
+  V(WebSnapshotDeserialize_Arrays)             \
   V(WebSnapshotDeserialize_Contexts)           \
   V(WebSnapshotDeserialize_Exports)            \
   V(WebSnapshotDeserialize_Functions)          \
