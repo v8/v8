@@ -363,7 +363,7 @@ int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
 //
 
 void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
-  SbStringCopy(dest, src, n);
+  strncpy(dest, src, n);
 }
 
 // ----------------------------------------------------------------------------
