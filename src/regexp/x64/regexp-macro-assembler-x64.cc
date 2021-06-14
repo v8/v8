@@ -476,7 +476,7 @@ void RegExpMacroAssemblerX64::CheckCharacterAfterAnd(uint32_t c,
   if (c == 0) {
     __ testl(current_character(), Immediate(mask));
   } else {
-    __ movl(rax, Immediate(mask));
+    __ Move(rax, mask);
     __ andq(rax, current_character());
     __ cmpl(rax, Immediate(c));
   }
@@ -490,7 +490,7 @@ void RegExpMacroAssemblerX64::CheckNotCharacterAfterAnd(uint32_t c,
   if (c == 0) {
     __ testl(current_character(), Immediate(mask));
   } else {
-    __ movl(rax, Immediate(mask));
+    __ Move(rax, mask);
     __ andq(rax, current_character());
     __ cmpl(rax, Immediate(c));
   }
@@ -895,7 +895,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
       __ jmp(&load_char_start_regexp);
     } else {
-      __ movq(rax, Immediate(SUCCESS));
+      __ Move(rax, SUCCESS);
     }
   }
 
@@ -1108,7 +1108,7 @@ void RegExpMacroAssemblerX64::SetCurrentPositionFromEnd(int by) {
   Label after_position;
   __ cmpq(rdi, Immediate(-by * char_size()));
   __ j(greater_equal, &after_position, Label::kNear);
-  __ movq(rdi, Immediate(-by * char_size()));
+  __ Move(rdi, -by * char_size());
   // On RegExp code entry (where this operation is used), the character before
   // the current position is expected to be already loaded.
   // We have advanced the position, so it's safe to read backwards.

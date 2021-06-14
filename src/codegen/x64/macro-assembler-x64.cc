@@ -623,7 +623,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   if (should_abort_hard()) {
     // We don't care if we constructed a frame. Just pretend we did.
     FrameScope assume_frame(this, StackFrame::NONE);
-    movl(arg_reg_1, Immediate(static_cast<int>(reason)));
+    Move(arg_reg_1, static_cast<int>(reason));
     PrepareCallCFunction(1);
     LoadAddress(rax, ExternalReference::abort_with_reason());
     call(rax);
@@ -2397,7 +2397,7 @@ void TurboAssembler::Lzcntl(Register dst, Register src) {
   Label not_zero_src;
   bsrl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  movl(dst, Immediate(63));  // 63^31 == 32
+  Move(dst, 63);  // 63^31 == 32
   bind(&not_zero_src);
   xorl(dst, Immediate(31));  // for x in [0..31], 31^x == 31 - x
 }
@@ -2411,7 +2411,7 @@ void TurboAssembler::Lzcntl(Register dst, Operand src) {
   Label not_zero_src;
   bsrl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  movl(dst, Immediate(63));  // 63^31 == 32
+  Move(dst, 63);  // 63^31 == 32
   bind(&not_zero_src);
   xorl(dst, Immediate(31));  // for x in [0..31], 31^x == 31 - x
 }
@@ -2425,7 +2425,7 @@ void TurboAssembler::Lzcntq(Register dst, Register src) {
   Label not_zero_src;
   bsrq(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  movl(dst, Immediate(127));  // 127^63 == 64
+  Move(dst, 127);  // 127^63 == 64
   bind(&not_zero_src);
   xorl(dst, Immediate(63));  // for x in [0..63], 63^x == 63 - x
 }
@@ -2439,7 +2439,7 @@ void TurboAssembler::Lzcntq(Register dst, Operand src) {
   Label not_zero_src;
   bsrq(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  movl(dst, Immediate(127));  // 127^63 == 64
+  Move(dst, 127);  // 127^63 == 64
   bind(&not_zero_src);
   xorl(dst, Immediate(63));  // for x in [0..63], 63^x == 63 - x
 }
@@ -2454,7 +2454,7 @@ void TurboAssembler::Tzcntq(Register dst, Register src) {
   bsfq(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
   // Define the result of tzcnt(0) separately, because bsf(0) is undefined.
-  movl(dst, Immediate(64));
+  Move(dst, 64);
   bind(&not_zero_src);
 }
 
@@ -2468,7 +2468,7 @@ void TurboAssembler::Tzcntq(Register dst, Operand src) {
   bsfq(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
   // Define the result of tzcnt(0) separately, because bsf(0) is undefined.
-  movl(dst, Immediate(64));
+  Move(dst, 64);
   bind(&not_zero_src);
 }
 
@@ -2481,7 +2481,7 @@ void TurboAssembler::Tzcntl(Register dst, Register src) {
   Label not_zero_src;
   bsfl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  movl(dst, Immediate(32));  // The result of tzcnt is 32 if src = 0.
+  Move(dst, 32);  // The result of tzcnt is 32 if src = 0.
   bind(&not_zero_src);
 }
 
@@ -2494,7 +2494,7 @@ void TurboAssembler::Tzcntl(Register dst, Operand src) {
   Label not_zero_src;
   bsfl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  movl(dst, Immediate(32));  // The result of tzcnt is 32 if src = 0.
+  Move(dst, 32);  // The result of tzcnt is 32 if src = 0.
   bind(&not_zero_src);
 }
 
@@ -3198,14 +3198,14 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
   Operand context_operand = ExternalReferenceAsOperand(context_address);
   movq(rsi, context_operand);
 #ifdef DEBUG
-  movq(context_operand, Immediate(Context::kInvalidContext));
+  Move(context_operand, Context::kInvalidContext);
 #endif
 
   // Clear the top frame.
   ExternalReference c_entry_fp_address =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
   Operand c_entry_fp_operand = ExternalReferenceAsOperand(c_entry_fp_address);
-  movq(c_entry_fp_operand, Immediate(0));
+  Move(c_entry_fp_operand, 0);
 }
 
 #ifdef V8_TARGET_OS_WIN
