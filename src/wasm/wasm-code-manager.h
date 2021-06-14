@@ -982,6 +982,14 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   //////////////////////////////////////////////////////////////////////////////
 };
 
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+// Arm64 on MacOS (M1 hardware) uses CodeSpaceWriteScope to switch permissions.
+// TODO(wasm): Merge NativeModuleModificationScope and CodeSpaceWriteScope.
+class V8_NODISCARD NativeModuleModificationScope final {
+ public:
+  explicit NativeModuleModificationScope(NativeModule*) {}
+};
+#else
 // Within the scope, the native_module is writable and not executable.
 // At the scope's destruction, the native_module is executable and not writable.
 // The states inside the scope and at the scope termination are irrespective of
@@ -1006,6 +1014,7 @@ class V8_NODISCARD NativeModuleModificationScope final {
  private:
   NativeModule* native_module_;
 };
+#endif
 
 // {WasmCodeRefScope}s form a perfect stack. New {WasmCode} pointers generated
 // by e.g. creating new code or looking up code by its address are added to the
