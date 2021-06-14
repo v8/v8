@@ -4,19 +4,53 @@
 
 load("//definitions.star", "versions")
 
-def branch_descriptor(name, poller_name, refs, version_tag = None, display = None, priority = None):
+def branch_descriptor(
+        bucket,
+        poller_name,
+        refs,
+        version_tag = None,
+        priority = None,
+        has_console_name_prefix = True):
     version = None
     if version_tag:
         version = versions[version_tag].replace(".", "\\.")
         refs = [ref % version for ref in refs]
     return struct(
-        name = name,
+        bucket = bucket,
         version = version,
         poller_name = poller_name,
-        display = display,
+        create_consoles = branch_console_builder(bucket, version_tag, refs) if has_console_name_prefix else master_console_builder(),
         refs = refs,
         priority = priority,
+        console_id_by_name = console_id_resolver(bucket, has_console_name_prefix),
     )
+
+def master_console_builder():
+    def builder():
+        console_view("main")
+        console_view("ports")
+
+    return builder
+
+def branch_console_builder(bucket, version_tag, refs):
+    def builder():
+        base_name = bucket[3:]
+        base_display_name = version_tag + " "
+        header = "//consoles/header_branch.textpb"
+        console_view(base_name, title = base_display_name + "main", refs = refs, header = header)
+        console_view(base_name + ".ports", title = base_display_name + "ports", refs = refs, header = header)
+
+    return builder
+
+def console_id_resolver(bucket, has_console_name_prefix):
+    def resolver(console_kind):
+        if has_console_name_prefix:
+            suffix = ".ports" if console_kind == "ports" else ""
+            return bucket[3:] + suffix
+        else:
+            return console_kind
+
+    return resolver
 
 branch_descriptors = [
     branch_descriptor(
@@ -24,30 +58,28 @@ branch_descriptors = [
         "v8-trigger",
         ["refs/heads/master"],
         priority = 30,  # default
+        has_console_name_prefix = False,
     ),  # master
     branch_descriptor(
         "ci.br.beta",
         "v8-trigger-br-beta",
         ["refs/branch-heads/%s"],
-        "beta",
-        "Beta",
-        50,
+        version_tag = "beta",
+        priority = 50,
     ),
     branch_descriptor(
         "ci.br.stable",
         "v8-trigger-br-stable",
         ["refs/branch-heads/%s"],
-        "stable",
-        "Stable",
-        50,
+        version_tag = "stable",
+        priority = 50,
     ),
     branch_descriptor(
         "ci.br.extended",
         "v8-trigger-br-extended",
         ["refs/branch-heads/%s"],
-        "extended",
-        "Extended",
-        50,
+        version_tag = "extended",
+        priority = 50,
     ),
 ]
 
@@ -223,17 +255,6 @@ def v8_basic_builder(defaults, **kwargs):
     kwargs = fix_args(defaults, **kwargs)
     luci.builder(**kwargs)
 
-branch_console_dict = {
-    ("ci", "main"): "main",
-    ("ci", "ports"): "ports",
-    ("ci.br.beta", "main"): "br.beta",
-    ("ci.br.beta", "ports"): "br.beta.ports",
-    ("ci.br.stable", "main"): "br.stable",
-    ("ci.br.stable", "ports"): "br.stable.ports",
-    ("ci.br.extended", "main"): "br.extended",
-    ("ci.br.extended", "ports"): "br.extended.ports",
-}
-
 def multibranch_builder(**kwargs):
     added_builders = []
     close_tree = kwargs.pop("close_tree", True)
@@ -247,17 +268,17 @@ def multibranch_builder(**kwargs):
         else:
             args["dimensions"] = {"host_class": "multibot"}
         args["priority"] = branch.priority
-        if branch.name == "ci":
+        if branch.bucket == "ci":
             if close_tree:
                 notifies = args.pop("notifies", [])
                 notifies.append("v8 tree closer")
                 args["notifies"] = notifies
         else:
             args["notifies"] = ["beta/stable notifier"]
-            if _builder_is_not_supported(branch.name, first_branch_version):
+            if _builder_is_not_supported(branch.bucket, first_branch_version):
                 continue
-        v8_basic_builder(defaults_ci, bucket = branch.name, **args)
-        added_builders.append(branch.name + "/" + kwargs["name"])
+        v8_basic_builder(defaults_ci, bucket = branch.bucket, **args)
+        added_builders.append(branch.bucket + "/" + kwargs["name"])
     return added_builders
 
 def _builder_is_not_supported(bucket_name, first_branch_version):
@@ -306,18 +327,23 @@ def merge_defaults(defaults, args, key):
 def clean_dict_items(dictionary, key):
     return {k: v for k, v in dictionary.get(key, {}).items() if v != None}.items()
 
-def in_branch_console(console_id, *builder_sets):
+def in_branch_console(console_name, *builder_sets):
     def in_category(category_name, *builder_sets):
         for builder_set in builder_sets:
             for builder in builder_set:
-                branch = builder.split("/")[0]
+                branch_name = builder.split("/")[0]
                 luci.console_view_entry(
-                    console_view = branch_console_dict[branch, console_id],
+                    console_view = branch_by_name(branch_name).console_id_by_name(console_name),
                     builder = builder,
                     category = category_name,
                 )
 
     return in_category
+
+def branch_by_name(name):
+    for branch in branch_descriptors:
+        if branch.bucket == name:
+            return branch
 
 def in_console(console_id, *builders):
     def in_category(category_name, *builders):
@@ -356,3 +382,14 @@ greedy_batching_of_1 = scheduler.policy(
     kind = scheduler.GREEDY_BATCHING_KIND,
     max_batch_size = 1,
 )
+
+def console_view(name, title = None, repo = None, refs = None, exclude_ref = None, header = None):
+    luci.console_view(
+        name = name,
+        title = title or name,
+        repo = repo or "https://chromium.googlesource.com/v8/v8",
+        refs = refs or ["refs/heads/master"],
+        exclude_ref = exclude_ref,
+        favicon = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico",
+        header = header or "//consoles/header_main.textpb",
+    )

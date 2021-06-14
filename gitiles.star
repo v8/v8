@@ -15,7 +15,7 @@ def branch_pollers():
     for branch in branch_descriptors:
         luci.gitiles_poller(
             name = branch.poller_name,
-            bucket = branch.name,
+            bucket = branch.bucket,
             repo = "https://chromium.googlesource.com/v8/v8",
             refs = branch.refs,
         )
