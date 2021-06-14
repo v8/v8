@@ -1226,8 +1226,7 @@ class LiftoffCompiler {
   }
 
   void CatchAll(FullDecoder* decoder, Control* block) {
-    DCHECK(block->is_try_catchall() || block->is_try_catch() ||
-           block->is_try_unwind());
+    DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);
 
     // The catch block is unreachable if no possible throws in the try block
@@ -1333,7 +1332,7 @@ class LiftoffCompiler {
   }
 
   void FinishTry(FullDecoder* decoder, Control* c) {
-    DCHECK(c->is_try_catch() || c->is_try_catchall() || c->is_try_unwind());
+    DCHECK(c->is_try_catch() || c->is_try_catchall());
     if (!c->end_merge.reached) {
       if (c->try_info->catch_reached) {
         // Drop the implicit exception ref.
@@ -1357,8 +1356,7 @@ class LiftoffCompiler {
     if (c->is_onearmed_if()) {
       // Special handling for one-armed ifs.
       FinishOneArmedIf(decoder, c);
-    } else if (c->is_try_catch() || c->is_try_catchall() ||
-               c->is_try_unwind()) {
+    } else if (c->is_try_catch() || c->is_try_catchall()) {
       FinishTry(decoder, c);
     } else if (c->end_merge.reached) {
       // There is a merge already. Merge our state into that, then continue with
@@ -3128,8 +3126,7 @@ class LiftoffCompiler {
                           ? next_control->stack_depth + __ num_locals() +
                                 next_control->num_exceptions
                           : __ cache_state()->stack_height();
-      bool exception = control->is_try_catch() || control->is_try_catchall() ||
-                       control->is_try_unwind();
+      bool exception = control->is_try_catch() || control->is_try_catchall();
       for (; index < end_index; ++index) {
         auto& slot = stack_state[index];
         auto& value = values[index];

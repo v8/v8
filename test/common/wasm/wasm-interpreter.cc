@@ -690,9 +690,6 @@ class SideTable : public ZoneObject {
       // Track whether this block was already left, i.e. all further
       // instructions are unreachable.
       bool unreachable = false;
-      // Whether this is a try...unwind...end block. Needed to handle the
-      // implicit rethrow when we reach the end of the block.
-      bool unwind = false;
 
       Control(const byte* pc, CLabel* end_label, CLabel* else_label,
               uint32_t exit_arity)
@@ -865,27 +862,6 @@ class SideTable : public ZoneObject {
           stack_height = c->end_label->target_stack_height;
           break;
         }
-        case kExprUnwind: {
-          TRACE("control @%u: Unwind\n", i.pc_offset());
-          Control* c = &control_stack.back();
-          DCHECK_EQ(*c->pc, kExprTry);
-          DCHECK(!exception_stack.empty());
-          DCHECK_EQ(exception_stack.back(), control_stack.size() - 1);
-          exception_stack.pop_back();
-          copy_unreachable();
-          if (!unreachable) c->end_label->Ref(i.pc(), stack_height);
-          DCHECK_NOT_NULL(c->else_label);
-          int control_index = static_cast<int>(control_stack.size()) - 1;
-          c->else_label->Bind(i.pc() + 1, kCatchAllExceptionIndex,
-                              control_index);
-          c->else_label->Finish(&map_, code->start);
-          c->else_label = nullptr;
-          c->unwind = true;
-          DCHECK_IMPLIES(!unreachable,
-                         stack_height >= c->end_label->target_stack_height);
-          stack_height = c->end_label->target_stack_height;
-          break;
-        }
         case kExprTry: {
           BlockTypeImmediate<Decoder::kNoValidation> imm(
               WasmFeatures::All(), &i, i.pc() + 1, module);
@@ -966,13 +942,6 @@ class SideTable : public ZoneObject {
                     !unreachable,
                     stack_height >= c->else_label->target_stack_height);
                 stack_height = c->else_label->target_stack_height;
-                rethrow = !unreachable;
-              }
-            } else if (c->unwind) {
-              DCHECK_EQ(*c->pc, kExprTry);
-              rethrow_map_.emplace(i.pc() - i.start(),
-                                   static_cast<int>(control_stack.size()) - 1);
-              if (!exception_stack.empty()) {
                 rethrow = !unreachable;
               }
             }
@@ -3415,7 +3384,6 @@ class WasmInterpreterInternals {
           break;
         }
         case kExprElse:
-        case kExprUnwind:
         case kExprCatch:
         case kExprCatchAll: {
           len = LookupTargetDelta(code, pc);
@@ -3512,19 +3480,6 @@ class WasmInterpreterInternals {
           break;
         }
         case kExprEnd: {
-          if (code->side_table->rethrow_map_.count(pc)) {
-            // Implicit rethrow after unwind.
-            HandleScope scope(isolate_);
-            DCHECK(!frames_.back().caught_exception_stack.is_null());
-            int index = code->side_table->rethrow_map_[pc];
-            Handle<Object> exception = handle(
-                frames_.back().caught_exception_stack->get(index), isolate_);
-            DCHECK(!exception->IsTheHole());
-            CommitPc(pc);  // Needed for local unwinding.
-            if (!DoRethrowException(exception)) return;
-            ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
-            continue;  // Do not bump pc.
-          }
           break;
         }
         case kExprI32Const: {

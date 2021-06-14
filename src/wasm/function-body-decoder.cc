@@ -191,7 +191,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     }
     if (line_numbers) line_numbers->push_back(i.position());
     if (opcode == kExprElse || opcode == kExprCatch ||
-        opcode == kExprCatchAll || opcode == kExprUnwind) {
+        opcode == kExprCatchAll) {
       control_depth--;
     }
 
@@ -241,7 +241,6 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprElse:
       case kExprCatch:
       case kExprCatchAll:
-      case kExprUnwind:
         os << " @" << i.pc_offset();
         control_depth++;
         break;

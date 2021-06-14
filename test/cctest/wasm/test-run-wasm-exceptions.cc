@@ -211,43 +211,11 @@ WASM_EXEC_TEST(TryDelegate) {
   }
 }
 
-WASM_EXEC_TEST(TryUnwind) {
-  TestSignatures sigs;
-  EXPERIMENTAL_FLAG_SCOPE(eh);
-  WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  byte except = r.builder().AddException(sigs.v_v());
-  constexpr uint32_t kResult0 = 23;
-  constexpr uint32_t kResult1 = 42;
-
-  // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_T(
-               kWasmI32,
-               WASM_TRY_UNWIND_T(
-                   kWasmI32,
-                   WASM_TRY_DELEGATE_T(
-                       kWasmI32,
-                       WASM_STMTS(WASM_I32V(kResult1),
-                                  WASM_IF(WASM_I32_EQZ(WASM_LOCAL_GET(0)),
-                                          WASM_THROW(except))),
-                       0),
-                   kExprNop),
-               WASM_I32V(kResult0), except));
-
-  if (execution_tier != TestExecutionTier::kInterpreter) {
-    // Need to call through JS to allow for creation of stack traces.
-    r.CheckCallViaJS(kResult0, 0);
-    r.CheckCallViaJS(kResult1, 1);
-  } else {
-    CHECK_EQ(kResult0, r.CallInterpreter(0));
-    CHECK_EQ(kResult1, r.CallInterpreter(1));
-  }
-}
-
 WASM_EXEC_TEST(TestCatchlessTry) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t> r(execution_tier);
-  uint32_t except = r.builder().AddException(sigs.v_i());
+  byte except = r.builder().AddException(sigs.v_i());
   BUILD(r,
         WASM_TRY_CATCH_T(
             kWasmI32,
@@ -706,17 +674,16 @@ TEST(Regress1186795) {
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
   byte except = r.builder().AddException(sigs.v_i());
-  BUILD(r, WASM_TRY_CATCH_T(
-               kWasmI32,
-               WASM_STMTS(
-                   WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
-                   WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
-                   WASM_TRY_UNWIND_T(
-                       kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except)),
-                       WASM_I32V(0)),
-                   WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
-                   WASM_DROP, WASM_DROP),
-               WASM_NOP, except));
+  BUILD(r,
+        WASM_TRY_CATCH_T(
+            kWasmI32,
+            WASM_STMTS(WASM_I32V(0), WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
+                       WASM_I32V(0), WASM_I32V(0), WASM_I32V(0),
+                       WASM_TRY_T(kWasmI32,
+                                  WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
+                       WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP, WASM_DROP,
+                       WASM_DROP, WASM_DROP),
+            WASM_NOP, except));
   CHECK_EQ(0, r.CallInterpreter());
 }
 

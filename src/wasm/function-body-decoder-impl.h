@@ -843,7 +843,6 @@ enum ControlKind : uint8_t {
   kControlTry,
   kControlTryCatch,
   kControlTryCatchAll,
-  kControlTryUnwind
 };
 
 enum Reachability : uint8_t {
@@ -905,10 +904,8 @@ struct ControlBase : public PcForErrors<validate> {
   bool is_incomplete_try() const { return kind == kControlTry; }
   bool is_try_catch() const { return kind == kControlTryCatch; }
   bool is_try_catchall() const { return kind == kControlTryCatchAll; }
-  bool is_try_unwind() const { return kind == kControlTryUnwind; }
   bool is_try() const {
-    return is_incomplete_try() || is_try_catch() || is_try_catchall() ||
-           is_try_unwind();
+    return is_incomplete_try() || is_try_catch() || is_try_catchall();
   }
 
   Merge<Value>* br_merge() {
@@ -1629,7 +1626,6 @@ class WasmDecoder : public Decoder {
       case kExprDrop:
       case kExprSelect:
       case kExprCatchAll:
-      case kExprUnwind:
         return 1;
       case kExprSelectWithType: {
         SelectTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1,
@@ -1972,7 +1968,6 @@ class WasmDecoder : public Decoder {
       case kExprCatch:
       case kExprCatchAll:
       case kExprDelegate:
-      case kExprUnwind:
       case kExprRethrow:
       case kExprNop:
       case kExprNopForTestingUnsupportedInLiftoff:
@@ -2328,7 +2323,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kControlIfElse:
           case kControlTryCatch:
           case kControlTryCatchAll:
-          case kControlTryUnwind:
           case kControlLet:  // TODO(7748): Implement
             break;
         }
@@ -2452,10 +2446,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->DecodeError("catch after catch-all for try");
       return 0;
     }
-    if (!VALIDATE(!c->is_try_unwind())) {
-      this->DecodeError("catch after unwind for try");
-      return 0;
-    }
     FallThrough();
     c->kind = kControlTryCatch;
     // TODO(jkummerow): Consider moving the stack manipulation after the
@@ -2492,8 +2482,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           "delegate target must be a try block or the function block");
       return 0;
     }
-    if (target->is_try_catch() || target->is_try_catchall() ||
-        target->is_try_unwind()) {
+    if (target->is_try_catch() || target->is_try_catchall()) {
       this->DecodeError(
           "cannot delegate inside the catch handler of the target");
       return 0;
@@ -2518,35 +2507,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       this->error("catch-all already present for try");
       return 0;
     }
-    if (!VALIDATE(!c->is_try_unwind())) {
-      this->error("cannot have catch-all after unwind");
-      return 0;
-    }
     FallThrough();
     c->kind = kControlTryCatchAll;
-    c->reachability = control_at(1)->innerReachability();
-    current_catch_ = c->previous_catch;  // Pop try scope.
-    CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
-    stack_end_ = stack_ + c->stack_depth;
-    current_code_reachable_and_ok_ = this->ok() && c->reachable();
-    return 1;
-  }
-
-  DECODE(Unwind) {
-    CHECK_PROTOTYPE_OPCODE(eh);
-    DCHECK(!control_.empty());
-    Control* c = &control_.back();
-    if (!VALIDATE(c->is_try())) {
-      this->DecodeError("unwind does not match a try");
-      return 0;
-    }
-    if (!VALIDATE(!c->is_try_catch() && !c->is_try_catchall() &&
-                  !c->is_try_unwind())) {
-      this->error("catch, catch-all or unwind already present for try");
-      return 0;
-    }
-    FallThrough();
-    c->kind = kControlTryUnwind;
     c->reachability = control_at(1)->innerReachability();
     current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
@@ -2737,11 +2699,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
     if (c->is_onearmed_if()) {
       if (!VALIDATE(TypeCheckOneArmedIf(c))) return 0;
-    }
-    if (c->is_try_unwind()) {
-      // Unwind implicitly rethrows at the end.
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(Rethrow, c);
-      EndControl();
     }
 
     if (c->is_let()) {
@@ -3344,7 +3301,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DECODE_IMPL(Catch);
     DECODE_IMPL(Delegate);
     DECODE_IMPL(CatchAll);
-    DECODE_IMPL(Unwind);
     DECODE_IMPL(BrOnNull);
     DECODE_IMPL(BrOnNonNull);
     DECODE_IMPL(Let);

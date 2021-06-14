@@ -199,9 +199,6 @@
 #define WASM_TRY_DELEGATE_T(t, trystmt, depth)                                \
   kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprDelegate, \
       depth
-#define WASM_TRY_UNWIND_T(t, trystmt, unwindstmt)                           \
-  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprUnwind, \
-      unwindstmt, kExprEnd
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 #define WASM_SELECT_I(tval, fval, cond) \

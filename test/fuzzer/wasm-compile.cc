@@ -215,7 +215,6 @@ class WasmGenerator {
     // Allow one more target than there are enclosing try blocks, for delegating
     // to the caller.
     uint8_t delegate_target = data->get<uint8_t>() % (try_blocks_.size() + 1);
-    bool is_unwind = num_catch == 0 && !has_catch_all && !is_delegate;
 
     Vector<const ValueType> return_type_vec = return_type.kind() == kVoid
                                                   ? Vector<ValueType>{}
@@ -249,10 +248,6 @@ class WasmGenerator {
       builder_->EmitWithU32V(kExprDelegate, delegate_depth);
     }
     catch_blocks_.pop_back();
-    if (is_unwind) {
-      builder_->Emit(kExprUnwind);
-      Generate(return_type, data);
-    }
   }
 
   template <ValueKind T>

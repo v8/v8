@@ -197,7 +197,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(Throw, "throw")
     CASE_OP(Rethrow, "rethrow")
     CASE_OP(CatchAll, "catch-all")
-    CASE_OP(Unwind, "unwind")
 
     // asm.js-only opcodes.
     CASE_F64_OP(Acos, "acos")

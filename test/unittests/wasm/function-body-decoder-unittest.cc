@@ -2967,21 +2967,6 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
                 "catch does not match a try");
 }
 
-TEST_F(FunctionBodyDecoderTest, TryUnwind) {
-  WASM_FEATURE_SCOPE(eh);
-  byte ex = builder.AddException(sigs.v_v());
-  ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprUnwind, kExprEnd});
-  ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprUnwind, kExprCatch, ex, kExprEnd},
-                kAppendEnd, "catch after unwind for try");
-  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatchAll, kExprUnwind, kExprEnd},
-                kAppendEnd,
-                "catch, catch-all or unwind already present for try");
-  ExpectFailure(
-      sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprUnwind, kExprEnd},
-      kAppendEnd, "catch, catch-all or unwind already present for try");
-}
-
 TEST_F(FunctionBodyDecoderTest, Rethrow) {
   WASM_FEATURE_SCOPE(eh);
   ExpectValidates(sigs.v_v(),
@@ -2993,9 +2978,6 @@ TEST_F(FunctionBodyDecoderTest, Rethrow) {
                 "rethrow not targeting catch or catch-all");
   ExpectFailure(sigs.v_v(), {kExprRethrow, 0}, kAppendEnd,
                 "rethrow not targeting catch or catch-all");
-  ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprUnwind, kExprRethrow, 0, kExprEnd},
-                kAppendEnd, "rethrow not targeting catch or catch-all");
 }
 
 TEST_F(FunctionBodyDecoderTest, TryDelegate) {
@@ -3018,11 +3000,6 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
                 "delegate target must be a try block or the function block");
   ExpectFailure(sigs.v_v(),
                 {WASM_TRY_OP, kExprCatch, ex,
-                 WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
-                kAppendEnd,
-                "cannot delegate inside the catch handler of the target");
-  ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprUnwind,
                  WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
                 kAppendEnd,
                 "cannot delegate inside the catch handler of the target");
