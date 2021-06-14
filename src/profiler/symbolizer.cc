@@ -16,9 +16,7 @@ Symbolizer::Symbolizer(CodeMap* code_map) : code_map_(code_map) {}
 
 CodeEntry* Symbolizer::FindEntry(Address address,
                                  Address* out_instruction_start) {
-  CodeEntry* entry = code_map_->FindEntry(address, out_instruction_start);
-  if (entry) entry->mark_used();
-  return entry;
+  return code_map_->FindEntry(address, out_instruction_start);
 }
 
 namespace {

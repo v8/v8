@@ -29,12 +29,12 @@ namespace internal {
 
 ProfilerListener::ProfilerListener(Isolate* isolate,
                                    CodeEventObserver* observer,
-                                   StringsStorage& function_and_resource_names,
+                                   CodeEntryStorage& code_entry_storage,
                                    WeakCodeRegistry& weak_code_registry,
                                    CpuProfilingNamingMode naming_mode)
     : isolate_(isolate),
       observer_(observer),
-      function_and_resource_names_(function_and_resource_names),
+      code_entries_(code_entry_storage),
       weak_code_registry_(weak_code_registry),
       naming_mode_(naming_mode) {}
 
@@ -46,9 +46,10 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = new CodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
-                             CpuProfileNode::kNoLineNumberInfo,
-                             CpuProfileNode::kNoColumnNumberInfo, nullptr);
+  rec->entry =
+      code_entries_.Create(tag, GetName(name), CodeEntry::kEmptyResourceName,
+                           CpuProfileNode::kNoLineNumberInfo,
+                           CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();
   weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
@@ -60,9 +61,10 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = new CodeEntry(tag, GetName(*name), CodeEntry::kEmptyResourceName,
-                             CpuProfileNode::kNoLineNumberInfo,
-                             CpuProfileNode::kNoColumnNumberInfo, nullptr);
+  rec->entry =
+      code_entries_.Create(tag, GetName(*name), CodeEntry::kEmptyResourceName,
+                           CpuProfileNode::kNoLineNumberInfo,
+                           CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();
   weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
@@ -75,10 +77,11 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = new CodeEntry(tag, GetName(shared->DebugNameCStr().get()),
-                             GetName(InferScriptName(*script_name, *shared)),
-                             CpuProfileNode::kNoLineNumberInfo,
-                             CpuProfileNode::kNoColumnNumberInfo, nullptr);
+  rec->entry =
+      code_entries_.Create(tag, GetName(shared->DebugNameCStr().get()),
+                           GetName(InferScriptName(*script_name, *shared)),
+                           CpuProfileNode::kNoLineNumberInfo,
+                           CpuProfileNode::kNoColumnNumberInfo, nullptr);
   DCHECK_IMPLIES(code->IsCode(), code->kind() == CodeKind::BASELINE);
   rec->entry->FillFunctionInfo(*shared);
   rec->instruction_size = code->InstructionSize();
@@ -91,10 +94,10 @@ namespace {
 CodeEntry* GetOrInsertCachedEntry(
     std::unordered_set<std::unique_ptr<CodeEntry>, CodeEntry::Hasher,
                        CodeEntry::Equals>* entries,
-    std::unique_ptr<CodeEntry> search_value, StringsStorage& strings) {
+    std::unique_ptr<CodeEntry> search_value, CodeEntryStorage& storage) {
   auto it = entries->find(search_value);
   if (it != entries->end()) {
-    search_value->ReleaseStrings(strings);
+    search_value->ReleaseStrings(storage.strings());
     return it->get();
   }
   CodeEntry* ret = search_value.get();
@@ -204,8 +207,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
           // Create a canonical CodeEntry for each inlined frame and then re-use
           // them for subsequent inline stacks to avoid a lot of duplication.
           CodeEntry* cached_entry = GetOrInsertCachedEntry(
-              &cached_inline_entries, std::move(inline_entry),
-              function_and_resource_names_);
+              &cached_inline_entries, std::move(inline_entry), code_entries_);
 
           inline_stack.push_back({cached_entry, line_number});
         }
@@ -214,10 +216,10 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
       }
     }
   }
-  rec->entry =
-      new CodeEntry(tag, GetFunctionName(*shared),
-                    GetName(InferScriptName(*script_name, *shared)), line,
-                    column, std::move(line_table), is_shared_cross_origin);
+  rec->entry = code_entries_.Create(
+      tag, GetFunctionName(*shared),
+      GetName(InferScriptName(*script_name, *shared)), line, column,
+      std::move(line_table), is_shared_cross_origin);
   if (!inline_stacks.empty()) {
     rec->entry->SetInlineStacks(std::move(cached_inline_entries),
                                 std::move(inline_stacks));
@@ -238,9 +240,9 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
-  rec->entry =
-      new CodeEntry(tag, GetName(name), GetName(source_url), 1, code_offset + 1,
-                    nullptr, true, CodeEntry::CodeType::WASM);
+  rec->entry = code_entries_.Create(tag, GetName(name), GetName(source_url), 1,
+                                    code_offset + 1, nullptr, true,
+                                    CodeEntry::CodeType::WASM);
   rec->entry->set_script_id(script_id);
   rec->entry->set_position(code_offset);
   rec->instruction_size = code->instructions().length();
@@ -252,7 +254,8 @@ void ProfilerListener::CallbackEvent(Handle<Name> name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = new CodeEntry(CodeEventListener::CALLBACK_TAG, GetName(*name));
+  rec->entry =
+      code_entries_.Create(CodeEventListener::CALLBACK_TAG, GetName(*name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
 }
@@ -262,8 +265,8 @@ void ProfilerListener::GetterCallbackEvent(Handle<Name> name,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = new CodeEntry(CodeEventListener::CALLBACK_TAG,
-                             GetConsName("get ", *name));
+  rec->entry = code_entries_.Create(CodeEventListener::CALLBACK_TAG,
+                                    GetConsName("get ", *name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
 }
@@ -273,8 +276,8 @@ void ProfilerListener::SetterCallbackEvent(Handle<Name> name,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = new CodeEntry(CodeEventListener::CALLBACK_TAG,
-                             GetConsName("set ", *name));
+  rec->entry = code_entries_.Create(CodeEventListener::CALLBACK_TAG,
+                                    GetConsName("set ", *name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
 }
@@ -284,7 +287,7 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = new CodeEntry(
+  rec->entry = code_entries_.Create(
       CodeEventListener::REG_EXP_TAG, GetConsName("RegExp: ", *source),
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, nullptr);

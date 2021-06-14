@@ -53,8 +53,8 @@ void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
   if (builtin == Builtin::kGenericJSToWasmWrapper) {
     // Make sure to add the generic js-to-wasm wrapper builtin, because that
     // one is supposed to show up in profiles.
-    entry =
-        new CodeEntry(CodeEventListener::BUILTIN_TAG, Builtins::name(builtin));
+    entry = code_map->code_entries().Create(CodeEventListener::BUILTIN_TAG,
+                                            Builtins::name(builtin));
     code_map->AddCode(instruction_start, entry, instruction_size);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
