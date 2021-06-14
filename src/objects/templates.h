@@ -150,7 +150,7 @@ class FunctionTemplateInfo
   bool IsLeafTemplateForApiObject(Object object) const;
   inline bool instantiated();
 
-  inline bool BreakAtEntry();
+  bool BreakAtEntry();
 
   // Helper function for cached accessors.
   static base::Optional<Name> TryGetCachedPropertyName(Isolate* isolate,

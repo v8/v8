@@ -16,7 +16,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/prototype-info-inl.h"
-#include "src/objects/shared-function-info.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/objects/templates-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/transitions.h"

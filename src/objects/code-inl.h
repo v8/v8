@@ -17,7 +17,7 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/oddball.h"
-#include "src/objects/shared-function-info.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/utils/utils.h"
 

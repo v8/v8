@@ -14,7 +14,7 @@
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/templates.h"
+#include "src/objects/templates-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-module.h"

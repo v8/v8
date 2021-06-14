@@ -5,11 +5,11 @@
 #ifndef V8_OBJECTS_TEMPLATES_INL_H_
 #define V8_OBJECTS_TEMPLATES_INL_H_
 
-#include "src/objects/templates.h"
-
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
-#include "src/objects/shared-function-info-inl.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/templates.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -89,7 +89,7 @@ bool FunctionTemplateInfo::instantiated() {
   return shared_function_info().IsSharedFunctionInfo();
 }
 
-bool FunctionTemplateInfo::BreakAtEntry() {
+inline bool FunctionTemplateInfo::BreakAtEntry() {
   Object maybe_shared = shared_function_info();
   if (maybe_shared.IsSharedFunctionInfo()) {
     SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
