@@ -910,10 +910,12 @@ DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,
                   "trace wasm native heap events")
 DEFINE_BOOL(wasm_write_protect_code_memory, false,
             "write protect code memory on the wasm native heap with mprotect")
+DEFINE_WEAK_IMPLICATION(future, wasm_write_protect_code_memory)
 DEFINE_BOOL(wasm_memory_protection_keys, false,
             "protect wasm code memory with PKU if available, no protection "
             "without support; fallback to mprotect by adding "
             "--wasm-write-protect-code-memory")
+DEFINE_WEAK_IMPLICATION(future, wasm_memory_protection_keys)
 DEFINE_DEBUG_BOOL(trace_wasm_serialization, false,
                   "trace serialization/deserialization")
 DEFINE_BOOL(wasm_async_compilation, true,
