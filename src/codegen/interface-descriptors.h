@@ -77,7 +77,6 @@ namespace internal {
   V(InterpreterCEntry1)                  \
   V(InterpreterCEntry2)                  \
   V(InterpreterDispatch)                 \
-  V(TailCallOptimizedCodeSlot)           \
   V(InterpreterPushArgsThenCall)         \
   V(InterpreterPushArgsThenConstruct)    \
   V(JSTrampoline)                        \
@@ -1547,17 +1546,6 @@ class GrowArrayElementsDescriptor
 
   static constexpr inline Register ObjectRegister();
   static constexpr inline Register KeyRegister();
-
-  static constexpr auto registers();
-};
-
-class V8_EXPORT_PRIVATE TailCallOptimizedCodeSlotDescriptor
-    : public StaticCallInterfaceDescriptor<
-          TailCallOptimizedCodeSlotDescriptor> {
- public:
-  DEFINE_PARAMETERS(kOptimizedCodeEntry)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())  // kAccumulator
-  DECLARE_DESCRIPTOR(TailCallOptimizedCodeSlotDescriptor)
 
   static constexpr auto registers();
 };

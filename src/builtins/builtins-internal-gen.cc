@@ -1027,9 +1027,6 @@ void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
   masm->Trap();
 }
-void Builtins::Generate_TailCallOptimizedCodeSlot(MacroAssembler* masm) {
-  masm->Trap();
-}
 #endif
 
 // ES6 [[Get]] operation.

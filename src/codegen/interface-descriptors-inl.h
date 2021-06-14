@@ -373,11 +373,6 @@ constexpr auto FastNewObjectDescriptor::registers() {
 }
 
 // static
-constexpr auto TailCallOptimizedCodeSlotDescriptor::registers() {
-  return RegisterArray(kJavaScriptCallCodeStartRegister);
-}
-
-// static
 constexpr auto LoadNoFeedbackDescriptor::registers() {
   return RegisterArray(LoadDescriptor::ReceiverRegister(),
                        LoadDescriptor::NameRegister(), ICKindRegister());

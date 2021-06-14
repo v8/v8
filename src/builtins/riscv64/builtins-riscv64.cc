@@ -1838,13 +1838,6 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
   __ Ret();
 }
 
-void Builtins::Generate_TailCallOptimizedCodeSlot(MacroAssembler* masm) {
-  Register optimized_code_entry = kJavaScriptCallCodeStartRegister;
-  UseScratchRegisterScope temps(masm);
-  temps.Include(t4, t0);
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, temps.Acquire(),
-                            temps.Acquire());
-}
 namespace {
 
 void Generate_OSREntry(MacroAssembler* masm, Register entry_address,

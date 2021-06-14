@@ -235,8 +235,6 @@ namespace internal {
   /* Type conversions continuations */                                         \
   TFC(ToBooleanLazyDeoptContinuation, SingleParameterOnStack)                  \
                                                                                \
-  ASM(TailCallOptimizedCodeSlot, TailCallOptimizedCodeSlot)                    \
-                                                                               \
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
   TFH(KeyedStoreIC_Megamorphic, Store)                                         \
