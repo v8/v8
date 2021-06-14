@@ -18,6 +18,8 @@ DOM.defineCustomElement(
         this.addEventListener(
             SynchronizeSelectionEvent.name,
             e => this.handleSelectionSyncronization(e));
+        this.$('#zoomIn').onclick = () => this.nofChunks *= 1.5;
+        this.$('#zoomOut').onclick = () => this.nofChunks /= 1.5;
       }
 
       set nofChunks(count) {

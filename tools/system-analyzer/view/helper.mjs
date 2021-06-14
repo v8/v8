@@ -83,7 +83,7 @@ export class CSSColor {
     return this.list[index % this.list.length];
   }
 
-  static darken(hexColorString, amount = -40) {
+  static darken(hexColorString, amount = -50) {
     if (hexColorString[0] !== '#') {
       throw new Error(`Unsupported color: ${hexColorString}`);
     }

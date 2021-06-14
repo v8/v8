@@ -7,17 +7,31 @@ import {LogEntry} from './log.mjs';
 
 export class TickLogEntry extends LogEntry {
   constructor(time, vmState, processedStack) {
-    super(TickLogEntry.extractType(processedStack), time);
+    super(TickLogEntry.extractType(vmState, processedStack), time);
     this.state = vmState;
     this.stack = processedStack;
   }
 
-  static extractType(processedStack) {
-    if (processedStack.length == 0) return 'idle';
-    const topOfStack = processedStack[processedStack.length - 1];
-    if (topOfStack?.state) {
-      return Profile.getKindFromState(topOfStack.state);
+  static extractType(vmState, processedStack) {
+    if (processedStack.length == 0 || vmState == Profile.VMState.IDLE) {
+      return 'Idle';
     }
-    return 'native';
+    const topOfStack = processedStack[0];
+    if (typeof topOfStack === 'number') {
+      // TODO(cbruni): Handle VmStack and native ticks better.
+      return 'Other';
+    }
+    if (vmState != Profile.VMState.JS) {
+      topOfStack.vmState = vmState;
+    }
+    return this.extractCodeEntryType(topOfStack);
+  }
+
+  static extractCodeEntryType(entry) {
+    if (entry?.state !== undefined) {
+      return 'JS ' + Profile.getKindFromState(entry.state);
+    }
+    if (entry?.vmState) return Profile.vmStateString(entry.vmState);
+    return 'Other';
   }
 }

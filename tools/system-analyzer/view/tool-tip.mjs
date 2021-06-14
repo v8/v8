@@ -155,13 +155,11 @@ class TableBuilder {
     const cell = row.insertCell();
     if (value == undefined) return;
     if (App.isClickable(value)) {
-      cell.innerText = value.toString();
       cell.className = 'clickable';
       cell.onclick = this._logEntryClickHandler;
       cell.data = value;
-    } else {
-      new ExpandableText(cell, value.toString());
     }
+    new ExpandableText(cell, value.toString());
   }
 
   _addTitle(value) {

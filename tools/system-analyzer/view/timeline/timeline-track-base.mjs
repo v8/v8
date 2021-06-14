@@ -7,6 +7,8 @@ import {kChunkHeight, kChunkWidth} from '../../log/map.mjs';
 import {SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
 import {CSSColor, DOM, SVG, V8CustomElement} from '../helper.mjs';
 
+export const kTimelineHeight = 200;
+
 export class TimelineTrackBase extends V8CustomElement {
   _timeline;
   _nofChunks = 500;
@@ -17,6 +19,9 @@ export class TimelineTrackBase extends V8CustomElement {
   _legend;
   _lastContentWidth = 0;
 
+  _cachedTimelineBoundingClientRect;
+  _cachedTimelineScrollLeft;
+
   constructor(templateText) {
     super(templateText);
     this._selectionHandler = new SelectionHandler(this);
@@ -24,9 +29,10 @@ export class TimelineTrackBase extends V8CustomElement {
     this._legend.onFilter = (type) => this._handleFilterTimeline();
     this.timelineNode.addEventListener(
         'scroll', e => this._handleTimelineScroll(e));
-    this.timelineNode.onclick = (e) => this._handleClick(e);
-    this.timelineNode.ondblclick = (e) => this._handleDoubleClick(e);
-    this.timelineChunks.onmousemove = (e) => this._handleMouseMove(e);
+    this.hitPanelNode.onclick = this._handleClick.bind(this);
+    this.hitPanelNode.ondblclick = this._handleDoubleClick.bind(this);
+    this.hitPanelNode.onmousemove = this._handleMouseMove.bind(this);
+    window.addEventListener('resize', () => this._resetCachedDimensions());
     this.isLocked = false;
   }
 
@@ -61,10 +67,30 @@ export class TimelineTrackBase extends V8CustomElement {
     this._legend.update();
   }
 
-  // Maps the clicked x position to the x position on timeline canvas
+  get _timelineBoundingClientRect() {
+    if (this._cachedTimelineBoundingClientRect === undefined) {
+      this._cachedTimelineBoundingClientRect =
+          this.timelineNode.getBoundingClientRect();
+    }
+    return this._cachedTimelineBoundingClientRect;
+  }
+
+  get _timelineScrollLeft() {
+    if (this._cachedTimelineScrollLeft === undefined) {
+      this._cachedTimelineScrollLeft = this.timelineNode.scrollLeft;
+    }
+    return this._cachedTimelineScrollLeft;
+  }
+
+  _resetCachedDimensions() {
+    this._cachedTimelineBoundingClientRect = undefined;
+    this._cachedTimelineScrollLeft = undefined;
+  }
+
+  // Maps the clicked x position to the x position on timeline
   positionOnTimeline(pagePosX) {
-    let rect = this.timelineNode.getBoundingClientRect();
-    let posClickedX = pagePosX - rect.left + this.timelineNode.scrollLeft;
+    let rect = this._timelineBoundingClientRect;
+    let posClickedX = pagePosX - rect.left + this._timelineScrollLeft;
     return posClickedX;
   }
 
@@ -74,7 +100,7 @@ export class TimelineTrackBase extends V8CustomElement {
 
   relativePositionToTime(timelineRelativeX) {
     const timelineAbsoluteX = timelineRelativeX + this._timeStartPixelOffset;
-    return timelineAbsoluteX / this._timeToPixel;
+    return (timelineAbsoluteX / this._timeToPixel) | 0;
   }
 
   timeToPosition(time) {
@@ -83,8 +109,8 @@ export class TimelineTrackBase extends V8CustomElement {
     return relativePosX;
   }
 
-  get timelineCanvas() {
-    return this.$('#timelineCanvas');
+  get toolTipTargetNode() {
+    return this.$('#toolTipTarget');
   }
 
   get timelineChunks() {
@@ -106,6 +132,10 @@ export class TimelineTrackBase extends V8CustomElement {
       this._timelineNode = this.$('#timeline');
     }
     return this._timelineNode;
+  }
+
+  get hitPanelNode() {
+    return this.$('#hitPanel');
   }
 
   get timelineAnnotationsNode() {
@@ -150,6 +180,7 @@ export class TimelineTrackBase extends V8CustomElement {
 
   set scrollLeft(offset) {
     this.timelineNode.scrollLeft = offset;
+    this._cachedTimelineScrollLeft = offset;
   }
 
   handleEntryTypeDoubleClick(e) {
@@ -158,19 +189,20 @@ export class TimelineTrackBase extends V8CustomElement {
 
   timelineIndicatorMove(offset) {
     this.timelineNode.scrollLeft += offset;
+    this._cachedTimelineScrollLeft = undefined;
   }
 
   _handleTimelineScroll(e) {
-    let horizontal = e.currentTarget.scrollLeft;
+    let scrollLeft = e.currentTarget.scrollLeft;
+    this._cachedTimelineScrollLeft = scrollLeft;
     this.dispatchEvent(new CustomEvent(
-        'scrolltrack', {bubbles: true, composed: true, detail: horizontal}));
+        'scrolltrack', {bubbles: true, composed: true, detail: scrollLeft}));
   }
 
   _updateDimensions() {
-    const centerOffset = this.timelineNode.getBoundingClientRect().width / 2;
-    const time = this.relativePositionToTime(
-        this.timelineNode.scrollLeft + centerOffset);
-
+    const centerOffset = this._timelineBoundingClientRect.width / 2;
+    const time =
+        this.relativePositionToTime(this._timelineScrollLeft + centerOffset);
     const start = this._timeline.startTime;
     const width = this._nofChunks * kChunkWidth;
     this._lastContentWidth = parseInt(this.timelineMarkersNode.style.width);
@@ -179,10 +211,12 @@ export class TimelineTrackBase extends V8CustomElement {
     this.timelineChunks.style.width = `${width}px`;
     this.timelineMarkersNode.style.width = `${width}px`;
     this.timelineAnnotationsNode.style.width = `${width}px`;
+    this.hitPanelNode.style.width = `${width}px`;
     this._drawMarkers();
     this._selectionHandler.update();
     this._scaleContent(width);
-    this.timelineNode.scrollLeft = this.timeToPosition(time) - centerOffset;
+    this._cachedTimelineScrollLeft = this.timelineNode.scrollLeft =
+        this.timeToPosition(time) - centerOffset;
   }
 
   _scaleContent(currentWidth) {
@@ -194,12 +228,15 @@ export class TimelineTrackBase extends V8CustomElement {
   _adjustHeight(height) {
     this.querySelectorAll('.dataSized')
         .forEach(node => {node.style.height = height + 'px'});
+    this.timelineNode.style.overflowY =
+        (height > kTimelineHeight) ? 'scroll' : 'hidden';
   }
 
   _update() {
     this._legend.update();
     this._drawContent();
     this._drawAnnotations(this.selectedEntry);
+    this._resetCachedDimensions();
   }
 
   async _drawContent() {
@@ -230,7 +267,7 @@ export class TimelineTrackBase extends V8CustomElement {
     const groups = chunk.getBreakdown(event => event.type);
     let buffer = '';
     const kHeight = chunk.height;
-    let lastHeight = 200;
+    let lastHeight = kTimelineHeight;
     for (let i = 0; i < groups.length; i++) {
       const group = groups[i];
       if (group.count == 0) break;
@@ -281,7 +318,8 @@ export class TimelineTrackBase extends V8CustomElement {
 
   _handleDoubleClick(event) {
     this._selectionHandler.clearSelection();
-    const chunk = event.target.chunk;
+    const time = this.positionToTime(event.pageX);
+    const chunk = this._getChunkForEvent(event)
     if (!chunk) return;
     event.stopImmediatePropagation();
     this.dispatchEvent(new SelectTimeEvent(chunk.start, chunk.end));
@@ -291,28 +329,33 @@ export class TimelineTrackBase extends V8CustomElement {
   _handleMouseMove(event) {
     if (this.isLocked) return false;
     if (this._selectionHandler.isSelecting) return false;
-    const {logEntry, target} = this._getEntryForEvent(event);
+    const logEntry = this._getEntryForEvent(event);
     if (!logEntry) return false;
-    this.dispatchEvent(new ToolTipEvent(logEntry, target));
+    this.dispatchEvent(new ToolTipEvent(logEntry, this.toolTipTargetNode));
     const time = this.positionToTime(event.pageX);
     this._drawAnnotations(logEntry, time);
   }
 
-  _getEntryForEvent(event) {
-    let target = event.target;
-    let logEntry = false;
-    if (target === this.timelineChunks) return {logEntry, target};
-    target = target.parentNode;
+  _getChunkForEvent(event) {
     const time = this.positionToTime(event.pageX);
-    const chunkIndex = (time - this._timeline.startTime) /
-        this._timeline.duration() * this._nofChunks;
-    const chunk = this.chunks[chunkIndex | 0];
-    if (!chunk?.isEmpty()) {
-      const relativeIndex =
-          Math.round((200 - event.layerY) / chunk.height * (chunk.size() - 1));
-      if (relativeIndex < chunk.size()) logEntry = chunk.at(relativeIndex);
-    }
-    return {logEntry, target};
+    const chunkIndex = ((time - this._timeline.startTime) /
+                        this._timeline.duration() * this._nofChunks) |
+        0;
+    return this.chunks[chunkIndex];
+  }
+
+  _getEntryForEvent(event) {
+    const chunk = this._getChunkForEvent(event);
+    if (chunk?.isEmpty() ?? true) return false;
+    const relativeIndex = Math.round(
+        (kTimelineHeight - event.layerY) / chunk.height * (chunk.size() - 1));
+    if (relativeIndex > chunk.size()) return false;
+    const logEntry = chunk.at(relativeIndex);
+    const style = this.toolTipTargetNode.style;
+    style.left = `${chunk.index * kChunkWidth}px`;
+    style.top = `${kTimelineHeight - chunk.height}px`;
+    style.height = `${chunk.height}px`;
+    return logEntry;
   }
 };
 
@@ -475,7 +518,12 @@ class Legend {
   }
 
   colorForType(type) {
-    return this._colors.get(type);
+    let color = this._colors.get(type);
+    if (color === undefined) {
+      color = CSSColor.at(this._colors.size);
+      this._colors.set(type, color);
+    }
+    return color;
   }
 
   filter(logEntry) {

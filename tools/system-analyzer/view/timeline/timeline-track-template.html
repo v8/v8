@@ -29,13 +29,18 @@ found in the LICENSE file. -->
   }
 
   #timelineSamples, #timelineChunks,
-  #timelineMarkers, #timelineAnnotations {
+  #timelineMarkers, #timelineAnnotations, #hitPanel {
     top: 0px;
     position: absolute;
     margin-right: 100px;
   }
-  #timelineMarkers, #timelineAnnotations {
+  #timelineMarkers, #timelineAnnotations,
+  .noPointerEvents, .noPointerEvents * {
     pointer-events: none;
+  }
+
+  #toolTipTarget {
+    position: absolute;
   }
 
   .title {
@@ -105,6 +110,9 @@ found in the LICENSE file. -->
 
   #selection {
     display: none;
+    top: 0px;
+    left: 0px;
+    position: absolute;
   }
 
   #rightHandle,
@@ -121,6 +129,7 @@ found in the LICENSE file. -->
   }
   #rightHandle {
     border-right: 1px solid var(--on-surface-color);
+    margin-left: -5px;
   }
 
   #selectionBackground {
@@ -147,7 +156,9 @@ found in the LICENSE file. -->
   .legend {
     flex: initial;
   }
-
+</style>
+<style>
+  /* SVG styles */
   .txt {
     font: 8px monospace;
   }
@@ -179,8 +190,10 @@ found in the LICENSE file. -->
     vector-effect: non-scaling-stroke;
   }
   .flameSelected {
-    fill: none;
+    fill: var(--on-background-color);
+    fill-opacity: 0.1;
     stroke: var(--on-background-color);
+    stroke-opacity: 0.8;
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
   }
@@ -204,9 +217,11 @@ found in the LICENSE file. -->
     <svg id="timelineChunks" xmlns="http://www.w3.org/2000/svg" class="dataSized">
       <g id="scalableContent"></g>
     </svg>
-    <svg id="timelineAnnotations" xmlns="http://www.w3.org/2000/svg" class="dataSized"></svg>
-    <svg id="timelineMarkers" xmlns="http://www.w3.org/2000/svg" class="dataSized"></svg>
-    <canvas id="timelineCanvas"></canvas>
+    <svg id="timelineAnnotations" xmlns="http://www.w3.org/2000/svg" class="dataSized noPointerEvents"></svg>
+    <svg id="timelineMarkers" xmlns="http://www.w3.org/2000/svg" class="dataSized noPointerEvents"></svg>
+    <div id="toolTipTarget"></div>
+    <!-- Use a div element covering all complex items to prevent slow hit test-->
+    <div id="hitPanel" class="dataSized"></div>
   </div>
 
   <div class="timelineLegend">

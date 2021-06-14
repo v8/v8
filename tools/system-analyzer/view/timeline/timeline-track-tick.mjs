@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Profile} from '../../../profile.mjs'
 import {delay} from '../../helper.mjs';
+import {TickLogEntry} from '../../log/tick.mjs';
 import {Timeline} from '../../timeline.mjs';
-import {CSSColor, DOM, SVG, V8CustomElement} from '../helper.mjs';
+import {SelectTimeEvent} from '../events.mjs';
+import {DOM, SVG} from '../helper.mjs';
 
 import {TimelineTrackBase} from './timeline-track-base.mjs'
+
+const kFlameHeight = 10;
 
 class Flame {
   constructor(time, entry, depth, id) {
@@ -16,13 +19,39 @@ class Flame {
     this.depth = depth;
     this.id = id;
     this.duration = -1;
+    this.parent = undefined;
+    this.children = [];
   }
+
+  static add(time, entry, stack, flames) {
+    const depth = stack.length;
+    const id = flames.length;
+    const newFlame = new Flame(time, entry, depth, id)
+    if (depth > 0) {
+      const parent = stack[depth - 1];
+      newFlame.parent = parent;
+      parent.children.push(newFlame);
+    }
+    flames.push(newFlame);
+    stack.push(newFlame);
+  }
+
   stop(time) {
     this.duration = time - this.time
   }
-}
 
-const kFlameHeight = 10;
+  get start() {
+    return this.time;
+  }
+
+  get end() {
+    return this.time + this.duration;
+  }
+
+  get type() {
+    return TickLogEntry.extractCodeEntryType(this.entry);
+  }
+}
 
 DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
                         (templateText) =>
@@ -33,7 +62,6 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
   constructor() {
     super(templateText);
     this._annotations = new Annotations(this);
-    this.timelineNode.style.overflowY = 'scroll';
   }
 
   _updateChunks() {
@@ -48,17 +76,48 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
     this._updateFlames();
   }
 
-  _getEntryForEvent(event) {
-    let logEntry = false;
-    const target = event.target;
-    const id = event.target.getAttribute('data-id');
-    if (id) {
-      const codeEntry = this._flames.at(id).entry;
-      if (codeEntry.logEntry) {
-        logEntry = codeEntry.logEntry;
-      }
+  _handleDoubleClick(event) {
+    this._selectionHandler.clearSelection();
+    const flame = this._getFlameForEvent(event);
+    if (flame === undefined) return;
+    event.stopImmediatePropagation();
+    this.dispatchEvent(new SelectTimeEvent(flame.start, flame.end));
+    return false;
+  }
+
+  _getFlameDepthForEvent(event) {
+    return Math.floor(event.layerY / kFlameHeight) - 1;
+  }
+
+  _getFlameForEvent(event) {
+    const depth = this._getFlameDepthForEvent(event);
+    const time = this.positionToTime(event.pageX);
+    const index = this._flames.find(time);
+    for (let i = index - 1; i > 0; i--) {
+      const flame = this._flames.at(i);
+      if (flame.depth != depth) continue;
+      if (flame.end < time) continue;
+      return flame;
     }
-    return {logEntry, target};
+    return undefined;
+  }
+
+  _getEntryForEvent(event) {
+    const depth = this._getFlameDepthForEvent(event);
+    const time = this.positionToTime(event.pageX);
+    const index = this._timeline.find(time);
+    const tick = this._timeline.at(index);
+    let stack = tick.stack;
+    if (index > 0 && tick.time > time) {
+      stack = this._timeline.at(index - 1).stack;
+    }
+    // tick.stack = [top, ...., bottom];
+    const logEntry = stack[stack.length - depth - 1]?.logEntry ?? false;
+    // Filter out raw pc entries.
+    if (typeof logEntry == 'number' || logEntry === false) return false;
+    this.toolTipTargetNode.style.left = `${event.layerX}px`;
+    this.toolTipTargetNode.style.top = `${(depth + 2) * kFlameHeight}px`;
+    return logEntry;
   }
 
   _updateFlames() {
@@ -83,10 +142,7 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
           }
           flameStack.length = flameStackIndex;
         }
-        const newFlame =
-            new Flame(tick.time, entry, flameStack.length, tmpFlames.length);
-        tmpFlames.push(newFlame);
-        flameStack.push(newFlame);
+        Flame.add(tick.time, entry, flameStack, tmpFlames);
       }
       if (tick.stack.length < flameStack.length) {
         for (let k = tick.stack.length; k < flameStack.length; k++) {
@@ -140,26 +196,17 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
     const x = this.timeToPosition(flame.time);
     const y = (flame.depth + 1) * kFlameHeight;
     let width = flame.duration * this._timeToPixel;
-
     if (outline) {
       return `<rect x=${x} y=${y} width=${width} height=${
           kFlameHeight} class=flameSelected />`;
     }
-
-    let type = 'native';
-    if (flame.entry?.state) {
-      type = Profile.getKindFromState(flame.entry.state);
-    }
-    const color = this._legend.colorForType(type);
+    const color = this._legend.colorForType(flame.type);
     return `<rect x=${x} y=${y} width=${width} height=${kFlameHeight} fill=${
-        color} data-id=${flame.id} class=flame />`;
+        color} class=flame />`;
   }
 
   drawFlameText(flame) {
-    let type = 'native';
-    if (flame.entry?.state) {
-      type = Profile.getKindFromState(flame.entry.state);
-    }
+    let type = flame.type;
     const kHeight = 9;
     const x = this.timeToPosition(flame.time);
     const y = flame.depth * (kHeight + 1);
@@ -167,7 +214,7 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
     width -= width * 0.1;
 
     let buffer = '';
-    if (width < 15 || type == 'native') return buffer;
+    if (width < 15 || type == 'Other') return buffer;
     const rawName = flame.entry.getRawName();
     if (rawName.length == 0) return buffer;
     const kChartWidth = 5;
@@ -179,7 +226,7 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
 
   _drawAnnotations(logEntry, time) {
     if (time === undefined) {
-      time = this.relativePositionToTime(this.timelineNode.scrollLeft);
+      time = this.relativePositionToTime(this._timelineScrollLeft);
     }
     this._annotations.update(logEntry, time);
   }
@@ -226,9 +273,11 @@ class Annotations {
     if (start < 0) start = 0;
     if (end > rawFlames.length) end = rawFlames.length;
     const code = this._logEntry.entry;
+    // Also compare against the function
+    const func = code.func ?? 0;
     for (let i = start; i < end; i++) {
       const flame = rawFlames[i];
-      if (flame.entry != code) continue;
+      if (flame.entry !== code && flame.entry?.func !== func) continue;
       this._buffer += this._track.drawFlame(flame, true);
     }
     this._drawBuffer();

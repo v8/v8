@@ -1,6 +1,7 @@
 :root {
   --background-color: #000000;
-  --surface-color: #121212;
+  --surface-color-rgb: 18, 18, 18;
+  --surface-color: rgb(var(--surface-color-rgb));
   --primary-color: #bb86fc;
   --secondary-color: #03dac6;
   --on-surface-color: #ffffff;
