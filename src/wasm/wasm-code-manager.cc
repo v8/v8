@@ -2294,8 +2294,6 @@ WasmCode* WasmCodeManager::LookupCode(Address pc) const {
 }
 
 #if !(defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64))
-// TODO(v8:7424): Code protection scopes are not yet supported with shared code
-// enabled and need to be revisited.
 NativeModuleModificationScope::NativeModuleModificationScope(
     NativeModule* native_module)
     : native_module_(native_module) {
