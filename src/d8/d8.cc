@@ -5265,9 +5265,7 @@ int Shell::Main(int argc, char* argv[]) {
 
 }  // namespace v8
 
-#ifndef GOOGLE3
 int main(int argc, char* argv[]) { return v8::Shell::Main(argc, argv); }
-#endif
 
 #undef CHECK
 #undef DCHECK
