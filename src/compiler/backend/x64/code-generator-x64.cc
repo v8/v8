@@ -2136,9 +2136,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
-        __ movb(operand, Immediate(i.InputInt8(index)));
+        Immediate value(Immediate(i.InputInt8(index)));
+        __ movb(operand, value);
+        EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
+                                 DetermineStubCallMode(), kInt8Size);
       } else {
-        __ movb(operand, i.InputRegister(index));
+        Register value(i.InputRegister(index));
+        __ movb(operand, value);
+        EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
+                                 DetermineStubCallMode(), kInt8Size);
       }
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
@@ -2170,9 +2176,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
-        __ movw(operand, Immediate(i.InputInt16(index)));
+        Immediate value(Immediate(i.InputInt16(index)));
+        __ movw(operand, value);
+        EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
+                                 DetermineStubCallMode(), kInt16Size);
       } else {
-        __ movw(operand, i.InputRegister(index));
+        Register value(i.InputRegister(index));
+        __ movw(operand, value);
+        EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
+                                 DetermineStubCallMode(), kInt16Size);
       }
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
@@ -2194,12 +2206,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         if (HasImmediateInput(instr, index)) {
-          Immediate value = i.InputImmediate(index);
+          Immediate value(i.InputImmediate(index));
           __ movl(operand, value);
           EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
                                    DetermineStubCallMode(), kInt32Size);
         } else {
-          Register value = i.InputRegister(index);
+          Register value(i.InputRegister(index));
           __ movl(operand, value);
           EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
                                    DetermineStubCallMode(), kInt32Size);
@@ -2235,12 +2247,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
-        Immediate value = i.InputImmediate(index);
+        Immediate value(i.InputImmediate(index));
         __ StoreTaggedField(operand, value);
         EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
                                  DetermineStubCallMode(), kTaggedSize);
       } else {
-        Register value = i.InputRegister(index);
+        Register value(i.InputRegister(index));
         __ StoreTaggedField(operand, value);
         EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
                                  DetermineStubCallMode(), kTaggedSize);
@@ -2255,12 +2267,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         if (HasImmediateInput(instr, index)) {
-          Immediate value = i.InputImmediate(index);
+          Immediate value(i.InputImmediate(index));
           __ movq(operand, value);
           EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
                                    DetermineStubCallMode(), kInt64Size);
         } else {
-          Register value = i.InputRegister(index);
+          Register value(i.InputRegister(index));
           __ movq(operand, value);
           EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
                                    DetermineStubCallMode(), kInt64Size);

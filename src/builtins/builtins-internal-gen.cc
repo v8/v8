@@ -421,7 +421,13 @@ class TSANRelaxedStoreCodeStubAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   TNode<ExternalReference> GetExternalReference(int size) {
-    if (size == kInt32Size) {
+    if (size == kInt8Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_relaxed_store_function_8_bits());
+    } else if (size == kInt16Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_relaxed_store_function_16_bits());
+    } else if (size == kInt32Size) {
       return ExternalConstant(
           ExternalReference::tsan_relaxed_store_function_32_bits());
     } else {
@@ -444,6 +450,22 @@ class TSANRelaxedStoreCodeStubAssembler : public CodeStubAssembler {
     Return(UndefinedConstant());
   }
 };
+
+TF_BUILTIN(TSANRelaxedStore8IgnoreFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kIgnore, kInt8Size);
+}
+
+TF_BUILTIN(TSANRelaxedStore8SaveFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kSave, kInt8Size);
+}
+
+TF_BUILTIN(TSANRelaxedStore16IgnoreFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kIgnore, kInt16Size);
+}
+
+TF_BUILTIN(TSANRelaxedStore16SaveFP, TSANRelaxedStoreCodeStubAssembler) {
+  GenerateTSANRelaxedStore(SaveFPRegsMode::kSave, kInt16Size);
+}
 
 TF_BUILTIN(TSANRelaxedStore32IgnoreFP, TSANRelaxedStoreCodeStubAssembler) {
   GenerateTSANRelaxedStore(SaveFPRegsMode::kIgnore, kInt32Size);

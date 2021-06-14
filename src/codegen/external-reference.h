@@ -266,6 +266,10 @@ class StatsCounter;
   V(atomic_pair_exchange_function, "atomic_pair_exchange_function")            \
   V(atomic_pair_compare_exchange_function,                                     \
     "atomic_pair_compare_exchange_function")                                   \
+  IF_TSAN(V, tsan_relaxed_store_function_8_bits,                               \
+          "tsan_relaxed_store_function_8_bits")                                \
+  IF_TSAN(V, tsan_relaxed_store_function_16_bits,                              \
+          "tsan_relaxed_store_function_16_bits")                               \
   IF_TSAN(V, tsan_relaxed_store_function_32_bits,                              \
           "tsan_relaxed_store_function_32_bits")                               \
   IF_TSAN(V, tsan_relaxed_store_function_64_bits,                              \

@@ -106,6 +106,10 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
     case Builtin::kRecordWriteEmitRememberedSetIgnoreFP:
     case Builtin::kRecordWriteOmitRememberedSetIgnoreFP:
 #ifdef V8_IS_TSAN
+    case Builtin::kTSANRelaxedStore8IgnoreFP:
+    case Builtin::kTSANRelaxedStore8SaveFP:
+    case Builtin::kTSANRelaxedStore16IgnoreFP:
+    case Builtin::kTSANRelaxedStore16SaveFP:
     case Builtin::kTSANRelaxedStore32IgnoreFP:
     case Builtin::kTSANRelaxedStore32SaveFP:
     case Builtin::kTSANRelaxedStore64IgnoreFP:

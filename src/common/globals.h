@@ -183,10 +183,12 @@ constexpr int kMinInt31 = kMinInt / 2;
 constexpr uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 constexpr int kMinUInt32 = 0;
 
+constexpr int kInt8Size = sizeof(int8_t);
 constexpr int kUInt8Size = sizeof(uint8_t);
 constexpr int kByteSize = sizeof(byte);
 constexpr int kCharSize = sizeof(char);
 constexpr int kShortSize = sizeof(short);  // NOLINT
+constexpr int kInt16Size = sizeof(int16_t);
 constexpr int kUInt16Size = sizeof(uint16_t);
 constexpr int kIntSize = sizeof(int);
 constexpr int kInt32Size = sizeof(int32_t);
