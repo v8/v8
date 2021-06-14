@@ -222,8 +222,8 @@ BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
 namespace {
 
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
-                                       Handle<JSObject> object,
-                                       Builtin builtin_id, int len) {
+                                       Handle<JSObject> object, Builtin builtin,
+                                       int len) {
   Handle<NativeContext> native_context(isolate->context().native_context(),
                                        isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
@@ -235,7 +235,7 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
 
   Handle<SharedFunctionInfo> info =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), builtin_id, kNormalFunction);
+          isolate->factory()->empty_string(), builtin, kNormalFunction);
   info->set_internal_formal_parameter_count(len);
   info->set_length(len);
 

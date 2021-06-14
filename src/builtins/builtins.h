@@ -34,9 +34,9 @@ static constexpr T FirstFromVarArgs(T x, ...) noexcept {
 
 // Convenience macro to avoid generating named accessors for all builtins.
 #define BUILTIN_CODE(isolate, name) \
-  (isolate)->builtins()->builtin_handle(Builtin::k##name)
+  (isolate)->builtins()->code_handle(Builtin::k##name)
 
-enum Builtin : int32_t {
+enum class Builtin : int32_t {
   kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
   BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
@@ -48,6 +48,16 @@ enum Builtin : int32_t {
       FirstFromVarArgs(BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME) 0)
 #undef EXTRACT_NAME
 };
+
+V8_INLINE constexpr bool operator<(Builtin a, Builtin b) {
+  using type = typename std::underlying_type<Builtin>::type;
+  return static_cast<type>(a) < static_cast<type>(b);
+}
+
+V8_INLINE Builtin operator++(Builtin& builtin) {
+  using type = typename std::underlying_type<Builtin>::type;
+  return builtin = static_cast<Builtin>(static_cast<type>(builtin) + 1);
+}
 
 class Builtins {
  public:
@@ -66,18 +76,30 @@ class Builtins {
       ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
 #undef ADD_ONE
 
+  static constexpr Builtin kFirst = static_cast<Builtin>(0);
+  static constexpr Builtin kLast = static_cast<Builtin>(kBuiltinCount - 1);
+
   static constexpr int kFirstWideBytecodeHandler =
-      Builtin::kFirstBytecodeHandler + kNumberOfBytecodeHandlers;
+      static_cast<int>(Builtin::kFirstBytecodeHandler) +
+      kNumberOfBytecodeHandlers;
   static constexpr int kFirstExtraWideBytecodeHandler =
       kFirstWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
   static constexpr int kLastBytecodeHandlerPlusOne =
       kFirstExtraWideBytecodeHandler + kNumberOfWideBytecodeHandlers;
   STATIC_ASSERT(kLastBytecodeHandlerPlusOne == kBuiltinCount);
 
+  static constexpr bool IsBuiltinId(Builtin builtin) {
+    return builtin != Builtin::kNoBuiltinId;
+  }
   static constexpr bool IsBuiltinId(int maybe_id) {
-    STATIC_ASSERT(kNoBuiltinId == -1);
+    STATIC_ASSERT(static_cast<int>(Builtin::kNoBuiltinId) == -1);
     return static_cast<uint32_t>(maybe_id) <
            static_cast<uint32_t>(kBuiltinCount);
+  }
+
+  static constexpr Builtin FromInt(int id) {
+    DCHECK(IsBuiltinId(id));
+    return static_cast<Builtin>(id);
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
@@ -147,19 +169,19 @@ class Builtins {
   Handle<Code> JSConstructStubGeneric();
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
-  void set_builtin(int index, Code builtin);
+  void set_code(Builtin builtin, Code code);
 
-  V8_EXPORT_PRIVATE Code builtin(int index);
-  V8_EXPORT_PRIVATE Handle<Code> builtin_handle(int index);
+  V8_EXPORT_PRIVATE Code code(Builtin builtin);
+  V8_EXPORT_PRIVATE Handle<Code> code_handle(Builtin builtin);
 
   static CallInterfaceDescriptor CallInterfaceDescriptorFor(Builtin builtin);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate,
                                                 Builtin builtin);
-  static bool HasJSLinkage(int index);
+  static bool HasJSLinkage(Builtin builtin);
 
   static int GetStackParameterCount(Builtin builtin);
 
-  static const char* name(int index);
+  static const char* name(Builtin builtin);
 
   // Support for --print-builtin-size and --print-builtin-code.
   void PrintBuiltinCode();
@@ -167,13 +189,12 @@ class Builtins {
 
   // Returns the C++ entry point for builtins implemented in C++, and the null
   // Address otherwise.
-  static Address CppEntryOf(int index);
+  static Address CppEntryOf(Builtin builtin);
 
-  static Kind KindOf(int index);
   static Kind KindOf(Builtin builtin);
-  static const char* KindNameOf(int index);
+  static const char* KindNameOf(Builtin builtin);
 
-  static bool IsCpp(int index);
+  static bool IsCpp(Builtin builtin);
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is Code::BUILTIN.
@@ -181,7 +202,7 @@ class Builtins {
 
   // As above, but safe to access off the main thread since the check is done
   // by handle location. Similar to Heap::IsRootHandle.
-  bool IsBuiltinHandle(Handle<HeapObject> maybe_code, int* index) const;
+  bool IsBuiltinHandle(Handle<HeapObject> maybe_code, Builtin* index) const;
 
   // True, iff the given code object is a builtin with off-heap embedded code.
   static bool IsIsolateIndependentBuiltin(const Code code);
@@ -192,7 +213,7 @@ class Builtins {
   static constexpr bool AllBuiltinsAreIsolateIndependent() {
     return kAllBuiltinsAreIsolateIndependent;
   }
-  static constexpr bool IsIsolateIndependent(int index) {
+  static constexpr bool IsIsolateIndependent(Builtin builtin) {
     STATIC_ASSERT(kAllBuiltinsAreIsolateIndependent);
     return kAllBuiltinsAreIsolateIndependent;
   }
@@ -242,13 +263,13 @@ class Builtins {
   // Only builtins with JS linkage should ever need to be called via their
   // trampoline Code object. The remaining builtins have non-executable Code
   // objects.
-  static bool CodeObjectIsExecutable(int builtin_index);
+  static bool CodeObjectIsExecutable(Builtin builtin);
 
-  static bool IsJSEntryVariant(int builtin_index) {
-    switch (builtin_index) {
-      case kJSEntry:
-      case kJSConstructEntry:
-      case kJSRunMicrotasksEntry:
+  static bool IsJSEntryVariant(Builtin builtin) {
+    switch (builtin) {
+      case Builtin::kJSEntry:
+      case Builtin::kJSConstructEntry:
+      case Builtin::kJSRunMicrotasksEntry:
         return true;
       default:
         return false;

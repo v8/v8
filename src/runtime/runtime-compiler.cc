@@ -172,8 +172,8 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   shared->set_is_asm_wasm_broken(true);
 #endif
   DCHECK(function->code() ==
-         isolate->builtins()->builtin(Builtin::kInstantiateAsmJs));
-  function->set_code(isolate->builtins()->builtin(Builtin::kCompileLazy));
+         isolate->builtins()->code(Builtin::kInstantiateAsmJs));
+  function->set_code(isolate->builtins()->code(Builtin::kCompileLazy));
   DCHECK(!isolate->has_pending_exception());
   return Smi::zero();
 }

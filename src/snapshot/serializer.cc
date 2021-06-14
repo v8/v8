@@ -1008,7 +1008,7 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
   CHECK(Builtins::IsIsolateIndependent(builtin));
 
   sink_->Put(kOffHeapTarget, "OffHeapTarget");
-  sink_->PutInt(builtin, "builtin index");
+  sink_->PutInt(static_cast<int>(builtin), "builtin index");
 }
 
 void Serializer::ObjectSerializer::VisitCodeTarget(Code host,

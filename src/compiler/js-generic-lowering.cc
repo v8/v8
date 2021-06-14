@@ -162,7 +162,7 @@ void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
     Node* node, Builtin builtin_without_feedback,
     Builtin builtin_with_feedback) {
   DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
-  Builtin builtin_id;
+  Builtin builtin;
   const FeedbackParameter& p = FeedbackParameterOf(node->op());
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
     Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
@@ -171,13 +171,13 @@ void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
     STATIC_ASSERT(JSBinaryOpNode::FeedbackVectorIndex() == 2);
     DCHECK_EQ(node->op()->ValueInputCount(), 3);
     node->InsertInput(zone(), 2, slot);
-    builtin_id = builtin_with_feedback;
+    builtin = builtin_with_feedback;
   } else {
     node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
-    builtin_id = builtin_without_feedback;
+    builtin = builtin_without_feedback;
   }
 
-  ReplaceWithBuiltinCall(node, builtin_id);
+  ReplaceWithBuiltinCall(node, builtin);
 }
 
 #define DEF_BINARY_LOWERING(Name)                                    \
@@ -213,7 +213,7 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   DCHECK_EQ(node->op()->ControlInputCount(), 1);
   node->RemoveInput(NodeProperties::FirstControlIndex(node));
 
-  Builtin builtin_id;
+  Builtin builtin;
   const FeedbackParameter& p = FeedbackParameterOf(node->op());
   if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
     Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
@@ -222,13 +222,13 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
     STATIC_ASSERT(JSStrictEqualNode::FeedbackVectorIndex() == 2);
     DCHECK_EQ(node->op()->ValueInputCount(), 3);
     node->InsertInput(zone(), 2, slot);
-    builtin_id = Builtin::kStrictEqual_WithFeedback;
+    builtin = Builtin::kStrictEqual_WithFeedback;
   } else {
     node->RemoveInput(JSStrictEqualNode::FeedbackVectorIndex());
-    builtin_id = Builtin::kStrictEqual;
+    builtin = Builtin::kStrictEqual;
   }
 
-  Callable callable = Builtins::CallableFor(isolate(), builtin_id);
+  Callable callable = Builtins::CallableFor(isolate(), builtin);
   ReplaceWithBuiltinCall(node, callable, CallDescriptor::kNoFlags,
                          Operator::kEliminatable);
 }

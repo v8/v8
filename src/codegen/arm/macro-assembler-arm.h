@@ -310,13 +310,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
             bool check_constant_pool = true);
   void Call(Label* target);
 
-  MemOperand EntryFromBuiltinAsOperand(Builtin builtin_index);
-  void LoadEntryFromBuiltin(Builtin builtin_index, Register destination);
-  // Load the builtin given by the Smi in |builtin_index| into the same
+  MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
+  void LoadEntryFromBuiltin(Builtin builtin, Register destination);
+  // Load the builtin given by the Smi in |builtin| into the same
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index);
-  void CallBuiltin(int builtin_index, Condition cond = al);
+  void CallBuiltin(Builtin builtin, Condition cond = al);
 
   void LoadCodeObjectEntry(Register destination, Register code_object);
   void CallCodeObject(Register code_object);

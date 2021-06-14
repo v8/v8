@@ -250,7 +250,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   Pop(slot_address_parameter);
   Pop(object_parameter);
 
-  Call(isolate()->builtins()->builtin_handle(
+  Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
   MaybeRestoreRegisters(registers);
@@ -310,7 +310,7 @@ void TurboAssembler::CallRecordWriteStub(
       Call(t9);
     } else {
       Handle<Code> code_target =
-          isolate()->builtins()->builtin_handle(builtin_index);
+          isolate()->builtins()->code_handle(builtin_index);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }
@@ -3773,10 +3773,10 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   BlockTrampolinePoolScope block_trampoline_pool(this);
 
-  int builtin_index = Builtin::kNoBuiltinId;
+  Builtin builtin = Builtin::kNoBuiltinId;
   bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-      Builtins::IsIsolateIndependent(builtin_index);
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin) &&
+      Builtins::IsIsolateIndependent(builtin);
   if (target_is_isolate_independent_builtin &&
       options().use_pc_relative_calls_and_jumps) {
     int32_t code_target_index = AddCodeTarget(code);
@@ -3915,10 +3915,10 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
 
-  int builtin_index = Builtin::kNoBuiltinId;
+  Builtin builtin = Builtin::kNoBuiltinId;
   bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-      Builtins::IsIsolateIndependent(builtin_index);
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin) &&
+      Builtins::IsIsolateIndependent(builtin);
   if (target_is_isolate_independent_builtin &&
       options().use_pc_relative_calls_and_jumps) {
     int32_t code_target_index = AddCodeTarget(code);
@@ -3938,10 +3938,10 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   } else if (target_is_isolate_independent_builtin &&
              options().inline_offheap_trampolines) {
     // Inline the trampoline.
-    RecordCommentForOffHeapTrampoline(builtin_index);
-    CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+    RecordCommentForOffHeapTrampoline(builtin);
+    CHECK_NE(builtin, Builtin::kNoBuiltinId);
     EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
     Call(t9, 0, cond, rs, rt, bd);
     return;

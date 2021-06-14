@@ -886,8 +886,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
   } else if (!HasBuiltinId()) {
     CHECK(!construct_as_builtin());
   } else {
-    int id = builtin_id();
-    if (id != Builtin::kCompileLazy && id != Builtin::kEmptyFunction) {
+    if (builtin_id() != Builtin::kCompileLazy &&
+        builtin_id() != Builtin::kEmptyFunction) {
       CHECK(construct_as_builtin());
     } else {
       CHECK(!construct_as_builtin());
@@ -1341,7 +1341,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 
       bool is_compiled = latin1_code.IsCode();
       if (is_compiled) {
-        CHECK_EQ(Code::cast(latin1_code).builtin_index(),
+        CHECK_EQ(Code::cast(latin1_code).builtin_id(),
                  Builtin::kRegExpExperimentalTrampoline);
         CHECK_EQ(uc16_code, latin1_code);
 
@@ -1628,7 +1628,7 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
   CHECK(wrapper_code().kind() == CodeKind::JS_TO_WASM_FUNCTION ||
         wrapper_code().kind() == CodeKind::C_WASM_ENTRY ||
         (wrapper_code().is_builtin() &&
-         wrapper_code().builtin_index() == Builtin::kGenericJSToWasmWrapper));
+         wrapper_code().builtin_id() == Builtin::kGenericJSToWasmWrapper));
 }
 
 USE_TORQUE_VERIFIER(WasmModuleObject)

@@ -276,11 +276,11 @@ RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
 
 RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code code,
                              int mode_mask)
-    : RelocIterator(
-          code, embedded_data->InstructionStartOfBuiltin(code.builtin_index()),
-          code.constant_pool(),
-          code.relocation_start() + code.relocation_size(),
-          code.relocation_start(), mode_mask) {}
+    : RelocIterator(code,
+                    embedded_data->InstructionStartOfBuiltin(code.builtin_id()),
+                    code.constant_pool(),
+                    code.relocation_start() + code.relocation_size(),
+                    code.relocation_start(), mode_mask) {}
 
 RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
     : RelocIterator(Code(), reinterpret_cast<Address>(desc.buffer), 0,
@@ -463,7 +463,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
     DCHECK(code.IsCode());
     os << " (" << CodeKindToString(code.kind());
     if (Builtins::IsBuiltin(code)) {
-      os << " " << Builtins::name(code.builtin_index());
+      os << " " << Builtins::name(code.builtin_id());
     }
     os << ")  (" << reinterpret_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_)) {

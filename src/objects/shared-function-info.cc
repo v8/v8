@@ -77,12 +77,12 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsSmi()) {
     // Holding a Smi means we are a builtin.
     DCHECK(HasBuiltinId());
-    return isolate->builtins()->builtin(builtin_id());
+    return isolate->builtins()->code(builtin_id());
   }
   if (data.IsBytecodeArray()) {
     // Having a bytecode array means we are a compiled, interpreted function.
     DCHECK(HasBytecodeArray());
-    return isolate->builtins()->builtin(Builtin::kInterpreterEntryTrampoline);
+    return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
   }
   if (data.IsBaselineData()) {
     // Having BaselineData means we are a compiled, baseline function.
@@ -93,7 +93,7 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsAsmWasmData()) {
     // Having AsmWasmData means we are an asm.js/wasm function.
     DCHECK(HasAsmWasmData());
-    return isolate->builtins()->builtin(Builtin::kInstantiateAsmJs);
+    return isolate->builtins()->code(Builtin::kInstantiateAsmJs);
   }
   if (data.IsWasmExportedFunctionData()) {
     // Having a WasmExportedFunctionData means the code is in there.
@@ -110,12 +110,12 @@ Code SharedFunctionInfo::GetCode() const {
   if (data.IsUncompiledData()) {
     // Having uncompiled data (with or without scope) means we need to compile.
     DCHECK(HasUncompiledData());
-    return isolate->builtins()->builtin(Builtin::kCompileLazy);
+    return isolate->builtins()->code(Builtin::kCompileLazy);
   }
   if (data.IsFunctionTemplateInfo()) {
     // Having a function template info means we are an API function.
     DCHECK(IsApiFunction());
-    return isolate->builtins()->builtin(Builtin::kHandleApiCall);
+    return isolate->builtins()->code(Builtin::kHandleApiCall);
   }
   if (data.IsInterpreterData()) {
     Code code = InterpreterTrampoline();

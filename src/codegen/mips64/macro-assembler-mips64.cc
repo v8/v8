@@ -248,7 +248,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   Pop(slot_address_parameter);
   Pop(object_parameter);
 
-  Call(isolate()->builtins()->builtin_handle(
+  Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
   MaybeRestoreRegisters(registers);
@@ -308,7 +308,7 @@ void TurboAssembler::CallRecordWriteStub(
       Call(t9);
     } else {
       Handle<Code> code_target =
-          isolate()->builtins()->builtin_handle(builtin_index);
+          isolate()->builtins()->code_handle(builtin_index);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }

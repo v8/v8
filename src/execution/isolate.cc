@@ -392,8 +392,9 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   size_t hash = kSeed;
 
   // Hash data sections of builtin code objects.
-  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
-    Code code = heap_.builtin(i);
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    Code code = heap_.builtin(builtin);
 
     DCHECK(Internals::HasHeapObjectTag(code.ptr()));
     uint8_t* const code_ptr =
@@ -872,11 +873,10 @@ bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
 
 namespace {
 
-bool IsBuiltinFunction(Isolate* isolate, HeapObject object,
-                       Builtin builtin_index) {
+bool IsBuiltinFunction(Isolate* isolate, HeapObject object, Builtin builtin) {
   if (!object.IsJSFunction()) return false;
   JSFunction const function = JSFunction::cast(object);
-  return function.code() == isolate->builtins()->builtin(builtin_index);
+  return function.code() == isolate->builtins()->code(builtin);
 }
 
 void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
@@ -1914,7 +1914,7 @@ Object Isolate::UnwindAndFindHandler() {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
               static_cast<int>(offset));
 
-          Code code = builtins()->builtin(Builtin::kInterpreterEnterAtBytecode);
+          Code code = builtins()->code(Builtin::kInterpreterEnterAtBytecode);
           return FoundHandler(context, code.InstructionStart(), 0,
                               code.constant_pool(), return_sp, frame->fp());
         }
@@ -3384,14 +3384,15 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
   EmbeddedData d = EmbeddedData::FromBlob(isolate);
 
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
-  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
-    Address instruction_start = d.InstructionStartOfBuiltin(i);
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    Address instruction_start = d.InstructionStartOfBuiltin(builtin);
     Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
-        builtins->builtin_handle(i), instruction_start);
+        builtins->code_handle(builtin), instruction_start);
 
     // From this point onwards, the old builtin code object is unreachable and
     // will be collected by the next GC.
-    builtins->set_builtin(i, *trampoline);
+    builtins->set_code(builtin, *trampoline);
   }
 }
 
@@ -4511,10 +4512,10 @@ void Isolate::PrepareBuiltinLabelInfoMap() {
 
 #if defined(V8_OS_WIN64)
 void Isolate::SetBuiltinUnwindData(
-    int builtin_index,
+    Builtin builtin,
     const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) {
   if (embedded_file_writer_ != nullptr) {
-    embedded_file_writer_->SetBuiltinUnwindData(builtin_index, unwinding_info);
+    embedded_file_writer_->SetBuiltinUnwindData(builtin, unwinding_info);
   }
 }
 #endif  // V8_OS_WIN64

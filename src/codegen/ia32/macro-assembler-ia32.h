@@ -139,7 +139,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
-  Operand EntryFromBuiltinAsOperand(Builtin builtin_index);
+  Operand EntryFromBuiltinAsOperand(Builtin builtin);
 
   void Call(Register reg) { call(reg); }
   void Call(Operand op) { call(op); }
@@ -150,7 +150,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index);
-  void CallBuiltin(int builtin_index);
+  void CallBuiltin(Builtin builtin);
 
   void LoadCodeObjectEntry(Register destination, Register code_object);
   void CallCodeObject(Register code_object);

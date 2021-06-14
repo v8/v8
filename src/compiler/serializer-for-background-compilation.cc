@@ -1430,7 +1430,7 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
   // JSNativeContextSpecialization::ReduceJSResolvePromise.
   switch (functionId) {
     case Runtime::kInlineAsyncFunctionResolve: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncFunctionResolve));
       interpreter::Register first_reg = iterator->GetRegisterOperand(1);
       size_t reg_count = iterator->GetRegisterCountOperand(2);
@@ -1442,60 +1442,60 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
     }
     case Runtime::kInlineAsyncGeneratorReject:
     case Runtime::kAsyncGeneratorReject: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncGeneratorReject));
       break;
     }
     case Runtime::kInlineAsyncGeneratorResolve:
     case Runtime::kAsyncGeneratorResolve: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncGeneratorResolve));
       break;
     }
     case Runtime::kInlineAsyncGeneratorYield:
     case Runtime::kAsyncGeneratorYield: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncGeneratorYield));
       break;
     }
     case Runtime::kInlineAsyncGeneratorAwaitUncaught:
     case Runtime::kAsyncGeneratorAwaitUncaught: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncGeneratorAwaitUncaught));
       break;
     }
     case Runtime::kInlineAsyncGeneratorAwaitCaught:
     case Runtime::kAsyncGeneratorAwaitCaught: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncGeneratorAwaitCaught));
       break;
     }
     case Runtime::kInlineAsyncFunctionAwaitUncaught:
     case Runtime::kAsyncFunctionAwaitUncaught: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncFunctionAwaitUncaught));
       break;
     }
     case Runtime::kInlineAsyncFunctionAwaitCaught:
     case Runtime::kAsyncFunctionAwaitCaught: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncFunctionAwaitCaught));
       break;
     }
     case Runtime::kInlineAsyncFunctionReject:
     case Runtime::kAsyncFunctionReject: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncFunctionReject));
       break;
     }
     case Runtime::kAsyncFunctionResolve: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kAsyncFunctionResolve));
       break;
     }
     case Runtime::kInlineCopyDataProperties:
     case Runtime::kCopyDataProperties: {
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kCopyDataProperties));
       break;
     }
@@ -2246,7 +2246,7 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
        {Builtin::kCallFunctionTemplate_CheckAccess,
         Builtin::kCallFunctionTemplate_CheckCompatibleReceiver,
         Builtin::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver}) {
-    MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(b));
+    MakeRef(broker(), broker()->isolate()->builtins()->code_handle(b));
   }
   FunctionTemplateInfoRef target_template_info =
       MakeRef(broker(),
@@ -2310,10 +2310,10 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
     const HintsVector& arguments, SpeculationMode speculation_mode,
     MissingArgumentsPolicy padding, Hints* result_hints) {
   DCHECK(target->HasBuiltinId());
-  const int builtin_id = target->builtin_id();
-  const char* name = Builtins::name(builtin_id);
+  const Builtin builtin = target->builtin_id();
+  const char* name = Builtins::name(builtin);
   TRACE_BROKER(broker(), "Serializing for call to builtin " << name);
-  switch (builtin_id) {
+  switch (builtin) {
     case Builtin::kObjectCreate: {
       if (arguments.size() >= 2) {
         ProcessHintsForObjectCreate(arguments[1]);
@@ -2584,13 +2584,13 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       }
       break;
     case Builtin::kMapIteratorPrototypeNext:
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kOrderedHashTableHealIndex));
       MakeRef<FixedArray>(
           broker(), broker()->isolate()->factory()->empty_ordered_hash_map());
       break;
     case Builtin::kSetIteratorPrototypeNext:
-      MakeRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+      MakeRef(broker(), broker()->isolate()->builtins()->code_handle(
                             Builtin::kOrderedHashTableHealIndex));
       MakeRef<FixedArray>(
           broker(), broker()->isolate()->factory()->empty_ordered_hash_set());

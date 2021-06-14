@@ -1265,15 +1265,15 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
         // we deoptimized in the debugger and are stepping into it.
         JavaScriptFrame* frame = it.frame();
         Address pc = frame->pc();
-        Builtin builtin_index = InstructionStream::TryLookupCode(isolate, pc);
-        if (builtin_index == Builtin::kBaselineEnterAtBytecode ||
-            builtin_index == Builtin::kBaselineEnterAtNextBytecode) {
+        Builtin builtin = InstructionStream::TryLookupCode(isolate, pc);
+        if (builtin == Builtin::kBaselineEnterAtBytecode ||
+            builtin == Builtin::kBaselineEnterAtNextBytecode) {
           Address* pc_addr = frame->pc_address();
-          Builtin advance = builtin_index == Builtin::kBaselineEnterAtBytecode
+          Builtin advance = builtin == Builtin::kBaselineEnterAtBytecode
                                 ? Builtin::kInterpreterEnterAtBytecode
                                 : Builtin::kInterpreterEnterAtNextBytecode;
           Address advance_pc =
-              isolate->builtins()->builtin(advance).InstructionStart();
+              isolate->builtins()->code(advance).InstructionStart();
           PointerAuthentication::ReplacePC(pc_addr, advance_pc,
                                            kSystemPointerSize);
         }

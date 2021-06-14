@@ -689,12 +689,11 @@ void Deserializer::RelocInfoVisitor::VisitOffHeapTarget(Code host,
   byte data = source().Get();
   CHECK_EQ(data, kOffHeapTarget);
 
-  int builtin_index = source().GetInt();
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  Builtin builtin = Builtins::FromInt(source().GetInt());
 
   CHECK_NOT_NULL(isolate()->embedded_blob_code());
   EmbeddedData d = EmbeddedData::FromBlob(isolate());
-  Address address = d.InstructionStartOfBuiltin(builtin_index);
+  Address address = d.InstructionStartOfBuiltin(builtin);
   CHECK_NE(kNullAddress, address);
 
   // TODO(ishell): implement RelocInfo::set_target_off_heap_target()

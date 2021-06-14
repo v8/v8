@@ -1171,9 +1171,9 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
 
 namespace {
 
-bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  switch (builtin_index) {
+bool BuiltinHasKeyedAccessStoreMode(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  switch (builtin) {
     case Builtin::kKeyedStoreIC_SloppyArguments_Standard:
     case Builtin::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
     case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
@@ -1193,9 +1193,9 @@ bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
   UNREACHABLE();
 }
 
-KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(int builtin_index) {
-  DCHECK(BuiltinHasKeyedAccessStoreMode(builtin_index));
-  switch (builtin_index) {
+KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(Builtin builtin) {
+  DCHECK(BuiltinHasKeyedAccessStoreMode(builtin));
+  switch (builtin) {
     case Builtin::kKeyedStoreIC_SloppyArguments_Standard:
     case Builtin::kStoreFastElementIC_Standard:
     case Builtin::kElementsTransitionAndStore_Standard:
@@ -1262,10 +1262,10 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     }
 
     if (handler->is_builtin()) {
-      const int builtin_index = handler->builtin_index();
-      if (!BuiltinHasKeyedAccessStoreMode(builtin_index)) continue;
+      Builtin builtin = handler->builtin_id();
+      if (!BuiltinHasKeyedAccessStoreMode(builtin)) continue;
 
-      mode = KeyedAccessStoreModeForBuiltin(builtin_index);
+      mode = KeyedAccessStoreModeForBuiltin(builtin);
       break;
     }
   }

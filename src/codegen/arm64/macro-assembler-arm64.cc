@@ -1829,11 +1829,11 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
   if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtin::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index)) {
+    Builtin builtin = Builtin::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
       // Inline the trampoline.
       CHECK_EQ(cond, Condition::al);  // Implement if necessary.
-      TailCallBuiltin(builtin_index);
+      TailCallBuiltin(builtin);
       return;
     }
   }
@@ -1877,10 +1877,10 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   BlockPoolsScope scope(this);
 
   if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtin::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index)) {
+    Builtin builtin = Builtin::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
       // Inline the trampoline.
-      CallBuiltin(builtin_index);
+      CallBuiltin(builtin);
       return;
     }
   }
@@ -1924,15 +1924,15 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   }
 }
 
-void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin_index,
+void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin,
                                           Register destination) {
-  Ldr(destination, EntryFromBuiltinAsOperand(builtin_index));
+  Ldr(destination, EntryFromBuiltinAsOperand(builtin));
 }
 
-MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin_index) {
+MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   DCHECK(root_array_available());
   return MemOperand(kRootRegister,
-                    IsolateData::builtin_entry_slot_offset(builtin_index));
+                    IsolateData::builtin_entry_slot_offset(builtin));
 }
 
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
@@ -1940,18 +1940,18 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   Call(builtin_index);
 }
 
-void TurboAssembler::CallBuiltin(int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  RecordCommentForOffHeapTrampoline(builtin_index);
-  CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+void TurboAssembler::CallBuiltin(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  RecordCommentForOffHeapTrampoline(builtin);
+  CHECK_NE(builtin, Builtin::kNoBuiltinId);
   if (options().short_builtin_calls) {
     EmbeddedData d = EmbeddedData::FromBlob(isolate());
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     Call(entry, RelocInfo::RUNTIME_ENTRY);
 
   } else {
     EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     UseScratchRegisterScope temps(this);
     Register scratch = temps.AcquireX();
     Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -1960,18 +1960,18 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
   RecordComment("]");
 }
 
-void TurboAssembler::TailCallBuiltin(int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  RecordCommentForOffHeapTrampoline(builtin_index);
-  CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+void TurboAssembler::TailCallBuiltin(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  RecordCommentForOffHeapTrampoline(builtin);
+  CHECK_NE(builtin, Builtin::kNoBuiltinId);
   if (options().short_builtin_calls) {
     EmbeddedData d = EmbeddedData::FromBlob(isolate());
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     Jump(entry, RelocInfo::RUNTIME_ENTRY);
 
   } else {
     EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     // The control flow integrity (CFI) feature allows us to "sign" code entry
     // points as a target for calls, jumps or both. Arm64 has special
     // instructions for this purpose, so-called "landing pads" (see
@@ -2962,7 +2962,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
                     WriteBarrierDescriptor::SlotAddressRegister(), object,
                     offset);
 
-  Call(isolate()->builtins()->builtin_handle(
+  Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
   MaybeRestoreRegisters(registers);
@@ -3000,13 +3000,12 @@ void TurboAssembler::CallRecordWriteStub(
   if (false) {
 #endif
   } else {
-    auto builtin_index =
+    Builtin builtin =
         Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
     if (options().inline_offheap_trampolines) {
-      CallBuiltin(builtin_index);
+      CallBuiltin(builtin);
     } else {
-      Handle<Code> code_target =
-          isolate()->builtins()->builtin_handle(builtin_index);
+      Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }

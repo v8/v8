@@ -97,7 +97,7 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
   // trampoline copy stored on the root list and transitively called builtins.
   // See Heap::interpreter_entry_trampoline_for_profiling.
 
-  switch (code.builtin_index()) {
+  switch (code.builtin_id()) {
     case Builtin::kAbort:
     case Builtin::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
     case Builtin::kInterpreterEntryTrampoline:

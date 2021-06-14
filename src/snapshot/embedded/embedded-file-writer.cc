@@ -48,17 +48,17 @@ int WriteLineEndIfNeeded(PlatformEmbeddedFileWriterBase* w,
 
 void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
                                       const i::EmbeddedData* blob,
-                                      const int builtin_id) const {
+                                      const Builtin builtin) const {
   const bool is_default_variant =
       std::strcmp(embedded_variant_, kDefaultEmbeddedVariant) == 0;
 
   i::EmbeddedVector<char, kTemporaryStringLength> builtin_symbol;
   if (is_default_variant) {
     // Create nicer symbol names for the default mode.
-    i::SNPrintF(builtin_symbol, "Builtins_%s", i::Builtins::name(builtin_id));
+    i::SNPrintF(builtin_symbol, "Builtins_%s", i::Builtins::name(builtin));
   } else {
     i::SNPrintF(builtin_symbol, "%s_Builtins_%s", embedded_variant_,
-                i::Builtins::name(builtin_id));
+                i::Builtins::name(builtin));
   }
 
   // Labels created here will show up in backtraces. We check in
@@ -66,7 +66,8 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   // that labels do not insert bytes into the middle of the blob byte
   // stream.
   w->DeclareFunctionBegin(builtin_symbol.begin(),
-                          blob->InstructionSizeOfBuiltin(builtin_id));
+                          blob->InstructionSizeOfBuiltin(builtin));
+  const int builtin_id = static_cast<int>(builtin);
   const std::vector<byte>& current_positions = source_positions_[builtin_id];
   // The code below interleaves bytes of assembly code for the builtin
   // function with source positions at the appropriate offsets.
@@ -85,8 +86,8 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   auto label = current_labels.begin();
 
   const uint8_t* data = reinterpret_cast<const uint8_t*>(
-      blob->InstructionStartOfBuiltin(builtin_id));
-  uint32_t size = blob->PaddedInstructionSizeOfBuiltin(builtin_id);
+      blob->InstructionStartOfBuiltin(builtin));
+  uint32_t size = blob->PaddedInstructionSizeOfBuiltin(builtin);
   uint32_t i = 0;
   uint32_t next_source_pos_offset =
       static_cast<uint32_t>(positions.done() ? size : positions.code_offset());
@@ -157,8 +158,9 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
   w->DeclareLabel(EmbeddedBlobCodeDataSymbol().c_str());
 
   STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
-  for (int i = 0; i < i::Builtins::kBuiltinCount; i++) {
-    WriteBuiltin(w, blob, i);
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    WriteBuiltin(w, blob, builtin);
   }
   w->Newline();
 }
@@ -283,24 +285,25 @@ int EmbeddedFileWriter::GetExternallyCompiledFilenameCount() const {
 }
 
 void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
-  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
     // Retrieve the SourcePositionTable and copy it.
-    Code code = builtins->builtin(i);
+    Code code = builtins->code(builtin);
     // Verify that the code object is still the "real code" and not a
     // trampoline (which wouldn't have source positions).
     DCHECK(!code.is_off_heap_trampoline());
     ByteArray source_position_table = code.source_position_table();
     std::vector<unsigned char> data(source_position_table.GetDataStartAddress(),
                                     source_position_table.GetDataEndAddress());
-    source_positions_[i] = data;
+    source_positions_[static_cast<int>(builtin)] = data;
   }
 }
 
 void EmbeddedFileWriter::PrepareBuiltinLabelInfoMap(int create_offset,
                                                     int invoke_offset) {
-  label_info_[Builtin::kJSConstructStubGeneric].push_back(
+  label_info_[static_cast<int>(Builtin::kJSConstructStubGeneric)].push_back(
       {create_offset, "construct_stub_create_deopt_addr"});
-  label_info_[Builtin::kJSConstructStubGeneric].push_back(
+  label_info_[static_cast<int>(Builtin::kJSConstructStubGeneric)].push_back(
       {invoke_offset, "construct_stub_invoke_deopt_addr"});
 }
 

@@ -5087,24 +5087,24 @@ TEST(InterpreterGetBytecodeHandler) {
   Code wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kSingle);
 
-  CHECK_EQ(wide_handler.builtin_index(), Builtin::kWideHandler);
+  CHECK_EQ(wide_handler.builtin_id(), Builtin::kWideHandler);
 
   Code add_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kSingle);
 
-  CHECK_EQ(add_handler.builtin_index(), Builtin::kAddHandler);
+  CHECK_EQ(add_handler.builtin_id(), Builtin::kAddHandler);
 
   // Test that double-width bytecode handlers deserializer correctly, including
   // an illegal bytecode handler since there is no Wide.Wide handler.
   Code wide_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kDouble);
 
-  CHECK_EQ(wide_wide_handler.builtin_index(), Builtin::kIllegalHandler);
+  CHECK_EQ(wide_wide_handler.builtin_id(), Builtin::kIllegalHandler);
 
   Code add_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kDouble);
 
-  CHECK_EQ(add_wide_handler.builtin_index(), Builtin::kAddWideHandler);
+  CHECK_EQ(add_wide_handler.builtin_id(), Builtin::kAddWideHandler);
 }
 
 TEST(InterpreterCollectSourcePositions) {

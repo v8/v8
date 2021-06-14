@@ -166,7 +166,7 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   register_state.fp = stack;
 
   // Put the current PC inside of a valid builtin.
-  Code builtin = i_isolate->builtins()->builtin(Builtin::kStringEqual);
+  Code builtin = i_isolate->builtins()->code(Builtin::kStringEqual);
   const uintptr_t offset = 40;
   CHECK_LT(offset, builtin.InstructionSize());
   register_state.pc =
@@ -223,7 +223,7 @@ TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
 
   // Put the current PC at the start of a valid builtin, so that we are setting
   // up the frame.
-  Code builtin = i_isolate->builtins()->builtin(Builtin::kStringEqual);
+  Code builtin = i_isolate->builtins()->code(Builtin::kStringEqual);
   register_state.pc = reinterpret_cast<void*>(builtin.InstructionStart());
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(

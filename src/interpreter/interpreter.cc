@@ -84,7 +84,8 @@ void Interpreter::InitDispatchCounters() {
 
 namespace {
 
-int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
+Builtin BuiltinIndexFromBytecode(Bytecode bytecode,
+                                 OperandScale operand_scale) {
   int index = static_cast<int>(bytecode);
   if (operand_scale == OperandScale::kSingle) {
     if (Bytecodes::IsShortStar(bytecode)) {
@@ -106,16 +107,16 @@ int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
       }
     }
   }
-  return Builtin::kFirstBytecodeHandler + index;
+  return Builtins::FromInt(static_cast<int>(Builtin::kFirstBytecodeHandler) +
+                           index);
 }
 
 }  // namespace
 
 Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
                                      OperandScale operand_scale) {
-  int builtin_index = BuiltinIndexFromBytecode(bytecode, operand_scale);
-  Builtins* builtins = isolate_->builtins();
-  return builtins->builtin(builtin_index);
+  Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
+  return isolate_->builtins()->code(builtin);
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
@@ -347,11 +348,11 @@ void Interpreter::Initialize() {
 
   // Initialize the dispatch table.
   ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
-    int builtin_id = BuiltinIndexFromBytecode(bytecode, operand_scale);
-    Code handler = builtins->builtin(builtin_id);
+    Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
+    Code handler = builtins->code(builtin);
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
 #ifdef DEBUG
-      std::string builtin_name(Builtins::name(builtin_id));
+      std::string builtin_name(Builtins::name(builtin));
       std::string expected_name =
           (Bytecodes::IsShortStar(bytecode)
                ? "ShortStar"
@@ -372,7 +373,7 @@ bool Interpreter::IsDispatchTableInitialized() const {
 
 const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
   if (code.kind() == CodeKind::BYTECODE_HANDLER) {
-    return Builtins::name(code.builtin_index());
+    return Builtins::name(code.builtin_id());
   }
   return nullptr;
 }

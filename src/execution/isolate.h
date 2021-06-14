@@ -1664,7 +1664,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
-      int builtin_index,
+      Builtin builtin,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info);
 #endif  // V8_OS_WIN64
 

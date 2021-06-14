@@ -447,30 +447,27 @@ void Code::initialize_flags(CodeKind kind, bool is_turbofanned, int stack_slots,
 inline bool Code::is_interpreter_trampoline_builtin() const {
   // Check for kNoBuiltinId first to abort early when the current Code object
   // is not a builtin.
-  const int index = builtin_index();
-  return index != Builtin::kNoBuiltinId &&
-         (index == Builtin::kInterpreterEntryTrampoline ||
-          index == Builtin::kInterpreterEnterAtBytecode ||
-          index == Builtin::kInterpreterEnterAtNextBytecode);
+  return builtin_id() != Builtin::kNoBuiltinId &&
+         (builtin_id() == Builtin::kInterpreterEntryTrampoline ||
+          builtin_id() == Builtin::kInterpreterEnterAtBytecode ||
+          builtin_id() == Builtin::kInterpreterEnterAtNextBytecode);
 }
 
 inline bool Code::is_baseline_trampoline_builtin() const {
-  const int index = builtin_index();
-  return index != Builtin::kNoBuiltinId &&
-         (index == Builtin::kBaselineOutOfLinePrologue ||
-          index == Builtin::kBaselineEnterAtBytecode ||
-          index == Builtin::kBaselineEnterAtNextBytecode);
+  return builtin_id() != Builtin::kNoBuiltinId &&
+         (builtin_id() == Builtin::kBaselineOutOfLinePrologue ||
+          builtin_id() == Builtin::kBaselineEnterAtBytecode ||
+          builtin_id() == Builtin::kBaselineEnterAtNextBytecode);
 }
 
 inline bool Code::is_baseline_leave_frame_builtin() const {
-  return builtin_index() == Builtin::kBaselineLeaveFrame;
+  return builtin_id() == Builtin::kBaselineLeaveFrame;
 }
 
 inline bool Code::checks_optimization_marker() const {
-  bool checks_marker =
-      (builtin_index() == Builtin::kCompileLazy ||
-       builtin_index() == Builtin::kInterpreterEntryTrampoline ||
-       CodeKindCanTierUp(kind()));
+  bool checks_marker = (builtin_id() == Builtin::kCompileLazy ||
+                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
+                        CodeKindCanTierUp(kind()));
   return checks_marker ||
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
@@ -538,20 +535,20 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
   return HandlerTable::UNCAUGHT;
 }
 
-int Code::builtin_index() const {
+Builtin Code::builtin_id() const {
   int index = RELAXED_READ_INT_FIELD(*this, kBuiltinIndexOffset);
-  DCHECK(index == Builtin::kNoBuiltinId || Builtins::IsBuiltinId(index));
-  return index;
+  DCHECK(index == static_cast<int>(Builtin::kNoBuiltinId) ||
+         Builtins::IsBuiltinId(index));
+  return static_cast<Builtin>(index);
 }
 
-void Code::set_builtin_index(int index) {
-  DCHECK(index == Builtin::kNoBuiltinId || Builtins::IsBuiltinId(index));
-  RELAXED_WRITE_INT_FIELD(*this, kBuiltinIndexOffset, index);
+void Code::set_builtin_id(Builtin builtin) {
+  DCHECK(builtin == Builtin::kNoBuiltinId || Builtins::IsBuiltinId(builtin));
+  RELAXED_WRITE_INT_FIELD(*this, kBuiltinIndexOffset,
+                          static_cast<int>(builtin));
 }
 
-bool Code::is_builtin() const {
-  return builtin_index() != Builtin::kNoBuiltinId;
-}
+bool Code::is_builtin() const { return builtin_id() != Builtin::kNoBuiltinId; }
 
 unsigned Code::inlined_bytecode_size() const {
   unsigned size = RELAXED_READ_UINT_FIELD(*this, kInlinedBytecodeSizeOffset);
@@ -726,8 +723,8 @@ bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
 }
 
 bool Code::IsExecutable() {
-  return !Builtins::IsBuiltinId(builtin_index()) || !is_off_heap_trampoline() ||
-         Builtins::CodeObjectIsExecutable(builtin_index());
+  return !Builtins::IsBuiltinId(builtin_id()) || !is_off_heap_trampoline() ||
+         Builtins::CodeObjectIsExecutable(builtin_id());
 }
 
 // This field has to have relaxed atomic accessors because it is accessed in the

@@ -959,18 +959,16 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
                                    : DebugInfo::kHasNoSideEffect;
   } else if (info->IsApiFunction()) {
     if (info->GetCode().is_builtin()) {
-      return info->GetCode().builtin_index() == Builtin::kHandleApiCall
+      return info->GetCode().builtin_id() == Builtin::kHandleApiCall
                  ? DebugInfo::kHasNoSideEffect
                  : DebugInfo::kHasSideEffects;
     }
   } else {
     // Check built-ins against allowlist.
-    int builtin_index =
+    Builtin builtin =
         info->HasBuiltinId() ? info->builtin_id() : Builtin::kNoBuiltinId;
-    if (!Builtins::IsBuiltinId(builtin_index))
-      return DebugInfo::kHasSideEffects;
-    DebugInfo::SideEffectState state =
-        BuiltinGetSideEffectState(static_cast<Builtin>(builtin_index));
+    if (!Builtins::IsBuiltinId(builtin)) return DebugInfo::kHasSideEffects;
+    DebugInfo::SideEffectState state = BuiltinGetSideEffectState(builtin);
     return state;
   }
 
@@ -1104,11 +1102,10 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
   // TODO(yangguo): also check runtime calls.
   bool failed = false;
   bool sanity_check = false;
-  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
-    Builtin caller = static_cast<Builtin>(i);
+  for (Builtin caller = Builtins::kFirst; caller <= Builtins::kLast; ++caller) {
     DebugInfo::SideEffectState state = BuiltinGetSideEffectState(caller);
     if (state != DebugInfo::kHasNoSideEffect) continue;
-    Code code = isolate->builtins()->builtin(caller);
+    Code code = isolate->builtins()->code(caller);
     int mode = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
@@ -1118,7 +1115,7 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
       Code callee_code = isolate->heap()->GcSafeFindCodeForInnerPointer(
           rinfo->target_address());
       if (!callee_code.is_builtin()) continue;
-      Builtin callee = static_cast<Builtin>(callee_code.builtin_index());
+      Builtin callee = static_cast<Builtin>(callee_code.builtin_id());
       if (BuiltinGetSideEffectState(callee) == DebugInfo::kHasNoSideEffect) {
         continue;
       }

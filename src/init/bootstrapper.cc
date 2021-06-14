@@ -382,7 +382,7 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 namespace {
 
 #ifdef DEBUG
-bool IsFunctionMapOrSpecialBuiltin(Handle<Map> map, Builtin builtin_id,
+bool IsFunctionMapOrSpecialBuiltin(Handle<Map> map, Builtin builtin,
                                    Handle<Context> context) {
   // During bootstrapping some of these maps could be not created yet.
   return ((*map == context->get(Context::STRICT_FUNCTION_MAP_INDEX)) ||
@@ -393,21 +393,21 @@ bool IsFunctionMapOrSpecialBuiltin(Handle<Map> map, Builtin builtin_id,
                Context::STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
           // Check if it's a creation of an empty or Proxy function during
           // bootstrapping.
-          (builtin_id == Builtin::kEmptyFunction ||
-           builtin_id == Builtin::kProxyConstructor));
+          (builtin == Builtin::kEmptyFunction ||
+           builtin == Builtin::kProxyConstructor));
 }
 #endif  // DEBUG
 
 V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltin(Isolate* isolate,
                                                         Handle<String> name,
                                                         Handle<Map> map,
-                                                        Builtin builtin_id) {
+                                                        Builtin builtin) {
   Factory* factory = isolate->factory();
   Handle<NativeContext> context(isolate->native_context());
-  DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin_id, context));
+  DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin, context));
 
   Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, builtin_id);
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin);
   info->set_language_mode(LanguageMode::kStrict);
 
   return Factory::JSFunctionBuilder{isolate, info, context}
@@ -416,7 +416,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltin(Isolate* isolate,
 }
 
 V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
-    Isolate* isolate, Handle<String> name, Builtin builtin_id,
+    Isolate* isolate, Handle<String> name, Builtin builtin,
     Handle<HeapObject> prototype, InstanceType type, int instance_size,
     int inobject_properties, MutableMode prototype_mutability) {
   Factory* factory = isolate->factory();
@@ -425,10 +425,10 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
       prototype_mutability == MUTABLE
           ? isolate->strict_function_map()
           : isolate->strict_function_with_readonly_prototype_map();
-  DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin_id, context));
+  DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin, context));
 
   Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, builtin_id);
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin);
   info->set_language_mode(LanguageMode::kStrict);
   info->set_expected_nof_properties(inobject_properties);
 
@@ -461,14 +461,14 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
 }
 
 V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithoutPrototype(
-    Isolate* isolate, Handle<String> name, Builtin builtin_id) {
+    Isolate* isolate, Handle<String> name, Builtin builtin) {
   Factory* factory = isolate->factory();
   Handle<NativeContext> context(isolate->native_context());
   Handle<Map> map = isolate->strict_function_without_prototype_map();
-  DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin_id, context));
+  DCHECK(IsFunctionMapOrSpecialBuiltin(map, builtin, context));
 
   Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, builtin_id);
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin);
   info->set_language_mode(LanguageMode::kStrict);
 
   return Factory::JSFunctionBuilder{isolate, info, context}
@@ -478,11 +478,11 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithoutPrototype(
 
 V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
-    int inobject_properties, Handle<HeapObject> prototype, Builtin builtin_id) {
-  DCHECK(Builtins::HasJSLinkage(builtin_id));
+    int inobject_properties, Handle<HeapObject> prototype, Builtin builtin) {
+  DCHECK(Builtins::HasJSLinkage(builtin));
 
   Handle<JSFunction> result = CreateFunctionForBuiltinWithPrototype(
-      isolate, name, builtin_id, prototype, type, instance_size,
+      isolate, name, builtin, prototype, type, instance_size,
       inobject_properties, IMMUTABLE);
 
   // Make the JSFunction's prototype object fast.
@@ -497,10 +497,10 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
 
 V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, const char* name, InstanceType type, int instance_size,
-    int inobject_properties, Handle<HeapObject> prototype, Builtin builtin_id) {
-  return CreateFunction(
-      isolate, isolate->factory()->InternalizeUtf8String(name), type,
-      instance_size, inobject_properties, prototype, builtin_id);
+    int inobject_properties, Handle<HeapObject> prototype, Builtin builtin) {
+  return CreateFunction(isolate,
+                        isolate->factory()->InternalizeUtf8String(name), type,
+                        instance_size, inobject_properties, prototype, builtin);
 }
 
 V8_NOINLINE Handle<JSFunction> InstallFunction(

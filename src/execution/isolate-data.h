@@ -66,9 +66,10 @@ class IsolateData final {
   static constexpr int builtin_entry_table_offset() {
     return kBuiltinEntryTableOffset - kIsolateRootBias;
   }
-  static constexpr int builtin_entry_slot_offset(Builtin builtin_index) {
-    DCHECK(Builtins::IsBuiltinId(builtin_index));
-    return builtin_entry_table_offset() + builtin_index * kSystemPointerSize;
+  static constexpr int builtin_entry_slot_offset(Builtin builtin) {
+    DCHECK(Builtins::IsBuiltinId(builtin));
+    return builtin_entry_table_offset() +
+           static_cast<int>(builtin) * kSystemPointerSize;
   }
 
   // Root-register-relative offset of the builtins table.
@@ -108,7 +109,7 @@ class IsolateData final {
 
   // Root-register-relative offset of the builtin table entry.
   static int builtin_slot_offset(Builtin id) {
-    return builtins_table_offset() + id * kSystemPointerSize;
+    return builtins_table_offset() + static_cast<int>(id) * kSystemPointerSize;
   }
 
   // The FP and PC that are saved right before TurboAssembler::CallCFunction.

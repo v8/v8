@@ -79,7 +79,7 @@ class Pipeline : public AllStatic {
   static MaybeHandle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
       JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
-      const char* debug_name, int32_t builtin_index,
+      const char* debug_name, Builtin builtin,
       PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
       const ProfileDataFromFile* profile_data);
 

@@ -54,11 +54,11 @@ namespace internal {
 namespace {
 
 Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
-    Isolate* isolate, Builtin builtin_id, int len,
+    Isolate* isolate, Builtin builtin, int len,
     FunctionKind kind = FunctionKind::kNormalFunction) {
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          isolate->factory()->empty_string(), builtin_id, kind);
+          isolate->factory()->empty_string(), builtin, kind);
   shared->set_internal_formal_parameter_count(len);
   shared->set_length(len);
   return shared;

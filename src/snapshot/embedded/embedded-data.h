@@ -108,14 +108,14 @@ class EmbeddedData final {
     data_ = nullptr;
   }
 
-  Address InstructionStartOfBuiltin(int i) const;
-  uint32_t InstructionSizeOfBuiltin(int i) const;
+  Address InstructionStartOfBuiltin(Builtin builtin) const;
+  uint32_t InstructionSizeOfBuiltin(Builtin builtin) const;
 
   Address InstructionStartOfBytecodeHandlers() const;
   Address InstructionEndOfBytecodeHandlers() const;
 
-  Address MetadataStartOfBuiltin(int i) const;
-  uint32_t MetadataSizeOfBuiltin(int i) const;
+  Address MetadataStartOfBuiltin(Builtin builtin) const;
+  uint32_t MetadataSizeOfBuiltin(Builtin builtin) const;
 
   uint32_t AddressForHashing(Address addr) {
     DCHECK(IsInCodeRange(addr));
@@ -125,8 +125,8 @@ class EmbeddedData final {
 
   // Padded with kCodeAlignment.
   // TODO(v8:11045): Consider removing code alignment.
-  uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
-    uint32_t size = InstructionSizeOfBuiltin(i);
+  uint32_t PaddedInstructionSizeOfBuiltin(Builtin builtin) const {
+    uint32_t size = InstructionSizeOfBuiltin(builtin);
     CHECK_NE(size, 0);
     return PadAndAlignCode(size);
   }

@@ -1041,9 +1041,9 @@ class Heap {
   // Builtins. =================================================================
   // ===========================================================================
 
-  V8_EXPORT_PRIVATE Code builtin(int index);
-  Address builtin_address(int index);
-  void set_builtin(int index, Code builtin);
+  V8_EXPORT_PRIVATE Code builtin(Builtin builtin);
+  Address builtin_address(Builtin builtin);
+  void set_builtin(Builtin builtin, Code code);
 
   // ===========================================================================
   // Iterators. ================================================================

@@ -53,8 +53,10 @@ TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<Code> code) {
   TNode<Int32T> builtin_index =
       LoadObjectField<Int32T>(code, Code::kBuiltinIndexOffset);
   {
-    GotoIfNot(Word32Equal(builtin_index, Int32Constant(Builtin::kNoBuiltinId)),
-              &if_code_is_off_heap);
+    GotoIfNot(
+        Word32Equal(builtin_index,
+                    Int32Constant(static_cast<int>(Builtin::kNoBuiltinId))),
+        &if_code_is_off_heap);
     var_result = ReinterpretCast<RawPtrT>(
         IntPtrAdd(BitcastTaggedToWord(code),
                   IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));

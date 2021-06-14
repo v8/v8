@@ -126,7 +126,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
       Isolate* isolate, base::Optional<OsrHelper> osr_helper,
       int start_source_position, JumpOptimizationInfo* jump_opt,
       PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
-      int32_t builtin_index, size_t max_unoptimized_frame_height,
+      Builtin builtin, size_t max_unoptimized_frame_height,
       size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> = {},
       const char* debug_name = nullptr);
 

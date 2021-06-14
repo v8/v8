@@ -313,7 +313,7 @@ bool SharedFunctionInfo::construct_as_builtin() const {
 void SharedFunctionInfo::CalculateConstructAsBuiltin() {
   bool uses_builtins_construct_stub = false;
   if (HasBuiltinId()) {
-    int id = builtin_id();
+    Builtin id = builtin_id();
     if (id != Builtin::kCompileLazy && id != Builtin::kEmptyFunction) {
       uses_builtins_construct_stub = true;
     }
@@ -667,16 +667,16 @@ bool SharedFunctionInfo::HasBuiltinId() const {
   return function_data(kAcquireLoad).IsSmi();
 }
 
-int SharedFunctionInfo::builtin_id() const {
+Builtin SharedFunctionInfo::builtin_id() const {
   DCHECK(HasBuiltinId());
   int id = Smi::ToInt(function_data(kAcquireLoad));
   DCHECK(Builtins::IsBuiltinId(id));
-  return id;
+  return Builtins::FromInt(id);
 }
 
-void SharedFunctionInfo::set_builtin_id(int builtin_id) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  set_function_data(Smi::FromInt(builtin_id), kReleaseStore,
+void SharedFunctionInfo::set_builtin_id(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  set_function_data(Smi::FromInt(static_cast<int>(builtin)), kReleaseStore,
                     SKIP_WRITE_BARRIER);
 }
 

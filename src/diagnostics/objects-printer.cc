@@ -1501,9 +1501,9 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   os << "\n - name: " << Brief(shared().Name());
 
   // Print Builtin name for builtin functions
-  int builtin_index = code().builtin_index();
-  if (Builtins::IsBuiltinId(builtin_index)) {
-    os << "\n - builtin: " << isolate->builtins()->name(builtin_index);
+  Builtin builtin = code().builtin_id();
+  if (Builtins::IsBuiltinId(builtin)) {
+    os << "\n - builtin: " << isolate->builtins()->name(builtin);
   }
 
   os << "\n - formal_parameter_count: "

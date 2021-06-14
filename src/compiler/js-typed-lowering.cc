@@ -1498,7 +1498,7 @@ Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
 
 namespace {
 
-void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
+void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
                    CallDescriptor::Flags flags) {
   // Patch {node} to a direct CEntry call.
   // ----------- A r g u m e n t s -----------
@@ -1539,7 +1539,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
 
   // CPP builtins are implemented in C++, and we can inline it.
   // CPP builtins create a builtin exit frame.
-  DCHECK(Builtins::IsCpp(builtin_index));
+  DCHECK(Builtins::IsCpp(builtin));
   const bool has_builtin_exit_frame = true;
 
   Node* stub = jsgraph->CEntryStubConstant(
@@ -1556,7 +1556,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   node->InsertInput(zone, 4, jsgraph->PaddingConstant());
   int cursor = arity + kStubAndReceiver + BuiltinArguments::kNumExtraArgs;
 
-  Address entry = Builtins::CppEntryOf(builtin_index);
+  Address entry = Builtins::CppEntryOf(builtin);
   ExternalReference entry_ref = ExternalReference::Create(entry);
   Node* entry_node = jsgraph->ExternalConstant(entry_ref);
 
@@ -1564,7 +1564,7 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
   node->InsertInput(zone, cursor++, argc_node);
 
   static const int kReturnCount = 1;
-  const char* debug_name = Builtins::name(builtin_index);
+  const char* debug_name = Builtins::name(builtin);
   Operator::Properties properties = node->op()->properties();
   auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
       zone, kReturnCount, argc, debug_name, properties, flags,
@@ -1787,8 +1787,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     } else if (shared->HasBuiltinId()) {
       DCHECK(Builtins::HasJSLinkage(shared->builtin_id()));
       // Patch {node} to a direct code object call.
-      Callable callable = Builtins::CallableFor(
-          isolate(), static_cast<Builtin>(shared->builtin_id()));
+      Callable callable =
+          Builtins::CallableFor(isolate(), shared->builtin_id());
       CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();

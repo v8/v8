@@ -551,7 +551,7 @@ class PipelineData {
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
         info()->GetPoisoningMitigationLevel(), assembler_options_,
-        info_->builtin_index(), max_unoptimized_frame_height(),
+        info_->builtin(), max_unoptimized_frame_height(),
         max_pushed_argument_count(), std::move(buffer),
         FLAG_trace_turbo_stack_accesses ? debug_name_.get() : nullptr);
   }
@@ -3009,11 +3009,11 @@ int HashGraphForPGO(Graph* graph) {
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
-    const char* debug_name, int32_t builtin_index,
+    const char* debug_name, Builtin builtin,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
     const ProfileDataFromFile* profile_data) {
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
-  info.set_builtin_index(builtin_index);
+  info.set_builtin(builtin);
 
   if (poisoning_level != PoisoningMitigationLevel::kDontPoison) {
     info.SetPoisoningMitigationLevel(poisoning_level);

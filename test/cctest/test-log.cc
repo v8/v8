@@ -1187,7 +1187,7 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
     logger.LogCompiledFunctions();
     logger.StopLogging();
 
-    i::Handle<i::Code> builtin = logger.i_isolate()->builtins()->builtin_handle(
+    i::Handle<i::Code> builtin = logger.i_isolate()->builtins()->code_handle(
         i::Builtin::kBooleanConstructor);
     i::EmbeddedVector<char, 100> buffer;
 

@@ -840,8 +840,8 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
     DCHECK(shared.HasBuiltinId());
     Handle<FeedbackCell> feedback_cell =
         isolate()->factory()->many_closures_cell();
-    Callable const callable = Builtins::CallableFor(
-        isolate(), static_cast<Builtin>(shared.builtin_id()));
+    Callable const callable =
+        Builtins::CallableFor(isolate(), shared.builtin_id());
     return AddNode<JSFunction>(graph()->NewNode(
         javascript()->CreateClosure(shared.object(), callable.code()),
         HeapConstant(feedback_cell), context, effect(), control()));
@@ -4501,9 +4501,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
 
   // Check for known builtin functions.
 
-  int builtin_id =
+  Builtin builtin =
       shared.HasBuiltinId() ? shared.builtin_id() : Builtin::kNoBuiltinId;
-  switch (builtin_id) {
+  switch (builtin) {
     case Builtin::kArrayConstructor:
       return ReduceArrayConstructor(node);
     case Builtin::kBooleanConstructor:
@@ -4964,10 +4964,10 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
 
       // Check for known builtin functions.
-      int builtin_id = function.shared().HasBuiltinId()
-                           ? function.shared().builtin_id()
-                           : Builtin::kNoBuiltinId;
-      switch (builtin_id) {
+      Builtin builtin = function.shared().HasBuiltinId()
+                            ? function.shared().builtin_id()
+                            : Builtin::kNoBuiltinId;
+      switch (builtin) {
         case Builtin::kArrayConstructor: {
           // TODO(bmeurer): Deal with Array subclasses here.
           // Turn the {node} into a {JSCreateArray} call.
@@ -5829,14 +5829,14 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
       Node* vfalse1;
       {
         // Call the generic C++ implementation.
-        const int builtin_index = Builtin::kArrayShift;
+        const Builtin builtin = Builtin::kArrayShift;
         auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
             graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
-            Builtins::name(builtin_index), node->op()->properties(),
+            Builtins::name(builtin), node->op()->properties(),
             CallDescriptor::kNeedsFrameState);
         Node* stub_code = jsgraph()->CEntryStubConstant(
             1, SaveFPRegsMode::kIgnore, ArgvMode::kStack, true);
-        Address builtin_entry = Builtins::CppEntryOf(builtin_index);
+        Address builtin_entry = Builtins::CppEntryOf(builtin);
         Node* entry = jsgraph()->ExternalConstant(
             ExternalReference::Create(builtin_entry));
         Node* argc =
@@ -6756,8 +6756,8 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
   DCHECK(shared.HasBuiltinId());
   Handle<FeedbackCell> feedback_cell =
       isolate()->factory()->many_closures_cell();
-  Callable const callable = Builtins::CallableFor(
-      isolate(), static_cast<Builtin>(shared.builtin_id()));
+  Callable const callable =
+      Builtins::CallableFor(isolate(), shared.builtin_id());
   return graph()->NewNode(
       javascript()->CreateClosure(shared.object(), callable.code()),
       jsgraph()->HeapConstant(feedback_cell), context, effect, control);

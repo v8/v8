@@ -3062,7 +3062,7 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
 Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
                                      Bytecode bytecode,
                                      OperandScale operand_scale,
-                                     int builtin_index,
+                                     Builtin builtin,
                                      const AssemblerOptions& options) {
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   compiler::CodeAssemblerState state(
@@ -3071,7 +3071,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
       FLAG_untrusted_code_mitigations
           ? PoisoningMitigationLevel::kPoisonCriticalOnly
           : PoisoningMitigationLevel::kDontPoison,
-      builtin_index);
+      builtin);
 
   switch (bytecode) {
 #define CALL_GENERATOR(Name, ...)                     \

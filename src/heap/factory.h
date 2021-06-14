@@ -717,7 +717,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForBuiltin(
-      MaybeHandle<String> name, int builtin_index,
+      MaybeHandle<String> name, Builtin builtin,
       FunctionKind kind = kNormalFunction);
 
   static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
@@ -852,10 +852,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
-    CodeBuilder& set_builtin_index(int32_t builtin_index) {
-      DCHECK_IMPLIES(builtin_index != Builtin::kNoBuiltinId,
+    CodeBuilder& set_builtin(Builtin builtin) {
+      DCHECK_IMPLIES(builtin != Builtin::kNoBuiltinId,
                      !CodeKindIsJSFunction(kind_));
-      builtin_index_ = builtin_index;
+      builtin_ = builtin;
       return *this;
     }
 
@@ -925,7 +925,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     const CodeKind kind_;
 
     MaybeHandle<Object> self_reference_;
-    int32_t builtin_index_ = Builtin::kNoBuiltinId;
+    Builtin builtin_ = Builtin::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
     int32_t kind_specific_flags_ = 0;
     // Either source_position_table for non-baseline code

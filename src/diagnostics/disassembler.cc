@@ -166,10 +166,9 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
              kBuiltinsTableSize) {
     uint32_t offset_in_builtins_table = (offset - kBuiltinsTableStart);
 
-    Builtin builtin_id =
-        static_cast<Builtin>(offset_in_builtins_table / kSystemPointerSize);
-
-    const char* name = Builtins::name(builtin_id);
+    Builtin builtin =
+        Builtins::FromInt(offset_in_builtins_table / kSystemPointerSize);
+    const char* name = Builtins::name(builtin);
     SNPrintF(v8_buffer_, "builtin (%s)", name);
     return v8_buffer_.begin();
 
@@ -249,7 +248,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
         relocinfo->target_address());
     CodeKind kind = code.kind();
     if (code.is_builtin()) {
-      out->AddFormatted(" Builtin::%s", Builtins::name(code.builtin_index()));
+      out->AddFormatted(" Builtin::%s", Builtins::name(code.builtin_id()));
     } else {
       out->AddFormatted(" %s", CodeKindToString(kind));
     }

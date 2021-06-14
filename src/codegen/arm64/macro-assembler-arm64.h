@@ -970,22 +970,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
 
-  // Load the builtin given by the Smi in |builtin_index| into the same
+  // Load the builtin given by the Smi in |builtin_| into the same
   // register.
-  void LoadEntryFromBuiltinIndex(Register builtin_index);
-  void LoadEntryFromBuiltin(Builtin builtin_index, Register destination);
-  MemOperand EntryFromBuiltinAsOperand(Builtin builtin_index);
-  void CallBuiltinByIndex(Register builtin_index);
-  void CallBuiltin(Builtin builtin) {
-    // TODO(11527): drop the int overload in favour of the Builtin one.
-    return CallBuiltin(static_cast<int>(builtin));
-  }
-  void CallBuiltin(int builtin_index);
-  void TailCallBuiltin(Builtin builtin) {
-    // TODO(11527): drop the int overload in favour of the Builtin one.
-    return TailCallBuiltin(static_cast<int>(builtin));
-  }
-  void TailCallBuiltin(int builtin_index);
+  void LoadEntryFromBuiltinIndex(Register builtin);
+  void LoadEntryFromBuiltin(Builtin builtin, Register destination);
+  MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
+  void CallBuiltinByIndex(Register builtin);
+  void CallBuiltin(Builtin builtin);
+  void TailCallBuiltin(Builtin builtin);
 
   void LoadCodeObjectEntry(Register destination, Register code_object);
   void CallCodeObject(Register code_object);

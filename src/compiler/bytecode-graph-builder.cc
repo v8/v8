@@ -2286,7 +2286,7 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
 
   const Operator* op = javascript()->CreateClosure(
       shared_info.object(),
-      jsgraph()->isolate()->builtins()->builtin_handle(Builtin::kCompileLazy),
+      jsgraph()->isolate()->builtins()->code_handle(Builtin::kCompileLazy),
       allocation);
   Node* closure = NewNode(
       op, BuildLoadFeedbackCell(bytecode_iterator().GetIndexOperand(1)));

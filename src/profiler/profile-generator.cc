@@ -159,7 +159,7 @@ bool CodeEntry::IsSameFunctionAs(const CodeEntry* entry) const {
 
 void CodeEntry::SetBuiltinId(Builtin id) {
   bit_field_ = TagField::update(bit_field_, CodeEventListener::BUILTIN_TAG);
-  bit_field_ = BuiltinIdField::update(bit_field_, id);
+  bit_field_ = BuiltinField::update(bit_field_, id);
 }
 
 int CodeEntry::GetSourceLine(int pc_offset) const {

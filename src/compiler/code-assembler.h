@@ -1616,13 +1616,13 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      const CallInterfaceDescriptor& descriptor, CodeKind kind,
                      const char* name, PoisoningMitigationLevel poisoning_level,
-                     int32_t builtin_index = Builtin::kNoBuiltinId);
+                     Builtin builtin = Builtin::kNoBuiltinId);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
                      CodeKind kind, const char* name,
                      PoisoningMitigationLevel poisoning_level,
-                     int32_t builtin_index = Builtin::kNoBuiltinId);
+                     Builtin builtin = Builtin::kNoBuiltinId);
 
   ~CodeAssemblerState();
 
@@ -1649,7 +1649,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, CodeKind kind,
                      const char* name, PoisoningMitigationLevel poisoning_level,
-                     int32_t builtin_index);
+                     Builtin builtin);
 
   void PushExceptionHandler(CodeAssemblerExceptionHandlerLabel* label);
   void PopExceptionHandler();
@@ -1657,7 +1657,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   std::unique_ptr<RawMachineAssembler> raw_assembler_;
   CodeKind kind_;
   const char* name_;
-  int32_t builtin_index_;
+  Builtin builtin_;
   bool code_generated_;
   ZoneSet<CodeAssemblerVariable::Impl*, CodeAssemblerVariable::ImplComparator>
       variables_;

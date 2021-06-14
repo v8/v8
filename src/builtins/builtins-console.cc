@@ -125,8 +125,8 @@ BUILTIN(ConsoleTimeStamp) {
 namespace {
 
 void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
-                            const char* name, Builtin builtin_id,
-                            int context_id, Handle<Object> context_name) {
+                            const char* name, Builtin builtin, int context_id,
+                            Handle<Object> context_name) {
   Factory* const factory = isolate->factory();
 
   Handle<NativeContext> context(isolate->native_context());
@@ -136,7 +136,7 @@ void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
       Name::ToFunctionName(isolate, factory->InternalizeUtf8String(name))
           .ToHandleChecked();
   Handle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name_string, builtin_id);
+      factory->NewSharedFunctionInfoForBuiltin(name_string, builtin);
   info->set_language_mode(LanguageMode::kSloppy);
 
   Handle<JSFunction> fun =

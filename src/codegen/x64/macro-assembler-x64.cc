@@ -424,7 +424,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
       WriteBarrierDescriptor::SlotAddressRegister();
   MovePair(slot_address_parameter, slot_address, object_parameter, object);
 
-  Call(isolate()->builtins()->builtin_handle(
+  Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
   MaybeRestoreRegisters(registers);
@@ -466,13 +466,12 @@ void TurboAssembler::CallRecordWriteStub(
   if (false) {
 #endif
   } else {
-    auto builtin_index =
+    Builtin builtin =
         Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
     if (options().inline_offheap_trampolines) {
-      CallBuiltin(builtin_index);
+      CallBuiltin(builtin);
     } else {
-      Handle<Code> code_target =
-          isolate()->builtins()->builtin_handle(builtin_index);
+      Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }
@@ -499,9 +498,8 @@ void TurboAssembler::CallTSANRelaxedStoreStub(Register address, Register value,
   MovePair(address_parameter, address, value_parameter, value);
 
   if (isolate()) {
-    auto builtin_index = Builtins::GetTSANRelaxedStoreStub(fp_mode, size);
-    Handle<Code> code_target =
-        isolate()->builtins()->builtin_handle(builtin_index);
+    Builtin builtin = Builtins::GetTSANRelaxedStoreStub(fp_mode, size);
+    Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -1653,14 +1651,14 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtin::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index)) {
+    Builtin builtin = Builtin::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
       Label skip;
       if (cc != always) {
         if (cc == never) return;
         j(NegateCondition(cc), &skip, Label::kNear);
       }
-      TailCallBuiltin(builtin_index);
+      TailCallBuiltin(builtin);
       bind(&skip);
       return;
     }
@@ -1696,10 +1694,10 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
   if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtin::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin_index)) {
+    Builtin builtin = Builtin::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
       // Inline the trampoline.
-      CallBuiltin(builtin_index);
+      CallBuiltin(builtin);
       return;
     }
   }
@@ -1707,10 +1705,10 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   call(code_object, rmode);
 }
 
-Operand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin_index) {
+Operand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   DCHECK(root_array_available());
   return Operand(kRootRegister,
-                 IsolateData::builtin_entry_slot_offset(builtin_index));
+                 IsolateData::builtin_entry_slot_offset(builtin));
 }
 
 Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(Register builtin_index) {
@@ -1734,36 +1732,36 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   Call(EntryFromBuiltinIndexAsOperand(builtin_index));
 }
 
-void TurboAssembler::CallBuiltin(int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  RecordCommentForOffHeapTrampoline(builtin_index);
-  CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+void TurboAssembler::CallBuiltin(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  RecordCommentForOffHeapTrampoline(builtin);
+  CHECK_NE(builtin, Builtin::kNoBuiltinId);
   if (options().short_builtin_calls) {
     EmbeddedData d = EmbeddedData::FromBlob(isolate());
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     call(entry, RelocInfo::RUNTIME_ENTRY);
 
   } else {
     EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
     call(kScratchRegister);
   }
   RecordComment("]");
 }
 
-void TurboAssembler::TailCallBuiltin(int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  RecordCommentForOffHeapTrampoline(builtin_index);
-  CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+void TurboAssembler::TailCallBuiltin(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  RecordCommentForOffHeapTrampoline(builtin);
+  CHECK_NE(builtin, Builtin::kNoBuiltinId);
   if (options().short_builtin_calls) {
     EmbeddedData d = EmbeddedData::FromBlob(isolate());
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     jmp(entry, RelocInfo::RUNTIME_ENTRY);
 
   } else {
     EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     Jump(entry, RelocInfo::OFF_HEAP_TARGET);
   }
   RecordComment("]");

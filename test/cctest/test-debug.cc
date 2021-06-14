@@ -4486,10 +4486,11 @@ TEST(BuiltinsExceptionPrediction) {
 
   i::Builtins* builtins = iisolate->builtins();
   bool fail = false;
-  for (int i = 0; i < i::Builtins::kBuiltinCount; i++) {
-    i::Code builtin = builtins->builtin(i);
-    if (builtin.kind() != i::CodeKind::BUILTIN) continue;
-    auto prediction = builtin.GetBuiltinCatchPrediction();
+  for (i::Builtin builtin = i::Builtins::kFirst; builtin <= i::Builtins::kLast;
+       ++builtin) {
+    i::Code code = builtins->code(builtin);
+    if (code.kind() != i::CodeKind::BUILTIN) continue;
+    auto prediction = code.GetBuiltinCatchPrediction();
     USE(prediction);
   }
   CHECK(!fail);

@@ -44,10 +44,10 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
 #if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
-      int builtin_index,
+      Builtin builtin,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) override {
-    DCHECK_LT(builtin_index, Builtins::kBuiltinCount);
-    unwind_infos_[builtin_index] = unwinding_info;
+    DCHECK_LT(static_cast<int>(builtin), Builtins::kBuiltinCount);
+    unwind_infos_[static_cast<int>(builtin)] = unwinding_info;
   }
 #endif  // V8_OS_WIN64
 
@@ -151,7 +151,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
   void WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
-                    const i::EmbeddedData* blob, const int builtin_id) const;
+                    const i::EmbeddedData* blob, const Builtin builtin) const;
 
   void WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
                           std::string name) const;

@@ -843,19 +843,19 @@ Local<String> WasmValueObject::type() const {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
+Local<Function> GetBuiltin(Isolate* v8_isolate, Builtin requested_builtin) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope handle_scope(isolate);
 
-  CHECK_EQ(builtin, kStringToLowerCase);
-  i::Builtin builtin_id = i::Builtin::kStringPrototypeToLocaleLowerCase;
+  CHECK_EQ(requested_builtin, kStringToLowerCase);
+  i::Builtin builtin = i::Builtin::kStringPrototypeToLocaleLowerCase;
 
   i::Factory* factory = isolate->factory();
   i::Handle<i::String> name = isolate->factory()->empty_string();
   i::Handle<i::NativeContext> context(isolate->native_context());
   i::Handle<i::SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, builtin_id);
+      factory->NewSharedFunctionInfoForBuiltin(name, builtin);
   info->set_language_mode(i::LanguageMode::kStrict);
   i::Handle<i::JSFunction> fun =
       i::Factory::JSFunctionBuilder{isolate, info, context}

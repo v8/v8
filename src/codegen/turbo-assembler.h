@@ -53,7 +53,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   bool should_abort_hard() const { return hard_abort_; }
   void set_abort_hard(bool v) { hard_abort_ = v; }
 
-  void set_builtin_index(int i) { maybe_builtin_index_ = i; }
+  void set_builtin(Builtin builtin) { maybe_builtin_ = builtin; }
 
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
@@ -77,7 +77,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
   static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
-  static int32_t RootRegisterOffsetForBuiltin(int builtin_index);
+  static int32_t RootRegisterOffsetForBuiltin(Builtin builtin);
 
   // Returns the root-relative offset to reference.address().
   static intptr_t RootRegisterOffsetForExternalReference(
@@ -99,10 +99,10 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   static constexpr int kStackPageSize = 4 * KB;
 #endif
 
-  V8_INLINE void RecordCommentForOffHeapTrampoline(int builtin_index) {
+  V8_INLINE void RecordCommentForOffHeapTrampoline(Builtin builtin) {
     if (!FLAG_code_comments) return;
     std::ostringstream str;
-    str << "[ Inlined Trampoline to " << Builtins::name(builtin_index);
+    str << "[ Inlined Trampoline to " << Builtins::name(builtin);
     RecordComment(str.str().c_str());
   }
 
@@ -124,7 +124,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   bool hard_abort_ = false;
 
   // May be set while generating builtins.
-  int maybe_builtin_index_ = Builtin::kNoBuiltinId;
+  Builtin maybe_builtin_ = Builtin::kNoBuiltinId;
 
   bool has_frame_ = false;
 

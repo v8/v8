@@ -1358,8 +1358,8 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
                              Handle<Name> script_name) {
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code) return;
-  if (*code == AbstractCode::cast(
-                   isolate_->builtins()->builtin(Builtin::kCompileLazy))) {
+  if (*code ==
+      AbstractCode::cast(isolate_->builtins()->code(Builtin::kCompileLazy))) {
     return;
   }
   {
@@ -2148,7 +2148,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
         return;
       }
       description =
-          isolate_->builtins()->name(abstract_code->GetCode().builtin_index());
+          isolate_->builtins()->name(abstract_code->GetCode().builtin_id());
       tag = CodeEventListener::BUILTIN_TAG;
       break;
     case CodeKind::WASM_FUNCTION:

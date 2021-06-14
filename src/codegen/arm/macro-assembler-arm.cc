@@ -166,9 +166,9 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK_IMPLIES(options().use_pc_relative_calls_and_jumps,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
-  int builtin_index = Builtin::kNoBuiltinId;
+  Builtin builtin = Builtin::kNoBuiltinId;
   bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
 
   if (options().use_pc_relative_calls_and_jumps && target_is_builtin) {
     int32_t code_target_index = AddCodeTarget(code);
@@ -180,16 +180,15 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     // size s.t. pc-relative calls may be used.
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    int offset = IsolateData::builtin_entry_slot_offset(
-        static_cast<Builtin>(code->builtin_index()));
+    int offset = IsolateData::builtin_entry_slot_offset(code->builtin_id());
     ldr(scratch, MemOperand(kRootRegister, offset));
     Jump(scratch, cond);
     return;
   } else if (options().inline_offheap_trampolines && target_is_builtin) {
     // Inline the trampoline.
-    RecordCommentForOffHeapTrampoline(builtin_index);
+    RecordCommentForOffHeapTrampoline(builtin);
     EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     // Use ip directly instead of using UseScratchRegisterScope, as we do not
     // preserve scratch registers across calls.
     mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -258,9 +257,9 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK_IMPLIES(options().use_pc_relative_calls_and_jumps,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
-  int builtin_index = Builtin::kNoBuiltinId;
+  Builtin builtin = Builtin::kNoBuiltinId;
   bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index);
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
 
   if (target_is_builtin && options().use_pc_relative_calls_and_jumps) {
     int32_t code_target_index = AddCodeTarget(code);
@@ -270,14 +269,13 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     // This branch is taken only for specific cctests, where we force isolate
     // creation at runtime. At this point, Code space isn't restricted to a
     // size s.t. pc-relative calls may be used.
-    int offset = IsolateData::builtin_entry_slot_offset(
-        static_cast<Builtin>(code->builtin_index()));
+    int offset = IsolateData::builtin_entry_slot_offset(code->builtin_id());
     ldr(ip, MemOperand(kRootRegister, offset));
     Call(ip, cond);
     return;
   } else if (target_is_builtin && options().inline_offheap_trampolines) {
     // Inline the trampoline.
-    CallBuiltin(builtin_index);
+    CallBuiltin(builtin);
     return;
   }
 
@@ -306,22 +304,22 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   Call(builtin_index);
 }
 
-void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin_index,
+void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin,
                                           Register destination) {
-  ldr(destination, EntryFromBuiltinAsOperand(builtin_index));
+  ldr(destination, EntryFromBuiltinAsOperand(builtin));
 }
 
-MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin_index) {
+MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   DCHECK(root_array_available());
   return MemOperand(kRootRegister,
-                    IsolateData::builtin_entry_slot_offset(builtin_index));
+                    IsolateData::builtin_entry_slot_offset(builtin));
 }
 
-void TurboAssembler::CallBuiltin(int builtin_index, Condition cond) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  RecordCommentForOffHeapTrampoline(builtin_index);
+void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  RecordCommentForOffHeapTrampoline(builtin);
   EmbeddedData d = EmbeddedData::FromBlob();
-  Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  Address entry = d.InstructionStartOfBuiltin(builtin);
   // Use ip directly instead of using UseScratchRegisterScope, as we do not
   // preserve scratch registers across calls.
   mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
@@ -718,7 +716,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
       WriteBarrierDescriptor::SlotAddressRegister();
   MoveObjectAndSlot(object_parameter, slot_address_parameter, object, offset);
 
-  Call(isolate()->builtins()->builtin_handle(
+  Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
   MaybeRestoreRegisters(registers);
@@ -756,13 +754,12 @@ void TurboAssembler::CallRecordWriteStub(
   if (false) {
 #endif
   } else {
-    auto builtin_index =
+    Builtin builtin =
         Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
     if (options().inline_offheap_trampolines) {
-      CallBuiltin(builtin_index);
+      CallBuiltin(builtin);
     } else {
-      Handle<Code> code_target =
-          isolate()->builtins()->builtin_handle(builtin_index);
+      Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }

@@ -119,7 +119,7 @@ bool JSFunction::ActiveTierIsIgnition() const {
   DCHECK_IMPLIES(result, code.is_interpreter_trampoline_builtin() ||
                              (CodeKindIsOptimizedJSFunction(code.kind()) &&
                               code.marked_for_deoptimization()) ||
-                             (code.builtin_index() == Builtin::kCompileLazy &&
+                             (code.builtin_id() == Builtin::kCompileLazy &&
                               shared().IsInterpreted()));
 #endif  // DEBUG
   return result;

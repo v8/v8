@@ -225,13 +225,13 @@ namespace {
 
 bool IsInterpreterFramePc(Isolate* isolate, Address pc,
                           StackFrame::State* state) {
-  Builtin builtin_index = InstructionStream::TryLookupCode(isolate, pc);
-  if (builtin_index != Builtin::kNoBuiltinId &&
-      (builtin_index == Builtin::kInterpreterEntryTrampoline ||
-       builtin_index == Builtin::kInterpreterEnterAtBytecode ||
-       builtin_index == Builtin::kInterpreterEnterAtNextBytecode ||
-       builtin_index == Builtin::kBaselineEnterAtBytecode ||
-       builtin_index == Builtin::kBaselineEnterAtNextBytecode)) {
+  Builtin builtin = InstructionStream::TryLookupCode(isolate, pc);
+  if (builtin != Builtin::kNoBuiltinId &&
+      (builtin == Builtin::kInterpreterEntryTrampoline ||
+       builtin == Builtin::kInterpreterEnterAtBytecode ||
+       builtin == Builtin::kInterpreterEnterAtNextBytecode ||
+       builtin == Builtin::kBaselineEnterAtBytecode ||
+       builtin == Builtin::kBaselineEnterAtNextBytecode)) {
     return true;
   } else if (FLAG_interpreted_frames_native_stack) {
     intptr_t marker = Memory<intptr_t>(
@@ -1614,7 +1614,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
               TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
         code_offset = 0;
         abstract_code = handle(
-            AbstractCode::cast(isolate()->builtins()->builtin(
+            AbstractCode::cast(isolate()->builtins()->code(
                 Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset()))),
             isolate());
       } else {
@@ -2012,7 +2012,7 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
   //        |      ....       | <- spill_slot_base--|
   //        |- - - - - - - - -|                     |
   if (code.is_null() || !code.is_builtin() ||
-      code.builtin_index() != Builtin::kGenericJSToWasmWrapper) {
+      code.builtin_id() != Builtin::kGenericJSToWasmWrapper) {
     // If it's not the  GenericJSToWasmWrapper, then it's the TurboFan compiled
     // specific wrapper. So we have to call IterateCompiledFrame.
     IterateCompiledFrame(v);

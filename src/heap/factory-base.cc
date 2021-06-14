@@ -308,7 +308,7 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseData(
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
-    int maybe_builtin_index, FunctionKind kind) {
+    Builtin builtin, FunctionKind kind) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo();
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo raw = *shared;
@@ -327,12 +327,12 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   if (maybe_function_data.ToHandle(&function_data)) {
     // If we pass function_data then we shouldn't pass a builtin index, and
     // the function_data should not be code with a builtin.
-    DCHECK(!Builtins::IsBuiltinId(maybe_builtin_index));
+    DCHECK(!Builtins::IsBuiltinId(builtin));
     DCHECK_IMPLIES(function_data->IsCode(),
                    !Code::cast(*function_data).is_builtin());
     raw.set_function_data(*function_data, kReleaseStore);
-  } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
-    raw.set_builtin_id(maybe_builtin_index);
+  } else if (Builtins::IsBuiltinId(builtin)) {
+    raw.set_builtin_id(builtin);
   } else {
     DCHECK(raw.HasBuiltinId());
     DCHECK_EQ(Builtin::kIllegal, raw.builtin_id());

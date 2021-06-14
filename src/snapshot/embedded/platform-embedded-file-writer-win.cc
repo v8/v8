@@ -111,17 +111,20 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   {
     STATIC_ASSERT(Builtins::kAllBuiltinsAreIsolateIndependent);
     Address prev_builtin_end_offset = 0;
-    for (int i = 0; i < Builtins::kBuiltinCount; i++) {
+    for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+         ++builtin) {
+      const int builtin_index = static_cast<int>(builtin);
       // Some builtins are leaf functions from the point of view of Win64 stack
       // walking: they do not move the stack pointer and do not require a PDATA
       // entry because the return address can be retrieved from [rsp].
-      if (unwind_infos[i].is_leaf_function()) continue;
+      if (unwind_infos[builtin_index].is_leaf_function()) continue;
 
-      uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(i) -
+      uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(builtin) -
                                       reinterpret_cast<Address>(blob->code());
-      uint32_t builtin_size = blob->InstructionSizeOfBuiltin(i);
+      uint32_t builtin_size = blob->InstructionSizeOfBuiltin(builtin);
 
-      const std::vector<int>& xdata_desc = unwind_infos[i].fp_offsets();
+      const std::vector<int>& xdata_desc =
+          unwind_infos[builtin_index].fp_offsets();
       if (xdata_desc.empty()) {
         // Some builtins do not have any "push rbp - mov rbp, rsp" instructions
         // to start a stack frame. We still emit a PDATA entry as if they had,

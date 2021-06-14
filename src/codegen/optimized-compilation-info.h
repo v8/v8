@@ -131,8 +131,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
   CodeKind code_kind() const { return code_kind_; }
-  int32_t builtin_index() const { return builtin_index_; }
-  void set_builtin_index(int32_t index) { builtin_index_ = index; }
+  Builtin builtin() const { return builtin_; }
+  void set_builtin(Builtin builtin) { builtin_ = builtin; }
   BytecodeOffset osr_offset() const { return osr_offset_; }
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
   void SetNodeObserver(compiler::NodeObserver* observer) {
@@ -273,7 +273,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
       PoisoningMitigationLevel::kDontPoison;
 
   const CodeKind code_kind_;
-  int32_t builtin_index_ = -1;
+  Builtin builtin_ = Builtin::kNoBuiltinId;
 
   // We retain a reference the bytecode array specifically to ensure it doesn't
   // get flushed while we are optimizing the code.

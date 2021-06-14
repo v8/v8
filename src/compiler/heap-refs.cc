@@ -1946,7 +1946,7 @@ class SharedFunctionInfoData : public HeapObjectData {
   SharedFunctionInfoData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<SharedFunctionInfo> object);
 
-  int builtin_id() const { return builtin_id_; }
+  Builtin builtin_id() const { return builtin_id_; }
   int context_header_size() const { return context_header_size_; }
   ObjectData* GetBytecodeArray() const { return GetBytecodeArray_; }
   SharedFunctionInfo::Inlineability GetInlineability() const {
@@ -1974,7 +1974,7 @@ class SharedFunctionInfoData : public HeapObjectData {
 #undef DECL_ACCESSOR
 
  private:
-  int const builtin_id_;
+  Builtin const builtin_id_;
   int const context_header_size_;
   ObjectData* const GetBytecodeArray_;
 #define DECL_MEMBER(type, name) type const name##_;
@@ -3473,7 +3473,7 @@ BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
 BIMODAL_ACCESSOR(ScopeInfo, ScopeInfo, OuterScopeInfo)
 
-BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
+BIMODAL_ACCESSOR_C(SharedFunctionInfo, Builtin, builtin_id)
 BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray() const {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     BytecodeArray bytecode_array;

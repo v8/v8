@@ -4509,22 +4509,24 @@ void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 }
 
 // TODO(ishell): move builtin accessors out from Heap.
-Code Heap::builtin(int index) {
-  DCHECK(Builtins::IsBuiltinId(index));
-  return Code::cast(Object(isolate()->builtins_table()[index]));
+Code Heap::builtin(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  return Code::cast(
+      Object(isolate()->builtins_table()[static_cast<int>(builtin)]));
 }
 
-Address Heap::builtin_address(int index) {
-  DCHECK(Builtins::IsBuiltinId(index) || index == Builtins::kBuiltinCount);
+Address Heap::builtin_address(Builtin builtin) {
+  const int index = static_cast<int>(builtin);
+  DCHECK(Builtins::IsBuiltinId(builtin) || index == Builtins::kBuiltinCount);
   return reinterpret_cast<Address>(&isolate()->builtins_table()[index]);
 }
 
-void Heap::set_builtin(int index, Code builtin) {
-  DCHECK(Builtins::IsBuiltinId(index));
-  DCHECK(Internals::HasHeapObjectTag(builtin.ptr()));
+void Heap::set_builtin(Builtin builtin, Code code) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  DCHECK(Internals::HasHeapObjectTag(code.ptr()));
   // The given builtin may be completely uninitialized thus we cannot check its
   // type here.
-  isolate()->builtins_table()[index] = builtin.ptr();
+  isolate()->builtins_table()[static_cast<int>(builtin)] = code.ptr();
 }
 
 void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
@@ -4740,9 +4742,10 @@ void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
 }
 
 void Heap::IterateBuiltins(RootVisitor* v) {
-  for (int i = 0; i < Builtins::kBuiltinCount; i++) {
-    v->VisitRootPointer(Root::kBuiltins, Builtins::name(i),
-                        FullObjectSlot(builtin_address(i)));
+  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+       ++builtin) {
+    v->VisitRootPointer(Root::kBuiltins, Builtins::name(builtin),
+                        FullObjectSlot(builtin_address(builtin)));
   }
 
   // The entry table doesn't need to be updated since all builtins are embedded.
@@ -6477,7 +6480,7 @@ void Heap::SetDetachedContexts(WeakArrayList detached_contexts) {
 }
 
 void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
-  DCHECK_EQ(Builtin::kInterpreterEntryTrampoline, code.builtin_index());
+  DCHECK_EQ(Builtin::kInterpreterEntryTrampoline, code.builtin_id());
   set_interpreter_entry_trampoline_for_profiling(code);
 }
 
@@ -6805,7 +6808,7 @@ bool Heap::GcSafeCodeContains(Code code, Address addr) {
   DCHECK(map == ReadOnlyRoots(this).code_map());
   Builtin maybe_builtin = InstructionStream::TryLookupCode(isolate(), addr);
   if (Builtins::IsBuiltinId(maybe_builtin) &&
-      code.builtin_index() == maybe_builtin) {
+      code.builtin_id() == maybe_builtin) {
     return true;
   }
   Address start = code.address();

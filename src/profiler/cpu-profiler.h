@@ -98,7 +98,7 @@ class ReportBuiltinEventRecord : public CodeEventRecord {
  public:
   Address instruction_start;
   unsigned instruction_size;
-  Builtin builtin_id;
+  Builtin builtin;
 
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };

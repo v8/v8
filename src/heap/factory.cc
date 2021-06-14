@@ -168,7 +168,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     raw_code.set_relocation_info(*reloc_info);
     raw_code.initialize_flags(kind_, is_turbofanned_, stack_slots_,
                               kIsNotOffHeapTrampoline);
-    raw_code.set_builtin_index(builtin_index_);
+    raw_code.set_builtin_id(builtin_);
     raw_code.set_inlined_bytecode_size(inlined_bytecode_size_);
     raw_code.set_code_data_container(*data_container, kReleaseStore);
     raw_code.set_deoptimization_data(*deoptimization_data_);
@@ -2089,7 +2089,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
   bool generate_jump_to_instruction_stream =
-      Builtins::CodeObjectIsExecutable(code->builtin_index());
+      Builtins::CodeObjectIsExecutable(code->builtin_id());
   Handle<Code> result = Builtins::GenerateOffHeapTrampolineFor(
       isolate(), off_heap_entry,
       code->code_data_container(kAcquireLoad).kind_specific_flags(),
@@ -2115,7 +2115,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
         raw_code.has_safepoint_info() ? raw_code.stack_slots() : 0;
     raw_result.initialize_flags(raw_code.kind(), raw_code.is_turbofanned(),
                                 stack_slots, set_is_off_heap_trampoline);
-    raw_result.set_builtin_index(raw_code.builtin_index());
+    raw_result.set_builtin_id(raw_code.builtin_id());
     raw_result.set_handler_table_offset(raw_code.handler_table_offset());
     raw_result.set_constant_pool_offset(raw_code.constant_pool_offset());
     raw_result.set_code_comments_offset(raw_code.code_comments_offset());
@@ -2963,9 +2963,9 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
-    MaybeHandle<String> maybe_name, int builtin_index, FunctionKind kind) {
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      maybe_name, MaybeHandle<Code>(), builtin_index, kind);
+    MaybeHandle<String> maybe_name, Builtin builtin, FunctionKind kind) {
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(maybe_name, MaybeHandle<Code>(), builtin, kind);
   return shared;
 }
 

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_CODE_H_
 
 #include "src/base/bit-field.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/handler-table.h"
 #include "src/deoptimizer/translation-array.h"
 #include "src/objects/code-kind.h"
@@ -296,11 +297,11 @@ class Code : public HeapObject {
   inline bool can_have_weak_objects() const;
   inline void set_can_have_weak_objects(bool value);
 
-  // [builtin_index]: For builtins, tells which builtin index the code object
+  // [builtin]: For builtins, tells which builtin index the code object
   // has. The builtin index is a non-negative integer for builtins, and
   // Builtin::kNoBuiltinId (-1) otherwise.
-  inline int builtin_index() const;
-  inline void set_builtin_index(int id);
+  inline Builtin builtin_id() const;
+  inline void set_builtin_id(Builtin builtin);
   inline bool is_builtin() const;
 
   inline unsigned inlined_bytecode_size() const;

@@ -35,6 +35,7 @@ class BytecodeArray;
 class CoverageInfo;
 class ClassPositions;
 struct SourceRange;
+enum class Builtin : int32_t;
 template <typename T>
 class ZoneVector;
 
@@ -254,7 +255,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<SharedFunctionInfo> NewSharedFunctionInfo();
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> maybe_name,
-      MaybeHandle<HeapObject> maybe_function_data, int maybe_builtin_index,
+      MaybeHandle<HeapObject> maybe_function_data, Builtin builtin,
       FunctionKind kind = kNormalFunction);
 
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);

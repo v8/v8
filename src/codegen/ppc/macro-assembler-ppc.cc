@@ -183,7 +183,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   if (root_array_available_ && options().isolate_independent_code) {
     Label skip;
     Register scratch = ip;
-    int offset = code->builtin_index() * kSystemPointerSize +
+    int offset = static_cast<int>(code->builtin_id()) * kSystemPointerSize +
                  IsolateData::builtin_entry_table_offset();
     LoadU64(scratch, MemOperand(kRootRegister, offset), r0);
     if (cond != al) b(NegateCondition(cond), &skip, cr);
@@ -271,7 +271,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
   if (root_array_available_ && options().isolate_independent_code) {
     Label skip;
-    int offset = code->builtin_index() * kSystemPointerSize +
+    int offset = static_cast<int>(code->builtin_id()) * kSystemPointerSize +
                  IsolateData::builtin_entry_table_offset();
     LoadU64(ip, MemOperand(kRootRegister, offset));
     if (cond != al) b(NegateCondition(cond), &skip);
@@ -651,7 +651,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   pop(slot_address_parameter);
   pop(object_parameter);
 
-  Call(isolate()->builtins()->builtin_handle(
+  Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
   MaybeRestoreRegisters(registers);
@@ -711,7 +711,7 @@ void TurboAssembler::CallRecordWriteStub(
       Call(ip);
     } else {
       Handle<Code> code_target =
-          isolate()->builtins()->builtin_handle(builtin_index);
+          isolate()->builtins()->code_handle(builtin_index);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }

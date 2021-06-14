@@ -2029,7 +2029,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       Code code = Code::cast(*this);
       os << "<Code " << CodeKindToString(code.kind());
       if (code.is_builtin()) {
-        os << " " << Builtins::name(code.builtin_index());
+        os << " " << Builtins::name(code.builtin_id());
       }
       os << ">";
       break;

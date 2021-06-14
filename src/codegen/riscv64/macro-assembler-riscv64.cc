@@ -251,7 +251,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   Pop(slot_address_parameter);
   Pop(object_parameter);
 
-  Call(isolate()->builtins()->builtin_handle(
+  Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
   MaybeRestoreRegisters(registers);
@@ -311,7 +311,7 @@ void TurboAssembler::CallRecordWriteStub(
       Call(scratch);
     } else {
       Handle<Code> code_target =
-          isolate()->builtins()->builtin_handle(builtin_index);
+          isolate()->builtins()->code_handle(builtin_index);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }
@@ -3012,7 +3012,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     return;
   } else if (root_array_available_ && options().isolate_independent_code &&
              target_is_isolate_independent_builtin) {
-    int offset = code->builtin_index() * kSystemPointerSize +
+    int offset = static_cast<int>(code->builtin_id()) * kSystemPointerSize +
                  IsolateData::builtin_entry_table_offset();
     Ld(t6, MemOperand(kRootRegister, offset));
     Jump(t6, cond, rs, rt);
@@ -3094,7 +3094,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     return;
   } else if (root_array_available_ && options().isolate_independent_code &&
              target_is_isolate_independent_builtin) {
-    int offset = code->builtin_index() * kSystemPointerSize +
+    int offset = static_cast<int>(code->builtin_id()) * kSystemPointerSize +
                  IsolateData::builtin_entry_table_offset();
     LoadRootRelative(t6, offset);
     Call(t6, cond, rs, rt);
