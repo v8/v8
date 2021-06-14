@@ -3103,8 +3103,6 @@ v8_header_set("v8_internal_headers") {
     "src/tracing/trace-event.h",
     "src/tracing/traced-value.h",
     "src/tracing/tracing-category-observer.h",
-    "src/trap-handler/trap-handler-internal.h",
-    "src/trap-handler/trap-handler.h",
     "src/utils/address-map.h",
     "src/utils/allocation.h",
     "src/utils/bit-vector.h",
@@ -3152,6 +3150,8 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/wasm-compiler.h",
       "src/debug/debug-wasm-objects-inl.h",
       "src/debug/debug-wasm-objects.h",
+      "src/trap-handler/trap-handler-internal.h",
+      "src/trap-handler/trap-handler.h",
       "src/wasm/baseline/liftoff-assembler-defs.h",
       "src/wasm/baseline/liftoff-assembler.h",
       "src/wasm/baseline/liftoff-compiler.h",
@@ -3294,16 +3294,19 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/x64/liftoff-assembler-x64.h",
     ]
 
-    # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
-    # based on Darwin and thus POSIX-compliant to a similar degree.
-    if (is_linux || is_chromeos || is_mac || is_ios || target_os == "freebsd") {
-      sources += [ "src/trap-handler/handler-inside-posix.h" ]
-    }
     if (is_win) {
-      sources += [
-        "src/diagnostics/unwinding-info-win64.h",
-        "src/trap-handler/handler-inside-win.h",
-      ]
+      sources += [ "src/diagnostics/unwinding-info-win64.h" ]
+    }
+
+    if (v8_enable_webassembly) {
+      # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
+      # based on Darwin and thus POSIX-compliant to a similar degree.
+      if (is_linux || is_chromeos || is_mac || is_ios ||
+          target_os == "freebsd") {
+        sources += [ "src/trap-handler/handler-inside-posix.h" ]
+      } else if (is_win) {
+        sources += [ "src/trap-handler/handler-inside-win.h" ]
+      }
     }
   } else if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###
@@ -3348,7 +3351,7 @@ v8_header_set("v8_internal_headers") {
     if (v8_control_flow_integrity) {
       sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
     }
-    if (current_cpu == "arm64" && is_mac) {
+    if (v8_enable_webassembly && current_cpu == "arm64" && is_mac) {
       sources += [ "src/trap-handler/handler-inside-posix.h" ]
     }
     if (is_win) {
@@ -4069,9 +4072,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/tracing/trace-event.cc",
     "src/tracing/traced-value.cc",
     "src/tracing/tracing-category-observer.cc",
-    "src/trap-handler/handler-inside.cc",
-    "src/trap-handler/handler-outside.cc",
-    "src/trap-handler/handler-shared.cc",
     "src/utils/address-map.cc",
     "src/utils/allocation.cc",
     "src/utils/bit-vector.cc",
@@ -4098,6 +4098,9 @@ v8_source_set("v8_base_without_compiler") {
       "src/debug/debug-wasm-objects.cc",
       "src/runtime/runtime-test-wasm.cc",
       "src/runtime/runtime-wasm.cc",
+      "src/trap-handler/handler-inside.cc",
+      "src/trap-handler/handler-outside.cc",
+      "src/trap-handler/handler-shared.cc",
       "src/wasm/baseline/liftoff-assembler.cc",
       "src/wasm/baseline/liftoff-compiler.cc",
       "src/wasm/function-body-decoder.cc",
@@ -4194,20 +4197,25 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/x64/regexp-macro-assembler-x64.cc",
     ]
 
-    # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
-    # based on Darwin and thus POSIX-compliant to a similar degree.
-    if (is_linux || is_chromeos || is_mac || is_ios || target_os == "freebsd") {
-      sources += [
-        "src/trap-handler/handler-inside-posix.cc",
-        "src/trap-handler/handler-outside-posix.cc",
-      ]
-    }
     if (is_win) {
-      sources += [
-        "src/diagnostics/unwinding-info-win64.cc",
-        "src/trap-handler/handler-inside-win.cc",
-        "src/trap-handler/handler-outside-win.cc",
-      ]
+      sources += [ "src/diagnostics/unwinding-info-win64.cc" ]
+    }
+
+    if (v8_enable_webassembly) {
+      # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
+      # based on Darwin and thus POSIX-compliant to a similar degree.
+      if (is_linux || is_chromeos || is_mac || is_ios ||
+          target_os == "freebsd") {
+        sources += [
+          "src/trap-handler/handler-inside-posix.cc",
+          "src/trap-handler/handler-outside-posix.cc",
+        ]
+      } else if (is_win) {
+        sources += [
+          "src/trap-handler/handler-inside-win.cc",
+          "src/trap-handler/handler-outside-win.cc",
+        ]
+      }
     }
   } else if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###
@@ -4251,7 +4259,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/arm64/simulator-logic-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
     ]
-    if (current_cpu == "arm64" && is_mac) {
+    if (v8_enable_webassembly && current_cpu == "arm64" && is_mac) {
       sources += [
         "src/trap-handler/handler-inside-posix.cc",
         "src/trap-handler/handler-outside-posix.cc",

@@ -92,7 +92,6 @@
 #include "src/strings/string-stream.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils/address-map.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/version.h"
@@ -103,6 +102,7 @@
 #endif  // V8_INTL_SUPPORT
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
@@ -1582,8 +1582,8 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
 
 Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
-  DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                 !trap_handler::IsThreadInWasm());
+  IF_WASM(DCHECK_IMPLIES, trap_handler::IsTrapHandlerEnabled(),
+          !trap_handler::IsThreadInWasm());
 
   HandleScope scope(this);
   Handle<Object> exception(raw_exception, this);
@@ -1678,6 +1678,7 @@ Object Isolate::ReThrow(Object exception) {
 }
 
 namespace {
+#if V8_ENABLE_WEBASSEMBLY
 // This scope will set the thread-in-wasm flag after the execution of all
 // destructors. The thread-in-wasm flag is only set when the scope gets enabled.
 class SetThreadInWasmFlagScope {
@@ -1696,9 +1697,11 @@ class SetThreadInWasmFlagScope {
  private:
   bool enabled_ = false;
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 }  // namespace
 
 Object Isolate::UnwindAndFindHandler() {
+#if V8_ENABLE_WEBASSEMBLY
   // Create the {SetThreadInWasmFlagScope} first in this function so that its
   // destructor gets called after all the other destructors. It is important
   // that the destructor sets the thread-in-wasm flag after all other
@@ -1706,6 +1709,7 @@ Object Isolate::UnwindAndFindHandler() {
   // Windows, which would invalidate the thread-in-wasm flag when the wasm trap
   // handler handles such non-wasm exceptions.
   SetThreadInWasmFlagScope set_thread_in_wasm_flag_scope;
+#endif  // V8_ENABLE_WEBASSEMBLY
   Object exception = pending_exception();
 
   auto FoundHandler = [&](Context context, Address instruction_start,
