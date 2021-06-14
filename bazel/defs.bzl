@@ -100,7 +100,10 @@ def _default_args(configs):
             "-msse3",
         ],
         includes = ["include"],
-        linkopts = ["-pthread"],
+        linkopts = [
+            "-pthread",
+            "-Wl,--no-as-needed -ldl",
+        ],
     )
 
 def v8_binary(

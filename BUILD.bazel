@@ -21,6 +21,7 @@ load(
 v8_flag(name = "v8_annotate_torque_ir")
 v8_flag(name = "v8_enable_lazy_source_positions", default = True)
 v8_flag(name = "v8_enable_minor_mc", default = True)
+v8_flag(name = "v8_enable_webassembly", default = True)
 
 v8_int(
     name = "v8_typed_array_max_size_in_heap",
@@ -34,6 +35,7 @@ v8_config(
     conditional_defines = {
         "v8_enable_lazy_source_positions": "V8_ENABLE_LAZY_SOURCE_POSITIONS",
         "v8_enable_minor_mc": "ENABLE_MINOR_MC",
+        "v8_enable_webassembly": "V8_ENABLE_WEBASSEMBLY",
     },
     defines = [
         "CHROMIUM_ZLIB_NO_CHROMECONF",
@@ -147,14 +149,23 @@ filegroup(
     srcs = [
         "src/flags/flag-definitions.h",
         "src/flags/flags.h",
-    ],
+    ] + select({
+        "is_v8_enable_webassembly": [ "src/wasm/wasm-feature-flags.h" ],
+        "//conditions:default": [],
+    }),
 )
 
 filegroup(
     name = "v8_shared_internal_headers",
     srcs = [
         "src/common/globals.h",
-    ],
+    ] + select({
+        "is_v8_enable_webassembly": [
+            "src/wasm/wasm-constants.h",
+            "src/wasm/wasm-limits.h",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 filegroup(
@@ -481,7 +492,14 @@ filegroup(
         "src/objects/torque-defined-classes.tq",
         "test/torque/test-torque.tq",
         "third_party/v8/builtins/array-sort.tq",
-    ],
+    ] + select({
+        ":is_v8_enable_webassembly": [
+            "src/builtins/wasm.tq",
+            "src/debug/debug-wasm-objects.tq",
+            "src/wasm/wasm-objects.tq",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 filegroup(
@@ -1641,12 +1659,113 @@ filegroup(
             "src/regexp/x64/regexp-macro-assembler-x64.cc",
             "src/regexp/x64/regexp-macro-assembler-x64.h",
             "src/third_party/valgrind/valgrind.h",
+            "src/wasm/baseline/x64/liftoff-assembler-x64.h",
         ],
     }) + select({
         ":is_linux": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
+    }) + select({
+        ":is_v8_enable_webassembly": [
+            "src/asmjs/asm-js.cc",
+            "src/asmjs/asm-names.h",
+            "src/asmjs/asm-parser.cc",
+            "src/asmjs/asm-parser.h",
+            "src/asmjs/asm-scanner.cc",
+            "src/asmjs/asm-scanner.h",
+            "src/asmjs/asm-types.cc",
+            "src/asmjs/asm-types.h",
+            "src/compiler/int64-lowering.h",
+            "src/compiler/wasm-compiler.h",
+            "src/debug/debug-wasm-objects.cc",
+            "src/debug/debug-wasm-objects.h",
+            "src/debug/debug-wasm-objects-inl.h",
+            "src/runtime/runtime-test-wasm.cc",
+            "src/runtime/runtime-wasm.cc",
+            "src/wasm/baseline/liftoff-assembler.cc",
+            "src/wasm/baseline/liftoff-assembler-defs.h",
+            "src/wasm/baseline/liftoff-assembler.h",
+            "src/wasm/baseline/liftoff-compiler.cc",
+            "src/wasm/baseline/liftoff-compiler.h",
+            "src/wasm/baseline/liftoff-register.h",
+            "src/wasm/branch-hint-map.h",
+            "src/wasm/code-space-access.h",
+            "src/wasm/compilation-environment.h",
+            "src/wasm/decoder.h",
+            "src/wasm/function-body-decoder.cc",
+            "src/wasm/function-body-decoder.h",
+            "src/wasm/function-body-decoder-impl.h",
+            "src/wasm/function-compiler.cc",
+            "src/wasm/function-compiler.h",
+            "src/wasm/graph-builder-interface.cc",
+            "src/wasm/graph-builder-interface.h",
+            "src/wasm/jump-table-assembler.cc",
+            "src/wasm/jump-table-assembler.h",
+            "src/wasm/leb-helper.h",
+            "src/wasm/local-decl-encoder.cc",
+            "src/wasm/local-decl-encoder.h",
+            "src/wasm/memory-protection-key.cc",
+            "src/wasm/memory-protection-key.h",
+            "src/wasm/memory-tracing.cc",
+            "src/wasm/memory-tracing.h",
+            "src/wasm/module-compiler.cc",
+            "src/wasm/module-compiler.h",
+            "src/wasm/module-decoder.cc",
+            "src/wasm/module-decoder.h",
+            "src/wasm/module-instantiate.cc",
+            "src/wasm/module-instantiate.h",
+            "src/wasm/object-access.h",
+            "src/wasm/signature-map.cc",
+            "src/wasm/signature-map.h",
+            "src/wasm/simd-shuffle.cc",
+            "src/wasm/simd-shuffle.h",
+            "src/wasm/streaming-decoder.cc",
+            "src/wasm/streaming-decoder.h",
+            "src/wasm/struct-types.h",
+            "src/wasm/sync-streaming-decoder.cc",
+            "src/wasm/value-type.cc",
+            "src/wasm/value-type.h",
+            "src/wasm/wasm-arguments.h",
+            "src/wasm/wasm-code-manager.cc",
+            "src/wasm/wasm-code-manager.h",
+            "src/wasm/wasm-debug.cc",
+            "src/wasm/wasm-debug.h",
+            "src/wasm/wasm-engine.cc",
+            "src/wasm/wasm-engine.h",
+            "src/wasm/wasm-external-refs.cc",
+            "src/wasm/wasm-external-refs.h",
+            "src/wasm/wasm-features.cc",
+            "src/wasm/wasm-features.h",
+            "src/wasm/wasm-import-wrapper-cache.cc",
+            "src/wasm/wasm-import-wrapper-cache.h",
+            "src/wasm/wasm-init-expr.cc",
+            "src/wasm/wasm-init-expr.h",
+            "src/wasm/wasm-js.cc",
+            "src/wasm/wasm-js.h",
+            "src/wasm/wasm-linkage.h",
+            "src/wasm/wasm-module-builder.cc",
+            "src/wasm/wasm-module-builder.h",
+            "src/wasm/wasm-module.cc",
+            "src/wasm/wasm-module.h",
+            "src/wasm/wasm-module-sourcemap.cc",
+            "src/wasm/wasm-module-sourcemap.h",
+            "src/wasm/wasm-objects.cc",
+            "src/wasm/wasm-objects.h",
+            "src/wasm/wasm-objects-inl.h",
+            "src/wasm/wasm-opcodes.cc",
+            "src/wasm/wasm-opcodes.h",
+            "src/wasm/wasm-opcodes-inl.h",
+            "src/wasm/wasm-result.cc",
+            "src/wasm/wasm-result.h",
+            "src/wasm/wasm-serialization.cc",
+            "src/wasm/wasm-serialization.h",
+            "src/wasm/wasm-subtyping.cc",
+            "src/wasm/wasm-subtyping.h",
+            "src/wasm/wasm-tier.h",
+            "src/wasm/wasm-value.h",
+        ],
+        "//conditions:default": [],
     }),
 )
 
@@ -1891,7 +2010,13 @@ filegroup(
         "src/compiler/write-barrier-kind.h",
         "src/compiler/zone-stats.cc",
         "src/compiler/zone-stats.h",
-    ],
+    ] + select({
+        ":is_v8_enable_webassembly": [
+            "src/compiler/int64-lowering.cc",
+            "src/compiler/wasm-compiler.cc",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 
@@ -1968,6 +2093,12 @@ filegroup(
         "src/interpreter/interpreter-intrinsics-generator.h",
     ] + select({
         ":is_x64": ["src/builtins/x64/builtins-x64.cc"],
+    }) + select({
+        ":is_v8_enable_webassembly": [
+            "src/builtins/builtins-wasm-gen.cc",
+            "src/builtins/builtins-wasm-gen.h",
+        ],
+        "//conditions:default": [],
     }),
 )
 
@@ -2218,6 +2349,16 @@ filegroup(
     ]
 )
 
+filegroup(
+    name = "wee8_files",
+    srcs = [
+        "src/wasm/c-api.cc",
+        "src/wasm/c-api.h",
+        "third_party/wasm-api/wasm.h",
+        "third_party/wasm-api/wasm.hh",
+    ]
+)
+
 # =================================================
 # Generated files
 # =================================================
@@ -2314,6 +2455,29 @@ v8_library(
         ":torque_runtime_support_files",
         ":generated_torque_files",
         ":v8_shared_internal_headers",
+    ],
+    deps = [
+        ":gtest_prod",
+        ":third_party_zlib",
+    ],
+)
+
+# TODO(victorgomes): Check if v8_enable_webassembly is true.
+v8_library(
+    name = "wee8",
+    srcs = [
+        ":generated_torque_files",
+        ":snapshot_files",
+        ":torque_runtime_support_files",
+        ":v8_base_without_compiler_files",
+        ":v8_compiler_files",
+        ":v8_initializers_files",
+        ":v8_inspector_files",
+        ":v8_libbase_files",
+        ":v8_libplatform_files",
+        ":v8_libsampler_files",
+        ":v8_shared_internal_headers",
+        ":wee8_files",
     ],
     deps = [
         ":gtest_prod",
