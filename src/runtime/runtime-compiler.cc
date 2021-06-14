@@ -240,6 +240,8 @@ RUNTIME_FUNCTION(Runtime_VerifyType) {
 
 static bool IsSuitableForOnStackReplacement(Isolate* isolate,
                                             Handle<JSFunction> function) {
+  // Don't OSR during serialization.
+  if (isolate->serializer_enabled()) return false;
   // Keep track of whether we've succeeded in optimizing.
   if (function->shared().optimization_disabled()) return false;
   // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the
