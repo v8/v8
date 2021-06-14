@@ -6,7 +6,7 @@ import {LogReader, parseString, parseVarArgs} from '../logreader.mjs';
 import {Profile} from '../profile.mjs';
 
 import {ApiLogEntry} from './log/api.mjs';
-import {CodeLogEntry, DeoptLogEntry} from './log/code.mjs';
+import {CodeLogEntry, DeoptLogEntry, SharedLibLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {Edge, MapLogEntry} from './log/map.mjs';
 import {TickLogEntry} from './log/tick.mjs';
@@ -42,6 +42,10 @@ export class Processor extends LogReader {
           parseInt,
         ],
         processor: this.processV8Version
+      },
+      'shared-library': {
+        parsers: [parseString, parseInt, parseInt, parseInt],
+        processor: this.processSharedLibrary
       },
       'code-creation': {
         parsers: [
@@ -213,6 +217,11 @@ export class Processor extends LogReader {
           `Unsupported version ${majorVersion}.${minorVersion}. \n` +
           `Please use the matching tool for given the V8 version.`);
     }
+  }
+
+  processSharedLibrary(name, start, end, aslr_slide) {
+    const entry = this._profile.addLibrary(name, start, end);
+    entry.logEntry = new SharedLibLogEntry(name);
   }
 
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {

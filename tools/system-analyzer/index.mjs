@@ -8,6 +8,7 @@ import {State} from './app-model.mjs';
 import {ApiLogEntry} from './log/api.mjs';
 import {CodeLogEntry} from './log/code.mjs';
 import {DeoptLogEntry} from './log/code.mjs';
+import {SharedLibLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {LogEntry} from './log/log.mjs';
 import {MapLogEntry} from './log/map.mjs';
@@ -60,7 +61,7 @@ class App {
   static get allEventTypes() {
     return new Set([
       SourcePosition, MapLogEntry, IcLogEntry, ApiLogEntry, CodeLogEntry,
-      DeoptLogEntry, TickLogEntry
+      DeoptLogEntry, SharedLibLogEntry, TickLogEntry
     ]);
   }
 
@@ -108,6 +109,8 @@ class App {
       case CodeLogEntry:
         break;
       case TickLogEntry:
+        break;
+      case SharedLibLogEntry:
         break;
       case DeoptLogEntry:
         // TODO select map + code entries
@@ -166,6 +169,8 @@ class App {
         return this.showCodeEntries(entries);
       case DeoptLogEntry:
         return this.showDeoptEntries(entries);
+      case SharedLibLogEntry:
+        return this.showSharedLibEntries(entries);
       case TickLogEntry:
         break;
       default:
@@ -185,6 +190,8 @@ class App {
   showDeoptEntries(entries) {
     this._view.deoptList.selectedLogEntries = entries;
   }
+
+  showSharedLibEntries(entries) {}
 
   showCodeEntries(entries) {
     this._view.codePanel.selectedEntries = entries;
@@ -238,6 +245,8 @@ class App {
         return this.focusCodeLogEntry(entry);
       case DeoptLogEntry:
         return this.focusDeoptLogEntry(entry);
+      case SharedLibLogEntry:
+        return this.focusDeoptLogEntry(entry);
       case TickLogEntry:
         return this.focusTickLogEntry(entry);
       default:
@@ -264,6 +273,10 @@ class App {
 
   focusDeoptLogEntry(entry) {
     this._state.deoptLogEntry = entry;
+  }
+
+  focusSharedLibLogEntry(entry) {
+    // no-op.
   }
 
   focusApiLogEntry(entry) {
@@ -294,6 +307,7 @@ class App {
       case ApiLogEntry:
       case CodeLogEntry:
       case DeoptLogEntry:
+      case SharedLibLogEntry:
       case TickLogEntry:
         content = content.toolTipDict;
         break;

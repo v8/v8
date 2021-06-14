@@ -98,3 +98,22 @@ export class CodeLogEntry extends LogEntry {
     ];
   }
 }
+
+export class SharedLibLogEntry extends LogEntry {
+  constructor(name) {
+    super('SHARED_LIB', 0);
+    this._name = name;
+  }
+
+  get name() {
+    return this._name;
+  }
+
+  toString() {
+    return `SharedLib`;
+  }
+
+  static get propertyNames() {
+    return ['name'];
+  }
+}
