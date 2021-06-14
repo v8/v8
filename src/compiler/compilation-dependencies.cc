@@ -37,7 +37,7 @@ class InitialMapDependency final : public CompilationDependency {
            function->initial_map() == *initial_map_.object();
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(function_.isolate(), code,
                                      initial_map_.object(),
@@ -74,7 +74,7 @@ class PrototypePropertyDependency final : public CompilationDependency {
     if (!function->has_initial_map()) JSFunction::EnsureHasInitialMap(function);
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     Handle<JSFunction> function = function_.object();
     DCHECK(function->has_initial_map());
@@ -96,7 +96,7 @@ class StableMapDependency final : public CompilationDependency {
 
   bool IsValid() const override { return map_.object()->is_stable(); }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(map_.isolate(), code, map_.object(),
                                      DependentCode::kPrototypeCheckGroup);
@@ -123,7 +123,7 @@ class ConstantInDictionaryPrototypeChainDependency final
   // starting at |receiver_map_|.
   bool IsValid() const override { return !GetHolderIfValid().is_null(); }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     Isolate* isolate = receiver_map_.isolate();
     Handle<JSObject> holder = GetHolderIfValid().ToHandleChecked();
@@ -236,7 +236,7 @@ class TransitionDependency final : public CompilationDependency {
 
   bool IsValid() const override { return !map_.object()->is_deprecated(); }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(map_.isolate(), code, map_.object(),
                                      DependentCode::kTransitionGroup);
@@ -260,7 +260,7 @@ class PretenureModeDependency final : public CompilationDependency {
     return allocation_ == site_.object()->GetAllocationType();
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
         site_.isolate(), code, site_.object(),
@@ -298,7 +298,7 @@ class FieldRepresentationDependency final : public CompilationDependency {
                                       .representation());
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
                                      DependentCode::kFieldRepresentationGroup);
@@ -336,7 +336,7 @@ class FieldTypeDependency final : public CompilationDependency {
                         .GetFieldType(descriptor_);
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
                                      DependentCode::kFieldTypeGroup);
@@ -366,7 +366,7 @@ class FieldConstnessDependency final : public CompilationDependency {
                .constness();
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
                                      DependentCode::kFieldConstGroup);
@@ -397,7 +397,7 @@ class GlobalPropertyDependency final : public CompilationDependency {
            read_only_ == cell->property_details().IsReadOnly();
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(cell_.isolate(), code, cell_.object(),
                                      DependentCode::kPropertyCellChangedGroup);
@@ -420,7 +420,7 @@ class ProtectorDependency final : public CompilationDependency {
     return cell->value() == Smi::FromInt(Protectors::kProtectorValid);
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(cell_.isolate(), code, cell_.object(),
                                      DependentCode::kPropertyCellChangedGroup);
@@ -451,7 +451,7 @@ class ElementsKindDependency final : public CompilationDependency {
     return kind_ == kind;
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
         site_.isolate(), code, site_.object(),
@@ -482,7 +482,7 @@ class OwnConstantElementDependency final : public CompilationDependency {
     return maybe_element.value() == *element_.object();
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     // This dependency has no effect after code finalization.
   }
 
@@ -513,7 +513,7 @@ class InitialMapInstanceSizePredictionDependency final
     function_.object()->CompleteInobjectSlackTrackingIfActive();
   }
 
-  void Install(const MaybeObjectHandle& code) const override {
+  void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     DCHECK(
         !function_.object()->initial_map().IsInobjectSlackTrackingInProgress());
@@ -693,7 +693,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
       dependencies_.clear();
       return false;
     }
-    dep->Install(MaybeObjectHandle::Weak(code));
+    dep->Install(code);
   }
 
   // It is even possible that a GC during the above installations invalidated

@@ -714,7 +714,7 @@ class DependentCode : public WeakFixedArray {
 
   // Register a dependency of {code} on {object}, of the kind given by {group}.
   V8_EXPORT_PRIVATE static void InstallDependency(Isolate* isolate,
-                                                  const MaybeObjectHandle& code,
+                                                  Handle<Code> code,
                                                   Handle<HeapObject> object,
                                                   DependencyGroup group);
 
@@ -737,14 +737,14 @@ class DependentCode : public WeakFixedArray {
                                Handle<DependentCode> dep);
 
   static Handle<DependentCode> New(Isolate* isolate, DependencyGroup group,
-                                   const MaybeObjectHandle& object,
+                                   Handle<Code> code,
                                    Handle<DependentCode> next);
   static Handle<DependentCode> EnsureSpace(Isolate* isolate,
                                            Handle<DependentCode> entries);
   static Handle<DependentCode> InsertWeakCode(Isolate* isolate,
                                               Handle<DependentCode> entries,
                                               DependencyGroup group,
-                                              const MaybeObjectHandle& code);
+                                              Handle<Code> code);
 
   // Compact by removing cleared weak cells and return true if there was
   // any cleared weak cell.

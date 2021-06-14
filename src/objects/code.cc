@@ -745,8 +745,7 @@ void DependentCode::SetDependentCode(Handle<HeapObject> object,
   }
 }
 
-void DependentCode::InstallDependency(Isolate* isolate,
-                                      const MaybeObjectHandle& code,
+void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
                                       Handle<HeapObject> object,
                                       DependencyGroup group) {
   if (V8_UNLIKELY(FLAG_trace_code_dependencies)) {
@@ -765,7 +764,7 @@ void DependentCode::InstallDependency(Isolate* isolate,
 
 Handle<DependentCode> DependentCode::InsertWeakCode(
     Isolate* isolate, Handle<DependentCode> entries, DependencyGroup group,
-    const MaybeObjectHandle& code) {
+    Handle<Code> code) {
   if (entries->length() == 0 || entries->group() > group) {
     // There is no such group.
     return DependentCode::New(isolate, group, code, entries);
@@ -780,32 +779,41 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
     }
     return entries;
   }
+
   DCHECK_EQ(group, entries->group());
   int count = entries->count();
   // Check for existing entry to avoid duplicates.
-  for (int i = 0; i < count; i++) {
-    if (entries->object_at(i) == *code) return entries;
+  {
+    DisallowHeapAllocation no_gc;
+    HeapObjectReference weak_code_entry = HeapObjectReference::Weak(*code);
+    for (int i = 0; i < count; i++) {
+      if (entries->object_at(i) == weak_code_entry) return entries;
+    }
   }
   if (entries->length() < kCodesStartIndex + count + 1) {
     entries = EnsureSpace(isolate, entries);
     // Count could have changed, reload it.
     count = entries->count();
   }
-  entries->set_object_at(count, *code);
+  DisallowHeapAllocation no_gc;
+  HeapObjectReference weak_code_entry = HeapObjectReference::Weak(*code);
+  entries->set_object_at(count, weak_code_entry);
   entries->set_count(count + 1);
   return entries;
 }
 
 Handle<DependentCode> DependentCode::New(Isolate* isolate,
                                          DependencyGroup group,
-                                         const MaybeObjectHandle& object,
+                                         Handle<Code> code,
                                          Handle<DependentCode> next) {
   Handle<DependentCode> result =
       Handle<DependentCode>::cast(isolate->factory()->NewWeakFixedArray(
           kCodesStartIndex + 1, AllocationType::kOld));
   result->set_next_link(*next);
   result->set_flags(GroupField::encode(group) | CountField::encode(1));
-  result->set_object_at(0, *object);
+
+  HeapObjectReference weak_code_entry = HeapObjectReference::Weak(*code);
+  result->set_object_at(0, weak_code_entry);
   return result;
 }
 

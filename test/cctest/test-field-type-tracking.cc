@@ -708,15 +708,12 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
   Handle<Code> code_field_const = CreateDummyOptimizedCode(isolate);
   Handle<Map> field_owner(
       map->FindFieldOwner(isolate, InternalIndex(property_index)), isolate);
-  DependentCode::InstallDependency(isolate,
-                                   MaybeObjectHandle::Weak(code_field_type),
-                                   field_owner, DependentCode::kFieldTypeGroup);
-  DependentCode::InstallDependency(
-      isolate, MaybeObjectHandle::Weak(code_field_repr), field_owner,
-      DependentCode::kFieldRepresentationGroup);
-  DependentCode::InstallDependency(
-      isolate, MaybeObjectHandle::Weak(code_field_const), field_owner,
-      DependentCode::kFieldConstGroup);
+  DependentCode::InstallDependency(isolate, code_field_type, field_owner,
+                                   DependentCode::kFieldTypeGroup);
+  DependentCode::InstallDependency(isolate, code_field_repr, field_owner,
+                                   DependentCode::kFieldRepresentationGroup);
+  DependentCode::InstallDependency(isolate, code_field_const, field_owner,
+                                   DependentCode::kFieldConstGroup);
   CHECK(!code_field_type->marked_for_deoptimization());
   CHECK(!code_field_repr->marked_for_deoptimization());
   CHECK(!code_field_const->marked_for_deoptimization());
@@ -1091,22 +1088,18 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
   {
     Handle<Map> field_owner(
         map->FindFieldOwner(isolate, InternalIndex(kSplitProp)), isolate);
-    DependentCode::InstallDependency(
-        isolate, MaybeObjectHandle::Weak(code_field_type), field_owner,
-        DependentCode::kFieldTypeGroup);
-    DependentCode::InstallDependency(
-        isolate, MaybeObjectHandle::Weak(code_field_repr), field_owner,
-        DependentCode::kFieldRepresentationGroup);
-    DependentCode::InstallDependency(
-        isolate, MaybeObjectHandle::Weak(code_field_const), field_owner,
-        DependentCode::kFieldConstGroup);
+    DependentCode::InstallDependency(isolate, code_field_type, field_owner,
+                                     DependentCode::kFieldTypeGroup);
+    DependentCode::InstallDependency(isolate, code_field_repr, field_owner,
+                                     DependentCode::kFieldRepresentationGroup);
+    DependentCode::InstallDependency(isolate, code_field_const, field_owner,
+                                     DependentCode::kFieldConstGroup);
   }
   {
     Handle<Map> field_owner(
         map2->FindFieldOwner(isolate, InternalIndex(kSplitProp)), isolate);
-    DependentCode::InstallDependency(
-        isolate, MaybeObjectHandle::Weak(code_src_field_const), field_owner,
-        DependentCode::kFieldConstGroup);
+    DependentCode::InstallDependency(isolate, code_src_field_const, field_owner,
+                                     DependentCode::kFieldConstGroup);
   }
   CHECK(!code_field_type->marked_for_deoptimization());
   CHECK(!code_field_repr->marked_for_deoptimization());
@@ -1793,15 +1786,12 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   Handle<Code> code_field_const = CreateDummyOptimizedCode(isolate);
   Handle<Map> field_owner(
       map->FindFieldOwner(isolate, InternalIndex(kDiffProp)), isolate);
-  DependentCode::InstallDependency(isolate,
-                                   MaybeObjectHandle::Weak(code_field_type),
-                                   field_owner, DependentCode::kFieldTypeGroup);
-  DependentCode::InstallDependency(
-      isolate, MaybeObjectHandle::Weak(code_field_repr), field_owner,
-      DependentCode::kFieldRepresentationGroup);
-  DependentCode::InstallDependency(
-      isolate, MaybeObjectHandle::Weak(code_field_const), field_owner,
-      DependentCode::kFieldConstGroup);
+  DependentCode::InstallDependency(isolate, code_field_type, field_owner,
+                                   DependentCode::kFieldTypeGroup);
+  DependentCode::InstallDependency(isolate, code_field_repr, field_owner,
+                                   DependentCode::kFieldRepresentationGroup);
+  DependentCode::InstallDependency(isolate, code_field_const, field_owner,
+                                   DependentCode::kFieldConstGroup);
   CHECK(!code_field_type->marked_for_deoptimization());
   CHECK(!code_field_repr->marked_for_deoptimization());
   CHECK(!code_field_const->marked_for_deoptimization());
