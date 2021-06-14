@@ -40,16 +40,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StoreOwnIC(Isolate* isolate);
   static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
 
-  static Callable KeyedStoreIC_SloppyArguments(Isolate* isolate,
-                                               KeyedAccessStoreMode mode);
-  static Callable ElementsTransitionAndStore(Isolate* isolate,
-                                             KeyedAccessStoreMode mode);
-  static Callable StoreFastElementIC(Isolate* isolate,
-                                     KeyedAccessStoreMode mode);
-
   static Callable ResumeGenerator(Isolate* isolate);
-
-  static Callable BinaryOperation(Isolate* isolate, Operation op);
 
   static Callable ApiGetter(Isolate* isolate);
   static Callable CallApiCallback(Isolate* isolate);
