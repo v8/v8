@@ -954,6 +954,10 @@ class SideTable : public ZoneObject {
                 c->else_label->Bind(i.pc());
               } else if (!exception_stack.empty()) {
                 // No catch_all block, prepare for implicit rethrow.
+                if (exception_stack.back() == control_stack.size() - 1) {
+                  // Close try scope for catch-less try.
+                  exception_stack.pop_back();
+                }
                 DCHECK_EQ(*c->pc, kExprTry);
                 constexpr int kUnusedControlIndex = -1;
                 c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex,

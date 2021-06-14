@@ -243,6 +243,23 @@ WASM_EXEC_TEST(TryUnwind) {
   }
 }
 
+WASM_EXEC_TEST(TestCatchlessTry) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<uint32_t> r(execution_tier);
+  uint32_t except = r.builder().AddException(sigs.v_i());
+  BUILD(r,
+        WASM_TRY_CATCH_T(
+            kWasmI32,
+            WASM_TRY_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
+            WASM_NOP, except));
+  if (execution_tier != TestExecutionTier::kInterpreter) {
+    r.CheckCallViaJS(0);
+  } else {
+    CHECK_EQ(0, r.CallInterpreter());
+  }
+}
+
 WASM_EXEC_TEST(TryCatchRethrow) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
