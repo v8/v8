@@ -2,7 +2,45 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//definitions.star", "branch_names", "versions")
+load("//definitions.star", "versions")
+
+def branch_descriptor(name, poller_name, refs, version_tag = None, display = None):
+    version = None
+    if version_tag:
+        version = versions[version_tag].replace(".", "\\.")
+        refs = [ref % version for ref in refs]
+    return struct(
+        name = name,
+        version = version,
+        poller_name = poller_name,
+        display = display,
+        refs = refs,
+    )
+
+branch_descriptors = [
+    branch_descriptor("ci", "v8-trigger", ["refs/heads/master"]),  # master
+    branch_descriptor(
+        "ci.br.beta",
+        "v8-trigger-br-beta",
+        ["refs/branch-heads/%s"],
+        "beta",
+        "Beta",
+    ),
+    branch_descriptor(
+        "ci.br.stable",
+        "v8-trigger-br-stable",
+        ["refs/branch-heads/%s"],
+        "stable",
+        "Stable",
+    ),
+    branch_descriptor(
+        "ci.br.extended",
+        "v8-trigger-br-extended",
+        ["refs/branch-heads/%s"],
+        "extended",
+        "Extended",
+    ),
+]
 
 waterfall_acls = [
     acl.entry(
@@ -68,13 +106,6 @@ defaults_dict = {
     "ci.br.beta": defaults_ci_br,
     "ci.br.stable": defaults_ci_br,
     "ci.br.extended": defaults_ci_br,
-}
-
-trigger_dict = {
-    "ci": "v8-trigger",
-    "ci.br.beta": "v8-trigger-br-beta",
-    "ci.br.stable": "v8-trigger-br-stable",
-    "ci.br.extended": "v8-trigger-br-extended",
 }
 
 GOMA = struct(
@@ -197,26 +228,26 @@ branch_console_dict = {
 def multibranch_builder(**kwargs):
     added_builders = []
     close_tree = kwargs.pop("close_tree", True)
-    for bucket_name in branch_names:
+    for branch in branch_descriptors:
         args = dict(kwargs)
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
         first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
-            args["triggered_by"] = [trigger_dict[bucket_name]]
+            args["triggered_by"] = [branch.poller_name]
             args["use_goma"] = args.get("use_goma", GOMA.DEFAULT)
         else:
             args["dimensions"] = {"host_class": "multibot"}
-        if bucket_name == "ci":
+        if branch.name == "ci":
             if close_tree:
                 notifies = args.pop("notifies", [])
                 notifies.append("v8 tree closer")
                 args["notifies"] = notifies
         else:
             args["notifies"] = ["beta/stable notifier"]
-            if _builder_is_not_supported(bucket_name, first_branch_version):
+            if _builder_is_not_supported(branch.name, first_branch_version):
                 continue
-        v8_basic_builder(defaults_ci, bucket = bucket_name, **args)
-        added_builders.append(bucket_name + "/" + kwargs["name"])
+        v8_basic_builder(defaults_ci, bucket = branch.name, **args)
+        added_builders.append(branch.name + "/" + kwargs["name"])
     return added_builders
 
 def _builder_is_not_supported(bucket_name, first_branch_version):
