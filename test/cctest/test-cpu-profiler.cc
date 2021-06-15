@@ -88,9 +88,8 @@ static const char* reason(const i::DeoptimizeReason reason) {
 
 TEST(StartStop) {
   i::Isolate* isolate = CcTest::i_isolate();
-  CodeEntryStorage storage;
   CpuProfilesCollection profiles(isolate);
-  ProfilerCodeObserver code_observer(isolate, storage);
+  ProfilerCodeObserver code_observer(isolate);
   Symbolizer symbolizer(code_observer.code_map());
   std::unique_ptr<ProfilerEventsProcessor> processor(
       new SamplingEventsProcessor(
@@ -172,16 +171,15 @@ TEST(CodeEvents) {
   i::Handle<i::AbstractCode> comment2_code(CreateCode(isolate, &env), isolate);
   i::Handle<i::AbstractCode> moved_code(CreateCode(isolate, &env), isolate);
 
-  CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfilerCodeObserver code_observer(isolate, storage);
+  ProfilerCodeObserver code_observer(isolate);
   Symbolizer* symbolizer = new Symbolizer(code_observer.code_map());
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       isolate, symbolizer, &code_observer, profiles,
       v8::base::TimeDelta::FromMicroseconds(100), true);
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor,
-                                     *code_observer.code_entries(),
+                                     *code_observer.strings(),
                                      *code_observer.weak_code_registry());
   isolate->logger()->AddCodeEventListener(&profiler_listener);
 
@@ -236,10 +234,8 @@ TEST(TickEvents) {
   i::Handle<i::AbstractCode> frame2_code(CreateCode(isolate, &env), isolate);
   i::Handle<i::AbstractCode> frame3_code(CreateCode(isolate, &env), isolate);
 
-  CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfilerCodeObserver* code_observer =
-      new ProfilerCodeObserver(isolate, storage);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
   Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       CcTest::i_isolate(), symbolizer, code_observer, profiles,
@@ -249,7 +245,7 @@ TEST(TickEvents) {
   profiles->StartProfiling("");
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor,
-                                     *code_observer->code_entries(),
+                                     *code_observer->strings(),
                                      *code_observer->weak_code_registry());
   isolate->logger()->AddCodeEventListener(&profiler_listener);
 
@@ -400,10 +396,8 @@ TEST(Issue1398) {
 
   i::Handle<i::AbstractCode> code(CreateCode(isolate, &env), isolate);
 
-  CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfilerCodeObserver* code_observer =
-      new ProfilerCodeObserver(isolate, storage);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
   Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       CcTest::i_isolate(), symbolizer, code_observer, profiles,
@@ -413,7 +407,7 @@ TEST(Issue1398) {
   profiles->StartProfiling("");
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor,
-                                     *code_observer->code_entries(),
+                                     *code_observer->strings(),
                                      *code_observer->weak_code_registry());
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
@@ -1268,10 +1262,8 @@ static void TickLines(bool optimize) {
   i::Address code_address = code->raw_instruction_start();
   CHECK_NE(code_address, kNullAddress);
 
-  CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfilerCodeObserver* code_observer =
-      new ProfilerCodeObserver(isolate, storage);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
   Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       CcTest::i_isolate(), symbolizer, code_observer, profiles,
@@ -1286,7 +1278,7 @@ static void TickLines(bool optimize) {
   isolate->logger()->LogCompiledFunctions();
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor,
-                                     *code_observer->code_entries(),
+                                     *code_observer->strings(),
                                      *code_observer->weak_code_registry());
 
   // Enqueue code creation events.
@@ -3482,9 +3474,8 @@ TEST(MaxSimultaneousProfiles) {
 
 TEST(LowPrecisionSamplingStartStopInternal) {
   i::Isolate* isolate = CcTest::i_isolate();
-  CodeEntryStorage storage;
   CpuProfilesCollection profiles(isolate);
-  ProfilerCodeObserver code_observer(isolate, storage);
+  ProfilerCodeObserver code_observer(isolate);
   Symbolizer symbolizer(code_observer.code_map());
   std::unique_ptr<ProfilerEventsProcessor> processor(
       new SamplingEventsProcessor(
@@ -3609,10 +3600,8 @@ TEST(ProflilerSubsampling) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfilerCodeObserver* code_observer =
-      new ProfilerCodeObserver(isolate, storage);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
   Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
   ProfilerEventsProcessor* processor =
       new SamplingEventsProcessor(isolate, symbolizer, code_observer, profiles,
@@ -3655,10 +3644,8 @@ TEST(DynamicResampling) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfilerCodeObserver* code_observer =
-      new ProfilerCodeObserver(isolate, storage);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
   Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
   ProfilerEventsProcessor* processor =
       new SamplingEventsProcessor(isolate, symbolizer, code_observer, profiles,
@@ -3718,10 +3705,8 @@ TEST(DynamicResamplingWithBaseInterval) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfilerCodeObserver* code_observer =
-      new ProfilerCodeObserver(isolate, storage);
+  ProfilerCodeObserver* code_observer = new ProfilerCodeObserver(isolate);
   Symbolizer* symbolizer = new Symbolizer(code_observer->code_map());
   ProfilerEventsProcessor* processor =
       new SamplingEventsProcessor(isolate, symbolizer, code_observer, profiles,

@@ -336,11 +336,9 @@ void* SamplingEventsProcessor::operator new(size_t size) {
 
 void SamplingEventsProcessor::operator delete(void* ptr) { AlignedFree(ptr); }
 
-ProfilerCodeObserver::ProfilerCodeObserver(Isolate* isolate,
-                                           CodeEntryStorage& storage)
+ProfilerCodeObserver::ProfilerCodeObserver(Isolate* isolate)
     : isolate_(isolate),
-      code_entries_(storage),
-      code_map_(storage),
+      code_map_(strings_),
       weak_code_registry_(isolate),
       processor_(nullptr) {
   CreateEntriesForRuntimeCallStats();
@@ -352,7 +350,7 @@ void ProfilerCodeObserver::ClearCodeMap() {
   code_map_.Clear();
   // We don't currently expect any references to refcounted strings to be
   // maintained with zero profiles after the code map is cleared.
-  DCHECK(code_entries_.strings().empty());
+  DCHECK(strings_.empty());
 }
 
 void ProfilerCodeObserver::CodeEventHandler(
@@ -387,8 +385,8 @@ void ProfilerCodeObserver::CreateEntriesForRuntimeCallStats() {
   for (int i = 0; i < RuntimeCallStats::kNumberOfCounters; ++i) {
     RuntimeCallCounter* counter = rcs->GetCounter(i);
     DCHECK(counter->name());
-    auto entry = code_entries_.Create(CodeEventListener::FUNCTION_TAG,
-                                      counter->name(), "native V8Runtime");
+    auto entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
+                               "native V8Runtime");
     code_map_.AddCode(reinterpret_cast<Address>(counter), entry, 1);
   }
 #endif  // V8_RUNTIME_CALL_STATS
@@ -475,7 +473,7 @@ CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
                          CpuProfilingLoggingMode logging_mode)
     : CpuProfiler(isolate, naming_mode, logging_mode,
                   new CpuProfilesCollection(isolate), nullptr, nullptr,
-                  new ProfilerCodeObserver(isolate, code_entries_)) {}
+                  new ProfilerCodeObserver(isolate)) {}
 
 CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
                          CpuProfilingLoggingMode logging_mode,
@@ -531,7 +529,7 @@ void CpuProfiler::EnableLogging() {
 
   if (!profiler_listener_) {
     profiler_listener_.reset(new ProfilerListener(
-        isolate_, code_observer_.get(), *code_observer_->code_entries(),
+        isolate_, code_observer_.get(), *code_observer_->strings(),
         *code_observer_->weak_code_registry(), naming_mode_));
   }
   profiling_scope_.reset(

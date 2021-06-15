@@ -38,7 +38,6 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry,
       parent_(parent),
       id_(tree->next_node_id()) {
   tree_->EnqueueNode(this);
-  if (tree_->code_entries()) tree_->code_entries()->AddRef(entry_);
 }
 
 inline Isolate* ProfileNode::isolate() const { return tree_->isolate(); }

@@ -231,8 +231,6 @@ CodeEntry::RareData* CodeEntry::EnsureRareData() {
 }
 
 void CodeEntry::ReleaseStrings(StringsStorage& strings) {
-  DCHECK_EQ(ref_count_, 0UL);
-
   if (name_) {
     strings.Release(name_);
     name_ = nullptr;
@@ -296,10 +294,6 @@ void CodeEntry::print() const {
     }
   }
   base::OS::Print("\n");
-}
-
-ProfileNode::~ProfileNode() {
-  if (tree_->code_entries()) tree_->code_entries()->DecRef(entry_);
 }
 
 CpuProfileNode::SourceType ProfileNode::source_type() const {
@@ -439,11 +433,10 @@ class DeleteNodesCallback {
   void AfterChildTraversed(ProfileNode*, ProfileNode*) { }
 };
 
-ProfileTree::ProfileTree(Isolate* isolate, CodeEntryStorage* storage)
+ProfileTree::ProfileTree(Isolate* isolate)
     : next_node_id_(1),
       root_(new ProfileNode(this, CodeEntry::root_entry(), nullptr)),
-      isolate_(isolate),
-      code_entries_(storage) {}
+      isolate_(isolate) {}
 
 ProfileTree::~ProfileTree() {
   DeleteNodesCallback cb;
@@ -555,7 +548,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
       options_(options),
       delegate_(std::move(delegate)),
       start_time_(base::TimeTicks::HighResolutionNow()),
-      top_down_(profiler->isolate(), profiler->code_entries()),
+      top_down_(profiler->isolate()),
       profiler_(profiler),
       streaming_next_sample_(0),
       id_(++last_id_) {
@@ -746,32 +739,31 @@ void CpuProfile::Print() const {
   ProfilerStats::Instance()->Clear();
 }
 
-void CodeEntryStorage::AddRef(CodeEntry* entry) {
-  if (entry->is_ref_counted()) entry->AddRef();
-}
-
-void CodeEntryStorage::DecRef(CodeEntry* entry) {
-  if (entry->is_ref_counted() && entry->DecRef() == 0) {
-    entry->ReleaseStrings(function_and_resource_names_);
-    delete entry;
-  }
-}
-
-CodeMap::CodeMap(CodeEntryStorage& storage) : code_entries_(storage) {}
+CodeMap::CodeMap(StringsStorage& function_and_resource_names)
+    : function_and_resource_names_(function_and_resource_names) {}
 
 CodeMap::~CodeMap() { Clear(); }
 
 void CodeMap::Clear() {
   for (auto& slot : code_map_) {
     if (CodeEntry* entry = slot.second.entry) {
-      code_entries_.DecRef(entry);
+      entry->ReleaseStrings(function_and_resource_names_);
+      delete entry;
     } else {
       // We expect all entries in the code mapping to contain a CodeEntry.
       UNREACHABLE();
     }
   }
 
+  // Free all CodeEntry objects that are no longer in the map, but in a profile.
+  // TODO(acomminos): Remove this deque after we refcount CodeEntry objects.
+  for (CodeEntry* entry : used_entries_) {
+    DCHECK(entry->used());
+    DeleteCodeEntry(entry);
+  }
+
   code_map_.clear();
+  used_entries_.clear();
 }
 
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
@@ -783,7 +775,11 @@ bool CodeMap::RemoveCode(CodeEntry* entry) {
   auto range = code_map_.equal_range(entry->instruction_start());
   for (auto i = range.first; i != range.second; ++i) {
     if (i->second.entry == entry) {
-      code_entries_.DecRef(entry);
+      if (!entry->used()) {
+        DeleteCodeEntry(entry);
+      } else {
+        used_entries_.push_back(entry);
+      }
       code_map_.erase(i);
       return true;
     }
@@ -799,7 +795,11 @@ void CodeMap::ClearCodesInRange(Address start, Address end) {
   }
   auto right = left;
   for (; right != code_map_.end() && right->first < end; ++right) {
-    code_entries_.DecRef(right->second.entry);
+    if (!right->second.entry->used()) {
+      DeleteCodeEntry(right->second.entry);
+    } else {
+      used_entries_.push_back(right->second.entry);
+    }
   }
   code_map_.erase(left, right);
 }
@@ -840,6 +840,11 @@ void CodeMap::MoveCode(Address from, Address to) {
   }
 
   code_map_.erase(range.first, it);
+}
+
+void CodeMap::DeleteCodeEntry(CodeEntry* entry) {
+  entry->ReleaseStrings(function_and_resource_names_);
+  delete entry;
 }
 
 void CodeMap::Print() {

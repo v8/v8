@@ -311,12 +311,12 @@ static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
 static inline void* ToPointer(int n) { return reinterpret_cast<void*>(n); }
 
 TEST(CodeMapAddCode) {
-  CodeEntryStorage storage;
-  CodeMap code_map(storage);
-  CodeEntry* entry1 = storage.Create(i::CodeEventListener::FUNCTION_TAG, "aaa");
-  CodeEntry* entry2 = storage.Create(i::CodeEventListener::FUNCTION_TAG, "bbb");
-  CodeEntry* entry3 = storage.Create(i::CodeEventListener::FUNCTION_TAG, "ccc");
-  CodeEntry* entry4 = storage.Create(i::CodeEventListener::FUNCTION_TAG, "ddd");
+  StringsStorage strings;
+  CodeMap code_map(strings);
+  CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
+  CodeEntry* entry4 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ddd");
   code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
   code_map.AddCode(ToAddress(0x1700), entry2, 0x100);
   code_map.AddCode(ToAddress(0x1900), entry3, 0x50);
@@ -341,10 +341,10 @@ TEST(CodeMapAddCode) {
 }
 
 TEST(CodeMapMoveAndDeleteCode) {
-  CodeEntryStorage storage;
-  CodeMap code_map(storage);
-  CodeEntry* entry1 = storage.Create(i::CodeEventListener::FUNCTION_TAG, "aaa");
-  CodeEntry* entry2 = storage.Create(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  StringsStorage strings;
+  CodeMap code_map(strings);
+  CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
   code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
   code_map.AddCode(ToAddress(0x1700), entry2, 0x100);
   CHECK_EQ(entry1, code_map.FindEntry(ToAddress(0x1500)));
@@ -355,10 +355,10 @@ TEST(CodeMapMoveAndDeleteCode) {
 }
 
 TEST(CodeMapClear) {
-  CodeEntryStorage storage;
-  CodeMap code_map(storage);
-  CodeEntry* entry1 = storage.Create(i::CodeEventListener::FUNCTION_TAG, "aaa");
-  CodeEntry* entry2 = storage.Create(i::CodeEventListener::FUNCTION_TAG, "bbb");
+  StringsStorage strings;
+  CodeMap code_map(strings);
+  CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
   code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
   code_map.AddCode(ToAddress(0x1700), entry2, 0x100);
 
@@ -391,12 +391,12 @@ class TestSetup {
 
 TEST(SymbolizeTickSample) {
   TestSetup test_setup;
-  CodeEntryStorage storage;
-  CodeMap code_map(storage);
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
-  CodeEntry* entry1 = storage.Create(i::Logger::FUNCTION_TAG, "aaa");
-  CodeEntry* entry2 = storage.Create(i::Logger::FUNCTION_TAG, "bbb");
-  CodeEntry* entry3 = storage.Create(i::Logger::FUNCTION_TAG, "ccc");
+  CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
   symbolizer.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
   symbolizer.code_map()->AddCode(ToAddress(0x1700), entry2, 0x100);
   symbolizer.code_map()->AddCode(ToAddress(0x1900), entry3, 0x50);
@@ -456,16 +456,16 @@ static void CheckNodeIds(const ProfileNode* node, unsigned* expectedId) {
 TEST(SampleIds) {
   TestSetup test_setup;
   i::Isolate* isolate = CcTest::i_isolate();
-  CpuProfiler profiler(isolate);
   CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers});
-  CodeEntryStorage storage;
-  CodeMap code_map(storage);
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
-  CodeEntry* entry1 = storage.Create(i::Logger::FUNCTION_TAG, "aaa");
-  CodeEntry* entry2 = storage.Create(i::Logger::FUNCTION_TAG, "bbb");
-  CodeEntry* entry3 = storage.Create(i::Logger::FUNCTION_TAG, "ccc");
+  CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
   symbolizer.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
   symbolizer.code_map()->AddCode(ToAddress(0x1700), entry2, 0x100);
   symbolizer.code_map()->AddCode(ToAddress(0x1900), entry3, 0x50);
@@ -592,8 +592,8 @@ TEST(MaxSamplesCallback) {
                            MaybeLocal<v8::Context>()},
                           std::move(impl));
 
-  CodeEntryStorage storage;
-  CodeMap code_map(storage);
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
   TickSample sample1;
   sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
@@ -633,14 +633,14 @@ TEST(MaxSamplesCallback) {
 TEST(NoSamples) {
   TestSetup test_setup;
   i::Isolate* isolate = CcTest::i_isolate();
-  CpuProfiler profiler(isolate);
   CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("");
-  CodeEntryStorage storage;
-  CodeMap code_map(storage);
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
-  CodeEntry* entry1 = storage.Create(i::Logger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   symbolizer.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
 
   // We are building the following calls tree:
@@ -959,10 +959,10 @@ TEST(NodeSourceTypes) {
 }
 
 TEST(CodeMapRemoveCode) {
-  CodeEntryStorage storage;
-  CodeMap code_map(storage);
+  StringsStorage strings;
+  CodeMap code_map(strings);
 
-  CodeEntry* entry = storage.Create(i::CodeEventListener::FUNCTION_TAG, "aaa");
+  CodeEntry* entry = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   code_map.AddCode(ToAddress(0x1000), entry, 0x100);
   CHECK(code_map.RemoveCode(entry));
   CHECK(!code_map.FindEntry(ToAddress(0x1000)));
@@ -970,9 +970,9 @@ TEST(CodeMapRemoveCode) {
   // Test that when two entries share the same address, we remove only the
   // entry that we desired to.
   CodeEntry* colliding_entry1 =
-      storage.Create(i::CodeEventListener::FUNCTION_TAG, "aaa");
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   CodeEntry* colliding_entry2 =
-      storage.Create(i::CodeEventListener::FUNCTION_TAG, "aaa");
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   code_map.AddCode(ToAddress(0x1000), colliding_entry1, 0x100);
   code_map.AddCode(ToAddress(0x1000), colliding_entry2, 0x100);
 
@@ -984,14 +984,14 @@ TEST(CodeMapRemoveCode) {
 }
 
 TEST(CodeMapMoveOverlappingCode) {
-  CodeEntryStorage storage;
-  CodeMap code_map(storage);
+  StringsStorage strings;
+  CodeMap code_map(strings);
   CodeEntry* colliding_entry1 =
-      storage.Create(i::CodeEventListener::FUNCTION_TAG, "aaa");
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   CodeEntry* colliding_entry2 =
-      storage.Create(i::CodeEventListener::FUNCTION_TAG, "bbb");
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
   CodeEntry* after_entry =
-      storage.Create(i::CodeEventListener::FUNCTION_TAG, "ccc");
+      new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
 
   code_map.AddCode(ToAddress(0x1400), colliding_entry1, 0x200);
   code_map.AddCode(ToAddress(0x1400), colliding_entry2, 0x200);

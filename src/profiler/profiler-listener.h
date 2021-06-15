@@ -29,7 +29,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener,
                                            public WeakCodeRegistry::Listener {
  public:
   ProfilerListener(Isolate*, CodeEventObserver*,
-                   CodeEntryStorage& code_entry_storage,
+                   StringsStorage& function_and_resource_names,
                    WeakCodeRegistry& weak_code_registry,
                    CpuProfilingNamingMode mode = kDebugNaming);
   ~ProfilerListener() override;
@@ -76,17 +76,17 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener,
   void CodeSweepEvent();
 
   const char* GetName(Name name) {
-    return code_entries_.strings().GetName(name);
+    return function_and_resource_names_.GetName(name);
   }
   const char* GetName(int args_count) {
-    return code_entries_.strings().GetName(args_count);
+    return function_and_resource_names_.GetName(args_count);
   }
   const char* GetName(const char* name) {
-    return code_entries_.strings().GetCopy(name);
+    return function_and_resource_names_.GetCopy(name);
   }
   const char* GetName(Vector<const char> name);
   const char* GetConsName(const char* prefix, Name name) {
-    return code_entries_.strings().GetConsName(prefix, name);
+    return function_and_resource_names_.GetConsName(prefix, name);
   }
 
   void set_observer(CodeEventObserver* observer) { observer_ = observer; }
@@ -102,7 +102,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener,
 
   Isolate* isolate_;
   CodeEventObserver* observer_;
-  CodeEntryStorage& code_entries_;
+  StringsStorage& function_and_resource_names_;
   WeakCodeRegistry& weak_code_registry_;
   const CpuProfilingNamingMode naming_mode_;
 };
