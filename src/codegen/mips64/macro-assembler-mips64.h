@@ -246,16 +246,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Load the builtin given by the Smi in |builtin_index| into the same
   // register.
-  void LoadEntryFromBuiltinIndex(Register builtin_index);
-  void LoadEntryFromBuiltin(Builtin builtin_index, Register destination);
-  MemOperand EntryFromBuiltinAsOperand(Builtin builtin_index);
+  void LoadEntryFromBuiltinIndex(Register builtin);
+  void LoadEntryFromBuiltin(Builtin builtin, Register destination);
+  MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
 
-  void CallBuiltinByIndex(Register builtin_index);
-  void CallBuiltin(Builtin builtin) {
-    // TODO(11527): drop the int overload in favour of the Builtin one.
-    return CallBuiltin(static_cast<int>(builtin));
-  }
-  void CallBuiltin(int builtin_index);
+  void CallBuiltinByIndex(Register builtin);
+  void CallBuiltin(Builtin builtin);
 
   void LoadCodeObjectEntry(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
