@@ -22,5 +22,17 @@ function verifySupportedLocalesAreSubarray(f, ll) {
   assertSubarray(f(ll), ll);
 }
 
-verifySupportedLocalesAreSubarray(Intl.DateTimeFormat.supportedLocalesOf, ['en', 'ceb']);
-verifySupportedLocalesAreSubarray(Intl.DateTimeFormat.supportedLocalesOf, ['en', 'ceb', 'fil']);
+const intlObjs = [
+    Intl.Collator,
+    Intl.DateTimeFormat,
+    Intl.DisplayNames,
+    Intl.ListFormat,
+    Intl.NumberFormat,
+    Intl.PluralRules,
+    Intl.RelativeTimeFormat,
+    Intl.Segmenter,
+];
+intlObjs.forEach(function(obj) {
+  verifySupportedLocalesAreSubarray(obj.supportedLocalesOf, ['en', 'ceb']);
+  verifySupportedLocalesAreSubarray(obj.supportedLocalesOf, ['en', 'ceb', 'fil']);
+});
