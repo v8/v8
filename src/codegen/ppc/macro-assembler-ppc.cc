@@ -470,6 +470,66 @@ void TurboAssembler::MultiPopV128(RegList dregs, Register location) {
   addi(location, location, Operand(stack_offset));
 }
 
+void TurboAssembler::MultiPushF64AndV128(RegList dregs, RegList simd_regs,
+                                         Register location) {
+  bool generating_bultins =
+      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+  MultiPushDoubles(dregs);
+  if (generating_bultins) {
+    // V8 uses the same set of fp param registers as Simd param registers.
+    // As these registers are two different sets on ppc we must make
+    // sure to also save them when Simd is enabled.
+    // Check the comments under crrev.com/c/2645694 for more details.
+    Label push_empty_simd, simd_pushed;
+    Move(ip, ExternalReference::supports_wasm_simd_128_address());
+    LoadU8(ip, MemOperand(ip), r0);
+    cmpi(ip, Operand::Zero());  // If > 0 then simd is available.
+    ble(&push_empty_simd);
+    MultiPushV128(simd_regs);
+    b(&simd_pushed);
+    bind(&push_empty_simd);
+    // We still need to allocate empty space on the stack even if we
+    // are not pushing Simd registers (see kFixedFrameSizeFromFp).
+    addi(sp, sp,
+         Operand(-static_cast<int8_t>(NumRegs(simd_regs)) * kSimd128Size));
+    bind(&simd_pushed);
+  } else {
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      MultiPushV128(simd_regs);
+    } else {
+      addi(sp, sp,
+           Operand(-static_cast<int8_t>(NumRegs(simd_regs)) * kSimd128Size));
+    }
+  }
+}
+
+void TurboAssembler::MultiPopF64AndV128(RegList dregs, RegList simd_regs,
+                                        Register location) {
+  bool generating_bultins =
+      isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
+  if (generating_bultins) {
+    Label pop_empty_simd, simd_popped;
+    Move(ip, ExternalReference::supports_wasm_simd_128_address());
+    LoadU8(ip, MemOperand(ip), r0);
+    cmpi(ip, Operand::Zero());  // If > 0 then simd is available.
+    ble(&pop_empty_simd);
+    MultiPopV128(simd_regs);
+    b(&simd_popped);
+    bind(&pop_empty_simd);
+    addi(sp, sp,
+         Operand(static_cast<int8_t>(NumRegs(simd_regs)) * kSimd128Size));
+    bind(&simd_popped);
+  } else {
+    if (CpuFeatures::SupportsWasmSimd128()) {
+      MultiPopV128(simd_regs);
+    } else {
+      addi(sp, sp,
+           Operand(static_cast<int8_t>(NumRegs(simd_regs)) * kSimd128Size));
+    }
+  }
+  MultiPopDoubles(dregs);
+}
+
 void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond) {
   DCHECK(cond == al);

@@ -2445,27 +2445,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
              NumRegs(simd_regs));
 
     __ MultiPush(gp_regs);
-    __ MultiPushDoubles(fp_regs);
-    // V8 uses the same set of fp param registers as Simd param registers.
-    // As these registers are two different sets on ppc we must make
-    // sure to also save them when Simd is enabled.
-    // Check the comments under crrev.com/c/2645694 for more details.
-    Label push_empty_simd, simd_pushed;
-    __ Move(ip, ExternalReference::supports_wasm_simd_128_address());
-    __ LoadU8(ip, MemOperand(ip), r0);
-    __ cmpi(ip, Operand::Zero());  // If > 0 then simd is available.
-    __ ble(&push_empty_simd);
-    __ MultiPushV128(simd_regs);
-    __ b(&simd_pushed);
-    __ bind(&push_empty_simd);
-    // kFixedFrameSizeFromFp is hard coded to include space for Simd
-    // registers, so we still need to allocate space on the stack even if we
-    // are not pushing them.
-    __ addi(
-        sp, sp,
-        Operand(-static_cast<int8_t>(base::bits::CountPopulation(simd_regs)) *
-                kSimd128Size));
-    __ bind(&simd_pushed);
+    __ MultiPushF64AndV128(fp_regs, simd_regs);
 
     // Pass instance and function index as explicit arguments to the runtime
     // function.
@@ -2478,20 +2458,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ mr(r11, kReturnRegister0);
 
     // Restore registers.
-    Label pop_empty_simd, simd_popped;
-    __ Move(ip, ExternalReference::supports_wasm_simd_128_address());
-    __ LoadU8(ip, MemOperand(ip), r0);
-    __ cmpi(ip, Operand::Zero());  // If > 0 then simd is available.
-    __ ble(&pop_empty_simd);
-    __ MultiPopV128(simd_regs);
-    __ b(&simd_popped);
-    __ bind(&pop_empty_simd);
-    __ addi(
-        sp, sp,
-        Operand(static_cast<int8_t>(base::bits::CountPopulation(simd_regs)) *
-                kSimd128Size));
-    __ bind(&simd_popped);
-    __ MultiPopDoubles(fp_regs);
+    __ MultiPopF64AndV128(fp_regs, simd_regs);
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.

@@ -2478,24 +2478,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
              NumRegs(fp_regs));
 
     __ MultiPush(gp_regs);
-    // Check if machine has simd enabled, if so push vector registers. If not
-    // then only push double registers.
-    Label push_doubles, simd_pushed;
-    __ Move(r1, ExternalReference::supports_wasm_simd_128_address());
-    __ LoadU8(r1, MemOperand(r1));
-    __ LoadAndTestP(r1, r1);  // If > 0 then simd is available.
-    __ ble(&push_doubles, Label::kNear);
-    // Save vector registers, don't save double registers anymore.
-    __ MultiPushV128(fp_regs);
-    __ b(&simd_pushed);
-    __ bind(&push_doubles);
-    // Simd not supported, only save double registers.
-    __ MultiPushDoubles(fp_regs);
-    // kFixedFrameSizeFromFp is hard coded to include space for Simd
-    // registers, so we still need to allocate extra (unused) space on the stack
-    // as if they were saved.
-    __ lay(sp, MemOperand(sp, -(NumRegs(fp_regs) * kDoubleSize)));
-    __ bind(&simd_pushed);
+    __ MultiPushF64OrV128(fp_regs);
 
     // Pass instance and function index as explicit arguments to the runtime
     // function.
@@ -2508,19 +2491,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ mov(ip, r2);
 
     // Restore registers.
-    __ Move(r1, ExternalReference::supports_wasm_simd_128_address());
-    __ LoadU8(r1, MemOperand(r1));
-    Label pop_doubles, simd_popped;
-    __ LoadAndTestP(r1, r1);  // If > 0 then simd is available.
-    __ ble(&pop_doubles, Label::kNear);
-    // Pop vector registers, don't pop double registers anymore.
-    __ MultiPopV128(fp_regs);
-    __ b(&simd_popped);
-    __ bind(&pop_doubles);
-    // Simd not supported, only pop double registers.
-    __ lay(sp, MemOperand(sp, NumRegs(fp_regs) * kDoubleSize));
-    __ MultiPopDoubles(fp_regs);
-    __ bind(&simd_popped);
+    __ MultiPopF64OrV128(fp_regs);
     __ MultiPop(gp_regs);
   }
   // Finally, jump to the entrypoint.
