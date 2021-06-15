@@ -6,11 +6,11 @@ import {delay} from '../../helper.mjs';
 import {TickLogEntry} from '../../log/tick.mjs';
 import {Timeline} from '../../timeline.mjs';
 import {SelectTimeEvent} from '../events.mjs';
-import {DOM, SVG} from '../helper.mjs';
+import {CSSColor, DOM, SVG} from '../helper.mjs';
 
 import {TimelineTrackBase} from './timeline-track-base.mjs'
 
-const kFlameHeight = 10;
+const kFlameHeight = 8;
 
 class Flame {
   constructor(time, entry, depth, id) {
@@ -187,22 +187,25 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
         add();
         await delay(50);
       }
-      buffer += this.drawFlame(rawFlames[i]);
+      buffer += this.drawFlame(rawFlames[i], i);
     }
     add();
   }
 
-  drawFlame(flame, outline = false) {
+  drawFlame(flame, i, outline = false) {
     const x = this.timeToPosition(flame.time);
     const y = (flame.depth + 1) * kFlameHeight;
     let width = flame.duration * this._timeToPixel;
     if (outline) {
       return `<rect x=${x} y=${y} width=${width} height=${
-          kFlameHeight} class=flameSelected />`;
+          kFlameHeight - 1} class=flameSelected />`;
     }
-    const color = this._legend.colorForType(flame.type);
-    return `<rect x=${x} y=${y} width=${width} height=${kFlameHeight} fill=${
-        color} class=flame />`;
+    let color = this._legend.colorForType(flame.type);
+    if (i % 2 == 1) {
+      color = CSSColor.darken(color, 20);
+    }
+    return `<rect x=${x} y=${y} width=${width} height=${
+        kFlameHeight - 1} fill=${color} class=flame />`;
   }
 
   drawFlameText(flame) {
@@ -258,29 +261,41 @@ class Annotations {
     const start = this._flames.find(time);
     let offset = 0;
     // Draw annotations gradually outwards starting form the given time.
+    let deadline = performance.now() + 500;
     for (let range = 0; range < this._flames.length; range += 10000) {
       this._markFlames(start - range, start - offset);
       this._markFlames(start + offset, start + range);
       offset = range;
-      await delay(50);
-      // Abort if we started another update asynchronously.
-      if (this._logEntry != logEntry) return;
+      if (navigator.scheduling.isInputPending({includeContinuous: true}) ||
+          performance.now() >= deadline) {
+        // Yield if we have to handle an input event, or we're out of time.
+        await delay(50);
+        // Abort if we started another update asynchronously.
+        if (this._logEntry != logEntry) return;
+
+        deadline = performance.now() + 500;
+      }
+      this._drawBuffer();
     }
+    this._drawBuffer();
   }
 
   _markFlames(start, end) {
     const rawFlames = this._flames.values;
     if (start < 0) start = 0;
     if (end > rawFlames.length) end = rawFlames.length;
-    const code = this._logEntry.entry;
-    // Also compare against the function
-    const func = code.func ?? 0;
+    const logEntry = this._logEntry;
+    // Also compare against the function, if any.
+    const func = logEntry.entry?.func;
     for (let i = start; i < end; i++) {
       const flame = rawFlames[i];
-      if (flame.entry !== code && flame.entry?.func !== func) continue;
-      this._buffer += this._track.drawFlame(flame, true);
+      if (!flame.entry) continue;
+      if (flame.entry.logEntry !== logEntry &&
+          (!func || flame.entry.func !== func)) {
+        continue;
+      }
+      this._buffer += this._track.drawFlame(flame, i, true);
     }
-    this._drawBuffer();
   }
 
   _drawBuffer() {

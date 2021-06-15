@@ -62,7 +62,7 @@ DOM.defineCustomElement('view/code-panel',
     for (const code of this._selectedEntries) {
       const option = DOM.element('option');
       option.text =
-          `${code.name}(...) t=${formatMicroSeconds(code.time)} size=${
+          `${code.functionName}(...) t=${formatMicroSeconds(code.time)} size=${
               formatBytes(code.size)} script=${code.script?.toString()}`;
       option.data = code;
       select.add(option);
