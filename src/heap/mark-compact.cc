@@ -616,6 +616,10 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 #endif
 }
 
+void MarkCompactCollector::EnsurePageIsSwept(Page* page) {
+  sweeper()->EnsurePageIsSwept(page);
+}
+
 void MarkCompactCollector::DrainSweepingWorklists() {
   if (!sweeper()->sweeping_in_progress()) return;
   sweeper()->DrainSweepingWorklists();

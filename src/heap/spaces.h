@@ -229,6 +229,11 @@ class Page : public MemoryChunk {
     return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
   }
 
+  static Page* cast(MemoryChunk* chunk) {
+    DCHECK(!chunk->IsLargePage());
+    return static_cast<Page*>(chunk);
+  }
+
   // Returns the page containing the address provided. The address can
   // potentially point righter after the page. To be also safe for tagged values
   // we subtract a hole word. The valid address ranges from

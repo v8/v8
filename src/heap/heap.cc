@@ -35,6 +35,7 @@
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/barrier.h"
 #include "src/heap/base/stack.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/code-range.h"
 #include "src/heap/code-stats.h"
@@ -2268,9 +2269,19 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
 }
 
 void Heap::EnsureSweepingCompleted(Handle<HeapObject> object) {
-  // TODO(dinfuehr): Only sweep that object's page instead of whole heap.
-  mark_compact_collector()->EnsureSweepingCompleted();
-  USE(object);
+  if (!mark_compact_collector()->sweeping_in_progress()) return;
+
+  BasicMemoryChunk* basic_chunk = BasicMemoryChunk::FromHeapObject(*object);
+  if (basic_chunk->InReadOnlySpace()) return;
+
+  MemoryChunk* chunk = MemoryChunk::cast(basic_chunk);
+  if (chunk->SweepingDone()) return;
+
+  // SweepingDone() is always true for large pages.
+  DCHECK(!chunk->IsLargePage());
+
+  Page* page = Page::cast(chunk);
+  mark_compact_collector()->EnsurePageIsSwept(page);
 }
 
 void Heap::UpdateCurrentEpoch(GarbageCollector collector) {

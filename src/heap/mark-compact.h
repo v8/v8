@@ -513,6 +513,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Note: Can only be called safely from main thread.
   V8_EXPORT_PRIVATE void EnsureSweepingCompleted();
 
+  void EnsurePageIsSwept(Page* page);
+
   void DrainSweepingWorklists();
   void DrainSweepingWorklistForSpace(AllocationSpace space);
 
