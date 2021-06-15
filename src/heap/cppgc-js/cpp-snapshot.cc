@@ -63,10 +63,10 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
   // embedder until the snapshot is compiled.
   const char* InternalizeEdgeName(std::string edge_name) {
     const size_t edge_name_len = edge_name.length();
-    char* raw_edge_name_str = new char[edge_name_len + 1];
-    snprintf(raw_edge_name_str, edge_name_len + 1, "%s", edge_name.c_str());
-    named_edges_.emplace_back(raw_edge_name_str);
-    return named_edges_.back().get();
+    named_edges_.emplace_back(std::make_unique<char[]>(edge_name_len + 1));
+    char* named_edge_str = named_edges_.back().get();
+    snprintf(named_edge_str, edge_name_len + 1, "%s", edge_name.c_str());
+    return named_edge_str;
   }
 
  private:
@@ -74,7 +74,7 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
   size_t size_;
   Node* wrapper_node_ = nullptr;
   Detachedness detachedness_ = Detachedness::kUnknown;
-  std::vector<std::unique_ptr<const char>> named_edges_;
+  std::vector<std::unique_ptr<char[]>> named_edges_;
 };
 
 // Node representing an artificial root group, e.g., set of Persistent handles.
