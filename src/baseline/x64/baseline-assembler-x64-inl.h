@@ -122,9 +122,9 @@ void BaselineAssembler::CallBuiltin(Builtin builtin) {
     // Generate pc-relative call.
     __ CallBuiltin(builtin);
   } else {
-    __ RecordCommentForOffHeapTrampoline(builtin);
+    ASM_CODE_COMMENT_STRING(masm_,
+                            __ CommentForOffHeapTrampoline("call", builtin));
     __ Call(__ EntryFromBuiltinAsOperand(builtin));
-    __ RecordComment("]");
   }
 }
 
@@ -133,9 +133,9 @@ void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
     // Generate pc-relative jump.
     __ TailCallBuiltin(builtin);
   } else {
-    __ RecordCommentForOffHeapTrampoline(builtin);
+    ASM_CODE_COMMENT_STRING(
+        masm_, __ CommentForOffHeapTrampoline("tail call", builtin));
     __ Jump(__ EntryFromBuiltinAsOperand(builtin));
-    __ RecordComment("]");
   }
 }
 

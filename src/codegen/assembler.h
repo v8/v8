@@ -288,14 +288,47 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
-  V8_INLINE void RecordComment(const char* msg) {
+  V8_INLINE void RecordComment(const char* comment) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
     if (!FLAG_code_comments) return;
     if (options().emit_code_comments) {
-      code_comments_writer_.Add(pc_offset(), std::string(msg));
+      code_comments_writer_.Add(pc_offset(), std::string(comment));
     }
   }
+
+  V8_INLINE void RecordComment(std::string comment) {
+    // Set explicit dependency on --code-comments for dead-code elimination in
+    // release builds.
+    if (!FLAG_code_comments) return;
+    if (options().emit_code_comments) {
+      code_comments_writer_.Add(pc_offset(), std::move(comment));
+    }
+  }
+
+#ifdef V8_CODE_COMMENTS
+  class CodeComment {
+   public:
+    explicit CodeComment(Assembler* assembler, const std::string& comment)
+        : assembler_(assembler) {
+      if (FLAG_code_comments) Open(comment);
+    }
+    ~CodeComment() {
+      if (FLAG_code_comments) Close();
+    }
+    static const int kIndentWidth = 2;
+
+   private:
+    int depth() const;
+    void Open(const std::string& comment);
+    void Close();
+    Assembler* assembler_;
+  };
+#else  // V8_CODE_COMMENTS
+  class CodeComment {
+    explicit CodeComment(Assembler* assembler, std::string comment) {}
+  };
+#endif
 
   // The minimum buffer size. Should be at least two times the platform-specific
   // {Assembler::kGap}.
@@ -386,6 +419,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   JumpOptimizationInfo* jump_optimization_info_;
 
+#ifdef V8_CODE_COMMENTS
+  int comment_depth_ = 0;
+#endif
+
   // Constant pool.
   friend class FrameAndConstantPoolScope;
   friend class ConstantPoolUnavailableScope;
@@ -415,6 +452,15 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
   }
 #endif
 };
+
+#ifdef V8_CODE_COMMENTS
+#define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, __func__)
+#define ASM_CODE_COMMENT_STRING(asm, comment) \
+  AssemblerBase::CodeComment asm_code_comment(asm, comment)
+#else
+#define ASM_CODE_COMMENT(asm)
+#define ASM_CODE_COMMENT_STRING(asm, ...)
+#endif
 
 }  // namespace internal
 }  // namespace v8

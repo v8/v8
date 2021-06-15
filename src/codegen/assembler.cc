@@ -34,6 +34,9 @@
 
 #include "src/codegen/assembler.h"
 
+#ifdef V8_CODE_COMMENTS
+#include <iomanip>
+#endif
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -307,6 +310,25 @@ int Assembler::WriteCodeComments() {
   DCHECK_EQ(size, code_comments_writer_.section_size());
   return size;
 }
+
+#ifdef V8_CODE_COMMENTS
+int Assembler::CodeComment::depth() const { return assembler_->comment_depth_; }
+void Assembler::CodeComment::Open(const std::string& comment) {
+  std::stringstream sstream;
+  sstream << std::setfill(' ') << std::setw(depth() * kIndentWidth + 2);
+  sstream << "[ " << comment;
+  assembler_->comment_depth_++;
+  assembler_->RecordComment(sstream.str());
+}
+
+void Assembler::CodeComment::Close() {
+  assembler_->comment_depth_--;
+  std::string comment = "]";
+  comment.insert(0, depth() * kIndentWidth, ' ');
+  DCHECK_LE(0, depth());
+  assembler_->RecordComment(comment);
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8

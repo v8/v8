@@ -99,6 +99,15 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   static constexpr int kStackPageSize = 4 * KB;
 #endif
 
+  V8_INLINE std::string CommentForOffHeapTrampoline(const char* prefix,
+                                                    Builtin builtin) {
+    if (!FLAG_code_comments) return "";
+    std::ostringstream str;
+    str << "Inlined  Trampoline for " << prefix << " to "
+        << Builtins::name(builtin);
+    return str.str();
+  }
+
   V8_INLINE void RecordCommentForOffHeapTrampoline(Builtin builtin) {
     if (!FLAG_code_comments) return;
     std::ostringstream str;
@@ -127,6 +136,8 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   Builtin maybe_builtin_ = Builtin::kNoBuiltinId;
 
   bool has_frame_ = false;
+
+  int comment_depth_ = 0;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TurboAssemblerBase);
 };
