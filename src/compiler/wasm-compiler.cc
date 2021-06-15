@@ -5954,6 +5954,9 @@ Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
   return gasm_->LoadWasmArrayLength(array_object);
 }
 
+// TODO(7748): Change {CallBuiltin} to {BuildCCall}. Add an option to copy in a
+// loop for small array sizes. To find the length limit, run
+// test/mjsunit/wasm/array-copy-benchmark.js.
 void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
                                  Node* src_array, Node* src_index, Node* length,
                                  wasm::WasmCodePosition position) {
