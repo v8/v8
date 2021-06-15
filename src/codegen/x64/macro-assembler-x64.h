@@ -251,9 +251,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Move(Register dst, intptr_t x) {
     if (x == 0) {
       xorl(dst, dst);
-    } else if (is_uint8(x)) {
-      xorl(dst, dst);
-      movb(dst, Immediate(static_cast<uint32_t>(x)));
+      // The following shorter sequence for uint8 causes performance
+      // regressions:
+      // xorl(dst, dst); movb(dst,
+      // Immediate(static_cast<uint32_t>(x)));
     } else if (is_uint32(x)) {
       movl(dst, Immediate(static_cast<uint32_t>(x)));
     } else if (is_int32(x)) {
