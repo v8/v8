@@ -4,6 +4,7 @@
 
 #include "src/bigint/vector-arithmetic.h"
 
+#include "src/bigint/bigint-internal.h"
 #include "src/bigint/digit-arithmetic.h"
 
 namespace v8 {
@@ -32,6 +33,24 @@ void SubAt(RWDigits Z, Digits X) {
   for (; borrow != 0; i++) {
     Z[i] = digit_sub(Z[i], borrow, &borrow);
   }
+}
+
+digit_t AddAndReturnCarry(RWDigits Z, Digits X, Digits Y) {
+  DCHECK(Z.len() >= Y.len() && X.len() >= Y.len());
+  digit_t carry = 0;
+  for (int i = 0; i < Y.len(); i++) {
+    Z[i] = digit_add3(X[i], Y[i], carry, &carry);
+  }
+  return carry;
+}
+
+digit_t SubtractAndReturnBorrow(RWDigits Z, Digits X, Digits Y) {
+  DCHECK(Z.len() >= Y.len() && X.len() >= Y.len());
+  digit_t borrow = 0;
+  for (int i = 0; i < Y.len(); i++) {
+    Z[i] = digit_sub2(X[i], Y[i], borrow, &borrow);
+  }
+  return borrow;
 }
 
 }  // namespace bigint

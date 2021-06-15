@@ -18,6 +18,11 @@ void AddAt(RWDigits Z, Digits X);
 // Z -= X.
 void SubAt(RWDigits Z, Digits X);
 
+// These add exactly Y's digits to the matching digits in X, storing the
+// result in (part of) Z, and return the carry/borrow.
+digit_t AddAndReturnCarry(RWDigits Z, Digits X, Digits Y);
+digit_t SubtractAndReturnBorrow(RWDigits Z, Digits X, Digits Y);
+
 inline bool IsDigitNormalized(Digits X) { return X.len() == 0 || X.msd() != 0; }
 
 inline bool GreaterThanOrEqual(Digits A, Digits B) {

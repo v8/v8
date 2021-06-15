@@ -143,23 +143,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   static void AbsoluteDivSmall(Isolate* isolate, Handle<BigIntBase> x,
                                digit_t divisor, Handle<MutableBigInt>* quotient,
                                digit_t* remainder);
-  static bool AbsoluteDivLarge(Isolate* isolate, Handle<BigIntBase> dividend,
-                               Handle<BigIntBase> divisor,
-                               Handle<MutableBigInt>* quotient,
-                               Handle<MutableBigInt>* remainder);
-  static bool ProductGreaterThan(digit_t factor1, digit_t factor2, digit_t high,
-                                 digit_t low);
-  digit_t InplaceAdd(Handle<BigIntBase> summand, int start_index);
-  digit_t InplaceSub(Handle<BigIntBase> subtrahend, int start_index);
-  void InplaceRightShift(int shift);
-  enum SpecialLeftShiftMode {
-    kSameSizeResult,
-    kAlwaysAddOneDigit,
-  };
-  static MaybeHandle<MutableBigInt> SpecialLeftShift(Isolate* isolate,
-                                                     Handle<BigIntBase> x,
-                                                     int shift,
-                                                     SpecialLeftShiftMode mode);
 
   // Specialized helpers for shift operations.
   static MaybeHandle<BigInt> LeftShiftByAbsolute(Isolate* isolate,
@@ -566,21 +549,24 @@ MaybeHandle<BigInt> BigInt::Divide(Isolate* isolate, Handle<BigInt> x,
   if (bigint::Compare(GetDigits(x), GetDigits(y)) < 0) {
     return Zero(isolate);
   }
-  Handle<MutableBigInt> quotient;
   bool result_sign = x->sign() != y->sign();
-  if (y->length() == 1) {
-    digit_t divisor = y->digit(0);
-    if (divisor == 1) {
-      return result_sign == x->sign() ? x : UnaryMinus(isolate, x);
-    }
-    digit_t remainder;
-    MutableBigInt::AbsoluteDivSmall(isolate, x, divisor, &quotient, &remainder);
-  } else {
-    if (!MutableBigInt::AbsoluteDivLarge(isolate, x, y, &quotient, nullptr)) {
-      return MaybeHandle<BigInt>();
-    }
+  if (y->length() == 1 && y->digit(0) == 1) {
+    return result_sign == x->sign() ? x : UnaryMinus(isolate, x);
   }
-  quotient->set_sign(x->sign() != y->sign());
+  Handle<MutableBigInt> quotient;
+  int result_length = bigint::DivideResultLength(GetDigits(x), GetDigits(y));
+  if (!MutableBigInt::New(isolate, result_length).ToHandle(&quotient)) {
+    return {};
+  }
+  DisallowGarbageCollection no_gc;
+  bigint::Status status = isolate->bigint_processor()->Divide(
+      GetRWDigits(quotient), GetDigits(x), GetDigits(y));
+  if (status == bigint::Status::kInterrupted) {
+    AllowGarbageCollection terminating_anyway;
+    isolate->TerminateExecution();
+    return {};
+  }
+  quotient->set_sign(result_sign);
   return MutableBigInt::MakeImmutable(quotient);
 }
 
@@ -594,22 +580,19 @@ MaybeHandle<BigInt> BigInt::Remainder(Isolate* isolate, Handle<BigInt> x,
   // 2. Return the BigInt representing x modulo y.
   // See https://github.com/tc39/proposal-bigint/issues/84 though.
   if (bigint::Compare(GetDigits(x), GetDigits(y)) < 0) return x;
+  if (y->length() == 1 && y->digit(0) == 1) return Zero(isolate);
   Handle<MutableBigInt> remainder;
-  if (y->length() == 1) {
-    digit_t divisor = y->digit(0);
-    if (divisor == 1) return Zero(isolate);
-    digit_t remainder_digit;
-    MutableBigInt::AbsoluteDivSmall(isolate, x, divisor, nullptr,
-                                    &remainder_digit);
-    if (remainder_digit == 0) {
-      return Zero(isolate);
-    }
-    remainder = MutableBigInt::New(isolate, 1).ToHandleChecked();
-    remainder->set_digit(0, remainder_digit);
-  } else {
-    if (!MutableBigInt::AbsoluteDivLarge(isolate, x, y, nullptr, &remainder)) {
-      return MaybeHandle<BigInt>();
-    }
+  int result_length = bigint::ModuloResultLength(GetDigits(y));
+  if (!MutableBigInt::New(isolate, result_length).ToHandle(&remainder)) {
+    return {};
+  }
+  DisallowGarbageCollection no_gc;
+  bigint::Status status = isolate->bigint_processor()->Modulo(
+      GetRWDigits(remainder), GetDigits(x), GetDigits(y));
+  if (status == bigint::Status::kInterrupted) {
+    AllowGarbageCollection terminating_anyway;
+    isolate->TerminateExecution();
+    return {};
   }
   remainder->set_sign(x->sign());
   return MutableBigInt::MakeImmutable(remainder);
@@ -1515,220 +1498,6 @@ void MutableBigInt::AbsoluteDivSmall(Isolate* isolate, Handle<BigIntBase> x,
       digit_div(*remainder, x->digit(i), divisor, remainder);
     }
   }
-}
-
-// Divides {dividend} by {divisor}, returning the result in {quotient} and
-// {remainder}. Mathematically, the contract is:
-// quotient = (dividend - remainder) / divisor, with 0 <= remainder < divisor.
-// Both {quotient} and {remainder} are optional, for callers that are only
-// interested in one of them.
-// See Knuth, Volume 2, section 4.3.1, Algorithm D.
-bool MutableBigInt::AbsoluteDivLarge(Isolate* isolate,
-                                     Handle<BigIntBase> dividend,
-                                     Handle<BigIntBase> divisor,
-                                     Handle<MutableBigInt>* quotient,
-                                     Handle<MutableBigInt>* remainder) {
-  DCHECK_GE(divisor->length(), 2);
-  DCHECK(dividend->length() >= divisor->length());
-  // The unusual variable names inside this function are consistent with
-  // Knuth's book, as well as with Go's implementation of this algorithm.
-  // Maintaining this consistency is probably more useful than trying to
-  // come up with more descriptive names for them.
-  int n = divisor->length();
-  int m = dividend->length() - n;
-
-  // The quotient to be computed.
-  Handle<MutableBigInt> q;
-  if (quotient != nullptr) q = New(isolate, m + 1).ToHandleChecked();
-  // In each iteration, {qhatv} holds {divisor} * {current quotient digit}.
-  // "v" is the book's name for {divisor}, "qhat" the current quotient digit.
-  Handle<MutableBigInt> qhatv;
-  if (!New(isolate, n + 1).ToHandle(&qhatv)) return false;
-
-  // D1.
-  // Left-shift inputs so that the divisor's MSB is set. This is necessary
-  // to prevent the digit-wise divisions (see digit_div call below) from
-  // overflowing (they take a two digits wide input, and return a one digit
-  // result).
-  int shift = base::bits::CountLeadingZeros(divisor->digit(n - 1));
-  if (shift > 0) {
-    divisor = SpecialLeftShift(isolate, divisor, shift, kSameSizeResult)
-                  .ToHandleChecked();
-  }
-  // Holds the (continuously updated) remaining part of the dividend, which
-  // eventually becomes the remainder.
-  Handle<MutableBigInt> u;
-  if (!SpecialLeftShift(isolate, dividend, shift, kAlwaysAddOneDigit)
-           .ToHandle(&u)) {
-    return false;
-  }
-
-  // D2.
-  // Iterate over the dividend's digit (like the "grad school" algorithm).
-  // {vn1} is the divisor's most significant digit.
-  digit_t vn1 = divisor->digit(n - 1);
-  uintptr_t work_estimate = 0;
-  for (int j = m; j >= 0; j--) {
-    // D3.
-    // Estimate the current iteration's quotient digit (see Knuth for details).
-    // {qhat} is the current quotient digit.
-    digit_t qhat = std::numeric_limits<digit_t>::max();
-    // {ujn} is the dividend's most significant remaining digit.
-    digit_t ujn = u->digit(j + n);
-    if (ujn != vn1) {
-      // {rhat} is the current iteration's remainder.
-      digit_t rhat = 0;
-      // Estimate the current quotient digit by dividing the most significant
-      // digits of dividend and divisor. The result will not be too small,
-      // but could be a bit too large.
-      qhat = digit_div(ujn, u->digit(j + n - 1), vn1, &rhat);
-
-      // Decrement the quotient estimate as needed by looking at the next
-      // digit, i.e. by testing whether
-      // qhat * v_{n-2} > (rhat << kDigitBits) + u_{j+n-2}.
-      digit_t vn2 = divisor->digit(n - 2);
-      digit_t ujn2 = u->digit(j + n - 2);
-      while (ProductGreaterThan(qhat, vn2, rhat, ujn2)) {
-        qhat--;
-        digit_t prev_rhat = rhat;
-        rhat += vn1;
-        // v[n-1] >= 0, so this tests for overflow.
-        if (rhat < prev_rhat) break;
-      }
-    }
-
-    // D4.
-    // Multiply the divisor with the current quotient digit, and subtract
-    // it from the dividend. If there was "borrow", then the quotient digit
-    // was one too high, so we must correct it and undo one subtraction of
-    // the (shifted) divisor.
-    InternalMultiplyAdd(*divisor, qhat, 0, n, *qhatv);
-    digit_t c = u->InplaceSub(qhatv, j);
-    if (c != 0) {
-      c = u->InplaceAdd(divisor, j);
-      u->set_digit(j + n, u->digit(j + n) + c);
-      qhat--;
-    }
-
-    if (quotient != nullptr) q->set_digit(j, qhat);
-
-    // Division can take a long time. Check for interrupt requests every
-    // now and then (roughly every 10-20 of milliseconds -- rarely enough
-    // not to create noticeable overhead, frequently enough not to appear
-    // frozen).
-    work_estimate += n;
-    if (work_estimate > 5000000) {
-      work_estimate = 0;
-      StackLimitCheck interrupt_check(isolate);
-      if (interrupt_check.InterruptRequested() &&
-          isolate->stack_guard()->HandleInterrupts().IsException(isolate)) {
-        return false;
-      }
-    }
-  }
-  if (quotient != nullptr) {
-    *quotient = q;  // Caller will right-trim.
-  }
-  if (remainder != nullptr) {
-    u->InplaceRightShift(shift);
-    *remainder = u;
-  }
-  return true;
-}
-
-// Returns whether (factor1 * factor2) > (high << kDigitBits) + low.
-bool MutableBigInt::ProductGreaterThan(digit_t factor1, digit_t factor2,
-                                       digit_t high, digit_t low) {
-  digit_t result_high;
-  digit_t result_low = digit_mul(factor1, factor2, &result_high);
-  return result_high > high || (result_high == high && result_low > low);
-}
-
-// Adds {summand} onto {this}, starting with {summand}'s 0th digit
-// at {this}'s {start_index}'th digit. Returns the "carry" (0 or 1).
-BigInt::digit_t MutableBigInt::InplaceAdd(Handle<BigIntBase> summand,
-                                          int start_index) {
-  digit_t carry = 0;
-  int n = summand->length();
-  DCHECK(length() >= start_index + n);
-  for (int i = 0; i < n; i++) {
-    digit_t new_carry = 0;
-    digit_t sum =
-        digit_add(digit(start_index + i), summand->digit(i), &new_carry);
-    sum = digit_add(sum, carry, &new_carry);
-    set_digit(start_index + i, sum);
-    carry = new_carry;
-  }
-  return carry;
-}
-
-// Subtracts {subtrahend} from {this}, starting with {subtrahend}'s 0th digit
-// at {this}'s {start_index}-th digit. Returns the "borrow" (0 or 1).
-BigInt::digit_t MutableBigInt::InplaceSub(Handle<BigIntBase> subtrahend,
-                                          int start_index) {
-  digit_t borrow = 0;
-  int n = subtrahend->length();
-  DCHECK(length() >= start_index + n);
-  for (int i = 0; i < n; i++) {
-    digit_t new_borrow = 0;
-    digit_t difference =
-        digit_sub(digit(start_index + i), subtrahend->digit(i), &new_borrow);
-    difference = digit_sub(difference, borrow, &new_borrow);
-    set_digit(start_index + i, difference);
-    borrow = new_borrow;
-  }
-  return borrow;
-}
-
-void MutableBigInt::InplaceRightShift(int shift) {
-  DCHECK_GE(shift, 0);
-  DCHECK_LT(shift, kDigitBits);
-  DCHECK_GT(length(), 0);
-  DCHECK_EQ(digit(0) & ((static_cast<digit_t>(1) << shift) - 1), 0);
-  if (shift == 0) return;
-  digit_t carry = digit(0) >> shift;
-  int last = length() - 1;
-  for (int i = 0; i < last; i++) {
-    digit_t d = digit(i + 1);
-    set_digit(i, (d << (kDigitBits - shift)) | carry);
-    carry = d >> shift;
-  }
-  set_digit(last, carry);
-}
-
-// Always copies the input, even when {shift} == 0.
-// {shift} must be less than kDigitBits, {x} must be non-zero.
-MaybeHandle<MutableBigInt> MutableBigInt::SpecialLeftShift(
-    Isolate* isolate, Handle<BigIntBase> x, int shift,
-    SpecialLeftShiftMode mode) {
-  DCHECK_GE(shift, 0);
-  DCHECK_LT(shift, kDigitBits);
-  DCHECK_GT(x->length(), 0);
-  int n = x->length();
-  int result_length = mode == kAlwaysAddOneDigit ? n + 1 : n;
-  Handle<MutableBigInt> result;
-  if (!New(isolate, result_length).ToHandle(&result)) {
-    return MaybeHandle<MutableBigInt>();
-  }
-  if (shift == 0) {
-    for (int i = 0; i < n; i++) result->set_digit(i, x->digit(i));
-    if (mode == kAlwaysAddOneDigit) result->set_digit(n, 0);
-    return result;
-  }
-  DCHECK_GT(shift, 0);
-  digit_t carry = 0;
-  for (int i = 0; i < n; i++) {
-    digit_t d = x->digit(i);
-    result->set_digit(i, (d << shift) | carry);
-    carry = d >> (kDigitBits - shift);
-  }
-  if (mode == kAlwaysAddOneDigit) {
-    result->set_digit(n, carry);
-  } else {
-    DCHECK_EQ(mode, kSameSizeResult);
-    DCHECK_EQ(carry, 0);
-  }
-  return result;
 }
 
 MaybeHandle<BigInt> MutableBigInt::LeftShiftByAbsolute(Isolate* isolate,

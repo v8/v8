@@ -101,7 +101,7 @@ class Digits {
   const digit_t* digits() const { return digits_; }
 
  protected:
-  friend class TemporaryLeftShift;
+  friend class ShiftedDigits;
   digit_t* digits_;
   int len_;
 
@@ -201,7 +201,7 @@ class Platform {
 //
 // The operations are divided into two groups: "fast" (O(n) with small
 // coefficient) operations are exposed directly as free functions, "slow"
-// operations are methods on a {BigIntProcessor} object, which provides
+// operations are methods on a {Processor} object, which provides
 // support for interrupting execution via the {Platform}'s {InterruptRequested}
 // mechanism when it takes too long. These functions return a {Status} value.
 
@@ -226,7 +226,7 @@ class Processor {
   // Takes ownership of {platform}.
   static Processor* New(Platform* platform);
 
-  // Use this for any std::unique_ptr holding an instance of BigIntProcessor.
+  // Use this for any std::unique_ptr holding an instance of {Processor}.
   class Destroyer {
    public:
     void operator()(Processor* proc) { proc->Destroy(); }
@@ -236,11 +236,19 @@ class Processor {
 
   // Z := X * Y
   Status Multiply(RWDigits Z, Digits X, Digits Y);
+  // Q := A / B
+  Status Divide(RWDigits Q, Digits A, Digits B);
+  // R := A % B
+  Status Modulo(RWDigits R, Digits A, Digits B);
 };
 
 inline int MultiplyResultLength(Digits X, Digits Y) {
   return X.len() + Y.len();
 }
+inline int DivideResultLength(Digits A, Digits B) {
+  return A.len() - B.len() + 1;
+}
+inline int ModuloResultLength(Digits B) { return B.len(); }
 
 }  // namespace bigint
 }  // namespace v8

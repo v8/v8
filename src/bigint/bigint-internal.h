@@ -30,6 +30,12 @@ class ProcessorImpl : public Processor {
   void KaratsubaChunk(RWDigits Z, Digits X, Digits Y, RWDigits scratch);
   void KaratsubaMain(RWDigits Z, Digits X, Digits Y, RWDigits scratch, int n);
 
+  void Divide(RWDigits Q, Digits A, Digits B);
+  void DivideSingle(RWDigits Q, digit_t* remainder, Digits A, digit_t b);
+  void DivideSchoolbook(RWDigits Q, RWDigits R, Digits A, Digits B);
+
+  void Modulo(RWDigits R, Digits A, Digits B);
+
  private:
   // Each unit is supposed to represent approximately one CPU {mul} instruction.
   // Doesn't need to be accurate; we just want to make sure to check for
