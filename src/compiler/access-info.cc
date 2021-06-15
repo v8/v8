@@ -502,11 +502,6 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
     constness = PropertyConstness::kConst;
-  } else if (broker()->is_turboprop() && !map->is_prototype_map() &&
-             !IsAnyStore(access_mode)) {
-    // The constness feedback is too unstable for the aggresive compilation
-    // of turboprop.
-    constness = PropertyConstness::kMutable;
   } else {
     constness = dependencies()->DependOnFieldConstness(*map_ref, descriptor);
   }

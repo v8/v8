@@ -4426,13 +4426,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   if (feedback_target.has_value() && feedback_target->map().is_callable()) {
     Node* target_function = jsgraph()->Constant(*feedback_target);
 
-    if (broker()->is_turboprop()) {
-      if (!feedback_target->IsJSFunction()) return NoChange();
-      if (!IsBuiltinOrApiFunction(feedback_target->AsJSFunction())) {
-        return NoChange();
-      }
-    }
-
     // Check that the {target} is still the {target_function}.
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
                                    target_function);
@@ -4456,11 +4449,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       if (!feedback_vector.serialized()) {
         TRACE_BROKER_MISSING(
             broker(), "feedback vector, not serialized: " << feedback_vector);
-        return NoChange();
-      }
-
-      if (broker()->is_turboprop() &&
-          !feedback_vector.shared_function_info().HasBuiltinId()) {
         return NoChange();
       }
 
@@ -5312,10 +5300,6 @@ Reduction JSCallReducer::ReduceForInsufficientFeedback(
   DCHECK(node->opcode() == IrOpcode::kJSCall ||
          node->opcode() == IrOpcode::kJSConstruct);
   if (!(flags() & kBailoutOnUninitialized)) return NoChange();
-  // TODO(mythria): May be add additional flags to specify if we need to deopt
-  // on calls / construct rather than checking for TurboProp here. We may need
-  // it for NativeContextIndependent code too.
-  if (broker()->is_turboprop()) return NoChange();
 
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
