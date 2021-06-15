@@ -63,8 +63,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline"],
   "sparkplug": ["--jitless"],
   "always_sparkplug": ["--jitless"],
-  "turboprop": ["--interrupt-budget=*"],
-  "turboprop_as_toptier": ["--interrupt-budget=*"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache",
                       "--cache=none"],
   "experimental_regexp": ["--no-enable-experimental-regexp-engine"],

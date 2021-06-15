@@ -641,14 +641,11 @@ DEFINE_BOOL(
     turboprop_as_toptier, false,
     "enable experimental turboprop compiler without further tierup to turbofan")
 DEFINE_IMPLICATION(turboprop_as_toptier, turboprop)
-DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 20 * KB)
-DEFINE_VALUE_IMPLICATION(turboprop, reuse_opt_code_count, 2)
 DEFINE_UINT_READONLY(max_minimorphic_map_checks, 4,
                      "max number of map checks to perform in minimorphic state")
 // The scale factor determines the interrupt budget when tiering up from
-// Turboprop to TurboFan. The default of 10 is approximately the ratio of
-// Turboprop to the TurboFan interrupt budget.
-DEFINE_INT(interrupt_budget_scale_factor_for_top_tier, 10,
+// Turboprop to TurboFan.
+DEFINE_INT(interrupt_budget_scale_factor_for_top_tier, 5,
            "scale factor for profiler ticks when tiering up from midtier")
 
 // Flags for Sparkplug

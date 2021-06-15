@@ -226,8 +226,6 @@ class FeedbackVector
   inline bool has_optimization_marker() const;
   inline OptimizationMarker optimization_marker() const;
   inline OptimizationTier optimization_tier() const;
-  inline int global_ticks_at_last_runtime_profiler_interrupt() const;
-  inline void set_global_ticks_at_last_runtime_profiler_interrupt(int ticks);
   void ClearOptimizedCode(FeedbackCell feedback_cell);
   void EvictOptimizedCodeMarkedForDeoptimization(FeedbackCell feedback_cell,
                                                  SharedFunctionInfo shared,

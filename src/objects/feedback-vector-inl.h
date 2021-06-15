@@ -132,16 +132,6 @@ OptimizationMarker FeedbackVector::optimization_marker() const {
   return OptimizationMarkerBits::decode(flags());
 }
 
-int FeedbackVector::global_ticks_at_last_runtime_profiler_interrupt() const {
-  return GlobalTicksAtLastRuntimeProfilerInterruptBits::decode(flags());
-}
-
-void FeedbackVector::set_global_ticks_at_last_runtime_profiler_interrupt(
-    int ticks) {
-  set_flags(
-      GlobalTicksAtLastRuntimeProfilerInterruptBits::update(flags(), ticks));
-}
-
 OptimizationTier FeedbackVector::optimization_tier() const {
   OptimizationTier tier = OptimizationTierBits::decode(flags());
   // It is possible that the optimization tier bits aren't updated when the code
