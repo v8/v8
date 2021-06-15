@@ -186,7 +186,7 @@ DOM.defineCustomElement('view/list-panel',
       details.onclick = this._detailsClickHandler;
       tr.appendChild(DOM.td(`${group.percent.toFixed(2)}%`, 'percentage'));
       tr.appendChild(DOM.td(group.count, 'count'));
-      const valueTd = tr.appendChild(DOM.td(group.key.toString(), 'key'));
+      const valueTd = tr.appendChild(DOM.td(group.key?.toString(), 'key'));
       if (App.isClickable(group.key)) {
         tr.onclick = this._logEntryClickHandler;
         tr.onmouseover = this._logEntryMouseOverHandler;

@@ -263,13 +263,16 @@ class App {
     this._view.mapTrack.focusedEntry = entry;
     this._view.mapPanel.map = entry;
     this._view.mapPanel.show();
-    if (focusSourcePosition) this.focusSourcePosition(entry.sourcePosition);
+    if (focusSourcePosition) {
+      this.focusCodeLogEntry(entry.code, false);
+      this.focusSourcePosition(entry.sourcePosition);
+    }
   }
 
   focusIcLogEntry(entry) {
     this._state.ic = entry;
     this.focusMapLogEntry(entry.map, false);
-    this.focusCodeLogEntry(entry.codeLogEntry, false);
+    this.focusCodeLogEntry(entry.code, false);
     this.focusSourcePosition(entry.sourcePosition);
   }
 
@@ -282,7 +285,7 @@ class App {
 
   focusDeoptLogEntry(entry) {
     this._state.deoptLogEntry = entry;
-    this.focusCodeLogEntry(entry.codeLogEntry, false);
+    this.focusCodeLogEntry(entry.code, false);
     this.focusSourcePosition(entry.sourcePosition);
   }
 

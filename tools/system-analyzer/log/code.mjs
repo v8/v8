@@ -32,7 +32,7 @@ export class DeoptLogEntry extends LogEntry {
     return this._entry;
   }
 
-  get codeLogEntry() {
+  get code() {
     return this._entry?.logEntry;
   }
 
@@ -43,7 +43,7 @@ export class DeoptLogEntry extends LogEntry {
   static get propertyNames() {
     return [
       'type', 'reason', 'functionName', 'sourcePosition',
-      'functionSourcePosition', 'script'
+      'functionSourcePosition', 'script', 'code'
     ];
   }
 }
@@ -85,6 +85,11 @@ export class CodeLogEntry extends LogEntry {
     return this._entry?.source?.disassemble;
   }
 
+  get variants() {
+    const entries = Array.from(this.entry?.func?.codeEntries ?? []);
+    return entries.map(each => each.logEntry);
+  }
+
   toString() {
     return `Code(${this.type})`;
   }
@@ -98,7 +103,7 @@ export class CodeLogEntry extends LogEntry {
   static get propertyNames() {
     return [
       'functionName', 'sourcePosition', 'kindName', 'size', 'type', 'kind',
-      'script', 'source', 'code'
+      'script', 'source', 'code', 'variants'
     ];
   }
 }

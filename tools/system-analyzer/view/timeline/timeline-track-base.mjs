@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {delay} from '../../helper.mjs';
-import {kChunkHeight, kChunkWidth} from '../../log/map.mjs';
+import {kChunkHeight, kChunkVisualWidth, kChunkWidth} from '../../log/map.mjs';
 import {SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
 import {CSSColor, DOM, SVG, V8CustomElement} from '../helper.mjs';
 
@@ -12,7 +12,7 @@ export const kTimelineHeight = 200;
 export class TimelineTrackBase extends V8CustomElement {
   _timeline;
   _nofChunks = 500;
-  _chunks;
+  _chunks = [];
   _selectedEntry;
   _timeToPixel;
   _timeStartPixelOffset;
@@ -275,8 +275,7 @@ export class TimelineTrackBase extends V8CustomElement {
       lastHeight -= height;
       const color = this._legend.colorForType(group.key);
       buffer += `<rect x=${chunkIndex * kChunkWidth} y=${lastHeight} height=${
-          height} `
-      buffer += `width=6 fill=${color} />`
+          height} width=${kChunkVisualWidth} fill=${color} />`
     }
     return buffer;
   }
@@ -365,6 +364,7 @@ export class TimelineTrackBase extends V8CustomElement {
     style.left = `${chunk.index * kChunkWidth}px`;
     style.top = `${kTimelineHeight - chunk.height}px`;
     style.height = `${chunk.height}px`;
+    style.width = `${kChunkVisualWidth}px`;
     return logEntry;
   }
 };

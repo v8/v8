@@ -402,9 +402,9 @@ export class Processor extends LogReader {
     }
     // TODO: use SourcePosition directly.
     let edge = new Edge(type, name, reason, time, from_, to_);
-    const profileEntry = this._profile.findEntry(pc)
-    to_.entry = profileEntry;
-    let script = this.getProfileEntryScript(profileEntry);
+    const codeEntry = this._profile.findEntry(pc)
+    to_.entry = codeEntry;
+    let script = this.getProfileEntryScript(codeEntry);
     if (script) {
       to_.sourcePosition = script.addSourcePosition(line, column, to_)
     }

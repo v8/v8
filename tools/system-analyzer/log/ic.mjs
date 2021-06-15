@@ -30,7 +30,7 @@ export class IcLogEntry extends LogEntry {
     return this.oldState + ' → ' + this.newState;
   }
 
-  get codeLogEntry() {
+  get code() {
     return this.codeEntry?.logEntry;
   }
 
@@ -62,8 +62,8 @@ export class IcLogEntry extends LogEntry {
 
   static get propertyNames() {
     return [
-      'type', 'category', 'functionName', 'script', 'sourcePosition', 'state',
-      'key', 'map', 'reason'
+      'type', 'category', 'functionName', 'script', 'sourcePosition', 'code',
+      'state', 'key', 'map', 'reason'
     ];
   }
 }

@@ -11,7 +11,7 @@ DOM.defineCustomElement(
     template => class PropertyLinkTable extends V8CustomElement {
       _instance;
       _propertyDict;
-      _instanceLinkButtons = true;
+      _instanceLinkButtons = false;
       _logEntryClickHandler = this._handleLogEntryClick.bind(this);
       _logEntryRelatedHandler = this._handleLogEntryRelated.bind(this);
 
@@ -19,12 +19,8 @@ DOM.defineCustomElement(
         super(template);
       }
 
-      static get observedAttributes() {
-        return ['noButtons'];
-      }
-
-      attributeChangedCallback(name, oldValue, newValue) {
-        if (name == 'instanceLinkButtons') this._instanceLinkButtons = true;
+      set instanceLinkButtons(newValue) {
+        this._instanceLinkButtons = newValue;
       }
 
       set propertyDict(propertyDict) {
@@ -63,12 +59,32 @@ DOM.defineCustomElement(
         row.insertCell().innerText = key;
         const cell = row.insertCell();
         if (value == undefined) return;
+        if (Array.isArray(value)) {
+          cell.appendChild(this._addArrayValue(value));
+          return;
+        }
         if (App.isClickable(value)) {
           cell.className = 'clickable';
           cell.onclick = this._logEntryClickHandler;
           cell.data = value;
         }
         new ExpandableText(cell, value.toString());
+      }
+
+      _addArrayValue(array) {
+        if (array.length == 0) {
+          return DOM.text('empty');
+        } else if (array.length > 200) {
+          return DOM.text(`${array.length} items`);
+        }
+        const select = DOM.element('select');
+        for (let value of array) {
+          const option = DOM.element('option');
+          option.innerText = value.toString();
+          option.data = value;
+          select.add(option);
+        }
+        return select;
       }
 
       _addTitle(value) {

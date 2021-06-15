@@ -36,10 +36,12 @@ DOM.defineCustomElement('view/code-panel',
         '__this__': entry,
         functionName: entry.functionName,
         size: formatBytes(entry.size),
+        creationTime: formatMicroSeconds(entry.time / 1000),
         sourcePosition: entry.sourcePosition,
         script: entry.script,
         type: entry.type,
         kind: entry.kindName,
+        variants: entry.variants,
       };
     } else {
       this.$('#properties').propertyDict = {};

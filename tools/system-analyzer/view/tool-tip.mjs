@@ -20,7 +20,15 @@ DOM.defineCustomElement(
             this.requestUpdate(true);
           }
         });
-        document.addEventListener('click', (e) => this.hide());
+        document.addEventListener('click', (event) => {
+          // Only hide the tooltip if we click anywhere outside of it.
+          let target = event.target;
+          while (target) {
+            if (target == this) return;
+            target = target.parentNode;
+          }
+          this.hide()
+        });
       }
 
       _update() {
@@ -89,6 +97,7 @@ DOM.defineCustomElement(
             this.contentNode.firstChild.propertyDict = content;
           } else {
             const node = DOM.element('property-link-table');
+            node.instanceLinkButtons = true;
             node.propertyDict = content;
             this._setContentNode(node);
           }

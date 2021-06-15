@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {MapLogEntry} from '../../log/map.mjs';
-import {CSSColor, DOM, SVG, V8CustomElement} from '../helper.mjs';
+import {kChunkVisualWidth, MapLogEntry} from '../../log/map.mjs';
+import {CSSColor, DOM} from '../helper.mjs';
 
 import {TimelineTrackBase} from './timeline-track-base.mjs'
 
