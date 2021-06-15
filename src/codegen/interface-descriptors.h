@@ -469,10 +469,8 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   static constexpr inline int GetRegisterParameterCount();
   static constexpr inline int GetStackParameterCount();
   static constexpr inline Register* GetRegisterData();
+  static constexpr inline Register GetRegisterParameter(int i);
 
-  static constexpr inline Register GetRegisterParameter(int i) {
-    return DerivedDescriptor::registers()[i];
-  }
   explicit StaticCallInterfaceDescriptor(CallDescriptors::Key key)
       : CallInterfaceDescriptor(key) {}
 
