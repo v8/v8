@@ -205,6 +205,30 @@
     TorqueGeneratedClass::set_##torque_name(value);               \
   }
 
+#define ACCESSORS_RELAXED_CHECKED2(holder, name, type, offset, get_condition, \
+                                   set_condition)                             \
+  type holder::name() const {                                                 \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                  \
+    return holder::name(cage_base);                                           \
+  }                                                                           \
+  type holder::name(PtrComprCageBase cage_base) const {                       \
+    type value = TaggedField<type, offset>::Relaxed_Load(cage_base, *this);   \
+    DCHECK(get_condition);                                                    \
+    return value;                                                             \
+  }                                                                           \
+  void holder::set_##name(type value, WriteBarrierMode mode) {                \
+    DCHECK(set_condition);                                                    \
+    TaggedField<type, offset>::Relaxed_Store(*this, value);                   \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                    \
+  }
+
+#define ACCESSORS_RELAXED_CHECKED(holder, name, type, offset, condition) \
+  ACCESSORS_RELAXED_CHECKED2(holder, name, type, offset, condition, condition)
+
+#define ACCESSORS_RELAXED(holder, name, type, offset) \
+  ACCESSORS_RELAXED_CHECKED(holder, name, type, offset, true)
+
+// Similar to ACCESSORS_RELAXED above but with respective relaxed tags.
 #define RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                                    set_condition)                             \
   type holder::name(RelaxedLoadTag tag) const {                               \

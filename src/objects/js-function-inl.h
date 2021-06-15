@@ -141,18 +141,7 @@ AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
 
 int JSFunction::length() { return shared().length(); }
 
-Code JSFunction::code() const {
-  return Code::cast(RELAXED_READ_FIELD(*this, kCodeOffset));
-}
-
-void JSFunction::set_code(Code value) {
-  DCHECK(!ObjectInYoungGeneration(value));
-  RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
-#ifndef V8_DISABLE_WRITE_BARRIERS
-  WriteBarrier::Marking(*this, RawField(kCodeOffset), value);
-#endif
-}
-
+ACCESSORS_RELAXED(JSFunction, code, Code, kCodeOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, code, Code, kCodeOffset)
 
 // TODO(ishell): Why relaxed read but release store?

@@ -130,6 +130,14 @@ bool Heap_PageFlagsAreConsistent(HeapObject object) {
   return Heap::PageFlagsAreConsistent(object);
 }
 
+bool Heap_ValueMightRequireGenerationalWriteBarrier(HeapObject value) {
+  if (!value.IsCode()) return true;
+  // Code objects are never in new space and thus don't require generational
+  // write barrier.
+  DCHECK(!ObjectInYoungGeneration(value));
+  return false;
+}
+
 void Heap_GenerationalBarrierSlow(HeapObject object, Address slot,
                                   HeapObject value) {
   Heap::GenerationalBarrierSlow(object, slot, value);

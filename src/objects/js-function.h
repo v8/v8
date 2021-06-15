@@ -84,8 +84,7 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // optimized code object, or when reading from the background thread.
   // Storing a builtin doesn't require release semantics because these objects
   // are fully initialized.
-  inline Code code() const;
-  inline void set_code(Code code);
+  DECL_ACCESSORS(code, Code)
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
 
   // Get the abstract code associated with the function, which will either be
