@@ -813,8 +813,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MSARoundD(MSARegister dst, MSARegister src, FPURoundingMode mode);
 
   // Jump the register contains a smi.
-  void JumpIfSmi(Register value, Label* smi_label,
-                 Register scratch = kScratchReg, BranchDelaySlot bd = PROTECT);
+  void JumpIfSmi(Register value, Label* smi_label, Register scratch = at,
+                 BranchDelaySlot bd = PROTECT);
 
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
     li(kScratchReg, Operand(b));
