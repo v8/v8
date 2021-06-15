@@ -105,4 +105,7 @@ turbo*.cfg
 turbo*.dot
 turbo*.json
 v8.ignition_dispatches_table.json
-
+bazel-bin
+bazel-out
+bazel-testlogs
+bazel-v8
