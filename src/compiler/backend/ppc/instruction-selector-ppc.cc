@@ -992,9 +992,11 @@ void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
     if (load_rep.representation() == MachineRepresentation::kWord64) {
       Node* base = input.node()->InputAt(0);
       Node* offset = input.node()->InputAt(1);
+      bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
+                        node->opcode() == IrOpcode::kWord64AtomicLoad);
       Emit(kPPC_LoadByteRev64 | AddressingModeField::encode(kMode_MRR),
-           g.DefineAsRegister(node), g.UseRegister(base),
-           g.UseRegister(offset));
+           g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(offset),
+           g.UseImmediate(is_atomic));
       return;
     }
   }
@@ -1004,16 +1006,17 @@ void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
 
 void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
   PPCOperandGenerator g(this);
-
   NodeMatcher input(node->InputAt(0));
   if (CanCover(node, input.node()) && input.IsLoad()) {
     LoadRepresentation load_rep = LoadRepresentationOf(input.node()->op());
     if (load_rep.representation() == MachineRepresentation::kWord32) {
       Node* base = input.node()->InputAt(0);
       Node* offset = input.node()->InputAt(1);
+      bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
+                        node->opcode() == IrOpcode::kWord64AtomicLoad);
       Emit(kPPC_LoadByteRev32 | AddressingModeField::encode(kMode_MRR),
-           g.DefineAsRegister(node), g.UseRegister(base),
-           g.UseRegister(offset));
+           g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(offset),
+           g.UseImmediate(is_atomic));
       return;
     }
   }
