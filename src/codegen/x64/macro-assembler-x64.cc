@@ -492,13 +492,11 @@ void TurboAssembler::CallTSANRelaxedStoreStub(Register address, Register value,
   Register value_parameter(
       descriptor.GetRegisterParameter(TSANRelaxedStoreDescriptor::kValue));
 
-  // Prepare argument registers for calling RecordWrite
-  // address_parameter   <= address
-  // value_parameter <= value
+  // Prepare argument registers for calling GetTSANRelaxedStoreStub.
   MovePair(address_parameter, address, value_parameter, value);
 
   if (isolate()) {
-    Builtin builtin = Builtins::GetTSANRelaxedStoreStub(fp_mode, size);
+    Builtin builtin = CodeFactory::GetTSANRelaxedStoreStub(fp_mode, size);
     Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
@@ -517,6 +515,47 @@ void TurboAssembler::CallTSANRelaxedStoreStub(Register address, Register value,
     DCHECK_EQ(mode, StubCallMode::kCallWasmRuntimeStub);
     // Use {near_call} for direct Wasm call within a module.
     auto wasm_target = wasm::WasmCode::GetTSANRelaxedStoreStub(fp_mode, size);
+    near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  MaybeRestoreRegisters(registers);
+}
+
+void TurboAssembler::CallTSANRelaxedLoadStub(Register address,
+                                             SaveFPRegsMode fp_mode, int size,
+                                             StubCallMode mode) {
+  TSANRelaxedLoadDescriptor descriptor;
+  RegList registers = descriptor.allocatable_registers();
+
+  MaybeSaveRegisters(registers);
+
+  Register address_parameter(
+      descriptor.GetRegisterParameter(TSANRelaxedLoadDescriptor::kAddress));
+
+  // Prepare argument registers for calling TSANRelaxedLoad.
+  Move(address_parameter, address);
+
+  if (isolate()) {
+    Builtin builtin = CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size);
+    Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
+    Call(code_target, RelocInfo::CODE_TARGET);
+  }
+#if V8_ENABLE_WEBASSEMBLY
+  // There are two different kinds of wasm-to-js functions: one lives in the
+  // wasm code space, and another one lives on the heap. Both of them have the
+  // same CodeKind (WASM_TO_JS_FUNCTION), but depending on where they are they
+  // have to either use the wasm stub calls, or call the builtin using the
+  // isolate like JS does. In order to know which wasm-to-js function we are
+  // compiling right now, we check if the isolate is null.
+  // TODO(solanes, v8:11600): Split CodeKind::WASM_TO_JS_FUNCTION into two
+  // different CodeKinds and pass the CodeKind as a parameter so that we can use
+  // that instead of a nullptr check.
+  // NOLINTNEXTLINE(readability/braces)
+  else {
+    DCHECK_EQ(mode, StubCallMode::kCallWasmRuntimeStub);
+    // Use {near_call} for direct Wasm call within a module.
+    auto wasm_target = wasm::WasmCode::GetTSANRelaxedLoadStub(fp_mode, size);
     near_call(wasm_target, RelocInfo::WASM_STUB_CALL);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

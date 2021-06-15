@@ -1204,6 +1204,23 @@ void tsan_relaxed_store_64_bits(Address addr, int64_t value) {
   UNREACHABLE();
 #endif  // V8_TARGET_ARCH_X64
 }
+
+base::Atomic32 tsan_relaxed_load_32_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  return base::Relaxed_Load(reinterpret_cast<base::Atomic32*>(addr));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+base::Atomic64 tsan_relaxed_load_64_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  return base::Relaxed_Load(reinterpret_cast<base::Atomic64*>(addr));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
 }  // namespace
 #endif  // V8_IS_TSAN
 
@@ -1215,6 +1232,10 @@ IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_store_function_32_bits,
         tsan_relaxed_store_32_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_store_function_64_bits,
         tsan_relaxed_store_64_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_32_bits,
+        tsan_relaxed_load_32_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,
+        tsan_relaxed_load_64_bits)
 
 static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
                                         Address raw_context) {

@@ -88,6 +88,11 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ArraySingleArgumentConstructor(
       Isolate* isolate, ElementsKind kind,
       AllocationSiteOverrideMode override_mode);
+
+#ifdef V8_IS_TSAN
+  static Builtin GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode, int size);
+  static Builtin GetTSANRelaxedLoadStub(SaveFPRegsMode fp_mode, int size);
+#endif  // V8_IS_TSAN
 };
 
 }  // namespace internal

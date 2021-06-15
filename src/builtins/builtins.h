@@ -137,29 +137,6 @@ class Builtins {
     }
   }
 
-#ifdef V8_IS_TSAN
-  static Builtin GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode, int size) {
-    if (size == kInt8Size) {
-      return fp_mode == SaveFPRegsMode::kIgnore
-                 ? Builtin::kTSANRelaxedStore8IgnoreFP
-                 : Builtin::kTSANRelaxedStore8SaveFP;
-    } else if (size == kInt16Size) {
-      return fp_mode == SaveFPRegsMode::kIgnore
-                 ? Builtin::kTSANRelaxedStore16IgnoreFP
-                 : Builtin::kTSANRelaxedStore16SaveFP;
-    } else if (size == kInt32Size) {
-      return fp_mode == SaveFPRegsMode::kIgnore
-                 ? Builtin::kTSANRelaxedStore32IgnoreFP
-                 : Builtin::kTSANRelaxedStore32SaveFP;
-    } else {
-      CHECK_EQ(size, kInt64Size);
-      return fp_mode == SaveFPRegsMode::kIgnore
-                 ? Builtin::kTSANRelaxedStore64IgnoreFP
-                 : Builtin::kTSANRelaxedStore64SaveFP;
-    }
-  }
-#endif  // V8_IS_TSAN
-
   // Convenience wrappers.
   Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
   Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
