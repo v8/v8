@@ -284,15 +284,7 @@ export class CollapsableElement extends V8CustomElement {
   constructor(templateText) {
     super(templateText);
     this._hasPendingUpdate = false;
-    this._closer.onclick = _ => this.tryUpdateOnVisibilityChange();
-  }
-
-  hide() {
-    if (this._contentIsVisible) this._closer.click();
-  }
-
-  show() {
-    if (!this._contentIsVisible) this._closer.click();
+    this._closer.onclick = _ => this._requestUpdateIfVisible();
   }
 
   get _closer() {
@@ -303,19 +295,30 @@ export class CollapsableElement extends V8CustomElement {
     return !this._closer.checked;
   }
 
+  hide() {
+    if (this._contentIsVisible) {
+      this._closer.checked = true;
+      this._requestUpdateIfVisible();
+    }
+    this.scrollIntoView();
+  }
+
+  show() {
+    if (!this._contentIsVisible) {
+      this._closer.checked = false;
+      this._requestUpdateIfVisible();
+    }
+    this.scrollIntoView();
+  }
+
   requestUpdate(useAnimation = false) {
     // A pending update will be resolved later, no need to try again.
     if (this._hasPendingUpdate) return;
     this._hasPendingUpdate = true;
-    this.requestUpdateIfVisible(useAnimation);
+    this._requestUpdateIfVisible(useAnimation);
   }
 
-  tryUpdateOnVisibilityChange() {
-    if (!this._hasPendingUpdate) return;
-    this.requestUpdateIfVisible(true);
-  }
-
-  requestUpdateIfVisible(useAnimation) {
+  _requestUpdateIfVisible(useAnimation = true) {
     if (!this._contentIsVisible) return;
     return super.requestUpdate(useAnimation);
   }

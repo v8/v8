@@ -72,6 +72,7 @@ class App {
       import('./view/map-panel.mjs'),
       import('./view/script-panel.mjs'),
       import('./view/code-panel.mjs'),
+      import('./view/property-link-table.mjs'),
       import('./view/tool-tip.mjs'),
     ]);
     document.addEventListener(
@@ -104,20 +105,17 @@ class App {
       case IcLogEntry:
         if (entry.map) entries.push(entry.map);
         break;
-      case ApiLogEntry:
-        break;
-      case CodeLogEntry:
-        break;
-      case TickLogEntry:
-        break;
-      case SharedLibLogEntry:
-        break;
       case DeoptLogEntry:
         // TODO select map + code entries
         if (entry.fileSourcePosition) entries.push(entry.fileSourcePosition);
         break;
       case Script:
         entries = entry.entries.concat(entry.sourcePositions);
+        break;
+      case ApiLogEntry:
+      case CodeLogEntry:
+      case TickLogEntry:
+      case SharedLibLogEntry:
         break;
       default:
         throw new Error(`Unknown selection type: ${entry.constructor?.name}`);
@@ -178,34 +176,40 @@ class App {
     }
   }
 
-  showMapEntries(entries) {
+  showMapEntries(entries, focusView = true) {
     this._view.mapPanel.selectedLogEntries = entries;
     this._view.mapList.selectedLogEntries = entries;
+    if (focusView) this._view.mapPanel.show();
   }
 
-  showIcEntries(entries) {
+  showIcEntries(entries, focusView = true) {
     this._view.icList.selectedLogEntries = entries;
+    if (focusView) this._view.icList.show();
   }
 
-  showDeoptEntries(entries) {
+  showDeoptEntries(entries, focusView = true) {
     this._view.deoptList.selectedLogEntries = entries;
+    if (focusView) this._view.deoptList.show();
   }
 
-  showSharedLibEntries(entries) {}
+  showSharedLibEntries(entries, focusView = true) {}
 
-  showCodeEntries(entries) {
+  showCodeEntries(entries, focusView = true) {
     this._view.codePanel.selectedEntries = entries;
     this._view.codeList.selectedLogEntries = entries;
+    if (focusView) this._view.codePanel.show();
   }
 
-  showApiEntries(entries) {
+  showApiEntries(entries, focusView = true) {
     this._view.apiList.selectedLogEntries = entries;
+    if (focusView) this._view.apiList.show();
   }
 
-  showTickEntries(entries) {}
+  showTickEntries(entries, focusView = true) {}
 
-  showSourcePositions(entries) {
+  showSourcePositions(entries, focusView = true) {
     this._view.scriptPanel.selectedSourcePositions = entries
+    if (focusView) this._view.scriptPanel.show();
   }
 
   handleTimeRangeSelect(e) {
@@ -215,12 +219,12 @@ class App {
 
   selectTimeRange(start, end) {
     this._state.selectTimeRange(start, end);
-    this.showMapEntries(this._state.mapTimeline.selectionOrSelf);
-    this.showIcEntries(this._state.icTimeline.selectionOrSelf);
-    this.showDeoptEntries(this._state.deoptTimeline.selectionOrSelf);
-    this.showCodeEntries(this._state.codeTimeline.selectionOrSelf);
-    this.showApiEntries(this._state.apiTimeline.selectionOrSelf);
-    this.showTickEntries(this._state.tickTimeline.selectionOrSelf);
+    this.showMapEntries(this._state.mapTimeline.selectionOrSelf, false);
+    this.showIcEntries(this._state.icTimeline.selectionOrSelf, false);
+    this.showDeoptEntries(this._state.deoptTimeline.selectionOrSelf, false);
+    this.showCodeEntries(this._state.codeTimeline.selectionOrSelf, false);
+    this.showApiEntries(this._state.apiTimeline.selectionOrSelf, false);
+    this.showTickEntries(this._state.tickTimeline.selectionOrSelf, false);
     this._view.timelinePanel.timeSelection = {start, end};
   }
 
@@ -254,25 +258,32 @@ class App {
     }
   }
 
-  focusMapLogEntry(entry) {
+  focusMapLogEntry(entry, focusSourcePosition = true) {
     this._state.map = entry;
     this._view.mapTrack.focusedEntry = entry;
     this._view.mapPanel.map = entry;
     this._view.mapPanel.show();
+    if (focusSourcePosition) this.focusSourcePosition(entry.sourcePosition);
   }
 
   focusIcLogEntry(entry) {
     this._state.ic = entry;
+    this.focusMapLogEntry(entry.map, false);
+    this.focusCodeLogEntry(entry.codeLogEntry, false);
+    this.focusSourcePosition(entry.sourcePosition);
   }
 
-  focusCodeLogEntry(entry) {
+  focusCodeLogEntry(entry, focusSourcePosition = true) {
     this._state.code = entry;
     this._view.codePanel.entry = entry;
+    if (focusSourcePosition) this.focusSourcePosition(entry.sourcePosition);
     this._view.codePanel.show();
   }
 
   focusDeoptLogEntry(entry) {
     this._state.deoptLogEntry = entry;
+    this.focusCodeLogEntry(entry.codeLogEntry, false);
+    this.focusSourcePosition(entry.sourcePosition);
   }
 
   focusSharedLibLogEntry(entry) {
@@ -282,6 +293,7 @@ class App {
   focusApiLogEntry(entry) {
     this._state.apiLogEntry = entry;
     this._view.apiTrack.focusedEntry = entry;
+    this.focusSourcePosition(entry.sourcePosition);
   }
 
   focusTickLogEntry(entry) {
@@ -297,23 +309,12 @@ class App {
 
   handleToolTip(event) {
     let content = event.content;
-    switch (content.constructor) {
-      case String:
-        break;
-      case Script:
-      case SourcePosition:
-      case MapLogEntry:
-      case IcLogEntry:
-      case ApiLogEntry:
-      case CodeLogEntry:
-      case DeoptLogEntry:
-      case SharedLibLogEntry:
-      case TickLogEntry:
-        content = content.toolTipDict;
-        break;
-      default:
-        throw new Error(
-            `Unknown tooltip content type: ${entry.constructor?.name}`);
+    if (typeof content !== 'string') {
+      content = content?.toolTipDict;
+    }
+    if (!content) {
+      throw new Error(
+          `Unknown tooltip content type: ${content.constructor?.name}`);
     }
     this.setToolTip(content, event.positionOrTargetNode);
   }
@@ -416,8 +417,8 @@ class Navigation {
   }
   selectPrevEdge() {
     if (!this.map) return;
-    if (!this.map.parent()) return;
-    this.map = this.map.parent();
+    if (!this.map.parent) return;
+    this.map = this.map.parent;
     this._view.mapTrack.selectedEntry = this.map;
     this.updateUrl();
     this._view.mapPanel.map = this.map;

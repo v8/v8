@@ -101,22 +101,11 @@ found in the LICENSE file. -->
   .right > .tipThin {
     left: var(--tip-offset);
   }
-
-
-  .properties td {
-    vertical-align: top;
-  }
-
-  .properties > tbody > tr > td:nth-child(2n+1):after {
-    content: ':';
-  }
-  .properties {
-    min-width: 350px;
-  }
 </style>
 
 <div id="body">
   <div id="content">
+    <property-link-table id="properties" showButtons></property-link-table>
   </div>
   <div class="tip">
     <div class="tipThin"></div>

@@ -309,6 +309,7 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _handleClick(event) {
+    if (event.button !== 0) return;
     if (event.target === this.timelineChunks) return;
     this.isLocked = !this.isLocked;
     event.stopImmediatePropagation();
@@ -317,6 +318,7 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _handleDoubleClick(event) {
+    if (event.button !== 0) return;
     this._selectionHandler.clearSelection();
     const time = this.positionToTime(event.pageX);
     const chunk = this._getChunkForEvent(event)
@@ -327,11 +329,12 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _handleMouseMove(event) {
-    if (this.isLocked) return false;
+    if (event.button !== 0) return;
     if (this._selectionHandler.isSelecting) return false;
     const logEntry = this._getEntryForEvent(event);
     if (!logEntry) return false;
     this.dispatchEvent(new ToolTipEvent(logEntry, this.toolTipTargetNode));
+    if (this.isLocked) return false;
     const time = this.positionToTime(event.pageX);
     this._drawAnnotations(logEntry, time);
   }
@@ -458,8 +461,9 @@ class SelectionHandler {
         SelectionHandler.SELECTION_OFFSET;
   }
 
-  _handleTimeSelectionMouseDown(e) {
-    let xPosition = e.clientX
+  _handleTimeSelectionMouseDown(event) {
+    if (event.button !== 0) return;
+    let xPosition = event.clientX
     // Update origin time in case we click on a handle.
     if (this._isOnLeftHandle(xPosition)) {
       xPosition = this._rightHandlePosX;
@@ -470,16 +474,19 @@ class SelectionHandler {
     this._selectionOriginTime = this.positionToTime(xPosition);
   }
 
-  _handleTimeSelectionMouseMove(e) {
+  _handleTimeSelectionMouseMove(event) {
+    if (event.button !== 0) return;
     if (!this.isSelecting) return;
-    const currentTime = this.positionToTime(e.clientX);
+    const currentTime = this.positionToTime(event.clientX);
     this._timeline.dispatchEvent(new SynchronizeSelectionEvent(
         Math.min(this._selectionOriginTime, currentTime),
         Math.max(this._selectionOriginTime, currentTime)));
   }
 
-  _handleTimeSelectionMouseUp(e) {
+  _handleTimeSelectionMouseUp(event) {
+    if (event.button !== 0) return;
     this._selectionOriginTime = -1;
+    if (this._timeSelection.start === -1) return;
     const delta = this._timeSelection.end - this._timeSelection.start;
     if (delta <= 1 || isNaN(delta)) return;
     this._timeline.dispatchEvent(new SelectTimeEvent(

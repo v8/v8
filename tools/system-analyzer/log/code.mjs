@@ -32,6 +32,10 @@ export class DeoptLogEntry extends LogEntry {
     return this._entry;
   }
 
+  get codeLogEntry() {
+    return this._entry?.logEntry;
+  }
+
   get functionName() {
     return this._entry.functionName;
   }
@@ -100,13 +104,17 @@ export class CodeLogEntry extends LogEntry {
 }
 
 export class SharedLibLogEntry extends LogEntry {
-  constructor(name) {
+  constructor(entry) {
     super('SHARED_LIB', 0);
-    this._name = name;
+    this._entry = entry;
   }
 
   get name() {
-    return this._name;
+    return this._entry.name;
+  }
+
+  get entry() {
+    return this._entry;
   }
 
   toString() {

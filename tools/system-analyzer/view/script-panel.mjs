@@ -34,8 +34,11 @@ DOM.defineCustomElement('view/script-panel',
   set script(script) {
     if (this._script === script) return;
     this._script = script;
-    this._renderSourcePanel();
-    this._updateScriptDropdownSelection();
+    this.requestUpdate();
+  }
+
+  set focusedSourcePositions(sourcePositions) {
+    this.selectedSourcePositions = sourcePositions;
   }
 
   set selectedSourcePositions(sourcePositions) {
@@ -45,10 +48,6 @@ DOM.defineCustomElement('view/script-panel',
     this._focusSelectedMarkers();
   }
 
-  set focusedSourcePositions(sourcePositions) {
-    this.selectedSourcePositions = sourcePositions;
-  }
-
   set scripts(scripts) {
     this._scripts = scripts;
     this._initializeScriptDropdown();
@@ -56,6 +55,11 @@ DOM.defineCustomElement('view/script-panel',
 
   get scriptDropdown() {
     return this.$('#script-dropdown');
+  }
+
+  _update() {
+    this._renderSourcePanel();
+    this._updateScriptDropdownSelection();
   }
 
   _initializeScriptDropdown() {
@@ -70,6 +74,7 @@ DOM.defineCustomElement('view/script-panel',
       select.add(option);
     }
   }
+
   _updateScriptDropdownSelection() {
     this.scriptDropdown.selectedIndex =
         this._script ? this._scripts.indexOf(this._script) : -1;

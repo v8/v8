@@ -6,7 +6,7 @@ import {LogEntry} from './log.mjs';
 export class IcLogEntry extends LogEntry {
   constructor(
       type, fn_file, time, line, column, key, oldState, newState, map, reason,
-      modifier, additional) {
+      modifier, codeEntry) {
     super(type, time);
     this.category = 'other';
     if (this.type.indexOf('Store') !== -1) {
@@ -17,15 +17,21 @@ export class IcLogEntry extends LogEntry {
     const parts = fn_file.split(' ');
     this.functionName = parts[0];
     this.file = parts[1];
-    let position = line + ':' + column;
     this.oldState = oldState;
     this.newState = newState;
-    this.state = this.oldState + ' → ' + this.newState;
     this.key = key;
     this.map = map;
     this.reason = reason;
-    this.additional = additional;
     this.modifier = modifier;
+    this.codeEntry = codeEntry;
+  }
+
+  get state() {
+    return this.oldState + ' → ' + this.newState;
+  }
+
+  get codeLogEntry() {
+    return this.codeEntry?.logEntry;
   }
 
   parseMapProperties(parts, offset) {

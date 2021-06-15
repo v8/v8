@@ -46,7 +46,7 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-map',
     let current = logEntry;
     while (current !== undefined) {
       stack.push(current);
-      current = current.parent();
+      current = current.parent;
     }
 
     // Draw outgoing refs as fuzzy background. Skip the last map entry.
@@ -54,7 +54,7 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-map',
     let nofEdges = 0;
     const kMaxOutgoingEdges = 100;
     for (let i = stack.length - 2; i >= 0; i--) {
-      const map = stack[i].parent();
+      const map = stack[i].parent;
       nofEdges += map.children.length;
       if (nofEdges > kMaxOutgoingEdges) break;
       buffer += this.drawOutgoingEdges(map, 0.4, 1);

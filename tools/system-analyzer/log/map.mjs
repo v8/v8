@@ -83,7 +83,7 @@ class MapLogEntry extends LogEntry {
     this.leftId = currentId
   }
 
-  parent() {
+  get parent() {
     return this.edge?.from;
   }
 
@@ -134,7 +134,7 @@ class MapLogEntry extends LogEntry {
       if (edge && edge.isTransition()) {
         transitions[edge.name] = edge;
       }
-      current = current.parent()
+      current = current.parent;
     }
     return transitions;
   }
@@ -157,10 +157,10 @@ class MapLogEntry extends LogEntry {
 
   getParents() {
     let parents = [];
-    let current = this.parent();
+    let current = this.parent;
     while (current) {
       parents.push(current);
-      current = current.parent();
+      current = current.parent;
     }
     return parents;
   }

@@ -77,6 +77,7 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
   }
 
   _handleDoubleClick(event) {
+    if (event.button !== 0) return;
     this._selectionHandler.clearSelection();
     const flame = this._getFlameForEvent(event);
     if (flame === undefined) return;

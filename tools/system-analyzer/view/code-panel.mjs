@@ -31,6 +31,19 @@ DOM.defineCustomElement('view/code-panel',
 
   set entry(entry) {
     this._entry = entry;
+    if (entry !== undefined) {
+      this.$('#properties').propertyDict = {
+        '__this__': entry,
+        functionName: entry.functionName,
+        size: formatBytes(entry.size),
+        sourcePosition: entry.sourcePosition,
+        script: entry.script,
+        type: entry.type,
+        kind: entry.kindName,
+      };
+    } else {
+      this.$('#properties').propertyDict = {};
+    }
     this.requestUpdate();
   }
 

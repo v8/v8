@@ -278,7 +278,7 @@ class Chunk {
   }
 
   filter() {
-    return this.items.filter(map => !map.parent() || !this.has(map.parent()));
+    return this.items.filter(map => !map.parent || !this.has(map.parent));
   }
 }
 

@@ -36,6 +36,7 @@ export class SourcePosition {
     this.line = line;
     this.column = column;
     this.entries = [];
+    this.isFunction = false;
   }
 
   addEntry(entry) {
@@ -44,6 +45,20 @@ export class SourcePosition {
 
   toString() {
     return `${this.script.name}:${this.line}:${this.column}`;
+  }
+
+  get functionPosition() {
+    // TODO(cbruni)
+    return undefined;
+  }
+
+  get toolTipDict() {
+    return {
+      title: this.toString(),
+      __this__: this,
+      script: this.script,
+      entries: this.entries.length,
+    }
   }
 }
 
@@ -72,6 +87,11 @@ export class Script {
 
   get entries() {
     return this._entries;
+  }
+
+  findFunctionSourcePosition(sourcePosition) {
+    // TODO(cbruni) implmenent
+    return undefined;
   }
 
   addSourcePosition(line, column, entry) {
