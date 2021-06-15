@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --logfile='+' --log --trace-maps --trace-ic --log-code
+// Flags: --logfile='+' --log --log-maps --log-ic --log-code
 // Flags: --log-function-events --no-stress-opt
 
 import { Processor } from "../../../tools/system-analyzer/processor.mjs";

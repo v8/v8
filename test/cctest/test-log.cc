@@ -880,7 +880,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
       i::Map::cast(obj).Print();
       FATAL(
           "Map (%p, #%zu) creation not logged during startup with "
-          "--trace-maps!"
+          "--log-maps!"
           "\n# Expected Log Line: map-create, ... %p",
           reinterpret_cast<void*>(obj.ptr()), i,
           reinterpret_cast<void*>(obj.ptr()));
@@ -890,7 +890,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
       i::Map::cast(obj).Print();
       FATAL(
           "Map (%p, #%zu) details not logged during startup with "
-          "--trace-maps!"
+          "--log-maps!"
           "\n# Expected Log Line: map-details, ... %p",
           reinterpret_cast<void*>(obj.ptr()), i,
           reinterpret_cast<void*>(obj.ptr()));

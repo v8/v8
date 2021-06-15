@@ -1530,12 +1530,10 @@ DEFINE_BOOL(use_idle_notification, true,
 // ic.cc
 DEFINE_BOOL(log_ic, false,
             "Log inline cache state transitions for tools/ic-processor")
-DEFINE_BOOL(trace_ic, false, "See --log-ic")
-DEFINE_IMPLICATION(trace_ic, log_ic)
 DEFINE_IMPLICATION(log_ic, log_code)
 DEFINE_GENERIC_IMPLICATION(
-    trace_ic, TracingFlags::ic_stats.store(
-                  v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
+    log_ic, TracingFlags::ic_stats.store(
+                v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
 DEFINE_INT(max_valid_polymorphic_map_count, 4,
