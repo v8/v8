@@ -3424,6 +3424,7 @@ void LinearScanAllocator::UpdateDeferredFixedRanges(SpillMode spill_mode,
           continue;
         }
         for (auto inactive : inactive_live_ranges(reg)) {
+          if (inactive->NextStart() > max) break;
           split_conflicting(range, inactive, [this](LiveRange* updated) {
             next_inactive_ranges_change_ =
                 std::min(updated->End(), next_inactive_ranges_change_);
