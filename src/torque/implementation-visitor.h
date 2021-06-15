@@ -842,6 +842,8 @@ class ImplementationVisitor {
     }
   }
 
+  class MacroInliningScope;
+
   base::Optional<CfgAssembler> assembler_;
   NullOStream null_stream_;
   bool is_dry_run_;
@@ -853,6 +855,10 @@ class ImplementationVisitor {
   // the value to load.
   std::unordered_map<const Expression*, const Identifier*>
       bitfield_expressions_;
+
+  // For emitting warnings. Contains the current set of macros being inlined in
+  // calls to InlineMacro.
+  std::unordered_set<const Macro*> inlining_macros_;
 
   // The contents of the debug macros output files. These contain all Torque
   // macros that have been generated using the C++ backend with debug purpose.

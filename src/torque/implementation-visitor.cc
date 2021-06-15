@@ -244,10 +244,28 @@ void ImplementationVisitor::Visit(TypeAlias* alias) {
   }
 }
 
+class ImplementationVisitor::MacroInliningScope {
+ public:
+  MacroInliningScope(ImplementationVisitor* visitor, const Macro* macro)
+      : visitor_(visitor), macro_(macro) {
+    if (!visitor_->inlining_macros_.insert(macro).second) {
+      // Recursive macro expansion would just keep going until stack overflow.
+      // To avoid crashes, throw an error immediately.
+      ReportError("Recursive macro call to ", *macro);
+    }
+  }
+  ~MacroInliningScope() { visitor_->inlining_macros_.erase(macro_); }
+
+ private:
+  ImplementationVisitor* visitor_;
+  const Macro* macro_;
+};
+
 VisitResult ImplementationVisitor::InlineMacro(
     Macro* macro, base::Optional<LocationReference> this_reference,
     const std::vector<VisitResult>& arguments,
     const std::vector<Block*> label_blocks) {
+  MacroInliningScope macro_inlining_scope(this, macro);
   CurrentScope::Scope current_scope(macro);
   BindingsManagersScope bindings_managers_scope;
   CurrentCallable::Scope current_callable(macro);
