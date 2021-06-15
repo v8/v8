@@ -308,10 +308,21 @@ export class TimelineTrackBase extends V8CustomElement {
     // Subclass responsibility.
   }
 
+  _handleUnlockedMouseEvent(event) {
+    const logEntry = this._getEntryForEvent(event);
+    if (!logEntry) return false;
+    this.dispatchEvent(new ToolTipEvent(logEntry, this.toolTipTargetNode));
+    const time = this.positionToTime(event.pageX);
+    this._drawAnnotations(logEntry, time);
+  }
+
   _handleClick(event) {
     if (event.button !== 0) return;
     if (event.target === this.timelineChunks) return;
     this.isLocked = !this.isLocked;
+    // Do this unconditionally since we want the tooltip to be update to the
+    // latest locked state.
+    this._handleUnlockedMouseEvent(event);
     event.stopImmediatePropagation();
     event.stopPropagation();
     return false;
@@ -331,12 +342,8 @@ export class TimelineTrackBase extends V8CustomElement {
   _handleMouseMove(event) {
     if (event.button !== 0) return;
     if (this._selectionHandler.isSelecting) return false;
-    const logEntry = this._getEntryForEvent(event);
-    if (!logEntry) return false;
-    this.dispatchEvent(new ToolTipEvent(logEntry, this.toolTipTargetNode));
     if (this.isLocked) return false;
-    const time = this.positionToTime(event.pageX);
-    this._drawAnnotations(logEntry, time);
+    this._handleUnlockedMouseEvent(event);
   }
 
   _getChunkForEvent(event) {

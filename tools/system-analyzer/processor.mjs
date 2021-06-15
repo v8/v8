@@ -261,10 +261,10 @@ export class Processor extends LogReader {
     if (inlinedPos > 0) {
       deoptLocation = deoptLocation.substring(0, inlinedPos)
     }
+    const script = this.getProfileEntryScript(codeEntry);
+    if (!script) return;
     const colSeparator = deoptLocation.lastIndexOf(':');
     const rowSeparator = deoptLocation.lastIndexOf(':', colSeparator - 1);
-    const script = this.getScript(deoptLocation.substring(1, rowSeparator));
-    if (!script) return;
     const line =
         parseInt(deoptLocation.substring(rowSeparator + 1, colSeparator));
     const column = parseInt(
