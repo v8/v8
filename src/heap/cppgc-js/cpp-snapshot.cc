@@ -106,6 +106,7 @@ class StateBase {
         visited_(visited) {
     DCHECK_NE(Visibility::kDependentVisibility, visibility);
   }
+  virtual ~StateBase() = default;
 
   // Visited objects have already been processed or are currently being
   // processed, see also IsPending() below.
@@ -189,6 +190,7 @@ class State final : public StateBase {
  public:
   State(const HeapObjectHeader& header, size_t state_count)
       : StateBase(&header, state_count, Visibility::kHidden, nullptr, false) {}
+  ~State() final = default;
 
   const HeapObjectHeader* header() const {
     return static_cast<const HeapObjectHeader*>(key_);
@@ -276,6 +278,7 @@ class RootState final : public StateBase {
   RootState(EmbedderRootNode* node, size_t state_count)
       // Root states are always visited, visible, and have a node attached.
       : StateBase(node, state_count, Visibility::kVisible, node, true) {}
+  ~RootState() final = default;
 };
 
 // Abstraction for storing states. Storage allows for creation and lookup of
