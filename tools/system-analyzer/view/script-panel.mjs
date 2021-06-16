@@ -63,7 +63,7 @@ DOM.defineCustomElement('view/script-panel',
   }
 
   _initializeScriptDropdown() {
-    this._scripts.sort((a, b) => a.name.localeCompare(b.name));
+    this._scripts.sort((a, b) => a.name?.localeCompare(b.name) ?? 0);
     let select = this.scriptDropdown;
     select.options.length = 0;
     for (const script of this._scripts) {
@@ -245,6 +245,7 @@ class LineBuilder {
         break;
       }
     }
+    scriptNode.style.counterReset = `sourceLineCounter ${startLine - 1}`;
     for (let [lineIndex, line] of lineIterator(
              this._script.source, startLine)) {
       scriptNode.appendChild(this._createLineNode(lineIndex, line));
