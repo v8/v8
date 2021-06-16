@@ -4,6 +4,7 @@
 
 #include "src/regexp/experimental/experimental-bytecode.h"
 
+#include <cctype>
 #include <iomanip>
 
 namespace v8 {
