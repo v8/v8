@@ -14,6 +14,7 @@
 
 #if defined(V8_OS_STARBOARD)
 #include "starboard/memory.h"
+#include "starboard/string.h"
 #endif
 
 namespace v8 {
@@ -33,6 +34,8 @@ inline void Free(void* memory) { return free(memory); }
 
 inline void* Calloc(size_t count, size_t size) { return calloc(count, size); }
 
+inline char* Strdup(const char* source) { return strdup(source); }
+
 inline FILE* Fopen(const char* filename, const char* mode) {
   return fopen(filename, mode);
 }
@@ -41,7 +44,7 @@ inline int Fclose(FILE* stream) { return fclose(stream); }
 
 #else  // V8_OS_STARBOARD
 
-inline void* Malloc(size_t size) { return SbMemoryAlloc(size); }
+inline void* Malloc(size_t size) { return SbMemoryAllocate(size); }
 
 inline void* Realloc(void* memory, size_t size) {
   return SbMemoryReallocate(memory, size);
@@ -52,6 +55,8 @@ inline void Free(void* memory) { return SbMemoryDeallocate(memory); }
 inline void* Calloc(size_t count, size_t size) {
   return SbMemoryCalloc(count, size);
 }
+
+inline char* Strdup(const char* source) { return SbStringDuplicate(source); }
 
 inline FILE* Fopen(const char* filename, const char* mode) { return NULL; }
 
