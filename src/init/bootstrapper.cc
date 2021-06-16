@@ -3732,8 +3732,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()),
                                isolate());
 
-    SimpleInstallFunction(isolate_, prototype, "delete",
-                          Builtin::kWeakMapPrototypeDelete, 1, true);
+    Handle<JSFunction> weakmap_delete =
+        SimpleInstallFunction(isolate_, prototype, "delete",
+                              Builtin::kWeakMapPrototypeDelete, 1, true);
+    native_context()->set_weakmap_delete(*weakmap_delete);
+
     Handle<JSFunction> weakmap_get = SimpleInstallFunction(
         isolate_, prototype, "get", Builtin::kWeakMapGet, 1, true);
     native_context()->set_weakmap_get(*weakmap_get);

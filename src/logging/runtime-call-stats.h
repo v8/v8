@@ -298,6 +298,7 @@ class RuntimeCallTimer final {
   V(WasmCompileError_New)                                  \
   V(WasmLinkError_New)                                     \
   V(WasmRuntimeError_New)                                  \
+  V(WeakMap_Delete)                                        \
   V(WeakMap_Get)                                           \
   V(WeakMap_New)                                           \
   V(WeakMap_Set)

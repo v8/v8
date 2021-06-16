@@ -1175,6 +1175,21 @@ v8::MaybeLocal<v8::Value> WeakMap::Get(v8::Local<v8::Context> context,
   RETURN_ESCAPED(result);
 }
 
+v8::Maybe<bool> WeakMap::Delete(v8::Local<v8::Context> context,
+                                v8::Local<v8::Value> key) {
+  PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, WeakMap, Delete, Nothing<bool>(),
+                                     InternalEscapableScope, false);
+  auto self = Utils::OpenHandle(this);
+  Local<Value> result;
+  i::Handle<i::Object> argv[] = {Utils::OpenHandle(*key)};
+  has_pending_exception = !ToLocal<Value>(
+      i::Execution::CallBuiltin(isolate, isolate->weakmap_delete(), self,
+                                arraysize(argv), argv),
+      &result);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(result->IsTrue());
+}
+
 v8::MaybeLocal<WeakMap> WeakMap::Set(v8::Local<v8::Context> context,
                                      v8::Local<v8::Value> key,
                                      v8::Local<v8::Value> value) {
