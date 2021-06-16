@@ -18,8 +18,6 @@ if (v8_enable_google_benchmark) {
     sources = [
       "src/src/arraysize.h",
       "src/src/benchmark.cc",
-      "src/src/benchmark_adjust_repetitions.cc",
-      "src/src/benchmark_adjust_repetitions.h",
       "src/src/benchmark_api_internal.cc",
       "src/src/benchmark_api_internal.h",
       "src/src/benchmark_name.cc",
