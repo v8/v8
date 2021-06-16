@@ -1396,15 +1396,6 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(global_js_object));
 }
 
-// WebAssembly.Exception
-void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Exception()");
-  thrower.TypeError("WebAssembly.Exception cannot be called");
-}
-
 namespace {
 
 uint32_t GetIterableLength(i::Isolate* isolate, Local<Context> context,
@@ -1419,6 +1410,69 @@ uint32_t GetIterableLength(i::Isolate* isolate, Local<Context> context,
 }
 
 }  // namespace
+
+// WebAssembly.Exception
+void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Exception()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Exception must be invoked with 'new'");
+    return;
+  }
+  if (!args[0]->IsObject()) {
+    thrower.TypeError("Argument 0 must be an exception type");
+    return;
+  }
+
+  Local<Object> event_type = Local<Object>::Cast(args[0]);
+  Local<Context> context = isolate->GetCurrentContext();
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+
+  // Load the 'parameters' property of the event type.
+  Local<String> parameters_key = v8_str(isolate, "parameters");
+  v8::MaybeLocal<v8::Value> parameters_maybe =
+      event_type->Get(context, parameters_key);
+  v8::Local<v8::Value> parameters_value;
+  if (!parameters_maybe.ToLocal(&parameters_value) ||
+      !parameters_value->IsObject()) {
+    thrower.TypeError("Argument 0 must be an exception type with 'parameters'");
+    return;
+  }
+  Local<Object> parameters = parameters_value.As<Object>();
+  uint32_t parameters_len = GetIterableLength(i_isolate, context, parameters);
+  if (parameters_len == i::kMaxUInt32) {
+    thrower.TypeError("Argument 0 contains parameters without 'length'");
+    return;
+  }
+  if (parameters_len > i::wasm::kV8MaxWasmFunctionParams) {
+    thrower.TypeError("Argument 0 contains too many parameters");
+    return;
+  }
+
+  // Decode the exception type and construct a signature.
+  std::vector<i::wasm::ValueType> param_types(parameters_len,
+                                              i::wasm::kWasmVoid);
+  for (uint32_t i = 0; i < parameters_len; ++i) {
+    i::wasm::ValueType& type = param_types[i];
+    MaybeLocal<Value> maybe = parameters->Get(context, i);
+    if (!GetValueType(isolate, maybe, context, &type, enabled_features) ||
+        type == i::wasm::kWasmVoid) {
+      thrower.TypeError(
+          "Argument 0 parameter type at index #%u must be a value type", i);
+      return;
+    }
+  }
+  const i::wasm::FunctionSig sig{0, parameters_len, param_types.data()};
+  // Set the tag index to 0. It is only used for debugging purposes, and has no
+  // meaningful value when declared outside of a wasm module.
+  auto tag = i::WasmExceptionTag::New(i_isolate, 0);
+  i::Handle<i::Object> exception =
+      i::WasmExceptionObject::New(i_isolate, &sig, tag);
+  args.GetReturnValue().Set(Utils::ToLocal(exception));
+}
 
 // WebAssembly.Function
 void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1443,8 +1497,8 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::MaybeLocal<v8::Value> parameters_maybe =
       function_type->Get(context, parameters_key);
   v8::Local<v8::Value> parameters_value;
-  if (!parameters_maybe.ToLocal(&parameters_value)) return;
-  if (!parameters_value->IsObject()) {
+  if (!parameters_maybe.ToLocal(&parameters_value) ||
+      !parameters_value->IsObject()) {
     thrower.TypeError("Argument 0 must be a function type with 'parameters'");
     return;
   }
@@ -1486,8 +1540,8 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (uint32_t i = 0; i < parameters_len; ++i) {
     i::wasm::ValueType type;
     MaybeLocal<Value> maybe = parameters->Get(context, i);
-    if (!GetValueType(isolate, maybe, context, &type, enabled_features)) return;
-    if (type == i::wasm::kWasmVoid) {
+    if (!GetValueType(isolate, maybe, context, &type, enabled_features) ||
+        type == i::wasm::kWasmVoid) {
       thrower.TypeError(
           "Argument 0 parameter type at index #%u must be a value type", i);
       return;
