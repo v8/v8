@@ -2817,6 +2817,17 @@ class LiftoffCompiler {
     return true;
   }
 
+  Register GetMemoryStart(LiftoffRegList pinned) {
+    Register memory_start = __ cache_state()->cached_mem_start;
+    if (memory_start == no_reg) {
+      memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
+      LOAD_INSTANCE_FIELD(memory_start, MemoryStart, kSystemPointerSize,
+                          pinned);
+      __ cache_state()->SetMemStartCacheRegister(memory_start);
+    }
+    return memory_start;
+  }
+
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate<validate>& imm,
                const Value& index_val, Value* result) {
@@ -2835,8 +2846,7 @@ class LiftoffCompiler {
       __ cache_state()->stack_state.pop_back();
       DEBUG_CODE_COMMENT("load from memory (constant offset)");
       LiftoffRegList pinned;
-      Register mem = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_INSTANCE_FIELD(mem, MemoryStart, kSystemPointerSize, pinned);
+      Register mem = pinned.set(GetMemoryStart(pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
       __ Load(value, mem, no_reg, offset, type, pinned, nullptr, true,
               i64_offset);
@@ -2853,8 +2863,7 @@ class LiftoffCompiler {
 
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
-      Register mem = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_INSTANCE_FIELD(mem, MemoryStart, kSystemPointerSize, pinned);
+      Register mem = pinned.set(GetMemoryStart(pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
 
       uint32_t protected_load_pc = 0;
@@ -2897,8 +2906,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("load with transformation");
-    Register addr = __ GetUnusedRegister(kGpReg, pinned).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
+    Register addr = GetMemoryStart(pinned);
     LiftoffRegister value = __ GetUnusedRegister(reg_class_for(kS128), {});
     uint32_t protected_load_pc = 0;
     __ LoadTransform(value, addr, index, offset, type, transform,
@@ -2938,8 +2946,7 @@ class LiftoffCompiler {
     pinned.set(index);
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("load lane");
-    Register addr = __ GetUnusedRegister(kGpReg, pinned).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
+    Register addr = GetMemoryStart(pinned);
     LiftoffRegister result = __ GetUnusedRegister(reg_class_for(kS128), {});
     uint32_t protected_load_pc = 0;
 
@@ -2974,8 +2981,7 @@ class LiftoffCompiler {
     if (IndexStaticallyInBounds(index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
       DEBUG_CODE_COMMENT("store to memory (constant offset)");
-      Register mem = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_INSTANCE_FIELD(mem, MemoryStart, kSystemPointerSize, pinned);
+      Register mem = pinned.set(GetMemoryStart(pinned));
       __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true);
     } else {
       LiftoffRegister full_index = __ PopToRegister(pinned);
@@ -2989,8 +2995,7 @@ class LiftoffCompiler {
       uint32_t protected_store_pc = 0;
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
-      Register mem = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_INSTANCE_FIELD(mem, MemoryStart, kSystemPointerSize, pinned);
+      Register mem = pinned.set(GetMemoryStart(pinned));
       LiftoffRegList outer_pinned;
       if (V8_UNLIKELY(FLAG_trace_wasm_memory)) outer_pinned.set(index);
       __ Store(mem, index, offset, value, type, outer_pinned,
@@ -3022,8 +3027,7 @@ class LiftoffCompiler {
     pinned.set(index);
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("store lane to memory");
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
+    Register addr = pinned.set(GetMemoryStart(pinned));
     uint32_t protected_store_pc = 0;
     __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc);
     if (env_->use_trap_handler) {
@@ -4271,8 +4275,7 @@ class LiftoffCompiler {
     uintptr_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("atomic store to memory");
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
+    Register addr = pinned.set(GetMemoryStart(pinned));
     LiftoffRegList outer_pinned;
     if (V8_UNLIKELY(FLAG_trace_wasm_memory)) outer_pinned.set(index);
     __ AtomicStore(addr, index, offset, value, type, outer_pinned);
@@ -4295,8 +4298,7 @@ class LiftoffCompiler {
     uintptr_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
     DEBUG_CODE_COMMENT("atomic load from memory");
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
+    Register addr = pinned.set(GetMemoryStart(pinned));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
     __ AtomicLoad(value, addr, index, offset, type, pinned);
@@ -4343,8 +4345,7 @@ class LiftoffCompiler {
 
     uintptr_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
+    Register addr = pinned.set(GetMemoryStart(pinned));
 
     (asm_.*emit_fn)(addr, index, offset, value, result, type);
     __ PushRegister(result_kind, result);
@@ -4400,8 +4401,7 @@ class LiftoffCompiler {
 
     uintptr_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
+    Register addr = pinned.set(GetMemoryStart(pinned));
     LiftoffRegister result =
         pinned.set(__ GetUnusedRegister(reg_class_for(result_kind), pinned));
 
