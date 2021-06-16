@@ -3449,7 +3449,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
       DecodeCSType();
       break;
     default:
-      if (::v8::internal::FLAG_trace_sim) {
+      if (1) {
         std::cout << "Unrecognized instruction [@pc=0x" << std::hex
                   << registers_[pc] << "]: 0x" << instr->InstructionBits()
                   << std::endl;

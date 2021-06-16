@@ -12,7 +12,6 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
-constexpr Register kTestReg = t0;
 class BaselineAssembler::ScratchRegisterScope {
  public:
   explicit ScratchRegisterScope(BaselineAssembler* assembler)
@@ -481,9 +480,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          Register value) {
   // FIXME(riscv64): riscv64 don't implement pointer compressed
   __ Sd(value, FieldMemOperand(target, offset));
-  ScratchRegisterScope temps(this);
-  Register tmp = temps.AcquireScratch();
-  __ RecordWriteField(target, offset, value, tmp, kRAHasNotBeenSaved,
+  __ RecordWriteField(target, offset, value, kRAHasNotBeenSaved,
                       SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,

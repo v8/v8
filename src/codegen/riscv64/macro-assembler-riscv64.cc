@@ -168,48 +168,40 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 // The register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
 void MacroAssembler::RecordWriteField(Register object, int offset,
-                                      Register value, Register dst,
-                                      RAStatus ra_status,
+                                      Register value, RAStatus ra_status,
                                       SaveFPRegsMode save_fp,
                                       RememberedSetAction remembered_set_action,
                                       SmiCheck smi_check) {
+  DCHECK(!AreAliased(object, value));
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
 
-  // Skip barrier if writing a smi.
+  // Skip the barrier if writing a smi.
   if (smi_check == SmiCheck::kInline) {
     JumpIfSmi(value, &done);
   }
 
   // Although the object register is tagged, the offset is relative to the start
-  // of the object, so so offset must be a multiple of kSystemPointerSize.
+  // of the object, so offset must be a multiple of kTaggedSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  Add64(dst, object, Operand(offset - kHeapObjectTag));
   if (FLAG_debug_code) {
+    Label ok;
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    Label ok;
-    DCHECK(!AreAliased(value, dst, scratch, object));
-    And(scratch, dst, Operand(kTaggedSize - 1));
+    DCHECK(!AreAliased(object, value, scratch));
+    Add64(scratch, object, offset - kHeapObjectTag);
+    And(scratch, scratch, Operand(kTaggedSize - 1));
     BranchShort(&ok, eq, scratch, Operand(zero_reg));
-    ebreak();
+    Abort(AbortReason::kUnalignedCellInWriteBarrier);
     bind(&ok);
   }
 
-  RecordWrite(object, dst, value, ra_status, save_fp, remembered_set_action,
-              SmiCheck::kOmit);
+  RecordWrite(object, Operand(offset - kHeapObjectTag), value, ra_status,
+              save_fp, remembered_set_action, SmiCheck::kOmit);
 
   bind(&done);
-
-  // Clobber clobbered input registers when running with the debug-code flag
-  // turned on to provoke errors.
-  if (FLAG_debug_code) {
-    li(value, Operand(bit_cast<int64_t>(kZapValue + 4)));
-    li(dst, Operand(bit_cast<int64_t>(kZapValue + 8)));
-  }
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {
@@ -294,15 +286,14 @@ void TurboAssembler::CallRecordWriteStub(
         wasm::WasmCode::GetRecordWriteStub(remembered_set_action, fp_mode);
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
   } else {
-    auto builtin_index =
-        Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
+    auto builtin = Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
     if (options().inline_offheap_trampolines) {
       // Inline the trampoline. //qj
-      DCHECK(Builtins::IsBuiltinId(builtin_index));
-      RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+      DCHECK(Builtins::IsBuiltinId(builtin));
+      RecordCommentForOffHeapTrampoline(builtin);
+      CHECK_NE(builtin, Builtin::kNoBuiltinId);
       EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+      Address entry = d.InstructionStartOfBuiltin(builtin);
 
       UseScratchRegisterScope temps(this);
       BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -310,8 +301,7 @@ void TurboAssembler::CallRecordWriteStub(
       li(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
       Call(scratch);
     } else {
-      Handle<Code> code_target =
-          isolate()->builtins()->code_handle(builtin_index);
+      Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }
@@ -320,17 +310,21 @@ void TurboAssembler::CallRecordWriteStub(
 // Clobbers object, address, value, and ra, if (ra_status == kRAHasBeenSaved)
 // The register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
-void MacroAssembler::RecordWrite(Register object, Register address,
+void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  Register value, RAStatus ra_status,
                                  SaveFPRegsMode fp_mode,
                                  RememberedSetAction remembered_set_action,
                                  SmiCheck smi_check) {
-  DCHECK(!AreAliased(object, address, value));
+  DCHECK(!AreAliased(object, value));
+
   if (FLAG_debug_code) {
-    DCHECK(!AreAliased(object, address, value, kScratchReg));
-    LoadTaggedPointerField(kScratchReg, MemOperand(address));
-    Assert(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite,
-           kScratchReg, Operand(value));
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    DCHECK(!AreAliased(object, value, temp));
+    Add64(temp, object, offset);
+    LoadTaggedPointerField(temp, MemOperand(temp));
+    Assert(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite, temp,
+           Operand(value));
   }
 
   if ((remembered_set_action == RememberedSetAction::kOmit &&
@@ -348,31 +342,39 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     JumpIfSmi(value, &done);
   }
 
-  CheckPageFlag(value,
-                value,  // Used as scratch.
-                MemoryChunk::kPointersToHereAreInterestingMask, eq, &done);
-  CheckPageFlag(object,
-                value,  // Used as scratch.
-                MemoryChunk::kPointersFromHereAreInterestingMask, eq, &done);
+  {
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    CheckPageFlag(value,
+                  temp,  // Used as scratch.
+                  MemoryChunk::kPointersToHereAreInterestingMask,
+                  eq,  // In RISC-V, it uses cc for a comparison with 0, so if
+                       // no bits are set, and cc is eq, it will branch to done
+                  &done);
 
+    CheckPageFlag(object,
+                  temp,  // Used as scratch.
+                  MemoryChunk::kPointersFromHereAreInterestingMask,
+                  eq,  // In RISC-V, it uses cc for a comparison with 0, so if
+                       // no bits are set, and cc is eq, it will branch to done
+                  &done);
+  }
   // Record the actual write.
   if (ra_status == kRAHasNotBeenSaved) {
     push(ra);
   }
-  CallRecordWriteStubSaveRegisters(object, address, remembered_set_action,
-                                   fp_mode);
+  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
+  DCHECK(!AreAliased(object, slot_address, value));
+  // TODO(cbruni): Turn offset into int.
+  DCHECK(offset.IsImmediate());
+  Add64(slot_address, object, offset);
+  CallRecordWriteStub(object, slot_address, remembered_set_action, fp_mode);
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);
   }
+  if (FLAG_debug_code) li(slot_address, Operand(kZapValue));
 
   bind(&done);
-
-  // Clobber clobbered registers when running with the debug-code flag
-  // turned on to provoke errors.
-  if (FLAG_debug_code) {
-    li(address, Operand(bit_cast<int64_t>(kZapValue + 12)));
-    li(value, Operand(bit_cast<int64_t>(kZapValue + 16)));
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -2994,10 +2996,10 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK(RelocInfo::IsCodeTarget(rmode));
 
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  int builtin_index = Builtin::kNoBuiltinId;
+  Builtin builtin = Builtin::kNoBuiltinId;
   bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-      Builtins::IsIsolateIndependent(builtin_index);
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin) &&
+      Builtins::IsIsolateIndependent(builtin);
   if (target_is_isolate_independent_builtin &&
       options().use_pc_relative_calls_and_jumps) {
     int32_t code_target_index = AddCodeTarget(code);
@@ -3020,10 +3022,10 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   } else if (options().inline_offheap_trampolines &&
              target_is_isolate_independent_builtin) {
     // Inline the trampoline.
-    RecordCommentForOffHeapTrampoline(builtin_index);
-    CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+    RecordCommentForOffHeapTrampoline(builtin);
+    CHECK_NE(builtin, Builtin::kNoBuiltinId);
     EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     li(t6, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
     Jump(t6, cond, rs, rt);
     return;
@@ -3074,16 +3076,16 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
 
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, Register rs, const Operand& rt) {
-  int builtin_index = Builtin::kNoBuiltinId;
+  Builtin builtin = Builtin::kNoBuiltinId;
   bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-      Builtins::IsIsolateIndependent(builtin_index);
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin) &&
+      Builtins::IsIsolateIndependent(builtin);
   if (target_is_isolate_independent_builtin &&
       options().use_pc_relative_calls_and_jumps) {
     int32_t code_target_index = AddCodeTarget(code);
     Label skip;
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    RecordCommentForOffHeapTrampoline(builtin_index);
+    RecordCommentForOffHeapTrampoline(builtin);
     if (cond != al) {
       Branch(&skip, NegateCondition(cond), rs, rt);
     }
@@ -3102,10 +3104,10 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   } else if (options().inline_offheap_trampolines &&
              target_is_isolate_independent_builtin) {
     // Inline the trampoline.
-    RecordCommentForOffHeapTrampoline(builtin_index);
-    CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+    RecordCommentForOffHeapTrampoline(builtin);
+    CHECK_NE(builtin, Builtin::kNoBuiltinId);
     EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    Address entry = d.InstructionStartOfBuiltin(builtin);
     li(t6, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
     Call(t6, cond, rs, rt);
     return;
@@ -3117,30 +3119,28 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   Call(static_cast<Address>(target_index), rmode, cond, rs, rt);
 }
 
-void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
+void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin) {
   STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
-  // The builtin_index register contains the builtin index as a Smi.
-  SmiUntag(builtin_index, builtin_index);
-  CalcScaledAddress(builtin_index, kRootRegister, builtin_index,
-                    kSystemPointerSizeLog2);
-  Ld(builtin_index,
-     MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
+  // The builtin register contains the builtin index as a Smi.
+  SmiUntag(builtin, builtin);
+  CalcScaledAddress(builtin, kRootRegister, builtin, kSystemPointerSizeLog2);
+  Ld(builtin, MemOperand(builtin, IsolateData::builtin_entry_table_offset()));
 }
 
-void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
-  LoadEntryFromBuiltinIndex(builtin_index);
-  Call(builtin_index);
+void TurboAssembler::CallBuiltinByIndex(Register builtin) {
+  LoadEntryFromBuiltinIndex(builtin);
+  Call(builtin);
 }
 
-void TurboAssembler::CallBuiltin(int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  RecordCommentForOffHeapTrampoline(builtin_index);
-  CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+void TurboAssembler::CallBuiltin(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  RecordCommentForOffHeapTrampoline(builtin);
+  CHECK_NE(builtin, Builtin::kNoBuiltinId);
   EmbeddedData d = EmbeddedData::FromBlob(isolate());
-  Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  Address entry = d.InstructionStartOfBuiltin(builtin);
   if (options().short_builtin_calls) {
     Call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
@@ -3149,12 +3149,12 @@ void TurboAssembler::CallBuiltin(int builtin_index) {
   RecordComment("]");
 }
 
-void TurboAssembler::TailCallBuiltin(int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  RecordCommentForOffHeapTrampoline(builtin_index);
-  CHECK_NE(builtin_index, Builtin::kNoBuiltinId);
+void TurboAssembler::TailCallBuiltin(Builtin builtin) {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  RecordCommentForOffHeapTrampoline(builtin);
+  CHECK_NE(builtin, Builtin::kNoBuiltinId);
   EmbeddedData d = EmbeddedData::FromBlob(isolate());
-  Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  Address entry = d.InstructionStartOfBuiltin(builtin);
   if (options().short_builtin_calls) {
     Jump(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
@@ -3163,15 +3163,15 @@ void TurboAssembler::TailCallBuiltin(int builtin_index) {
   RecordComment("]");
 }
 
-void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin_index,
+void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin,
                                           Register destination) {
-  Ld(destination, EntryFromBuiltinAsOperand(builtin_index));
+  Ld(destination, EntryFromBuiltinAsOperand(builtin));
 }
 
-MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin_index) {
+MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   DCHECK(root_array_available());
   return MemOperand(kRootRegister,
-                    IsolateData::builtin_entry_slot_offset(builtin_index));
+                    IsolateData::builtin_entry_slot_offset(builtin));
 }
 
 void TurboAssembler::PatchAndJump(Address target) {
@@ -4656,9 +4656,11 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
   // * Codegen at runtime does not have this restriction and we can use the
   //   shorter, branchless instruction sequence. The assumption here is that
   //   targets are usually generated code and not builtin Code objects.
+
   if (options().isolate_independent_code) {
     DCHECK(root_array_available());
     Label if_code_is_off_heap, no_builtin_index, out;
+
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
 
@@ -4668,6 +4670,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // Check whether the Code object is an off-heap trampoline. If so, call its
     // (off-heap) entry point directly without going through the (on-heap)
     // trampoline.  Otherwise, just call the Code object as always.
+
     Lw(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
     Branch(&if_code_is_off_heap, ne, scratch,
            Operand(Code::IsOffHeapTrampoline::kMask));
@@ -4682,7 +4685,8 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     bind(&if_code_is_off_heap);
     Lw(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
     // TODO(RISCV): https://github.com/v8-riscv/v8/issues/373
-    Branch(&no_builtin_index, eq, scratch, Operand(Builtin::kNoBuiltinId));
+    Branch(&no_builtin_index, eq, scratch,
+           Operand(static_cast<int>(Builtin::kNoBuiltinId)));
     slli(destination, scratch, kSystemPointerSizeLog2);
     Add64(destination, destination, kRootRegister);
     Ld(destination,
