@@ -2768,9 +2768,31 @@ void AsyncStreamingProcessor::OnAbort() {
   job_->Abort();
 }
 
+namespace {
+class DeserializationTimeScope {
+ public:
+  explicit DeserializationTimeScope(TimedHistogram* counter)
+      : counter_(counter), start_(base::TimeTicks::Now()) {}
+
+  ~DeserializationTimeScope() {
+    if (base::TimeTicks::IsHighResolution()) {
+      base::TimeDelta duration = base::TimeTicks::Now() - start_;
+      int duration_usecs = static_cast<int>(duration.InMicroseconds());
+      counter_->AddSample(duration_usecs);
+    }
+  }
+
+ private:
+  TimedHistogram* counter_;
+  base::TimeTicks start_;
+};
+}  // namespace
+
 bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
                                           Vector<const uint8_t> wire_bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
+  DeserializationTimeScope time_scope(
+      job_->isolate()->counters()->wasm_deserialization_time());
   // DeserializeNativeModule and FinishCompile assume that they are executed in
   // a HandleScope, and that a context is set on the isolate.
   HandleScope scope(job_->isolate_);
