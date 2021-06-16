@@ -24,7 +24,6 @@
 #include "src/numbers/double.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime.h"
-#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -187,11 +186,9 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   } else if (options().inline_offheap_trampolines && target_is_builtin) {
     // Inline the trampoline.
     RecordCommentForOffHeapTrampoline(builtin);
-    EmbeddedData d = EmbeddedData::FromBlob();
-    Address entry = d.InstructionStartOfBuiltin(builtin);
     // Use ip directly instead of using UseScratchRegisterScope, as we do not
     // preserve scratch registers across calls.
-    mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
     Jump(ip, cond);
     return;
   }
@@ -316,13 +313,10 @@ MemOperand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
 }
 
 void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
-  DCHECK(Builtins::IsBuiltinId(builtin));
   RecordCommentForOffHeapTrampoline(builtin);
-  EmbeddedData d = EmbeddedData::FromBlob();
-  Address entry = d.InstructionStartOfBuiltin(builtin);
   // Use ip directly instead of using UseScratchRegisterScope, as we do not
   // preserve scratch registers across calls.
-  mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+  mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
   Call(ip, cond);
 }
 

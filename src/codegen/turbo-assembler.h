@@ -64,6 +64,8 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   void IndirectLoadExternalReference(Register destination,
                                      ExternalReference reference);
 
+  Address BuiltinEntry(Builtin builtin);
+
   virtual void LoadFromConstantsTable(Register destination,
                                       int constant_index) = 0;
 

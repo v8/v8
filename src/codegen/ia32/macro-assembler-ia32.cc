@@ -54,7 +54,6 @@
 #include "src/roots/roots-inl.h"
 #include "src/roots/roots.h"
 #include "src/runtime/runtime.h"
-#include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/utils.h"
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
@@ -2202,12 +2201,8 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 }
 
 void TurboAssembler::CallBuiltin(Builtin builtin) {
-  DCHECK(Builtins::IsBuiltinId(builtin));
   RecordCommentForOffHeapTrampoline(builtin);
-  CHECK_NE(builtin, Builtin::kNoBuiltinId);
-  EmbeddedData d = EmbeddedData::FromBlob();
-  Address entry = d.InstructionStartOfBuiltin(builtin);
-  call(entry, RelocInfo::OFF_HEAP_TARGET);
+  call(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
 }
 
 Operand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
@@ -2290,10 +2285,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
       // Inline the trampoline.
       RecordCommentForOffHeapTrampoline(builtin);
-      CHECK_NE(builtin, Builtin::kNoBuiltinId);
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin);
-      jmp(entry, RelocInfo::OFF_HEAP_TARGET);
+      jmp(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
       return;
     }
   }
