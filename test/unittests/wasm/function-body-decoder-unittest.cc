@@ -3924,8 +3924,8 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
                                           WASM_RTT_CANON(array_type_index)),
                  kExprDrop},
                 kAppendEnd,
-                "struct.new_with_rtt[1] expected rtt for type 0, found "
-                "rtt.canon of type (rtt 0 1)");
+                "struct.new_with_rtt[1] expected rtt with depth for type 0, "
+                "found rtt.canon of type (rtt 0 1)");
   // Out-of-bounds index.
   ExpectFailure(sigs.v_v(),
                 {WASM_STRUCT_NEW_WITH_RTT(42, WASM_I32V(0),
@@ -4057,8 +4057,8 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
                     array_type_index, WASM_REF_NULL(kFuncRefCode), WASM_I32V(5),
                     WASM_RTT_CANON(struct_type_index))},
                 kAppendEnd,
-                "array.new_with_rtt[2] expected rtt for type 0, found "
-                "rtt.canon of type (rtt 0 1)");
+                "array.new_with_rtt[2] expected rtt with depth for type 0, "
+                "found rtt.canon of type (rtt 0 1)");
   // Wrong type index.
   ExpectFailure(
       sigs.v_v(),

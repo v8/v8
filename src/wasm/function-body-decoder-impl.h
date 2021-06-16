@@ -3875,7 +3875,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 rtt.type.is_bottom() ||
                 (rtt.type.ref_index() == imm.index && rtt.type.has_depth()))) {
           PopTypeError(imm.struct_type->field_count(), rtt,
-                       "rtt for type " + std::to_string(imm.index));
+                       "rtt with depth for type " + std::to_string(imm.index));
           return 0;
         }
         ArgVector args = PeekArgs(imm.struct_type, 1);
@@ -3912,7 +3912,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!VALIDATE(
                 rtt.type.is_bottom() ||
                 (rtt.type.ref_index() == imm.index && rtt.type.has_depth()))) {
-          PopTypeError(0, rtt, "rtt for type " + std::to_string(imm.index));
+          PopTypeError(0, rtt,
+                       "rtt with depth for type " + std::to_string(imm.index));
           return 0;
         }
         Value value = CreateValue(ValueType::Ref(imm.index, kNonNullable));
@@ -3997,7 +3998,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!VALIDATE(
                 rtt.type.is_bottom() ||
                 (rtt.type.ref_index() == imm.index && rtt.type.has_depth()))) {
-          PopTypeError(2, rtt, "rtt for type " + std::to_string(imm.index));
+          PopTypeError(2, rtt,
+                       "rtt with depth for type " + std::to_string(imm.index));
           return 0;
         }
         Value length = Peek(1, 1, kWasmI32);
@@ -4030,7 +4032,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         if (!VALIDATE(
                 rtt.type.is_bottom() ||
                 (rtt.type.ref_index() == imm.index && rtt.type.has_depth()))) {
-          PopTypeError(1, rtt, "rtt for type " + std::to_string(imm.index));
+          PopTypeError(1, rtt,
+                       "rtt with depth for type " + std::to_string(imm.index));
           return 0;
         }
         Value length = Peek(1, 0, kWasmI32);
