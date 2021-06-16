@@ -2735,17 +2735,7 @@ class HeapObjectAllocationTracker {
 };
 
 template <typename T>
-T ForwardingAddress(T heap_obj) {
-  MapWord map_word = heap_obj.map_word(kRelaxedLoad);
-
-  if (map_word.IsForwardingAddress()) {
-    return T::cast(map_word.ToForwardingAddress());
-  } else if (Heap::InFromPage(heap_obj)) {
-    return T();
-  } else {
-    return heap_obj;
-  }
-}
+inline T ForwardingAddress(T heap_obj);
 
 // Address block allocator compatible with standard containers which registers
 // its allocated range as strong roots.

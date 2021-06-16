@@ -873,7 +873,7 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return offset >= CodeDataContainer::kHeaderSize &&
-           offset < CodeDataContainer::kSize;
+           offset <= CodeDataContainer::kPointerFieldsWeakEndOffset;
   }
 
   template <typename ObjectVisitor>
@@ -884,6 +884,12 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
     IterateCustomWeakPointers(
         obj, CodeDataContainer::kPointerFieldsStrongEndOffset,
         CodeDataContainer::kPointerFieldsWeakEndOffset, v);
+
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+      // TODO(v8:11880): Currently, the |code| field is still compressed and
+      // the |code_entry_point| field doesn't require custom visitation, so
+      // nothing to do here yet.
+    }
   }
 
   static inline int SizeOf(Map map, HeapObject object) {

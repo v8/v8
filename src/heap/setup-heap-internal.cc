@@ -891,14 +891,22 @@ void Heap::CreateInitialObjects() {
   set_off_heap_trampoline_relocation_info(
       *Builtins::GenerateOffHeapTrampolineRelocInfo(isolate_));
 
-  set_trampoline_trivial_code_data_container(
-      *isolate()->factory()->NewCodeDataContainer(0,
-                                                  AllocationType::kReadOnly));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // These roots will not be used.
+    HeapObject no_container = *isolate()->factory()->undefined_value();
+    set_trampoline_trivial_code_data_container(no_container);
+    set_trampoline_promise_rejection_code_data_container(no_container);
 
-  set_trampoline_promise_rejection_code_data_container(
-      *isolate()->factory()->NewCodeDataContainer(
-          Code::IsPromiseRejectionField::encode(true),
-          AllocationType::kReadOnly));
+  } else {
+    set_trampoline_trivial_code_data_container(
+        *isolate()->factory()->NewCodeDataContainer(0,
+                                                    AllocationType::kReadOnly));
+
+    set_trampoline_promise_rejection_code_data_container(
+        *isolate()->factory()->NewCodeDataContainer(
+            Code::IsPromiseRejectionField::encode(true),
+            AllocationType::kReadOnly));
+  }
 
   // Evaluate the hash values which will then be cached in the strings.
   isolate()->factory()->zero_string()->EnsureHash();

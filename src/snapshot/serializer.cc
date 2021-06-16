@@ -1079,13 +1079,19 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
     } else if (object_->IsDescriptorArray()) {
       // The number of marked descriptors field can be changed by GC
       // concurrently.
-      byte field_value[2];
-      field_value[0] = 0;
-      field_value[1] = 0;
+      static byte field_value[2] = {0};
       OutputRawWithCustomField(
           sink_, object_start, base, bytes_to_output,
           DescriptorArray::kRawNumberOfMarkedDescriptorsOffset,
           sizeof(field_value), field_value);
+    } else if (V8_EXTERNAL_CODE_SPACE_BOOL && object_->IsCodeDataContainer()) {
+      // The CodeEntryPoint field is just a cached value which will be
+      // recomputed after deserialization, so write zeros to keep the snapshot
+      // deterministic.
+      static byte field_value[kExternalPointerSize] = {0};
+      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
+                               CodeDataContainer::kCodeEntryPointOffset,
+                               sizeof(field_value), field_value);
     } else {
       sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
                     bytes_to_output, "Bytes");

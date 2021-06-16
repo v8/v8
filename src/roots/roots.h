@@ -190,9 +190,9 @@ class Symbol;
   /* Canonical off-heap trampoline data */                                     \
   V(ByteArray, off_heap_trampoline_relocation_info,                            \
     OffHeapTrampolineRelocationInfo)                                           \
-  V(CodeDataContainer, trampoline_trivial_code_data_container,                 \
+  V(HeapObject, trampoline_trivial_code_data_container,                        \
     TrampolineTrivialCodeDataContainer)                                        \
-  V(CodeDataContainer, trampoline_promise_rejection_code_data_container,       \
+  V(HeapObject, trampoline_promise_rejection_code_data_container,              \
     TrampolinePromiseRejectionCodeDataContainer)                               \
   /* Canonical scope infos */                                                  \
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \

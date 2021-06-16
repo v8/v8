@@ -49,6 +49,19 @@
 namespace v8 {
 namespace internal {
 
+template <typename T>
+T ForwardingAddress(T heap_obj) {
+  MapWord map_word = heap_obj.map_word(kRelaxedLoad);
+
+  if (map_word.IsForwardingAddress()) {
+    return T::cast(map_word.ToForwardingAddress());
+  } else if (Heap::InFromPage(heap_obj)) {
+    return T();
+  } else {
+    return heap_obj;
+  }
+}
+
 AllocationSpace AllocationResult::RetrySpace() {
   DCHECK(IsRetry());
   return static_cast<AllocationSpace>(Smi::ToInt(object_));

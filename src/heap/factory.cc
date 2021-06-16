@@ -96,10 +96,10 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       (kind_specific_flags_ == 0 ||
        kind_specific_flags_ == promise_rejection_flag)) {
     const ReadOnlyRoots roots(isolate_);
-    const auto canonical_code_data_container =
+    const auto canonical_code_data_container = Handle<CodeDataContainer>::cast(
         kind_specific_flags_ == 0
             ? roots.trampoline_trivial_code_data_container_handle()
-            : roots.trampoline_promise_rejection_code_data_container_handle();
+            : roots.trampoline_promise_rejection_code_data_container_handle());
     DCHECK_EQ(canonical_code_data_container->kind_specific_flags(),
               kind_specific_flags_);
     data_container = canonical_code_data_container;
@@ -136,7 +136,9 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     CodePageCollectionMemoryModificationScope code_allocation(heap);
     HeapObject result;
     AllocationType allocation_type =
-        is_executable_ ? AllocationType::kCode : AllocationType::kReadOnly;
+        V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
+            ? AllocationType::kCode
+            : AllocationType::kReadOnly;
     if (retry_allocation_or_fail) {
       result = heap->AllocateRawWith<Heap::kRetryOrFail>(
           object_size, allocation_type, AllocationOrigin::kRuntime);
@@ -218,6 +220,9 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
     raw_code.clear_padding();
 
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+      data_container->SetCodeAndEntryPoint(isolate_, raw_code);
+    }
 #ifdef VERIFY_HEAP
     if (FLAG_verify_heap) raw_code.ObjectVerify(isolate_);
 #endif
@@ -2078,6 +2083,11 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(
   DisallowGarbageCollection no_gc;
   data_container.set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   data_container.set_kind_specific_flags(flags);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    data_container.AllocateExternalPointerEntries(isolate());
+    data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
+    data_container.set_code_entry_point(isolate(), kNullAddress);
+  }
   data_container.clear_padding();
   return handle(data_container, isolate());
 }
@@ -2137,6 +2147,12 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     }
 #endif
     raw_result.set_relocation_info(canonical_reloc_info);
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+      // Updating flags (in particular is_off_heap_trampoline one) might change
+      // the value of the instruction start, so update it here.
+      raw_result.code_data_container(kAcquireLoad)
+          .UpdateCodeEntryPoint(isolate(), raw_result);
+    }
   }
 
   return result;
@@ -2172,6 +2188,9 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
     WriteBarrierForCode(*new_code);
 #endif
+  }
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    data_container->SetCodeAndEntryPoint(isolate(), *new_code);
   }
 
 #ifdef VERIFY_HEAP

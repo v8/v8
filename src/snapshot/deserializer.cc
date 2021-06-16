@@ -386,6 +386,12 @@ void Deserializer::PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
     if (deserializing_user_code()) {
       new_code_objects_.push_back(Handle<Code>::cast(obj));
     }
+  } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
+             InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
+    auto code_data_container = Handle<CodeDataContainer>::cast(obj);
+    code_data_container->AllocateExternalPointerEntries(isolate());
+    code_data_container->UpdateCodeEntryPoint(isolate(),
+                                              code_data_container->code());
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
     if (FLAG_log_maps) {
       // Keep track of all seen Maps to log them later since they might be only

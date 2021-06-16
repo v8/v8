@@ -969,6 +969,11 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   CHECK(IsCodeDataContainer());
   VerifyObjectField(isolate, kNextCodeLinkOffset);
   CHECK(next_code_link().IsCode() || next_code_link().IsUndefined(isolate));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    if (raw_code() != Smi::zero()) {
+      CHECK_EQ(code().InstructionStart(), code_entry_point());
+    }
+  }
 }
 
 void Code::CodeVerify(Isolate* isolate) {
@@ -984,6 +989,9 @@ void Code::CodeVerify(Isolate* isolate) {
                 IsAligned(InstructionStart(), kCodeAlignment));
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(raw_instruction_start(), kCodeAlignment));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    CHECK_EQ(*this, code_data_container(kAcquireLoad).code());
+  }
   // TODO(delphick): Refactor Factory::CodeBuilder::BuildInternal, so that the
   // following CHECK works builtin trampolines. It currently fails because
   // CodeVerify is called halfway through constructing the trampoline and so not
