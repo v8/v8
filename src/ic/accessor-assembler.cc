@@ -340,12 +340,11 @@ void AccessorAssembler::HandleLoadWasmField(
     Label* rebox_double, ExitPoint* exit_point) {
   Label type_I8(this), type_I16(this), type_I32(this), type_U32(this),
       type_I64(this), type_U64(this), type_F32(this), type_F64(this),
-      unsupported_type(this, Label::kDeferred),
+      type_Ref(this), unsupported_type(this, Label::kDeferred),
       unexpected_type(this, Label::kDeferred);
   Label* wasm_value_type_labels[] = {
-      &type_I8,          &type_I16,        &type_I32, &type_U32,
-      &type_I64,         &type_F32,        &type_F64, &unsupported_type,
-      &unsupported_type, &unsupported_type};
+      &type_I8,  &type_I16, &type_I32, &type_U32, &type_I64,
+      &type_F32, &type_F64, &type_Ref, &type_Ref, &unsupported_type};
   int32_t wasm_value_types[] = {
       static_cast<int32_t>(WasmValueType::kI8),
       static_cast<int32_t>(WasmValueType::kI16),
@@ -354,10 +353,10 @@ void AccessorAssembler::HandleLoadWasmField(
       static_cast<int32_t>(WasmValueType::kI64),
       static_cast<int32_t>(WasmValueType::kF32),
       static_cast<int32_t>(WasmValueType::kF64),
-      // TODO(ishell): support the following value types.
-      static_cast<int32_t>(WasmValueType::kS128),
       static_cast<int32_t>(WasmValueType::kRef),
-      static_cast<int32_t>(WasmValueType::kOptRef)};
+      static_cast<int32_t>(WasmValueType::kOptRef),
+      // TODO(v8:11804): support the following value types.
+      static_cast<int32_t>(WasmValueType::kS128)};
   const size_t kWasmValueTypeCount =
       static_cast<size_t>(WasmValueType::kNumTypes);
   DCHECK_EQ(kWasmValueTypeCount, arraysize(wasm_value_types));
@@ -392,7 +391,12 @@ void AccessorAssembler::HandleLoadWasmField(
   BIND(&type_I64);
   {
     Comment("type_I64");
-    Unreachable();
+    TNode<RawPtrT> data_pointer =
+        ReinterpretCast<RawPtrT>(BitcastTaggedToWord(holder));
+    TNode<BigInt> value = LoadFixedBigInt64ArrayElementAsTagged(
+        data_pointer,
+        Signed(IntPtrSub(field_offset, IntPtrConstant(kHeapObjectTag))));
+    exit_point->Return(value);
   }
   BIND(&type_F32);
   {
@@ -407,6 +411,12 @@ void AccessorAssembler::HandleLoadWasmField(
     TNode<Float64T> value = LoadObjectField<Float64T>(holder, field_offset);
     *var_double_value = value;
     Goto(rebox_double);
+  }
+  BIND(&type_Ref);
+  {
+    Comment("type_Ref");
+    TNode<Object> value = LoadObjectField(holder, field_offset);
+    exit_point->Return(value);
   }
   BIND(&unsupported_type);
   {

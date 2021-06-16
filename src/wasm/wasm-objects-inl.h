@@ -432,11 +432,20 @@ Handle<Object> WasmObject::ReadValueAt(Isolate* isolate, Handle<HeapObject> obj,
       int32_t value = base::Memory<int32_t>(field_address);
       return isolate->factory()->NewNumberFromInt(value);
     }
-    case wasm::kI64:
-    case wasm::kF32:
-    case wasm::kF64:
+    case wasm::kI64: {
+      int64_t value = base::ReadUnalignedValue<int64_t>(field_address);
+      return BigInt::FromInt64(isolate, value);
+    }
+    case wasm::kF32: {
+      float value = base::Memory<float>(field_address);
+      return isolate->factory()->NewNumber(value);
+    }
+    case wasm::kF64: {
+      double value = base::ReadUnalignedValue<double>(field_address);
+      return isolate->factory()->NewNumber(value);
+    }
     case wasm::kS128:
-      // TODO(ishell): implement
+      // TODO(v8:11804): implement
       UNREACHABLE();
 
     case wasm::kRef:
