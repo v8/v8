@@ -959,7 +959,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
       property_array->set(i, *value);
     }
     Handle<JSObject> object = isolate_->factory()->NewJSObjectFromMap(map);
-    object->set_raw_properties_or_hash(*property_array);
+    object->set_raw_properties_or_hash(*property_array, kRelaxedStore);
     objects_->set(static_cast<int>(current_object_count_), *object);
   }
   ProcessDeferredReferences();

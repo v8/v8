@@ -1692,11 +1692,11 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
                           LoadSensitivity::kUnsafe,
                           const_field_info};
 
-    // Note: the use of RawFastPropertyAt (vs. the higher-level
+    // Note: the use of RawInobjectPropertyAt (vs. the higher-level
     // GetOwnFastDataProperty) here is necessary, since the underlying value
     // may be `uninitialized`, which the latter explicitly does not support.
     base::Optional<ObjectRef> maybe_boilerplate_value =
-        boilerplate.RawFastPropertyAt(index);
+        boilerplate.RawInobjectPropertyAt(index);
     if (!maybe_boilerplate_value.has_value()) return {};
 
     // Note: We don't need to take a compilation dependency verifying the value

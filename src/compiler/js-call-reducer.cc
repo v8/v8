@@ -7924,7 +7924,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
 
     // Bail out if the exec method is not the original one.
     base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
-        ai_exec.field_representation(), ai_exec.field_index());
+        ai_exec.field_representation(), ai_exec.field_index(), dependencies());
     if (!constant.has_value() ||
         !constant->equals(native_context().regexp_exec_function())) {
       return inference.NoChange();

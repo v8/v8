@@ -531,13 +531,80 @@ base::Optional<ObjectRef> GetOwnElementFromHeap(JSHeapBroker* broker,
   return base::nullopt;
 }
 
-ObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
-                                         Handle<JSObject> receiver,
-                                         Representation representation,
-                                         FieldIndex field_index) {
-  Handle<Object> constant =
-      JSObject::FastPropertyAt(receiver, representation, field_index);
-  return MakeRef(broker, constant);
+base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
+    JSHeapBroker* broker, JSObjectRef holder, Representation representation,
+    FieldIndex field_index) {
+  base::Optional<ObjectRef> value;
+  {
+    DisallowGarbageCollection no_gc;
+
+    // This check to ensure the live map is the same as the cached map to
+    // to protect us against reads outside the bounds of the heap. This could
+    // happen if the Ref was created in a prior GC epoch, and the object
+    // shrunk in size. It might end up at the edge of a heap boundary. If
+    // we see that the map is the same in this GC epoch, we are safe.
+    Map map = holder.object()->map(kAcquireLoad);
+    if (*holder.map().object() != map) {
+      TRACE_BROKER_MISSING(broker, "Map changed for " << holder);
+      return {};
+    }
+
+    base::Optional<Object> constant;
+    if (field_index.is_inobject()) {
+      constant = holder.object()->RawInobjectPropertyAt(map, field_index);
+      if (!constant.has_value()) {
+        TRACE_BROKER_MISSING(
+            broker, "Constant field in " << holder << " is unsafe to read");
+        return {};
+      }
+    } else {
+      Object raw_properties_or_hash =
+          holder.object()->raw_properties_or_hash(kRelaxedLoad);
+      // Ensure that the object is safe to inspect.
+      if (broker->ObjectMayBeUninitialized(raw_properties_or_hash)) {
+        return {};
+      }
+      if (!raw_properties_or_hash.IsPropertyArray()) {
+        TRACE_BROKER_MISSING(
+            broker,
+            "Expected PropertyArray for backing store in " << holder << ".");
+        return {};
+      }
+      PropertyArray properties = PropertyArray::cast(raw_properties_or_hash);
+      const int array_index = field_index.outobject_array_index();
+      if (array_index < properties.length()) {
+        constant = properties.get(array_index);
+      } else {
+        TRACE_BROKER_MISSING(
+            broker, "Backing store for " << holder << " not long enough.");
+        return {};
+      }
+    }
+
+    // {constant} needs to pass the gc predicate before we can introspect on it.
+    value = TryMakeRef(broker, constant.value());
+    if (!value.has_value()) {
+      return {};
+    }
+    // Since we don't have a guarantee that {value} is the correct value of the
+    // property, we use the expected {representation} to weed out the most
+    // egregious types  of wrong values.
+    if ((representation.IsSmi() && !value->IsSmi()) ||
+        (representation.IsDouble() && !value->IsHeapNumber())) {
+      TRACE_BROKER_MISSING(
+          broker, "Mismatch between representation and value in " << holder);
+      return {};
+    }
+  }
+
+  // Now that we can safely inspect the property, it may need to be wrapped.
+  Handle<Object> possibly_wrapped = Object::WrapForRead<AllocationType::kOld>(
+      broker->local_isolate_or_isolate(), value->object(), representation);
+  // MakeRef will always succeed, because all that happened was we either got
+  // back a handle identical to {constant} above, or we allocated a handle
+  // on the local isolate, and objects allocated on the background thread
+  // are guaranteed to pass the gc predicate.
+  return MakeRef(broker, *possibly_wrapped);
 }
 
 ObjectRef GetOwnDictionaryPropertyFromHeap(JSHeapBroker* broker,
@@ -583,8 +650,12 @@ ObjectData* JSObjectData::GetOwnFastDataProperty(JSHeapBroker* broker,
     return nullptr;
   }
 
+  // This call will always succeed on the main thread.
+  CHECK(broker->IsMainThread());
+  JSObjectRef object_ref = MakeRef(broker, Handle<JSObject>::cast(object()));
   ObjectRef property = GetOwnFastDataPropertyFromHeap(
-      broker, Handle<JSObject>::cast(object()), representation, field_index);
+                           broker, object_ref, representation, field_index)
+                           .value();
   ObjectData* result(property.data());
   own_properties_.insert(std::make_pair(field_index.property_index(), result));
   return result;
@@ -2991,12 +3062,28 @@ FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
       data()->AsFeedbackVector()->GetClosureFeedbackCell(broker(), index));
 }
 
-base::Optional<ObjectRef> JSObjectRef::RawFastPropertyAt(
+base::Optional<ObjectRef> JSObjectRef::RawInobjectPropertyAt(
     FieldIndex index) const {
   CHECK(index.is_inobject());
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return TryMakeRef(broker(),
-                      object()->RawFastPropertyAt(index, kRelaxedLoad));
+    DisallowGarbageCollection no_gc;
+    Map current_map = object()->map(kAcquireLoad);
+
+    // If the map changed in some prior GC epoch, our {index} could be
+    // outside the valid bounds of the cached map.
+    if (*map().object() != current_map) {
+      TRACE_BROKER_MISSING(broker(), "Map change detected in " << *this);
+      return {};
+    }
+
+    base::Optional<Object> value =
+        object()->RawInobjectPropertyAt(current_map, index);
+    if (!value.has_value()) {
+      TRACE_BROKER_MISSING(broker(),
+                           "Unable to safely read property in " << *this);
+      return {};
+    }
+    return TryMakeRef(broker(), value.value());
   }
   JSObjectData* object_data = data()->AsJSObject();
   return ObjectRef(broker(),
@@ -3918,11 +4005,15 @@ base::Optional<Object> JSObjectRef::GetOwnConstantElementFromHeap(
 
 base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
     Representation field_representation, FieldIndex index,
-    SerializationPolicy policy) const {
-  if (data_->should_access_heap()) {
-    return GetOwnFastDataPropertyFromHeap(broker(),
-                                          Handle<JSObject>::cast(object()),
-                                          field_representation, index);
+    CompilationDependencies* dependencies, SerializationPolicy policy) const {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    base::Optional<ObjectRef> result = GetOwnFastDataPropertyFromHeap(
+        broker(), *this, field_representation, index);
+    if (dependencies != nullptr && result.has_value()) {
+      dependencies->DependOnOwnConstantDataProperty(
+          *this, map(), field_representation, index, *result);
+    }
+    return result;
   }
   ObjectData* property = data()->AsJSObject()->GetOwnFastDataProperty(
       broker(), field_representation, index, policy);

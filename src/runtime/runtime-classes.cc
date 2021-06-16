@@ -469,7 +469,7 @@ bool AddDescriptorsByTemplate(
 
   // Atomically commit the changes.
   receiver->set_map(*map, kReleaseStore);
-  receiver->set_raw_properties_or_hash(*properties_dictionary);
+  receiver->set_raw_properties_or_hash(*properties_dictionary, kRelaxedStore);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
   }

@@ -397,17 +397,18 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
               &broker->boilerplate_migration_mutex_depth_) {}
   };
 
+  // If this returns false, the object is guaranteed to be fully initialized and
+  // thus safe to read from a memory safety perspective. The converse does not
+  // necessarily hold.
+  bool ObjectMayBeUninitialized(Handle<Object> object) const;
+  bool ObjectMayBeUninitialized(Object object) const;
+  bool ObjectMayBeUninitialized(HeapObject object) const;
+
  private:
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
   friend class PropertyCellData;
-
-  // If this returns false, the object is guaranteed to be fully initialized and
-  // thus safe to read from a memory safety perspective. The converse does not
-  // necessarily hold.
-  bool ObjectMayBeUninitialized(Handle<Object> object) const;
-  bool ObjectMayBeUninitialized(HeapObject object) const;
 
   bool CanUseFeedback(const FeedbackNexus& nexus) const;
   const ProcessedFeedback& NewInsufficientFeedback(FeedbackSlotKind kind) const;

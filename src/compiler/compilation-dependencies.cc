@@ -228,6 +228,60 @@ class ConstantInDictionaryPrototypeChainDependency final
   PropertyKind kind_;
 };
 
+class OwnConstantDataPropertyDependency final : public CompilationDependency {
+ public:
+  OwnConstantDataPropertyDependency(JSHeapBroker* broker,
+                                    const JSObjectRef& holder,
+                                    const MapRef& map,
+                                    Representation representation,
+                                    FieldIndex index, const ObjectRef& value)
+      : broker_(broker),
+        holder_(holder),
+        map_(map),
+        representation_(representation),
+        index_(index),
+        value_(value) {}
+
+  bool IsValid() const override {
+    if (holder_.object()->map() != *map_.object()) {
+      TRACE_BROKER_MISSING(broker_,
+                           "Map change detected in " << holder_.object());
+      return false;
+    }
+    DisallowGarbageCollection no_heap_allocation;
+    Object current_value = holder_.object()->RawFastPropertyAt(index_);
+    Object used_value = *value_.object();
+    if (representation_.IsDouble()) {
+      // Compare doubles by bit pattern.
+      if (!current_value.IsHeapNumber() || !used_value.IsHeapNumber() ||
+          HeapNumber::cast(current_value).value_as_bits() !=
+              HeapNumber::cast(used_value).value_as_bits()) {
+        TRACE_BROKER_MISSING(broker_,
+                             "Constant Double property value changed in "
+                                 << holder_.object() << " at FieldIndex "
+                                 << index_.property_index());
+        return false;
+      }
+    } else if (current_value != used_value) {
+      TRACE_BROKER_MISSING(broker_, "Constant property value changed in "
+                                        << holder_.object() << " at FieldIndex "
+                                        << index_.property_index());
+      return false;
+    }
+    return true;
+  }
+
+  void Install(Handle<Code> code) const override {}
+
+ private:
+  JSHeapBroker* const broker_;
+  JSObjectRef const holder_;
+  MapRef const map_;
+  Representation const representation_;
+  FieldIndex const index_;
+  ObjectRef const value_;
+};
+
 class TransitionDependency final : public CompilationDependency {
  public:
   explicit TransitionDependency(const MapRef& map) : map_(map) {
@@ -665,6 +719,13 @@ void CompilationDependencies::DependOnOwnConstantElement(
   DCHECK(holder.should_access_heap() || broker_->is_concurrent_inlining());
   RecordDependency(
       zone_->New<OwnConstantElementDependency>(holder, index, element));
+}
+
+void CompilationDependencies::DependOnOwnConstantDataProperty(
+    const JSObjectRef& holder, const MapRef& map, Representation representation,
+    FieldIndex index, const ObjectRef& value) {
+  RecordDependency(zone_->New<OwnConstantDataPropertyDependency>(
+      broker_, holder, map, representation, index, value));
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {

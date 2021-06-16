@@ -322,13 +322,15 @@ class JSObjectRef : public JSReceiverRef {
   // value can be an uninitialized-sentinel, or if HeapNumber construction must
   // be avoided for some reason. Otherwise, use the higher-level
   // GetOwnFastDataProperty.
-  base::Optional<ObjectRef> RawFastPropertyAt(FieldIndex index) const;
+  base::Optional<ObjectRef> RawInobjectPropertyAt(FieldIndex index) const;
 
   // Return the element at key {index} if {index} is known to be an own data
-  // property of the object that is non-writable and non-configurable.
+  // property of the object that is non-writable and non-configurable. If
+  // {dependencies} is non-null, a dependency will be taken to protect
+  // against inconsistency due to weak memory concurrency.
   base::Optional<ObjectRef> GetOwnConstantElement(
       const FixedArrayBaseRef& elements_ref, uint32_t index,
-      CompilationDependencies* dependencies = nullptr,
+      CompilationDependencies* dependencies,
       SerializationPolicy policy =
           SerializationPolicy::kAssumeSerialized) const;
   // The direct-read implementation of the above, extracted into a helper since
@@ -340,8 +342,12 @@ class JSObjectRef : public JSReceiverRef {
 
   // Return the value of the property identified by the field {index}
   // if {index} is known to be an own data property of the object.
+  // If {dependencies} is non-null, and a property was successfully read,
+  // then the function will take a dependency to check the value of the
+  // property at code finalization time.
   base::Optional<ObjectRef> GetOwnFastDataProperty(
       Representation field_representation, FieldIndex index,
+      CompilationDependencies* dependencies,
       SerializationPolicy policy =
           SerializationPolicy::kAssumeSerialized) const;
 

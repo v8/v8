@@ -209,7 +209,8 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
 
   JSObjectRef holder_ref = MakeRef(broker(), holder);
   base::Optional<ObjectRef> value = holder_ref.GetOwnFastDataProperty(
-      access_info.field_representation(), access_info.field_index());
+      access_info.field_representation(), access_info.field_index(),
+      dependencies());
   if (!value.has_value()) {
     return nullptr;
   }

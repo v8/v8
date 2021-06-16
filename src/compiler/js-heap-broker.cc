@@ -253,8 +253,12 @@ bool JSHeapBroker::StackHasOverflowed() const {
 }
 
 bool JSHeapBroker::ObjectMayBeUninitialized(Handle<Object> object) const {
-  if (!object->IsHeapObject()) return false;
-  return ObjectMayBeUninitialized(HeapObject::cast(*object));
+  return ObjectMayBeUninitialized(*object);
+}
+
+bool JSHeapBroker::ObjectMayBeUninitialized(Object object) const {
+  if (!object.IsHeapObject()) return false;
+  return ObjectMayBeUninitialized(HeapObject::cast(object));
 }
 
 bool JSHeapBroker::ObjectMayBeUninitialized(HeapObject object) const {

@@ -75,6 +75,7 @@ class JSReceiver : public HeapObject {
   // This is used only in the deoptimizer and heap. Please use the
   // above typed getters and setters to access the properties.
   DECL_ACCESSORS(raw_properties_or_hash, Object)
+  DECL_RELAXED_ACCESSORS(raw_properties_or_hash, Object)
 
   inline void initialize_properties(Isolate* isolate);
 
@@ -651,9 +652,13 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   inline Object RawFastPropertyAt(FieldIndex index) const;
   inline Object RawFastPropertyAt(PtrComprCageBase cage_base,
                                   FieldIndex index) const;
-  // A specialized version of the above for use by TurboFan. Only supports
-  // in-object properties.
-  inline Object RawFastPropertyAt(FieldIndex index, RelaxedLoadTag) const;
+
+  // See comment in the body of the method to understand the conditions
+  // in which this method is meant to be used, and what guarantees it
+  // provides against invalid reads from another thread during object
+  // mutation.
+  inline base::Optional<Object> RawInobjectPropertyAt(Map original_map,
+                                                      FieldIndex index) const;
 
   inline void FastPropertyAtPut(FieldIndex index, Object value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

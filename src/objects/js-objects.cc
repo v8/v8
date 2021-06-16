@@ -733,7 +733,7 @@ void JSReceiver::SetIdentityHash(int hash) {
 
   HeapObject existing_properties = HeapObject::cast(raw_properties_or_hash());
   Object new_properties = SetHashAndUpdateProperties(existing_properties, hash);
-  set_raw_properties_or_hash(new_properties);
+  set_raw_properties_or_hash(new_properties, kRelaxedStore);
 }
 
 void JSReceiver::SetProperties(HeapObject properties) {
@@ -750,7 +750,7 @@ void JSReceiver::SetProperties(HeapObject properties) {
     new_properties = SetHashAndUpdateProperties(properties, hash);
   }
 
-  set_raw_properties_or_hash(new_properties);
+  set_raw_properties_or_hash(new_properties, kRelaxedStore);
 }
 
 Object JSReceiver::GetIdentityHash() {

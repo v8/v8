@@ -231,16 +231,23 @@ Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
   return result;
 }
 
-Handle<Object> Object::WrapForRead(Isolate* isolate, Handle<Object> object,
+template <AllocationType allocation_type, typename IsolateT>
+Handle<Object> Object::WrapForRead(IsolateT* isolate, Handle<Object> object,
                                    Representation representation) {
   DCHECK(!object->IsUninitialized(isolate));
   if (!representation.IsDouble()) {
     DCHECK(object->FitsRepresentation(representation));
     return object;
   }
-  return isolate->factory()->NewHeapNumberFromBits(
+  return isolate->factory()->template NewHeapNumberFromBits<allocation_type>(
       HeapNumber::cast(*object).value_as_bits());
 }
+
+template Handle<Object> Object::WrapForRead<AllocationType::kYoung>(
+    Isolate* isolate, Handle<Object> object, Representation representation);
+template Handle<Object> Object::WrapForRead<AllocationType::kOld>(
+    LocalIsolate* isolate, Handle<Object> object,
+    Representation representation);
 
 MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
                                              Handle<Object> object,

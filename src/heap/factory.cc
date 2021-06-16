@@ -1470,7 +1470,7 @@ Handle<WasmArray> Factory::NewWasmArray(
       AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
   raw.set_map_after_allocation(*map);
   WasmArray result = WasmArray::cast(raw);
-  result.set_raw_properties_or_hash(*empty_fixed_array());
+  result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   result.set_length(length);
   for (uint32_t i = 0; i < length; i++) {
     Address address = result.ElementAddress(i);
@@ -1492,7 +1492,7 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
   HeapObject raw = AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
   raw.set_map_after_allocation(*map);
   WasmStruct result = WasmStruct::cast(raw);
-  result.set_raw_properties_or_hash(*empty_fixed_array());
+  result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   for (uint32_t i = 0; i < type->field_count(); i++) {
     Address address = result.RawFieldAddress(type->field_offset(i));
     if (type->field(i).is_numeric()) {
@@ -1768,7 +1768,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       // TODO(gsathya): Do not copy hash code.
       Handle<PropertyArray> prop = CopyArrayWithMap(
           handle(properties, isolate()), handle(properties.map(), isolate()));
-      clone->set_raw_properties_or_hash(*prop);
+      clone->set_raw_properties_or_hash(*prop, kRelaxedStore);
     }
   } else {
     Handle<Object> copied_properties;
@@ -1779,7 +1779,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
       copied_properties =
           CopyFixedArray(handle(source->property_dictionary(), isolate()));
     }
-    clone->set_raw_properties_or_hash(*copied_properties);
+    clone->set_raw_properties_or_hash(*copied_properties, kRelaxedStore);
   }
   return clone;
 }
@@ -2307,7 +2307,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 void Factory::InitializeJSObjectFromMap(JSObject obj, Object properties,
                                         Map map) {
   DisallowGarbageCollection no_gc;
-  obj.set_raw_properties_or_hash(properties);
+  obj.set_raw_properties_or_hash(properties, kRelaxedStore);
   obj.initialize_elements();
   // TODO(1240798): Initialize the object's body using valid initial values
   // according to the object's initial map.  For example, if the map's
@@ -2376,7 +2376,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
   }
   Handle<JSObject> js_object =
       NewJSObjectFromMap(map, allocation, allocation_site);
-  js_object->set_raw_properties_or_hash(*object_properties);
+  js_object->set_raw_properties_or_hash(*object_properties, kRelaxedStore);
   return js_object;
 }
 

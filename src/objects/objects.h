@@ -336,7 +336,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_EXPORT_PRIVATE static Handle<Object> NewStorageFor(
       Isolate* isolate, Handle<Object> object, Representation representation);
 
-  static Handle<Object> WrapForRead(Isolate* isolate, Handle<Object> object,
+  template <AllocationType allocation_type = AllocationType::kYoung,
+            typename IsolateT>
+  static Handle<Object> WrapForRead(IsolateT* isolate, Handle<Object> object,
                                     Representation representation);
 
   // Returns true if the object is of the correct type to be used as a

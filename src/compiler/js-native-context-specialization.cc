@@ -460,7 +460,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     JSObjectRef holder_ref =
         found_on_proto ? MakeRef(broker(), holder) : receiver_ref;
     base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
-        access_info.field_representation(), access_info.field_index());
+        access_info.field_representation(), access_info.field_index(),
+        dependencies());
     if (!constant.has_value() || !constant->IsHeapObject() ||
         !constant->AsHeapObject().map().is_callable())
       return NoChange();

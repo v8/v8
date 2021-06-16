@@ -571,7 +571,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject obj,
 static void JSObjectPrintBody(std::ostream& os, JSObject obj,
                               bool print_elements = true) {
   os << "\n - properties: ";
-  Object properties_or_hash = obj.raw_properties_or_hash();
+  Object properties_or_hash = obj.raw_properties_or_hash(kRelaxedLoad);
   if (!properties_or_hash.IsSmi()) {
     os << Brief(properties_or_hash);
   }
