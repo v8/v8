@@ -195,7 +195,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     RecordCommentForOffHeapTrampoline(builtin_index);
     // Use ip directly instead of using UseScratchRegisterScope, as we do
     // not preserve scratch registers across calls.
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+    mov(ip, Operand(BuiltinEntry(builtin_index), RelocInfo::OFF_HEAP_TARGET));
     if (cond != al) b(NegateCondition(cond), &skip, cr);
     Jump(ip);
     bind(&skip);
@@ -280,7 +280,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     RecordCommentForOffHeapTrampoline(builtin_index);
     // Use ip directly instead of using UseScratchRegisterScope, as we do
     // not preserve scratch registers across calls.
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+    mov(ip, Operand(BuiltinEntry(builtin_index), RelocInfo::OFF_HEAP_TARGET));
     Label skip;
     if (cond != al) b(NegateCondition(cond), &skip);
     Call(ip);
@@ -760,7 +760,7 @@ void TurboAssembler::CallRecordWriteStub(
       RecordCommentForOffHeapTrampoline(builtin_index);
       // Use ip directly instead of using UseScratchRegisterScope, as we do
       // not preserve scratch registers across calls.
-      mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      mov(ip, Operand(BuiltinEntry(builtin_index), RelocInfo::OFF_HEAP_TARGET));
       Call(ip);
     } else {
       Handle<Code> code_target =
