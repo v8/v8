@@ -4152,6 +4152,13 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     return NoChange();
   }
 
+  // For call/construct with spread, we need to also install a code
+  // dependency on the array iterator lookup protector cell to ensure
+  // that no one messed with the %ArrayIteratorPrototype%.next method.
+  if (IsCallOrConstructWithSpread(node)) {
+    if (!dependencies()->DependOnArrayIteratorProtector()) return NoChange();
+  }
+
   int new_argument_count;
   if (arguments_list->opcode() == IrOpcode::kJSCreateLiteralArray) {
     // Find array length and elements' kind from the feedback's allocation
