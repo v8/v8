@@ -362,6 +362,9 @@ void CompactPage(NormalPage* page, CompactionState& compaction_state) {
 #if !defined(CPPGC_YOUNG_GENERATION)
     header->Unmark();
 #endif
+    // Potentially unpoison the live object as well as it is the source of
+    // the copy.
+    ASAN_UNPOISON_MEMORY_REGION(header->ObjectStart(), header->ObjectSize());
     compaction_state.RelocateObject(page, header_address, size);
     header_address += size;
   }
