@@ -798,13 +798,25 @@ bool TryMergeTruncateInt64ToInt32IntoLoad(InstructionSelector* selector,
         return false;
     }
     X64OperandGenerator g(selector);
+#ifdef V8_IS_TSAN
+    // On TSAN builds we require one scratch register. Because of this we also
+    // have to modify the inputs to take into account possible aliasing and use
+    // UseUniqueRegister which is not required for non-TSAN builds.
+    InstructionOperand temps[] = {g.TempRegister()};
+    size_t temp_count = arraysize(temps);
+    auto reg_kind = OperandGenerator::RegisterUseKind::kUseUniqueRegister;
+#else
+    InstructionOperand* temps = nullptr;
+    size_t temp_count = 0;
+    auto reg_kind = OperandGenerator::RegisterUseKind::kUseRegister;
+#endif  // V8_IS_TSAN
     InstructionOperand outputs[] = {g.DefineAsRegister(node)};
     size_t input_count = 0;
     InstructionOperand inputs[3];
     AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-        node->InputAt(0), inputs, &input_count);
+        node->InputAt(0), inputs, &input_count, reg_kind);
     opcode |= AddressingModeField::encode(mode);
-    selector->Emit(opcode, 1, outputs, input_count, inputs);
+    selector->Emit(opcode, 1, outputs, input_count, inputs, temp_count, temps);
     return true;
   }
   return false;
@@ -1006,10 +1018,22 @@ bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
                                                 AddressOption::kAllowAll);
     if (mleft.matches() && (mleft.displacement() == nullptr ||
                             g.CanBeImmediate(mleft.displacement()))) {
+#ifdef V8_IS_TSAN
+      // On TSAN builds we require one scratch register. Because of this we also
+      // have to modify the inputs to take into account possible aliasing and
+      // use UseUniqueRegister which is not required for non-TSAN builds.
+      InstructionOperand temps[] = {g.TempRegister()};
+      size_t temp_count = arraysize(temps);
+      auto reg_kind = OperandGenerator::RegisterUseKind::kUseUniqueRegister;
+#else
+      InstructionOperand* temps = nullptr;
+      size_t temp_count = 0;
+      auto reg_kind = OperandGenerator::RegisterUseKind::kUseRegister;
+#endif  // V8_IS_TSAN
       size_t input_count = 0;
       InstructionOperand inputs[3];
       AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-          m.left().node(), inputs, &input_count);
+          m.left().node(), inputs, &input_count, reg_kind);
       if (mleft.displacement() == nullptr) {
         // Make sure that the addressing mode indicates the presence of an
         // immediate displacement. It seems that we never use M1 and M2, but we
@@ -1028,7 +1052,7 @@ bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
       }
       InstructionOperand outputs[] = {g.DefineAsRegister(node)};
       InstructionCode code = opcode | AddressingModeField::encode(mode);
-      selector->Emit(code, 1, outputs, input_count, inputs);
+      selector->Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
       return true;
     }
   }
