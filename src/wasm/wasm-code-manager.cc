@@ -284,6 +284,15 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
 }
 
 void WasmCode::Validate() const {
+  // The packing strategy for {tagged_parameter_slots} only works if both the
+  // max number of parameters and their max combined stack slot usage fits into
+  // their respective half of the result value.
+  STATIC_ASSERT(wasm::kV8MaxWasmFunctionParams <
+                std::numeric_limits<uint16_t>::max());
+  static constexpr int kMaxSlotsPerParam = 4;  // S128 on 32-bit platforms.
+  STATIC_ASSERT(wasm::kV8MaxWasmFunctionParams * kMaxSlotsPerParam <
+                std::numeric_limits<uint16_t>::max());
+
 #ifdef DEBUG
   // Scope for foreign WasmCode pointers.
   WasmCodeRefScope code_ref_scope;
@@ -1056,7 +1065,8 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
 
 std::unique_ptr<WasmCode> NativeModule::AddCode(
     int index, const CodeDesc& desc, int stack_slots,
-    int tagged_parameter_slots, Vector<const byte> protected_instructions_data,
+    uint32_t tagged_parameter_slots,
+    Vector<const byte> protected_instructions_data,
     Vector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging) {
   Vector<byte> code_space;
@@ -1076,7 +1086,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     int index, const CodeDesc& desc, int stack_slots,
-    int tagged_parameter_slots, Vector<const byte> protected_instructions_data,
+    uint32_t tagged_parameter_slots,
+    Vector<const byte> protected_instructions_data,
     Vector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging,
     Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
@@ -1284,7 +1295,7 @@ NativeModule::AllocateForDeserializedCode(size_t total_code_size) {
 
 std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     int index, Vector<byte> instructions, int stack_slots,
-    int tagged_parameter_slots, int safepoint_table_offset,
+    uint32_t tagged_parameter_slots, int safepoint_table_offset,
     int handler_table_offset, int constant_pool_offset,
     int code_comments_offset, int unpadded_binary_size,
     Vector<const byte> protected_instructions_data,

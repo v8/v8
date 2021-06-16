@@ -255,7 +255,15 @@ class V8_EXPORT_PRIVATE WasmCode final {
   int code_comments_offset() const { return code_comments_offset_; }
   int unpadded_binary_size() const { return unpadded_binary_size_; }
   int stack_slots() const { return stack_slots_; }
-  int tagged_parameter_slots() const { return tagged_parameter_slots_; }
+  uint16_t first_tagged_parameter_slot() const {
+    return tagged_parameter_slots_ >> 16;
+  }
+  uint16_t num_tagged_parameter_slots() const {
+    return tagged_parameter_slots_ & 0xFFFF;
+  }
+  uint32_t raw_tagged_parameter_slots_for_serialization() const {
+    return tagged_parameter_slots_;
+  }
   bool is_liftoff() const { return tier() == ExecutionTier::kLiftoff; }
   bool contains(Address pc) const {
     return reinterpret_cast<Address>(instructions_) <= pc &&
@@ -346,7 +354,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   friend class NativeModule;
 
   WasmCode(NativeModule* native_module, int index, Vector<byte> instructions,
-           int stack_slots, int tagged_parameter_slots,
+           int stack_slots, uint32_t tagged_parameter_slots,
            int safepoint_table_offset, int handler_table_offset,
            int constant_pool_offset, int code_comments_offset,
            int unpadded_binary_size,
@@ -417,9 +425,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
   const int index_;
   const int constant_pool_offset_;
   const int stack_slots_;
-  // Number of tagged parameters passed to this function via the stack. This
-  // value is used by the stack walker (e.g. GC) to find references.
-  const int tagged_parameter_slots_;
+  // Number and position of tagged parameters passed to this function via the
+  // stack, packed into a single uint32. These values are used by the stack
+  // walker (e.g. GC) to find references.
+  const uint32_t tagged_parameter_slots_;
   // We care about safepoint data for wasm-to-js functions, since there may be
   // stack/register tagged values for large number conversions.
   const int safepoint_table_offset_;
@@ -566,7 +575,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // code below, i.e. it can be called concurrently from background threads.
   // The returned code still needs to be published via {PublishCode}.
   std::unique_ptr<WasmCode> AddCode(int index, const CodeDesc& desc,
-                                    int stack_slots, int tagged_parameter_slots,
+                                    int stack_slots,
+                                    uint32_t tagged_parameter_slots,
                                     Vector<const byte> protected_instructions,
                                     Vector<const byte> source_position_table,
                                     WasmCode::Kind kind, ExecutionTier tier,
@@ -597,7 +607,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<WasmCode> AddDeserializedCode(
       int index, Vector<byte> instructions, int stack_slots,
-      int tagged_parameter_slots, int safepoint_table_offset,
+      uint32_t tagged_parameter_slots, int safepoint_table_offset,
       int handler_table_offset, int constant_pool_offset,
       int code_comments_offset, int unpadded_binary_size,
       Vector<const byte> protected_instructions_data,
@@ -788,7 +798,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<WasmCode> AddCodeWithCodeSpace(
       int index, const CodeDesc& desc, int stack_slots,
-      int tagged_parameter_slots,
+      uint32_t tagged_parameter_slots,
       Vector<const byte> protected_instructions_data,
       Vector<const byte> source_position_table, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging,

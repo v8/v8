@@ -940,7 +940,8 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   uint32_t stack_slots = 0;
   Code code;
   bool has_tagged_outgoing_params = false;
-  uint32_t tagged_parameter_slots = 0;
+  uint16_t first_tagged_parameter_slot = 0;
+  uint16_t num_tagged_parameter_slots = 0;
   bool is_wasm = false;
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -953,7 +954,8 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     has_tagged_outgoing_params =
         wasm_code->kind() != wasm::WasmCode::kFunction &&
         wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
-    tagged_parameter_slots = wasm_code->tagged_parameter_slots();
+    first_tagged_parameter_slot = wasm_code->first_tagged_parameter_slot();
+    num_tagged_parameter_slots = wasm_code->num_tagged_parameter_slots();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1091,10 +1093,11 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   // frame. Conceptionally these parameters belong to the parent frame. However,
   // the exact count is only known by this frame (in the presence of tail calls,
   // this information cannot be derived from the call site).
-  if (tagged_parameter_slots > 0) {
+  if (num_tagged_parameter_slots > 0) {
     FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
+    tagged_parameter_base += first_tagged_parameter_slot;
     FullObjectSlot tagged_parameter_limit =
-        tagged_parameter_base + tagged_parameter_slots;
+        tagged_parameter_base + num_tagged_parameter_slots;
 
     v->VisitRootPointers(Root::kStackRoots, nullptr, tagged_parameter_base,
                          tagged_parameter_limit);

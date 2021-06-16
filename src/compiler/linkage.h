@@ -395,8 +395,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   const char* debug_name() const { return debug_name_; }
 
-  bool UsesOnlyRegisters() const;
-
   int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
 
   // Returns the offset to the area below the parameter slots on the stack,
@@ -410,7 +408,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // If there are no parameter slots, returns 0.
   int GetOffsetToReturns() const;
 
-  int GetTaggedParameterSlots() const;
+  // Returns two 16-bit numbers packed together: (first slot << 16) | num_slots.
+  uint32_t GetTaggedParameterSlots() const;
 
   bool CanTailCall(const CallDescriptor* callee) const;
 
