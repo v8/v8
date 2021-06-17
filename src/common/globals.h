@@ -128,8 +128,12 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 #define V8_EXTERNAL_CODE_SPACE_BOOL true
+class CodeDataContainer;
+using CodeT = CodeDataContainer;
 #else
 #define V8_EXTERNAL_CODE_SPACE_BOOL false
+class Code;
+using CodeT = Code;
 #endif
 
 // Determine whether tagged pointers are 8 bytes (used in Torque layouts for
@@ -668,6 +672,7 @@ using JavaScriptArguments = Arguments<ArgumentsType::kJS>;
 class Assembler;
 class ClassScope;
 class Code;
+class CodeDataContainer;
 class CodeSpace;
 class Context;
 class DeclarationScope;

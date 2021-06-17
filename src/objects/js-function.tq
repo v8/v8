@@ -24,8 +24,8 @@ extern class JSFunction extends JSFunctionOrBoundFunction {
   shared_function_info: SharedFunctionInfo;
   context: Context;
   feedback_cell: FeedbackCell;
-  weak code: Code;
-
+  @if(V8_EXTERNAL_CODE_SPACE) weak code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) weak code: Code;
   // Space for the following field may or may not be allocated.
   @noVerifier weak prototype_or_initial_map: JSReceiver|Map;
 }

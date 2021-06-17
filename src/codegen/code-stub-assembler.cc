@@ -14307,7 +14307,7 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
-  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
+  StoreObjectFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, ToCodeT(code));
   return CAST(fun);
 }
 

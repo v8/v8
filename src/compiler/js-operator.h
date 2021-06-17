@@ -663,16 +663,16 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
 class CreateClosureParameters final {
  public:
   CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
-                          Handle<Code> code, AllocationType allocation)
+                          Handle<CodeT> code, AllocationType allocation)
       : shared_info_(shared_info), code_(code), allocation_(allocation) {}
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
-  Handle<Code> code() const { return code_; }
+  Handle<CodeT> code() const { return code_; }
   AllocationType allocation() const { return allocation_; }
 
  private:
   Handle<SharedFunctionInfo> const shared_info_;
-  Handle<Code> const code_;
+  Handle<CodeT> const code_;
   AllocationType const allocation_;
 };
 
@@ -910,7 +910,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
   const Operator* CreateClosure(
-      Handle<SharedFunctionInfo> shared_info, Handle<Code> code,
+      Handle<SharedFunctionInfo> shared_info, Handle<CodeT> code,
       AllocationType allocation = AllocationType::kYoung);
   const Operator* CreateIterResultObject();
   const Operator* CreateStringIterator();

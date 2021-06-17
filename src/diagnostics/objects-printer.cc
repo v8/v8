@@ -1512,7 +1512,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
      << shared().internal_formal_parameter_count();
   os << "\n - kind: " << shared().kind();
   os << "\n - context: " << Brief(context());
-  os << "\n - code: " << Brief(code());
+  os << "\n - code: " << Brief(raw_code());
   if (code().kind() == CodeKind::FOR_TESTING) {
     os << "\n - FOR_TESTING";
   } else if (ActiveTierIsIgnition()) {

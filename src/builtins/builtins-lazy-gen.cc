@@ -92,7 +92,10 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
 
     // Optimized code is good, get it into the closure and link the closure into
     // the optimized functions list, then tail call the optimized code.
-    StoreObjectField(function, JSFunction::kCodeOffset, optimized_code);
+    StoreObjectField(function, JSFunction::kCodeOffset,
+                     ToCodeT(optimized_code, code_data_container));
+    Comment("MaybeTailCallOptimizedCodeSlot:: GenerateTailCallToJSCode");
+    // TODO(v8:11880): call CodeT directly.
     GenerateTailCallToJSCode(optimized_code, function);
 
     // Optimized code slot contains deoptimized code or code is cleared and
@@ -143,7 +146,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   BIND(&maybe_use_sfi_code);
   CSA_ASSERT(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
                                                 isolate(), CompileLazy))));
-  StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
+  StoreObjectField(function, JSFunction::kCodeOffset, ToCodeT(sfi_code));
 
   Label tailcall_code(this);
   Label baseline(this);
@@ -184,9 +187,12 @@ TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
 TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
 
+  Handle<Code> compile_lazy = BUILTIN_CODE(isolate(), CompileLazy);
+  TNode<Code> code = HeapConstant(compile_lazy);
   // Set the code slot inside the JSFunction to CompileLazy.
-  TNode<Code> code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
-  StoreObjectField(function, JSFunction::kCodeOffset, code);
+  // TODO(v8:11880): support embedding of CodeDataContainer constants.
+  StoreObjectField(function, JSFunction::kCodeOffset, ToCodeT(code));
+  // TODO(v8:11880): call CodeT directly.
   GenerateTailCallToJSCode(code, function);
 }
 

@@ -842,8 +842,10 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
         isolate()->factory()->many_closures_cell();
     Callable const callable =
         Builtins::CallableFor(isolate(), shared.builtin_id());
+    Handle<CodeT> code =
+        ToCodeT(broker_->local_isolate_or_isolate(), callable.code());
     return AddNode<JSFunction>(graph()->NewNode(
-        javascript()->CreateClosure(shared.object(), callable.code()),
+        javascript()->CreateClosure(shared.object(), code),
         HeapConstant(feedback_cell), context, effect(), control()));
   }
 
@@ -6749,9 +6751,11 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
       isolate()->factory()->many_closures_cell();
   Callable const callable =
       Builtins::CallableFor(isolate(), shared.builtin_id());
-  return graph()->NewNode(
-      javascript()->CreateClosure(shared.object(), callable.code()),
-      jsgraph()->HeapConstant(feedback_cell), context, effect, control);
+  Handle<CodeT> code =
+      ToCodeT(broker()->local_isolate_or_isolate(), callable.code());
+  return graph()->NewNode(javascript()->CreateClosure(shared.object(), code),
+                          jsgraph()->HeapConstant(feedback_cell), context,
+                          effect, control);
 }
 
 // ES section #sec-promise.prototype.finally

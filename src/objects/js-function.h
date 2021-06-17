@@ -87,6 +87,9 @@ class JSFunction : public JSFunctionOrBoundFunction {
   DECL_ACCESSORS(code, Code)
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
 
+  // Returns the address of the function code's instruction start.
+  inline Address code_entry_point() const;
+
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
   template <typename IsolateT>
@@ -309,6 +312,9 @@ class JSFunction : public JSFunctionOrBoundFunction {
       FieldOffsets::kPrototypeOrInitialMapOffset;
 
  private:
+  DECL_ACCESSORS(raw_code, CodeT)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_code, CodeT)
+
   // JSFunction doesn't have a fixed header size:
   // Hide JSFunctionOrBoundFunction::kHeaderSize to avoid confusion.
   static const int kHeaderSize;

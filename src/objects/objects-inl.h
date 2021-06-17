@@ -81,6 +81,7 @@ bool Object::IsTaggedIndex() const {
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
+IS_TYPE_FUNCTION_DEF(CodeT)
 #undef IS_TYPE_FUNCTION_DEF
 
 #define IS_TYPE_FUNCTION_DEF(Type, Value)                        \
@@ -144,6 +145,11 @@ bool HeapObject::IsNullOrUndefined(ReadOnlyRoots roots) const {
 
 bool HeapObject::IsNullOrUndefined() const {
   return IsNullOrUndefined(GetReadOnlyRoots());
+}
+
+DEF_GETTER(HeapObject, IsCodeT, bool) {
+  return V8_EXTERNAL_CODE_SPACE_BOOL ? IsCodeDataContainer(cage_base)
+                                     : IsCode(cage_base);
 }
 
 DEF_GETTER(HeapObject, IsUniqueName, bool) {

@@ -625,6 +625,14 @@ class Code::OptimizedCodeIterator {
   DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 
+// Helper functions for converting Code objects to CodeDataContainer and back
+// when V8_EXTERNAL_CODE_SPACE is enabled.
+inline CodeT ToCodeT(Code code);
+inline Handle<CodeT> ToCodeT(Isolate* isolate, Handle<Code> code);
+inline Handle<CodeT> ToCodeT(LocalIsolate* isolate, Handle<Code> code);
+inline Code FromCodeT(CodeT code);
+inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
+
 class AbstractCode : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE

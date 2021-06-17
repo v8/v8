@@ -1258,7 +1258,9 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   BIND(&tailcall_to_function);
   // On failure, tail call back to regular JavaScript by re-calling the given
   // function which has been reset to the compile lazy builtin.
-  TNode<Code> code = CAST(LoadObjectField(function, JSFunction::kCodeOffset));
+
+  // TODO(v8:11880): call CodeT instead.
+  TNode<Code> code = FromCodeT(LoadJSFunctionCode(function));
   TailCallJSCode(code, context, function, new_target, arg_count);
 }
 

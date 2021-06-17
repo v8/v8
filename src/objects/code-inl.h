@@ -215,6 +215,48 @@ CodeDataContainer Code::GCSafeCodeDataContainer(AcquireLoadTag) const {
   return code_data_container;
 }
 
+// Helper functions for converting Code objects to CodeDataContainer and back
+// when V8_EXTERNAL_CODE_SPACE is enabled.
+inline CodeT ToCodeT(Code code) {
+#if V8_EXTERNAL_CODE_SPACE
+  return code.code_data_container(kAcquireLoad);
+#else
+  return code;
+#endif
+}
+
+inline Handle<CodeT> ToCodeT(Isolate* isolate, Handle<Code> code) {
+#if V8_EXTERNAL_CODE_SPACE
+  return handle(ToCodeT(*code), isolate);
+#else
+  return code;
+#endif
+}
+
+inline Handle<CodeT> ToCodeT(LocalIsolate* isolate, Handle<Code> code) {
+#if V8_EXTERNAL_CODE_SPACE
+  return handle(ToCodeT(*code), isolate);
+#else
+  return code;
+#endif
+}
+
+inline Code FromCodeT(CodeT code) {
+#if V8_EXTERNAL_CODE_SPACE
+  return code.code();
+#else
+  return code;
+#endif
+}
+
+inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) {
+#if V8_EXTERNAL_CODE_SPACE
+  return code;
+#else
+  return code.code_data_container(kAcquireLoad);
+#endif
+}
+
 void Code::WipeOutHeader() {
   WRITE_FIELD(*this, kRelocationInfoOffset, Smi::FromInt(0));
   WRITE_FIELD(*this, kDeoptimizationDataOffset, Smi::FromInt(0));

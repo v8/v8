@@ -88,6 +88,13 @@
   }                                                          \
   type holder::name(PtrComprCageBase cage_base) const
 
+#define DEF_ACQUIRE_GETTER(holder, name, type)               \
+  type holder::name(AcquireLoadTag tag) const {              \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*this); \
+    return holder::name(cage_base, tag);                     \
+  }                                                          \
+  type holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const
+
 #define DECL_SETTER(name, type)      \
   inline void set_##name(type value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -255,11 +262,7 @@
 
 #define RELEASE_ACQUIRE_ACCESSORS_CHECKED2(holder, name, type, offset,      \
                                            get_condition, set_condition)    \
-  type holder::name(AcquireLoadTag tag) const {                             \
-    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                \
-    return holder::name(cage_base, tag);                                    \
-  }                                                                         \
-  type holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const {     \
+  DEF_ACQUIRE_GETTER(holder, name, type) {                                  \
     type value = TaggedField<type, offset>::Acquire_Load(cage_base, *this); \
     DCHECK(get_condition);                                                  \
     return value;                                                           \
@@ -299,23 +302,19 @@
 #define WEAK_ACCESSORS(holder, name, offset) \
   WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
 
-#define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED2(holder, name, offset,          \
-                                                get_condition, set_condition)  \
-  MaybeObject holder::name(AcquireLoadTag tag) const {                         \
-    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                   \
-    return holder::name(cage_base, tag);                                       \
-  }                                                                            \
-  MaybeObject holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const { \
-    MaybeObject value =                                                        \
-        TaggedField<MaybeObject, offset>::Acquire_Load(cage_base, *this);      \
-    DCHECK(get_condition);                                                     \
-    return value;                                                              \
-  }                                                                            \
-  void holder::set_##name(MaybeObject value, ReleaseStoreTag,                  \
-                          WriteBarrierMode mode) {                             \
-    DCHECK(set_condition);                                                     \
-    TaggedField<MaybeObject, offset>::Release_Store(*this, value);             \
-    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);                \
+#define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED2(holder, name, offset,         \
+                                                get_condition, set_condition) \
+  DEF_ACQUIRE_GETTER(holder, name, MaybeObject) {                             \
+    MaybeObject value =                                                       \
+        TaggedField<MaybeObject, offset>::Acquire_Load(cage_base, *this);     \
+    DCHECK(get_condition);                                                    \
+    return value;                                                             \
+  }                                                                           \
+  void holder::set_##name(MaybeObject value, ReleaseStoreTag,                 \
+                          WriteBarrierMode mode) {                            \
+    DCHECK(set_condition);                                                    \
+    TaggedField<MaybeObject, offset>::Release_Store(*this, value);            \
+    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);               \
   }
 
 #define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED(holder, name, offset,       \

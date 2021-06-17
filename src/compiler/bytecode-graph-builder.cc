@@ -2283,11 +2283,11 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
           bytecode_iterator().GetFlagOperand(2))
           ? AllocationType::kOld
           : AllocationType::kYoung;
-
-  const Operator* op = javascript()->CreateClosure(
-      shared_info.object(),
-      jsgraph()->isolate()->builtins()->code_handle(Builtin::kCompileLazy),
-      allocation);
+  Handle<CodeT> compile_lazy =
+      ToCodeT(broker()->local_isolate_or_isolate(),
+              BUILTIN_CODE(jsgraph()->isolate(), CompileLazy));
+  const Operator* op = javascript()->CreateClosure(shared_info.object(),
+                                                   compile_lazy, allocation);
   Node* closure = NewNode(
       op, BuildLoadFeedbackCell(bytecode_iterator().GetIndexOperand(1)));
   environment()->BindAccumulator(closure);

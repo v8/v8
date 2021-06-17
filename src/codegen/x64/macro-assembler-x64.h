@@ -352,6 +352,24 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
+  // Load code entry point from the CodeDataContainer object.
+  void LoadCodeDataContainerEntry(Register destination,
+                                  Register code_data_container_object);
+  // Load code entry point from the CodeDataContainer object and compute
+  // Code object pointer out of it. Must not be used for CodeDataContainers
+  // corresponding to builtins, because their entry points values point to
+  // the embedded instruction stream in .text section.
+  void LoadCodeDataContainerCodeNonBuiltin(Register destination,
+                                           Register code_data_container_object);
+  void CallCodeDataContainerObject(Register code_data_container_object);
+  void JumpCodeDataContainerObject(Register code_data_container_object,
+                                   JumpMode jump_mode = JumpMode::kJump);
+
+  // Helper functions that dispatch either to Call/JumpCodeObject or to
+  // Call/JumpCodeDataContainerObject.
+  void CallCodeTObject(Register code);
+  void JumpCodeTObject(Register code, JumpMode jump_mode = JumpMode::kJump);
+
   void RetpolineCall(Register reg);
   void RetpolineCall(Address destination, RelocInfo::Mode rmode);
 
@@ -855,6 +873,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object);
+
+  // Abort execution if argument is not a CodeDataContainer, enabled via
+  // --debug-code.
+  void AssertCodeDataContainer(Register object);
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);

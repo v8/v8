@@ -1864,6 +1864,61 @@ void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   }
 }
 
+void TurboAssembler::LoadCodeDataContainerEntry(
+    Register destination, Register code_data_container_object) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  LoadExternalPointerField(
+      destination,
+      FieldOperand(code_data_container_object,
+                   CodeDataContainer::kCodeEntryPointOffset),
+      kCodeEntryPointTag, kScratchRegister);
+}
+
+void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
+    Register destination, Register code_data_container_object) {
+  LoadTaggedPointerField(
+      destination,
+      FieldOperand(code_data_container_object, CodeDataContainer::kCodeOffset));
+}
+
+void TurboAssembler::CallCodeDataContainerObject(
+    Register code_data_container_object) {
+  LoadCodeDataContainerEntry(code_data_container_object,
+                             code_data_container_object);
+  call(code_data_container_object);
+}
+
+void TurboAssembler::JumpCodeDataContainerObject(
+    Register code_data_container_object, JumpMode jump_mode) {
+  LoadCodeDataContainerEntry(code_data_container_object,
+                             code_data_container_object);
+  switch (jump_mode) {
+    case JumpMode::kJump:
+      jmp(code_data_container_object);
+      return;
+    case JumpMode::kPushAndReturn:
+      pushq(code_data_container_object);
+      Ret();
+      return;
+  }
+}
+
+void TurboAssembler::CallCodeTObject(Register code) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    CallCodeDataContainerObject(code);
+  } else {
+    CallCodeObject(code);
+  }
+}
+
+void TurboAssembler::JumpCodeTObject(Register code, JumpMode jump_mode) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    JumpCodeDataContainerObject(code, jump_mode);
+  } else {
+    JumpCodeObject(code, jump_mode);
+  }
+}
+
 void TurboAssembler::RetpolineCall(Register reg) {
   ASM_CODE_COMMENT(this);
   Label setup_return, setup_target, inner_indirect_branch, capture_spec;
@@ -2671,6 +2726,19 @@ void MacroAssembler::AssertConstructor(Register object) {
   Check(not_zero, AbortReason::kOperandIsNotAConstructor);
 }
 
+void MacroAssembler::AssertCodeDataContainer(Register object) {
+  if (FLAG_debug_code) {
+    RecordComment("AssertCodeDataContainer");
+    testb(object, Immediate(kSmiTagMask));
+    Check(not_equal, AbortReason::kOperandIsNotACodeDataContainer);
+    Push(object);
+    LoadMap(object, object);
+    CmpInstanceType(object, CODE_DATA_CONTAINER_TYPE);
+    Pop(object);
+    Check(equal, AbortReason::kOperandIsNotACodeDataContainer);
+  }
+}
+
 void MacroAssembler::AssertFunction(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -2888,10 +2956,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   LoadTaggedPointerField(rcx, FieldOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
-      CallCodeObject(rcx);
+      CallCodeTObject(rcx);
       break;
     case InvokeType::kJump:
-      JumpCodeObject(rcx);
+      JumpCodeTObject(rcx);
       break;
   }
   jmp(&done, Label::kNear);

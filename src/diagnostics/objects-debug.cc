@@ -972,6 +972,7 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     if (raw_code() != Smi::zero()) {
       CHECK_EQ(code().InstructionStart(), code_entry_point());
+      CHECK_EQ(code().code_data_container(kAcquireLoad), *this);
     }
   }
 }

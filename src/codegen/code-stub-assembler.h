@@ -783,6 +783,49 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void FastCheck(TNode<BoolT> condition);
 
+  TNode<BoolT> IsCodeTMap(TNode<Map> map) {
+    return V8_EXTERNAL_CODE_SPACE_BOOL ? IsCodeDataContainerMap(map)
+                                       : IsCodeMap(map);
+  }
+  TNode<BoolT> IsCodeT(TNode<HeapObject> object) {
+    return IsCodeTMap(LoadMap(object));
+  }
+
+  TNode<Code> FromCodeT(TNode<CodeT> code) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+    return LoadObjectField<Code>(code, CodeDataContainer::kCodeOffset);
+#else
+    return code;
+#endif
+  }
+
+  TNode<CodeDataContainer> CodeDataContainerFromCodeT(TNode<CodeT> code) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+    return code;
+#else
+    return LoadObjectField<CodeDataContainer>(code,
+                                              Code::kCodeDataContainerOffset);
+#endif
+  }
+
+  TNode<CodeT> ToCodeT(TNode<Code> code) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+    return LoadObjectField<CodeDataContainer>(code,
+                                              Code::kCodeDataContainerOffset);
+#else
+    return code;
+#endif
+  }
+
+  TNode<CodeT> ToCodeT(TNode<Code> code,
+                       TNode<CodeDataContainer> code_data_container) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+    return code_data_container;
+#else
+    return code;
+#endif
+  }
+
   // The following Call wrappers call an object according to the semantics that
   // one finds in the EcmaScript spec, operating on an Callable (e.g. a
   // JSFunction or proxy) rather than a Code object.
