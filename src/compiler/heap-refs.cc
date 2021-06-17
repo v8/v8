@@ -572,7 +572,7 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
       }
       PropertyArray properties = PropertyArray::cast(raw_properties_or_hash);
       const int array_index = field_index.outobject_array_index();
-      if (array_index < properties.length()) {
+      if (array_index < properties.length(kAcquireLoad)) {
         constant = properties.get(array_index);
       } else {
         TRACE_BROKER_MISSING(

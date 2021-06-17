@@ -74,7 +74,7 @@ int PropertyArray::Hash() const { return HashField::decode(length_and_hash()); }
 void PropertyArray::SetHash(int hash) {
   int value = length_and_hash();
   value = HashField::update(value, hash);
-  set_length_and_hash(value);
+  set_length_and_hash(value, kReleaseStore);
 }
 
 void PropertyArray::CopyElements(Isolate* isolate, int dst_index,
