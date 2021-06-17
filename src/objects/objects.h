@@ -410,6 +410,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<String> ToString(
       Isolate* isolate, Handle<Object> input);
 
+  V8_EXPORT_PRIVATE static MaybeHandle<String> NoSideEffectsToMaybeString(
+      Isolate* isolate, Handle<Object> input);
+
   V8_EXPORT_PRIVATE static Handle<String> NoSideEffectsToString(
       Isolate* isolate, Handle<Object> input);
 
