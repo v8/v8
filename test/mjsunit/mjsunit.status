@@ -630,6 +630,8 @@
   'regress/regress-500980': [PASS, SLOW],
   'regress/regress-crbug-941743': [PASS, SLOW],
   'wasm/shared-memory-worker-stress': [PASS, SLOW],
+  # https://crbug.com/v8/11780 - Flakily times out on TSAN.
+  'wasm/memory_1gb_oob': [PASS, SLOW],
 
   # BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
