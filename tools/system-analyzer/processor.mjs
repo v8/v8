@@ -222,6 +222,9 @@ export class Processor extends LogReader {
   processSharedLibrary(name, start, end, aslr_slide) {
     const entry = this._profile.addLibrary(name, start, end);
     entry.logEntry = new SharedLibLogEntry(entry);
+    // Many events rely on having a script around, creating fake entries for
+    // shared libraries.
+    this._profile.addScriptSource(-1, name, '');
   }
 
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {

@@ -14,6 +14,7 @@ export class TimelineTrackBase extends V8CustomElement {
   _nofChunks = 500;
   _chunks = [];
   _selectedEntry;
+  _focusedEntry;
   _timeToPixel;
   _timeStartPixelOffset;
   _legend;
@@ -27,6 +28,16 @@ export class TimelineTrackBase extends V8CustomElement {
     this._selectionHandler = new SelectionHandler(this);
     this._legend = new Legend(this.$('#legendTable'));
     this._legend.onFilter = (type) => this._handleFilterTimeline();
+
+    this.timelineChunks = this.$('#timelineChunks');
+    this.timelineSamples = this.$('#timelineSamples');
+    this.timelineNode = this.$('#timeline');
+    this.toolTipTargetNode = this.$('#toolTipTarget');
+    this.hitPanelNode = this.$('#hitPanel');
+    this.timelineAnnotationsNode = this.$('#timelineAnnotations');
+    this.timelineMarkersNode = this.$('#timelineMarkers');
+    this._scalableContentNode = this.$('#scalableContent');
+
     this.timelineNode.addEventListener(
         'scroll', e => this._handleTimelineScroll(e));
     this.hitPanelNode.onclick = this._handleClick.bind(this);
@@ -107,47 +118,6 @@ export class TimelineTrackBase extends V8CustomElement {
     let relativePosX = time * this._timeToPixel;
     relativePosX -= this._timeStartPixelOffset;
     return relativePosX;
-  }
-
-  get toolTipTargetNode() {
-    return this.$('#toolTipTarget');
-  }
-
-  get timelineChunks() {
-    if (this._timelineChunks === undefined) {
-      this._timelineChunks = this.$('#timelineChunks');
-    }
-    return this._timelineChunks;
-  }
-
-  get timelineSamples() {
-    if (this._timelineSamples === undefined) {
-      this._timelineSamples = this.$('#timelineSamples');
-    }
-    return this._timelineSamples;
-  }
-
-  get timelineNode() {
-    if (this._timelineNode === undefined) {
-      this._timelineNode = this.$('#timeline');
-    }
-    return this._timelineNode;
-  }
-
-  get hitPanelNode() {
-    return this.$('#hitPanel');
-  }
-
-  get timelineAnnotationsNode() {
-    return this.$('#timelineAnnotations');
-  }
-
-  get timelineMarkersNode() {
-    return this.$('#timelineMarkers');
-  }
-
-  get _scalableContentNode() {
-    return this.$('#scalableContent');
   }
 
   set nofChunks(count) {
@@ -304,15 +274,30 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _drawAnnotations(logEntry, time) {
-    // Subclass responsibility.
+    if (!this._focusedEntry) return;
+    this._drawEntryMark(this._focusedEntry);
+  }
+
+  _drawEntryMark(entry) {
+    const [x, y] = this._positionForEntry(entry);
+    const color = this._legend.colorForType(entry.type);
+    const mark =
+        `<circle cx=${x} cy=${y} r=3 stroke=${color} class=annotationPoint />`;
+    this.timelineAnnotationsNode.innerHTML = mark;
   }
 
   _handleUnlockedMouseEvent(event) {
-    const logEntry = this._getEntryForEvent(event);
-    if (!logEntry) return false;
-    this.dispatchEvent(new ToolTipEvent(logEntry, this.toolTipTargetNode));
+    this._focusedEntry = this._getEntryForEvent(event);
+    if (!this._focusedEntry) return false;
+    this._updateToolTip(event);
     const time = this.positionToTime(event.pageX);
-    this._drawAnnotations(logEntry, time);
+    this._drawAnnotations(this._focusedEntry, time);
+  }
+
+  _updateToolTip(event) {
+    this.dispatchEvent(
+        new ToolTipEvent(this._focusedEntry, this.toolTipTargetNode));
+    event.stopImmediatePropagation();
   }
 
   _handleClick(event) {
@@ -322,8 +307,6 @@ export class TimelineTrackBase extends V8CustomElement {
     // Do this unconditionally since we want the tooltip to be update to the
     // latest locked state.
     this._handleUnlockedMouseEvent(event);
-    event.stopImmediatePropagation();
-    event.stopPropagation();
     return false;
   }
 
@@ -341,16 +324,32 @@ export class TimelineTrackBase extends V8CustomElement {
   _handleMouseMove(event) {
     if (event.button !== 0) return;
     if (this._selectionHandler.isSelecting) return false;
-    if (this.isLocked) return false;
+    if (this.isLocked) {
+      this._updateToolTip(event);
+      return false;
+    }
     this._handleUnlockedMouseEvent(event);
   }
 
   _getChunkForEvent(event) {
     const time = this.positionToTime(event.pageX);
+    return this._chunkForTime(time);
+  }
+
+  _chunkForTime(time) {
     const chunkIndex = ((time - this._timeline.startTime) /
                         this._timeline.duration() * this._nofChunks) |
         0;
     return this.chunks[chunkIndex];
+  }
+
+  _positionForEntry(entry) {
+    const chunk = this._chunkForTime(entry.time);
+    if (chunk === undefined) return [-1, -1];
+    const xFrom = (chunk.index * kChunkWidth + kChunkVisualWidth / 2) | 0;
+    const yFrom = kTimelineHeight - chunk.yOffset(entry) | 0;
+    console.log(xFrom, yFrom);
+    return [xFrom, yFrom];
   }
 
   _getEntryForEvent(event) {

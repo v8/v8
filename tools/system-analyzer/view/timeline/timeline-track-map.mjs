@@ -33,7 +33,7 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-map',
         strokeColor} class=annotationPoint />`
   }
 
-  _drawAnnotations(logEntry) {
+  _drawAnnotations(logEntry, time) {
     if (!(logEntry instanceof MapLogEntry)) return;
     if (!logEntry.edge) {
       this.timelineAnnotationsNode.innerHTML = '';

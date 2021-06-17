@@ -13,14 +13,17 @@ class Timeline {
   _selection;
   _breakdown;
 
-  constructor(model, values = [], startTime = 0, endTime = 0) {
+  constructor(model, values = [], startTime = null, endTime = null) {
     this._model = model;
     this._values = values;
     this.startTime = startTime;
     this.endTime = endTime;
     if (values.length > 0) {
-      if (startTime === 0) this.startTime = values[0].time;
-      if (endTime === 0) this.endTime = values[values.length - 1].time;
+      if (startTime === null) this.startTime = values[0].time;
+      if (endTime === null) this.endTime = values[values.length - 1].time;
+    } else {
+      if (startTime === null) this.startTime = 0;
+      if (endTime === null) this.endTime = 0;
     }
   }
 
@@ -130,15 +133,16 @@ class Timeline {
   forEachChunkSize(count, fn) {
     if (this.isEmpty()) return;
     const increment = this.duration() / count;
-    let currentTime = this.first().time + increment;
+    let currentTime = this.startTime;
     let index = 0;
-    for (let i = 0; i < count; i++) {
-      const nextIndex = this.find(currentTime, index);
+    for (let i = 0; i < count - 1; i++) {
       const nextTime = currentTime + increment;
+      const nextIndex = this.findLast(nextTime, index);
       fn(index, nextIndex, currentTime, nextTime);
-      index = nextIndex;
+      index = nextIndex + 1;
       currentTime = nextTime;
     }
+    fn(index, this._values.length - 1, currentTime, this.endTime);
   }
 
   chunkSizes(count) {
@@ -150,7 +154,7 @@ class Timeline {
   chunks(count, predicate = undefined) {
     const chunks = [];
     this.forEachChunkSize(count, (start, end, startTime, endTime) => {
-      let items = this._values.slice(start, end);
+      let items = this._values.slice(start, end + 1);
       if (predicate !== undefined) items = items.filter(predicate);
       chunks.push(new Chunk(chunks.length, startTime, endTime, items));
     });
@@ -165,9 +169,27 @@ class Timeline {
     return this._values.slice(firstIndex, lastIndex);
   }
 
-  // Return the first index for the first element at {time}.
+  // Return the first index with element.time >= time.
   find(time, offset = 0) {
+    return this.findFirst(time, offset);
+  }
+
+  findFirst(time, offset = 0) {
     return this._find(this._values, each => each.time - time, offset);
+  }
+
+  // Return the last index with element.time <= time.
+  findLast(time, offset = 0) {
+    const nextTime = time + 1;
+    let index = (this.last().time <= nextTime) ?
+        this.length :
+        this.findFirst(nextTime + 1, offset);
+    // Typically we just have to look at the previous element.
+    while (index > 0) {
+      index--;
+      if (this._values[index].time <= time) return index;
+    }
+    return -1;
   }
 
   // Return the first index for which compareFn(item) is >= 0;
