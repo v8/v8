@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_SNAPSHOT_UTILS_H_
 #define V8_SNAPSHOT_SNAPSHOT_UTILS_H_
 
+#include "src/common/globals.h"
 #include "src/utils/vector.h"
 
 namespace v8 {

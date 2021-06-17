@@ -8,12 +8,12 @@
 #include <algorithm>
 #include <cstring>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <type_traits>
 
-#include "src/common/checks.h"
-#include "src/common/globals.h"
-#include "src/utils/allocation.h"
+#include "src/base/logging.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
@@ -32,7 +32,7 @@ class Vector {
   }
 
   static Vector<T> New(size_t length) {
-    return Vector<T>(NewArray<T>(length), length);
+    return Vector<T>(new T[length], length);
   }
 
   // Returns a vector using the same backing storage as this one,
@@ -82,7 +82,7 @@ class Vector {
 
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
-    T* result = NewArray<T>(length_);
+    T* result = new T[length_];
     for (size_t i = 0; i < length_; i++) result[i] = start_[i];
     return Vector<T>(result, length_);
   }
@@ -95,7 +95,7 @@ class Vector {
   // Releases the array underlying this vector. Once disposed the
   // vector is empty.
   void Dispose() {
-    DeleteArray(start_);
+    delete[] start_;
     start_ = nullptr;
     length_ = 0;
   }
@@ -143,9 +143,8 @@ class Vector {
 template <typename T>
 class V8_NODISCARD ScopedVector : public Vector<T> {
  public:
-  explicit ScopedVector(size_t length)
-      : Vector<T>(NewArray<T>(length), length) {}
-  ~ScopedVector() { DeleteArray(this->begin()); }
+  explicit ScopedVector(size_t length) : Vector<T>(new T[length], length) {}
+  ~ScopedVector() { delete[] this->begin(); }
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
