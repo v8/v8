@@ -1351,11 +1351,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ LoadTaggedPointerField(rcx,
                               FieldOperand(kInterpreterBytecodeArrayRegister,
                                            BaselineData::kBaselineCodeOffset));
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      // At this point |rcx| is still Code object, so "convert" it to CodeT.
-      __ LoadTaggedPointerField(
-          rcx, FieldOperand(rcx, Code::kCodeDataContainerOffset));
-    }
     static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
     ReplaceClosureCodeWithOptimizedCode(
         masm, rcx, closure, kInterpreterBytecodeArrayRegister,
@@ -1544,7 +1539,11 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ LoadTaggedPointerField(
       rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
-  __ addq(rbx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    __ LoadCodeDataContainerEntry(rbx, rbx);
+  } else {
+    __ addq(rbx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  }
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
@@ -4433,6 +4432,9 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
       FieldOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
   __ LoadTaggedPointerField(
       code_obj, FieldOperand(code_obj, BaselineData::kBaselineCodeOffset));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
+  }
 
   // Compute baseline pc for bytecode offset.
   ExternalReference get_baseline_pc_extref;

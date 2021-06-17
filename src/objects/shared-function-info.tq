@@ -11,13 +11,15 @@ extern class PreparseData extends HeapObject {
 
 extern class InterpreterData extends Struct {
   bytecode_array: BytecodeArray;
-  interpreter_trampoline: Code;
+  @if(V8_EXTERNAL_CODE_SPACE) interpreter_trampoline: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) interpreter_trampoline: Code;
 }
 
 @generateCppClass
 @generatePrint
 extern class BaselineData extends Struct {
-  baseline_code: Code;
+  @if(V8_EXTERNAL_CODE_SPACE) baseline_code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) baseline_code: Code;
   data: BytecodeArray|InterpreterData;
 }
 

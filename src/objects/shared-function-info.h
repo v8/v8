@@ -153,6 +153,9 @@ class InterpreterData : public Struct {
   DECL_PRINTER(InterpreterData)
   DECL_VERIFIER(InterpreterData)
 
+ private:
+  DECL_ACCESSORS(raw_interpreter_trampoline, CodeT)
+
   OBJECT_CONSTRUCTORS(InterpreterData, Struct);
 };
 
@@ -160,6 +163,8 @@ class BaselineData : public TorqueGeneratedBaselineData<BaselineData, Struct> {
  public:
   inline BytecodeArray GetActiveBytecodeArray() const;
   inline void SetActiveBytecodeArray(BytecodeArray bytecode);
+
+  DECL_ACCESSORS(baseline_code, Code)
 
   TQ_OBJECT_CONSTRUCTORS(BaselineData)
 };

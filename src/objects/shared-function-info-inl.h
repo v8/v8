@@ -98,8 +98,17 @@ OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
 
 CAST_ACCESSOR(InterpreterData)
 ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
-ACCESSORS(InterpreterData, interpreter_trampoline, Code,
+ACCESSORS(InterpreterData, raw_interpreter_trampoline, CodeT,
           kInterpreterTrampolineOffset)
+
+DEF_GETTER(InterpreterData, interpreter_trampoline, Code) {
+  return FromCodeT(raw_interpreter_trampoline(cage_base));
+}
+
+void InterpreterData::set_interpreter_trampoline(Code code,
+                                                 WriteBarrierMode mode) {
+  set_raw_interpreter_trampoline(ToCodeT(code), mode);
+}
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
 NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
@@ -502,6 +511,14 @@ BytecodeArray SharedFunctionInfo::GetBytecodeArray(IsolateT* isolate) const {
   }
 
   return GetActiveBytecodeArray();
+}
+
+DEF_GETTER(BaselineData, baseline_code, Code) {
+  return FromCodeT(TorqueGeneratedClass::baseline_code(cage_base));
+}
+
+void BaselineData::set_baseline_code(Code code, WriteBarrierMode mode) {
+  return TorqueGeneratedClass::set_baseline_code(ToCodeT(code), mode);
 }
 
 BytecodeArray BaselineData::GetActiveBytecodeArray() const {

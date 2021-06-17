@@ -14240,11 +14240,11 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsBaselineData: Execute baseline code
   BIND(&check_is_baseline_data);
-  TNode<BaselineData> baseline_data = CAST(sfi_data);
-  TNode<Code> baseline_code =
-      CAST(LoadObjectField(baseline_data, BaselineData::kBaselineCodeOffset));
-  sfi_code = baseline_code;
-  Goto(&done);
+  {
+    TNode<CodeT> baseline_code = LoadBaselineDataBaselineCode(CAST(sfi_data));
+    sfi_code = FromCodeT(baseline_code);
+    Goto(&done);
+  }
 
   // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
   // Compile lazy
@@ -14264,8 +14264,11 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   // This is the default branch, so assert that we have the expected data type.
   CSA_ASSERT(this,
              Word32Equal(data_type, Int32Constant(INTERPRETER_DATA_TYPE)));
-  sfi_code = CAST(LoadObjectField(
-      CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
+  {
+    TNode<CodeT> trampoline =
+        LoadInterpreterDataInterpreterTrampoline(CAST(sfi_data));
+    sfi_code = FromCodeT(trampoline);
+  }
   Goto(&done);
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -14288,6 +14291,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
     TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
     TNode<Context> context) {
+  // TODO(v8:11880): avoid roundtrips between cdc and code.
   const TNode<Code> code = GetSharedFunctionInfoCode(shared_info);
 
   // TODO(ishell): All the callers of this function pass map loaded from
