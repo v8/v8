@@ -24,6 +24,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/memory-allocator.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces-inl.h"
 #include "src/heap/paged-spaces-inl.h"
@@ -176,6 +177,16 @@ inline const base::AddressRegion& Heap::code_region() {
   static constexpr base::AddressRegion kEmptyRegion;
   return code_range_ ? code_range_->reservation()->region() : kEmptyRegion;
 #endif
+}
+
+int Heap::MaxRegularHeapObjectSize(AllocationType allocation) {
+  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
+      (allocation == AllocationType::kCode)) {
+    DCHECK_EQ(MemoryChunkLayout::MaxRegularCodeObjectSize(),
+              max_regular_code_object_size_);
+    return max_regular_code_object_size_;
+  }
+  return kMaxRegularHeapObjectSize;
 }
 
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,

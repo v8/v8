@@ -59,6 +59,7 @@
 #include "src/heap/marking-barrier-inl.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/memory-chunk-inl.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/object-stats.h"
@@ -217,6 +218,8 @@ Heap::Heap()
       collection_barrier_(new CollectionBarrier(this)) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (Page::kPageSize - 1));
+
+  max_regular_code_object_size_ = MemoryChunkLayout::MaxRegularCodeObjectSize();
 
   set_native_contexts_list(Smi::zero());
   set_allocation_sites_list(Smi::zero());
@@ -5062,15 +5065,6 @@ bool Heap::AllocationLimitOvershotByLargeMargin() {
                (max_global_memory_size_ - global_allocation_limit_) / 2);
 
   return v8_overshoot >= v8_margin || global_overshoot >= global_margin;
-}
-
-// static
-int Heap::MaxRegularHeapObjectSize(AllocationType allocation) {
-  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
-      (allocation == AllocationType::kCode)) {
-    return MemoryChunkLayout::MaxRegularCodeObjectSize();
-  }
-  return kMaxRegularHeapObjectSize;
 }
 
 bool Heap::ShouldOptimizeForLoadTime() {

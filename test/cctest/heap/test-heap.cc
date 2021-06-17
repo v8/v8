@@ -7123,7 +7123,7 @@ class TestAllocationTracker : public HeapObjectAllocationTracker {
 HEAP_TEST(CodeLargeObjectSpace) {
   Heap* heap = CcTest::heap();
   int size_in_bytes =
-      Heap::MaxRegularHeapObjectSize(AllocationType::kCode) + kTaggedSize;
+      heap->MaxRegularHeapObjectSize(AllocationType::kCode) + kTaggedSize;
   TestAllocationTracker allocation_tracker{size_in_bytes};
   heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
@@ -7157,7 +7157,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
   // Allocate a regular code object.
   {
     int size_in_bytes =
-        Heap::MaxRegularHeapObjectSize(AllocationType::kCode) - kTaggedSize;
+        heap->MaxRegularHeapObjectSize(AllocationType::kCode) - kTaggedSize;
     TestAllocationTracker allocation_tracker{size_in_bytes};
     heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 
@@ -7179,7 +7179,7 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
   // Allocate a large code object.
   {
     int size_in_bytes =
-        Heap::MaxRegularHeapObjectSize(AllocationType::kCode) + kTaggedSize;
+        heap->MaxRegularHeapObjectSize(AllocationType::kCode) + kTaggedSize;
     TestAllocationTracker allocation_tracker{size_in_bytes};
     heap->AddHeapObjectAllocationTracker(&allocation_tracker);
 

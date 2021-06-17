@@ -920,6 +920,7 @@ class Heap {
   CodeRange* code_range() { return code_range_.get(); }
 
   LocalHeap* main_thread_local_heap() { return main_thread_local_heap_; }
+  Heap* AsHeap() { return this; }
 
   // ===========================================================================
   // Root set access. ==========================================================
@@ -1459,7 +1460,7 @@ class Heap {
   // which the size of the allocatable space per V8 page may depend on the OS
   // page size at runtime. You may use kMaxRegularHeapObjectSize as a constant
   // instead if you know the allocation isn't in the code spaces.
-  V8_EXPORT_PRIVATE static int MaxRegularHeapObjectSize(
+  inline V8_EXPORT_PRIVATE int MaxRegularHeapObjectSize(
       AllocationType allocation);
 
   // ===========================================================================
@@ -2417,6 +2418,8 @@ class Heap {
   int gc_callbacks_depth_ = 0;
 
   bool deserialization_complete_ = false;
+
+  int max_regular_code_object_size_ = 0;
 
   bool fast_promotion_mode_ = false;
 

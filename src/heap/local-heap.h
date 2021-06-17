@@ -90,6 +90,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool IsParked();
 
   Heap* heap() { return heap_; }
+  Heap* AsHeap() { return heap(); }
 
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
   ConcurrentAllocator* old_space_allocator() { return &old_space_allocator_; }

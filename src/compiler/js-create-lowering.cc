@@ -1501,13 +1501,15 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
 
   MapRef sloppy_arguments_elements_map =
       MakeRef(broker(), factory()->sloppy_arguments_elements_map());
-  if (!AllocationBuilder::CanAllocateSloppyArgumentElements(
-          mapped_count, sloppy_arguments_elements_map)) {
+  AllocationBuilder ab(jsgraph(), effect, control);
+
+  if (!ab.CanAllocateSloppyArgumentElements(mapped_count,
+                                            sloppy_arguments_elements_map)) {
     return nullptr;
   }
 
   MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
-  if (!AllocationBuilder::CanAllocateArray(argument_count, fixed_array_map)) {
+  if (!ab.CanAllocateArray(argument_count, fixed_array_map)) {
     return nullptr;
   }
 
@@ -1520,7 +1522,6 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   // The unmapped argument values recorded in the frame state are stored yet
   // another indirection away and then linked into the parameter map below,
   // whereas mapped argument values are replaced with a hole instead.
-  AllocationBuilder ab(jsgraph(), effect, control);
   ab.AllocateArray(argument_count, fixed_array_map);
   for (int i = 0; i < mapped_count; ++i) {
     ab.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
@@ -1566,9 +1567,13 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   int mapped_count = parameter_count;
   MapRef sloppy_arguments_elements_map =
       MakeRef(broker(), factory()->sloppy_arguments_elements_map());
-  if (!AllocationBuilder::CanAllocateSloppyArgumentElements(
-          mapped_count, sloppy_arguments_elements_map)) {
-    return nullptr;
+
+  {
+    AllocationBuilder ab(jsgraph(), effect, control);
+    if (!ab.CanAllocateSloppyArgumentElements(mapped_count,
+                                              sloppy_arguments_elements_map)) {
+      return nullptr;
+    }
   }
 
   // From here on we are going to allocate a mapped (aka. aliased) elements
