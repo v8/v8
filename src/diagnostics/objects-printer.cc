@@ -1999,7 +1999,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
   os << "\n - target: " << reinterpret_cast<void*>(foreign_address());
   os << "\n - ref: " << Brief(ref());
-  os << "\n - wrapper_code: " << Brief(wrapper_code());
+  os << "\n - wrapper_code: " << Brief(TorqueGeneratedClass::wrapper_code());
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
@@ -2015,7 +2015,8 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmJSFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - wasm_to_js_wrapper_code: " << Brief(wasm_to_js_wrapper_code());
+  os << "\n - wasm_to_js_wrapper_code: "
+     << Brief(raw_wasm_to_js_wrapper_code());
   os << "\n - serialized_return_count: " << serialized_return_count();
   os << "\n - serialized_parameter_count: " << serialized_parameter_count();
   os << "\n - serialized_signature: " << Brief(serialized_signature());

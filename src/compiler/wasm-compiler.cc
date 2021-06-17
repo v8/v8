@@ -3209,9 +3209,19 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index, Vector<Node*> args,
         MachineType::TaggedPointer(), function_data,
         wasm::ObjectAccess::ToTagged(
             WasmJSFunctionData::kWasmToJsWrapperCodeOffset));
-    Node* call_target = gasm_->IntAdd(
-        wrapper_code,
-        gasm_->IntPtrConstant(wasm::ObjectAccess::ToTagged(Code::kHeaderSize)));
+    Node* call_target;
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+      CHECK(!V8_HEAP_SANDBOX_BOOL);  // Not supported yet.
+      call_target =
+          gasm_->LoadFromObject(MachineType::Pointer(), wrapper_code,
+                                wasm::ObjectAccess::ToTagged(
+                                    CodeDataContainer::kCodeEntryPointOffset));
+
+    } else {
+      call_target = gasm_->IntAdd(
+          wrapper_code, gasm_->IntPtrConstant(
+                            wasm::ObjectAccess::ToTagged(Code::kHeaderSize)));
+    }
     gasm_->Goto(&end_label, call_target);
   }
 

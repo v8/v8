@@ -808,6 +808,9 @@ class WasmJSFunctionData : public WasmFunctionData {
 
   class BodyDescriptor;
 
+ private:
+  DECL_ACCESSORS(raw_wasm_to_js_wrapper_code, CodeT)
+
   OBJECT_CONSTRUCTORS(WasmJSFunctionData, WasmFunctionData);
 };
 

@@ -3101,7 +3101,7 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(
     Handle<Code> code = unit->Finalize();
     int wrapper_index =
         GetExportWrapperIndex(module, unit->sig(), unit->is_import());
-    (*export_wrappers_out)->set(wrapper_index, *code);
+    (*export_wrappers_out)->set(wrapper_index, ToCodeT(*code));
     RecordStats(*code, isolate->counters());
   }
 }
@@ -3511,7 +3511,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     DCHECK_EQ(isolate, unit->isolate());
     Handle<Code> code = unit->Finalize();
     int wrapper_index = GetExportWrapperIndex(module, &key.second, key.first);
-    (*export_wrappers_out)->set(wrapper_index, *code);
+    (*export_wrappers_out)->set(wrapper_index, ToCodeT(*code));
     RecordStats(*code, isolate->counters());
   }
 }

@@ -5909,8 +5909,12 @@ class LiftoffCompiler {
                          wasm::ObjectAccess::ToTagged(
                              WasmJSFunctionData::kWasmToJsWrapperCodeOffset),
                          pinned);
+#ifdef V8_EXTERNAL_CODE_SPACE
+    __ LoadCodeDataContainerEntry(target.gp(), target.gp());
+#else
     __ emit_ptrsize_addi(target.gp(), target.gp(),
                          wasm::ObjectAccess::ToTagged(Code::kHeaderSize));
+#endif
     // Fall through to {perform_call}.
 
     __ bind(&perform_call);

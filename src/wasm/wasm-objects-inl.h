@@ -341,7 +341,13 @@ CAST_ACCESSOR(WasmExportedFunction)
 
 // WasmFunctionData
 ACCESSORS(WasmFunctionData, ref, Object, kRefOffset)
-ACCESSORS(WasmFunctionData, wrapper_code, Code, kWrapperCodeOffset)
+
+DEF_GETTER(WasmFunctionData, wrapper_code, Code) {
+  return FromCodeT(TorqueGeneratedClass::wrapper_code(cage_base));
+}
+void WasmFunctionData::set_wrapper_code(Code code, WriteBarrierMode mode) {
+  TorqueGeneratedClass::set_wrapper_code(ToCodeT(code), mode);
+}
 
 // WasmExportedFunctionData
 ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
@@ -371,8 +377,16 @@ SMI_ACCESSORS(WasmJSFunctionData, serialized_parameter_count,
               kSerializedParameterCountOffset)
 ACCESSORS(WasmJSFunctionData, serialized_signature, PodArray<wasm::ValueType>,
           kSerializedSignatureOffset)
-ACCESSORS(WasmJSFunctionData, wasm_to_js_wrapper_code, Code,
+ACCESSORS(WasmJSFunctionData, raw_wasm_to_js_wrapper_code, CodeT,
           kWasmToJsWrapperCodeOffset)
+
+DEF_GETTER(WasmJSFunctionData, wasm_to_js_wrapper_code, Code) {
+  return FromCodeT(raw_wasm_to_js_wrapper_code(cage_base));
+}
+void WasmJSFunctionData::set_wasm_to_js_wrapper_code(Code code,
+                                                     WriteBarrierMode mode) {
+  set_raw_wasm_to_js_wrapper_code(ToCodeT(code), mode);
+}
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {

@@ -1481,7 +1481,7 @@ WasmInstanceObject::GetOrCreateWasmExternalFunction(
     // later use.
     wrapper = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
         isolate, function.sig, instance->module(), function.imported);
-    module_object->export_wrappers().set(wrapper_index, *wrapper);
+    module_object->export_wrappers().set(wrapper_index, ToCodeT(*wrapper));
   }
   result = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
       isolate, instance, function_index,
@@ -1857,8 +1857,9 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
 bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
   if (!object.IsJSFunction()) return false;
   JSFunction js_function = JSFunction::cast(object);
-  if (CodeKind::JS_TO_WASM_FUNCTION != js_function.code().kind() &&
-      js_function.code().builtin_id() != Builtin::kGenericJSToWasmWrapper) {
+  Code code = js_function.code();
+  if (CodeKind::JS_TO_WASM_FUNCTION != code.kind() &&
+      code.builtin_id() != Builtin::kGenericJSToWasmWrapper) {
     return false;
   }
   DCHECK(js_function.shared().HasWasmExportedFunctionData());
