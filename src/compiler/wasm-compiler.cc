@@ -409,9 +409,12 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   Node* WasmArrayElementOffset(Node* index, wasm::ValueType element_type) {
-    return Int32Add(
-        Int32Constant(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)),
-        Int32Mul(index, Int32Constant(element_type.element_size_bytes())));
+    Node* index_intptr =
+        mcgraph()->machine()->Is64() ? ChangeInt32ToInt64(index) : index;
+    return IntAdd(
+        IntPtrConstant(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize)),
+        IntMul(index_intptr,
+               IntPtrConstant(element_type.element_size_bytes())));
   }
 
   Node* LoadWasmArrayLength(Node* array) {
