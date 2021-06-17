@@ -196,8 +196,10 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _adjustHeight(height) {
-    this.querySelectorAll('.dataSized')
-        .forEach(node => {node.style.height = height + 'px'});
+    const dataHeight = Math.max(height, 200);
+    const viewHeight = Math.min(dataHeight, 400);
+    this.style.setProperty('--data-height', dataHeight + 'px');
+    this.style.setProperty('--view-height', viewHeight + 'px');
     this.timelineNode.style.overflowY =
         (height > kTimelineHeight) ? 'scroll' : 'hidden';
   }

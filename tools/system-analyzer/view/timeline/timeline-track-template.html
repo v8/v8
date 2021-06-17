@@ -6,26 +6,22 @@ found in the LICENSE file. -->
   <link href="./index.css" rel="stylesheet">
 </head>
 <style>
+  :host {
+    --view-height: 200px;
+    --data-height: 200px;
+    --text-scale: scale(1, 1);
+  }
+
   #timeline {
     position: relative;
-    height: calc(200px + 12px);
+    height: calc(var(--view-height) + 12px);
     overflow-y: hidden;
     overflow-x: scroll;
     user-select: none;
   }
 
-  #timelineLabel {
-    transform: rotate(90deg);
-    transform-origin: left bottom 0;
-    position: absolute;
-    left: 0;
-    width: 200px;
-    text-align: center;
-    font-size: 10px;
-    opacity: 0.5;
-  }
   .dataSized {
-    min-height: 200px;
+    min-height: var(--data-height);
   }
 
   #timelineSamples, #timelineChunks,
@@ -70,7 +66,7 @@ found in the LICENSE file. -->
   .timelineLegend {
     position: relative;
     float: right;
-    height: calc(200px + 12px);
+    height: calc(var(--view-height) + 12px);
     overflow-y: scroll;
     margin-right: -10px;
     padding-right: 2px;
@@ -161,6 +157,7 @@ found in the LICENSE file. -->
   /* SVG styles */
   .txt {
     font: 8px monospace;
+    transform: var(--txt-scale);
   }
   .annotationLabel {
     fill: var(--on-surface-color);
@@ -211,7 +208,6 @@ found in the LICENSE file. -->
       <div id="selectionBackground"></div>
       <div id="rightHandle"></div>
     </div>
-    <div id="timelineLabel">Frequency</div>
     <svg id="timelineChunks" xmlns="http://www.w3.org/2000/svg" class="dataSized">
       <g id="scalableContent"></g>
     </svg>

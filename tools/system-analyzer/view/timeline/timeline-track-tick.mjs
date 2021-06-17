@@ -164,11 +164,11 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
   }
 
   _scaleContent(currentWidth) {
-    if (this._originalContentWidth > 0) {
-      // Instead of repainting just scale the flames
-      const ratio = currentWidth / this._originalContentWidth;
-      this._scalableContentNode.style.transform = `scale(${ratio}, 1)`;
-    }
+    if (this._originalContentWidth == 0) return;
+    // Instead of repainting just scale the flames
+    const ratio = currentWidth / this._originalContentWidth;
+    this._scalableContentNode.style.transform = `scale(${ratio}, 1)`;
+    this.style.setProperty('--txt-scale', `scale(${1 / ratio}, 1)`);
   }
 
   async _drawContent() {
@@ -219,7 +219,7 @@ DOM.defineCustomElement('view/timeline/timeline-track', 'timeline-track-tick',
 
     let buffer = '';
     if (width < 15 || type == 'Other') return buffer;
-    const rawName = flame.entry.getRawName();
+    const rawName = flame.entry.getName();
     if (rawName.length == 0) return buffer;
     const kChartWidth = 5;
     const maxChars = Math.floor(width / kChartWidth)
