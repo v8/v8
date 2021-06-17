@@ -37,6 +37,21 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+// For WebAssembly we care about the full floating point (Simd) registers. If we
+// are not running Wasm, we can get away with saving half of those (F64)
+// registers.
+#if V8_ENABLE_WEBASSEMBLY
+constexpr int kStackSavedSavedFPSizeInBytes =
+    kNumCallerSavedDoubles * kSimd128Size;
+#else
+constexpr int kStackSavedSavedFPSizeInBytes =
+    kNumCallerSavedDoubles * kDoubleSize;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+}  // namespace
+
 void TurboAssembler::DoubleMax(DoubleRegister result_reg,
                                DoubleRegister left_reg,
                                DoubleRegister right_reg) {
@@ -283,7 +298,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   bytes += NumRegs(list) * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
+    bytes += kStackSavedSavedFPSizeInBytes;
   }
 
   return bytes;
@@ -308,8 +323,8 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   bytes += NumRegs(list) * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPushDoubles(kCallerSavedDoubles);
-    bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
+    MultiPushF64OrV128(kCallerSavedDoubles);
+    bytes += kStackSavedSavedFPSizeInBytes;
   }
 
   return bytes;
@@ -319,8 +334,8 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                    Register exclusion2, Register exclusion3) {
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPopDoubles(kCallerSavedDoubles);
-    bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
+    MultiPopF64OrV128(kCallerSavedDoubles);
+    bytes += kStackSavedSavedFPSizeInBytes;
   }
 
   RegList exclusions = 0;
@@ -702,6 +717,7 @@ void TurboAssembler::MultiPopV128(RegList dregs, Register location) {
 }
 
 void TurboAssembler::MultiPushF64OrV128(RegList dregs, Register location) {
+#if V8_ENABLE_WEBASSEMBLY
   bool generating_bultins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
   if (generating_bultins) {
@@ -728,9 +744,13 @@ void TurboAssembler::MultiPushF64OrV128(RegList dregs, Register location) {
       lay(sp, MemOperand(sp, -(NumRegs(dregs) * kDoubleSize)));
     }
   }
+#else
+  MultiPushDoubles(dregs);
+#endif
 }
 
 void TurboAssembler::MultiPopF64OrV128(RegList dregs, Register location) {
+#if V8_ENABLE_WEBASSEMBLY
   bool generating_bultins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
   if (generating_bultins) {
@@ -753,6 +773,9 @@ void TurboAssembler::MultiPopF64OrV128(RegList dregs, Register location) {
       MultiPopDoubles(dregs);
     }
   }
+#else
+  MultiPopDoubles(dregs);
+#endif
 }
 
 void TurboAssembler::LoadRoot(Register destination, RootIndex index,

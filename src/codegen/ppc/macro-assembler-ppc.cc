@@ -36,6 +36,22 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+// Simd and Floating Pointer registers are not shared. For WebAssembly we save
+// both registers, If we are not running Wasm, we can get away with only saving
+// FP registers.
+#if V8_ENABLE_WEBASSEMBLY
+constexpr int kStackSavedSavedFPSizeInBytes =
+    (kNumCallerSavedDoubles * kSimd128Size) +
+    (kNumCallerSavedDoubles * kDoubleSize);
+#else
+constexpr int kStackSavedSavedFPSizeInBytes =
+    kNumCallerSavedDoubles * kDoubleSize;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+}  // namespace
+
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
                                                     Register exclusion2,
@@ -56,7 +72,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   bytes += NumRegs(list) * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += kNumCallerSavedDoubles * kDoubleSize;
+    bytes += kStackSavedSavedFPSizeInBytes;
   }
 
   return bytes;
@@ -81,8 +97,8 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   bytes += NumRegs(list) * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPushDoubles(kCallerSavedDoubles);
-    bytes += kNumCallerSavedDoubles * kDoubleSize;
+    MultiPushF64AndV128(kCallerSavedDoubles, kCallerSavedDoubles);
+    bytes += kStackSavedSavedFPSizeInBytes;
   }
 
   return bytes;
@@ -92,8 +108,8 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                    Register exclusion2, Register exclusion3) {
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPopDoubles(kCallerSavedDoubles);
-    bytes += kNumCallerSavedDoubles * kDoubleSize;
+    MultiPopF64AndV128(kCallerSavedDoubles, kCallerSavedDoubles);
+    bytes += kStackSavedSavedFPSizeInBytes;
   }
 
   RegList exclusions = 0;
@@ -472,9 +488,10 @@ void TurboAssembler::MultiPopV128(RegList dregs, Register location) {
 
 void TurboAssembler::MultiPushF64AndV128(RegList dregs, RegList simd_regs,
                                          Register location) {
+  MultiPushDoubles(dregs);
+#if V8_ENABLE_WEBASSEMBLY
   bool generating_bultins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
-  MultiPushDoubles(dregs);
   if (generating_bultins) {
     // V8 uses the same set of fp param registers as Simd param registers.
     // As these registers are two different sets on ppc we must make
@@ -501,10 +518,12 @@ void TurboAssembler::MultiPushF64AndV128(RegList dregs, RegList simd_regs,
            Operand(-static_cast<int8_t>(NumRegs(simd_regs)) * kSimd128Size));
     }
   }
+#endif
 }
 
 void TurboAssembler::MultiPopF64AndV128(RegList dregs, RegList simd_regs,
                                         Register location) {
+#if V8_ENABLE_WEBASSEMBLY
   bool generating_bultins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
   if (generating_bultins) {
@@ -527,6 +546,7 @@ void TurboAssembler::MultiPopF64AndV128(RegList dregs, RegList simd_regs,
            Operand(static_cast<int8_t>(NumRegs(simd_regs)) * kSimd128Size));
     }
   }
+#endif
   MultiPopDoubles(dregs);
 }
 
