@@ -1776,7 +1776,7 @@ TEST(RunInt32AddInBranch) {
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32Equal(m.Int32Add(m.Int32Constant(i), m.Parameter(0)),
                              m.Int32Constant(0)),
@@ -1786,14 +1786,14 @@ TEST(RunInt32AddInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i + j) == 0 ? constant : 0 - constant;
+        int32_t expected = (i + j) == 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32NotEqual(m.Int32Add(m.Int32Constant(i), m.Parameter(0)),
                                 m.Int32Constant(0)),
@@ -1803,7 +1803,7 @@ TEST(RunInt32AddInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i + j) != 0 ? constant : 0 - constant;
+        int32_t expected = (i + j) != 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
@@ -2121,7 +2121,7 @@ TEST(RunInt32SubInBranch) {
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32Equal(m.Int32Sub(m.Int32Constant(i), m.Parameter(0)),
                              m.Int32Constant(0)),
@@ -2131,7 +2131,7 @@ TEST(RunInt32SubInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i - j) == 0 ? constant : 0 - constant;
+        int32_t expected = (i - j) == 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
@@ -3251,7 +3251,7 @@ TEST(RunWord32XorInBranch) {
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32Equal(m.Word32Xor(m.Int32Constant(i), m.Parameter(0)),
                              m.Int32Constant(0)),
@@ -3261,14 +3261,14 @@ TEST(RunWord32XorInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i ^ j) == 0 ? constant : 0 - constant;
+        int32_t expected = (i ^ j) == 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
   }
   {
     FOR_UINT32_INPUTS(i) {
-      RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+      RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
       RawMachineLabel blocka, blockb;
       m.Branch(m.Word32NotEqual(m.Word32Xor(m.Int32Constant(i), m.Parameter(0)),
                                 m.Int32Constant(0)),
@@ -3278,7 +3278,7 @@ TEST(RunWord32XorInBranch) {
       m.Bind(&blockb);
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(j) {
-        uint32_t expected = (i ^ j) != 0 ? constant : 0 - constant;
+        int32_t expected = (i ^ j) != 0 ? constant : 0 - constant;
         CHECK_EQ(expected, m.Call(j));
       }
     }
@@ -3433,7 +3433,7 @@ TEST(RunWord32ShrP) {
 TEST(RunWordShiftInBranch) {
   static const uint32_t constant = 987654321;
   FOR_UINT32_SHIFTS(shift) {
-    RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+    RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
     RawMachineLabel blocka, blockb;
     m.Branch(m.Word32Equal(m.Word32Shl(m.Parameter(0), m.Int32Constant(shift)),
                            m.Int32Constant(0)),
@@ -3443,12 +3443,12 @@ TEST(RunWordShiftInBranch) {
     m.Bind(&blockb);
     m.Return(m.Int32Constant(0 - constant));
     FOR_UINT32_INPUTS(i) {
-      uint32_t expected = ((i << shift) == 0) ? constant : 0 - constant;
+      int32_t expected = ((i << shift) == 0) ? constant : 0 - constant;
       CHECK_EQ(expected, m.Call(i));
     }
   }
   FOR_UINT32_SHIFTS(shift) {
-    RawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+    RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
     RawMachineLabel blocka, blockb;
     m.Branch(m.Word32Equal(m.Word32Shr(m.Parameter(0), m.Int32Constant(shift)),
                            m.Int32Constant(0)),
@@ -3458,7 +3458,7 @@ TEST(RunWordShiftInBranch) {
     m.Bind(&blockb);
     m.Return(m.Int32Constant(0 - constant));
     FOR_UINT32_INPUTS(i) {
-      uint32_t expected = ((i >> shift) == 0) ? constant : 0 - constant;
+      int32_t expected = ((i >> shift) == 0) ? constant : 0 - constant;
       CHECK_EQ(expected, m.Call(i));
     }
   }
