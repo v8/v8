@@ -118,8 +118,10 @@ Code FeedbackVector::optimized_code() const {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   DCHECK(slot->IsWeakOrCleared());
   HeapObject heap_object;
-  Code code =
-      slot->GetHeapObject(&heap_object) ? Code::cast(heap_object) : Code();
+  Code code;
+  if (slot->GetHeapObject(&heap_object)) {
+    code = FromCodeT(CodeT::cast(heap_object));
+  }
   // It is possible that the maybe_optimized_code slot is cleared but the
   // optimization tier hasn't been updated yet. We update the tier when we
   // execute the function next time / when we create new closure.

@@ -958,11 +958,6 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // At this point |optimized_code_entry| is still Code object, so "convert"
-    // it to CodeT.
-    __ LoadTaggedPointerField(
-        optimized_code_entry,
-        FieldOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
     __ AssertCodeDataContainer(optimized_code_entry);
     __ testl(FieldOperand(optimized_code_entry,
                           CodeDataContainer::kKindSpecificFlagsOffset),

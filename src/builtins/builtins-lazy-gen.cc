@@ -7,6 +7,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/shared-function-info.h"
 
@@ -75,15 +76,16 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
     Label heal_optimized_code_slot(this);
     TNode<MaybeObject> maybe_optimized_code_entry = LoadMaybeWeakObjectField(
         feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset);
-    // Optimized code slot is a weak reference.
-    TNode<Code> optimized_code = CAST(GetHeapObjectAssumeWeak(
+
+    // Optimized code slot is a weak reference to CodeT object.
+    TNode<CodeT> code_t = CAST(GetHeapObjectAssumeWeak(
         maybe_optimized_code_entry, &heal_optimized_code_slot));
+    TNode<Code> optimized_code = FromCodeT(code_t);
 
     // Check if the optimized code is marked for deopt. If it is, call the
     // runtime to clear it.
     TNode<CodeDataContainer> code_data_container =
-        CAST(LoadObjectField(optimized_code, Code::kCodeDataContainerOffset));
-
+        CodeDataContainerFromCodeT(code_t);
     TNode<Int32T> code_kind_specific_flags = LoadObjectField<Int32T>(
         code_data_container, CodeDataContainer::kKindSpecificFlagsOffset);
     GotoIf(IsSetWord32<Code::MarkedForDeoptimizationField>(

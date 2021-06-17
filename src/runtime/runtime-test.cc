@@ -590,12 +590,13 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   }
 
   if (function->HasAttachedOptimizedCode()) {
-    if (function->code().marked_for_deoptimization()) {
+    Code code = function->code();
+    if (code.marked_for_deoptimization()) {
       status |= static_cast<int>(OptimizationStatus::kMarkedForDeoptimization);
     } else {
       status |= static_cast<int>(OptimizationStatus::kOptimized);
     }
-    if (function->code().is_turbofanned()) {
+    if (code.is_turbofanned()) {
       status |= static_cast<int>(OptimizationStatus::kTurboFanned);
     }
   }
