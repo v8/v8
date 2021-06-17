@@ -384,7 +384,7 @@ void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
                                             WriteBarrierMode mode) {
   DCHECK(index.is_inobject());
   int offset = index.offset();
-  WRITE_FIELD(*this, offset, value);
+  RELAXED_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
