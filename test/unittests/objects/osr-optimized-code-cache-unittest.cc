@@ -66,7 +66,7 @@ TEST_F(TestWithNativeContext, AddCodeToEmptyCache) {
   HeapObject code_entry;
   osr_cache->Get(OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
-  EXPECT_EQ(code_entry, *code);
+  EXPECT_EQ(code_entry, ToCodeT(*code));
   Smi osr_offset_entry;
   osr_cache->Get(OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&osr_offset_entry);
   EXPECT_EQ(osr_offset_entry.value(), bailout_id.ToInt());
@@ -108,7 +108,7 @@ TEST_F(TestWithNativeContext, GrowCodeCache) {
   HeapObject code_entry;
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
-  EXPECT_EQ(code_entry, *code);
+  EXPECT_EQ(code_entry, ToCodeT(*code));
   Smi osr_offset_entry;
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)
       ->ToSmi(&osr_offset_entry);
@@ -204,7 +204,7 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   EXPECT_EQ(object, *shared1);
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
-  EXPECT_EQ(object, *code1);
+  EXPECT_EQ(object, ToCodeT(*code1));
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 
@@ -227,7 +227,7 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   EXPECT_EQ(object, *shared2);
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
-  EXPECT_EQ(object, *code2);
+  EXPECT_EQ(object, ToCodeT(*code2));
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 }
@@ -282,7 +282,7 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   EXPECT_EQ(object, *shared1);
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
-  EXPECT_EQ(object, *code1);
+  EXPECT_EQ(object, ToCodeT(*code1));
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 
@@ -304,7 +304,7 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   EXPECT_EQ(object, *shared2);
   osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
-  EXPECT_EQ(object, *code2);
+  EXPECT_EQ(object, ToCodeT(*code2));
   osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 }

@@ -3995,8 +3995,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
                 DependentCode::kAllocationSiteTenuringChangedGroup);
       CHECK_EQ(1, dependency.count());
       CHECK(dependency.object_at(0)->IsWeak());
-      Code function_bar =
-          Code::cast(dependency.object_at(0)->GetHeapObjectAssumeWeak());
+      Code function_bar = FromCodeT(
+          CodeT::cast(dependency.object_at(0)->GetHeapObjectAssumeWeak()));
       CHECK_EQ(bar_handle->code(), function_bar);
       dependency = dependency.next_link();
       dependency_group_count++;

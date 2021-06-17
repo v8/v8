@@ -785,7 +785,8 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
   // Check for existing entry to avoid duplicates.
   {
     DisallowHeapAllocation no_gc;
-    HeapObjectReference weak_code_entry = HeapObjectReference::Weak(*code);
+    HeapObjectReference weak_code_entry =
+        HeapObjectReference::Weak(ToCodeT(*code));
     for (int i = 0; i < count; i++) {
       if (entries->object_at(i) == weak_code_entry) return entries;
     }
@@ -796,7 +797,8 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
     count = entries->count();
   }
   DisallowHeapAllocation no_gc;
-  HeapObjectReference weak_code_entry = HeapObjectReference::Weak(*code);
+  HeapObjectReference weak_code_entry =
+      HeapObjectReference::Weak(ToCodeT(*code));
   entries->set_object_at(count, weak_code_entry);
   entries->set_count(count + 1);
   return entries;
@@ -812,7 +814,8 @@ Handle<DependentCode> DependentCode::New(Isolate* isolate,
   result->set_next_link(*next);
   result->set_flags(GroupField::encode(group) | CountField::encode(1));
 
-  HeapObjectReference weak_code_entry = HeapObjectReference::Weak(*code);
+  HeapObjectReference weak_code_entry =
+      HeapObjectReference::Weak(ToCodeT(*code));
   result->set_object_at(0, weak_code_entry);
   return result;
 }
@@ -863,7 +866,8 @@ bool DependentCode::MarkCodeForDeoptimization(
   for (int i = 0; i < count; i++) {
     MaybeObject obj = object_at(i);
     if (obj->IsCleared()) continue;
-    Code code = Code::cast(obj->GetHeapObjectAssumeWeak());
+    // TODO(v8:11880): avoid roundtrips between cdc and code.
+    Code code = FromCodeT(CodeT::cast(obj->GetHeapObjectAssumeWeak()));
     if (!code.marked_for_deoptimization()) {
       code.SetMarkedForDeoptimization(DependencyGroupName(group));
       marked = true;
