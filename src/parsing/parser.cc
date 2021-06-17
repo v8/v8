@@ -3466,6 +3466,8 @@ void Parser::SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
 void Parser::SetFunctionNameFromIdentifierRef(Expression* value,
                                               Expression* identifier) {
   if (!identifier->IsVariableProxy()) return;
+  // IsIdentifierRef of parenthesized expressions is false.
+  if (identifier->is_parenthesized()) return;
   SetFunctionName(value, identifier->AsVariableProxy()->raw_name());
 }
 

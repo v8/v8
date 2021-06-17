@@ -59,9 +59,6 @@
   'language/expressions/assignment/S11.13.1_A5*': [FAIL],
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4709
-  'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],
