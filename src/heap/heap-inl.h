@@ -484,10 +484,18 @@ bool Heap::InToPage(HeapObject heap_object) {
 }
 
 bool Heap::InOldSpace(Object object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return object.IsHeapObject() &&
            third_party_heap::Heap::InOldSpace(object.ptr());
+  }
   return old_space_->Contains(object);
+}
+
+bool Heap::InCodeSpace(HeapObject object) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    return third_party_heap::Heap::InCodeSpace(object.ptr());
+  }
+  return code_space_->Contains(object) || code_lo_space_->Contains(object);
 }
 
 // static

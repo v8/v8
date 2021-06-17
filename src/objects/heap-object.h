@@ -178,6 +178,7 @@ class HeapObject : public Object {
   // Verify a pointer is a valid HeapObject pointer that points to object
   // areas in the heap.
   static void VerifyHeapPointer(Isolate* isolate, Object p);
+  static void VerifyCodePointer(Isolate* isolate, Object p);
 #endif
 
   static inline AllocationAlignment RequiredAlignment(Map map);

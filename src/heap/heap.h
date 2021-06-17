@@ -1250,6 +1250,9 @@ class Heap {
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object object);
 
+  // Returns whether the object resides in any of the code spaces.
+  inline bool InCodeSpace(HeapObject object);
+
   // Checks whether an address/object is in the non-read-only heap (including
   // auxiliary area and unused area). Use IsValidHeapObject if checking both
   // heaps is required.

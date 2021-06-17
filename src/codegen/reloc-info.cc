@@ -485,9 +485,11 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
 void RelocInfo::Verify(Isolate* isolate) {
   switch (rmode_) {
     case COMPRESSED_EMBEDDED_OBJECT:
+      Object::VerifyPointer(isolate, target_object());
+      break;
     case FULL_EMBEDDED_OBJECT:
     case DATA_EMBEDDED_OBJECT:
-      Object::VerifyPointer(isolate, target_object());
+      Object::VerifyAnyTagged(isolate, target_object());
       break;
     case CODE_TARGET:
     case RELATIVE_CODE_TARGET: {
