@@ -765,7 +765,7 @@ class WasmExportedFunctionData : public WasmFunctionData {
   DECL_INT_ACCESSORS(function_index)
   DECL_ACCESSORS(signature, Foreign)
   DECL_INT_ACCESSORS(wrapper_budget)
-  DECL_ACCESSORS(c_wrapper_code, Object)
+  DECL_ACCESSORS(c_wrapper_code, CodeT)
   DECL_INT_ACCESSORS(packed_args_size)
 
   inline wasm::FunctionSig* sig() const;

@@ -812,6 +812,10 @@ void CodeDataContainer::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
   set_code_entry_point(isolate_for_sandbox, code.InstructionStart());
 }
 
+Address CodeDataContainer::InstructionStart() const {
+  return code_entry_point();
+}
+
 void CodeDataContainer::clear_padding() {
   memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
          kSize - kUnalignedSize);

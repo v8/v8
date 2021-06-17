@@ -355,7 +355,7 @@ ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
 SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
 ACCESSORS(WasmExportedFunctionData, signature, Foreign, kSignatureOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, wrapper_budget, kWrapperBudgetOffset)
-ACCESSORS(WasmExportedFunctionData, c_wrapper_code, Object, kCWrapperCodeOffset)
+ACCESSORS(WasmExportedFunctionData, c_wrapper_code, CodeT, kCWrapperCodeOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, packed_args_size, kPackedArgsSizeOffset)
 
 wasm::FunctionSig* WasmExportedFunctionData::sig() const {

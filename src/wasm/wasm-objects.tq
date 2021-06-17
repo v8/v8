@@ -33,7 +33,8 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   wrapper_budget: Smi;
   // The remaining fields are for fast calling from C++. The contract is
   // that they are lazily populated, and either all will be present or none.
-  c_wrapper_code: Object;
+  @if(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: Code;
   packed_args_size: Smi;
 }
 

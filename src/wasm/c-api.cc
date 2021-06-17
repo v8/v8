@@ -28,6 +28,7 @@
 #include "include/libplatform/libplatform.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/wrappers.h"
+#include "src/builtins/builtins.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/managed.h"
@@ -1516,9 +1517,13 @@ void PrepareFunctionData(i::Isolate* isolate,
                          const i::wasm::FunctionSig* sig,
                          const i::wasm::WasmModule* module) {
   // If the data is already populated, return immediately.
-  if (!function_data->c_wrapper_code().IsSmi()) return;
+  // TODO(v8:11880): avoid roundtrips between cdc and code.
+  if (function_data->c_wrapper_code() !=
+      ToCodeT(*BUILTIN_CODE(isolate, Illegal))) {
+    return;
+  }
   // Compile wrapper code.
-  i::Handle<i::Code> wrapper_code =
+  i::Handle<i::CodeT> wrapper_code =
       i::compiler::CompileCWasmEntry(isolate, sig, module);
   function_data->set_c_wrapper_code(*wrapper_code);
   // Compute packed args size.
@@ -1658,8 +1663,9 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   const i::wasm::FunctionSig* sig =
       instance->module()->functions[function_index].sig;
   PrepareFunctionData(isolate, function_data, sig, instance->module());
-  i::Handle<i::Code> wrapper_code = i::Handle<i::Code>(
-      i::Code::cast(function_data->c_wrapper_code()), isolate);
+  // TODO(v8:11880): avoid roundtrips between cdc and code.
+  i::Handle<i::CodeT> wrapper_code = i::Handle<i::CodeT>(
+      i::CodeT::cast(function_data->c_wrapper_code()), isolate);
   i::Address call_target = function_data->foreign_address();
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());

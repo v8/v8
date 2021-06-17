@@ -34,7 +34,7 @@ static constexpr T FirstFromVarArgs(T x, ...) noexcept {
 
 // Convenience macro to avoid generating named accessors for all builtins.
 #define BUILTIN_CODE(isolate, name) \
-  (isolate)->builtins()->code_handle(Builtin::k##name)
+  (isolate)->builtins()->code_handle(i::Builtin::k##name)
 
 enum class Builtin : int32_t {
   kNoBuiltinId = -1,

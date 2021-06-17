@@ -64,6 +64,9 @@ class CodeDataContainer : public HeapObject {
 
   inline void AllocateExternalPointerEntries(Isolate* isolate);
 
+  // Alias for code_entry_point to make it API compatible with Code.
+  inline Address InstructionStart() const;
+
   DECL_CAST(CodeDataContainer)
 
   // Dispatched behavior.
