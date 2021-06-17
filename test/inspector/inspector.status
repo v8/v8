@@ -15,11 +15,6 @@
   # https://crbug.com/v8/9029
   'debugger/script-on-after-compile-snapshot': [SKIP],
 
-  # https://crbug.com/v8/10356
-  # This test worked in the wasm interpreter, but fails when using Liftoff for
-  # debugging.
-  'debugger/wasm-externref-global': [FAIL],
-
   # https://crbug.com/1080638
   # The initial CL only fixed the crash. The test still causes an endless
   # loop instead of properly reporting a RangeError for a stack overflow.
