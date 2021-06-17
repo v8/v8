@@ -180,33 +180,6 @@ TNode<Object> IntrinsicsGenerator::CreateIterResultObject(
                                 arg_count);
 }
 
-TNode<Object> IntrinsicsGenerator::Call(
-    const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
-    int arg_count) {
-  // First argument register contains the function target.
-  TNode<Object> function = __ LoadRegisterFromRegisterList(args, 0);
-
-  // The arguments for the target function are from the second runtime call
-  // argument.
-  InterpreterAssembler::RegListNodePair target_args(
-      __ RegisterLocationInRegisterList(args, 1),
-      __ Int32Sub(args.reg_count(), __ Int32Constant(1)));
-
-  if (FLAG_debug_code) {
-    InterpreterAssembler::Label arg_count_positive(assembler_);
-    TNode<BoolT> comparison =
-        __ Int32LessThan(target_args.reg_count(), __ Int32Constant(0));
-    __ GotoIfNot(comparison, &arg_count_positive);
-    __ Abort(AbortReason::kWrongArgumentCountForInvokeIntrinsic);
-    __ Goto(&arg_count_positive);
-    __ BIND(&arg_count_positive);
-  }
-
-  __ CallJSAndDispatch(function, context, target_args,
-                       ConvertReceiverMode::kAny);
-  return TNode<Object>();  // We never return from the CallJSAndDispatch above.
-}
-
 TNode<Object> IntrinsicsGenerator::CreateAsyncFromSyncIterator(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {

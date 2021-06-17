@@ -418,7 +418,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.SwitchOnGeneratorState(reg, gen_jump_table).Bind(gen_jump_table, 0);
 
   // Intrinsics handled by the interpreter.
-  builder.CallRuntime(Runtime::kInlineCall, reg_list);
+  builder.CallRuntime(Runtime::kInlineAsyncFunctionReject, reg_list);
 
   // Emit debugger bytecode.
   builder.Debugger();

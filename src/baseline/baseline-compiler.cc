@@ -1284,21 +1284,6 @@ void BaselineCompiler::VisitIntrinsicCreateIterResultObject(
   CallBuiltin<Builtin::kCreateIterResultObject>(args);
 }
 
-void BaselineCompiler::VisitIntrinsicCall(interpreter::RegisterList args) {
-  // First argument register contains the function target.
-  __ LoadRegister(kJavaScriptCallTargetRegister, args.first_register());
-
-  // The arguments for the target function are from the second runtime call
-  // argument.
-  args = args.PopLeft();
-
-  uint32_t arg_count = args.register_count();
-  CallBuiltin<Builtin::kCall_ReceiverIsAny>(
-      kJavaScriptCallTargetRegister,  // kFunction
-      arg_count - 1,                  // kActualArgumentsCount
-      args);
-}
-
 void BaselineCompiler::VisitIntrinsicCreateAsyncFromSyncIterator(
     interpreter::RegisterList args) {
   CallBuiltin<Builtin::kCreateAsyncFromSyncIteratorBaseline>(args[0]);

@@ -395,7 +395,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 
 // Intrinsics with inline versions have to be allowlisted here a second time.
 #define INLINE_INTRINSIC_ALLOWLIST(V) \
-  V(Call)                             \
   V(AsyncFunctionEnter)               \
   V(AsyncFunctionReject)              \
   V(AsyncFunctionResolve)
