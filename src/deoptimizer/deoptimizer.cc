@@ -181,7 +181,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
     NativeContext native_context = function_.context().native_context();
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
-      Code code = Code::cast(element);
+      Code code = FromCodeT(CodeT::cast(element));
       CHECK(CodeKindCanDeoptimize(code.kind()));
       if (code.contains(isolate, addr)) return code;
       element = code.next_code_link();
@@ -336,7 +336,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   Code prev;
   Object element = native_context.OptimizedCodeListHead();
   while (!element.IsUndefined(isolate)) {
-    Code code = Code::cast(element);
+    Code code = FromCodeT(CodeT::cast(element));
     CHECK(CodeKindCanDeoptimize(code.kind()));
     Object next = code.next_code_link();
 
@@ -353,7 +353,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
 
       // Move the code to the _deoptimized_ code list.
       code.set_next_code_link(native_context.DeoptimizedCodeListHead());
-      native_context.SetDeoptimizedCodeListHead(code);
+      native_context.SetDeoptimizedCodeListHead(ToCodeT(code));
     } else {
       // Not marked; preserve this element.
       prev = code;
@@ -418,7 +418,7 @@ void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
   Object element = native_context.OptimizedCodeListHead();
   Isolate* isolate = native_context.GetIsolate();
   while (!element.IsUndefined(isolate)) {
-    Code code = Code::cast(element);
+    Code code = FromCodeT(CodeT::cast(element));
     CHECK(CodeKindCanDeoptimize(code.kind()));
     code.set_marked_for_deoptimization(true);
     element = code.next_code_link();
@@ -694,7 +694,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
     NativeContext native_context = NativeContext::cast(context);
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
-      Code code = Code::cast(element);
+      Code code = FromCodeT(CodeT::cast(element));
       DCHECK(CodeKindCanDeoptimize(code.kind()));
       if (!code.marked_for_deoptimization()) {
         length++;

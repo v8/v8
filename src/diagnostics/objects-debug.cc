@@ -968,7 +968,7 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   CHECK(IsCodeDataContainer());
   VerifyObjectField(isolate, kNextCodeLinkOffset);
-  CHECK(next_code_link().IsCode() || next_code_link().IsUndefined(isolate));
+  CHECK(next_code_link().IsCodeT() || next_code_link().IsUndefined(isolate));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     if (raw_code() != Smi::zero()) {
       CHECK_EQ(code().InstructionStart(), code_entry_point());
