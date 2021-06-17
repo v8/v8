@@ -473,6 +473,13 @@ void IsolateData::SetResourceNamePrefix(v8::Local<v8::String> prefix) {
   resource_name_prefix_.Reset(isolate(), prefix);
 }
 
+bool IsolateData::AssociateExceptionData(v8::Local<v8::Value> exception,
+                                         v8::Local<v8::Name> key,
+                                         v8::Local<v8::Value> value) {
+  return inspector_->associateExceptionData(
+      this->isolate()->GetCurrentContext(), exception, key, value);
+}
+
 namespace {
 class StringBufferImpl : public v8_inspector::StringBuffer {
  public:

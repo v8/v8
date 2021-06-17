@@ -1254,7 +1254,7 @@ domain Runtime
       optional RemoteObject exception
       # Identifier of the context where exception happened.
       optional ExecutionContextId executionContextId
-      # Dictionary with entries of meta deta that the client associated
+      # Dictionary with entries of meta data that the client associated
       # with this exception, such as information about associated network
       # requests, etc.
       experimental optional object exceptionMetaData
