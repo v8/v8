@@ -797,7 +797,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
         // output registers is reduced by the number of stored captures.
         __ Sub64(a1, a1, num_saved_registers_);
         // Check whether we have enough room for another set of capture results.
-        __ BranchShort(&return_a0, lt, a1, Operand(num_saved_registers_));
+        __ Branch(&return_a0, lt, a1, Operand(num_saved_registers_));
 
         __ Sd(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
         // Advance the location for output.
