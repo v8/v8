@@ -283,7 +283,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   bytes += NumRegs(list) * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += kCallerSavedDoubles * kDoubleSize;
+    bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
   }
 
   return bytes;
@@ -309,7 +309,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   if (fp_mode == SaveFPRegsMode::kSave) {
     MultiPushDoubles(kCallerSavedDoubles);
-    bytes += kCallerSavedDoubles * kDoubleSize;
+    bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
   }
 
   return bytes;
@@ -320,7 +320,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
     MultiPopDoubles(kCallerSavedDoubles);
-    bytes += kCallerSavedDoubles * kDoubleSize;
+    bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
   }
 
   RegList exclusions = 0;
