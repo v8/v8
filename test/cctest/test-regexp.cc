@@ -643,7 +643,7 @@ static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
                                  JSRegExp::kNoBacktrackLimit);
   regexp->SetDataAt(is_unicode ? JSRegExp::kIrregexpUC16CodeIndex
                                : JSRegExp::kIrregexpLatin1CodeIndex,
-                    *code);
+                    ToCodeT(*code));
 
   return regexp;
 }
@@ -2331,10 +2331,10 @@ TEST(UnicodePropertyEscapeCodeSize) {
   if (maybe_bytecode.IsByteArray()) {
     // On x64, excessive inlining produced >250KB.
     CHECK_LT(ByteArray::cast(maybe_bytecode).Size(), kMaxSize);
-  } else if (maybe_code.IsCode()) {
+  } else if (maybe_code.IsCodeT()) {
     // On x64, excessive inlining produced >360KB.
-    CHECK_LT(Code::cast(maybe_code).Size(), kMaxSize);
-    CHECK_EQ(Code::cast(maybe_code).kind(), CodeKind::REGEXP);
+    CHECK_LT(FromCodeT(CodeT::cast(maybe_code)).Size(), kMaxSize);
+    CHECK_EQ(FromCodeT(CodeT::cast(maybe_code)).kind(), CodeKind::REGEXP);
   } else {
     UNREACHABLE();
   }

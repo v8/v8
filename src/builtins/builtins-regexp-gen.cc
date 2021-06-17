@@ -553,7 +553,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 #endif
 
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
-  TNode<Code> code = CAST(var_code.value());
+  // TODO(v8:11880): avoid roundtrips between cdc and code.
+  TNode<Code> code = FromCodeT(CAST(var_code.value()));
 
   Label if_success(this), if_exception(this, Label::kDeferred);
   {
@@ -625,6 +626,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg9_type = type_tagged;
     TNode<JSRegExp> arg9 = regexp;
 
+    // TODO(v8:11880): avoid roundtrips between cdc and code.
     TNode<RawPtrT> code_entry = LoadCodeObjectEntry(code);
 
     // AIX uses function descriptors on CFunction calls. code_entry in this case

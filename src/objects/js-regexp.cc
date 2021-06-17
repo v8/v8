@@ -183,7 +183,9 @@ MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
 
 Object JSRegExp::Code(bool is_latin1) const {
   DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
-  return DataAt(code_index(is_latin1));
+  Object value = DataAt(code_index(is_latin1));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, value.IsSmi() || value.IsCodeT());
+  return value;
 }
 
 Object JSRegExp::Bytecode(bool is_latin1) const {

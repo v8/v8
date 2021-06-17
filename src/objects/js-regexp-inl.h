@@ -111,9 +111,9 @@ bool JSRegExp::HasCompiledCode() const {
   if (TypeTag() != IRREGEXP) return false;
   Smi uninitialized = Smi::FromInt(kUninitializedValue);
 #ifdef DEBUG
-  DCHECK(DataAt(kIrregexpLatin1CodeIndex).IsCode() ||
+  DCHECK(DataAt(kIrregexpLatin1CodeIndex).IsCodeT() ||
          DataAt(kIrregexpLatin1CodeIndex) == uninitialized);
-  DCHECK(DataAt(kIrregexpUC16CodeIndex).IsCode() ||
+  DCHECK(DataAt(kIrregexpUC16CodeIndex).IsCodeT() ||
          DataAt(kIrregexpUC16CodeIndex) == uninitialized);
   DCHECK(DataAt(kIrregexpLatin1BytecodeIndex).IsByteArray() ||
          DataAt(kIrregexpLatin1BytecodeIndex) == uninitialized);

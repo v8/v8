@@ -408,7 +408,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   }
 
   if (!needs_initial_compilation && !needs_tier_up_compilation) {
-    DCHECK(compiled_code.IsCode());
+    DCHECK(compiled_code.IsCodeT());
     DCHECK_IMPLIES(FLAG_regexp_interpret_all, bytecode.IsByteArray());
     return true;
   }
@@ -441,7 +441,7 @@ bool RegExpCodeIsValidForPreCompilation(Handle<JSRegExp> re, bool is_one_byte) {
     DCHECK_EQ(JSRegExp::kUninitializedValue, entry_value);
     DCHECK_EQ(JSRegExp::kUninitializedValue, bytecode_value);
   } else {
-    DCHECK(entry.IsSmi() || (entry.IsCode() && bytecode.IsByteArray()));
+    DCHECK(entry.IsSmi() || (entry.IsCodeT() && bytecode.IsByteArray()));
   }
 
   return true;
@@ -493,7 +493,10 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   Handle<FixedArray> data =
       Handle<FixedArray>(FixedArray::cast(re->data()), isolate);
   if (compile_data.compilation_target == RegExpCompilationTarget::kNative) {
-    data->set(JSRegExp::code_index(is_one_byte), *compile_data.code);
+    // TODO(ishell): avoid roundtrips between cdc and code.
+    Code code = Code::cast(*compile_data.code);
+    data->set(JSRegExp::code_index(is_one_byte), ToCodeT(code));
+
     // Reset bytecode to uninitialized. In case we use tier-up we know that
     // tier-up has happened this way.
     data->set(JSRegExp::bytecode_index(is_one_byte),
@@ -506,7 +509,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
     data->set(JSRegExp::bytecode_index(is_one_byte), *compile_data.code);
     Handle<Code> trampoline =
         BUILTIN_CODE(isolate, RegExpInterpreterTrampoline);
-    data->set(JSRegExp::code_index(is_one_byte), *trampoline);
+    data->set(JSRegExp::code_index(is_one_byte), ToCodeT(*trampoline));
   }
   re->SetCaptureNameMap(compile_data.capture_name_map);
   int register_max = IrregexpMaxRegisterCount(*data);

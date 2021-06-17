@@ -1102,7 +1102,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   CONVERT_BOOLEAN_ARG_CHECKED(is_latin1, 1);
   bool result;
   if (regexp.TypeTag() == JSRegExp::IRREGEXP) {
-    result = regexp.Code(is_latin1).IsCode();
+    result = regexp.Code(is_latin1).IsCodeT();
   } else {
     result = false;
   }

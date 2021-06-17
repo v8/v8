@@ -812,8 +812,8 @@ void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
 
 void JSFunction::JSFunctionVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSFunctionVerify(*this, isolate);
-  CHECK(code().IsCode());
-  CHECK(map().is_callable());
+  CHECK(raw_code(isolate).IsCodeT());
+  CHECK(map(isolate).is_callable());
   Handle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -1348,9 +1348,9 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       Object latin1_bytecode = arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
       Object uc16_bytecode = arr.get(JSRegExp::kIrregexpUC16BytecodeIndex);
 
-      bool is_compiled = latin1_code.IsCode();
+      bool is_compiled = latin1_code.IsCodeT();
       if (is_compiled) {
-        CHECK_EQ(Code::cast(latin1_code).builtin_id(),
+        CHECK_EQ(FromCodeT(CodeT::cast(latin1_code)).builtin_id(),
                  Builtin::kRegExpExperimentalTrampoline);
         CHECK_EQ(uc16_code, latin1_code);
 
@@ -1382,11 +1382,11 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       // Code: Compiled irregexp code or trampoline to the interpreter.
       CHECK((one_byte_data.IsSmi() &&
              Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
-            one_byte_data.IsCode());
+            one_byte_data.IsCodeT());
       Object uc16_data = arr.get(JSRegExp::kIrregexpUC16CodeIndex);
       CHECK((uc16_data.IsSmi() &&
              Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
-            uc16_data.IsCode());
+            uc16_data.IsCodeT());
 
       Object one_byte_bytecode =
           arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);

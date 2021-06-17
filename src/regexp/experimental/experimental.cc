@@ -123,8 +123,8 @@ bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
                 *compilation_result->bytecode);
 
   Handle<Code> trampoline = BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
-  re->SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, *trampoline);
-  re->SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, *trampoline);
+  re->SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, ToCodeT(*trampoline));
+  re->SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, ToCodeT(*trampoline));
 
   re->SetCaptureNameMap(compilation_result->capture_name_map);
 
