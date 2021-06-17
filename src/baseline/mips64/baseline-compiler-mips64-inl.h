@@ -15,6 +15,7 @@ namespace baseline {
 #define __ basm_.
 
 void BaselineCompiler::Prologue() {
+  ASM_CODE_COMMENT(&masm_);
   __ masm()->EnterFrame(StackFrame::BASELINE);
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
   int max_frame_size = bytecode_->frame_size() + max_call_args_;
@@ -26,7 +27,7 @@ void BaselineCompiler::Prologue() {
 }
 
 void BaselineCompiler::PrologueFillFrame() {
-  __ RecordComment("[ Fill frame");
+  ASM_CODE_COMMENT(&masm_);
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
@@ -58,10 +59,10 @@ void BaselineCompiler::PrologueFillFrame() {
       __ masm()->Sd(kInterpreterAccumulatorRegister, MemOperand(sp, i * 8));
     }
   }
-  __ RecordComment("]");
 }
 
 void BaselineCompiler::VerifyFrameSize() {
+  ASM_CODE_COMMENT(&masm_);
   __ masm()->Daddu(kScratchReg, sp,
                    Operand(InterpreterFrameConstants::kFixedFrameSizeFromFp +
                            bytecode_->frame_size()));

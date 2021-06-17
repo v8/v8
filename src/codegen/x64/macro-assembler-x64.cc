@@ -3015,8 +3015,11 @@ void MacroAssembler::StackOverflowCheck(
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
                                     Label* done, InvokeType type) {
-  if (expected_parameter_count != actual_parameter_count) {
     ASM_CODE_COMMENT(this);
+    if (expected_parameter_count == actual_parameter_count) {
+      Move(rax, actual_parameter_count);
+      return;
+    }
     Label regular_invoke;
     // If the expected parameter count is equal to the adaptor sentinel, no need
     // to push undefined value as arguments.
@@ -3076,9 +3079,6 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
       int3();  // This should be unreachable.
     }
     bind(&regular_invoke);
-  } else {
-    Move(rax, actual_parameter_count);
-  }
 }
 
 void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
