@@ -202,7 +202,7 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
   BIND(&try_proto_handler);
   {
-    GotoIf(IsCodeMap(LoadMap(CAST(handler))), &call_handler);
+    GotoIf(IsCodeT(CAST(handler)), &call_handler);
     HandleLoadICProtoHandler(p, CAST(handler), &var_holder, &var_smi_handler,
                              &if_smi_handler, miss, exit_point, ic_mode,
                              access_mode);
@@ -219,7 +219,9 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
   BIND(&call_handler);
   {
-    exit_point->ReturnCallStub(LoadWithVectorDescriptor{}, CAST(handler),
+    // TODO(v8:11880): avoid roundtrips between cdc and code.
+    TNode<Code> code_handler = FromCodeT(CAST(handler));
+    exit_point->ReturnCallStub(LoadWithVectorDescriptor{}, code_handler,
                                p->context(), p->lookup_start_object(),
                                p->name(), p->slot(), p->vector());
   }
@@ -1008,8 +1010,9 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
     if (on_code_handler) {
       Label if_smi_handler(this);
       GotoIf(TaggedIsSmi(smi_or_code_handler), &if_smi_handler);
-
-      on_code_handler(CAST(smi_or_code_handler));
+      // TODO(v8:11880): avoid roundtrips between cdc and code.
+      TNode<Code> code = FromCodeT(CAST(smi_or_code_handler));
+      on_code_handler(code);
 
       BIND(&if_smi_handler);
     }
@@ -1331,7 +1334,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     GotoIf(IsWeakOrCleared(handler), &store_transition_or_global);
     TNode<HeapObject> strong_handler = CAST(handler);
     TNode<Map> handler_map = LoadMap(strong_handler);
-    Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
+    Branch(IsCodeTMap(handler_map), &call_handler, &if_proto_handler);
 
     BIND(&if_proto_handler);
     {
@@ -1342,9 +1345,11 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     // |handler| is a heap object. Must be code, call it.
     BIND(&call_handler);
     {
-      TailCallStub(StoreWithVectorDescriptor{}, CAST(strong_handler),
-                   p->context(), p->receiver(), p->name(), p->value(),
-                   p->slot(), p->vector());
+      // TODO(v8:11880): avoid roundtrips between cdc and code.
+      TNode<Code> code_handler = FromCodeT(CAST(strong_handler));
+      TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
+                   p->receiver(), p->name(), p->value(), p->slot(),
+                   p->vector());
     }
   }
 
@@ -3894,10 +3899,16 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       GotoIf(TaggedIsSmi(var_handler.value()), &if_smi_handler);
 
       TNode<HeapObject> handler = CAST(var_handler.value());
-      GotoIfNot(IsCode(handler), &if_transitioning_element_store);
-      TailCallStub(StoreWithVectorDescriptor{}, CAST(handler), p->context(),
-                   p->receiver(), p->name(), p->value(), p->slot(),
-                   p->vector());
+      GotoIfNot(IsCodeT(handler), &if_transitioning_element_store);
+
+      {
+        // Call the handler.
+        // TODO(v8:11880): avoid roundtrips between cdc and code.
+        TNode<Code> code_handler = FromCodeT(CAST(handler));
+        TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
+                     p->receiver(), p->name(), p->value(), p->slot(),
+                     p->vector());
+      }
 
       BIND(&if_transitioning_element_store);
       {
@@ -3906,8 +3917,9 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TNode<Map> transition_map =
             CAST(GetHeapObjectAssumeWeak(maybe_transition_map, &miss));
         GotoIf(IsDeprecatedMap(transition_map), &miss);
-        TNode<Code> code =
-            CAST(LoadObjectField(handler, StoreHandler::kSmiHandlerOffset));
+        // TODO(v8:11880): avoid roundtrips between cdc and code.
+        TNode<Code> code = FromCodeT(
+            CAST(LoadObjectField(handler, StoreHandler::kSmiHandlerOffset)));
         TailCallStub(StoreTransitionDescriptor{}, code, p->context(),
                      p->receiver(), p->name(), transition_map, p->value(),
                      p->slot(), p->vector());

@@ -1659,7 +1659,7 @@ USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::DataHandlerVerify(*this, isolate);
   CHECK_IMPLIES(!smi_handler().IsSmi(),
-                smi_handler().IsCode() && IsStoreHandler());
+                IsStoreHandler() && smi_handler().IsCodeT());
   int data_count = data_field_count();
   if (data_count >= 1) {
     VerifyMaybeObjectField(isolate, kData1Offset);

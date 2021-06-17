@@ -145,8 +145,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   if (function.ActiveTierIsIgnition()) {
     code_offset = InterpretedFrame::GetBytecodeOffset(frame->fp());
   } else {
-    code_offset =
-        static_cast<int>(frame->pc() - function.code().InstructionStart());
+    code_offset = static_cast<int>(frame->pc() - function.code_entry_point());
   }
   JavaScriptFrame::CollectFunctionAndOffsetForICStats(
       function, function.abstract_code(isolate_), code_offset);

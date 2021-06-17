@@ -64,7 +64,7 @@ void Builtins::Generate_StoreIC_NoFeedback(
 }
 
 // All possible fast-to-fast transitions. Transitions to dictionary mode are not
-// handled by ElementsTransitionAndStore.
+// handled by ElementsTransitionAndStore builtins.
 #define ELEMENTS_KIND_TRANSITIONS(V)               \
   V(PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS)       \
   V(PACKED_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS)   \
