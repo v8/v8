@@ -756,6 +756,9 @@
   'built-ins/RegExp/property-escapes/generated/*': [PASS, HEAVY],
   'language/comments/S7.4_A5': [PASS, HEAVY],
   'language/comments/S7.4_A6': [PASS, HEAVY],
+
+  # Times out on TSAN - https://bugs.chromium.org/p/v8/issues/detail?id=11898
+  'intl402/supportedLocalesOf-unicode-extensions-ignored': [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
 ['system == android', {
