@@ -68,8 +68,8 @@ struct WasmCompilationResult {
   std::unique_ptr<uint8_t[]> instr_buffer;
   uint32_t frame_slot_count = 0;
   uint32_t tagged_parameter_slots = 0;
-  OwnedVector<byte> source_positions;
-  OwnedVector<byte> protected_instructions_data;
+  base::OwnedVector<byte> source_positions;
+  base::OwnedVector<byte> protected_instructions_data;
   int func_index = kAnonymousFuncIndex;
   ExecutionTier requested_tier;
   ExecutionTier result_tier;

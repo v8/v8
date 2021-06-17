@@ -11,7 +11,7 @@
 //   NameConverter converter;
 //   Disassembler d(converter);
 //   for (byte* pc = begin; pc < end;) {
-//     v8::internal::EmbeddedVector<char, 256> buffer;
+//     v8::base::EmbeddedVector<char, 256> buffer;
 //     byte* prev_pc = pc;
 //     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
@@ -45,7 +45,7 @@ namespace internal {
 class Decoder {
  public:
   Decoder(const disasm::NameConverter& converter,
-          v8::internal::Vector<char> out_buffer)
+          v8::base::Vector<char> out_buffer)
       : converter_(converter), out_buffer_(out_buffer), out_buffer_pos_(0) {
     out_buffer_[out_buffer_pos_] = '\0';
   }
@@ -151,7 +151,7 @@ class Decoder {
   void DecodeTypeMsa2RF(Instruction* instr);
 
   const disasm::NameConverter& converter_;
-  v8::internal::Vector<char> out_buffer_;
+  v8::base::Vector<char> out_buffer_;
   int out_buffer_pos_;
 };
 
@@ -2709,7 +2709,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 //------------------------------------------------------------------------------
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instruction) {
   v8::internal::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
@@ -2723,7 +2723,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (byte* pc = begin; pc < end;) {
-    v8::internal::EmbeddedVector<char, 128> buffer;
+    v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);

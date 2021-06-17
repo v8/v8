@@ -169,7 +169,7 @@ class CodeEventLogger::NameBuffer {
   void AppendInt(int n) {
     int space = kUtf8BufferSize - utf8_pos_;
     if (space <= 0) return;
-    Vector<char> buffer(utf8_buffer_ + utf8_pos_, space);
+    base::Vector<char> buffer(utf8_buffer_ + utf8_pos_, space);
     int size = SNPrintF(buffer, "%d", n);
     if (size > 0 && utf8_pos_ + size <= kUtf8BufferSize) {
       utf8_pos_ += size;
@@ -179,7 +179,7 @@ class CodeEventLogger::NameBuffer {
   void AppendHex(uint32_t n) {
     int space = kUtf8BufferSize - utf8_pos_;
     if (space <= 0) return;
-    Vector<char> buffer(utf8_buffer_ + utf8_pos_, space);
+    base::Vector<char> buffer(utf8_buffer_ + utf8_pos_, space);
     int size = SNPrintF(buffer, "%x", n);
     if (size > 0 && utf8_pos_ + size <= kUtf8BufferSize) {
       utf8_pos_ += size;
@@ -318,7 +318,7 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate)
     : CodeEventLogger(isolate), perf_output_handle_(nullptr) {
   // Open the perf JIT dump file.
   int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
-  ScopedVector<char> perf_dump_name(bufferSize);
+  base::ScopedVector<char> perf_dump_name(bufferSize);
   int size = SNPrintF(perf_dump_name, kFilenameFormatString,
                       base::OS::GetCurrentProcessId());
   CHECK_NE(size, -1);
@@ -588,7 +588,7 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
     : CodeEventLogger(isolate), ll_output_handle_(nullptr) {
   // Open the low-level log file.
   size_t len = strlen(name);
-  ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
+  base::ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
   MemCopy(ll_name.begin(), name, len);
   MemCopy(ll_name.begin() + len, kLogExt, sizeof(kLogExt));
   ll_output_handle_ =
@@ -1549,7 +1549,7 @@ void Logger::CodeLinePosInfoRecordEvent(Address code_start,
 }
 
 void Logger::CodeLinePosInfoRecordEvent(
-    Address code_start, Vector<const byte> source_position_table) {
+    Address code_start, base::Vector<const byte> source_position_table) {
   if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);
   CodeLinePosEvent(*jit_logger_, code_start, iter);

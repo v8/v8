@@ -61,7 +61,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
 
  protected:
   // Create a deserializer from a snapshot byte source.
-  Deserializer(Isolate* isolate, Vector<const byte> payload,
+  Deserializer(Isolate* isolate, base::Vector<const byte> payload,
                uint32_t magic_number, bool deserializing_user_code,
                bool can_rehash);
 

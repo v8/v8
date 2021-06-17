@@ -4358,7 +4358,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 class BufferDisassembler : public v8::internal::DisassemblingDecoder {
  public:
-  explicit BufferDisassembler(v8::internal::Vector<char> out_buffer)
+  explicit BufferDisassembler(v8::base::Vector<char> out_buffer)
       : out_buffer_(out_buffer) {}
 
   ~BufferDisassembler() {}
@@ -4369,10 +4369,10 @@ class BufferDisassembler : public v8::internal::DisassemblingDecoder {
   }
 
  private:
-  v8::internal::Vector<char> out_buffer_;
+  v8::base::Vector<char> out_buffer_;
 };
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instr) {
   USE(converter_);  // avoid unused field warning
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;

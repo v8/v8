@@ -42,10 +42,10 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
       isolate, thrower, module.ToHandleChecked(), {}, {});
 }
 
-OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
-                                                       const FunctionSig* sig) {
+base::OwnedVector<WasmValue> MakeDefaultInterpreterArguments(
+    Isolate* isolate, const FunctionSig* sig) {
   size_t param_count = sig->parameter_count();
-  auto arguments = OwnedVector<WasmValue>::New(param_count);
+  auto arguments = base::OwnedVector<WasmValue>::New(param_count);
 
   for (size_t i = 0; i < param_count; ++i) {
     switch (sig->GetParam(i).kind()) {
@@ -83,10 +83,10 @@ OwnedVector<WasmValue> MakeDefaultInterpreterArguments(Isolate* isolate,
   return arguments;
 }
 
-OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
-                                                 const FunctionSig* sig) {
+base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
+                                                       const FunctionSig* sig) {
   size_t param_count = sig->parameter_count();
-  auto arguments = OwnedVector<Handle<Object>>::New(param_count);
+  auto arguments = base::OwnedVector<Handle<Object>>::New(param_count);
 
   for (size_t i = 0; i < param_count; ++i) {
     switch (sig->GetParam(i).kind()) {

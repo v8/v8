@@ -55,7 +55,7 @@ static const int kBufferSize = 100;
 
 TEST(BignumDtoaVariousDoubles) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   int length;
   int point;
 
@@ -253,11 +253,11 @@ TEST(BignumDtoaVariousDoubles) {
 
 TEST(BignumDtoaGayShortest) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   int length;
   int point;
 
-  Vector<const PrecomputedShortest> precomputed =
+  base::Vector<const PrecomputedShortest> precomputed =
       PrecomputedShortestRepresentations();
   for (int i = 0; i < precomputed.length(); ++i) {
     const PrecomputedShortest current_test = precomputed[i];
@@ -271,11 +271,11 @@ TEST(BignumDtoaGayShortest) {
 
 TEST(BignumDtoaGayFixed) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   int length;
   int point;
 
-  Vector<const PrecomputedFixed> precomputed =
+  base::Vector<const PrecomputedFixed> precomputed =
       PrecomputedFixedRepresentations();
   for (int i = 0; i < precomputed.length(); ++i) {
     const PrecomputedFixed current_test = precomputed[i];
@@ -292,11 +292,11 @@ TEST(BignumDtoaGayFixed) {
 
 TEST(BignumDtoaGayPrecision) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   int length;
   int point;
 
-  Vector<const PrecomputedPrecision> precomputed =
+  base::Vector<const PrecomputedPrecision> precomputed =
       PrecomputedPrecisionRepresentations();
   for (int i = 0; i < precomputed.length(); ++i) {
     const PrecomputedPrecision current_test = precomputed[i];

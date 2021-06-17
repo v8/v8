@@ -30,7 +30,7 @@ class SnapshotByteSource final {
         length_(length),
         position_(0) {}
 
-  explicit SnapshotByteSource(Vector<const byte> payload)
+  explicit SnapshotByteSource(base::Vector<const byte> payload)
       : data_(payload.begin()), length_(payload.length()), position_(0) {}
 
   ~SnapshotByteSource() = default;
@@ -104,7 +104,7 @@ class SnapshotByteSource final {
   void set_position(int position) { position_ = position; }
 
   uint32_t GetChecksum() const {
-    return Checksum(Vector<const byte>(data_, length_));
+    return Checksum(base::Vector<const byte>(data_, length_));
   }
 
  private:

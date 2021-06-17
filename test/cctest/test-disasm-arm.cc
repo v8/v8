@@ -55,7 +55,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
                            S... expected_strings) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
-  EmbeddedVector<char, 128> buffer;
+  base::EmbeddedVector<char, 128> buffer;
 
   std::vector<std::string> expected_disassembly = {expected_strings...};
   size_t n_expected = expected_disassembly.size();

@@ -91,7 +91,7 @@ class JsonStringifier {
 
   template <typename SrcChar, typename DestChar>
   V8_INLINE static void SerializeStringUnchecked_(
-      Vector<const SrcChar> src,
+      base::Vector<const SrcChar> src,
       IncrementalStringBuilder::NoExtend<DestChar>* dest);
 
   template <typename SrcChar, typename DestChar>
@@ -462,7 +462,7 @@ class CircularStructureMessageBuilder {
   void AppendSmi(Smi smi) {
     static const int kBufferSize = 100;
     char chars[kBufferSize];
-    Vector<char> buffer(chars, kBufferSize);
+    base::Vector<char> buffer(chars, kBufferSize);
     builder_.AppendCString(IntToCString(smi.value(), buffer));
   }
 
@@ -620,7 +620,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
 JsonStringifier::Result JsonStringifier::SerializeSmi(Smi object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
-  Vector<char> buffer(chars, kBufferSize);
+  base::Vector<char> buffer(chars, kBufferSize);
   builder_.AppendCString(IntToCString(object.value(), buffer));
   return SUCCESS;
 }
@@ -632,7 +632,7 @@ JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
   }
   static const int kBufferSize = 100;
   char chars[kBufferSize];
-  Vector<char> buffer(chars, kBufferSize);
+  base::Vector<char> buffer(chars, kBufferSize);
   builder_.AppendCString(DoubleToCString(number, buffer));
   return SUCCESS;
 }
@@ -875,7 +875,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSProxy(
 
 template <typename SrcChar, typename DestChar>
 void JsonStringifier::SerializeStringUnchecked_(
-    Vector<const SrcChar> src,
+    base::Vector<const SrcChar> src,
     IncrementalStringBuilder::NoExtend<DestChar>* dest) {
   // Assert that uc16 character is not truncated down to 8 bit.
   // The <uc16, char> version of this method must not be called.
@@ -937,7 +937,7 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
   // part, or we might need to allocate.
   if (int worst_case_length = builder_.EscapedLengthIfCurrentPartFits(length)) {
     DisallowGarbageCollection no_gc;
-    Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
+    base::Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
     IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
         &builder_, worst_case_length, no_gc);
     SerializeStringUnchecked_(vector, &no_extend);

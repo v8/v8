@@ -82,7 +82,7 @@ BUILTIN(StringFromCodePoint) {
 
   if (index == length) {
     RETURN_RESULT_OR_FAILURE(
-        isolate, isolate->factory()->NewStringFromOneByte(Vector<uint8_t>(
+        isolate, isolate->factory()->NewStringFromOneByte(base::Vector<uint8_t>(
                      one_byte_buffer.data(), one_byte_buffer.size())));
   }
 

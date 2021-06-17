@@ -532,7 +532,7 @@ void GCTracer::Output(const char* format, ...) const {
 
   const int kBufferSize = 256;
   char raw_buffer[kBufferSize];
-  Vector<char> buffer(raw_buffer, kBufferSize);
+  base::Vector<char> buffer(raw_buffer, kBufferSize);
   va_list arguments2;
   va_start(arguments2, format);
   VSNPrintF(buffer, format, arguments2);

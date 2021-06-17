@@ -270,7 +270,7 @@ Handle<String> SharedFunctionInfo::DebugName(
   if (shared->HasWasmExportedFunctionData()) {
     return shared->GetIsolate()
         ->factory()
-        ->NewStringFromUtf8(CStrVector(shared->DebugNameCStr().get()))
+        ->NewStringFromUtf8(base::CStrVector(shared->DebugNameCStr().get()))
         .ToHandleChecked();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -281,8 +281,9 @@ Handle<String> SharedFunctionInfo::DebugName(
 }
 
 bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
-  Vector<const char> filter = CStrVector(raw_filter);
-  return v8::internal::PassesFilter(CStrVector(DebugNameCStr().get()), filter);
+  base::Vector<const char> filter = base::CStrVector(raw_filter);
+  return v8::internal::PassesFilter(base::CStrVector(DebugNameCStr().get()),
+                                    filter);
 }
 
 bool SharedFunctionInfo::HasSourceCode() const {

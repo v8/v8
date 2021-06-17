@@ -714,7 +714,7 @@ TEST(SourceURLInStackTrace) {
       "}\n"
       "eval('(' + outer +')()%s');";
 
-  i::ScopedVector<char> code(1024);
+  v8::base::ScopedVector<char> code(1024);
   i::SNPrintF(code, source, "//# sourceURL=eval_url");
   CHECK(CompileRun(code.begin())->IsUndefined());
   i::SNPrintF(code, source, "//@ sourceURL=eval_url");
@@ -792,7 +792,7 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  i::ScopedVector<char> code(1024);
+  v8::base::ScopedVector<char> code(1024);
   i::SNPrintF(code, source, "//# sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
   i::SNPrintF(code, source, "//@ sourceURL=source_url");
@@ -836,7 +836,7 @@ TEST(DynamicWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  i::ScopedVector<char> code(1024);
+  v8::base::ScopedVector<char> code(1024);
   i::SNPrintF(code, source, "//# sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
   i::SNPrintF(code, source, "//@ sourceURL=source_url");
@@ -856,7 +856,7 @@ TEST(DynamicWithSourceURLInStackTraceString) {
       "}\n"
       "outer()\n%s";
 
-  i::ScopedVector<char> code(1024);
+  v8::base::ScopedVector<char> code(1024);
   i::SNPrintF(code, source, "//# sourceURL=source_url");
   v8::TryCatch try_catch(context->GetIsolate());
   CompileRunWithOrigin(code.begin(), "", 0, 0);

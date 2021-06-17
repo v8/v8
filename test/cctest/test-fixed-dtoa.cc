@@ -42,7 +42,7 @@ static const int kBufferSize = 500;
 
 TEST(FastFixedVariousDoubles) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   int length;
   int point;
 
@@ -492,12 +492,12 @@ TEST(FastFixedVariousDoubles) {
 
 TEST(FastFixedDtoaGayFixed) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   bool status;
   int length;
   int point;
 
-  Vector<const PrecomputedFixed> precomputed =
+  base::Vector<const PrecomputedFixed> precomputed =
       PrecomputedFixedRepresentations();
   for (int i = 0; i < precomputed.length(); ++i) {
     const PrecomputedFixed current_test = precomputed[i];

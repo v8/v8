@@ -70,26 +70,28 @@ static const int kExactPowersOfTenSize = arraysize(exact_powers_of_ten);
 // we round up to 780.
 static const int kMaxSignificantDecimalDigits = 780;
 
-static Vector<const char> TrimLeadingZeros(Vector<const char> buffer) {
+static base::Vector<const char> TrimLeadingZeros(
+    base::Vector<const char> buffer) {
   for (int i = 0; i < buffer.length(); i++) {
     if (buffer[i] != '0') {
       return buffer.SubVector(i, buffer.length());
     }
   }
-  return Vector<const char>(buffer.begin(), 0);
+  return base::Vector<const char>(buffer.begin(), 0);
 }
 
-static Vector<const char> TrimTrailingZeros(Vector<const char> buffer) {
+static base::Vector<const char> TrimTrailingZeros(
+    base::Vector<const char> buffer) {
   for (int i = buffer.length() - 1; i >= 0; --i) {
     if (buffer[i] != '0') {
       return buffer.SubVector(0, i + 1);
     }
   }
-  return Vector<const char>(buffer.begin(), 0);
+  return base::Vector<const char>(buffer.begin(), 0);
 }
 
-static void TrimToMaxSignificantDigits(Vector<const char> buffer, int exponent,
-                                       char* significant_buffer,
+static void TrimToMaxSignificantDigits(base::Vector<const char> buffer,
+                                       int exponent, char* significant_buffer,
                                        int* significant_exponent) {
   for (int i = 0; i < kMaxSignificantDecimalDigits - 1; ++i) {
     significant_buffer[i] = buffer[i];
@@ -109,7 +111,7 @@ static void TrimToMaxSignificantDigits(Vector<const char> buffer, int exponent,
 // When the string starts with "1844674407370955161" no further digit is read.
 // Since 2^64 = 18446744073709551616 it would still be possible read another
 // digit if it was less or equal than 6, but this would complicate the code.
-static uint64_t ReadUint64(Vector<const char> buffer,
+static uint64_t ReadUint64(base::Vector<const char> buffer,
                            int* number_of_read_digits) {
   uint64_t result = 0;
   int i = 0;
@@ -126,7 +128,7 @@ static uint64_t ReadUint64(Vector<const char> buffer,
 // The returned DiyFp is not necessarily normalized.
 // If remaining_decimals is zero then the returned DiyFp is accurate.
 // Otherwise it has been rounded and has error of at most 1/2 ulp.
-static void ReadDiyFp(Vector<const char> buffer, DiyFp* result,
+static void ReadDiyFp(base::Vector<const char> buffer, DiyFp* result,
                       int* remaining_decimals) {
   int read_digits;
   uint64_t significand = ReadUint64(buffer, &read_digits);
@@ -145,7 +147,7 @@ static void ReadDiyFp(Vector<const char> buffer, DiyFp* result,
   }
 }
 
-static bool DoubleStrtod(Vector<const char> trimmed, int exponent,
+static bool DoubleStrtod(base::Vector<const char> trimmed, int exponent,
                          double* result) {
 #if (V8_TARGET_ARCH_IA32 || defined(USE_SIMULATOR)) && !defined(_MSC_VER)
   // On x86 the floating-point stack can be 64 or 80 bits wide. If it is
@@ -231,7 +233,7 @@ static DiyFp AdjustmentPowerOfTen(int exponent) {
 // If the function returns true then the result is the correct double.
 // Otherwise it is either the correct double or the double that is just below
 // the correct double.
-static bool DiyFpStrtod(Vector<const char> buffer, int exponent,
+static bool DiyFpStrtod(base::Vector<const char> buffer, int exponent,
                         double* result) {
   DiyFp input;
   int remaining_decimals;
@@ -345,7 +347,7 @@ static bool DiyFpStrtod(Vector<const char> buffer, int exponent,
 //   buffer.length() + exponent <= kMaxDecimalPower + 1
 //   buffer.length() + exponent > kMinDecimalPower
 //   buffer.length() <= kMaxDecimalSignificantDigits
-static double BignumStrtod(Vector<const char> buffer, int exponent,
+static double BignumStrtod(base::Vector<const char> buffer, int exponent,
                            double guess) {
   if (guess == V8_INFINITY) {
     return guess;
@@ -388,9 +390,9 @@ static double BignumStrtod(Vector<const char> buffer, int exponent,
   }
 }
 
-double Strtod(Vector<const char> buffer, int exponent) {
-  Vector<const char> left_trimmed = TrimLeadingZeros(buffer);
-  Vector<const char> trimmed = TrimTrailingZeros(left_trimmed);
+double Strtod(base::Vector<const char> buffer, int exponent) {
+  base::Vector<const char> left_trimmed = TrimLeadingZeros(buffer);
+  base::Vector<const char> trimmed = TrimTrailingZeros(left_trimmed);
   exponent += left_trimmed.length() - trimmed.length();
   if (trimmed.length() == 0) return 0.0;
   if (trimmed.length() > kMaxSignificantDecimalDigits) {
@@ -398,9 +400,9 @@ double Strtod(Vector<const char> buffer, int exponent) {
     int significant_exponent;
     TrimToMaxSignificantDigits(trimmed, exponent, significant_buffer,
                                &significant_exponent);
-    return Strtod(
-        Vector<const char>(significant_buffer, kMaxSignificantDecimalDigits),
-        significant_exponent);
+    return Strtod(base::Vector<const char>(significant_buffer,
+                                           kMaxSignificantDecimalDigits),
+                  significant_exponent);
   }
   if (exponent + trimmed.length() - 1 >= kMaxDecimalPower) return V8_INFINITY;
   if (exponent + trimmed.length() <= kMinDecimalPower) return 0.0;

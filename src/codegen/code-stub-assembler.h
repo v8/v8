@@ -4195,7 +4195,7 @@ class PrototypeCheckAssembler : public CodeStubAssembler {
   PrototypeCheckAssembler(compiler::CodeAssemblerState* state, Flags flags,
                           TNode<NativeContext> native_context,
                           TNode<Map> initial_prototype_map,
-                          Vector<DescriptorIndexNameValue> properties);
+                          base::Vector<DescriptorIndexNameValue> properties);
 
   void CheckAndBranch(TNode<HeapObject> prototype, Label* if_unmodified,
                       Label* if_modified);
@@ -4204,7 +4204,7 @@ class PrototypeCheckAssembler : public CodeStubAssembler {
   const Flags flags_;
   const TNode<NativeContext> native_context_;
   const TNode<Map> initial_prototype_map_;
-  const Vector<DescriptorIndexNameValue> properties_;
+  const base::Vector<DescriptorIndexNameValue> properties_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags)

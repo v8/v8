@@ -91,7 +91,7 @@ int DigitsRequiredBelow(int n) {
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os,
-                         Vector<const RegExpInstruction> insts) {
+                         base::Vector<const RegExpInstruction> insts) {
   int inst_num = insts.length();
   int line_digit_num = DigitsRequiredBelow(inst_num);
 

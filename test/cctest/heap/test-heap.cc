@@ -159,13 +159,13 @@ static void CheckOddball(Isolate* isolate, Object obj, const char* string) {
   CHECK(obj.IsOddball());
   Handle<Object> handle(obj, isolate);
   Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string).IsOneByteEqualTo(CStrVector(string)));
+  CHECK(String::cast(print_string).IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
   Handle<Object> handle(Smi::FromInt(value), isolate);
   Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string).IsOneByteEqualTo(CStrVector(string)));
+  CHECK(String::cast(print_string).IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 
@@ -174,7 +174,7 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   CHECK(number->IsNumber());
   Handle<Object> print_string =
       Object::ToString(isolate, number).ToHandleChecked();
-  CHECK(String::cast(*print_string).IsOneByteEqualTo(CStrVector(string)));
+  CHECK(String::cast(*print_string).IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 void CheckEmbeddedObjectsAreEqual(Handle<Code> lhs, Handle<Code> rhs) {
@@ -433,7 +433,7 @@ TEST(GarbageCollection) {
 static void VerifyStringAllocation(Isolate* isolate, const char* string) {
   HandleScope scope(isolate);
   Handle<String> s = isolate->factory()
-                         ->NewStringFromUtf8(CStrVector(string))
+                         ->NewStringFromUtf8(base::CStrVector(string))
                          .ToHandleChecked();
   CHECK_EQ(strlen(string), s->length());
   for (int index = 0; index < s->length(); index++) {
@@ -729,15 +729,15 @@ static void CheckInternalizedStrings(const char** strings) {
        string = *strings++) {
     HandleScope scope(isolate);
     Handle<String> a =
-        isolate->factory()->InternalizeUtf8String(CStrVector(string));
+        isolate->factory()->InternalizeUtf8String(base::CStrVector(string));
     // InternalizeUtf8String may return a failure if a GC is needed.
     CHECK(a->IsInternalizedString());
     Handle<String> b = factory->InternalizeUtf8String(string);
     CHECK_EQ(*b, *a);
-    CHECK(b->IsOneByteEqualTo(CStrVector(string)));
-    b = isolate->factory()->InternalizeUtf8String(CStrVector(string));
+    CHECK(b->IsOneByteEqualTo(base::CStrVector(string)));
+    b = isolate->factory()->InternalizeUtf8String(base::CStrVector(string));
     CHECK_EQ(*b, *a);
-    CHECK(b->IsOneByteEqualTo(CStrVector(string)));
+    CHECK(b->IsOneByteEqualTo(base::CStrVector(string)));
   }
 }
 
@@ -1018,18 +1018,20 @@ TEST(StringAllocation) {
       non_one_byte[3 * i + 2] = chars[2];
     }
     Handle<String> non_one_byte_sym = factory->InternalizeUtf8String(
-        Vector<const char>(non_one_byte, 3 * length));
+        base::Vector<const char>(non_one_byte, 3 * length));
     CHECK_EQ(length, non_one_byte_sym->length());
     Handle<String> one_byte_sym =
-        factory->InternalizeString(OneByteVector(one_byte, length));
+        factory->InternalizeString(base::OneByteVector(one_byte, length));
     CHECK_EQ(length, one_byte_sym->length());
     CHECK(one_byte_sym->HasHashCode());
     Handle<String> non_one_byte_str =
-        factory->NewStringFromUtf8(Vector<const char>(non_one_byte, 3 * length))
+        factory
+            ->NewStringFromUtf8(
+                base::Vector<const char>(non_one_byte, 3 * length))
             .ToHandleChecked();
     CHECK_EQ(length, non_one_byte_str->length());
     Handle<String> one_byte_str =
-        factory->NewStringFromUtf8(Vector<const char>(one_byte, length))
+        factory->NewStringFromUtf8(base::Vector<const char>(one_byte, length))
             .ToHandleChecked();
     CHECK_EQ(length, one_byte_str->length());
     DeleteArray(non_one_byte);
@@ -1528,7 +1530,7 @@ TEST(CompilationCacheCachingBehavior) {
 
 static void OptimizeEmptyFunction(const char* name) {
   HandleScope scope(CcTest::i_isolate());
-  EmbeddedVector<char, 256> source;
+  base::EmbeddedVector<char, 256> source;
   SNPrintF(source,
            "function %s() { return 0; }"
            "%%PrepareFunctionForOptimization(%s);"
@@ -2509,7 +2511,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "var number_elements = %d;"
               "var elements = new Array();"
@@ -2560,7 +2562,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "var number_elements = %d;"
               "var elements = new Array(number_elements);"
@@ -2600,7 +2602,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   // Keep the nested literal alive while its root is freed
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "let number_elements = %d;"
               "let elements = new Array(number_elements);"
@@ -2640,7 +2642,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "var number_elements = %d;"
               "var elements = new Array(number_elements);"
@@ -2687,7 +2689,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "var number_elements = %d;"
               "var elements = new Array(number_elements);"
@@ -2726,7 +2728,7 @@ TEST(OptimizedPretenuringDoubleArrayLiterals) {
 
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "var number_elements = %d;"
               "var elements = new Array(number_elements);"
@@ -2764,7 +2766,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "var number_elements = %d;"
               "var elements = new Array(number_elements);"
@@ -2814,7 +2816,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "var number_elements = %d;"
               "var elements = new Array(number_elements);"
@@ -2864,7 +2866,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
-  i::ScopedVector<char> source(1024);
+  base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "var number_elements = %d;"
               "var elements = new Array(number_elements);"
@@ -2960,7 +2962,7 @@ TEST(Regress1465) {
   {
     AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
     for (int i = 0; i < transitions_count; i++) {
-      EmbeddedVector<char, 64> buffer;
+      base::EmbeddedVector<char, 64> buffer;
       SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
       CompileRun(buffer.begin());
     }
@@ -2998,7 +3000,7 @@ static i::Handle<JSObject> GetByName(const char* name) {
 static void AddTransitions(int transitions_count) {
   AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
   for (int i = 0; i < transitions_count; i++) {
-    EmbeddedVector<char, 64> buffer;
+    base::EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
     CompileRun(buffer.begin());
   }
@@ -4317,7 +4319,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
 
 static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
                                                 const char* name) {
-  EmbeddedVector<char, 256> source;
+  base::EmbeddedVector<char, 256> source;
   SNPrintF(source,
            "function %s() { return 0; }"
            "%%PrepareFunctionForOptimization(%s);"

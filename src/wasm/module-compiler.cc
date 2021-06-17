@@ -186,8 +186,8 @@ class CompilationUnitQueues {
     return {};
   }
 
-  void AddUnits(Vector<WasmCompilationUnit> baseline_units,
-                Vector<WasmCompilationUnit> top_tier_units,
+  void AddUnits(base::Vector<WasmCompilationUnit> baseline_units,
+                base::Vector<WasmCompilationUnit> top_tier_units,
                 const WasmModule* module) {
     DCHECK_LT(0, baseline_units.size() + top_tier_units.size());
     // Add to the individual queues in a round-robin fashion. No special care is
@@ -209,7 +209,7 @@ class CompilationUnitQueues {
     for (auto pair : {std::make_pair(int{kBaseline}, baseline_units),
                       std::make_pair(int{kTopTier}, top_tier_units)}) {
       int tier = pair.first;
-      Vector<WasmCompilationUnit> units = pair.second;
+      base::Vector<WasmCompilationUnit> units = pair.second;
       if (units.empty()) continue;
       num_units_[tier].fetch_add(units.size(), std::memory_order_relaxed);
       for (WasmCompilationUnit unit : units) {
@@ -570,9 +570,9 @@ class CompilationStateImpl {
 
   // Inserts new functions to compile and kicks off compilation.
   void AddCompilationUnits(
-      Vector<WasmCompilationUnit> baseline_units,
-      Vector<WasmCompilationUnit> top_tier_units,
-      Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
+      base::Vector<WasmCompilationUnit> baseline_units,
+      base::Vector<WasmCompilationUnit> top_tier_units,
+      base::Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
           js_to_wasm_wrapper_units);
   void AddTopTierCompilationUnit(WasmCompilationUnit);
   void AddTopTierPriorityCompilationUnit(WasmCompilationUnit, size_t);
@@ -587,7 +587,7 @@ class CompilationStateImpl {
   void FinalizeJSToWasmWrappers(Isolate* isolate, const WasmModule* module,
                                 Handle<FixedArray>* export_wrappers_out);
 
-  void OnFinishedUnits(Vector<WasmCode*>);
+  void OnFinishedUnits(base::Vector<WasmCode*>);
   void OnFinishedJSToWasmWrapperUnits(int num);
 
   void OnCompilationStopped(WasmFeatures detected);
@@ -658,7 +658,7 @@ class CompilationStateImpl {
 
   void PublishCompilationResults(
       std::vector<std::unique_ptr<WasmCode>> unpublished_code);
-  void PublishCode(Vector<std::unique_ptr<WasmCode>> codes);
+  void PublishCode(base::Vector<std::unique_ptr<WasmCode>> codes);
 
   NativeModule* const native_module_;
   std::weak_ptr<NativeModule> const native_module_weak_;
@@ -1007,8 +1007,8 @@ class CompilationUnitBuilder {
       return false;
     }
     compilation_state()->AddCompilationUnits(
-        VectorOf(baseline_units_), VectorOf(tiering_units_),
-        VectorOf(js_to_wasm_wrapper_units_));
+        base::VectorOf(baseline_units_), base::VectorOf(tiering_units_),
+        base::VectorOf(js_to_wasm_wrapper_units_));
     Clear();
     return true;
   }
@@ -1049,7 +1049,7 @@ void SetCompileError(ErrorThrower* thrower, ModuleWireBytes wire_bytes,
 }
 
 DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
-                                    Vector<const uint8_t> code,
+                                    base::Vector<const uint8_t> code,
                                     Counters* counters,
                                     AccountingAllocator* allocator,
                                     WasmFeatures enabled_features) {
@@ -1087,7 +1087,7 @@ void ValidateSequentially(
 
     ModuleWireBytes wire_bytes{native_module->wire_bytes()};
     const WasmFunction* func = &module->functions[func_index];
-    Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(func);
+    base::Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(func);
     DecodeResult result = ValidateSingleFunction(
         module, func_index, code, counters, allocator, enabled_features);
     if (result.failed()) {
@@ -1139,7 +1139,7 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
   const WasmFunction* func = &module->functions[func_index];
   if (result.failed()) {
     ErrorThrower thrower(isolate, nullptr);
-    Vector<const uint8_t> code =
+    base::Vector<const uint8_t> code =
         compilation_state->GetWireBytesStorage()->GetCode(func->code);
     DecodeResult decode_result = ValidateSingleFunction(
         module, func_index, code, counters, isolate->wasm_engine()->allocator(),
@@ -1335,7 +1335,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
                 queue, baseline_only))) {
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
-                VectorOf(std::move(results_to_publish)));
+                base::VectorOf(std::move(results_to_publish)));
         results_to_publish.clear();
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
             std::move(unpublished_code));
@@ -1356,7 +1356,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
       if (batch_full || liftoff_finished) {
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
-                VectorOf(std::move(results_to_publish)));
+                base::VectorOf(std::move(results_to_publish)));
         results_to_publish.clear();
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
             std::move(unpublished_code));
@@ -1668,8 +1668,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<FixedArray>* export_wrappers_out, int compilation_id) {
   const WasmModule* wasm_module = module.get();
-  OwnedVector<uint8_t> wire_bytes_copy =
-      OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
+  base::OwnedVector<uint8_t> wire_bytes_copy =
+      base::OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
   // Prefer {wire_bytes_copy} to {wire_bytes.module_bytes()} for the temporary
   // cache key. When we eventually install the module in the cache, the wire
   // bytes of the temporary key and the new key have the same base pointer and
@@ -1795,10 +1795,11 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
   ~AsyncStreamingProcessor() override;
 
-  bool ProcessModuleHeader(Vector<const uint8_t> bytes,
+  bool ProcessModuleHeader(base::Vector<const uint8_t> bytes,
                            uint32_t offset) override;
 
-  bool ProcessSection(SectionCode section_code, Vector<const uint8_t> bytes,
+  bool ProcessSection(SectionCode section_code,
+                      base::Vector<const uint8_t> bytes,
                       uint32_t offset) override;
 
   bool ProcessCodeSectionHeader(int num_functions,
@@ -1807,19 +1808,19 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
                                 int code_section_start,
                                 int code_section_length) override;
 
-  bool ProcessFunctionBody(Vector<const uint8_t> bytes,
+  bool ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                            uint32_t offset) override;
 
   void OnFinishedChunk() override;
 
-  void OnFinishedStream(OwnedVector<uint8_t> bytes) override;
+  void OnFinishedStream(base::OwnedVector<uint8_t> bytes) override;
 
   void OnError(const WasmError&) override;
 
   void OnAbort() override;
 
-  bool Deserialize(Vector<const uint8_t> wire_bytes,
-                   Vector<const uint8_t> module_bytes) override;
+  bool Deserialize(base::Vector<const uint8_t> wire_bytes,
+                   base::Vector<const uint8_t> module_bytes) override;
 
  private:
   // Finishes the AsyncCompileJob with an error.
@@ -1906,7 +1907,7 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
   // Create heap objects for script and module bytes to be stored in the
   // module object. Asm.js is not compiled asynchronously.
   DCHECK(module_object_.is_null());
-  auto source_url = stream_ ? stream_->url() : Vector<const char>();
+  auto source_url = stream_ ? stream_->url() : base::Vector<const char>();
   auto script = isolate_->wasm_engine()->GetOrCreateScript(
       isolate_, native_module_, source_url);
   Handle<WasmModuleObject> module_object =
@@ -2255,7 +2256,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
 
           for (int func_index = start; func_index < end; func_index++) {
             const WasmFunction* func = &module->functions[func_index];
-            Vector<const uint8_t> code =
+            base::Vector<const uint8_t> code =
                 job->wire_bytes_.GetFunctionBytes(func);
 
             CompileStrategy strategy = GetCompileStrategy(
@@ -2500,8 +2501,8 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
 }
 
 // Process the module header.
-bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
-                                                  uint32_t offset) {
+bool AsyncStreamingProcessor::ProcessModuleHeader(
+    base::Vector<const uint8_t> bytes, uint32_t offset) {
   TRACE_STREAMING("Process module header...\n");
   decoder_.StartDecoding(
       job_->isolate()->counters(), job_->isolate()->metrics_recorder(),
@@ -2517,7 +2518,7 @@ bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
 
 // Process all sections except for the code section.
 bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
-                                             Vector<const uint8_t> bytes,
+                                             base::Vector<const uint8_t> bytes,
                                              uint32_t offset) {
   TRACE_STREAMING("Process section %d ...\n", section_code);
   if (compilation_unit_builder_) {
@@ -2619,8 +2620,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
 }
 
 // Process a function body.
-bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
-                                                  uint32_t offset) {
+bool AsyncStreamingProcessor::ProcessFunctionBody(
+    base::Vector<const uint8_t> bytes, uint32_t offset) {
   TRACE_STREAMING("Process function body %d ...\n", num_functions_);
 
   decoder_.DecodeFunctionBody(
@@ -2684,7 +2685,8 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
 }
 
 // Finish the processing of the stream.
-void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
+void AsyncStreamingProcessor::OnFinishedStream(
+    base::OwnedVector<uint8_t> bytes) {
   TRACE_STREAMING("Finish stream...\n");
   DCHECK_EQ(NativeModuleCache::PrefixHash(bytes.as_vector()), prefix_hash_);
   ModuleResult result = decoder_.FinishDecoding(false);
@@ -2788,8 +2790,9 @@ class DeserializationTimeScope {
 };
 }  // namespace
 
-bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
-                                          Vector<const uint8_t> wire_bytes) {
+bool AsyncStreamingProcessor::Deserialize(
+    base::Vector<const uint8_t> module_bytes,
+    base::Vector<const uint8_t> wire_bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
   DeserializationTimeScope time_scope(
       job_->isolate()->counters()->wasm_deserialization_time());
@@ -3036,9 +3039,9 @@ void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
 }
 
 void CompilationStateImpl::AddCompilationUnits(
-    Vector<WasmCompilationUnit> baseline_units,
-    Vector<WasmCompilationUnit> top_tier_units,
-    Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
+    base::Vector<WasmCompilationUnit> baseline_units,
+    base::Vector<WasmCompilationUnit> top_tier_units,
+    base::Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
         js_to_wasm_wrapper_units) {
   if (!js_to_wasm_wrapper_units.empty()) {
     // |js_to_wasm_wrapper_units_| will only be initialized once.
@@ -3117,7 +3120,8 @@ CompilationStateImpl::GetNextCompilationUnit(
   return compilation_unit_queues_.GetNextUnit(queue, baseline_only);
 }
 
-void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
+void CompilationStateImpl::OnFinishedUnits(
+    base::Vector<WasmCode*> code_vector) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.OnFinishedUnits", "units", code_vector.size());
 
@@ -3314,19 +3318,20 @@ void CompilationStateImpl::PublishCompilationResults(
       code->IncRef();
     }
   }
-  PublishCode(VectorOf(unpublished_code));
+  PublishCode(base::VectorOf(unpublished_code));
 }
 
-void CompilationStateImpl::PublishCode(Vector<std::unique_ptr<WasmCode>> code) {
+void CompilationStateImpl::PublishCode(
+    base::Vector<std::unique_ptr<WasmCode>> code) {
   WasmCodeRefScope code_ref_scope;
   std::vector<WasmCode*> published_code =
       native_module_->PublishCode(std::move(code));
   // Defer logging code in case wire bytes were not fully received yet.
   if (native_module_->HasWireBytes()) {
-    native_module_->engine()->LogCode(VectorOf(published_code));
+    native_module_->engine()->LogCode(base::VectorOf(published_code));
   }
 
-  OnFinishedUnits(VectorOf(std::move(published_code)));
+  OnFinishedUnits(base::VectorOf(std::move(published_code)));
 }
 
 void CompilationStateImpl::SchedulePublishCompilationResults(

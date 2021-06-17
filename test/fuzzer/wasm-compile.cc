@@ -37,10 +37,10 @@ constexpr int kMaxReturns = 15;
 constexpr int kMaxExceptions = 4;
 
 class DataRange {
-  Vector<const uint8_t> data_;
+  base::Vector<const uint8_t> data_;
 
  public:
-  explicit DataRange(Vector<const uint8_t> data) : data_(data) {}
+  explicit DataRange(base::Vector<const uint8_t> data) : data_(data) {}
   DataRange(const DataRange&) = delete;
   DataRange& operator=(const DataRange&) = delete;
 
@@ -116,9 +116,9 @@ class WasmGenerator {
   class V8_NODISCARD BlockScope {
    public:
     BlockScope(WasmGenerator* gen, WasmOpcode block_type,
-               Vector<const ValueType> param_types,
-               Vector<const ValueType> result_types,
-               Vector<const ValueType> br_types, bool emit_end = true)
+               base::Vector<const ValueType> param_types,
+               base::Vector<const ValueType> result_types,
+               base::Vector<const ValueType> br_types, bool emit_end = true)
         : gen_(gen), emit_end_(emit_end) {
       gen->blocks_.emplace_back(br_types.begin(), br_types.end());
       if (param_types.size() == 0 && result_types.size() == 0) {
@@ -157,8 +157,8 @@ class WasmGenerator {
     bool emit_end_;
   };
 
-  void block(Vector<const ValueType> param_types,
-             Vector<const ValueType> return_types, DataRange* data) {
+  void block(base::Vector<const ValueType> param_types,
+             base::Vector<const ValueType> return_types, DataRange* data) {
     BlockScope block_scope(this, kExprBlock, param_types, return_types,
                            return_types);
     ConsumeAndGenerate(param_types, return_types, data);
@@ -166,11 +166,11 @@ class WasmGenerator {
 
   template <ValueKind T>
   void block(DataRange* data) {
-    block({}, VectorOf({ValueType::Primitive(T)}), data);
+    block({}, base::VectorOf({ValueType::Primitive(T)}), data);
   }
 
-  void loop(Vector<const ValueType> param_types,
-            Vector<const ValueType> return_types, DataRange* data) {
+  void loop(base::Vector<const ValueType> param_types,
+            base::Vector<const ValueType> return_types, DataRange* data) {
     BlockScope block_scope(this, kExprLoop, param_types, return_types,
                            param_types);
     ConsumeAndGenerate(param_types, return_types, data);
@@ -178,13 +178,14 @@ class WasmGenerator {
 
   template <ValueKind T>
   void loop(DataRange* data) {
-    loop({}, VectorOf({ValueType::Primitive(T)}), data);
+    loop({}, base::VectorOf({ValueType::Primitive(T)}), data);
   }
 
   enum IfType { kIf, kIfElse };
 
-  void if_(Vector<const ValueType> param_types,
-           Vector<const ValueType> return_types, IfType type, DataRange* data) {
+  void if_(base::Vector<const ValueType> param_types,
+           base::Vector<const ValueType> return_types, IfType type,
+           DataRange* data) {
     // One-armed "if" are only valid if the input and output types are the same.
     DCHECK_IMPLIES(type == kIf, param_types == return_types);
     Generate(kWasmI32, data);
@@ -202,7 +203,8 @@ class WasmGenerator {
     static_assert(T == kVoid || type == kIfElse,
                   "if without else cannot produce a value");
     if_({},
-        T == kVoid ? Vector<ValueType>{} : VectorOf({ValueType::Primitive(T)}),
+        T == kVoid ? base::Vector<ValueType>{}
+                   : base::VectorOf({ValueType::Primitive(T)}),
         type, data);
   }
 
@@ -216,9 +218,9 @@ class WasmGenerator {
     // to the caller.
     uint8_t delegate_target = data->get<uint8_t>() % (try_blocks_.size() + 1);
 
-    Vector<const ValueType> return_type_vec = return_type.kind() == kVoid
-                                                  ? Vector<ValueType>{}
-                                                  : VectorOf(&return_type, 1);
+    base::Vector<const ValueType> return_type_vec =
+        return_type.kind() == kVoid ? base::Vector<ValueType>{}
+                                    : base::VectorOf(&return_type, 1);
     BlockScope block_scope(this, kExprTry, {}, return_type_vec, return_type_vec,
                            !is_delegate);
     int control_depth = static_cast<int>(blocks_.size()) - 1;
@@ -229,8 +231,9 @@ class WasmGenerator {
     for (int i = 0; i < num_catch; ++i) {
       const FunctionSig* exception_type =
           builder_->builder()->GetExceptionType(i);
-      auto exception_type_vec = VectorOf(exception_type->parameters().begin(),
-                                         exception_type->parameter_count());
+      auto exception_type_vec =
+          base::VectorOf(exception_type->parameters().begin(),
+                         exception_type->parameter_count());
       builder_->EmitWithU32V(kExprCatch, i);
       ConsumeAndGenerate(exception_type_vec, return_type_vec, data);
     }
@@ -255,8 +258,8 @@ class WasmGenerator {
     try_block_helper(ValueType::Primitive(T), data);
   }
 
-  void any_block(Vector<const ValueType> param_types,
-                 Vector<const ValueType> return_types, DataRange* data) {
+  void any_block(base::Vector<const ValueType> param_types,
+                 base::Vector<const ValueType> return_types, DataRange* data) {
     uint8_t block_type = data->get<uint8_t>() % 4;
     switch (block_type) {
       case 0:
@@ -283,7 +286,7 @@ class WasmGenerator {
     const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
     const auto break_types = blocks_[target_block];
 
-    Generate(VectorOf(break_types), data);
+    Generate(base::VectorOf(break_types), data);
     builder_->EmitWithI32V(
         kExprBr, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
   }
@@ -293,17 +296,18 @@ class WasmGenerator {
     // There is always at least the block representing the function body.
     DCHECK(!blocks_.empty());
     const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
-    const auto break_types = VectorOf(blocks_[target_block]);
+    const auto break_types = base::VectorOf(blocks_[target_block]);
 
     Generate(break_types, data);
     Generate(kWasmI32, data);
     builder_->EmitWithI32V(
         kExprBrIf, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
-    ConsumeAndGenerate(break_types,
-                       wanted_kind == kVoid
-                           ? Vector<ValueType>{}
-                           : VectorOf({ValueType::Primitive(wanted_kind)}),
-                       data);
+    ConsumeAndGenerate(
+        break_types,
+        wanted_kind == kVoid
+            ? base::Vector<ValueType>{}
+            : base::VectorOf({ValueType::Primitive(wanted_kind)}),
+        data);
   }
 
   // TODO(eholk): make this function constexpr once gcc supports it
@@ -586,9 +590,10 @@ class WasmGenerator {
       }
       return;
     }
-    auto return_types = VectorOf(sig->returns().begin(), sig->return_count());
+    auto return_types =
+        base::VectorOf(sig->returns().begin(), sig->return_count());
     auto wanted_types =
-        VectorOf(&wanted_kind, wanted_kind == kWasmVoid ? 0 : 1);
+        base::VectorOf(&wanted_kind, wanted_kind == kWasmVoid ? 0 : 1);
     ConsumeAndGenerate(return_types, wanted_types, data);
   }
 
@@ -712,7 +717,7 @@ class WasmGenerator {
     } else {
       int tag = data->get<uint8_t>() % builder_->builder()->NumExceptions();
       FunctionSig* exception_sig = builder_->builder()->GetExceptionType(tag);
-      Vector<const ValueType> exception_types(
+      base::Vector<const ValueType> exception_types(
           exception_sig->parameters().begin(),
           exception_sig->parameter_count());
       Generate(exception_types, data);
@@ -791,9 +796,9 @@ class WasmGenerator {
   }
 
   std::vector<ValueType> GenerateTypes(DataRange* data);
-  void Generate(Vector<const ValueType> types, DataRange* data);
-  void ConsumeAndGenerate(Vector<const ValueType> parameter_types,
-                          Vector<const ValueType> return_types,
+  void Generate(base::Vector<const ValueType> types, DataRange* data);
+  void ConsumeAndGenerate(base::Vector<const ValueType> parameter_types,
+                          base::Vector<const ValueType> return_types,
                           DataRange* data);
   bool HasSimd() { return has_simd_; }
 
@@ -1533,7 +1538,8 @@ std::vector<ValueType> WasmGenerator::GenerateTypes(DataRange* data) {
   return types;
 }
 
-void WasmGenerator::Generate(Vector<const ValueType> types, DataRange* data) {
+void WasmGenerator::Generate(base::Vector<const ValueType> types,
+                             DataRange* data) {
   // Maybe emit a multi-value block with the expected return type. Use a
   // non-default value to indicate block generation to avoid recursion when we
   // reach the end of the data.
@@ -1542,8 +1548,8 @@ void WasmGenerator::Generate(Vector<const ValueType> types, DataRange* data) {
     GeneratorRecursionScope rec_scope(this);
     if (!recursion_limit_reached()) {
       const auto param_types = GenerateTypes(data);
-      Generate(VectorOf(param_types), data);
-      any_block(VectorOf(param_types), types, data);
+      Generate(base::VectorOf(param_types), data);
+      any_block(base::VectorOf(param_types), types, data);
       return;
     }
   }
@@ -1560,8 +1566,8 @@ void WasmGenerator::Generate(Vector<const ValueType> types, DataRange* data) {
   // Split the types in two halves and recursively generate each half.
   // Each half is non empty to ensure termination.
   size_t split_index = data->get<uint8_t>() % (types.size() - 1) + 1;
-  Vector<const ValueType> lower_half = types.SubVector(0, split_index);
-  Vector<const ValueType> upper_half =
+  base::Vector<const ValueType> lower_half = types.SubVector(0, split_index);
+  base::Vector<const ValueType> upper_half =
       types.SubVector(split_index, types.size());
   DataRange first_range = data->split();
   Generate(lower_half, &first_range);
@@ -1569,9 +1575,9 @@ void WasmGenerator::Generate(Vector<const ValueType> types, DataRange* data) {
 }
 
 // Emit code to match an arbitrary signature.
-void WasmGenerator::ConsumeAndGenerate(Vector<const ValueType> param_types,
-                                       Vector<const ValueType> return_types,
-                                       DataRange* data) {
+void WasmGenerator::ConsumeAndGenerate(
+    base::Vector<const ValueType> param_types,
+    base::Vector<const ValueType> return_types, DataRange* data) {
   if (param_types.size() == 0) {
     Generate(return_types, data);
     return;
@@ -1617,7 +1623,7 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind) {
 
 class WasmCompileFuzzer : public WasmExecutionFuzzer {
   bool GenerateModule(
-      Isolate* isolate, Zone* zone, Vector<const uint8_t> data,
+      Isolate* isolate, Zone* zone, base::Vector<const uint8_t> data,
       ZoneBuffer* buffer, int32_t* num_args,
       std::unique_ptr<WasmValue[]>* interpreter_args,
       std::unique_ptr<Handle<Object>[]>* compiler_args) override {
@@ -1668,12 +1674,12 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
       WasmGenerator gen(f, function_signatures, globals, mutable_globals,
                         &function_range);
-      Vector<const ValueType> return_types(sig->returns().begin(),
-                                           sig->return_count());
+      base::Vector<const ValueType> return_types(sig->returns().begin(),
+                                                 sig->return_count());
       gen.Generate(return_types, &function_range);
       if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return false;
       f->Emit(kExprEnd);
-      if (i == 0) builder.AddExport(CStrVector("main"), f);
+      if (i == 0) builder.AddExport(base::CStrVector("main"), f);
     }
 
     builder.AllocateIndirectFunctions(num_functions);

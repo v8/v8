@@ -310,7 +310,7 @@ void AsmJsScanner::ConsumeNumber(uc32 ch) {
   }
   // Decode numbers.
   double_value_ = StringToDouble(
-      Vector<const uint8_t>::cast(VectorOf(number)),
+      base::Vector<const uint8_t>::cast(base::VectorOf(number)),
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY | ALLOW_IMPLICIT_OCTAL);
   if (std::isnan(double_value_)) {
     // Check if string to number conversion didn't consume all the characters.

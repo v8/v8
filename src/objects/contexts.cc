@@ -437,7 +437,7 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
 }
 
 #define COMPARE_NAME(index, type, name) \
-  if (string->IsOneByteEqualTo(StaticCharVector(#name))) return index;
+  if (string->IsOneByteEqualTo(base::StaticCharVector(#name))) return index;
 
 int Context::IntrinsicIndexForName(Handle<String> string) {
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NAME);

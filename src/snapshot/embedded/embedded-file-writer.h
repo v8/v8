@@ -125,7 +125,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   static constexpr int kTemporaryStringLength = 256;
 
   std::string EmbeddedBlobCodeDataSymbol() const {
-    i::EmbeddedVector<char, kTemporaryStringLength>
+    base::EmbeddedVector<char, kTemporaryStringLength>
         embedded_blob_code_data_symbol;
     i::SNPrintF(embedded_blob_code_data_symbol,
                 "v8_%s_embedded_blob_code_data_", embedded_variant_);
@@ -133,7 +133,7 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
   std::string EmbeddedBlobDataDataSymbol() const {
-    i::EmbeddedVector<char, kTemporaryStringLength>
+    base::EmbeddedVector<char, kTemporaryStringLength>
         embedded_blob_data_data_symbol;
     i::SNPrintF(embedded_blob_data_data_symbol,
                 "v8_%s_embedded_blob_data_data_", embedded_variant_);

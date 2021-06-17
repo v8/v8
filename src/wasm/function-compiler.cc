@@ -27,7 +27,7 @@ class WasmInstructionBufferImpl {
  public:
   class View : public AssemblerBuffer {
    public:
-    View(Vector<uint8_t> buffer, WasmInstructionBufferImpl* holder)
+    View(base::Vector<uint8_t> buffer, WasmInstructionBufferImpl* holder)
         : buffer_(buffer), holder_(holder) {}
 
     ~View() override {
@@ -50,17 +50,17 @@ class WasmInstructionBufferImpl {
       DCHECK_LT(size(), new_size);
 
       holder_->old_buffer_ = std::move(holder_->buffer_);
-      holder_->buffer_ = OwnedVector<uint8_t>::NewForOverwrite(new_size);
+      holder_->buffer_ = base::OwnedVector<uint8_t>::NewForOverwrite(new_size);
       return std::make_unique<View>(holder_->buffer_.as_vector(), holder_);
     }
 
    private:
-    const Vector<uint8_t> buffer_;
+    const base::Vector<uint8_t> buffer_;
     WasmInstructionBufferImpl* const holder_;
   };
 
   explicit WasmInstructionBufferImpl(size_t size)
-      : buffer_(OwnedVector<uint8_t>::NewForOverwrite(size)) {}
+      : buffer_(base::OwnedVector<uint8_t>::NewForOverwrite(size)) {}
 
   std::unique_ptr<AssemblerBuffer> CreateView() {
     DCHECK_NOT_NULL(buffer_);
@@ -77,11 +77,11 @@ class WasmInstructionBufferImpl {
 
  private:
   // The current buffer used to emit code.
-  OwnedVector<uint8_t> buffer_;
+  base::OwnedVector<uint8_t> buffer_;
 
   // While the buffer is grown, we need to temporarily also keep the old buffer
   // alive.
-  OwnedVector<uint8_t> old_buffer_;
+  base::OwnedVector<uint8_t> old_buffer_;
 };
 
 WasmInstructionBufferImpl* Impl(WasmInstructionBuffer* buf) {
@@ -162,7 +162,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     const WireBytesStorage* wire_bytes_storage, Counters* counters,
     WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
-  Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
+  base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end()};
 
@@ -237,7 +237,7 @@ void RecordWasmHeapStubCompilation(Isolate* isolate, Handle<Code> code,
                                    const char* format, ...) {
   DCHECK(must_record_function_compilation(isolate));
 
-  ScopedVector<char> buffer(128);
+  base::ScopedVector<char> buffer(128);
   va_list arguments;
   va_start(arguments, format);
   int len = VSNPrintF(buffer, format, arguments);

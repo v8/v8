@@ -50,7 +50,7 @@ WASM_EXEC_TEST(MemoryInit) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r,
         WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                          WASM_LOCAL_GET(2)),
@@ -86,7 +86,7 @@ WASM_EXEC_TEST(MemoryInitOutOfBoundsData) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r,
         WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                          WASM_LOCAL_GET(2)),
@@ -107,7 +107,7 @@ WASM_EXEC_TEST(MemoryInitOutOfBounds) {
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[kWasmPageSize] = {};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r,
         WASM_MEMORY_INIT(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                          WASM_LOCAL_GET(2)),
@@ -315,7 +315,7 @@ WASM_EXEC_TEST(DataDropTwice) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r, WASM_DATA_DROP(0), kExprI32Const, 0);
 
   CHECK_EQ(0, r.Call());
@@ -326,7 +326,7 @@ WASM_EXEC_TEST(DataDropThenMemoryInit) {
   WasmRunner<uint32_t> r(execution_tier);
   r.builder().AddMemory(kWasmPageSize);
   const byte data[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  r.builder().AddPassiveDataSegment(ArrayVector(data));
+  r.builder().AddPassiveDataSegment(base::ArrayVector(data));
   BUILD(r, WASM_DATA_DROP(0),
         WASM_MEMORY_INIT(0, WASM_I32V_1(0), WASM_I32V_1(1), WASM_I32V_1(2)),
         kExprI32Const, 0);

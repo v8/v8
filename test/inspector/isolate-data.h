@@ -13,7 +13,7 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 
 namespace v8 {
 namespace internal {

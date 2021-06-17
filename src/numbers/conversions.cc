@@ -226,15 +226,15 @@ class StringToIntHelper {
            String::IsOneByteRepresentationUnderneath(*subject_);
   }
 
-  Vector<const uint8_t> GetOneByteVector() {
+  base::Vector<const uint8_t> GetOneByteVector() {
     if (raw_one_byte_subject_ != nullptr) {
-      return Vector<const uint8_t>(raw_one_byte_subject_, length_);
+      return base::Vector<const uint8_t>(raw_one_byte_subject_, length_);
     }
     DisallowGarbageCollection no_gc;
     return subject_->GetFlatContent(no_gc).ToOneByteVector();
   }
 
-  Vector<const uc16> GetTwoByteVector() {
+  base::Vector<const uc16> GetTwoByteVector() {
     DisallowGarbageCollection no_gc;
     return subject_->GetFlatContent(no_gc).ToUC16Vector();
   }
@@ -272,10 +272,10 @@ void StringToIntHelper<IsolateT>::ParseInt() {
   {
     DisallowGarbageCollection no_gc;
     if (IsOneByte()) {
-      Vector<const uint8_t> vector = GetOneByteVector();
+      base::Vector<const uint8_t> vector = GetOneByteVector();
       DetectRadixInternal(vector.begin(), vector.length());
     } else {
-      Vector<const uc16> vector = GetTwoByteVector();
+      base::Vector<const uc16> vector = GetTwoByteVector();
       DetectRadixInternal(vector.begin(), vector.length());
     }
   }
@@ -287,13 +287,13 @@ void StringToIntHelper<IsolateT>::ParseInt() {
     {
       DisallowGarbageCollection no_gc;
       if (IsOneByte()) {
-        Vector<const uint8_t> vector = GetOneByteVector();
+        base::Vector<const uint8_t> vector = GetOneByteVector();
         DCHECK_EQ(length_, vector.length());
         if (ParseChunkInternal(vector.begin())) {
           break;
         }
       } else {
-        Vector<const uc16> vector = GetTwoByteVector();
+        base::Vector<const uc16> vector = GetTwoByteVector();
         DCHECK_EQ(length_, vector.length());
         if (ParseChunkInternal(vector.begin())) {
           break;
@@ -501,12 +501,12 @@ class NumberParseIntHelper : public StringToIntHelper<Isolate> {
     if (!is_power_of_two && radix() != 10) return;
     DisallowGarbageCollection no_gc;
     if (IsOneByte()) {
-      Vector<const uint8_t> vector = GetOneByteVector();
+      base::Vector<const uint8_t> vector = GetOneByteVector();
       DCHECK_EQ(length(), vector.length());
       result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.begin())
                                 : HandleBaseTenCase(vector.begin());
     } else {
-      Vector<const uc16> vector = GetTwoByteVector();
+      base::Vector<const uc16> vector = GetTwoByteVector();
       DCHECK_EQ(length(), vector.length());
       result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.begin())
                                 : HandleBaseTenCase(vector.begin());
@@ -568,7 +568,7 @@ class NumberParseIntHelper : public StringToIntHelper<Isolate> {
 
     SLOW_DCHECK(buffer_pos < kBufferSize);
     buffer[buffer_pos] = '\0';
-    Vector<const char> buffer_vector(buffer, buffer_pos);
+    base::Vector<const char> buffer_vector(buffer, buffer_pos);
     return Strtod(buffer_vector, 0);
   }
 
@@ -833,23 +833,25 @@ parsing_done:
   SLOW_DCHECK(buffer_pos < kBufferSize);
   buffer[buffer_pos] = '\0';
 
-  double converted = Strtod(Vector<const char>(buffer, buffer_pos), exponent);
+  double converted =
+      Strtod(base::Vector<const char>(buffer, buffer_pos), exponent);
   return (sign == NEGATIVE) ? -converted : converted;
 }
 
 double StringToDouble(const char* str, int flags, double empty_string_val) {
-  // We use {OneByteVector} instead of {CStrVector} to avoid instantiating the
-  // InternalStringToDouble() template for {const char*} as well.
-  return StringToDouble(OneByteVector(str), flags, empty_string_val);
+  // We use {base::OneByteVector} instead of {base::CStrVector} to avoid
+  // instantiating the InternalStringToDouble() template for {const char*} as
+  // well.
+  return StringToDouble(base::OneByteVector(str), flags, empty_string_val);
 }
 
-double StringToDouble(Vector<const uint8_t> str, int flags,
+double StringToDouble(base::Vector<const uint8_t> str, int flags,
                       double empty_string_val) {
   return InternalStringToDouble(str.begin(), str.end(), flags,
                                 empty_string_val);
 }
 
-double StringToDouble(Vector<const uc16> str, int flags,
+double StringToDouble(base::Vector<const uc16> str, int flags,
                       double empty_string_val) {
   const uc16* end = str.begin() + str.length();
   return InternalStringToDouble(str.begin(), end, flags, empty_string_val);
@@ -974,7 +976,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     MaybeHandle<BigInt> BigIntLiteral(LocalIsolate* isolate,
                                       const char* string);
 
-const char* DoubleToCString(double v, Vector<char> buffer) {
+const char* DoubleToCString(double v, base::Vector<char> buffer) {
   switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {
     case FP_NAN:
       return "NaN";
@@ -996,8 +998,8 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
       int length;
 
       DoubleToAscii(v, DTOA_SHORTEST, 0,
-                    Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
-                    &length, &decimal_point);
+                    base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                    &sign, &length, &decimal_point);
 
       if (sign) builder.AddCharacter('-');
 
@@ -1036,7 +1038,7 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
   }
 }
 
-const char* IntToCString(int n, Vector<char> buffer) {
+const char* IntToCString(int n, base::Vector<char> buffer) {
   bool negative = true;
   if (n >= 0) {
     n = -n;
@@ -1071,7 +1073,7 @@ char* DoubleToFixedCString(double value, int f) {
   // use the non-fixed conversion routine.
   if (abs_value >= kFirstNonFixed) {
     char arr[kMaxFractionDigits];
-    Vector<char> buffer(arr, arraysize(arr));
+    base::Vector<char> buffer(arr, arraysize(arr));
     return StrDup(DoubleToCString(value, buffer));
   }
 
@@ -1084,7 +1086,7 @@ char* DoubleToFixedCString(double value, int f) {
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
   DoubleToAscii(value, DTOA_FIXED, f,
-                Vector<char>(decimal_rep, kDecimalRepCapacity), &sign,
+                base::Vector<char>(decimal_rep, kDecimalRepCapacity), &sign,
                 &decimal_rep_length, &decimal_point);
 
   // Create a representation that is padded with zeros if needed.
@@ -1179,12 +1181,12 @@ char* DoubleToExponentialCString(double value, int f) {
 
   if (f == -1) {
     DoubleToAscii(value, DTOA_SHORTEST, 0,
-                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
+                  base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
                   &decimal_rep_length, &decimal_point);
     f = decimal_rep_length - 1;
   } else {
     DoubleToAscii(value, DTOA_PRECISION, f + 1,
-                  Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
+                  base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
                   &decimal_rep_length, &decimal_point);
   }
   DCHECK_GT(decimal_rep_length, 0);
@@ -1217,7 +1219,7 @@ char* DoubleToPrecisionCString(double value, int p) {
   int decimal_rep_length;
 
   DoubleToAscii(value, DTOA_PRECISION, p,
-                Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
+                base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
                 &decimal_rep_length, &decimal_point);
   DCHECK(decimal_rep_length <= p);
 
@@ -1382,7 +1384,7 @@ base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
   auto buffer = std::make_unique<uc16[]>(max_length_for_conversion);
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   String::WriteToFlat(*object, buffer.get(), 0, length, access_guard);
-  Vector<const uc16> v(buffer.get(), length);
+  base::Vector<const uc16> v(buffer.get(), length);
   return StringToDouble(v, flags);
 }
 
@@ -1431,12 +1433,12 @@ bool IsSpecialIndex(String string) {
     }
   }
   // Slow path: test DoubleToString(StringToDouble(string)) == string.
-  Vector<const uint16_t> vector(buffer, length);
+  base::Vector<const uint16_t> vector(buffer, length);
   double d = StringToDouble(vector, NO_FLAGS);
   if (std::isnan(d)) return false;
   // Compute reverse string.
   char reverse_buffer[kBufferSize + 1];  // Result will be /0 terminated.
-  Vector<char> reverse_vector(reverse_buffer, arraysize(reverse_buffer));
+  base::Vector<char> reverse_vector(reverse_buffer, arraysize(reverse_buffer));
   const char* reverse_string = DoubleToCString(d, reverse_vector);
   for (int i = 0; i < length; ++i) {
     if (static_cast<uint16_t>(reverse_string[i]) != buffer[i]) return false;

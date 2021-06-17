@@ -7,8 +7,8 @@
 #include <cinttypes>
 
 #include "src/base/memory.h"
+#include "src/base/vector.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +17,7 @@ namespace wasm {
 void TraceMemoryOperation(base::Optional<ExecutionTier> tier,
                           const MemoryTracingInfo* info, int func_index,
                           int position, uint8_t* mem_start) {
-  EmbeddedVector<char, 91> value;
+  base::EmbeddedVector<char, 91> value;
   auto mem_rep = static_cast<MachineRepresentation>(info->mem_rep);
   Address address = reinterpret_cast<Address>(mem_start) + info->offset;
   switch (mem_rep) {

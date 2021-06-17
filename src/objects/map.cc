@@ -1891,11 +1891,11 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
   if (!maybe_map.ToHandle(&result)) {
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
-    std::unique_ptr<ScopedVector<char>> buffer;
+    std::unique_ptr<base::ScopedVector<char>> buffer;
     if (FLAG_log_maps) {
-      ScopedVector<char> name_buffer(100);
+      base::ScopedVector<char> name_buffer(100);
       name->NameShortPrint(name_buffer);
-      buffer.reset(new ScopedVector<char>(128));
+      buffer.reset(new base::ScopedVector<char>(128));
       SNPrintF(*buffer, "TooManyFastProperties %s", name_buffer.begin());
       reason = buffer->begin();
     }

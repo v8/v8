@@ -51,7 +51,7 @@ WasmImportWrapperCache::~WasmImportWrapperCache() {
       ptrs.push_back(e.second);
     }
   }
-  WasmCode::DecrementRefCount(VectorOf(ptrs));
+  WasmCode::DecrementRefCount(base::VectorOf(ptrs));
 }
 
 }  // namespace wasm

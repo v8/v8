@@ -92,7 +92,7 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   void Copy(byte* a);
 
   // The buffer into which code and relocation info are generated.
-  Vector<byte> buffer_;
+  base::Vector<byte> buffer_;
   // The program counter.
   int pc_;
   Label backtrack_;

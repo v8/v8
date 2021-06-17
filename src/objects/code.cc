@@ -515,7 +515,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     if (int pool_size = constant_pool_size()) {
       DCHECK_EQ(pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << pool_size << ")\n";
-      Vector<char> buf = Vector<char>::New(50);
+      base::Vector<char> buf = base::Vector<char>::New(50);
       intptr_t* ptr =
           reinterpret_cast<intptr_t*>(MetadataStart() + constant_pool_offset());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {

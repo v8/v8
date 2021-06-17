@@ -22,7 +22,7 @@ constexpr int kUndefinedRegisterValue = -1;
 
 template <class Character>
 bool SatisfiesAssertion(RegExpAssertion::AssertionType type,
-                        Vector<const Character> context, int position) {
+                        base::Vector<const Character> context, int position) {
   DCHECK_LE(position, context.length());
   DCHECK_GE(position, 0);
 
@@ -53,21 +53,21 @@ bool SatisfiesAssertion(RegExpAssertion::AssertionType type,
   }
 }
 
-Vector<RegExpInstruction> ToInstructionVector(
+base::Vector<RegExpInstruction> ToInstructionVector(
     ByteArray raw_bytes, const DisallowGarbageCollection& no_gc) {
   RegExpInstruction* inst_begin =
       reinterpret_cast<RegExpInstruction*>(raw_bytes.GetDataStartAddress());
   int inst_num = raw_bytes.length() / sizeof(RegExpInstruction);
   DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes.length());
-  return Vector<RegExpInstruction>(inst_begin, inst_num);
+  return base::Vector<RegExpInstruction>(inst_begin, inst_num);
 }
 
 template <class Character>
-Vector<const Character> ToCharacterVector(
+base::Vector<const Character> ToCharacterVector(
     String str, const DisallowGarbageCollection& no_gc);
 
 template <>
-Vector<const uint8_t> ToCharacterVector<uint8_t>(
+base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
     String str, const DisallowGarbageCollection& no_gc) {
   DCHECK(str.IsFlat());
   String::FlatContent content = str.GetFlatContent(no_gc);
@@ -76,7 +76,7 @@ Vector<const uint8_t> ToCharacterVector<uint8_t>(
 }
 
 template <>
-Vector<const uc16> ToCharacterVector<uc16>(
+base::Vector<const uc16> ToCharacterVector<uc16>(
     String str, const DisallowGarbageCollection& no_gc) {
   DCHECK(str.IsFlat());
   String::FlatContent content = str.GetFlatContent(no_gc);
@@ -174,7 +174,7 @@ class NfaInterpreter {
 
       if (!FoundMatch()) break;
 
-      Vector<int> registers = *best_match_registers_;
+      base::Vector<int> registers = *best_match_registers_;
       output_registers =
           std::copy(registers.begin(), registers.end(), output_registers);
 
@@ -390,8 +390,8 @@ class NfaInterpreter {
         case RegExpInstruction::FORK: {
           InterpreterThread fork{inst.payload.pc,
                                  NewRegisterArrayUninitialized()};
-          Vector<int> fork_registers = GetRegisterArray(fork);
-          Vector<int> t_registers = GetRegisterArray(t);
+          base::Vector<int> fork_registers = GetRegisterArray(fork);
+          base::Vector<int> t_registers = GetRegisterArray(t);
           DCHECK_EQ(fork_registers.length(), t_registers.length());
           std::copy(t_registers.begin(), t_registers.end(),
                     fork_registers.begin());
@@ -460,8 +460,8 @@ class NfaInterpreter {
 
   bool FoundMatch() const { return best_match_registers_.has_value(); }
 
-  Vector<int> GetRegisterArray(InterpreterThread t) {
-    return Vector<int>(t.register_array_begin, register_count_per_match_);
+  base::Vector<int> GetRegisterArray(InterpreterThread t) {
+    return base::Vector<int>(t.register_array_begin, register_count_per_match_);
   }
 
   int* NewRegisterArrayUninitialized() {
@@ -515,20 +515,20 @@ class NfaInterpreter {
   DisallowGarbageCollection no_gc_;
 
   ByteArray bytecode_object_;
-  Vector<const RegExpInstruction> bytecode_;
+  base::Vector<const RegExpInstruction> bytecode_;
 
   // Number of registers used per thread.
   const int register_count_per_match_;
 
   String input_object_;
-  Vector<const Character> input_;
+  base::Vector<const Character> input_;
   int input_index_;
 
   // pc_last_input_index_[k] records the value of input_index_ the last
   // time a thread t such that t.pc == k was activated, i.e. put on
   // active_threads_.  Thus pc_last_input_index.size() == bytecode.size().  See
   // also `RunActiveThread`.
-  Vector<int> pc_last_input_index_;
+  base::Vector<int> pc_last_input_index_;
 
   // Active threads can potentially (but not necessarily) continue without
   // input.  Sorted from low to high priority.
@@ -547,7 +547,7 @@ class NfaInterpreter {
   // search.  If several threads ACCEPTed, then this will be the register array
   // of the accepting thread with highest priority.  Should be deallocated with
   // `register_array_allocator_`.
-  base::Optional<Vector<int>> best_match_registers_;
+  base::Optional<base::Vector<int>> best_match_registers_;
 
   Zone* zone_;
 };

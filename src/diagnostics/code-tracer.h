@@ -7,12 +7,12 @@
 
 #include "src/base/optional.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -102,7 +102,7 @@ class CodeTracer final : public Malloced {
  private:
   static bool ShouldRedirect() { return FLAG_redirect_code_traces; }
 
-  EmbeddedVector<char, 128> filename_;
+  base::EmbeddedVector<char, 128> filename_;
   FILE* file_;
   int scope_depth_;
 };

@@ -103,7 +103,7 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "sum;");
   CHECK_EQ(28, result->Int32Value(context).FromJust());
 
-  i::ScopedVector<char> test_buf(1024);
+  v8::base::ScopedVector<char> test_buf(1024);
 
   // Check legal boundary conditions.
   // The repeated loads and stores ensure the ICs are exercised.
@@ -577,7 +577,7 @@ void TestOnHeapHasBuffer(const char* array_name, size_t elem_size) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  i::ScopedVector<char> source(128);
+  v8::base::ScopedVector<char> source(128);
   // Test on-heap sizes.
   for (size_t size = 0; size <= i::JSTypedArray::kMaxSizeInHeap;
        size += elem_size) {
@@ -609,7 +609,7 @@ void TestOffHeapHasBuffer(const char* array_name, size_t elem_size) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope handle_scope(isolate);
 
-  i::ScopedVector<char> source(128);
+  v8::base::ScopedVector<char> source(128);
   // Test off-heap sizes.
   size_t size = i::JSTypedArray::kMaxSizeInHeap;
   for (int i = 0; i < 3; i++) {

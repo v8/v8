@@ -8,8 +8,8 @@
 #include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -82,9 +82,9 @@ enum ConversionFlags {
 };
 
 // Converts a string into a double value according to ECMA-262 9.3.1
-double StringToDouble(Vector<const uint8_t> str, int flags,
+double StringToDouble(base::Vector<const uint8_t> str, int flags,
                       double empty_string_val = 0);
-double StringToDouble(Vector<const uc16> str, int flags,
+double StringToDouble(base::Vector<const uc16> str, int flags,
                       double empty_string_val = 0);
 // This version expects a zero-terminated character array.
 double V8_EXPORT_PRIVATE StringToDouble(const char* str, int flags,
@@ -111,11 +111,11 @@ const int kDoubleToCStringMinBufferSize = 100;
 // The buffer should be large enough for any floating point number.
 // 100 characters is enough.
 V8_EXPORT_PRIVATE const char* DoubleToCString(double value,
-                                              Vector<char> buffer);
+                                              base::Vector<char> buffer);
 
 // Convert an int to a null-terminated string. The returned string is
 // located inside the buffer, but not necessarily at the start.
-V8_EXPORT_PRIVATE const char* IntToCString(int n, Vector<char> buffer);
+V8_EXPORT_PRIVATE const char* IntToCString(int n, base::Vector<char> buffer);
 
 // Additional number to string conversions for the number type.
 // The caller is responsible for calling free on the returned pointer.

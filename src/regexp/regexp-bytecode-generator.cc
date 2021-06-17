@@ -16,7 +16,7 @@ namespace internal {
 
 RegExpBytecodeGenerator::RegExpBytecodeGenerator(Isolate* isolate, Zone* zone)
     : RegExpMacroAssembler(isolate, zone),
-      buffer_(Vector<byte>::New(1024)),
+      buffer_(base::Vector<byte>::New(1024)),
       pc_(0),
       advance_current_end_(kInvalidPC),
       jump_edges_(zone),
@@ -395,8 +395,8 @@ void RegExpBytecodeGenerator::Copy(byte* a) {
 }
 
 void RegExpBytecodeGenerator::Expand() {
-  Vector<byte> old_buffer = buffer_;
-  buffer_ = Vector<byte>::New(old_buffer.length() * 2);
+  base::Vector<byte> old_buffer = buffer_;
+  buffer_ = base::Vector<byte>::New(old_buffer.length() * 2);
   MemCopy(buffer_.begin(), old_buffer.begin(), old_buffer.length());
   old_buffer.Dispose();
 }

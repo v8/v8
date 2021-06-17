@@ -148,7 +148,9 @@ void WasmFunctionBuilder::EmitDirectCallIndex(uint32_t index) {
   EmitCode(placeholder_bytes, arraysize(placeholder_bytes));
 }
 
-void WasmFunctionBuilder::SetName(Vector<const char> name) { name_ = name; }
+void WasmFunctionBuilder::SetName(base::Vector<const char> name) {
+  name_ = name;
+}
 
 void WasmFunctionBuilder::AddAsmWasmOffset(size_t call_position,
                                            size_t to_number_position) {
@@ -373,16 +375,17 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
-uint32_t WasmModuleBuilder::AddImport(Vector<const char> name, FunctionSig* sig,
-                                      Vector<const char> module) {
+uint32_t WasmModuleBuilder::AddImport(base::Vector<const char> name,
+                                      FunctionSig* sig,
+                                      base::Vector<const char> module) {
   DCHECK(adding_imports_allowed_);
   function_imports_.push_back({module, name, AddSignature(sig)});
   return static_cast<uint32_t>(function_imports_.size() - 1);
 }
 
-uint32_t WasmModuleBuilder::AddGlobalImport(Vector<const char> name,
+uint32_t WasmModuleBuilder::AddGlobalImport(base::Vector<const char> name,
                                             ValueType type, bool mutability,
-                                            Vector<const char> module) {
+                                            base::Vector<const char> module) {
   global_imports_.push_back({module, name, type.value_type_code(), mutability});
   return static_cast<uint32_t>(global_imports_.size() - 1);
 }
@@ -391,7 +394,7 @@ void WasmModuleBuilder::MarkStartFunction(WasmFunctionBuilder* function) {
   start_function_index_ = function->func_index();
 }
 
-void WasmModuleBuilder::AddExport(Vector<const char> name,
+void WasmModuleBuilder::AddExport(base::Vector<const char> name,
                                   ImportExportKindCode kind, uint32_t index) {
   DCHECK_LE(index, std::numeric_limits<int>::max());
   exports_.push_back({name, kind, static_cast<int>(index)});
@@ -399,13 +402,13 @@ void WasmModuleBuilder::AddExport(Vector<const char> name,
 
 uint32_t WasmModuleBuilder::AddExportedGlobal(ValueType type, bool mutability,
                                               WasmInitExpr init,
-                                              Vector<const char> name) {
+                                              base::Vector<const char> name) {
   uint32_t index = AddGlobal(type, mutability, std::move(init));
   AddExport(name, kExternalGlobal, index);
   return index;
 }
 
-void WasmModuleBuilder::ExportImportedFunction(Vector<const char> name,
+void WasmModuleBuilder::ExportImportedFunction(base::Vector<const char> name,
                                                int import_index) {
 #if DEBUG
   // The size of function_imports_ must not change any more.
@@ -772,7 +775,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     // Emit a placeholder for section length.
     size_t start = buffer->reserve_u32v();
     // Emit custom section name.
-    buffer->write_string(CStrVector("compilationHints"));
+    buffer->write_string(base::CStrVector("compilationHints"));
     // Emit hint count.
     buffer->write_size(functions_.size());
     // Emit hint bytes.
@@ -817,7 +820,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     // Emit a placeholder for the length.
     size_t start = buffer->reserve_u32v();
     // Emit the section string.
-    buffer->write_string(CStrVector("name"));
+    buffer->write_string(base::CStrVector("name"));
     // Emit a subsection for the function names.
     buffer->write_u8(NameSectionKindCode::kFunction);
     // Emit a placeholder for the subsection length.

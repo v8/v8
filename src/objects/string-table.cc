@@ -581,7 +581,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
     chars = source.GetChars<Char>(no_gc) + start;
   }
   // TODO(verwaest): Internalize to one-byte when possible.
-  SequentialStringKey<Char> key(Vector<const Char>(chars, length), seed);
+  SequentialStringKey<Char> key(base::Vector<const Char>(chars, length), seed);
 
   // String could be an array index.
   uint32_t raw_hash_field = key.raw_hash_field();

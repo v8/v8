@@ -183,7 +183,7 @@ MaybeHandle<String> Uri::Decode(Isolate* isolate, Handle<String> uri,
   }
 
   if (two_byte_buffer.empty()) {
-    return isolate->factory()->NewStringFromOneByte(Vector<const uint8_t>(
+    return isolate->factory()->NewStringFromOneByte(base::Vector<const uint8_t>(
         one_byte_buffer.data(), static_cast<int>(one_byte_buffer.size())));
   }
 
@@ -313,13 +313,14 @@ MaybeHandle<String> Uri::Encode(Isolate* isolate, Handle<String> uri,
     }
   }
 
-  return isolate->factory()->NewStringFromOneByte(VectorOf(buffer));
+  return isolate->factory()->NewStringFromOneByte(base::VectorOf(buffer));
 }
 
 namespace {  // Anonymous namespace for Escape and Unescape
 
 template <typename Char>
-int UnescapeChar(Vector<const Char> vector, int i, int length, int* step) {
+int UnescapeChar(base::Vector<const Char> vector, int i, int length,
+                 int* step) {
   uint16_t character = vector[i];
   int32_t hi = 0;
   int32_t lo = 0;
@@ -347,7 +348,7 @@ MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
   int unescaped_length = 0;
   {
     DisallowGarbageCollection no_gc;
-    Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
+    base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
     for (int i = start_index; i < length; unescaped_length++) {
       int step;
       if (UnescapeChar(vector, i, length, &step) >
@@ -370,7 +371,7 @@ MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
                                         ->NewRawOneByteString(unescaped_length)
                                         .ToHandleChecked();
     DisallowGarbageCollection no_gc;
-    Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
+    base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
     for (int i = start_index; i < length; dest_position++) {
       int step;
       dest->SeqOneByteStringSet(dest_position,
@@ -383,7 +384,7 @@ MaybeHandle<String> UnescapeSlow(Isolate* isolate, Handle<String> string,
                                         ->NewRawTwoByteString(unescaped_length)
                                         .ToHandleChecked();
     DisallowGarbageCollection no_gc;
-    Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
+    base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
     for (int i = start_index; i < length; dest_position++) {
       int step;
       dest->SeqTwoByteStringSet(dest_position,
@@ -420,7 +421,7 @@ static MaybeHandle<String> UnescapePrivate(Isolate* isolate,
   int index;
   {
     DisallowGarbageCollection no_gc;
-    StringSearch<uint8_t, Char> search(isolate, StaticOneByteVector("%"));
+    StringSearch<uint8_t, Char> search(isolate, base::StaticOneByteVector("%"));
     index = search.Search(source->GetCharVector<Char>(no_gc), 0);
     if (index < 0) return source;
   }
@@ -436,7 +437,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
 
   {
     DisallowGarbageCollection no_gc;
-    Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
+    base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
     for (int i = 0; i < length; i++) {
       uint16_t c = vector[i];
       if (c >= 256) {
@@ -464,7 +465,7 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
 
   {
     DisallowGarbageCollection no_gc;
-    Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
+    base::Vector<const Char> vector = string->GetCharVector<Char>(no_gc);
     for (int i = 0; i < length; i++) {
       uint16_t c = vector[i];
       if (c >= 256) {

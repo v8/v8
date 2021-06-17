@@ -5,7 +5,7 @@
 #ifndef V8_NUMBERS_FAST_DTOA_H_
 #define V8_NUMBERS_FAST_DTOA_H_
 
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -51,7 +51,7 @@ const int kFastDtoaMaximalLength = 17;
 //     false.
 // For both modes the buffer must be large enough to hold the result.
 V8_EXPORT_PRIVATE bool FastDtoa(double d, FastDtoaMode mode,
-                                int requested_digits, Vector<char> buffer,
+                                int requested_digits, base::Vector<char> buffer,
                                 int* length, int* decimal_point);
 
 }  // namespace internal

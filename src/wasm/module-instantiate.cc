@@ -93,7 +93,7 @@ Handle<DescriptorArray> CreateStructDescriptorArray(
   MaybeObject any_type = MaybeObject::FromObject(FieldType::Any());
   DCHECK(any_type->IsSmi());
 
-  i::EmbeddedVector<char, 128> name_buffer;
+  base::EmbeddedVector<char, 128> name_buffer;
   for (uint32_t i = 0; i < field_count; i++) {
     // TODO(ishell): consider introducing a cache of first N internalized field
     // names similar to LookupSingleCharacterStringFromCode().
@@ -854,7 +854,7 @@ MaybeHandle<Object> InstanceBuilder::LookupImportAsm(
 
 // Load data segments into the memory.
 void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
-  Vector<const uint8_t> wire_bytes =
+  base::Vector<const uint8_t> wire_bytes =
       module_object_->native_module()->wire_bytes();
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t size = segment.source.length();
@@ -902,7 +902,7 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
 }
 
 void InstanceBuilder::SanitizeImports() {
-  Vector<const uint8_t> wire_bytes =
+  base::Vector<const uint8_t> wire_bytes =
       module_object_->native_module()->wire_bytes();
   for (size_t index = 0; index < module_->import_table.size(); ++index) {
     const WasmImport& import = module_->import_table[index];

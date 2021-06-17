@@ -207,11 +207,11 @@ class TestingModuleBuilder {
                                 uint32_t table_size,
                                 ValueType table_type = kWasmFuncRef);
 
-  uint32_t AddBytes(Vector<const byte> bytes);
+  uint32_t AddBytes(base::Vector<const byte> bytes);
 
   uint32_t AddException(const FunctionSig* sig);
 
-  uint32_t AddPassiveDataSegment(Vector<const byte> bytes);
+  uint32_t AddPassiveDataSegment(base::Vector<const byte> bytes);
   uint32_t AddPassiveElementSegment(const std::vector<uint32_t>& entries);
 
   WasmFunction* GetFunctionAt(int index) {
@@ -301,14 +301,14 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
   WasmFunctionWrapper(Zone* zone, int num_params);
 
   void Init(CallDescriptor* call_descriptor, MachineType return_type,
-            Vector<MachineType> param_types);
+            base::Vector<MachineType> param_types);
 
   template <typename ReturnType, typename... ParamTypes>
   void Init(CallDescriptor* call_descriptor) {
     std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
         {MachineTypeForC<ParamTypes>()...}};
-    Vector<MachineType> param_vec(param_machine_types.data(),
-                                  param_machine_types.size());
+    base::Vector<MachineType> param_vec(param_machine_types.data(),
+                                        param_machine_types.size());
     Init(call_descriptor, MachineTypeForC<ReturnType>(), param_vec);
   }
 
@@ -462,8 +462,8 @@ class WasmRunnerBase : public InitializedHandleScope {
   static FunctionSig* CreateSig(Zone* zone) {
     std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
         {MachineTypeForC<ParamTypes>()...}};
-    Vector<MachineType> param_vec(param_machine_types.data(),
-                                  param_machine_types.size());
+    base::Vector<MachineType> param_vec(param_machine_types.data(),
+                                        param_machine_types.size());
     return CreateSig(zone, MachineTypeForC<ReturnType>(), param_vec);
   }
 
@@ -506,7 +506,7 @@ class WasmRunnerBase : public InitializedHandleScope {
 
  private:
   static FunctionSig* CreateSig(Zone* zone, MachineType return_type,
-                                Vector<MachineType> param_types);
+                                base::Vector<MachineType> param_types);
 
  protected:
   wasm::WasmCodeRefScope code_ref_scope_;

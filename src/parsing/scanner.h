@@ -350,7 +350,7 @@ class V8_EXPORT_PRIVATE Scanner {
     if (!is_next_literal_one_byte()) return false;
     if (peek_location().length() != N + 1) return false;
 
-    Vector<const uint8_t> next = next_literal_one_byte_string();
+    base::Vector<const uint8_t> next = next_literal_one_byte_string();
     const char* chars = reinterpret_cast<const char*>(next.begin());
     return next.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
@@ -360,7 +360,7 @@ class V8_EXPORT_PRIVATE Scanner {
     DCHECK(current().CanAccessLiteral());
     if (!is_literal_one_byte()) return false;
 
-    Vector<const uint8_t> current = literal_one_byte_string();
+    base::Vector<const uint8_t> current = literal_one_byte_string();
     const char* chars = reinterpret_cast<const char*>(current.begin());
     return current.length() == N - 1 && strncmp(s, chars, N - 1) == 0;
   }
@@ -579,12 +579,12 @@ class V8_EXPORT_PRIVATE Scanner {
   // requested for tokens that do not have a literal. Hence, we treat any
   // token as a one-byte literal. E.g. Token::FUNCTION pretends to have a
   // literal "function".
-  Vector<const uint8_t> literal_one_byte_string() const {
+  base::Vector<const uint8_t> literal_one_byte_string() const {
     DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token) ||
            current().token == Token::ESCAPED_KEYWORD);
     return current().literal_chars.one_byte_literal();
   }
-  Vector<const uint16_t> literal_two_byte_string() const {
+  base::Vector<const uint16_t> literal_two_byte_string() const {
     DCHECK(current().CanAccessLiteral() || Token::IsKeyword(current().token) ||
            current().token == Token::ESCAPED_KEYWORD);
     return current().literal_chars.two_byte_literal();
@@ -596,11 +596,11 @@ class V8_EXPORT_PRIVATE Scanner {
   }
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
-  Vector<const uint8_t> next_literal_one_byte_string() const {
+  base::Vector<const uint8_t> next_literal_one_byte_string() const {
     DCHECK(next().CanAccessLiteral());
     return next().literal_chars.one_byte_literal();
   }
-  Vector<const uint16_t> next_literal_two_byte_string() const {
+  base::Vector<const uint16_t> next_literal_two_byte_string() const {
     DCHECK(next().CanAccessLiteral());
     return next().literal_chars.two_byte_literal();
   }
@@ -608,11 +608,11 @@ class V8_EXPORT_PRIVATE Scanner {
     DCHECK(next().CanAccessLiteral());
     return next().literal_chars.is_one_byte();
   }
-  Vector<const uint8_t> raw_literal_one_byte_string() const {
+  base::Vector<const uint8_t> raw_literal_one_byte_string() const {
     DCHECK(current().CanAccessRawLiteral());
     return current().raw_literal_chars.one_byte_literal();
   }
-  Vector<const uint16_t> raw_literal_two_byte_string() const {
+  base::Vector<const uint16_t> raw_literal_two_byte_string() const {
     DCHECK(current().CanAccessRawLiteral());
     return current().raw_literal_chars.two_byte_literal();
   }

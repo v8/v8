@@ -180,7 +180,7 @@ class WeakScriptHandle {
 }  // namespace
 
 std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
-    ModuleOrigin origin, Vector<const uint8_t> wire_bytes) {
+    ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes) {
   if (origin != kWasmOrigin) return nullptr;
   base::MutexGuard lock(&mutex_);
   size_t prefix_hash = PrefixHash(wire_bytes);
@@ -240,7 +240,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
     std::shared_ptr<NativeModule> native_module, bool error) {
   DCHECK_NOT_NULL(native_module);
   if (native_module->module()->origin != kWasmOrigin) return native_module;
-  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   DCHECK(!wire_bytes.empty());
   size_t prefix_hash = PrefixHash(native_module->wire_bytes());
   base::MutexGuard lock(&mutex_);
@@ -281,14 +281,14 @@ void NativeModuleCache::Erase(NativeModule* native_module) {
 }
 
 // static
-size_t NativeModuleCache::WireBytesHash(Vector<const uint8_t> bytes) {
+size_t NativeModuleCache::WireBytesHash(base::Vector<const uint8_t> bytes) {
   return StringHasher::HashSequentialString(
       reinterpret_cast<const char*>(bytes.begin()), bytes.length(),
       kZeroHashSeed);
 }
 
 // static
-size_t NativeModuleCache::PrefixHash(Vector<const uint8_t> wire_bytes) {
+size_t NativeModuleCache::PrefixHash(base::Vector<const uint8_t> wire_bytes) {
   // Compute the hash as a combined hash of the sections up to the code section
   // header, to mirror the way streaming compilation does it.
   Decoder decoder(wire_bytes.begin(), wire_bytes.end());
@@ -310,7 +310,7 @@ size_t NativeModuleCache::PrefixHash(Vector<const uint8_t> wire_bytes) {
     const uint8_t* payload_start = decoder.pc();
     decoder.consume_bytes(section_size, "section payload");
     size_t section_hash = NativeModuleCache::WireBytesHash(
-        Vector<const uint8_t>(payload_start, section_size));
+        base::Vector<const uint8_t>(payload_start, section_size));
     hash = base::hash_combine(hash, section_hash);
   }
   return hash;
@@ -474,7 +474,7 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
-    Vector<const byte> asm_js_offset_table_bytes,
+    base::Vector<const byte> asm_js_offset_table_bytes,
     Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompileTranslatedAsmJs", "id",
@@ -555,7 +555,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   }
 #endif
 
-  constexpr Vector<const char> kNoSourceUrl;
+  constexpr base::Vector<const char> kNoSourceUrl;
   Handle<Script> script =
       GetOrCreateScript(isolate, native_module, kNoSourceUrl);
 
@@ -760,14 +760,14 @@ std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
 namespace {
 Handle<Script> CreateWasmScript(Isolate* isolate,
                                 std::shared_ptr<NativeModule> native_module,
-                                Vector<const char> source_url) {
+                                base::Vector<const char> source_url) {
   Handle<Script> script =
       isolate->factory()->NewScript(isolate->factory()->undefined_value());
   script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
   script->set_context_data(isolate->native_context()->debug_context_id());
   script->set_type(Script::TYPE_WASM);
 
-  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
   // The source URL of the script is
   // - the original source URL if available (from the streaming API),
@@ -784,7 +784,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
         reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
         kZeroHashSeed);
 
-    EmbeddedVector<char, 32> buffer;
+    base::EmbeddedVector<char, 32> buffer;
     if (module->name.is_empty()) {
       // Build the URL in the form "wasm://wasm/<hash>".
       int url_len = SNPrintF(buffer, "wasm://wasm/%08x", hash);
@@ -820,7 +820,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   const WasmDebugSymbols& debug_symbols = module->debug_symbols;
   if (debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
       !debug_symbols.external_url.is_empty()) {
-    Vector<const char> external_url =
+    base::Vector<const char> external_url =
         ModuleWireBytes(wire_bytes).GetNameOrNull(debug_symbols.external_url);
     MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(
         external_url, AllocationType::kOld);
@@ -846,7 +846,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module,
-    Vector<const char> source_url) {
+    base::Vector<const char> source_url) {
   DCHECK_EQ(this, shared_native_module->engine());
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
@@ -1052,14 +1052,14 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   if (auto* task = info->log_codes_task) {
     task->Cancel();
     for (auto& log_entry : info->code_to_log) {
-      WasmCode::DecrementRefCount(VectorOf(log_entry.second.code));
+      WasmCode::DecrementRefCount(base::VectorOf(log_entry.second.code));
     }
     info->code_to_log.clear();
   }
   DCHECK(info->code_to_log.empty());
 }
 
-void WasmEngine::LogCode(Vector<WasmCode*> code_vec) {
+void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
   if (code_vec.empty()) return;
   base::MutexGuard guard(&mutex_);
   NativeModule* native_module = code_vec[0]->native_module();
@@ -1122,7 +1122,7 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
         code->LogCode(isolate, pair.second.source_url.get(), pair.first);
       }
     }
-    WasmCode::DecrementRefCount(VectorOf(pair.second.code));
+    WasmCode::DecrementRefCount(base::VectorOf(pair.second.code));
   }
 }
 
@@ -1167,7 +1167,8 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 }
 
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
-    ModuleOrigin origin, Vector<const uint8_t> wire_bytes, Isolate* isolate) {
+    ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
+    Isolate* isolate) {
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
   bool recompile_module = false;
@@ -1312,7 +1313,7 @@ void WasmEngine::SampleTopTierCodeSizeInAllIsolates(
 }
 
 void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
-                                     Vector<WasmCode*> live_code) {
+                                     base::Vector<WasmCode*> live_code) {
   TRACE_EVENT0("v8.wasm", "wasm.ReportLiveCodeForGC");
   TRACE_CODE_GC("Isolate %d reporting %zu live code objects.\n", isolate->id(),
                 live_code.size());
@@ -1350,8 +1351,8 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
 
   CheckNoArchivedThreads(isolate);
 
-  ReportLiveCodeForGC(isolate,
-                      OwnedVector<WasmCode*>::Of(live_wasm_code).as_vector());
+  ReportLiveCodeForGC(
+      isolate, base::OwnedVector<WasmCode*>::Of(live_wasm_code).as_vector());
 }
 
 bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
@@ -1411,13 +1412,13 @@ void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code) {
       DCHECK_EQ(1, info->dead_code.count(code));
       info->dead_code.erase(code);
     }
-    native_module->FreeCode(VectorOf(code_vec));
+    native_module->FreeCode(base::VectorOf(code_vec));
   }
 }
 
 Handle<Script> WasmEngine::GetOrCreateScript(
     Isolate* isolate, const std::shared_ptr<NativeModule>& native_module,
-    Vector<const char> source_url) {
+    base::Vector<const char> source_url) {
   {
     base::MutexGuard guard(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));

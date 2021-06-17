@@ -7,6 +7,7 @@
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
+#include "src/base/vector.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
@@ -193,17 +194,17 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
-  Handle<String> InternalizeUtf8String(const Vector<const char>& str);
+  Handle<String> InternalizeUtf8String(const base::Vector<const char>& str);
   Handle<String> InternalizeUtf8String(const char* str) {
-    return InternalizeUtf8String(CStrVector(str));
+    return InternalizeUtf8String(base::CStrVector(str));
   }
 
   // Import InternalizeString overloads from base class.
   using FactoryBase::InternalizeString;
 
-  Handle<String> InternalizeString(Vector<const char> str,
+  Handle<String> InternalizeString(base::Vector<const char> str,
                                    bool convert_encoding = false) {
-    return InternalizeString(Vector<const uint8_t>::cast(str));
+    return InternalizeString(base::Vector<const uint8_t>::cast(str));
   }
 
   template <typename SeqString>
@@ -236,7 +237,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   //
   // One-byte strings are pretenured when used as keys in the SourceCodeCache.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromOneByte(
-      const Vector<const uint8_t>& str,
+      const base::Vector<const uint8_t>& str,
       AllocationType allocation = AllocationType::kYoung);
 
   template <size_t N>
@@ -244,20 +245,20 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const char (&str)[N],
       AllocationType allocation = AllocationType::kYoung) {
     DCHECK_EQ(N, strlen(str) + 1);
-    return NewStringFromOneByte(StaticOneByteVector(str), allocation)
+    return NewStringFromOneByte(base::StaticOneByteVector(str), allocation)
         .ToHandleChecked();
   }
 
   inline Handle<String> NewStringFromAsciiChecked(
       const char* str, AllocationType allocation = AllocationType::kYoung) {
-    return NewStringFromOneByte(OneByteVector(str), allocation)
+    return NewStringFromOneByte(base::OneByteVector(str), allocation)
         .ToHandleChecked();
   }
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
-      const Vector<const char>& str,
+      const base::Vector<const char>& str,
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
@@ -265,7 +266,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
-      const Vector<const uc16>& str,
+      const base::Vector<const uc16>& str,
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
@@ -629,7 +630,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Allocates a bound function.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
       Handle<JSReceiver> target_function, Handle<Object> bound_this,
-      Vector<Handle<Object>> bound_args);
+      base::Vector<Handle<Object>> bound_args);
 
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(Handle<JSReceiver> target,
@@ -1002,7 +1003,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                                 uint32_t hash_field);
 
   Handle<String> AllocateTwoByteInternalizedString(
-      const Vector<const uc16>& str, uint32_t hash_field);
+      const base::Vector<const uc16>& str, uint32_t hash_field);
 
   MaybeHandle<String> NewStringFromTwoByte(const uc16* string, int length,
                                            AllocationType allocation);

@@ -214,7 +214,7 @@ THREADED_TEST(IsolateOfContext) {
 
 static void TestSignatureLooped(const char* operation, Local<Value> receiver,
                                 v8::Isolate* isolate) {
-  i::ScopedVector<char> source(200);
+  v8::base::ScopedVector<char> source(200);
   i::SNPrintF(source,
               "for (var i = 0; i < 10; i++) {"
               "  %s"
@@ -240,7 +240,7 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
 
 static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
                                    v8::Isolate* isolate) {
-  i::ScopedVector<char> source(200);
+  v8::base::ScopedVector<char> source(200);
   i::SNPrintF(source,
               "function test() {"
               "  %s"
@@ -363,7 +363,7 @@ THREADED_TEST(ReceiverSignature) {
       "unrelated",    "inherited",        "inherited_direct"};
   unsigned bad_signature_start_offset = 3;
   for (unsigned i = 0; i < arraysize(test_objects); i++) {
-    i::ScopedVector<char> source(200);
+    v8::base::ScopedVector<char> source(200);
     i::SNPrintF(
         source, "var test_object = %s; test_object", test_objects[i]);
     Local<Value> test_object = CompileRun(source.begin());
@@ -2992,7 +2992,7 @@ THREADED_TEST(InternalFieldsOfRegularObjects) {
 
   const char* sources[] = {"new Object()", "{ a: 'a property' }", "arguments"};
   for (size_t i = 0; i < arraysize(sources); ++i) {
-    i::ScopedVector<char> source(128);
+    v8::base::ScopedVector<char> source(128);
     i::SNPrintF(source, "(function() { return %s })()", sources[i]);
     v8::Local<v8::Object> obj = CompileRun(source.begin()).As<v8::Object>();
     CHECK_EQ(0, obj->InternalFieldCount());
@@ -4129,7 +4129,7 @@ class TwoPassCallbackData {
         trigger_gc_(false),
         metadata_(metadata) {
     HandleScope scope(isolate);
-    i::ScopedVector<char> buffer(40);
+    v8::base::ScopedVector<char> buffer(40);
     i::SNPrintF(buffer, "%p", static_cast<void*>(this));
     auto string =
         v8::String::NewFromUtf8(isolate, buffer.begin()).ToLocalChecked();
@@ -4249,7 +4249,7 @@ TEST(TwoPassPhantomCallbacksTriggeredByStringAlloc) {
   data->SetWeak();
   CHECK_EQ(metadata.instance_counter, 1);
 
-  i::ScopedVector<uint8_t> source(200000);
+  v8::base::ScopedVector<uint8_t> source(200000);
   v8::HandleScope handle_scope(isolate);
   // Creating a few large strings suffices to trigger GC.
   while (metadata.instance_counter == 1) {
@@ -7280,7 +7280,7 @@ TEST(ExtensionWithSourceLength) {
   for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
        source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
     v8::HandleScope handle_scope(CcTest::isolate());
-    i::ScopedVector<char> extension_name(32);
+    v8::base::ScopedVector<char> extension_name(32);
     i::SNPrintF(extension_name, "ext #%d", source_len);
     v8::RegisterExtension(std::make_unique<Extension>(extension_name.begin(),
                                                       kEmbeddedExtensionSource,
@@ -10939,7 +10939,7 @@ THREADED_TEST(Regress91517) {
   t4->InstanceTemplate()->Set(isolate, "baz", v8_num(4));
 
   // Force dictionary-based properties.
-  i::ScopedVector<char> name_buf(1024);
+  v8::base::ScopedVector<char> name_buf(1024);
   for (int i = 1; i <= 1000; i++) {
     i::SNPrintF(name_buf, "sdf%d", i);
     t2->InstanceTemplate()->Set(v8_str(name_buf.begin()), v8_num(2));
@@ -14739,7 +14739,7 @@ TEST(ObjectClone) {
 
 class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
-  explicit OneByteVectorResource(i::Vector<const char> vector)
+  explicit OneByteVectorResource(v8::base::Vector<const char> vector)
       : data_(vector) {}
   ~OneByteVectorResource() override = default;
   size_t length() const override { return data_.length(); }
@@ -14747,13 +14747,13 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
   void Dispose() override {}
 
  private:
-  i::Vector<const char> data_;
+  v8::base::Vector<const char> data_;
 };
 
 
 class UC16VectorResource : public v8::String::ExternalStringResource {
  public:
-  explicit UC16VectorResource(i::Vector<const i::uc16> vector)
+  explicit UC16VectorResource(v8::base::Vector<const i::uc16> vector)
       : data_(vector) {}
   ~UC16VectorResource() override = default;
   size_t length() const override { return data_.length(); }
@@ -14761,7 +14761,7 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
   void Dispose() override {}
 
  private:
-  i::Vector<const i::uc16> data_;
+  v8::base::Vector<const i::uc16> data_;
 };
 
 static void MorphAString(i::String string,
@@ -14803,9 +14803,9 @@ THREADED_TEST(MorphCompositeStringTest) {
     i::Isolate* i_isolate = CcTest::i_isolate();
     v8::HandleScope scope(isolate);
     OneByteVectorResource one_byte_resource(
-        i::Vector<const char>(c_string, strlen(c_string)));
+        v8::base::Vector<const char>(c_string, strlen(c_string)));
     UC16VectorResource uc16_resource(
-        i::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
+        v8::base::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
 
     Local<String> lhs(v8::Utils::ToLocal(
         factory->NewExternalStringFromOneByte(&one_byte_resource)
@@ -15595,8 +15595,8 @@ TEST(ErrorLevelWarning) {
                                             v8::Isolate::kMessageAll);
   for (size_t i = 0; i < arraysize(levels); i++) {
     i::MessageLocation location(script, 0, 0);
-    i::Handle<i::String> msg(
-        i_isolate->factory()->InternalizeString(i::StaticCharVector("test")));
+    i::Handle<i::String> msg(i_isolate->factory()->InternalizeString(
+        v8::base::StaticCharVector("test")));
     i::Handle<i::JSMessageObject> message =
         i::MessageHandler::MakeMessageObject(
             i_isolate, i::MessageTemplate::kAsmJsInvalid, &location, msg,
@@ -18618,7 +18618,7 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
   LocalContext context(isolate);
-  i::ScopedVector<char> code(1024);
+  v8::base::ScopedVector<char> code(1024);
   i::SNPrintF(code, "function fib(n) {"
                     "  if (n <= 2) return 1;"
                     "  return fib(n-1) + fib(n-2);"
@@ -19928,7 +19928,7 @@ void RecursiveCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
     level++;
     v8::base::OS::Print("Entering recursion level %d.\n", level);
     char script[64];
-    i::Vector<char> script_vector(script, sizeof(script));
+    v8::base::Vector<char> script_vector(script, sizeof(script));
     i::SNPrintF(script_vector, "recursion(%d)", level);
     CompileRun(script_vector.begin());
     v8::base::OS::Print("Leaving recursion level %d.\n", level);
@@ -21381,7 +21381,7 @@ void CheckCorrectThrow(const char* script) {
   // The subsequent try-catch should run without any exception.
   access_check_fail_thrown = false;
   catch_callback_called = false;
-  i::ScopedVector<char> source(1024);
+  v8::base::ScopedVector<char> source(1024);
   i::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
   CompileRun(source.begin());
   CHECK(access_check_fail_thrown);
@@ -21483,10 +21483,10 @@ const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
 STATIC_ASSERT(arraysize(kOneByteSubjectString) ==
               arraysize(kTwoByteSubjectString));
 
-OneByteVectorResource one_byte_string_resource(
-    i::Vector<const char>(&kOneByteSubjectString[0], kSubjectStringLength));
-UC16VectorResource two_byte_string_resource(
-    i::Vector<const i::uc16>(&kTwoByteSubjectString[0], kSubjectStringLength));
+OneByteVectorResource one_byte_string_resource(v8::base::Vector<const char>(
+    &kOneByteSubjectString[0], kSubjectStringLength));
+UC16VectorResource two_byte_string_resource(v8::base::Vector<const i::uc16>(
+    &kTwoByteSubjectString[0], kSubjectStringLength));
 
 class RegExpInterruptTest {
  public:
@@ -22374,7 +22374,7 @@ class ApiCallOptimizationChecker {
     // With no signature, the holder is not set.
     if (signature_type == kNoSignature) holder = receiver;
     // build wrap_function
-    i::ScopedVector<char> wrap_function(200);
+    v8::base::ScopedVector<char> wrap_function(200);
     if (global) {
       i::SNPrintF(
           wrap_function,
@@ -22391,7 +22391,7 @@ class ApiCallOptimizationChecker {
           key, key, key);
     }
     // build source string
-    i::ScopedVector<char> source(1000);
+    v8::base::ScopedVector<char> source(1000);
     i::SNPrintF(source,
                 "%s\n"  // wrap functions
                 "function wrap_f() { return wrap_f_%d(); }\n"
@@ -25678,7 +25678,7 @@ TEST(ObjectTemplateArrayProtoIntrinsics) {
   };
 
   for (unsigned i = 0; i < arraysize(intrinsics_comparisons); i++) {
-    i::ScopedVector<char> test_string(64);
+    v8::base::ScopedVector<char> test_string(64);
 
     i::SNPrintF(test_string, "typeof obj1.%s",
                 intrinsics_comparisons[i].object_property_name);

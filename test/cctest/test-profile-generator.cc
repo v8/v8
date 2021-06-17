@@ -723,10 +723,10 @@ TEST(Issue51919) {
   CpuProfilesCollection collection(CcTest::i_isolate());
   CpuProfiler profiler(CcTest::i_isolate());
   collection.set_cpu_profiler(&profiler);
-  i::EmbeddedVector<char*,
-      CpuProfilesCollection::kMaxSimultaneousProfiles> titles;
+  base::EmbeddedVector<char*, CpuProfilesCollection::kMaxSimultaneousProfiles>
+      titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
-    i::Vector<char> title = i::Vector<char>::New(16);
+    base::Vector<char> title = v8::base::Vector<char>::New(16);
     i::SNPrintF(title, "%d", i);
     CHECK_EQ(CpuProfilingStatus::kStarted,
              collection.StartProfiling(title.begin()));

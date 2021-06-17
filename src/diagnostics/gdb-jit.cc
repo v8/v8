@@ -13,13 +13,13 @@
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/vector.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/handles/global-handles.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/objects.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/vector.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -1093,7 +1093,7 @@ class DebugInfoSection : public DebugSection {
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
       int current_abbreviation = 4;
 
-      EmbeddedVector<char, 256> buffer;
+      base::EmbeddedVector<char, 256> buffer;
       StringBuilder builder(buffer.begin(), buffer.length());
 
       for (int param = 0; param < params; ++param) {
@@ -1962,8 +1962,9 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
     static const int kMaxFileNameSize = 64;
     char file_name[64];
 
-    SNPrintF(Vector<char>(file_name, kMaxFileNameSize), "/tmp/elfdump%s%d.o",
-             (name_hint != nullptr) ? name_hint : "", file_num++);
+    SNPrintF(base::Vector<char>(file_name, kMaxFileNameSize),
+             "/tmp/elfdump%s%d.o", (name_hint != nullptr) ? name_hint : "",
+             file_num++);
     WriteBytes(file_name, reinterpret_cast<byte*>(entry->symfile_addr_),
                static_cast<int>(entry->symfile_size_));
   }
@@ -2023,7 +2024,7 @@ void EventHandler(const v8::JitCodeEvent* event) {
       Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
       Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
       LineInfo* lineinfo = GetLineInfo(addr);
-      EmbeddedVector<char, 256> buffer;
+      base::EmbeddedVector<char, 256> buffer;
       StringBuilder builder(buffer.begin(), buffer.length());
       builder.AddSubstring(event->name.str, static_cast<int>(event->name.len));
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.

@@ -310,12 +310,12 @@ void ValueSerializer::WriteDouble(double value) {
   WriteRawBytes(&value, sizeof(value));
 }
 
-void ValueSerializer::WriteOneByteString(Vector<const uint8_t> chars) {
+void ValueSerializer::WriteOneByteString(base::Vector<const uint8_t> chars) {
   WriteVarint<uint32_t>(chars.length());
   WriteRawBytes(chars.begin(), chars.length() * sizeof(uint8_t));
 }
 
-void ValueSerializer::WriteTwoByteString(Vector<const uc16> chars) {
+void ValueSerializer::WriteTwoByteString(base::Vector<const uc16> chars) {
   // Warning: this uses host endianness.
   WriteVarint<uint32_t>(chars.length() * sizeof(uc16));
   WriteRawBytes(chars.begin(), chars.length() * sizeof(uc16));
@@ -493,11 +493,11 @@ void ValueSerializer::WriteString(Handle<String> string) {
   String::FlatContent flat = string->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
-    Vector<const uint8_t> chars = flat.ToOneByteVector();
+    base::Vector<const uint8_t> chars = flat.ToOneByteVector();
     WriteTag(SerializationTag::kOneByteString);
     WriteOneByteString(chars);
   } else if (flat.IsTwoByte()) {
-    Vector<const uc16> chars = flat.ToUC16Vector();
+    base::Vector<const uc16> chars = flat.ToUC16Vector();
     uint32_t byte_length = chars.length() * sizeof(uc16);
     // The existing reading code expects 16-byte strings to be aligned.
     if ((buffer_size_ + 1 + BytesNeededForVarint(byte_length)) & 1)
@@ -955,17 +955,17 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
     return Nothing<bool>();
   }
 
-  if (name->IsOneByteEqualTo(CStrVector("EvalError"))) {
+  if (name->IsOneByteEqualTo(base::CStrVector("EvalError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kEvalErrorPrototype));
-  } else if (name->IsOneByteEqualTo(CStrVector("RangeError"))) {
+  } else if (name->IsOneByteEqualTo(base::CStrVector("RangeError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kRangeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(CStrVector("ReferenceError"))) {
+  } else if (name->IsOneByteEqualTo(base::CStrVector("ReferenceError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kReferenceErrorPrototype));
-  } else if (name->IsOneByteEqualTo(CStrVector("SyntaxError"))) {
+  } else if (name->IsOneByteEqualTo(base::CStrVector("SyntaxError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kSyntaxErrorPrototype));
-  } else if (name->IsOneByteEqualTo(CStrVector("TypeError"))) {
+  } else if (name->IsOneByteEqualTo(base::CStrVector("TypeError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kTypeErrorPrototype));
-  } else if (name->IsOneByteEqualTo(CStrVector("URIError"))) {
+  } else if (name->IsOneByteEqualTo(base::CStrVector("URIError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kUriErrorPrototype));
   } else {
     // The default prototype in the deserialization side is Error.prototype, so
@@ -1112,7 +1112,7 @@ void ValueSerializer::ThrowDataCloneError(MessageTemplate index,
 }
 
 ValueDeserializer::ValueDeserializer(Isolate* isolate,
-                                     Vector<const uint8_t> data,
+                                     base::Vector<const uint8_t> data,
                                      v8::ValueDeserializer::Delegate* delegate)
     : isolate_(isolate),
       delegate_(delegate),
@@ -1232,11 +1232,11 @@ Maybe<double> ValueDeserializer::ReadDouble() {
   return Just(value);
 }
 
-Maybe<Vector<const uint8_t>> ValueDeserializer::ReadRawBytes(int size) {
-  if (size > end_ - position_) return Nothing<Vector<const uint8_t>>();
+Maybe<base::Vector<const uint8_t>> ValueDeserializer::ReadRawBytes(int size) {
+  if (size > end_ - position_) return Nothing<base::Vector<const uint8_t>>();
   const uint8_t* start = position_;
   position_ += size;
-  return Just(Vector<const uint8_t>(start, size));
+  return Just(base::Vector<const uint8_t>(start, size));
 }
 
 bool ValueDeserializer::ReadUint32(uint32_t* value) {
@@ -1409,7 +1409,7 @@ MaybeHandle<BigInt> ValueDeserializer::ReadBigInt() {
   uint32_t bitfield;
   if (!ReadVarint<uint32_t>().To(&bitfield)) return MaybeHandle<BigInt>();
   int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
-  Vector<const uint8_t> digits_storage;
+  base::Vector<const uint8_t> digits_storage;
   if (!ReadRawBytes(bytelength).To(&digits_storage)) {
     return MaybeHandle<BigInt>();
   }
@@ -1418,7 +1418,7 @@ MaybeHandle<BigInt> ValueDeserializer::ReadBigInt() {
 
 MaybeHandle<String> ValueDeserializer::ReadUtf8String() {
   uint32_t utf8_length;
-  Vector<const uint8_t> utf8_bytes;
+  base::Vector<const uint8_t> utf8_bytes;
   if (!ReadVarint<uint32_t>().To(&utf8_length) ||
       utf8_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
@@ -1426,12 +1426,12 @@ MaybeHandle<String> ValueDeserializer::ReadUtf8String() {
     return MaybeHandle<String>();
   }
   return isolate_->factory()->NewStringFromUtf8(
-      Vector<const char>::cast(utf8_bytes));
+      base::Vector<const char>::cast(utf8_bytes));
 }
 
 MaybeHandle<String> ValueDeserializer::ReadOneByteString() {
   uint32_t byte_length;
-  Vector<const uint8_t> bytes;
+  base::Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
@@ -1443,7 +1443,7 @@ MaybeHandle<String> ValueDeserializer::ReadOneByteString() {
 
 MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   uint32_t byte_length;
-  Vector<const uint8_t> bytes;
+  base::Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
@@ -1476,7 +1476,7 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
 
   SerializationTag tag;
   uint32_t byte_length;
-  Vector<const uint8_t> bytes;
+  base::Vector<const uint8_t> bytes;
   if (!ReadTag().To(&tag) || !ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
@@ -1490,19 +1490,19 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
   // If the bytes are verbatim what is in the flattened string, then the string
   // is successfully consumed.
   if (tag == SerializationTag::kOneByteString && flat.IsOneByte()) {
-    Vector<const uint8_t> chars = flat.ToOneByteVector();
+    base::Vector<const uint8_t> chars = flat.ToOneByteVector();
     if (byte_length == static_cast<size_t>(chars.length()) &&
         memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
       return true;
     }
   } else if (tag == SerializationTag::kTwoByteString && flat.IsTwoByte()) {
-    Vector<const uc16> chars = flat.ToUC16Vector();
+    base::Vector<const uc16> chars = flat.ToUC16Vector();
     if (byte_length == static_cast<unsigned>(chars.length()) * sizeof(uc16) &&
         memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
       return true;
     }
   } else if (tag == SerializationTag::kUtf8String && flat.IsOneByte()) {
-    Vector<const uint8_t> chars = flat.ToOneByteVector();
+    base::Vector<const uint8_t> chars = flat.ToOneByteVector();
     if (byte_length == static_cast<size_t>(chars.length()) &&
         String::IsAscii(chars.begin(), chars.length()) &&
         memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {

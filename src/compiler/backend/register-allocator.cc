@@ -8,12 +8,12 @@
 
 #include "src/base/iterator.h"
 #include "src/base/small-vector.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/backend/spill-placer.h"
 #include "src/compiler/linkage.h"
 #include "src/strings/string-stream.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -3916,7 +3916,7 @@ void LinearScanAllocator::GetFPRegisterSet(MachineRepresentation rep,
 }
 
 void LinearScanAllocator::FindFreeRegistersForRange(
-    LiveRange* range, Vector<LifetimePosition> positions) {
+    LiveRange* range, base::Vector<LifetimePosition> positions) {
   int num_regs = num_registers();
   int num_codes = num_allocatable_registers();
   const int* codes = allocatable_register_codes();
@@ -3993,7 +3993,7 @@ void LinearScanAllocator::FindFreeRegistersForRange(
 // which are expensive.
 void LinearScanAllocator::ProcessCurrentRange(LiveRange* current,
                                               SpillMode spill_mode) {
-  EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+  base::EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
       free_until_pos;
   FindFreeRegistersForRange(current, free_until_pos);
   if (!TryAllocatePreferredReg(current, free_until_pos)) {
@@ -4007,7 +4007,7 @@ void LinearScanAllocator::ProcessCurrentRange(LiveRange* current,
 }
 
 bool LinearScanAllocator::TryAllocatePreferredReg(
-    LiveRange* current, const Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
   int hint_register;
   if (current->RegisterFromControlFlow(&hint_register) ||
       current->FirstHintPosition(&hint_register) != nullptr ||
@@ -4032,7 +4032,7 @@ bool LinearScanAllocator::TryAllocatePreferredReg(
 
 int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
     LiveRange* current, int hint_reg,
-    const Vector<LifetimePosition>& free_until_pos) {
+    const base::Vector<LifetimePosition>& free_until_pos) {
   int num_regs = 0;  // used only for the call to GetFPRegisterSet.
   int num_codes = num_allocatable_registers();
   const int* codes = allocatable_register_codes();
@@ -4074,7 +4074,7 @@ int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
 }
 
 bool LinearScanAllocator::TryAllocateFreeReg(
-    LiveRange* current, const Vector<LifetimePosition>& free_until_pos) {
+    LiveRange* current, const base::Vector<LifetimePosition>& free_until_pos) {
   // Compute register hint, if such exists.
   int hint_reg = kUnassignedRegister;
   current->RegisterFromControlFlow(&hint_reg) ||
@@ -4136,9 +4136,9 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current,
   // use_pos keeps track of positions a register/alias is used at.
   // block_pos keeps track of positions where a register/alias is blocked
   // from.
-  EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+  base::EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
       use_pos(LifetimePosition::MaxPosition());
-  EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+  base::EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
       block_pos(LifetimePosition::MaxPosition());
 
   for (LiveRange* range : active_live_ranges()) {

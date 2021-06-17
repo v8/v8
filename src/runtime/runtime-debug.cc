@@ -331,7 +331,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                          isolate->factory()->NewNumberFromSize(byte_length));
 
       // Use the backing store pointer as a unique ID
-      EmbeddedVector<char, 32> buffer_data_vec;
+      base::EmbeddedVector<char, 32> buffer_data_vec;
       int len =
           SNPrintF(buffer_data_vec, V8PRIxPTR_FMT,
                    reinterpret_cast<Address>(js_array_buffer->backing_store()));

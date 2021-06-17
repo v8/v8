@@ -248,7 +248,7 @@ void CodeAssembler::GenerateCheckMaybeObjectIsObject(TNode<MaybeObject> node,
                               IntPtrConstant(kHeapObjectTagMask)),
                       IntPtrConstant(kWeakHeapObjectTag)),
          &ok);
-  EmbeddedVector<char, 1024> message;
+  base::EmbeddedVector<char, 1024> message;
   SNPrintF(message, "no Object: %s", location);
   TNode<String> message_node = StringConstant(message.begin());
   // This somewhat misuses the AbortCSAAssert runtime function. This will print
@@ -306,7 +306,7 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
   Handle<String> internalized_string =
-      factory()->InternalizeString(OneByteVector(str));
+      factory()->InternalizeString(base::OneByteVector(str));
   return UncheckedCast<String>(HeapConstant(internalized_string));
 }
 

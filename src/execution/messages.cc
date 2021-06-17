@@ -341,7 +341,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                    GetStackFrames(isolate, elems), Object);
 
         const int argc = 2;
-        ScopedVector<Handle<Object>> argv(argc);
+        base::ScopedVector<Handle<Object>> argv(argc);
         argv[0] = error;
         argv[1] = sites;
 
@@ -422,7 +422,7 @@ Handle<String> MessageFormatter::Format(Isolate* isolate, MessageTemplate index,
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
-    return factory->InternalizeString(StaticCharVector("<error>"));
+    return factory->InternalizeString(base::StaticCharVector("<error>"));
   }
   // A string that has been obtained from JS code in this way is
   // likely to be a complicated ConsString of some sort.  We flatten it

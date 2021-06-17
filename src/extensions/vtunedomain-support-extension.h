@@ -33,8 +33,8 @@ class VTuneDomainSupportExtension : public v8::Extension {
   static void Mark(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static const char* BuildSource(char* buf, size_t size, const char* fun_name) {
-    SNPrintF(Vector<char>(buf, static_cast<int>(size)), "native function %s();",
-             fun_name);
+    SNPrintF(base::Vector<char>(buf, static_cast<int>(size)),
+             "native function %s();", fun_name);
     return buf;
   }
 

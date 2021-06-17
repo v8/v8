@@ -3255,7 +3255,8 @@ ValueDeserializer::Delegate::GetSharedArrayBufferFromId(Isolate* v8_isolate,
 }
 
 struct ValueDeserializer::PrivateData {
-  PrivateData(i::Isolate* i, i::Vector<const uint8_t> data, Delegate* delegate)
+  PrivateData(i::Isolate* i, base::Vector<const uint8_t> data,
+              Delegate* delegate)
       : isolate(i), deserializer(i, data, delegate) {}
   i::Isolate* isolate;
   i::ValueDeserializer deserializer;
@@ -3272,10 +3273,11 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
   if (base::IsValueInRangeForNumericType<int>(size)) {
     private_ = new PrivateData(
         reinterpret_cast<i::Isolate*>(isolate),
-        i::Vector<const uint8_t>(data, static_cast<int>(size)), delegate);
+        base::Vector<const uint8_t>(data, static_cast<int>(size)), delegate);
   } else {
-    private_ = new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
-                               i::Vector<const uint8_t>(nullptr, 0), nullptr);
+    private_ =
+        new PrivateData(reinterpret_cast<i::Isolate*>(isolate),
+                        base::Vector<const uint8_t>(nullptr, 0), nullptr);
     private_->has_aborted = true;
   }
 }
@@ -5351,7 +5353,7 @@ namespace {
 // units until the buffer capacity is reached, would be exceeded by the next
 // unit, or all code units have been written out.
 template <typename Char>
-static int WriteUtf8Impl(i::Vector<const Char> string, char* write_start,
+static int WriteUtf8Impl(base::Vector<const Char> string, char* write_start,
                          int write_capacity, int options,
                          int* utf16_chars_read_out) {
   bool write_null = !(options & v8::String::NO_NULL_TERMINATION);
@@ -6533,7 +6535,7 @@ inline int StringLength(const uint16_t* string) {
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            NewStringType type,
-                                           i::Vector<const char> string) {
+                                           base::Vector<const char> string) {
   if (type == NewStringType::kInternalized) {
     return factory->InternalizeUtf8String(string);
   }
@@ -6543,7 +6545,7 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 V8_WARN_UNUSED_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            NewStringType type,
-                                           i::Vector<const uint8_t> string) {
+                                           base::Vector<const uint8_t> string) {
   if (type == NewStringType::kInternalized) {
     return factory->InternalizeString(string);
   }
@@ -6551,9 +6553,9 @@ inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
 }
 
 V8_WARN_UNUSED_RESULT
-inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
-                                           NewStringType type,
-                                           i::Vector<const uint16_t> string) {
+inline i::MaybeHandle<i::String> NewString(
+    i::Factory* factory, NewStringType type,
+    base::Vector<const uint16_t> string) {
   if (type == NewStringType::kInternalized) {
     return factory->InternalizeString(string);
   }
@@ -6579,7 +6581,7 @@ STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
     if (length < 0) length = StringLength(data);                           \
     i::Handle<i::String> handle_result =                                   \
         NewString(i_isolate->factory(), type,                              \
-                  i::Vector<const Char>(data, length))                     \
+                  base::Vector<const Char>(data, length))                  \
             .ToHandleChecked();                                            \
     result = Utils::ToLocal(handle_result);                                \
   }
@@ -6592,7 +6594,7 @@ Local<String> String::NewFromUtf8Literal(Isolate* isolate, const char* literal,
   LOG_API(i_isolate, String, NewFromUtf8Literal);
   i::Handle<i::String> handle_result =
       NewString(i_isolate->factory(), type,
-                i::Vector<const char>(literal, length))
+                base::Vector<const char>(literal, length))
           .ToHandleChecked();
   return Utils::ToLocal(handle_result);
 }
@@ -7538,7 +7540,7 @@ OwnedBuffer CompiledWasmModule::Serialize() {
 
 MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 #if V8_ENABLE_WEBASSEMBLY
-  i::Vector<const uint8_t> bytes_vec = native_module_->wire_bytes();
+  base::Vector<const uint8_t> bytes_vec = native_module_->wire_bytes();
   return {bytes_vec.begin(), bytes_vec.size()};
 #else
   UNREACHABLE();
@@ -7577,7 +7579,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
   i::Handle<i::WasmModuleObject> module_object =
       i_isolate->wasm_engine()->ImportNativeModule(
           i_isolate, compiled_module.native_module_,
-          i::VectorOf(compiled_module.source_url()));
+          base::VectorOf(compiled_module.source_url()));
   return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
 #else

@@ -120,7 +120,7 @@ void CreateFramePointerGrabberConstructor(v8::Local<v8::Context> context,
 static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
                                       const char* func_name,
                                       const char* trace_func_name) {
-  i::EmbeddedVector<char, 256> trace_call_buf;
+  v8::base::EmbeddedVector<char, 256> trace_call_buf;
   i::SNPrintF(trace_call_buf,
               "function %s() {"
               "  fp = new FPGrabber();"

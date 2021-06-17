@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UTILS_VECTOR_H_
-#define V8_UTILS_VECTOR_H_
+#ifndef V8_BASE_VECTOR_H_
+#define V8_BASE_VECTOR_H_
 
 #include <algorithm>
 #include <cstring>
@@ -16,7 +16,7 @@
 #include "src/base/macros.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 template <typename T>
 class Vector {
@@ -317,7 +317,7 @@ class EmbeddedVector : public Vector<T> {
   T buffer_[kSize];
 };
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_UTILS_VECTOR_H_
+#endif  // V8_BASE_VECTOR_H_

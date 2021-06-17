@@ -1579,7 +1579,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   for (int k = 0; k < elements()->length(); k++) {
     TextElement elm = elements()->at(k);
     if (elm.text_type() == TextElement::ATOM) {
-      Vector<const uc16> quarks = elm.atom()->data();
+      base::Vector<const uc16> quarks = elm.atom()->data();
       for (int i = 0; i < characters && i < quarks.length(); i++) {
         QuickCheckDetails::Position* pos =
             details->positions(characters_filled_in);
@@ -1851,7 +1851,7 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elements()->at(i);
     if (elm.text_type() == TextElement::ATOM) {
-      Vector<const uc16> quarks = elm.atom()->data();
+      base::Vector<const uc16> quarks = elm.atom()->data();
       for (int j = 0; j < quarks.length(); j++) {
         uc16 c = quarks[j];
         if (elm.atom()->ignore_case()) {
@@ -2314,7 +2314,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler, TextEmitPassType pass,
     int cp_offset = trace->cp_offset() + elm.cp_offset() + backward_offset;
     if (elm.text_type() == TextElement::ATOM) {
       if (SkipPass(pass, elm.atom()->ignore_case())) continue;
-      Vector<const uc16> quarks = elm.atom()->data();
+      base::Vector<const uc16> quarks = elm.atom()->data();
       for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
         if (first_element_checked && i == 0 && j == 0) continue;
         if (DeterminedAlready(quick_check, elm.cp_offset() + j)) continue;

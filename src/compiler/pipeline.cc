@@ -2559,7 +2559,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
       : OptimizedCompilationJob(&info_, "TurboFan",
                                 CompilationJob::State::kReadyToExecute),
         debug_name_(std::move(debug_name)),
-        info_(CStrVector(debug_name_.get()), graph->zone(), kind),
+        info_(base::CStrVector(debug_name_.get()), graph->zone(), kind),
         call_descriptor_(call_descriptor),
         zone_stats_(zone->allocator()),
         zone_(std::move(zone)),
@@ -3012,7 +3012,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     const char* debug_name, Builtin builtin,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
     const ProfileDataFromFile* profile_data) {
-  OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
+  OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
+                                kind);
   info.set_builtin(builtin);
 
   if (poisoning_level != PoisoningMitigationLevel::kDontPoison) {
@@ -3139,7 +3140,8 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     MachineGraph* mcgraph, CodeKind kind, int wasm_kind, const char* debug_name,
     const AssemblerOptions& options, SourcePositionTable* source_positions) {
   Graph* graph = mcgraph->graph();
-  OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
+  OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
+                                kind);
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(wasm_engine->allocator());
   NodeOriginTable* node_positions = graph->zone()->New<NodeOriginTable>(graph);
@@ -3458,7 +3460,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool use_mid_tier_register_allocator,
                                            bool run_verifier) {
-  OptimizedCompilationInfo info(ArrayVector("testing"), sequence->zone(),
+  OptimizedCompilationInfo info(base::ArrayVector("testing"), sequence->zone(),
                                 CodeKind::FOR_TESTING);
   ZoneStats zone_stats(sequence->isolate()->allocator());
   PipelineData data(&zone_stats, &info, sequence->isolate(), sequence);

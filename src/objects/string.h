@@ -118,15 +118,15 @@ class String : public TorqueGeneratedString<String, Name> {
 
     // Return the one byte content of the string. Only use if IsOneByte()
     // returns true.
-    Vector<const uint8_t> ToOneByteVector() const {
+    base::Vector<const uint8_t> ToOneByteVector() const {
       DCHECK_EQ(ONE_BYTE, state_);
-      return Vector<const uint8_t>(onebyte_start, length_);
+      return base::Vector<const uint8_t>(onebyte_start, length_);
     }
     // Return the two-byte content of the string. Only use if IsTwoByte()
     // returns true.
-    Vector<const uc16> ToUC16Vector() const {
+    base::Vector<const uc16> ToUC16Vector() const {
       DCHECK_EQ(TWO_BYTE, state_);
-      return Vector<const uc16>(twobyte_start, length_);
+      return base::Vector<const uc16>(twobyte_start, length_);
     }
 
     uc16 Get(int i) const {
@@ -174,7 +174,7 @@ class String : public TorqueGeneratedString<String, Name> {
   void MakeThin(Isolate* isolate, String canonical);
 
   template <typename Char>
-  V8_INLINE Vector<const Char> GetCharVector(
+  V8_INLINE base::Vector<const Char> GetCharVector(
       const DisallowGarbageCollection& no_gc);
 
   // Get chars from sequential or external strings. May only be called when a
@@ -332,7 +332,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // The Isolate is passed as "evidence" that this call is on the main thread,
   // and to distiguish from the LocalIsolate overload.
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
-  inline bool IsEqualTo(Vector<const Char> str, Isolate* isolate) const;
+  inline bool IsEqualTo(base::Vector<const Char> str, Isolate* isolate) const;
 
   // Check if this string matches the given vector of characters, either as a
   // whole string or just a prefix.
@@ -340,7 +340,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // This is main-thread only, like the Isolate* overload, but additionally
   // computes the PtrComprCageBase for IsEqualToImpl.
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
-  inline bool IsEqualTo(Vector<const Char> str) const;
+  inline bool IsEqualTo(base::Vector<const Char> str) const;
 
   // Check if this string matches the given vector of characters, either as a
   // whole string or just a prefix.
@@ -348,10 +348,11 @@ class String : public TorqueGeneratedString<String, Name> {
   // The LocalIsolate is passed to provide access to the string access lock,
   // which is taken when reading the string's contents on a background thread.
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
-  inline bool IsEqualTo(Vector<const Char> str, LocalIsolate* isolate) const;
+  inline bool IsEqualTo(base::Vector<const Char> str,
+                        LocalIsolate* isolate) const;
 
-  V8_EXPORT_PRIVATE bool HasOneBytePrefix(Vector<const char> str);
-  V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(Vector<const char> str);
+  V8_EXPORT_PRIVATE bool HasOneBytePrefix(base::Vector<const char> str);
+  V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(base::Vector<const char> str);
 
   // Return a UTF8 representation of the string.  The string is null
   // terminated but may optionally contain nulls.  Length is returned
@@ -552,13 +553,13 @@ class String : public TorqueGeneratedString<String, Name> {
   // Implementation of the IsEqualTo() public methods. Do not use directly.
   template <EqualityType kEqType, typename Char>
   V8_INLINE bool IsEqualToImpl(
-      Vector<const Char> str, PtrComprCageBase cage_base,
+      base::Vector<const Char> str, PtrComprCageBase cage_base,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // Out-of-line IsEqualToImpl for ConsString.
   template <typename Char>
   V8_NOINLINE static bool IsConsStringEqualToImpl(
-      ConsString string, int slice_offset, Vector<const Char> str,
+      ConsString string, int slice_offset, base::Vector<const Char> str,
       PtrComprCageBase cage_base,
       const SharedStringAccessGuardIfNeeded& access_guard);
 

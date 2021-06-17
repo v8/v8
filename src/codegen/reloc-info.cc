@@ -288,9 +288,9 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
                     desc.buffer + desc.buffer_size - desc.reloc_size,
                     mode_mask) {}
 
-RelocIterator::RelocIterator(Vector<byte> instructions,
-                             Vector<const byte> reloc_info, Address const_pool,
-                             int mode_mask)
+RelocIterator::RelocIterator(base::Vector<byte> instructions,
+                             base::Vector<const byte> reloc_info,
+                             Address const_pool, int mode_mask)
     : RelocIterator(Code(), reinterpret_cast<Address>(instructions.begin()),
                     const_pool, reloc_info.begin() + reloc_info.size(),
                     reloc_info.begin(), mode_mask) {}

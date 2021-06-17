@@ -5,7 +5,7 @@
 #ifndef V8_NUMBERS_DTOA_H_
 #define V8_NUMBERS_DTOA_H_
 
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -62,8 +62,9 @@ const int kBase10MaximalLength = 17;
 // at least kBase10MaximalLength + 1. Otherwise, the size of the output is
 // limited to requested_digits digits plus the null terminator.
 V8_EXPORT_PRIVATE void DoubleToAscii(double v, DtoaMode mode,
-                                     int requested_digits, Vector<char> buffer,
-                                     int* sign, int* length, int* point);
+                                     int requested_digits,
+                                     base::Vector<char> buffer, int* sign,
+                                     int* length, int* point);
 
 }  // namespace internal
 }  // namespace v8

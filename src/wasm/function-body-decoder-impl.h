@@ -948,7 +948,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(LocalSet, const Value& value, const IndexImmediate<validate>& imm)        \
   F(LocalTee, const Value& value, Value* result,                              \
     const IndexImmediate<validate>& imm)                                      \
-  F(AllocateLocals, Vector<Value> local_values)                               \
+  F(AllocateLocals, base::Vector<Value> local_values)                         \
   F(DeallocateLocals, uint32_t count)                                         \
   F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)      \
   F(GlobalSet, const Value& value, const GlobalIndexImmediate<validate>& imm) \
@@ -993,20 +993,20 @@ struct ControlBase : public PcForErrors<validate> {
     const CallIndirectImmediate<validate>& imm, const Value args[])           \
   F(BrOnNull, const Value& ref_object, uint32_t depth)                        \
   F(BrOnNonNull, const Value& ref_object, uint32_t depth)                     \
-  F(SimdOp, WasmOpcode opcode, Vector<Value> args, Value* result)             \
+  F(SimdOp, WasmOpcode opcode, base::Vector<Value> args, Value* result)       \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,    \
-    const Vector<Value> inputs, Value* result)                                \
+    const base::Vector<Value> inputs, Value* result)                          \
   F(S128Const, const Simd128Immediate<validate>& imm, Value* result)          \
   F(Simd8x16ShuffleOp, const Simd128Immediate<validate>& imm,                 \
     const Value& input0, const Value& input1, Value* result)                  \
   F(Throw, const ExceptionIndexImmediate<validate>& imm,                      \
-    const Vector<Value>& args)                                                \
+    const base::Vector<Value>& args)                                          \
   F(Rethrow, Control* block)                                                  \
   F(CatchException, const ExceptionIndexImmediate<validate>& imm,             \
-    Control* block, Vector<Value> caught_values)                              \
+    Control* block, base::Vector<Value> caught_values)                        \
   F(Delegate, uint32_t depth, Control* block)                                 \
   F(CatchAll, Control* block)                                                 \
-  F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                          \
+  F(AtomicOp, WasmOpcode opcode, base::Vector<Value> args,                    \
     const MemoryAccessImmediate<validate>& imm, Value* result)                \
   F(AtomicFence)                                                              \
   F(MemoryInit, const MemoryInitImmediate<validate>& imm, const Value& dst,   \
@@ -1016,9 +1016,11 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& src, const Value& size)                                      \
   F(MemoryFill, const MemoryIndexImmediate<validate>& imm, const Value& dst,  \
     const Value& value, const Value& size)                                    \
-  F(TableInit, const TableInitImmediate<validate>& imm, Vector<Value> args)   \
+  F(TableInit, const TableInitImmediate<validate>& imm,                       \
+    base::Vector<Value> args)                                                 \
   F(ElemDrop, const IndexImmediate<validate>& imm)                            \
-  F(TableCopy, const TableCopyImmediate<validate>& imm, Vector<Value> args)   \
+  F(TableCopy, const TableCopyImmediate<validate>& imm,                       \
+    base::Vector<Value> args)                                                 \
   F(TableGrow, const IndexImmediate<validate>& imm, const Value& value,       \
     const Value& delta, Value* result)                                        \
   F(TableSize, const IndexImmediate<validate>& imm, Value* result)            \
@@ -2105,7 +2107,7 @@ template <Decoder::ValidateFlag validate, typename Interface>
 class WasmFullDecoder : public WasmDecoder<validate> {
   using Value = typename Interface::Value;
   using Control = typename Interface::Control;
-  using ArgVector = Vector<Value>;
+  using ArgVector = base::Vector<Value>;
   using ReturnVector = base::SmallVector<Value, 2>;
 
   // All Value types should be trivially copyable for performance. We push, pop,
@@ -2296,7 +2298,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       va_list va_args;
       va_start(va_args, format);
       size_t remaining_len = kMaxLen - len_;
-      Vector<char> remaining_msg_space(buffer_ + len_, remaining_len);
+      base::Vector<char> remaining_msg_space(buffer_ + len_, remaining_len);
       int len = VSNPrintF(remaining_msg_space, format, va_args);
       va_end(va_args);
       len_ += len < 0 ? remaining_len : len;
@@ -2410,7 +2412,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     ExceptionIndexImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     ArgVector args = PeekArgs(imm.exception->ToFunctionSig());
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(Throw, imm, VectorOf(args));
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(Throw, imm, base::VectorOf(args));
     DropArgs(imm.exception->ToFunctionSig());
     EndControl();
     return 1 + imm.length;
@@ -2458,7 +2460,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (size_t i = 0, e = sig->parameter_count(); i < e; ++i) {
       Push(CreateValue(sig->GetParam(i)));
     }
-    Vector<Value> values(stack_ + c->stack_depth, sig->parameter_count());
+    base::Vector<Value> values(stack_ + c->stack_depth, sig->parameter_count());
     current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchException, imm, c, values);
     current_code_reachable_and_ok_ = this->ok() && c->reachable();
@@ -2613,14 +2615,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
     ArgVector let_local_values =
         PeekArgs(static_cast<uint32_t>(imm.in_arity()),
-                 VectorOf(this->local_types_.data(), new_locals_count));
+                 base::VectorOf(this->local_types_.data(), new_locals_count));
     ArgVector args = PeekArgs(imm.sig, new_locals_count);
     Control* let_block = PushControl(kControlLet, new_locals_count,
                                      let_local_values.length() + args.length());
     SetBlockType(let_block, imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Block, let_block);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(AllocateLocals,
-                                       VectorOf(let_local_values));
+                                       base::VectorOf(let_local_values));
     Drop(new_locals_count);  // Drop {let_local_values}.
     DropArgs(imm.sig);       // Drop {args}.
     PushMergeValues(let_block, &let_block->start_merge);
@@ -3538,7 +3540,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   V8_INLINE ArgVector PeekArgs(uint32_t base_index,
-                               Vector<ValueType> arg_types) {
+                               base::Vector<ValueType> arg_types) {
     int size = static_cast<int>(arg_types.size());
     EnsureStackArguments(size);
     ArgVector args(stack_value(size), arg_types.size());
@@ -3689,7 +3691,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Value inputs[] = {Peek(0, 0, kWasmS128)};
       Value result = CreateValue(type);
       CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdLaneOp, opcode, imm,
-                                         ArrayVector(inputs), &result);
+                                         base::ArrayVector(inputs), &result);
       Drop(1);
       Push(result);
     }
@@ -3703,7 +3705,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       Value inputs[2] = {Peek(1, 0, kWasmS128), Peek(0, 1, type)};
       Value result = CreateValue(kWasmS128);
       CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdLaneOp, opcode, imm,
-                                         ArrayVector(inputs), &result);
+                                         base::ArrayVector(inputs), &result);
       Drop(2);
       Push(result);
     }
@@ -3836,13 +3838,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         ArgVector args = PeekArgs(sig);
         if (sig->return_count() == 0) {
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdOp, opcode, VectorOf(args),
-                                             nullptr);
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdOp, opcode,
+                                             base::VectorOf(args), nullptr);
           DropArgs(sig);
         } else {
           ReturnVector results = CreateReturnValues(sig);
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdOp, opcode, VectorOf(args),
-                                             results.begin());
+          CALL_INTERFACE_IF_OK_AND_REACHABLE(
+              SimdOp, opcode, base::VectorOf(args), results.begin());
           DropArgs(sig);
           PushReturns(results);
         }
@@ -4588,13 +4590,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     CHECK(!this->module_->is_memory64);
     ArgVector args = PeekArgs(sig);
     if (ret_type == kWasmVoid) {
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode, VectorOf(args), imm,
-                                         nullptr);
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode, base::VectorOf(args),
+                                         imm, nullptr);
       DropArgs(sig);
     } else {
       Value result = CreateValue(GetReturnType(sig));
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode, VectorOf(args), imm,
-                                         &result);
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode, base::VectorOf(args),
+                                         imm, &result);
       DropArgs(sig);
       Push(result);
     }
@@ -4662,7 +4664,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         TableInitImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ArgVector args = PeekArgs(sig);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(TableInit, imm, VectorOf(args));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(TableInit, imm,
+                                           base::VectorOf(args));
         DropArgs(sig);
         return opcode_length + imm.length;
       }
@@ -4679,7 +4682,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         TableCopyImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ArgVector args = PeekArgs(sig);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(TableCopy, imm, VectorOf(args));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(TableCopy, imm,
+                                           base::VectorOf(args));
         DropArgs(sig);
         return opcode_length + imm.length;
       }

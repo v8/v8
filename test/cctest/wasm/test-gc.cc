@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
+#include "src/base/vector.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-arguments.h"
@@ -69,7 +69,7 @@ class WasmGCTester {
                               std::initializer_list<byte> code) {
     WasmFunctionBuilder* fun = builder_.AddFunction(sig);
     fun->EmitCode(code.begin(), static_cast<uint32_t>(code.size()));
-    builder_.AddExport(CStrVector(name), fun);
+    builder_.AddExport(base::CStrVector(name), fun);
   }
 
   MaybeHandle<Object> CallExportedFunction(const char* name, int argc,

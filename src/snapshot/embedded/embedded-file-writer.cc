@@ -52,7 +52,7 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   const bool is_default_variant =
       std::strcmp(embedded_variant_, kDefaultEmbeddedVariant) == 0;
 
-  i::EmbeddedVector<char, kTemporaryStringLength> builtin_symbol;
+  base::EmbeddedVector<char, kTemporaryStringLength> builtin_symbol;
   if (is_default_variant) {
     // Create nicer symbol names for the default mode.
     i::SNPrintF(builtin_symbol, "Builtins_%s", i::Builtins::name(builtin));
@@ -71,7 +71,8 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   const std::vector<byte>& current_positions = source_positions_[builtin_id];
   // The code below interleaves bytes of assembly code for the builtin
   // function with source positions at the appropriate offsets.
-  Vector<const byte> vpos(current_positions.data(), current_positions.size());
+  base::Vector<const byte> vpos(current_positions.data(),
+                                current_positions.size());
   v8::internal::SourcePositionTableIterator positions(
       vpos, SourcePositionTableIterator::kExternalOnly);
 
@@ -168,7 +169,8 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
 void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                                            const i::EmbeddedData* blob) const {
   {
-    i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_code_symbol;
+    base::EmbeddedVector<char, kTemporaryStringLength>
+        embedded_blob_code_symbol;
     i::SNPrintF(embedded_blob_code_symbol, "v8_%s_embedded_blob_code_",
                 embedded_variant_);
 
@@ -179,7 +181,8 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                               EmbeddedBlobCodeDataSymbol().c_str());
     w->Newline();
 
-    i::EmbeddedVector<char, kTemporaryStringLength> embedded_blob_data_symbol;
+    base::EmbeddedVector<char, kTemporaryStringLength>
+        embedded_blob_data_symbol;
     i::SNPrintF(embedded_blob_data_symbol, "v8_%s_embedded_blob_data_",
                 embedded_variant_);
 
@@ -191,7 +194,7 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
   }
 
   {
-    i::EmbeddedVector<char, kTemporaryStringLength>
+    base::EmbeddedVector<char, kTemporaryStringLength>
         embedded_blob_code_size_symbol;
     i::SNPrintF(embedded_blob_code_size_symbol,
                 "v8_%s_embedded_blob_code_size_", embedded_variant_);
@@ -202,7 +205,7 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
     w->DeclareUint32(embedded_blob_code_size_symbol.begin(), blob->code_size());
     w->Newline();
 
-    i::EmbeddedVector<char, kTemporaryStringLength>
+    base::EmbeddedVector<char, kTemporaryStringLength>
         embedded_blob_data_size_symbol;
     i::SNPrintF(embedded_blob_data_size_symbol,
                 "v8_%s_embedded_blob_data_size_", embedded_variant_);
@@ -214,7 +217,7 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
 
 #if defined(V8_OS_WIN64)
   {
-    i::EmbeddedVector<char, kTemporaryStringLength> unwind_info_symbol;
+    base::EmbeddedVector<char, kTemporaryStringLength> unwind_info_symbol;
     i::SNPrintF(unwind_info_symbol, "%s_Builtins_UnwindInfo",
                 embedded_variant_);
 

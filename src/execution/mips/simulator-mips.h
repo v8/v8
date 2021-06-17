@@ -404,7 +404,7 @@ class Simulator : public SimulatorBase {
   void TraceMemRd(int32_t addr, T value);
   template <typename T>
   void TraceMemWr(int32_t addr, T value);
-  EmbeddedVector<char, 128> trace_buf_;
+  base::EmbeddedVector<char, 128> trace_buf_;
 
   // Operations depending on endianness.
   // Get Double Higher / Lower word.

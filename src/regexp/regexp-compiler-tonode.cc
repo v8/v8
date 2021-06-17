@@ -1134,8 +1134,8 @@ void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
   }
 }
 
-Vector<const int> CharacterRange::GetWordBounds() {
-  return Vector<const int>(kWordRanges, kWordRangeCount - 1);
+base::Vector<const int> CharacterRange::GetWordBounds() {
+  return base::Vector<const int>(kWordRanges, kWordRangeCount - 1);
 }
 
 // static

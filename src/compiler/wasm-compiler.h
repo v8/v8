@@ -268,14 +268,15 @@ class WasmGraphBuilder {
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* MemoryGrow(Node* input);
   Node* Throw(uint32_t exception_index, const wasm::WasmException* exception,
-              const Vector<Node*> values, wasm::WasmCodePosition position);
+              const base::Vector<Node*> values,
+              wasm::WasmCodePosition position);
   Node* Rethrow(Node* except_obj);
   Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
   Node* LoadExceptionTagFromTable(uint32_t exception_index);
   Node* GetExceptionTag(Node* except_obj);
   Node* GetExceptionValues(Node* except_obj,
                            const wasm::WasmException* exception,
-                           Vector<Node*> values_out);
+                           base::Vector<Node*> values_out);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
@@ -311,31 +312,34 @@ class WasmGraphBuilder {
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
-  Node* Return(Vector<Node*> nodes);
+  Node* Return(base::Vector<Node*> nodes);
   template <typename... Nodes>
   Node* Return(Node* fst, Nodes*... more) {
     Node* arr[] = {fst, more...};
-    return Return(ArrayVector(arr));
+    return Return(base::ArrayVector(arr));
   }
 
   void TraceFunctionEntry(wasm::WasmCodePosition position);
-  void TraceFunctionExit(Vector<Node*> vals, wasm::WasmCodePosition position);
+  void TraceFunctionExit(base::Vector<Node*> vals,
+                         wasm::WasmCodePosition position);
 
   void Trap(wasm::TrapReason reason, wasm::WasmCodePosition position);
 
-  Node* CallDirect(uint32_t index, Vector<Node*> args, Vector<Node*> rets,
-                   wasm::WasmCodePosition position);
+  Node* CallDirect(uint32_t index, base::Vector<Node*> args,
+                   base::Vector<Node*> rets, wasm::WasmCodePosition position);
   Node* CallIndirect(uint32_t table_index, uint32_t sig_index,
-                     Vector<Node*> args, Vector<Node*> rets,
+                     base::Vector<Node*> args, base::Vector<Node*> rets,
                      wasm::WasmCodePosition position);
-  Node* CallRef(uint32_t sig_index, Vector<Node*> args, Vector<Node*> rets,
-                CheckForNull null_check, wasm::WasmCodePosition position);
+  Node* CallRef(uint32_t sig_index, base::Vector<Node*> args,
+                base::Vector<Node*> rets, CheckForNull null_check,
+                wasm::WasmCodePosition position);
 
-  Node* ReturnCall(uint32_t index, Vector<Node*> args,
+  Node* ReturnCall(uint32_t index, base::Vector<Node*> args,
                    wasm::WasmCodePosition position);
   Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
-                           Vector<Node*> args, wasm::WasmCodePosition position);
-  Node* ReturnCallRef(uint32_t sig_index, Vector<Node*> args,
+                           base::Vector<Node*> args,
+                           wasm::WasmCodePosition position);
+  Node* ReturnCallRef(uint32_t sig_index, base::Vector<Node*> args,
                       CheckForNull null_check, wasm::WasmCodePosition position);
 
   void BrOnNull(Node* ref_object, Node** non_null_node, Node** null_node);
@@ -454,7 +458,7 @@ class WasmGraphBuilder {
   void TableFill(uint32_t table_index, Node* start, Node* value, Node* count);
 
   Node* StructNewWithRtt(uint32_t struct_index, const wasm::StructType* type,
-                         Node* rtt, Vector<Node*> fields);
+                         Node* rtt, base::Vector<Node*> fields);
   Node* StructGet(Node* struct_object, const wasm::StructType* struct_type,
                   uint32_t field_index, CheckForNull null_check, bool is_signed,
                   wasm::WasmCodePosition position);
@@ -561,7 +565,7 @@ class WasmGraphBuilder {
 
   template <typename... Args>
   Node* BuildCCall(MachineSignature* sig, Node* function, Args... args);
-  Node* BuildCallNode(const wasm::FunctionSig* sig, Vector<Node*> args,
+  Node* BuildCallNode(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                       wasm::WasmCodePosition position, Node* instance_node,
                       const Operator* op, Node* frame_state = nullptr);
   // Helper function for {BuildIndirectCall}.
@@ -569,24 +573,28 @@ class WasmGraphBuilder {
                                  Node** ift_sig_ids, Node** ift_targets,
                                  Node** ift_instances);
   Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index,
-                          Vector<Node*> args, Vector<Node*> rets,
+                          base::Vector<Node*> args, base::Vector<Node*> rets,
                           wasm::WasmCodePosition position,
                           IsReturnCall continuation);
-  Node* BuildWasmCall(const wasm::FunctionSig* sig, Vector<Node*> args,
-                      Vector<Node*> rets, wasm::WasmCodePosition position,
+  Node* BuildWasmCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
+                      base::Vector<Node*> rets, wasm::WasmCodePosition position,
                       Node* instance_node, UseRetpoline use_retpoline,
                       Node* frame_state = nullptr);
-  Node* BuildWasmReturnCall(const wasm::FunctionSig* sig, Vector<Node*> args,
+  Node* BuildWasmReturnCall(const wasm::FunctionSig* sig,
+                            base::Vector<Node*> args,
                             wasm::WasmCodePosition position,
                             Node* instance_node, UseRetpoline use_retpoline);
-  Node* BuildImportCall(const wasm::FunctionSig* sig, Vector<Node*> args,
-                        Vector<Node*> rets, wasm::WasmCodePosition position,
-                        int func_index, IsReturnCall continuation);
-  Node* BuildImportCall(const wasm::FunctionSig* sig, Vector<Node*> args,
-                        Vector<Node*> rets, wasm::WasmCodePosition position,
-                        Node* func_index, IsReturnCall continuation);
-  Node* BuildCallRef(uint32_t sig_index, Vector<Node*> args, Vector<Node*> rets,
-                     CheckForNull null_check, IsReturnCall continuation,
+  Node* BuildImportCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
+                        base::Vector<Node*> rets,
+                        wasm::WasmCodePosition position, int func_index,
+                        IsReturnCall continuation);
+  Node* BuildImportCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
+                        base::Vector<Node*> rets,
+                        wasm::WasmCodePosition position, Node* func_index,
+                        IsReturnCall continuation);
+  Node* BuildCallRef(uint32_t sig_index, base::Vector<Node*> args,
+                     base::Vector<Node*> rets, CheckForNull null_check,
+                     IsReturnCall continuation,
                      wasm::WasmCodePosition position);
 
   Node* BuildF32CopySign(Node* left, Node* right);

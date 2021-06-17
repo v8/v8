@@ -206,7 +206,7 @@ int Deserializer::WriteExternalPointer(TSlot dest, Address value,
   return (kExternalPointerSize / TSlot::kSlotDataSize);
 }
 
-Deserializer::Deserializer(Isolate* isolate, Vector<const byte> payload,
+Deserializer::Deserializer(Isolate* isolate, base::Vector<const byte> payload,
                            uint32_t magic_number, bool deserializing_user_code,
                            bool can_rehash)
     : isolate_(isolate),

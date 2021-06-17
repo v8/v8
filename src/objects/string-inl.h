@@ -322,13 +322,13 @@ Char FlatStringReader::Get(int index) const {
 template <typename Char>
 class SequentialStringKey final : public StringTableKey {
  public:
-  SequentialStringKey(const Vector<const Char>& chars, uint64_t seed,
+  SequentialStringKey(const base::Vector<const Char>& chars, uint64_t seed,
                       bool convert = false)
       : SequentialStringKey(StringHasher::HashSequentialString<Char>(
                                 chars.begin(), chars.length(), seed),
                             chars, convert) {}
 
-  SequentialStringKey(int raw_hash_field, const Vector<const Char>& chars,
+  SequentialStringKey(int raw_hash_field, const base::Vector<const Char>& chars,
                       bool convert = false)
       : StringTableKey(raw_hash_field, chars.length()),
         chars_(chars),
@@ -342,23 +342,23 @@ class SequentialStringKey final : public StringTableKey {
   Handle<String> AsHandle(Isolate* isolate) {
     if (sizeof(Char) == 1) {
       return isolate->factory()->NewOneByteInternalizedString(
-          Vector<const uint8_t>::cast(chars_), raw_hash_field());
+          base::Vector<const uint8_t>::cast(chars_), raw_hash_field());
     }
     return isolate->factory()->NewTwoByteInternalizedString(
-        Vector<const uint16_t>::cast(chars_), raw_hash_field());
+        base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
   }
 
   Handle<String> AsHandle(LocalIsolate* isolate) {
     if (sizeof(Char) == 1) {
       return isolate->factory()->NewOneByteInternalizedString(
-          Vector<const uint8_t>::cast(chars_), raw_hash_field());
+          base::Vector<const uint8_t>::cast(chars_), raw_hash_field());
     }
     return isolate->factory()->NewTwoByteInternalizedString(
-        Vector<const uint16_t>::cast(chars_), raw_hash_field());
+        base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
   }
 
  private:
-  Vector<const Char> chars_;
+  base::Vector<const Char> chars_;
   bool convert_;
 };
 
@@ -403,7 +403,7 @@ class SeqSubStringKey final : public StringTableKey {
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*string_));
     DisallowGarbageCollection no_gc;
     return string.IsEqualTo<String::EqualityType::kNoLengthCheck>(
-        Vector<const Char>(string_->GetChars(no_gc) + from_, length()),
+        base::Vector<const Char>(string_->GetChars(no_gc) + from_, length()),
         isolate);
   }
 
@@ -453,28 +453,29 @@ bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
 }
 
 template <String::EqualityType kEqType, typename Char>
-bool String::IsEqualTo(Vector<const Char> str, Isolate* isolate) const {
+bool String::IsEqualTo(base::Vector<const Char> str, Isolate* isolate) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return IsEqualToImpl<kEqType>(str, isolate,
                                 SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
 template <String::EqualityType kEqType, typename Char>
-bool String::IsEqualTo(Vector<const Char> str) const {
+bool String::IsEqualTo(base::Vector<const Char> str) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return IsEqualToImpl<kEqType>(str, GetPtrComprCageBase(*this),
                                 SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
 template <String::EqualityType kEqType, typename Char>
-bool String::IsEqualTo(Vector<const Char> str, LocalIsolate* isolate) const {
+bool String::IsEqualTo(base::Vector<const Char> str,
+                       LocalIsolate* isolate) const {
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   return IsEqualToImpl<kEqType>(str, isolate, access_guard);
 }
 
 template <String::EqualityType kEqType, typename Char>
 bool String::IsEqualToImpl(
-    Vector<const Char> str, PtrComprCageBase cage_base,
+    base::Vector<const Char> str, PtrComprCageBase cage_base,
     const SharedStringAccessGuardIfNeeded& access_guard) const {
   size_t len = str.size();
   switch (kEqType) {
@@ -547,7 +548,7 @@ bool String::IsEqualToImpl(
 // static
 template <typename Char>
 bool String::IsConsStringEqualToImpl(
-    ConsString string, int slice_offset, Vector<const Char> str,
+    ConsString string, int slice_offset, base::Vector<const Char> str,
     PtrComprCageBase cage_base,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   // Already checked the len in IsEqualToImpl. Check GE rather than EQ in case
@@ -555,13 +556,13 @@ bool String::IsConsStringEqualToImpl(
   DCHECK_GE(string.length(), str.size());
 
   ConsStringIterator iter(ConsString::cast(string), slice_offset);
-  Vector<const Char> remaining_str = str;
+  base::Vector<const Char> remaining_str = str;
   for (String segment = iter.Next(&slice_offset); !segment.is_null();
        segment = iter.Next(&slice_offset)) {
     // Compare the individual segment against the appropriate subvector of the
     // remaining string.
     size_t len = std::min<size_t>(segment.length(), remaining_str.size());
-    Vector<const Char> sub_str = remaining_str.SubVector(0, len);
+    base::Vector<const Char> sub_str = remaining_str.SubVector(0, len);
     if (!segment.IsEqualToImpl<EqualityType::kNoLengthCheck>(sub_str, cage_base,
                                                              access_guard)) {
       return false;
@@ -574,7 +575,9 @@ bool String::IsConsStringEqualToImpl(
   return true;
 }
 
-bool String::IsOneByteEqualTo(Vector<const char> str) { return IsEqualTo(str); }
+bool String::IsOneByteEqualTo(base::Vector<const char> str) {
+  return IsEqualTo(str);
+}
 
 template <typename Char>
 const Char* String::GetChars(const DisallowGarbageCollection& no_gc) const {
@@ -755,7 +758,7 @@ ConsString String::VisitFlat(
 }
 
 template <>
-inline Vector<const uint8_t> String::GetCharVector(
+inline base::Vector<const uint8_t> String::GetCharVector(
     const DisallowGarbageCollection& no_gc) {
   String::FlatContent flat = GetFlatContent(no_gc);
   DCHECK(flat.IsOneByte());
@@ -763,7 +766,7 @@ inline Vector<const uint8_t> String::GetCharVector(
 }
 
 template <>
-inline Vector<const uc16> String::GetCharVector(
+inline base::Vector<const uc16> String::GetCharVector(
     const DisallowGarbageCollection& no_gc) {
   String::FlatContent flat = GetFlatContent(no_gc);
   DCHECK(flat.IsTwoByte());

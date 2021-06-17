@@ -28,7 +28,7 @@
 #ifndef GAY_FIXED_H_
 #define GAY_FIXED_H_
 
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -42,7 +42,7 @@ struct PrecomputedFixed {
 
 // Returns precomputed values of dtoa. The strings have been generated using
 // Gay's dtoa in mode "fixed".
-Vector<const PrecomputedFixed> PrecomputedFixedRepresentations();
+base::Vector<const PrecomputedFixed> PrecomputedFixedRepresentations();
 
 }  // namespace internal
 }  // namespace v8

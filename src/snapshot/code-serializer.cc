@@ -479,12 +479,12 @@ ScriptData* SerializedCodeData::GetScriptData() {
   return result;
 }
 
-Vector<const byte> SerializedCodeData::Payload() const {
+base::Vector<const byte> SerializedCodeData::Payload() const {
   const byte* payload = data_ + kHeaderSize;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
   int length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
-  return Vector<const byte>(payload, length);
+  return base::Vector<const byte>(payload, length);
 }
 
 SerializedCodeData::SerializedCodeData(ScriptData* data)

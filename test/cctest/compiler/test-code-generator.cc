@@ -971,7 +971,7 @@ class CodeGeneratorTester {
   explicit CodeGeneratorTester(TestEnvironment* environment,
                                int extra_stack_space = 0)
       : zone_(environment->main_zone()),
-        info_(ArrayVector("test"), environment->main_zone(),
+        info_(base::ArrayVector("test"), environment->main_zone(),
               CodeKind::FOR_TESTING),
         linkage_(environment->test_descriptor()),
         frame_(environment->test_descriptor()->CalculateFixedFrameSize(
@@ -1490,8 +1490,8 @@ TEST(Regress_1171759) {
 
   m.Return(m.Int32Constant(0));
 
-  OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                CodeKind::WASM_FUNCTION);
+  OptimizedCompilationInfo info(base::ArrayVector("testing"),
+                                handles.main_zone(), CodeKind::WASM_FUNCTION);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(
           &info, handles.main_isolate(), desc, m.graph(),

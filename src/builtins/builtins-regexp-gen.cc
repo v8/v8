@@ -857,7 +857,8 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(
 
   PrototypeCheckAssembler prototype_check_assembler(
       state(), prototype_check_flags, native_context, initial_proto_initial_map,
-      Vector<DescriptorIndexNameValue>(properties_to_check, property_count));
+      base::Vector<DescriptorIndexNameValue>(properties_to_check,
+                                             property_count));
 
   TNode<HeapObject> prototype = LoadMapPrototype(map);
   prototype_check_assembler.CheckAndBranch(prototype, if_isunmodified,

@@ -21,12 +21,12 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/base/vector.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-constants.h"
@@ -2136,8 +2136,8 @@ static constexpr SwizzleTestArgs swizzle_test_args[] = {
      {16, 17, 18, 19, 20, 124, 125, 126, 127, -1, -2, -3, -4, -5, -6, -7},
      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}};
 
-static constexpr Vector<const SwizzleTestArgs> swizzle_test_vector =
-    ArrayVector(swizzle_test_args);
+static constexpr base::Vector<const SwizzleTestArgs> swizzle_test_vector =
+    base::ArrayVector(swizzle_test_args);
 
 WASM_SIMD_TEST(I8x16Swizzle) {
   // RunBinaryLaneOpTest set up the two globals to be consecutive integers,

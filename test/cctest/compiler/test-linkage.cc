@@ -30,7 +30,7 @@ static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
 static Handle<JSFunction> Compile(const char* source) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<String> source_code = isolate->factory()
-                                   ->NewStringFromUtf8(CStrVector(source))
+                                   ->NewStringFromUtf8(base::CStrVector(source))
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
@@ -108,7 +108,7 @@ TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable = Builtins::CallableFor(isolate, Builtin::kToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone,
+  OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
                                 CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
@@ -130,7 +130,7 @@ TEST(TestFPLinkageStubCall) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable =
       Builtins::CallableFor(isolate, Builtin::kWasmFloat64ToNumber);
-  OptimizedCompilationInfo info(ArrayVector("test"), &zone,
+  OptimizedCompilationInfo info(base::ArrayVector("test"), &zone,
                                 CodeKind::FOR_TESTING);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,

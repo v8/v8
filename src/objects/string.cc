@@ -150,7 +150,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     DCHECK(static_cast<size_t>(this->length()) == resource->length());
-    ScopedVector<uc16> smart_chars(this->length());
+    base::ScopedVector<uc16> smart_chars(this->length());
     String::WriteToFlat(*this, smart_chars.begin(), 0, this->length());
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
@@ -224,11 +224,11 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     // Assert that the resource and the string are equivalent.
     DCHECK(static_cast<size_t>(this->length()) == resource->length());
     if (this->IsTwoByteRepresentation()) {
-      ScopedVector<uint16_t> smart_chars(this->length());
+      base::ScopedVector<uint16_t> smart_chars(this->length());
       String::WriteToFlat(*this, smart_chars.begin(), 0, this->length());
       DCHECK(String::IsOneByte(smart_chars.begin(), this->length()));
     }
-    ScopedVector<char> smart_chars(this->length());
+    base::ScopedVector<char> smart_chars(this->length());
     String::WriteToFlat(*this, smart_chars.begin(), 0, this->length());
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
@@ -716,7 +716,7 @@ void String::WriteToFlat(String source, sinkchar* sink, int from, int to,
 
 template <typename SourceChar>
 static void CalculateLineEndsImpl(std::vector<int>* line_ends,
-                                  Vector<const SourceChar> src,
+                                  base::Vector<const SourceChar> src,
                                   bool include_ending_line) {
   const int src_len = src.length();
   for (int i = 0; i < src_len - 1; i++) {
@@ -923,21 +923,21 @@ ComparisonResult String::Compare(Isolate* isolate, Handle<String> x,
   String::FlatContent x_content = x->GetFlatContent(no_gc);
   String::FlatContent y_content = y->GetFlatContent(no_gc);
   if (x_content.IsOneByte()) {
-    Vector<const uint8_t> x_chars = x_content.ToOneByteVector();
+    base::Vector<const uint8_t> x_chars = x_content.ToOneByteVector();
     if (y_content.IsOneByte()) {
-      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
+      base::Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
       r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     } else {
-      Vector<const uc16> y_chars = y_content.ToUC16Vector();
+      base::Vector<const uc16> y_chars = y_content.ToUC16Vector();
       r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     }
   } else {
-    Vector<const uc16> x_chars = x_content.ToUC16Vector();
+    base::Vector<const uc16> x_chars = x_content.ToUC16Vector();
     if (y_content.IsOneByte()) {
-      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
+      base::Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
       r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     } else {
-      Vector<const uc16> y_chars = y_content.ToUC16Vector();
+      base::Vector<const uc16> y_chars = y_content.ToUC16Vector();
       r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     }
   }
@@ -988,7 +988,7 @@ namespace {
 
 template <typename T>
 int SearchString(Isolate* isolate, String::FlatContent receiver_content,
-                 Vector<T> pat_vector, int start_index) {
+                 base::Vector<T> pat_vector, int start_index) {
   if (receiver_content.IsOneByte()) {
     return SearchString(isolate, receiver_content.ToOneByteVector(), pat_vector,
                         start_index);
@@ -1020,11 +1020,11 @@ int String::IndexOf(Isolate* isolate, Handle<String> receiver,
 
   // dispatch on type of strings
   if (search_content.IsOneByte()) {
-    Vector<const uint8_t> pat_vector = search_content.ToOneByteVector();
+    base::Vector<const uint8_t> pat_vector = search_content.ToOneByteVector();
     return SearchString<const uint8_t>(isolate, receiver_content, pat_vector,
                                        start_index);
   }
-  Vector<const uc16> pat_vector = search_content.ToUC16Vector();
+  base::Vector<const uc16> pat_vector = search_content.ToUC16Vector();
   return SearchString<const uc16>(isolate, receiver_content, pat_vector,
                                   start_index);
 }
@@ -1192,8 +1192,8 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
 namespace {  // for String.Prototype.lastIndexOf
 
 template <typename schar, typename pchar>
-int StringMatchBackwards(Vector<const schar> subject,
-                         Vector<const pchar> pattern, int idx) {
+int StringMatchBackwards(base::Vector<const schar> subject,
+                         base::Vector<const pchar> pattern, int idx) {
   int pattern_length = pattern.length();
   DCHECK_GE(pattern_length, 1);
   DCHECK(idx + pattern_length <= subject.length());
@@ -1276,7 +1276,7 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
   String::FlatContent search_content = search_string->GetFlatContent(no_gc);
 
   if (search_content.IsOneByte()) {
-    Vector<const uint8_t> pat_vector = search_content.ToOneByteVector();
+    base::Vector<const uint8_t> pat_vector = search_content.ToOneByteVector();
     if (receiver_content.IsOneByte()) {
       last_index = StringMatchBackwards(receiver_content.ToOneByteVector(),
                                         pat_vector, start_index);
@@ -1285,7 +1285,7 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
                                         pat_vector, start_index);
     }
   } else {
-    Vector<const uc16> pat_vector = search_content.ToUC16Vector();
+    base::Vector<const uc16> pat_vector = search_content.ToUC16Vector();
     if (receiver_content.IsOneByte()) {
       last_index = StringMatchBackwards(receiver_content.ToOneByteVector(),
                                         pat_vector, start_index);
@@ -1297,7 +1297,7 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
   return Smi::FromInt(last_index);
 }
 
-bool String::HasOneBytePrefix(Vector<const char> str) {
+bool String::HasOneBytePrefix(base::Vector<const char> str) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return IsEqualToImpl<EqualityType::kPrefix>(
       str, GetPtrComprCageBase(*this),

@@ -142,18 +142,20 @@ SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
         static_cast<int>(section_name_start - decoder->start()),
         string.length() < 20 ? string.length() : 20, section_name_start);
 
-  using SpecialSectionPair = std::pair<Vector<const char>, SectionCode>;
+  using SpecialSectionPair = std::pair<base::Vector<const char>, SectionCode>;
   static constexpr SpecialSectionPair kSpecialSections[]{
-      {StaticCharVector(kNameString), kNameSectionCode},
-      {StaticCharVector(kSourceMappingURLString), kSourceMappingURLSectionCode},
-      {StaticCharVector(kCompilationHintsString), kCompilationHintsSectionCode},
-      {StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
-      {StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
-      {StaticCharVector(kExternalDebugInfoString),
+      {base::StaticCharVector(kNameString), kNameSectionCode},
+      {base::StaticCharVector(kSourceMappingURLString),
+       kSourceMappingURLSectionCode},
+      {base::StaticCharVector(kCompilationHintsString),
+       kCompilationHintsSectionCode},
+      {base::StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
+      {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
+      {base::StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode}};
 
-  auto name_vec =
-      Vector<const char>::cast(VectorOf(section_name_start, string.length()));
+  auto name_vec = base::Vector<const char>::cast(
+      base::VectorOf(section_name_start, string.length()));
   for (auto& special_section : kSpecialSections) {
     if (name_vec == special_section.first) return special_section.second;
   }
@@ -184,7 +186,7 @@ class WasmSectionIterator {
     return static_cast<uint32_t>(section_end_ - section_start_);
   }
 
-  Vector<const uint8_t> payload() const {
+  base::Vector<const uint8_t> payload() const {
     return {payload_start_, payload_length()};
   }
 
@@ -298,7 +300,7 @@ class ModuleDecoderImpl : public Decoder {
     pc_ = end_;  // On error, terminate section decoding loop.
   }
 
-  void DumpModule(const Vector<const byte> module_bytes) {
+  void DumpModule(const base::Vector<const byte> module_bytes) {
     std::string path;
     if (FLAG_dump_wasm_module_path) {
       path = FLAG_dump_wasm_module_path;
@@ -309,7 +311,7 @@ class ModuleDecoderImpl : public Decoder {
     }
     // File are named `HASH.{ok,failed}.wasm`.
     size_t hash = base::hash_range(module_bytes.begin(), module_bytes.end());
-    EmbeddedVector<char, 32> buf;
+    base::EmbeddedVector<char, 32> buf;
     SNPrintF(buf, "%016zx.%s.wasm", hash, ok() ? "ok" : "failed");
     path += buf.begin();
     size_t rv = 0;
@@ -334,7 +336,7 @@ class ModuleDecoderImpl : public Decoder {
     module_->origin = origin_;
   }
 
-  void DecodeModuleHeader(Vector<const uint8_t> bytes, uint8_t offset) {
+  void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint8_t offset) {
     if (failed()) return;
     Reset(bytes, offset);
 
@@ -385,8 +387,9 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
-  void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
-                     uint32_t offset, bool verify_functions = true) {
+  void DecodeSection(SectionCode section_code,
+                     base::Vector<const uint8_t> bytes, uint32_t offset,
+                     bool verify_functions = true) {
     if (failed()) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
@@ -1319,8 +1322,8 @@ class ModuleDecoderImpl : public Decoder {
                             bool verify_functions = true) {
     StartDecoding(counters, allocator);
     uint32_t offset = 0;
-    Vector<const byte> orig_bytes(start(), end() - start());
-    DecodeModuleHeader(VectorOf(start(), end() - start()), offset);
+    base::Vector<const byte> orig_bytes(start(), end() - start());
+    DecodeModuleHeader(base::VectorOf(start(), end() - start()), offset);
     if (failed()) {
       return FinishDecoding(verify_functions);
     }
@@ -2395,14 +2398,14 @@ void ModuleDecoder::StartDecoding(
   impl_->StartDecoding(counters, allocator);
 }
 
-void ModuleDecoder::DecodeModuleHeader(Vector<const uint8_t> bytes,
+void ModuleDecoder::DecodeModuleHeader(base::Vector<const uint8_t> bytes,
                                        uint32_t offset) {
   impl_->DecodeModuleHeader(bytes, offset);
 }
 
 void ModuleDecoder::DecodeSection(SectionCode section_code,
-                                  Vector<const uint8_t> bytes, uint32_t offset,
-                                  bool verify_functions) {
+                                  base::Vector<const uint8_t> bytes,
+                                  uint32_t offset, bool verify_functions) {
   impl_->DecodeSection(section_code, bytes, offset, verify_functions);
 }
 
@@ -2427,7 +2430,7 @@ void ModuleDecoder::set_code_section(uint32_t offset, uint32_t size) {
 }
 
 size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
-                                             Vector<const uint8_t> bytes,
+                                             base::Vector<const uint8_t> bytes,
                                              uint32_t offset,
                                              SectionCode* result) {
   if (!decoder->ok()) return 0;
@@ -2473,7 +2476,8 @@ FunctionResult DecodeWasmFunctionForTesting(
                                       std::make_unique<WasmFunction>());
 }
 
-AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets) {
+AsmJsOffsetsResult DecodeAsmJsOffsets(
+    base::Vector<const uint8_t> encoded_offsets) {
   std::vector<AsmJsOffsetFunctionEntries> functions;
 
   Decoder decoder(encoded_offsets);
@@ -2620,7 +2624,7 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
   }
 }
 
-NameMap DecodeNameMap(Vector<const uint8_t> module_bytes,
+NameMap DecodeNameMap(base::Vector<const uint8_t> module_bytes,
                       uint8_t name_section_kind) {
   Decoder decoder(module_bytes);
   if (!FindNameSection(&decoder)) return NameMap{{}};
@@ -2652,7 +2656,7 @@ NameMap DecodeNameMap(Vector<const uint8_t> module_bytes,
   return NameMap{std::move(names)};
 }
 
-IndirectNameMap DecodeIndirectNameMap(Vector<const uint8_t> module_bytes,
+IndirectNameMap DecodeIndirectNameMap(base::Vector<const uint8_t> module_bytes,
                                       uint8_t name_section_kind) {
   Decoder decoder(module_bytes);
   if (!FindNameSection(&decoder)) return IndirectNameMap{{}};

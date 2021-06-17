@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/base/memory.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-comments.h"
 #include "src/codegen/code-reference.h"
@@ -22,7 +23,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
-#include "src/utils/vector.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
@@ -50,7 +50,7 @@ class V8NameConverter : public disasm::NameConverter {
   Isolate* isolate_;
   CodeReference code_;
 
-  EmbeddedVector<char, 128> v8_buffer_;
+  base::EmbeddedVector<char, 128> v8_buffer_;
 
   // Map from root-register relative offset of the external reference value to
   // the external reference name (stored in the external reference table).
@@ -280,8 +280,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
                     const V8NameConverter& converter, byte* begin, byte* end,
                     Address current_pc) {
   CHECK(!code.is_null());
-  v8::internal::EmbeddedVector<char, 128> decode_buffer;
-  v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
+  v8::base::EmbeddedVector<char, 128> decode_buffer;
+  v8::base::EmbeddedVector<char, kOutBufferSize> out_buffer;
   StringBuilder out(out_buffer.begin(), out_buffer.length());
   byte* pc = begin;
   disasm::Disassembler d(converter,

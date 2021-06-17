@@ -19,7 +19,7 @@ namespace v8 {
 namespace internal {
 
 SimpleStringBuilder::SimpleStringBuilder(int size) {
-  buffer_ = Vector<char>::New(size);
+  buffer_ = base::Vector<char>::New(size);
   position_ = 0;
 }
 
@@ -119,7 +119,7 @@ void PrintIsolate(void* isolate, const char* format, ...) {
   va_end(arguments);
 }
 
-int SNPrintF(Vector<char> str, const char* format, ...) {
+int SNPrintF(base::Vector<char> str, const char* format, ...) {
   va_list args;
   va_start(args, format);
   int result = VSNPrintF(str, format, args);
@@ -127,11 +127,11 @@ int SNPrintF(Vector<char> str, const char* format, ...) {
   return result;
 }
 
-int VSNPrintF(Vector<char> str, const char* format, va_list args) {
+int VSNPrintF(base::Vector<char> str, const char* format, va_list args) {
   return base::OS::VSNPrintF(str.begin(), str.length(), format, args);
 }
 
-void StrNCpy(Vector<char> dest, const char* src, size_t n) {
+void StrNCpy(base::Vector<char> dest, const char* src, size_t n) {
   base::OS::StrNCpy(dest.begin(), dest.length(), src, n);
 }
 
@@ -321,7 +321,8 @@ uintptr_t GetCurrentStackPosition() {
 //   "name"   only the function "name"
 //   "name*"  only functions starting with "name"
 //   "~"      none; the tilde is not an identifier
-bool PassesFilter(Vector<const char> name, Vector<const char> filter) {
+bool PassesFilter(base::Vector<const char> name,
+                  base::Vector<const char> filter) {
   if (filter.size() == 0) return name.size() == 0;
   auto filter_it = filter.begin();
   bool positive_filter = true;

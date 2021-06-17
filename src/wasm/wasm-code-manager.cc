@@ -11,6 +11,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -21,7 +22,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/vector.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
@@ -177,7 +177,7 @@ int WasmCode::code_comments_size() const {
 }
 
 std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
-    std::initializer_list<Vector<const byte>> vectors) {
+    std::initializer_list<base::Vector<const byte>> vectors) {
   size_t total_size = 0;
   for (auto& vec : vectors) total_size += vec.size();
   // Use default-initialization (== no initialization).
@@ -253,21 +253,21 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
     constexpr size_t kMaxSigLength = 128;
     name_buffer.resize(prefix_len + kMaxSigLength);
     const FunctionSig* sig = module->functions[index_].sig;
-    size_t sig_length =
-        PrintSignature(VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
+    size_t sig_length = PrintSignature(
+        base::VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
     name_buffer.resize(prefix_len + sig_length);
     // If the import has a name, also append that (separated by "-").
     if (!name.empty()) {
       name_buffer += '-';
       name_buffer.append(name.begin(), name.size());
     }
-    name = VectorOf(name_buffer);
+    name = base::VectorOf(name_buffer);
   } else if (name.empty()) {
     name_buffer.resize(32);
     name_buffer.resize(
-        SNPrintF(VectorOf(&name_buffer.front(), name_buffer.size()),
+        SNPrintF(base::VectorOf(&name_buffer.front(), name_buffer.size()),
                  "wasm-function[%d]", index()));
-    name = VectorOf(name_buffer);
+    name = base::VectorOf(name_buffer);
   }
   // TODO(clemensb): Remove this #if once this compilation unit is excluded in
   // no-wasm builds.
@@ -486,7 +486,7 @@ V8_WARN_UNUSED_RESULT bool WasmCode::DecRefOnPotentiallyDeadCode() {
 }
 
 // static
-void WasmCode::DecrementRefCount(Vector<WasmCode* const> code_vec) {
+void WasmCode::DecrementRefCount(base::Vector<WasmCode* const> code_vec) {
   // Decrement the ref counter of all given code objects. Keep the ones whose
   // ref count drops to zero.
   WasmEngine::DeadCodeMap dead_code;
@@ -523,7 +523,7 @@ WasmCodeAllocator::WasmCodeAllocator(WasmCodeManager* code_manager,
 }
 
 WasmCodeAllocator::~WasmCodeAllocator() {
-  code_manager_->FreeNativeModule(VectorOf(owned_code_space_),
+  code_manager_->FreeNativeModule(base::VectorOf(owned_code_space_),
                                   committed_code_space());
 }
 
@@ -629,12 +629,12 @@ std::pair<size_t, size_t> ReservationSize(size_t code_size_estimate,
 
 }  // namespace
 
-Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
-                                                size_t size) {
+base::Vector<byte> WasmCodeAllocator::AllocateForCode(
+    NativeModule* native_module, size_t size) {
   return AllocateForCodeInRegion(native_module, size, kUnrestrictedRegion);
 }
 
-Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
+base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     NativeModule* native_module, size_t size, base::AddressRegion region) {
   DCHECK_EQ(code_manager_, native_module->engine()->code_manager());
   DCHECK_LT(0, size);
@@ -791,7 +791,7 @@ bool WasmCodeAllocator::SetThreadWritable(bool writable) {
   return SetPermissionsForMemoryProtectionKey(key, permissions);
 }
 
-void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
+void WasmCodeAllocator::FreeCode(base::Vector<WasmCode* const> codes) {
   // Zap code area and collect freed code regions.
   DisjointAllocationPool freed_regions;
   size_t code_size = 0;
@@ -939,22 +939,22 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   CODE_SPACE_WRITE_SCOPE
   NativeModuleModificationScope native_module_modification_scope(this);
   const size_t relocation_size = code->relocation_size();
-  OwnedVector<byte> reloc_info;
+  base::OwnedVector<byte> reloc_info;
   if (relocation_size > 0) {
-    reloc_info = OwnedVector<byte>::Of(
-        Vector<byte>{code->relocation_start(), relocation_size});
+    reloc_info = base::OwnedVector<byte>::Of(
+        base::Vector<byte>{code->relocation_start(), relocation_size});
   }
   Handle<ByteArray> source_pos_table(code->source_position_table(),
                                      code->GetIsolate());
-  OwnedVector<byte> source_pos =
-      OwnedVector<byte>::NewForOverwrite(source_pos_table->length());
+  base::OwnedVector<byte> source_pos =
+      base::OwnedVector<byte>::NewForOverwrite(source_pos_table->length());
   if (source_pos_table->length() > 0) {
     source_pos_table->copy_out(0, source_pos.start(),
                                source_pos_table->length());
   }
   CHECK(!code->is_off_heap_trampoline());
   STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
-  Vector<const byte> instructions(
+  base::Vector<const byte> instructions(
       reinterpret_cast<byte*>(code->raw_body_start()),
       static_cast<size_t>(code->raw_body_size()));
   const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
@@ -973,7 +973,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   const int code_comments_offset = base_offset + code->code_comments_offset();
 
   base::RecursiveMutexGuard guard{&allocation_mutex_};
-  Vector<uint8_t> dst_code_bytes =
+  base::Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
   memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
@@ -1065,10 +1065,10 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
 std::unique_ptr<WasmCode> NativeModule::AddCode(
     int index, const CodeDesc& desc, int stack_slots,
     uint32_t tagged_parameter_slots,
-    Vector<const byte> protected_instructions_data,
-    Vector<const byte> source_position_table, WasmCode::Kind kind,
+    base::Vector<const byte> protected_instructions_data,
+    base::Vector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging) {
-  Vector<byte> code_space;
+  base::Vector<byte> code_space;
   NativeModule::JumpTablesRef jump_table_ref;
   {
     base::RecursiveMutexGuard guard{&allocation_mutex_};
@@ -1087,12 +1087,13 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     int index, const CodeDesc& desc, int stack_slots,
     uint32_t tagged_parameter_slots,
-    Vector<const byte> protected_instructions_data,
-    Vector<const byte> source_position_table, WasmCode::Kind kind,
+    base::Vector<const byte> protected_instructions_data,
+    base::Vector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging,
-    Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
-  Vector<byte> reloc_info{desc.buffer + desc.buffer_size - desc.reloc_size,
-                          static_cast<size_t>(desc.reloc_size)};
+    base::Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
+  base::Vector<byte> reloc_info{
+      desc.buffer + desc.buffer_size - desc.reloc_size,
+      static_cast<size_t>(desc.reloc_size)};
   UpdateCodeSize(desc.instr_size, tier, for_debugging);
 
   // TODO(jgruber,v8:8758): Remove this translation. It exists only because
@@ -1162,7 +1163,7 @@ WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
 }
 
 std::vector<WasmCode*> NativeModule::PublishCode(
-    Vector<std::unique_ptr<WasmCode>> codes) {
+    base::Vector<std::unique_ptr<WasmCode>> codes) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.PublishCode", "number", codes.size());
   std::vector<WasmCode*> published_code;
@@ -1285,10 +1286,10 @@ void NativeModule::ReinstallDebugCode(WasmCode* code) {
   PatchJumpTablesLocked(slot_idx, code->instruction_start());
 }
 
-std::pair<Vector<uint8_t>, NativeModule::JumpTablesRef>
+std::pair<base::Vector<uint8_t>, NativeModule::JumpTablesRef>
 NativeModule::AllocateForDeserializedCode(size_t total_code_size) {
   base::RecursiveMutexGuard guard{&allocation_mutex_};
-  Vector<uint8_t> code_space =
+  base::Vector<uint8_t> code_space =
       code_allocator_.AllocateForCode(this, total_code_size);
   auto jump_tables =
       FindJumpTablesForRegionLocked(base::AddressRegionOf(code_space));
@@ -1296,13 +1297,14 @@ NativeModule::AllocateForDeserializedCode(size_t total_code_size) {
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
-    int index, Vector<byte> instructions, int stack_slots,
+    int index, base::Vector<byte> instructions, int stack_slots,
     uint32_t tagged_parameter_slots, int safepoint_table_offset,
     int handler_table_offset, int constant_pool_offset,
     int code_comments_offset, int unpadded_binary_size,
-    Vector<const byte> protected_instructions_data,
-    Vector<const byte> reloc_info, Vector<const byte> source_position_table,
-    WasmCode::Kind kind, ExecutionTier tier) {
+    base::Vector<const byte> protected_instructions_data,
+    base::Vector<const byte> reloc_info,
+    base::Vector<const byte> source_position_table, WasmCode::Kind kind,
+    ExecutionTier tier) {
   UpdateCodeSize(instructions.size(), tier, kNoDebugging);
 
   return std::unique_ptr<WasmCode>{new WasmCode{
@@ -1316,7 +1318,7 @@ std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
   base::RecursiveMutexGuard lock(&allocation_mutex_);
   WasmCode** start = code_table_.get();
   WasmCode** end = start + module_->num_declared_functions;
-  for (WasmCode* code : VectorOf(start, end - start)) {
+  for (WasmCode* code : base::VectorOf(start, end - start)) {
     if (code) WasmCodeRefScope::AddRef(code);
   }
   return std::vector<WasmCode*>{start, end};
@@ -1354,7 +1356,7 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
   allocation_mutex_.AssertHeld();
   // Only call this if we really need a jump table.
   DCHECK_LT(0, jump_table_size);
-  Vector<uint8_t> code_space =
+  base::Vector<uint8_t> code_space =
       code_allocator_.AllocateForCodeInRegion(this, jump_table_size, region);
   DCHECK(!code_space.empty());
   UpdateCodeSize(jump_table_size, ExecutionTier::kNone, kNoDebugging);
@@ -1445,7 +1447,7 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
           ->CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     size_t size = Heap::GetCodeRangeReservedAreaSize();
     DCHECK_LT(0, size);
-    Vector<byte> padding =
+    base::Vector<byte> padding =
         code_allocator_.AllocateForCodeInRegion(this, size, region);
     CHECK_EQ(reinterpret_cast<Address>(padding.begin()), region.begin());
     win64_unwindinfo::RegisterNonABICompliantCodeRange(
@@ -1531,23 +1533,23 @@ namespace {
 class NativeModuleWireBytesStorage final : public WireBytesStorage {
  public:
   explicit NativeModuleWireBytesStorage(
-      std::shared_ptr<OwnedVector<const uint8_t>> wire_bytes)
+      std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes)
       : wire_bytes_(std::move(wire_bytes)) {}
 
-  Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
+  base::Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
     return std::atomic_load(&wire_bytes_)
         ->as_vector()
         .SubVector(ref.offset(), ref.end_offset());
   }
 
  private:
-  const std::shared_ptr<OwnedVector<const uint8_t>> wire_bytes_;
+  const std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes_;
 };
 }  // namespace
 
-void NativeModule::SetWireBytes(OwnedVector<const uint8_t> wire_bytes) {
+void NativeModule::SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes) {
   auto shared_wire_bytes =
-      std::make_shared<OwnedVector<const uint8_t>>(std::move(wire_bytes));
+      std::make_shared<base::OwnedVector<const uint8_t>>(std::move(wire_bytes));
   std::atomic_store(&wire_bytes_, shared_wire_bytes);
   if (!shared_wire_bytes->empty()) {
     compilation_state_->SetWireBytesStorage(
@@ -2083,7 +2085,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCompiledCode(
 }
 
 std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
-    Vector<WasmCompilationResult> results) {
+    base::Vector<WasmCompilationResult> results) {
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.AddCompiledCode", "num", results.size());
   DCHECK(!results.empty());
@@ -2093,7 +2095,7 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
     DCHECK(result.succeeded());
     total_code_space += RoundUp<kCodeAlignment>(result.code_desc.instr_size);
   }
-  Vector<byte> code_space;
+  base::Vector<byte> code_space;
   NativeModule::JumpTablesRef jump_tables;
   {
     base::RecursiveMutexGuard guard{&allocation_mutex_};
@@ -2120,7 +2122,7 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   for (auto& result : results) {
     DCHECK_EQ(result.code_desc.buffer, result.instr_buffer.get());
     size_t code_size = RoundUp<kCodeAlignment>(result.code_desc.instr_size);
-    Vector<byte> this_code_space = code_space.SubVector(0, code_size);
+    base::Vector<byte> this_code_space = code_space.SubVector(0, code_size);
     code_space += code_size;
     generated_code.emplace_back(AddCodeWithCodeSpace(
         result.func_index, result.code_desc, result.frame_slot_count,
@@ -2218,7 +2220,7 @@ std::vector<int> NativeModule::FindFunctionsToRecompile(
   return function_indexes;
 }
 
-void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
+void NativeModule::FreeCode(base::Vector<WasmCode* const> codes) {
   base::RecursiveMutexGuard guard(&allocation_mutex_);
   CODE_SPACE_WRITE_SCOPE
   // Get writable permission already here (and not inside the loop in
@@ -2256,8 +2258,8 @@ DebugInfo* NativeModule::GetDebugInfo() {
   return debug_info_.get();
 }
 
-void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
-                                       size_t committed_size) {
+void WasmCodeManager::FreeNativeModule(
+    base::Vector<VirtualMemory> owned_code_space, size_t committed_size) {
   base::MutexGuard lock(&native_modules_mutex_);
   for (auto& code_space : owned_code_space) {
     DCHECK(code_space.IsReserved());
@@ -2352,7 +2354,7 @@ WasmCodeRefScope::WasmCodeRefScope()
 WasmCodeRefScope::~WasmCodeRefScope() {
   DCHECK_EQ(this, current_code_refs_scope);
   current_code_refs_scope = previous_scope_;
-  WasmCode::DecrementRefCount(VectorOf(code_ptrs_));
+  WasmCode::DecrementRefCount(base::VectorOf(code_ptrs_));
 }
 
 // static

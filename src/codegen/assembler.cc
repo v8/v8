@@ -37,6 +37,7 @@
 #ifdef V8_CODE_COMMENTS
 #include <iomanip>
 #endif
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -46,7 +47,6 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -99,7 +99,7 @@ namespace {
 class DefaultAssemblerBuffer : public AssemblerBuffer {
  public:
   explicit DefaultAssemblerBuffer(int size)
-      : buffer_(OwnedVector<uint8_t>::NewForOverwrite(size)) {
+      : buffer_(base::OwnedVector<uint8_t>::NewForOverwrite(size)) {
 #ifdef DEBUG
     ZapCode(reinterpret_cast<Address>(buffer_.start()), size);
 #endif
@@ -115,7 +115,7 @@ class DefaultAssemblerBuffer : public AssemblerBuffer {
   }
 
  private:
-  OwnedVector<uint8_t> buffer_;
+  base::OwnedVector<uint8_t> buffer_;
 };
 
 class ExternalAssemblerBufferImpl : public AssemblerBuffer {

@@ -466,10 +466,11 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   // multiple times need to be copied to another free register. Compute the list
   // of used registers.
   LiftoffRegList used_regs;
-  for (auto& src : VectorOf(source_begin, num_locals)) {
+  for (auto& src : base::VectorOf(source_begin, num_locals)) {
     if (src.is_reg()) used_regs.set(src.reg());
   }
-  for (auto& src : VectorOf(source_begin + stack_base + discarded, arity)) {
+  for (auto& src :
+       base::VectorOf(source_begin + stack_base + discarded, arity)) {
     if (src.is_reg()) used_regs.set(src.reg());
   }
 
@@ -685,8 +686,9 @@ void LiftoffAssembler::MaterializeMergedConstants(uint32_t arity) {
   // Materialize constants on top of the stack ({arity} many), and locals.
   VarState* stack_base = cache_state_.stack_state.data();
   for (auto slots :
-       {VectorOf(stack_base + cache_state_.stack_state.size() - arity, arity),
-        VectorOf(stack_base, num_locals())}) {
+       {base::VectorOf(stack_base + cache_state_.stack_state.size() - arity,
+                       arity),
+        base::VectorOf(stack_base, num_locals())}) {
     for (VarState& slot : slots) {
       if (!slot.is_const()) continue;
       RegClass rc = reg_class_for(slot.kind());
@@ -1078,7 +1080,7 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::ParallelRegisterMove(
-    Vector<const ParallelRegisterMoveTuple> tuples) {
+    base::Vector<const ParallelRegisterMoveTuple> tuples) {
   StackTransferRecipe stack_transfers(this);
   for (auto tuple : tuples) {
     if (tuple.dst == tuple.src) continue;

@@ -245,7 +245,7 @@ void WebSnapshotSerializer::SerializeString(Handle<String> string,
   String::FlatContent flat = string->GetFlatContent(no_gc);
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
-    Vector<const uint8_t> chars = flat.ToOneByteVector();
+    base::Vector<const uint8_t> chars = flat.ToOneByteVector();
     string_serializer_.WriteUint32(chars.length());
     string_serializer_.WriteRawBytes(chars.begin(),
                                      chars.length() * sizeof(uint8_t));

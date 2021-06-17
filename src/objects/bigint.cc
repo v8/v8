@@ -1739,7 +1739,8 @@ void BigInt::SerializeDigits(uint8_t* storage) {
 // The serialization format MUST NOT CHANGE without updating the format
 // version in value-serializer.cc!
 MaybeHandle<BigInt> BigInt::FromSerializedDigits(
-    Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage) {
+    Isolate* isolate, uint32_t bitfield,
+    base::Vector<const uint8_t> digits_storage) {
   int bytelength = LengthBits::decode(bitfield);
   DCHECK(digits_storage.length() == bytelength);
   bool sign = SignBits::decode(bitfield);

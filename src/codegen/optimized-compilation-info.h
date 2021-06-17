@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "src/base/vector.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
@@ -18,7 +19,6 @@
 #include "src/objects/objects.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 
@@ -114,7 +114,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
       : OptimizedCompilationInfo(zone, isolate, shared, closure, code_kind,
                                  BytecodeOffset::None(), nullptr) {}
   // Construct a compilation info for stub compilation, Wasm, and testing.
-  OptimizedCompilationInfo(Vector<const char> debug_name, Zone* zone,
+  OptimizedCompilationInfo(base::Vector<const char> debug_name, Zone* zone,
                            CodeKind code_kind);
 
   OptimizedCompilationInfo(const OptimizedCompilationInfo&) = delete;
@@ -311,7 +311,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   const int optimization_id_;
   unsigned inlined_bytecode_size_ = 0;
 
-  Vector<const char> debug_name_;
+  base::Vector<const char> debug_name_;
   std::unique_ptr<char[]> trace_turbo_filename_;
 
   TickCounter tick_counter_;

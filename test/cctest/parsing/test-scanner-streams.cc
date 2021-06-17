@@ -492,8 +492,8 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
 
   // 2-byte external string
   std::unique_ptr<i::uc16[]> uc16_buffer(new i::uc16[length]);
-  i::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(),
-                                           static_cast<int>(length));
+  v8::base::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(),
+                                                  static_cast<int>(length));
   {
     for (unsigned i = 0; i < length; i++) {
       uc16_buffer[i] = static_cast<i::uc16>(one_byte_source[i]);
@@ -512,8 +512,8 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
   }
 
   // 1-byte external string
-  i::Vector<const uint8_t> one_byte_vector =
-      i::OneByteVector(one_byte_source, static_cast<int>(length));
+  v8::base::Vector<const uint8_t> one_byte_vector =
+      v8::base::OneByteVector(one_byte_source, static_cast<int>(length));
   i::Handle<i::String> one_byte_string =
       factory->NewStringFromOneByte(one_byte_vector).ToHandleChecked();
   {
@@ -759,7 +759,7 @@ TEST(RelocatingCharacterStream) {
   for (int i = 0; i < length; i++) {
     uc16_buffer[i] = string[i];
   }
-  i::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(), length);
+  v8::base::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(), length);
   i::Handle<i::String> two_byte_string =
       i_isolate->factory()
           ->NewStringFromTwoByte(two_byte_vector, i::AllocationType::kYoung)
@@ -792,7 +792,7 @@ TEST(RelocatingUnbufferedCharacterStream) {
   for (int i = 0; i < length; i++) {
     uc16_buffer[i] = string[i];
   }
-  i::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(), length);
+  v8::base::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(), length);
   i::Handle<i::String> two_byte_string =
       i_isolate->factory()
           ->NewStringFromTwoByte(two_byte_vector, i::AllocationType::kYoung)
@@ -832,8 +832,8 @@ TEST(CloneCharacterStreams) {
 
   // 2-byte external string
   std::unique_ptr<i::uc16[]> uc16_buffer(new i::uc16[length]);
-  i::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(),
-                                           static_cast<int>(length));
+  v8::base::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(),
+                                                  static_cast<int>(length));
   {
     for (unsigned i = 0; i < length; i++) {
       uc16_buffer[i] = static_cast<i::uc16>(one_byte_source[i]);
@@ -860,8 +860,8 @@ TEST(CloneCharacterStreams) {
   }
 
   // 1-byte external string
-  i::Vector<const uint8_t> one_byte_vector =
-      i::OneByteVector(one_byte_source, static_cast<int>(length));
+  v8::base::Vector<const uint8_t> one_byte_vector =
+      v8::base::OneByteVector(one_byte_source, static_cast<int>(length));
   i::Handle<i::String> one_byte_string =
       factory->NewStringFromOneByte(one_byte_vector).ToHandleChecked();
   {

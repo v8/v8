@@ -25,7 +25,7 @@ void CheckIsDetached(v8::Local<v8::TypedArray> ta) {
 }
 
 void CheckIsTypedArrayVarDetached(const char* name) {
-  i::ScopedVector<char> source(1024);
+  v8::base::ScopedVector<char> source(1024);
   i::SNPrintF(source,
               "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
               name, name, name);

@@ -96,7 +96,7 @@ inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
 }
 
 template <typename Char>
-bool ToUpperFastASCII(const Vector<const Char>& src,
+bool ToUpperFastASCII(const base::Vector<const Char>& src,
                       Handle<SeqOneByteString> result) {
   // Do a faster loop for the case where all the characters are ASCII.
   uint16_t ored = 0;
@@ -112,7 +112,7 @@ bool ToUpperFastASCII(const Vector<const Char>& src,
 const uint16_t sharp_s = 0xDF;
 
 template <typename Char>
-bool ToUpperOneByte(const Vector<const Char>& src, uint8_t* dest,
+bool ToUpperOneByte(const base::Vector<const Char>& src, uint8_t* dest,
                     int* sharp_s_count) {
   // Still pretty-fast path for the input with non-ASCII Latin-1 characters.
 
@@ -138,7 +138,7 @@ bool ToUpperOneByte(const Vector<const Char>& src, uint8_t* dest,
 }
 
 template <typename Char>
-void ToUpperWithSharpS(const Vector<const Char>& src,
+void ToUpperWithSharpS(const base::Vector<const Char>& src,
                        Handle<SeqOneByteString> result) {
   int32_t dest_index = 0;
   for (auto it = src.begin(); it != src.end(); ++it) {
@@ -369,7 +369,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
       String::FlatContent flat = s->GetFlatContent(no_gc);
       uint8_t* dest = result->GetChars(no_gc);
       if (flat.IsOneByte()) {
-        Vector<const uint8_t> src = flat.ToOneByteVector();
+        base::Vector<const uint8_t> src = flat.ToOneByteVector();
         bool has_changed_character = false;
         int index_to_first_unprocessed = FastAsciiConvert<false>(
             reinterpret_cast<char*>(result->GetChars(no_gc)),
@@ -385,7 +385,7 @@ MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
                            dest + index_to_first_unprocessed, &sharp_s_count);
       } else {
         DCHECK(flat.IsTwoByte());
-        Vector<const uint16_t> src = flat.ToUC16Vector();
+        base::Vector<const uint16_t> src = flat.ToUC16Vector();
         if (ToUpperFastASCII(src, result)) return result;
         is_result_single_byte = ToUpperOneByte(src, dest, &sharp_s_count);
       }
@@ -453,7 +453,7 @@ Maybe<icu::Locale> CreateICULocale(const std::string& bcp47_locale) {
 
 MaybeHandle<String> Intl::ToString(Isolate* isolate,
                                    const icu::UnicodeString& string) {
-  return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+  return isolate->factory()->NewStringFromTwoByte(base::Vector<const uint16_t>(
       reinterpret_cast<const uint16_t*>(string.getBuffer()), string.length()));
 }
 
@@ -1593,7 +1593,8 @@ MaybeHandle<JSArray> CreateArrayFromList(Isolate* isolate,
     // a. Let status be CreateDataProperty(array, ! ToString(n), e).
     const std::string& part = elements[i];
     Handle<String> value =
-        factory->NewStringFromUtf8(CStrVector(part.c_str())).ToHandleChecked();
+        factory->NewStringFromUtf8(base::CStrVector(part.c_str()))
+            .ToHandleChecked();
     MAYBE_RETURN(JSObject::AddDataElement(array, i, value, attr),
                  MaybeHandle<JSArray>());
   }

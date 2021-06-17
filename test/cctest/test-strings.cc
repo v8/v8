@@ -161,7 +161,8 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
           buf[j] = rng->next(0x10000);
         }
         building_blocks[i] =
-            factory->NewStringFromTwoByte(Vector<const uc16>(buf, len))
+            factory
+                ->NewStringFromTwoByte(v8::base::Vector<const uc16>(buf, len))
                 .ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
@@ -174,7 +175,7 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
           buf[j] = rng->next(0x80);
         }
         building_blocks[i] =
-            factory->NewStringFromOneByte(OneByteVector(buf, len))
+            factory->NewStringFromOneByte(v8::base::OneByteVector(buf, len))
                 .ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
@@ -848,9 +849,10 @@ TEST(DeepOneByte) {
   for (int i = 0; i < kDeepOneByteDepth; i++) {
     foo[i] = "foo "[i % 4];
   }
-  Handle<String> string =
-      factory->NewStringFromOneByte(OneByteVector(foo, kDeepOneByteDepth))
-          .ToHandleChecked();
+  Handle<String> string = factory
+                              ->NewStringFromOneByte(v8::base::OneByteVector(
+                                  foo, kDeepOneByteDepth))
+                              .ToHandleChecked();
   Handle<String> foo_string = factory->NewStringFromStaticChars("foo");
   for (int i = 0; i < kDeepOneByteDepth; i += 10) {
     string = factory->NewConsString(string, foo_string).ToHandleChecked();
@@ -1350,14 +1352,14 @@ TEST(SliceFromCons) {
 
 class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
-  explicit OneByteVectorResource(i::Vector<const char> vector)
+  explicit OneByteVectorResource(v8::base::Vector<const char> vector)
       : data_(vector) {}
   ~OneByteVectorResource() override = default;
   size_t length() const override { return data_.length(); }
   const char* data() const override { return data_.begin(); }
 
  private:
-  i::Vector<const char> data_;
+  v8::base::Vector<const char> data_;
 };
 
 TEST(InternalizeExternal) {
@@ -1372,7 +1374,7 @@ TEST(InternalizeExternal) {
   Factory* factory = isolate->factory();
   // This won't leak; the external string mechanism will call Dispose() on it.
   OneByteVectorResource* resource =
-      new OneByteVectorResource(i::Vector<const char>("prop-1234", 9));
+      new OneByteVectorResource(v8::base::Vector<const char>("prop-1234", 9));
   {
     v8::HandleScope scope(CcTest::isolate());
     v8::Local<v8::String> ext_string =
@@ -1400,7 +1402,7 @@ TEST(SliceFromExternal) {
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
   OneByteVectorResource resource(
-      i::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
+      v8::base::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
   Handle<String> string =
       factory->NewExternalStringFromOneByte(&resource).ToHandleChecked();
   CHECK(string->IsExternalString());
@@ -1650,21 +1652,23 @@ TEST(InvalidExternalString) {
   }
 }
 
-#define INVALID_STRING_TEST(FUN, TYPE)                                         \
-  TEST(StringOOM##FUN) {                                                       \
-    CcTest::InitializeVM();                                                    \
-    LocalContext context;                                                      \
-    Isolate* isolate = CcTest::i_isolate();                                    \
-    STATIC_ASSERT(String::kMaxLength < kMaxInt);                               \
-    static const int invalid = String::kMaxLength + 1;                         \
-    HandleScope scope(isolate);                                                \
-    Vector<TYPE> dummy = Vector<TYPE>::New(invalid);                           \
-    memset(dummy.begin(), 0x0, dummy.length() * sizeof(TYPE));                 \
-    CHECK(isolate->factory()->FUN(Vector<const TYPE>::cast(dummy)).is_null()); \
-    memset(dummy.begin(), 0x20, dummy.length() * sizeof(TYPE));                \
-    CHECK(isolate->has_pending_exception());                                   \
-    isolate->clear_pending_exception();                                        \
-    dummy.Dispose();                                                           \
+#define INVALID_STRING_TEST(FUN, TYPE)                                   \
+  TEST(StringOOM##FUN) {                                                 \
+    CcTest::InitializeVM();                                              \
+    LocalContext context;                                                \
+    Isolate* isolate = CcTest::i_isolate();                              \
+    STATIC_ASSERT(String::kMaxLength < kMaxInt);                         \
+    static const int invalid = String::kMaxLength + 1;                   \
+    HandleScope scope(isolate);                                          \
+    v8::base::Vector<TYPE> dummy = v8::base::Vector<TYPE>::New(invalid); \
+    memset(dummy.begin(), 0x0, dummy.length() * sizeof(TYPE));           \
+    CHECK(isolate->factory()                                             \
+              ->FUN(v8::base::Vector<const TYPE>::cast(dummy))           \
+              .is_null());                                               \
+    memset(dummy.begin(), 0x20, dummy.length() * sizeof(TYPE));          \
+    CHECK(isolate->has_pending_exception());                             \
+    isolate->clear_pending_exception();                                  \
+    dummy.Dispose();                                                     \
   }
 
 INVALID_STRING_TEST(NewStringFromUtf8, char)
@@ -1758,7 +1762,7 @@ TEST(ExternalStringIndexOf) {
     size_t len = strlen(buf);                                                  \
     Handle<String> main_string =                                               \
         factory                                                                \
-            ->NewStringFromOneByte(Vector<const uint8_t>(                      \
+            ->NewStringFromOneByte(v8::base::Vector<const uint8_t>(            \
                 reinterpret_cast<const uint8_t*>(buf), len))                   \
             .ToHandleChecked();                                                \
     if (FLAG_single_generation) {                                              \
@@ -1775,7 +1779,9 @@ TEST(ExternalStringIndexOf) {
                                static_cast<int>(len - 2))                      \
                            .ToHandleChecked();                                 \
     Handle<String> expected_string =                                           \
-        factory->NewStringFromUtf8(Vector<const char>(buf + 2, len - 2))       \
+        factory                                                                \
+            ->NewStringFromUtf8(                                               \
+                v8::base::Vector<const char>(buf + 2, len - 2))                \
             .ToHandleChecked();                                                \
     CHECK(s->Equals(*expected_string));                                        \
   }

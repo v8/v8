@@ -55,7 +55,7 @@ class WasmStreaming::WasmStreamingImpl {
   }
 
   void OnBytesReceived(const uint8_t* bytes, size_t size) {
-    streaming_decoder_->OnBytesReceived(i::VectorOf(bytes, size));
+    streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
   }
   void Finish() { streaming_decoder_->Finish(); }
 
@@ -81,16 +81,14 @@ class WasmStreaming::WasmStreamingImpl {
     streaming_decoder_->SetModuleCompiledCallback(
         [client, streaming_decoder = streaming_decoder_](
             const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          i::Vector<const char> url = streaming_decoder->url();
+          base::Vector<const char> url = streaming_decoder->url();
           auto compiled_wasm_module =
               CompiledWasmModule(native_module, url.begin(), url.size());
           client->OnModuleCompiled(compiled_wasm_module);
         });
   }
 
-  void SetUrl(internal::Vector<const char> url) {
-    streaming_decoder_->SetUrl(url);
-  }
+  void SetUrl(base::Vector<const char> url) { streaming_decoder_->SetUrl(url); }
 
  private:
   Isolate* const isolate_;
@@ -134,7 +132,7 @@ void WasmStreaming::SetClient(std::shared_ptr<Client> client) {
 
 void WasmStreaming::SetUrl(const char* url, size_t length) {
   TRACE_EVENT0("v8.wasm", "wasm.SetUrl");
-  impl_->SetUrl(internal::VectorOf(url, length));
+  impl_->SetUrl(base::VectorOf(url, length));
 }
 
 // static

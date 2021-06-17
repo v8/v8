@@ -90,7 +90,7 @@ struct CompilationEnv {
 class WireBytesStorage {
  public:
   virtual ~WireBytesStorage() = default;
-  virtual Vector<const uint8_t> GetCode(WireBytesRef) const = 0;
+  virtual base::Vector<const uint8_t> GetCode(WireBytesRef) const = 0;
 };
 
 // Callbacks will receive either {kFailedCompilation} or both

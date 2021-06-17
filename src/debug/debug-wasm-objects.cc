@@ -31,7 +31,7 @@ Handle<String> GetNameOrDefault(Isolate* isolate,
                .ToHandleChecked();
     return isolate->factory()->InternalizeString(name);
   }
-  EmbeddedVector<char, 64> value;
+  base::EmbeddedVector<char, 64> value;
   int len = SNPrintF(value, "%s%u", default_name_prefix, index);
   return isolate->factory()->InternalizeString(value.SubVector(0, len));
 }
@@ -45,8 +45,8 @@ MaybeHandle<String> GetNameFromImportsAndExportsOrNull(
 
   auto import_name_ref = debug_info->GetImportName(kind, index);
   if (!import_name_ref.first.is_empty()) {
-    ScopedVector<char> name(import_name_ref.first.length() + 1 +
-                            import_name_ref.second.length());
+    base::ScopedVector<char> name(import_name_ref.first.length() + 1 +
+                                  import_name_ref.second.length());
     auto name_begin = &name.first(), name_end = name_begin;
     auto module_name = wire_bytes.GetNameOrNull(import_name_ref.first);
     name_end = std::copy(module_name.begin(), module_name.end(), name_end);
@@ -54,7 +54,7 @@ MaybeHandle<String> GetNameFromImportsAndExportsOrNull(
     auto field_name = wire_bytes.GetNameOrNull(import_name_ref.second);
     name_end = std::copy(field_name.begin(), field_name.end(), name_end);
     return isolate->factory()->NewStringFromUtf8(
-        VectorOf(name_begin, name_end - name_begin));
+        base::VectorOf(name_begin, name_end - name_begin));
   }
 
   auto export_name_ref = debug_info->GetExportName(kind, index);
@@ -758,7 +758,7 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
 Handle<String> WasmSimd128ToString(Isolate* isolate, wasm::Simd128 s128) {
   // We use the canonical format as described in:
   // https://github.com/WebAssembly/simd/blob/master/proposals/simd/TextSIMD.md
-  EmbeddedVector<char, 50> buffer;
+  base::EmbeddedVector<char, 50> buffer;
   auto i32x4 = s128.to_i32x4();
   SNPrintF(buffer, "i32x4 0x%08X 0x%08X 0x%08X 0x%08X", i32x4.val[0],
            i32x4.val[1], i32x4.val[2], i32x4.val[3]);
@@ -772,7 +772,7 @@ Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
   // This length only needs to be enough for generated names like
   // "(ref null $type12345)". For names coming from the name section,
   // we'll dynamically allocate an appropriately sized vector.
-  EmbeddedVector<char, 32> type_name;
+  base::EmbeddedVector<char, 32> type_name;
   size_t len;
   if (type.heap_type().is_generic()) {
     const char* generic_name = "";
@@ -803,7 +803,7 @@ Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
   } else {
     int type_index = type.ref_index();
     wasm::ModuleWireBytes module_wire_bytes(module->wire_bytes());
-    Vector<const char> name_vec = module_wire_bytes.GetNameOrNull(
+    base::Vector<const char> name_vec = module_wire_bytes.GetNameOrNull(
         module->GetDebugInfo()->GetTypeName(type_index));
     if (name_vec.empty()) {
       len = SNPrintF(type_name, "(ref%s $type%u)", null_str, type_index);
@@ -812,9 +812,10 @@ Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
           name_vec.size() +       // length of provided name
           7 +                     // length of "(ref $)"
           (is_nullable ? 5 : 0);  // length of " null" (optional)
-      Vector<char> long_type_name = Vector<char>::New(required_length);
+      base::Vector<char> long_type_name =
+          base::Vector<char>::New(required_length);
       len = SNPrintF(long_type_name, "(ref%s $", null_str);
-      Vector<char> suffix =
+      base::Vector<char> suffix =
           long_type_name.SubVector(len, long_type_name.size());
       // StrNCpy requires that there is room for an assumed trailing \0...
       DCHECK_EQ(suffix.size(), name_vec.size() + 1);
@@ -845,14 +846,15 @@ Handle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
     {  // type
       Descriptor d = Descriptor::DataField(
           isolate,
-          isolate->factory()->InternalizeString(StaticCharVector("type")),
+          isolate->factory()->InternalizeString(base::StaticCharVector("type")),
           WasmValueObject::kTypeIndex, FROZEN, Representation::Tagged());
       map->AppendDescriptor(isolate, &d);
     }
     {  // value
       Descriptor d = Descriptor::DataField(
           isolate,
-          isolate->factory()->InternalizeString(StaticCharVector("value")),
+          isolate->factory()->InternalizeString(
+              base::StaticCharVector("value")),
           WasmValueObject::kValueIndex, FROZEN, Representation::Tagged());
       map->AppendDescriptor(isolate, &d);
     }
@@ -905,7 +907,7 @@ struct StructProxy : NamedDebugProxy<StructProxy, kStructProxy, FixedArray> {
         WasmModuleObject::cast(data->get(kModuleIndex)).native_module();
     int struct_type_index = Smi::ToInt(Smi::cast(data->get(kTypeIndexIndex)));
     wasm::ModuleWireBytes module_wire_bytes(native_module->wire_bytes());
-    Vector<const char> name_vec = module_wire_bytes.GetNameOrNull(
+    base::Vector<const char> name_vec = module_wire_bytes.GetNameOrNull(
         native_module->GetDebugInfo()->GetFieldName(struct_type_index, index));
     return GetNameOrDefault(
         isolate,
@@ -970,46 +972,46 @@ Handle<WasmValueObject> WasmValueObject::New(
     case wasm::kI8: {
       // This can't be reached for most "top-level" things, only via nested
       // calls for struct/array fields.
-      t = isolate->factory()->InternalizeString(StaticCharVector("i8"));
+      t = isolate->factory()->InternalizeString(base::StaticCharVector("i8"));
       v = isolate->factory()->NewNumber(value.to_i8_unchecked());
       break;
     }
     case wasm::kI16: {
       // This can't be reached for most "top-level" things, only via nested
       // calls for struct/array fields.
-      t = isolate->factory()->InternalizeString(StaticCharVector("i16"));
+      t = isolate->factory()->InternalizeString(base::StaticCharVector("i16"));
       v = isolate->factory()->NewNumber(value.to_i16_unchecked());
       break;
     }
     case wasm::kI32: {
-      t = isolate->factory()->InternalizeString(StaticCharVector("i32"));
+      t = isolate->factory()->InternalizeString(base::StaticCharVector("i32"));
       v = isolate->factory()->NewNumberFromInt(value.to_i32_unchecked());
       break;
     }
     case wasm::kI64: {
-      t = isolate->factory()->InternalizeString(StaticCharVector("i64"));
+      t = isolate->factory()->InternalizeString(base::StaticCharVector("i64"));
       v = BigInt::FromInt64(isolate, value.to_i64_unchecked());
       break;
     }
     case wasm::kF32: {
-      t = isolate->factory()->InternalizeString(StaticCharVector("f32"));
+      t = isolate->factory()->InternalizeString(base::StaticCharVector("f32"));
       v = isolate->factory()->NewNumber(value.to_f32_unchecked());
       break;
     }
     case wasm::kF64: {
-      t = isolate->factory()->InternalizeString(StaticCharVector("f64"));
+      t = isolate->factory()->InternalizeString(base::StaticCharVector("f64"));
       v = isolate->factory()->NewNumber(value.to_f64_unchecked());
       break;
     }
     case wasm::kS128: {
-      t = isolate->factory()->InternalizeString(StaticCharVector("v128"));
+      t = isolate->factory()->InternalizeString(base::StaticCharVector("v128"));
       v = WasmSimd128ToString(isolate, value.to_s128_unchecked());
       break;
     }
     case wasm::kOptRef:
       if (value.type().is_reference_to(wasm::HeapType::kExtern)) {
         t = isolate->factory()->InternalizeString(
-            StaticCharVector("externref"));
+            base::StaticCharVector("externref"));
         v = value.to_ref();
         break;
       }
@@ -1025,7 +1027,7 @@ Handle<WasmValueObject> WasmValueObject::New(
         v = ref;
       } else {
         // Fail gracefully.
-        EmbeddedVector<char, 64> error;
+        base::EmbeddedVector<char, 64> error;
         int len = SNPrintF(error, "unimplemented object type: %d",
                            HeapObject::cast(*ref).map().instance_type());
         v = isolate->factory()->InternalizeString(error.SubVector(0, len));
@@ -1035,9 +1037,9 @@ Handle<WasmValueObject> WasmValueObject::New(
     case wasm::kRtt:
     case wasm::kRttWithDepth: {
       // TODO(7748): Expose RTTs to DevTools.
-      t = isolate->factory()->InternalizeString(StaticCharVector("rtt"));
+      t = isolate->factory()->InternalizeString(base::StaticCharVector("rtt"));
       v = isolate->factory()->InternalizeString(
-          StaticCharVector("(unimplemented)"));
+          base::StaticCharVector("(unimplemented)"));
       break;
     }
     case wasm::kVoid:

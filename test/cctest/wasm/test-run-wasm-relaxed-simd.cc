@@ -77,8 +77,8 @@ static constexpr FMOperation<T> qfma_array[] = {
      std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()}};
 
 template <typename T>
-static constexpr Vector<const FMOperation<T>> qfma_vector() {
-  return ArrayVector(qfma_array<T>);
+static constexpr base::Vector<const FMOperation<T>> qfma_vector() {
+  return base::ArrayVector(qfma_array<T>);
 }
 
 // Fused Multiply-Subtract performs a - b * c.
@@ -101,8 +101,8 @@ static constexpr FMOperation<T> qfms_array[]{
      std::numeric_limits<T>::quiet_NaN(), std::numeric_limits<T>::quiet_NaN()}};
 
 template <typename T>
-static constexpr Vector<const FMOperation<T>> qfms_vector() {
-  return ArrayVector(qfms_array<T>);
+static constexpr base::Vector<const FMOperation<T>> qfms_vector() {
+  return base::ArrayVector(qfms_array<T>);
 }
 
 // Fused results only when fma3 feature is enabled, and running on TurboFan or

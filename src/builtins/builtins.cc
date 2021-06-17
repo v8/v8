@@ -236,8 +236,8 @@ void Builtins::PrintBuiltinCode() {
        ++builtin) {
     const char* builtin_name = name(builtin);
     Handle<Code> code = code_handle(builtin);
-    if (PassesFilter(CStrVector(builtin_name),
-                     CStrVector(FLAG_print_builtin_code_filter))) {
+    if (PassesFilter(base::CStrVector(builtin_name),
+                     base::CStrVector(FLAG_print_builtin_code_filter))) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
       code->Disassemble(builtin_name, os, isolate_);

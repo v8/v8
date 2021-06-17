@@ -534,13 +534,13 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
   AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
 }
 
-OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
+base::OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTableVector();
 }
 
-OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
-  return OwnedVector<byte>::Of(
-      Vector<byte>::cast(VectorOf(protected_instructions_)));
+base::OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
+  return base::OwnedVector<byte>::Of(
+      base::Vector<byte>::cast(base::VectorOf(protected_instructions_)));
 }
 
 MaybeHandle<Code> CodeGenerator::FinalizeCode() {

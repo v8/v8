@@ -53,7 +53,7 @@ static void TrimRepresentation(char* representation) {
 
 TEST(FastDtoaShortestVariousDoubles) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   int length;
   int point;
   int status;
@@ -123,7 +123,7 @@ TEST(FastDtoaShortestVariousDoubles) {
 
 TEST(FastDtoaPrecisionVariousDoubles) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   int length;
   int point;
   int status;
@@ -224,7 +224,7 @@ TEST(FastDtoaPrecisionVariousDoubles) {
 
 TEST(FastDtoaGayShortest) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   bool status;
   int length;
   int point;
@@ -232,7 +232,7 @@ TEST(FastDtoaGayShortest) {
   int total = 0;
   bool needed_max_length = false;
 
-  Vector<const PrecomputedShortest> precomputed =
+  base::Vector<const PrecomputedShortest> precomputed =
       PrecomputedShortestRepresentations();
   for (int i = 0; i < precomputed.length(); ++i) {
     const PrecomputedShortest current_test = precomputed[i];
@@ -253,7 +253,7 @@ TEST(FastDtoaGayShortest) {
 
 TEST(FastDtoaGayPrecision) {
   char buffer_container[kBufferSize];
-  Vector<char> buffer(buffer_container, kBufferSize);
+  base::Vector<char> buffer(buffer_container, kBufferSize);
   bool status;
   int length;
   int point;
@@ -263,7 +263,7 @@ TEST(FastDtoaGayPrecision) {
   int succeeded_15 = 0;
   int total_15 = 0;
 
-  Vector<const PrecomputedPrecision> precomputed =
+  base::Vector<const PrecomputedPrecision> precomputed =
       PrecomputedPrecisionRepresentations();
   for (int i = 0; i < precomputed.length(); ++i) {
     const PrecomputedPrecision current_test = precomputed[i];

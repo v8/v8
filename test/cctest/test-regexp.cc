@@ -543,10 +543,11 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
                                                &compile_data))
     return nullptr;
   Handle<String> pattern = isolate->factory()
-                               ->NewStringFromUtf8(CStrVector(input))
+                               ->NewStringFromUtf8(base::CStrVector(input))
                                .ToHandleChecked();
-  Handle<String> sample_subject =
-      isolate->factory()->NewStringFromUtf8(CStrVector("")).ToHandleChecked();
+  Handle<String> sample_subject = isolate->factory()
+                                      ->NewStringFromUtf8(base::CStrVector(""))
+                                      .ToHandleChecked();
   RegExp::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
                             sample_subject, is_one_byte);
   return compile_data.node;
@@ -788,7 +789,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   const uc16 input_data[6] = {'f', 'o', 'o',
                               'f', 'o', static_cast<uc16>(0x2603)};
   Handle<String> input =
-      factory->NewStringFromTwoByte(Vector<const uc16>(input_data, 6))
+      factory->NewStringFromTwoByte(base::Vector<const uc16>(input_data, 6))
           .ToHandleChecked();
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
@@ -804,8 +805,9 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 
   const uc16 input_data2[9] = {
       'b', 'a', 'r', 'b', 'a', 'r', 'b', 'a', static_cast<uc16>(0x2603)};
-  input = factory->NewStringFromTwoByte(Vector<const uc16>(input_data2, 9))
-              .ToHandleChecked();
+  input =
+      factory->NewStringFromTwoByte(base::Vector<const uc16>(input_data2, 9))
+          .ToHandleChecked();
   seq_input = Handle<SeqTwoByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
@@ -928,7 +930,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
 
   const uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
   Handle<String> input =
-      factory->NewStringFromTwoByte(Vector<const uc16>(input_data, 6))
+      factory->NewStringFromTwoByte(base::Vector<const uc16>(input_data, 6))
           .ToHandleChecked();
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
@@ -1059,7 +1061,7 @@ TEST(MacroAssemblerNativeRegisters) {
                              6);
 
   uc16 foo_chars[3] = {'f', 'o', 'o'};
-  Vector<const uc16> foo(foo_chars, 3);
+  base::Vector<const uc16> foo(foo_chars, 3);
 
   enum registers { out1, out2, out3, out4, out5, out6, sp, loop_cnt };
   Label fail;
@@ -1269,7 +1271,7 @@ TEST(MacroAssembler) {
 
   const uc16 str1[] = {'f', 'o', 'o', 'b', 'a', 'r'};
   Handle<String> f1_16 =
-      factory->NewStringFromTwoByte(Vector<const uc16>(str1, 6))
+      factory->NewStringFromTwoByte(base::Vector<const uc16>(str1, 6))
           .ToHandleChecked();
 
   CHECK_EQ(IrregexpInterpreter::SUCCESS,
@@ -1284,7 +1286,7 @@ TEST(MacroAssembler) {
 
   const uc16 str2[] = {'b', 'a', 'r', 'f', 'o', 'o'};
   Handle<String> f2_16 =
-      factory->NewStringFromTwoByte(Vector<const uc16>(str2, 6))
+      factory->NewStringFromTwoByte(base::Vector<const uc16>(str2, 6))
           .ToHandleChecked();
 
   std::memset(captures, 0, sizeof(captures));
@@ -1395,7 +1397,7 @@ TEST(UncanonicalizeEquivalence) {
 #endif
 
 static void TestRangeCaseIndependence(Isolate* isolate, CharacterRange input,
-                                      Vector<CharacterRange> expected) {
+                                      base::Vector<CharacterRange> expected) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   int count = expected.length();
   ZoneList<CharacterRange>* list =
@@ -1413,7 +1415,7 @@ static void TestRangeCaseIndependence(Isolate* isolate, CharacterRange input,
 static void TestSimpleRangeCaseIndependence(Isolate* isolate,
                                             CharacterRange input,
                                             CharacterRange expected) {
-  EmbeddedVector<CharacterRange, 1> vector;
+  base::EmbeddedVector<CharacterRange, 1> vector;
   vector[0] = expected;
   TestRangeCaseIndependence(isolate, input, vector);
 }

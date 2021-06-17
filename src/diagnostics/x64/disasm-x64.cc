@@ -301,7 +301,7 @@ class DisassemblerX64 {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction);
+  int InstructionDecode(v8::base::Vector<char> buffer, byte* instruction);
 
  private:
   enum OperandSize {
@@ -312,7 +312,7 @@ class DisassemblerX64 {
   };
 
   const NameConverter& converter_;
-  v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
+  v8::base::EmbeddedVector<char, 128> tmp_buffer_;
   unsigned int tmp_buffer_pos_;
   bool abort_on_unimplemented_;
   // Prefixes parsed
@@ -475,7 +475,7 @@ class DisassemblerX64 {
 };
 
 void DisassemblerX64::AppendToBuffer(const char* format, ...) {
-  v8::internal::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
+  v8::base::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
   va_list args;
   va_start(args, format);
   int result = v8::internal::VSNPrintF(buf, format, args);
@@ -2350,7 +2350,7 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
 }
 
 // Disassembles the instruction at instr, and writes it into out_buffer.
-int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
+int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
                                        byte* instr) {
   tmp_buffer_pos_ = 0;  // starting to write as position 0
   byte* data = instr;
@@ -2853,7 +2853,7 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 //------------------------------------------------------------------------------
 
-int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
+int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
                                     byte* instruction) {
   DisassemblerX64 d(converter_, unimplemented_opcode_action());
   return d.InstructionDecode(buffer, instruction);
@@ -2867,7 +2867,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
   for (byte* pc = begin; pc < end;) {
-    v8::internal::EmbeddedVector<char, 128> buffer;
+    v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);

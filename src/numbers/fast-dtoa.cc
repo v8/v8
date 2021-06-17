@@ -39,7 +39,7 @@ static const int kMaximalTargetExponent = -32;
 // Output: returns true if the buffer is guaranteed to contain the closest
 //    representable number to the input.
 //  Modifies the generated digits in the buffer to approach (round towards) w.
-static bool RoundWeed(Vector<char> buffer, int length,
+static bool RoundWeed(base::Vector<char> buffer, int length,
                       uint64_t distance_too_high_w, uint64_t unsafe_interval,
                       uint64_t rest, uint64_t ten_kappa, uint64_t unit) {
   uint64_t small_distance = distance_too_high_w - unit;
@@ -153,8 +153,9 @@ static bool RoundWeed(Vector<char> buffer, int length,
 // unambiguously determined.
 //
 // Precondition: rest < ten_kappa.
-static bool RoundWeedCounted(Vector<char> buffer, int length, uint64_t rest,
-                             uint64_t ten_kappa, uint64_t unit, int* kappa) {
+static bool RoundWeedCounted(base::Vector<char> buffer, int length,
+                             uint64_t rest, uint64_t ten_kappa, uint64_t unit,
+                             int* kappa) {
   DCHECK(rest < ten_kappa);
   // The following tests are done in a specific order to avoid overflows. They
   // will work correctly with any uint64 values of rest < ten_kappa and unit.
@@ -354,7 +355,7 @@ static void BiggestPowerTen(uint32_t number, int number_bits, uint32_t* power,
 // represent 'w' we can stop. Everything inside the interval low - high
 // represents w. However we have to pay attention to low, high and w's
 // imprecision.
-static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer,
+static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, base::Vector<char> buffer,
                      int* length, int* kappa) {
   DCHECK(low.e() == w.e() && w.e() == high.e());
   DCHECK(low.f() + 1 <= high.f() - 1);
@@ -474,8 +475,9 @@ static bool DigitGen(DiyFp low, DiyFp w, DiyFp high, Vector<char> buffer,
 //   numbers. If the precision is not enough to guarantee all the postconditions
 //   then false is returned. This usually happens rarely, but the failure-rate
 //   increases with higher requested_digits.
-static bool DigitGenCounted(DiyFp w, int requested_digits, Vector<char> buffer,
-                            int* length, int* kappa) {
+static bool DigitGenCounted(DiyFp w, int requested_digits,
+                            base::Vector<char> buffer, int* length,
+                            int* kappa) {
   DCHECK(kMinimalTargetExponent <= w.e() && w.e() <= kMaximalTargetExponent);
   DCHECK_GE(kMinimalTargetExponent, -60);
   DCHECK_LE(kMaximalTargetExponent, -32);
@@ -559,7 +561,7 @@ static bool DigitGenCounted(DiyFp w, int requested_digits, Vector<char> buffer,
 // The last digit will be closest to the actual v. That is, even if several
 // digits might correctly yield 'v' when read again, the closest will be
 // computed.
-static bool Grisu3(double v, Vector<char> buffer, int* length,
+static bool Grisu3(double v, base::Vector<char> buffer, int* length,
                    int* decimal_exponent) {
   DiyFp w = Double(v).AsNormalizedDiyFp();
   // boundary_minus and boundary_plus are the boundaries between v and its
@@ -620,8 +622,9 @@ static bool Grisu3(double v, Vector<char> buffer, int* length,
 // and with enough requested digits 0.1 will at some point print as 0.9999999...
 // Grisu3 is too imprecise for real halfway cases (1.5 will not work) and
 // therefore the rounding strategy for halfway cases is irrelevant.
-static bool Grisu3Counted(double v, int requested_digits, Vector<char> buffer,
-                          int* length, int* decimal_exponent) {
+static bool Grisu3Counted(double v, int requested_digits,
+                          base::Vector<char> buffer, int* length,
+                          int* decimal_exponent) {
   DiyFp w = Double(v).AsNormalizedDiyFp();
   DiyFp ten_mk;  // Cached power of ten: 10^-k
   int mk;        // -k
@@ -660,7 +663,7 @@ static bool Grisu3Counted(double v, int requested_digits, Vector<char> buffer,
 }
 
 bool FastDtoa(double v, FastDtoaMode mode, int requested_digits,
-              Vector<char> buffer, int* length, int* decimal_point) {
+              base::Vector<char> buffer, int* length, int* decimal_point) {
   DCHECK_GT(v, 0);
   DCHECK(!Double(v).IsSpecial());
 

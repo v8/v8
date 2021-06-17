@@ -779,7 +779,7 @@ TEST(TryToName) {
     // TryToName(<thin two-byte string>) => internalized version.
     uc16 array1[] = {2001, 2002, 2003};
     Handle<String> s = isolate->factory()
-                           ->NewStringFromTwoByte(ArrayVector(array1))
+                           ->NewStringFromTwoByte(base::ArrayVector(array1))
                            .ToHandleChecked();
     Handle<String> internalized = isolate->factory()->InternalizeString(s);
     ft.CheckTrue(s, expect_unique, internalized);
@@ -2198,7 +2198,7 @@ TEST(OneToTwoByteStringCopy) {
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
   uc16 array[] = {1000, 1001, 1002, 1003, 1004};
   Handle<String> string2 = isolate->factory()
-                               ->NewStringFromTwoByte(ArrayVector(array))
+                               ->NewStringFromTwoByte(base::ArrayVector(array))
                                .ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
@@ -2231,7 +2231,7 @@ TEST(OneToOneByteStringCopy) {
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
   uint8_t array[] = {100, 101, 102, 103, 104};
   Handle<String> string2 = isolate->factory()
-                               ->NewStringFromOneByte(ArrayVector(array))
+                               ->NewStringFromOneByte(base::ArrayVector(array))
                                .ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
@@ -2264,7 +2264,7 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
   uint8_t array[] = {100, 101, 102, 103, 104};
   Handle<String> string2 = isolate->factory()
-                               ->NewStringFromOneByte(ArrayVector(array))
+                               ->NewStringFromOneByte(base::ArrayVector(array))
                                .ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);
@@ -2293,11 +2293,11 @@ TEST(TwoToTwoByteStringCopy) {
 
   uc16 array1[] = {2000, 2001, 2002, 2003, 2004};
   Handle<String> string1 = isolate->factory()
-                               ->NewStringFromTwoByte(ArrayVector(array1))
+                               ->NewStringFromTwoByte(base::ArrayVector(array1))
                                .ToHandleChecked();
   uc16 array2[] = {1000, 1001, 1002, 1003, 1004};
   Handle<String> string2 = isolate->factory()
-                               ->NewStringFromTwoByte(ArrayVector(array2))
+                               ->NewStringFromTwoByte(base::ArrayVector(array2))
                                .ToHandleChecked();
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.Call(string1, string2);

@@ -296,7 +296,8 @@ V8_INLINE Token::Value Scanner::ScanIdentifierOrKeywordInner() {
       if (V8_LIKELY(!IdentifierNeedsSlowPath(scan_flags))) {
         if (!CanBeKeyword(scan_flags)) return Token::IDENTIFIER;
         // Could be a keyword or identifier.
-        Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
+        base::Vector<const uint8_t> chars =
+            next().literal_chars.one_byte_literal();
         return KeywordOrIdentifierToken(chars.begin(), chars.length());
       }
 

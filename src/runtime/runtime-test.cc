@@ -271,7 +271,7 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
     CONVERT_ARG_HANDLE_CHECKED(Object, type, 1);
     if (!type->IsString()) return CrashUnlessFuzzing(isolate);
     if (Handle<String>::cast(type)->IsOneByteEqualTo(
-            StaticCharVector("concurrent")) &&
+            base::StaticCharVector("concurrent")) &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
@@ -389,7 +389,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
     if (!sync_object->IsString()) return CrashUnlessFuzzing(isolate);
     Handle<String> sync = Handle<String>::cast(sync_object);
     if (sync->IsOneByteEqualTo(
-            StaticCharVector("allow heuristic optimization"))) {
+            base::StaticCharVector("allow heuristic optimization"))) {
       allow_heuristic_optimization = true;
     }
   }
@@ -562,9 +562,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     CONVERT_ARG_HANDLE_CHECKED(Object, sync_object, 1);
     if (!sync_object->IsString()) return CrashUnlessFuzzing(isolate);
     Handle<String> sync = Handle<String>::cast(sync_object);
-    if (sync->IsOneByteEqualTo(StaticCharVector("no sync"))) {
+    if (sync->IsOneByteEqualTo(base::StaticCharVector("no sync"))) {
       sync_with_compiler_thread = false;
-    } else if (sync->IsOneByteEqualTo(StaticCharVector("sync")) ||
+    } else if (sync->IsOneByteEqualTo(base::StaticCharVector("sync")) ||
                sync->length() == 0) {
       DCHECK(sync_with_compiler_thread);
     } else {
@@ -869,7 +869,7 @@ RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
   if (args.length() == 2) {
     CONVERT_ARG_HANDLE_CHECKED(String, str, 1);
     const char track_ephemeron_path[] = "track-ephemeron-path";
-    if (str->IsOneByteEqualTo(StaticCharVector(track_ephemeron_path))) {
+    if (str->IsOneByteEqualTo(base::StaticCharVector(track_ephemeron_path))) {
       option = RetainingPathOption::kTrackEphemeronPath;
     } else {
       CHECK_EQ(str->length(), 0);

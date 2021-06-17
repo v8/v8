@@ -1216,7 +1216,7 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
                                                     MaybeHandle<Object>());
   }
 
-  ScopedVector<Handle<Object>> excluded_properties(args.length() - 1);
+  base::ScopedVector<Handle<Object>> excluded_properties(args.length() - 1);
   for (int i = 1; i < args.length(); i++) {
     Handle<Object> property = args.at(i);
     uint32_t property_num;

@@ -160,7 +160,8 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       }
       m.Return(count, returns.get());
 
-      OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+      OptimizedCompilationInfo info(base::ArrayVector("testing"),
+                                    handles.main_zone(),
                                     CodeKind::WASM_FUNCTION);
       Handle<Code> code = Pipeline::GenerateCodeForTesting(
                               &info, handles.main_isolate(), desc, m.graph(),
@@ -272,8 +273,8 @@ void ReturnLastValue(MachineType type) {
 
     m.Return(return_count, returns.get());
 
-    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  CodeKind::WASM_FUNCTION);
+    OptimizedCompilationInfo info(base::ArrayVector("testing"),
+                                  handles.main_zone(), CodeKind::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
                             &info, handles.main_isolate(), desc, m.graph(),
                             AssemblerOptions::Default(handles.main_isolate()),
@@ -335,8 +336,8 @@ void ReturnSumOfReturns(MachineType type) {
 
     m.Return(return_count, returns.get());
 
-    OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
-                                  CodeKind::WASM_FUNCTION);
+    OptimizedCompilationInfo info(base::ArrayVector("testing"),
+                                  handles.main_zone(), CodeKind::WASM_FUNCTION);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(
                             &info, handles.main_isolate(), desc, m.graph(),
                             AssemblerOptions::Default(handles.main_isolate()),

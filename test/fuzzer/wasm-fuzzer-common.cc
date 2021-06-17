@@ -55,7 +55,7 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     return;
   }
 
-  OwnedVector<WasmValue> arguments =
+  base::OwnedVector<WasmValue> arguments =
       testing::MakeDefaultInterpreterArguments(isolate, main_function->sig());
 
   // Now interpret.
@@ -83,7 +83,7 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
               .ToHandle(&instance));
   }
 
-  OwnedVector<Handle<Object>> compiled_args =
+  base::OwnedVector<Handle<Object>> compiled_args =
       testing::MakeDefaultArguments(isolate, main_function->sig());
 
   bool exception = false;
@@ -298,7 +298,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 
   for (const WasmFunction& func : module->functions) {
-    Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
+    base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
     os << "// Generate function " << (func.func_index + 1) << " (out of "
        << module->functions.size() << ").\n";
 
@@ -362,7 +362,7 @@ void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate) {
   static EnableStagedWasmFeatures one_time_enable_staged_features(isolate);
 }
 
-void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
+void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
                                          bool require_valid) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();

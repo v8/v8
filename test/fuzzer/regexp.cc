@@ -39,7 +39,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CHECK(!i_isolate->has_pending_exception());
   if (size > INT_MAX) return 0;
   i::MaybeHandle<i::String> maybe_source = factory->NewStringFromOneByte(
-      i::Vector<const uint8_t>(data, static_cast<int>(size)));
+      v8::base::Vector<const uint8_t>(data, static_cast<int>(size)));
   i::Handle<i::String> source;
   if (!maybe_source.ToHandle(&source)) {
     i_isolate->clear_pending_exception();
@@ -56,10 +56,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CHECK(!i_isolate->has_pending_exception());
   i::Handle<i::RegExpMatchInfo> results_array = factory->NewRegExpMatchInfo();
   i::Handle<i::String> one_byte =
-      factory->NewStringFromOneByte(i::Vector<const uint8_t>(one_byte_array, 6))
+      factory
+          ->NewStringFromOneByte(
+              v8::base::Vector<const uint8_t>(one_byte_array, 6))
           .ToHandleChecked();
   i::Handle<i::String> two_byte =
-      factory->NewStringFromTwoByte(i::Vector<const i::uc16>(two_byte_array, 6))
+      factory
+          ->NewStringFromTwoByte(
+              v8::base::Vector<const i::uc16>(two_byte_array, 6))
           .ToHandleChecked();
 
   i::Handle<i::JSRegExp> regexp;

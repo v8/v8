@@ -46,7 +46,7 @@ bool ExperimentalRegExp::IsCompiled(Handle<JSRegExp> re, Isolate* isolate) {
 }
 
 template <class T>
-Handle<ByteArray> VectorToByteArray(Isolate* isolate, Vector<T> data) {
+Handle<ByteArray> VectorToByteArray(Isolate* isolate, base::Vector<T> data) {
   STATIC_ASSERT(std::is_trivial<T>::value);
 
   int byte_length = sizeof(T) * data.length();
@@ -131,12 +131,12 @@ bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
   return true;
 }
 
-Vector<RegExpInstruction> AsInstructionSequence(ByteArray raw_bytes) {
+base::Vector<RegExpInstruction> AsInstructionSequence(ByteArray raw_bytes) {
   RegExpInstruction* inst_begin =
       reinterpret_cast<RegExpInstruction*>(raw_bytes.GetDataStartAddress());
   int inst_num = raw_bytes.length() / sizeof(RegExpInstruction);
   DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes.length());
-  return Vector<RegExpInstruction>(inst_begin, inst_num);
+  return base::Vector<RegExpInstruction>(inst_begin, inst_num);
 }
 
 namespace {

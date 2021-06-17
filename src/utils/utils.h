@@ -20,9 +20,9 @@
 #include "src/base/platform/platform.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
-#include "src/utils/vector.h"
 
 #if defined(V8_USE_SIPHASH)
 #include "src/third_party/siphash/halfsiphash.h"
@@ -453,7 +453,7 @@ class SimpleStringBuilder {
   char* Finalize();
 
  protected:
-  Vector<char> buffer_;
+  base::Vector<char> buffer_;
   int position_;
 
   bool is_finalized() const { return position_ < 0; }
@@ -629,11 +629,11 @@ void PRINTF_FORMAT(2, 3) PrintIsolate(void* isolate, const char* format, ...);
 // Safe formatting print. Ensures that str is always null-terminated.
 // Returns the number of chars written, or -1 if output was truncated.
 V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 3)
-    SNPrintF(Vector<char> str, const char* format, ...);
+    SNPrintF(base::Vector<char> str, const char* format, ...);
 V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 0)
-    VSNPrintF(Vector<char> str, const char* format, va_list args);
+    VSNPrintF(base::Vector<char> str, const char* format, va_list args);
 
-void StrNCpy(Vector<char> dest, const char* src, size_t n);
+void StrNCpy(base::Vector<char> dest, const char* src, size_t n);
 
 // Read a line of characters after printing the prompt to stdout. The resulting
 // char* needs to be disposed off with DeleteArray by the caller.
@@ -752,8 +752,8 @@ T FpOpWorkaround(T input, T value) {
 }
 #endif
 
-V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
-                                    Vector<const char> filter);
+V8_EXPORT_PRIVATE bool PassesFilter(base::Vector<const char> name,
+                                    base::Vector<const char> filter);
 
 // Zap the specified area with a specific byte pattern. This currently defaults
 // to int3 on x64 and ia32. On other architectures this will produce unspecified

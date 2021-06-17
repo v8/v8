@@ -4,8 +4,8 @@
 
 #include "test/inspector/isolate-data.h"
 
+#include "src/base/vector.h"
 #include "src/inspector/test-interface.h"
-#include "src/utils/vector.h"
 #include "test/inspector/task-runner.h"
 #include "test/inspector/utils.h"
 

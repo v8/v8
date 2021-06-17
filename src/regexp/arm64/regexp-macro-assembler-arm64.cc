@@ -258,11 +258,10 @@ void RegExpMacroAssemblerARM64::CheckCharacterLT(uc16 limit, Label* on_less) {
   CompareAndBranchOrBacktrack(current_character(), limit, lo, on_less);
 }
 
-
-void RegExpMacroAssemblerARM64::CheckCharacters(Vector<const uc16> str,
-                                              int cp_offset,
-                                              Label* on_failure,
-                                              bool check_end_of_string) {
+void RegExpMacroAssemblerARM64::CheckCharacters(base::Vector<const uc16> str,
+                                                int cp_offset,
+                                                Label* on_failure,
+                                                bool check_end_of_string) {
   // This method is only ever called from the cctests.
 
   if (check_end_of_string) {
@@ -289,7 +288,6 @@ void RegExpMacroAssemblerARM64::CheckCharacters(Vector<const uc16> str,
     CompareAndBranchOrBacktrack(w10, str[i], ne, on_failure);
   }
 }
-
 
 void RegExpMacroAssemblerARM64::CheckGreedyLoop(Label* on_equal) {
   __ Ldr(w10, MemOperand(backtrack_stackpointer()));

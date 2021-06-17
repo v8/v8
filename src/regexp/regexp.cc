@@ -105,10 +105,11 @@ MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
                                                  Handle<JSRegExp> re,
                                                  Handle<String> pattern,
                                                  RegExpError error) {
-  Vector<const char> error_data = CStrVector(RegExpErrorString(error));
+  base::Vector<const char> error_data =
+      base::CStrVector(RegExpErrorString(error));
   Handle<String> error_text =
       isolate->factory()
-          ->NewStringFromOneByte(Vector<const uint8_t>::cast(error_data))
+          ->NewStringFromOneByte(base::Vector<const uint8_t>::cast(error_data))
           .ToHandleChecked();
   THROW_NEW_ERROR(
       isolate,
@@ -218,7 +219,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     RegExpAtom* atom = parse_result.tree->AsAtom();
     // The pattern source might (?) contain escape sequences, but they're
     // resolved in atom_string.
-    Vector<const uc16> atom_pattern = atom->data();
+    base::Vector<const uc16> atom_pattern = atom->data();
     Handle<String> atom_string;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, atom_string,

@@ -59,7 +59,7 @@ void Bignum::AssignBignum(const Bignum& other) {
   used_digits_ = other.used_digits_;
 }
 
-static uint64_t ReadUInt64(Vector<const char> buffer, int from,
+static uint64_t ReadUInt64(base::Vector<const char> buffer, int from,
                            int digits_to_read) {
   uint64_t result = 0;
   int to = from + digits_to_read;
@@ -72,7 +72,7 @@ static uint64_t ReadUInt64(Vector<const char> buffer, int from,
   return result;
 }
 
-void Bignum::AssignDecimalString(Vector<const char> value) {
+void Bignum::AssignDecimalString(base::Vector<const char> value) {
   // 2^64 = 18446744073709551616 > 10^19
   const int kMaxUint64DecimalDigits = 19;
   Zero();
@@ -99,7 +99,7 @@ static int HexCharValue(char c) {
   UNREACHABLE();
 }
 
-void Bignum::AssignHexString(Vector<const char> value) {
+void Bignum::AssignHexString(base::Vector<const char> value) {
   Zero();
   int length = value.length();
 

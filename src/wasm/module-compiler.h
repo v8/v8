@@ -23,6 +23,12 @@
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
+
+namespace base {
+template <typename T>
+class Vector;
+}  // namespace base
+
 namespace internal {
 
 class JSArrayBuffer;
@@ -30,9 +36,6 @@ class JSPromise;
 class Counters;
 class WasmModuleObject;
 class WasmInstanceObject;
-
-template <typename T>
-class Vector;
 
 namespace wasm {
 

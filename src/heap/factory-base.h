@@ -171,18 +171,18 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
-  Handle<String> InternalizeString(const Vector<const uint8_t>& string,
+  Handle<String> InternalizeString(const base::Vector<const uint8_t>& string,
                                    bool convert_encoding = false);
-  Handle<String> InternalizeString(const Vector<const uint16_t>& string,
+  Handle<String> InternalizeString(const base::Vector<const uint16_t>& string,
                                    bool convert_encoding = false);
 
   template <class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
   Handle<SeqOneByteString> NewOneByteInternalizedString(
-      const Vector<const uint8_t>& str, uint32_t raw_hash_field);
+      const base::Vector<const uint8_t>& str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
-      const Vector<const uc16>& str, uint32_t raw_hash_field);
+      const base::Vector<const uc16>& str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
       int length, uint32_t raw_hash_field);

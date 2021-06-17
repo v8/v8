@@ -626,11 +626,11 @@ class LiftoffAssembler : public TurboAssembler {
         : dst(dst), src(src), kind(kind) {}
   };
 
-  void ParallelRegisterMove(Vector<const ParallelRegisterMoveTuple>);
+  void ParallelRegisterMove(base::Vector<const ParallelRegisterMoveTuple>);
 
   void ParallelRegisterMove(
       std::initializer_list<ParallelRegisterMoveTuple> moves) {
-    ParallelRegisterMove(VectorOf(moves));
+    ParallelRegisterMove(base::VectorOf(moves));
   }
 
   void MoveToReturnLocations(const FunctionSig*,

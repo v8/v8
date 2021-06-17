@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/base/vector.h"
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -18,7 +19,6 @@
 #include "src/objects/string-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/utils/vector.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
@@ -351,9 +351,10 @@ void ProfilerListener::OnHeapObjectDeletion(CodeEntry* entry) {
 
 void ProfilerListener::CodeSweepEvent() { weak_code_registry_.Sweep(this); }
 
-const char* ProfilerListener::GetName(Vector<const char> name) {
+const char* ProfilerListener::GetName(base::Vector<const char> name) {
   // TODO(all): Change {StringsStorage} to accept non-null-terminated strings.
-  OwnedVector<char> null_terminated = OwnedVector<char>::New(name.size() + 1);
+  base::OwnedVector<char> null_terminated =
+      base::OwnedVector<char>::New(name.size() + 1);
   std::copy(name.begin(), name.end(), null_terminated.begin());
   null_terminated[name.size()] = '\0';
   return GetName(null_terminated.begin());

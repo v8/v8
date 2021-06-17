@@ -237,11 +237,11 @@ void Scanner::TryToParseSourceURLComment() {
     Advance();
   }
   if (!name.is_one_byte()) return;
-  Vector<const uint8_t> name_literal = name.one_byte_literal();
+  base::Vector<const uint8_t> name_literal = name.one_byte_literal();
   LiteralBuffer* value;
-  if (name_literal == StaticOneByteVector("sourceURL")) {
+  if (name_literal == base::StaticOneByteVector("sourceURL")) {
     value = &source_url_;
-  } else if (name_literal == StaticOneByteVector("sourceMappingURL")) {
+  } else if (name_literal == base::StaticOneByteVector("sourceMappingURL")) {
     value = &source_mapping_url_;
   } else {
     return;
@@ -922,7 +922,7 @@ Token::Value Scanner::ScanIdentifierOrKeywordInnerSlow(bool escaped,
   }
 
   if (can_be_keyword && next().literal_chars.is_one_byte()) {
-    Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
+    base::Vector<const uint8_t> chars = next().literal_chars.one_byte_literal();
     Token::Value token =
         KeywordOrIdentifierToken(chars.begin(), chars.length());
     if (base::IsInRange(token, Token::IDENTIFIER, Token::YIELD)) return token;
@@ -1043,7 +1043,7 @@ double Scanner::DoubleValue() {
 
 const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {
   DCHECK(is_literal_one_byte());
-  Vector<const uint8_t> vector = literal_one_byte_string();
+  base::Vector<const uint8_t> vector = literal_one_byte_string();
   int length = vector.length();
   char* buffer = zone->NewArray<char>(length + 1);
   memcpy(buffer, vector.begin(), length);

@@ -150,7 +150,7 @@ class IncrementalStringBuilder {
   V8_INLINE void AppendInt(int i) {
     char buffer[kIntToCStringBufferSize];
     const char* str =
-        IntToCString(i, Vector<char>(buffer, kIntToCStringBufferSize));
+        IntToCString(i, base::Vector<char>(buffer, kIntToCStringBufferSize));
     AppendCString(str);
   }
 

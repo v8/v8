@@ -56,9 +56,9 @@ class LiftoffCompileEnvironment {
 
     // Check that the generated code matches.
     auto code1 =
-        VectorOf(result1.code_desc.buffer, result1.code_desc.instr_size);
+        base::VectorOf(result1.code_desc.buffer, result1.code_desc.instr_size);
     auto code2 =
-        VectorOf(result2.code_desc.buffer, result2.code_desc.instr_size);
+        base::VectorOf(result2.code_desc.buffer, result2.code_desc.instr_size);
     CHECK_EQ(code1, code2);
     CHECK_EQ(detected1, detected2);
   }
@@ -75,7 +75,7 @@ class LiftoffCompileEnvironment {
     std::unique_ptr<DebugSideTable> debug_side_table_via_compilation;
     auto result = ExecuteLiftoffCompilation(
         CcTest::i_isolate()->allocator(), &env, test_func.body, 0,
-        kForDebugging, nullptr, &detected, VectorOf(breakpoints),
+        kForDebugging, nullptr, &detected, base::VectorOf(breakpoints),
         &debug_side_table_via_compilation);
     CHECK(result.succeeded());
 
@@ -138,7 +138,7 @@ class LiftoffCompileEnvironment {
     // declaration and the trailing "end" opcode).
     NativeModule* native_module = code->native_module();
     auto* function = &native_module->module()->functions[code->index()];
-    Vector<const uint8_t> function_wire_bytes =
+    base::Vector<const uint8_t> function_wire_bytes =
         native_module->wire_bytes().SubVector(function->code.offset(),
                                               function->code.end_offset());
 

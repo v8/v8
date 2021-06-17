@@ -117,7 +117,7 @@ i::wasm::ValueType WasmValKindToV8(ValKind kind) {
 }
 
 Name GetNameFromWireBytes(const i::wasm::WireBytesRef& ref,
-                          const i::Vector<const uint8_t>& wire_bytes) {
+                          const v8::base::Vector<const uint8_t>& wire_bytes) {
   DCHECK_LE(ref.offset(), wire_bytes.length());
   DCHECK_LE(ref.end_offset(), wire_bytes.length());
   if (ref.length() == 0) return Name::make();
@@ -1143,7 +1143,8 @@ auto Module::imports() const -> ownvec<ImportType> {
   const i::wasm::NativeModule* native_module =
       impl(this)->v8_object()->native_module();
   const i::wasm::WasmModule* module = native_module->module();
-  const i::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  const v8::base::Vector<const uint8_t> wire_bytes =
+      native_module->wire_bytes();
   const std::vector<i::wasm::WasmImport>& import_table = module->import_table;
   size_t size = import_table.size();
   ownvec<ImportType> imports = ownvec<ImportType>::make_uninitialized(size);
@@ -1161,7 +1162,8 @@ auto Module::imports() const -> ownvec<ImportType> {
 ownvec<ExportType> ExportsImpl(i::Handle<i::WasmModuleObject> module_obj) {
   const i::wasm::NativeModule* native_module = module_obj->native_module();
   const i::wasm::WasmModule* module = native_module->module();
-  const i::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  const v8::base::Vector<const uint8_t> wire_bytes =
+      native_module->wire_bytes();
   const std::vector<i::wasm::WasmExport>& export_table = module->export_table;
   size_t size = export_table.size();
   ownvec<ExportType> exports = ownvec<ExportType>::make_uninitialized(size);
@@ -1181,7 +1183,7 @@ auto Module::exports() const -> ownvec<ExportType> {
 auto Module::serialize() const -> vec<byte_t> {
   i::wasm::NativeModule* native_module =
       impl(this)->v8_object()->native_module();
-  i::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  v8::base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   size_t binary_size = wire_bytes.size();
   // We can only serialize after top-tier compilation (TurboFan) finished.
   native_module->compilation_state()->WaitForTopTierFinished();

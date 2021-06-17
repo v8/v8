@@ -378,14 +378,14 @@ Handle<Object> StackFrameInfo::GetMethodName(Handle<StackFrameInfo> info) {
 
   // The static initializer function is not a method, so don't add a
   // class name, just return the function name.
-  if (name->HasOneBytePrefix(CStrVector("<static_fields_initializer>"))) {
+  if (name->HasOneBytePrefix(base::CStrVector("<static_fields_initializer>"))) {
     return name;
   }
 
   // ES2015 gives getters and setters name prefixes which must
   // be stripped to find the property name.
-  if (name->HasOneBytePrefix(CStrVector("get ")) ||
-      name->HasOneBytePrefix(CStrVector("set "))) {
+  if (name->HasOneBytePrefix(base::CStrVector("get ")) ||
+      name->HasOneBytePrefix(base::CStrVector("set "))) {
     name = isolate->factory()->NewProperSubString(name, 4, name->length());
   } else if (name->length() == 0) {
     // The function doesn't have a meaningful "name" property, however
@@ -745,7 +745,7 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
   builder->AppendCString("]:");
 
   char buffer[16];
-  SNPrintF(ArrayVector(buffer), "0x%x",
+  SNPrintF(base::ArrayVector(buffer), "0x%x",
            StackFrameInfo::GetColumnNumber(frame) - 1);
   builder->AppendCString(buffer);
 

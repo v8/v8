@@ -170,8 +170,8 @@ i::Handle<i::String> CcTest::MakeString(const char* str) {
 }
 
 i::Handle<i::String> CcTest::MakeName(const char* str, int suffix) {
-  i::EmbeddedVector<char, 128> buffer;
-  SNPrintF(buffer, "%s%d", str, suffix);
+  v8::base::EmbeddedVector<char, 128> buffer;
+  i::SNPrintF(buffer, "%s%d", str, suffix);
   return CcTest::MakeString(buffer.begin());
 }
 

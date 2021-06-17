@@ -55,14 +55,14 @@ Handle<WasmInstanceObject> WasmModuleDebug::GetFirstWasmInstance() {
   return Handle<WasmInstanceObject>::null();
 }
 
-int GetLEB128Size(Vector<const uint8_t> module_bytes, int offset) {
+int GetLEB128Size(base::Vector<const uint8_t> module_bytes, int offset) {
   int index = offset;
   while (module_bytes[index] & 0x80) index++;
   return index + 1 - offset;
 }
 
 int ReturnPc(const NativeModule* native_module, int pc) {
-  Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   uint8_t opcode = wire_bytes[pc];
   switch (opcode) {
     case kExprCallFunction: {

@@ -5,6 +5,7 @@
 #include "src/wasm/wasm-objects.h"
 
 #include "src/base/iterator.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-factory.h"
 #include "src/compiler/wasm-compiler.h"
@@ -16,7 +17,6 @@
 #include "src/objects/struct-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
@@ -190,24 +190,25 @@ Handle<WasmModuleObject> WasmModuleObject::New(
 Handle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, Handle<WasmModuleObject> module_object,
     wasm::WireBytesRef ref, InternalizeString internalize) {
-  Vector<const uint8_t> wire_bytes =
+  base::Vector<const uint8_t> wire_bytes =
       module_object->native_module()->wire_bytes();
   return ExtractUtf8StringFromModuleBytes(isolate, wire_bytes, ref,
                                           internalize);
 }
 
 Handle<String> WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-    Isolate* isolate, Vector<const uint8_t> wire_bytes, wasm::WireBytesRef ref,
-    InternalizeString internalize) {
-  Vector<const uint8_t> name_vec =
+    Isolate* isolate, base::Vector<const uint8_t> wire_bytes,
+    wasm::WireBytesRef ref, InternalizeString internalize) {
+  base::Vector<const uint8_t> name_vec =
       wire_bytes.SubVector(ref.offset(), ref.end_offset());
   // UTF8 validation happens at decode time.
   DCHECK(unibrow::Utf8::ValidateEncoding(name_vec.begin(), name_vec.length()));
   auto* factory = isolate->factory();
   return internalize
              ? factory->InternalizeUtf8String(
-                   Vector<const char>::cast(name_vec))
-             : factory->NewStringFromUtf8(Vector<const char>::cast(name_vec))
+                   base::Vector<const char>::cast(name_vec))
+             : factory
+                   ->NewStringFromUtf8(base::Vector<const char>::cast(name_vec))
                    .ToHandleChecked();
 }
 
@@ -232,9 +233,10 @@ MaybeHandle<String> WasmModuleObject::GetFunctionNameOrNull(
                                           kNoInternalize);
 }
 
-Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(int func_index) {
+base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
+    int func_index) {
   if (func_index == wasm::kAnonymousFuncIndex) {
-    return Vector<const uint8_t>({nullptr, 0});
+    return base::Vector<const uint8_t>({nullptr, 0});
   }
   DCHECK_GT(module()->functions.size(), func_index);
   wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
@@ -242,7 +244,7 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(int func_index) {
       module()->lazily_generated_names.LookupFunctionName(wire_bytes,
                                                           func_index);
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
-  return Vector<const uint8_t>::cast(name);
+  return base::Vector<const uint8_t>::cast(name);
 }
 
 Handle<WasmTableObject> WasmTableObject::New(
@@ -1940,11 +1942,11 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   }
   Handle<String> name;
   if (!maybe_name.ToHandle(&name)) {
-    EmbeddedVector<char, 16> buffer;
+    base::EmbeddedVector<char, 16> buffer;
     int length = SNPrintF(buffer, "%d", func_index);
     name = factory
                ->NewStringFromOneByte(
-                   Vector<uint8_t>::cast(buffer.SubVector(0, length)))
+                   base::Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
   }
   Handle<Map> function_map;
@@ -2019,7 +2021,7 @@ std::unique_ptr<char[]> WasmExportedFunction::GetDebugName(
   constexpr const char kPrefix[] = "js-to-wasm:";
   // prefix + parameters + delimiter + returns + zero byte
   size_t len = strlen(kPrefix) + sig->all().size() + 2;
-  auto buffer = OwnedVector<char>::New(len);
+  auto buffer = base::OwnedVector<char>::New(len);
   memcpy(buffer.start(), kPrefix, strlen(kPrefix));
   PrintSignature(buffer.as_vector() + strlen(kPrefix), sig);
   return buffer.ReleaseData();

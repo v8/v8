@@ -7,8 +7,8 @@
 
 #include <ios>
 
+#include "src/base/vector.h"
 #include "src/regexp/regexp-ast.h"
-#include "src/utils/vector.h"
 
 // ----------------------------------------------------------------------------
 // Definition and semantics of the EXPERIMENTAL bytecode.
@@ -202,7 +202,7 @@ STATIC_ASSERT(sizeof(RegExpInstruction) == 8);
 
 std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst);
 std::ostream& operator<<(std::ostream& os,
-                         Vector<const RegExpInstruction> insts);
+                         base::Vector<const RegExpInstruction> insts);
 
 }  // namespace internal
 }  // namespace v8

@@ -15,9 +15,9 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/memory.h"
+#include "src/base/vector.h"
 #include "src/codegen/signature.h"
 #include "src/flags/flags.h"
-#include "src/utils/vector.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone-containers.h"
@@ -53,7 +53,8 @@ class Decoder {
 
   Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, start, end, buffer_offset) {}
-  explicit Decoder(const Vector<const byte> bytes, uint32_t buffer_offset = 0)
+  explicit Decoder(const base::Vector<const byte> bytes,
+                   uint32_t buffer_offset = 0)
       : Decoder(bytes.begin(), bytes.begin() + bytes.length(), buffer_offset) {}
   Decoder(const byte* start, const byte* pc, const byte* end,
           uint32_t buffer_offset = 0)
@@ -304,7 +305,7 @@ class Decoder {
     error_ = {};
   }
 
-  void Reset(Vector<const uint8_t> bytes, uint32_t buffer_offset = 0) {
+  void Reset(base::Vector<const uint8_t> bytes, uint32_t buffer_offset = 0) {
     Reset(bytes.begin(), bytes.end(), buffer_offset);
   }
 
@@ -354,7 +355,7 @@ class Decoder {
     // Only report the first error.
     if (!ok()) return;
     constexpr int kMaxErrorMsg = 256;
-    EmbeddedVector<char, kMaxErrorMsg> buffer;
+    base::EmbeddedVector<char, kMaxErrorMsg> buffer;
     int len = VSNPrintF(buffer, format, args);
     CHECK_LT(0, len);
     error_ = {offset, {buffer.begin(), static_cast<size_t>(len)}};

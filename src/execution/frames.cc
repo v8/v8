@@ -1867,7 +1867,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
                                   ->code_manager()
                                   ->LookupCode(pc())
                                   ->instruction_start();
-  Vector<const uint8_t> raw_func_name =
+  base::Vector<const uint8_t> raw_func_name =
       module_object().GetRawFunctionName(function_index());
   const int kMaxPrintedFunctionName = 64;
   char func_name[kMaxPrintedFunctionName + 1];

@@ -13,10 +13,10 @@
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
+#include "src/base/vector.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/utils/memcopy.h"
-#include "src/utils/vector.h"
 
 #if V8_LIBC_BIONIC
 #include <malloc.h>

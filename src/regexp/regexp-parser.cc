@@ -1014,8 +1014,8 @@ Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
 
   int i = 0;
   for (const auto& capture : sorted_named_captures) {
-    Vector<const uc16> capture_name(capture->name()->data(),
-                                    capture->name()->size());
+    base::Vector<const uc16> capture_name(capture->name()->data(),
+                                          capture->name()->size());
     // CSA code in ConstructNewResultFromMatchInfo requires these strings to be
     // internalized so they can be used as property names in the 'exec' results.
     Handle<String> name = factory->InternalizeString(capture_name);
@@ -2087,10 +2087,10 @@ bool RegExpBuilder::AddQuantifierToAtom(
   if (characters_ != nullptr) {
     DCHECK(last_added_ == ADD_CHAR);
     // Last atom was character.
-    Vector<const uc16> char_vector = characters_->ToConstVector();
+    base::Vector<const uc16> char_vector = characters_->ToConstVector();
     int num_chars = char_vector.length();
     if (num_chars > 1) {
-      Vector<const uc16> prefix = char_vector.SubVector(0, num_chars - 1);
+      base::Vector<const uc16> prefix = char_vector.SubVector(0, num_chars - 1);
       text_.Add(zone()->New<RegExpAtom>(prefix, flags_), zone());
       char_vector = char_vector.SubVector(num_chars - 1, num_chars);
     }

@@ -38,9 +38,9 @@
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
+using ::v8::base::EmbeddedVector;
 using ::v8::base::OS;
 using ::v8::internal::Deoptimizer;
-using ::v8::internal::EmbeddedVector;
 using ::v8::internal::Handle;
 using ::v8::internal::JSFunction;
 
@@ -478,10 +478,9 @@ static void CompileConstructorWithDeoptimizingValueOf() {
 static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
                                          const char* binary_op) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>((*env)->GetIsolate());
-  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
-  SNPrintF(f_source_buffer,
-           "function f(x, y) { return x %s y; };",
-           binary_op);
+  v8::base::EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
+  i::SNPrintF(f_source_buffer, "function f(x, y) { return x %s y; };",
+              binary_op);
   char* f_source = f_source_buffer.begin();
 
   AllowNativesSyntaxNoInlining options;

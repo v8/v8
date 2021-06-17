@@ -106,7 +106,7 @@ ZoneBuffer* BuildReturnConstantModule(Zone* zone, int constant) {
   ZoneBuffer* buffer = zone->New<ZoneBuffer>(zone);
   WasmModuleBuilder* builder = zone->New<WasmModuleBuilder>(zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
-  f->builder()->AddExport(CStrVector("main"), f);
+  f->builder()->AddExport(base::CStrVector("main"), f);
   byte code[] = {WASM_I32V_2(constant)};
   f->EmitCode(code, sizeof(code));
   f->Emit(kExprEnd);

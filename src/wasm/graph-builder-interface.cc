@@ -379,7 +379,7 @@ class WasmGraphBuildingInterface {
     ssa_env_->locals[imm.index] = value.node;
   }
 
-  void AllocateLocals(FullDecoder* decoder, Vector<Value> local_values) {
+  void AllocateLocals(FullDecoder* decoder, base::Vector<Value> local_values) {
     ZoneVector<TFNode*>* locals = &ssa_env_->locals;
     locals->insert(locals->begin(), local_values.size(), nullptr);
     for (uint32_t i = 0; i < local_values.size(); i++) {
@@ -460,7 +460,7 @@ class WasmGraphBuildingInterface {
       auto stack_values = CopyStackValues(decoder, ret_count, drop_values);
       BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
                            stack_values);
-      GetNodes(values.begin(), VectorOf(stack_values));
+      GetNodes(values.begin(), base::VectorOf(stack_values));
     } else {
       Value* stack_base = ret_count == 0
                               ? nullptr
@@ -468,9 +468,9 @@ class WasmGraphBuildingInterface {
       GetNodes(values.begin(), stack_base, ret_count);
     }
     if (FLAG_trace_wasm) {
-      builder_->TraceFunctionExit(VectorOf(values), decoder->position());
+      builder_->TraceFunctionExit(base::VectorOf(values), decoder->position());
     }
-    builder_->Return(VectorOf(values));
+    builder_->Return(base::VectorOf(values));
     SetEnv(internal_env);
   }
 
@@ -683,7 +683,7 @@ class WasmGraphBuildingInterface {
     SetEnv(false_env);
   }
 
-  void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
+  void SimdOp(FullDecoder* decoder, WasmOpcode opcode, base::Vector<Value> args,
               Value* result) {
     NodeVector inputs(args.size());
     GetNodes(inputs.begin(), args);
@@ -692,8 +692,8 @@ class WasmGraphBuildingInterface {
   }
 
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
-                  const SimdLaneImmediate<validate>& imm, Vector<Value> inputs,
-                  Value* result) {
+                  const SimdLaneImmediate<validate>& imm,
+                  base::Vector<Value> inputs, Value* result) {
     NodeVector nodes(inputs.size());
     GetNodes(nodes.begin(), inputs);
     result->node = builder_->SimdLaneOp(opcode, imm.lane, nodes.begin());
@@ -708,15 +708,15 @@ class WasmGraphBuildingInterface {
   }
 
   void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>& imm,
-             const Vector<Value>& value_args) {
+             const base::Vector<Value>& value_args) {
     int count = value_args.length();
     ZoneVector<TFNode*> args(count, decoder->zone());
     for (int i = 0; i < count; ++i) {
       args[i] = value_args[i].node;
     }
-    CheckForException(decoder,
-                      builder_->Throw(imm.index, imm.exception, VectorOf(args),
-                                      decoder->position()));
+    CheckForException(
+        decoder, builder_->Throw(imm.index, imm.exception, base::VectorOf(args),
+                                 decoder->position()));
     TerminateThrow(decoder);
   }
 
@@ -730,7 +730,7 @@ class WasmGraphBuildingInterface {
 
   void CatchException(FullDecoder* decoder,
                       const ExceptionIndexImmediate<validate>& imm,
-                      Control* block, Vector<Value> values) {
+                      Control* block, base::Vector<Value> values) {
     DCHECK(block->is_try_catch());
     // The catch block is unreachable if no possible throws in the try block
     // exist. We only build a landing pad if some node in the try block can
@@ -764,7 +764,7 @@ class WasmGraphBuildingInterface {
     // push them onto the operand stack using the passed {values} vector.
     SetEnv(if_catch_env);
     NodeVector caught_values(values.size());
-    Vector<TFNode*> caught_vector = VectorOf(caught_values);
+    base::Vector<TFNode*> caught_vector = base::VectorOf(caught_values);
     builder_->GetExceptionValues(exception, imm.exception, caught_vector);
     for (size_t i = 0, e = values.size(); i < e; ++i) {
       values[i].node = caught_values[i];
@@ -821,7 +821,8 @@ class WasmGraphBuildingInterface {
     SetEnv(block->try_info->catch_env);
   }
 
-  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
+  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode,
+                base::Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
     NodeVector inputs(args.size());
     GetNodes(inputs.begin(), args);
@@ -856,7 +857,7 @@ class WasmGraphBuildingInterface {
   }
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
-                 Vector<Value> args) {
+                 base::Vector<Value> args) {
     builder_->TableInit(imm.table.index, imm.element_segment.index,
                         args[0].node, args[1].node, args[2].node,
                         decoder->position());
@@ -867,7 +868,7 @@ class WasmGraphBuildingInterface {
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
-                 Vector<Value> args) {
+                 base::Vector<Value> args) {
     builder_->TableCopy(imm.table_dst.index, imm.table_src.index, args[0].node,
                         args[1].node, args[2].node, decoder->position());
   }
@@ -895,8 +896,8 @@ class WasmGraphBuildingInterface {
     for (uint32_t i = 0; i < field_count; i++) {
       arg_nodes[i] = args[i].node;
     }
-    result->node = builder_->StructNewWithRtt(imm.index, imm.struct_type,
-                                              rtt.node, VectorOf(arg_nodes));
+    result->node = builder_->StructNewWithRtt(
+        imm.index, imm.struct_type, rtt.node, base::VectorOf(arg_nodes));
   }
   void StructNewDefault(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
@@ -906,8 +907,8 @@ class WasmGraphBuildingInterface {
     for (uint32_t i = 0; i < field_count; i++) {
       arg_nodes[i] = DefaultValue(imm.struct_type->field(i));
     }
-    result->node = builder_->StructNewWithRtt(imm.index, imm.struct_type,
-                                              rtt.node, VectorOf(arg_nodes));
+    result->node = builder_->StructNewWithRtt(
+        imm.index, imm.struct_type, rtt.node, base::VectorOf(arg_nodes));
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -1174,7 +1175,7 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  void GetNodes(TFNode** nodes, Vector<Value> values) {
+  void GetNodes(TFNode** nodes, base::Vector<Value> values) {
     GetNodes(nodes, values.begin(), values.size());
   }
 
@@ -1439,22 +1440,22 @@ class WasmGraphBuildingInterface {
     }
     switch (call_mode) {
       case kCallIndirect:
-        CheckForException(decoder,
-                          builder_->CallIndirect(
-                              table_index, sig_index, VectorOf(arg_nodes),
-                              VectorOf(return_nodes), decoder->position()));
+        CheckForException(
+            decoder, builder_->CallIndirect(
+                         table_index, sig_index, base::VectorOf(arg_nodes),
+                         base::VectorOf(return_nodes), decoder->position()));
         break;
       case kCallDirect:
         CheckForException(
-            decoder,
-            builder_->CallDirect(sig_index, VectorOf(arg_nodes),
-                                 VectorOf(return_nodes), decoder->position()));
+            decoder, builder_->CallDirect(sig_index, base::VectorOf(arg_nodes),
+                                          base::VectorOf(return_nodes),
+                                          decoder->position()));
         break;
       case kCallRef:
-        CheckForException(decoder,
-                          builder_->CallRef(sig_index, VectorOf(arg_nodes),
-                                            VectorOf(return_nodes), null_check,
-                                            decoder->position()));
+        CheckForException(
+            decoder, builder_->CallRef(sig_index, base::VectorOf(arg_nodes),
+                                       base::VectorOf(return_nodes), null_check,
+                                       decoder->position()));
         break;
     }
     for (size_t i = 0; i < return_count; ++i) {
@@ -1482,24 +1483,24 @@ class WasmGraphBuildingInterface {
     }
 
     NodeVector arg_nodes(arg_count + 1);
-    GetNodes(arg_nodes.data(), VectorOf(arg_values));
+    GetNodes(arg_nodes.data(), base::VectorOf(arg_values));
 
     switch (call_mode) {
       case kCallIndirect:
-        CheckForException(decoder,
-                          builder_->ReturnCallIndirect(table_index, sig_index,
-                                                       VectorOf(arg_nodes),
-                                                       decoder->position()));
+        CheckForException(
+            decoder, builder_->ReturnCallIndirect(table_index, sig_index,
+                                                  base::VectorOf(arg_nodes),
+                                                  decoder->position()));
         break;
       case kCallDirect:
-        CheckForException(decoder,
-                          builder_->ReturnCall(sig_index, VectorOf(arg_nodes),
-                                               decoder->position()));
+        CheckForException(
+            decoder, builder_->ReturnCall(sig_index, base::VectorOf(arg_nodes),
+                                          decoder->position()));
         break;
       case kCallRef:
-        CheckForException(
-            decoder, builder_->ReturnCallRef(sig_index, VectorOf(arg_nodes),
-                                             null_check, decoder->position()));
+        CheckForException(decoder, builder_->ReturnCallRef(
+                                       sig_index, base::VectorOf(arg_nodes),
+                                       null_check, decoder->position()));
         break;
     }
   }

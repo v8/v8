@@ -273,7 +273,7 @@ int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
   int escapes = 0;
   bool needs_escapes = false;
   bool in_char_class = false;
-  Vector<const Char> src = source->GetCharVector<Char>(no_gc);
+  base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   for (int i = 0; i < src.length(); i++) {
     const Char c = src[i];
     if (c == '\\') {
@@ -316,7 +316,7 @@ int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
 }
 
 template <typename Char>
-void WriteStringToCharVector(Vector<Char> v, int* d, const char* string) {
+void WriteStringToCharVector(base::Vector<Char> v, int* d, const char* string) {
   int s = 0;
   while (string[s] != '\0') v[(*d)++] = string[s++];
 }
@@ -325,8 +325,8 @@ template <typename Char, typename StringType>
 Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
                                             Handle<StringType> result) {
   DisallowGarbageCollection no_gc;
-  Vector<const Char> src = source->GetCharVector<Char>(no_gc);
-  Vector<Char> dst(result->GetChars(no_gc), result->length());
+  base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
+  base::Vector<Char> dst(result->GetChars(no_gc), result->length());
   int s = 0;
   int d = 0;
   bool in_char_class = false;

@@ -772,7 +772,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE const AstRawString* GetNumberAsSymbol() const {
     double double_value = scanner()->DoubleValue();
     char array[100];
-    const char* string = DoubleToCString(double_value, ArrayVector(array));
+    const char* string =
+        DoubleToCString(double_value, base::ArrayVector(array));
     return ast_value_factory()->GetOneByteString(string);
   }
 

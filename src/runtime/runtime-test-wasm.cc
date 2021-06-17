@@ -355,11 +355,11 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   CHECK(!wire_bytes->WasDetached());
 
   Handle<JSArrayBuffer> wire_bytes_buffer = wire_bytes->GetBuffer();
-  Vector<const uint8_t> wire_bytes_vec{
+  base::Vector<const uint8_t> wire_bytes_vec{
       reinterpret_cast<const uint8_t*>(wire_bytes_buffer->backing_store()) +
           wire_bytes->byte_offset(),
       wire_bytes->byte_length()};
-  Vector<uint8_t> buffer_vec{
+  base::Vector<uint8_t> buffer_vec{
       reinterpret_cast<uint8_t*>(buffer->backing_store()),
       buffer->byte_length()};
 

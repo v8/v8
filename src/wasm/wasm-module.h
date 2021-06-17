@@ -13,9 +13,9 @@
 
 #include "src/base/optional.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
-#include "src/utils/vector.h"
 #include "src/wasm/branch-hint-map.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/struct-types.h"
@@ -30,7 +30,7 @@ class WasmModuleObject;
 
 namespace wasm {
 
-using WasmName = Vector<const char>;
+using WasmName = base::Vector<const char>;
 
 struct AsmJsOffsets;
 class ErrorThrower;
@@ -208,7 +208,7 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
  public:
-  explicit AsmJsOffsetInformation(Vector<const byte> encoded_offsets);
+  explicit AsmJsOffsetInformation(base::Vector<const byte> encoded_offsets);
 
   // Destructor defined in wasm-module.cc, where the definition of
   // {AsmJsOffsets} is available.
@@ -228,7 +228,7 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
   mutable base::Mutex mutex_;
 
   // Holds the encoded offset table bytes.
-  OwnedVector<const uint8_t> encoded_offsets_;
+  base::OwnedVector<const uint8_t> encoded_offsets_;
 
   // Holds the decoded offset table.
   std::unique_ptr<AsmJsOffsets> decoded_offsets_;
@@ -414,7 +414,7 @@ int GetNearestWasmFunction(const WasmModule* module, uint32_t byte_offset);
 // on module_bytes, as this storage is only guaranteed to be alive as long as
 // this struct is alive.
 struct V8_EXPORT_PRIVATE ModuleWireBytes {
-  explicit ModuleWireBytes(Vector<const byte> module_bytes)
+  explicit ModuleWireBytes(base::Vector<const byte> module_bytes)
       : module_bytes_(module_bytes) {}
   ModuleWireBytes(const byte* start, const byte* end)
       : module_bytes_(start, static_cast<int>(end - start)) {
@@ -434,18 +434,19 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
     return ref.offset() <= size && ref.length() <= size - ref.offset();
   }
 
-  Vector<const byte> GetFunctionBytes(const WasmFunction* function) const {
+  base::Vector<const byte> GetFunctionBytes(
+      const WasmFunction* function) const {
     return module_bytes_.SubVector(function->code.offset(),
                                    function->code.end_offset());
   }
 
-  Vector<const byte> module_bytes() const { return module_bytes_; }
+  base::Vector<const byte> module_bytes() const { return module_bytes_; }
   const byte* start() const { return module_bytes_.begin(); }
   const byte* end() const { return module_bytes_.end(); }
   size_t length() const { return module_bytes_.length(); }
 
  private:
-  Vector<const byte> module_bytes_;
+  base::Vector<const byte> module_bytes_;
 };
 
 // A helper for printing out the names of functions.
@@ -501,7 +502,7 @@ class TruncatedUserString {
 
  public:
   template <typename T>
-  explicit TruncatedUserString(Vector<T> name)
+  explicit TruncatedUserString(base::Vector<T> name)
       : TruncatedUserString(name.begin(), name.length()) {}
 
   TruncatedUserString(const byte* start, size_t len)
@@ -530,7 +531,7 @@ class TruncatedUserString {
 // between parameter types and return types. If {buffer} is non-empty, it will
 // be null-terminated, even if the signature is cut off. Returns the number of
 // characters written, excluding the terminating null-byte.
-size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig*,
+size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig*,
                       char delimiter = ':');
 
 }  // namespace wasm

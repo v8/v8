@@ -3256,7 +3256,7 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
   const uint16_t* data() const override { return empty_.begin(); }
 
  private:
-  ::v8::internal::EmbeddedVector<uint16_t, 1> empty_;
+  ::v8::base::EmbeddedVector<uint16_t, 1> empty_;
 };
 
 TEST(DebugScriptLineEndsAreAscending) {
@@ -3694,9 +3694,9 @@ static void TestDebugBreakInLoop(const char* loop_head,
     // Perform a lazy deoptimization after various numbers of breaks
     // have been hit.
 
-    i::EmbeddedVector<char, 1024> buffer;
-    SNPrintF(buffer, "function f() {%s%s%s}", loop_head, loop_bodies[i],
-             loop_tail);
+    v8::base::EmbeddedVector<char, 1024> buffer;
+    i::SNPrintF(buffer, "function f() {%s%s%s}", loop_head, loop_bodies[i],
+                loop_tail);
 
     i::PrintF("%s\n", buffer.begin());
 

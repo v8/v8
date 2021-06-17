@@ -35,13 +35,13 @@ namespace {
 // in Wasm, e.g. StreamProcessor and ZoneBuffer, with these.
 class Writer {
  public:
-  explicit Writer(Vector<byte> buffer)
+  explicit Writer(base::Vector<byte> buffer)
       : start_(buffer.begin()), end_(buffer.end()), pos_(buffer.begin()) {}
 
   size_t bytes_written() const { return pos_ - start_; }
   byte* current_location() const { return pos_; }
   size_t current_size() const { return end_ - pos_; }
-  Vector<byte> current_buffer() const {
+  base::Vector<byte> current_buffer() const {
     return {current_location(), current_size()};
   }
 
@@ -56,7 +56,7 @@ class Writer {
     }
   }
 
-  void WriteVector(const Vector<const byte> v) {
+  void WriteVector(const base::Vector<const byte> v) {
     DCHECK_GE(current_size(), v.size());
     if (v.size() > 0) {
       memcpy(current_location(), v.begin(), v.size());
@@ -78,13 +78,13 @@ class Writer {
 
 class Reader {
  public:
-  explicit Reader(Vector<const byte> buffer)
+  explicit Reader(base::Vector<const byte> buffer)
       : start_(buffer.begin()), end_(buffer.end()), pos_(buffer.begin()) {}
 
   size_t bytes_read() const { return pos_ - start_; }
   const byte* current_location() const { return pos_; }
   size_t current_size() const { return end_ - pos_; }
-  Vector<const byte> current_buffer() const {
+  base::Vector<const byte> current_buffer() const {
     return {current_location(), current_size()};
   }
 
@@ -102,16 +102,16 @@ class Reader {
   }
 
   template <typename T>
-  Vector<const T> ReadVector(size_t size) {
+  base::Vector<const T> ReadVector(size_t size) {
     DCHECK_GE(current_size(), size);
-    Vector<const byte> bytes{pos_, size * sizeof(T)};
+    base::Vector<const byte> bytes{pos_, size * sizeof(T)};
     pos_ += size * sizeof(T);
     if (FLAG_trace_wasm_serialization) {
       StdoutStream{} << "read vector of " << size << " elements of size "
                      << sizeof(T) << " (total size " << size * sizeof(T) << ")"
                      << std::endl;
     }
-    return Vector<const T>::cast(bytes);
+    return base::Vector<const T>::cast(bytes);
   }
 
   void Skip(size_t size) { pos_ += size; }
@@ -275,7 +275,7 @@ static_assert(std::is_trivially_destructible<ExternalReferenceList>::value,
 
 class V8_EXPORT_PRIVATE NativeModuleSerializer {
  public:
-  NativeModuleSerializer(const NativeModule*, Vector<WasmCode* const>);
+  NativeModuleSerializer(const NativeModule*, base::Vector<WasmCode* const>);
   NativeModuleSerializer(const NativeModuleSerializer&) = delete;
   NativeModuleSerializer& operator=(const NativeModuleSerializer&) = delete;
 
@@ -288,13 +288,13 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   bool WriteCode(const WasmCode*, Writer*);
 
   const NativeModule* const native_module_;
-  const Vector<WasmCode* const> code_table_;
+  const base::Vector<WasmCode* const> code_table_;
   bool write_called_ = false;
   size_t total_written_code_ = 0;
 };
 
 NativeModuleSerializer::NativeModuleSerializer(
-    const NativeModule* module, Vector<WasmCode* const> code_table)
+    const NativeModule* module, base::Vector<WasmCode* const> code_table)
     : native_module_(module), code_table_(code_table) {
   DCHECK_NOT_NULL(native_module_);
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
@@ -464,12 +464,14 @@ WasmSerializer::WasmSerializer(NativeModule* native_module)
       code_table_(native_module->SnapshotCodeTable()) {}
 
 size_t WasmSerializer::GetSerializedNativeModuleSize() const {
-  NativeModuleSerializer serializer(native_module_, VectorOf(code_table_));
+  NativeModuleSerializer serializer(native_module_,
+                                    base::VectorOf(code_table_));
   return kHeaderSize + serializer.Measure();
 }
 
-bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
-  NativeModuleSerializer serializer(native_module_, VectorOf(code_table_));
+bool WasmSerializer::SerializeNativeModule(base::Vector<byte> buffer) const {
+  NativeModuleSerializer serializer(native_module_,
+                                    base::VectorOf(code_table_));
   size_t measured_size = kHeaderSize + serializer.Measure();
   if (buffer.size() < measured_size) return false;
 
@@ -482,7 +484,7 @@ bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
 }
 
 struct DeserializationUnit {
-  Vector<const byte> src_code_buffer;
+  base::Vector<const byte> src_code_buffer;
   std::unique_ptr<WasmCode> code;
   NativeModule::JumpTablesRef jump_tables;
 };
@@ -550,7 +552,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
   // Updated in {ReadCode}.
   size_t remaining_code_size_ = 0;
-  Vector<byte> current_code_space_;
+  base::Vector<byte> current_code_space_;
   NativeModule::JumpTablesRef current_jump_tables_;
 };
 
@@ -727,7 +729,8 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   auto protected_instructions =
       reader->ReadVector<byte>(protected_instructions_size);
 
-  Vector<uint8_t> instructions = current_code_space_.SubVector(0, code_size);
+  base::Vector<uint8_t> instructions =
+      current_code_space_.SubVector(0, code_size);
   current_code_space_ += code_size;
   remaining_code_size_ -= code_size;
 
@@ -802,14 +805,14 @@ void NativeModuleDeserializer::Publish(std::vector<DeserializationUnit> batch) {
   for (auto& unit : batch) {
     codes.emplace_back(std::move(unit).code);
   }
-  auto published_codes = native_module_->PublishCode(VectorOf(codes));
+  auto published_codes = native_module_->PublishCode(base::VectorOf(codes));
   for (auto* wasm_code : published_codes) {
     wasm_code->MaybePrint();
     wasm_code->Validate();
   }
 }
 
-bool IsSupportedVersion(Vector<const byte> header) {
+bool IsSupportedVersion(base::Vector<const byte> header) {
   if (header.size() < WasmSerializer::kHeaderSize) return false;
   byte current_version[WasmSerializer::kHeaderSize];
   Writer writer({current_version, WasmSerializer::kHeaderSize});
@@ -819,14 +822,15 @@ bool IsSupportedVersion(Vector<const byte> header) {
 }
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
-    Isolate* isolate, Vector<const byte> data,
-    Vector<const byte> wire_bytes_vec, Vector<const char> source_url) {
+    Isolate* isolate, base::Vector<const byte> data,
+    base::Vector<const byte> wire_bytes_vec,
+    base::Vector<const char> source_url) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!IsSupportedVersion(data)) return {};
 
   // Make the copy of the wire bytes early, so we use the same memory for
   // decoding, lookup in the native module cache, and insertion into the cache.
-  auto owned_wire_bytes = OwnedVector<uint8_t>::Of(wire_bytes_vec);
+  auto owned_wire_bytes = base::OwnedVector<uint8_t>::Of(wire_bytes_vec);
 
   // TODO(titzer): module features should be part of the serialization format.
   WasmEngine* wasm_engine = isolate->wasm_engine();

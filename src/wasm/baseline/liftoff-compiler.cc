@@ -209,14 +209,15 @@ class DebugSideTableBuilder {
   };
 
   // Adds a new entry in regular code.
-  void NewEntry(int pc_offset, Vector<DebugSideTable::Entry::Value> values) {
+  void NewEntry(int pc_offset,
+                base::Vector<DebugSideTable::Entry::Value> values) {
     entries_.emplace_back(pc_offset, static_cast<int>(values.size()),
                           GetChangedStackValues(last_values_, values));
   }
 
   // Adds a new entry for OOL code, and returns a pointer to a builder for
   // modifying that entry.
-  EntryBuilder* NewOOLEntry(Vector<DebugSideTable::Entry::Value> values) {
+  EntryBuilder* NewOOLEntry(base::Vector<DebugSideTable::Entry::Value> values) {
     constexpr int kNoPcOffsetYet = -1;
     ool_entries_.emplace_back(kNoPcOffsetYet, static_cast<int>(values.size()),
                               GetChangedStackValues(last_ool_values_, values));
@@ -252,7 +253,7 @@ class DebugSideTableBuilder {
  private:
   static std::vector<Value> GetChangedStackValues(
       std::vector<Value>& last_values,
-      Vector<DebugSideTable::Entry::Value> values) {
+      base::Vector<DebugSideTable::Entry::Value> values) {
     std::vector<Value> changed_values;
     int old_stack_size = static_cast<int>(last_values.size());
     last_values.resize(values.size());
@@ -456,8 +457,8 @@ class LiftoffCompiler {
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
                   ForDebugging for_debugging, int func_index,
-                  Vector<const int> breakpoints = {}, int dead_breakpoint = 0,
-                  int* max_steps = nullptr)
+                  base::Vector<const int> breakpoints = {},
+                  int dead_breakpoint = 0, int* max_steps = nullptr)
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
@@ -488,13 +489,13 @@ class LiftoffCompiler {
                  handler_table_offset_);
   }
 
-  OwnedVector<uint8_t> GetSourcePositionTable() {
+  base::OwnedVector<uint8_t> GetSourcePositionTable() {
     return source_position_table_builder_.ToSourcePositionTableVector();
   }
 
-  OwnedVector<uint8_t> GetProtectedInstructionsData() const {
-    return OwnedVector<uint8_t>::Of(
-        Vector<const uint8_t>::cast(VectorOf(protected_instructions_)));
+  base::OwnedVector<uint8_t> GetProtectedInstructionsData() const {
+    return base::OwnedVector<uint8_t>::Of(base::Vector<const uint8_t>::cast(
+        base::VectorOf(protected_instructions_)));
   }
 
   uint32_t GetTotalFrameSlotCountForGC() const {
@@ -553,7 +554,7 @@ class LiftoffCompiler {
       default:
         UNREACHABLE();
     }
-    EmbeddedVector<char, 128> buffer;
+    base::EmbeddedVector<char, 128> buffer;
     SNPrintF(buffer, "%s %s", name(kind), context);
     unsupported(decoder, bailout_reason, buffer.begin());
     return false;
@@ -1132,7 +1133,7 @@ class LiftoffCompiler {
 
   void CatchException(FullDecoder* decoder,
                       const ExceptionIndexImmediate<validate>& imm,
-                      Control* block, Vector<Value> values) {
+                      Control* block, base::Vector<Value> values) {
     DCHECK(block->is_try_catch());
     __ emit_jump(block->label.get());
 
@@ -2189,7 +2190,7 @@ class LiftoffCompiler {
     LocalSet(imm.index, true);
   }
 
-  void AllocateLocals(FullDecoder* decoder, Vector<Value> local_values) {
+  void AllocateLocals(FullDecoder* decoder, base::Vector<Value> local_values) {
     // TODO(7748): Introduce typed functions bailout reason
     unsupported(decoder, kGC, "let");
   }
@@ -3107,12 +3108,14 @@ class LiftoffCompiler {
     }
   }
 
-  OwnedVector<DebugSideTable::Entry::Value> GetCurrentDebugSideTableEntries(
+  base::OwnedVector<DebugSideTable::Entry::Value>
+  GetCurrentDebugSideTableEntries(
       FullDecoder* decoder,
       DebugSideTableBuilder::AssumeSpilling assume_spilling) {
     auto& stack_state = __ cache_state()->stack_state;
-    auto values = OwnedVector<DebugSideTable::Entry::Value>::NewForOverwrite(
-        stack_state.size());
+    auto values =
+        base::OwnedVector<DebugSideTable::Entry::Value>::NewForOverwrite(
+            stack_state.size());
 
     // For function calls, the decoder still has the arguments on the stack, but
     // Liftoff already popped them. Hence {decoder->stack_size()} can be bigger
@@ -3329,7 +3332,7 @@ class LiftoffCompiler {
     __ PushRegister(kS128, dst);
   }
 
-  void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
+  void SimdOp(FullDecoder* decoder, WasmOpcode opcode, base::Vector<Value> args,
               Value* result) {
     if (!CpuFeatures::SupportsWasmSimd128()) {
       return unsupported(decoder, kSimd, "simd");
@@ -3865,7 +3868,7 @@ class LiftoffCompiler {
 
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate<validate>& imm,
-                  const Vector<Value> inputs, Value* result) {
+                  const base::Vector<Value> inputs, Value* result) {
     if (!CpuFeatures::SupportsWasmSimd128()) {
       return unsupported(decoder, kSimd, "simd");
     }
@@ -4206,7 +4209,7 @@ class LiftoffCompiler {
   }
 
   void Throw(FullDecoder* decoder, const ExceptionIndexImmediate<validate>& imm,
-             const Vector<Value>& /* args */) {
+             const base::Vector<Value>& /* args */) {
     LiftoffRegList pinned;
 
     // Load the encoded size in a register for the builtin call.
@@ -4592,7 +4595,8 @@ class LiftoffCompiler {
   V(I64AtomicCompareExchange16U, kI64Store16) \
   V(I64AtomicCompareExchange32U, kI64Store32)
 
-  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
+  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode,
+                base::Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
     switch (opcode) {
 #define ATOMIC_STORE_OP(name, type)                \
@@ -4746,7 +4750,7 @@ class LiftoffCompiler {
   }
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
-                 Vector<Value> args) {
+                 base::Vector<Value> args) {
     LiftoffRegList pinned;
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -4795,7 +4799,7 @@ class LiftoffCompiler {
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
-                 Vector<Value> args) {
+                 base::Vector<Value> args) {
     LiftoffRegList pinned;
 
     LiftoffRegister table_dst_index_reg =
@@ -6176,7 +6180,8 @@ constexpr base::EnumSet<ValueKind> LiftoffCompiler::kExternRefSupported;
 WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator* allocator, CompilationEnv* env,
     const FunctionBody& func_body, int func_index, ForDebugging for_debugging,
-    Counters* counters, WasmFeatures* detected, Vector<const int> breakpoints,
+    Counters* counters, WasmFeatures* detected,
+    base::Vector<const int> breakpoints,
     std::unique_ptr<DebugSideTable>* debug_sidetable, int dead_breakpoint,
     int* max_steps) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
@@ -6243,7 +6248,8 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   auto* native_module = code->native_module();
   auto* function = &native_module->module()->functions[code->index()];
   ModuleWireBytes wire_bytes{native_module->wire_bytes()};
-  Vector<const byte> function_bytes = wire_bytes.GetFunctionBytes(function);
+  base::Vector<const byte> function_bytes =
+      wire_bytes.GetFunctionBytes(function);
   CompilationEnv env = native_module->CreateCompilationEnv();
   FunctionBody func_body{function->sig, 0, function_bytes.begin(),
                          function_bytes.end()};
@@ -6256,9 +6262,10 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   constexpr int kSteppingBreakpoints[] = {0};
   DCHECK(code->for_debugging() == kForDebugging ||
          code->for_debugging() == kForStepping);
-  Vector<const int> breakpoints = code->for_debugging() == kForStepping
-                                      ? ArrayVector(kSteppingBreakpoints)
-                                      : Vector<const int>{};
+  base::Vector<const int> breakpoints =
+      code->for_debugging() == kForStepping
+          ? base::ArrayVector(kSteppingBreakpoints)
+          : base::Vector<const int>{};
   WasmFullDecoder<Decoder::kBooleanValidation, LiftoffCompiler> decoder(
       &zone, native_module->module(), env.enabled_features, &detected,
       func_body, call_descriptor, &env, &zone,

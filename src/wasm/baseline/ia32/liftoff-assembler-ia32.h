@@ -1675,7 +1675,7 @@ inline void Emit64BitShiftOperation(
 
   reg_moves.emplace_back(dst, src, kI64);
   reg_moves.emplace_back(ecx, amount, kI32);
-  assm->ParallelRegisterMove(VectorOf(reg_moves));
+  assm->ParallelRegisterMove(base::VectorOf(reg_moves));
 
   // Do the actual shift.
   (assm->*emit_shift)(dst.high_gp(), dst.low_gp());
