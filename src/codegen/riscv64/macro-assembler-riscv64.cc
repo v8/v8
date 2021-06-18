@@ -4640,7 +4640,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
 
   if (options().isolate_independent_code) {
     DCHECK(root_array_available());
-    Label if_code_is_off_heap, no_builtin_index, out;
+    Label if_code_is_off_heap, out;
 
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -4653,11 +4653,10 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // trampoline.  Otherwise, just call the Code object as always.
 
     Lw(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
-    Branch(&if_code_is_off_heap, ne, scratch,
-           Operand(Code::IsOffHeapTrampoline::kMask));
+    And(scratch, scratch, Operand(Code::IsOffHeapTrampoline::kMask));
+    Branch(&if_code_is_off_heap, ne, scratch, Operand(zero_reg));
     // Not an off-heap trampoline object, the entry point is at
     // Code::raw_instruction_start().
-    bind(&no_builtin_index);
     Add64(destination, code_object, Code::kHeaderSize - kHeapObjectTag);
     Branch(&out);
 
@@ -4665,9 +4664,6 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // table.
     bind(&if_code_is_off_heap);
     Lw(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
-    // TODO(RISCV): https://github.com/v8-riscv/v8/issues/373
-    Branch(&no_builtin_index, eq, scratch,
-           Operand(static_cast<int>(Builtin::kNoBuiltinId)));
     slli(destination, scratch, kSystemPointerSizeLog2);
     Add64(destination, destination, kRootRegister);
     Ld(destination,
