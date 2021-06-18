@@ -1244,6 +1244,8 @@ using Instr = uint32_t;
   V(stdbrx, STDBRX, 0x7C000528)                         \
   /* Store Word Byte-Reverse Indexed */                 \
   V(stwbrx, STWBRX, 0x7C00052C)                         \
+  /* Store Halfword Byte-Reverse Indexed */             \
+  V(sthbrx, STHBRX, 0x7C00072C)                         \
   /* Load Vector Indexed */                             \
   V(lvx, LVX, 0x7C0000CE)                               \
   /* Store Vector Indexed */                            \
@@ -1314,8 +1316,6 @@ using Instr = uint32_t;
   V(nand, NAND, 0x7C0003B8)                                                   \
   /* Parity Word */                                                           \
   V(prtyw, PRTYW, 0x7C000134)                                                 \
-  /* Store Halfword Byte-Reverse Indexed */                                   \
-  V(sthbrx, STHBRX, 0x7C00072C)                                               \
   /* Synchronize */                                                           \
   V(sync, SYNC, 0x7C0004AC)                                                   \
   /* Trap Word */                                                             \

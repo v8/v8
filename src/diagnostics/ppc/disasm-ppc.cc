@@ -1117,6 +1117,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "stwbrx  'rs, 'ra, 'rb");
       return;
     }
+    case STHBRX: {
+      Format(instr, "sthbrx  'rs, 'ra, 'rb");
+      return;
+    }
     case MTCRF: {
       Format(instr, "mtcrf   'FXM, 'rs");
       return;

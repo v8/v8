@@ -2981,6 +2981,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       WriteW(ra_val + rb_val, __builtin_bswap32(rs_val));
       break;
     }
+    case STHBRX: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+      intptr_t rs_val = get_register(rs);
+      intptr_t rb_val = get_register(rb);
+      WriteH(ra_val + rb_val, __builtin_bswap16(rs_val));
+      break;
+    }
     case STDX:
     case STDUX: {
       int rs = instr->RSValue();
