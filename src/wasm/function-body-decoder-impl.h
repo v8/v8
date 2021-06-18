@@ -703,9 +703,6 @@ struct MemoryAccessImmediate {
                                pc + alignment_length, &offset_length, "offset");
     length = alignment_length + offset_length;
   }
-  // Defined below, after the definition of WasmDecoder.
-  inline MemoryAccessImmediate(WasmDecoder<validate>* decoder, const byte* pc,
-                               uint32_t max_alignment);
 };
 
 // Immediate for SIMD lane operations.
@@ -2080,12 +2077,6 @@ class WasmDecoder : public Decoder {
   const FunctionSig* sig_;
 };
 
-template <Decoder::ValidateFlag validate>
-MemoryAccessImmediate<validate>::MemoryAccessImmediate(
-    WasmDecoder<validate>* decoder, const byte* pc, uint32_t max_alignment)
-    : MemoryAccessImmediate(decoder, pc, max_alignment,
-                            decoder->module_->is_memory64) {}
-
 // Only call this in contexts where {current_code_reachable_and_ok_} is known to
 // hold.
 #define CALL_INTERFACE(name, ...)                         \
@@ -2280,6 +2271,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
 
     return true;
+  }
+
+  MemoryAccessImmediate<validate> MakeMemoryAccessImmediate(
+      uint32_t pc_offset, uint32_t max_alignment) {
+    return MemoryAccessImmediate<validate>(
+        this, this->pc_ + pc_offset, max_alignment, this->module_->is_memory64);
   }
 
 #ifdef DEBUG
@@ -3610,8 +3607,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   int DecodeLoadMem(LoadType type, int prefix_len = 1) {
-    MemoryAccessImmediate<validate> imm(this, this->pc_ + prefix_len,
-                                        type.size_log_2());
+    MemoryAccessImmediate<validate> imm =
+        MakeMemoryAccessImmediate(prefix_len, type.size_log_2());
     if (!this->Validate(this->pc_ + prefix_len, imm)) return 0;
     ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
     Value index = Peek(0, 0, index_type);
@@ -3627,8 +3624,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // Load extends always load 64-bits.
     uint32_t max_alignment =
         transform == LoadTransformationKind::kExtend ? 3 : type.size_log_2();
-    MemoryAccessImmediate<validate> imm(this, this->pc_ + opcode_length,
-                                        max_alignment);
+    MemoryAccessImmediate<validate> imm =
+        MakeMemoryAccessImmediate(opcode_length, max_alignment);
     if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
     ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
     Value index = Peek(0, 0, index_type);
@@ -3641,8 +3638,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   int DecodeLoadLane(WasmOpcode opcode, LoadType type, uint32_t opcode_length) {
-    MemoryAccessImmediate<validate> mem_imm(this, this->pc_ + opcode_length,
-                                            type.size_log_2());
+    MemoryAccessImmediate<validate> mem_imm =
+        MakeMemoryAccessImmediate(opcode_length, type.size_log_2());
     if (!this->Validate(this->pc_ + opcode_length, mem_imm)) return 0;
     SimdLaneImmediate<validate> lane_imm(
         this, this->pc_ + opcode_length + mem_imm.length);
@@ -3660,8 +3657,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   int DecodeStoreLane(WasmOpcode opcode, StoreType type,
                       uint32_t opcode_length) {
-    MemoryAccessImmediate<validate> mem_imm(this, this->pc_ + opcode_length,
-                                            type.size_log_2());
+    MemoryAccessImmediate<validate> mem_imm =
+        MakeMemoryAccessImmediate(opcode_length, type.size_log_2());
     if (!this->Validate(this->pc_ + opcode_length, mem_imm)) return 0;
     SimdLaneImmediate<validate> lane_imm(
         this, this->pc_ + opcode_length + mem_imm.length);
@@ -3676,8 +3673,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   int DecodeStoreMem(StoreType store, int prefix_len = 1) {
-    MemoryAccessImmediate<validate> imm(this, this->pc_ + prefix_len,
-                                        store.size_log_2());
+    MemoryAccessImmediate<validate> imm =
+        MakeMemoryAccessImmediate(prefix_len, store.size_log_2());
     if (!this->Validate(this->pc_ + prefix_len, imm)) return 0;
     Value value = Peek(0, 1, store.value_type());
     ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
@@ -4591,9 +4588,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         return 0;
     }
 
-    MemoryAccessImmediate<validate> imm(
-        this, this->pc_ + opcode_length,
-        ElementSizeLog2Of(memtype.representation()));
+    MemoryAccessImmediate<validate> imm = MakeMemoryAccessImmediate(
+        opcode_length, ElementSizeLog2Of(memtype.representation()));
     if (!this->Validate(this->pc_ + opcode_length, imm)) return false;
 
     // TODO(10949): Fix this for memory64 (index type should be kWasmI64
