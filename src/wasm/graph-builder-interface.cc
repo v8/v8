@@ -987,6 +987,12 @@ class WasmGraphBuildingInterface {
                         length.node, decoder->position());
   }
 
+  void ArrayInit(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                 const base::Vector<Value>& elements, const Value& rtt,
+                 Value* result) {
+    UNREACHABLE();
+  }
+
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {
     result->node = builder_->I31New(input.node);
   }

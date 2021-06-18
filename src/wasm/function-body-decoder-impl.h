@@ -916,14 +916,38 @@ struct ControlBase : public PcForErrors<validate> {
 // This is the list of callback functions that an interface for the
 // WasmFullDecoder should implement.
 // F(Name, args...)
-#define INTERFACE_FUNCTIONS(F)                                                \
-  /* General: */                                                              \
-  F(StartFunction)                                                            \
-  F(StartFunctionBody, Control* block)                                        \
-  F(FinishFunction)                                                           \
-  F(OnFirstError)                                                             \
-  F(NextInstruction, WasmOpcode)                                              \
-  F(Forward, const Value& from, Value* to)                                    \
+#define INTERFACE_FUNCTIONS(F)    \
+  INTERFACE_META_FUNCTIONS(F)     \
+  INTERFACE_CONSTANT_FUNCTIONS(F) \
+  INTERFACE_NON_CONSTANT_FUNCTIONS(F)
+
+#define INTERFACE_META_FUNCTIONS(F)    \
+  F(StartFunction)                     \
+  F(StartFunctionBody, Control* block) \
+  F(FinishFunction)                    \
+  F(OnFirstError)                      \
+  F(NextInstruction, WasmOpcode)       \
+  F(Forward, const Value& from, Value* to)
+
+#define INTERFACE_CONSTANT_FUNCTIONS(F)                                   \
+  F(I32Const, Value* result, int32_t value)                               \
+  F(I64Const, Value* result, int64_t value)                               \
+  F(F32Const, Value* result, float value)                                 \
+  F(F64Const, Value* result, double value)                                \
+  F(S128Const, Simd128Immediate<validate>& imm, Value* result)            \
+  F(RefNull, ValueType type, Value* result)                               \
+  F(RefFunc, uint32_t function_index, Value* result)                      \
+  F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)  \
+  F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,          \
+    const Value& rtt, const Value args[], Value* result)                  \
+  F(ArrayInit, const ArrayIndexImmediate<validate>& imm,                  \
+    const base::Vector<Value>& elements, const Value& rtt, Value* result) \
+  F(RttCanon, uint32_t type_index, Value* result)                         \
+  F(RttSub, uint32_t type_index, const Value& parent, Value* result,      \
+    WasmRttSubMode mode)                                                  \
+  F(DoReturn, uint32_t drop_values)
+
+#define INTERFACE_NON_CONSTANT_FUNCTIONS(F)                                   \
   /* Control: */                                                              \
   F(Block, Control* block)                                                    \
   F(Loop, Control* block)                                                     \
@@ -935,22 +959,14 @@ struct ControlBase : public PcForErrors<validate> {
   F(UnOp, WasmOpcode opcode, const Value& value, Value* result)               \
   F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,             \
     Value* result)                                                            \
-  F(I32Const, Value* result, int32_t value)                                   \
-  F(I64Const, Value* result, int64_t value)                                   \
-  F(F32Const, Value* result, float value)                                     \
-  F(F64Const, Value* result, double value)                                    \
-  F(RefNull, ValueType type, Value* result)                                   \
-  F(RefFunc, uint32_t function_index, Value* result)                          \
   F(RefAsNonNull, const Value& arg, Value* result)                            \
   F(Drop)                                                                     \
-  F(DoReturn, uint32_t drop_values)                                           \
   F(LocalGet, Value* result, const IndexImmediate<validate>& imm)             \
   F(LocalSet, const Value& value, const IndexImmediate<validate>& imm)        \
   F(LocalTee, const Value& value, Value* result,                              \
     const IndexImmediate<validate>& imm)                                      \
   F(AllocateLocals, base::Vector<Value> local_values)                         \
   F(DeallocateLocals, uint32_t count)                                         \
-  F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)      \
   F(GlobalSet, const Value& value, const GlobalIndexImmediate<validate>& imm) \
   F(TableGet, const Value& index, Value* result,                              \
     const IndexImmediate<validate>& imm)                                      \
@@ -1026,8 +1042,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(TableSize, const IndexImmediate<validate>& imm, Value* result)            \
   F(TableFill, const IndexImmediate<validate>& imm, const Value& start,       \
     const Value& value, const Value& count)                                   \
-  F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,              \
-    const Value& rtt, const Value args[], Value* result)                      \
   F(StructNewDefault, const StructIndexImmediate<validate>& imm,              \
     const Value& rtt, Value* result)                                          \
   F(StructGet, const Value& struct_object,                                    \
@@ -1051,9 +1065,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(I31New, const Value& input, Value* result)                                \
   F(I31GetS, const Value& input, Value* result)                               \
   F(I31GetU, const Value& input, Value* result)                               \
-  F(RttCanon, uint32_t type_index, Value* result)                             \
-  F(RttSub, uint32_t type_index, const Value& parent, Value* result,          \
-    WasmRttSubMode mode)                                                      \
   F(RefTest, const Value& obj, const Value& rtt, Value* result)               \
   F(RefCast, const Value& obj, const Value& rtt, Value* result)               \
   F(AssertNull, const Value& obj, Value* result)                              \
