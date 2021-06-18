@@ -532,12 +532,6 @@
   # http://crbug/v8/10447
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
 
-  # http://crbug/v8/11868 and https://github.com/tc39/test262/pull/3008
-  'intl402/Segmenter/constructor/supportedLocalesOf/locales-specific': [FAIL],
-
-  # http://crbug/v8/11869 and https://github.com/tc39/test262/pull/3008
-  'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 

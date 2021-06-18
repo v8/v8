@@ -292,6 +292,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                 \
   HARMONY_STAGED_BASE(V)                                  \
+  V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher") \
   V(harmony_intl_displaynames_v2, "Intl.DisplayNames v2") \
   V(harmony_intl_locale_info, "Intl locale info")         \
   V(harmony_intl_more_timezone,                           \
@@ -311,10 +312,9 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_error_cause, "harmony error cause property")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                               \
-  HARMONY_SHIPPING_BASE(V)                                \
-  V(harmony_intl_best_fit_matcher, "Intl BestFitMatcher") \
-  V(harmony_intl_dateformat_day_period,                   \
+#define HARMONY_SHIPPING(V)             \
+  HARMONY_SHIPPING_BASE(V)              \
+  V(harmony_intl_dateformat_day_period, \
     "Add dayPeriod option to DateTimeFormat")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
