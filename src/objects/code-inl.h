@@ -225,22 +225,6 @@ inline CodeT ToCodeT(Code code) {
 #endif
 }
 
-inline Handle<CodeT> ToCodeT(Isolate* isolate, Handle<Code> code) {
-#if V8_EXTERNAL_CODE_SPACE
-  return handle(ToCodeT(*code), isolate);
-#else
-  return code;
-#endif
-}
-
-inline Handle<CodeT> ToCodeT(LocalIsolate* isolate, Handle<Code> code) {
-#if V8_EXTERNAL_CODE_SPACE
-  return handle(ToCodeT(*code), isolate);
-#else
-  return code;
-#endif
-}
-
 inline Code FromCodeT(CodeT code) {
 #if V8_EXTERNAL_CODE_SPACE
   return code.code();

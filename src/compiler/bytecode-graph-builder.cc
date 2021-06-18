@@ -2283,9 +2283,8 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
           bytecode_iterator().GetFlagOperand(2))
           ? AllocationType::kOld
           : AllocationType::kYoung;
-  Handle<CodeT> compile_lazy =
-      ToCodeT(broker()->local_isolate_or_isolate(),
-              BUILTIN_CODE(jsgraph()->isolate(), CompileLazy));
+  Handle<CodeT> compile_lazy = broker()->CanonicalPersistentHandle(
+      ToCodeT(*BUILTIN_CODE(jsgraph()->isolate(), CompileLazy)));
   const Operator* op = javascript()->CreateClosure(shared_info.object(),
                                                    compile_lazy, allocation);
   Node* closure = NewNode(
