@@ -1102,7 +1102,7 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
 //   o lr: return address
 //
 // The function builds an interpreter frame.  See InterpreterFrameConstants in
-// frames.h for its layout.
+// frame-constants.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = r3;
   Register feedback_vector = r4;
