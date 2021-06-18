@@ -16,6 +16,46 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+
+class NativeModule;
+
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+// Arm64 on MacOS (M1 hardware) uses CodeSpaceWriteScope to switch permissions.
+// TODO(wasm): Merge NativeModuleModificationScope and CodeSpaceWriteScope.
+class V8_NODISCARD NativeModuleModificationScope final {
+ public:
+  explicit NativeModuleModificationScope(NativeModule*) {}
+};
+#else
+// Within the scope, the native_module is writable and not executable.
+// At the scope's destruction, the native_module is executable and not writable.
+// The states inside the scope and at the scope termination are irrespective of
+// native_module's state when entering the scope.
+// We currently mark the entire module's memory W^X:
+//  - for AOT, that's as efficient as it can be.
+//  - for Lazy, we don't have a heuristic for functions that may need patching,
+//    and even if we did, the resulting set of pages may be fragmented.
+//    Currently, we try and keep the number of syscalls low.
+// -  similar argument for debug time.
+class V8_NODISCARD NativeModuleModificationScope final {
+ public:
+  explicit NativeModuleModificationScope(NativeModule* native_module);
+  ~NativeModuleModificationScope();
+
+  // Disable copy constructor and copy-assignment operator, since this manages
+  // a resource and implicit copying of the scope can yield surprising errors.
+  NativeModuleModificationScope(const NativeModuleModificationScope&) = delete;
+  NativeModuleModificationScope& operator=(
+      const NativeModuleModificationScope&) = delete;
+
+ private:
+  NativeModule* native_module_;
+};
+#endif  // defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+
+}  // namespace wasm
+
 #if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
 
 // Ignoring this warning is considered better than relying on

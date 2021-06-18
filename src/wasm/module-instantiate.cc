@@ -14,6 +14,7 @@
 #include "src/objects/property-descriptor.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
+#include "src/wasm/code-space-access.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"

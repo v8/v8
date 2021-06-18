@@ -4116,6 +4116,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/trap-handler/handler-shared.cc",
       "src/wasm/baseline/liftoff-assembler.cc",
       "src/wasm/baseline/liftoff-compiler.cc",
+      "src/wasm/code-space-access.cc",
       "src/wasm/function-body-decoder.cc",
       "src/wasm/function-compiler.cc",
       "src/wasm/graph-builder-interface.cc",
