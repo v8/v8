@@ -645,7 +645,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
   }
 
   auto get_accessors = [&]() {
-    return JSObject::DictionaryPropertyAt(holder, dictionary_index);
+    return JSObject::DictionaryPropertyAt(isolate(), holder, dictionary_index);
   };
   Handle<Map> holder_map = broker()->CanonicalPersistentHandle(holder->map());
   return AccessorAccessInfoHelper(isolate(), zone(), broker(), this,

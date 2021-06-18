@@ -5,7 +5,7 @@
 #include "src/objects/js-objects.h"
 
 #include "src/api/api-arguments-inl.h"
-#include "src/base/logging.h"
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/arguments.h"
@@ -27,6 +27,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/lookup.h"
@@ -4174,10 +4175,10 @@ Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
 }
 
 // static
-Handle<Object> JSObject::DictionaryPropertyAt(Handle<JSObject> object,
+Handle<Object> JSObject::DictionaryPropertyAt(Isolate* isolate,
+                                              Handle<JSObject> object,
                                               InternalIndex dict_index) {
-  Isolate* isolate = object->GetIsolate();
-
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     SwissNameDictionary dict = object->property_dictionary_swiss();
     return handle(dict.ValueAt(dict_index), isolate);
@@ -4185,6 +4186,27 @@ Handle<Object> JSObject::DictionaryPropertyAt(Handle<JSObject> object,
     NameDictionary dict = object->property_dictionary();
     return handle(dict.ValueAt(dict_index), isolate);
   }
+}
+
+// static
+base::Optional<Object> JSObject::DictionaryPropertyAt(Handle<JSObject> object,
+                                                      InternalIndex dict_index,
+                                                      Heap* heap) {
+  Object backing_store = object->raw_properties_or_hash(kRelaxedLoad);
+  if (!backing_store.IsHeapObject()) return {};
+  if (heap->IsPendingAllocation(HeapObject::cast(backing_store))) return {};
+
+  base::Optional<Object> maybe_obj;
+  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    if (!backing_store.IsSwissNameDictionary()) return {};
+    maybe_obj = SwissNameDictionary::cast(backing_store).TryValueAt(dict_index);
+  } else {
+    if (!backing_store.IsNameDictionary()) return {};
+    maybe_obj = NameDictionary::cast(backing_store).TryValueAt(dict_index);
+  }
+
+  if (!maybe_obj) return {};
+  return maybe_obj.value();
 }
 
 // TODO(cbruni/jkummerow): Consider moving this into elements.cc.

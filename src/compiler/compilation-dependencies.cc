@@ -4,10 +4,12 @@
 
 #include "src/compiler/compilation-dependencies.h"
 
+#include "src/base/optional.h"
 #include "src/compiler/compilation-dependency.h"
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/internal-index.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
@@ -279,6 +281,61 @@ class OwnConstantDataPropertyDependency final : public CompilationDependency {
   MapRef const map_;
   Representation const representation_;
   FieldIndex const index_;
+  ObjectRef const value_;
+};
+
+class OwnConstantDictionaryPropertyDependency final
+    : public CompilationDependency {
+ public:
+  OwnConstantDictionaryPropertyDependency(JSHeapBroker* broker,
+                                          const JSObjectRef& holder,
+                                          InternalIndex index,
+                                          const ObjectRef& value)
+      : broker_(broker),
+        holder_(holder),
+        map_(holder.map()),
+        index_(index),
+        value_(value) {
+    // We depend on map() being cached.
+    STATIC_ASSERT(ref_traits<JSObject>::ref_serialization_kind !=
+                  RefSerializationKind::kNeverSerialized);
+  }
+
+  bool IsValid() const override {
+    if (holder_.object()->map() != *map_.object()) {
+      TRACE_BROKER_MISSING(broker_,
+                           "Map change detected in " << holder_.object());
+      return false;
+    }
+
+    base::Optional<Object> maybe_value = JSObject::DictionaryPropertyAt(
+        holder_.object(), index_, broker_->isolate()->heap());
+
+    if (!maybe_value) {
+      TRACE_BROKER_MISSING(
+          broker_, holder_.object()
+                       << "has a value that might not safe to read at index "
+                       << index_.as_int());
+      return false;
+    }
+
+    if (*maybe_value != *value_.object()) {
+      TRACE_BROKER_MISSING(broker_, "Constant property value changed in "
+                                        << holder_.object()
+                                        << " at InternalIndex "
+                                        << index_.as_int());
+      return false;
+    }
+    return true;
+  }
+
+  void Install(Handle<Code> code) const override {}
+
+ private:
+  JSHeapBroker* const broker_;
+  JSObjectRef const holder_;
+  MapRef const map_;
+  InternalIndex const index_;
   ObjectRef const value_;
 };
 
@@ -726,6 +783,12 @@ void CompilationDependencies::DependOnOwnConstantDataProperty(
     FieldIndex index, const ObjectRef& value) {
   RecordDependency(zone_->New<OwnConstantDataPropertyDependency>(
       broker_, holder, map, representation, index, value));
+}
+
+void CompilationDependencies::DependOnOwnConstantDictionaryProperty(
+    const JSObjectRef& holder, InternalIndex index, const ObjectRef& value) {
+  RecordDependency(zone_->New<OwnConstantDictionaryPropertyDependency>(
+      broker_, holder, index, value));
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {

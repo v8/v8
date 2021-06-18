@@ -3091,7 +3091,7 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
                         access_info.field_representation(),
                         access_info.field_index(), nullptr, policy)
                   : holder->GetOwnDictionaryProperty(
-                        access_info.dictionary_index(), policy);
+                        access_info.dictionary_index(), nullptr, policy);
           if (constant.has_value()) {
             result_hints->AddConstant(constant->object(), zone(), broker());
           }

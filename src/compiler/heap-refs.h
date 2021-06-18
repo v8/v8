@@ -354,9 +354,10 @@ class JSObjectRef : public JSReceiverRef {
 
   // Return the value of the dictionary property at {index} in the dictionary
   // if {index} is known to be an own data property of the object.
-  ObjectRef GetOwnDictionaryProperty(
-      InternalIndex index, SerializationPolicy policy =
-                               SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> GetOwnDictionaryProperty(
+      InternalIndex index, CompilationDependencies* dependencies,
+      SerializationPolicy policy =
+          SerializationPolicy::kAssumeSerialized) const;
 
   // When concurrent inlining is enabled, reads the elements through a direct
   // relaxed read. This is to ease the transition to unserialized (or

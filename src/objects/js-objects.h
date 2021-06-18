@@ -642,8 +642,15 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                                   const char* reason);
 
   // Access property in dictionary mode object at the given dictionary index.
-  static Handle<Object> DictionaryPropertyAt(Handle<JSObject> object,
+  static Handle<Object> DictionaryPropertyAt(Isolate* isolate,
+                                             Handle<JSObject> object,
                                              InternalIndex dict_index);
+  // Same as above, but it will return {} if we would be reading out of the
+  // bounds of the object or if the dictionary is pending allocation. Use this
+  // version for concurrent access.
+  static base::Optional<Object> DictionaryPropertyAt(Handle<JSObject> object,
+                                                     InternalIndex dict_index,
+                                                     Heap* heap);
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,

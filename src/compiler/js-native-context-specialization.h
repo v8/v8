@@ -6,6 +6,7 @@
 #define V8_COMPILER_JS_NATIVE_CONTEXT_SPECIALIZATION_H_
 
 #include "src/base/flags.h"
+#include "src/base/optional.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -150,18 +151,17 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     Node* control_;
   };
 
-  // Construct the appropriate subgraph for property access.
-  ValueEffectControl BuildPropertyAccess(
+  // Construct the appropriate subgraph for property access. Return {} if the
+  // property access couldn't be built.
+  base::Optional<ValueEffectControl> BuildPropertyAccess(
       Node* lookup_start_object, Node* receiver, Node* value, Node* context,
       Node* frame_state, Node* effect, Node* control, NameRef const& name,
       ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
       AccessMode access_mode);
-  ValueEffectControl BuildPropertyLoad(Node* lookup_start_object,
-                                       Node* receiver, Node* context,
-                                       Node* frame_state, Node* effect,
-                                       Node* control, NameRef const& name,
-                                       ZoneVector<Node*>* if_exceptions,
-                                       PropertyAccessInfo const& access_info);
+  base::Optional<ValueEffectControl> BuildPropertyLoad(
+      Node* lookup_start_object, Node* receiver, Node* context,
+      Node* frame_state, Node* effect, Node* control, NameRef const& name,
+      ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info);
 
   ValueEffectControl BuildPropertyStore(Node* receiver, Node* value,
                                         Node* context, Node* frame_state,

@@ -10,6 +10,8 @@
 
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
+#include "src/base/optional.h"
+#include "src/base/platform/platform.h"
 #include "src/codegen/code-factory.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/graph-reducer.h"
@@ -607,12 +609,18 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
   return MakeRef(broker, *possibly_wrapped);
 }
 
-ObjectRef GetOwnDictionaryPropertyFromHeap(JSHeapBroker* broker,
-                                           Handle<JSObject> receiver,
-                                           InternalIndex dict_index) {
-  Handle<Object> constant =
-      JSObject::DictionaryPropertyAt(receiver, dict_index);
-  return MakeRef(broker, constant);
+// Tries to get the property at {dict_index}. If we are within bounds of the
+// object, we are guaranteed to see valid heap words even if the data is wrong.
+base::Optional<ObjectRef> GetOwnDictionaryPropertyFromHeap(
+    JSHeapBroker* broker, Handle<JSObject> receiver, InternalIndex dict_index) {
+  DisallowGarbageCollection no_gc;
+  // DictionaryPropertyAt will check that we are within the bounds of the
+  // object.
+  base::Optional<Object> maybe_constant = JSObject::DictionaryPropertyAt(
+      receiver, dict_index, broker->isolate()->heap());
+  DCHECK_IMPLIES(broker->IsMainThread(), maybe_constant);
+  if (!maybe_constant) return {};
+  return TryMakeRef(broker, maybe_constant.value());
 }
 
 }  // namespace
@@ -674,7 +682,8 @@ ObjectData* JSObjectData::GetOwnDictionaryProperty(JSHeapBroker* broker,
   }
 
   ObjectRef property = GetOwnDictionaryPropertyFromHeap(
-      broker, Handle<JSObject>::cast(object()), dict_index);
+                           broker, Handle<JSObject>::cast(object()), dict_index)
+                           .value();
   ObjectData* result(property.data());
   own_properties_.insert(std::make_pair(dict_index.as_int(), result));
   return result;
@@ -4029,12 +4038,18 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
   return TryMakeRef<Object>(broker(), property);
 }
 
-ObjectRef JSObjectRef::GetOwnDictionaryProperty(
-    InternalIndex index, SerializationPolicy policy) const {
+base::Optional<ObjectRef> JSObjectRef::GetOwnDictionaryProperty(
+    InternalIndex index, CompilationDependencies* dependencies,
+    SerializationPolicy policy) const {
   CHECK(index.is_found());
-  if (data_->should_access_heap()) {
-    return GetOwnDictionaryPropertyFromHeap(
-        broker(), Handle<JSObject>::cast(object()), index);
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    base::Optional<ObjectRef> result =
+        GetOwnDictionaryPropertyFromHeap(broker(), object(), index);
+    if (dependencies != nullptr && result.has_value()) {
+      dependencies->DependOnOwnConstantDictionaryProperty(*this, index,
+                                                          *result);
+    }
+    return result;
   }
   ObjectData* property =
       data()->AsJSObject()->GetOwnDictionaryProperty(broker(), index, policy);
