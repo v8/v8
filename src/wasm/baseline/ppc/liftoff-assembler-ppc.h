@@ -252,7 +252,77 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem,
                             bool i64_offset) {
-  bailout(kUnsupportedArchitecture, "Load");
+  if (!i64_offset && offset_reg != no_reg) {
+    ZeroExtWord32(ip, offset_reg);
+    offset_reg = ip;
+  }
+  MemOperand src_op = MemOperand(src_addr, offset_reg, offset_imm);
+  if (protected_load_pc) *protected_load_pc = pc_offset();
+  switch (type.value()) {
+    case LoadType::kI32Load8U:
+    case LoadType::kI64Load8U:
+      LoadU8(dst.gp(), src_op, r0);
+      break;
+    case LoadType::kI32Load8S:
+    case LoadType::kI64Load8S:
+      LoadS8(dst.gp(), src_op, r0);
+      break;
+    case LoadType::kI32Load16U:
+    case LoadType::kI64Load16U:
+      if (is_load_mem) {
+        LoadU16LE(dst.gp(), src_op, r0);
+      } else {
+        LoadU16(dst.gp(), src_op, r0);
+      }
+      break;
+    case LoadType::kI32Load16S:
+    case LoadType::kI64Load16S:
+      if (is_load_mem) {
+        LoadS16LE(dst.gp(), src_op, r0);
+      } else {
+        LoadS16(dst.gp(), src_op, r0);
+      }
+      break;
+    case LoadType::kI64Load32U:
+      if (is_load_mem) {
+        LoadU32LE(dst.gp(), src_op, r0);
+      } else {
+        LoadU32(dst.gp(), src_op, r0);
+      }
+      break;
+    case LoadType::kI32Load:
+    case LoadType::kI64Load32S:
+      if (is_load_mem) {
+        LoadS32LE(dst.gp(), src_op, r0);
+      } else {
+        LoadS32(dst.gp(), src_op, r0);
+      }
+      break;
+    case LoadType::kI64Load:
+      if (is_load_mem) {
+        LoadU64LE(dst.gp(), src_op, r0);
+      } else {
+        LoadU64(dst.gp(), src_op, r0);
+      }
+      break;
+    case LoadType::kF32Load:
+      if (is_load_mem) {
+        LoadF32LE(dst.fp(), src_op, r0, ip);
+      } else {
+        LoadF32(dst.fp(), src_op, r0);
+      }
+      break;
+    case LoadType::kF64Load:
+      if (is_load_mem) {
+        LoadF64LE(dst.fp(), src_op, r0, ip);
+      } else {
+        LoadF64(dst.fp(), src_op, r0);
+      }
+      break;
+    case LoadType::kS128Load:
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
