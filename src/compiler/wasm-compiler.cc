@@ -7695,7 +7695,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
-          isolate, isolate->wasm_engine(), incoming, std::move(zone), graph,
+          isolate, wasm::GetWasmEngine(), incoming, std::move(zone), graph,
           CodeKind::WASM_TO_JS_FUNCTION, std::move(name_buffer),
           AssemblerOptions::Default(isolate)));
 
@@ -7742,7 +7742,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
-          isolate, isolate->wasm_engine(), incoming, std::move(zone), graph,
+          isolate, wasm::GetWasmEngine(), incoming, std::move(zone), graph,
           CodeKind::JS_TO_JS_FUNCTION, std::move(name_buffer),
           AssemblerOptions::Default(isolate)));
 
@@ -7797,7 +7797,7 @@ Handle<CodeT> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
-          isolate, isolate->wasm_engine(), incoming, std::move(zone), graph,
+          isolate, wasm::GetWasmEngine(), incoming, std::move(zone), graph,
           CodeKind::C_WASM_ENTRY, std::move(name_buffer),
           AssemblerOptions::Default(isolate)));
 

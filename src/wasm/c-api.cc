@@ -1118,7 +1118,7 @@ auto Module::validate(Store* store_abs, const vec<byte_t>& binary) -> bool {
       {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
   i::Isolate* isolate = impl(store_abs)->i_isolate();
   i::wasm::WasmFeatures features = i::wasm::WasmFeatures::FromIsolate(isolate);
-  return isolate->wasm_engine()->SyncValidate(isolate, features, bytes);
+  return i::wasm::GetWasmEngine()->SyncValidate(isolate, features, bytes);
 }
 
 auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
@@ -1131,7 +1131,7 @@ auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
   i::wasm::WasmFeatures features = i::wasm::WasmFeatures::FromIsolate(isolate);
   i::wasm::ErrorThrower thrower(isolate, "ignored");
   i::Handle<i::WasmModuleObject> module;
-  if (!isolate->wasm_engine()
+  if (!i::wasm::GetWasmEngine()
            ->SyncCompile(isolate, features, &thrower, bytes)
            .ToHandle(&module)) {
     thrower.Reset();  // The API provides no way to expose the error.
@@ -2137,7 +2137,7 @@ own<Instance> Instance::make(Store* store_abs, const Module* module_abs,
   }
   i::wasm::ErrorThrower thrower(isolate, "instantiation");
   i::MaybeHandle<i::WasmInstanceObject> instance_obj =
-      isolate->wasm_engine()->SyncInstantiate(
+      i::wasm::GetWasmEngine()->SyncInstantiate(
           isolate, &thrower, module->v8_object(), imports_obj,
           i::MaybeHandle<i::JSArrayBuffer>());
   if (trap) {

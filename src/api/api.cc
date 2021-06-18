@@ -7577,7 +7577,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
 #if V8_ENABLE_WEBASSEMBLY
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::WasmModuleObject> module_object =
-      i_isolate->wasm_engine()->ImportNativeModule(
+      i::wasm::GetWasmEngine()->ImportNativeModule(
           i_isolate, compiled_module.native_module_,
           base::VectorOf(compiled_module.source_url()));
   return Local<WasmModuleObject>::Cast(
@@ -8238,7 +8238,7 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
 bool Isolate::HasPendingBackgroundTasks() {
 #if V8_ENABLE_WEBASSEMBLY
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  return isolate->wasm_engine()->HasRunningCompileJob(isolate);
+  return i::wasm::GetWasmEngine()->HasRunningCompileJob(isolate);
 #else
   return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -8579,9 +8579,9 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
 
 #if V8_ENABLE_WEBASSEMBLY
   heap_statistics->malloced_memory_ +=
-      isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage();
+      i::wasm::GetWasmEngine()->allocator()->GetCurrentMemoryUsage();
   heap_statistics->peak_malloced_memory_ +=
-      isolate->wasm_engine()->allocator()->GetMaxMemoryUsage();
+      i::wasm::GetWasmEngine()->allocator()->GetMaxMemoryUsage();
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
@@ -8895,7 +8895,7 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
       // of that context.
       // A handle scope for the native context.
       i::HandleScope handle_scope(isolate);
-      isolate->wasm_engine()->DeleteCompileJobsOnContext(
+      i::wasm::GetWasmEngine()->DeleteCompileJobsOnContext(
           isolate->native_context());
     }
   }

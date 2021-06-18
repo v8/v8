@@ -52,7 +52,7 @@ class StreamTester {
 
     Handle<Context> context = i_isolate->native_context();
 
-    stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
+    stream_ = GetWasmEngine()->StartStreamingCompilation(
         i_isolate, WasmFeatures::All(), context,
         "WebAssembly.compileStreaming()", test_resolver_);
   }
@@ -92,8 +92,7 @@ std::shared_ptr<NativeModule> SyncCompile(base::Vector<const uint8_t> bytes) {
   auto enabled_features = WasmFeatures::FromIsolate(CcTest::i_isolate());
   auto wire_bytes = ModuleWireBytes(bytes.begin(), bytes.end());
   Handle<WasmModuleObject> module =
-      CcTest::i_isolate()
-          ->wasm_engine()
+      GetWasmEngine()
           ->SyncCompile(CcTest::i_isolate(), enabled_features, &thrower,
                         wire_bytes)
           .ToHandleChecked();
@@ -143,18 +142,18 @@ TEST(TestAsyncCache) {
   auto resolverA2 = std::make_shared<TestResolver>(&pending);
   auto resolverB = std::make_shared<TestResolver>(&pending);
 
-  CcTest::i_isolate()->wasm_engine()->AsyncCompile(
-      CcTest::i_isolate(), WasmFeatures::All(), resolverA1,
-      ModuleWireBytes(bufferA.begin(), bufferA.end()), true,
-      "WebAssembly.compile");
-  CcTest::i_isolate()->wasm_engine()->AsyncCompile(
-      CcTest::i_isolate(), WasmFeatures::All(), resolverA2,
-      ModuleWireBytes(bufferA.begin(), bufferA.end()), true,
-      "WebAssembly.compile");
-  CcTest::i_isolate()->wasm_engine()->AsyncCompile(
-      CcTest::i_isolate(), WasmFeatures::All(), resolverB,
-      ModuleWireBytes(bufferB.begin(), bufferB.end()), true,
-      "WebAssembly.compile");
+  GetWasmEngine()->AsyncCompile(CcTest::i_isolate(), WasmFeatures::All(),
+                                resolverA1,
+                                ModuleWireBytes(bufferA.begin(), bufferA.end()),
+                                true, "WebAssembly.compile");
+  GetWasmEngine()->AsyncCompile(CcTest::i_isolate(), WasmFeatures::All(),
+                                resolverA2,
+                                ModuleWireBytes(bufferA.begin(), bufferA.end()),
+                                true, "WebAssembly.compile");
+  GetWasmEngine()->AsyncCompile(CcTest::i_isolate(), WasmFeatures::All(),
+                                resolverB,
+                                ModuleWireBytes(bufferB.begin(), bufferB.end()),
+                                true, "WebAssembly.compile");
 
   while (pending > 0) {
     v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),

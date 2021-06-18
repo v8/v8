@@ -59,12 +59,10 @@ class SharedEngineIsolate {
 
   Handle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
     Handle<WasmModuleObject> module_object =
-        isolate()->wasm_engine()->ImportNativeModule(isolate(), shared_module,
-                                                     {});
+        GetWasmEngine()->ImportNativeModule(isolate(), shared_module, {});
     ErrorThrower thrower(isolate(), "ImportInstance");
-    MaybeHandle<WasmInstanceObject> instance =
-        isolate()->wasm_engine()->SyncInstantiate(isolate(), &thrower,
-                                                  module_object, {}, {});
+    MaybeHandle<WasmInstanceObject> instance = GetWasmEngine()->SyncInstantiate(
+        isolate(), &thrower, module_object, {}, {});
     return instance.ToHandleChecked();
   }
 
@@ -135,7 +133,7 @@ class MockCompilationResolver : public CompilationResultResolver {
                           Handle<Object>* out_instance)
       : isolate_(isolate), out_instance_(out_instance) {}
   void OnCompilationSucceeded(Handle<WasmModuleObject> result) override {
-    isolate_->isolate()->wasm_engine()->AsyncInstantiate(
+    GetWasmEngine()->AsyncInstantiate(
         isolate_->isolate(),
         std::make_unique<MockInstantiationResolver>(out_instance_), result, {});
   }
@@ -161,7 +159,7 @@ Handle<WasmInstanceObject> CompileAndInstantiateAsync(
   Handle<Object> maybe_instance = handle(Smi::zero(), isolate->isolate());
   auto enabled_features = WasmFeatures::FromIsolate(isolate->isolate());
   constexpr const char* kAPIMethodName = "Test.CompileAndInstantiateAsync";
-  isolate->isolate()->wasm_engine()->AsyncCompile(
+  GetWasmEngine()->AsyncCompile(
       isolate->isolate(), enabled_features,
       std::make_unique<MockCompilationResolver>(isolate, &maybe_instance),
       ModuleWireBytes(buffer->begin(), buffer->end()), true, kAPIMethodName);

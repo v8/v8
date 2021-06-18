@@ -16,6 +16,7 @@
 #include "src/utils/utils.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module.h"
@@ -997,7 +998,7 @@ bool InstanceBuilder::ProcessImportedFunction(
         WasmCodeRefScope code_ref_scope;
         WasmImportWrapperCache::ModificationScope cache_scope(cache);
         wasm_code = compiler::CompileWasmCapiCallWrapper(
-            isolate_->wasm_engine(), native_module, expected_sig);
+            wasm::GetWasmEngine(), native_module, expected_sig);
         WasmImportWrapperCache::CacheKey key(kind, expected_sig,
                                              expected_arity);
         cache_scope[key] = wasm_code;
@@ -1437,7 +1438,7 @@ void InstanceBuilder::CompileImportWrappers(
   }
 
   auto compile_job_task = std::make_unique<CompileImportWrapperJob>(
-      isolate_->wasm_engine(), isolate_->counters(), native_module,
+      wasm::GetWasmEngine(), isolate_->counters(), native_module,
       &import_wrapper_queue, &cache_scope);
   auto compile_job = V8::GetCurrentPlatform()->PostJob(
       TaskPriority::kUserVisible, std::move(compile_job_task));

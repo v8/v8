@@ -118,10 +118,9 @@ class WasmGCForegroundTask : public CancelableTask {
       : CancelableTask(isolate->cancelable_task_manager()), isolate_(isolate) {}
 
   void RunInternal() final {
-    WasmEngine* engine = isolate_->wasm_engine();
     // The stack can contain live frames, for instance when this is invoked
     // during a pause or a breakpoint.
-    engine->ReportLiveCodeFromStackForGC(isolate_);
+    GetWasmEngine()->ReportLiveCodeFromStackForGC(isolate_);
   }
 
  private:
@@ -1004,7 +1003,7 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
                      v8::GCCallbackFlags flags, void* data) {
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
     Counters* counters = isolate->counters();
-    WasmEngine* engine = isolate->wasm_engine();
+    WasmEngine* engine = GetWasmEngine();
     base::MutexGuard lock(&engine->mutex_);
     DCHECK_EQ(1, engine->isolates_.count(isolate));
     for (auto* native_module : engine->isolates_[isolate]->native_modules) {
@@ -1341,7 +1340,7 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
                                                  kOSRTargetOffset);
       if (osr_target) {
         WasmCode* osr_code =
-            isolate->wasm_engine()->code_manager()->LookupCode(osr_target);
+            GetWasmEngine()->code_manager()->LookupCode(osr_target);
         DCHECK_NOT_NULL(osr_code);
         live_wasm_code.insert(osr_code);
       }
@@ -1599,8 +1598,7 @@ void WasmEngine::GlobalTearDown() {
   global_wasm_engine = nullptr;
 }
 
-// static
-WasmEngine* WasmEngine::GetWasmEngine() {
+WasmEngine* GetWasmEngine() {
   DCHECK_NOT_NULL(global_wasm_engine);
   return global_wasm_engine;
 }

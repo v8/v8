@@ -1982,7 +1982,7 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     WasmEngine* engine, Isolate* isolate, const WasmFeatures& enabled,
     size_t code_size_estimate, std::shared_ptr<const WasmModule> module) {
-  DCHECK_EQ(this, isolate->wasm_engine()->code_manager());
+  DCHECK_EQ(this, GetWasmEngine()->code_manager());
   if (total_committed_code_space_.load() >
       critical_committed_code_space_.load()) {
     (reinterpret_cast<v8::Isolate*>(isolate))

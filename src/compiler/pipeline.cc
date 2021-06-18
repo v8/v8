@@ -235,7 +235,9 @@ class PipelineData {
                const ProfileDataFromFile* profile_data)
       : isolate_(isolate),
 #if V8_ENABLE_WEBASSEMBLY
-        wasm_engine_(isolate_->wasm_engine()),
+        // TODO(clemensb): Remove this field, use GetWasmEngine directly
+        // instead.
+        wasm_engine_(wasm::GetWasmEngine()),
 #endif  // V8_ENABLE_WEBASSEMBLY
         allocator_(allocator),
         info_(info),

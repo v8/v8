@@ -1793,10 +1793,10 @@ Object Isolate::UnwindAndFindHandler() {
         wasm::WasmCodeRefScope code_ref_scope;
         WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
         wasm::WasmCode* wasm_code =
-            wasm_engine()->code_manager()->LookupCode(frame->pc());
+            wasm::GetWasmEngine()->code_manager()->LookupCode(frame->pc());
         int offset = wasm_frame->LookupExceptionHandlerInTable();
         if (offset < 0) break;
-        wasm_engine()->SampleCatchEvent(this);
+        wasm::GetWasmEngine()->SampleCatchEvent(this);
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
@@ -1854,7 +1854,8 @@ Object Isolate::UnwindAndFindHandler() {
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
 #if defined(DEBUG) && V8_ENABLE_WEBASSEMBLY
         wasm::WasmCodeRefScope code_ref_scope;
-        DCHECK_NULL(wasm_engine()->code_manager()->LookupCode(frame->pc()));
+        DCHECK_NULL(
+            wasm::GetWasmEngine()->code_manager()->LookupCode(frame->pc()));
 #endif  // defined(DEBUG) && V8_ENABLE_WEBASSEMBLY
         Code code = stub_frame->LookupCode();
         if (!code.IsCode() || code.kind() != CodeKind::BUILTIN ||
@@ -2722,13 +2723,6 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void Isolate::SetWasmEngine(wasm::WasmEngine* engine) {
-  DCHECK_NULL(wasm_engine_);  // Only call once before {Init}.
-  DCHECK_NOT_NULL(engine);
-  wasm_engine_ = engine;
-  wasm_engine_->AddIsolate(this);
-}
-
 void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
   HandleScope scope(this);
   Handle<WeakArrayList> shared_wasm_memories =
@@ -3119,7 +3113,7 @@ void Isolate::Deinit() {
   debug()->Unload();
 
 #if V8_ENABLE_WEBASSEMBLY
-  wasm_engine()->DeleteCompileJobsOnIsolate(this);
+  wasm::GetWasmEngine()->DeleteCompileJobsOnIsolate(this);
 
   BackingStore::RemoveSharedWasmMemoryObjects(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3194,7 +3188,7 @@ void Isolate::Deinit() {
   if (logfile != nullptr) base::Fclose(logfile);
 
 #if V8_ENABLE_WEBASSEMBLY
-  wasm_engine_->RemoveIsolate(this);
+  wasm::GetWasmEngine()->RemoveIsolate(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TearDownEmbeddedBlob();
@@ -3685,7 +3679,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   isolate_data_.external_reference_table()->Init(this);
 
 #if V8_ENABLE_WEBASSEMBLY
-  SetWasmEngine(wasm::WasmEngine::GetWasmEngine());
+  wasm::GetWasmEngine()->AddIsolate(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   if (setup_delegate_ == nullptr) {
@@ -3964,7 +3958,7 @@ void Isolate::DumpAndResetStats() {
   // TODO(7424): There is no public API for the {WasmEngine} yet. So for now we
   // just dump and reset the engines statistics together with the Isolate.
   if (FLAG_turbo_stats_wasm) {
-    wasm_engine()->DumpAndResetTurboStatistics();
+    wasm::GetWasmEngine()->DumpAndResetTurboStatistics();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 #if V8_RUNTIME_CALL_STATS

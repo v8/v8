@@ -2053,9 +2053,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
 
   if (event_handler) {
 #if V8_ENABLE_WEBASSEMBLY
-    if (isolate_->wasm_engine() != nullptr) {
-      isolate_->wasm_engine()->EnableCodeLogging(isolate_);
-    }
+    wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
     jit_logger_ = std::make_unique<JitLogger>(isolate_, event_handler);
     AddCodeEventListener(jit_logger_.get());

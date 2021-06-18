@@ -435,8 +435,8 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_SMI_ARG_CHECKED(function_index, 1);
   auto* native_module = instance->module_object().native_module();
-  isolate->wasm_engine()->CompileFunction(
-      isolate, native_module, function_index, wasm::ExecutionTier::kTurbofan);
+  wasm::GetWasmEngine()->CompileFunction(isolate, native_module, function_index,
+                                         wasm::ExecutionTier::kTurbofan);
   CHECK(!native_module->compilation_state()->failed());
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -444,14 +444,14 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
 RUNTIME_FUNCTION(Runtime_WasmTierDown) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
+  wasm::GetWasmEngine()->TierDownAllModulesPerIsolate(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTierUp) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  isolate->wasm_engine()->TierUpAllModulesPerIsolate(isolate);
+  wasm::GetWasmEngine()->TierUpAllModulesPerIsolate(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

@@ -1344,7 +1344,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
   };
   static base::LeakyObject<NoopListener> noop_listener;
 #if V8_ENABLE_WEBASSEMBLY
-  isolate->wasm_engine()->EnableCodeLogging(isolate);
+  wasm::GetWasmEngine()->EnableCodeLogging(isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
   isolate->code_event_dispatcher()->AddListener(noop_listener.get());
   return ReadOnlyRoots(isolate).undefined_value();

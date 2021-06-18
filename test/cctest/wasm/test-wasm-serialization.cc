@@ -82,8 +82,7 @@ class WasmSerializationTest {
                0);
     }
     Handle<WasmInstanceObject> instance =
-        CcTest::i_isolate()
-            ->wasm_engine()
+        GetWasmEngine()
             ->SyncInstantiate(CcTest::i_isolate(), &thrower, module_object,
                               Handle<JSReceiver>::null(),
                               MaybeHandle<JSArrayBuffer>())
@@ -131,7 +130,7 @@ class WasmSerializationTest {
 
       auto enabled_features = WasmFeatures::FromIsolate(serialization_isolate);
       MaybeHandle<WasmModuleObject> maybe_module_object =
-          serialization_isolate->wasm_engine()->SyncCompile(
+          GetWasmEngine()->SyncCompile(
               serialization_isolate, enabled_features, &thrower,
               ModuleWireBytes(buffer.begin(), buffer.end()));
       Handle<WasmModuleObject> module_object =
@@ -277,7 +276,7 @@ UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
     ErrorThrower thrower(from_i_isolate, "TestCompiledWasmModulesTransfer");
     auto enabled_features = WasmFeatures::FromIsolate(from_i_isolate);
     MaybeHandle<WasmModuleObject> maybe_module_object =
-        from_i_isolate->wasm_engine()->SyncCompile(
+        GetWasmEngine()->SyncCompile(
             from_i_isolate, enabled_features, &thrower,
             ModuleWireBytes(buffer.begin(), buffer.end()));
     Handle<WasmModuleObject> module_object =
@@ -325,7 +324,7 @@ TEST(TierDownAfterDeserialization) {
   CHECK_NOT_NULL(turbofan_code);
   CHECK_EQ(ExecutionTier::kTurbofan, turbofan_code->tier());
 
-  isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
+  GetWasmEngine()->TierDownAllModulesPerIsolate(isolate);
 
   auto* liftoff_code = native_module->GetCode(0);
   CHECK_EQ(ExecutionTier::kLiftoff, liftoff_code->tier());

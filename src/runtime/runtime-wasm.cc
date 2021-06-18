@@ -180,7 +180,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
       values, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
       .Check();
 
-  isolate->wasm_engine()->SampleThrowEvent(isolate);
+  wasm::GetWasmEngine()->SampleThrowEvent(isolate);
   return isolate->Throw(*exception);
 }
 
@@ -188,7 +188,7 @@ RUNTIME_FUNCTION(Runtime_WasmReThrow) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  isolate->wasm_engine()->SampleRethrowEvent(isolate);
+  wasm::GetWasmEngine()->SampleRethrowEvent(isolate);
   return isolate->ReThrow(args[0]);
 }
 

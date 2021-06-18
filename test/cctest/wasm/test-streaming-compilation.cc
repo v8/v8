@@ -189,7 +189,7 @@ class StreamTester {
     Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-    stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
+    stream_ = GetWasmEngine()->StartStreamingCompilation(
         i_isolate, WasmFeatures::All(), v8::Utils::OpenHandle(*context),
         "WebAssembly.compileStreaming()",
         std::make_shared<TestResolver>(i_isolate, &state_, &error_message_,
@@ -343,7 +343,7 @@ size_t GetFunctionOffset(i::Isolate* isolate, const uint8_t* buffer,
       WasmFeatures::All(), buffer, buffer + size, false,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSyncStream, isolate->wasm_engine()->allocator());
+      DecodingMethod::kSyncStream, GetWasmEngine()->allocator());
   CHECK(result.ok());
   const WasmFunction* func = &result.value()->functions[index];
   return func->code.offset();
@@ -1360,7 +1360,7 @@ STREAM_TEST(TestProfilingMidStreaming) {
 
   // Trigger code logging explicitly like the profiler would do.
   CHECK(WasmCode::ShouldBeLogged(i_isolate));
-  i_isolate->wasm_engine()->LogOutstandingCodesForIsolate(i_isolate);
+  GetWasmEngine()->LogOutstandingCodesForIsolate(i_isolate);
   CHECK(tester.IsPromisePending());
 
   // Finalize stream, stop profiler and clean up.
@@ -1387,7 +1387,7 @@ STREAM_TEST(TierDownWithError) {
     builder.WriteTo(&buffer);
   }
 
-  i_isolate->wasm_engine()->TierDownAllModulesPerIsolate(i_isolate);
+  GetWasmEngine()->TierDownAllModulesPerIsolate(i_isolate);
 
   tester.OnBytesReceived(buffer.begin(), buffer.size());
   tester.FinishStream();

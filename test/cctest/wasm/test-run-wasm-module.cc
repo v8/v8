@@ -134,9 +134,8 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
     CHECK(compilation_state->baseline_compilation_finished());
 
     // Instantiate and invoke function.
-    MaybeHandle<WasmInstanceObject> instance =
-        isolate->wasm_engine()->SyncInstantiate(
-            isolate, &thrower, module.ToHandleChecked(), {}, {});
+    MaybeHandle<WasmInstanceObject> instance = GetWasmEngine()->SyncInstantiate(
+        isolate, &thrower, module.ToHandleChecked(), {}, {});
     CHECK(!instance.is_null());
     int32_t result = testing::CallWasmFunctionForTesting(
         isolate, instance.ToHandleChecked(), "main", 0, nullptr);

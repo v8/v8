@@ -833,7 +833,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   auto owned_wire_bytes = base::OwnedVector<uint8_t>::Of(wire_bytes_vec);
 
   // TODO(titzer): module features should be part of the serialization format.
-  WasmEngine* wasm_engine = isolate->wasm_engine();
+  WasmEngine* wasm_engine = GetWasmEngine();
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
       enabled_features, owned_wire_bytes.start(), owned_wire_bytes.end(), false,

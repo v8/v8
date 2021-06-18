@@ -63,7 +63,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
       import_wrapper = CompileImportWrapper(
-          isolate_->wasm_engine(), native_module_, isolate_->counters(), kind,
+          GetWasmEngine(), native_module_, isolate_->counters(), kind,
           maybe_import->sig,
           static_cast<int>(maybe_import->sig->parameter_count()), &cache_scope);
     }
@@ -338,13 +338,13 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(test_module_.get(),
                                                           kUsesLiftoff);
-  auto native_module = isolate_->wasm_engine()->NewNativeModule(
+  auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(base::OwnedVector<const uint8_t>());
   native_module->compilation_state()->set_compilation_id(0);
   constexpr base::Vector<const char> kNoSourceUrl{"", 0};
-  Handle<Script> script = isolate_->wasm_engine()->GetOrCreateScript(
-      isolate_, native_module, kNoSourceUrl);
+  Handle<Script> script =
+      GetWasmEngine()->GetOrCreateScript(isolate_, native_module, kNoSourceUrl);
 
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, std::move(native_module), script);
@@ -559,14 +559,14 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
     result.emplace(ExecuteLiftoffCompilation(
-        isolate()->wasm_engine()->allocator(), &env, func_body,
-        function_->func_index, kForDebugging, isolate()->counters(),
-        &unused_detected_features, {}, nullptr, 0, builder_->max_steps_ptr()));
+        GetWasmEngine()->allocator(), &env, func_body, function_->func_index,
+        kForDebugging, isolate()->counters(), &unused_detected_features, {},
+        nullptr, 0, builder_->max_steps_ptr()));
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
                              for_debugging);
     result.emplace(unit.ExecuteCompilation(
-        isolate()->wasm_engine(), &env,
+        GetWasmEngine(), &env,
         native_module->compilation_state()->GetWireBytesStorage().get(),
         isolate()->counters(), &unused_detected_features));
   }

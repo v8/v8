@@ -73,7 +73,7 @@ TEST_F(WasmCapiTest, Traps) {
       WasmFeatures::All(), wire_bytes()->begin(), wire_bytes()->end(), false,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
-      DecodingMethod::kSync, isolate->wasm_engine()->allocator());
+      DecodingMethod::kSync, GetWasmEngine()->allocator());
   ASSERT_TRUE(result.ok());
   const WasmFunction* func1 = &result.value()->functions[1];
   const WasmFunction* func2 = &result.value()->functions[2];

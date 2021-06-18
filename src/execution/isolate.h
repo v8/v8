@@ -133,10 +133,6 @@ class NodeObserver;
 class PerIsolateCompilerCache;
 }  // namespace compiler
 
-namespace wasm {
-class WasmEngine;
-}  // namespace wasm
-
 namespace win64_unwindinfo {
 class BuiltinUnwindInfo;
 }  // namespace win64_unwindinfo
@@ -1725,10 +1721,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  // TODO(wasm): Replace all uses by {WasmEngine::GetWasmEngine}?
-  wasm::WasmEngine* wasm_engine() const { return wasm_engine_; }
-  void SetWasmEngine(wasm::WasmEngine* engine);
-
   void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2178,10 +2170,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   size_t total_regexp_code_generated_ = 0;
 
   size_t elements_deletion_counter_ = 0;
-
-#if V8_ENABLE_WEBASSEMBLY
-  wasm::WasmEngine* wasm_engine_ = nullptr;
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   std::unique_ptr<TracingCpuProfilerImpl> tracing_cpu_profiler_;
 

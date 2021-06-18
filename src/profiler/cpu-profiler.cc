@@ -76,7 +76,7 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   isolate_->set_num_cpu_profilers(profiler_count);
   isolate_->set_is_profiling(true);
 #if V8_ENABLE_WEBASSEMBLY
-  isolate_->wasm_engine()->EnableCodeLogging(isolate_);
+  wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   Logger* logger = isolate_->logger();

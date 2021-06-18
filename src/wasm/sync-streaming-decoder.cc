@@ -62,8 +62,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
     ModuleWireBytes wire_bytes(bytes.get(), bytes.get() + buffer_size_);
     ErrorThrower thrower(isolate_, api_method_name_for_errors_);
     MaybeHandle<WasmModuleObject> module_object =
-        isolate_->wasm_engine()->SyncCompile(isolate_, enabled_, &thrower,
-                                             wire_bytes);
+        GetWasmEngine()->SyncCompile(isolate_, enabled_, &thrower, wire_bytes);
     if (thrower.error()) {
       resolver_->OnCompilationFailed(thrower.Reify());
       return;

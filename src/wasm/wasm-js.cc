@@ -49,7 +49,7 @@ class WasmStreaming::WasmStreamingImpl {
       : isolate_(isolate), resolver_(std::move(resolver)) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-    streaming_decoder_ = i_isolate->wasm_engine()->StartStreamingCompilation(
+    streaming_decoder_ = i::wasm::GetWasmEngine()->StartStreamingCompilation(
         i_isolate, enabled_features, handle(i_isolate->context(), i_isolate),
         api_method_name, resolver_);
   }
@@ -417,7 +417,7 @@ class AsyncInstantiateCompileResultResolver
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
     if (finished_) return;
     finished_ = true;
-    isolate_->wasm_engine()->AsyncInstantiate(
+    i::wasm::GetWasmEngine()->AsyncInstantiate(
         isolate_,
         std::make_unique<InstantiateBytesResultResolver>(isolate_, promise_,
                                                          result),
@@ -516,7 +516,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   // Asynchronous compilation handles copying wire bytes if necessary.
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-  i_isolate->wasm_engine()->AsyncCompile(i_isolate, enabled_features,
+  i::wasm::GetWasmEngine()->AsyncCompile(i_isolate, enabled_features,
                                          std::move(resolver), bytes, is_shared,
                                          kAPIMethodName);
 }
@@ -638,11 +638,11 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
-    validated = i_isolate->wasm_engine()->SyncValidate(
+    validated = i::wasm::GetWasmEngine()->SyncValidate(
         i_isolate, enabled_features, bytes_copy);
   } else {
     // The wire bytes are not shared, OK to use them directly.
-    validated = i_isolate->wasm_engine()->SyncValidate(i_isolate,
+    validated = i::wasm::GetWasmEngine()->SyncValidate(i_isolate,
                                                        enabled_features, bytes);
   }
 
@@ -681,11 +681,11 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
     memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
-    module_obj = i_isolate->wasm_engine()->SyncCompile(
+    module_obj = i::wasm::GetWasmEngine()->SyncCompile(
         i_isolate, enabled_features, &thrower, bytes_copy);
   } else {
     // The wire bytes are not shared, OK to use them directly.
-    module_obj = i_isolate->wasm_engine()->SyncCompile(
+    module_obj = i::wasm::GetWasmEngine()->SyncCompile(
         i_isolate, enabled_features, &thrower, bytes);
   }
 
@@ -770,7 +770,7 @@ MaybeLocal<Value> WebAssemblyInstantiateImpl(Isolate* isolate,
         GetValueAsImports(ffi, &thrower);
     if (thrower.error()) return {};
 
-    instance_object = i_isolate->wasm_engine()->SyncInstantiate(
+    instance_object = i::wasm::GetWasmEngine()->SyncInstantiate(
         i_isolate, &thrower, i::Handle<i::WasmModuleObject>::cast(module_obj),
         maybe_imports, i::MaybeHandle<i::JSArrayBuffer>());
   }
@@ -941,7 +941,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::Handle<i::WasmModuleObject> module_obj =
         i::Handle<i::WasmModuleObject>::cast(first_arg);
 
-    i_isolate->wasm_engine()->AsyncInstantiate(i_isolate, std::move(resolver),
+    i::wasm::GetWasmEngine()->AsyncInstantiate(i_isolate, std::move(resolver),
                                                module_obj, maybe_imports);
     return;
   }
@@ -971,7 +971,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   // Asynchronous compilation handles copying wire bytes if necessary.
   auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-  i_isolate->wasm_engine()->AsyncCompile(i_isolate, enabled_features,
+  i::wasm::GetWasmEngine()->AsyncCompile(i_isolate, enabled_features,
                                          std::move(compilation_resolver), bytes,
                                          is_shared, kAPIMethodName);
 }

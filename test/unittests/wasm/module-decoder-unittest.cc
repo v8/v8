@@ -207,7 +207,7 @@ class WasmModuleVerifyTest : public TestWithIsolateAndZone {
         enabled_features_, temp, temp + total, false, kWasmOrigin,
         isolate()->counters(), isolate()->metrics_recorder(),
         v8::metrics::Recorder::ContextId::Empty(), DecodingMethod::kSync,
-        isolate()->wasm_engine()->allocator());
+        GetWasmEngine()->allocator());
     delete[] temp;
     return result;
   }
@@ -217,7 +217,7 @@ class WasmModuleVerifyTest : public TestWithIsolateAndZone {
         enabled_features_, module_start, module_end, false, kWasmOrigin,
         isolate()->counters(), isolate()->metrics_recorder(),
         v8::metrics::Recorder::ContextId::Empty(), DecodingMethod::kSync,
-        isolate()->wasm_engine()->allocator());
+        GetWasmEngine()->allocator());
   }
 };
 

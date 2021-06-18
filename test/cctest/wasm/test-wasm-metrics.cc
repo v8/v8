@@ -183,7 +183,7 @@ class TestCompileResolver : public CompilationResultResolver {
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
     if (!module.is_null()) {
       *native_module_ = module->shared_native_module();
-      isolate_->wasm_engine()->AsyncInstantiate(
+      GetWasmEngine()->AsyncInstantiate(
           isolate_,
           std::make_unique<TestInstantiateResolver>(isolate_, status_,
                                                     error_message_),
@@ -289,7 +289,7 @@ COMPILE_TEST(TestEventMetrics) {
   CompilationStatus status = CompilationStatus::kPending;
   std::string error_message;
   std::shared_ptr<NativeModule> native_module;
-  isolate->wasm_engine()->AsyncCompile(
+  GetWasmEngine()->AsyncCompile(
       isolate, enabled_features,
       std::make_shared<TestCompileResolver>(&status, &error_message, isolate,
                                             &native_module),

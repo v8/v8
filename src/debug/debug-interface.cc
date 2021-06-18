@@ -776,12 +776,12 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
 #if V8_ENABLE_WEBASSEMBLY
 void TierDownAllModulesPerIsolate(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  isolate->wasm_engine()->TierDownAllModulesPerIsolate(isolate);
+  i::wasm::GetWasmEngine()->TierDownAllModulesPerIsolate(isolate);
 }
 
 void TierUpAllModulesPerIsolate(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  isolate->wasm_engine()->TierUpAllModulesPerIsolate(isolate);
+  i::wasm::GetWasmEngine()->TierUpAllModulesPerIsolate(isolate);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

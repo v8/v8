@@ -266,7 +266,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
   WasmCompilationUnit unit(function->func_index, tier, kNoDebugging);
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
-      isolate->wasm_engine(), &env,
+      GetWasmEngine(), &env,
       native_module->compilation_state()->GetWireBytesStorage().get(),
       isolate->counters(), detected);
   if (result.succeeded()) {
@@ -349,8 +349,8 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
     bool is_import) {
   // Run the compilation unit synchronously.
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
-  JSToWasmWrapperCompilationUnit unit(isolate, isolate->wasm_engine(), sig,
-                                      module, is_import, enabled_features,
+  JSToWasmWrapperCompilationUnit unit(isolate, GetWasmEngine(), sig, module,
+                                      is_import, enabled_features,
                                       kAllowGeneric);
   unit.Execute();
   return unit.Finalize();
@@ -362,8 +362,8 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
   // Run the compilation unit synchronously.
   const bool is_import = false;
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
-  JSToWasmWrapperCompilationUnit unit(isolate, isolate->wasm_engine(), sig,
-                                      module, is_import, enabled_features,
+  JSToWasmWrapperCompilationUnit unit(isolate, GetWasmEngine(), sig, module,
+                                      is_import, enabled_features,
                                       kDontAllowGeneric);
   unit.Execute();
   return unit.Finalize();

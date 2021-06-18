@@ -27,8 +27,8 @@ MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
                                                 ErrorThrower* thrower,
                                                 const ModuleWireBytes& bytes) {
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  MaybeHandle<WasmModuleObject> module = isolate->wasm_engine()->SyncCompile(
-      isolate, enabled_features, thrower, bytes);
+  MaybeHandle<WasmModuleObject> module =
+      GetWasmEngine()->SyncCompile(isolate, enabled_features, thrower, bytes);
   DCHECK_EQ(thrower->error(), module.is_null());
   return module;
 }
@@ -38,8 +38,8 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
   MaybeHandle<WasmModuleObject> module =
       CompileForTesting(isolate, thrower, bytes);
   if (module.is_null()) return {};
-  return isolate->wasm_engine()->SyncInstantiate(
-      isolate, thrower, module.ToHandleChecked(), {}, {});
+  return GetWasmEngine()->SyncInstantiate(isolate, thrower,
+                                          module.ToHandleChecked(), {}, {});
 }
 
 base::OwnedVector<WasmValue> MakeDefaultInterpreterArguments(

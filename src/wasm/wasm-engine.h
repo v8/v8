@@ -358,9 +358,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
 
-  // Returns a reference to the WasmEngine shared by the entire process.
-  static WasmEngine* GetWasmEngine();
-
  private:
   struct CurrentGCInfo;
   struct IsolateInfo;
@@ -431,6 +428,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 };
+
+// Returns a reference to the WasmEngine shared by the entire process.
+V8_EXPORT_PRIVATE WasmEngine* GetWasmEngine();
 
 }  // namespace wasm
 }  // namespace internal
