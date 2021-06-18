@@ -945,7 +945,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   ~WasmCodeManager();
 
 #if defined(V8_OS_WIN64)
-  bool CanRegisterUnwindInfoForNonABICompliantCodeRange() const;
+  static bool CanRegisterUnwindInfoForNonABICompliantCodeRange();
 #endif  // V8_OS_WIN64
 
   NativeModule* LookupNativeModule(Address pc) const;

@@ -1443,8 +1443,7 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
   // See src/heap/spaces.cc, MemoryAllocator::InitializeCodePageAllocator() and
   // https://cs.chromium.org/chromium/src/components/crash/content/app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
   // for details.
-  if (engine_->code_manager()
-          ->CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+  if (WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     size_t size = Heap::GetCodeRangeReservedAreaSize();
     DCHECK_LT(0, size);
     base::Vector<byte> padding =
@@ -1743,7 +1742,8 @@ WasmCodeManager::~WasmCodeManager() {
 }
 
 #if defined(V8_OS_WIN64)
-bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() const {
+// static
+bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() {
   return win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
          FLAG_win64_unwinding_info;
 }
