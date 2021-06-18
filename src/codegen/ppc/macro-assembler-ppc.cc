@@ -2849,6 +2849,12 @@ MEM_OP_LIST(MEM_OP_FUNCTION)
 #undef MEM_OP_LIST
 #undef MEM_OP_FUNCTION
 
+void TurboAssembler::LoadS8(Register dst, const MemOperand& mem,
+                            Register scratch) {
+  LoadU8(dst, mem, scratch);
+  extsb(dst, dst);
+}
+
 void TurboAssembler::LoadSimd128(Simd128Register src, const MemOperand& mem) {
   DCHECK(mem.rb().is_valid());
   lxvx(src, mem);
@@ -2857,6 +2863,115 @@ void TurboAssembler::LoadSimd128(Simd128Register src, const MemOperand& mem) {
 void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
   DCHECK(mem.rb().is_valid());
   stxvx(src, mem);
+}
+
+#define GenerateMemoryLEOperation(reg, mem, op)                \
+  {                                                            \
+    if (mem.offset() == 0) {                                   \
+      op(reg, mem);                                            \
+    } else if (is_int16(mem.offset())) {                       \
+      if (mem.rb() != no_reg)                                  \
+        addi(scratch, mem.rb(), Operand(mem.offset()));        \
+      else                                                     \
+        mov(scratch, Operand(mem.offset()));                   \
+      op(reg, MemOperand(mem.ra(), scratch));                  \
+    } else {                                                   \
+      mov(scratch, Operand(mem.offset()));                     \
+      if (mem.rb() != no_reg) add(scratch, scratch, mem.rb()); \
+      op(reg, MemOperand(mem.ra(), scratch));                  \
+    }                                                          \
+  }
+
+#define MEM_LE_OP_LIST(V) \
+  V(LoadU64, ldbrx)       \
+  V(LoadU32, lwbrx)       \
+  V(LoadU16, lhbrx)       \
+  V(StoreU64, stdbrx)     \
+  V(StoreU32, stwbrx)     \
+  V(StoreU16, sthbrx)
+
+#ifdef V8_TARGET_BIG_ENDIAN
+#define MEM_LE_OP_FUNCTION(name, op)                                 \
+  void TurboAssembler::name##LE(Register reg, const MemOperand& mem, \
+                                Register scratch) {                  \
+    GenerateMemoryLEOperation(reg, mem, op);                         \
+  }
+#else
+#define MEM_LE_OP_FUNCTION(name, op)                                 \
+  void TurboAssembler::name##LE(Register reg, const MemOperand& mem, \
+                                Register scratch) {                  \
+    name(reg, mem, scratch);                                         \
+  }
+#endif
+
+MEM_LE_OP_LIST(MEM_LE_OP_FUNCTION)
+#undef MEM_LE_OP_FUNCTION
+#undef MEM_LE_OP_LIST
+
+void TurboAssembler::LoadS32LE(Register dst, const MemOperand& mem,
+                               Register scratch) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  LoadU32LE(dst, mem, scratch);
+  extsw(dst, dst);
+#else
+  LoadS32(dst, mem, scratch);
+#endif
+}
+
+void TurboAssembler::LoadS16LE(Register dst, const MemOperand& mem,
+                               Register scratch) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  LoadU16LE(dst, mem, scratch);
+  extsh(dst, dst);
+#else
+  LoadS16(dst, mem, scratch);
+#endif
+}
+
+void TurboAssembler::LoadF64LE(DoubleRegister dst, const MemOperand& mem,
+                               Register scratch, Register scratch2) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  LoadU64LE(scratch, mem, scratch2);
+  push(scratch);
+  LoadF64(dst, MemOperand(sp), scratch2);
+  pop(scratch);
+#else
+  LoadF64(dst, mem, scratch);
+#endif
+}
+
+void TurboAssembler::LoadF32LE(DoubleRegister dst, const MemOperand& mem,
+                               Register scratch, Register scratch2) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  LoadU32LE(scratch, mem, scratch2);
+  push(scratch);
+  LoadF32(dst, MemOperand(sp, 4), scratch2);
+  pop(scratch);
+#else
+  LoadF32(dst, mem, scratch);
+#endif
+}
+
+void TurboAssembler::StoreF64LE(DoubleRegister dst, const MemOperand& mem,
+                                Register scratch, Register scratch2) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  StoreF64(dst, mem, scratch2);
+  LoadU64(scratch, mem, scratch2);
+  StoreU64LE(scratch, mem, scratch2);
+#else
+  LoadF64(dst, mem, scratch);
+#endif
+}
+
+void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
+                                Register scratch, Register scratch2) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  StoreF32(dst, mem, scratch2);
+  LoadU32(scratch, mem, scratch2);
+  StoreU32LE(scratch, mem, scratch2);
+#else
+  LoadF64(dst, mem, scratch);
+#endif
 }
 
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
