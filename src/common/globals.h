@@ -385,7 +385,7 @@ constexpr uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
 using uc16 = uint16_t;
 using uc32 = uint32_t;
 constexpr int kOneByteSize = kCharSize;
-constexpr int kUC16Size = sizeof(uc16);  // NOLINT
+constexpr int kUC16Size = sizeof(uc16);
 
 // 128 bit SIMD value size.
 constexpr int kSimd128Size = 16;

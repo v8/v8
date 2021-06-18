@@ -429,7 +429,7 @@ static const char* Type2String(Flag::FlagType type) {
   UNREACHABLE();
 }
 
-std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
+std::ostream& operator<<(std::ostream& os, const Flag& flag) {
   switch (flag.type()) {
     case Flag::TYPE_BOOL:
       os << (flag.bool_variable() ? "true" : "false");

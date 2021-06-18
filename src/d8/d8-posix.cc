@@ -343,7 +343,7 @@ static Local<Value> GetStdout(Isolate* isolate, int child_fd,
 
 // Get exit status of child.
 static bool WaitForChild(Isolate* isolate, int pid,
-                         ZombieProtector& child_waiter,  // NOLINT
+                         ZombieProtector& child_waiter,
                          const struct timeval& start_time, int read_timeout,
                          int total_timeout) {
 #ifdef HAS_WAITID

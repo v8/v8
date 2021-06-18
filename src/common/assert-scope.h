@@ -124,7 +124,7 @@ class PerThreadAssertScopeDebugOnly
 #else
 class V8_NODISCARD PerThreadAssertScopeDebugOnly {
  public:
-  PerThreadAssertScopeDebugOnly() {  // NOLINT (modernize-use-equals-default)
+  PerThreadAssertScopeDebugOnly() {
     // Define a constructor to avoid unused variable warnings.
   }
   void Release() {}

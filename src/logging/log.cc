@@ -1198,10 +1198,10 @@ void Logger::DeleteEvent(const char* name, void* object) {
 
 namespace {
 
-void AppendCodeCreateHeader(
-    Log::MessageBuilder& msg,  // NOLINT(runtime/references)
-    CodeEventListener::LogEventsAndTags tag, CodeKind kind, uint8_t* address,
-    int size, uint64_t time) {
+void AppendCodeCreateHeader(Log::MessageBuilder& msg,
+                            CodeEventListener::LogEventsAndTags tag,
+                            CodeKind kind, uint8_t* address, int size,
+                            uint64_t time) {
   msg << kLogEventsNames[CodeEventListener::CODE_CREATION_EVENT]
       << Logger::kNext << kLogEventsNames[tag] << Logger::kNext
       << static_cast<int>(kind) << Logger::kNext << time << Logger::kNext
@@ -1209,9 +1209,9 @@ void AppendCodeCreateHeader(
       << Logger::kNext;
 }
 
-void AppendCodeCreateHeader(
-    Log::MessageBuilder& msg,  // NOLINT(runtime/references)
-    CodeEventListener::LogEventsAndTags tag, AbstractCode code, uint64_t time) {
+void AppendCodeCreateHeader(Log::MessageBuilder& msg,
+                            CodeEventListener::LogEventsAndTags tag,
+                            AbstractCode code, uint64_t time) {
   AppendCodeCreateHeader(msg, tag, code.kind(),
                          reinterpret_cast<uint8_t*>(code.InstructionStart()),
                          code.InstructionSize(), time);
@@ -1522,9 +1522,8 @@ void Logger::CodeDependencyChangeEvent(Handle<Code> code,
 
 namespace {
 
-void CodeLinePosEvent(
-    JitLogger& jit_logger, Address code_start,
-    SourcePositionTableIterator& iter) {  // NOLINT(runtime/references)
+void CodeLinePosEvent(JitLogger& jit_logger, Address code_start,
+                      SourcePositionTableIterator& iter) {
   void* jit_handler_data = jit_logger.StartCodePosInfoEvent();
   for (; !iter.done(); iter.Advance()) {
     if (iter.is_statement()) {
@@ -1597,10 +1596,9 @@ void Logger::SuspectReadEvent(Name name, Object obj) {
 }
 
 namespace {
-void AppendFunctionMessage(
-    Log::MessageBuilder& msg,  // NOLINT(runtime/references)
-    const char* reason, int script_id, double time_delta, int start_position,
-    int end_position, uint64_t time) {
+void AppendFunctionMessage(Log::MessageBuilder& msg, const char* reason,
+                           int script_id, double time_delta, int start_position,
+                           int end_position, uint64_t time) {
   msg << "function" << Logger::kNext << reason << Logger::kNext << script_id
       << Logger::kNext << start_position << Logger::kNext << end_position
       << Logger::kNext;

@@ -1205,7 +1205,7 @@ static void AddToWeakNativeContextList(Isolate* isolate, Context context) {
   DCHECK(context.IsNativeContext());
   Heap* heap = isolate->heap();
 #ifdef DEBUG
-  {  // NOLINT
+  {
     DCHECK(context.next_context_link().IsUndefined(isolate));
     // Check that context is not in the list yet.
     for (Object current = heap->native_contexts_list();
@@ -4062,7 +4062,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                              Builtin::kHandleApiCallAsConstructor, 0, false);
     native_context()->set_call_as_constructor_delegate(*delegate);
   }
-}  // NOLINT(readability/fn_size)
+}
 
 Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
                                               ElementsKind elements_kind,

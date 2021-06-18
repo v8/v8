@@ -341,7 +341,7 @@ class ShellOptions {
     DisallowReassignment(const char* name, T value)
         : name_(name), value_(value) {}
 
-    operator T() const { return value_; }  // NOLINT
+    operator T() const { return value_; }
     T get() const { return value_; }
     DisallowReassignment& operator=(T value) {
       if (check_d8_flag_contradictions) {

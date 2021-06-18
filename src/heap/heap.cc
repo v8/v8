@@ -2972,7 +2972,6 @@ STATIC_ASSERT(IsAligned(ByteArray::kHeaderSize, kDoubleAlignment));
 #endif
 
 #ifdef V8_HOST_ARCH_32_BIT
-// NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((HeapNumber::kValueOffset & kDoubleAlignmentMask) == kTaggedSize);
 #endif
 

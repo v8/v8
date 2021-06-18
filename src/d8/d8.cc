@@ -79,9 +79,9 @@
 #endif
 
 #if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>  // NOLINT
+#include <unistd.h>
 #else
-#include <windows.h>  // NOLINT
+#include <windows.h>
 #endif                // !defined(_WIN32) && !defined(_WIN64)
 
 #ifndef DCHECK

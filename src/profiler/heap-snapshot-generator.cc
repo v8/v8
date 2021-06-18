@@ -2490,7 +2490,7 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
                                                bool first_edge) {
   // The buffer needs space for 3 unsigned ints, 3 commas, \n and \0
   static const int kBufferSize =
-      MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 3 + 3 + 2;  // NOLINT
+      MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 3 + 3 + 2;
   base::EmbeddedVector<char, kBufferSize> buffer;
   int edge_name_or_index = edge->type() == HeapGraphEdge::kElement
       || edge->type() == HeapGraphEdge::kHidden
@@ -2523,9 +2523,9 @@ void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
   // The buffer needs space for 5 unsigned ints, 1 size_t, 1 uint8_t, 7 commas,
   // \n and \0
   static const int kBufferSize =
-      5 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + MaxDecimalDigitsIn<sizeof(size_t)>::kUnsigned      // NOLINT
-      + MaxDecimalDigitsIn<sizeof(uint8_t)>::kUnsigned + 7 + 1 + 1;
+      5 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned +
+      MaxDecimalDigitsIn<sizeof(size_t)>::kUnsigned +
+      MaxDecimalDigitsIn<sizeof(uint8_t)>::kUnsigned + 7 + 1 + 1;
   base::EmbeddedVector<char, kBufferSize> buffer;
   int buffer_pos = 0;
   if (to_node_index(entry) != 0) {
@@ -2672,8 +2672,7 @@ void HeapSnapshotJSONSerializer::SerializeTraceTree() {
 void HeapSnapshotJSONSerializer::SerializeTraceNode(AllocationTraceNode* node) {
   // The buffer needs space for 4 unsigned ints, 4 commas, [ and \0
   const int kBufferSize =
-      4 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + 4 + 1 + 1;
+      4 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned + 4 + 1 + 1;
   base::EmbeddedVector<char, kBufferSize> buffer;
   int buffer_pos = 0;
   buffer_pos = utoa(node->id(), buffer, buffer_pos);
@@ -2716,8 +2715,7 @@ void HeapSnapshotJSONSerializer::SerializeTraceNodeInfos() {
   if (!tracker) return;
   // The buffer needs space for 6 unsigned ints, 6 commas, \n and \0
   const int kBufferSize =
-      6 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
-      + 6 + 1 + 1;
+      6 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned + 6 + 1 + 1;
   base::EmbeddedVector<char, kBufferSize> buffer;
   int i = 0;
   for (AllocationTracker::FunctionInfo* info : tracker->function_info_list()) {

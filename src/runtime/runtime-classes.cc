@@ -136,10 +136,10 @@ Handle<Name> KeyToName<NumberDictionary>(Isolate* isolate, Handle<Object> key) {
 //    method's shared function info indicates that method does not have a
 //    shared name.
 template <typename Dictionary>
-MaybeHandle<Object> GetMethodAndSetName(
-    Isolate* isolate,
-    RuntimeArguments& args,  // NOLINT(runtime/references)
-    Smi index, Handle<String> name_prefix, Handle<Object> key) {
+MaybeHandle<Object> GetMethodAndSetName(Isolate* isolate,
+                                        RuntimeArguments& args, Smi index,
+                                        Handle<String> name_prefix,
+                                        Handle<Object> key) {
   int int_index = index.value();
 
   // Class constructor and prototype values do not require post processing.
@@ -168,10 +168,8 @@ MaybeHandle<Object> GetMethodAndSetName(
 // This is a simplified version of GetMethodAndSetName()
 // function above that is used when it's guaranteed that the method has
 // shared name.
-Object GetMethodWithSharedName(
-    Isolate* isolate,
-    RuntimeArguments& args,  // NOLINT(runtime/references)
-    Object index) {
+Object GetMethodWithSharedName(Isolate* isolate, RuntimeArguments& args,
+                               Object index) {
   DisallowGarbageCollection no_gc;
   int int_index = Smi::ToInt(index);
 
@@ -204,7 +202,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
 
 template <typename Dictionary>
 bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
-                      RuntimeArguments& args,  // NOLINT(runtime/references)
+                      RuntimeArguments& args,
                       bool* install_name_accessor = nullptr) {
   Handle<Name> name_string = isolate->factory()->name_string();
 
@@ -282,8 +280,7 @@ bool AddDescriptorsByTemplate(
     Isolate* isolate, Handle<Map> map,
     Handle<DescriptorArray> descriptors_template,
     Handle<NumberDictionary> elements_dictionary_template,
-    Handle<JSObject> receiver,
-    RuntimeArguments& args) {  // NOLINT(runtime/references)
+    Handle<JSObject> receiver, RuntimeArguments& args) {
   int nof_descriptors = descriptors_template->number_of_descriptors();
 
   Handle<DescriptorArray> descriptors =
@@ -403,8 +400,7 @@ bool AddDescriptorsByTemplate(
     Handle<Dictionary> properties_dictionary_template,
     Handle<NumberDictionary> elements_dictionary_template,
     Handle<FixedArray> computed_properties, Handle<JSObject> receiver,
-    bool install_name_accessor,
-    RuntimeArguments& args) {  // NOLINT(runtime/references)
+    bool install_name_accessor, RuntimeArguments& args) {
   int computed_properties_length = computed_properties->length();
 
   // Shallow-copy properties template.
@@ -492,7 +488,7 @@ bool InitClassPrototype(Isolate* isolate,
                         Handle<JSObject> prototype,
                         Handle<HeapObject> prototype_parent,
                         Handle<JSFunction> constructor,
-                        RuntimeArguments& args) {  // NOLINT(runtime/references)
+                        RuntimeArguments& args) {
   Handle<Map> map(prototype->map(), isolate);
   map = Map::CopyDropDescriptors(isolate, map);
   map->set_is_prototype_map(true);
@@ -545,10 +541,11 @@ bool InitClassPrototype(Isolate* isolate,
   }
 }
 
-bool InitClassConstructor(
-    Isolate* isolate, Handle<ClassBoilerplate> class_boilerplate,
-    Handle<HeapObject> constructor_parent, Handle<JSFunction> constructor,
-    RuntimeArguments& args) {  // NOLINT(runtime/references)
+bool InitClassConstructor(Isolate* isolate,
+                          Handle<ClassBoilerplate> class_boilerplate,
+                          Handle<HeapObject> constructor_parent,
+                          Handle<JSFunction> constructor,
+                          RuntimeArguments& args) {
   Handle<Map> map(constructor->map(), isolate);
   map = Map::CopyDropDescriptors(isolate, map);
   DCHECK(map->is_prototype_map());
@@ -607,10 +604,11 @@ bool InitClassConstructor(
   }
 }
 
-MaybeHandle<Object> DefineClass(
-    Isolate* isolate, Handle<ClassBoilerplate> class_boilerplate,
-    Handle<Object> super_class, Handle<JSFunction> constructor,
-    RuntimeArguments& args) {  // NOLINT(runtime/references)
+MaybeHandle<Object> DefineClass(Isolate* isolate,
+                                Handle<ClassBoilerplate> class_boilerplate,
+                                Handle<Object> super_class,
+                                Handle<JSFunction> constructor,
+                                RuntimeArguments& args) {
   Handle<Object> prototype_parent;
   Handle<HeapObject> constructor_parent;
 

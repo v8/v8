@@ -414,7 +414,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
     serializer_->PushStack(obj);
 #endif  // DEBUG
   }
-  // NOLINTNEXTLINE (modernize-use-equals-default)
   ~ObjectSerializer() override {
 #ifdef DEBUG
     serializer_->PopStack();

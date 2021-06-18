@@ -338,7 +338,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
 
-  {  // NOLINT. Scope block confuses linter.
+  {
     NoRootArrayScope uninitialized_root_register(masm);
     // Set up frame.
     __ pushq(rbp);
