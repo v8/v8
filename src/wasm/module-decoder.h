@@ -171,8 +171,9 @@ V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunctionForTesting(
     const WasmModule* module, const byte* function_start,
     const byte* function_end, Counters* counters);
 
-V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(
-    const WasmFeatures& enabled, const byte* start, const byte* end);
+V8_EXPORT_PRIVATE WasmInitExpr
+DecodeWasmInitExprForTesting(const WasmFeatures& enabled, const byte* start,
+                             const byte* end, ValueType expected);
 
 struct CustomSectionOffset {
   WireBytesRef section;

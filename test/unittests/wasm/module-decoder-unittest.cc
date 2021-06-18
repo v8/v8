@@ -3199,24 +3199,27 @@ class WasmInitExprDecodeTest : public TestWithZone {
 
   WasmFeatures enabled_features_;
 
-  WasmInitExpr DecodeInitExpr(const byte* start, const byte* end) {
-    return DecodeWasmInitExprForTesting(enabled_features_, start, end);
+  WasmInitExpr DecodeInitExpr(const byte* start, const byte* end,
+                              ValueType expected) {
+    return DecodeWasmInitExprForTesting(enabled_features_, start, end,
+                                        expected);
   }
 };
 
-#define EXPECT_INIT_EXPR(Type, type, value, ...)                   \
-  {                                                                \
-    static const byte data[] = {__VA_ARGS__, kExprEnd};            \
-    WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data)); \
-    EXPECT_EQ(WasmInitExpr::k##Type##Const, expr.kind());          \
-    EXPECT_EQ(value, expr.immediate().type##_const);               \
+#define EXPECT_INIT_EXPR(Type, type, value, ...)                \
+  {                                                             \
+    static const byte data[] = {__VA_ARGS__, kExprEnd};         \
+    WasmInitExpr expr =                                         \
+        DecodeInitExpr(data, data + sizeof(data), kWasm##Type); \
+    EXPECT_EQ(WasmInitExpr::k##Type##Const, expr.kind());       \
+    EXPECT_EQ(value, expr.immediate().type##_const);            \
   }
 
-#define EXPECT_INIT_EXPR_FAIL(...)                                 \
-  {                                                                \
-    static const byte data[] = {__VA_ARGS__, kExprEnd};            \
-    WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data)); \
-    EXPECT_EQ(WasmInitExpr::kNone, expr.kind());                   \
+#define EXPECT_INIT_EXPR_FAIL(value_type, ...)                                 \
+  {                                                                            \
+    static const byte data[] = {__VA_ARGS__, kExprEnd};                        \
+    WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data), value_type); \
+    EXPECT_EQ(WasmInitExpr::kNone, expr.kind());                               \
   }
 
 TEST_F(WasmInitExprDecodeTest, InitExpr_i32) {
@@ -3250,16 +3253,17 @@ TEST_F(WasmInitExprDecodeTest, InitExpr_f64) {
 TEST_F(WasmInitExprDecodeTest, InitExpr_ExternRef) {
   WASM_FEATURE_SCOPE(reftypes);
   static const byte data[] = {kExprRefNull, kExternRefCode, kExprEnd};
-  WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data));
+  WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data), kWasmExternRef);
   EXPECT_EQ(WasmInitExpr::kRefNullConst, expr.kind());
 }
 
 TEST_F(WasmInitExprDecodeTest, InitExpr_illegal) {
-  EXPECT_INIT_EXPR_FAIL(WASM_I32V_1(0), WASM_I32V_1(0));
-  EXPECT_INIT_EXPR_FAIL(WASM_LOCAL_GET(0));
-  EXPECT_INIT_EXPR_FAIL(WASM_LOCAL_SET(0, WASM_I32V_1(0)));
-  EXPECT_INIT_EXPR_FAIL(WASM_I32_ADD(WASM_I32V_1(0), WASM_I32V_1(0)));
-  EXPECT_INIT_EXPR_FAIL(WASM_IF_ELSE(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_INIT_EXPR_FAIL(kWasmI32, WASM_I32V_1(0), WASM_I32V_1(0));
+  EXPECT_INIT_EXPR_FAIL(kWasmI32, WASM_LOCAL_GET(0));
+  EXPECT_INIT_EXPR_FAIL(kWasmVoid, WASM_LOCAL_SET(0, WASM_I32V_1(0)));
+  EXPECT_INIT_EXPR_FAIL(kWasmI32, WASM_I32_ADD(WASM_I32V_1(0), WASM_I32V_1(0)));
+  EXPECT_INIT_EXPR_FAIL(kWasmI32,
+                        WASM_IF_ELSE(WASM_ZERO, WASM_ZERO, WASM_ZERO));
 }
 
 TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {

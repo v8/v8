@@ -1385,8 +1385,8 @@ class ModuleDecoderImpl : public Decoder {
     return ok() ? result : nullptr;
   }
 
-  WasmInitExpr DecodeInitExprForTesting() {
-    return consume_init_expr(nullptr, kWasmVoid, 0);
+  WasmInitExpr DecodeInitExprForTesting(ValueType expected) {
+    return consume_init_expr(module_.get(), expected, 0);
   }
 
   const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
@@ -2009,7 +2009,7 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     WasmInitExpr expr = std::move(stack.back());
-    if (expected != kWasmVoid && !IsSubtypeOf(TypeOf(expr), expected, module)) {
+    if (!IsSubtypeOf(TypeOf(expr), expected, module)) {
       errorf(pc(), "type error in init expression, expected %s, got %s",
              expected.name().c_str(), TypeOf(expr).name().c_str());
     }
@@ -2449,10 +2449,12 @@ const FunctionSig* DecodeWasmSignatureForTesting(const WasmFeatures& enabled,
 }
 
 WasmInitExpr DecodeWasmInitExprForTesting(const WasmFeatures& enabled,
-                                          const byte* start, const byte* end) {
-  AccountingAllocator allocator;
+                                          const byte* start, const byte* end,
+                                          ValueType expected) {
   ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
-  return decoder.DecodeInitExprForTesting();
+  AccountingAllocator allocator;
+  decoder.StartDecoding(nullptr, &allocator);
+  return decoder.DecodeInitExprForTesting(expected);
 }
 
 FunctionResult DecodeWasmFunctionForTesting(
