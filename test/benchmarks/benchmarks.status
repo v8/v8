@@ -38,6 +38,9 @@
   'octane/regexp': [PASS, SLOW],
   'octane/typescript': [PASS, SLOW],
 
+  # https://crbug.com/v8/11905
+  'kraken/stanford-crypto-pbkdf2': [PASS, SLOW, ['tsan', SKIP]],
+
   # https://crbug.com/v8/11222
   'octane/raytrace': [PASS, SLOW],
 }],  # ALWAYS
