@@ -7,13 +7,13 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 
+#include <cstring>
 #include <vector>
 
 #include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
-#include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
@@ -32,7 +32,7 @@ void SimpleStringBuilder::AddString(const char* s) {
 void SimpleStringBuilder::AddSubstring(const char* s, int n) {
   DCHECK(!is_finalized() && position_ + n <= buffer_.length());
   DCHECK_LE(n, strlen(s));
-  MemCopy(&buffer_[position_], s, n * kCharSize);
+  std::memcpy(&buffer_[position_], s, n * kCharSize);
   position_ += n;
 }
 
@@ -171,12 +171,12 @@ char* ReadLine(const char* prompt) {
       char* new_result = NewArray<char>(new_len);
       // Copy the existing input into the new array and set the new
       // array as the result.
-      MemCopy(new_result, result, offset * kCharSize);
+      std::memcpy(new_result, result, offset * kCharSize);
       DeleteArray(result);
       result = new_result;
     }
     // Copy the newly read line into the result.
-    MemCopy(result + offset, line_buf, len * kCharSize);
+    std::memcpy(result + offset, line_buf, len * kCharSize);
     offset += len;
   }
   DCHECK_NOT_NULL(result);
