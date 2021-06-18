@@ -600,6 +600,18 @@
 
   ######################## NEEDS INVESTIGATION ###########################
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11903
+  'language/import/json-idempotency': [FAIL],
+  'language/import/json-value-array': [FAIL],
+  'language/import/json-value-boolean': [FAIL],
+  'language/import/json-value-null': [FAIL],
+  'language/import/json-value-number': [FAIL],
+  'language/import/json-value-object': [FAIL],
+  'language/import/json-value-string': [FAIL],
+  'language/import/json-via-namespace': [FAIL],
+  'language/import/json-extensibility-array': [FAIL],
+  'language/import/json-extensibility-object': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
   #
   # Test262 needs to expose CanBlock
