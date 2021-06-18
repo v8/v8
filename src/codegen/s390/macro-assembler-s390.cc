@@ -755,6 +755,8 @@ void TurboAssembler::MultiPopF64OrV128(RegList dregs, Register location) {
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
   if (generating_bultins) {
     Label pop_doubles, simd_popped;
+    Move(r1, ExternalReference::supports_wasm_simd_128_address());
+    LoadU8(r1, MemOperand(r1));
     LoadAndTestP(r1, r1);  // If > 0 then simd is available.
     ble(&pop_doubles, Label::kNear);
     // Pop vector registers, don't pop double registers anymore.
