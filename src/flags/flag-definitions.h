@@ -583,8 +583,17 @@ DEFINE_BOOL_READONLY(enable_sealed_frozen_elements_kind, true,
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
+DEFINE_INT(ticks_before_optimization, 3,
+           "the number of times we have to go through the interrupt budget "
+           "before considering this function for optimization")
+DEFINE_INT(bytecode_size_allowance_per_tick, 1100,
+           "increases the number of ticks required for optimization by "
+           "bytecode.length/X")
 DEFINE_INT(interrupt_budget, 132 * KB,
            "interrupt budget which should be used for the profiler counter")
+DEFINE_INT(
+    max_bytecode_size_for_early_opt, 81,
+    "Maximum bytecode length for a function to be optimized on the first tick")
 
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")
