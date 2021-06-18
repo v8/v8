@@ -132,6 +132,22 @@ TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
             wrappable->wrapper()->GetAlignedPointerFromInternalField(1));
 }
 
+TEST_F(UnifiedHeapTest, TracedReferenceRetainsFromStack) {
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  TracedReference<v8::Object> holder;
+  {
+    v8::HandleScope scope(v8_isolate());
+    auto local = v8::Object::New(v8_isolate());
+    EXPECT_TRUE(local->IsObject());
+    holder.Reset(v8_isolate(), local);
+  }
+  CollectGarbageWithEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  auto local = holder.Get(v8_isolate());
+  EXPECT_TRUE(local->IsObject());
+}
+
 TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
   auto heap = v8::CppHeap::Create(
       V8::GetCurrentPlatform(),

@@ -14,6 +14,7 @@
 #include "include/v8.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
@@ -323,6 +324,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   isolate_->heap()->local_embedder_heap_tracer()->SetWrapperDescriptor(
       wrapper_descriptor_);
   SetMetricRecorder(std::make_unique<MetricRecorderAdapter>(*this));
+  SetStackStart(base::Stack::GetStackStart());
   no_gc_scope_--;
 }
 
