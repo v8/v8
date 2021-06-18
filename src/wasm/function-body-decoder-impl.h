@@ -2238,6 +2238,57 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return this->pc_offset() - first_instruction_offset;
   }
 
+  void DecodeFunctionBody() {
+    TRACE("wasm-decode %p...%p (module+%u, %d bytes)\n", this->start(),
+          this->end(), this->pc_offset(),
+          static_cast<int>(this->end() - this->start()));
+
+    // Set up initial function block.
+    {
+      DCHECK(control_.empty());
+      control_.emplace_back(kControlBlock, 0, 0, this->pc_, kReachable);
+      Control* c = &control_.back();
+      InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
+      InitMerge(&c->end_merge,
+                static_cast<uint32_t>(this->sig_->return_count()),
+                [&](uint32_t i) {
+                  return Value{this->pc_, this->sig_->GetReturn(i)};
+                });
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(StartFunctionBody, c);
+    }
+
+    first_instruction_offset = this->pc_offset();
+    // Decode the function body.
+    while (this->pc_ < this->end_) {
+      // Most operations only grow the stack by at least one element (unary and
+      // binary operations, local.get, constants, ...). Thus check that there is
+      // enough space for those operations centrally, and avoid any bounds
+      // checks in those operations.
+      EnsureStackSpace(1);
+      uint8_t first_byte = *this->pc_;
+      WasmOpcode opcode = static_cast<WasmOpcode>(first_byte);
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(NextInstruction, opcode);
+      int len;
+      // Allowing two of the most common decoding functions to get inlined
+      // appears to be the sweet spot.
+      // Handling _all_ opcodes via a giant switch-statement has been tried
+      // and found to be slower than calling through the handler table.
+      if (opcode == kExprLocalGet) {
+        len = WasmFullDecoder::DecodeLocalGet(this, opcode);
+      } else if (opcode == kExprI32Const) {
+        len = WasmFullDecoder::DecodeI32Const(this, opcode);
+      } else {
+        OpcodeHandler handler = GetOpcodeHandler(first_byte);
+        len = (*handler)(this, opcode);
+      }
+      this->pc_ += len;
+    }
+
+    if (!VALIDATE(this->pc_ == this->end_)) {
+      this->DecodeError("Beyond end of code");
+    }
+  }
+
  private:
   uint32_t first_instruction_offset = 0;
   Interface interface_;
@@ -3373,57 +3424,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     static constexpr std::array<OpcodeHandler, 256> kOpcodeHandlers =
         base::make_array<256>(GetOpcodeHandlerTableEntry);
     return kOpcodeHandlers[opcode];
-  }
-
-  void DecodeFunctionBody() {
-    TRACE("wasm-decode %p...%p (module+%u, %d bytes)\n", this->start(),
-          this->end(), this->pc_offset(),
-          static_cast<int>(this->end() - this->start()));
-
-    // Set up initial function block.
-    {
-      DCHECK(control_.empty());
-      control_.emplace_back(kControlBlock, 0, 0, this->pc_, kReachable);
-      Control* c = &control_.back();
-      InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
-      InitMerge(&c->end_merge,
-                static_cast<uint32_t>(this->sig_->return_count()),
-                [&](uint32_t i) {
-                  return Value{this->pc_, this->sig_->GetReturn(i)};
-                });
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(StartFunctionBody, c);
-    }
-
-    first_instruction_offset = this->pc_offset();
-    // Decode the function body.
-    while (this->pc_ < this->end_) {
-      // Most operations only grow the stack by at least one element (unary and
-      // binary operations, local.get, constants, ...). Thus check that there is
-      // enough space for those operations centrally, and avoid any bounds
-      // checks in those operations.
-      EnsureStackSpace(1);
-      uint8_t first_byte = *this->pc_;
-      WasmOpcode opcode = static_cast<WasmOpcode>(first_byte);
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(NextInstruction, opcode);
-      int len;
-      // Allowing two of the most common decoding functions to get inlined
-      // appears to be the sweet spot.
-      // Handling _all_ opcodes via a giant switch-statement has been tried
-      // and found to be slower than calling through the handler table.
-      if (opcode == kExprLocalGet) {
-        len = WasmFullDecoder::DecodeLocalGet(this, opcode);
-      } else if (opcode == kExprI32Const) {
-        len = WasmFullDecoder::DecodeI32Const(this, opcode);
-      } else {
-        OpcodeHandler handler = GetOpcodeHandler(first_byte);
-        len = (*handler)(this, opcode);
-      }
-      this->pc_ += len;
-    }
-
-    if (!VALIDATE(this->pc_ == this->end_)) {
-      this->DecodeError("Beyond end of code");
-    }
   }
 
   void EndControl() {
