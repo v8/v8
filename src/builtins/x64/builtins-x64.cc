@@ -1122,8 +1122,8 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
 //   o rbp: the caller's frame pointer
 //   o rsp: stack pointer (pointing to return address)
 //
-// The function builds an interpreter frame.  See InterpreterFrameConstants in
-// frames.h for its layout.
+// The function builds an interpreter frame. See InterpreterFrameConstants in
+// frame-constants.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = rdi;
   Register feedback_vector = rbx;

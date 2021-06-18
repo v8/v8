@@ -1204,8 +1204,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 //   o sp: stack pointer
 //   o lr: return address
 //
-// The function builds an interpreter frame.  See InterpreterFrameConstants in
-// frames.h for its layout.
+// The function builds an interpreter frame. See InterpreterFrameConstants in
+// frame-constants.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = r1;
   Register feedback_vector = r2;
