@@ -44,7 +44,7 @@ vars = {
   'check_v8_header_includes': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:7d803996740ccd587c54062750cbe04dfbc3c423',
+  'gn_version': 'git_revision:170c2dba1e0c0299fe8c6a441caf2f2352a42ae0',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:2adc53281f4a72ecb71e84a8af5acc0fced04cc9',
@@ -87,7 +87,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd5bb24e5d9802c8c917fcaa4375d5239a586c168',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd6115b16f58e7146cfed9838fdae895f1a974025',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e03cfed80b4f5cc4cef846ff94090cb1d87342f1',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '466954eda391b83e90f8b925767e6152318d690b',
   'buildtools/clang_format/script':
@@ -140,7 +140,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'h_kO6UaQmxXGNfG0ofG4wgKw_URVHcderPkx6AlamR0C'
+              'version': 'PN9-ZWJ3VamzkSeIVWLhS3mXDEVLPX86Ht5EEDH1O-EC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -203,7 +203,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '893c99ae7113258b38743f1b7dbb3f01069df13e',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'cb6392253359e28368d5389a251a5c9a06a58aa0',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -270,7 +270,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '00ade15d946d72f75c786dc2e66c419a9d99e2ad',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '0e774456f51950adbd2309ebc176eb5e0d74ed41',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '03ff857f12277f511e0a30aca44b80e8aaebafd7',
   'tools/clang/dsymutil': {
     'packages': [
       {
