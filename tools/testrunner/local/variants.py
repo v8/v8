@@ -81,7 +81,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
                + INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
   "predictable": ["--parallel-compile-tasks",
                   "--concurrent-recompilation",
-                  "--stress-concurrent-allocation"],
+                  "--stress-concurrent-allocation",
+                  "--stress-concurrent-inlining"],
 }
 
 # Flags that lead to a contradiction when a certain extra-flag is present.
