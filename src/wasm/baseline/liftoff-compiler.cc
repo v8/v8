@@ -6184,9 +6184,8 @@ constexpr base::EnumSet<ValueKind> LiftoffCompiler::kExternRefSupported;
 }  // namespace
 
 WasmCompilationResult ExecuteLiftoffCompilation(
-    AccountingAllocator* allocator, CompilationEnv* env,
-    const FunctionBody& func_body, int func_index, ForDebugging for_debugging,
-    Counters* counters, WasmFeatures* detected,
+    CompilationEnv* env, const FunctionBody& func_body, int func_index,
+    ForDebugging for_debugging, Counters* counters, WasmFeatures* detected,
     base::Vector<const int> breakpoints,
     std::unique_ptr<DebugSideTable>* debug_sidetable, int dead_breakpoint,
     int* max_steps) {
@@ -6195,7 +6194,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
                "wasm.CompileBaseline", "funcIndex", func_index, "bodySize",
                func_body_size);
 
-  Zone zone(allocator, "LiftoffCompilationZone");
+  Zone zone(GetWasmEngine()->allocator(), "LiftoffCompilationZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   size_t code_size_estimate =
       WasmCodeManager::EstimateLiftoffCodeSize(func_body_size);

@@ -7287,14 +7287,14 @@ void BuildInlinedJSToWasmWrapper(
 }
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, wasm::WasmEngine* wasm_engine,
-    const wasm::FunctionSig* sig, const wasm::WasmModule* module,
-    bool is_import, const wasm::WasmFeatures& enabled_features) {
+    Isolate* isolate, const wasm::FunctionSig* sig,
+    const wasm::WasmModule* module, bool is_import,
+    const wasm::WasmFeatures& enabled_features) {
   //----------------------------------------------------------------------------
   // Create the Graph.
   //----------------------------------------------------------------------------
   std::unique_ptr<Zone> zone = std::make_unique<Zone>(
-      wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone);
+      wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
   Graph* graph = zone->New<Graph>(zone.get());
   CommonOperatorBuilder* common = zone->New<CommonOperatorBuilder>(zone.get());
   MachineOperatorBuilder* machine = zone->New<MachineOperatorBuilder>(
@@ -7318,9 +7318,8 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
       zone.get(), false, params + 1, CallDescriptor::kNoFlags);
 
   return Pipeline::NewWasmHeapStubCompilationJob(
-      isolate, wasm_engine, incoming, std::move(zone), graph,
-      CodeKind::JS_TO_WASM_FUNCTION, std::move(debug_name),
-      WasmAssemblerOptions());
+      isolate, incoming, std::move(zone), graph, CodeKind::JS_TO_WASM_FUNCTION,
+      std::move(debug_name), WasmAssemblerOptions());
 }
 
 std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
@@ -7487,14 +7486,13 @@ wasm::WasmOpcode GetMathIntrinsicOpcode(WasmImportCallKind kind,
 }
 
 wasm::WasmCompilationResult CompileWasmMathIntrinsic(
-    wasm::WasmEngine* wasm_engine, WasmImportCallKind kind,
-    const wasm::FunctionSig* sig) {
+    WasmImportCallKind kind, const wasm::FunctionSig* sig) {
   DCHECK_EQ(1, sig->return_count());
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmMathIntrinsic");
 
-  Zone zone(wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
 
   // Compile a Wasm function with a single bytecode and let TurboFan
   // generate either inlined machine code or a call to a helper.
@@ -7541,7 +7539,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
   }
 
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      wasm_engine, call_descriptor, mcgraph, CodeKind::WASM_FUNCTION,
+      call_descriptor, mcgraph, CodeKind::WASM_FUNCTION,
       wasm::WasmCode::kFunction, debug_name, WasmStubAssemblerOptions(),
       source_positions);
   return result;
@@ -7550,9 +7548,8 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
 }  // namespace
 
 wasm::WasmCompilationResult CompileWasmImportCallWrapper(
-    wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
-    WasmImportCallKind kind, const wasm::FunctionSig* sig,
-    bool source_positions, int expected_arity) {
+    wasm::CompilationEnv* env, WasmImportCallKind kind,
+    const wasm::FunctionSig* sig, bool source_positions, int expected_arity) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
 
@@ -7560,7 +7557,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   if (FLAG_wasm_math_intrinsics &&
       kind >= WasmImportCallKind::kFirstMathIntrinsic &&
       kind <= WasmImportCallKind::kLastMathIntrinsic) {
-    return CompileWasmMathIntrinsic(wasm_engine, kind, sig);
+    return CompileWasmMathIntrinsic(kind, sig);
   }
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
@@ -7568,7 +7565,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
-  Zone zone(wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
   Graph* graph = zone.New<Graph>(&zone);
   CommonOperatorBuilder* common = zone.New<CommonOperatorBuilder>(&zone);
   MachineOperatorBuilder* machine = zone.New<MachineOperatorBuilder>(
@@ -7601,20 +7598,19 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      wasm_engine, incoming, mcgraph, CodeKind::WASM_TO_JS_FUNCTION,
+      incoming, mcgraph, CodeKind::WASM_TO_JS_FUNCTION,
       wasm::WasmCode::kWasmToJsWrapper, func_name, WasmStubAssemblerOptions(),
       source_position_table);
   result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
   return result;
 }
 
-wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
-                                           wasm::NativeModule* native_module,
+wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
                                            const wasm::FunctionSig* sig) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmCapiFunction");
 
-  Zone zone(wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
 
   // TODO(jkummerow): Extract common code into helper method.
   SourcePositionTable* source_positions = nullptr;
@@ -7646,7 +7642,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
 
   const char* debug_name = "WasmCapiCall";
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      wasm_engine, call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION,
+      call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION,
       wasm::WasmCode::kWasmToCapiWrapper, debug_name,
       WasmStubAssemblerOptions(), source_positions);
   std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
@@ -7695,7 +7691,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
-          isolate, wasm::GetWasmEngine(), incoming, std::move(zone), graph,
+          isolate, incoming, std::move(zone), graph,
           CodeKind::WASM_TO_JS_FUNCTION, std::move(name_buffer),
           AssemblerOptions::Default(isolate)));
 
@@ -7742,7 +7738,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
-          isolate, wasm::GetWasmEngine(), incoming, std::move(zone), graph,
+          isolate, incoming, std::move(zone), graph,
           CodeKind::JS_TO_JS_FUNCTION, std::move(name_buffer),
           AssemblerOptions::Default(isolate)));
 
@@ -7797,9 +7793,8 @@ Handle<CodeT> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
-          isolate, wasm::GetWasmEngine(), incoming, std::move(zone), graph,
-          CodeKind::C_WASM_ENTRY, std::move(name_buffer),
-          AssemblerOptions::Default(isolate)));
+          isolate, incoming, std::move(zone), graph, CodeKind::C_WASM_ENTRY,
+          std::move(name_buffer), AssemblerOptions::Default(isolate)));
 
   CHECK_NE(job->ExecuteJob(isolate->counters()->runtime_call_stats(), nullptr),
            CompilationJob::FAILED);
@@ -7814,8 +7809,7 @@ Handle<CodeT> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
 
 namespace {
 
-bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
-                               wasm::CompilationEnv* env,
+bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
                                const wasm::FunctionBody& func_body,
                                int func_index, wasm::WasmFeatures* detected,
                                MachineGraph* mcgraph,
@@ -7825,6 +7819,7 @@ bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
   // Create a TF graph during decoding.
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, func_body.sig,
                            source_positions);
+  auto* allocator = wasm::GetWasmEngine()->allocator();
   wasm::VoidResult graph_construction_result = wasm::BuildTFGraph(
       allocator, env->enabled_features, env->module, &builder, detected,
       func_body, loop_infos, node_origins, func_index);
@@ -7864,13 +7859,12 @@ base::Vector<const char> GetDebugName(Zone* zone, int index) {
 }  // namespace
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
-    wasm::WasmEngine* wasm_engine, wasm::CompilationEnv* env,
-    const wasm::FunctionBody& func_body, int func_index, Counters* counters,
-    wasm::WasmFeatures* detected) {
+    wasm::CompilationEnv* env, const wasm::FunctionBody& func_body,
+    int func_index, Counters* counters, wasm::WasmFeatures* detected) {
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileTopTier", "func_index", func_index, "body_size",
                func_body.end - func_body.start);
-  Zone zone(wasm_engine->allocator(), ZONE_NAME, kCompressGraphZone);
+  Zone zone(wasm::GetWasmEngine()->allocator(), ZONE_NAME, kCompressGraphZone);
   MachineGraph* mcgraph = zone.New<MachineGraph>(
       zone.New<Graph>(&zone), zone.New<CommonOperatorBuilder>(&zone),
       zone.New<MachineOperatorBuilder>(
@@ -7897,9 +7891,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 
   std::vector<WasmLoopInfo> loop_infos;
 
-  if (!BuildGraphForWasmFunction(wasm_engine->allocator(), env, func_body,
-                                 func_index, detected, mcgraph, &loop_infos,
-                                 node_origins, source_positions)) {
+  if (!BuildGraphForWasmFunction(env, func_body, func_index, detected, mcgraph,
+                                 &loop_infos, node_origins, source_positions)) {
     return wasm::WasmCompilationResult{};
   }
 
@@ -7918,8 +7911,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   }
 
   Pipeline::GenerateCodeForWasmFunction(
-      &info, wasm_engine, mcgraph, call_descriptor, source_positions,
-      node_origins, func_body, env->module, func_index, &loop_infos);
+      &info, mcgraph, call_descriptor, source_positions, node_origins,
+      func_body, env->module, func_index, &loop_infos);
 
   if (counters) {
     counters->wasm_compile_function_peak_memory_bytes()->AddSample(

@@ -535,7 +535,7 @@ class CompilationStateImpl {
 
   // Call right after the constructor, after the {compilation_state_} field in
   // the {NativeModule} has been initialized.
-  void InitCompileJob(WasmEngine*);
+  void InitCompileJob();
 
   // {kCancelUnconditionally}: Cancel all compilation.
   // {kCancelInitialCompilation}: Cancel all compilation if initial (baseline)
@@ -784,9 +784,7 @@ void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
 
 CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
-void CompilationState::InitCompileJob(WasmEngine* engine) {
-  Impl(this)->InitCompileJob(engine);
-}
+void CompilationState::InitCompileJob() { Impl(this)->InitCompileJob(); }
 
 void CompilationState::CancelCompilation() {
   Impl(this)->CancelCompilation(CompilationStateImpl::kCancelUnconditionally);
@@ -1128,7 +1126,7 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
   WasmEngine* engine = GetWasmEngine();
   WasmFeatures detected_features;
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
-      engine, &env, compilation_state->GetWireBytesStorage().get(), counters,
+      &env, compilation_state->GetWireBytesStorage().get(), counters,
       &detected_features);
   compilation_state->OnCompilationStopped(detected_features);
 
@@ -1218,8 +1216,7 @@ CompilationExecutionResult ExecuteJSToWasmWrapperCompilationUnits(
     if (!wrapper_unit) return kNoMoreUnits;
     isolate = wrapper_unit->isolate();
     wrapper_compilation_token =
-        compile_scope.native_module()->engine()->StartWrapperCompilation(
-            isolate);
+        wasm::GetWasmEngine()->StartWrapperCompilation(isolate);
     if (!wrapper_compilation_token) return kNoMoreUnits;
   }
 
@@ -1277,7 +1274,6 @@ CompilationExecutionResult ExecuteCompilationUnits(
 
   // These fields are initialized in a {BackgroundCompileScope} before
   // starting compilation.
-  WasmEngine* engine;
   base::Optional<CompilationEnv> env;
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
@@ -1296,7 +1292,6 @@ CompilationExecutionResult ExecuteCompilationUnits(
   {
     BackgroundCompileScope compile_scope(native_module);
     if (compile_scope.cancelled()) return kYield;
-    engine = compile_scope.native_module()->engine();
     env.emplace(compile_scope.native_module()->CreateCompilationEnv());
     wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
     module = compile_scope.native_module()->shared_module();
@@ -1315,7 +1310,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
     while (unit->tier() == current_tier) {
       // (asynchronous): Execute the compilation.
       WasmCompilationResult result = unit->ExecuteCompilation(
-          engine, &env.value(), wire_bytes.get(), counters, &detected_features);
+          &env.value(), wire_bytes.get(), counters, &detected_features);
       results_to_publish.emplace_back(std::move(result));
 
       bool yield = delegate && delegate->ShouldYield();
@@ -1369,8 +1364,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
 using JSToWasmWrapperKey = std::pair<bool, FunctionSig>;
 
 // Returns the number of units added.
-int AddExportWrapperUnits(Isolate* isolate, WasmEngine* wasm_engine,
-                          NativeModule* native_module,
+int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
                           CompilationUnitBuilder* builder,
                           const WasmFeatures& enabled_features) {
   std::unordered_set<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>> keys;
@@ -1380,9 +1374,8 @@ int AddExportWrapperUnits(Isolate* isolate, WasmEngine* wasm_engine,
     JSToWasmWrapperKey key(function.imported, *function.sig);
     if (keys.insert(key).second) {
       auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
-          isolate, wasm_engine, function.sig, native_module->module(),
-          function.imported, enabled_features,
-          JSToWasmWrapperCompilationUnit::kAllowGeneric);
+          isolate, function.sig, native_module->module(), function.imported,
+          enabled_features, JSToWasmWrapperCompilationUnit::kAllowGeneric);
       builder->AddJSToWasmWrapperUnit(std::move(unit));
     }
   }
@@ -1455,9 +1448,8 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
     }
   }
   int num_import_wrappers = AddImportWrapperUnits(native_module, &builder);
-  int num_export_wrappers =
-      AddExportWrapperUnits(isolate, GetWasmEngine(), native_module, &builder,
-                            WasmFeatures::FromIsolate(isolate));
+  int num_export_wrappers = AddExportWrapperUnits(
+      isolate, native_module, &builder, WasmFeatures::FromIsolate(isolate));
   compilation_state->InitializeCompilationProgress(
       lazy_module, num_import_wrappers, num_export_wrappers);
   builder.Commit();
@@ -1631,10 +1623,9 @@ void CompileNativeModule(Isolate* isolate,
 class BackgroundCompileJob final : public JobTask {
  public:
   explicit BackgroundCompileJob(std::weak_ptr<NativeModule> native_module,
-                                WasmEngine* engine,
                                 std::shared_ptr<Counters> async_counters)
       : native_module_(std::move(native_module)),
-        engine_barrier_(engine->GetBarrierForBackgroundCompile()),
+        engine_barrier_(GetWasmEngine()->GetBarrierForBackgroundCompile()),
         async_counters_(std::move(async_counters)) {}
 
   void Run(JobDelegate* delegate) override {
@@ -1830,7 +1821,6 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
   ModuleDecoder decoder_;
   AsyncCompileJob* job_;
-  WasmEngine* wasm_engine_;
   std::unique_ptr<CompilationUnitBuilder> compilation_unit_builder_;
   int num_functions_ = 0;
   bool prefix_cache_hit_ = false;
@@ -2452,7 +2442,6 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(
     AccountingAllocator* allocator)
     : decoder_(job->enabled_features_),
       job_(job),
-      wasm_engine_(GetWasmEngine()),
       compilation_unit_builder_(nullptr),
       async_counters_(async_counters),
       allocator_(allocator) {}
@@ -2576,7 +2565,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
 
   prefix_hash_ = base::hash_combine(prefix_hash_,
                                     static_cast<uint32_t>(code_section_length));
-  if (!wasm_engine_->GetStreamingCompilationOwnership(prefix_hash_)) {
+  if (!GetWasmEngine()->GetStreamingCompilationOwnership(prefix_hash_)) {
     // Known prefix, wait until the end of the stream and check the cache.
     prefix_cache_hit_ = true;
     return true;
@@ -2611,8 +2600,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   int num_import_wrappers =
       AddImportWrapperUnits(native_module, compilation_unit_builder_.get());
   int num_export_wrappers = AddExportWrapperUnits(
-      job_->isolate_, wasm_engine_, native_module,
-      compilation_unit_builder_.get(), job_->enabled_features_);
+      job_->isolate_, native_module, compilation_unit_builder_.get(),
+      job_->enabled_features_);
   compilation_state->InitializeCompilationProgress(
       lazy_module, num_import_wrappers, num_export_wrappers);
   return true;
@@ -2825,12 +2814,11 @@ CompilationStateImpl::CompilationStateImpl(
       async_counters_(std::move(async_counters)),
       compilation_unit_queues_(native_module->num_functions()) {}
 
-void CompilationStateImpl::InitCompileJob(WasmEngine* engine) {
+void CompilationStateImpl::InitCompileJob() {
   DCHECK_NULL(compile_job_);
   compile_job_ = V8::GetCurrentPlatform()->PostJob(
-      TaskPriority::kUserVisible,
-      std::make_unique<BackgroundCompileJob>(native_module_weak_, engine,
-                                             async_counters_));
+      TaskPriority::kUserVisible, std::make_unique<BackgroundCompileJob>(
+                                      native_module_weak_, async_counters_));
 }
 
 void CompilationStateImpl::CancelCompilation(
@@ -3485,8 +3473,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     JSToWasmWrapperKey key(function.imported, *function.sig);
     if (queue.insert(key)) {
       auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
-          isolate, GetWasmEngine(), function.sig, module, function.imported,
-          enabled_features, JSToWasmWrapperCompilationUnit::kAllowGeneric);
+          isolate, function.sig, module, function.imported, enabled_features,
+          JSToWasmWrapperCompilationUnit::kAllowGeneric);
       compilation_units.emplace(key, std::move(unit));
     }
   }
@@ -3520,7 +3508,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 }
 
 WasmCode* CompileImportWrapper(
-    WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
+    NativeModule* native_module, Counters* counters,
     compiler::WasmImportCallKind kind, const FunctionSig* sig,
     int expected_arity,
     WasmImportWrapperCache::ModificationScope* cache_scope) {
@@ -3534,7 +3522,7 @@ WasmCode* CompileImportWrapper(
   WasmCodeRefScope code_ref_scope;
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      wasm_engine, &env, kind, sig, source_positions, expected_arity);
+      &env, kind, sig, source_positions, expected_arity);
   std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
       result.func_index, result.code_desc, result.frame_slot_count,
       result.tagged_parameter_slots,

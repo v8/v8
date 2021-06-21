@@ -63,8 +63,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
       import_wrapper = CompileImportWrapper(
-          GetWasmEngine(), native_module_, isolate_->counters(), kind,
-          maybe_import->sig,
+          native_module_, isolate_->counters(), kind, maybe_import->sig,
           static_cast<int>(maybe_import->sig->parameter_count()), &cache_scope);
     }
 
@@ -559,15 +558,14 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
     result.emplace(ExecuteLiftoffCompilation(
-        GetWasmEngine()->allocator(), &env, func_body, function_->func_index,
-        kForDebugging, isolate()->counters(), &unused_detected_features, {},
-        nullptr, 0, builder_->max_steps_ptr()));
+        &env, func_body, function_->func_index, kForDebugging,
+        isolate()->counters(), &unused_detected_features, {}, nullptr, 0,
+        builder_->max_steps_ptr()));
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
                              for_debugging);
     result.emplace(unit.ExecuteCompilation(
-        GetWasmEngine(), &env,
-        native_module->compilation_state()->GetWireBytesStorage().get(),
+        &env, native_module->compilation_state()->GetWireBytesStorage().get(),
         isolate()->counters(), &unused_detected_features));
   }
   WasmCode* code = native_module->PublishCode(

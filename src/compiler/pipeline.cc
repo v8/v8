@@ -1037,9 +1037,8 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
 
 #if V8_ENABLE_WEBASSEMBLY
 PipelineStatistics* CreatePipelineStatistics(
-    wasm::WasmEngine* wasm_engine, wasm::FunctionBody function_body,
-    const wasm::WasmModule* wasm_module, OptimizedCompilationInfo* info,
-    ZoneStats* zone_stats) {
+    wasm::FunctionBody function_body, const wasm::WasmModule* wasm_module,
+    OptimizedCompilationInfo* info, ZoneStats* zone_stats) {
   PipelineStatistics* pipeline_statistics = nullptr;
 
   bool tracing_enabled;
@@ -1047,7 +1046,7 @@ PipelineStatistics* CreatePipelineStatistics(
       TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan"), &tracing_enabled);
   if (tracing_enabled || FLAG_turbo_stats_wasm) {
     pipeline_statistics = new PipelineStatistics(
-        info, wasm_engine->GetOrCreateTurboStatistics(), zone_stats);
+        info, wasm::GetWasmEngine()->GetOrCreateTurboStatistics(), zone_stats);
     pipeline_statistics->BeginPhaseKind("V8.WasmInitializing");
   }
 
@@ -2549,8 +2548,7 @@ struct VerifyGraphPhase {
 #if V8_ENABLE_WEBASSEMBLY
 class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
  public:
-  WasmHeapStubCompilationJob(Isolate* isolate, wasm::WasmEngine* wasm_engine,
-                             CallDescriptor* call_descriptor,
+  WasmHeapStubCompilationJob(Isolate* isolate, CallDescriptor* call_descriptor,
                              std::unique_ptr<Zone> zone, Graph* graph,
                              CodeKind kind, std::unique_ptr<char[]> debug_name,
                              const AssemblerOptions& options,
@@ -2566,11 +2564,10 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
         zone_stats_(zone->allocator()),
         zone_(std::move(zone)),
         graph_(graph),
-        data_(&zone_stats_, &info_, isolate, wasm_engine->allocator(), graph_,
-              nullptr, nullptr, source_positions,
+        data_(&zone_stats_, &info_, isolate, wasm::GetWasmEngine()->allocator(),
+              graph_, nullptr, nullptr, source_positions,
               zone_->New<NodeOriginTable>(graph_), nullptr, options, nullptr),
-        pipeline_(&data_),
-        wasm_engine_(wasm_engine) {}
+        pipeline_(&data_) {}
 
   WasmHeapStubCompilationJob(const WasmHeapStubCompilationJob&) = delete;
   WasmHeapStubCompilationJob& operator=(const WasmHeapStubCompilationJob&) =
@@ -2591,18 +2588,19 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
   Graph* graph_;
   PipelineData data_;
   PipelineImpl pipeline_;
-  wasm::WasmEngine* wasm_engine_;
 };
 
 // static
 std::unique_ptr<OptimizedCompilationJob>
-Pipeline::NewWasmHeapStubCompilationJob(
-    Isolate* isolate, wasm::WasmEngine* wasm_engine,
-    CallDescriptor* call_descriptor, std::unique_ptr<Zone> zone, Graph* graph,
-    CodeKind kind, std::unique_ptr<char[]> debug_name,
-    const AssemblerOptions& options, SourcePositionTable* source_positions) {
+Pipeline::NewWasmHeapStubCompilationJob(Isolate* isolate,
+                                        CallDescriptor* call_descriptor,
+                                        std::unique_ptr<Zone> zone,
+                                        Graph* graph, CodeKind kind,
+                                        std::unique_ptr<char[]> debug_name,
+                                        const AssemblerOptions& options,
+                                        SourcePositionTable* source_positions) {
   return std::make_unique<WasmHeapStubCompilationJob>(
-      isolate, wasm_engine, call_descriptor, std::move(zone), graph, kind,
+      isolate, call_descriptor, std::move(zone), graph, kind,
       std::move(debug_name), options, source_positions);
 }
 
@@ -2616,7 +2614,8 @@ CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
-        &info_, wasm_engine_->GetOrCreateTurboStatistics(), &zone_stats_));
+        &info_, wasm::GetWasmEngine()->GetOrCreateTurboStatistics(),
+        &zone_stats_));
     pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
   }
   if (info_.trace_turbo_json() || info_.trace_turbo_graph()) {
@@ -3138,13 +3137,14 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
 #if V8_ENABLE_WEBASSEMBLY
 // static
 wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
-    wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
-    MachineGraph* mcgraph, CodeKind kind, int wasm_kind, const char* debug_name,
-    const AssemblerOptions& options, SourcePositionTable* source_positions) {
+    CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
+    int wasm_kind, const char* debug_name, const AssemblerOptions& options,
+    SourcePositionTable* source_positions) {
   Graph* graph = mcgraph->graph();
   OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
                                 kind);
   // Construct a pipeline for scheduling and code generation.
+  wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
   ZoneStats zone_stats(wasm_engine->allocator());
   NodeOriginTable* node_positions = graph->zone()->New<NodeOriginTable>(graph);
   // {instruction_buffer} must live longer than {PipelineData}, since
@@ -3241,15 +3241,15 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 
 // static
 void Pipeline::GenerateCodeForWasmFunction(
-    OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
-    MachineGraph* mcgraph, CallDescriptor* call_descriptor,
-    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    wasm::FunctionBody function_body, const wasm::WasmModule* module,
-    int function_index, std::vector<compiler::WasmLoopInfo>* loop_info) {
+    OptimizedCompilationInfo* info, MachineGraph* mcgraph,
+    CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
+    NodeOriginTable* node_origins, wasm::FunctionBody function_body,
+    const wasm::WasmModule* module, int function_index,
+    std::vector<compiler::WasmLoopInfo>* loop_info) {
+  auto* wasm_engine = wasm::GetWasmEngine();
   ZoneStats zone_stats(wasm_engine->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
-      CreatePipelineStatistics(wasm_engine, function_body, module, info,
-                               &zone_stats));
+      CreatePipelineStatistics(function_body, module, info, &zone_stats));
   // {instruction_buffer} must live longer than {PipelineData}, since
   // {PipelineData} will reference the {instruction_buffer} via the
   // {AssemblerBuffer} of the {Assembler} contained in the {CodeGenerator}.

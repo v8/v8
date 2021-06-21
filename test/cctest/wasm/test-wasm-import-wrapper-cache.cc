@@ -39,9 +39,8 @@ TEST(CacheHit) {
   auto sig = sigs.i_i();
   int expected_arity = static_cast<int>(sig->parameter_count());
 
-  WasmCode* c1 =
-      CompileImportWrapper(GetWasmEngine(), module.get(), isolate->counters(),
-                           kind, sig, expected_arity, &cache_scope);
+  WasmCode* c1 = CompileImportWrapper(module.get(), isolate->counters(), kind,
+                                      sig, expected_arity, &cache_scope);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
@@ -66,9 +65,8 @@ TEST(CacheMissSig) {
   auto sig2 = sigs.i_ii();
   int expected_arity2 = static_cast<int>(sig2->parameter_count());
 
-  WasmCode* c1 =
-      CompileImportWrapper(GetWasmEngine(), module.get(), isolate->counters(),
-                           kind, sig1, expected_arity1, &cache_scope);
+  WasmCode* c1 = CompileImportWrapper(module.get(), isolate->counters(), kind,
+                                      sig1, expected_arity1, &cache_scope);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
@@ -91,9 +89,8 @@ TEST(CacheMissKind) {
   auto sig = sigs.i_i();
   int expected_arity = static_cast<int>(sig->parameter_count());
 
-  WasmCode* c1 =
-      CompileImportWrapper(GetWasmEngine(), module.get(), isolate->counters(),
-                           kind1, sig, expected_arity, &cache_scope);
+  WasmCode* c1 = CompileImportWrapper(module.get(), isolate->counters(), kind1,
+                                      sig, expected_arity, &cache_scope);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
@@ -117,9 +114,8 @@ TEST(CacheHitMissSig) {
   auto sig2 = sigs.i_ii();
   int expected_arity2 = static_cast<int>(sig2->parameter_count());
 
-  WasmCode* c1 =
-      CompileImportWrapper(GetWasmEngine(), module.get(), isolate->counters(),
-                           kind, sig1, expected_arity1, &cache_scope);
+  WasmCode* c1 = CompileImportWrapper(module.get(), isolate->counters(), kind,
+                                      sig1, expected_arity1, &cache_scope);
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
@@ -128,8 +124,8 @@ TEST(CacheHitMissSig) {
 
   CHECK_NULL(c2);
 
-  c2 = CompileImportWrapper(GetWasmEngine(), module.get(), isolate->counters(),
-                            kind, sig2, expected_arity2, &cache_scope);
+  c2 = CompileImportWrapper(module.get(), isolate->counters(), kind, sig2,
+                            expected_arity2, &cache_scope);
 
   CHECK_NE(c1, c2);
 

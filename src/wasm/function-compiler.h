@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   WasmCompilationUnit(int index, ExecutionTier tier, ForDebugging for_debugging)
       : func_index_(index), tier_(tier), for_debugging_(for_debugging) {}
 
-  WasmCompilationResult ExecuteCompilation(WasmEngine*, CompilationEnv*,
+  WasmCompilationResult ExecuteCompilation(CompilationEnv*,
                                            const WireBytesStorage*, Counters*,
                                            WasmFeatures* detected);
 
@@ -96,13 +96,12 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
                                   ExecutionTier);
 
  private:
-  WasmCompilationResult ExecuteFunctionCompilation(WasmEngine*, CompilationEnv*,
+  WasmCompilationResult ExecuteFunctionCompilation(CompilationEnv*,
                                                    const WireBytesStorage*,
                                                    Counters*,
                                                    WasmFeatures* detected);
 
-  WasmCompilationResult ExecuteImportWrapperCompilation(WasmEngine*,
-                                                        CompilationEnv*);
+  WasmCompilationResult ExecuteImportWrapperCompilation(CompilationEnv*);
 
   int func_index_;
   ExecutionTier tier_;
@@ -120,8 +119,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   // and return the builtin (generic) wrapper, when available.
   enum AllowGeneric : bool { kAllowGeneric = true, kDontAllowGeneric = false };
 
-  JSToWasmWrapperCompilationUnit(Isolate* isolate, WasmEngine* wasm_engine,
-                                 const FunctionSig* sig,
+  JSToWasmWrapperCompilationUnit(Isolate* isolate, const FunctionSig* sig,
                                  const wasm::WasmModule* module, bool is_import,
                                  const WasmFeatures& enabled_features,
                                  AllowGeneric allow_generic);

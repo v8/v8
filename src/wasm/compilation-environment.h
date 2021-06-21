@@ -112,7 +112,7 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   ~CompilationState();
 
-  void InitCompileJob(WasmEngine*);
+  void InitCompileJob();
 
   void CancelCompilation();
 

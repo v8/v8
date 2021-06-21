@@ -45,11 +45,10 @@ using ImportWrapperQueue = WrapperQueue<WasmImportWrapperCache::CacheKey,
 class CompileImportWrapperJob final : public JobTask {
  public:
   CompileImportWrapperJob(
-      WasmEngine* engine, Counters* counters, NativeModule* native_module,
+      Counters* counters, NativeModule* native_module,
       ImportWrapperQueue* queue,
       WasmImportWrapperCache::ModificationScope* cache_scope)
-      : engine_(engine),
-        counters_(counters),
+      : counters_(counters),
         native_module_(native_module),
         queue_(queue),
         cache_scope_(cache_scope) {}
@@ -65,14 +64,13 @@ class CompileImportWrapperJob final : public JobTask {
   void Run(JobDelegate* delegate) override {
     while (base::Optional<WasmImportWrapperCache::CacheKey> key =
                queue_->pop()) {
-      CompileImportWrapper(engine_, native_module_, counters_, key->kind,
-                           key->signature, key->expected_arity, cache_scope_);
+      CompileImportWrapper(native_module_, counters_, key->kind, key->signature,
+                           key->expected_arity, cache_scope_);
       if (delegate->ShouldYield()) return;
     }
   }
 
  private:
-  WasmEngine* const engine_;
   Counters* const counters_;
   NativeModule* const native_module_;
   ImportWrapperQueue* const queue_;
@@ -997,8 +995,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       if (wasm_code == nullptr) {
         WasmCodeRefScope code_ref_scope;
         WasmImportWrapperCache::ModificationScope cache_scope(cache);
-        wasm_code = compiler::CompileWasmCapiCallWrapper(
-            wasm::GetWasmEngine(), native_module, expected_sig);
+        wasm_code =
+            compiler::CompileWasmCapiCallWrapper(native_module, expected_sig);
         WasmImportWrapperCache::CacheKey key(kind, expected_sig,
                                              expected_arity);
         cache_scope[key] = wasm_code;
@@ -1438,8 +1436,7 @@ void InstanceBuilder::CompileImportWrappers(
   }
 
   auto compile_job_task = std::make_unique<CompileImportWrapperJob>(
-      wasm::GetWasmEngine(), isolate_->counters(), native_module,
-      &import_wrapper_queue, &cache_scope);
+      isolate_->counters(), native_module, &import_wrapper_queue, &cache_scope);
   auto compile_job = V8::GetCurrentPlatform()->PostJob(
       TaskPriority::kUserVisible, std::move(compile_job_task));
 

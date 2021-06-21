@@ -59,8 +59,8 @@ enum class LoadTransformationKind : uint8_t;
 namespace compiler {
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
-    wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
-    int func_index, Counters*, wasm::WasmFeatures* detected);
+    wasm::CompilationEnv*, const wasm::FunctionBody&, int func_index, Counters*,
+    wasm::WasmFeatures* detected);
 
 // Calls to Wasm imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the
@@ -116,19 +116,18 @@ ResolveWasmImportCall(Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
 
 // Compiles an import call wrapper, which allows Wasm to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(
-    wasm::WasmEngine*, wasm::CompilationEnv* env, WasmImportCallKind,
-    const wasm::FunctionSig*, bool source_positions, int expected_arity);
+    wasm::CompilationEnv* env, WasmImportCallKind, const wasm::FunctionSig*,
+    bool source_positions, int expected_arity);
 
 // Compiles a host call wrapper, which allows Wasm to call host functions.
-wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,
-                                           wasm::NativeModule*,
+wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule*,
                                            const wasm::FunctionSig*);
 
 // Returns an OptimizedCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, wasm::WasmEngine* wasm_engine,
-    const wasm::FunctionSig* sig, const wasm::WasmModule* module,
-    bool is_import, const wasm::WasmFeatures& enabled_features);
+    Isolate* isolate, const wasm::FunctionSig* sig,
+    const wasm::WasmModule* module, bool is_import,
+    const wasm::WasmFeatures& enabled_features);
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          const wasm::FunctionSig* sig,

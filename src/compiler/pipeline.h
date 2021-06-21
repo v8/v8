@@ -54,25 +54,24 @@ class Pipeline : public AllStatic {
 
   // Run the pipeline for the WebAssembly compilation info.
   static void GenerateCodeForWasmFunction(
-      OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
-      MachineGraph* mcgraph, CallDescriptor* call_descriptor,
-      SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-      wasm::FunctionBody function_body, const wasm::WasmModule* module,
-      int function_index, std::vector<compiler::WasmLoopInfo>* loop_infos);
+      OptimizedCompilationInfo* info, MachineGraph* mcgraph,
+      CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
+      NodeOriginTable* node_origins, wasm::FunctionBody function_body,
+      const wasm::WasmModule* module, int function_index,
+      std::vector<compiler::WasmLoopInfo>* loop_infos);
 
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
-      wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
-      MachineGraph* mcgraph, CodeKind kind, int wasm_kind,
-      const char* debug_name, const AssemblerOptions& assembler_options,
+      CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
+      int wasm_kind, const char* debug_name,
+      const AssemblerOptions& assembler_options,
       SourcePositionTable* source_positions = nullptr);
 
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<OptimizedCompilationJob> NewWasmHeapStubCompilationJob(
-      Isolate* isolate, wasm::WasmEngine* wasm_engine,
-      CallDescriptor* call_descriptor, std::unique_ptr<Zone> zone, Graph* graph,
-      CodeKind kind, std::unique_ptr<char[]> debug_name,
-      const AssemblerOptions& options,
+      Isolate* isolate, CallDescriptor* call_descriptor,
+      std::unique_ptr<Zone> zone, Graph* graph, CodeKind kind,
+      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options,
       SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code.

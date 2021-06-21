@@ -45,11 +45,11 @@ class LiftoffCompileEnvironment {
     WasmFeatures detected1;
     WasmFeatures detected2;
     WasmCompilationResult result1 = ExecuteLiftoffCompilation(
-        isolate_->allocator(), &env, test_func.body, test_func.code->index(),
-        kNoDebugging, isolate_->counters(), &detected1);
+        &env, test_func.body, test_func.code->index(), kNoDebugging,
+        isolate_->counters(), &detected1);
     WasmCompilationResult result2 = ExecuteLiftoffCompilation(
-        isolate_->allocator(), &env, test_func.body, test_func.code->index(),
-        kNoDebugging, isolate_->counters(), &detected2);
+        &env, test_func.body, test_func.code->index(), kNoDebugging,
+        isolate_->counters(), &detected2);
 
     CHECK(result1.succeeded());
     CHECK(result2.succeeded());
@@ -74,9 +74,8 @@ class LiftoffCompileEnvironment {
     WasmFeatures detected;
     std::unique_ptr<DebugSideTable> debug_side_table_via_compilation;
     auto result = ExecuteLiftoffCompilation(
-        CcTest::i_isolate()->allocator(), &env, test_func.body, 0,
-        kForDebugging, nullptr, &detected, base::VectorOf(breakpoints),
-        &debug_side_table_via_compilation);
+        &env, test_func.body, 0, kForDebugging, nullptr, &detected,
+        base::VectorOf(breakpoints), &debug_side_table_via_compilation);
     CHECK(result.succeeded());
 
     // If there are no breakpoint, then {ExecuteLiftoffCompilation} should

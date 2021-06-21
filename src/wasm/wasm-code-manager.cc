@@ -863,7 +863,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   shared_this->reset(this);
   compilation_state_ =
       CompilationState::New(*shared_this, std::move(async_counters));
-  compilation_state_->InitCompileJob(engine);
+  compilation_state_->InitCompileJob();
   DCHECK_NOT_NULL(module_);
   if (module_->num_declared_functions > 0) {
     code_table_ =
