@@ -509,6 +509,7 @@ bool V8InspectorImpl::associateExceptionData(v8::Local<v8::Context>,
                                              v8::Local<v8::Value> value) {
   v8::Local<v8::Context> context;
   if (!exceptionMetaDataContext().ToLocal(&context)) return false;
+  v8::Context::Scope contextScope(context);
   v8::HandleScope handles(m_isolate);
   if (m_exceptionMetaData.IsEmpty())
     m_exceptionMetaData.Reset(m_isolate, v8::debug::WeakMap::New(m_isolate));
