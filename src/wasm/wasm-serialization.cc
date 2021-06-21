@@ -568,9 +568,7 @@ class CopyAndRelocTask : public JobTask {
         publish_handle_(std::move(publish_handle)) {}
 
   void Run(JobDelegate* delegate) override {
-    CODE_SPACE_WRITE_SCOPE
-    NativeModuleModificationScope native_module_modification_scope(
-        deserializer_->native_module_);
+    CodeSpaceWriteScope code_space_write_scope(deserializer_->native_module_);
     do {
       auto batch = from_queue_->Pop();
       if (batch.empty()) break;

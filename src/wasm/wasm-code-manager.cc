@@ -52,10 +52,6 @@ namespace wasm {
 
 using trap_handler::ProtectedInstructionData;
 
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-thread_local int CodeSpaceWriteScope::code_space_write_nesting_level_ = 0;
-#endif
-
 base::AddressRegion DisjointAllocationPool::Merge(
     base::AddressRegion new_region) {
   // Find the possible insertion position by identifying the first region whose
@@ -702,12 +698,11 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
 }
 
 // TODO(dlehmann): Do not return the success as a bool, but instead fail hard.
-// That is, pull the CHECK from {NativeModuleModificationScope} in here and
-// return void.
+// That is, pull the CHECK from {CodeSpaceWriteScope} in here and return void.
 // TODO(dlehmann): Ensure {SetWritable(true)} is always paired up with a
 // {SetWritable(false)}, such that eventually the code space is write protected.
 // One solution is to make the API foolproof by hiding {SetWritable()} and
-// allowing change of permissions only through {NativeModuleModificationScope}.
+// allowing change of permissions only through {CodeSpaceWriteScope}.
 // TODO(dlehmann): Add tests that ensure the code space is eventually write-
 // protected.
 bool WasmCodeAllocator::SetWritable(bool writable) {
@@ -933,8 +928,7 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
 }
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
-  CODE_SPACE_WRITE_SCOPE
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   const size_t relocation_size = code->relocation_size();
   base::OwnedVector<byte> reloc_info;
   if (relocation_size > 0) {
@@ -1031,8 +1025,7 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
             module_->num_imported_functions + module_->num_declared_functions);
 
   base::RecursiveMutexGuard guard(&allocation_mutex_);
-  CODE_SPACE_WRITE_SCOPE
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   if (!lazy_compile_table_) {
     uint32_t num_slots = module_->num_declared_functions;
     WasmCodeRefScope code_ref_scope;
@@ -1073,8 +1066,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     jump_table_ref =
         FindJumpTablesForRegionLocked(base::AddressRegionOf(code_space));
   }
-  CODE_SPACE_WRITE_SCOPE
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   return AddCodeWithCodeSpace(index, desc, stack_slots, tagged_parameter_slots,
                               protected_instructions_data,
                               source_position_table, kind, tier, for_debugging,
@@ -1154,8 +1146,7 @@ WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.PublishCode");
   base::RecursiveMutexGuard lock(&allocation_mutex_);
-  CODE_SPACE_WRITE_SCOPE
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   return PublishCodeLocked(std::move(code));
 }
 
@@ -1166,10 +1157,9 @@ std::vector<WasmCode*> NativeModule::PublishCode(
   std::vector<WasmCode*> published_code;
   published_code.reserve(codes.size());
   base::RecursiveMutexGuard lock(&allocation_mutex_);
-  CODE_SPACE_WRITE_SCOPE
   // Get writable permission already here (and not inside the loop in
   // {PatchJumpTablesLocked}), to avoid switching for each {code} individually.
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   // The published code is put into the top-most surrounding {WasmCodeRefScope}.
   for (auto& code : codes) {
     published_code.push_back(PublishCodeLocked(std::move(code)));
@@ -1278,8 +1268,7 @@ void NativeModule::ReinstallDebugCode(WasmCode* code) {
   code_table_[slot_idx] = code;
   code->IncRef();
 
-  CODE_SPACE_WRITE_SCOPE
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   PatchJumpTablesLocked(slot_idx, code->instruction_start());
 }
 
@@ -1357,8 +1346,7 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
       code_allocator_.AllocateForCodeInRegion(this, jump_table_size, region);
   DCHECK(!code_space.empty());
   UpdateCodeSize(jump_table_size, ExecutionTier::kNone, kNoDebugging);
-  CODE_SPACE_WRITE_SCOPE
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{
       new WasmCode{this,                  // native_module
@@ -1452,8 +1440,7 @@ void NativeModule::AddCodeSpaceLocked(base::AddressRegion region) {
 #endif  // V8_OS_WIN64
 
   WasmCodeRefScope code_ref_scope;
-  CODE_SPACE_WRITE_SCOPE
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   WasmCode* jump_table = nullptr;
   WasmCode* far_jump_table = nullptr;
   const uint32_t num_wasm_functions = module_->num_declared_functions;
@@ -1772,13 +1759,12 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
   // TODO(dlehmann): This allocates initially as writable and executable, and
   // as such is not safe-by-default. In particular, if
   // {WasmCodeAllocator::SetWritable(false)} is never called afterwards (e.g.,
-  // because no {NativeModuleModificationScope} is created), the writable
-  // permission is never withdrawn.
+  // because no {CodeSpaceWriteScope} is created), the writable permission is
+  // never withdrawn.
   // One potential fix is to allocate initially with kReadExecute only, which
-  // forces all compilation threads to add the missing
-  // {NativeModuleModificationScope}s before modification; and/or adding
-  // DCHECKs that {NativeModuleModificationScope} is open when calling this
-  // method.
+  // forces all compilation threads to add the missing {CodeSpaceWriteScope}s
+  // before modification; and/or adding DCHECKs that {CodeSpaceWriteScope} is
+  // open when calling this method.
   PageAllocator::Permission permission = PageAllocator::kReadWriteExecute;
 
   bool success;
@@ -2108,11 +2094,10 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   generated_code.reserve(results.size());
 
   // Now copy the generated code into the code space and relocate it.
-  CODE_SPACE_WRITE_SCOPE
   // Get writable permission already here (and not inside the loop in
   // {AddCodeWithCodeSpace}), to avoid lock contention on the
   // {allocator_mutex_} if we try to switch for each code individually.
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   for (auto& result : results) {
     DCHECK_EQ(result.code_desc.buffer, result.instr_buffer.get());
     size_t code_size = RoundUp<kCodeAlignment>(result.code_desc.instr_size);
@@ -2176,10 +2161,9 @@ std::vector<int> NativeModule::FindFunctionsToRecompile(
     TieringState new_tiering_state) {
   WasmCodeRefScope code_ref_scope;
   base::RecursiveMutexGuard guard(&allocation_mutex_);
-  CODE_SPACE_WRITE_SCOPE
   // Get writable permission already here (and not inside the loop in
   // {PatchJumpTablesLocked}), to avoid switching for each slot individually.
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   std::vector<int> function_indexes;
   int imported = module()->num_imported_functions;
   int declared = module()->num_declared_functions;
@@ -2216,11 +2200,10 @@ std::vector<int> NativeModule::FindFunctionsToRecompile(
 
 void NativeModule::FreeCode(base::Vector<WasmCode* const> codes) {
   base::RecursiveMutexGuard guard(&allocation_mutex_);
-  CODE_SPACE_WRITE_SCOPE
   // Get writable permission already here (and not inside the loop in
   // {WasmCodeAllocator::FreeCode}), to avoid switching for each {code}
   // individually.
-  NativeModuleModificationScope native_module_modification_scope(this);
+  CodeSpaceWriteScope code_space_write_scope(this);
   // Free the code space.
   code_allocator_.FreeCode(codes);
 

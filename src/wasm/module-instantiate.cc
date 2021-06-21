@@ -630,7 +630,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     instance->set_indirect_function_tables(*tables);
   }
 
-  NativeModuleModificationScope native_modification_scope(native_module);
+  CodeSpaceWriteScope native_modification_scope(native_module);
 
   //--------------------------------------------------------------------------
   // Process the imports for the module.

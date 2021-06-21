@@ -10,9 +10,31 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#if !(defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64))
-NativeModuleModificationScope::NativeModuleModificationScope(
-    NativeModule* native_module)
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+
+thread_local int CodeSpaceWriteScope::code_space_write_nesting_level_ = 0;
+
+// The {NativeModule} argument is unused; it is just here for a common API with
+// the non-M1 implementation.
+// TODO(jkummerow): Background threads could permanently stay in
+// writable mode; only the main thread has to switch back and forth.
+CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule*) {
+  if (code_space_write_nesting_level_ == 0) {
+    SwitchMemoryPermissionsToWritable();
+  }
+  code_space_write_nesting_level_++;
+}
+
+CodeSpaceWriteScope::~CodeSpaceWriteScope() {
+  code_space_write_nesting_level_--;
+  if (code_space_write_nesting_level_ == 0) {
+    SwitchMemoryPermissionsToExecutable();
+  }
+}
+
+#else  // Not on MacOS on ARM64 (M1 hardware): Use Intel PKU and/or mprotect.
+
+CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
     : native_module_(native_module) {
   DCHECK_NOT_NULL(native_module_);
   if (FLAG_wasm_memory_protection_keys) {
@@ -28,7 +50,7 @@ NativeModuleModificationScope::NativeModuleModificationScope(
   }
 }
 
-NativeModuleModificationScope::~NativeModuleModificationScope() {
+CodeSpaceWriteScope::~CodeSpaceWriteScope() {
   if (FLAG_wasm_memory_protection_keys) {
     bool success = native_module_->SetThreadWritable(false);
     if (!success && FLAG_wasm_write_protect_code_memory) {
@@ -41,7 +63,8 @@ NativeModuleModificationScope::~NativeModuleModificationScope() {
     CHECK(success);
   }
 }
-#endif  // !(defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64))
+
+#endif  // defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
 
 }  // namespace wasm
 }  // namespace internal

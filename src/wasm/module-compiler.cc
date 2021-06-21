@@ -1110,7 +1110,7 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
   Counters* counters = isolate->counters();
 
   DCHECK(!native_module->lazy_compile_frozen());
-  NativeModuleModificationScope native_module_modification_scope(native_module);
+  CodeSpaceWriteScope code_space_write_scope(native_module);
 
   TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
 
@@ -1422,8 +1422,7 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
 
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
-  base::Optional<NativeModuleModificationScope>
-      lazy_native_module_modification_scope;
+  base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
   for (uint32_t func_index = start; func_index < end; func_index++) {
     if (prefer_liftoff) {
       builder.AddRecompilationUnit(func_index, ExecutionTier::kLiftoff);
@@ -1436,8 +1435,8 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
     } else {
       // Open a single scope for all following calls to {UseLazyStub()}, instead
       // of flipping page permissions for each {func_index} individually.
-      if (!lazy_native_module_modification_scope.has_value()) {
-        lazy_native_module_modification_scope.emplace(native_module);
+      if (!lazy_code_space_write_scope.has_value()) {
+        lazy_code_space_write_scope.emplace(native_module);
       }
       if (strategy == CompileStrategy::kLazy) {
         native_module->UseLazyStub(func_index);
