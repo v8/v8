@@ -3915,7 +3915,9 @@ void TurboAssembler::StoreF32LE(DoubleRegister src, const MemOperand& opnd,
 
 void TurboAssembler::StoreV128LE(Simd128Register src, const MemOperand& mem,
                                  Register scratch1, Register scratch2) {
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+  bool use_vstbr = CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&
+                   is_uint12(mem.offset());
+  if (use_vstbr) {
     vstbr(src, mem, Condition(4));
   } else {
     vlgv(scratch1, src, MemOperand(r0, 1), Condition(3));
