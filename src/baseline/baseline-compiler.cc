@@ -517,15 +517,16 @@ void BaselineCompiler::VerifyFrame() {
 #ifdef V8_TRACE_UNOPTIMIZED
 void BaselineCompiler::TraceBytecode(Runtime::FunctionId function_id) {
   if (!FLAG_trace_baseline_exec) return;
-  ASM_CODE_COMMENT_STRING(&masm_,
-                          function_id == Runtime::kTraceUnoptimizedBytecodeEntry
-                              ? "Trace bytecode entry"
-                              : "Trace bytecode exit");
+
+  __ RecordComment(function_id == Runtime::kTraceUnoptimizedBytecodeEntry
+                       ? "[ Trace bytecode entry"
+                       : "[ Trace bytecode exit");
   SaveAccumulatorScope accumulator_scope(&basm_);
   CallRuntime(function_id, bytecode_,
               Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
                            iterator().current_offset()),
               kInterpreterAccumulatorRegister);
+  __ RecordComment("]");
 }
 #endif
 

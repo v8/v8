@@ -1272,10 +1272,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bkpt(0);  // Should not return.
 }
 
-static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
-                                        Register start_address,
-                                        Register scratch) {
-  ASM_CODE_COMMENT(masm);
+static void Generate_InterpreterPushArgs(MacroAssembler* masm,
+                                         Register num_args,
+                                         Register start_address,
+                                         Register scratch) {
   __ subi(scratch, num_args, Operand(1));
   __ ShiftLeftImm(scratch, scratch, Operand(kSystemPointerSizeLog2));
   __ sub(start_address, start_address, scratch);
@@ -1313,7 +1313,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   }
 
   // Push the arguments.
-  GenerateInterpreterPushArgs(masm, r6, r5, r7);
+  Generate_InterpreterPushArgs(masm, r6, r5, r7);
 
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     __ PushRoot(RootIndex::kUndefinedValue);
@@ -1363,7 +1363,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   }
 
   // Push the arguments.
-  GenerateInterpreterPushArgs(masm, r3, r7, r8);
+  Generate_InterpreterPushArgs(masm, r3, r7, r8);
 
   // Push a slot for the receiver to be constructed.
   __ li(r0, Operand::Zero());

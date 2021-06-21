@@ -5354,9 +5354,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   while (buffer_space() <= needed_space) GrowBuffer();
 
   {
-    ASM_CODE_COMMENT_STRING(this, "Constant Pool");
     // Block recursive calls to CheckConstPool.
     BlockConstPoolScope block_const_pool(this);
+    RecordComment("[ Constant Pool");
     RecordConstPool(size);
 
     Label size_check;
@@ -5420,6 +5420,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     pending_32_bit_constants_.clear();
 
     first_const_pool_32_use_ = -1;
+
+    RecordComment("]");
 
     DCHECK_EQ(size, SizeOfCodeGeneratedSince(&size_check));
 

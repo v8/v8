@@ -112,11 +112,11 @@ void BaselineAssembler::CallBuiltin(Builtin builtin) {
   if (masm()->options().short_builtin_calls) {
     __ CallBuiltin(builtin);
   } else {
-    ASM_CODE_COMMENT_STRING(masm_,
-                            __ CommentForOffHeapTrampoline("call", builtin));
+    __ RecordCommentForOffHeapTrampoline(builtin);
     Register temp = t6;
     __ LoadEntryFromBuiltin(builtin, temp);
     __ Call(temp);
+    __ RecordComment("]");
   }
 }
 
@@ -125,13 +125,13 @@ void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
     // Generate pc-relative jump.
     __ TailCallBuiltin(builtin);
   } else {
-    ASM_CODE_COMMENT_STRING(
-        masm_, __ CommentForOffHeapTrampoline("tail call", builtin));
+    __ RecordCommentForOffHeapTrampoline(builtin);
     // t6 be used for function call in RISCV64
     // For example 'jalr t6' or 'jal t6'
     Register temp = t6;
     __ LoadEntryFromBuiltin(builtin, temp);
     __ Jump(temp);
+    __ RecordComment("]");
   }
 }
 
@@ -469,7 +469,6 @@ void BaselineAssembler::LoadByteField(Register output, Register source,
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
                                                Smi value) {
-  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
   __ li(tmp, Operand(value));
@@ -480,7 +479,6 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          int offset,
                                                          Register value) {
   // FIXME(riscv64): riscv64 don't implement pointer compressed
-  ASM_CODE_COMMENT(masm_);
   __ Sd(value, FieldMemOperand(target, offset));
   __ RecordWriteField(target, offset, value, kRAHasNotBeenSaved,
                       SaveFPRegsMode::kIgnore);
@@ -494,7 +492,6 @@ void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
     int32_t weight, Label* skip_interrupt_label) {
-  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFunction(feedback_cell);
@@ -516,7 +513,6 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
     Register weight, Label* skip_interrupt_label) {
-  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFunction(feedback_cell);
@@ -535,7 +531,6 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
-  ASM_CODE_COMMENT(&masm_);
   if (SmiValuesAre31Bits()) {
     __ Add32(lhs, lhs, Operand(rhs));
   } else {
@@ -545,7 +540,6 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
-  ASM_CODE_COMMENT(masm_);
   Label fallthrough;
   if (case_value_base > 0) {
     __ Sub64(reg, reg, Operand(case_value_base));
@@ -586,17 +580,16 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
 #define __ basm.
 
 void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
-  ASM_CODE_COMMENT(masm);
   BaselineAssembler basm(masm);
 
   Register weight = BaselineLeaveFrameDescriptor::WeightRegister();
   Register params_size = BaselineLeaveFrameDescriptor::ParamsSizeRegister();
 
-  {
-    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+  __ RecordComment("[ Update Interrupt Budget");
 
-    Label skip_interrupt_label;
-    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
+  Label skip_interrupt_label;
+  __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
+  {
     __ masm()->SmiTag(params_size);
     __ masm()->Push(params_size, kInterpreterAccumulatorRegister);
 
@@ -607,9 +600,10 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
     __ masm()->Pop(kInterpreterAccumulatorRegister, params_size);
     __ masm()->SmiUntag(params_size);
+  }
+  __ RecordComment("]");
 
   __ Bind(&skip_interrupt_label);
-  }
 
   BaselineAssembler::ScratchRegisterScope temps(&basm);
   Register actual_params_size = temps.AcquireScratch();

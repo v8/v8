@@ -49,7 +49,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
   //  -- edx : new target (preserved for callee)
   //  -- edi : target function (preserved for callee)
   // -----------------------------------
-  ASM_CODE_COMMENT(masm);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Push a copy of the target function, the new target and the actual
@@ -571,7 +570,6 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
                                                     Register sfi_data,
                                                     Register scratch1,
                                                     Label* is_baseline) {
-  ASM_CODE_COMMENT(masm);
   Label done;
   __ LoadMap(scratch1, sfi_data);
 
@@ -738,7 +736,6 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
                                                 Register closure,
                                                 Register value,
                                                 Register slot_address) {
-  ASM_CODE_COMMENT(masm);
   // Store the optimized code in the closure.
   __ mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
   __ mov(value, optimized_code);  // Write barrier clobbers slot_address below.
@@ -749,7 +746,6 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
                                   Register scratch2) {
-  ASM_CODE_COMMENT(masm);
   Register params_size = scratch1;
   // Get the size of the formal parameters + receiver (in bytes).
   __ mov(params_size,
@@ -787,7 +783,6 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           Register actual_marker,
                                           OptimizationMarker expected_marker,
                                           Runtime::FunctionId function_id) {
-  ASM_CODE_COMMENT(masm);
   Label no_match;
   __ cmp(actual_marker, expected_marker);
   __ j(not_equal, &no_match, Label::kNear);
@@ -802,7 +797,6 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
   //  -- edx : new target (preserved for callee if needed, and caller)
   //  -- edi : target function (preserved for callee if needed, and caller)
   // -----------------------------------
-  ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(edx, edi, optimized_code_entry));
 
   Register closure = edi;
@@ -852,7 +846,6 @@ static void MaybeOptimizeCode(MacroAssembler* masm,
   //  -- edi : target function (preserved for callee if needed, and caller)
   //  -- optimization_marker : a Smi containing a non-zero optimization marker.
   // -----------------------------------
-  ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(edx, edi, optimization_marker));
 
   // TODO(v8:8394): The logging of first execution will break if
@@ -886,7 +879,6 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
                                           Register bytecode_offset,
                                           Register scratch1, Register scratch2,
                                           Register scratch3, Label* if_return) {
-  ASM_CODE_COMMENT(masm);
   Register bytecode_size_table = scratch1;
   Register bytecode = scratch2;
 
@@ -968,8 +960,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 static void LoadOptimizationStateAndJumpIfNeedsProcessing(
     MacroAssembler* masm, Register optimization_state,
     XMMRegister saved_feedback_vector, Label* has_optimized_code_or_marker) {
-  ASM_CODE_COMMENT(masm);
   Register feedback_vector = optimization_state;
+  __ RecordComment("[ Check optimization state");
 
   // Store feedback_vector. We may need it if we need to load the optimize code
   // slot entry.
@@ -983,12 +975,13 @@ static void LoadOptimizationStateAndJumpIfNeedsProcessing(
       optimization_state,
       Immediate(FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask));
   __ j(not_zero, has_optimized_code_or_marker);
+
+  __ RecordComment("]");
 }
 
 static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
     MacroAssembler* masm, Register optimization_state,
     XMMRegister saved_feedback_vector) {
-  ASM_CODE_COMMENT(masm);
   Label maybe_has_optimized_code;
   // Check if optimized code is available
   __ test(
@@ -1285,15 +1278,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ int3();  // Should not return.
 }
 
-static void GenerateInterpreterPushArgs(MacroAssembler* masm,
-                                        Register array_limit,
-                                        Register start_address) {
+
+static void Generate_InterpreterPushArgs(MacroAssembler* masm,
+                                         Register array_limit,
+                                         Register start_address) {
   // ----------- S t a t e -------------
   //  -- start_address : Pointer to the last argument in the args array.
   //  -- array_limit : Pointer to one before the first argument in the
   //                   args array.
   // -----------------------------------
-  ASM_CODE_COMMENT(masm);
   Label loop_header, loop_check;
   __ jmp(&loop_check);
   __ bind(&loop_header);
@@ -1348,12 +1341,12 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ movd(xmm1, scratch);
-    GenerateInterpreterPushArgs(masm, scratch, argv);
+    Generate_InterpreterPushArgs(masm, scratch, argv);
     // Pass the spread in the register ecx.
     __ movd(ecx, xmm1);
     __ mov(ecx, Operand(ecx, 0));
   } else {
-    GenerateInterpreterPushArgs(masm, scratch, argv);
+    Generate_InterpreterPushArgs(masm, scratch, argv);
   }
 
   // Push "undefined" as the receiver arg if we need to.
@@ -1697,49 +1690,47 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ inc(FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
 
   XMMRegister return_address = xmm4;
+  __ RecordComment("[ Frame Setup");
   // Save the return address, so that we can push it to the end of the newly
   // set-up frame once we're done setting it up.
   __ PopReturnAddressTo(return_address, scratch);
   // The bytecode array was pushed to the stack by the caller.
   __ Pop(saved_bytecode_array, scratch);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  {
-    ASM_CODE_COMMENT_STRING(masm, "Frame Setup");
-    __ EnterFrame(StackFrame::BASELINE);
+  __ EnterFrame(StackFrame::BASELINE);
 
-    __ Push(descriptor.GetRegisterParameter(
-        BaselineOutOfLinePrologueDescriptor::kCalleeContext));  // Callee's
-                                                                // context.
-    Register callee_js_function = descriptor.GetRegisterParameter(
-        BaselineOutOfLinePrologueDescriptor::kClosure);
-    DCHECK_EQ(callee_js_function, kJavaScriptCallTargetRegister);
-    DCHECK_EQ(callee_js_function, kJSFunctionRegister);
-    __ Push(callee_js_function);        // Callee's JS function.
-    __ Push(saved_arg_count, scratch);  // Push actual argument count.
+  __ Push(descriptor.GetRegisterParameter(
+      BaselineOutOfLinePrologueDescriptor::kCalleeContext));  // Callee's
+                                                              // context.
+  Register callee_js_function = descriptor.GetRegisterParameter(
+      BaselineOutOfLinePrologueDescriptor::kClosure);
+  DCHECK_EQ(callee_js_function, kJavaScriptCallTargetRegister);
+  DCHECK_EQ(callee_js_function, kJSFunctionRegister);
+  __ Push(callee_js_function);        // Callee's JS function.
+  __ Push(saved_arg_count, scratch);  // Push actual argument count.
 
-    // We'll use the bytecode for both code age/OSR resetting, and pushing onto
-    // the frame, so load it into a register.
-    Register bytecode_array = scratch;
-    __ movd(bytecode_array, saved_bytecode_array);
-    // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset
-    // are 8-bit fields next to each other, so we could just optimize by writing
-    // a 16-bit. These static asserts guard our assumption is valid.
-    STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                  BytecodeArray::kOsrNestingLevelOffset + kCharSize);
-    STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-    __ mov_w(
-        FieldOperand(bytecode_array, BytecodeArray::kOsrNestingLevelOffset),
-        Immediate(0));
-    __ Push(bytecode_array);
+  // We'll use the bytecode for both code age/OSR resetting, and pushing onto
+  // the frame, so load it into a register.
+  Register bytecode_array = scratch;
+  __ movd(bytecode_array, saved_bytecode_array);
+  // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset
+  // are 8-bit fields next to each other, so we could just optimize by writing
+  // a 16-bit. These static asserts guard our assumption is valid.
+  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
+                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  __ mov_w(FieldOperand(bytecode_array, BytecodeArray::kOsrNestingLevelOffset),
+           Immediate(0));
+  __ Push(bytecode_array);
 
-    // Baseline code frames store the feedback vector where interpreter would
-    // store the bytecode offset.
-    __ Push(saved_feedback_vector, scratch);
-  }
+  // Baseline code frames store the feedback vector where interpreter would
+  // store the bytecode offset.
+  __ Push(saved_feedback_vector, scratch);
+  __ RecordComment("]");
 
+  __ RecordComment("[ Stack/interrupt check");
   Label call_stack_guard;
   {
-    ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt check");
     // Stack check. This folds the checks for both the interrupt stack limit
     // check and the real stack limit into one by just checking for the
     // interrupt limit. The interrupt limit is either equal to the real stack
@@ -1754,6 +1745,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ sub(scratch, frame_size);
     __ CompareStackLimit(scratch, StackLimitKind::kInterruptStackLimit);
     __ j(below, &call_stack_guard);
+    __ RecordComment("]");
   }
 
   // Push the return address back onto the stack for return.
@@ -1764,7 +1756,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   __ bind(&has_optimized_code_or_marker);
   {
-    ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
+    __ RecordComment("[ Optimized marker check");
     // Drop the return address and bytecode array, rebalancing the return stack
     // buffer by using JumpMode::kPushAndReturn. We can't leave the slot and
     // overwrite it on return since we may do a runtime call along the way that
@@ -1774,11 +1766,12 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
                                                  saved_feedback_vector);
     __ Trap();
+    __ RecordComment("]");
   }
 
   __ bind(&call_stack_guard);
   {
-    ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+    __ RecordComment("[ Stack/interrupt call");
     {
       // Push the baseline code return address now, as if it had been pushed by
       // the call to this builtin.
@@ -1795,6 +1788,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // Return to caller pushed pc, without any frame teardown.
     __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
     __ Ret();
+    __ RecordComment("]");
   }
 }
 
@@ -2750,7 +2744,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 namespace {
 
 void Generate_OSREntry(MacroAssembler* masm, Register entry_address) {
-  ASM_CODE_COMMENT(masm);
   // Overwrite the return address on the stack.
   __ mov(Operand(esp, 0), entry_address);
 
@@ -2759,7 +2752,6 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address) {
 }
 
 void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
-  ASM_CODE_COMMENT(masm);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ CallRuntime(Runtime::kCompileForOnStackReplacement);
@@ -3168,7 +3160,6 @@ Operand ApiParameterOperand(int index) {
 // etc. Saves context (esi). If space was reserved for return value then
 // stores the pointer to the reserved slot into esi.
 void PrepareCallApiFunction(MacroAssembler* masm, int argc, Register scratch) {
-  ASM_CODE_COMMENT(masm);
   __ EnterApiExitFrame(argc, scratch);
   if (FLAG_debug_code) {
     __ mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
@@ -3529,7 +3520,6 @@ enum Alignment { MOVE_ALIGNED, MOVE_UNALIGNED };
 // edx - loop count (number of 64 byte chunks)
 void MemMoveEmitMainLoop(MacroAssembler* masm, Label* move_last_15,
                          Direction direction, Alignment alignment) {
-  ASM_CODE_COMMENT(masm);
   Register src = esi;
   Register dst = edi;
   Register count = ecx;
