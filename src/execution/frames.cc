@@ -571,7 +571,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     // returned {wasm_code} to be null and fall back to {GetContainingCode}.
     wasm::WasmCodeRefScope code_ref_scope;
     if (wasm::WasmCode* wasm_code =
-            wasm::GetWasmCodeManager()->LookupCode(pc)) {
+            wasm::GetWasmEngine()->code_manager()->LookupCode(pc)) {
       switch (wasm_code->kind()) {
         case wasm::WasmCode::kFunction:
           return WASM;
@@ -944,7 +944,8 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   bool is_wasm = false;
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(inner_pointer)) {
+  if (auto* wasm_code =
+          wasm::GetWasmEngine()->code_manager()->LookupCode(inner_pointer)) {
     is_wasm = true;
     SafepointTable table(wasm_code);
     safepoint_entry = table.FindEntry(inner_pointer);
@@ -980,7 +981,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     // directly call a Wasm function from JavaScript. In this case the
     // parameters we pass to the callee are not tagged.
     wasm::WasmCode* wasm_callee =
-        wasm::GetWasmCodeManager()->LookupCode(callee_pc());
+        wasm::GetWasmEngine()->code_manager()->LookupCode(callee_pc());
     bool is_wasm_call = (wasm_callee != nullptr);
     if (is_wasm_call) has_tagged_outgoing_params = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1860,7 +1861,10 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
   wasm::WasmCodeRefScope code_ref_scope;
   accumulator->Add("WASM [");
   accumulator->PrintName(script().name());
-  Address instruction_start = wasm_code()->instruction_start();
+  Address instruction_start = wasm::GetWasmEngine()
+                                  ->code_manager()
+                                  ->LookupCode(pc())
+                                  ->instruction_start();
   base::Vector<const uint8_t> raw_func_name =
       module_object().GetRawFunctionName(function_index());
   const int kMaxPrintedFunctionName = 64;
@@ -1880,7 +1884,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 wasm::WasmCode* WasmFrame::wasm_code() const {
-  return wasm::GetWasmCodeManager()->LookupCode(pc());
+  return wasm::GetWasmEngine()->code_manager()->LookupCode(pc());
 }
 
 WasmInstanceObject WasmFrame::wasm_instance() const {
@@ -1942,7 +1946,7 @@ bool WasmFrame::at_to_number_conversion() const {
   // ToNumber conversion call.
   wasm::WasmCode* code =
       callee_pc() != kNullAddress
-          ? wasm::GetWasmCodeManager()->LookupCode(callee_pc())
+          ? wasm::GetWasmEngine()->code_manager()->LookupCode(callee_pc())
           : nullptr;
   if (!code || code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
   int offset = static_cast<int>(callee_pc() - code->instruction_start());
@@ -1954,7 +1958,8 @@ bool WasmFrame::at_to_number_conversion() const {
 }
 
 int WasmFrame::LookupExceptionHandlerInTable() {
-  wasm::WasmCode* code = wasm::GetWasmCodeManager()->LookupCode(pc());
+  wasm::WasmCode* code =
+      wasm::GetWasmEngine()->code_manager()->LookupCode(pc());
   if (!code->IsAnonymous() && code->handler_table_size() > 0) {
     HandlerTable table(code);
     int pc_offset = static_cast<int>(pc() - code->instruction_start());
@@ -1965,7 +1970,8 @@ int WasmFrame::LookupExceptionHandlerInTable() {
 
 void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(caller_pc());
-  wasm::WasmCode* code = wasm::GetWasmCodeManager()->LookupCode(caller_pc());
+  wasm::WasmCode* code =
+      wasm::GetWasmEngine()->code_manager()->LookupCode(caller_pc());
   DCHECK(code);
   SafepointTable table(code);
   SafepointEntry safepoint_entry = table.FindEntry(caller_pc());

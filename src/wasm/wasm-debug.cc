@@ -529,7 +529,8 @@ class DebugInfoImpl {
  private:
   struct FrameInspectionScope {
     FrameInspectionScope(DebugInfoImpl* debug_info, Address pc)
-        : code(wasm::GetWasmCodeManager()->LookupCode(pc)),
+        : code(debug_info->native_module_->engine()->code_manager()->LookupCode(
+              pc)),
           pc_offset(static_cast<int>(pc - code->instruction_start())),
           debug_side_table(code->is_inspectable()
                                ? debug_info->GetDebugSideTable(code)

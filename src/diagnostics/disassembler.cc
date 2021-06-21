@@ -99,7 +99,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
 
 #if V8_ENABLE_WEBASSEMBLY
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    if (auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(
+    if (auto* wasm_code = wasm::GetWasmEngine()->code_manager()->LookupCode(
             reinterpret_cast<Address>(pc))) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc),
                wasm::GetWasmCodeKindAsString(wasm_code->kind()));

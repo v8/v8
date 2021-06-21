@@ -1793,7 +1793,7 @@ Object Isolate::UnwindAndFindHandler() {
         wasm::WasmCodeRefScope code_ref_scope;
         WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
         wasm::WasmCode* wasm_code =
-            wasm::GetWasmCodeManager()->LookupCode(frame->pc());
+            wasm::GetWasmEngine()->code_manager()->LookupCode(frame->pc());
         int offset = wasm_frame->LookupExceptionHandlerInTable();
         if (offset < 0) break;
         wasm::GetWasmEngine()->SampleCatchEvent(this);
@@ -1854,7 +1854,8 @@ Object Isolate::UnwindAndFindHandler() {
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
 #if defined(DEBUG) && V8_ENABLE_WEBASSEMBLY
         wasm::WasmCodeRefScope code_ref_scope;
-        DCHECK_NULL(wasm::GetWasmCodeManager()->LookupCode(frame->pc()));
+        DCHECK_NULL(
+            wasm::GetWasmEngine()->code_manager()->LookupCode(frame->pc()));
 #endif  // defined(DEBUG) && V8_ENABLE_WEBASSEMBLY
         Code code = stub_frame->LookupCode();
         if (!code.IsCode() || code.kind() != CodeKind::BUILTIN ||
