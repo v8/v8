@@ -525,21 +525,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
     Handle<Object> value, StoreOrigin store_origin,
     Maybe<ShouldThrow> should_throw) {
   if (object->IsNullOrUndefined(isolate)) {
-    MaybeHandle<String> maybe_property =
-        Object::NoSideEffectsToMaybeString(isolate, key);
-    Handle<String> property_name;
-    if (maybe_property.ToHandle(&property_name)) {
-      THROW_NEW_ERROR(
-          isolate,
-          NewTypeError(MessageTemplate::kNonObjectPropertyStoreWithProperty,
-                       object, property_name),
-          Object);
-    } else {
-      THROW_NEW_ERROR(
-          isolate,
-          NewTypeError(MessageTemplate::kNonObjectPropertyStore, object),
-          Object);
-    }
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object),
+        Object);
   }
 
   // Check if the given key is an array index.
