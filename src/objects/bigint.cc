@@ -1978,7 +1978,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
     int string_size =
         SeqOneByteString::SizeFor(static_cast<int>(chars_required));
     int needed_size = SeqOneByteString::SizeFor(pos);
-    if (needed_size < string_size) {
+    if (needed_size < string_size && !heap->IsLargeObject(*result)) {
       Address new_end = result->address() + needed_size;
       heap->CreateFillerObjectAt(new_end, (string_size - needed_size),
                                  ClearRecordedSlots::kNo);

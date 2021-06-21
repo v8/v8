@@ -132,9 +132,15 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
     Heap* heap = isolate->heap();
-    heap->CreateFillerObjectAt(
-        thin_end, size_delta,
-        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+    if (!heap->IsLargeObject(thin)) {
+      heap->CreateFillerObjectAt(
+          thin_end, size_delta,
+          has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+    } else {
+      // We don't need special handling for the combination IsLargeObject &&
+      // has_pointers, because indirect strings never get that large.
+      DCHECK(!has_pointers);
+    }
   }
 }
 
@@ -194,9 +200,15 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
-  isolate->heap()->CreateFillerObjectAt(
-      this->address() + new_size, size - new_size,
-      has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+  if (!isolate->heap()->IsLargeObject(*this)) {
+    isolate->heap()->CreateFillerObjectAt(
+        this->address() + new_size, size - new_size,
+        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+  } else {
+    // We don't need special handling for the combination IsLargeObject &&
+    // has_pointers, because indirect strings never get that large.
+    DCHECK(!has_pointers);
+  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
@@ -269,11 +281,18 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
                   : roots.external_one_byte_string_map();
   }
 
-  // Byte size of the external String object.
-  int new_size = this->SizeFromMap(new_map);
-  isolate->heap()->CreateFillerObjectAt(
-      this->address() + new_size, size - new_size,
-      has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+  if (!isolate->heap()->IsLargeObject(*this)) {
+    // Byte size of the external String object.
+    int new_size = this->SizeFromMap(new_map);
+
+    isolate->heap()->CreateFillerObjectAt(
+        this->address() + new_size, size - new_size,
+        has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
+  } else {
+    // We don't need special handling for the combination IsLargeObject &&
+    // has_pointers, because indirect strings never get that large.
+    DCHECK(!has_pointers);
+  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
@@ -1430,10 +1449,12 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   DCHECK(IsAligned(start_of_string + new_size, kObjectAlignment));
 
   Heap* heap = Heap::FromWritableHeapObject(*string);
-  // Sizes are pointer size aligned, so that we can use filler objects
-  // that are a multiple of pointer size.
-  heap->CreateFillerObjectAt(start_of_string + new_size, delta,
-                             ClearRecordedSlots::kNo);
+  if (!heap->IsLargeObject(*string)) {
+    // Sizes are pointer size aligned, so that we can use filler objects
+    // that are a multiple of pointer size.
+    heap->CreateFillerObjectAt(start_of_string + new_size, delta,
+                               ClearRecordedSlots::kNo);
+  }
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
   string->set_length(new_length, kReleaseStore);

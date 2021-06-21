@@ -3163,6 +3163,10 @@ void Heap::CreateFillerObjectAtBackground(
 
 HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
                                       ClearRecordedSlots clear_slots_mode) {
+  // TODO(mlippautz): It would be nice to DCHECK that we never call this
+  // with {addr} pointing into large object space; however we currently
+  // initialize LO allocations with a filler, see
+  // LargeObjectSpace::AllocateLargePage.
   if (size == 0) return HeapObject();
   HeapObject filler = CreateFillerObjectAtImpl(
       ReadOnlyRoots(this), addr, size,
