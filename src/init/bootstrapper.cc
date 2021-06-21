@@ -3871,6 +3871,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
     {  // length
+      STATIC_ASSERT(JSFunctionOrBoundFunction::kLengthDescriptorIndex == 0);
       Descriptor d = Descriptor::AccessorConstant(
           factory->length_string(), factory->bound_function_length_accessor(),
           roc_attribs);
@@ -3878,6 +3879,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
 
     {  // name
+      STATIC_ASSERT(JSFunctionOrBoundFunction::kNameDescriptorIndex == 1);
       Descriptor d = Descriptor::AccessorConstant(
           factory->name_string(), factory->bound_function_name_accessor(),
           roc_attribs);

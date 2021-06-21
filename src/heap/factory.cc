@@ -3572,14 +3572,14 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
   int field_index = 0;
-  STATIC_ASSERT(JSFunction::kLengthDescriptorIndex == 0);
+  STATIC_ASSERT(JSFunctionOrBoundFunction::kLengthDescriptorIndex == 0);
   {  // Add length accessor.
     Descriptor d = Descriptor::AccessorConstant(
         length_string(), function_length_accessor(), roc_attribs);
     map->AppendDescriptor(isolate(), &d);
   }
 
-  STATIC_ASSERT(JSFunction::kNameDescriptorIndex == 1);
+  STATIC_ASSERT(JSFunctionOrBoundFunction::kNameDescriptorIndex == 1);
   if (IsFunctionModeWithName(function_mode)) {
     // Add name field.
     Handle<Name> name = isolate()->factory()->name_string();

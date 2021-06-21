@@ -24,6 +24,9 @@ class JSFunctionOrBoundFunction
     : public TorqueGeneratedJSFunctionOrBoundFunction<JSFunctionOrBoundFunction,
                                                       JSObject> {
  public:
+  static const int kLengthDescriptorIndex = 0;
+  static const int kNameDescriptorIndex = 1;
+
   STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunction)
 };
@@ -58,9 +61,6 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // [shared]: The information about the function that
   // can be shared by instances.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
-
-  static const int kLengthDescriptorIndex = 0;
-  static const int kNameDescriptorIndex = 1;
 
   // Fast binding requires length and name accessors.
   static const int kMinDescriptorsForFastBind = 2;

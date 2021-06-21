@@ -2716,8 +2716,9 @@ void ProcessMapForFunctionBind(MapRef map) {
                             1;
   if (map.NumberOfOwnDescriptors() >= min_nof_descriptors) {
     map.SerializeOwnDescriptor(
-        InternalIndex(JSFunction::kLengthDescriptorIndex));
-    map.SerializeOwnDescriptor(InternalIndex(JSFunction::kNameDescriptorIndex));
+        InternalIndex(JSFunctionOrBoundFunction::kLengthDescriptorIndex));
+    map.SerializeOwnDescriptor(
+        InternalIndex(JSFunctionOrBoundFunction::kNameDescriptorIndex));
   }
 }
 }  // namespace
@@ -2725,17 +2726,22 @@ void ProcessMapForFunctionBind(MapRef map) {
 void SerializerForBackgroundCompilation::ProcessHintsForFunctionBind(
     Hints const& receiver_hints) {
   for (auto constant : receiver_hints.constants()) {
-    if (!constant->IsJSFunction()) continue;
-    JSFunctionRef function =
-        MakeRef(broker(), Handle<JSFunction>::cast(constant));
-    function.Serialize();
-    ProcessMapForFunctionBind(function.map());
+    if (constant->IsJSFunction()) {
+      JSFunctionRef function =
+          MakeRef(broker(), Handle<JSFunction>::cast(constant));
+      function.Serialize();
+      ProcessMapForFunctionBind(function.map());
+    } else if (constant->IsJSBoundFunction()) {
+      JSBoundFunctionRef function =
+          MakeRef(broker(), Handle<JSBoundFunction>::cast(constant));
+      function.Serialize();
+      ProcessMapForFunctionBind(function.map());
+    }
   }
 
   for (auto map : receiver_hints.maps()) {
-    if (!map->IsJSFunctionMap()) continue;
-    MapRef map_ref = MakeRef(broker(), map);
-    ProcessMapForFunctionBind(map_ref);
+    if (!map->IsJSFunctionMap() && !map->IsJSBoundFunctionMap()) continue;
+    ProcessMapForFunctionBind(MakeRef(broker(), map));
   }
 }
 

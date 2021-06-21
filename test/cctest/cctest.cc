@@ -272,6 +272,7 @@ i::Handle<i::JSFunction> Optimize(
   i::OptimizedCompilationInfo info(zone, isolate, shared, function,
                                    i::CodeKind::TURBOFAN);
 
+  if (flags & ~i::OptimizedCompilationInfo::kInlining) UNIMPLEMENTED();
   if (flags & i::OptimizedCompilationInfo::kInlining) {
     info.set_inlining();
   }

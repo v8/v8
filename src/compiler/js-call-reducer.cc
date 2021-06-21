@@ -34,7 +34,7 @@
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
-#include "src/objects/js-objects.h"
+#include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
 
@@ -2633,14 +2633,17 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     // recomputed even if the actual value of the object changes.
     // This mirrors the checks done in builtins-function-gen.cc at
     // runtime otherwise.
-    int minimum_nof_descriptors = std::max({JSFunction::kLengthDescriptorIndex,
-                                            JSFunction::kNameDescriptorIndex}) +
-                                  1;
+    int minimum_nof_descriptors =
+        std::max({JSFunctionOrBoundFunction::kLengthDescriptorIndex,
+                  JSFunctionOrBoundFunction::kNameDescriptorIndex}) +
+        1;
     if (receiver_map.NumberOfOwnDescriptors() < minimum_nof_descriptors) {
       return inference.NoChange();
     }
-    const InternalIndex kLengthIndex(JSFunction::kLengthDescriptorIndex);
-    const InternalIndex kNameIndex(JSFunction::kNameDescriptorIndex);
+    const InternalIndex kLengthIndex(
+        JSFunctionOrBoundFunction::kLengthDescriptorIndex);
+    const InternalIndex kNameIndex(
+        JSFunctionOrBoundFunction::kNameDescriptorIndex);
     if (!receiver_map.serialized_own_descriptor(kLengthIndex) ||
         !receiver_map.serialized_own_descriptor(kNameIndex)) {
       TRACE_BROKER_MISSING(broker(),
