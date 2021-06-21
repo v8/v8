@@ -220,18 +220,16 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
 }
 
 int BreakIterator::BreakIndexFromPosition(int source_position) {
-  int first_break = break_index();
-  bool first = true;
-  while (!Done()) {
-    int next_position = position();
-    if (source_position == next_position) return break_index();
-    if (source_position <= next_position && first) {
-      first_break = break_index();
-      first = false;
+  for (; !Done(); Next()) {
+    if (source_position <= position()) {
+      int first_break = break_index();
+      for (; !Done(); Next()) {
+        if (source_position == position()) return break_index();
+      }
+      return first_break;
     }
-    Next();
   }
-  return first_break;
+  return break_index();
 }
 
 void BreakIterator::Next() {
