@@ -52,6 +52,7 @@
 /test/benchmarks/data
 /test/fuzzer/wasm_corpus
 /test/fuzzer/wasm_corpus.tar.gz
+!/test/mjsunit/tools/*.log
 /test/mozilla/data
 /test/test262/data
 /test/test262/harness
