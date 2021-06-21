@@ -515,16 +515,14 @@ int WasmCode::GetSourcePositionBefore(int offset) {
 // static
 constexpr size_t WasmCodeAllocator::kMaxCodeSpaceSize;
 
-WasmCodeAllocator::WasmCodeAllocator(WasmCodeManager* code_manager,
-                                     std::shared_ptr<Counters> async_counters)
-    : code_manager_(code_manager),
-      async_counters_(std::move(async_counters)) {
+WasmCodeAllocator::WasmCodeAllocator(std::shared_ptr<Counters> async_counters)
+    : async_counters_(std::move(async_counters)) {
   owned_code_space_.reserve(4);
 }
 
 WasmCodeAllocator::~WasmCodeAllocator() {
-  code_manager_->FreeNativeModule(base::VectorOf(owned_code_space_),
-                                  committed_code_space());
+  GetWasmCodeManager()->FreeNativeModule(base::VectorOf(owned_code_space_),
+                                         committed_code_space());
 }
 
 void WasmCodeAllocator::Init(VirtualMemory code_space) {
@@ -636,9 +634,8 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCode(
 
 base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     NativeModule* native_module, size_t size, base::AddressRegion region) {
-  DCHECK_EQ(code_manager_, native_module->engine()->code_manager());
   DCHECK_LT(0, size);
-  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+  auto* code_manager = GetWasmCodeManager();
   size = RoundUp<kCodeAlignment>(size);
   base::AddressRegion code_space =
       free_code_space_.AllocateInRegion(size, region);
@@ -658,14 +655,14 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     std::tie(min_reservation, reserve_size) = ReservationSize(
         size, native_module->module()->num_declared_functions, total_reserved);
     VirtualMemory new_mem =
-        code_manager_->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
+        code_manager->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved() || new_mem.size() < min_reservation) {
       V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation");
       UNREACHABLE();
     }
 
     base::AddressRegion new_region = new_mem.region();
-    code_manager_->AssignRange(new_region, native_module);
+    code_manager->AssignRange(new_region, native_module);
     free_code_space_.Merge(new_region);
     owned_code_space_.emplace_back(std::move(new_mem));
     native_module->AddCodeSpaceLocked(new_region);
@@ -675,7 +672,7 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     async_counters_->wasm_module_num_code_spaces()->AddSample(
         static_cast<int>(owned_code_space_.size()));
   }
-  const Address commit_page_size = page_allocator->CommitPageSize();
+  const Address commit_page_size = CommitPageSize();
   Address commit_start = RoundUp(code_space.begin(), commit_page_size);
   Address commit_end = RoundUp(code_space.end(), commit_page_size);
   // {commit_start} will be either code_space.start or the start of the next
@@ -689,7 +686,7 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
   if (commit_start < commit_end) {
     for (base::AddressRegion split_range : SplitRangeByReservationsIfNeeded(
              {commit_start, commit_end - commit_start}, owned_code_space_)) {
-      code_manager_->Commit(split_range);
+      code_manager->Commit(split_range);
     }
     committed_code_space_.fetch_add(commit_end - commit_start);
     // Committed code cannot grow bigger than maximum code space size.
@@ -781,7 +778,7 @@ bool WasmCodeAllocator::SetThreadWritable(bool writable) {
   }
   writable = writable_nesting_level > 0;
 
-  int key = code_manager_->memory_protection_key_;
+  int key = GetWasmCodeManager()->memory_protection_key_;
 
   MemoryProtectionKeyPermission permissions =
       writable ? kNoRestrictions : kDisableWrite;
@@ -809,8 +806,7 @@ void WasmCodeAllocator::FreeCode(base::Vector<WasmCode* const> codes) {
   // pages to decommit into {regions_to_decommit} (decommitting is expensive,
   // so try to merge regions before decommitting).
   DisjointAllocationPool regions_to_decommit;
-  PageAllocator* allocator = GetPlatformPageAllocator();
-  size_t commit_page_size = allocator->CommitPageSize();
+  size_t commit_page_size = CommitPageSize();
   for (auto region : freed_regions.regions()) {
     auto merged_region = freed_code_space_.Merge(region);
     Address discard_start =
@@ -823,13 +819,14 @@ void WasmCodeAllocator::FreeCode(base::Vector<WasmCode* const> codes) {
     regions_to_decommit.Merge({discard_start, discard_end - discard_start});
   }
 
+  auto* code_manager = GetWasmCodeManager();
   for (auto region : regions_to_decommit.regions()) {
     size_t old_committed = committed_code_space_.fetch_sub(region.size());
     DCHECK_GE(old_committed, region.size());
     USE(old_committed);
     for (base::AddressRegion split_range :
          SplitRangeByReservationsIfNeeded(region, owned_code_space_)) {
-      code_manager_->Decommit(split_range);
+      code_manager->Decommit(split_range);
     }
   }
 }
@@ -848,7 +845,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
                            std::shared_ptr<NativeModule>* shared_this)
     : engine_(engine),
       engine_scope_(engine->GetBarrierForBackgroundCompile()->TryLock()),
-      code_allocator_(engine->code_manager(), async_counters),
+      code_allocator_(async_counters),
       enabled_features_(enabled),
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
@@ -1723,14 +1720,12 @@ NativeModule::~NativeModule() {
   import_wrapper_cache_.reset();
 }
 
-WasmCodeManager::WasmCodeManager(size_t max_committed)
-    : max_committed_code_space_(max_committed),
-      critical_committed_code_space_(max_committed / 2),
+WasmCodeManager::WasmCodeManager()
+    : max_committed_code_space_(FLAG_wasm_max_code_space * MB),
+      critical_committed_code_space_(max_committed_code_space_ / 2),
       memory_protection_key_(FLAG_wasm_memory_protection_keys
                                  ? AllocateMemoryProtectionKey()
-                                 : kNoMemoryProtectionKey) {
-  DCHECK_LE(max_committed, FLAG_wasm_max_code_space * MB);
-}
+                                 : kNoMemoryProtectionKey) {}
 
 WasmCodeManager::~WasmCodeManager() {
   // No more committed code space.
@@ -1982,7 +1977,6 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     WasmEngine* engine, Isolate* isolate, const WasmFeatures& enabled,
     size_t code_size_estimate, std::shared_ptr<const WasmModule> module) {
-  DCHECK_EQ(this, GetWasmEngine()->code_manager());
   if (total_committed_code_space_.load() >
       critical_committed_code_space_.load()) {
     (reinterpret_cast<v8::Isolate*>(isolate))

@@ -216,8 +216,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, std::shared_ptr<NativeModule> shared_module,
       base::Vector<const char> source_url);
 
-  WasmCodeManager* code_manager() { return &code_manager_; }
-
   AccountingAllocator* allocator() { return &allocator_; }
 
   // Compilation statistics for TurboFan compilations.
@@ -380,7 +378,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // calling this method.
   void PotentiallyFinishCurrentGC();
 
-  WasmCodeManager code_manager_;
   AccountingAllocator allocator_;
 
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
@@ -431,6 +428,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
 // Returns a reference to the WasmEngine shared by the entire process.
 V8_EXPORT_PRIVATE WasmEngine* GetWasmEngine();
+
+// Returns a reference to the WasmCodeManager shared by the entire process.
+V8_EXPORT_PRIVATE WasmCodeManager* GetWasmCodeManager();
 
 }  // namespace wasm
 }  // namespace internal

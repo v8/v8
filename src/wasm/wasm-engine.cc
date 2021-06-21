@@ -438,7 +438,7 @@ struct WasmEngine::NativeModuleInfo {
   int8_t num_code_gcs_triggered = 0;
 };
 
-WasmEngine::WasmEngine() : code_manager_(FLAG_wasm_max_code_space * MB) {}
+WasmEngine::WasmEngine() = default;
 
 WasmEngine::~WasmEngine() {
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
@@ -1135,8 +1135,9 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   }
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
-  std::shared_ptr<NativeModule> native_module = code_manager_.NewNativeModule(
-      this, isolate, enabled, code_size_estimate, std::move(module));
+  std::shared_ptr<NativeModule> native_module =
+      GetWasmCodeManager()->NewNativeModule(
+          this, isolate, enabled, code_size_estimate, std::move(module));
   base::MutexGuard lock(&mutex_);
   auto pair = native_modules_.insert(std::make_pair(
       native_module.get(), std::make_unique<NativeModuleInfo>(native_module)));
@@ -1154,7 +1155,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     auto* histogram =
         isolate->counters()->wasm_memory_protection_keys_support();
     bool has_mpk =
-        code_manager_.memory_protection_key_ != kNoMemoryProtectionKey;
+        GetWasmCodeManager()->memory_protection_key_ != kNoMemoryProtectionKey;
     histogram->AddSample(has_mpk ? 1 : 0);
   }
 
@@ -1339,8 +1340,7 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
       Address osr_target = base::Memory<Address>(WasmFrame::cast(frame)->fp() -
                                                  kOSRTargetOffset);
       if (osr_target) {
-        WasmCode* osr_code =
-            GetWasmEngine()->code_manager()->LookupCode(osr_target);
+        WasmCode* osr_code = GetWasmCodeManager()->LookupCode(osr_target);
         DCHECK_NOT_NULL(osr_code);
         live_wasm_code.insert(osr_code);
       }
@@ -1368,7 +1368,7 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
     size_t dead_code_limit =
         FLAG_stress_wasm_code_gc
             ? 0
-            : 64 * KB + code_manager_.committed_code_space() / 10;
+            : 64 * KB + GetWasmCodeManager()->committed_code_space() / 10;
     if (new_potentially_dead_code_size_ > dead_code_limit) {
       bool inc_gc_count =
           info->num_code_gcs_triggered < std::numeric_limits<int8_t>::max();
@@ -1579,14 +1579,19 @@ void WasmEngine::PotentiallyFinishCurrentGC() {
 
 namespace {
 
-WasmEngine* global_wasm_engine = nullptr;
+struct GlobalWasmState {
+  WasmEngine engine;
+  WasmCodeManager code_manager;
+};
+
+GlobalWasmState* global_wasm_state = nullptr;
 
 }  // namespace
 
 // static
 void WasmEngine::InitializeOncePerProcess() {
-  DCHECK_NULL(global_wasm_engine);
-  global_wasm_engine = new WasmEngine();
+  DCHECK_NULL(global_wasm_state);
+  global_wasm_state = new GlobalWasmState();
 }
 
 // static
@@ -1594,13 +1599,18 @@ void WasmEngine::GlobalTearDown() {
   // Note: This can be called multiple times in a row (see
   // test-api/InitializeAndDisposeMultiple). This is fine, as
   // {global_wasm_engine} will be nullptr then.
-  delete global_wasm_engine;
-  global_wasm_engine = nullptr;
+  delete global_wasm_state;
+  global_wasm_state = nullptr;
 }
 
 WasmEngine* GetWasmEngine() {
-  DCHECK_NOT_NULL(global_wasm_engine);
-  return global_wasm_engine;
+  DCHECK_NOT_NULL(global_wasm_state);
+  return &global_wasm_state->engine;
+}
+
+WasmCodeManager* GetWasmCodeManager() {
+  DCHECK_NOT_NULL(global_wasm_state);
+  return &global_wasm_state->code_manager;
 }
 
 // {max_mem_pages} is declared in wasm-limits.h.

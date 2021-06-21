@@ -43,7 +43,6 @@ namespace wasm {
 
 class DebugInfo;
 class NativeModule;
-class WasmCodeManager;
 struct WasmCompilationResult;
 class WasmEngine;
 class WasmImportWrapperCache;
@@ -481,7 +480,7 @@ class WasmCodeAllocator {
   static constexpr size_t kMaxCodeSpaceSize = 1024 * MB;
 #endif
 
-  WasmCodeAllocator(WasmCodeManager*, std::shared_ptr<Counters> async_counters);
+  explicit WasmCodeAllocator(std::shared_ptr<Counters> async_counters);
   ~WasmCodeAllocator();
 
   // Call before use, after the {NativeModule} is set up completely.
@@ -531,9 +530,6 @@ class WasmCodeAllocator {
   // restriction on the region to allocate in.
   static constexpr base::AddressRegion kUnrestrictedRegion{
       kNullAddress, std::numeric_limits<size_t>::max()};
-
-  // The engine-wide wasm code manager.
-  WasmCodeManager* const code_manager_;
 
   //////////////////////////////////////////////////////////////////////////////
   // These fields are protected by the mutex in {NativeModule}.
@@ -938,7 +934,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
  public:
-  explicit WasmCodeManager(size_t max_committed);
+  WasmCodeManager();
   WasmCodeManager(const WasmCodeManager&) = delete;
   WasmCodeManager& operator=(const WasmCodeManager&) = delete;
 
