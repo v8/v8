@@ -176,6 +176,9 @@
   # Needs to be adapted after changes to Function constructor. chromium:1065094
   'cross-realm-filtering': [SKIP],
 
+  # Re-enable again with dynamic map checks. (https://crbug.com/v8/9684)
+  'const-field-tracking-2': [SKIP],
+
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'compiler/array-subclass': [PASS, HEAVY],
   'compiler/regress-crbug-11564': [PASS, HEAVY],
@@ -1307,12 +1310,6 @@
   'compiler/deopt-inlined-from-call': [SKIP],
   'compiler/field-representation-tracking': [SKIP],
   'field-type-tracking': [SKIP],
-
-  # We don't migrate deprecated maps with dynamic map checks. This will be
-  # fixed in a later cl.
-  # TODO(mythria): Reenable this when the cl that migrates deprecated maps
-  # lands
-  'regress/regress-932953': [FAIL],
 
   # Tests failing for the lack of function context specialization in Turboprop.
   'compiler/abstract-equal-receiver': [FAIL],
