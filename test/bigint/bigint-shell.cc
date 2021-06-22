@@ -27,7 +27,7 @@ int PrintHelp(char** argv) {
   return 1;
 }
 
-#define TESTS(V) V(kKaratsuba, "karatsuba")
+#define TESTS(V) V(kKaratsuba, "karatsuba") V(kBurnikel, "burnikel")
 
 enum Operation { kNoOp, kList, kTest };
 
@@ -159,6 +159,10 @@ class Runner {
       for (int i = 0; i < runs_; i++) {
         TestKaratsuba(&count);
       }
+    } else if (test_ == kBurnikel) {
+      for (int i = 0; i < runs_; i++) {
+        TestBurnikel(&count);
+      }
     } else {
       DCHECK(false);  // Unreachable.
     }
@@ -170,10 +174,10 @@ class Runner {
   void TestKaratsuba(int* count) {
     // Calling {MultiplyKaratsuba} directly is only valid if
     // left_size >= right_size and right_size >= kKaratsubaThreshold.
-    for (int right_size = kKaratsubaThreshold;
-         right_size <= 3 * kKaratsubaThreshold; right_size++) {
-      for (int left_size = right_size; left_size <= 3 * kKaratsubaThreshold;
-           left_size++) {
+    static const int kMin = kKaratsubaThreshold;
+    static const int kMax = 3 * kKaratsubaThreshold;
+    for (int right_size = kMin; right_size <= kMax; right_size++) {
+      for (int left_size = right_size; left_size <= kMax; left_size++) {
         ScratchDigits A(left_size);
         ScratchDigits B(right_size);
         int result_len = MultiplyResultLength(A, B);
@@ -184,6 +188,33 @@ class Runner {
         processor()->MultiplyKaratsuba(result, A, B);
         processor()->MultiplySchoolbook(result_schoolbook, A, B);
         AssertEquals(A, B, result_schoolbook, result);
+        if (error_) return;
+        (*count)++;
+      }
+    }
+  }
+
+  void TestBurnikel(int* count) {
+    // Start small to save test execution time.
+    static const int kMin = kBurnikelThreshold / 2;
+    static const int kMax = 2 * kBurnikelThreshold;
+    for (int right_size = kMin; right_size <= kMax; right_size++) {
+      for (int left_size = right_size; left_size <= kMax; left_size++) {
+        ScratchDigits A(left_size);
+        ScratchDigits B(right_size);
+        GenerateRandom(A);
+        GenerateRandom(B);
+        int quotient_len = DivideResultLength(A, B);
+        int remainder_len = right_size;
+        ScratchDigits quotient(quotient_len);
+        ScratchDigits quotient_schoolbook(quotient_len);
+        ScratchDigits remainder(remainder_len);
+        ScratchDigits remainder_schoolbook(remainder_len);
+        processor()->DivideBurnikelZiegler(quotient, remainder, A, B);
+        processor()->DivideSchoolbook(quotient_schoolbook, remainder_schoolbook,
+                                      A, B);
+        AssertEquals(A, B, quotient_schoolbook, quotient);
+        AssertEquals(A, B, remainder_schoolbook, remainder);
         if (error_) return;
         (*count)++;
       }

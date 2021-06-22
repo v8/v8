@@ -49,7 +49,10 @@ void ProcessorImpl::Divide(RWDigits Q, Digits A, Digits B) {
     digit_t remainder;
     return DivideSingle(Q, &remainder, A, B[0]);
   }
-  return DivideSchoolbook(Q, RWDigits(nullptr, 0), A, B);
+  if (B.len() < kBurnikelThreshold) {
+    return DivideSchoolbook(Q, RWDigits(nullptr, 0), A, B);
+  }
+  return DivideBurnikelZiegler(Q, RWDigits(nullptr, 0), A, B);
 }
 
 void ProcessorImpl::Modulo(RWDigits R, Digits A, Digits B) {
@@ -70,7 +73,12 @@ void ProcessorImpl::Modulo(RWDigits R, Digits A, Digits B) {
     for (int i = 1; i < R.len(); i++) R[i] = 0;
     return;
   }
-  return DivideSchoolbook(RWDigits(nullptr, 0), R, A, B);
+  if (B.len() < kBurnikelThreshold) {
+    return DivideSchoolbook(RWDigits(nullptr, 0), R, A, B);
+  }
+  int q_len = DivideResultLength(A, B);
+  ScratchDigits Q(q_len);
+  return DivideBurnikelZiegler(Q, R, A, B);
 }
 
 Status Processor::Multiply(RWDigits Z, Digits X, Digits Y) {

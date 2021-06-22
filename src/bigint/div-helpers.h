@@ -16,6 +16,13 @@ namespace bigint {
 void LeftShift(RWDigits Z, Digits X, int shift);
 void RightShift(RWDigits Z, Digits X, int shift);
 
+inline void PutAt(RWDigits Z, Digits A, int count) {
+  int len = std::min(A.len(), count);
+  int i = 0;
+  for (; i < len; i++) Z[i] = A[i];
+  for (; i < count; i++) Z[i] = 0;
+}
+
 // Division algorithms typically need to left-shift their inputs into
 // "bit-normalized" form (i.e. top bit is set). The inputs are considered
 // read-only, and V8 relies on that by allowing concurrent reads from them,

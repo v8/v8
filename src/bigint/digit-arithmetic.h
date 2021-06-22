@@ -145,7 +145,9 @@ static inline digit_t digit_div(digit_t high, digit_t low, digit_t divisor,
 #else
   // Adapted from Warren, Hacker's Delight, p. 152.
   int s = CountLeadingZeros(divisor);
+#if defined(DCHECK)
   DCHECK(s != kDigitBits);  // {divisor} is not 0.
+#endif
   divisor <<= s;
 
   digit_t vn1 = divisor >> kHalfDigitBits;

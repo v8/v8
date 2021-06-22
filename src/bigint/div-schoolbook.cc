@@ -163,7 +163,6 @@ void ProcessorImpl::DivideSchoolbook(RWDigits Q, RWDigits R, Digits A,
       qhatv.Clear();
     } else {
       MultiplySingle(qhatv, B, qhat);
-      if (should_terminate()) return;
     }
     digit_t c = InplaceSub(U + j, qhatv);
     if (c != 0) {
