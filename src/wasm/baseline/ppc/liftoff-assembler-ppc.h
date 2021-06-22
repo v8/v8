@@ -329,7 +329,60 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
-  bailout(kUnsupportedArchitecture, "Store");
+  MemOperand dst_op =
+      MemOperand(dst_addr, offset_reg, offset_imm);
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8:
+      StoreU8(src.gp(), dst_op, r0);
+      break;
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16:
+      if (is_store_mem) {
+        StoreU16LE(src.gp(), dst_op, r0);
+      } else {
+        StoreU16(src.gp(), dst_op, r0);
+      }
+      break;
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32:
+      if (is_store_mem) {
+        StoreU32LE(src.gp(), dst_op, r0);
+      } else {
+        StoreU32(src.gp(), dst_op, r0);
+      }
+      break;
+    case StoreType::kI64Store:
+      if (is_store_mem) {
+        StoreU64LE(src.gp(), dst_op, r0);
+      } else {
+        StoreU64(src.gp(), dst_op, r0);
+      }
+      break;
+    case StoreType::kF32Store:
+      if (is_store_mem) {
+        Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
+        StoreF32LE(src.fp(), dst_op, r0, scratch2);
+      } else {
+        StoreF32(src.fp(), dst_op, r0);
+      }
+      break;
+    case StoreType::kF64Store:
+      if (is_store_mem) {
+        Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
+        StoreF64LE(src.fp(), dst_op, r0, scratch2);
+      } else {
+        StoreF64(src.fp(), dst_op, r0);
+      }
+      break;
+    case StoreType::kS128Store: {
+      bailout(kUnsupportedArchitecture, "SIMD");
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
