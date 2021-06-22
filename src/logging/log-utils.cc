@@ -9,11 +9,11 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/common/assert-scope.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/string-stream.h"
-#include "src/utils/utils.h"
 #include "src/utils/version.h"
 
 namespace v8 {
@@ -215,7 +215,7 @@ void Log::MessageBuilder::AppendSymbolNameDetails(String str,
 int Log::MessageBuilder::FormatStringIntoBuffer(const char* format,
                                                 va_list args) {
   base::Vector<char> buf(log_->format_buffer_.get(), Log::kMessageBufferSize);
-  int length = v8::internal::VSNPrintF(buf, format, args);
+  int length = base::VSNPrintF(buf, format, args);
   // |length| is -1 if output was truncated.
   if (length == -1) length = Log::kMessageBufferSize;
   DCHECK_LE(length, Log::kMessageBufferSize);

@@ -4,12 +4,12 @@
 
 #include "src/wasm/wasm-result.h"
 
+#include "src/base/platform/platform.h"
+#include "src/base/strings.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/objects/objects.h"
-
-#include "src/base/platform/platform.h"
 
 namespace v8 {
 namespace internal {
@@ -29,9 +29,9 @@ void VPrintFToString(std::string* str, size_t str_offset, const char* format,
     va_list args_copy;
     va_copy(args_copy, args);
     int written =
-        VSNPrintF(base::Vector<char>(&str->front() + str_offset,
-                                     static_cast<int>(len - str_offset)),
-                  format, args_copy);
+        base::VSNPrintF(base::Vector<char>(&str->front() + str_offset,
+                                           static_cast<int>(len - str_offset)),
+                        format, args_copy);
     va_end(args_copy);
     if (written < 0) continue;  // not enough space.
     str->resize(str_offset + written);

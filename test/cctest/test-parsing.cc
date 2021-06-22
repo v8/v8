@@ -31,16 +31,16 @@
 
 #include <memory>
 
-#include "src/init/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
+#include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
@@ -51,7 +51,6 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
 #include "test/cctest/unicode-helpers.h"
@@ -1119,8 +1118,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
                                               strlen(surroundings[j].suffix) +
                                               strlen(source_data[i].body));
       base::ScopedVector<char> program(kProgramByteSize + 1);
-      i::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
-                  source_data[i].body, surroundings[j].suffix);
+      base::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
+                     source_data[i].body, surroundings[j].suffix);
       i::Handle<i::String> source =
           factory->NewStringFromUtf8(base::CStrVector(program.begin()))
               .ToHandleChecked();
@@ -1492,10 +1491,8 @@ TEST(ScopePositions) {
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
     base::ScopedVector<char> program(kProgramByteSize + 1);
-    i::SNPrintF(program, "%s%s%s",
-                         source_data[i].outer_prefix,
-                         source_data[i].inner_source,
-                         source_data[i].outer_suffix);
+    base::SNPrintF(program, "%s%s%s", source_data[i].outer_prefix,
+                   source_data[i].inner_source, source_data[i].outer_suffix);
 
     // Parse program source.
     i::Handle<i::String> source =
@@ -1843,12 +1840,9 @@ TEST(ParserSync) {
 
         // Plug the source code pieces together.
         base::ScopedVector<char> program(kProgramSize + 1);
-        int length = i::SNPrintF(program,
-            "label: for (;;) { %s%s%s%s }",
-            context_data[i][0],
-            statement_data[j],
-            termination_data[k],
-            context_data[i][1]);
+        int length = base::SNPrintF(program, "label: for (;;) { %s%s%s%s }",
+                                    context_data[i][0], statement_data[j],
+                                    termination_data[k], context_data[i][1]);
         CHECK_EQ(length, kProgramSize);
         TestParserSync(program.begin(), nullptr, 0);
       }
@@ -1943,11 +1937,8 @@ void RunParserSyncTest(
 
       // Plug the source code pieces together.
       base::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::SNPrintF(program,
-                               "%s%s%s",
-                               context_data[i][0],
-                               statement_data[j],
-                               context_data[i][1]);
+      int length = base::SNPrintF(program, "%s%s%s", context_data[i][0],
+                                  statement_data[j], context_data[i][1]);
       PrintF("%s\n", program.begin());
       CHECK_EQ(length, kProgramSize);
       TestParserSync(program.begin(), flags, flags_len, result,
@@ -3342,7 +3333,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
       "h();";
 
   base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  i::SNPrintF(program, "%s", src);
+  base::SNPrintF(program, "%s", src);
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
@@ -3392,7 +3383,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
       "f(0);";
 
   base::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
-  i::SNPrintF(program, "%s", src);
+  base::SNPrintF(program, "%s", src);
   i::Handle<i::String> source = factory->InternalizeUtf8String(program.begin());
   source->PrintOn(stdout);
   printf("\n");
@@ -3549,8 +3540,8 @@ TEST(InnerAssignment) {
         int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
         base::ScopedVector<char> program(len + 1);
 
-        i::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
-                    suffix);
+        base::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
+                       suffix);
 
         UnoptimizedCompileState compile_state(isolate);
         std::unique_ptr<i::ParseInfo> info;
@@ -3672,7 +3663,7 @@ TEST(MaybeAssignedParameters) {
     for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
       base::ScopedVector<char> program(Utf8LengthHelper(source) +
                                        Utf8LengthHelper(suffix) + 1);
-      i::SNPrintF(program, "%s%s", source, suffix);
+      base::SNPrintF(program, "%s%s", source, suffix);
       std::unique_ptr<i::ParseInfo> info;
       printf("%s\n", program.begin());
       v8::Local<v8::Value> v = CompileRun(program.begin());
@@ -11491,10 +11482,10 @@ TEST(NoPessimisticContextAllocation) {
                 suffix_len;
 
       base::ScopedVector<char> program(len + 1);
-      i::SNPrintF(program, "%s", prefix);
-      i::SNPrintF(program + prefix_len, inner_function, inners[i].params,
-                  inners[i].source);
-      i::SNPrintF(
+      base::SNPrintF(program, "%s", prefix);
+      base::SNPrintF(program + prefix_len, inner_function, inners[i].params,
+                     inners[i].source);
+      base::SNPrintF(
           program + prefix_len + inner_function_len + params_len + source_len,
           "%s", suffix);
 

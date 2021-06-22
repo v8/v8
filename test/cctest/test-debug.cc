@@ -27,15 +27,15 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/execution/microtask-queue.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/utils.h"
@@ -3695,8 +3695,8 @@ static void TestDebugBreakInLoop(const char* loop_head,
     // have been hit.
 
     v8::base::EmbeddedVector<char, 1024> buffer;
-    i::SNPrintF(buffer, "function f() {%s%s%s}", loop_head, loop_bodies[i],
-                loop_tail);
+    v8::base::SNPrintF(buffer, "function f() {%s%s%s}", loop_head,
+                       loop_bodies[i], loop_tail);
 
     i::PrintF("%s\n", buffer.begin());
 

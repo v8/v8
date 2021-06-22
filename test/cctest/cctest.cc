@@ -30,6 +30,7 @@
 #include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
+#include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/pipeline.h"
@@ -171,7 +172,7 @@ i::Handle<i::String> CcTest::MakeString(const char* str) {
 
 i::Handle<i::String> CcTest::MakeName(const char* str, int suffix) {
   v8::base::EmbeddedVector<char, 128> buffer;
-  i::SNPrintF(buffer, "%s%d", str, suffix);
+  v8::base::SNPrintF(buffer, "%s%d", str, suffix);
   return CcTest::MakeString(buffer.begin());
 }
 

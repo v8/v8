@@ -27,8 +27,8 @@ const char* code_template_string =
     "f%d(); f%d;";
 
 void GetSource(base::ScopedVector<char>* source, int index) {
-  i::SNPrintF(*source, code_template_string, index, index, index, index, index,
-              index, index);
+  base::SNPrintF(*source, code_template_string, index, index, index, index,
+                 index, index, index);
 }
 
 const int kInitialLength = OSROptimizedCodeCache::kInitialLength;

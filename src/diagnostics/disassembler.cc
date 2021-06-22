@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "src/base/memory.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-comments.h"

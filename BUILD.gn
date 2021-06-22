@@ -4698,6 +4698,8 @@ v8_component("v8_libbase") {
     "src/base/sanitizer/lsan.h",
     "src/base/sanitizer/msan.h",
     "src/base/small-vector.h",
+    "src/base/strings.cc",
+    "src/base/strings.h",
     "src/base/sys-info.cc",
     "src/base/sys-info.h",
     "src/base/template-utils.h",

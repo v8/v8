@@ -29,7 +29,9 @@
 
 #include <unordered_set>
 #include <vector>
+
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
@@ -351,7 +353,8 @@ UNINITIALIZED_TEST(LogCallbacks) {
     ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
 #endif
     v8::base::EmbeddedVector<char, 100> suffix_buffer;
-    i::SNPrintF(suffix_buffer, ",0x%" V8PRIxPTR ",1,method1", ObjMethod1_entry);
+    v8::base::SNPrintF(suffix_buffer, ",0x%" V8PRIxPTR ",1,method1",
+                       ObjMethod1_entry);
     CHECK(logger.ContainsLine(
         {"code-creation,Callback,-2,", std::string(suffix_buffer.begin())}));
   }
@@ -395,8 +398,8 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     Prop1Getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop1Getter_entry);
 #endif
     v8::base::EmbeddedVector<char, 100> prop1_getter_record;
-    i::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
-                Prop1Getter_entry);
+    v8::base::SNPrintF(prop1_getter_record, ",0x%" V8PRIxPTR ",1,get prop1",
+                       Prop1Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
                                std::string(prop1_getter_record.begin())}));
 
@@ -405,8 +408,8 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     Prop1Setter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop1Setter_entry);
 #endif
     v8::base::EmbeddedVector<char, 100> prop1_setter_record;
-    i::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
-                Prop1Setter_entry);
+    v8::base::SNPrintF(prop1_setter_record, ",0x%" V8PRIxPTR ",1,set prop1",
+                       Prop1Setter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
                                std::string(prop1_setter_record.begin())}));
 
@@ -415,8 +418,8 @@ UNINITIALIZED_TEST(LogAccessorCallbacks) {
     Prop2Getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop2Getter_entry);
 #endif
     v8::base::EmbeddedVector<char, 100> prop2_getter_record;
-    i::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
-                Prop2Getter_entry);
+    v8::base::SNPrintF(prop2_getter_record, ",0x%" V8PRIxPTR ",1,get prop2",
+                       Prop2Getter_entry);
     CHECK(logger.ContainsLine({"code-creation,Callback,-2,",
                                std::string(prop2_getter_record.begin())}));
   }
@@ -433,9 +436,9 @@ UNINITIALIZED_TEST(LogVersion) {
     logger.StopLogging();
 
     v8::base::EmbeddedVector<char, 100> line_buffer;
-    i::SNPrintF(line_buffer, "%d,%d,%d,%d,%d", i::Version::GetMajor(),
-                i::Version::GetMinor(), i::Version::GetBuild(),
-                i::Version::GetPatch(), i::Version::IsCandidate());
+    v8::base::SNPrintF(line_buffer, "%d,%d,%d,%d,%d", i::Version::GetMajor(),
+                       i::Version::GetMinor(), i::Version::GetBuild(),
+                       i::Version::GetPatch(), i::Version::IsCandidate());
     CHECK(
         logger.ContainsLine({"v8-version,", std::string(line_buffer.begin())}));
   }
@@ -1194,13 +1197,13 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
     v8::base::EmbeddedVector<char, 100> buffer;
 
     // Should only be logged as "Builtin" with a name, never as "LazyCompile".
-    i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
-                builtin->InstructionStart(), builtin->InstructionSize());
+    v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
+                       builtin->InstructionStart(), builtin->InstructionSize());
     CHECK(logger.ContainsLine(
         {"code-creation,Builtin,2,", std::string(buffer.begin())}));
 
-    i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,", builtin->InstructionStart(),
-                builtin->InstructionSize());
+    v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,",
+                       builtin->InstructionStart(), builtin->InstructionSize());
     CHECK(!logger.ContainsLine(
         {"code-creation,LazyCompile,2,", std::string(buffer.begin())}));
   }

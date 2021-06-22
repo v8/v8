@@ -35,6 +35,7 @@
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -141,16 +142,16 @@ i::AbstractCode CreateCode(i::Isolate* isolate, LocalContext* env) {
   base::EmbeddedVector<char, 256> script;
   base::EmbeddedVector<char, 32> name;
 
-  i::SNPrintF(name, "function_%d", ++counter);
+  base::SNPrintF(name, "function_%d", ++counter);
   const char* name_start = name.begin();
-  i::SNPrintF(script,
-              "function %s() {\n"
-              "var counter = 0;\n"
-              "for (var i = 0; i < %d; ++i) counter += i;\n"
-              "return '%s_' + counter;\n"
-              "}\n"
-              "%s();\n",
-              name_start, counter, name_start, name_start);
+  base::SNPrintF(script,
+                 "function %s() {\n"
+                 "var counter = 0;\n"
+                 "for (var i = 0; i < %d; ++i) counter += i;\n"
+                 "return '%s_' + counter;\n"
+                 "}\n"
+                 "%s();\n",
+                 name_start, counter, name_start, name_start);
   CompileRun(script.begin());
 
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(
@@ -1231,29 +1232,29 @@ static void TickLines(bool optimize) {
 
   const char* func_name = "func";
   if (optimize) {
-    i::SNPrintF(prepare_opt, "%%PrepareFunctionForOptimization(%s);\n",
-                func_name);
-    i::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
-                func_name);
+    base::SNPrintF(prepare_opt, "%%PrepareFunctionForOptimization(%s);\n",
+                   func_name);
+    base::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
+                   func_name);
   } else {
     prepare_opt[0] = '\0';
     optimize_call[0] = '\0';
   }
-  i::SNPrintF(script,
-              "function %s() {\n"
-              "  var n = 0;\n"
-              "  var m = 100*100;\n"
-              "  while (m > 1) {\n"
-              "    m--;\n"
-              "    n += m * m * m;\n"
-              "  }\n"
-              "}\n"
-              "%s"
-              "%s();\n"
-              "%s"
-              "%s();\n",
-              func_name, prepare_opt.begin(), func_name, optimize_call.begin(),
-              func_name);
+  base::SNPrintF(script,
+                 "function %s() {\n"
+                 "  var n = 0;\n"
+                 "  var m = 100*100;\n"
+                 "  while (m > 1) {\n"
+                 "    m--;\n"
+                 "    n += m * m * m;\n"
+                 "  }\n"
+                 "}\n"
+                 "%s"
+                 "%s();\n"
+                 "%s"
+                 "%s();\n",
+                 func_name, prepare_opt.begin(), func_name,
+                 optimize_call.begin(), func_name);
 
   CompileRun(script.begin());
 
@@ -2482,7 +2483,7 @@ TEST(CollectDeoptEvents) {
 
   for (int i = 0; i < 3; ++i) {
     base::EmbeddedVector<char, sizeof(opt_source) + 100> buffer;
-    i::SNPrintF(buffer, opt_source, i, i);
+    base::SNPrintF(buffer, opt_source, i, i);
     v8::Script::Compile(env, v8_str(buffer.begin()))
         .ToLocalChecked()
         ->Run(env)

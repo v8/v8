@@ -14,6 +14,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
 
 namespace v8 {
 namespace internal {
@@ -59,22 +60,6 @@ void PrintIsolate(void* isolate, const char* format, ...) {
   va_start(arguments, format);
   base::OS::VPrint(format, arguments);
   va_end(arguments);
-}
-
-int SNPrintF(base::Vector<char> str, const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  int result = VSNPrintF(str, format, args);
-  va_end(args);
-  return result;
-}
-
-int VSNPrintF(base::Vector<char> str, const char* format, va_list args) {
-  return base::OS::VSNPrintF(str.begin(), str.length(), format, args);
-}
-
-void StrNCpy(base::Vector<char> dest, const char* src, size_t n) {
-  base::OS::StrNCpy(dest.begin(), dest.length(), src, n);
 }
 
 char* ReadLine(const char* prompt) {

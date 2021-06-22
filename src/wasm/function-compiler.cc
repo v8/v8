@@ -4,6 +4,7 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -237,7 +238,7 @@ void RecordWasmHeapStubCompilation(Isolate* isolate, Handle<Code> code,
   base::ScopedVector<char> buffer(128);
   va_list arguments;
   va_start(arguments, format);
-  int len = VSNPrintF(buffer, format, arguments);
+  int len = base::VSNPrintF(buffer, format, arguments);
   CHECK_LT(0, len);
   va_end(arguments);
   Handle<String> name_str =

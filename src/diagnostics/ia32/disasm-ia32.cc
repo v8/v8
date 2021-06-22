@@ -9,9 +9,9 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/base/compiler-specific.h"
+#include "src/base/strings.h"
 #include "src/codegen/ia32/sse-instr.h"
 #include "src/diagnostics/disasm.h"
-#include "src/utils/utils.h"
 
 namespace disasm {
 
@@ -377,7 +377,7 @@ void DisassemblerIA32::AppendToBuffer(const char* format, ...) {
   v8::base::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
   va_list args;
   va_start(args, format);
-  int result = v8::internal::VSNPrintF(buf, format, args);
+  int result = v8::base::VSNPrintF(buf, format, args);
   va_end(args);
   tmp_buffer_pos_ += result;
 }
@@ -2883,13 +2883,13 @@ int DisassemblerIA32::InstructionDecode(v8::base::Vector<char> out_buffer,
   int outp = 0;
   // Instruction bytes.
   for (byte* bp = instr; bp < data; bp++) {
-    outp += v8::internal::SNPrintF(out_buffer + outp, "%02x", *bp);
+    outp += v8::base::SNPrintF(out_buffer + outp, "%02x", *bp);
   }
   for (int i = 6 - instr_len; i >= 0; i--) {
-    outp += v8::internal::SNPrintF(out_buffer + outp, "  ");
+    outp += v8::base::SNPrintF(out_buffer + outp, "  ");
   }
 
-  outp += v8::internal::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.begin());
+  outp += v8::base::SNPrintF(out_buffer + outp, " %s", tmp_buffer_.begin());
   return instr_len;
 }
 
@@ -2905,7 +2905,7 @@ static const char* const xmm_regs[8] = {"xmm0", "xmm1", "xmm2", "xmm3",
                                         "xmm4", "xmm5", "xmm6", "xmm7"};
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 

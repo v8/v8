@@ -17,6 +17,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/small-vector.h"
+#include "src/base/strings.h"
 #include "src/utils/bit-vector.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder.h"
@@ -2358,7 +2359,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       va_start(va_args, format);
       size_t remaining_len = kMaxLen - len_;
       base::Vector<char> remaining_msg_space(buffer_ + len_, remaining_len);
-      int len = VSNPrintF(remaining_msg_space, format, va_args);
+      int len = base::VSNPrintF(remaining_msg_space, format, va_args);
       va_end(va_args);
       len_ += len < 0 ? remaining_len : len;
     }

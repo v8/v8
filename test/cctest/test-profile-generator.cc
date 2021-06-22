@@ -29,6 +29,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/init/v8.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
@@ -727,7 +728,7 @@ TEST(Issue51919) {
       titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     base::Vector<char> title = v8::base::Vector<char>::New(16);
-    i::SNPrintF(title, "%d", i);
+    base::SNPrintF(title, "%d", i);
     CHECK_EQ(CpuProfilingStatus::kStarted,
              collection.StartProfiling(title.begin()));
     titles[i] = title.begin();

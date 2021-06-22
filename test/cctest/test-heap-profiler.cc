@@ -31,15 +31,15 @@
 
 #include <memory>
 
-#include "src/init/v8.h"
-
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/hashmap.h"
 #include "src/base/optional.h"
+#include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
@@ -2624,7 +2624,7 @@ TEST(ManyLocalsInSharedContext) {
   // ... well check just every 15th because otherwise it's too slow in debug.
   for (int i = 0; i < num_objects - 1; i += 15) {
     v8::base::EmbeddedVector<char, 100> var_name;
-    i::SNPrintF(var_name, "f_%d", i);
+    v8::base::SNPrintF(var_name, "f_%d", i);
     const v8::HeapGraphNode* f_object =
         GetProperty(env->GetIsolate(), context_object,
                     v8::HeapGraphEdge::kContextVariable, var_name.begin());
@@ -2729,7 +2729,7 @@ static const v8::HeapGraphNode* GetNodeByPath(v8::Isolate* isolate,
       v8::String::Utf8Value edge_name(isolate, edge->GetName());
       v8::String::Utf8Value node_name(isolate, to_node->GetName());
       v8::base::EmbeddedVector<char, 100> name;
-      i::SNPrintF(name, "%s::%s", *edge_name, *node_name);
+      v8::base::SNPrintF(name, "%s::%s", *edge_name, *node_name);
       if (strstr(name.begin(), path[current_depth])) {
         node = to_node;
         break;
@@ -3933,22 +3933,22 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   GrowNewSpaceToMaximumCapacity(CcTest::heap());
 
   v8::base::ScopedVector<char> source(1024);
-  i::SNPrintF(source,
-              "var number_elements = %d;"
-              "var elements = new Array(number_elements);"
-              "function f() {"
-              "  for (var i = 0; i < number_elements; i++) {"
-              "    elements[i] = [{}, {}, {}];"
-              "  }"
-              "  return elements[number_elements - 1];"
-              "};"
-              "%%PrepareFunctionForOptimization(f);"
-              "f(); gc();"
-              "f(); f();"
-              "%%OptimizeFunctionOnNextCall(f);"
-              "f();"
-              "f;",
-              i::AllocationSite::kPretenureMinimumCreated + 1);
+  v8::base::SNPrintF(source,
+                     "var number_elements = %d;"
+                     "var elements = new Array(number_elements);"
+                     "function f() {"
+                     "  for (var i = 0; i < number_elements; i++) {"
+                     "    elements[i] = [{}, {}, {}];"
+                     "  }"
+                     "  return elements[number_elements - 1];"
+                     "};"
+                     "%%PrepareFunctionForOptimization(f);"
+                     "f(); gc();"
+                     "f(); f();"
+                     "%%OptimizeFunctionOnNextCall(f);"
+                     "f();"
+                     "f;",
+                     i::AllocationSite::kPretenureMinimumCreated + 1);
 
   v8::Local<v8::Function> f =
       v8::Local<v8::Function>::Cast(CompileRun(source.begin()));

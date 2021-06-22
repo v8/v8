@@ -10,6 +10,7 @@
 #include <cstring>
 #include <memory>
 
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/embedded/embedded-file-writer-interface.h"
@@ -127,16 +128,16 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   std::string EmbeddedBlobCodeDataSymbol() const {
     base::EmbeddedVector<char, kTemporaryStringLength>
         embedded_blob_code_data_symbol;
-    i::SNPrintF(embedded_blob_code_data_symbol,
-                "v8_%s_embedded_blob_code_data_", embedded_variant_);
+    base::SNPrintF(embedded_blob_code_data_symbol,
+                   "v8_%s_embedded_blob_code_data_", embedded_variant_);
     return std::string{embedded_blob_code_data_symbol.begin()};
   }
 
   std::string EmbeddedBlobDataDataSymbol() const {
     base::EmbeddedVector<char, kTemporaryStringLength>
         embedded_blob_data_data_symbol;
-    i::SNPrintF(embedded_blob_data_data_symbol,
-                "v8_%s_embedded_blob_data_data_", embedded_variant_);
+    base::SNPrintF(embedded_blob_data_data_symbol,
+                   "v8_%s_embedded_blob_data_data_", embedded_variant_);
     return std::string{embedded_blob_data_data_symbol.begin()};
   }
 

@@ -7,6 +7,7 @@
 
 #include "src/base/optional.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -26,12 +27,13 @@ class CodeTracer final : public Malloced {
     }
 
     if (FLAG_redirect_code_traces_to != nullptr) {
-      StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
+      base::StrNCpy(filename_, FLAG_redirect_code_traces_to,
+                    filename_.length());
     } else if (isolate_id >= 0) {
-      SNPrintF(filename_, "code-%d-%d.asm", base::OS::GetCurrentProcessId(),
-               isolate_id);
+      base::SNPrintF(filename_, "code-%d-%d.asm",
+                     base::OS::GetCurrentProcessId(), isolate_id);
     } else {
-      SNPrintF(filename_, "code-%d.asm", base::OS::GetCurrentProcessId());
+      base::SNPrintF(filename_, "code-%d.asm", base::OS::GetCurrentProcessId());
     }
 
     WriteChars(filename_.begin(), "", 0, false);

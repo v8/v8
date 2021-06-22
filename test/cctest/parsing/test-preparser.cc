@@ -4,6 +4,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/codegen/compiler.h"
 #include "src/objects/objects-inl.h"
@@ -681,7 +682,7 @@ TEST(PreParserScopeAnalysis) {
       int len = code_len + params_len + source_len;
 
       v8::base::ScopedVector<char> program(len + 1);
-      i::SNPrintF(program, code, inner.params, inner.source);
+      v8::base::SNPrintF(program, code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
 

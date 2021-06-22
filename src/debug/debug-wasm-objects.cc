@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
+#include "src/base/strings.h"
 #include "src/debug/debug-wasm-objects-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -819,7 +820,7 @@ Handle<String> GetRefTypeName(Isolate* isolate, wasm::ValueType type,
           long_type_name.SubVector(len, long_type_name.size());
       // StrNCpy requires that there is room for an assumed trailing \0...
       DCHECK_EQ(suffix.size(), name_vec.size() + 1);
-      StrNCpy(suffix, name_vec.data(), name_vec.size());
+      base::StrNCpy(suffix, name_vec.data(), name_vec.size());
       // ...but we actually write ')' into that byte.
       long_type_name[required_length - 1] = ')';
       Handle<String> result =

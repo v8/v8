@@ -215,11 +215,11 @@ THREADED_TEST(IsolateOfContext) {
 static void TestSignatureLooped(const char* operation, Local<Value> receiver,
                                 v8::Isolate* isolate) {
   v8::base::ScopedVector<char> source(200);
-  i::SNPrintF(source,
-              "for (var i = 0; i < 10; i++) {"
-              "  %s"
-              "}",
-              operation);
+  v8::base::SNPrintF(source,
+                     "for (var i = 0; i < 10; i++) {"
+                     "  %s"
+                     "}",
+                     operation);
   signature_callback_count = 0;
   signature_expected_receiver = receiver;
   bool expected_to_throw = receiver.IsEmpty();
@@ -241,16 +241,16 @@ static void TestSignatureLooped(const char* operation, Local<Value> receiver,
 static void TestSignatureOptimized(const char* operation, Local<Value> receiver,
                                    v8::Isolate* isolate) {
   v8::base::ScopedVector<char> source(200);
-  i::SNPrintF(source,
-              "function test() {"
-              "  %s"
-              "};"
-              "%%PrepareFunctionForOptimization(test);"
-              "try { test() } catch(e) {}"
-              "try { test() } catch(e) {}"
-              "%%OptimizeFunctionOnNextCall(test);"
-              "test()",
-              operation);
+  v8::base::SNPrintF(source,
+                     "function test() {"
+                     "  %s"
+                     "};"
+                     "%%PrepareFunctionForOptimization(test);"
+                     "try { test() } catch(e) {}"
+                     "try { test() } catch(e) {}"
+                     "%%OptimizeFunctionOnNextCall(test);"
+                     "test()",
+                     operation);
   signature_callback_count = 0;
   signature_expected_receiver = receiver;
   bool expected_to_throw = receiver.IsEmpty();
@@ -364,8 +364,8 @@ THREADED_TEST(ReceiverSignature) {
   unsigned bad_signature_start_offset = 3;
   for (unsigned i = 0; i < arraysize(test_objects); i++) {
     v8::base::ScopedVector<char> source(200);
-    i::SNPrintF(
-        source, "var test_object = %s; test_object", test_objects[i]);
+    v8::base::SNPrintF(source, "var test_object = %s; test_object",
+                       test_objects[i]);
     Local<Value> test_object = CompileRun(source.begin());
     TestSignature("test_object.prop();", test_object, isolate);
     TestSignature("test_object.accessor;", test_object, isolate);
@@ -2993,7 +2993,7 @@ THREADED_TEST(InternalFieldsOfRegularObjects) {
   const char* sources[] = {"new Object()", "{ a: 'a property' }", "arguments"};
   for (size_t i = 0; i < arraysize(sources); ++i) {
     v8::base::ScopedVector<char> source(128);
-    i::SNPrintF(source, "(function() { return %s })()", sources[i]);
+    v8::base::SNPrintF(source, "(function() { return %s })()", sources[i]);
     v8::Local<v8::Object> obj = CompileRun(source.begin()).As<v8::Object>();
     CHECK_EQ(0, obj->InternalFieldCount());
   }
@@ -4130,7 +4130,7 @@ class TwoPassCallbackData {
         metadata_(metadata) {
     HandleScope scope(isolate);
     v8::base::ScopedVector<char> buffer(40);
-    i::SNPrintF(buffer, "%p", static_cast<void*>(this));
+    v8::base::SNPrintF(buffer, "%p", static_cast<void*>(this));
     auto string =
         v8::String::NewFromUtf8(isolate, buffer.begin()).ToLocalChecked();
     cell_.Reset(isolate, string);
@@ -7281,7 +7281,7 @@ TEST(ExtensionWithSourceLength) {
        source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
     v8::HandleScope handle_scope(CcTest::isolate());
     v8::base::ScopedVector<char> extension_name(32);
-    i::SNPrintF(extension_name, "ext #%d", source_len);
+    v8::base::SNPrintF(extension_name, "ext #%d", source_len);
     v8::RegisterExtension(std::make_unique<Extension>(extension_name.begin(),
                                                       kEmbeddedExtensionSource,
                                                       0, nullptr, source_len));
@@ -10941,7 +10941,7 @@ THREADED_TEST(Regress91517) {
   // Force dictionary-based properties.
   v8::base::ScopedVector<char> name_buf(1024);
   for (int i = 1; i <= 1000; i++) {
-    i::SNPrintF(name_buf, "sdf%d", i);
+    v8::base::SNPrintF(name_buf, "sdf%d", i);
     t2->InstanceTemplate()->Set(v8_str(name_buf.begin()), v8_num(2));
   }
 
@@ -18619,11 +18619,13 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
   v8::HandleScope scope(isolate);
   LocalContext context(isolate);
   v8::base::ScopedVector<char> code(1024);
-  i::SNPrintF(code, "function fib(n) {"
-                    "  if (n <= 2) return 1;"
-                    "  return fib(n-1) + fib(n-2);"
-                    "}"
-                    "fib(%d)", limit);
+  v8::base::SNPrintF(code,
+                     "function fib(n) {"
+                     "  if (n <= 2) return 1;"
+                     "  return fib(n-1) + fib(n-2);"
+                     "}"
+                     "fib(%d)",
+                     limit);
   Local<Value> value = CompileRun(code.begin());
   CHECK(value->IsNumber());
   return static_cast<int>(value->NumberValue(context.local()).FromJust());
@@ -19929,7 +19931,7 @@ void RecursiveCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::base::OS::Print("Entering recursion level %d.\n", level);
     char script[64];
     v8::base::Vector<char> script_vector(script, sizeof(script));
-    i::SNPrintF(script_vector, "recursion(%d)", level);
+    v8::base::SNPrintF(script_vector, "recursion(%d)", level);
     CompileRun(script_vector.begin());
     v8::base::OS::Print("Leaving recursion level %d.\n", level);
     CHECK_EQ(0, callback_fired);
@@ -21382,7 +21384,7 @@ void CheckCorrectThrow(const char* script) {
   access_check_fail_thrown = false;
   catch_callback_called = false;
   v8::base::ScopedVector<char> source(1024);
-  i::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
+  v8::base::SNPrintF(source, "try { %s; } catch (e) { catcher(e); }", script);
   CompileRun(source.begin());
   CHECK(access_check_fail_thrown);
   CHECK(catch_callback_called);
@@ -22376,14 +22378,13 @@ class ApiCallOptimizationChecker {
     // build wrap_function
     v8::base::ScopedVector<char> wrap_function(200);
     if (global) {
-      i::SNPrintF(
-          wrap_function,
-          "function wrap_f_%d() { var f = g_f; return f(); }\n"
-          "function wrap_get_%d() { return this.g_acc; }\n"
-          "function wrap_set_%d() { return this.g_acc = 1; }\n",
-          key, key, key);
+      v8::base::SNPrintF(wrap_function,
+                         "function wrap_f_%d() { var f = g_f; return f(); }\n"
+                         "function wrap_get_%d() { return this.g_acc; }\n"
+                         "function wrap_set_%d() { return this.g_acc = 1; }\n",
+                         key, key, key);
     } else {
-      i::SNPrintF(
+      v8::base::SNPrintF(
           wrap_function,
           "function wrap_f_%d() { return receiver_subclass.f(); }\n"
           "function wrap_get_%d() { return receiver_subclass.acc; }\n"
@@ -22392,37 +22393,37 @@ class ApiCallOptimizationChecker {
     }
     // build source string
     v8::base::ScopedVector<char> source(1000);
-    i::SNPrintF(source,
-                "%s\n"  // wrap functions
-                "function wrap_f() { return wrap_f_%d(); }\n"
-                "function wrap_get() { return wrap_get_%d(); }\n"
-                "function wrap_set() { return wrap_set_%d(); }\n"
-                "check = function(returned) {\n"
-                "  if (returned !== 'returned') { throw returned; }\n"
-                "};\n"
-                "\n"
-                "%%PrepareFunctionForOptimization(wrap_f_%d);"
-                "check(wrap_f());\n"
-                "check(wrap_f());\n"
-                "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
-                "check(wrap_f());\n"
-                "\n"
-                "%%PrepareFunctionForOptimization(wrap_get_%d);"
-                "check(wrap_get());\n"
-                "check(wrap_get());\n"
-                "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
-                "check(wrap_get());\n"
-                "\n"
-                "check = function(returned) {\n"
-                "  if (returned !== 1) { throw returned; }\n"
-                "};\n"
-                "%%PrepareFunctionForOptimization(wrap_set_%d);"
-                "check(wrap_set());\n"
-                "check(wrap_set());\n"
-                "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
-                "check(wrap_set());\n",
-                wrap_function.begin(), key, key, key, key, key, key, key, key,
-                key);
+    v8::base::SNPrintF(source,
+                       "%s\n"  // wrap functions
+                       "function wrap_f() { return wrap_f_%d(); }\n"
+                       "function wrap_get() { return wrap_get_%d(); }\n"
+                       "function wrap_set() { return wrap_set_%d(); }\n"
+                       "check = function(returned) {\n"
+                       "  if (returned !== 'returned') { throw returned; }\n"
+                       "};\n"
+                       "\n"
+                       "%%PrepareFunctionForOptimization(wrap_f_%d);"
+                       "check(wrap_f());\n"
+                       "check(wrap_f());\n"
+                       "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
+                       "check(wrap_f());\n"
+                       "\n"
+                       "%%PrepareFunctionForOptimization(wrap_get_%d);"
+                       "check(wrap_get());\n"
+                       "check(wrap_get());\n"
+                       "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
+                       "check(wrap_get());\n"
+                       "\n"
+                       "check = function(returned) {\n"
+                       "  if (returned !== 1) { throw returned; }\n"
+                       "};\n"
+                       "%%PrepareFunctionForOptimization(wrap_set_%d);"
+                       "check(wrap_set());\n"
+                       "check(wrap_set());\n"
+                       "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
+                       "check(wrap_set());\n",
+                       wrap_function.begin(), key, key, key, key, key, key, key,
+                       key, key);
     v8::TryCatch try_catch(isolate);
     CompileRun(source.begin());
     CHECK(!try_catch.HasCaught());
@@ -25680,26 +25681,26 @@ TEST(ObjectTemplateArrayProtoIntrinsics) {
   for (unsigned i = 0; i < arraysize(intrinsics_comparisons); i++) {
     v8::base::ScopedVector<char> test_string(64);
 
-    i::SNPrintF(test_string, "typeof obj1.%s",
-                intrinsics_comparisons[i].object_property_name);
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
+                       intrinsics_comparisons[i].object_property_name);
     ExpectString(test_string.begin(), "function");
 
-    i::SNPrintF(test_string, "obj1.%s === %s",
-                intrinsics_comparisons[i].object_property_name,
-                intrinsics_comparisons[i].array_property_name);
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
+                       intrinsics_comparisons[i].object_property_name,
+                       intrinsics_comparisons[i].array_property_name);
     ExpectTrue(test_string.begin());
 
-    i::SNPrintF(test_string, "obj1.%s = 42",
-                intrinsics_comparisons[i].object_property_name);
+    v8::base::SNPrintF(test_string, "obj1.%s = 42",
+                       intrinsics_comparisons[i].object_property_name);
     CompileRun(test_string.begin());
 
-    i::SNPrintF(test_string, "obj1.%s === %s",
-                intrinsics_comparisons[i].object_property_name,
-                intrinsics_comparisons[i].array_property_name);
+    v8::base::SNPrintF(test_string, "obj1.%s === %s",
+                       intrinsics_comparisons[i].object_property_name,
+                       intrinsics_comparisons[i].array_property_name);
     ExpectFalse(test_string.begin());
 
-    i::SNPrintF(test_string, "typeof obj1.%s",
-                intrinsics_comparisons[i].object_property_name);
+    v8::base::SNPrintF(test_string, "typeof obj1.%s",
+                       intrinsics_comparisons[i].object_property_name);
     ExpectString(test_string.begin(), "number");
   }
 }

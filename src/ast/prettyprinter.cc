@@ -9,6 +9,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/objects/objects-inl.h"
@@ -648,8 +649,8 @@ void AstPrinter::Print(const char* format, ...) {
   for (;;) {
     va_list arguments;
     va_start(arguments, format);
-    int n =
-        VSNPrintF(base::Vector<char>(output_, size_) + pos_, format, arguments);
+    int n = base::VSNPrintF(base::Vector<char>(output_, size_) + pos_, format,
+                            arguments);
     va_end(arguments);
 
     if (n >= 0) {

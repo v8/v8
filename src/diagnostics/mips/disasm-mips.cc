@@ -30,6 +30,8 @@
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/mips/constants-mips.h"
 #include "src/diagnostics/disasm.h"

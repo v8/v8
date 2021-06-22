@@ -27,14 +27,14 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -479,8 +479,8 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
                                          const char* binary_op) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>((*env)->GetIsolate());
   v8::base::EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
-  i::SNPrintF(f_source_buffer, "function f(x, y) { return x %s y; };",
-              binary_op);
+  v8::base::SNPrintF(f_source_buffer, "function f(x, y) { return x %s y; };",
+                     binary_op);
   char* f_source = f_source_buffer.begin();
 
   AllowNativesSyntaxNoInlining options;

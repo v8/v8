@@ -30,6 +30,8 @@
 #if V8_TARGET_ARCH_RISCV64
 
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/riscv64/constants-riscv64.h"
 #include "src/diagnostics/disasm.h"
@@ -179,7 +181,7 @@ void Decoder::PrintRd(Instruction* instr) {
 
 void Decoder::PrintVs1(Instruction* instr) {
   int val = instr->Rs1Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", val);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", val);
 }
 
 // Print the FPUregister name according to the active name converter.
@@ -209,12 +211,12 @@ void Decoder::PrintFRd(Instruction* instr) {
 
 void Decoder::PrintImm12X(Instruction* instr) {
   int32_t imm = instr->Imm12Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
 void Decoder::PrintImm12(Instruction* instr) {
   int32_t imm = instr->Imm12Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintTarget(Instruction* instr) {
@@ -226,7 +228,7 @@ void Decoder::PrintTarget(Instruction* instr) {
       const char* target =
           converter_.NameOfAddress(reinterpret_cast<byte*>(instr - 4) + imm);
       out_buffer_pos_ +=
-          SNPrintF(out_buffer_ + out_buffer_pos_, " -> %s", target);
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, " -> %s", target);
       return;
     }
   }
@@ -237,17 +239,17 @@ void Decoder::PrintBranchOffset(Instruction* instr) {
   const char* target =
       converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + imm);
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
 }
 
 void Decoder::PrintStoreOffset(Instruction* instr) {
   int32_t imm = instr->StoreOffset();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintImm20U(Instruction* instr) {
   int32_t imm = instr->Imm20UValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
 void Decoder::PrintImm20J(Instruction* instr) {
@@ -255,95 +257,95 @@ void Decoder::PrintImm20J(Instruction* instr) {
   const char* target =
       converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + imm);
   out_buffer_pos_ +=
-      SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
 }
 
 void Decoder::PrintShamt(Instruction* instr) {
   int32_t imm = instr->Shamt();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintShamt32(Instruction* instr) {
   int32_t imm = instr->Shamt32();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm6(Instruction* instr) {
   int32_t imm = instr->RvcImm6Value();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm6U(Instruction* instr) {
   int32_t imm = instr->RvcImm6Value() & 0xFFFFF;
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
 }
 
 void Decoder::PrintRvcImm6Addi16sp(Instruction* instr) {
   int32_t imm = instr->RvcImm6Addi16spValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcShamt(Instruction* instr) {
   int32_t imm = instr->RvcShamt6();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm6Ldsp(Instruction* instr) {
   int32_t imm = instr->RvcImm6LdspValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm6Lwsp(Instruction* instr) {
   int32_t imm = instr->RvcImm6LwspValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm6Swsp(Instruction* instr) {
   int32_t imm = instr->RvcImm6SwspValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm6Sdsp(Instruction* instr) {
   int32_t imm = instr->RvcImm6SdspValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm5W(Instruction* instr) {
   int32_t imm = instr->RvcImm5WValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm5D(Instruction* instr) {
   int32_t imm = instr->RvcImm5DValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm8Addi4spn(Instruction* instr) {
   int32_t imm = instr->RvcImm8Addi4spnValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm11CJ(Instruction* instr) {
   int32_t imm = instr->RvcImm11CJValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintRvcImm8B(Instruction* instr) {
   int32_t imm = instr->RvcImm8BValue();
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
 }
 
 void Decoder::PrintAcquireRelease(Instruction* instr) {
   bool aq = instr->AqValue();
   bool rl = instr->RlValue();
   if (aq || rl) {
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, ".");
+    out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, ".");
   }
   if (aq) {
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "aq");
+    out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "aq");
   }
   if (rl) {
-    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "rl");
+    out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "rl");
   }
 }
 
@@ -381,7 +383,8 @@ void Decoder::PrintCSRReg(Instruction* instr) {
     default:
       UNREACHABLE();
   }
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
 }
 
 void Decoder::PrintRoundingMode(Instruction* instr) {
@@ -409,7 +412,8 @@ void Decoder::PrintRoundingMode(Instruction* instr) {
     default:
       UNREACHABLE();
   }
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
 }
 
 void Decoder::PrintMemoryOrder(Instruction* instr, bool is_pred) {
@@ -427,7 +431,8 @@ void Decoder::PrintMemoryOrder(Instruction* instr, bool is_pred) {
   if ((memOrder & PSW) == PSW) {
     s += "w";
   }
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
+  out_buffer_pos_ +=
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s", s.c_str());
 }
 
 // Printing of instruction name.
@@ -1793,8 +1798,8 @@ void Decoder::DecodeCBType(Instruction* instr) {
 int Decoder::InstructionDecode(byte* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
   // Print raw instruction bytes.
-  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%08x       ",
-                              instr->InstructionBits());
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%08x       ", instr->InstructionBits());
   switch (instr->InstructionType()) {
     case Instruction::kRType:
       DecodeRType(instr);
@@ -1859,7 +1864,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::internal::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 

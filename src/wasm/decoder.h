@@ -15,6 +15,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/memory.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/codegen/signature.h"
 #include "src/flags/flags.h"
@@ -356,7 +357,7 @@ class Decoder {
     if (!ok()) return;
     constexpr int kMaxErrorMsg = 256;
     base::EmbeddedVector<char, kMaxErrorMsg> buffer;
-    int len = VSNPrintF(buffer, format, args);
+    int len = base::VSNPrintF(buffer, format, args);
     CHECK_LT(0, len);
     error_ = {offset, {buffer.begin(), static_cast<size_t>(len)}};
     onFirstError();

@@ -8,6 +8,7 @@
 
 #include "include/v8-metrics.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
@@ -535,7 +536,7 @@ void GCTracer::Output(const char* format, ...) const {
   base::Vector<char> buffer(raw_buffer, kBufferSize);
   va_list arguments2;
   va_start(arguments2, format);
-  VSNPrintF(buffer, format, arguments2);
+  base::VSNPrintF(buffer, format, arguments2);
   va_end(arguments2);
 
   heap_->AddToRingBuffer(buffer.begin());

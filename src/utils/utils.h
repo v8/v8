@@ -560,15 +560,6 @@ void PRINTF_FORMAT(1, 2) PrintPID(const char* format, ...);
 // Prepends the current process ID and given isolate pointer to the output.
 void PRINTF_FORMAT(2, 3) PrintIsolate(void* isolate, const char* format, ...);
 
-// Safe formatting print. Ensures that str is always null-terminated.
-// Returns the number of chars written, or -1 if output was truncated.
-V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 3)
-    SNPrintF(base::Vector<char> str, const char* format, ...);
-V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 0)
-    VSNPrintF(base::Vector<char> str, const char* format, va_list args);
-
-void StrNCpy(base::Vector<char> dest, const char* src, size_t n);
-
 // Read a line of characters after printing the prompt to stdout. The resulting
 // char* needs to be disposed off with DeleteArray by the caller.
 char* ReadLine(const char* prompt);

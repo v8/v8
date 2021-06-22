@@ -13,6 +13,8 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
@@ -4318,7 +4320,7 @@ void PrintDisassembler::ProcessOutput(Instruction* instr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
@@ -4334,7 +4336,7 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
   if (ureg == v8::internal::kZeroRegCode) {
     return "xzr";
   }
-  v8::internal::SNPrintF(tmp_buffer_, "x%u", ureg);
+  v8::base::SNPrintF(tmp_buffer_, "x%u", ureg);
   return tmp_buffer_.begin();
 }
 
@@ -4364,8 +4366,8 @@ class BufferDisassembler : public v8::internal::DisassemblingDecoder {
   ~BufferDisassembler() {}
 
   virtual void ProcessOutput(v8::internal::Instruction* instr) {
-    v8::internal::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
-                           instr->InstructionBits(), GetOutput());
+    v8::base::SNPrintF(out_buffer_, "%08" PRIx32 "       %s",
+                       instr->InstructionBits(), GetOutput());
   }
 
  private:

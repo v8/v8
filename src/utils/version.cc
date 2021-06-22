@@ -6,6 +6,7 @@
 
 #include "include/v8-version-string.h"
 #include "include/v8-version.h"
+#include "src/base/strings.h"
 #include "src/utils/utils.h"
 
 // Define SONAME to have the build system put a specific SONAME into the
@@ -29,11 +30,11 @@ const char* Version::version_string_ = V8_VERSION_STRING;
 void Version::GetString(base::Vector<char> str) {
   const char* candidate = IsCandidate() ? " (candidate)" : "";
   if (GetPatch() > 0) {
-    SNPrintF(str, "%d.%d.%d.%d%s%s", GetMajor(), GetMinor(), GetBuild(),
-             GetPatch(), GetEmbedder(), candidate);
+    base::SNPrintF(str, "%d.%d.%d.%d%s%s", GetMajor(), GetMinor(), GetBuild(),
+                   GetPatch(), GetEmbedder(), candidate);
   } else {
-    SNPrintF(str, "%d.%d.%d%s%s", GetMajor(), GetMinor(), GetBuild(),
-             GetEmbedder(), candidate);
+    base::SNPrintF(str, "%d.%d.%d%s%s", GetMajor(), GetMinor(), GetBuild(),
+                   GetEmbedder(), candidate);
   }
 }
 
