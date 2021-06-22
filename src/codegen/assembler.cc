@@ -139,6 +139,38 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
   const int size_;
 };
 
+class OnHeapAssemblerBuffer : public AssemblerBuffer {
+ public:
+  OnHeapAssemblerBuffer(Isolate* isolate, Handle<Code> code, int size)
+      : isolate_(isolate), code_(code), size_(size) {}
+
+  byte* start() const override {
+    return reinterpret_cast<byte*>(code_->raw_instruction_start());
+  }
+
+  int size() const override { return size_; }
+
+  std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
+    DCHECK_LT(size(), new_size);
+    MaybeHandle<Code> code =
+        isolate_->factory()->NewEmptyCode(code_->kind(), new_size);
+    if (code.is_null()) {
+      FATAL("Cannot grow on heap assembler buffer");
+    }
+    return std::make_unique<OnHeapAssemblerBuffer>(
+        isolate_, code.ToHandleChecked(), new_size);
+  }
+
+  bool IsOnHeap() const override { return true; }
+
+  MaybeHandle<Code> code() const override { return code_; }
+
+ private:
+  Isolate* isolate_;
+  Handle<Code> code_;
+  const int size_;
+};
+
 static thread_local std::aligned_storage_t<sizeof(ExternalAssemblerBufferImpl),
                                            alignof(ExternalAssemblerBufferImpl)>
     tls_singleton_storage;
@@ -173,6 +205,15 @@ std::unique_ptr<AssemblerBuffer> ExternalAssemblerBuffer(void* start,
 
 std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size) {
   return std::make_unique<DefaultAssemblerBuffer>(size);
+}
+
+std::unique_ptr<AssemblerBuffer> NewOnHeapAssemblerBuffer(Isolate* isolate,
+                                                          int size) {
+  MaybeHandle<Code> code =
+      isolate->factory()->NewEmptyCode(CodeKind::BASELINE, size);
+  if (code.is_null()) return {};
+  return std::make_unique<OnHeapAssemblerBuffer>(isolate,
+                                                 code.ToHandleChecked(), size);
 }
 
 // -----------------------------------------------------------------------------

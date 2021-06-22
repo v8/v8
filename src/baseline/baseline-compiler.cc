@@ -246,24 +246,36 @@ const int kAverageBytecodeToInstructionRatio = 5;
 const int kAverageBytecodeToInstructionRatio = 7;
 #endif
 std::unique_ptr<AssemblerBuffer> AllocateBuffer(
-    Handle<BytecodeArray> bytecodes) {
+    Isolate* isolate, Handle<BytecodeArray> bytecodes,
+    BaselineCompiler::CodeLocation code_location) {
   int estimated_size;
   {
     DisallowHeapAllocation no_gc;
     estimated_size = BaselineCompiler::EstimateInstructionSize(*bytecodes);
   }
-  return NewAssemblerBuffer(RoundUp(estimated_size, 4 * KB));
+  // TODO(victorgomes): When compiling on heap, we allocate whatever is left
+  // over on the page with a minimum of the estimated_size.
+  switch (code_location) {
+    case BaselineCompiler::kOffHeap:
+      return NewAssemblerBuffer(RoundUp(estimated_size, 4 * KB));
+    case BaselineCompiler::kOnHeap:
+      // TODO(victorgomes): We're currently underestimating the size of the
+      // buffer, since we don't know how big the reloc info will be. We could
+      // use a separate zone vector for the RelocInfo.
+      return NewOnHeapAssemblerBuffer(isolate, estimated_size);
+  }
 }
 }  // namespace
 
 BaselineCompiler::BaselineCompiler(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_function_info,
-    Handle<BytecodeArray> bytecode)
+    Handle<BytecodeArray> bytecode, CodeLocation code_location)
     : isolate_(isolate),
       stats_(isolate->counters()->runtime_call_stats()),
       shared_function_info_(shared_function_info),
       bytecode_(bytecode),
-      masm_(isolate, CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
+      masm_(isolate, CodeObjectRequired::kNo,
+            AllocateBuffer(isolate, bytecode, code_location)),
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(isolate->allocator(), ZONE_NAME),
@@ -310,9 +322,20 @@ MaybeHandle<Code> BaselineCompiler::Build(Isolate* isolate) {
   // Allocate the bytecode offset table.
   Handle<ByteArray> bytecode_offset_table =
       bytecode_offset_table_builder_.ToBytecodeOffsetTable(isolate);
-  return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
-      .set_bytecode_offset_table(bytecode_offset_table)
-      .TryBuild();
+  if (masm_.IsOnHeap()) {
+    // We compiled on heap, we need to finalise the code object fields.
+    DCHECK(FLAG_sparkplug_on_heap);
+    // TODO(victorgomes): Use CodeDesc to handle on-heap-ness.
+    // We can then simply call TryBuild() here.
+    return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
+        .set_bytecode_offset_table(bytecode_offset_table)
+        .FinishBaselineCode(masm_.code().ToHandleChecked(),
+                            masm_.buffer_size());
+  } else {
+    return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
+        .set_bytecode_offset_table(bytecode_offset_table)
+        .TryBuild();
+  }
 }
 
 int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {

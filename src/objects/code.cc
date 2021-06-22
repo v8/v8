@@ -104,6 +104,11 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   CopyRelocInfoToByteArray(unchecked_relocation_info(), desc);
 
   // Unbox handles and relocate.
+  RelocateFromDesc(heap, desc);
+}
+
+void Code::RelocateFromDesc(Heap* heap, const CodeDesc& desc) {
+  // Unbox handles and relocate.
   Assembler* origin = desc.origin;
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {

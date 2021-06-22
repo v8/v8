@@ -660,6 +660,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Code> NewOffHeapTrampolineFor(Handle<Code> code,
                                        Address off_heap_entry);
 
+  MaybeHandle<Code> NewEmptyCode(CodeKind kind, int buffer_size);
+
   Handle<Code> CopyCode(Handle<Code> code);
 
   Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
@@ -843,6 +845,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     // Like Build, builds a new code object. May return an empty handle if the
     // allocation fails.
     V8_WARN_UNUSED_RESULT MaybeHandle<Code> TryBuild();
+    // Expects a baseline code object and finalizes all its fields.
+    V8_WARN_UNUSED_RESULT Handle<Code> FinishBaselineCode(Handle<Code> code,
+                                                          int buffer_size);
 
     // Sets the self-reference object in which a reference to the code object is
     // stored. This allows generated code to reference its own Code object by
@@ -925,6 +930,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
    private:
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
+    void SetCodeFields(Code raw_code, Handle<ByteArray> reloc_info,
+                       Handle<CodeDataContainer> data_container);
 
     Isolate* const isolate_;
     const CodeDesc& code_desc_;

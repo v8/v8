@@ -431,6 +431,7 @@ class Code : public HeapObject {
 
   // Migrate code from desc without flushing the instruction cache.
   void CopyFromNoFlush(Heap* heap, const CodeDesc& desc);
+  void RelocateFromDesc(Heap* heap, const CodeDesc& desc);
 
   // Copy the RelocInfo portion of |desc| to |dest|. The ByteArray must be
   // exactly the same size as the RelocInfo in |desc|.

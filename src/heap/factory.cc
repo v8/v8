@@ -81,6 +81,36 @@ Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
       kind_(kind),
       position_table_(isolate_->factory()->empty_byte_array()) {}
 
+void Factory::CodeBuilder::SetCodeFields(
+    Code raw_code, Handle<ByteArray> reloc_info,
+    Handle<CodeDataContainer> data_container) {
+  DisallowGarbageCollection no_gc;
+  constexpr bool kIsNotOffHeapTrampoline = false;
+
+  raw_code.set_raw_instruction_size(code_desc_.instruction_size());
+  raw_code.set_raw_metadata_size(code_desc_.metadata_size());
+  raw_code.set_relocation_info(*reloc_info);
+  raw_code.initialize_flags(kind_, is_turbofanned_, stack_slots_,
+                            kIsNotOffHeapTrampoline);
+  raw_code.set_builtin_id(builtin_);
+  // This might impact direct concurrent reads from TF if we are resetting this
+  // field. We currently assume it's immutable thus a relaxed read (after
+  // passing IsPendingAllocation).
+  raw_code.set_inlined_bytecode_size(inlined_bytecode_size_);
+  raw_code.set_code_data_container(*data_container, kReleaseStore);
+  raw_code.set_deoptimization_data(*deoptimization_data_);
+  if (kind_ == CodeKind::BASELINE) {
+    raw_code.set_bytecode_offset_table(*position_table_);
+  } else {
+    raw_code.set_source_position_table(*position_table_);
+  }
+  raw_code.set_handler_table_offset(code_desc_.handler_table_offset_relative());
+  raw_code.set_constant_pool_offset(code_desc_.constant_pool_offset_relative());
+  raw_code.set_code_comments_offset(code_desc_.code_comments_offset_relative());
+  raw_code.set_unwinding_info_offset(
+      code_desc_.unwinding_info_offset_relative());
+}
+
 MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     bool retry_allocation_or_fail) {
   const auto factory = isolate_->factory();
@@ -162,31 +192,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
           !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
           heap->code_region().contains(code->address()));
     }
-
-    constexpr bool kIsNotOffHeapTrampoline = false;
-
-    raw_code.set_raw_instruction_size(code_desc_.instruction_size());
-    raw_code.set_raw_metadata_size(code_desc_.metadata_size());
-    raw_code.set_relocation_info(*reloc_info);
-    raw_code.initialize_flags(kind_, is_turbofanned_, stack_slots_,
-                              kIsNotOffHeapTrampoline);
-    raw_code.set_builtin_id(builtin_);
-    raw_code.set_inlined_bytecode_size(inlined_bytecode_size_);
-    raw_code.set_code_data_container(*data_container, kReleaseStore);
-    raw_code.set_deoptimization_data(*deoptimization_data_);
-    if (kind_ == CodeKind::BASELINE) {
-      raw_code.set_bytecode_offset_table(*position_table_);
-    } else {
-      raw_code.set_source_position_table(*position_table_);
-    }
-    raw_code.set_handler_table_offset(
-        code_desc_.handler_table_offset_relative());
-    raw_code.set_constant_pool_offset(
-        code_desc_.constant_pool_offset_relative());
-    raw_code.set_code_comments_offset(
-        code_desc_.code_comments_offset_relative());
-    raw_code.set_unwinding_info_offset(
-        code_desc_.unwinding_info_offset_relative());
+    SetCodeFields(raw_code, reloc_info, data_container);
 
     // Allow self references to created code object by patching the handle to
     // point to the newly allocated Code object.
@@ -253,12 +259,107 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   return code;
 }
 
+MaybeHandle<Code> Factory::NewEmptyCode(CodeKind kind, int buffer_size) {
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+  const int object_size = Code::SizeFor(buffer_size);
+  Heap* heap = isolate()->heap();
+
+  // TODO(victorgomes): Move this RO space and use only 1 object per process.
+  Handle<ByteArray> empty_reloc_info = NewByteArray(0, AllocationType::kOld);
+
+  HeapObject result = heap->AllocateRawWith<Heap::kLightRetry>(
+      object_size, AllocationType::kCode, AllocationOrigin::kRuntime);
+  if (result.is_null()) return MaybeHandle<Code>();
+
+  DisallowGarbageCollection no_gc;
+  result.set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
+
+  Code raw_code = Code::cast(result);
+  constexpr bool kIsNotOffHeapTrampoline = false;
+  raw_code.set_raw_instruction_size(0);
+  raw_code.set_raw_metadata_size(buffer_size);
+  raw_code.set_relocation_info(*empty_reloc_info);
+  raw_code.initialize_flags(kind, false, 0, kIsNotOffHeapTrampoline);
+  raw_code.set_handler_table_offset(0);
+  raw_code.set_constant_pool_offset(0);
+  raw_code.set_code_comments_offset(0);
+  raw_code.set_unwinding_info_offset(0);
+
+  Handle<Code> code = handle(raw_code, isolate());
+  DCHECK(IsAligned(code->address(), kCodeAlignment));
+  DCHECK_IMPLIES(
+      !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
+      heap->code_region().contains(code->address()));
+
+  return code;
+}
+
 MaybeHandle<Code> Factory::CodeBuilder::TryBuild() {
   return BuildInternal(false);
 }
 
 Handle<Code> Factory::CodeBuilder::Build() {
   return BuildInternal(true).ToHandleChecked();
+}
+
+Handle<Code> Factory::CodeBuilder::FinishBaselineCode(Handle<Code> code,
+                                                      int buffer_size) {
+  DCHECK_EQ(code->kind(), CodeKind::BASELINE);
+  const auto factory = isolate_->factory();
+  Heap* heap = isolate_->heap();
+
+  // Allocate objects needed for code initialization.
+  Handle<ByteArray> reloc_info =
+      factory->NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
+  Handle<CodeDataContainer> data_container;
+  data_container = factory->NewCodeDataContainer(
+      0, read_only_data_container_ ? AllocationType::kReadOnly
+                                   : AllocationType::kOld);
+  data_container->set_kind_specific_flags(kind_specific_flags_);
+
+  STATIC_ASSERT(Code::kOnHeapBodyIsContiguous);
+  {
+    DisallowGarbageCollection no_gc;
+    heap->EnsureSweepingCompleted(code);
+    // TODO(victorgomes): we must notify the GC that code layout will change.
+    // However this is currently not supported.
+    SetCodeFields(*code, reloc_info, data_container);
+    code->CopyRelocInfoToByteArray(code->unchecked_relocation_info(),
+                                   code_desc_);
+    code->RelocateFromDesc(heap, code_desc_);
+    if (heap->code_lo_space()->Contains(*code)) {
+      // We cannot trim the Code object in CODE_LO_SPACE, so we update the
+      // metadata size to contain the extra bits.
+      code->set_raw_metadata_size(buffer_size - code_desc_.instruction_size());
+    } else {
+      // Trim the rest of the buffer.
+      // TODO(v8:11883): add a hook to GC to check if the filler is just before
+      // the current LAB, and if it is, immediately give back the memory.
+      int old_object_size = Code::SizeFor(buffer_size);
+      int new_object_size = Code::SizeFor(code_desc_.instruction_size() +
+                                          code_desc_.metadata_size());
+      int size_to_trim = old_object_size - new_object_size;
+      DCHECK_GE(size_to_trim, 0);
+      if (size_to_trim > 0) {
+        heap->CreateFillerObjectAt(code->address() + new_object_size,
+                                   size_to_trim, ClearRecordedSlots::kNo);
+      }
+    }
+    code->clear_padding();
+#ifdef VERIFY_HEAP
+    if (FLAG_verify_heap) code->ObjectVerify(isolate_);
+#endif
+  }
+
+  if (profiler_data_ && FLAG_turbo_profiling_verbose) {
+#ifdef ENABLE_DISASSEMBLER
+    std::ostringstream os;
+    code->Disassemble(nullptr, os, isolate_);
+    profiler_data_->SetCode(os);
+#endif  // ENABLE_DISASSEMBLER
+  }
+
+  return code;
 }
 
 HeapObject Factory::AllocateRaw(int size, AllocationType allocation,

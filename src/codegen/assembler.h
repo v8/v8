@@ -202,6 +202,8 @@ class AssemblerBuffer {
   // destructed), but not written.
   virtual std::unique_ptr<AssemblerBuffer> Grow(int new_size)
       V8_WARN_UNUSED_RESULT = 0;
+  virtual bool IsOnHeap() const { return false; }
+  virtual MaybeHandle<Code> code() const { return MaybeHandle<Code>(); }
 };
 
 // Allocate an AssemblerBuffer which uses an existing buffer. This buffer cannot
@@ -213,6 +215,10 @@ std::unique_ptr<AssemblerBuffer> ExternalAssemblerBuffer(void* buffer,
 // Allocate a new growable AssemblerBuffer with a given initial size.
 V8_EXPORT_PRIVATE
 std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size);
+
+V8_EXPORT_PRIVATE
+std::unique_ptr<AssemblerBuffer> NewOnHeapAssemblerBuffer(Isolate* isolate,
+                                                          int size);
 
 class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
  public:
@@ -273,6 +279,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 #else
     return pc_offset();
 #endif
+  }
+
+  bool IsOnHeap() const { return buffer_->IsOnHeap(); }
+
+  MaybeHandle<Code> code() const {
+    DCHECK(IsOnHeap());
+    return buffer_->code();
   }
 
   byte* buffer_start() const { return buffer_->start(); }
