@@ -752,7 +752,7 @@ class ModuleDecoderImpl : public Decoder {
           &table->initial_size, &table->has_maximum_size,
           std::numeric_limits<uint32_t>::max(), &table->maximum_size, flags);
       if (!table_type.is_defaultable()) {
-        table->initial_value = consume_init_expr(module_.get(), table_type, 0);
+        table->initial_value = consume_init_expr(module_.get(), table_type);
       }
     }
   }
@@ -777,14 +777,12 @@ class ModuleDecoderImpl : public Decoder {
     module_->globals.reserve(imported_globals + globals_count);
     for (uint32_t i = 0; ok() && i < globals_count; ++i) {
       TRACE("DecodeGlobal[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
-      // Add an uninitialized global and pass a pointer to it.
+      ValueType type = consume_value_type();
+      bool mutability = consume_mutability();
+      if (failed()) break;
+      WasmInitExpr init = consume_init_expr(module_.get(), type);
       module_->globals.push_back(
-          {kWasmVoid, false, WasmInitExpr(), {0}, false, false});
-      WasmGlobal* global = &module_->globals.back();
-      global->type = consume_value_type();
-      global->mutability = consume_mutability();
-      global->init =
-          consume_init_expr(module_.get(), global->type, imported_globals + i);
+          {type, mutability, std::move(init), {0}, false, false});
     }
     if (ok()) CalculateGlobalOffsets(module_.get());
   }
@@ -1386,7 +1384,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   WasmInitExpr DecodeInitExprForTesting(ValueType expected) {
-    return consume_init_expr(module_.get(), expected, 0);
+    return consume_init_expr(module_.get(), expected);
   }
 
   const std::shared_ptr<WasmModule>& shared_module() const { return module_; }
@@ -1689,8 +1687,7 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
-  WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected,
-                                 size_t current_global_index) {
+  WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected) {
     constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
     WasmOpcode opcode = kExprNop;
     std::vector<WasmInitExpr> stack;
@@ -1701,14 +1698,8 @@ class ModuleDecoderImpl : public Decoder {
         case kExprGlobalGet: {
           GlobalIndexImmediate<validate> imm(this, pc() + 1);
           len = 1 + imm.length;
-          // We use 'capacity' over 'size' because we might be
-          // mid-DecodeGlobalSection().
-          if (V8_UNLIKELY(imm.index >= module->globals.capacity())) {
-            error(pc() + 1, "global index is out of bounds");
-            return {};
-          }
-          if (V8_UNLIKELY(imm.index >= current_global_index)) {
-            errorf(pc() + 1, "global #%u is not defined yet", imm.index);
+          if (V8_UNLIKELY(imm.index >= module->globals.size())) {
+            errorf(pc() + 1, "Invalid global index: %u", imm.index);
             return {};
           }
           WasmGlobal* global = &module->globals[imm.index];
@@ -2189,8 +2180,7 @@ class ModuleDecoderImpl : public Decoder {
 
     WasmInitExpr offset;
     if (is_active) {
-      offset = consume_init_expr(module_.get(), kWasmI32,
-                                 module_.get()->globals.size());
+      offset = consume_init_expr(module_.get(), kWasmI32);
       // Failed to parse offset initializer, return early.
       if (failed()) return {};
     }
@@ -2262,12 +2252,11 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     // We know now that the flag is valid. Time to read the rest.
-    size_t num_globals = module_->globals.size();
     ValueType expected_type = module_->is_memory64 ? kWasmI64 : kWasmI32;
     if (flag == SegmentFlags::kActiveNoIndex) {
       *is_active = true;
       *index = 0;
-      *offset = consume_init_expr(module_.get(), expected_type, num_globals);
+      *offset = consume_init_expr(module_.get(), expected_type);
       return;
     }
     if (flag == SegmentFlags::kPassive) {
@@ -2277,7 +2266,7 @@ class ModuleDecoderImpl : public Decoder {
     if (flag == SegmentFlags::kActiveWithIndex) {
       *is_active = true;
       *index = consume_u32v("memory index");
-      *offset = consume_init_expr(module_.get(), expected_type, num_globals);
+      *offset = consume_init_expr(module_.get(), expected_type);
     }
   }
 

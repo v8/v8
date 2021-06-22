@@ -560,7 +560,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_GLOBAL_GET(42), kExprEnd)  // init value
   };
   EXPECT_FAILURE_WITH_MSG(referencing_out_of_bounds_global,
-                          "global index is out of bounds");
+                          "Invalid global index: 42");
 
   static const byte referencing_undefined_global[] = {
       SECTION(Global, ENTRY_COUNT(2),        // --
@@ -572,7 +572,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V(0), kExprEnd)        // init value
   };
   EXPECT_FAILURE_WITH_MSG(referencing_undefined_global,
-                          "global #1 is not defined yet");
+                          "Invalid global index: 1");
 
   {
     WASM_FEATURE_SCOPE(reftypes);
@@ -591,7 +591,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
                 WASM_RTT_CANON(0), kExprEnd)       // init value
     };
     EXPECT_FAILURE_WITH_MSG(referencing_undefined_global_nested,
-                            "global #1 is not defined yet");
+                            "Invalid global index: 1");
   }
 
   static const byte referencing_mutable_global[] = {
