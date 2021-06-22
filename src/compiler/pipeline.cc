@@ -3217,7 +3217,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembler_stream;
     Disassembler::Decode(
-        nullptr, &disassembler_stream, result.code_desc.buffer,
+        nullptr, disassembler_stream, result.code_desc.buffer,
         result.code_desc.buffer + result.code_desc.safepoint_table_offset,
         CodeReference(&result.code_desc));
     for (auto const c : disassembler_stream.str()) {
@@ -3326,7 +3326,7 @@ void Pipeline::GenerateCodeForWasmFunction(
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembler_stream;
     Disassembler::Decode(
-        nullptr, &disassembler_stream, result->code_desc.buffer,
+        nullptr, disassembler_stream, result->code_desc.buffer,
         result->code_desc.buffer + result->code_desc.safepoint_table_offset,
         CodeReference(&result->code_desc));
     for (auto const c : disassembler_stream.str()) {

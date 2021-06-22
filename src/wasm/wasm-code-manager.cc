@@ -381,7 +381,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   }
   DCHECK_LT(0, instruction_size);
   os << "Instructions (size = " << instruction_size << ")\n";
-  Disassembler::Decode(nullptr, &os, instructions().begin(),
+  Disassembler::Decode(nullptr, os, instructions().begin(),
                        instructions().begin() + instruction_size,
                        CodeReference(this), current_pc);
   os << "\n";

@@ -478,7 +478,7 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
   AllowHandleAllocation allow_handles;
   DisallowGarbageCollection no_gc;
   HandleScope handle_scope(isolate);
-  Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
+  Disassembler::Decode(isolate, os, reinterpret_cast<byte*>(begin),
                        reinterpret_cast<byte*>(end),
                        CodeReference(handle(code, isolate)), current_pc);
 }

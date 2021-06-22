@@ -1093,14 +1093,10 @@ class DebugInfoSection : public DebugSection {
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
       int current_abbreviation = 4;
 
-      base::EmbeddedVector<char, 256> buffer;
-      StringBuilder builder(buffer.begin(), buffer.length());
-
       for (int param = 0; param < params; ++param) {
         w->WriteULEB128(current_abbreviation++);
-        builder.Reset();
-        builder.AddFormatted("param%d", param);
-        w->WriteString(builder.Finalize());
+        w->WriteString("param");
+        w->Write(std::to_string(param).c_str());
         w->Write<uint32_t>(ty_offset);
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
@@ -1124,9 +1120,8 @@ class DebugInfoSection : public DebugSection {
 
       for (int context_slot = 0; context_slot < context_slots; ++context_slot) {
         w->WriteULEB128(current_abbreviation++);
-        builder.Reset();
-        builder.AddFormatted("context_slot%d", context_slot + internal_slots);
-        w->WriteString(builder.Finalize());
+        w->WriteString("context_slot");
+        w->Write(std::to_string(context_slot + internal_slots).c_str());
       }
 
       {
@@ -2024,14 +2019,12 @@ void EventHandler(const v8::JitCodeEvent* event) {
       Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
       Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
       LineInfo* lineinfo = GetLineInfo(addr);
-      base::EmbeddedVector<char, 256> buffer;
-      StringBuilder builder(buffer.begin(), buffer.length());
-      builder.AddSubstring(event->name.str, static_cast<int>(event->name.len));
+      std::string event_name(event->name.str, event->name.len);
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
       SharedFunctionInfo shared = event->script.IsEmpty()
                                       ? SharedFunctionInfo()
                                       : *Utils::OpenHandle(*event->script);
-      AddCode(builder.Finalize(), code, shared, lineinfo);
+      AddCode(event_name.c_str(), code, shared, lineinfo);
       break;
     }
     case v8::JitCodeEvent::CODE_MOVED:

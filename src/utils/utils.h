@@ -656,21 +656,6 @@ V8_EXPORT_PRIVATE std::string ReadFile(const char* filename, bool* exists,
 V8_EXPORT_PRIVATE std::string ReadFile(FILE* file, bool* exists,
                                        bool verbose = true);
 
-class StringBuilder : public SimpleStringBuilder {
- public:
-  explicit StringBuilder(int size) : SimpleStringBuilder(size) {}
-  StringBuilder(char* buffer, int size) : SimpleStringBuilder(buffer, size) {}
-
-  // Add formatted contents to the builder just like printf().
-  void PRINTF_FORMAT(2, 3) AddFormatted(const char* format, ...);
-
-  // Add formatted contents like printf based on a va_list.
-  void PRINTF_FORMAT(2, 0) AddFormattedList(const char* format, va_list list);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
-};
-
 bool DoubleToBoolean(double d);
 
 template <typename Char>

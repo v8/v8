@@ -273,23 +273,6 @@ int WriteBytes(const char* filename, const byte* bytes, int size,
   return WriteChars(filename, str, size, verbose);
 }
 
-void StringBuilder::AddFormatted(const char* format, ...) {
-  va_list arguments;
-  va_start(arguments, format);
-  AddFormattedList(format, arguments);
-  va_end(arguments);
-}
-
-void StringBuilder::AddFormattedList(const char* format, va_list list) {
-  DCHECK(!is_finalized() && position_ <= buffer_.length());
-  int n = VSNPrintF(buffer_ + position_, format, list);
-  if (n < 0 || n >= (buffer_.length() - position_)) {
-    position_ = buffer_.length();
-  } else {
-    position_ += n;
-  }
-}
-
 // Returns false iff d is NaN, +0, or -0.
 bool DoubleToBoolean(double d) {
   IeeeDoubleArchType u;

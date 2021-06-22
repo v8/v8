@@ -236,7 +236,7 @@ AssemblerBase::~AssemblerBase() = default;
 
 void AssemblerBase::Print(Isolate* isolate) {
   StdoutStream os;
-  v8::internal::Disassembler::Decode(isolate, &os, buffer_start_, pc_);
+  v8::internal::Disassembler::Decode(isolate, os, buffer_start_, pc_);
 }
 
 // -----------------------------------------------------------------------------
