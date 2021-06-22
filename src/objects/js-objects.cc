@@ -2330,8 +2330,11 @@ int JSObject::GetHeaderSize(InstanceType type,
     case WASM_EXCEPTION_OBJECT_TYPE:
       return WasmExceptionObject::kHeaderSize;
 #endif  // V8_ENABLE_WEBASSEMBLY
-    default:
-      UNREACHABLE();
+    default: {
+      std::stringstream ss;
+      ss << type;
+      FATAL("unexpected instance type: %s\n", ss.str().c_str());
+    }
   }
 }
 
