@@ -295,10 +295,9 @@ void Decoder::PrintSs3(Instruction* instr) {
 // Print the integer value of dinsm size from the msbminus32 and lsb fields.
 void Decoder::PrintSs4(Instruction* instr) {
   int msbminus32 = instr->RdValue();
-  int lsb = instr->S_buffer_pos_ +=
-
-      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d",
-                     msbminus32 + 32 - lsb + 1);
+  int lsb = instr->SaValue();
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d",
+                                    msbminus32 + 32 - lsb + 1);
 }
 
 // Print the integer value of dextu/dinsu pos from the lsbminus32 field.
@@ -316,7 +315,7 @@ void Decoder::PrintBc(Instruction* instr) {
 
 // Print the integer value of the cc field for the FP compare instructions.
 void Decoder::PrintCc(Instruction* instr) {
-  int cc = instr->FC ccValue();
+  int cc = instr->FCccValue();
   out_buffer_pos_ +=
       base::SNPrintF(out_buffer_ + out_buffer_pos_, "cc(%d)", cc);
 }
@@ -358,9 +357,9 @@ void Decoder::PrintXImm16(Instruction* instr) {
 void Decoder::PrintPCImm16(Instruction* instr, int delta_pc, int n_bits) {
   int16_t offset = instr->Imm16Value();
   out_buffer_pos_ +=
-      base::SNP rintF(out_buffer_ + out_buffer_pos_, "%s",
-                      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                               delta_pc + (offset << n_bits)));
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
+                     converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
+                                              delta_pc + (offset << n_bits)));
 }
 
 // Print 18-bit signed immediate value.
@@ -415,9 +414,9 @@ void Decoder::PrintPCImm21(Instruction* instr, int delta_pc, int n_bits) {
   imm21 <<= (32 - kImm21Bits);
   imm21 >>= (32 - kImm21Bits);
   out_buffer_pos_ +=
-      base::SNP rintF(out_buffer_ + out_buffer_pos_, "%s",
-                      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                               delta_pc + (imm21 << n_bits)));
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
+                     converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
+                                              delta_pc + (imm21 << n_bits)));
 }
 
 // Print 26-bit hex immediate value.
@@ -447,9 +446,9 @@ void Decoder::PrintPCImm26(Instruction* instr, int delta_pc, int n_bits) {
   imm26 <<= (32 - kImm26Bits);
   imm26 >>= (32 - kImm26Bits);
   out_buffer_pos_ +=
-      base::SNP rintF(out_buffer_ + out_buffer_pos_, "%s",
-                      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
-                                               delta_pc + (imm26 << n_bits)));
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
+                     converter_.NameOfAddress(reinterpret_cast<byte*>(instr) +
+                                              delta_pc + (imm26 << n_bits)));
 }
 
 // Print absoulte address for 26-bit offset or immediate value.
@@ -460,8 +459,8 @@ void Decoder::PrintPCImm26(Instruction* instr) {
   uint64_t pc_mask = ~0xFFFFFFF;
   uint64_t pc = ((uint64_t)(instr + 1) & pc_mask) | (imm26 << 2);
   out_buffer_pos_ +=
-      base::SNP rintF(out_buffer_ + out_buffer_pos_, "%s",
-                      converter_.NameOfAddress((reinterpret_cast<byte*>(pc))));
+      base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s",
+                     converter_.NameOfAddress((reinterpret_cast<byte*>(pc))));
 }
 
 void Decoder::PrintBp2(Instruction* instr) {
@@ -480,10 +479,9 @@ void Decoder::PrintCode(Instruction* instr) {
     return;  // Not a break or trap instruction.
   switch (instr->FunctionFieldRaw()) {
     case BREAK: {
-      int32_t code = ins_buffer_pos_ +=
-
-          base::SNPrintF(out_buffer_ + out_buffer_pos_, "0x%05x (%d)", code,
-                         code);
+      int32_t code = instr->Bits(25, 6);
+      out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "0x%05x (%d)", code, code);
       break;
     }
     case TGE:
@@ -544,9 +542,10 @@ void Decoder::PrintMsaImmElm(Instruction* instr) {
 void Decoder::PrintMsaCopy(Instruction* instr) {
   int32_t rd = instr->WdValue();
   int32_t ws = instr->WsValue();
-  int32_t n = instr - buffer_pos_ +=
-      rintF(out_buffer_ + out_buffer_po _, "%s, %s[%u]",
-            converter_.NameOfCPURegister(rd), MSARegisters::Name(ws), n);
+  int32_t n = instr->MsaElmNValue();
+  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_, "%s, %s[%u]",
+                                    converter_.NameOfCPURegister(rd),
+                                    MSARegisters::Name(ws), n);
 }
 
 void Decoder::PrintFormat(Instruction* instr) {
@@ -2976,7 +2975,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 

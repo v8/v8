@@ -36,6 +36,7 @@ T Nabs(T a) {
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
+#include "src/base/strings.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/mips/constants-mips.h"
 #include "src/execution/simulator-base.h"
@@ -548,7 +549,7 @@ class Simulator : public SimulatorBase {
             instr->OpcodeValue());
     }
     InstructionDecode(instr);
-    SNPrintF(trace_buf_, " ");
+    base::SNPrintF(trace_buf_, " ");
   }
 
   // ICache.

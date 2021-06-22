@@ -16,6 +16,7 @@
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -62,8 +63,8 @@ static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
 
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent was through
-// ::v8::internal::OS in the same way as SNPrintF is that the Windows C Run-Time
-// Library does not provide vsscanf.
+// ::v8::internal::OS in the same way as base::SNPrintF is that the Windows C
+// Run-Time Library does not provide vsscanf.
 #define SScanF sscanf
 
 // The MipsDebugger class is used by the simulator while debugging simulated
@@ -1578,35 +1579,36 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
 
     switch (t) {
       case WORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
-                 " uint32:%" PRIu32,
-                 v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
+                       " uint32:%" PRIu32,
+                       v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0]);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "    (%" PRId64 ")    int64:%" PRId64
-                 " uint64:%" PRIu64,
-                 value, icount_, value, value);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "    (%" PRId64 ")    int64:%" PRId64
+                       " uint64:%" PRIu64,
+                       value, icount_, value, value);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    flt:%e",
-                 v.fmt_int64, icount_, v.fmt_float[0]);
+        base::SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    flt:%e",
+                       v.fmt_int64, icount_, v.fmt_float[0]);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    dbl:%e",
-                 v.fmt_int64, icount_, v.fmt_double);
+        base::SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    dbl:%e",
+                       v.fmt_int64, icount_, v.fmt_double);
         break;
       case FLOAT_DOUBLE:
-        SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    flt:%e dbl:%e",
-                 v.fmt_int64, icount_, v.fmt_float[0], v.fmt_double);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "    (%" PRId64 ")    flt:%e dbl:%e",
+                       v.fmt_int64, icount_, v.fmt_float[0], v.fmt_double);
         break;
       case WORD_DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
-                 " uint32:%" PRIu32 " int64:%" PRId64 " uint64:%" PRIu64,
-                 v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0],
-                 v.fmt_int64, v.fmt_int64);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
+                       " uint32:%" PRIu32 " int64:%" PRId64 " uint64:%" PRIu64,
+                       v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0],
+                       v.fmt_int64, v.fmt_int64);
         break;
       default:
         UNREACHABLE();
@@ -1628,38 +1630,41 @@ void Simulator::TraceMSARegWr(T* value, TraceType t) {
     memcpy(v.b, value, kSimd128Size);
     switch (t) {
       case BYTE:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-                 v.d[0], v.d[1], icount_);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")",
+                       v.d[0], v.d[1], icount_);
         break;
       case HALF:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-                 v.d[0], v.d[1], icount_);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")",
+                       v.d[0], v.d[1], icount_);
         break;
       case WORD:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-                 ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
-                 "  %" PRId32,
-                 v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
+                       "  %" PRId32,
+                       v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-                 v.d[0], v.d[1], icount_);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")",
+                       v.d[0], v.d[1], icount_);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-                 ")    flt[0..3]:%e  %e  %e  %e",
-                 v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")    flt[0..3]:%e  %e  %e  %e",
+                       v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-                 ")    dbl[0..1]:%e  %e",
-                 v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")    dbl[0..1]:%e  %e",
+                       v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
         break;
       default:
         UNREACHABLE();
@@ -1681,25 +1686,25 @@ void Simulator::TraceMSARegWr(T* value) {
     memcpy(v.b, value, kMSALanesByte);
 
     if (std::is_same<T, int32_t>::value) {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-               ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
-               "  %" PRId32,
-               v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
+      base::SNPrintF(trace_buf_,
+                     "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                     ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
+                     "  %" PRId32,
+                     v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
     } else if (std::is_same<T, float>::value) {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-               ")    flt[0..3]:%e  %e  %e  %e",
-               v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
+      base::SNPrintF(trace_buf_,
+                     "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                     ")    flt[0..3]:%e  %e  %e  %e",
+                     v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
     } else if (std::is_same<T, double>::value) {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-               ")    dbl[0..1]:%e  %e",
-               v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
+      base::SNPrintF(trace_buf_,
+                     "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                     ")    dbl[0..1]:%e  %e",
+                     v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
     } else {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-               v.d[0], v.d[1], icount_);
+      base::SNPrintF(trace_buf_,
+                     "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
+                     v.d[0], v.d[1], icount_);
     }
   }
 }
@@ -1717,34 +1722,36 @@ void Simulator::TraceMemRd(int64_t addr, int64_t value, TraceType t) {
 
     switch (t) {
       case WORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    int32:%" PRId32 " uint32:%" PRIu32,
-                 v.fmt_int64, addr, icount_, v.fmt_int32[0], v.fmt_int32[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    int32:%" PRId32 " uint32:%" PRIu32,
+                       v.fmt_int64, addr, icount_, v.fmt_int32[0],
+                       v.fmt_int32[0]);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    int64:%" PRId64 " uint64:%" PRIu64,
-                 value, addr, icount_, value, value);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    int64:%" PRId64 " uint64:%" PRIu64,
+                       value, addr, icount_, value, value);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    flt:%e",
-                 v.fmt_int64, addr, icount_, v.fmt_float[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    flt:%e",
+                       v.fmt_int64, addr, icount_, v.fmt_float[0]);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    dbl:%e",
-                 v.fmt_int64, addr, icount_, v.fmt_double);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    dbl:%e",
+                       v.fmt_int64, addr, icount_, v.fmt_double);
         break;
       case FLOAT_DOUBLE:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    flt:%e dbl:%e",
-                 v.fmt_int64, addr, icount_, v.fmt_float[0], v.fmt_double);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    flt:%e dbl:%e",
+                       v.fmt_int64, addr, icount_, v.fmt_float[0],
+                       v.fmt_double);
         break;
       default:
         UNREACHABLE();
@@ -1756,26 +1763,27 @@ void Simulator::TraceMemWr(int64_t addr, int64_t value, TraceType t) {
   if (::v8::internal::FLAG_trace_sim) {
     switch (t) {
       case BYTE:
-        SNPrintF(trace_buf_,
-                 "               %02" PRIx8 " --> [%016" PRIx64 "]    (%" PRId64
-                 ")",
-                 static_cast<uint8_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "               %02" PRIx8 " --> [%016" PRIx64
+                       "]    (%" PRId64 ")",
+                       static_cast<uint8_t>(value), addr, icount_);
         break;
       case HALF:
-        SNPrintF(trace_buf_,
-                 "            %04" PRIx16 " --> [%016" PRIx64 "]    (%" PRId64
-                 ")",
-                 static_cast<uint16_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "            %04" PRIx16 " --> [%016" PRIx64
+                       "]    (%" PRId64 ")",
+                       static_cast<uint16_t>(value), addr, icount_);
         break;
       case WORD:
-        SNPrintF(trace_buf_,
-                 "        %08" PRIx32 " --> [%016" PRIx64 "]    (%" PRId64 ")",
-                 static_cast<uint32_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "        %08" PRIx32 " --> [%016" PRIx64 "]    (%" PRId64
+                       ")",
+                       static_cast<uint32_t>(value), addr, icount_);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  --> [%016" PRIx64 "]    (%" PRId64 " )",
-                 value, addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  --> [%016" PRIx64 "]    (%" PRId64 " )",
+                       value, addr, icount_);
         break;
       default:
         UNREACHABLE();
@@ -1788,32 +1796,35 @@ void Simulator::TraceMemRd(int64_t addr, T value) {
   if (::v8::internal::FLAG_trace_sim) {
     switch (sizeof(T)) {
       case 1:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx8 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int8:%" PRId8 " uint8:%" PRIu8,
-                 static_cast<uint8_t>(value), addr, icount_,
-                 static_cast<int8_t>(value), static_cast<uint8_t>(value));
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx8 " <-- [%08" PRIx64 "]    (%" PRIu64
+                       ")    int8:%" PRId8 " uint8:%" PRIu8,
+                       static_cast<uint8_t>(value), addr, icount_,
+                       static_cast<int8_t>(value), static_cast<uint8_t>(value));
         break;
       case 2:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx16 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int16:%" PRId16 " uint16:%" PRIu16,
-                 static_cast<uint16_t>(value), addr, icount_,
-                 static_cast<int16_t>(value), static_cast<uint16_t>(value));
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx16 " <-- [%08" PRIx64 "]    (%" PRIu64
+                       ")    int16:%" PRId16 " uint16:%" PRIu16,
+                       static_cast<uint16_t>(value), addr, icount_,
+                       static_cast<int16_t>(value),
+                       static_cast<uint16_t>(value));
         break;
       case 4:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx32 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int32:%" PRId32 " uint32:%" PRIu32,
-                 static_cast<uint32_t>(value), addr, icount_,
-                 static_cast<int32_t>(value), static_cast<uint32_t>(value));
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx32 " <-- [%08" PRIx64 "]    (%" PRIu64
+                       ")    int32:%" PRId32 " uint32:%" PRIu32,
+                       static_cast<uint32_t>(value), addr, icount_,
+                       static_cast<int32_t>(value),
+                       static_cast<uint32_t>(value));
         break;
       case 8:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx64 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int64:%" PRId64 " uint64:%" PRIu64,
-                 static_cast<uint64_t>(value), addr, icount_,
-                 static_cast<int64_t>(value), static_cast<uint64_t>(value));
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx64 " <-- [%08" PRIx64 "]    (%" PRIu64
+                       ")    int64:%" PRId64 " uint64:%" PRIu64,
+                       static_cast<uint64_t>(value), addr, icount_,
+                       static_cast<int64_t>(value),
+                       static_cast<uint64_t>(value));
         break;
       default:
         UNREACHABLE();
@@ -1826,24 +1837,25 @@ void Simulator::TraceMemWr(int64_t addr, T value) {
   if (::v8::internal::FLAG_trace_sim) {
     switch (sizeof(T)) {
       case 1:
-        SNPrintF(trace_buf_,
-                 "      %02" PRIx8 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint8_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "      %02" PRIx8 " --> [%08" PRIx64 "]    (%" PRIu64
+                       ")",
+                       static_cast<uint8_t>(value), addr, icount_);
         break;
       case 2:
-        SNPrintF(trace_buf_,
-                 "    %04" PRIx16 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint16_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "    %04" PRIx16 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                       static_cast<uint16_t>(value), addr, icount_);
         break;
       case 4:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx32 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint32_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx32 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                       static_cast<uint32_t>(value), addr, icount_);
         break;
       case 8:
-        SNPrintF(trace_buf_,
-                 "%16" PRIx64 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint64_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "%16" PRIx64 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                       static_cast<uint64_t>(value), addr, icount_);
         break;
       default:
         UNREACHABLE();
@@ -7319,7 +7331,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
   v8::base::EmbeddedVector<char, 256> buffer;
 
   if (::v8::internal::FLAG_trace_sim) {
-    SNPrintF(trace_buf_, " ");
+    base::SNPrintF(trace_buf_, " ");
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // Use a reasonably large buffer.

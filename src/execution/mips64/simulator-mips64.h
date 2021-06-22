@@ -36,6 +36,7 @@ T Nabs(T a) {
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
+#include "src/base/strings.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/mips64/constants-mips64.h"
 #include "src/execution/simulator-base.h"
