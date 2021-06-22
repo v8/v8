@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --sparkplug --no-always-sparkplug --sparkplug-filter="test*"
+// Flags: --sparkplug --no-always-sparkplug --sparkplug-filter="-"
 // Flags: --allow-natives-syntax --expose-gc --no-always-opt
 // Flags: --baseline-batch-compilation --baseline-batch-compilation-threshold=200
-// Flags: --scale-factor-for-feedback-allocation=4
 
 // Flags to drive Fuzzers into the right direction
 // TODO(v8:11853): Remove these flags once fuzzers handle flag implications
@@ -26,7 +25,7 @@
 
   %NeverOptimizeFunction(test1);
   // Trigger bytecode budget interrupt for test1.
-  for (let i=0; i<5; ++i) {
+  for (let i=1; i<10000; ++i) {
     test1(i,4711);
   }
   // Shouldn't be compiled because of batch compilation.
@@ -34,7 +33,7 @@
 
   %NeverOptimizeFunction(test2);
   // Trigger bytecode budget interrupt for test2.
-  for (let i=0; i<5; ++i) {
+  for (let i=1; i<10000; ++i) {
     test2(i,4711);
   }
 
@@ -56,8 +55,7 @@
     return (a + b + 11) * 42 / a % b;
   }
 
-  %NeverOptimizeFunction(test_weak);
-  for (let i=0; i<5; ++i) {
+  for (let i=1; i<100000; ++i) {
     test_weak(i,4711);
   }
 
@@ -65,7 +63,7 @@
 
   %NeverOptimizeFunction(test2);
   // Trigger bytecode budget interrupt for test2.
-  for (let i=0; i<5; ++i) {
+  for (let i=1; i<1000; ++i) {
     test2(i,4711);
   }
 
