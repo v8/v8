@@ -4561,7 +4561,9 @@ base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
 
 bool MapRef::TrySerializeOwnDescriptor(InternalIndex descriptor_index) {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap()) return true;
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    return true;
+  }
   CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
                 broker()->mode() == JSHeapBroker::kSerializing);
   return data()->AsMap()->TrySerializeOwnDescriptor(broker(), descriptor_index);
@@ -4573,7 +4575,9 @@ void MapRef::SerializeOwnDescriptor(InternalIndex descriptor_index) {
 
 bool MapRef::serialized_own_descriptor(InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap()) return true;
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    return true;
+  }
   ObjectData* maybe_desc_array_data = data()->AsMap()->instance_descriptors();
   if (!maybe_desc_array_data) return false;
   if (maybe_desc_array_data->should_access_heap()) return true;
