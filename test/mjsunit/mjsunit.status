@@ -996,6 +996,9 @@
 
   # https://crbug.com/v8/9984
   'compiler/opt-higher-order-functions': [SKIP],
+
+  # BUG(v8:11656) Skipped until we make progress on NumFuzz.
+  'baseline/test-osr': [SKIP],
 }],  # 'deopt_fuzzer'
 
 ##############################################################################
@@ -1032,6 +1035,8 @@
   'regress/regrtoess-v8-9267-*': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
+  # BUG(v8:11656) Skipped until we make progress on NumFuzz.
+  'baseline/test-osr': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
