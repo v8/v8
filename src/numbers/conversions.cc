@@ -20,7 +20,6 @@
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/allocation.h"
-#include "src/utils/utils.h"
 
 #if defined(_STLP_VENDOR_CSTD)
 // STLPort doesn't import fpclassify into the std namespace.
@@ -31,6 +30,113 @@
 
 namespace v8 {
 namespace internal {
+
+// Helper class for building result strings in a character buffer. The
+// purpose of the class is to use safe operations that checks the
+// buffer bounds on all operations in debug mode.
+// This simple base class does not allow formatted output.
+class SimpleStringBuilder {
+ public:
+  // Create a string builder with a buffer of the given size. The
+  // buffer is allocated through NewArray<char> and must be
+  // deallocated by the caller of Finalize().
+  explicit SimpleStringBuilder(int size) {
+    buffer_ = base::Vector<char>::New(size);
+    position_ = 0;
+  }
+
+  SimpleStringBuilder(char* buffer, int size)
+      : buffer_(buffer, size), position_(0) {}
+
+  ~SimpleStringBuilder() {
+    if (!is_finalized()) Finalize();
+  }
+
+  // Get the current position in the builder.
+  int position() const {
+    DCHECK(!is_finalized());
+    return position_;
+  }
+
+  // Add a single character to the builder. It is not allowed to add
+  // 0-characters; use the Finalize() method to terminate the string
+  // instead.
+  void AddCharacter(char c) {
+    DCHECK_NE(c, '\0');
+    DCHECK(!is_finalized() && position_ < buffer_.length());
+    buffer_[position_++] = c;
+  }
+
+  // Add an entire string to the builder. Uses strlen() internally to
+  // compute the length of the input string.
+  void AddString(const char* s) {
+    size_t len = strlen(s);
+    DCHECK_GE(kMaxInt, len);
+    AddSubstring(s, static_cast<int>(len));
+  }
+
+  // Add the first 'n' characters of the given 0-terminated string 's' to the
+  // builder. The input string must have enough characters.
+  void AddSubstring(const char* s, int n) {
+    DCHECK(!is_finalized() && position_ + n <= buffer_.length());
+    DCHECK_LE(n, strlen(s));
+    std::memcpy(&buffer_[position_], s, n * kCharSize);
+    position_ += n;
+  }
+
+  // Add character padding to the builder. If count is non-positive,
+  // nothing is added to the builder.
+  void AddPadding(char c, int count) {
+    for (int i = 0; i < count; i++) {
+      AddCharacter(c);
+    }
+  }
+
+  // Add the decimal representation of the value.
+  void AddDecimalInteger(int value) {
+    uint32_t number = static_cast<uint32_t>(value);
+    if (value < 0) {
+      AddCharacter('-');
+      number = static_cast<uint32_t>(-value);
+    }
+    int digits = 1;
+    for (uint32_t factor = 10; digits < 10; digits++, factor *= 10) {
+      if (factor > number) break;
+    }
+    position_ += digits;
+    for (int i = 1; i <= digits; i++) {
+      buffer_[position_ - i] = '0' + static_cast<char>(number % 10);
+      number /= 10;
+    }
+  }
+
+  // Finalize the string by 0-terminating it and returning the buffer.
+  char* Finalize() {
+    DCHECK(!is_finalized() && position_ <= buffer_.length());
+    // If there is no space for null termination, overwrite last character.
+    if (position_ == buffer_.length()) {
+      position_--;
+      // Print ellipsis.
+      for (int i = 3; i > 0 && position_ > i; --i) buffer_[position_ - i] = '.';
+    }
+    buffer_[position_] = '\0';
+    // Make sure nobody managed to add a 0-character to the
+    // buffer while building the string.
+    DCHECK(strlen(buffer_.begin()) == static_cast<size_t>(position_));
+    position_ = -1;
+    DCHECK(is_finalized());
+    return buffer_.begin();
+  }
+
+ protected:
+  base::Vector<char> buffer_;
+  int position_;
+
+  bool is_finalized() const { return position_ < 0; }
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
+};
 
 inline double JunkStringValue() {
   return bit_cast<double, uint64_t>(kQuietNaNMask);
