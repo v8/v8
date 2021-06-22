@@ -90,7 +90,7 @@ DOM.defineCustomElement(
         if (typeof content === 'string') {
           this.contentNode.innerHTML = content;
           this.contentNode.className = 'textContent';
-        } else if (content?.nodeType && nodeType?.nodeName) {
+        } else if (content?.nodeType && content?.nodeName) {
           this._setContentNode(content);
         } else {
           if (this.contentNode.firstChild?.localName == 'property-link-table') {

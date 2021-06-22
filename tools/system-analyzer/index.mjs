@@ -312,7 +312,8 @@ class App {
 
   handleToolTip(event) {
     let content = event.content;
-    if (typeof content !== 'string') {
+    if (typeof content !== 'string' &&
+        !(content?.nodeType && content?.nodeName)) {
       content = content?.toolTipDict;
     }
     if (!content) {

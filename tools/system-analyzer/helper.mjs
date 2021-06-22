@@ -26,6 +26,17 @@ export function delay(time) {
   return new Promise(resolver => setTimeout(resolver, time));
 }
 
+export function defer() {
+  let resolve_func, reject_func;
+  const p = new Promise((resolve, reject) => {
+    resolve_func = resolve;
+    reject_func = resolve;
+  });
+  p.resolve = resolve_func;
+  p.reject = reject_func;
+  return p;
+}
+
 export class Group {
   constructor(key, id, parentTotal, entries) {
     this.key = key;
