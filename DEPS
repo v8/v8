@@ -41,6 +41,7 @@ vars = {
   'android_url': 'https://android.googlesource.com',
   'download_gcmole': False,
   'download_jsfunfuzz': False,
+  'download_prebuilt_bazel': False,
   'check_v8_header_includes': False,
 
   # GN CIPD package version.
@@ -340,6 +341,17 @@ hooks = [
         'build/landmines.py',
         '--landmine-scripts',
         'tools/get_landmines.py',
+    ],
+  },
+  {
+    'name': 'bazel',
+    'pattern': '.',
+    'condition': 'download_prebuilt_bazel',
+    'action': [ 'download_from_google_storage',
+                '--bucket', 'chromium-v8-prebuilt-bazel/linux',
+                '--no_resume',
+                '-s', 'tools/bazel/bazel.sha1',
+                '--platform=linux*',
     ],
   },
   # Pull clang-format binaries using checked-in hashes.
