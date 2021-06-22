@@ -3605,7 +3605,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
         uint8_t bmask = static_cast<uint8_t>(0xff << shift);
         uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
-        __ Move(tmp, mask);
+        __ movl(tmp, Immediate(mask));
         __ Movd(tmp_simd, tmp);
         __ Pshufd(tmp_simd, tmp_simd, uint8_t{0});
         __ Pand(dst, tmp_simd);
@@ -3721,7 +3721,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
         uint8_t bmask = 0xff >> shift;
         uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
-        __ Move(tmp, mask);
+        __ movl(tmp, Immediate(mask));
         __ Movd(tmp_simd, tmp);
         __ Pshufd(tmp_simd, tmp_simd, byte{0});
         __ Pand(dst, tmp_simd);
@@ -4956,7 +4956,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           if (value == 0) {
             __ xorl(dst, dst);
           } else {
-            __ Move(dst, value);
+            __ movl(dst, Immediate(value));
           }
         }
         break;
@@ -5120,11 +5120,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsFPStackSlot());
         if (src.type() == Constant::kFloat32) {
-          __ Move(dst, bit_cast<uint32_t>(src.ToFloat32()));
+          __ movl(dst, Immediate(bit_cast<uint32_t>(src.ToFloat32())));
         } else {
           DCHECK_EQ(src.type(), Constant::kFloat64);
-          __ movq(kScratchRegister, src.ToFloat64().AsUint64());
-          __ movq(dst, kScratchRegister);
+          __ Move(dst, src.ToFloat64().AsUint64());
         }
       }
       return;
