@@ -500,7 +500,7 @@ class SerializerForBackgroundCompilation {
   void ProcessUnaryOrBinaryOperation(FeedbackSlot slot,
                                      bool honor_bailout_on_uninitialized);
 
-  PropertyAccessInfo ProcessMapForNamedPropertyAccess(
+  void ProcessMapForNamedPropertyAccess(
       Hints* receiver, base::Optional<MapRef> receiver_map,
       MapRef lookup_start_object_map, NameRef const& name,
       AccessMode access_mode, base::Optional<JSObjectRef> concrete_receiver,
@@ -2943,22 +2943,6 @@ void SerializerForBackgroundCompilation::VisitLdaLookupContextSlotInsideTypeof(
   ProcessLdaLookupContextSlot(iterator);
 }
 
-// TODO(neis): Avoid duplicating this.
-namespace {
-template <class MapContainer>
-MapHandles GetRelevantReceiverMaps(Isolate* isolate, MapContainer const& maps) {
-  MapHandles result;
-  for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(isolate, map).ToHandle(&map) &&
-        !map->is_abandoned_prototype_map()) {
-      DCHECK(!map->is_deprecated());
-      result.push_back(map);
-    }
-  }
-  return result;
-}
-}  // namespace
-
 void SerializerForBackgroundCompilation::ProcessCompareOperation(
     FeedbackSlot slot) {
   if (slot.IsInvalid() || feedback_vector().is_null()) return;
@@ -2990,12 +2974,22 @@ void SerializerForBackgroundCompilation::ProcessUnaryOrBinaryOperation(
   environment()->accumulator_hints() = Hints();
 }
 
-PropertyAccessInfo
-SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
+void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     Hints* receiver, base::Optional<MapRef> receiver_map,
     MapRef lookup_start_object_map, NameRef const& name, AccessMode access_mode,
     base::Optional<JSObjectRef> concrete_receiver, Hints* result_hints) {
   DCHECK_IMPLIES(concrete_receiver.has_value(), receiver_map.has_value());
+
+  {
+    Handle<Map> map;
+    if (!Map::TryUpdate(broker()->isolate(), lookup_start_object_map.object())
+             .ToHandle(&map) ||
+        map->is_abandoned_prototype_map()) {
+      return;
+    }
+    lookup_start_object_map = MakeRef(broker(), map);
+  }
+  CHECK(!lookup_start_object_map.is_deprecated());
 
   // For JSNativeContextSpecialization::InferRootMap
   lookup_start_object_map.SerializeRootMap();
@@ -3114,8 +3108,6 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     case AccessMode::kHas:
       break;
   }
-
-  return access_info;
 }
 
 void SerializerForBackgroundCompilation::ProcessMinimorphicPropertyAccess(
@@ -3240,8 +3232,7 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
     receiver->AddMap(map, zone(), broker_, false);
   }
 
-  for (Handle<Map> map :
-       GetRelevantReceiverMaps(broker()->isolate(), receiver->maps())) {
+  for (Handle<Map> map : receiver->maps()) {
     MapRef map_ref = MakeRef(broker(), map);
     ProcessMapForNamedPropertyAccess(receiver, map_ref, map_ref,
                                      feedback.name(), access_mode,
@@ -3275,8 +3266,7 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
 void SerializerForBackgroundCompilation::ProcessNamedSuperAccess(
     Hints* receiver, NamedAccessFeedback const& feedback,
     AccessMode access_mode, Hints* result_hints) {
-  MapHandles receiver_maps =
-      GetRelevantReceiverMaps(broker()->isolate(), receiver->maps());
+  MapsSet receiver_maps = receiver->maps();
   for (Handle<Map> receiver_map : receiver_maps) {
     MapRef receiver_map_ref = MakeRef(broker(), receiver_map);
     for (Handle<Map> feedback_map : feedback.maps()) {
@@ -3286,7 +3276,7 @@ void SerializerForBackgroundCompilation::ProcessNamedSuperAccess(
           access_mode, base::nullopt, result_hints);
     }
   }
-  if (receiver_maps.empty()) {
+  if (receiver_maps.IsEmpty()) {
     for (Handle<Map> feedback_map : feedback.maps()) {
       MapRef feedback_map_ref = MakeRef(broker(), feedback_map);
       ProcessMapForNamedPropertyAccess(

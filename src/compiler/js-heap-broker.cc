@@ -534,7 +534,7 @@ bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
 
 namespace {
 
-// Remove unupdatable and abandoned prototype maps in-place.
+// Update deprecated maps, drop unupdatable ones and abandoned prototype maps.
 void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
   auto in = maps->begin();
   auto out = in;
@@ -545,7 +545,7 @@ void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
     if (Map::TryUpdate(isolate, map).ToHandle(&map) &&
         !map->is_abandoned_prototype_map()) {
       DCHECK(!map->is_deprecated());
-      *out = *in;
+      *out = map;
       ++out;
     }
   }
