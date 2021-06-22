@@ -345,7 +345,7 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
     // a non zero invocation count so we can inline functions.
     function->feedback_vector().set_invocation_count(1);
   }
-  if (FLAG_sparkplug && !function->shared(isolate).HasBaselineData()) {
+  if (FLAG_sparkplug) {
     CompilationMode compilation_mode =
         FLAG_baseline_batch_compilation ? kCompileBatch : kCompileImmediate;
     if (V8_LIKELY(FLAG_use_osr)) {
