@@ -39,6 +39,7 @@ def define_all_recipes():
         "v8/auto_roll_release_process",
         "v8/auto_roll_v8_deps",
         "v8/auto_tag",
+        "v8/bazel",
         "v8/flako",
         "v8/node_integration_ng",
         "v8/verify_flakes",

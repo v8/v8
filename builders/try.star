@@ -60,6 +60,14 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_bazel",
+    bucket = "try",
+    cq_properties = {"includable_only": "true", "cancel_stale": False},
+    executable = "recipe:v8/bazel",
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+)
+
+try_builder(
     name = "v8_linux64_gcc_compile_dbg",
     bucket = "try",
     cq_properties = {"includable_only": "true", "cancel_stale": False},

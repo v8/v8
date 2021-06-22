@@ -73,6 +73,17 @@ experiment_builder(
     use_goma = GOMA.DEFAULT,
 )
 
+experiment_builder(
+    name = "V8 Linux64 - bazel",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    executable = "recipe:v8/bazel",
+    to_notify = [
+        "victorgomes@chromium.org",
+    ],
+)
+
 experiment_builder_pair(
     name = "V8 Linux64 - debug - perfetto",
     bucket = "ci",
