@@ -2765,11 +2765,9 @@ class DeserializationTimeScope {
       : counter_(counter), start_(base::TimeTicks::Now()) {}
 
   ~DeserializationTimeScope() {
-    if (base::TimeTicks::IsHighResolution()) {
-      base::TimeDelta duration = base::TimeTicks::Now() - start_;
-      int duration_usecs = static_cast<int>(duration.InMicroseconds());
-      counter_->AddSample(duration_usecs);
-    }
+    base::TimeDelta duration = base::TimeTicks::Now() - start_;
+    int duration_usecs = static_cast<int>(duration.InMilliseconds());
+    counter_->AddSample(duration_usecs);
   }
 
  private:
