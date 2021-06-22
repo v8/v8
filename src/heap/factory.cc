@@ -264,9 +264,6 @@ MaybeHandle<Code> Factory::NewEmptyCode(CodeKind kind, int buffer_size) {
   const int object_size = Code::SizeFor(buffer_size);
   Heap* heap = isolate()->heap();
 
-  // TODO(victorgomes): Move this RO space and use only 1 object per process.
-  Handle<ByteArray> empty_reloc_info = NewByteArray(0, AllocationType::kOld);
-
   HeapObject result = heap->AllocateRawWith<Heap::kLightRetry>(
       object_size, AllocationType::kCode, AllocationOrigin::kRuntime);
   if (result.is_null()) return MaybeHandle<Code>();
@@ -278,7 +275,7 @@ MaybeHandle<Code> Factory::NewEmptyCode(CodeKind kind, int buffer_size) {
   constexpr bool kIsNotOffHeapTrampoline = false;
   raw_code.set_raw_instruction_size(0);
   raw_code.set_raw_metadata_size(buffer_size);
-  raw_code.set_relocation_info(*empty_reloc_info);
+  raw_code.set_relocation_info(*empty_byte_array());
   raw_code.initialize_flags(kind, false, 0, kIsNotOffHeapTrampoline);
   raw_code.set_handler_table_offset(0);
   raw_code.set_constant_pool_offset(0);
