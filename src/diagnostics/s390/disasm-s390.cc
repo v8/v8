@@ -1042,7 +1042,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 

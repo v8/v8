@@ -421,7 +421,7 @@ void Decoder::Unknown(Instruction* instr) { Format(instr, "unknown"); }
 // instruction bits.
 void Decoder::UnknownFormat(Instruction* instr, const char* name) {
   char buffer[100];
-  base::snprintf(buffer, sizeof(buffer), "%s (unknown-format)", name);
+  snprintf(buffer, sizeof(buffer), "%s (unknown-format)", name);
   Format(instr, buffer);
 }
 
@@ -1709,7 +1709,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
+  v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
