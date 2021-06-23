@@ -227,8 +227,8 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
         // later.
         code_chunks.push_back(allowed_chunk_len);
         fp_adjustments.push_back(xdata_fp_adjustments[j]);
-        i::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol,
-                    code_chunks.size());
+        base::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol,
+                       code_chunks.size());
         w->DeclareRvaToSymbol(embedded_blob_data_symbol,
                               builtin_start_offset + chunk_start);
         w->DeclareRvaToSymbol(unwind_info_full_symbol.begin());
@@ -244,7 +244,8 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
   w->StartXdataSection();
   {
     for (size_t i = 0; i < code_chunks.size(); i++) {
-      i::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol, i + 1);
+      base::SNPrintF(unwind_info_full_symbol, "%s_%u", unwind_info_symbol,
+                     i + 1);
       w->DeclareLabel(unwind_info_full_symbol.begin());
       std::vector<uint8_t> xdata =
           win64_unwindinfo::GetUnwindInfoForBuiltinFunction(code_chunks[i],
