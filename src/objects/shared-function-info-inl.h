@@ -206,7 +206,7 @@ bool SharedFunctionInfo::AreSourcePositionsAvailable(IsolateT* isolate) const {
 
 template <typename IsolateT>
 SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
-    IsolateT* isolate) const {
+    IsolateT* isolate, bool is_turboprop) const {
   if (!script().IsScript()) return kHasNoScript;
 
   if (GetIsolate()->is_precise_binary_code_coverage() &&
@@ -227,7 +227,11 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
   // inline.
   if (!HasBytecodeArray()) return kHasNoBytecode;
 
-  if (GetBytecodeArray(isolate).length() > FLAG_max_inlined_bytecode_size) {
+  int max_inlined_size = FLAG_max_inlined_bytecode_size;
+  if (is_turboprop) {
+    max_inlined_size = max_inlined_size / FLAG_turboprop_inline_scaling_factor;
+  }
+  if (GetBytecodeArray(isolate).length() > max_inlined_size) {
     return kExceedsBytecodeLimit;
   }
 

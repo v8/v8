@@ -2076,7 +2076,8 @@ SharedFunctionInfoData::SharedFunctionInfoData(
           BROKER_SFI_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
       ,
-      inlineability_(object->GetInlineability(broker->isolate())),
+      inlineability_(
+          object->GetInlineability(broker->isolate(), broker->is_turboprop())),
       function_template_info_(nullptr),
       template_objects_(broker->zone()),
       scope_info_(nullptr) {
@@ -3599,9 +3600,11 @@ SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability()
     const {
   if (data_->should_access_heap()) {
     if (!broker()->IsMainThread()) {
-      return object()->GetInlineability(broker()->local_isolate());
+      return object()->GetInlineability(broker()->local_isolate(),
+                                        broker()->is_turboprop());
     } else {
-      return object()->GetInlineability(broker()->isolate());
+      return object()->GetInlineability(broker()->isolate(),
+                                        broker()->is_turboprop());
     }
   }
   return ObjectRef ::data()->AsSharedFunctionInfo()->GetInlineability();

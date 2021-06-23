@@ -178,6 +178,7 @@
 
   # Re-enable again with dynamic map checks. (https://crbug.com/v8/9684)
   'const-field-tracking-2': [SKIP],
+  'regress/regress-1141502': [SKIP],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'compiler/array-subclass': [PASS, HEAVY],
@@ -1315,6 +1316,14 @@
   'compiler/abstract-equal-receiver': [FAIL],
   'compiler/constant-fold-cow-array': [FAIL],
   'compiler/promise-resolve-stable-maps': [FAIL],
+
+  # Tests failing due to reduced constant propagation in Turboprop.
+  'compiler/js-create-arguments': [FAIL],
+  'compiler/catch-block-load': [FAIL],
+  'compiler/construct-bound-function': [FAIL],
+  'compiler/construct-object': [FAIL],
+  'compiler/construct-receiver': [FAIL],
+  'compiler/js-create': [FAIL],
 }],  # variant == turboprop or variant = turboprop_as_toptier
 
 ##############################################################################

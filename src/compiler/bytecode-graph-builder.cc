@@ -470,7 +470,12 @@ class BytecodeGraphBuilder {
   void set_currently_peeled_loop_offset(int offset) {
     currently_peeled_loop_offset_ = offset;
   }
-  bool skip_first_stack_check() const { return skip_first_stack_check_; }
+  bool skip_first_stack_check() const {
+    return skip_first_stack_and_tierup_check_;
+  }
+  bool skip_tierup_check() const {
+    return skip_first_stack_and_tierup_check_ || osr_;
+  }
   int current_exception_handler() const { return current_exception_handler_; }
   void set_current_exception_handler(int index) {
     current_exception_handler_ = index;
@@ -508,7 +513,7 @@ class BytecodeGraphBuilder {
   int currently_peeled_loop_offset_;
   bool is_osr_entry_stack_check_pending_;
 
-  const bool skip_first_stack_check_;
+  const bool skip_first_stack_and_tierup_check_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -1103,8 +1108,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       osr_(!osr_offset.IsNone()),
       currently_peeled_loop_offset_(-1),
       is_osr_entry_stack_check_pending_(osr_),
-      skip_first_stack_check_(flags &
-                              BytecodeGraphBuilderFlag::kSkipFirstStackCheck),
+      skip_first_stack_and_tierup_check_(
+          flags & BytecodeGraphBuilderFlag::kSkipFirstStackAndTierupCheck),
       merge_environments_(local_zone),
       generator_merge_environments_(local_zone),
       cached_parameters_(local_zone),
@@ -1225,7 +1230,7 @@ void BytecodeGraphBuilder::MaybeBuildTierUpCheck() {
   // For OSR we don't tier up, so we don't need to build this check. Also
   // tiering up currently tail calls to IET which tail calls aren't supported
   // with OSR. See AdjustStackPointerForTailCall.
-  if (!CodeKindCanTierUp(code_kind()) || osr_) return;
+  if (!CodeKindCanTierUp(code_kind()) || skip_tierup_check()) return;
 
   int parameter_count = bytecode_array().parameter_count();
   Node* target = GetFunctionClosure();

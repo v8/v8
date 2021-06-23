@@ -643,6 +643,9 @@ DEFINE_BOOL(
 DEFINE_IMPLICATION(turboprop_as_toptier, turboprop)
 DEFINE_UINT_READONLY(max_minimorphic_map_checks, 4,
                      "max number of map checks to perform in minimorphic state")
+DEFINE_INT(turboprop_inline_scaling_factor, 4,
+           "scale factor for reduction in bytecode that can be inline for "
+           "TurboProp compared to TurboFan")
 // The scale factor determines the interrupt budget when tiering up from
 // Turboprop to TurboFan.
 DEFINE_INT(interrupt_budget_scale_factor_for_top_tier, 5,

@@ -549,7 +549,7 @@ class SharedFunctionInfo
     kMayContainBreakPoints,
   };
   template <typename IsolateT>
-  Inlineability GetInlineability(IsolateT* isolate) const;
+  Inlineability GetInlineability(IsolateT* isolate, bool is_turboprop) const;
 
   // Source size of this function.
   int SourceSize();
