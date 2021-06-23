@@ -64,6 +64,7 @@
       'V8 Linux64 - builder': 'release_x64',
       'V8 Linux64 - debug builder': 'debug_x64',
       'V8 Linux64 - dict tracking - debug - builder': 'debug_x64_dict_tracking_trybot',
+      'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - heap sandbox - debug - builder': 'debug_x64_heap_sandbox',
       'V8 Linux64 - internal snapshot': 'release_x64_internal',
@@ -213,6 +214,7 @@
           'release_simulate_arm64_pointer_compression',
       'v8_linux64_dbg_ng': 'debug_x64_trybot',
       'v8_linux64_dict_tracking_dbg_ng': 'debug_x64_dict_tracking_trybot',
+      'v8_linux64_external_code_space_dbg_ng': 'debug_x64_external_code_space',
       'v8_linux64_gc_stress_custom_snapshot_dbg_ng': 'debug_x64_trybot_custom',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_gcov_coverage': 'release_x64_gcc_coverage',
@@ -536,6 +538,8 @@
       'x64', 'asan'],
     'debug_x64_custom': [
       'debug_bot', 'x64', 'v8_snapshot_custom'],
+    'debug_x64_external_code_space': [
+      'debug_bot', 'x64', 'external_code_space'],
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
@@ -689,6 +693,10 @@
 
     'disable_pgo': {
       'gn_args': 'chrome_pgo_phase=0',
+    },
+
+    'external_code_space': {
+      'gn_args': 'v8_enable_external_code_space=true',
     },
 
     'fuchsia': {
