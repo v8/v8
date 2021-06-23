@@ -491,6 +491,10 @@ class LiftoffCompiler {
                  handler_table_offset_);
   }
 
+  std::unique_ptr<AssemblerBuffer> ReleaseBuffer() {
+    return asm_.ReleaseBuffer();
+  }
+
   base::OwnedVector<uint8_t> GetSourcePositionTable() {
     return source_position_table_builder_.ToSourcePositionTableVector();
   }
@@ -6226,9 +6230,10 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   size_t code_size_estimate =
       WasmCodeManager::EstimateLiftoffCodeSize(func_body_size);
   // Allocate the initial buffer a bit bigger to avoid reallocation during code
-  // generation.
-  std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
-      wasm::WasmInstructionBuffer::New(128 + code_size_estimate * 4 / 3);
+  // generation. Overflows when casting to int are fine, as we will allocate at
+  // least {AssemblerBase::kMinimalBufferSize} anyway, so in the worst case we
+  // have to grow more often.
+  int initial_buffer_size = static_cast<int>(128 + code_size_estimate * 4 / 3);
   std::unique_ptr<DebugSideTableBuilder> debug_sidetable_builder;
   if (debug_sidetable) {
     debug_sidetable_builder = std::make_unique<DebugSideTableBuilder>();
@@ -6236,7 +6241,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   DCHECK_IMPLIES(max_steps, for_debugging == kForDebugging);
   WasmFullDecoder<Decoder::kBooleanValidation, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, detected, func_body,
-      call_descriptor, env, &zone, instruction_buffer->CreateView(),
+      call_descriptor, env, &zone, NewAssemblerBuffer(initial_buffer_size),
       debug_sidetable_builder.get(), for_debugging, func_index, breakpoints,
       dead_breakpoint, max_steps, nondeterminism);
   decoder.Decode();
@@ -6259,7 +6264,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
 
   WasmCompilationResult result;
   compiler->GetCode(&result.code_desc);
-  result.instr_buffer = instruction_buffer->ReleaseBuffer();
+  result.instr_buffer = compiler->ReleaseBuffer();
   result.source_positions = compiler->GetSourcePositionTable();
   result.protected_instructions_data = compiler->GetProtectedInstructionsData();
   result.frame_slot_count = compiler->GetTotalFrameSlotCountForGC();

@@ -48,8 +48,7 @@ CodeGenerator::CodeGenerator(
     int start_source_position, JumpOptimizationInfo* jump_opt,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
     Builtin builtin, size_t max_unoptimized_frame_height,
-    size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> buffer,
-    const char* debug_name)
+    size_t max_pushed_argument_count, const char* debug_name)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -62,7 +61,7 @@ CodeGenerator::CodeGenerator(
       current_block_(RpoNumber::Invalid()),
       start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),
-      tasm_(isolate, options, CodeObjectRequired::kNo, std::move(buffer)),
+      tasm_(isolate, options, CodeObjectRequired::kNo),
       resolver_(this),
       safepoints_(codegen_zone),
       handlers_(codegen_zone),

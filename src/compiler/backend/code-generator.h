@@ -127,8 +127,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
       int start_source_position, JumpOptimizationInfo* jump_opt,
       PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
       Builtin builtin, size_t max_unoptimized_frame_height,
-      size_t max_pushed_argument_count, std::unique_ptr<AssemblerBuffer> = {},
-      const char* debug_name = nullptr);
+      size_t max_pushed_argument_count, const char* debug_name = nullptr);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
