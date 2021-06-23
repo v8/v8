@@ -2280,7 +2280,10 @@ class TemplateObjectDescriptionData : public HeapObjectData {
   TemplateObjectDescriptionData(JSHeapBroker* broker, ObjectData** storage,
                                 Handle<TemplateObjectDescription> object)
       : HeapObjectData(broker, storage, object) {
-    DCHECK(!broker->is_concurrent_inlining());
+    // TemplateObjectDescriptionData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
   }
 };
 
@@ -2824,6 +2827,7 @@ bool NeverEverSerialize() {
 NEVER_EVER_SERIALIZE(ArrayBoilerplateDescription)
 NEVER_EVER_SERIALIZE(ObjectBoilerplateDescription)
 NEVER_EVER_SERIALIZE(RegExpBoilerplateDescription)
+NEVER_EVER_SERIALIZE(TemplateObjectDescription)
 
 #undef NEVER_EVER_SERIALIZE
 
