@@ -4493,8 +4493,8 @@ void Assembler::RecordVeneerPool(int location_offset, int size) {
 
 void Assembler::EmitVeneers(bool force_emit, bool need_protection,
                             size_t margin) {
+  ASM_CODE_COMMENT(this);
   BlockPoolsScope scope(this, PoolEmissionCheck::kSkip);
-  RecordComment("[ Veneers");
 
   // The exact size of the veneer pool must be recorded (see the comment at the
   // declaration site of RecordConstPool()), but computing the number of
@@ -4587,8 +4587,6 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
   RecordVeneerPool(veneer_pool_relocinfo_loc, pool_size);
 
   bind(&end);
-
-  RecordComment("]");
 }
 
 void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,

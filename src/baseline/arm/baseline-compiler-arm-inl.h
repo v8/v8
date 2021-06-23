@@ -27,7 +27,7 @@ void BaselineCompiler::Prologue() {
 }
 
 void BaselineCompiler::PrologueFillFrame() {
-  __ RecordComment("[ Fill frame");
+  ASM_CODE_COMMENT(&masm_);
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
@@ -77,7 +77,6 @@ void BaselineCompiler::PrologueFillFrame() {
     __ masm()->sub(scratch, scratch, Operand(1), SetCC);
     __ masm()->b(gt, &loop);
   }
-  __ RecordComment("]");
 }
 
 void BaselineCompiler::VerifyFrameSize() {

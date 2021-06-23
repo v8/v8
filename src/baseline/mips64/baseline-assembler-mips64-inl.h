@@ -110,19 +110,19 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
 }
 
 void BaselineAssembler::CallBuiltin(Builtin builtin) {
-  __ RecordCommentForOffHeapTrampoline(builtin);
+  ASM_CODE_COMMENT_STRING(masm_,
+                          __ CommentForOffHeapTrampoline("call", builtin));
   Register temp = t9;
   __ LoadEntryFromBuiltin(builtin, temp);
   __ Call(temp);
-  __ RecordComment("]");
 }
 
 void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
-  __ RecordCommentForOffHeapTrampoline(builtin);
+  ASM_CODE_COMMENT_STRING(masm_,
+                          __ CommentForOffHeapTrampoline("tail call", builtin));
   Register temp = t9;
   __ LoadEntryFromBuiltin(builtin, temp);
   __ Jump(temp);
-  __ RecordComment("]");
 }
 
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
@@ -355,6 +355,7 @@ void BaselineAssembler::LoadByteField(Register output, Register source,
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
                                                Smi value) {
+  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   __ li(scratch, Operand(value));
@@ -363,6 +364,7 @@ void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
 void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          int offset,
                                                          Register value) {
+  ASM_CODE_COMMENT(masm_);
   __ Sd(value, FieldMemOperand(target, offset));
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
@@ -377,6 +379,7 @@ void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
     int32_t weight, Label* skip_interrupt_label) {
+  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFunction(feedback_cell);
@@ -396,6 +399,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 }
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
     Register weight, Label* skip_interrupt_label) {
+  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFunction(feedback_cell);
@@ -418,6 +422,7 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
+  ASM_CODE_COMMENT(masm_);
   Label fallthrough;
   if (case_value_base > 0) {
     __ Dsubu(reg, reg, Operand(case_value_base));
@@ -449,16 +454,17 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
 #define __ basm.
 
 void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
+  ASM_CODE_COMMENT(masm);
   BaselineAssembler basm(masm);
 
   Register weight = BaselineLeaveFrameDescriptor::WeightRegister();
   Register params_size = BaselineLeaveFrameDescriptor::ParamsSizeRegister();
 
-  __ RecordComment("[ Update Interrupt Budget");
-
-  Label skip_interrupt_label;
-  __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
   {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+
+    Label skip_interrupt_label;
+    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
     __ masm()->SmiTag(params_size);
     __ masm()->Push(params_size, kInterpreterAccumulatorRegister);
 
@@ -469,10 +475,9 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
     __ masm()->Pop(params_size, kInterpreterAccumulatorRegister);
     __ masm()->SmiUntag(params_size);
-  }
-  __ RecordComment("]");
 
   __ Bind(&skip_interrupt_label);
+  }
 
   BaselineAssembler::ScratchRegisterScope temps(&basm);
   Register actual_params_size = temps.AcquireScratch();

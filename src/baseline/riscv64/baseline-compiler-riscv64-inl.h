@@ -14,6 +14,7 @@ namespace baseline {
 #define __ basm_.
 
 void BaselineCompiler::Prologue() {
+  ASM_CODE_COMMENT(&masm_);
   // Enter the frame here, since CallBuiltin will override lr.
   __ masm()->EnterFrame(StackFrame::BASELINE);
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
@@ -25,7 +26,7 @@ void BaselineCompiler::Prologue() {
 }
 
 void BaselineCompiler::PrologueFillFrame() {
-  __ RecordComment("[ Fill frame");
+  ASM_CODE_COMMENT(&masm_);
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
@@ -90,10 +91,10 @@ void BaselineCompiler::PrologueFillFrame() {
     }
     __ masm()->Branch(&loop, gt, scratch, Operand(1));
   }
-  __ RecordComment("]");
 }
 
 void BaselineCompiler::VerifyFrameSize() {
+  ASM_CODE_COMMENT(&masm_);
   __ masm()->Add64(kScratchReg, sp,
                    RoundUp(InterpreterFrameConstants::kFixedFrameSizeFromFp +
                                bytecode_->frame_size(),
