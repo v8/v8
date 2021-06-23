@@ -512,7 +512,10 @@
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP]
+  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
+
+  # TODO(11856): Port nondeterminism detection.
+  'test-liftoff-for-fuzzing/*': [SKIP],
 
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
