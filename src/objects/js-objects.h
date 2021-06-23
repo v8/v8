@@ -25,6 +25,8 @@ enum class AllocationPolicy { kAllocationAllowed, kAllocationDisallowed };
 enum InstanceType : uint16_t;
 class JSGlobalObject;
 class JSGlobalProxy;
+class LookupIterator;
+class PropertyKey;
 class NativeContext;
 class IsCompiledScope;
 
@@ -173,6 +175,9 @@ class JSReceiver : public HeapObject {
   // ES6 9.1.6.1
   V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
+      PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
+      Isolate* isolate, Handle<JSObject> object, const PropertyKey& key,
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       LookupIterator* it, PropertyDescriptor* desc,

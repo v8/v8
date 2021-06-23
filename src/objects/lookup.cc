@@ -26,7 +26,7 @@
 namespace v8 {
 namespace internal {
 
-LookupIterator::Key::Key(Isolate* isolate, Handle<Object> key, bool* success) {
+PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> key, bool* success) {
   if (key->ToIntegerIndex(&index_)) {
     *success = true;
     return;
@@ -34,7 +34,7 @@ LookupIterator::Key::Key(Isolate* isolate, Handle<Object> key, bool* success) {
   *success = Object::ToName(isolate, key).ToHandle(&name_);
   if (!*success) {
     DCHECK(isolate->has_pending_exception());
-    index_ = kInvalidIndex;
+    index_ = LookupIterator::kInvalidIndex;
     return;
   }
   if (!name_->AsIntegerIndex(&index_)) {

@@ -342,7 +342,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
           isolate, Object::SetElement(isolate, receiver, length, element,
                                       ShouldThrow::kThrowOnError));
     } else {
-      LookupIterator::Key key(isolate, length);
+      PropertyKey key(isolate, length);
       LookupIterator it(isolate, receiver, key);
       MAYBE_RETURN(Object::SetProperty(&it, element, StoreOrigin::kMaybeKeyed,
                                        Just(ShouldThrow::kThrowOnError)),

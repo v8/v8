@@ -403,7 +403,7 @@ Handle<Object> StackFrameInfo::GetMethodName(Handle<StackFrameInfo> info) {
   }
 
   if (name->length() != 0) {
-    LookupIterator::Key key(isolate, Handle<Name>::cast(name));
+    PropertyKey key(isolate, Handle<Name>::cast(name));
     LookupIterator it(isolate, receiver, key,
                       LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::DATA) {

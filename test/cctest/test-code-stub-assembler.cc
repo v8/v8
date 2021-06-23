@@ -1676,7 +1676,7 @@ TEST(TryLookupElement) {
 #define CHECK_ABSENT(object, index)                  \
   {                                                  \
     Handle<Smi> smi(Smi::FromInt(index), isolate);   \
-    LookupIterator::Key key(isolate, smi);           \
+    PropertyKey key(isolate, smi);                   \
     LookupIterator it(isolate, object, key);         \
     CHECK(!JSReceiver::HasProperty(&it).FromJust()); \
     ft.CheckTrue(object, smi, expect_absent);        \

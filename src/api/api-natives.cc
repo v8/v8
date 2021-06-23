@@ -111,7 +111,7 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                              Instantiate(isolate, prop_data, name), Object);
 
-  LookupIterator::Key key(isolate, name);
+  PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
 
 #ifdef DEBUG

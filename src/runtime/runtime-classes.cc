@@ -693,8 +693,7 @@ enum class SuperMode { kLoad, kStore };
 
 MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
                                        Handle<JSObject> home_object,
-                                       SuperMode mode,
-                                       LookupIterator::Key* key) {
+                                       SuperMode mode, PropertyKey* key) {
   if (home_object->IsAccessCheckNeeded() &&
       !isolate->MayAccess(handle(isolate->context(), isolate), home_object)) {
     isolate->ReportFailedAccessCheck(home_object);
@@ -715,7 +714,7 @@ MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
 
 MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
                                   Handle<JSObject> home_object,
-                                  LookupIterator::Key* key) {
+                                  PropertyKey* key) {
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
@@ -735,7 +734,7 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
 
-  LookupIterator::Key key(isolate, name);
+  PropertyKey key(isolate, name);
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            LoadFromSuper(isolate, receiver, home_object, &key));
@@ -752,7 +751,7 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
 
   bool success;
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) return ReadOnlyRoots(isolate).exception();
 
   RETURN_RESULT_OR_FAILURE(
@@ -762,8 +761,8 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
 namespace {
 
 MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
-                                 Handle<Object> receiver,
-                                 LookupIterator::Key* key, Handle<Object> value,
+                                 Handle<Object> receiver, PropertyKey* key,
+                                 Handle<Object> value,
                                  StoreOrigin store_origin) {
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -785,7 +784,7 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
-  LookupIterator::Key key(isolate, name);
+  PropertyKey key(isolate, name);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, StoreToSuper(isolate, home_object, receiver, &key, value,
@@ -803,7 +802,7 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
   bool success;
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) return ReadOnlyRoots(isolate).exception();
 
   RETURN_RESULT_OR_FAILURE(

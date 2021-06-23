@@ -50,12 +50,13 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
 }
 
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                               const Key& key, Configuration configuration)
+                               const PropertyKey& key,
+                               Configuration configuration)
     : LookupIterator(isolate, receiver, key.name(), key.index(), receiver,
                      configuration) {}
 
 LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
-                               const Key& key,
+                               const PropertyKey& key,
                                Handle<Object> lookup_start_object,
                                Configuration configuration)
     : LookupIterator(isolate, receiver, key.name(), key.index(),
@@ -111,7 +112,7 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
   }
 }
 
-LookupIterator::Key::Key(Isolate* isolate, double index) {
+PropertyKey::PropertyKey(Isolate* isolate, double index) {
   DCHECK_EQ(index, static_cast<uint64_t>(index));
 #if V8_TARGET_ARCH_32_BIT
   if (index <= JSObject::kMaxElementIndex) {
@@ -129,7 +130,7 @@ LookupIterator::Key::Key(Isolate* isolate, double index) {
 #endif
 }
 
-LookupIterator::Key::Key(Isolate* isolate, Handle<Name> name) {
+PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name) {
   if (name->AsIntegerIndex(&index_)) {
     name_ = name;
   } else {
@@ -138,7 +139,7 @@ LookupIterator::Key::Key(Isolate* isolate, Handle<Name> name) {
   }
 }
 
-LookupIterator::Key::Key(Isolate* isolate, Handle<Object> valid_key) {
+PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> valid_key) {
   DCHECK(valid_key->IsName() || valid_key->IsNumber());
   if (valid_key->ToIntegerIndex(&index_)) return;
   if (valid_key->IsNumber()) {
@@ -153,7 +154,11 @@ LookupIterator::Key::Key(Isolate* isolate, Handle<Object> valid_key) {
   }
 }
 
-Handle<Name> LookupIterator::Key::GetName(Isolate* isolate) {
+bool PropertyKey::is_element() const {
+  return index_ != LookupIterator::kInvalidIndex;
+}
+
+Handle<Name> PropertyKey::GetName(Isolate* isolate) {
   if (name_.is_null()) {
     DCHECK(is_element());
     name_ = isolate->factory()->SizeToString(index_);

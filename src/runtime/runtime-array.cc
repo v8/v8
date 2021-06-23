@@ -313,7 +313,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {
-      LookupIterator::Key key(isolate, static_cast<double>(index));
+      PropertyKey key(isolate, static_cast<double>(index));
       LookupIterator it(isolate, object, key);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_k,
                                          Object::GetProperty(&it));
@@ -410,7 +410,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
     // Let elementK be the result of ? Get(O, ! ToString(k)).
     Handle<Object> element_k;
     {
-      LookupIterator::Key key(isolate, static_cast<double>(index));
+      PropertyKey key(isolate, static_cast<double>(index));
       LookupIterator it(isolate, object, key);
       Maybe<bool> present = JSReceiver::HasProperty(&it);
       MAYBE_RETURN(present, ReadOnlyRoots(isolate).exception());

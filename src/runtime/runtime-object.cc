@@ -39,7 +39,7 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
   }
 
   bool success = false;
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeHandle<Object>();
   LookupIterator it =
       LookupIterator(isolate, receiver, lookup_key, lookup_start_object);
@@ -279,7 +279,7 @@ Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,
   if (DeleteObjectPropertyFast(isolate, receiver, key)) return Just(true);
 
   bool success = false;
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) return Nothing<bool>();
   LookupIterator it(isolate, receiver, lookup_key, LookupIterator::OWN);
 
@@ -366,7 +366,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   // TODO(ishell): To improve performance, consider performing the to-string
   // conversion of {property} before calling into the runtime.
   bool success;
-  LookupIterator::Key key(isolate, property, &success);
+  PropertyKey key(isolate, property, &success);
   if (!success) return ReadOnlyRoots(isolate).exception();
 
   Handle<Object> object = args.at(0);
@@ -441,7 +441,7 @@ RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, property, 1);
 
   bool success;
-  LookupIterator::Key key(isolate, property, &success);
+  PropertyKey key(isolate, property, &success);
   if (!success) return ReadOnlyRoots(isolate).undefined_value();
 
   if (object->IsJSObject()) {
@@ -533,7 +533,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
 
   // Check if the given key is an array index.
   bool success = false;
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeHandle<Object>();
   LookupIterator it(isolate, object, lookup_key);
 
@@ -848,7 +848,7 @@ RUNTIME_FUNCTION(Runtime_StoreDataPropertyInLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
 
-  LookupIterator::Key lookup_key(isolate, key);
+  PropertyKey lookup_key(isolate, key);
   LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
 
   Maybe<bool> result = JSObject::DefineOwnPropertyIgnoreAttributes(
@@ -1084,7 +1084,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
                   *function_map == function->map());
   }
 
-  LookupIterator::Key key(isolate, name);
+  PropertyKey key(isolate, name);
   LookupIterator it(isolate, object, key, object, LookupIterator::OWN);
   // Cannot fail since this should only be called when
   // creating an object literal.
@@ -1335,7 +1335,7 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   bool success;
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) return ReadOnlyRoots(isolate).exception();
   LookupIterator it(isolate, o, lookup_key, LookupIterator::OWN);
   MAYBE_RETURN(JSReceiver::CreateDataProperty(&it, value, Just(kThrowOnError)),
