@@ -885,6 +885,8 @@ class TracedReferenceBase {
         std::memory_order_relaxed);
   }
 
+  V8_EXPORT void CheckValue() const;
+
   // val_ points to a GlobalHandles node.
   internal::Address* val_ = nullptr;
 
@@ -926,8 +928,18 @@ class BasicTracedReference : public TracedReferenceBase {
         const_cast<BasicTracedReference<T>&>(*this));
   }
 
-  T* operator->() const { return reinterpret_cast<T*>(val_); }
-  T* operator*() const { return reinterpret_cast<T*>(val_); }
+  T* operator->() const {
+#ifdef V8_ENABLE_CHECKS
+    CheckValue();
+#endif  // V8_ENABLE_CHECKS
+    return reinterpret_cast<T*>(val_);
+  }
+  T* operator*() const {
+#ifdef V8_ENABLE_CHECKS
+    CheckValue();
+#endif  // V8_ENABLE_CHECKS
+    return reinterpret_cast<T*>(val_);
+  }
 
  private:
   enum DestructionMode { kWithDestructor, kWithoutDestructor };

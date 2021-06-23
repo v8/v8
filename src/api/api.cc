@@ -9998,6 +9998,14 @@ void EmbedderHeapTracer::ResetHandleInNonTracingGC(
   UNREACHABLE();
 }
 
+void TracedReferenceBase::CheckValue() const {
+#ifdef V8_HOST_ARCH_64_BIT
+  if (!val_) return;
+
+  CHECK_NE(internal::kGlobalHandleZapValue, *reinterpret_cast<uint64_t*>(val_));
+#endif  // V8_HOST_ARCH_64_BIT
+}
+
 CFunction::CFunction(const void* address, const CFunctionInfo* type_info)
     : address_(address), type_info_(type_info) {
   CHECK_NOT_NULL(address_);
