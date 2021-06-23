@@ -101,6 +101,14 @@ try_ng_pair(
 )
 
 try_ng_pair(
+    name = "v8_linux64_external_code_space_dbg",
+    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_ng_pair(
     name = "v8_linux64_gc_stress_custom_snapshot_dbg",
     cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
     cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
