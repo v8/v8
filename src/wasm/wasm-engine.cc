@@ -986,8 +986,9 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
 
 OperationsBarrier::Token WasmEngine::StartWrapperCompilation(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
-  DCHECK_EQ(1, isolates_.count(isolate));
-  return isolates_[isolate]->wrapper_compilation_barrier_->TryLock();
+  auto isolate_info_it = isolates_.find(isolate);
+  if (isolate_info_it == isolates_.end()) return {};
+  return isolate_info_it->second->wrapper_compilation_barrier_->TryLock();
 }
 
 void WasmEngine::AddIsolate(Isolate* isolate) {
