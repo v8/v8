@@ -9,10 +9,10 @@
 #ifndef V8_CODEGEN_PPC_MACRO_ASSEMBLER_PPC_H_
 #define V8_CODEGEN_PPC_MACRO_ASSEMBLER_PPC_H_
 
+#include "src/base/numbers/double.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/ppc/assembler-ppc.h"
 #include "src/common/globals.h"
-#include "src/numbers/double.h"
 #include "src/objects/contexts.h"
 
 namespace v8 {
@@ -138,7 +138,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     mov(kRootRegister, Operand(isolate_root));
   }
 
-  void LoadDoubleLiteral(DoubleRegister result, Double value, Register scratch);
+  void LoadDoubleLiteral(DoubleRegister result, base::Double value,
+                         Register scratch);
   void LoadSimd128(Simd128Register dst, const MemOperand& mem);
 
   // load a literal signed int value <value> to GPR <dst>

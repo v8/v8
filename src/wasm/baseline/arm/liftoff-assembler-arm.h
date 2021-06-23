@@ -566,7 +566,8 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       break;
     case kF64: {
       Register extra_scratch = GetUnusedRegister(kGpReg, {}).gp();
-      vmov(reg.fp(), Double(value.to_f64_boxed().get_bits()), extra_scratch);
+      vmov(reg.fp(), base::Double(value.to_f64_boxed().get_bits()),
+           extra_scratch);
       break;
     }
     default:
@@ -2032,11 +2033,11 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       vmov(dst.gp(), scratch_f);
       // Check underflow and NaN.
       DwVfpRegister scratch_d = temps.AcquireD();
-      vmov(scratch_d, Double(static_cast<double>(INT32_MIN - 1.0)));
+      vmov(scratch_d, base::Double(static_cast<double>(INT32_MIN - 1.0)));
       VFPCompareAndSetFlags(src.fp(), scratch_d);
       b(trap, le);
       // Check overflow.
-      vmov(scratch_d, Double(static_cast<double>(INT32_MAX + 1.0)));
+      vmov(scratch_d, base::Double(static_cast<double>(INT32_MAX + 1.0)));
       VFPCompareAndSetFlags(src.fp(), scratch_d);
       b(trap, ge);
       return true;
@@ -2048,11 +2049,11 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       vmov(dst.gp(), scratch_f);
       // Check underflow and NaN.
       DwVfpRegister scratch_d = temps.AcquireD();
-      vmov(scratch_d, Double(static_cast<double>(-1.0)));
+      vmov(scratch_d, base::Double(static_cast<double>(-1.0)));
       VFPCompareAndSetFlags(src.fp(), scratch_d);
       b(trap, le);
       // Check overflow.
-      vmov(scratch_d, Double(static_cast<double>(UINT32_MAX + 1.0)));
+      vmov(scratch_d, base::Double(static_cast<double>(UINT32_MAX + 1.0)));
       VFPCompareAndSetFlags(src.fp(), scratch_d);
       b(trap, ge);
       return true;
@@ -3041,8 +3042,8 @@ void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
   vshr(NeonS32, tmp, liftoff::GetSimd128Register(src), 31);
   // Set i-th bit of each lane i. When AND with tmp, the lanes that
   // are signed will have i-th bit set, unsigned will be 0.
-  vmov(mask.low(), Double((uint64_t)0x0000'0002'0000'0001));
-  vmov(mask.high(), Double((uint64_t)0x0000'0008'0000'0004));
+  vmov(mask.low(), base::Double((uint64_t)0x0000'0002'0000'0001));
+  vmov(mask.high(), base::Double((uint64_t)0x0000'0008'0000'0004));
   vand(tmp, mask, tmp);
   vpadd(Neon32, tmp.low(), tmp.low(), tmp.high());
   vpadd(Neon32, tmp.low(), tmp.low(), kDoubleRegZero);
@@ -3226,8 +3227,8 @@ void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
   vshr(NeonS16, tmp, liftoff::GetSimd128Register(src), 15);
   // Set i-th bit of each lane i. When AND with tmp, the lanes that
   // are signed will have i-th bit set, unsigned will be 0.
-  vmov(mask.low(), Double((uint64_t)0x0008'0004'0002'0001));
-  vmov(mask.high(), Double((uint64_t)0x0080'0040'0020'0010));
+  vmov(mask.low(), base::Double((uint64_t)0x0008'0004'0002'0001));
+  vmov(mask.high(), base::Double((uint64_t)0x0080'0040'0020'0010));
   vand(tmp, mask, tmp);
   vpadd(Neon16, tmp.low(), tmp.low(), tmp.high());
   vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
@@ -3536,8 +3537,8 @@ void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
   vshr(NeonS8, tmp, liftoff::GetSimd128Register(src), 7);
   // Set i-th bit of each lane i. When AND with tmp, the lanes that
   // are signed will have i-th bit set, unsigned will be 0.
-  vmov(mask.low(), Double((uint64_t)0x8040'2010'0804'0201));
-  vmov(mask.high(), Double((uint64_t)0x8040'2010'0804'0201));
+  vmov(mask.low(), base::Double((uint64_t)0x8040'2010'0804'0201));
+  vmov(mask.high(), base::Double((uint64_t)0x8040'2010'0804'0201));
   vand(tmp, mask, tmp);
   vext(mask, tmp, tmp, 8);
   vzip(Neon8, mask, tmp);
@@ -3832,8 +3833,8 @@ void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
                                        const uint8_t imms[16]) {
   uint64_t vals[2];
   memcpy(vals, imms, sizeof(vals));
-  vmov(dst.low_fp(), Double(vals[0]));
-  vmov(dst.high_fp(), Double(vals[1]));
+  vmov(dst.low_fp(), base::Double(vals[0]));
+  vmov(dst.high_fp(), base::Double(vals[1]));
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {

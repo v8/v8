@@ -34,6 +34,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/base/strings.h"
 #include "src/execution/messages.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
@@ -100,13 +101,14 @@ static const int SUPER_DEEP_DEPTH = 80 * 1024;
 
 class Resource : public v8::String::ExternalStringResource {
  public:
-  Resource(const uc16* data, size_t length) : data_(data), length_(length) {}
+  Resource(const base::uc16* data, size_t length)
+      : data_(data), length_(length) {}
   ~Resource() override { i::DeleteArray(data_); }
   const uint16_t* data() const override { return data_; }
   size_t length() const override { return length_; }
 
  private:
-  const uc16* data_;
+  const base::uc16* data_;
   size_t length_;
 };
 
@@ -156,13 +158,14 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
     len += slice_length;
     switch (rng->next(4)) {
       case 0: {
-        uc16 buf[2000];
+        base::uc16 buf[2000];
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x10000);
         }
         building_blocks[i] =
             factory
-                ->NewStringFromTwoByte(v8::base::Vector<const uc16>(buf, len))
+                ->NewStringFromTwoByte(
+                    v8::base::Vector<const base::uc16>(buf, len))
                 .ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
@@ -183,7 +186,7 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         break;
       }
       case 2: {
-        uc16* buf = NewArray<uc16>(len);
+        base::uc16* buf = NewArray<base::uc16>(len);
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x10000);
         }
@@ -1051,7 +1054,7 @@ TEST(ExternalShortStringAdd) {
         ->Set(context.local(), v8::Integer::New(CcTest::isolate(), i),
               one_byte_external_string)
         .FromJust();
-    uc16* non_one_byte = NewArray<uc16>(i + 1);
+    base::uc16* non_one_byte = NewArray<base::uc16>(i + 1);
     for (int j = 0; j < i; j++) {
       non_one_byte[j] = 0x1234;
     }
@@ -1174,7 +1177,7 @@ TEST(JSONStringifySliceMadeExternal) {
   CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
 
   int length = underlying->Length();
-  uc16* two_byte = NewArray<uc16>(length + 1);
+  base::uc16* two_byte = NewArray<base::uc16>(length + 1);
   underlying->Write(CcTest::isolate(), two_byte);
   Resource* resource = new Resource(two_byte, length);
   CHECK(underlying->MakeExternal(resource));
@@ -1561,7 +1564,7 @@ TEST(StringReplaceAtomTwoByteResult) {
 
 TEST(IsAscii) {
   CHECK(String::IsAscii(static_cast<char*>(nullptr), 0));
-  CHECK(String::IsOneByte(static_cast<uc16*>(nullptr), 0));
+  CHECK(String::IsOneByte(static_cast<base::uc16*>(nullptr), 0));
 }
 
 template <typename Op, bool return_first>
@@ -1930,7 +1933,7 @@ TEST(Regress876759) {
   HandleScope handle_scope(isolate);
 
   const int kLength = 30;
-  uc16 two_byte_buf[kLength];
+  base::uc16 two_byte_buf[kLength];
   char* external_one_byte_buf = new char[kLength];
   for (int j = 0; j < kLength; j++) {
     char c = '0' + (j % 10);

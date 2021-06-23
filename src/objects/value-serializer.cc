@@ -315,10 +315,10 @@ void ValueSerializer::WriteOneByteString(base::Vector<const uint8_t> chars) {
   WriteRawBytes(chars.begin(), chars.length() * sizeof(uint8_t));
 }
 
-void ValueSerializer::WriteTwoByteString(base::Vector<const uc16> chars) {
+void ValueSerializer::WriteTwoByteString(base::Vector<const base::uc16> chars) {
   // Warning: this uses host endianness.
-  WriteVarint<uint32_t>(chars.length() * sizeof(uc16));
-  WriteRawBytes(chars.begin(), chars.length() * sizeof(uc16));
+  WriteVarint<uint32_t>(chars.length() * sizeof(base::uc16));
+  WriteRawBytes(chars.begin(), chars.length() * sizeof(base::uc16));
 }
 
 void ValueSerializer::WriteBigIntContents(BigInt bigint) {
@@ -497,8 +497,8 @@ void ValueSerializer::WriteString(Handle<String> string) {
     WriteTag(SerializationTag::kOneByteString);
     WriteOneByteString(chars);
   } else if (flat.IsTwoByte()) {
-    base::Vector<const uc16> chars = flat.ToUC16Vector();
-    uint32_t byte_length = chars.length() * sizeof(uc16);
+    base::Vector<const base::uc16> chars = flat.ToUC16Vector();
+    uint32_t byte_length = chars.length() * sizeof(base::uc16);
     // The existing reading code expects 16-byte strings to be aligned.
     if ((buffer_size_ + 1 + BytesNeededForVarint(byte_length)) & 1)
       WriteTag(SerializationTag::kPadding);
@@ -1447,7 +1447,7 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   if (!ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
-      byte_length % sizeof(uc16) != 0 ||
+      byte_length % sizeof(base::uc16) != 0 ||
       !ReadRawBytes(byte_length).To(&bytes)) {
     return MaybeHandle<String>();
   }
@@ -1457,7 +1457,7 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   if (byte_length == 0) return isolate_->factory()->empty_string();
   Handle<SeqTwoByteString> string;
   if (!isolate_->factory()
-           ->NewRawTwoByteString(byte_length / sizeof(uc16))
+           ->NewRawTwoByteString(byte_length / sizeof(base::uc16))
            .ToHandle(&string)) {
     return MaybeHandle<String>();
   }
@@ -1496,8 +1496,9 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
       return true;
     }
   } else if (tag == SerializationTag::kTwoByteString && flat.IsTwoByte()) {
-    base::Vector<const uc16> chars = flat.ToUC16Vector();
-    if (byte_length == static_cast<unsigned>(chars.length()) * sizeof(uc16) &&
+    base::Vector<const base::uc16> chars = flat.ToUC16Vector();
+    if (byte_length ==
+            static_cast<unsigned>(chars.length()) * sizeof(base::uc16) &&
         memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
       return true;
     }

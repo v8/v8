@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/base/small-vector.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/handles/handles.h"
 #include "src/objects/heap-object.h"
@@ -98,7 +99,8 @@ class StringStream final {
     FmtElm(const char* value) : FmtElm(C_STR) {  // NOLINT
       data_.u_c_str_ = value;
     }
-    FmtElm(const base::Vector<const uc16>& value) : FmtElm(LC_STR) {  // NOLINT
+    FmtElm(const base::Vector<const base::uc16>& value)  // NOLINT
+        : FmtElm(LC_STR) {
       data_.u_lc_str_ = &value;
     }
     FmtElm(Object value) : FmtElm(OBJ) {  // NOLINT
@@ -126,7 +128,7 @@ class StringStream final {
       int u_int_;
       double u_double_;
       const char* u_c_str_;
-      const base::Vector<const uc16>* u_lc_str_;
+      const base::Vector<const base::uc16>* u_lc_str_;
       Address u_obj_;
       Address* u_handle_;
       void* u_pointer_;

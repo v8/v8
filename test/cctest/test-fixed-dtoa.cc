@@ -27,22 +27,21 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
+#include "src/base/numbers/double.h"
+#include "src/base/numbers/fixed-dtoa.h"
 #include "src/base/platform/platform.h"
-#include "src/numbers/double.h"
-#include "src/numbers/fixed-dtoa.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/gay-fixed.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 static const int kBufferSize = 500;
 
 TEST(FastFixedVariousDoubles) {
   char buffer_container[kBufferSize];
-  base::Vector<char> buffer(buffer_container, kBufferSize);
+  Vector<char> buffer(buffer_container, kBufferSize);
   int length;
   int point;
 
@@ -492,12 +491,12 @@ TEST(FastFixedVariousDoubles) {
 
 TEST(FastFixedDtoaGayFixed) {
   char buffer_container[kBufferSize];
-  base::Vector<char> buffer(buffer_container, kBufferSize);
+  Vector<char> buffer(buffer_container, kBufferSize);
   bool status;
   int length;
   int point;
 
-  base::Vector<const PrecomputedFixed> precomputed =
+  Vector<const PrecomputedFixed> precomputed =
       PrecomputedFixedRepresentations();
   for (int i = 0; i < precomputed.length(); ++i) {
     const PrecomputedFixed current_test = precomputed[i];
@@ -512,5 +511,5 @@ TEST(FastFixedDtoaGayFixed) {
   }
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8

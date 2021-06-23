@@ -6,6 +6,7 @@
 #define V8_HEAP_FACTORY_BASE_H_
 
 #include "src/base/export-template.h"
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
@@ -182,7 +183,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<SeqOneByteString> NewOneByteInternalizedString(
       const base::Vector<const uint8_t>& str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
-      const base::Vector<const uc16>& str, uint32_t raw_hash_field);
+      const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
       int length, uint32_t raw_hash_field);

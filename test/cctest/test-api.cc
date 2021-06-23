@@ -42,6 +42,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
+#include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments.h"
@@ -14753,15 +14754,15 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
 
 class UC16VectorResource : public v8::String::ExternalStringResource {
  public:
-  explicit UC16VectorResource(v8::base::Vector<const i::uc16> vector)
+  explicit UC16VectorResource(v8::base::Vector<const v8::base::uc16> vector)
       : data_(vector) {}
   ~UC16VectorResource() override = default;
   size_t length() const override { return data_.length(); }
-  const i::uc16* data() const override { return data_.begin(); }
+  const v8::base::uc16* data() const override { return data_.begin(); }
   void Dispose() override {}
 
  private:
-  v8::base::Vector<const i::uc16> data_;
+  v8::base::Vector<const v8::base::uc16> data_;
 };
 
 static void MorphAString(i::String string,
@@ -21487,8 +21488,9 @@ STATIC_ASSERT(arraysize(kOneByteSubjectString) ==
 
 OneByteVectorResource one_byte_string_resource(v8::base::Vector<const char>(
     &kOneByteSubjectString[0], kSubjectStringLength));
-UC16VectorResource two_byte_string_resource(v8::base::Vector<const i::uc16>(
-    &kTwoByteSubjectString[0], kSubjectStringLength));
+UC16VectorResource two_byte_string_resource(
+    v8::base::Vector<const v8::base::uc16>(&kTwoByteSubjectString[0],
+                                           kSubjectStringLength));
 
 class RegExpInterruptTest {
  public:

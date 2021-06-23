@@ -5,6 +5,7 @@
 #ifndef V8_PARSING_LITERAL_BUFFER_H_
 #define V8_PARSING_LITERAL_BUFFER_H_
 
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/strings/unicode-decoder.h"
 
@@ -26,9 +27,9 @@ class LiteralBuffer final {
     AddOneByteChar(static_cast<byte>(code_unit));
   }
 
-  V8_INLINE void AddChar(uc32 code_unit) {
+  V8_INLINE void AddChar(base::uc32 code_unit) {
     if (is_one_byte()) {
-      if (code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
+      if (code_unit <= static_cast<base::uc32>(unibrow::Latin1::kMaxChar)) {
         AddOneByteChar(static_cast<byte>(code_unit));
         return;
       }
@@ -91,7 +92,7 @@ class LiteralBuffer final {
     position_ += kOneByteSize;
   }
 
-  void AddTwoByteChar(uc32 code_unit);
+  void AddTwoByteChar(base::uc32 code_unit);
   int NewCapacity(int min_capacity);
   void ExpandBuffer();
   void ConvertToTwoByte();

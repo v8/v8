@@ -41,16 +41,17 @@
 #define V8_CODEGEN_PPC_ASSEMBLER_PPC_H_
 
 #include <stdio.h>
+
 #include <memory>
 #include <vector>
 
+#include "src/base/numbers/double.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
 #include "src/codegen/ppc/constants-ppc.h"
 #include "src/codegen/ppc/register-ppc.h"
-#include "src/numbers/double.h"
 #include "src/objects/smi.h"
 
 namespace v8 {
@@ -1251,7 +1252,7 @@ class Assembler : public AssemblerBase {
          !RelocInfo::IsWasmCall(rmode) && !RelocInfo::IsWasmStubCall(rmode));
     return constant_pool_builder_.AddEntry(pc_offset(), value, sharing_ok);
   }
-  ConstantPoolEntry::Access ConstantPoolAddEntry(Double value) {
+  ConstantPoolEntry::Access ConstantPoolAddEntry(base::Double value) {
     return constant_pool_builder_.AddEntry(pc_offset(), value);
   }
 

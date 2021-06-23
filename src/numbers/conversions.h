@@ -8,6 +8,7 @@
 #include "src/base/export-template.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 
@@ -89,7 +90,7 @@ enum ConversionFlags {
 // Converts a string into a double value according to ECMA-262 9.3.1
 double StringToDouble(base::Vector<const uint8_t> str, int flags,
                       double empty_string_val = 0);
-double StringToDouble(base::Vector<const uc16> str, int flags,
+double StringToDouble(base::Vector<const base::uc16> str, int flags,
                       double empty_string_val = 0);
 // This version expects a zero-terminated character array.
 double V8_EXPORT_PRIVATE StringToDouble(const char* str, int flags,

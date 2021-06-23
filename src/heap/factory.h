@@ -7,6 +7,7 @@
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
@@ -266,11 +267,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
-      const base::Vector<const uc16>& str,
+      const base::Vector<const base::uc16>& str,
       AllocationType allocation = AllocationType::kYoung);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
-      const ZoneVector<uc16>* str,
+      const ZoneVector<base::uc16>* str,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<JSStringIterator> NewJSStringIterator(Handle<String> string);
@@ -1007,9 +1008,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                                 uint32_t hash_field);
 
   Handle<String> AllocateTwoByteInternalizedString(
-      const base::Vector<const uc16>& str, uint32_t hash_field);
+      const base::Vector<const base::uc16>& str, uint32_t hash_field);
 
-  MaybeHandle<String> NewStringFromTwoByte(const uc16* string, int length,
+  MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
                                            AllocationType allocation);
 
   // Attempt to find the number in a small cache.  If we finds it, return

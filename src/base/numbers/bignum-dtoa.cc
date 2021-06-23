@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/numbers/bignum-dtoa.h"
+#include "src/base/numbers/bignum-dtoa.h"
 
 #include <cmath>
 
 #include "src/base/logging.h"
-#include "src/numbers/bignum.h"
-#include "src/numbers/double.h"
-#include "src/utils/utils.h"
+#include "src/base/numbers/bignum.h"
+#include "src/base/numbers/double.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 static int NormalizedExponent(uint64_t significand, int exponent) {
   DCHECK_NE(significand, 0);
@@ -45,22 +44,22 @@ static void FixupMultiply10(int estimated_power, bool is_even,
 // digits yield the shortest decimal representation of v.
 static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
                                    Bignum* delta_minus, Bignum* delta_plus,
-                                   bool is_even, base::Vector<char> buffer,
+                                   bool is_even, Vector<char> buffer,
                                    int* length);
 // Generates 'requested_digits' after the decimal point.
 static void BignumToFixed(int requested_digits, int* decimal_point,
                           Bignum* numerator, Bignum* denominator,
-                          base::Vector<char>(buffer), int* length);
+                          Vector<char>(buffer), int* length);
 // Generates 'count' digits of numerator/denominator.
 // Once 'count' digits have been produced rounds the result depending on the
 // remainder (remainders of exactly .5 round upwards). Might update the
 // decimal_point when rounding up (for example for 0.9999).
 static void GenerateCountedDigits(int count, int* decimal_point,
                                   Bignum* numerator, Bignum* denominator,
-                                  base::Vector<char>(buffer), int* length);
+                                  Vector<char>(buffer), int* length);
 
 void BignumDtoa(double v, BignumDtoaMode mode, int requested_digits,
-                base::Vector<char> buffer, int* length, int* decimal_point) {
+                Vector<char> buffer, int* length, int* decimal_point) {
   DCHECK_GT(v, 0);
   DCHECK(!Double(v).IsSpecial());
   uint64_t significand = Double(v).Significand();
@@ -135,7 +134,7 @@ void BignumDtoa(double v, BignumDtoaMode mode, int requested_digits,
 //   will be produced. This should be the standard precondition.
 static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
                                    Bignum* delta_minus, Bignum* delta_plus,
-                                   bool is_even, base::Vector<char> buffer,
+                                   bool is_even, Vector<char> buffer,
                                    int* length) {
   // Small optimization: if delta_minus and delta_plus are the same just reuse
   // one of the two bignums.
@@ -232,7 +231,7 @@ static void GenerateShortestDigits(Bignum* numerator, Bignum* denominator,
 // exponent (decimal_point), when rounding upwards.
 static void GenerateCountedDigits(int count, int* decimal_point,
                                   Bignum* numerator, Bignum* denominator,
-                                  base::Vector<char>(buffer), int* length) {
+                                  Vector<char>(buffer), int* length) {
   DCHECK_GE(count, 0);
   for (int i = 0; i < count - 1; ++i) {
     uint16_t digit;
@@ -273,7 +272,7 @@ static void GenerateCountedDigits(int count, int* decimal_point,
 // Input verifies:  1 <= (numerator + delta) / denominator < 10.
 static void BignumToFixed(int requested_digits, int* decimal_point,
                           Bignum* numerator, Bignum* denominator,
-                          base::Vector<char>(buffer), int* length) {
+                          Vector<char>(buffer), int* length) {
   // Note that we have to look at more than just the requested_digits, since
   // a number could be rounded up. Example: v=0.5 with requested_digits=0.
   // Even though the power of v equals 0 we can't just stop here.
@@ -604,5 +603,5 @@ static void FixupMultiply10(int estimated_power, bool is_even,
   }
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8

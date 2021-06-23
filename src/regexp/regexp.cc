@@ -4,6 +4,7 @@
 
 #include "src/regexp/regexp.h"
 
+#include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/interrupts-scope.h"
@@ -219,7 +220,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     RegExpAtom* atom = parse_result.tree->AsAtom();
     // The pattern source might (?) contain escape sequences, but they're
     // resolved in atom_string.
-    base::Vector<const uc16> atom_pattern = atom->data();
+    base::Vector<const base::uc16> atom_pattern = atom->data();
     Handle<String> atom_string;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, atom_string,
@@ -612,8 +613,8 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
       // must restart from scratch.
       // In this case, it means we must make sure we are prepared to handle
       // the, potentially, different subject (the string can switch between
-      // being internal and external, and even between being Latin1 and UC16,
-      // but the characters are always the same).
+      // being internal and external, and even between being Latin1 and
+      // UC16, but the characters are always the same).
       is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
     } while (true);
     UNREACHABLE();

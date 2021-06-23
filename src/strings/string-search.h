@@ -5,6 +5,7 @@
 #ifndef V8_STRINGS_STRING_SEARCH_H_
 #define V8_STRINGS_STRING_SEARCH_H_
 
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/execution/isolate.h"
 
@@ -44,7 +45,7 @@ class StringSearchBase {
     return true;
   }
 
-  static inline bool IsOneByteString(base::Vector<const uc16> string) {
+  static inline bool IsOneByteString(base::Vector<const base::uc16> string) {
     return String::IsOneByte(string.begin(), string.length());
   }
 
@@ -141,7 +142,8 @@ class StringSearch : private StringSearchBase {
       }
       return bad_char_occurrence[static_cast<unsigned int>(char_code)];
     }
-    // Both pattern and subject are UC16. Reduce character to equivalence class.
+    // Both pattern and subject are UC16. Reduce character to equivalence
+    // class.
     int equiv_class = char_code % kUC16AlphabetSize;
     return bad_char_occurrence[equiv_class];
   }
@@ -185,7 +187,7 @@ inline T AlignDown(T value, U alignment) {
       (reinterpret_cast<uintptr_t>(value) & ~(alignment - 1)));
 }
 
-inline uint8_t GetHighestValueByte(uc16 character) {
+inline uint8_t GetHighestValueByte(base::uc16 character) {
   return std::max(static_cast<uint8_t>(character & 0xFF),
                   static_cast<uint8_t>(character >> 8));
 }

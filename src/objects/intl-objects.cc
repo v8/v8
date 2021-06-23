@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
@@ -163,12 +164,12 @@ inline int FindFirstUpperOrNonAscii(String s, int length) {
 }
 
 const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
-                                    std::unique_ptr<uc16[]>* dest,
+                                    std::unique_ptr<base::uc16[]>* dest,
                                     int32_t length) {
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
     if (!*dest) {
-      dest->reset(NewArray<uc16>(length));
+      dest->reset(NewArray<base::uc16>(length));
       CopyChars(dest->get(), flat.ToOneByteVector().begin(), length);
     }
     return reinterpret_cast<const UChar*>(dest->get());
@@ -195,7 +196,7 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
                                             Handle<String> string) {
   DCHECK(string->IsFlat());
   DisallowGarbageCollection no_gc;
-  std::unique_ptr<uc16[]> sap;
+  std::unique_ptr<base::uc16[]> sap;
   // Short one-byte strings can be expanded on the stack to avoid allocating a
   // temporary buffer.
   constexpr int kShortStringSize = 80;
@@ -237,7 +238,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
   int32_t dest_length = src_length;
   UErrorCode status;
   Handle<SeqTwoByteString> result;
-  std::unique_ptr<uc16[]> sap;
+  std::unique_ptr<base::uc16[]> sap;
 
   if (dest_length == 0) return ReadOnlyRoots(isolate).empty_string_handle();
 
@@ -1960,7 +1961,7 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
   int length = string->length();
   string = String::Flatten(isolate, string);
   icu::UnicodeString result;
-  std::unique_ptr<uc16[]> sap;
+  std::unique_ptr<base::uc16[]> sap;
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString input = ToICUUnicodeString(isolate, string);
   // Getting a singleton. Should not free it.

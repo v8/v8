@@ -2142,7 +2142,7 @@ void TurboAssembler::Neg_d(FPURegister fd, FPURegister fs) {
     neg_d(fd, fs);  // In delay slot.
     bind(&is_nan);
     dmfc1(scratch1, fs);
-    li(scratch2, Double::kSignMask);
+    li(scratch2, base::Double::kSignMask);
     Xor(scratch1, scratch1, scratch2);
     dmtc1(scratch1, fd);
     bind(&done);

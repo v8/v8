@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 namespace {  // anonymous namespace for DecodeURI helper functions
-bool IsReservedPredicate(uc16 c) {
+bool IsReservedPredicate(base::uc16 c) {
   switch (c) {
     case '#':
     case '$':
@@ -45,15 +45,16 @@ bool IsReplacementCharacter(const uint8_t* octets, int length) {
 }
 
 bool DecodeOctets(const uint8_t* octets, int length,
-                  std::vector<uc16>* buffer) {
+                  std::vector<base::uc16>* buffer) {
   size_t cursor = 0;
-  uc32 value = unibrow::Utf8::ValueOf(octets, length, &cursor);
+  base::uc32 value = unibrow::Utf8::ValueOf(octets, length, &cursor);
   if (value == unibrow::Utf8::kBadChar &&
       !IsReplacementCharacter(octets, length)) {
     return false;
   }
 
-  if (value <= static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+  if (value <=
+      static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
     buffer->push_back(value);
   } else {
     buffer->push_back(unibrow::Utf16::LeadSurrogate(value));
@@ -62,23 +63,23 @@ bool DecodeOctets(const uint8_t* octets, int length,
   return true;
 }
 
-int TwoDigitHex(uc16 character1, uc16 character2) {
+int TwoDigitHex(base::uc16 character1, base::uc16 character2) {
   if (character1 > 'f') return -1;
-  int high = HexValue(character1);
+  int high = base::HexValue(character1);
   if (high == -1) return -1;
   if (character2 > 'f') return -1;
-  int low = HexValue(character2);
+  int low = base::HexValue(character2);
   if (low == -1) return -1;
   return (high << 4) + low;
 }
 
 template <typename T>
-void AddToBuffer(uc16 decoded, String::FlatContent* uri_content, int index,
-                 bool is_uri, std::vector<T>* buffer) {
+void AddToBuffer(base::uc16 decoded, String::FlatContent* uri_content,
+                 int index, bool is_uri, std::vector<T>* buffer) {
   if (is_uri && IsReservedPredicate(decoded)) {
     buffer->push_back('%');
-    uc16 first = uri_content->Get(index + 1);
-    uc16 second = uri_content->Get(index + 2);
+    base::uc16 first = uri_content->Get(index + 1);
+    base::uc16 second = uri_content->Get(index + 2);
     DCHECK_GT(std::numeric_limits<T>::max(), first);
     DCHECK_GT(std::numeric_limits<T>::max(), second);
 
@@ -90,9 +91,10 @@ void AddToBuffer(uc16 decoded, String::FlatContent* uri_content, int index,
 }
 
 bool IntoTwoByte(int index, bool is_uri, int uri_length,
-                 String::FlatContent* uri_content, std::vector<uc16>* buffer) {
+                 String::FlatContent* uri_content,
+                 std::vector<base::uc16>* buffer) {
   for (int k = index; k < uri_length; k++) {
-    uc16 code = uri_content->Get(k);
+    base::uc16 code = uri_content->Get(k);
     if (code == '%') {
       int two_digits;
       if (k + 2 >= uri_length ||
@@ -101,7 +103,7 @@ bool IntoTwoByte(int index, bool is_uri, int uri_length,
         return false;
       }
       k += 2;
-      uc16 decoded = static_cast<uc16>(two_digits);
+      base::uc16 decoded = static_cast<base::uc16>(two_digits);
       if (decoded > unibrow::Utf8::kMaxOneByteChar) {
         uint8_t octets[unibrow::Utf8::kMaxEncodedSize];
         octets[0] = decoded;
@@ -117,7 +119,7 @@ bool IntoTwoByte(int index, bool is_uri, int uri_length,
             return false;
           }
           k += 2;
-          uc16 continuation_byte = static_cast<uc16>(two_digits);
+          base::uc16 continuation_byte = static_cast<base::uc16>(two_digits);
           octets[number_of_continuation_bytes] = continuation_byte;
         }
 
@@ -136,13 +138,13 @@ bool IntoTwoByte(int index, bool is_uri, int uri_length,
 
 bool IntoOneAndTwoByte(Handle<String> uri, bool is_uri,
                        std::vector<uint8_t>* one_byte_buffer,
-                       std::vector<uc16>* two_byte_buffer) {
+                       std::vector<base::uc16>* two_byte_buffer) {
   DisallowGarbageCollection no_gc;
   String::FlatContent uri_content = uri->GetFlatContent(no_gc);
 
   int uri_length = uri->length();
   for (int k = 0; k < uri_length; k++) {
-    uc16 code = uri_content.Get(k);
+    base::uc16 code = uri_content.Get(k);
     if (code == '%') {
       int two_digits;
       if (k + 2 >= uri_length ||
@@ -151,7 +153,7 @@ bool IntoOneAndTwoByte(Handle<String> uri, bool is_uri,
         return false;
       }
 
-      uc16 decoded = static_cast<uc16>(two_digits);
+      base::uc16 decoded = static_cast<base::uc16>(two_digits);
       if (decoded > unibrow::Utf8::kMaxOneByteChar) {
         return IntoTwoByte(k, is_uri, uri_length, &uri_content,
                            two_byte_buffer);
@@ -176,7 +178,7 @@ MaybeHandle<String> Uri::Decode(Isolate* isolate, Handle<String> uri,
                                 bool is_uri) {
   uri = String::Flatten(isolate, uri);
   std::vector<uint8_t> one_byte_buffer;
-  std::vector<uc16> two_byte_buffer;
+  std::vector<base::uc16> two_byte_buffer;
 
   if (!IntoOneAndTwoByte(uri, is_uri, &one_byte_buffer, &two_byte_buffer)) {
     THROW_NEW_ERROR(isolate, NewURIError(), String);
@@ -195,7 +197,7 @@ MaybeHandle<String> Uri::Decode(Isolate* isolate, Handle<String> uri,
       String);
 
   DisallowGarbageCollection no_gc;
-  uc16* chars = result->GetChars(no_gc);
+  base::uc16* chars = result->GetChars(no_gc);
   if (!one_byte_buffer.empty()) {
     CopyChars(chars, one_byte_buffer.data(), one_byte_buffer.size());
     chars += one_byte_buffer.size();
@@ -208,7 +210,7 @@ MaybeHandle<String> Uri::Decode(Isolate* isolate, Handle<String> uri,
 }
 
 namespace {  // anonymous namespace for EncodeURI helper functions
-bool IsUnescapePredicateInUriComponent(uc16 c) {
+bool IsUnescapePredicateInUriComponent(base::uc16 c) {
   if (IsAlphaNumeric(c)) {
     return true;
   }
@@ -229,7 +231,7 @@ bool IsUnescapePredicateInUriComponent(uc16 c) {
   }
 }
 
-bool IsUriSeparator(uc16 c) {
+bool IsUriSeparator(base::uc16 c) {
   switch (c) {
     case '#':
     case ':':
@@ -250,11 +252,11 @@ bool IsUriSeparator(uc16 c) {
 
 void AddEncodedOctetToBuffer(uint8_t octet, std::vector<uint8_t>* buffer) {
   buffer->push_back('%');
-  buffer->push_back(HexCharOfValue(octet >> 4));
-  buffer->push_back(HexCharOfValue(octet & 0x0F));
+  buffer->push_back(base::HexCharOfValue(octet >> 4));
+  buffer->push_back(base::HexCharOfValue(octet & 0x0F));
 }
 
-void EncodeSingle(uc16 c, std::vector<uint8_t>* buffer) {
+void EncodeSingle(base::uc16 c, std::vector<uint8_t>* buffer) {
   char s[4] = {};
   int number_of_bytes;
   number_of_bytes =
@@ -264,7 +266,7 @@ void EncodeSingle(uc16 c, std::vector<uint8_t>* buffer) {
   }
 }
 
-void EncodePair(uc16 cc1, uc16 cc2, std::vector<uint8_t>* buffer) {
+void EncodePair(base::uc16 cc1, base::uc16 cc2, std::vector<uint8_t>* buffer) {
   char s[4] = {};
   int number_of_bytes =
       unibrow::Utf8::Encode(s, unibrow::Utf16::CombineSurrogatePair(cc1, cc2),
@@ -288,11 +290,11 @@ MaybeHandle<String> Uri::Encode(Isolate* isolate, Handle<String> uri,
     String::FlatContent uri_content = uri->GetFlatContent(no_gc);
 
     for (int k = 0; k < uri_length; k++) {
-      uc16 cc1 = uri_content.Get(k);
+      base::uc16 cc1 = uri_content.Get(k);
       if (unibrow::Utf16::IsLeadSurrogate(cc1)) {
         k++;
         if (k < uri_length) {
-          uc16 cc2 = uri->Get(k);
+          base::uc16 cc2 = uri->Get(k);
           if (unibrow::Utf16::IsTrailSurrogate(cc2)) {
             EncodePair(cc1, cc2, &buffer);
             continue;
@@ -471,20 +473,24 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
       if (c >= 256) {
         dest->SeqOneByteStringSet(dest_position, '%');
         dest->SeqOneByteStringSet(dest_position + 1, 'u');
-        dest->SeqOneByteStringSet(dest_position + 2, HexCharOfValue(c >> 12));
+        dest->SeqOneByteStringSet(dest_position + 2,
+                                  base::HexCharOfValue(c >> 12));
         dest->SeqOneByteStringSet(dest_position + 3,
-                                  HexCharOfValue((c >> 8) & 0xF));
+                                  base::HexCharOfValue((c >> 8) & 0xF));
         dest->SeqOneByteStringSet(dest_position + 4,
-                                  HexCharOfValue((c >> 4) & 0xF));
-        dest->SeqOneByteStringSet(dest_position + 5, HexCharOfValue(c & 0xF));
+                                  base::HexCharOfValue((c >> 4) & 0xF));
+        dest->SeqOneByteStringSet(dest_position + 5,
+                                  base::HexCharOfValue(c & 0xF));
         dest_position += 6;
       } else if (IsNotEscaped(c)) {
         dest->SeqOneByteStringSet(dest_position, c);
         dest_position++;
       } else {
         dest->SeqOneByteStringSet(dest_position, '%');
-        dest->SeqOneByteStringSet(dest_position + 1, HexCharOfValue(c >> 4));
-        dest->SeqOneByteStringSet(dest_position + 2, HexCharOfValue(c & 0xF));
+        dest->SeqOneByteStringSet(dest_position + 1,
+                                  base::HexCharOfValue(c >> 4));
+        dest->SeqOneByteStringSet(dest_position + 2,
+                                  base::HexCharOfValue(c & 0xF));
         dest_position += 3;
       }
     }
@@ -500,7 +506,7 @@ MaybeHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
   string = String::Flatten(isolate, string);
   return String::IsOneByteRepresentationUnderneath(*string)
              ? EscapePrivate<uint8_t>(isolate, string)
-             : EscapePrivate<uc16>(isolate, string);
+             : EscapePrivate<base::uc16>(isolate, string);
 }
 
 MaybeHandle<String> Uri::Unescape(Isolate* isolate, Handle<String> string) {
@@ -508,7 +514,7 @@ MaybeHandle<String> Uri::Unescape(Isolate* isolate, Handle<String> string) {
   string = String::Flatten(isolate, string);
   return String::IsOneByteRepresentationUnderneath(*string)
              ? UnescapePrivate<uint8_t>(isolate, string)
-             : UnescapePrivate<uc16>(isolate, string);
+             : UnescapePrivate<base::uc16>(isolate, string);
 }
 
 }  // namespace internal

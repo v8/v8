@@ -4,6 +4,7 @@
 
 #include "src/objects/stack-frame-info.h"
 
+#include "src/base/strings.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/strings/string-builder-inl.h"
@@ -618,7 +619,7 @@ bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
       return false;
     }
 
-    const uc32 subject_char = subject_reader.Get(subject_index);
+    const base::uc32 subject_char = subject_reader.Get(subject_index);
     if (i == pattern_reader.length()) {
       if (subject_char != '.') return false;
     } else if (subject_char != pattern_reader.Get(pattern_index)) {

@@ -45,13 +45,13 @@
 #include <memory>
 #include <vector>
 
+#include "src/base/numbers/double.h"
 #include "src/base/small-vector.h"
 #include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/arm/register-arm.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/machine-type.h"
-#include "src/numbers/double.h"
 #include "src/utils/boxed-float.h"
 
 namespace v8 {
@@ -712,7 +712,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
             SwVfpRegister last, Condition cond = al);
 
   void vmov(const SwVfpRegister dst, Float32 imm);
-  void vmov(const DwVfpRegister dst, Double imm,
+  void vmov(const DwVfpRegister dst, base::Double imm,
             const Register extra_scratch = no_reg);
   void vmov(const SwVfpRegister dst, const SwVfpRegister src,
             const Condition cond = al);

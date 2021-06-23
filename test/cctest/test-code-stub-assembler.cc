@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-promise.h"
@@ -777,7 +778,7 @@ TEST(TryToName) {
 
   {
     // TryToName(<thin two-byte string>) => internalized version.
-    uc16 array1[] = {2001, 2002, 2003};
+    base::uc16 array1[] = {2001, 2002, 2003};
     Handle<String> s = isolate->factory()
                            ->NewStringFromTwoByte(base::ArrayVector(array1))
                            .ToHandleChecked();
@@ -2196,7 +2197,7 @@ TEST(OneToTwoByteStringCopy) {
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
   Handle<String> string1 = isolate->factory()->InternalizeUtf8String("abcde");
-  uc16 array[] = {1000, 1001, 1002, 1003, 1004};
+  base::uc16 array[] = {1000, 1001, 1002, 1003, 1004};
   Handle<String> string2 = isolate->factory()
                                ->NewStringFromTwoByte(base::ArrayVector(array))
                                .ToHandleChecked();
@@ -2291,11 +2292,11 @@ TEST(TwoToTwoByteStringCopy) {
                                  String::TWO_BYTE_ENCODING);
   m.Return(m.SmiConstant(Smi::FromInt(0)));
 
-  uc16 array1[] = {2000, 2001, 2002, 2003, 2004};
+  base::uc16 array1[] = {2000, 2001, 2002, 2003, 2004};
   Handle<String> string1 = isolate->factory()
                                ->NewStringFromTwoByte(base::ArrayVector(array1))
                                .ToHandleChecked();
-  uc16 array2[] = {1000, 1001, 1002, 1003, 1004};
+  base::uc16 array2[] = {1000, 1001, 1002, 1003, 1004};
   Handle<String> string2 = isolate->factory()
                                ->NewStringFromTwoByte(base::ArrayVector(array2))
                                .ToHandleChecked();
@@ -3313,7 +3314,7 @@ TEST(IsWhiteSpaceOrLineTerminator) {
   Handle<Object> true_value = ft.true_value();
   Handle<Object> false_value = ft.false_value();
 
-  for (uc16 c = 0; c < 0xFFFF; c++) {
+  for (base::uc16 c = 0; c < 0xFFFF; c++) {
     Handle<Object> expected_value =
         IsWhiteSpaceOrLineTerminator(c) ? true_value : false_value;
     ft.CheckCall(expected_value, handle(Smi::FromInt(c), isolate));

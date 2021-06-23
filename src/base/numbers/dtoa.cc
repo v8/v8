@@ -2,20 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/numbers/dtoa.h"
+
 #include <cmath>
 
 #include "src/base/logging.h"
-#include "src/utils/utils.h"
-
-#include "src/numbers/dtoa.h"
-
-#include "src/numbers/bignum-dtoa.h"
-#include "src/numbers/double.h"
-#include "src/numbers/fast-dtoa.h"
-#include "src/numbers/fixed-dtoa.h"
+#include "src/base/numbers/bignum-dtoa.h"
+#include "src/base/numbers/double.h"
+#include "src/base/numbers/fast-dtoa.h"
+#include "src/base/numbers/fixed-dtoa.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 static BignumDtoaMode DtoaToBignumDtoaMode(DtoaMode dtoa_mode) {
   switch (dtoa_mode) {
@@ -31,8 +29,7 @@ static BignumDtoaMode DtoaToBignumDtoaMode(DtoaMode dtoa_mode) {
 }
 
 void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
-                   base::Vector<char> buffer, int* sign, int* length,
-                   int* point) {
+                   Vector<char> buffer, int* sign, int* length, int* point) {
   DCHECK(!Double(v).IsSpecial());
   DCHECK(mode == DTOA_SHORTEST || requested_digits >= 0);
 
@@ -80,5 +77,5 @@ void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
   buffer[*length] = '\0';
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8

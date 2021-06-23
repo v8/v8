@@ -38,22 +38,6 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
-// Returns the value (0 .. 15) of a hexadecimal character c.
-// If c is not a legal hexadecimal character, returns a value < 0.
-inline int HexValue(uc32 c) {
-  c -= '0';
-  if (static_cast<unsigned>(c) <= 9) return c;
-  c = (c | 0x20) - ('a' - '0');  // detect 0x11..0x16 and 0x31..0x36.
-  if (static_cast<unsigned>(c) <= 5) return c + 10;
-  return -1;
-}
-
-inline char HexCharOfValue(int value) {
-  DCHECK(0 <= value && value <= 16);
-  if (value < 10) return value + '0';
-  return value - 10 + 'A';
-}
-
 template <typename T>
 static T ArithmeticShiftRight(T x, int shift) {
   DCHECK_LE(0, shift);

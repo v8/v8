@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NUMBERS_BIGNUM_H_
-#define V8_NUMBERS_BIGNUM_H_
+#ifndef V8_BASE_NUMBERS_BIGNUM_H_
+#define V8_BASE_NUMBERS_BIGNUM_H_
 
 #include "src/base/vector.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
-class V8_EXPORT_PRIVATE Bignum {
+class V8_BASE_EXPORT Bignum {
  public:
   // 3584 = 128 * 28. We can represent 2^3584 > 10^1000 accurately.
   // This bignum can encode much bigger numbers, since it contains an
@@ -24,8 +24,8 @@ class V8_EXPORT_PRIVATE Bignum {
   void AssignUInt64(uint64_t value);
   void AssignBignum(const Bignum& other);
 
-  void AssignDecimalString(base::Vector<const char> value);
-  void AssignHexString(base::Vector<const char> value);
+  void AssignDecimalString(Vector<const char> value);
+  void AssignHexString(Vector<const char> value);
 
   void AssignPowerUInt16(uint16_t base, int exponent);
 
@@ -109,13 +109,13 @@ class V8_EXPORT_PRIVATE Bignum {
   Chunk bigits_buffer_[kBigitCapacity];
   // A vector backed by bigits_buffer_. This way accesses to the array are
   // checked for out-of-bounds errors.
-  base::Vector<Chunk> bigits_;
+  Vector<Chunk> bigits_;
   int used_digits_;
   // The Bignum's value equals value(bigits_) * 2^(exponent_ * kBigitSize).
   int exponent_;
 };
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_NUMBERS_BIGNUM_H_
+#endif  // V8_BASE_NUMBERS_BIGNUM_H_

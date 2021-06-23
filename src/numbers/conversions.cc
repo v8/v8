@@ -9,12 +9,12 @@
 
 #include <cmath>
 
+#include "src/base/numbers/dtoa.h"
+#include "src/base/numbers/strtod.h"
 #include "src/base/platform/wrappers.h"
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
-#include "src/numbers/dtoa.h"
-#include "src/numbers/strtod.h"
 #include "src/objects/bigint.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-inl.h"
@@ -143,7 +143,7 @@ inline double JunkStringValue() {
 }
 
 inline double SignedZero(bool negative) {
-  return negative ? uint64_to_double(Double::kSignMask) : 0.0;
+  return negative ? base::uint64_to_double(base::Double::kSignMask) : 0.0;
 }
 
 inline bool isDigit(int x, int radix) {
@@ -340,7 +340,7 @@ class StringToIntHelper {
     return subject_->GetFlatContent(no_gc).ToOneByteVector();
   }
 
-  base::Vector<const uc16> GetTwoByteVector() {
+  base::Vector<const base::uc16> GetTwoByteVector() {
     DisallowGarbageCollection no_gc;
     return subject_->GetFlatContent(no_gc).ToUC16Vector();
   }
@@ -381,7 +381,7 @@ void StringToIntHelper<IsolateT>::ParseInt() {
       base::Vector<const uint8_t> vector = GetOneByteVector();
       DetectRadixInternal(vector.begin(), vector.length());
     } else {
-      base::Vector<const uc16> vector = GetTwoByteVector();
+      base::Vector<const base::uc16> vector = GetTwoByteVector();
       DetectRadixInternal(vector.begin(), vector.length());
     }
   }
@@ -399,7 +399,7 @@ void StringToIntHelper<IsolateT>::ParseInt() {
           break;
         }
       } else {
-        base::Vector<const uc16> vector = GetTwoByteVector();
+        base::Vector<const base::uc16> vector = GetTwoByteVector();
         DCHECK_EQ(length_, vector.length());
         if (ParseChunkInternal(vector.begin())) {
           break;
@@ -612,7 +612,7 @@ class NumberParseIntHelper : public StringToIntHelper<Isolate> {
       result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.begin())
                                 : HandleBaseTenCase(vector.begin());
     } else {
-      base::Vector<const uc16> vector = GetTwoByteVector();
+      base::Vector<const base::uc16> vector = GetTwoByteVector();
       DCHECK_EQ(length(), vector.length());
       result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.begin())
                                 : HandleBaseTenCase(vector.begin());
@@ -957,9 +957,9 @@ double StringToDouble(base::Vector<const uint8_t> str, int flags,
                                 empty_string_val);
 }
 
-double StringToDouble(base::Vector<const uc16> str, int flags,
+double StringToDouble(base::Vector<const base::uc16> str, int flags,
                       double empty_string_val) {
-  const uc16* end = str.begin() + str.length();
+  const base::uc16* end = str.begin() + str.length();
   return InternalStringToDouble(str.begin(), end, flags, empty_string_val);
 }
 
@@ -1099,13 +1099,14 @@ const char* DoubleToCString(double v, base::Vector<char> buffer) {
       SimpleStringBuilder builder(buffer.begin(), buffer.length());
       int decimal_point;
       int sign;
-      const int kV8DtoaBufferCapacity = kBase10MaximalLength + 1;
+      const int kV8DtoaBufferCapacity = base::kBase10MaximalLength + 1;
       char decimal_rep[kV8DtoaBufferCapacity];
       int length;
 
-      DoubleToAscii(v, DTOA_SHORTEST, 0,
-                    base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
-                    &sign, &length, &decimal_point);
+      base::DoubleToAscii(
+          v, base::DTOA_SHORTEST, 0,
+          base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
+          &length, &decimal_point);
 
       if (sign) builder.AddCharacter('-');
 
@@ -1191,9 +1192,9 @@ char* DoubleToFixedCString(double value, int f) {
       kMaxDigitsBeforePoint + kMaxFractionDigits + 1;
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
-  DoubleToAscii(value, DTOA_FIXED, f,
-                base::Vector<char>(decimal_rep, kDecimalRepCapacity), &sign,
-                &decimal_rep_length, &decimal_point);
+  base::DoubleToAscii(value, base::DTOA_FIXED, f,
+                      base::Vector<char>(decimal_rep, kDecimalRepCapacity),
+                      &sign, &decimal_rep_length, &decimal_point);
 
   // Create a representation that is padded with zeros if needed.
   int zero_prefix_length = 0;
@@ -1281,19 +1282,19 @@ char* DoubleToExponentialCString(double value, int f) {
   const int kV8DtoaBufferCapacity = kMaxFractionDigits + 1 + 1;
   // Make sure that the buffer is big enough, even if we fall back to the
   // shortest representation (which happens when f equals -1).
-  DCHECK_LE(kBase10MaximalLength, kMaxFractionDigits + 1);
+  DCHECK_LE(base::kBase10MaximalLength, kMaxFractionDigits + 1);
   char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
   if (f == -1) {
-    DoubleToAscii(value, DTOA_SHORTEST, 0,
-                  base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
-                  &decimal_rep_length, &decimal_point);
+    base::DoubleToAscii(value, base::DTOA_SHORTEST, 0,
+                        base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                        &sign, &decimal_rep_length, &decimal_point);
     f = decimal_rep_length - 1;
   } else {
-    DoubleToAscii(value, DTOA_PRECISION, f + 1,
-                  base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
-                  &decimal_rep_length, &decimal_point);
+    base::DoubleToAscii(value, base::DTOA_PRECISION, f + 1,
+                        base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                        &sign, &decimal_rep_length, &decimal_point);
   }
   DCHECK_GT(decimal_rep_length, 0);
   DCHECK(decimal_rep_length <= f + 1);
@@ -1324,9 +1325,9 @@ char* DoubleToPrecisionCString(double value, int p) {
   char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
-  DoubleToAscii(value, DTOA_PRECISION, p,
-                base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
-                &decimal_rep_length, &decimal_point);
+  base::DoubleToAscii(value, base::DTOA_PRECISION, p,
+                      base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
+                      &sign, &decimal_rep_length, &decimal_point);
   DCHECK(decimal_rep_length <= p);
 
   int exponent = decimal_point - 1;
@@ -1398,8 +1399,8 @@ char* DoubleToRadixCString(double value, int radix) {
   double integer = std::floor(value);
   double fraction = value - integer;
   // We only compute fractional digits up to the input double's precision.
-  double delta = 0.5 * (Double(value).NextDouble() - value);
-  delta = std::max(Double(0.0).NextDouble(), delta);
+  double delta = 0.5 * (base::Double(value).NextDouble() - value);
+  delta = std::max(base::Double(0.0).NextDouble(), delta);
   DCHECK_GT(delta, 0.0);
   if (fraction >= delta) {
     // Insert decimal point.
@@ -1440,7 +1441,7 @@ char* DoubleToRadixCString(double value, int radix) {
   }
 
   // Compute integer digits. Fill unrepresented digits with zero.
-  while (Double(integer / radix).Exponent() > 0) {
+  while (base::Double(integer / radix).Exponent() > 0) {
     integer /= radix;
     buffer[--integer_cursor] = '0';
   }
@@ -1487,10 +1488,10 @@ base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
   }
 
   const int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-  auto buffer = std::make_unique<uc16[]>(max_length_for_conversion);
+  auto buffer = std::make_unique<base::uc16[]>(max_length_for_conversion);
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   String::WriteToFlat(*object, buffer.get(), 0, length, access_guard);
-  base::Vector<const uc16> v(buffer.get(), length);
+  base::Vector<const base::uc16> v(buffer.get(), length);
   return StringToDouble(v, flags);
 }
 

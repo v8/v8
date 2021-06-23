@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NUMBERS_CACHED_POWERS_H_
-#define V8_NUMBERS_CACHED_POWERS_H_
+#ifndef V8_BASE_NUMBERS_CACHED_POWERS_H_
+#define V8_BASE_NUMBERS_CACHED_POWERS_H_
 
 #include "src/base/logging.h"
-#include "src/numbers/diy-fp.h"
+#include "src/base/numbers/diy-fp.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 class PowersOfTenCache {
  public:
@@ -37,7 +37,7 @@ class PowersOfTenCache {
                                                int* found_exponent);
 };
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_NUMBERS_CACHED_POWERS_H_
+#endif  // V8_BASE_NUMBERS_CACHED_POWERS_H_

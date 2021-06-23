@@ -11,6 +11,7 @@
 #include "include/v8.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
+#include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/common/message-template.h"
 #include "src/handles/maybe-handles.h"
@@ -106,7 +107,7 @@ class ValueSerializer {
   template <typename T>
   void WriteZigZag(T value);
   void WriteOneByteString(base::Vector<const uint8_t> chars);
-  void WriteTwoByteString(base::Vector<const uc16> chars);
+  void WriteTwoByteString(base::Vector<const base::uc16> chars);
   void WriteBigIntContents(BigInt bigint);
   Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 

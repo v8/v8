@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NUMBERS_FIXED_DTOA_H_
-#define V8_NUMBERS_FIXED_DTOA_H_
+#ifndef V8_BASE_NUMBERS_FIXED_DTOA_H_
+#define V8_BASE_NUMBERS_FIXED_DTOA_H_
 
 #include "src/base/vector.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // Produces digits necessary to print a given number with
 // 'fractional_count' digits after the decimal point.
@@ -26,11 +26,11 @@ namespace internal {
 //
 // This method only works for some parameters. If it can't handle the input it
 // returns false. The output is null-terminated when the function succeeds.
-V8_EXPORT_PRIVATE bool FastFixedDtoa(double v, int fractional_count,
-                                     base::Vector<char> buffer, int* length,
-                                     int* decimal_point);
+V8_BASE_EXPORT bool FastFixedDtoa(double v, int fractional_count,
+                                  Vector<char> buffer, int* length,
+                                  int* decimal_point);
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_NUMBERS_FIXED_DTOA_H_
+#endif  // V8_BASE_NUMBERS_FIXED_DTOA_H_

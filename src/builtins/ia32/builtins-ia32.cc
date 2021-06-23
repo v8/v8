@@ -3103,7 +3103,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ j(below, &process_64_bits);
 
   // Result is entirely in lower 32-bits of mantissa
-  int delta = HeapNumber::kExponentBias + Double::kPhysicalSignificandSize;
+  int delta =
+      HeapNumber::kExponentBias + base::Double::kPhysicalSignificandSize;
   if (CpuFeatures::IsSupported(SSE3)) {
     __ fstp(0);
   }
@@ -3129,10 +3130,11 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
     __ sub(ecx, Immediate(delta));
     __ neg(ecx);
     __ mov(result_reg, exponent_operand);
-    __ and_(result_reg,
-            Immediate(static_cast<uint32_t>(Double::kSignificandMask >> 32)));
+    __ and_(
+        result_reg,
+        Immediate(static_cast<uint32_t>(base::Double::kSignificandMask >> 32)));
     __ add(result_reg,
-           Immediate(static_cast<uint32_t>(Double::kHiddenBit >> 32)));
+           Immediate(static_cast<uint32_t>(base::Double::kHiddenBit >> 32)));
     __ shrd_cl(scratch1, result_reg);
     __ shr_cl(result_reg);
     __ test(ecx, Immediate(32));

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/numbers/double.h"
 #include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -13,7 +14,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/memory-chunk.h"
-#include "src/numbers/double.h"
 #include "src/utils/boxed-float.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2511,8 +2511,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshr(NeonS32, tmp, src, 31);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
-      __ vmov(mask.low(), Double(uint64_t{0x0000'0002'0000'0001}));
-      __ vmov(mask.high(), Double(uint64_t{0x0000'0008'0000'0004}));
+      __ vmov(mask.low(), base::Double(uint64_t{0x0000'0002'0000'0001}));
+      __ vmov(mask.high(), base::Double(uint64_t{0x0000'0008'0000'0004}));
       __ vand(tmp, mask, tmp);
       __ vpadd(Neon32, tmp.low(), tmp.low(), tmp.high());
       __ vpadd(Neon32, tmp.low(), tmp.low(), kDoubleRegZero);
@@ -2715,8 +2715,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshr(NeonS16, tmp, src, 15);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
-      __ vmov(mask.low(), Double(uint64_t{0x0008'0004'0002'0001}));
-      __ vmov(mask.high(), Double(uint64_t{0x0080'0040'0020'0010}));
+      __ vmov(mask.low(), base::Double(uint64_t{0x0008'0004'0002'0001}));
+      __ vmov(mask.high(), base::Double(uint64_t{0x0080'0040'0020'0010}));
       __ vand(tmp, mask, tmp);
       __ vpadd(Neon16, tmp.low(), tmp.low(), tmp.high());
       __ vpadd(Neon16, tmp.low(), tmp.low(), tmp.low());
@@ -2870,8 +2870,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshr(NeonS8, tmp, src, 7);
       // Set i-th bit of each lane i. When AND with tmp, the lanes that
       // are signed will have i-th bit set, unsigned will be 0.
-      __ vmov(mask.low(), Double(uint64_t{0x8040'2010'0804'0201}));
-      __ vmov(mask.high(), Double(uint64_t{0x8040'2010'0804'0201}));
+      __ vmov(mask.low(), base::Double(uint64_t{0x8040'2010'0804'0201}));
+      __ vmov(mask.high(), base::Double(uint64_t{0x8040'2010'0804'0201}));
       __ vand(tmp, mask, tmp);
       __ vext(mask, tmp, tmp, 8);
       __ vzip(Neon8, mask, tmp);
@@ -2885,8 +2885,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       QwNeonRegister dst = i.OutputSimd128Register();
       uint64_t imm1 = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t imm2 = make_uint64(i.InputUint32(3), i.InputUint32(2));
-      __ vmov(dst.low(), Double(imm1));
-      __ vmov(dst.high(), Double(imm2));
+      __ vmov(dst.low(), base::Double(imm1));
+      __ vmov(dst.high(), base::Double(imm2));
       break;
     }
     case kArmS128Zero: {
