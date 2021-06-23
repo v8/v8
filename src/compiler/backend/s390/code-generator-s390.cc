@@ -2308,9 +2308,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vst(i.InputSimd128Register(index), operand, Condition(0));
       break;
     }
-    case kS390_Lay:
-      __ lay(i.OutputRegister(), i.MemoryOperand());
+    case kS390_Lay: {
+      MemOperand mem = i.MemoryOperand();
+      if (!is_int20(mem.offset())) {
+        // Add directly to the base register in case the index register (rx) is
+        // r0.
+        DCHECK(is_int32(mem.offset()));
+        __ AddS64(ip, mem.rb(), Operand(mem.offset()));
+        mem = MemOperand(mem.rx(), ip);
+      }
+      __ lay(i.OutputRegister(), mem);
       break;
+    }
     case kS390_Word64AtomicExchangeUint8:
     case kWord32AtomicExchangeInt8:
     case kWord32AtomicExchangeUint8: {
