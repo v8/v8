@@ -2099,7 +2099,7 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
   // {allocator_mutex_} if we try to switch for each code individually.
   CodeSpaceWriteScope code_space_write_scope(this);
   for (auto& result : results) {
-    DCHECK_EQ(result.code_desc.buffer, result.instr_buffer->start());
+    DCHECK_EQ(result.code_desc.buffer, result.instr_buffer.get());
     size_t code_size = RoundUp<kCodeAlignment>(result.code_desc.instr_size);
     base::Vector<byte> this_code_space = code_space.SubVector(0, code_size);
     code_space += code_size;

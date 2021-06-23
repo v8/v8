@@ -22,6 +22,96 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace {
+
+class WasmInstructionBufferImpl {
+ public:
+  class View : public AssemblerBuffer {
+   public:
+    View(base::Vector<uint8_t> buffer, WasmInstructionBufferImpl* holder)
+        : buffer_(buffer), holder_(holder) {}
+
+    ~View() override {
+      if (buffer_.begin() == holder_->old_buffer_.start()) {
+        DCHECK_EQ(buffer_.size(), holder_->old_buffer_.size());
+        holder_->old_buffer_ = {};
+      }
+    }
+
+    byte* start() const override { return buffer_.begin(); }
+
+    int size() const override { return static_cast<int>(buffer_.size()); }
+
+    std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
+      // If we grow, we must be the current buffer of {holder_}.
+      DCHECK_EQ(buffer_.begin(), holder_->buffer_.start());
+      DCHECK_EQ(buffer_.size(), holder_->buffer_.size());
+      DCHECK_NULL(holder_->old_buffer_);
+
+      DCHECK_LT(size(), new_size);
+
+      holder_->old_buffer_ = std::move(holder_->buffer_);
+      holder_->buffer_ = base::OwnedVector<uint8_t>::NewForOverwrite(new_size);
+      return std::make_unique<View>(holder_->buffer_.as_vector(), holder_);
+    }
+
+   private:
+    const base::Vector<uint8_t> buffer_;
+    WasmInstructionBufferImpl* const holder_;
+  };
+
+  explicit WasmInstructionBufferImpl(size_t size)
+      : buffer_(base::OwnedVector<uint8_t>::NewForOverwrite(size)) {}
+
+  std::unique_ptr<AssemblerBuffer> CreateView() {
+    DCHECK_NOT_NULL(buffer_);
+    return std::make_unique<View>(buffer_.as_vector(), this);
+  }
+
+  std::unique_ptr<uint8_t[]> ReleaseBuffer() {
+    DCHECK_NULL(old_buffer_);
+    DCHECK_NOT_NULL(buffer_);
+    return buffer_.ReleaseData();
+  }
+
+  bool released() const { return buffer_ == nullptr; }
+
+ private:
+  // The current buffer used to emit code.
+  base::OwnedVector<uint8_t> buffer_;
+
+  // While the buffer is grown, we need to temporarily also keep the old buffer
+  // alive.
+  base::OwnedVector<uint8_t> old_buffer_;
+};
+
+WasmInstructionBufferImpl* Impl(WasmInstructionBuffer* buf) {
+  return reinterpret_cast<WasmInstructionBufferImpl*>(buf);
+}
+
+}  // namespace
+
+// PIMPL interface WasmInstructionBuffer for WasmInstBufferImpl
+WasmInstructionBuffer::~WasmInstructionBuffer() {
+  Impl(this)->~WasmInstructionBufferImpl();
+}
+
+std::unique_ptr<AssemblerBuffer> WasmInstructionBuffer::CreateView() {
+  return Impl(this)->CreateView();
+}
+
+std::unique_ptr<uint8_t[]> WasmInstructionBuffer::ReleaseBuffer() {
+  return Impl(this)->ReleaseBuffer();
+}
+
+// static
+std::unique_ptr<WasmInstructionBuffer> WasmInstructionBuffer::New(size_t size) {
+  return std::unique_ptr<WasmInstructionBuffer>{
+      reinterpret_cast<WasmInstructionBuffer*>(new WasmInstructionBufferImpl(
+          std::max(size_t{AssemblerBase::kMinimalBufferSize}, size)))};
+}
+// End of PIMPL interface WasmInstructionBuffer for WasmInstBufferImpl
+
 // static
 ExecutionTier WasmCompilationUnit::GetBaselineExecutionTier(
     const WasmModule* module) {

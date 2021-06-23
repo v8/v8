@@ -11,7 +11,6 @@
 
 #include <memory>
 
-#include "src/codegen/assembler.h"
 #include "src/codegen/code-desc.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
@@ -23,6 +22,7 @@
 namespace v8 {
 namespace internal {
 
+class AssemblerBuffer;
 class Counters;
 class OptimizedCompilationJob;
 
@@ -32,6 +32,24 @@ class NativeModule;
 class WasmCode;
 class WasmEngine;
 struct WasmFunction;
+
+class WasmInstructionBuffer final {
+ public:
+  WasmInstructionBuffer() = delete;
+  WasmInstructionBuffer(const WasmInstructionBuffer&) = delete;
+  WasmInstructionBuffer& operator=(const WasmInstructionBuffer&) = delete;
+  ~WasmInstructionBuffer();
+  std::unique_ptr<AssemblerBuffer> CreateView();
+  std::unique_ptr<uint8_t[]> ReleaseBuffer();
+
+  // Allocate a new {WasmInstructionBuffer}. The size is the maximum of {size}
+  // and {AssemblerBase::kMinimalSize}.
+  static std::unique_ptr<WasmInstructionBuffer> New(size_t size = 0);
+
+  // Override {operator delete} to avoid implicit instantiation of {operator
+  // delete} with {size_t} argument. The {size_t} argument would be incorrect.
+  void operator delete(void* ptr) { ::operator delete(ptr); }
+};
 
 struct WasmCompilationResult {
  public:
@@ -47,7 +65,7 @@ struct WasmCompilationResult {
   operator bool() const { return succeeded(); }
 
   CodeDesc code_desc;
-  std::unique_ptr<AssemblerBuffer> instr_buffer;
+  std::unique_ptr<uint8_t[]> instr_buffer;
   uint32_t frame_slot_count = 0;
   uint32_t tagged_parameter_slots = 0;
   base::OwnedVector<byte> source_positions;

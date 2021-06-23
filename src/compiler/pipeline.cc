@@ -546,14 +546,15 @@ class PipelineData {
     start_source_position_ = position;
   }
 
-  void InitializeCodeGenerator(Linkage* linkage) {
+  void InitializeCodeGenerator(Linkage* linkage,
+                               std::unique_ptr<AssemblerBuffer> buffer) {
     DCHECK_NULL(code_generator_);
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
         info()->GetPoisoningMitigationLevel(), assembler_options_,
         info_->builtin(), max_unoptimized_frame_height(),
-        max_pushed_argument_count(),
+        max_pushed_argument_count(), std::move(buffer),
         FLAG_trace_turbo_stack_accesses ? debug_name_.get() : nullptr);
   }
 
@@ -703,7 +704,8 @@ class PipelineImpl final {
   bool SelectInstructions(Linkage* linkage);
 
   // Step C. Run the code assembly pass.
-  void AssembleCode(Linkage* linkage);
+  void AssembleCode(Linkage* linkage,
+                    std::unique_ptr<AssemblerBuffer> buffer = {});
 
   // Step D. Run the code finalization pass.
   MaybeHandle<Code> FinalizeCode(bool retire_broker = true);
@@ -3153,6 +3155,11 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   wasm::WasmEngine* wasm_engine = wasm::GetWasmEngine();
   ZoneStats zone_stats(wasm_engine->allocator());
   NodeOriginTable* node_positions = graph->zone()->New<NodeOriginTable>(graph);
+  // {instruction_buffer} must live longer than {PipelineData}, since
+  // {PipelineData} will reference the {instruction_buffer} via the
+  // {AssemblerBuffer} of the {Assembler} contained in the {CodeGenerator}.
+  std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
+      wasm::WasmInstructionBuffer::New();
   PipelineData data(&zone_stats, wasm_engine, &info, mcgraph, nullptr,
                     source_positions, node_positions, options);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
@@ -3193,14 +3200,14 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 
   Linkage linkage(call_descriptor);
   CHECK(pipeline.SelectInstructions(&linkage));
-  pipeline.AssembleCode(&linkage);
+  pipeline.AssembleCode(&linkage, instruction_buffer->CreateView());
 
   CodeGenerator* code_generator = pipeline.code_generator();
   wasm::WasmCompilationResult result;
   code_generator->tasm()->GetCode(
       nullptr, &result.code_desc, code_generator->safepoint_table_builder(),
       static_cast<int>(code_generator->GetHandlerTableOffset()));
-  result.instr_buffer = code_generator->tasm()->ReleaseBuffer();
+  result.instr_buffer = instruction_buffer->ReleaseBuffer();
   result.source_positions = code_generator->GetSourcePositionTable();
   result.protected_instructions_data =
       code_generator->GetProtectedInstructionsData();
@@ -3251,6 +3258,11 @@ void Pipeline::GenerateCodeForWasmFunction(
   ZoneStats zone_stats(wasm_engine->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(function_body, module, info, &zone_stats));
+  // {instruction_buffer} must live longer than {PipelineData}, since
+  // {PipelineData} will reference the {instruction_buffer} via the
+  // {AssemblerBuffer} of the {Assembler} contained in the {CodeGenerator}.
+  std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
+      wasm::WasmInstructionBuffer::New();
   PipelineData data(&zone_stats, wasm_engine, info, mcgraph,
                     pipeline_statistics.get(), source_positions, node_origins,
                     WasmAssemblerOptions());
@@ -3298,7 +3310,7 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   Linkage linkage(call_descriptor);
   if (!pipeline.SelectInstructions(&linkage)) return;
-  pipeline.AssembleCode(&linkage);
+  pipeline.AssembleCode(&linkage, instruction_buffer->CreateView());
 
   auto result = std::make_unique<wasm::WasmCompilationResult>();
   CodeGenerator* code_generator = pipeline.code_generator();
@@ -3306,7 +3318,7 @@ void Pipeline::GenerateCodeForWasmFunction(
       nullptr, &result->code_desc, code_generator->safepoint_table_builder(),
       static_cast<int>(code_generator->GetHandlerTableOffset()));
 
-  result->instr_buffer = code_generator->tasm()->ReleaseBuffer();
+  result->instr_buffer = instruction_buffer->ReleaseBuffer();
   result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result->source_positions = code_generator->GetSourcePositionTable();
@@ -3701,10 +3713,11 @@ std::ostream& operator<<(std::ostream& out,
   return out;
 }
 
-void PipelineImpl::AssembleCode(Linkage* linkage) {
+void PipelineImpl::AssembleCode(Linkage* linkage,
+                                std::unique_ptr<AssemblerBuffer> buffer) {
   PipelineData* data = this->data_;
   data->BeginPhaseKind("V8.TFCodeGeneration");
-  data->InitializeCodeGenerator(linkage);
+  data->InitializeCodeGenerator(linkage, std::move(buffer));
 
   UnparkedScopeIfNeeded unparked_scope(data->broker(), FLAG_code_comments);
 
