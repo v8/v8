@@ -63,6 +63,8 @@ using base::WriteLittleEndianValue;
 
 constexpr uint32_t kMaxFunctions = 10;
 constexpr uint32_t kMaxGlobalsSize = 128;
+// Don't execute more than 16k steps.
+constexpr int kMaxNumSteps = 16 * 1024;
 
 using compiler::CallDescriptor;
 using compiler::MachineTypeForC;
@@ -262,6 +264,8 @@ class TestingModuleBuilder {
 
   void set_max_steps(int n) { max_steps_ = n; }
   int* max_steps_ptr() { return &max_steps_; }
+  bool nondeterminism() { return nondeterminism_; }
+  bool* non_determinism_ptr() { return &nondeterminism_; }
 
   void EnableFeature(WasmFeature feature) { enabled_features_.Add(feature); }
 
@@ -278,7 +282,8 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
   RuntimeExceptionSupport runtime_exception_support_;
-  int max_steps_ = 0;
+  int max_steps_ = kMaxNumSteps;
+  bool nondeterminism_ = false;
 
   // Data segment arrays that are normally allocated on the instance.
   std::vector<byte> data_segment_data_;
@@ -635,6 +640,7 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   void SetMaxSteps(int n) { builder_.set_max_steps(n); }
+  bool HasNondeterminism() { return builder_.nondeterminism(); }
 };
 
 // A macro to define tests that run in different engine configurations.

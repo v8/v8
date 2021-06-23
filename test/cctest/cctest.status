@@ -178,6 +178,9 @@
 
   # BUG(v8:3434).
   'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
+
+  # TODO(11856): Port nondeterminism detection.
+  'test-liftoff-for-fuzzing/*': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run', {
@@ -336,6 +339,9 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+
+  # TODO(11856): Port nondeterminism detection.
+  'test-liftoff-for-fuzzing/*': [SKIP],
 }],  # 'arch == arm'
 
 ##############################################################################

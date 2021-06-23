@@ -4233,6 +4233,11 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
+void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
+                                       ValueKind kind) {
+  UNIMPLEMENTED();
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();

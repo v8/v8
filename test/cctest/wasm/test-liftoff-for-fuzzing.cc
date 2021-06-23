@@ -22,6 +22,33 @@ TEST(MaxSteps) {
   r.CheckCallViaJSTraps();
 }
 
+TEST(NondeterminismUnopF32) {
+  WasmRunner<float> r(TestExecutionTier::kLiftoffForFuzzing);
+
+  BUILD(r, WASM_F32_ABS(WASM_F32(std::nanf(""))));
+  CHECK(!r.HasNondeterminism());
+  r.CheckCallViaJS(std::nanf(""));
+  CHECK(r.HasNondeterminism());
+}
+
+TEST(NondeterminismUnopF64) {
+  WasmRunner<double> r(TestExecutionTier::kLiftoffForFuzzing);
+
+  BUILD(r, WASM_F64_ABS(WASM_F64(std::nan(""))));
+  CHECK(!r.HasNondeterminism());
+  r.CheckCallViaJS(std::nan(""));
+  CHECK(r.HasNondeterminism());
+}
+
+TEST(NondeterminismBinop) {
+  WasmRunner<float> r(TestExecutionTier::kLiftoffForFuzzing);
+
+  BUILD(r, WASM_F32_ADD(WASM_F32(std::nanf("")), WASM_F32(0)));
+  CHECK(!r.HasNondeterminism());
+  r.CheckCallViaJS(std::nanf(""));
+  CHECK(r.HasNondeterminism());
+}
+
 }  // namespace test_liftoff_for_fuzzing
 }  // namespace wasm
 }  // namespace internal

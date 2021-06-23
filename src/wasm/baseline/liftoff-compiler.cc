@@ -458,7 +458,8 @@ class LiftoffCompiler {
                   DebugSideTableBuilder* debug_sidetable_builder,
                   ForDebugging for_debugging, int func_index,
                   base::Vector<const int> breakpoints = {},
-                  int dead_breakpoint = 0, int* max_steps = nullptr)
+                  int dead_breakpoint = 0, int* max_steps = nullptr,
+                  bool* nondeterminism = nullptr)
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
@@ -475,7 +476,8 @@ class LiftoffCompiler {
         next_breakpoint_end_(breakpoints.end()),
         dead_breakpoint_(dead_breakpoint),
         handlers_(compilation_zone),
-        max_steps_(max_steps) {
+        max_steps_(max_steps),
+        nondeterminism_(nondeterminism) {
     if (breakpoints.empty()) {
       next_breakpoint_ptr_ = next_breakpoint_end_ = nullptr;
     }
@@ -1447,6 +1449,10 @@ class LiftoffCompiler {
                               ? __ GetUnusedRegister(result_rc, {src}, {})
                               : __ GetUnusedRegister(result_rc, {});
     CallEmitFn(fn, dst, src);
+    if (V8_UNLIKELY(nondeterminism_) &&
+        (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64)) {
+      CheckNan(dst, LiftoffRegList::ForRegs(src, dst), result_kind);
+    }
     __ PushRegister(result_kind, dst);
   }
 
@@ -1668,6 +1674,8 @@ class LiftoffCompiler {
                                 : __ GetUnusedRegister(result_rc, pinned);
 
       CallEmitFn(fnImm, dst, lhs, imm);
+      static_assert(result_kind != kF32 && result_kind != kF64,
+                    "Unhandled nondeterminism for fuzzing.");
       __ PushRegister(result_kind, dst);
     } else {
       // The RHS was not an immediate.
@@ -1689,6 +1697,10 @@ class LiftoffCompiler {
     if (swap_lhs_rhs) std::swap(lhs, rhs);
 
     CallEmitFn(fn, dst, lhs, rhs);
+    if (V8_UNLIKELY(nondeterminism_) &&
+        (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64)) {
+      CheckNan(dst, LiftoffRegList::ForRegs(rhs, lhs, dst), result_kind);
+    }
     __ PushRegister(result_kind, dst);
   }
 
@@ -3290,6 +3302,11 @@ class LiftoffCompiler {
                                    LiftoffRegList::ForRegs(src1, src2))
             : __ GetUnusedRegister(result_rc, {});
     CallEmitFn(fn, dst, src1, src2, src3);
+    if (V8_UNLIKELY(nondeterminism_) &&
+        (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64)) {
+      CheckNan(dst, LiftoffRegList::ForRegs(src1, src2, src3, dst),
+               result_kind);
+    }
     __ PushRegister(result_kind, dst);
   }
 
@@ -6071,6 +6088,15 @@ class LiftoffCompiler {
     __ FinishCall(sig, call_descriptor);
   }
 
+  void CheckNan(LiftoffRegister src, LiftoffRegList pinned, ValueKind kind) {
+    DCHECK(kind == ValueKind::kF32 || kind == ValueKind::kF64);
+    auto nondeterminism_addr = __ GetUnusedRegister(kGpReg, pinned);
+    __ LoadConstant(
+        nondeterminism_addr,
+        WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(nondeterminism_)));
+    __ emit_set_if_nan(nondeterminism_addr.gp(), src.fp(), kind);
+  }
+
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
   static constexpr base::EnumSet<ValueKind> kUnconditionallySupported{
       kI32, kI64, kF32, kF64};
@@ -6130,6 +6156,7 @@ class LiftoffCompiler {
   int num_exceptions_ = 0;
 
   int* max_steps_;
+  bool* nondeterminism_;
 
   bool has_outstanding_op() const {
     return outstanding_op_ != kNoOutstandingOp;
@@ -6188,7 +6215,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     ForDebugging for_debugging, Counters* counters, WasmFeatures* detected,
     base::Vector<const int> breakpoints,
     std::unique_ptr<DebugSideTable>* debug_sidetable, int dead_breakpoint,
-    int* max_steps) {
+    int* max_steps, bool* nondeterminism) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileBaseline", "funcIndex", func_index, "bodySize",
@@ -6211,7 +6238,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
       &zone, env->module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView(),
       debug_sidetable_builder.get(), for_debugging, func_index, breakpoints,
-      dead_breakpoint, max_steps);
+      dead_breakpoint, max_steps, nondeterminism);
   decoder.Decode();
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);

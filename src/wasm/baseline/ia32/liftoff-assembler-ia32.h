@@ -4808,6 +4808,20 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
+void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
+                                       ValueKind kind) {
+  if (kind == kF32) {
+    ucomiss(src, src);
+  } else {
+    DCHECK_EQ(kind, kF64);
+    ucomisd(src, src);
+  }
+  Label ret;
+  j(parity_odd, &ret);
+  mov(Operand(dst, 0), Immediate(1));
+  bind(&ret);
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();

@@ -560,7 +560,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
     result.emplace(ExecuteLiftoffCompilation(
         &env, func_body, function_->func_index, kForDebugging,
         isolate()->counters(), &unused_detected_features, {}, nullptr, 0,
-        builder_->max_steps_ptr()));
+        builder_->max_steps_ptr(), builder_->non_determinism_ptr()));
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
                              for_debugging);
