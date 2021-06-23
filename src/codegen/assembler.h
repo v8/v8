@@ -292,6 +292,15 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   int buffer_size() const { return buffer_->size(); }
   int instruction_size() const { return pc_offset(); }
 
+  std::unique_ptr<AssemblerBuffer> ReleaseBuffer() {
+    std::unique_ptr<AssemblerBuffer> buffer = std::move(buffer_);
+    DCHECK_NULL(buffer_);
+    // Reset fields to prevent accidental further modifications of the buffer.
+    buffer_start_ = nullptr;
+    pc_ = nullptr;
+    return buffer;
+  }
+
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.
   virtual void AbortedCodeGeneration() {}

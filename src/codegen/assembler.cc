@@ -99,9 +99,10 @@ namespace {
 class DefaultAssemblerBuffer : public AssemblerBuffer {
  public:
   explicit DefaultAssemblerBuffer(int size)
-      : buffer_(base::OwnedVector<uint8_t>::NewForOverwrite(size)) {
+      : buffer_(base::OwnedVector<uint8_t>::NewForOverwrite(
+            std::max(AssemblerBase::kMinimalBufferSize, size))) {
 #ifdef DEBUG
-    ZapCode(reinterpret_cast<Address>(buffer_.start()), size);
+    ZapCode(reinterpret_cast<Address>(buffer_.start()), buffer_.size());
 #endif
   }
 
