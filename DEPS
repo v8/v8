@@ -43,6 +43,10 @@ vars = {
   'download_jsfunfuzz': False,
   'download_prebuilt_bazel': False,
   'check_v8_header_includes': False,
+  'checkout_reclient': False,
+
+  # reclient CIPD package version
+  'reclient_version': 're_client_version:0.33.0.3e223d5',
 
   # GN CIPD package version.
   'gn_version': 'git_revision:e9b8433248ae2c117644b4e40b33203e7d3da192',
@@ -128,6 +132,16 @@ deps = {
     ],
     'dep_type': 'cipd',
     'condition': 'host_os == "win"',
+  },
+  'buildtools/reclient': {
+    'packages': [
+      {
+        'package': 'infra/rbe/client/${{platform}}',
+        'version': Var('reclient_version'),
+      }
+    ],
+    'dep_type': 'cipd',
+    'condition': '(host_os == "linux" or host_os == "win") and checkout_reclient',
   },
   'test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
