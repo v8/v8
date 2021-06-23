@@ -4,7 +4,7 @@
 
 #include "src/base/cpu.h"
 
-#if defined(STARBOARD)
+#if defined(V8_OS_STARBOARD)
 #include "starboard/cpu_features.h"
 #endif
 
@@ -356,10 +356,9 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
         // V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
-#if defined(STARBOARD)
+#if defined(V8_OS_STARBOARD)
 
 bool CPU::StarboardDetectCPU() {
-#if (SB_API_VERSION >= 11)
   SbCPUFeatures features;
   if (!SbCPUFeaturesGet(&features)) {
     return false;
@@ -398,9 +397,6 @@ bool CPU::StarboardDetectCPU() {
   }
 
   return true;
-#else  // SB_API_VERSION >= 11
-  return false;
-#endif
 }
 
 #endif
@@ -450,7 +446,7 @@ CPU::CPU()
       has_msa_(false) {
   memcpy(vendor_, "Unknown", 8);
 
-#if defined(STARBOARD)
+#if defined(V8_OS_STARBOARD)
   if (StarboardDetectCPU()) {
     return;
   }
