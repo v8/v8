@@ -738,7 +738,7 @@ class InstructionBase {
   };
 
   inline bool IsIllegalInstruction() const {
-    uint8_t FirstHalfWord = *reinterpret_cast<const uint16_t*>(this);
+    uint16_t FirstHalfWord = *reinterpret_cast<const uint16_t*>(this);
     return FirstHalfWord == 0;
   }
 
