@@ -14,7 +14,7 @@ namespace baseline {
 
 class BaselineBatchCompiler {
  public:
-  static const int kInitialQueueSize = 4;
+  static const int kInitialQueueSize = 32;
 
   explicit BaselineBatchCompiler(Isolate* isolate);
   ~BaselineBatchCompiler();

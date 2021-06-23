@@ -37,7 +37,6 @@ BaselineBatchCompiler::~BaselineBatchCompiler() {
 }
 
 bool BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
-  HandleScope scope(isolate_);
   Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
   // Early return if the function is compiled with baseline already or it is not
   // suitable for baseline compilation.
@@ -102,7 +101,6 @@ void BaselineBatchCompiler::EnsureQueueCapacity() {
 }
 
 void BaselineBatchCompiler::CompileBatch(Handle<JSFunction> function) {
-  HandleScope scope(isolate_);
   CodePageCollectionMemoryModificationScope batch_allocation(isolate_->heap());
   {
     IsCompiledScope is_compiled_scope(
