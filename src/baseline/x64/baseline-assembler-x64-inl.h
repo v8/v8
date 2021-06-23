@@ -399,7 +399,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   ScratchRegisterScope scope(this);
   Register table = scope.AcquireScratch();
   Label fallthrough, jump_table;
-  if (case_value_base > 0) {
+  if (case_value_base != 0) {
     __ subq(reg, Immediate(case_value_base));
   }
   __ cmpq(reg, Immediate(num_labels));

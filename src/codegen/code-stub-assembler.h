@@ -2297,6 +2297,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    TNode<IntPtrT> base_allocation_size,
                                    TNode<AllocationSite> allocation_site);
 
+  TNode<IntPtrT> TryTaggedToInt32AsIntPtr(TNode<Object> value,
+                                          Label* if_not_possible);
   TNode<Float64T> TryTaggedToFloat64(TNode<Object> value,
                                      Label* if_valueisnotnumber);
   TNode<Float64T> TruncateTaggedToFloat64(TNode<Context> context,

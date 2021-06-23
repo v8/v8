@@ -1433,6 +1433,15 @@ DEFINE_BOOL(test_small_max_function_context_stub_size, false,
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")
 DEFINE_NEG_NEG_IMPLICATION(inline_new, turbo_allocation_folding)
 
+// bytecode-generator.cc
+DEFINE_INT(switch_table_spread_threshold, 3,
+           "allow the jump table used for switch statements to span a range "
+           "of integers roughly equal to this number times the number of "
+           "clauses in the switch")
+DEFINE_INT(switch_table_min_cases, 6,
+           "the number of Smi integer cases present in the switch statement "
+           "before using the jump table optimization")
+
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(trace, false, "trace javascript function calls")
 

@@ -5395,6 +5395,28 @@ void CodeStubAssembler::InitializeAllocationMemento(
   Comment("]");
 }
 
+TNode<IntPtrT> CodeStubAssembler::TryTaggedToInt32AsIntPtr(
+    TNode<Object> acc, Label* if_not_possible) {
+  TVARIABLE(IntPtrT, acc_intptr);
+  Label is_not_smi(this), have_int32(this);
+
+  GotoIfNot(TaggedIsSmi(acc), &is_not_smi);
+  acc_intptr = SmiUntag(CAST(acc));
+  Goto(&have_int32);
+
+  BIND(&is_not_smi);
+  GotoIfNot(IsHeapNumber(CAST(acc)), if_not_possible);
+  TNode<Float64T> value = LoadHeapNumberValue(CAST(acc));
+  TNode<Int32T> value32 = RoundFloat64ToInt32(value);
+  TNode<Float64T> value64 = ChangeInt32ToFloat64(value32);
+  GotoIfNot(Float64Equal(value, value64), if_not_possible);
+  acc_intptr = ChangeInt32ToIntPtr(value32);
+  Goto(&have_int32);
+
+  BIND(&have_int32);
+  return acc_intptr.value();
+}
+
 TNode<Float64T> CodeStubAssembler::TryTaggedToFloat64(
     TNode<Object> value, Label* if_valueisnotnumber) {
   return Select<Float64T>(

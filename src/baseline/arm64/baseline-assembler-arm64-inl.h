@@ -503,7 +503,7 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
   Label fallthrough;
-  if (case_value_base > 0) {
+  if (case_value_base != 0) {
     __ Sub(reg, reg, Immediate(case_value_base));
   }
 

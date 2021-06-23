@@ -390,7 +390,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   Register table = scope.AcquireScratch();
   DCHECK(!AreAliased(reg, table));
   Label fallthrough, jump_table;
-  if (case_value_base > 0) {
+  if (case_value_base != 0) {
     __ sub(reg, Immediate(case_value_base));
   }
   __ cmp(reg, Immediate(num_labels));
