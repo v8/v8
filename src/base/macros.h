@@ -422,4 +422,9 @@ bool is_inbounds(float_t v) {
 #define IF_TSAN(V, ...)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#ifdef GOOGLE3
+// Disable FRIEND_TEST macro in Google3.
+#define FRIEND_TEST(test_case_name, test_name)
+#endif
+
 #endif  // V8_BASE_MACROS_H_
