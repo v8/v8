@@ -70,6 +70,11 @@ inline int32_t DoubleToInt32(double x);
 // This function should match the exact semantics of ECMA-262 9.6.
 inline uint32_t DoubleToUint32(double x);
 
+// These functions have similar semantics as the ones above, but are
+// added for 64-bit integer types.
+inline int64_t DoubleToInt64(double x);
+inline uint64_t DoubleToUint64(double x);
+
 // Enumeration for allowing octals and ignoring junk when converting
 // strings to numbers.
 enum ConversionFlags {

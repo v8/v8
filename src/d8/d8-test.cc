@@ -5,6 +5,7 @@
 #include "src/d8/d8.h"
 
 #include "include/v8-fast-api-calls.h"
+#include "src/api/api-inl.h"
 
 // This file exposes a d8.test.fast_c_api object, which adds testing facility
 // for writing mjsunit tests that exercise fast API calls. The fast_c_api object
@@ -88,6 +89,87 @@ class FastCApiObject {
       sum += std::numeric_limits<double>::quiet_NaN();
     }
 
+    args.GetReturnValue().Set(Number::New(isolate, sum));
+  }
+
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  typedef double Type;
+  static constexpr CTypeInfo type_info = CTypeInfo(CTypeInfo::Type::kFloat64);
+#else
+  typedef int32_t Type;
+  static constexpr CTypeInfo type_info = CTypeInfo(CTypeInfo::Type::kInt32);
+#endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  static Type AddAllSequenceFastCallback(Local<Object> receiver,
+                                         bool should_fallback,
+                                         Local<Array> seq_arg,
+                                         FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_FALLBACK(0);
+    self->fast_call_count_++;
+
+    if (should_fallback) {
+      options.fallback = 1;
+      return 0;
+    }
+
+    uint32_t length = seq_arg->Length();
+    if (length > 1024) {
+      options.fallback = 1;
+      return 0;
+    }
+
+    Type buffer[1024];
+    bool result =
+        CopyAndConvertArrayToCppBuffer<Type, &type_info>(seq_arg, buffer, 1024);
+    if (!result) {
+      options.fallback = 1;
+      return 0;
+    }
+    DCHECK_EQ(seq_arg->Length(), length);
+
+    Type sum = 0;
+    for (uint32_t i = 0; i < length; ++i) {
+      sum += buffer[i];
+    }
+
+    return sum;
+  }
+  static void AddAllSequenceSlowCallback(
+      const FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+
+    FastCApiObject* self = UnwrapObject(args.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    CHECK_EQ(args.Length(), 2);
+    if (!args[1]->IsArray()) {
+      isolate->ThrowError("This method expects an array as a second argument.");
+      return;
+    }
+
+    Local<Array> seq_arg = args[1].As<Array>();
+    uint32_t length = seq_arg->Length();
+    if (length > 1024) {
+      isolate->ThrowError(
+          "Invalid length of array, must be between 0 and 1024.");
+      return;
+    }
+    Type buffer[1024];
+    bool result =
+        CopyAndConvertArrayToCppBuffer<Type, &type_info>(seq_arg, buffer, 1024);
+    if (!result) {
+      isolate->ThrowError("Array conversion unsuccessful.");
+      return;
+    }
+    DCHECK_EQ(seq_arg->Length(), length);
+
+    Type sum = 0;
+    for (uint32_t i = 0; i < length; ++i) {
+      sum += buffer[i];
+    }
     args.GetReturnValue().Set(Number::New(isolate, sum));
   }
 
@@ -337,6 +419,15 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow,
                               SideEffectType::kHasSideEffect, &add_all_c_func));
+
+    CFunction add_all_seq_c_func =
+        CFunction::Make(FastCApiObject::AddAllSequenceFastCallback);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_sequence",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllSequenceSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &add_all_seq_c_func));
 
     CFunction add_all_32bit_int_6args_c_func =
         CFunction::Make(FastCApiObject::AddAll32BitIntFastCallback_6Args);

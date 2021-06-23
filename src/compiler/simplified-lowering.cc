@@ -1786,27 +1786,39 @@ class RepresentationSelector {
     }
   }
 
-  UseInfo UseInfoForFastApiCallArgument(CTypeInfo::Type type,
+  UseInfo UseInfoForFastApiCallArgument(CTypeInfo type,
                                         FeedbackSource const& feedback) {
-    switch (type) {
-      case CTypeInfo::Type::kVoid:
-        UNREACHABLE();
-      case CTypeInfo::Type::kBool:
-        return UseInfo::Bool();
-      case CTypeInfo::Type::kInt32:
-      case CTypeInfo::Type::kUint32:
-        return UseInfo::CheckedNumberAsWord32(feedback);
-      // TODO(mslekova): We deopt for unsafe integers, but ultimately we want
-      // to make this less restrictive in order to stay on the fast path.
-      case CTypeInfo::Type::kInt64:
-      case CTypeInfo::Type::kUint64:
-        return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
-      case CTypeInfo::Type::kFloat32:
-      case CTypeInfo::Type::kFloat64:
-        return UseInfo::CheckedNumberAsFloat64(kDistinguishZeros, feedback);
-      case CTypeInfo::Type::kV8Value:
-      case CTypeInfo::Type::kApiObject:
+    switch (type.GetSequenceType()) {
+      case CTypeInfo::SequenceType::kScalar: {
+        switch (type.GetType()) {
+          case CTypeInfo::Type::kVoid:
+            UNREACHABLE();
+          case CTypeInfo::Type::kBool:
+            return UseInfo::Bool();
+          case CTypeInfo::Type::kInt32:
+          case CTypeInfo::Type::kUint32:
+            return UseInfo::CheckedNumberAsWord32(feedback);
+          // TODO(mslekova): We deopt for unsafe integers, but ultimately we
+          // want to make this less restrictive in order to stay on the fast
+          // path.
+          case CTypeInfo::Type::kInt64:
+          case CTypeInfo::Type::kUint64:
+            return UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, feedback);
+          case CTypeInfo::Type::kFloat32:
+          case CTypeInfo::Type::kFloat64:
+            return UseInfo::CheckedNumberAsFloat64(kDistinguishZeros, feedback);
+          case CTypeInfo::Type::kV8Value:
+          case CTypeInfo::Type::kApiObject:
+            return UseInfo::AnyTagged();
+        }
+      }
+      case CTypeInfo::SequenceType::kIsSequence: {
+        CHECK_EQ(type.GetType(), CTypeInfo::Type::kVoid);
         return UseInfo::AnyTagged();
+      }
+      default: {
+        UNREACHABLE();  // TODO(mslekova): Implement typed arrays.
+      }
     }
   }
 
@@ -1831,7 +1843,7 @@ class RepresentationSelector {
     // Propagate representation information from TypeInfo.
     for (int i = 0; i < c_arg_count; i++) {
       arg_use_info[i] = UseInfoForFastApiCallArgument(
-          c_signature->ArgumentInfo(i).GetType(), op_params.feedback());
+          c_signature->ArgumentInfo(i), op_params.feedback());
       ProcessInput<T>(node, i + FastApiCallNode::kFastTargetInputCount,
                       arg_use_info[i]);
     }

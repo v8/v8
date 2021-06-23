@@ -50,6 +50,7 @@ class CFunction;
 class CallHandlerHelper;
 class Context;
 class CppHeap;
+class CTypeInfo;
 class Data;
 class Date;
 class EscapableHandleScope;
@@ -4431,6 +4432,7 @@ class V8_EXPORT Array : public Object {
   static Local<Array> New(Isolate* isolate, Local<Value>* elements,
                           size_t length);
   V8_INLINE static Array* Cast(Value* obj);
+
  private:
   Array();
   static void CheckCast(Value* obj);

@@ -156,6 +156,7 @@
  *   - float64_t
  * Currently supported argument types:
  *  - pointer to an embedder type
+ *  - JavaScript array of primitive types
  *  - bool
  *  - int32_t
  *  - uint32_t
@@ -176,7 +177,7 @@
  * passes NaN values as-is, i.e. doesn't normalize them.
  *
  * To be supported types:
- *  - arrays of C types
+ *  - TypedArrays and ArrayBuffers
  *  - arrays of embedder types
  *
  *
@@ -539,26 +540,41 @@ struct TypeInfoHelper {
     }                                                                         \
   };
 
-#define BASIC_C_TYPES(V)            \
-  V(void, kVoid)                    \
-  V(bool, kBool)                    \
-  V(int32_t, kInt32)                \
-  V(uint32_t, kUint32)              \
-  V(int64_t, kInt64)                \
-  V(uint64_t, kUint64)              \
-  V(float, kFloat32)                \
-  V(double, kFloat64)               \
-  V(ApiObject, kApiObject)          \
-  V(v8::Local<v8::Value>, kV8Value) \
-  V(v8::Local<v8::Object>, kV8Value)
+template <CTypeInfo::Type type>
+struct CTypeInfoTraits {};
+
+#define DEFINE_TYPE_INFO_TRAITS(CType, Enum)      \
+  template <>                                     \
+  struct CTypeInfoTraits<CTypeInfo::Type::Enum> { \
+    using ctype = CType;                          \
+  };
+
+#define PRIMITIVE_C_TYPES(V) \
+  V(bool, kBool)             \
+  V(int32_t, kInt32)         \
+  V(uint32_t, kUint32)       \
+  V(int64_t, kInt64)         \
+  V(uint64_t, kUint64)       \
+  V(float, kFloat32)         \
+  V(double, kFloat64)
+
+// Same as above, but includes deprecated types for compatibility.
+#define ALL_C_TYPES(V)               \
+  PRIMITIVE_C_TYPES(V)               \
+  V(void, kVoid)                     \
+  V(v8::Local<v8::Value>, kV8Value)  \
+  V(v8::Local<v8::Object>, kV8Value) \
+  V(ApiObject, kApiObject)
 
 // ApiObject was a temporary solution to wrap the pointer to the v8::Value.
 // Please use v8::Local<v8::Value> in new code for the arguments and
 // v8::Local<v8::Object> for the receiver, as ApiObject will be deprecated.
 
-BASIC_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR)
+ALL_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR)
+PRIMITIVE_C_TYPES(DEFINE_TYPE_INFO_TRAITS)
 
-#undef BASIC_C_TYPES
+#undef PRIMITIVE_C_TYPES
+#undef ALL_C_TYPES
 
 #define SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA(T, Enum)                       \
   template <>                                                                 \
@@ -743,6 +759,22 @@ CFunction CFunction::ArgUnwrap<R (*)(Args...)>::Make(R (*func)(Args...)) {
 }
 
 using CFunctionBuilder = internal::CFunctionBuilder;
+
+/**
+ * Copies the contents of this JavaScript array to a C++ buffer with
+ * a given max_length. A CTypeInfo is passed as an argument,
+ * instructing different rules for conversion (e.g. restricted float/double).
+ * The element type T of the destination array must match the C type
+ * corresponding to the CTypeInfo (specified by CTypeInfoTraits).
+ * If the array length is larger than max_length or the array is of
+ * unsupported type, the operation will fail, returning false. Generally, an
+ * array which contains objects, undefined, null or anything not convertible
+ * to the requested destination type, is considered unsupported. The operation
+ * returns true on success. `type_info` will be used for conversions.
+ */
+template <typename T, const CTypeInfo* type_info>
+bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
+                                    uint32_t max_length);
 
 }  // namespace v8
 

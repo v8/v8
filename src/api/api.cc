@@ -10266,6 +10266,49 @@ void InvokeFinalizationRegistryCleanupFromTask(
   }
 }
 
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+int32_t ConvertDouble(double d) {
+  return internal::DoubleToInt32(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+uint32_t ConvertDouble(double d) {
+  return internal::DoubleToUint32(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+float ConvertDouble(double d) {
+  return internal::DoubleToFloat32(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+double ConvertDouble(double d) {
+  return d;
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+int64_t ConvertDouble(double d) {
+  return internal::DoubleToWebIDLInt64(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+uint64_t ConvertDouble(double d) {
+  return internal::DoubleToWebIDLUint64(d);
+}
+
+template <>
+EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+bool ConvertDouble(double d) {
+  // Implements https://tc39.es/ecma262/#sec-toboolean.
+  return !std::isnan(d) && d != 0;
+}
+
 // Undefine macros for jumbo build.
 #undef SET_FIELD_WRAPPED
 #undef NEW_STRING
