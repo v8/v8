@@ -322,20 +322,9 @@ MaybeHandle<Code> BaselineCompiler::Build(Isolate* isolate) {
   // Allocate the bytecode offset table.
   Handle<ByteArray> bytecode_offset_table =
       bytecode_offset_table_builder_.ToBytecodeOffsetTable(isolate);
-  if (masm_.IsOnHeap()) {
-    // We compiled on heap, we need to finalise the code object fields.
-    DCHECK(FLAG_sparkplug_on_heap);
-    // TODO(victorgomes): Use CodeDesc to handle on-heap-ness.
-    // We can then simply call TryBuild() here.
-    return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
-        .set_bytecode_offset_table(bytecode_offset_table)
-        .FinishBaselineCode(masm_.code().ToHandleChecked(),
-                            masm_.buffer_size());
-  } else {
-    return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
-        .set_bytecode_offset_table(bytecode_offset_table)
-        .TryBuild();
-  }
+  return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
+      .set_bytecode_offset_table(bytecode_offset_table)
+      .TryBuild();
 }
 
 int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {
