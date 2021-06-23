@@ -202,19 +202,12 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
 
 template <typename Dictionary>
 bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
-                      RuntimeArguments& args,
-                      bool* install_name_accessor = nullptr) {
-  Handle<Name> name_string = isolate->factory()->name_string();
-
+                      RuntimeArguments& args) {
   // Replace all indices with proper methods.
   ReadOnlyRoots roots(isolate);
   for (InternalIndex i : dictionary->IterateEntries()) {
     Object maybe_key = dictionary->KeyAt(i);
     if (!Dictionary::IsKey(roots, maybe_key)) continue;
-    if (install_name_accessor && *install_name_accessor &&
-        (maybe_key == *name_string)) {
-      *install_name_accessor = false;
-    }
     Handle<Object> key(maybe_key, isolate);
     Handle<Object> value(dictionary->ValueAt(i), isolate);
     if (value->IsAccessorPair()) {
@@ -400,7 +393,7 @@ bool AddDescriptorsByTemplate(
     Handle<Dictionary> properties_dictionary_template,
     Handle<NumberDictionary> elements_dictionary_template,
     Handle<FixedArray> computed_properties, Handle<JSObject> receiver,
-    bool install_name_accessor, RuntimeArguments& args) {
+    RuntimeArguments& args) {
   int computed_properties_length = computed_properties->length();
 
   // Shallow-copy properties template.
@@ -438,19 +431,8 @@ bool AddDescriptorsByTemplate(
   }
 
   // Replace all indices with proper methods.
-  if (!SubstituteValues<Dictionary>(isolate, properties_dictionary, args,
-                                    &install_name_accessor)) {
+  if (!SubstituteValues<Dictionary>(isolate, properties_dictionary, args)) {
     return false;
-  }
-  if (install_name_accessor) {
-    PropertyAttributes attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-    PropertyDetails details(kAccessor, attribs,
-                            PropertyDetails::kConstIfDictConstnessTracking);
-    Handle<Dictionary> dict = ToHandle(Dictionary::Add(
-        isolate, properties_dictionary, isolate->factory()->name_string(),
-        isolate->factory()->function_name_accessor(), details));
-    CHECK_EQ(*dict, *properties_dictionary);
   }
 
   UpdateProtectors(isolate, receiver, properties_dictionary);
@@ -520,23 +502,18 @@ bool InitClassPrototype(Isolate* isolate,
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
-    // Class prototypes do not have a name accessor.
-    const bool install_name_accessor = false;
-
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> properties_dictionary_template =
           Handle<SwissNameDictionary>::cast(properties_template);
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
-          elements_dictionary_template, computed_properties, prototype,
-          install_name_accessor, args);
+          elements_dictionary_template, computed_properties, prototype, args);
     } else {
       Handle<NameDictionary> properties_dictionary_template =
           Handle<NameDictionary>::cast(properties_template);
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
-          elements_dictionary_template, computed_properties, prototype,
-          install_name_accessor, args);
+          elements_dictionary_template, computed_properties, prototype, args);
     }
   }
 }
@@ -582,24 +559,19 @@ bool InitClassConstructor(Isolate* isolate,
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
-    // All class constructors have a name accessor.
-    const bool install_name_accessor = true;
-
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       Handle<SwissNameDictionary> properties_dictionary_template =
           Handle<SwissNameDictionary>::cast(properties_template);
 
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
-          elements_dictionary_template, computed_properties, constructor,
-          install_name_accessor, args);
+          elements_dictionary_template, computed_properties, constructor, args);
     } else {
       Handle<NameDictionary> properties_dictionary_template =
           Handle<NameDictionary>::cast(properties_template);
       return AddDescriptorsByTemplate(
           isolate, map, properties_dictionary_template,
-          elements_dictionary_template, computed_properties, constructor,
-          install_name_accessor, args);
+          elements_dictionary_template, computed_properties, constructor, args);
     }
   }
 }

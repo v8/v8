@@ -71,11 +71,6 @@
   # https://code.google.com/p/v8/issues/detail?id=10958
   'language/module-code/eval-gtbndng-indirect-faux-assertion': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=8771
-  'language/computed-property-names/class/static/method-number': [FAIL],
-  'language/computed-property-names/class/static/method-string': [FAIL],
-  'language/computed-property-names/class/static/method-symbol': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
