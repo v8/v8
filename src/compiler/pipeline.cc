@@ -2905,6 +2905,14 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
   Run<SimplifiedLoweringPhase>(linkage);
   RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (data->has_js_wasm_calls()) {
+    DCHECK(data->info()->inline_js_wasm_calls());
+    Run<WasmInliningPhase>();
+    RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // From now on it is invalid to look at types on the nodes, because the types
   // on the nodes might not make sense after representation selection due to the
   // way we handle truncations; if we'd want to look at types afterwards we'd
