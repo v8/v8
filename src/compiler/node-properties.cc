@@ -601,7 +601,9 @@ bool NodeProperties::IsFreshObject(Node* node) {
       // Note: Make sure to only add builtins which are guaranteed to return a
       // fresh object. E.g. kWasmAllocateFixedArray may return the canonical
       // empty array, and kWasmAllocateRtt may return a cached rtt.
-      return callee == Builtin::kWasmAllocateArrayWithRtt ||
+      return callee == Builtin::kWasmAllocateArray_Uninitialized ||
+             callee == Builtin::kWasmAllocateArray_InitNull ||
+             callee == Builtin::kWasmAllocateArray_InitZero ||
              callee == Builtin::kWasmAllocateStructWithRtt ||
              callee == Builtin::kWasmAllocateObjectWrapper ||
              callee == Builtin::kWasmAllocatePair;

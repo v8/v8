@@ -945,7 +945,9 @@ class WasmGraphBuildingInterface {
   void ArrayNewDefault(FullDecoder* decoder,
                        const ArrayIndexImmediate<validate>& imm,
                        const Value& length, const Value& rtt, Value* result) {
-    TFNode* initial_value = DefaultValue(imm.array_type->element_type());
+    // This will cause the default value to be chosen automatically based
+    // on the element type.
+    TFNode* initial_value = nullptr;
     result->node =
         builder_->ArrayNewWithRtt(imm.index, imm.array_type, length.node,
                                   initial_value, rtt.node, decoder->position());

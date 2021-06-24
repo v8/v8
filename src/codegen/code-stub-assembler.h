@@ -336,6 +336,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Signed(value);
   }
 
+  enum InitializationMode {
+    kUninitialized,
+    kInitializeToZero,
+    kInitializeToNull
+  };
+
   TNode<Smi> ParameterToTagged(TNode<Smi> value) { return value; }
 
   TNode<Smi> ParameterToTagged(TNode<IntPtrT> value) { return SmiTag(value); }
@@ -1984,6 +1990,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<PropertyArray> AllocatePropertyArray(TNode<IntPtrT> capacity);
+
+  TNode<HeapObject> AllocateWasmArray(TNode<IntPtrT> size_in_bytes,
+                                      int initialization);
 
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResult(TNode<Context> context,

@@ -5575,6 +5575,18 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
   return s;
 }
 
+Builtin ChooseArrayAllocationBuiltin(wasm::ValueType element_type,
+                                     Node* initial_value) {
+  if (initial_value != nullptr) {
+    // {initial_value} will be used for initialization after allocation.
+    return Builtin::kWasmAllocateArray_Uninitialized;
+  }
+  if (element_type.is_reference()) {
+    return Builtin::kWasmAllocateArray_InitNull;
+  }
+  return Builtin::kWasmAllocateArray_InitZero;
+}
+
 Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                                         const wasm::ArrayType* type,
                                         Node* length, Node* initial_value,
@@ -5585,30 +5597,33 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                   length, gasm_->Uint32Constant(wasm::kV8MaxWasmArrayLength)),
               position);
   wasm::ValueType element_type = type->element_type();
-  Node* a = gasm_->CallBuiltin(
-      Builtin::kWasmAllocateArrayWithRtt, Operator::kEliminatable, rtt, length,
-      Int32Constant(element_type.element_size_bytes()));
-  auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
-  auto done = gasm_->MakeLabel();
-  Node* start_offset =
-      Int32Constant(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize));
-  Node* element_size = Int32Constant(element_type.element_size_bytes());
-  Node* end_offset =
-      gasm_->Int32Add(start_offset, gasm_->Int32Mul(element_size, length));
-  // Loops need the graph's end to have been set up.
-  gasm_->EnsureEnd();
-  gasm_->Goto(&loop, start_offset);
-  gasm_->Bind(&loop);
-  {
-    Node* offset = loop.PhiAt(0);
-    Node* check = gasm_->Uint32LessThan(offset, end_offset);
-    gasm_->GotoIfNot(check, &done);
-    gasm_->StoreToObject(ObjectAccessForGCStores(type->element_type()), a,
-                         offset, initial_value);
-    offset = gasm_->Int32Add(offset, element_size);
-    gasm_->Goto(&loop, offset);
+  Builtin stub = ChooseArrayAllocationBuiltin(element_type, initial_value);
+  Node* a =
+      gasm_->CallBuiltin(stub, Operator::kEliminatable, rtt, length,
+                         Int32Constant(element_type.element_size_bytes()));
+  if (initial_value != nullptr) {
+    auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
+    auto done = gasm_->MakeLabel();
+    Node* start_offset =
+        Int32Constant(wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize));
+    Node* element_size = Int32Constant(element_type.element_size_bytes());
+    Node* end_offset =
+        gasm_->Int32Add(start_offset, gasm_->Int32Mul(element_size, length));
+    // Loops need the graph's end to have been set up.
+    gasm_->EnsureEnd();
+    gasm_->Goto(&loop, start_offset);
+    gasm_->Bind(&loop);
+    {
+      Node* offset = loop.PhiAt(0);
+      Node* check = gasm_->Uint32LessThan(offset, end_offset);
+      gasm_->GotoIfNot(check, &done);
+      gasm_->StoreToObject(ObjectAccessForGCStores(type->element_type()), a,
+                           offset, initial_value);
+      offset = gasm_->Int32Add(offset, element_size);
+      gasm_->Goto(&loop, offset);
+    }
+    gasm_->Bind(&done);
   }
-  gasm_->Bind(&done);
   return a;
 }
 

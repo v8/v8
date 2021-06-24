@@ -106,7 +106,9 @@ struct WasmModule;
   IF_TSAN(V, TSANRelaxedLoad32SaveFP)     \
   IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)   \
   IF_TSAN(V, TSANRelaxedLoad64SaveFP)     \
-  V(WasmAllocateArrayWithRtt)             \
+  V(WasmAllocateArray_Uninitialized)      \
+  V(WasmAllocateArray_InitNull)           \
+  V(WasmAllocateArray_InitZero)           \
   V(WasmArrayCopy)                        \
   V(WasmArrayCopyWithChecks)              \
   V(WasmAllocateRtt)                      \

@@ -42,6 +42,8 @@ extern runtime WasmArrayCopy(
 namespace unsafe {
 extern macro TimesTaggedSize(intptr): intptr;
 extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
+extern macro AllocateWasmArray(
+    intptr, constexpr InitializationMode): HeapObject;
 }
 
 namespace wasm {
@@ -311,21 +313,40 @@ builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
   return result;
 }
 
-builtin WasmAllocateArrayWithRtt(
-    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+macro WasmAllocateArray(
+    rtt: Map, length: uint32, elementSize: uint32,
+    initializationMode: constexpr InitializationMode): HeapObject {
   // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
   //              + WasmArray::kHeaderSize
   const instanceSize: intptr =
       torque_internal::AlignTagged(
           Convert<intptr>(length) * Convert<intptr>(elementSize)) +
       Convert<intptr>(kWasmArrayHeaderSize);
-  const result: HeapObject = unsafe::Allocate(
-      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
+  const result: HeapObject =
+      unsafe::AllocateWasmArray(instanceSize, initializationMode);
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
   %RawDownCast<WasmArray>(result).length = length;
   return result;
+}
+
+builtin WasmAllocateArray_Uninitialized(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  return WasmAllocateArray(
+      rtt, length, elementSize, InitializationMode::kUninitialized);
+}
+
+builtin WasmAllocateArray_InitZero(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  return WasmAllocateArray(
+      rtt, length, elementSize, InitializationMode::kInitializeToZero);
+}
+
+builtin WasmAllocateArray_InitNull(
+    rtt: Map, length: uint32, elementSize: uint32): HeapObject {
+  return WasmAllocateArray(
+      rtt, length, elementSize, InitializationMode::kInitializeToNull);
 }
 
 // We put all uint32 parameters at the beginning so that they are assigned to
