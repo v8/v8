@@ -706,7 +706,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t liftoff_bailout_count() const { return liftoff_bailout_count_.load(); }
   size_t liftoff_code_size() const { return liftoff_code_size_.load(); }
   size_t turbofan_code_size() const { return turbofan_code_size_.load(); }
-  WasmEngine* engine() const { return engine_; }
 
   bool HasWireBytes() const {
     auto wire_bytes = std::atomic_load(&wire_bytes_);
@@ -787,8 +786,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
-  NativeModule(WasmEngine* engine, const WasmFeatures& enabled_features,
-               VirtualMemory code_space,
+  NativeModule(const WasmFeatures& enabled_features, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
@@ -828,7 +826,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // -- Fields of {NativeModule} start here.
 
-  WasmEngine* const engine_;
   // Keep the engine alive as long as this NativeModule is alive. In its
   // destructor, the NativeModule still communicates with the WasmCodeManager,
   // owned by the engine. This fields comes before other fields which also still
@@ -971,9 +968,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   friend class WasmEngine;
 
   std::shared_ptr<NativeModule> NewNativeModule(
-      WasmEngine* engine, Isolate* isolate,
-      const WasmFeatures& enabled_features, size_t code_size_estimate,
-      std::shared_ptr<const WasmModule> module);
+      Isolate* isolate, const WasmFeatures& enabled_features,
+      size_t code_size_estimate, std::shared_ptr<const WasmModule> module);
 
   V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,
                                                   void* hint = nullptr);

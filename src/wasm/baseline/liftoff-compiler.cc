@@ -6291,8 +6291,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   FunctionBody func_body{function->sig, 0, function_bytes.begin(),
                          function_bytes.end()};
 
-  AccountingAllocator* allocator = native_module->engine()->allocator();
-  Zone zone(allocator, "LiftoffDebugSideTableZone");
+  Zone zone(GetWasmEngine()->allocator(), "LiftoffDebugSideTableZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, function->sig);
   DebugSideTableBuilder debug_sidetable_builder;
   WasmFeatures detected;

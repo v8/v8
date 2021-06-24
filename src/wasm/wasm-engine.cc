@@ -846,7 +846,6 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
     Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module,
     base::Vector<const char> source_url) {
-  DCHECK_EQ(this, shared_native_module->engine());
   NativeModule* native_module = shared_native_module.get();
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   Handle<Script> script =
@@ -1138,7 +1137,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 
   std::shared_ptr<NativeModule> native_module =
       GetWasmCodeManager()->NewNativeModule(
-          this, isolate, enabled, code_size_estimate, std::move(module));
+          isolate, enabled, code_size_estimate, std::move(module));
   base::MutexGuard lock(&mutex_);
   auto pair = native_modules_.insert(std::make_pair(
       native_module.get(), std::make_unique<NativeModuleInfo>(native_module)));
@@ -1194,7 +1193,6 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
 bool WasmEngine::UpdateNativeModuleCache(
     bool error, std::shared_ptr<NativeModule>* native_module,
     Isolate* isolate) {
-  DCHECK_EQ(this, native_module->get()->engine());
   // Pass {native_module} by value here to keep it alive until at least after
   // we returned from {Update}. Otherwise, we might {Erase} it inside {Update}
   // which would lock the mutex twice.

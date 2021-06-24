@@ -470,7 +470,7 @@ WasmCode::~WasmCode() {
 }
 
 V8_WARN_UNUSED_RESULT bool WasmCode::DecRefOnPotentiallyDeadCode() {
-  if (native_module_->engine()->AddPotentiallyDeadCode(this)) {
+  if (GetWasmEngine()->AddPotentiallyDeadCode(this)) {
     // The code just became potentially dead. The ref count we wanted to
     // decrement is now transferred to the set of potentially dead code, and
     // will be decremented when the next GC is run.
@@ -486,16 +486,14 @@ void WasmCode::DecrementRefCount(base::Vector<WasmCode* const> code_vec) {
   // Decrement the ref counter of all given code objects. Keep the ones whose
   // ref count drops to zero.
   WasmEngine::DeadCodeMap dead_code;
-  WasmEngine* engine = nullptr;
   for (WasmCode* code : code_vec) {
     if (!code->DecRef()) continue;  // Remaining references.
     dead_code[code->native_module()].push_back(code);
-    if (!engine) engine = code->native_module()->engine();
-    DCHECK_EQ(engine, code->native_module()->engine());
   }
 
-  DCHECK_EQ(dead_code.empty(), engine == nullptr);
-  if (engine) engine->FreeDeadCode(dead_code);
+  if (dead_code.empty()) return;
+
+  GetWasmEngine()->FreeDeadCode(dead_code);
 }
 
 int WasmCode::GetSourcePositionBefore(int offset) {
@@ -833,13 +831,13 @@ size_t WasmCodeAllocator::GetNumCodeSpaces() const {
 // static
 constexpr base::AddressRegion WasmCodeAllocator::kUnrestrictedRegion;
 
-NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
+NativeModule::NativeModule(const WasmFeatures& enabled,
                            VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
                            std::shared_ptr<Counters> async_counters,
                            std::shared_ptr<NativeModule>* shared_this)
-    : engine_(engine),
-      engine_scope_(engine->GetBarrierForBackgroundCompile()->TryLock()),
+    : engine_scope_(
+          GetWasmEngine()->GetBarrierForBackgroundCompile()->TryLock()),
       code_allocator_(async_counters),
       enabled_features_(enabled),
       module_(std::move(module)),
@@ -1700,7 +1698,7 @@ NativeModule::~NativeModule() {
   // Cancel all background compilation before resetting any field of the
   // NativeModule or freeing anything.
   compilation_state_->CancelCompilation();
-  engine_->FreeNativeModule(this);
+  GetWasmEngine()->FreeNativeModule(this);
   // Free the import wrapper cache before releasing the {WasmCode} objects in
   // {owned_code_}. The destructor of {WasmImportWrapperCache} still needs to
   // decrease reference counts on the {WasmCode} objects.
@@ -1961,8 +1959,8 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
 }
 
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    WasmEngine* engine, Isolate* isolate, const WasmFeatures& enabled,
-    size_t code_size_estimate, std::shared_ptr<const WasmModule> module) {
+    Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
+    std::shared_ptr<const WasmModule> module) {
   if (total_committed_code_space_.load() >
       critical_committed_code_space_.load()) {
     (reinterpret_cast<v8::Isolate*>(isolate))
@@ -2013,7 +2011,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  new NativeModule(engine, enabled, std::move(code_space), std::move(module),
+  new NativeModule(enabled, std::move(code_space), std::move(module),
                    isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.
   DCHECK_NOT_NULL(ret);

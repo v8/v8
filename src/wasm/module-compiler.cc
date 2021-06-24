@@ -2404,8 +2404,7 @@ class SampleTopTierCodeSizeCallback {
   void operator()(CompilationEvent event) {
     if (event != CompilationEvent::kFinishedTopTierCompilation) return;
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
-      native_module->engine()->SampleTopTierCodeSizeInAllIsolates(
-          native_module);
+      GetWasmEngine()->SampleTopTierCodeSizeInAllIsolates(native_module);
     }
   }
 
@@ -3326,7 +3325,7 @@ void CompilationStateImpl::PublishCode(
       native_module_->PublishCode(std::move(code));
   // Defer logging code in case wire bytes were not fully received yet.
   if (native_module_->HasWireBytes()) {
-    native_module_->engine()->LogCode(base::VectorOf(published_code));
+    GetWasmEngine()->LogCode(base::VectorOf(published_code));
   }
 
   OnFinishedUnits(base::VectorOf(std::move(published_code)));
