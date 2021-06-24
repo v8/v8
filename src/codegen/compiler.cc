@@ -1967,6 +1967,20 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
     Handle<BaselineData> baseline_data =
         isolate->factory()->NewBaselineData(code, function_data);
     shared->set_baseline_data(*baseline_data);
+    if (V8_LIKELY(FLAG_use_osr)) {
+      // Arm back edges for OSR
+      shared->GetBytecodeArray(isolate).set_osr_loop_nesting_level(
+          AbstractCode::kMaxLoopNestingMarker);
+      if (FLAG_trace_osr) {
+        JavaScriptFrameIterator it(isolate);
+        DCHECK(it.frame()->is_unoptimized());
+        UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+        CodeTracer::Scope scope(isolate->GetCodeTracer());
+        PrintF(scope.file(),
+               "[OSR - Entry at OSR bytecode offset %d into baseline code]\n",
+               frame->GetBytecodeOffset());
+      }
+    }
   }
   double time_taken_ms = time_taken.InMillisecondsF();
 

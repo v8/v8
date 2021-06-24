@@ -7,7 +7,7 @@
 #include "src/api/api.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
-#include "src/baseline/baseline-osr-inl.h"
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
 #include "src/common/message-template.h"
@@ -346,16 +346,13 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
     function->feedback_vector().set_invocation_count(1);
   }
   if (FLAG_sparkplug && !function->ActiveTierIsBaseline()) {
-    CompilationMode compilation_mode =
-        FLAG_baseline_batch_compilation ? kCompileBatch : kCompileImmediate;
-    if (V8_LIKELY(FLAG_use_osr)) {
-      JavaScriptFrameIterator it(isolate);
-      DCHECK(it.frame()->is_unoptimized());
-      UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
-      OSRInterpreterFrameToBaseline(isolate, function, frame, compilation_mode);
+    if (V8_LIKELY(FLAG_baseline_batch_compilation)) {
+      isolate->baseline_batch_compiler()->EnqueueFunction(function);
     } else {
-      OSRInterpreterFrameToBaseline(isolate, function, nullptr,
-                                    compilation_mode);
+      IsCompiledScope is_compiled_scope(
+          function->shared().is_compiled_scope(isolate));
+      Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
+                                &is_compiled_scope);
     }
   }
   if (should_mark_for_optimization) {

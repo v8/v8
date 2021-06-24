@@ -2410,7 +2410,6 @@ v8_header_set("v8_internal_headers") {
     "src/baseline/baseline-assembler.h",
     "src/baseline/baseline-batch-compiler.h",
     "src/baseline/baseline-compiler.h",
-    "src/baseline/baseline-osr-inl.h",
     "src/baseline/baseline.h",
     "src/baseline/bytecode-offset-iterator.h",
     "src/builtins/accessors.h",
