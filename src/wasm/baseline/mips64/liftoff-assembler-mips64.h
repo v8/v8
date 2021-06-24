@@ -3172,6 +3172,21 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
+void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
+                                       ValueKind kind) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, 1);
+  if (kind == kF32) {
+    CompareIsNanF32(src, src);
+  } else {
+    DCHECK_EQ(kind, kF64);
+    CompareIsNanF64(src, src);
+  }
+  LoadZeroIfNotFPUCondition(scratch);
+  Sd(scratch, MemOperand(dst));
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();
