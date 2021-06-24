@@ -453,7 +453,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(MicrotaskQueue*, default_microtask_queue, nullptr)                        \
   V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(CodeTracer*, code_tracer, nullptr)                                        \
-  V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                           \
   V(PromiseRejectCallback, promise_reject_callback, nullptr)                  \
   V(const v8::StartupData*, snapshot_blob, nullptr)                           \
   V(int, code_and_metadata_size, 0)                                           \
@@ -476,7 +475,13 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(int, embedder_wrapper_object_index, -1)                                   \
   V(compiler::NodeObserver*, node_observer, nullptr)                          \
   /* Used in combination with --script-run-delay-once */                      \
-  V(bool, did_run_script_delay, false)
+  V(bool, did_run_script_delay, false)                                        \
+  V(bool, javascript_execution_assert, true)                                  \
+  V(bool, javascript_execution_throws, true)                                  \
+  V(bool, javascript_execution_dump, true)                                    \
+  V(bool, deoptimization_assert, true)                                        \
+  V(bool, compilation_assert, true)                                           \
+  V(bool, no_exception_assert, true)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                         \
   inline void set_##name(type v) { thread_local_top()->name##_ = v; } \
