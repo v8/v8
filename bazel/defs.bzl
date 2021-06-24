@@ -95,10 +95,6 @@ def _default_args(configs):
             "-Wno-non-virtual-dtor",
             "-std=c++14",
             "-isystem .",
-            # TODO(victorgomes): these should be passed only if x64:
-            "-m64",
-            "-march=x86-64",
-            "-msse3",
         ],
         includes = ["include"],
         linkopts = [
@@ -189,7 +185,7 @@ v8_torque = rule(
             default = ":torque",
             allow_files = True,
             executable = True,
-            cfg = "target",
+            cfg = "host",
         ),
         "_v8_annotate_torque_ir": attr.label(default = ":v8_annotate_torque_ir"),
     },

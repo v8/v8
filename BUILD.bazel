@@ -15,6 +15,45 @@ load(
 )
 
 # =================================================
+# Configuration settings
+# =================================================
+
+config_setting(
+    name = "is_x64",
+    values = {"cpu": "k8"},
+)
+
+config_setting(
+    name = "is_ia32",
+    values = {
+        "host_cpu": "k8",
+        "cpu": "x86",
+    },
+)
+
+config_setting(
+    name = "is_linux",
+    constraint_values = ["@platforms//os:linux"],
+)
+
+config_setting(
+    name = "is_android",
+    constraint_values = ["@platforms//os:android"],
+)
+
+config_setting(
+    name = "is_linux_x64",
+    constraint_values = ["@platforms//os:linux"],
+    values = {"cpu": "k8"},
+)
+
+config_setting(
+    name = "is_android_x86",
+    constraint_values = ["@platforms//os:android"],
+    values = {"cpu": "x86"},
+)
+
+# =================================================
 # Flags
 # =================================================
 
@@ -41,29 +80,22 @@ v8_config(
         "CHROMIUM_ZLIB_NO_CHROMECONF",
         "V8_CONCURRENT_MARKING",
     ] + select({
+        ":is_ia32": [ "V8_TARGET_ARCH_IA32" ],
         ":is_x64": [ "V8_TARGET_ARCH_X64" ],
+    }) + select({
+        ":is_android": [
+            "V8_HAVE_TARGET_OS",
+            "V8_TARGET_OS_ANDROID",
+        ],
+        ":is_linux": [
+            "V8_HAVE_TARGET_OS",
+            "V8_TARGET_OS_LINUX",
+        ],
+    }) + select({
+        "is_android_x86": [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ],
+        "//conditions:default": [],
     }),
     deps = [ ":default" ],
-)
-
-# =================================================
-# Configuration settings
-# =================================================
-
-config_setting(
-    name = "is_linux",
-    constraint_values = ["@platforms//os:linux"],
-)
-
-config_setting(
-    name = "is_x64",
-    values = {"cpu": "k8"},
-)
-
-config_setting(
-    name = "is_linux_x64",
-    constraint_values = ["@platforms//os:linux"],
-    values = {"cpu": "k8"},
 )
 
 # =================================================
@@ -259,6 +291,14 @@ filegroup(
             "src/base/platform/platform-posix-time.cc",
             "src/base/platform/platform-posix-time.h",
             "src/base/debug/stack_trace_posix.cc",
+            "src/base/platform/platform-linux.cc",
+        ],
+        "is_android": [
+            "src/base/platform/platform-posix.cc",
+            "src/base/platform/platform-posix.h",
+            "src/base/platform/platform-posix-time.cc",
+            "src/base/platform/platform-posix-time.h",
+            "src/base/debug/stack_trace_android.cc",
             "src/base/platform/platform-linux.cc",
         ],
     }),
@@ -1630,6 +1670,35 @@ filegroup(
         "src/heap/third-party/heap-api.h",
         "src/heap/third-party/heap-api-stub.cc",
     ] + select({
+        ":is_ia32": [
+            "src/baseline/ia32/baseline-assembler-ia32-inl.h",
+            "src/baseline/ia32/baseline-compiler-ia32-inl.h",
+            "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
+            "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.cc",
+            "src/codegen/ia32/cpu-ia32.cc",
+            "src/codegen/ia32/assembler-ia32-inl.h",
+            "src/codegen/ia32/assembler-ia32.cc",
+            "src/codegen/ia32/assembler-ia32.h",
+            "src/codegen/ia32/constants-ia32.h",
+            "src/codegen/ia32/interface-descriptors-ia32-inl.h",
+            "src/codegen/ia32/sse-instr.h",
+            "src/codegen/ia32/macro-assembler-ia32.cc",
+            "src/codegen/ia32/macro-assembler-ia32.h",
+            "src/codegen/ia32/register-ia32.h",
+            "src/compiler/backend/ia32/code-generator-ia32.cc",
+            "src/compiler/backend/ia32/instruction-codes-ia32.h",
+            "src/compiler/backend/ia32/instruction-scheduler-ia32.cc",
+            "src/compiler/backend/ia32/instruction-selector-ia32.cc",
+            "src/deoptimizer/ia32/deoptimizer-ia32.cc",
+            "src/diagnostics/ia32/disasm-ia32.cc",
+            "src/diagnostics/ia32/unwinder-ia32.cc",
+            "src/execution/ia32/frame-constants-ia32.cc",
+            "src/execution/ia32/frame-constants-ia32.h",
+            "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
+            "src/regexp/ia32/regexp-macro-assembler-ia32.h",
+            "src/third_party/valgrind/valgrind.h",
+            "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
+        ],
         ":is_x64": [
             "src/baseline/x64/baseline-assembler-x64-inl.h",
             "src/baseline/x64/baseline-compiler-x64-inl.h",
@@ -1664,10 +1733,11 @@ filegroup(
             "src/wasm/baseline/x64/liftoff-assembler-x64.h",
         ],
     }) + select({
-        ":is_linux": [
+        ":is_linux_x64": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
+        "//conditions:default": [],
     }) + select({
         ":is_v8_enable_webassembly": [
             "src/asmjs/asm-js.cc",
@@ -2095,6 +2165,7 @@ filegroup(
         "src/interpreter/interpreter-intrinsics-generator.cc",
         "src/interpreter/interpreter-intrinsics-generator.h",
     ] + select({
+        ":is_ia32": ["src/builtins/ia32/builtins-ia32.cc"],
         ":is_x64": ["src/builtins/x64/builtins-x64.cc"],
     }) + select({
         ":is_v8_enable_webassembly": [
@@ -2205,6 +2276,7 @@ filegroup(
         "src/heap/base/worklist.h",
         "src/heap/cppgc/globals.h",
     ] + select({
+        ":is_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
         ":is_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
     }),
 )
@@ -2351,8 +2423,9 @@ filegroup(
 filegroup(
     name = "snapshot_files",
     srcs = [
-        ":generated_snapshot_files",
         "src/init/setup-isolate-deserialize.cc",
+        # TODO(victorgomes): Create a flag to select pregenerated snapshots.
+        ":generated_snapshot_files",
     ]
 )
 
@@ -2544,6 +2617,10 @@ v8_binary(
         ":gtest_prod",
         ":third_party_zlib"
     ],
+    linkopts = select({
+        "is_android": [ "-llog" ],
+        "//conditions:default": [],
+    }),
 )
 
 v8_binary(
