@@ -446,7 +446,40 @@ void LiftoffAssembler::AtomicFence() { sync(); }
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueKind kind) {
-  bailout(kUnsupportedArchitecture, "LoadCallerFrameSlot");
+  int32_t offset = (caller_slot_idx + 1) * kSystemPointerSize;
+  switch (kind) {
+    case kI32: {
+#if defined(V8_TARGET_BIG_ENDIAN)
+      LoadS32(dst.gp(), MemOperand(fp, offset + 4), r0);
+      break;
+#else
+      LoadS32(dst.gp(), MemOperand(fp, offset), r0);
+      break;
+#endif
+    }
+    case kRef:
+    case kRtt:
+    case kOptRef:
+    case kRttWithDepth:
+    case kI64: {
+      LoadU64(dst.gp(), MemOperand(fp, offset), r0);
+      break;
+    }
+    case kF32: {
+      LoadF32(dst.fp(), MemOperand(fp, offset), r0);
+      break;
+    }
+    case kF64: {
+      LoadF64(dst.fp(), MemOperand(fp, offset), r0);
+      break;
+    }
+    case kS128: {
+      bailout(kSimd, "simd load");
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
