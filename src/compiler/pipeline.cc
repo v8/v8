@@ -1368,8 +1368,7 @@ struct InliningPhase {
                                data->broker(), data->jsgraph()->Dead(),
                                data->observe_node_manager());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone,
-                                              info->concurrent_inlining());
+                                              data->common(), temp_zone);
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
@@ -1439,8 +1438,7 @@ struct WasmInliningPhase {
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
                                data->broker(), data->jsgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone,
-                                              info->concurrent_inlining());
+                                              data->common(), temp_zone);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
@@ -1589,9 +1587,8 @@ struct TypedLoweringPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    DeadCodeElimination dead_code_elimination(
-        &graph_reducer, data->graph(), data->common(), temp_zone,
-        data->info()->concurrent_inlining());
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
     JSCreateLowering create_lowering(&graph_reducer, data->dependencies(),
                                      data->jsgraph(), data->broker(),
                                      temp_zone);
@@ -1777,9 +1774,8 @@ struct EarlyOptimizationPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    DeadCodeElimination dead_code_elimination(
-        &graph_reducer, data->graph(), data->common(), temp_zone,
-        data->info()->concurrent_inlining());
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph(),
                                              data->broker());
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
@@ -1854,9 +1850,8 @@ struct EffectControlLinearizationPhase {
                                  &data->info()->tick_counter(), data->broker(),
                                  data->jsgraph()->Dead(),
                                  data->observe_node_manager());
-      DeadCodeElimination dead_code_elimination(
-          &graph_reducer, data->graph(), data->common(), temp_zone,
-          data->info()->concurrent_inlining());
+      DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                                data->common(), temp_zone);
       CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                            data->broker(), data->common(),
                                            data->machine(), temp_zone);
@@ -1894,9 +1889,8 @@ struct LoadEliminationPhase {
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone,
                                                    BranchElimination::kEARLY);
-    DeadCodeElimination dead_code_elimination(
-        &graph_reducer, data->graph(), data->common(), temp_zone,
-        data->info()->concurrent_inlining());
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
     LoadElimination load_elimination(&graph_reducer, data->jsgraph(),
                                      temp_zone);
@@ -1963,9 +1957,8 @@ struct LateOptimizationPhase {
         data->jsgraph()->Dead(), data->observe_node_manager());
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone);
-    DeadCodeElimination dead_code_elimination(
-        &graph_reducer, data->graph(), data->common(), temp_zone,
-        data->info()->concurrent_inlining());
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -2063,9 +2056,8 @@ struct WasmOptimizationPhase {
                                  data->observe_node_manager());
       MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
                                              allow_signalling_nan);
-      DeadCodeElimination dead_code_elimination(
-          &graph_reducer, data->graph(), data->common(), temp_zone,
-          data->info()->concurrent_inlining());
+      DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                                data->common(), temp_zone);
       CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                            data->broker(), data->common(),
                                            data->machine(), temp_zone);
@@ -2086,9 +2078,8 @@ struct WasmOptimizationPhase {
                                  data->observe_node_manager());
       MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
                                              allow_signalling_nan);
-      DeadCodeElimination dead_code_elimination(
-          &graph_reducer, data->graph(), data->common(), temp_zone,
-          data->info()->concurrent_inlining());
+      DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                                data->common(), temp_zone);
       CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                            data->broker(), data->common(),
                                            data->machine(), temp_zone);
@@ -2120,9 +2111,8 @@ struct CsaEarlyOptimizationPhase {
                                  data->observe_node_manager());
       MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
                                              true);
-      DeadCodeElimination dead_code_elimination(
-          &graph_reducer, data->graph(), data->common(), temp_zone,
-          data->info()->concurrent_inlining());
+      DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                                data->common(), temp_zone);
       CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                            data->broker(), data->common(),
                                            data->machine(), temp_zone);
@@ -2143,9 +2133,8 @@ struct CsaEarlyOptimizationPhase {
                                  data->observe_node_manager());
       MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
                                              true);
-      DeadCodeElimination dead_code_elimination(
-          &graph_reducer, data->graph(), data->common(), temp_zone,
-          data->info()->concurrent_inlining());
+      DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                                data->common(), temp_zone);
       CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                            data->broker(), data->common(),
                                            data->machine(), temp_zone);
@@ -2171,9 +2160,8 @@ struct CsaOptimizationPhase {
         data->jsgraph()->Dead(), data->observe_node_manager());
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone);
-    DeadCodeElimination dead_code_elimination(
-        &graph_reducer, data->graph(), data->common(), temp_zone,
-        data->info()->concurrent_inlining());
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
     MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),
                                            allow_signalling_nan);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
