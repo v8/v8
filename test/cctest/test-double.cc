@@ -27,14 +27,15 @@
 
 #include <stdlib.h>
 
-#include "src/base/numbers/diy-fp.h"
-#include "src/base/numbers/double.h"
-#include "src/base/platform/platform.h"
 #include "src/init/v8.h"
+
+#include "src/base/platform/platform.h"
+#include "src/numbers/diy-fp.h"
+#include "src/numbers/double.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
-namespace base {
+namespace internal {
 
 TEST(Uint64Conversions) {
   // Start by checking the byte-order.
@@ -224,5 +225,5 @@ TEST(NextDouble) {
   CHECK_EQ(V8_INFINITY, Double(uint64_t{0x7FEF'FFFF'FFFF'FFFF}).NextDouble());
 }
 
-}  // namespace base
+}  // namespace internal
 }  // namespace v8

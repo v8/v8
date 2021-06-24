@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
-#include "src/base/numbers/double.h"
 #include "src/base/platform/mutex.h"
 #include "src/baseline/baseline-osr-inl.h"
 #include "src/codegen/assembler-inl.h"
@@ -82,7 +81,7 @@ RUNTIME_FUNCTION(Runtime_ConstructDouble) {
   CONVERT_NUMBER_CHECKED(uint32_t, hi, Uint32, args[0]);
   CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
   uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
-  return *isolate->factory()->NewNumber(base::uint64_to_double(result));
+  return *isolate->factory()->NewNumber(uint64_to_double(result));
 }
 
 RUNTIME_FUNCTION(Runtime_ConstructConsString) {

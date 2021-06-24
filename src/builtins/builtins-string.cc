@@ -11,7 +11,6 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif
-#include "src/base/strings.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-case.h"
@@ -41,9 +40,9 @@ bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
   return true;
 }
 
-static constexpr base::uc32 kInvalidCodePoint = static_cast<base::uc32>(-1);
+static constexpr uc32 kInvalidCodePoint = static_cast<uc32>(-1);
 
-base::uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
+uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
   Handle<Object> value = args.at(1 + index);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, Object::ToNumber(isolate, value), kInvalidCodePoint);
@@ -68,7 +67,7 @@ BUILTIN(StringFromCodePoint) {
   // characters.
   std::vector<uint8_t> one_byte_buffer;
   one_byte_buffer.reserve(length);
-  base::uc32 code = 0;
+  uc32 code = 0;
   int index;
   for (index = 0; index < length; index++) {
     code = NextCodePoint(isolate, args, index);
@@ -87,12 +86,11 @@ BUILTIN(StringFromCodePoint) {
                      one_byte_buffer.data(), one_byte_buffer.size())));
   }
 
-  std::vector<base::uc16> two_byte_buffer;
+  std::vector<uc16> two_byte_buffer;
   two_byte_buffer.reserve(length - index);
 
   while (true) {
-    if (code <=
-        static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+    if (code <= static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
       two_byte_buffer.push_back(code);
     } else {
       two_byte_buffer.push_back(unibrow::Utf16::LeadSurrogate(code));
@@ -232,11 +230,11 @@ BUILTIN(StringPrototypeNormalize) {
 #ifndef V8_INTL_SUPPORT
 namespace {
 
-inline bool ToUpperOverflows(base::uc32 character) {
+inline bool ToUpperOverflows(uc32 character) {
   // y with umlauts and the micro sign are the only characters that stop
   // fitting into one-byte when converting to uppercase.
-  static const base::uc32 yuml_code = 0xFF;
-  static const base::uc32 micro_code = 0xB5;
+  static const uc32 yuml_code = 0xFF;
+  static const uc32 micro_code = 0xB5;
   return (character == yuml_code || character == micro_code);
 }
 
@@ -261,11 +259,11 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
   StringCharacterStream stream(string);
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
-  base::uc32 current = stream.GetNext();
+  uc32 current = stream.GetNext();
   bool ignore_overflow = Converter::kIsToLower || result.IsSeqTwoByteString();
   for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
-    base::uc32 next = has_next ? stream.GetNext() : 0;
+    uc32 next = has_next ? stream.GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
@@ -274,7 +272,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
     } else if (char_length == 1 &&
                (ignore_overflow || !ToUpperOverflows(current))) {
       // Common case: converting the letter resulted in one character.
-      DCHECK(static_cast<base::uc32>(chars[0]) != current);
+      DCHECK(static_cast<uc32>(chars[0]) != current);
       result.Set(i, chars[0]);
       has_changed_character = true;
       i++;

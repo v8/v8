@@ -27,17 +27,19 @@
 
 #include <stdlib.h>
 
-#include "src/base/numbers/double.h"
-#include "src/base/numbers/dtoa.h"
-#include "src/base/platform/platform.h"
 #include "src/init/v8.h"
+
+#include "src/numbers/dtoa.h"
+
+#include "src/base/platform/platform.h"
+#include "src/numbers/double.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/gay-fixed.h"
 #include "test/cctest/gay-precision.h"
 #include "test/cctest/gay-shortest.h"
 
 namespace v8 {
-namespace base {
+namespace internal {
 namespace test_dtoa {
 
 // Removes trailing '0' digits (modifies {representation}). Can create an empty
@@ -326,5 +328,5 @@ TEST(DtoaGayPrecision) {
 }
 
 }  // namespace test_dtoa
-}  // namespace base
+}  // namespace internal
 }  // namespace v8

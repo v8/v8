@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/numbers/diy-fp.h"
+#include "src/numbers/diy-fp.h"
 
 #include <stdint.h>
 
 namespace v8 {
-namespace base {
+namespace internal {
 
 void DiyFp::Multiply(const DiyFp& other) {
   // Simply "emulates" a 128 bit multiplication.
@@ -32,5 +32,5 @@ void DiyFp::Multiply(const DiyFp& other) {
   f_ = result_f;
 }
 
-}  // namespace base
+}  // namespace internal
 }  // namespace v8

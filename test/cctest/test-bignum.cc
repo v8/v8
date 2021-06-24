@@ -27,23 +27,24 @@
 
 #include <stdlib.h>
 
-#include "src/base/numbers/bignum.h"
-#include "src/base/platform/platform.h"
 #include "src/init/v8.h"
+
+#include "src/base/platform/platform.h"
+#include "src/numbers/bignum.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
-namespace base {
+namespace internal {
 namespace test_bignum {
 
 static const int kBufferSize = 1024;
 
 static void AssignHexString(Bignum* bignum, const char* str) {
-  bignum->AssignHexString(CStrVector(str));
+  bignum->AssignHexString(base::CStrVector(str));
 }
 
 static void AssignDecimalString(Bignum* bignum, const char* str) {
-  bignum->AssignDecimalString(CStrVector(str));
+  bignum->AssignDecimalString(base::CStrVector(str));
 }
 
 TEST(Assign) {
@@ -1540,5 +1541,5 @@ TEST(AssignPowerUInt16) {
 }
 
 }  // namespace test_bignum
-}  // namespace base
+}  // namespace internal
 }  // namespace v8

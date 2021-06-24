@@ -9,7 +9,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/export-template.h"
-#include "src/base/strings.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/name.h"
 #include "src/objects/smi.h"
@@ -125,12 +124,12 @@ class String : public TorqueGeneratedString<String, Name> {
     }
     // Return the two-byte content of the string. Only use if IsTwoByte()
     // returns true.
-    base::Vector<const base::uc16> ToUC16Vector() const {
+    base::Vector<const uc16> ToUC16Vector() const {
       DCHECK_EQ(TWO_BYTE, state_);
-      return base::Vector<const base::uc16>(twobyte_start, length_);
+      return base::Vector<const uc16>(twobyte_start, length_);
     }
 
-    base::uc16 Get(int i) const {
+    uc16 Get(int i) const {
       DCHECK(i < length_);
       DCHECK(state_ != NON_FLAT);
       if (state_ == ONE_BYTE) return onebyte_start[i];
@@ -151,7 +150,7 @@ class String : public TorqueGeneratedString<String, Name> {
           length_(length),
           state_(ONE_BYTE),
           no_gc_(no_gc) {}
-    FlatContent(const base::uc16* start, int length,
+    FlatContent(const uc16* start, int length,
                 const DisallowGarbageCollection& no_gc)
         : twobyte_start(start),
           length_(length),
@@ -162,7 +161,7 @@ class String : public TorqueGeneratedString<String, Name> {
 
     union {
       const uint8_t* onebyte_start;
-      const base::uc16* twobyte_start;
+      const uc16* twobyte_start;
     };
     int length_;
     State state_;
@@ -251,7 +250,7 @@ class String : public TorqueGeneratedString<String, Name> {
       AllocationType allocation = AllocationType::kYoung);
 
   // Tries to return the content of a flat string as a structure holding either
-  // a flat vector of char or of base::uc16.
+  // a flat vector of char or of uc16.
   // If the string isn't flat, and therefore doesn't have flat content, the
   // returned structure will report so, and can't provide a vector of either
   // kind.
@@ -433,7 +432,7 @@ class String : public TorqueGeneratedString<String, Name> {
   static const uint32_t kMaxOneByteCharCodeU = unibrow::Latin1::kMaxChar;
   static const int kMaxUtf16CodeUnit = 0xffff;
   static const uint32_t kMaxUtf16CodeUnitU = kMaxUtf16CodeUnit;
-  static const base::uc32 kMaxCodePoint = 0x10ffff;
+  static const uc32 kMaxCodePoint = 0x10ffff;
 
   // Maximal string length.
   // The max length is different on 32 and 64 bit platforms. Max length for
@@ -482,8 +481,8 @@ class String : public TorqueGeneratedString<String, Name> {
     return NonAsciiStart(chars, length) >= length;
   }
 
-  static inline int NonOneByteStart(const base::uc16* chars, int length) {
-    DCHECK(IsAligned(reinterpret_cast<Address>(chars), sizeof(base::uc16)));
+  static inline int NonOneByteStart(const uc16* chars, int length) {
+    DCHECK(IsAligned(reinterpret_cast<Address>(chars), sizeof(uc16)));
     const uint16_t* start = chars;
     const uint16_t* limit = chars + length;
 
@@ -507,7 +506,7 @@ class String : public TorqueGeneratedString<String, Name> {
         if (*reinterpret_cast<const uintptr_t*>(chars) & non_one_byte_mask) {
           break;
         }
-        chars += (sizeof(uintptr_t) / sizeof(base::uc16));
+        chars += (sizeof(uintptr_t) / sizeof(uc16));
       }
     }
 
@@ -522,7 +521,7 @@ class String : public TorqueGeneratedString<String, Name> {
     return static_cast<int>(chars - start);
   }
 
-  static inline bool IsOneByte(const base::uc16* chars, int length) {
+  static inline bool IsOneByte(const uc16* chars, int length) {
     return NonOneByteStart(chars, length) >= length;
   }
 
@@ -701,10 +700,10 @@ class SeqTwoByteString
   // Get a pointer to the characters of the string. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
-  inline base::uc16* GetChars(const DisallowGarbageCollection& no_gc) const;
+  inline uc16* GetChars(const DisallowGarbageCollection& no_gc) const;
 
   // Get a pointer to the characters of the string.
-  inline base::uc16* GetChars(
+  inline uc16* GetChars(
       const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
@@ -959,7 +958,7 @@ class V8_EXPORT_PRIVATE FlatStringReader : public Relocatable {
  public:
   FlatStringReader(Isolate* isolate, Handle<String> str);
   void PostGarbageCollection() override;
-  inline base::uc32 Get(int index) const;
+  inline uc32 Get(int index) const;
   template <typename Char>
   inline Char Get(int index) const;
   int length() { return length_; }

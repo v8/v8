@@ -5,7 +5,6 @@
 #ifndef V8_REGEXP_REGEXP_PARSER_H_
 #define V8_REGEXP_REGEXP_PARSER_H_
 
-#include "src/base/strings.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/objects.h"
 #include "src/regexp/regexp-ast.h"
@@ -102,14 +101,14 @@ class BufferedZoneList {
 class RegExpBuilder : public ZoneObject {
  public:
   RegExpBuilder(Zone* zone, JSRegExp::Flags flags);
-  void AddCharacter(base::uc16 character);
-  void AddUnicodeCharacter(base::uc32 character);
-  void AddEscapedUnicodeCharacter(base::uc32 character);
+  void AddCharacter(uc16 character);
+  void AddUnicodeCharacter(uc32 character);
+  void AddEscapedUnicodeCharacter(uc32 character);
   // "Adds" an empty expression. Does nothing except consume a
   // following quantifier
   void AddEmpty();
   void AddCharacterClass(RegExpCharacterClass* cc);
-  void AddCharacterClassForDesugaring(base::uc32 c);
+  void AddCharacterClassForDesugaring(uc32 c);
   void AddAtom(RegExpTree* tree);
   void AddTerm(RegExpTree* tree);
   void AddAssertion(RegExpTree* tree);
@@ -126,22 +125,22 @@ class RegExpBuilder : public ZoneObject {
   bool dotall() const { return (flags_ & JSRegExp::kDotAll) != 0; }
 
  private:
-  static const base::uc16 kNoPendingSurrogate = 0;
-  void AddLeadSurrogate(base::uc16 lead_surrogate);
-  void AddTrailSurrogate(base::uc16 trail_surrogate);
+  static const uc16 kNoPendingSurrogate = 0;
+  void AddLeadSurrogate(uc16 lead_surrogate);
+  void AddTrailSurrogate(uc16 trail_surrogate);
   void FlushPendingSurrogate();
   void FlushCharacters();
   void FlushTerms();
   bool NeedsDesugaringForUnicode(RegExpCharacterClass* cc);
-  bool NeedsDesugaringForIgnoreCase(base::uc32 c);
+  bool NeedsDesugaringForIgnoreCase(uc32 c);
   Zone* zone() const { return zone_; }
   bool unicode() const { return (flags_ & JSRegExp::kUnicode) != 0; }
 
   Zone* zone_;
   bool pending_empty_;
   JSRegExp::Flags flags_;
-  ZoneList<base::uc16>* characters_;
-  base::uc16 pending_surrogate_;
+  ZoneList<uc16>* characters_;
+  uc16 pending_surrogate_;
   BufferedZoneList<RegExpTree, 2> terms_;
   BufferedZoneList<RegExpTree, 2> text_;
   BufferedZoneList<RegExpTree, 2> alternatives_;
@@ -180,13 +179,13 @@ class V8_EXPORT_PRIVATE RegExpParser {
 
   // Parses and returns a single escaped character.  The character
   // must not be 'b' or 'B' since they are usually handle specially.
-  base::uc32 ParseClassCharacterEscape();
+  uc32 ParseClassCharacterEscape();
 
   // Checks whether the following is a length-digit hexadecimal number,
   // and sets the value if it is.
-  bool ParseHexEscape(int length, base::uc32* value);
-  bool ParseUnicodeEscape(base::uc32* value);
-  bool ParseUnlimitedLengthHexNumber(int max_value, base::uc32* value);
+  bool ParseHexEscape(int length, uc32* value);
+  bool ParseUnicodeEscape(uc32* value);
+  bool ParseUnlimitedLengthHexNumber(int max_value, uc32* value);
 
   bool ParsePropertyClassName(ZoneVector<char>* name_1,
                               ZoneVector<char>* name_2);
@@ -197,7 +196,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
   RegExpTree* GetPropertySequence(const ZoneVector<char>& name_1);
   RegExpTree* ParseCharacterClass(const RegExpBuilder* state);
 
-  base::uc32 ParseOctalLiteral();
+  uc32 ParseOctalLiteral();
 
   // Tries to parse the input as a back reference.  If successful it
   // stores the result in the output parameter and returns true.  If
@@ -208,7 +207,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
   // Parse inside a class. Either add escaped class to the range, or return
   // false and pass parsed single character through |char_out|.
   void ParseClassEscape(ZoneList<CharacterRange>* ranges, Zone* zone,
-                        bool add_unicode_case_equivalents, base::uc32* char_out,
+                        bool add_unicode_case_equivalents, uc32* char_out,
                         bool* is_class_escape);
 
   char ParseClassEscape();
@@ -230,9 +229,9 @@ class V8_EXPORT_PRIVATE RegExpParser {
   // just read the initial flag value here.
   bool unicode() const { return (top_level_flags_ & JSRegExp::kUnicode) != 0; }
 
-  static bool IsSyntaxCharacterOrSlash(base::uc32 c);
+  static bool IsSyntaxCharacterOrSlash(uc32 c);
 
-  static const base::uc32 kEndMarker = (1 << 21);
+  static const uc32 kEndMarker = (1 << 21);
 
  private:
   enum SubexpressionType {
@@ -250,7 +249,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
                       SubexpressionType group_type,
                       RegExpLookaround::Type lookaround_type,
                       int disjunction_capture_index,
-                      const ZoneVector<base::uc16>* capture_name,
+                      const ZoneVector<uc16>* capture_name,
                       JSRegExp::Flags flags, Zone* zone)
         : previous_state_(previous_state),
           builder_(zone->New<RegExpBuilder>(zone, flags)),
@@ -273,14 +272,14 @@ class V8_EXPORT_PRIVATE RegExpParser {
     int capture_index() const { return disjunction_capture_index_; }
     // The name of the current sub-expression, if group_type is CAPTURE. Only
     // used for named captures.
-    const ZoneVector<base::uc16>* capture_name() const { return capture_name_; }
+    const ZoneVector<uc16>* capture_name() const { return capture_name_; }
 
     bool IsNamedCapture() const { return capture_name_ != nullptr; }
 
     // Check whether the parser is inside a capture group with the given index.
     bool IsInsideCaptureGroup(int index);
     // Check whether the parser is inside a capture group with the given name.
-    bool IsInsideCaptureGroup(const ZoneVector<base::uc16>* name);
+    bool IsInsideCaptureGroup(const ZoneVector<uc16>* name);
 
    private:
     // Linked list implementation of stack of states.
@@ -294,7 +293,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
     // Stored disjunction's capture index (if any).
     const int disjunction_capture_index_;
     // Stored capture name (if any).
-    const ZoneVector<base::uc16>* const capture_name_;
+    const ZoneVector<uc16>* const capture_name_;
   };
 
   // Return the 1-indexed RegExpCapture object, allocate if necessary.
@@ -303,11 +302,11 @@ class V8_EXPORT_PRIVATE RegExpParser {
   // Creates a new named capture at the specified index. Must be called exactly
   // once for each named capture. Fails if a capture with the same name is
   // encountered.
-  bool CreateNamedCaptureAtIndex(const ZoneVector<base::uc16>* name, int index);
+  bool CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name, int index);
 
   // Parses the name of a capture group (?<name>pattern). The name must adhere
   // to IdentifierName in the ECMAScript standard.
-  const ZoneVector<base::uc16>* ParseCaptureGroupName();
+  const ZoneVector<uc16>* ParseCaptureGroupName();
 
   bool ParseNamedBackReference(RegExpBuilder* builder,
                                RegExpParserState* state);
@@ -327,12 +326,12 @@ class V8_EXPORT_PRIVATE RegExpParser {
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
 
-  base::uc32 current() { return current_; }
+  uc32 current() { return current_; }
   bool has_more() { return has_more_; }
   bool has_next() { return next_pos_ < in()->length(); }
-  base::uc32 Next();
+  uc32 Next();
   template <bool update_position>
-  base::uc32 ReadNext();
+  uc32 ReadNext();
   FlatStringReader* in() { return in_; }
   void ScanForCaptures();
 
@@ -352,7 +351,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
   ZoneSet<RegExpCapture*, RegExpCaptureNameLess>* named_captures_;
   ZoneList<RegExpBackReference*>* named_back_references_;
   FlatStringReader* in_;
-  base::uc32 current_;
+  uc32 current_;
   // These are the flags specified outside the regexp syntax ie after the
   // terminating '/' or in the second argument to the constructor.  The current
   // flags are stored on the RegExpBuilder.

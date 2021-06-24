@@ -4,7 +4,6 @@
 
 #include "src/json/json-stringifier.h"
 
-#include "src/base/strings.h"
 #include "src/common/message-template.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
@@ -128,7 +127,7 @@ class JsonStringifier {
   Handle<String> tojson_string_;
   Handle<FixedArray> property_list_;
   Handle<JSReceiver> replacer_function_;
-  base::uc16* gap_;
+  uc16* gap_;
   int indent_;
 
   using KeyObject = std::pair<Handle<Object>, Handle<Object>>;
@@ -304,7 +303,7 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
     Handle<String> gap_string = Handle<String>::cast(gap);
     if (gap_string->length() > 0) {
       int gap_length = std::min(gap_string->length(), 10);
-      gap_ = NewArray<base::uc16>(gap_length + 1);
+      gap_ = NewArray<uc16>(gap_length + 1);
       String::WriteToFlat(*gap_string, gap_, 0, gap_length);
       for (int i = 0; i < gap_length; i++) {
         if (gap_[i] > String::kMaxOneByteCharCode) {
@@ -318,7 +317,7 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
     int num_value = DoubleToInt32(gap->Number());
     if (num_value > 0) {
       int gap_length = std::min(num_value, 10);
-      gap_ = NewArray<base::uc16>(gap_length + 1);
+      gap_ = NewArray<uc16>(gap_length + 1);
       for (int i = 0; i < gap_length; i++) gap_[i] = ' ';
       gap_[gap_length] = '\0';
     }
@@ -878,8 +877,8 @@ template <typename SrcChar, typename DestChar>
 void JsonStringifier::SerializeStringUnchecked_(
     base::Vector<const SrcChar> src,
     IncrementalStringBuilder::NoExtend<DestChar>* dest) {
-  // Assert that base::uc16 character is not truncated down to 8 bit.
-  // The <base::uc16, char> version of this method must not be called.
+  // Assert that uc16 character is not truncated down to 8 bit.
+  // The <uc16, char> version of this method must not be called.
   DCHECK(sizeof(DestChar) >= sizeof(SrcChar));
   for (int i = 0; i < src.length(); i++) {
     SrcChar c = src[i];
@@ -1037,9 +1036,9 @@ void JsonStringifier::SerializeString(Handle<String> object) {
     }
   } else {
     if (String::IsOneByteRepresentationUnderneath(*object)) {
-      SerializeString_<uint8_t, base::uc16>(object);
+      SerializeString_<uint8_t, uc16>(object);
     } else {
-      SerializeString_<base::uc16, base::uc16>(object);
+      SerializeString_<uc16, uc16>(object);
     }
   }
 }

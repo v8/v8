@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/numbers/cached-powers.h"
+#include "src/numbers/cached-powers.h"
 
 #include <limits.h>
 #include <stdarg.h>
 #include <stdint.h>
-
 #include <cmath>
 
 #include "src/base/logging.h"
+#include "src/common/globals.h"
 
 namespace v8 {
-namespace base {
+namespace internal {
 
 struct CachedPower {
   uint64_t significand;
@@ -109,5 +109,5 @@ void PowersOfTenCache::GetCachedPowerForDecimalExponent(int requested_exponent,
   DCHECK(requested_exponent < *found_exponent + kDecimalExponentDistance);
 }
 
-}  // namespace base
+}  // namespace internal
 }  // namespace v8

@@ -14,7 +14,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/memory.h"
-#include "src/base/numbers/double.h"
 #include "src/builtins/builtins.h"
 #include "src/common/external-pointer-inl.h"
 #include "src/common/globals.h"
@@ -23,6 +22,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/numbers/double.h"
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
@@ -1056,7 +1056,7 @@ Object Object::GetSimpleHash(Object object) {
     if (num >= kMinInt && num <= kMaxInt && FastI2D(FastD2I(num)) == num) {
       hash = ComputeUnseededHash(FastD2I(num));
     } else {
-      hash = ComputeLongHash(base::double_to_uint64(num));
+      hash = ComputeLongHash(double_to_uint64(num));
     }
     return Smi::FromInt(hash & Smi::kMaxValue);
   }

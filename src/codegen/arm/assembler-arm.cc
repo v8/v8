@@ -2674,7 +2674,7 @@ void Assembler::vstm(BlockAddrMode am, Register base, SwVfpRegister first,
        0xA * B8 | count);
 }
 
-static void DoubleAsTwoUInt32(base::Double d, uint32_t* lo, uint32_t* hi) {
+static void DoubleAsTwoUInt32(Double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i = d.AsUint64();
 
   *lo = i & 0xFFFFFFFF;
@@ -2747,7 +2747,7 @@ void Assembler::vmov(const QwNeonRegister dst, uint64_t imm) {
 
 // Only works for little endian floating point formats.
 // We don't support VFP on the mixed endian floating point platform.
-static bool FitsVmovFPImmediate(base::Double d, uint32_t* encoding) {
+static bool FitsVmovFPImmediate(Double d, uint32_t* encoding) {
   // VMOV can accept an immediate of the form:
   //
   //  +/- m * 2^(-n) where 16 <= m <= 31 and 0 <= n <= 7
@@ -2796,7 +2796,7 @@ static bool FitsVmovFPImmediate(base::Double d, uint32_t* encoding) {
 void Assembler::vmov(const SwVfpRegister dst, Float32 imm) {
   uint32_t enc;
   if (CpuFeatures::IsSupported(VFPv3) &&
-      FitsVmovFPImmediate(base::Double(imm.get_scalar()), &enc)) {
+      FitsVmovFPImmediate(Double(imm.get_scalar()), &enc)) {
     CpuFeatureScope scope(this, VFPv3);
     // The float can be encoded in the instruction.
     //
@@ -2815,7 +2815,7 @@ void Assembler::vmov(const SwVfpRegister dst, Float32 imm) {
   }
 }
 
-void Assembler::vmov(const DwVfpRegister dst, base::Double imm,
+void Assembler::vmov(const DwVfpRegister dst, Double imm,
                      const Register extra_scratch) {
   DCHECK(VfpRegisterIsAvailable(dst));
   uint32_t enc;

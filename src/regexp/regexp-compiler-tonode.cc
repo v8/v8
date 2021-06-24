@@ -13,7 +13,6 @@
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
-#include "src/base/strings.h"
 #include "unicode/locid.h"
 #include "unicode/uniset.h"
 #include "unicode/utypes.h"
@@ -57,11 +56,11 @@ static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
     return false;
   }
   for (int i = 0; i < length; i += 2) {
-    if (static_cast<base::uc32>(special_class[i]) != (range.to() + 1)) {
+    if (static_cast<uc32>(special_class[i]) != (range.to() + 1)) {
       return false;
     }
     range = ranges->at((i >> 1) + 1);
-    if (static_cast<base::uc32>(special_class[i + 1]) != range.from()) {
+    if (static_cast<uc32>(special_class[i + 1]) != range.from()) {
       return false;
     }
   }
@@ -80,8 +79,8 @@ static bool CompareRanges(ZoneList<CharacterRange>* ranges,
   }
   for (int i = 0; i < length; i += 2) {
     CharacterRange range = ranges->at(i >> 1);
-    if (range.from() != static_cast<base::uc32>(special_class[i]) ||
-        range.to() != static_cast<base::uc32>(special_class[i + 1] - 1)) {
+    if (range.from() != static_cast<uc32>(special_class[i]) ||
+        range.to() != static_cast<uc32>(special_class[i + 1] - 1)) {
       return false;
     }
   }
@@ -139,10 +138,10 @@ UnicodeRangeSplitter::UnicodeRangeSplitter(ZoneList<CharacterRange>* base) {
 }
 
 void UnicodeRangeSplitter::AddRange(CharacterRange range) {
-  static constexpr base::uc32 kBmp1Start = 0;
-  static constexpr base::uc32 kBmp1End = kLeadSurrogateStart - 1;
-  static constexpr base::uc32 kBmp2Start = kTrailSurrogateEnd + 1;
-  static constexpr base::uc32 kBmp2End = kNonBmpStart - 1;
+  static constexpr uc32 kBmp1Start = 0;
+  static constexpr uc32 kBmp1End = kLeadSurrogateStart - 1;
+  static constexpr uc32 kBmp2Start = kTrailSurrogateEnd + 1;
+  static constexpr uc32 kBmp2End = kNonBmpStart - 1;
 
   // Ends are all inclusive.
   STATIC_ASSERT(kBmp1Start == 0);
@@ -156,12 +155,12 @@ void UnicodeRangeSplitter::AddRange(CharacterRange range) {
   STATIC_ASSERT(kBmp2End + 1 == kNonBmpStart);
   STATIC_ASSERT(kNonBmpStart < kNonBmpEnd);
 
-  static constexpr base::uc32 kStarts[] = {
+  static constexpr uc32 kStarts[] = {
       kBmp1Start, kLeadSurrogateStart, kTrailSurrogateStart,
       kBmp2Start, kNonBmpStart,
   };
 
-  static constexpr base::uc32 kEnds[] = {
+  static constexpr uc32 kEnds[] = {
       kBmp1End, kLeadSurrogateEnd, kTrailSurrogateEnd, kBmp2End, kNonBmpEnd,
   };
 
@@ -175,8 +174,8 @@ void UnicodeRangeSplitter::AddRange(CharacterRange range) {
 
   for (int i = 0; i < kCount; i++) {
     if (kStarts[i] > range.to()) break;
-    const base::uc32 from = std::max(kStarts[i], range.from());
-    const base::uc32 to = std::min(kEnds[i], range.to());
+    const uc32 from = std::max(kStarts[i], range.from());
+    const uc32 to = std::min(kEnds[i], range.to());
     if (from > to) continue;
     kTargets[i]->emplace_back(CharacterRange::Range(from, to));
   }
@@ -225,12 +224,12 @@ void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
     //      \ud800[\udc05-\udfff]|
     //      [\ud801-\ud803][\udc00-\udfff]|
     //      \ud804[\udc00-\udc05]
-    base::uc32 from = non_bmp->at(i).from();
-    base::uc32 to = non_bmp->at(i).to();
-    base::uc16 from_l = unibrow::Utf16::LeadSurrogate(from);
-    base::uc16 from_t = unibrow::Utf16::TrailSurrogate(from);
-    base::uc16 to_l = unibrow::Utf16::LeadSurrogate(to);
-    base::uc16 to_t = unibrow::Utf16::TrailSurrogate(to);
+    uc32 from = non_bmp->at(i).from();
+    uc32 to = non_bmp->at(i).to();
+    uc16 from_l = unibrow::Utf16::LeadSurrogate(from);
+    uc16 from_t = unibrow::Utf16::TrailSurrogate(from);
+    uc16 to_l = unibrow::Utf16::LeadSurrogate(to);
+    uc16 to_t = unibrow::Utf16::TrailSurrogate(to);
     if (from_l == to_l) {
       // The lead surrogate is the same.
       result->AddAlternative(
@@ -448,8 +447,8 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
 int CompareFirstChar(RegExpTree* const* a, RegExpTree* const* b) {
   RegExpAtom* atom1 = (*a)->AsAtom();
   RegExpAtom* atom2 = (*b)->AsAtom();
-  base::uc16 character1 = atom1->data().at(0);
-  base::uc16 character2 = atom2->data().at(0);
+  uc16 character1 = atom1->data().at(0);
+  uc16 character2 = atom2->data().at(0);
   if (character1 < character2) return -1;
   if (character1 > character2) return 1;
   return 0;
@@ -1061,7 +1060,7 @@ static void AddClassNegated(const int* elmv, int elmc,
   DCHECK_EQ(kRangeEndMarker, elmv[elmc]);
   DCHECK_NE(0x0000, elmv[0]);
   DCHECK_NE(String::kMaxCodePoint, elmv[elmc - 1]);
-  base::uc16 last = 0x0000;
+  uc16 last = 0x0000;
   for (int i = 0; i < elmc; i += 2) {
     DCHECK(last <= elmv[i] - 1);
     DCHECK(elmv[i] < elmv[i + 1]);
@@ -1149,9 +1148,9 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
   icu::UnicodeSet others;
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
-    base::uc32 from = range.from();
+    uc32 from = range.from();
     if (from > String::kMaxUtf16CodeUnit) continue;
-    base::uc32 to = std::min({range.to(), String::kMaxUtf16CodeUnitU});
+    uc32 to = std::min({range.to(), String::kMaxUtf16CodeUnitU});
     // Nothing to be done for surrogates.
     if (from >= kLeadSurrogateStart && to <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
@@ -1192,9 +1191,9 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
 #else
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
-    base::uc32 bottom = range.from();
+    uc32 bottom = range.from();
     if (bottom > String::kMaxUtf16CodeUnit) continue;
-    base::uc32 top = std::min({range.to(), String::kMaxUtf16CodeUnitU});
+    uc32 top = std::min({range.to(), String::kMaxUtf16CodeUnitU});
     // Nothing to be done for surrogates.
     if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
@@ -1206,7 +1205,7 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
       // If this is a singleton we just expand the one character.
       int length = isolate->jsregexp_uncanonicalize()->get(bottom, '\0', chars);
       for (int i = 0; i < length; i++) {
-        base::uc32 chr = chars[i];
+        uc32 chr = chars[i];
         if (chr != bottom) {
           ranges->Add(CharacterRange::Singleton(chars[i]), zone);
         }
@@ -1229,11 +1228,11 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
       // block we do this for all the blocks covered by the range (handling
       // characters that is not in a block as a "singleton block").
       unibrow::uchar equivalents[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-      base::uc32 pos = bottom;
+      uc32 pos = bottom;
       while (pos <= top) {
         int length =
             isolate->jsregexp_canonrange()->get(pos, '\0', equivalents);
-        base::uc32 block_end;
+        uc32 block_end;
         if (length == 0) {
           block_end = pos;
         } else {
@@ -1244,9 +1243,9 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
         length = isolate->jsregexp_uncanonicalize()->get(block_end, '\0',
                                                          equivalents);
         for (int i = 0; i < length; i++) {
-          base::uc32 c = equivalents[i];
-          base::uc32 range_from = c - (block_end - pos);
-          base::uc32 range_to = c - (block_end - end);
+          uc32 c = equivalents[i];
+          uc32 range_from = c - (block_end - pos);
+          uc32 range_to = c - (block_end - end);
           if (!(bottom <= range_from && range_to <= top)) {
             ranges->Add(CharacterRange::Range(range_from, range_to), zone);
           }
@@ -1262,7 +1261,7 @@ bool CharacterRange::IsCanonical(ZoneList<CharacterRange>* ranges) {
   DCHECK_NOT_NULL(ranges);
   int n = ranges->length();
   if (n <= 1) return true;
-  base::uc32 max = ranges->at(0).to();
+  uc32 max = ranges->at(0).to();
   for (int i = 1; i < n; i++) {
     CharacterRange next_range = ranges->at(i);
     if (next_range.from() <= max + 1) return false;
@@ -1302,8 +1301,8 @@ static int InsertRangeInCanonicalList(ZoneList<CharacterRange>* list, int count,
   // list[0..count] for the result. Returns the number of resulting
   // canonicalized ranges. Inserting a range may collapse existing ranges into
   // fewer ranges, so the return value can be anything in the range 1..count+1.
-  base::uc32 from = insert.from();
-  base::uc32 to = insert.to();
+  uc32 from = insert.from();
+  uc32 to = insert.to();
   int start_pos = 0;
   int end_pos = count;
   for (int i = count - 1; i >= 0; i--) {
@@ -1363,7 +1362,7 @@ void CharacterRange::Canonicalize(ZoneList<CharacterRange>* character_ranges) {
   // Check whether ranges are already canonical (increasing, non-overlapping,
   // non-adjacent).
   int n = character_ranges->length();
-  base::uc32 max = character_ranges->at(0).to();
+  uc32 max = character_ranges->at(0).to();
   int i = 1;
   while (i < n) {
     CharacterRange current = character_ranges->at(i);
@@ -1399,7 +1398,7 @@ void CharacterRange::Negate(ZoneList<CharacterRange>* ranges,
   DCHECK(CharacterRange::IsCanonical(ranges));
   DCHECK_EQ(0, negated_ranges->length());
   int range_count = ranges->length();
-  base::uc32 from = 0;
+  uc32 from = 0;
   int i = 0;
   if (range_count > 0 && ranges->at(0).from() == 0) {
     from = ranges->at(0).to() + 1;

@@ -27,13 +27,14 @@
 
 #include <stdlib.h>
 
-#include "src/base/numbers/diy-fp.h"
-#include "src/base/platform/platform.h"
 #include "src/init/v8.h"
+
+#include "src/base/platform/platform.h"
+#include "src/numbers/diy-fp.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
-namespace base {
+namespace internal {
 
 TEST(Subtract) {
   DiyFp diy_fp1 = DiyFp(3, 0);
@@ -89,5 +90,5 @@ TEST(Multiply) {
   CHECK_EQ(11 + 13 + 64, product.e());
 }
 
-}  // namespace base
+}  // namespace internal
 }  // namespace v8

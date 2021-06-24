@@ -156,7 +156,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     DCHECK(static_cast<size_t>(this->length()) == resource->length());
-    base::ScopedVector<base::uc16> smart_chars(this->length());
+    base::ScopedVector<uc16> smart_chars(this->length());
     String::WriteToFlat(*this, smart_chars.begin(), 0, this->length());
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
@@ -572,7 +572,7 @@ String::FlatContent String::GetFlatContent(
     return FlatContent(start + offset, length, no_gc);
   } else {
     DCHECK_EQ(shape.encoding_tag(), kTwoByteStringTag);
-    const base::uc16* start;
+    const uc16* start;
     if (shape.representation_tag() == kSeqStringTag) {
       start = SeqTwoByteString::cast(string).GetChars(no_gc);
     } else {
@@ -654,7 +654,7 @@ void String::WriteToFlat(String source, sinkchar* sink, int from, int to,
         return;
       }
       case kTwoByteStringTag | kExternalStringTag: {
-        const base::uc16* data = ExternalTwoByteString::cast(source).GetChars();
+        const uc16* data = ExternalTwoByteString::cast(source).GetChars();
         CopyChars(sink, data + from, to - from);
         return;
       }
@@ -947,16 +947,16 @@ ComparisonResult String::Compare(Isolate* isolate, Handle<String> x,
       base::Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
       r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     } else {
-      base::Vector<const base::uc16> y_chars = y_content.ToUC16Vector();
+      base::Vector<const uc16> y_chars = y_content.ToUC16Vector();
       r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     }
   } else {
-    base::Vector<const base::uc16> x_chars = x_content.ToUC16Vector();
+    base::Vector<const uc16> x_chars = x_content.ToUC16Vector();
     if (y_content.IsOneByte()) {
       base::Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
       r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     } else {
-      base::Vector<const base::uc16> y_chars = y_content.ToUC16Vector();
+      base::Vector<const uc16> y_chars = y_content.ToUC16Vector();
       r = CompareChars(x_chars.begin(), y_chars.begin(), prefix_length);
     }
   }
@@ -1043,9 +1043,9 @@ int String::IndexOf(Isolate* isolate, Handle<String> receiver,
     return SearchString<const uint8_t>(isolate, receiver_content, pat_vector,
                                        start_index);
   }
-  base::Vector<const base::uc16> pat_vector = search_content.ToUC16Vector();
-  return SearchString<const base::uc16>(isolate, receiver_content, pat_vector,
-                                        start_index);
+  base::Vector<const uc16> pat_vector = search_content.ToUC16Vector();
+  return SearchString<const uc16>(isolate, receiver_content, pat_vector,
+                                  start_index);
 }
 
 MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
@@ -1219,7 +1219,7 @@ int StringMatchBackwards(base::Vector<const schar> subject,
 
   if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
     for (int i = 0; i < pattern_length; i++) {
-      base::uc16 c = pattern[i];
+      uc16 c = pattern[i];
       if (c > String::kMaxOneByteCharCode) {
         return -1;
       }
@@ -1304,7 +1304,7 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
                                         pat_vector, start_index);
     }
   } else {
-    base::Vector<const base::uc16> pat_vector = search_content.ToUC16Vector();
+    base::Vector<const uc16> pat_vector = search_content.ToUC16Vector();
     if (receiver_content.IsOneByte()) {
       last_index = StringMatchBackwards(receiver_content.ToOneByteVector(),
                                         pat_vector, start_index);
@@ -1469,7 +1469,7 @@ void SeqOneByteString::clear_padding() {
 }
 
 void SeqTwoByteString::clear_padding() {
-  int data_size = SeqString::kHeaderSize + length() * base::kUC16Size;
+  int data_size = SeqString::kHeaderSize + length() * kUC16Size;
   memset(reinterpret_cast<void*>(address() + data_size), 0,
          SizeFor(length()) - data_size);
 }

@@ -2,16 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/regexp/regexp.h"
-
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include "include/v8.h"
-#include "src/base/strings.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
+#include "src/regexp/regexp.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 namespace i = v8::internal;
@@ -53,8 +51,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                                i::JSRegExp::kUnicode | i::JSRegExp::kDotAll;
 
   const uint8_t one_byte_array[6] = {'f', 'o', 'o', 'b', 'a', 'r'};
-  const v8::base::uc16 two_byte_array[6] = {'f', 0xD83D, 0xDCA9,
-                                            'b', 'a',    0x2603};
+  const i::uc16 two_byte_array[6] = {'f', 0xD83D, 0xDCA9, 'b', 'a', 0x2603};
 
   CHECK(!i_isolate->has_pending_exception());
   i::Handle<i::RegExpMatchInfo> results_array = factory->NewRegExpMatchInfo();
@@ -66,7 +63,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   i::Handle<i::String> two_byte =
       factory
           ->NewStringFromTwoByte(
-              v8::base::Vector<const v8::base::uc16>(two_byte_array, 6))
+              v8::base::Vector<const i::uc16>(two_byte_array, 6))
           .ToHandleChecked();
 
   i::Handle<i::JSRegExp> regexp;

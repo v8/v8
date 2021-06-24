@@ -37,7 +37,6 @@
 
 #ifdef V8_INTL_SUPPORT
 #include "src/base/platform/wrappers.h"
-#include "src/base/strings.h"
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
 
@@ -836,15 +835,15 @@ ExternalReference ExternalReference::search_string_raw_one_one() {
 }
 
 ExternalReference ExternalReference::search_string_raw_one_two() {
-  return search_string_raw<const uint8_t, const base::uc16>();
+  return search_string_raw<const uint8_t, const uc16>();
 }
 
 ExternalReference ExternalReference::search_string_raw_two_one() {
-  return search_string_raw<const base::uc16, const uint8_t>();
+  return search_string_raw<const uc16, const uint8_t>();
 }
 
 ExternalReference ExternalReference::search_string_raw_two_two() {
-  return search_string_raw<const base::uc16, const base::uc16>();
+  return search_string_raw<const uc16, const uc16>();
 }
 
 namespace {
@@ -962,11 +961,11 @@ ExternalReference ExternalReference::intl_to_latin1_lower_table() {
 template ExternalReference
 ExternalReference::search_string_raw<const uint8_t, const uint8_t>();
 template ExternalReference
-ExternalReference::search_string_raw<const uint8_t, const base::uc16>();
+ExternalReference::search_string_raw<const uint8_t, const uc16>();
 template ExternalReference
-ExternalReference::search_string_raw<const base::uc16, const uint8_t>();
+ExternalReference::search_string_raw<const uc16, const uint8_t>();
 template ExternalReference
-ExternalReference::search_string_raw<const base::uc16, const base::uc16>();
+ExternalReference::search_string_raw<const uc16, const uc16>();
 
 ExternalReference ExternalReference::FromRawAddress(Address address) {
   return ExternalReference(address);

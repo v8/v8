@@ -220,14 +220,12 @@ void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
   if (check_bounds) EmitOrLink(on_failure);
 }
 
-void RegExpBytecodeGenerator::CheckCharacterLT(base::uc16 limit,
-                                               Label* on_less) {
+void RegExpBytecodeGenerator::CheckCharacterLT(uc16 limit, Label* on_less) {
   Emit(BC_CHECK_LT, limit);
   EmitOrLink(on_less);
 }
 
-void RegExpBytecodeGenerator::CheckCharacterGT(base::uc16 limit,
-                                               Label* on_greater) {
+void RegExpBytecodeGenerator::CheckCharacterGT(uc16 limit, Label* on_greater) {
   Emit(BC_CHECK_GT, limit);
   EmitOrLink(on_greater);
 }
@@ -290,15 +288,14 @@ void RegExpBytecodeGenerator::CheckNotCharacterAfterAnd(uint32_t c,
 }
 
 void RegExpBytecodeGenerator::CheckNotCharacterAfterMinusAnd(
-    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
+    uc16 c, uc16 minus, uc16 mask, Label* on_not_equal) {
   Emit(BC_MINUS_AND_CHECK_NOT_CHAR, c);
   Emit16(minus);
   Emit16(mask);
   EmitOrLink(on_not_equal);
 }
 
-void RegExpBytecodeGenerator::CheckCharacterInRange(base::uc16 from,
-                                                    base::uc16 to,
+void RegExpBytecodeGenerator::CheckCharacterInRange(uc16 from, uc16 to,
                                                     Label* on_in_range) {
   Emit(BC_CHECK_CHAR_IN_RANGE, 0);
   Emit16(from);
@@ -306,8 +303,7 @@ void RegExpBytecodeGenerator::CheckCharacterInRange(base::uc16 from,
   EmitOrLink(on_in_range);
 }
 
-void RegExpBytecodeGenerator::CheckCharacterNotInRange(base::uc16 from,
-                                                       base::uc16 to,
+void RegExpBytecodeGenerator::CheckCharacterNotInRange(uc16 from, uc16 to,
                                                        Label* on_not_in_range) {
   Emit(BC_CHECK_CHAR_NOT_IN_RANGE, 0);
   Emit16(from);

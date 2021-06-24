@@ -11,7 +11,6 @@
 #include <set>
 
 #include "src/base/compiler-specific.h"
-#include "src/base/numbers/double.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/register-arch.h"
 #include "src/codegen/source-position.h"
@@ -21,6 +20,7 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/opcodes.h"
+#include "src/numbers/double.h"
 #include "src/zone/zone-allocator.h"
 
 namespace v8 {
@@ -1147,9 +1147,9 @@ class V8_EXPORT_PRIVATE Constant final {
     return bit_cast<uint32_t>(static_cast<int32_t>(value_));
   }
 
-  base::Double ToFloat64() const {
+  Double ToFloat64() const {
     DCHECK_EQ(kFloat64, type());
-    return base::Double(bit_cast<uint64_t>(value_));
+    return Double(bit_cast<uint64_t>(value_));
   }
 
   ExternalReference ToExternalReference() const {

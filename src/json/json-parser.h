@@ -6,7 +6,6 @@
 #define V8_JSON_JSON_PARSER_H_
 
 #include "src/base/small-vector.h"
-#include "src/base/strings.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects.h"
@@ -153,9 +152,8 @@ class JsonParser final {
     return result;
   }
 
-  static constexpr base::uc32 kEndOfString = static_cast<base::uc32>(-1);
-  static constexpr base::uc32 kInvalidUnicodeCharacter =
-      static_cast<base::uc32>(-1);
+  static constexpr uc32 kEndOfString = static_cast<uc32>(-1);
+  static constexpr uc32 kInvalidUnicodeCharacter = static_cast<uc32>(-1);
 
  private:
   template <typename T>
@@ -188,12 +186,12 @@ class JsonParser final {
 
   void advance() { ++cursor_; }
 
-  base::uc32 CurrentCharacter() {
+  uc32 CurrentCharacter() {
     if (V8_UNLIKELY(is_at_end())) return kEndOfString;
     return *cursor_;
   }
 
-  base::uc32 NextCharacter() {
+  uc32 NextCharacter() {
     advance();
     return CurrentCharacter();
   }
@@ -265,7 +263,7 @@ class JsonParser final {
   // four-digit hex escapes (uXXXX). Any other use of backslashes is invalid.
   JsonString ScanJsonString(bool needs_internalization);
   JsonString ScanJsonPropertyKey(JsonContinuation* cont);
-  base::uc32 ScanUnicodeCharacter();
+  uc32 ScanUnicodeCharacter();
   Handle<String> MakeString(const JsonString& string,
                             Handle<String> hint = Handle<String>());
 
@@ -298,7 +296,7 @@ class JsonParser final {
       const SmallVector<Handle<Object>>& element_stack);
 
   // Mark that a parsing error has happened at the current character.
-  void ReportUnexpectedCharacter(base::uc32 c);
+  void ReportUnexpectedCharacter(uc32 c);
   // Mark that a parsing error has happened at the current token.
   void ReportUnexpectedToken(JsonToken token);
 

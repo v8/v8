@@ -4,7 +4,6 @@
 
 #include <vector>
 
-#include "src/base/strings.h"
 #include "src/compiler/types.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
@@ -277,9 +276,9 @@ struct Tests {
     // Typing of Strings
     Handle<String> s1 = fac->NewStringFromAsciiChecked("a");
     CHECK(T.Constant(s1).Is(T.InternalizedString));
-    const base::uc16 two_byte[1] = {0x2603};
+    const uc16 two_byte[1] = {0x2603};
     Handle<String> s2 = fac->NewTwoByteInternalizedString(
-        base::Vector<const base::uc16>(two_byte, 1), 1);
+        base::Vector<const uc16>(two_byte, 1), 1);
     CHECK(T.Constant(s2).Is(T.InternalizedString));
 
     // Typing of special constants
