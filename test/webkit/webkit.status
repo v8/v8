@@ -82,10 +82,6 @@
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
-['tsan', {
-  # Too slow.
-  'dfg-int-overflow-in-loop': [SLOW],
-}],  # 'tsan'
 
 ##############################################################################
 ['asan == True', {
