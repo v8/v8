@@ -1055,14 +1055,12 @@ class LiftoffCompiler {
     // {EmitDebuggingInfo} stays outlined.
     if (V8_UNLIKELY(for_debugging_)) EmitDebuggingInfo(decoder, opcode);
     TraceCacheState(decoder);
-#ifdef DEBUG
     SLOW_DCHECK(__ ValidateCacheState());
-    if (WasmOpcodes::IsPrefixOpcode(opcode)) {
-      opcode = decoder->read_prefixed_opcode<Decoder::kFullValidation>(
-          decoder->pc());
-    }
-    CODE_COMMENT(WasmOpcodes::OpcodeName(opcode));
-#endif
+    CODE_COMMENT(WasmOpcodes::OpcodeName(
+        WasmOpcodes::IsPrefixOpcode(opcode)
+            ? decoder->read_prefixed_opcode<Decoder::kFullValidation>(
+                  decoder->pc())
+            : opcode));
   }
 
   void EmitBreakpoint(FullDecoder* decoder) {
