@@ -9,6 +9,8 @@
 #ifndef V8_WASM_WASM_OBJECTS_INL_H_
 #define V8_WASM_WASM_OBJECTS_INL_H_
 
+#include <type_traits>
+
 #include "src/base/memory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/contexts-inl.h"
@@ -479,6 +481,120 @@ Handle<Object> WasmObject::ReadValueAt(Isolate* isolate, Handle<HeapObject> obj,
   }
 }
 
+// static
+MaybeHandle<Object> WasmObject::ToWasmValue(Isolate* isolate,
+                                            wasm::ValueType type,
+                                            Handle<Object> value) {
+  switch (type.kind()) {
+    case wasm::kI8:
+    case wasm::kI16:
+    case wasm::kI32:
+    case wasm::kF32:
+    case wasm::kF64:
+      return Object::ToNumber(isolate, value);
+
+    case wasm::kI64:
+      return BigInt::FromObject(isolate, value);
+
+    case wasm::kRef:
+    case wasm::kOptRef: {
+      // TODO(v8:11804): implement ref type check
+      UNREACHABLE();
+    }
+
+    case wasm::kS128:
+      // TODO(v8:11804): implement
+      UNREACHABLE();
+
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+      // Rtt values are not supposed to be made available to JavaScript side.
+      UNREACHABLE();
+
+    case wasm::kVoid:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+}
+
+// Conversions from Numeric objects.
+// static
+template <typename ElementType>
+ElementType WasmObject::FromNumber(Object value) {
+  // The value must already be prepared for storing to numeric fields.
+  DCHECK(value.IsNumber());
+  if (value.IsSmi()) {
+    return static_cast<ElementType>(Smi::ToInt(value));
+
+  } else if (value.IsHeapNumber()) {
+    double double_value = HeapNumber::cast(value).value();
+    if (std::is_same<ElementType, double>::value ||
+        std::is_same<ElementType, float>::value) {
+      return static_cast<ElementType>(double_value);
+    } else {
+      CHECK(std::is_integral<ElementType>::value);
+      return static_cast<ElementType>(DoubleToInt32(double_value));
+    }
+  }
+  UNREACHABLE();
+}
+
+// static
+void WasmObject::WriteValueAt(Isolate* isolate, Handle<HeapObject> obj,
+                              wasm::ValueType type, uint32_t offset,
+                              Handle<Object> value) {
+  Address field_address = obj->GetFieldAddress(offset);
+  switch (type.kind()) {
+    case wasm::kI8: {
+      auto scalar_value = FromNumber<int8_t>(*value);
+      base::Memory<int8_t>(field_address) = scalar_value;
+      break;
+    }
+    case wasm::kI16: {
+      auto scalar_value = FromNumber<int16_t>(*value);
+      base::Memory<int16_t>(field_address) = scalar_value;
+      break;
+    }
+    case wasm::kI32: {
+      auto scalar_value = FromNumber<int32_t>(*value);
+      base::Memory<int32_t>(field_address) = scalar_value;
+      break;
+    }
+    case wasm::kI64: {
+      int64_t scalar_value = BigInt::cast(*value).AsInt64();
+      base::WriteUnalignedValue<int64_t>(field_address, scalar_value);
+      break;
+    }
+    case wasm::kF32: {
+      auto scalar_value = FromNumber<float>(*value);
+      base::Memory<float>(field_address) = scalar_value;
+      break;
+    }
+    case wasm::kF64: {
+      auto scalar_value = FromNumber<double>(*value);
+      base::WriteUnalignedValue<double>(field_address, scalar_value);
+      break;
+    }
+    case wasm::kRef:
+    case wasm::kOptRef:
+      // TODO(v8:11804): implement
+      UNREACHABLE();
+
+    case wasm::kS128:
+      // TODO(v8:11804): implement
+      UNREACHABLE();
+
+    case wasm::kRtt:
+    case wasm::kRttWithDepth:
+      // Rtt values are not supposed to be made available to JavaScript side.
+      UNREACHABLE();
+
+    case wasm::kVoid:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+}
+
 wasm::StructType* WasmStruct::type(Map map) {
   WasmTypeInfo type_info = map.wasm_type_info();
   return reinterpret_cast<wasm::StructType*>(type_info.foreign_address());
@@ -527,6 +643,16 @@ Handle<Object> WasmStruct::GetField(Isolate* isolate, Handle<WasmStruct> obj,
   wasm::ValueType field_type = type->field(field_index);
   int offset = WasmStruct::kHeaderSize + type->field_offset(field_index);
   return ReadValueAt(isolate, obj, field_type, offset);
+}
+
+// static
+void WasmStruct::SetField(Isolate* isolate, Handle<WasmStruct> obj,
+                          uint32_t field_index, Handle<Object> value) {
+  wasm::StructType* type = obj->type();
+  CHECK_LT(field_index, type->field_count());
+  wasm::ValueType field_type = type->field(field_index);
+  int offset = WasmStruct::kHeaderSize + type->field_offset(field_index);
+  WriteValueAt(isolate, obj, field_type, offset, value);
 }
 
 wasm::ArrayType* WasmArray::type(Map map) {

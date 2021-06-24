@@ -944,6 +944,10 @@ class WasmObject : public JSReceiver {
   DECL_CAST(WasmObject)
   DECL_VERIFIER(WasmObject)
 
+  // Prepares given value for being stored into a field of given Wasm type.
+  V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToWasmValue(
+      Isolate* isolate, wasm::ValueType type, Handle<Object> value);
+
  protected:
   // Returns boxed value of the object's field/element with given type and
   // offset.
@@ -951,6 +955,14 @@ class WasmObject : public JSReceiver {
                                            Handle<HeapObject> obj,
                                            wasm::ValueType type,
                                            uint32_t offset);
+
+  static inline void WriteValueAt(Isolate* isolate, Handle<HeapObject> obj,
+                                  wasm::ValueType type, uint32_t offset,
+                                  Handle<Object> value);
+
+ private:
+  template <typename ElementType>
+  static ElementType FromNumber(Object value);
 
   OBJECT_CONSTRUCTORS(WasmObject, JSReceiver);
 };
@@ -975,6 +987,9 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   static inline Handle<Object> GetField(Isolate* isolate,
                                         Handle<WasmStruct> obj,
                                         uint32_t field_index);
+
+  static inline void SetField(Isolate* isolate, Handle<WasmStruct> obj,
+                              uint32_t field_index, Handle<Object> value);
 
   DECL_CAST(WasmStruct)
   DECL_PRINTER(WasmStruct)

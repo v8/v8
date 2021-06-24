@@ -76,11 +76,29 @@ function SimpleStructInterop(field_type, value_generator,
   const { new_struct, get_field, set_field } =
       createSimpleStruct(field_type, value1, value2);
 
-  function f(o) {
+  function f(o, value) {
     for (let i = 0; i < kIterationsCountForICProgression; i++) {
-      let v = o.$field0;
+      let store_IC_exception;
+      try { o.$field0 = value; } catch (e) { store_IC_exception = e; }
+
+      let set_field_exception;
+      try { set_field(o, value); } catch (e) { set_field_exception = e; };
+
+      // set_field() and store IC should throw the same error at the same time.
+      assertEquals(set_field_exception, store_IC_exception);
+      if (set_field_exception != undefined) continue;
+
       let expected = get_field(o);
+
+      let v = o.$field0;
       assertEquals(expected, v);
+
+      // "Clear" the field value.
+      set_field(o, value1);
+      assertEquals(value1, get_field(o));
+
+      o.$field0 = value;
+      assertEquals(expected, get_field(o));
 
       v = o[i];
       assertEquals(undefined, v);
@@ -93,108 +111,70 @@ function SimpleStructInterop(field_type, value_generator,
 
   for (const value of value_generator()) {
     print("value: " + value);
-    set_field(o, value);
-    f(o);
+    f(o, value);
   }
   gc();
 }
 
-(function TestSimpleStructsInteropI8() {
-  SimpleStructInterop(kWasmI8, function*() {
-    const max = 0x7f;
-    const min = -max - 1;
-    yield min;
+function MakeValueGenerator(max, ValueConstructor = Number) {
+  return function*() {
+    const max_safe_integer_float = 2**23 - 1;
+
+    yield -max;
+    yield -max - ValueConstructor(1);
     yield max;
-    yield 0;
-
-    for (let i = 0; i < 10; i++) {
-      yield Math.floor((Math.random() - 0.5) * max);
-    }
-  });
-})();
-
-(function TestSimpleStructsInteropI16() {
-  SimpleStructInterop(kWasmI16, function*() {
-    const max = 0x7fff;
-    const min = -max - 1;
-    yield min;
-    yield max;
-    yield 0;
-
-    for (let i = 0; i < 10; i++) {
-      yield Math.floor((Math.random() - 0.5) * max);
-    }
-  });
-})();
-
-(function TestSimpleStructsInteropI32() {
-  SimpleStructInterop(kWasmI32, function*() {
-    const max = 0x7fffffff;
-    const min = -max - 1;
-    yield min;
-    yield max;
-    yield 0;
-
-    for (let i = 0; i < 10; i++) {
-      yield Math.floor((Math.random() - 0.5) * max);
-    }
-  });
-})();
-
-(function TestSimpleStructsInteropI64() {
-  SimpleStructInterop(kWasmI64, function*() {
-    const max = 0x7fffffffffffffn;
-    const min = -max - 1n;
-    yield min;
-    yield max;
+    yield 0.0;
+    yield -0.0;
     yield 0n;
 
     for (let i = 0; i < 10; i++) {
-      yield BigInt(Math.floor((Math.random() - 0.5) * Number(max)));
+      yield ValueConstructor(Math.floor((Math.random() - 0.5) * Number(max)));
     }
-  }, 42n, 153n);
+
+    // Try some non-trivial values.
+    yield 153;
+    yield 77n;
+    yield ValueConstructor(Number.MAX_SAFE_INTEGER);
+    yield ValueConstructor(Number.MIN_SAFE_INTEGER);
+    yield ValueConstructor(max_safe_integer_float);
+
+    yield { foo:17 };
+    yield "boom";
+    yield { valueOf() { return 42; } };
+    yield { valueOf() { return 15142n; } };
+    yield { valueOf() { return BigInt(max); } };
+    yield { toString() { return "" + max; } };
+    yield { toString() { return "" + (-max); } };
+    yield { toString() { return "5421351n"; } };
+  };
+}
+
+(function TestSimpleStructsInteropI8() {
+  const max = 0x7f;
+  SimpleStructInterop(kWasmI8, MakeValueGenerator(max));
+})();
+
+(function TestSimpleStructsInteropI16() {
+  const max = 0x7fff;
+  SimpleStructInterop(kWasmI16, MakeValueGenerator(max));
+})();
+
+(function TestSimpleStructsInteropI32() {
+  const max = 0x7fffffff;
+  SimpleStructInterop(kWasmI32, MakeValueGenerator(max));
+})();
+
+(function TestSimpleStructsInteropI64() {
+  const max = 0x7fffffffffffffn;
+  SimpleStructInterop(kWasmI64, MakeValueGenerator(max, BigInt), 42n, 153n);
 })();
 
 (function TestSimpleStructsInteropF32() {
-  SimpleStructInterop(kWasmF32, function*() {
-    const max_safe_integer = 2**23 - 1;
-    const max = 3.4028234664e+38;
-    yield -max;
-    yield max;
-    yield max_safe_integer;
-    yield -max_safe_integer;
-    yield 0.0;
-    yield -0.0;
-
-    for (let i = 0; i < 10; i++) {
-      yield Math.floor((Math.random() - 0.5) * max);
-    }
-  });
+  const max = 3.402823466e+38;
+  SimpleStructInterop(kWasmF32, MakeValueGenerator(max));
 })();
 
 (function TestSimpleStructsInteropF64() {
-  SimpleStructInterop(kWasmF64, function*() {
-    const max = 1.7976931348623157e+308
-    yield -max;
-    yield max;
-    yield Number.MAX_SAFE_INTEGER;;
-    yield Number.MIN_SAFE_INTEGER;
-    yield 0.0;
-    yield -0.0;
-
-    for (let i = 0; i < 10; i++) {
-      yield Math.floor((Math.random() - 0.5) * max);
-    }
-  });
-})();
-
-(function TestSimpleStructsInteropRef() {
-  SimpleStructInterop(kWasmAnyRef, function*() {
-    yield "foo";
-    yield null;
-    yield {x:1};
-    yield {x:1.4, y:2.3};
-    yield Number(13);
-    yield this;
-  }, null, undefined);
+  const max = 1.7976931348623157e+308;
+  SimpleStructInterop(kWasmF64, MakeValueGenerator(max));
 })();

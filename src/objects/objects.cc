@@ -2741,9 +2741,10 @@ Maybe<bool> Object::RedefineIncompatibleProperty(
 }
 
 Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
-  DCHECK_IMPLIES(it->GetReceiver()->IsJSProxy(),
-                 it->GetName()->IsPrivateName());
-  DCHECK_IMPLIES(!it->IsElement() && it->GetName()->IsPrivateName(),
+  Isolate* isolate = it->isolate();
+  DCHECK_IMPLIES(it->GetReceiver()->IsJSProxy(isolate),
+                 it->GetName()->IsPrivateName(isolate));
+  DCHECK_IMPLIES(!it->IsElement() && it->GetName()->IsPrivateName(isolate),
                  it->state() == LookupIterator::DATA);
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
 
@@ -2753,13 +2754,13 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   Handle<Object> to_assign = value;
   // Convert the incoming value to a number for storing into typed arrays.
   // TODO(v8:11111): Support RAB / GSAB.
-  if (it->IsElement() && receiver->IsJSObject() &&
-      JSObject::cast(*receiver).HasTypedArrayElements()) {
+  if (it->IsElement() && receiver->IsJSObject(isolate) &&
+      JSObject::cast(*receiver).HasTypedArrayElements(isolate)) {
     ElementsKind elements_kind = JSObject::cast(*receiver).GetElementsKind();
     if (elements_kind == BIGINT64_ELEMENTS ||
         elements_kind == BIGUINT64_ELEMENTS) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(it->isolate(), to_assign,
-                                       BigInt::FromObject(it->isolate(), value),
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
+                                       BigInt::FromObject(isolate, value),
                                        Nothing<bool>());
       // We have to recheck the length. However, it can only change if the
       // underlying buffer was detached, so just check that.
@@ -2767,9 +2768,9 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
         return Just(true);
         // TODO(neis): According to the spec, this should throw a TypeError.
       }
-    } else if (!value->IsNumber() && !value->IsUndefined(it->isolate())) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(it->isolate(), to_assign,
-                                       Object::ToNumber(it->isolate(), value),
+    } else if (!value->IsNumber() && !value->IsUndefined(isolate)) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
+                                       Object::ToNumber(isolate, value),
                                        Nothing<bool>());
       // We have to recheck the length. However, it can only change if the
       // underlying buffer was detached, so just check that.
@@ -2780,16 +2781,32 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
     }
   }
 
-  // Possibly migrate to the most up-to-date map that will be able to store
-  // |value| under it->name().
-  it->PrepareForDataProperty(to_assign);
+#if V8_ENABLE_WEBASSEMBLY
+  if (receiver->IsWasmObject(isolate)) {
+    // Prepares given value for being stored into a field of given Wasm type
+    // or throw if the value can't be stored into the field.
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, to_assign,
+        WasmObject::ToWasmValue(isolate, it->wasm_value_type(), to_assign),
+        Nothing<bool>());
 
-  // Write the property value.
-  it->WriteDataValue(to_assign, false);
+    // Store prepared value.
+    it->WriteDataValueToWasmObject(to_assign);
+
+  } else  // NOLINT(readability/braces)
+#endif    // V8_ENABLE_WEBASSEMBLY
+  {
+    // Possibly migrate to the most up-to-date map that will be able to store
+    // |value| under it->name().
+    it->PrepareForDataProperty(to_assign);
+
+    // Write the property value.
+    it->WriteDataValue(to_assign, false);
+  }
 
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
-    receiver->HeapObjectVerify(it->isolate());
+    receiver->HeapObjectVerify(isolate);
   }
 #endif
   return Just(true);
