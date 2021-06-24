@@ -98,9 +98,11 @@ def _default_args(configs):
         ],
         includes = ["include"],
         linkopts = [
-            "-pthread",
-            "-Wl,--no-as-needed -ldl",
-        ],
+            "-pthread"
+        ] + select({
+            ":is_macos": [],
+            "//conditions:default": [ "-Wl,--no-as-needed -ldl" ],
+        }),
     )
 
 def v8_binary(

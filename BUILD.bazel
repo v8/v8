@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load(
     "@v8//:bazel/defs.bzl",
     "v8_binary",
@@ -19,8 +20,18 @@ load(
 # =================================================
 
 config_setting(
-    name = "is_x64",
+    name = "is_k8",
     values = {"cpu": "k8"},
+)
+
+config_setting(
+    name = "is_darwin",
+    values = {"cpu": "darwin"},
+)
+
+selects.config_setting_group(
+    name = "is_x64",
+    match_any = [":is_k8", ":is_darwin"],
 )
 
 config_setting(
@@ -58,9 +69,30 @@ config_setting(
 )
 
 config_setting(
+    name = "is_macos",
+    constraint_values = ["@platforms//os:macos"],
+)
+
+selects.config_setting_group(
+    name = "is_posix",
+    match_any = [":is_linux", ":is_android", ":is_macos"],
+)
+
+config_setting(
     name = "is_linux_x64",
     constraint_values = ["@platforms//os:linux"],
     values = {"cpu": "k8"},
+)
+
+config_setting(
+    name = "is_macos_x64",
+    constraint_values = ["@platforms//os:macos"],
+    values = {"cpu": "darwin"},
+)
+
+selects.config_setting_group(
+    name = "is_linux_x64_or_macos_x64",
+    match_any = [":is_linux_x64", ":is_macos_x64"],
 )
 
 config_setting(
@@ -112,6 +144,10 @@ v8_config(
         ":is_linux": [
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_LINUX",
+        ],
+        ":is_macos": [
+            "V8_HAVE_TARGET_OS",
+            "V8_TARGET_OS_MACOSX",
         ],
     }) + select({
         "is_android_x86": [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ],
@@ -324,21 +360,25 @@ filegroup(
         "src/base/vlq-base64.cc",
         "src/base/vlq-base64.h",
     ] + select({
-        ":is_linux": [
+        ":is_posix": [
             "src/base/platform/platform-posix.cc",
             "src/base/platform/platform-posix.h",
             "src/base/platform/platform-posix-time.cc",
             "src/base/platform/platform-posix-time.h",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_linux": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-linux.cc",
         ],
         "is_android": [
-            "src/base/platform/platform-posix.cc",
-            "src/base/platform/platform-posix.h",
-            "src/base/platform/platform-posix-time.cc",
-            "src/base/platform/platform-posix-time.h",
             "src/base/debug/stack_trace_android.cc",
             "src/base/platform/platform-linux.cc",
+        ],
+        "is_macos": [
+            "src/base/debug/stack_trace_posix.cc",
+            "src/base/platform/platform-macos.cc",
         ],
     }),
 )
@@ -1829,7 +1869,7 @@ filegroup(
             "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
         ],
     }) + select({
-        ":is_linux_x64": [
+        ":is_linux_x64_or_macos_x64": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
