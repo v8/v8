@@ -183,4 +183,10 @@
   'proposals/simd/*': [SKIP],
 }],  # no_simd_hardware == True
 
+##############################################################################
+['tsan', {
+  # Too slow.
+  'proposals/simd/simd_f64x2_pmin_pmax': [SKIP],
+}],  # tsan
+
 ]
