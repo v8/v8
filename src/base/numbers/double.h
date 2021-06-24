@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NUMBERS_DOUBLE_H_
-#define V8_NUMBERS_DOUBLE_H_
+#ifndef V8_BASE_NUMBERS_DOUBLE_H_
+#define V8_BASE_NUMBERS_DOUBLE_H_
 
 #include "src/base/macros.h"
-#include "src/numbers/diy-fp.h"
+#include "src/base/numbers/diy-fp.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // We assume that doubles and uint64_t have the same endianness.
 inline uint64_t double_to_uint64(double d) { return bit_cast<uint64_t>(d); }
@@ -204,7 +204,7 @@ class Double {
   }
 };
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_NUMBERS_DOUBLE_H_
+#endif  // V8_BASE_NUMBERS_DOUBLE_H_

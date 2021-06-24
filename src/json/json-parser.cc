@@ -4,6 +4,7 @@
 
 #include "src/json/json-parser.h"
 
+#include "src/base/strings.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/numbers/conversions.h"
@@ -281,7 +282,7 @@ void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
 }
 
 template <typename Char>
-void JsonParser<Char>::ReportUnexpectedCharacter(uc32 c) {
+void JsonParser<Char>::ReportUnexpectedCharacter(base::uc32 c) {
   JsonToken token = JsonToken::ILLEGAL;
   if (c == kEndOfString) {
     token = JsonToken::EOS;
@@ -331,10 +332,10 @@ void JsonParser<Char>::SkipWhitespace() {
 }
 
 template <typename Char>
-uc32 JsonParser<Char>::ScanUnicodeCharacter() {
-  uc32 value = 0;
+base::uc32 JsonParser<Char>::ScanUnicodeCharacter() {
+  base::uc32 value = 0;
   for (int i = 0; i < 4; i++) {
-    int digit = HexValue(NextCharacter());
+    int digit = base::HexValue(NextCharacter());
     if (V8_UNLIKELY(digit < 0)) return kInvalidUnicodeCharacter;
     value = value * 16 + digit;
   }
@@ -347,7 +348,7 @@ JsonString JsonParser<Char>::ScanJsonPropertyKey(JsonContinuation* cont) {
   {
     DisallowGarbageCollection no_gc;
     const Char* start = cursor_;
-    uc32 first = CurrentCharacter();
+    base::uc32 first = CurrentCharacter();
     if (first == '\\' && NextCharacter() == 'u') first = ScanUnicodeCharacter();
     if (IsDecimalDigit(first)) {
       if (first == '0') {
@@ -891,7 +892,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     const Char* start = cursor_;
     DisallowGarbageCollection no_gc;
 
-    uc32 c = *cursor_;
+    base::uc32 c = *cursor_;
     if (c == '-') {
       sign = -1;
       c = NextCharacter();
@@ -920,7 +921,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         ReportUnexpectedCharacter(CurrentCharacter());
         return handle(Smi::FromInt(0), isolate_);
       }
-      uc32 c = CurrentCharacter();
+      base::uc32 c = CurrentCharacter();
       STATIC_ASSERT(Smi::IsValid(-999999999));
       STATIC_ASSERT(Smi::IsValid(999999999));
       const int kMaxSmiLength = 9;
@@ -940,7 +941,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     if (CurrentCharacter() == '.') {
-      uc32 c = NextCharacter();
+      base::uc32 c = NextCharacter();
       if (!IsDecimalDigit(c)) {
         AllowGarbageCollection allow_before_exception;
         ReportUnexpectedCharacter(c);
@@ -950,7 +951,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     if (AsciiAlphaToLower(CurrentCharacter()) == 'e') {
-      uc32 c = NextCharacter();
+      base::uc32 c = NextCharacter();
       if (c == '-' || c == '+') c = NextCharacter();
       if (!IsDecimalDigit(c)) {
         AllowGarbageCollection allow_before_exception;
@@ -1080,12 +1081,12 @@ void JsonParser<Char>::DecodeString(SinkChar* sink, int start, int length) {
         break;
 
       case EscapeKind::kUnicode: {
-        uc32 value = 0;
+        base::uc32 value = 0;
         for (int i = 0; i < 4; i++) {
-          value = value * 16 + HexValue(*++cursor);
+          value = value * 16 + base::HexValue(*++cursor);
         }
         if (value <=
-            static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+            static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
           *sink++ = value;
         } else {
           *sink++ = unibrow::Utf16::LeadSurrogate(value);
@@ -1107,7 +1108,7 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
   int start = position();
   int offset = start;
   bool has_escape = false;
-  uc32 bits = 0;
+  base::uc32 bits = 0;
 
   while (true) {
     cursor_ = std::find_if(cursor_, end_, [&bits](Char c) {
@@ -1136,7 +1137,7 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
 
     if (*cursor_ == '\\') {
       has_escape = true;
-      uc32 c = NextCharacter();
+      base::uc32 c = NextCharacter();
       if (V8_UNLIKELY(!base::IsInRange(
               c, 0, static_cast<int32_t>(unibrow::Latin1::kMaxChar)))) {
         AllowGarbageCollection allow_before_exception;
@@ -1155,7 +1156,7 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
           break;
 
         case EscapeKind::kUnicode: {
-          uc32 value = ScanUnicodeCharacter();
+          base::uc32 value = ScanUnicodeCharacter();
           if (value == kInvalidUnicodeCharacter) {
             AllowGarbageCollection allow_before_exception;
             ReportUnexpectedCharacter(CurrentCharacter());
@@ -1164,7 +1165,7 @@ JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
           bits |= value;
           // \uXXXX results in either 1 or 2 Utf16 characters, depending on
           // whether the decoded value requires a surrogate pair.
-          offset += 5 - (value > static_cast<uc32>(
+          offset += 5 - (value > static_cast<base::uc32>(
                                      unibrow::Utf16::kMaxNonSurrogateCharCode));
           break;
         }

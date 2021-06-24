@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NUMBERS_FAST_DTOA_H_
-#define V8_NUMBERS_FAST_DTOA_H_
+#ifndef V8_BASE_NUMBERS_FAST_DTOA_H_
+#define V8_BASE_NUMBERS_FAST_DTOA_H_
 
 #include "src/base/vector.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 enum FastDtoaMode {
   // Computes the shortest representation of the given input. The returned
@@ -50,11 +50,11 @@ const int kFastDtoaMaximalLength = 17;
 //     If there are two values that are equally close, then FastDtoa returns
 //     false.
 // For both modes the buffer must be large enough to hold the result.
-V8_EXPORT_PRIVATE bool FastDtoa(double d, FastDtoaMode mode,
-                                int requested_digits, base::Vector<char> buffer,
-                                int* length, int* decimal_point);
+V8_BASE_EXPORT bool FastDtoa(double d, FastDtoaMode mode, int requested_digits,
+                             Vector<char> buffer, int* length,
+                             int* decimal_point);
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_NUMBERS_FAST_DTOA_H_
+#endif  // V8_BASE_NUMBERS_FAST_DTOA_H_

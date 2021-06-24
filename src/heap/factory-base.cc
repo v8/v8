@@ -530,12 +530,12 @@ Handle<SeqOneByteString> FactoryBase<Impl>::NewOneByteInternalizedString(
 
 template <typename Impl>
 Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
-    const base::Vector<const uc16>& str, uint32_t raw_hash_field) {
+    const base::Vector<const base::uc16>& str, uint32_t raw_hash_field) {
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
   DisallowGarbageCollection no_gc;
   MemCopy(result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
-          str.begin(), str.length() * kUC16Size);
+          str.begin(), str.length() * base::kUC16Size);
   return result;
 }
 
@@ -643,7 +643,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
 
     DisallowGarbageCollection no_gc;
     SharedStringAccessGuardIfNeeded access_guard(isolate());
-    uc16* sink = result->GetChars(no_gc, access_guard);
+    base::uc16* sink = result->GetChars(no_gc, access_guard);
     String::WriteToFlat(*left, sink, 0, left->length(), access_guard);
     String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
                         access_guard);

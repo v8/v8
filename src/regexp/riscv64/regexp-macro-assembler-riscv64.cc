@@ -185,7 +185,7 @@ void RegExpMacroAssemblerRISCV::CheckCharacter(uint32_t c, Label* on_equal) {
   BranchOrBacktrack(on_equal, eq, current_character(), Operand(c));
 }
 
-void RegExpMacroAssemblerRISCV::CheckCharacterGT(uc16 limit,
+void RegExpMacroAssemblerRISCV::CheckCharacterGT(base::uc16 limit,
                                                  Label* on_greater) {
   BranchOrBacktrack(on_greater, gt, current_character(), Operand(limit));
 }
@@ -206,7 +206,8 @@ void RegExpMacroAssemblerRISCV::CheckNotAtStart(int cp_offset,
   BranchOrBacktrack(on_not_at_start, ne, a0, Operand(a1));
 }
 
-void RegExpMacroAssemblerRISCV::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpMacroAssemblerRISCV::CheckCharacterLT(base::uc16 limit,
+                                                 Label* on_less) {
   BranchOrBacktrack(on_less, lt, current_character(), Operand(limit));
 }
 
@@ -444,14 +445,15 @@ void RegExpMacroAssemblerRISCV::CheckNotCharacterAfterAnd(uint32_t c,
 }
 
 void RegExpMacroAssemblerRISCV::CheckNotCharacterAfterMinusAnd(
-    uc16 c, uc16 minus, uc16 mask, Label* on_not_equal) {
+    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ Sub64(a0, current_character(), Operand(minus));
   __ And(a0, a0, Operand(mask));
   BranchOrBacktrack(on_not_equal, ne, a0, Operand(c));
 }
 
-void RegExpMacroAssemblerRISCV::CheckCharacterInRange(uc16 from, uc16 to,
+void RegExpMacroAssemblerRISCV::CheckCharacterInRange(base::uc16 from,
+                                                      base::uc16 to,
                                                       Label* on_in_range) {
   __ Sub64(a0, current_character(), Operand(from));
   // Unsigned lower-or-same condition.
@@ -459,7 +461,7 @@ void RegExpMacroAssemblerRISCV::CheckCharacterInRange(uc16 from, uc16 to,
 }
 
 void RegExpMacroAssemblerRISCV::CheckCharacterNotInRange(
-    uc16 from, uc16 to, Label* on_not_in_range) {
+    base::uc16 from, base::uc16 to, Label* on_not_in_range) {
   __ Sub64(a0, current_character(), Operand(from));
   // Unsigned higher condition.
   BranchOrBacktrack(on_not_in_range, Ugreater, a0, Operand(to - from));
@@ -479,7 +481,7 @@ void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
 }
 
-bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(uc16 type,
+bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(base::uc16 type,
                                                            Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check.

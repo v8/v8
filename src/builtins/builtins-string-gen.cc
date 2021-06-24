@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-string-gen.h"
 
+#include "src/base/strings.h"
 #include "src/builtins/builtins-regexp-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
@@ -73,7 +74,7 @@ TNode<IntPtrT> StringBuiltinsAssembler::SearchOneByteStringInTwoByteString(
     const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
     const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
     const TNode<IntPtrT> start_position) {
-  return CallSearchStringRaw<const uc16, const uint8_t>(
+  return CallSearchStringRaw<const base::uc16, const uint8_t>(
       subject_ptr, subject_length, search_ptr, search_length, start_position);
 }
 TNode<IntPtrT> StringBuiltinsAssembler::SearchOneByteStringInOneByteString(
@@ -87,14 +88,14 @@ TNode<IntPtrT> StringBuiltinsAssembler::SearchTwoByteStringInTwoByteString(
     const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
     const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
     const TNode<IntPtrT> start_position) {
-  return CallSearchStringRaw<const uc16, const uc16>(
+  return CallSearchStringRaw<const base::uc16, const base::uc16>(
       subject_ptr, subject_length, search_ptr, search_length, start_position);
 }
 TNode<IntPtrT> StringBuiltinsAssembler::SearchTwoByteStringInOneByteString(
     const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
     const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
     const TNode<IntPtrT> start_position) {
-  return CallSearchStringRaw<const uint8_t, const uc16>(
+  return CallSearchStringRaw<const uint8_t, const base::uc16>(
       subject_ptr, subject_length, search_ptr, search_length, start_position);
 }
 TNode<IntPtrT> StringBuiltinsAssembler::SearchOneByteInOneByteString(

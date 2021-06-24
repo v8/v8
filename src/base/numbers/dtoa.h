@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NUMBERS_DTOA_H_
-#define V8_NUMBERS_DTOA_H_
+#ifndef V8_BASE_NUMBERS_DTOA_H_
+#define V8_BASE_NUMBERS_DTOA_H_
 
 #include "src/base/vector.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 enum DtoaMode {
   // Return the shortest correct representation.
@@ -61,12 +61,11 @@ const int kBase10MaximalLength = 17;
 // and a terminating null-character. In SHORTEST-mode it expects a buffer of
 // at least kBase10MaximalLength + 1. Otherwise, the size of the output is
 // limited to requested_digits digits plus the null terminator.
-V8_EXPORT_PRIVATE void DoubleToAscii(double v, DtoaMode mode,
-                                     int requested_digits,
-                                     base::Vector<char> buffer, int* sign,
-                                     int* length, int* point);
+V8_BASE_EXPORT void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
+                                  Vector<char> buffer, int* sign, int* length,
+                                  int* point);
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_NUMBERS_DTOA_H_
+#endif  // V8_BASE_NUMBERS_DTOA_H_

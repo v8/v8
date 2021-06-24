@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/numbers/double.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler.h"
@@ -12,7 +13,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/heap/memory-chunk.h"
-#include "src/numbers/double.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
@@ -4435,7 +4435,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      Double value;
+      base::Double value;
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
       // casting double precision snan to single precision
       // converts it to qnan on ia32/x64
@@ -4445,17 +4445,17 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           uint64_t dval = static_cast<uint64_t>(val);
           dval = ((dval & 0xC0000000) << 32) | ((dval & 0x40000000) << 31) |
                  ((dval & 0x40000000) << 30) | ((dval & 0x7FFFFFFF) << 29);
-          value = Double(dval);
+          value = base::Double(dval);
         } else {
-          value = Double(static_cast<double>(src.ToFloat32()));
+          value = base::Double(static_cast<double>(src.ToFloat32()));
         }
       } else {
-        value = Double(src.ToFloat64());
+        value = base::Double(src.ToFloat64());
       }
 #else
       value = src.type() == Constant::kFloat32
-                  ? Double(static_cast<double>(src.ToFloat32()))
-                  : Double(src.ToFloat64());
+                  ? base::Double(static_cast<double>(src.ToFloat32()))
+                  : base::Double(src.ToFloat64());
 #endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
       if (destination->IsDoubleStackSlot()) {

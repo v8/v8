@@ -31,7 +31,7 @@
 #include "src/base/vector.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 struct PrecomputedPrecision {
   double v;
@@ -42,9 +42,9 @@ struct PrecomputedPrecision {
 
 // Returns precomputed values of dtoa. The strings have been generated using
 // Gay's dtoa in mode "precision".
-base::Vector<const PrecomputedPrecision> PrecomputedPrecisionRepresentations();
+Vector<const PrecomputedPrecision> PrecomputedPrecisionRepresentations();
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
 #endif  // GAY_PRECISION_H_

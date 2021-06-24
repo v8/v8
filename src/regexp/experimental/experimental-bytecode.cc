@@ -11,7 +11,7 @@ namespace internal {
 
 namespace {
 
-std::ostream& PrintAsciiOrHex(std::ostream& os, uc16 c) {
+std::ostream& PrintAsciiOrHex(std::ostream& os, base::uc16 c) {
   if (c < 128 && std::isprint(c)) {
     os << static_cast<char>(c);
   } else {

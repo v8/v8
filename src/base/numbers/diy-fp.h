@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NUMBERS_DIY_FP_H_
-#define V8_NUMBERS_DIY_FP_H_
+#ifndef V8_BASE_NUMBERS_DIY_FP_H_
+#define V8_BASE_NUMBERS_DIY_FP_H_
 
 #include <stdint.h>
 
@@ -11,7 +11,7 @@
 #include "src/base/macros.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // This "Do It Yourself Floating Point" class implements a floating-point number
 // with a uint64 significand and an int exponent. Normalized DiyFp numbers will
@@ -45,7 +45,7 @@ class DiyFp {
   }
 
   // this = this * other.
-  V8_EXPORT_PRIVATE void Multiply(const DiyFp& other);
+  V8_BASE_EXPORT void Multiply(const DiyFp& other);
 
   // returns a * b;
   static DiyFp Times(const DiyFp& a, const DiyFp& b) {
@@ -93,7 +93,7 @@ class DiyFp {
   int e_;
 };
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_NUMBERS_DIY_FP_H_
+#endif  // V8_BASE_NUMBERS_DIY_FP_H_

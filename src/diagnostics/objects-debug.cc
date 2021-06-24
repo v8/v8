@@ -79,6 +79,7 @@
 #include "torque-generated/class-verifiers.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/base/strings.h"
 #include "src/debug/debug-wasm-objects-inl.h"
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY

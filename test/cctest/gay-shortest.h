@@ -31,7 +31,7 @@
 #include "src/base/vector.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 struct PrecomputedShortest {
   double v;
@@ -41,7 +41,7 @@ struct PrecomputedShortest {
 
 base::Vector<const PrecomputedShortest> PrecomputedShortestRepresentations();
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
 #endif  // GAY_SHORTEST_H_

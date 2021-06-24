@@ -4,6 +4,7 @@
 
 #include "src/regexp/regexp-dotprinter.h"
 
+#include "src/base/strings.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/utils/ostreams.h"
 
@@ -128,7 +129,7 @@ void DotPrinterImpl::VisitText(TextNode* that) {
     TextElement elm = that->elements()->at(i);
     switch (elm.text_type()) {
       case TextElement::ATOM: {
-        base::Vector<const uc16> data = elm.atom()->data();
+        base::Vector<const base::uc16> data = elm.atom()->data();
         for (int i = 0; i < data.length(); i++) {
           os_ << static_cast<char>(data[i]);
         }

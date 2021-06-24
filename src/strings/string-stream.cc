@@ -120,7 +120,7 @@ void StringStream::Add(base::Vector<const char> format,
       }
       case 'w': {
         DCHECK_EQ(FmtElm::LC_STR, current.type_);
-        base::Vector<const uc16> value = *current.data_.u_lc_str_;
+        base::Vector<const base::uc16> value = *current.data_.u_lc_str_;
         for (int i = 0; i < value.length(); i++)
           Put(static_cast<char>(value[i]));
         break;

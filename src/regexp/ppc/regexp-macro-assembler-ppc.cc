@@ -206,8 +206,8 @@ void RegExpMacroAssemblerPPC::CheckCharacter(uint32_t c, Label* on_equal) {
   BranchOrBacktrack(eq, on_equal);
 }
 
-
-void RegExpMacroAssemblerPPC::CheckCharacterGT(uc16 limit, Label* on_greater) {
+void RegExpMacroAssemblerPPC::CheckCharacterGT(base::uc16 limit,
+                                               Label* on_greater) {
   __ Cmpli(current_character(), Operand(limit), r0);
   BranchOrBacktrack(gt, on_greater);
 }
@@ -229,12 +229,11 @@ void RegExpMacroAssemblerPPC::CheckNotAtStart(int cp_offset,
   BranchOrBacktrack(ne, on_not_at_start);
 }
 
-
-void RegExpMacroAssemblerPPC::CheckCharacterLT(uc16 limit, Label* on_less) {
+void RegExpMacroAssemblerPPC::CheckCharacterLT(base::uc16 limit,
+                                               Label* on_less) {
   __ Cmpli(current_character(), Operand(limit), r0);
   BranchOrBacktrack(lt, on_less);
 }
-
 
 void RegExpMacroAssemblerPPC::CheckGreedyLoop(Label* on_equal) {
   Label backtrack_non_equal;
@@ -488,9 +487,8 @@ void RegExpMacroAssemblerPPC::CheckNotCharacterAfterAnd(unsigned c,
   BranchOrBacktrack(ne, on_not_equal, cr0);
 }
 
-
 void RegExpMacroAssemblerPPC::CheckNotCharacterAfterMinusAnd(
-    uc16 c, uc16 minus, uc16 mask, Label* on_not_equal) {
+    base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ subi(r3, current_character(), Operand(minus));
   __ mov(r0, Operand(mask));
@@ -499,8 +497,8 @@ void RegExpMacroAssemblerPPC::CheckNotCharacterAfterMinusAnd(
   BranchOrBacktrack(ne, on_not_equal);
 }
 
-
-void RegExpMacroAssemblerPPC::CheckCharacterInRange(uc16 from, uc16 to,
+void RegExpMacroAssemblerPPC::CheckCharacterInRange(base::uc16 from,
+                                                    base::uc16 to,
                                                     Label* on_in_range) {
   __ mov(r0, Operand(from));
   __ sub(r3, current_character(), r0);
@@ -508,15 +506,14 @@ void RegExpMacroAssemblerPPC::CheckCharacterInRange(uc16 from, uc16 to,
   BranchOrBacktrack(le, on_in_range);  // Unsigned lower-or-same condition.
 }
 
-
-void RegExpMacroAssemblerPPC::CheckCharacterNotInRange(uc16 from, uc16 to,
+void RegExpMacroAssemblerPPC::CheckCharacterNotInRange(base::uc16 from,
+                                                       base::uc16 to,
                                                        Label* on_not_in_range) {
   __ mov(r0, Operand(from));
   __ sub(r3, current_character(), r0);
   __ Cmpli(r3, Operand(to - from), r0);
   BranchOrBacktrack(gt, on_not_in_range);  // Unsigned higher condition.
 }
-
 
 void RegExpMacroAssemblerPPC::CheckBitInTable(Handle<ByteArray> table,
                                               Label* on_bit_set) {
@@ -533,8 +530,7 @@ void RegExpMacroAssemblerPPC::CheckBitInTable(Handle<ByteArray> table,
   BranchOrBacktrack(ne, on_bit_set);
 }
 
-
-bool RegExpMacroAssemblerPPC::CheckSpecialCharacterClass(uc16 type,
+bool RegExpMacroAssemblerPPC::CheckSpecialCharacterClass(base::uc16 type,
                                                          Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
@@ -650,7 +646,6 @@ bool RegExpMacroAssemblerPPC::CheckSpecialCharacterClass(uc16 type,
       return false;
   }
 }
-
 
 void RegExpMacroAssemblerPPC::Fail() {
   __ li(r3, Operand(FAILURE));

@@ -19,12 +19,12 @@
 
 #include "src/objects/bigint.h"
 
+#include "src/base/numbers/double.h"
 #include "src/bigint/bigint.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
-#include "src/numbers/double.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/objects-inl.h"
@@ -295,7 +295,8 @@ Handle<BigInt> MutableBigInt::NewFromDouble(Isolate* isolate, double value) {
   bool sign = value < 0;  // -0 was already handled above.
   uint64_t double_bits = bit_cast<uint64_t>(value);
   int raw_exponent =
-      static_cast<int>(double_bits >> Double::kPhysicalSignificandSize) & 0x7FF;
+      static_cast<int>(double_bits >> base::Double::kPhysicalSignificandSize) &
+      0x7FF;
   DCHECK_NE(raw_exponent, 0x7FF);
   DCHECK_GE(raw_exponent, 0x3FF);
   int exponent = raw_exponent - 0x3FF;
@@ -314,8 +315,8 @@ Handle<BigInt> MutableBigInt::NewFromDouble(Isolate* isolate, double value) {
   //          msd_topbit         kDigitBits
   //
   uint64_t mantissa =
-      (double_bits & Double::kSignificandMask) | Double::kHiddenBit;
-  const int kMantissaTopBit = Double::kSignificandSize - 1;  // 0-indexed.
+      (double_bits & base::Double::kSignificandMask) | base::Double::kHiddenBit;
+  const int kMantissaTopBit = base::Double::kSignificandSize - 1;  // 0-indexed.
   // 0-indexed position of most significant bit in the most significant digit.
   int msd_topbit = exponent % kDigitBits;
   // Number of unused bits in {mantissa}. We'll keep them shifted to the
@@ -912,8 +913,9 @@ ComparisonResult BigInt::CompareToDouble(Handle<BigInt> x, double y) {
   }
   uint64_t double_bits = bit_cast<uint64_t>(y);
   int raw_exponent =
-      static_cast<int>(double_bits >> Double::kPhysicalSignificandSize) & 0x7FF;
-  uint64_t mantissa = double_bits & Double::kSignificandMask;
+      static_cast<int>(double_bits >> base::Double::kPhysicalSignificandSize) &
+      0x7FF;
+  uint64_t mantissa = double_bits & base::Double::kSignificandMask;
   // Non-finite doubles are handled above.
   DCHECK_NE(raw_exponent, 0x7FF);
   int exponent = raw_exponent - 0x3FF;
@@ -944,7 +946,7 @@ ComparisonResult BigInt::CompareToDouble(Handle<BigInt> x, double y) {
   //                    <-->          <------>
   //              msd_topbit         kDigitBits
   //
-  mantissa |= Double::kHiddenBit;
+  mantissa |= base::Double::kHiddenBit;
   const int kMantissaTopBit = 52;  // 0-indexed.
   // 0-indexed position of {x}'s most significant bit within the {msd}.
   int msd_topbit = kDigitBits - 1 - msd_leading_zeros;
@@ -1107,7 +1109,7 @@ double MutableBigInt::ToDouble(Handle<BigIntBase> x) {
     mantissa++;
     // Incrementing the mantissa can overflow the mantissa bits. In that case
     // the new mantissa will be all zero (plus hidden bit).
-    if ((mantissa >> Double::kPhysicalSignificandSize) != 0) {
+    if ((mantissa >> base::Double::kPhysicalSignificandSize) != 0) {
       mantissa = 0;
       exponent++;
       // Incrementing the exponent can overflow too.
@@ -1118,7 +1120,7 @@ double MutableBigInt::ToDouble(Handle<BigIntBase> x) {
   }
   // Assemble the result.
   uint64_t sign_bit = x->sign() ? (static_cast<uint64_t>(1) << 63) : 0;
-  exponent = (exponent + 0x3FF) << Double::kPhysicalSignificandSize;
+  exponent = (exponent + 0x3FF) << base::Double::kPhysicalSignificandSize;
   uint64_t double_bits = sign_bit | exponent | mantissa;
   return bit_cast<double>(double_bits);
 }

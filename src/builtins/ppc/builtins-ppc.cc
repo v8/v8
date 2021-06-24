@@ -527,7 +527,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     // Save callee-saved double registers.
     __ MultiPushDoubles(kCalleeSavedDoubles);
     // Set up the reserved register for 0.0.
-    __ LoadDoubleLiteral(kDoubleRegZero, Double(0.0), r0);
+    __ LoadDoubleLiteral(kDoubleRegZero, base::Double(0.0), r0);
 
     // Initialize the root register.
     // C calling convention. The first argument is passed in r3.

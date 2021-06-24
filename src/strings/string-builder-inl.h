@@ -126,7 +126,7 @@ class IncrementalStringBuilder {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       Append<uint8_t, uint8_t>(c);
     } else {
-      Append<uint8_t, uc16>(c);
+      Append<uint8_t, base::uc16>(c);
     }
   }
 
@@ -135,15 +135,15 @@ class IncrementalStringBuilder {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       while (*u != '\0') Append<uint8_t, uint8_t>(*(u++));
     } else {
-      while (*u != '\0') Append<uint8_t, uc16>(*(u++));
+      while (*u != '\0') Append<uint8_t, base::uc16>(*(u++));
     }
   }
 
-  V8_INLINE void AppendCString(const uc16* s) {
+  V8_INLINE void AppendCString(const base::uc16* s) {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
-      while (*s != '\0') Append<uc16, uint8_t>(*(s++));
+      while (*s != '\0') Append<base::uc16, uint8_t>(*(s++));
     } else {
-      while (*s != '\0') Append<uc16, uc16>(*(s++));
+      while (*s != '\0') Append<base::uc16, base::uc16>(*(s++));
     }
   }
 

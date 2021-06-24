@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_NUMBERS_BIGNUM_DTOA_H_
-#define V8_NUMBERS_BIGNUM_DTOA_H_
+#ifndef V8_BASE_NUMBERS_BIGNUM_DTOA_H_
+#define V8_BASE_NUMBERS_BIGNUM_DTOA_H_
 
 #include "src/base/vector.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 enum BignumDtoaMode {
   // Return the shortest correct representation.
@@ -52,12 +52,11 @@ enum BignumDtoaMode {
 //   Halfway cases are again rounded up.
 // 'BignumDtoa' expects the given buffer to be big enough to hold all digits
 // and a terminating null-character.
-V8_EXPORT_PRIVATE void BignumDtoa(double v, BignumDtoaMode mode,
-                                  int requested_digits,
-                                  base::Vector<char> buffer, int* length,
-                                  int* point);
+V8_BASE_EXPORT void BignumDtoa(double v, BignumDtoaMode mode,
+                               int requested_digits, Vector<char> buffer,
+                               int* length, int* point);
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
-#endif  // V8_NUMBERS_BIGNUM_DTOA_H_
+#endif  // V8_BASE_NUMBERS_BIGNUM_DTOA_H_

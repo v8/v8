@@ -689,7 +689,7 @@ Handle<String> Factory::InternalizeUtf8String(
   std::unique_ptr<uint16_t[]> buffer(new uint16_t[decoder.utf16_length()]);
   decoder.Decode(buffer.get(), utf8_data);
   return InternalizeString(
-      base::Vector<const uc16>(buffer.get(), decoder.utf16_length()));
+      base::Vector<const base::uc16>(buffer.get(), decoder.utf16_length()));
 }
 
 template <typename SeqString>
@@ -811,7 +811,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
   return result;
 }
 
-MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
+MaybeHandle<String> Factory::NewStringFromTwoByte(const base::uc16* string,
                                                   int length,
                                                   AllocationType allocation) {
   DCHECK_NE(allocation, AllocationType::kReadOnly);
@@ -835,12 +835,12 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
 }
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(
-    const base::Vector<const uc16>& string, AllocationType allocation) {
+    const base::Vector<const base::uc16>& string, AllocationType allocation) {
   return NewStringFromTwoByte(string.begin(), string.length(), allocation);
 }
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(
-    const ZoneVector<uc16>* string, AllocationType allocation) {
+    const ZoneVector<base::uc16>* string, AllocationType allocation) {
   return NewStringFromTwoByte(string->data(), static_cast<int>(string->size()),
                               allocation);
 }
@@ -979,7 +979,7 @@ Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
   Handle<SeqTwoByteString> str =
       isolate()->factory()->NewRawTwoByteString(2).ToHandleChecked();
   DisallowGarbageCollection no_gc;
-  uc16* dest = str->GetChars(no_gc);
+  base::uc16* dest = str->GetChars(no_gc);
   dest[0] = lead;
   dest[1] = trail;
   return str;
@@ -1020,7 +1020,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
       Handle<SeqTwoByteString> result =
           NewRawTwoByteString(length).ToHandleChecked();
       DisallowGarbageCollection no_gc;
-      uc16* dest = result->GetChars(no_gc);
+      base::uc16* dest = result->GetChars(no_gc);
       String::WriteToFlat(*str, dest, begin, end);
       return result;
     }

@@ -525,7 +525,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     pushed_stack_space += kNumDoubleCalleeSaved * kDoubleSize;
 
     // Set up the reserved register for 0.0.
-    __ vmov(kDoubleRegZero, Double(0.0));
+    __ vmov(kDoubleRegZero, base::Double(0.0));
 
     // Initialize the root register.
     // C calling convention. The first argument is passed in r0.

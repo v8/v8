@@ -223,7 +223,7 @@ constexpr int kElidedFrameSlots = 0;
 constexpr int kDoubleSizeLog2 = 3;
 // The maximal length of the string representation for a double value
 // (e.g. "-2.2250738585072020E-308"). It is composed as follows:
-// - 17 decimal digits, see kBase10MaximalLength (dtoa.h)
+// - 17 decimal digits, see base::kBase10MaximalLength (dtoa.h)
 // - 1 sign
 // - 1 decimal point
 // - 1 E or e
@@ -379,13 +379,7 @@ constexpr int kBinary32ExponentShift = 23;
 // other bits set.
 constexpr uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
 
-// Latin1/UTF-16 constants
-// Code-point values in Unicode 4.0 are 21 bits wide.
-// Code units in UTF-16 are 16 bits wide.
-using uc16 = uint16_t;
-using uc32 = uint32_t;
 constexpr int kOneByteSize = kCharSize;
-constexpr int kUC16Size = sizeof(uc16);
 
 // 128 bit SIMD value size.
 constexpr int kSimd128Size = 16;

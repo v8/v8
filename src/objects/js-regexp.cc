@@ -4,6 +4,7 @@
 
 #include "src/objects/js-regexp.h"
 
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -383,7 +384,7 @@ MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
   bool needs_escapes = false;
   int additional_escape_chars =
       one_byte ? CountAdditionalEscapeChars<uint8_t>(source, &needs_escapes)
-               : CountAdditionalEscapeChars<uc16>(source, &needs_escapes);
+               : CountAdditionalEscapeChars<base::uc16>(source, &needs_escapes);
   if (!needs_escapes) return source;
   int length = source->length() + additional_escape_chars;
   if (one_byte) {
@@ -397,7 +398,7 @@ MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
                                isolate->factory()->NewRawTwoByteString(length),
                                String);
-    return WriteEscapedRegExpSource<uc16>(source, result);
+    return WriteEscapedRegExpSource<base::uc16>(source, result);
   }
 }
 

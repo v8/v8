@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/numbers/bignum.h"
-#include "src/utils/utils.h"
+#include "src/base/numbers/bignum.h"
+
+#include "src/base/strings.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 Bignum::Bignum()
     : bigits_(bigits_buffer_, kBigitCapacity), used_digits_(0), exponent_(0) {
@@ -59,7 +60,7 @@ void Bignum::AssignBignum(const Bignum& other) {
   used_digits_ = other.used_digits_;
 }
 
-static uint64_t ReadUInt64(base::Vector<const char> buffer, int from,
+static uint64_t ReadUInt64(Vector<const char> buffer, int from,
                            int digits_to_read) {
   uint64_t result = 0;
   int to = from + digits_to_read;
@@ -72,7 +73,7 @@ static uint64_t ReadUInt64(base::Vector<const char> buffer, int from,
   return result;
 }
 
-void Bignum::AssignDecimalString(base::Vector<const char> value) {
+void Bignum::AssignDecimalString(Vector<const char> value) {
   // 2^64 = 18446744073709551616 > 10^19
   const int kMaxUint64DecimalDigits = 19;
   Zero();
@@ -99,7 +100,7 @@ static int HexCharValue(char c) {
   UNREACHABLE();
 }
 
-void Bignum::AssignHexString(base::Vector<const char> value) {
+void Bignum::AssignHexString(Vector<const char> value) {
   Zero();
   int length = value.length();
 
@@ -712,5 +713,5 @@ void Bignum::SubtractTimes(const Bignum& other, int factor) {
   DCHECK(Bignum::Equal(a, *this));
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8

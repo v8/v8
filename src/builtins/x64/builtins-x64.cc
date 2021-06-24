@@ -3772,7 +3772,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ j(below, &process_64_bits, Label::kNear);
 
   // Result is entirely in lower 32-bits of mantissa
-  int delta = HeapNumber::kExponentBias + Double::kPhysicalSignificandSize;
+  int delta =
+      HeapNumber::kExponentBias + base::Double::kPhysicalSignificandSize;
   __ subl(rcx, Immediate(delta));
   __ xorl(result_reg, result_reg);
   __ cmpl(rcx, Immediate(31));

@@ -15,10 +15,10 @@
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
 #include "src/base/bits.h"
+#include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/numbers/conversions.h"
-#include "src/numbers/double.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -94,11 +94,11 @@ int32_t DoubleToInt32(double x) {
     // All doubles within these limits are trivially convertable to an int.
     return static_cast<int32_t>(x);
   }
-  Double d(x);
+  base::Double d(x);
   int exponent = d.Exponent();
   uint64_t bits;
   if (exponent < 0) {
-    if (exponent <= -Double::kSignificandSize) return 0;
+    if (exponent <= -base::Double::kSignificandSize) return 0;
     bits = d.Significand() >> -exponent;
   } else {
     if (exponent > 31) return 0;
@@ -118,11 +118,11 @@ inline int64_t DoubleToWebIDLInt64(double x) {
     // All doubles within these limits are trivially convertable to an int.
     return static_cast<int64_t>(x);
   }
-  Double d(x);
+  base::Double d(x);
   int exponent = d.Exponent();
   uint64_t bits;
   if (exponent < 0) {
-    if (exponent <= -Double::kSignificandSize) return 0;
+    if (exponent <= -base::Double::kSignificandSize) return 0;
     bits = d.Significand() >> -exponent;
   } else {
     if (exponent > 63) return 0;

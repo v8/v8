@@ -5,6 +5,7 @@
 #include "src/regexp/experimental/experimental-interpreter.h"
 
 #include "src/base/optional.h"
+#include "src/base/strings.h"
 #include "src/common/assert-scope.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/string-inl.h"
@@ -76,7 +77,7 @@ base::Vector<const uint8_t> ToCharacterVector<uint8_t>(
 }
 
 template <>
-base::Vector<const uc16> ToCharacterVector<uc16>(
+base::Vector<const base::uc16> ToCharacterVector<base::uc16>(
     String str, const DisallowGarbageCollection& no_gc) {
   DCHECK(str.IsFlat());
   String::FlatContent content = str.GetFlatContent(no_gc);
@@ -87,8 +88,8 @@ base::Vector<const uc16> ToCharacterVector<uc16>(
 template <class Character>
 class NfaInterpreter {
   // Executes a bytecode program in breadth-first mode, without backtracking.
-  // `Character` can be instantiated with `uint8_t` or `uc16` for one byte or
-  // two byte input strings.
+  // `Character` can be instantiated with `uint8_t` or `base::uc16` for one byte
+  // or two byte input strings.
   //
   // In contrast to the backtracking implementation, this has linear time
   // complexity in the length of the input string. Breadth-first mode means
@@ -343,7 +344,7 @@ class NfaInterpreter {
     while (input_index_ != input_.length() &&
            !(FoundMatch() && blocked_threads_.is_empty())) {
       DCHECK(active_threads_.is_empty());
-      uc16 input_char = input_[input_index_];
+      base::uc16 input_char = input_[input_index_];
       ++input_index_;
 
       static constexpr int kTicksBetweenInterruptHandling = 64;
@@ -439,7 +440,7 @@ class NfaInterpreter {
   // Unblock all blocked_threads_ by feeding them an `input_char`.  Should only
   // be called with `input_index_` pointing to the character *after*
   // `input_char` so that `pc_last_input_index_` is updated correctly.
-  void FlushBlockedThreads(uc16 input_char) {
+  void FlushBlockedThreads(base::uc16 input_char) {
     // The threads in blocked_threads_ are sorted from high to low priority,
     // but active_threads_ needs to be sorted from low to high priority, so we
     // need to activate blocked threads in reverse order.
@@ -568,9 +569,9 @@ int ExperimentalRegExpInterpreter::FindMatches(
     return interpreter.FindMatches(output_registers, output_register_count);
   } else {
     DCHECK(input.GetFlatContent(no_gc).IsTwoByte());
-    NfaInterpreter<uc16> interpreter(isolate, call_origin, bytecode,
-                                     register_count_per_match, input,
-                                     start_index, zone);
+    NfaInterpreter<base::uc16> interpreter(isolate, call_origin, bytecode,
+                                           register_count_per_match, input,
+                                           start_index, zone);
     return interpreter.FindMatches(output_registers, output_register_count);
   }
 }
