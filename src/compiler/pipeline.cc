@@ -857,7 +857,7 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
         int len = shared->EndPosition() - start;
         SubStringRange source(String::cast(script->source()), no_gc, start,
                               len);
-        for (const auto& c : source) {
+        for (auto c : source) {
           os << AsReversiblyEscapedUC16(c);
         }
       }

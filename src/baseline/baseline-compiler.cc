@@ -2003,7 +2003,7 @@ void BaselineCompiler::VisitSwitchOnSmiNoFeedback() {
   int case_value_base = (*offsets.begin()).case_value;
 
   std::unique_ptr<Label*[]> labels = std::make_unique<Label*[]>(offsets.size());
-  for (const interpreter::JumpTableTargetOffset& offset : offsets) {
+  for (interpreter::JumpTableTargetOffset offset : offsets) {
     labels[offset.case_value - case_value_base] =
         &EnsureLabels(offset.target_offset)->unlinked;
   }
@@ -2167,7 +2167,7 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
 
     std::unique_ptr<Label*[]> labels =
         std::make_unique<Label*[]>(offsets.size());
-    for (const interpreter::JumpTableTargetOffset& offset : offsets) {
+    for (interpreter::JumpTableTargetOffset offset : offsets) {
       labels[offset.case_value] = &EnsureLabels(offset.target_offset)->unlinked;
     }
     __ SmiUntag(continuation);

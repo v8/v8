@@ -791,7 +791,7 @@ TEST_F(BytecodeArrayBuilderTest, SmallSwitch) {
     int switch_end =
         iterator.current_offset() + iterator.current_bytecode_size();
 
-    for (const auto& entry : iterator.GetJumpTableTargetOffsets()) {
+    for (JumpTableTargetOffset entry : iterator.GetJumpTableTargetOffsets()) {
       CHECK_EQ(entry.case_value, small_jump_table_base + i);
       CHECK_EQ(entry.target_offset, switch_end + i);
 
@@ -839,7 +839,7 @@ TEST_F(BytecodeArrayBuilderTest, WideSwitch) {
     int switch_end =
         iterator.current_offset() + iterator.current_bytecode_size();
 
-    for (const auto& entry : iterator.GetJumpTableTargetOffsets()) {
+    for (JumpTableTargetOffset entry : iterator.GetJumpTableTargetOffsets()) {
       CHECK_EQ(entry.case_value, large_jump_table_base + i);
       CHECK_EQ(entry.target_offset, switch_end + i);
 
