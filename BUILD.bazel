@@ -40,6 +40,14 @@ config_setting(
 )
 
 config_setting(
+    name = "is_arm",
+    values = {
+        "host_cpu": "k8",
+        "cpu": "armeabi-v7a",
+    },
+)
+
+config_setting(
     name = "is_linux",
     constraint_values = ["@platforms//os:linux"],
 )
@@ -90,6 +98,11 @@ v8_config(
     ] + select({
         ":is_ia32": [ "V8_TARGET_ARCH_IA32" ],
         ":is_x64": [ "V8_TARGET_ARCH_X64" ],
+        ":is_arm": [
+            "V8_TARGET_ARCH_ARM",
+            "CAN_USE_ARMV7_INSTRUCTIONS",
+            "CAN_USE_VFP3_INSTRUCTIONS",
+        ],
         ":is_arm64": [ "V8_TARGET_ARCH_ARM64" ],
     }) + select({
         ":is_android": [
@@ -1741,6 +1754,37 @@ filegroup(
             "src/third_party/valgrind/valgrind.h",
             "src/wasm/baseline/x64/liftoff-assembler-x64.h",
         ],
+        "is_arm": [
+            "src/baseline/arm/baseline-assembler-arm-inl.h",
+            "src/baseline/arm/baseline-compiler-arm-inl.h",
+            "src/codegen/arm/assembler-arm-inl.h",
+            "src/codegen/arm/assembler-arm.cc",
+            "src/codegen/arm/assembler-arm.h",
+            "src/codegen/arm/constants-arm.cc",
+            "src/codegen/arm/constants-arm.h",
+            "src/codegen/arm/cpu-arm.cc",
+            "src/codegen/arm/interface-descriptors-arm-inl.h",
+            "src/codegen/arm/macro-assembler-arm.cc",
+            "src/codegen/arm/macro-assembler-arm.h",
+            "src/codegen/arm/register-arm.h",
+            "src/compiler/backend/arm/code-generator-arm.cc",
+            "src/compiler/backend/arm/instruction-codes-arm.h",
+            "src/compiler/backend/arm/instruction-scheduler-arm.cc",
+            "src/compiler/backend/arm/instruction-selector-arm.cc",
+            "src/compiler/backend/arm/unwinding-info-writer-arm.cc",
+            "src/compiler/backend/arm/unwinding-info-writer-arm.h",
+            "src/deoptimizer/arm/deoptimizer-arm.cc",
+            "src/diagnostics/arm/disasm-arm.cc",
+            "src/diagnostics/arm/eh-frame-arm.cc",
+            "src/diagnostics/arm/unwinder-arm.cc",
+            "src/execution/arm/frame-constants-arm.cc",
+            "src/execution/arm/frame-constants-arm.h",
+            "src/execution/arm/simulator-arm.cc",
+            "src/execution/arm/simulator-arm.h",
+            "src/regexp/arm/regexp-macro-assembler-arm.cc",
+            "src/regexp/arm/regexp-macro-assembler-arm.h",
+            "src/wasm/baseline/arm/liftoff-assembler-arm.h",
+        ],
         ":is_arm64": [
             "src/baseline/arm64/baseline-assembler-arm64-inl.h",
             "src/baseline/arm64/baseline-compiler-arm64-inl.h",
@@ -2219,6 +2263,7 @@ filegroup(
     ] + select({
         ":is_ia32": ["src/builtins/ia32/builtins-ia32.cc"],
         ":is_x64": ["src/builtins/x64/builtins-x64.cc"],
+        ":is_arm" :  ["src/builtins/arm/builtins-arm.cc"],
         ":is_arm64": ["src/builtins/arm64/builtins-arm64.cc"],
     }) + select({
         ":is_v8_enable_webassembly": [
@@ -2331,6 +2376,7 @@ filegroup(
     ] + select({
         ":is_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
         ":is_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
+        ":is_arm" : ["src/heap/base/asm/arm/push_registers_asm.cc"],
         ":is_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
     }),
 )
