@@ -507,6 +507,9 @@ bool V8InspectorImpl::associateExceptionData(v8::Local<v8::Context>,
                                              v8::Local<v8::Value> exception,
                                              v8::Local<v8::Name> key,
                                              v8::Local<v8::Value> value) {
+  if (!exception->IsObject()) {
+    return false;
+  }
   v8::Local<v8::Context> context;
   if (!exceptionMetaDataContext().ToLocal(&context)) return false;
   v8::Context::Scope contextScope(context);
@@ -535,6 +538,9 @@ bool V8InspectorImpl::associateExceptionData(v8::Local<v8::Context>,
 
 v8::MaybeLocal<v8::Object> V8InspectorImpl::getAssociatedExceptionData(
     v8::Local<v8::Value> exception) {
+  if (!exception->IsObject()) {
+    return v8::MaybeLocal<v8::Object>();
+  }
   v8::EscapableHandleScope scope(m_isolate);
   v8::Local<v8::Context> context;
   if (m_exceptionMetaData.IsEmpty() ||
