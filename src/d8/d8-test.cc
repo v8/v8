@@ -144,7 +144,10 @@ class FastCApiObject {
 
     HandleScope handle_scope(isolate);
 
-    CHECK_EQ(args.Length(), 2);
+    if (args.Length() < 2) {
+      isolate->ThrowError("This method expects at least 2 arguments.");
+      return;
+    }
     if (!args[1]->IsArray()) {
       isolate->ThrowError("This method expects an array as a second argument.");
       return;
