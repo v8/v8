@@ -990,6 +990,7 @@ class LiftoffCompiler {
       }
     }
     if (has_breakpoint) {
+      CODE_COMMENT("breakpoint");
       EmitBreakpoint(decoder);
       // Once we emitted an unconditional breakpoint, we don't need to check
       // function entry breaks any more.
@@ -1023,12 +1024,14 @@ class LiftoffCompiler {
       // removed. Adding a dead breakpoint here ensures that the source
       // position exists, and that the offset to the return address is the
       // same as in the old code.
+      CODE_COMMENT("dead breakpoint");
       Label cont;
       __ emit_jump(&cont);
       EmitBreakpoint(decoder);
       __ bind(&cont);
     }
     if (V8_UNLIKELY(max_steps_ != nullptr)) {
+      CODE_COMMENT("check max steps");
       LiftoffRegList pinned;
       LiftoffRegister max_steps = __ GetUnusedRegister(kGpReg, {});
       pinned.set(max_steps);
@@ -1064,7 +1067,6 @@ class LiftoffCompiler {
   }
 
   void EmitBreakpoint(FullDecoder* decoder) {
-    CODE_COMMENT("breakpoint");
     DCHECK(for_debugging_);
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), true);
