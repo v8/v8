@@ -24,6 +24,14 @@ config_setting(
 )
 
 config_setting(
+    name = "is_arm64",
+    values = {
+        "host_cpu": "k8",
+        "cpu": "arm",
+    },
+)
+
+config_setting(
     name = "is_ia32",
     values = {
         "host_cpu": "k8",
@@ -82,6 +90,7 @@ v8_config(
     ] + select({
         ":is_ia32": [ "V8_TARGET_ARCH_IA32" ],
         ":is_x64": [ "V8_TARGET_ARCH_X64" ],
+        ":is_arm64": [ "V8_TARGET_ARCH_ARM64" ],
     }) + select({
         ":is_android": [
             "V8_HAVE_TARGET_OS",
@@ -1732,6 +1741,49 @@ filegroup(
             "src/third_party/valgrind/valgrind.h",
             "src/wasm/baseline/x64/liftoff-assembler-x64.h",
         ],
+        ":is_arm64": [
+            "src/baseline/arm64/baseline-assembler-arm64-inl.h",
+            "src/baseline/arm64/baseline-compiler-arm64-inl.h",
+            "src/codegen/arm64/assembler-arm64-inl.h",
+            "src/codegen/arm64/assembler-arm64.cc",
+            "src/codegen/arm64/assembler-arm64.h",
+            "src/codegen/arm64/constants-arm64.h",
+            "src/codegen/arm64/cpu-arm64.cc",
+            "src/codegen/arm64/decoder-arm64-inl.h",
+            "src/codegen/arm64/decoder-arm64.cc",
+            "src/codegen/arm64/decoder-arm64.h",
+            "src/codegen/arm64/interface-descriptors-arm64-inl.h",
+            "src/codegen/arm64/instructions-arm64-constants.cc",
+            "src/codegen/arm64/instructions-arm64.cc",
+            "src/codegen/arm64/instructions-arm64.h",
+            "src/codegen/arm64/macro-assembler-arm64-inl.h",
+            "src/codegen/arm64/macro-assembler-arm64.cc",
+            "src/codegen/arm64/macro-assembler-arm64.h",
+            "src/codegen/arm64/register-arm64.cc",
+            "src/codegen/arm64/register-arm64.h",
+            "src/codegen/arm64/utils-arm64.cc",
+            "src/codegen/arm64/utils-arm64.h",
+            "src/compiler/backend/arm64/code-generator-arm64.cc",
+            "src/compiler/backend/arm64/instruction-codes-arm64.h",
+            "src/compiler/backend/arm64/instruction-scheduler-arm64.cc",
+            "src/compiler/backend/arm64/instruction-selector-arm64.cc",
+            "src/compiler/backend/arm64/unwinding-info-writer-arm64.cc",
+            "src/compiler/backend/arm64/unwinding-info-writer-arm64.h",
+            "src/deoptimizer/arm64/deoptimizer-arm64.cc",
+            "src/diagnostics/arm64/disasm-arm64.cc",
+            "src/diagnostics/arm64/disasm-arm64.h",
+            "src/diagnostics/arm64/eh-frame-arm64.cc",
+            "src/diagnostics/arm64/unwinder-arm64.cc",
+            "src/execution/arm64/frame-constants-arm64.cc",
+            "src/execution/arm64/frame-constants-arm64.h",
+            "src/execution/arm64/pointer-auth-arm64.cc",
+            "src/execution/arm64/simulator-arm64.cc",
+            "src/execution/arm64/simulator-arm64.h",
+            "src/execution/arm64/simulator-logic-arm64.cc",
+            "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
+            "src/regexp/arm64/regexp-macro-assembler-arm64.h",
+            "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
+        ],
     }) + select({
         ":is_linux_x64": [
             "src/trap-handler/handler-inside-posix.cc",
@@ -2167,6 +2219,7 @@ filegroup(
     ] + select({
         ":is_ia32": ["src/builtins/ia32/builtins-ia32.cc"],
         ":is_x64": ["src/builtins/x64/builtins-x64.cc"],
+        ":is_arm64": ["src/builtins/arm64/builtins-arm64.cc"],
     }) + select({
         ":is_v8_enable_webassembly": [
             "src/builtins/builtins-wasm-gen.cc",
@@ -2278,6 +2331,7 @@ filegroup(
     ] + select({
         ":is_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
         ":is_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
+        ":is_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
     }),
 )
 

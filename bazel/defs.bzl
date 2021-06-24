@@ -217,7 +217,7 @@ v8_mksnapshot = rule(
             default = ":mksnapshot",
             allow_files = True,
             executable = True,
-            cfg = "target",
+            cfg = "host",
         ),
     }
 )
