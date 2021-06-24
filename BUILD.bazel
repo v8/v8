@@ -2520,6 +2520,8 @@ v8_binary(
         "src/torque/torque.cc",
     ],
     deps = [ ":gtest_prod" ],
+    copts = [ "-fexceptions" ],
+    features = ["-use_header_modules"],
 )
 
 v8_binary(
