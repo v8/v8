@@ -125,6 +125,7 @@ v8_config(
         "v8_enable_webassembly": "V8_ENABLE_WEBASSEMBLY",
     },
     defines = [
+        "GOOGLE3",
         "CHROMIUM_ZLIB_NO_CHROMECONF",
         "V8_CONCURRENT_MARKING",
     ] + select({
@@ -249,6 +250,7 @@ filegroup(
     name = "v8_shared_internal_headers",
     srcs = [
         "src/common/globals.h",
+        "testing/gtest/include/gtest/gtest_prod.h",
     ] + select({
         "is_v8_enable_webassembly": [
             "src/wasm/wasm-constants.h",
@@ -2655,12 +2657,6 @@ v8_mksnapshot(
 # Libraries rules
 # =================================================
 
-cc_library(
-  name = "gtest_prod",
-  hdrs = [ "testing/gtest/include/gtest/gtest_prod.h" ],
-  deps = [ "//third_party/googletest/src:gtest_prod" ],
-)
-
 v8_library(
     name = "v8",
     srcs = [
@@ -2677,7 +2673,6 @@ v8_library(
         ":v8_shared_internal_headers",
     ],
     deps = [
-        ":gtest_prod",
         ":third_party_zlib",
     ],
 )
@@ -2700,7 +2695,6 @@ v8_library(
         ":wee8_files",
     ],
     deps = [
-        ":gtest_prod",
         ":third_party_zlib",
     ],
 )
@@ -2721,7 +2715,6 @@ v8_binary(
         "src/interpreter/bytecodes.cc",
         "src/interpreter/bytecodes.h",
     ],
-    deps = [ ":gtest_prod" ],
 )
 
 v8_binary(
@@ -2732,7 +2725,6 @@ v8_binary(
         ":torque_base_files",
         "src/torque/torque.cc",
     ],
-    deps = [ ":gtest_prod" ],
     copts = [ "-fexceptions" ],
     features = ["-use_header_modules"],
 )
@@ -2754,7 +2746,6 @@ v8_binary(
         ":generated_torque_files",
     ],
     deps = [
-        ":gtest_prod",
         ":third_party_zlib"
     ],
     linkopts = select({
