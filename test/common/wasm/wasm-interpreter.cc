@@ -942,7 +942,7 @@ class SideTable : public ZoneObject {
                     !unreachable,
                     stack_height >= c->else_label->target_stack_height);
                 stack_height = c->else_label->target_stack_height;
-                rethrow = !unreachable;
+                rethrow = !unreachable && !exception_stack.empty();
               }
             }
             c->end_label->Bind(i.pc() + 1);
