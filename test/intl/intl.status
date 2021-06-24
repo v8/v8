@@ -63,6 +63,8 @@
   'default_locale': [SKIP],
   # Unable to change locale and TZ on Android:
   'regress-7770': [SKIP],
+  # Bug(v8:11922)
+  'localematcher/bestfit-supplemental-files': [SKIP],
 }],  # 'system == android'
 
 ################################################################################
