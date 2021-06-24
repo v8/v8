@@ -363,7 +363,11 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   if (name) os << "name: " << name << "\n";
   if (!IsAnonymous()) os << "index: " << index() << "\n";
   os << "kind: " << GetWasmCodeKindAsString(kind()) << "\n";
-  os << "compiler: " << (is_liftoff() ? "Liftoff" : "TurboFan") << "\n";
+  DCHECK(is_liftoff() || tier() == ExecutionTier::kTurbofan);
+  const char* compiler = is_liftoff()
+                             ? (for_debugging() ? "Liftoff (debug)" : "Liftoff")
+                             : "TurboFan";
+  os << "compiler: " << compiler << "\n";
   size_t padding = instructions().size() - unpadded_binary_size_;
   os << "Body (size = " << instructions().size() << " = "
      << unpadded_binary_size_ << " + " << padding << " padding)\n";
