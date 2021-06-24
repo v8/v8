@@ -934,6 +934,19 @@ ExecutionTierPair GetRequestedExecutionTiers(
         }
       }
 
+      // Skip Turbofan compilation for super-large functions, because it
+      // would likely take so long that it's not worth it.
+      // TODO(jkummerow): This is a stop-gap solution to avoid excessive
+      // compile times. We would like to replace this hard threshold with
+      // a better solution (TBD) eventually.
+      uint32_t size = module->functions[func_index].code.length();
+      constexpr uint32_t kMaxWasmFunctionSizeForTurbofan = 500 * KB;
+      if (size > kMaxWasmFunctionSizeForTurbofan) {
+        result.top_tier = ExecutionTier::kLiftoff;
+        TRACE_COMPILE("Not optimizing function #%d because it's too big",
+                      func_index);
+      }
+
       // Correct top tier if necessary.
       static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                     "Assume an order on execution tiers");
