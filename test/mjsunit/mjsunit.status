@@ -1252,6 +1252,7 @@
 # TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
 ['arch not in (x64, ia32, arm64, arm)', {
   'wasm/liftoff': [SKIP],
+  'wasm/liftoff-debug': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],
   'wasm/tier-down-to-liftoff': [SKIP],
   'wasm/wasm-dynamic-tiering': [SKIP],
