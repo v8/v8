@@ -847,8 +847,11 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache())),
-      use_trap_handler_(trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
-                                                             : kNoTrapHandler) {
+      // TODO(clemensb): Rename this field.
+      use_trap_handler_(trap_handler::IsTrapHandlerEnabled() &&
+                                !FLAG_wasm_enforce_bounds_checks
+                            ? kUseTrapHandler
+                            : kNoTrapHandler) {
   DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.

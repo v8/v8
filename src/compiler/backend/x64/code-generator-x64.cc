@@ -543,7 +543,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
       : WasmOutOfLineTrap(gen, instr), pc_(pc) {}
 
   void Generate() final {
-    DCHECK(FLAG_wasm_bounds_checks && FLAG_wasm_trap_handler);
+    DCHECK(FLAG_wasm_bounds_checks && !FLAG_wasm_enforce_bounds_checks);
     gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
     GenerateWithTrapId(TrapId::kTrapMemOutOfBounds);
   }

@@ -1021,6 +1021,11 @@ DEFINE_BOOL(
     "enable bounds checks (disable for performance testing only)")
 DEFINE_BOOL(wasm_stack_checks, true,
             "enable stack checks (disable for performance testing only)")
+DEFINE_BOOL(
+    wasm_enforce_bounds_checks, false,
+    "enforce explicit bounds check even if the trap handler is available")
+// "no bounds checks" implies "no enforced bounds checks".
+DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_enforce_bounds_checks)
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
@@ -1029,8 +1034,6 @@ DEFINE_BOOL(wasm_loop_unrolling, true,
 DEFINE_BOOL(wasm_trap_handler, true,
             "use signal handlers to catch out of bounds memory access in wasm"
             " (currently Linux x86_64 only)")
-// "no bounds checks" implies "no trap handlers".
-DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_trap_handler)
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
             "generate a test case when running a wasm fuzzer")
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
