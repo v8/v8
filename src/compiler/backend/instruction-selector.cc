@@ -3022,13 +3022,12 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
 void InstructionSelector::VisitTailCall(Node* node) {
   OperandGenerator g(this);
-  auto call_descriptor = CallDescriptorOf(node->op());
 
-  CallDescriptor* caller = linkage()->GetIncomingDescriptor();
-  const CallDescriptor* callee = CallDescriptorOf(node->op());
+  auto caller = linkage()->GetIncomingDescriptor();
+  auto callee = CallDescriptorOf(node->op());
   DCHECK(caller->CanTailCall(callee));
   const int stack_param_delta = callee->GetStackParameterDelta(caller);
-  CallBuffer buffer(zone(), call_descriptor, nullptr);
+  CallBuffer buffer(zone(), callee, nullptr);
 
   // Compute InstructionOperands for inputs and outputs.
   CallBufferFlags flags(kCallCodeImmediate | kCallTail);
@@ -3044,7 +3043,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   InstructionOperandVector temps(zone());
-  switch (call_descriptor->kind()) {
+  switch (callee->kind()) {
     case CallDescriptor::kCallCodeObject:
       opcode = kArchTailCallCodeObject;
       break;
@@ -3061,7 +3060,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
     default:
       UNREACHABLE();
   }
-  opcode = EncodeCallDescriptorFlags(opcode, call_descriptor->flags());
+  opcode = EncodeCallDescriptorFlags(opcode, callee->flags());
 
   Emit(kArchPrepareTailCall, g.NoOutput());
 
