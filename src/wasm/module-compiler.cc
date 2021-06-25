@@ -57,8 +57,6 @@ namespace wasm {
 
 namespace {
 
-enum class CompileMode : uint8_t { kRegular, kTiering };
-
 enum class CompileStrategy : uint8_t {
   // Compiles functions on first use. In this case, execution will block until
   // the function's baseline is reached and top tier compilation starts in
@@ -627,7 +625,6 @@ class CompilationStateImpl {
     return outstanding_recompilation_functions_ == 0;
   }
 
-  CompileMode compile_mode() const { return compile_mode_; }
   Counters* counters() const { return async_counters_.get(); }
 
   void SetWireBytesStorage(
@@ -663,7 +660,6 @@ class CompilationStateImpl {
 
   NativeModule* const native_module_;
   std::weak_ptr<NativeModule> const native_module_weak_;
-  const CompileMode compile_mode_;
   const std::shared_ptr<Counters> async_counters_;
 
   // Compilation error, atomically updated. This flag can be updated and read
@@ -907,55 +903,51 @@ struct ExecutionTierPair {
 };
 
 ExecutionTierPair GetRequestedExecutionTiers(
-    const WasmModule* module, CompileMode compile_mode,
-    const WasmFeatures& enabled_features, uint32_t func_index) {
+    const WasmModule* module, const WasmFeatures& enabled_features,
+    uint32_t func_index) {
   ExecutionTierPair result;
 
   result.baseline_tier = WasmCompilationUnit::GetBaselineExecutionTier(module);
-  switch (compile_mode) {
-    case CompileMode::kRegular:
-      result.top_tier = result.baseline_tier;
-      return result;
 
-    case CompileMode::kTiering:
-
-      // Default tiering behaviour.
-      result.top_tier = ExecutionTier::kTurbofan;
-
-      // Check if compilation hints override default tiering behaviour.
-      if (enabled_features.has_compilation_hints()) {
-        const WasmCompilationHint* hint =
-            GetCompilationHint(module, func_index);
-        if (hint != nullptr) {
-          result.baseline_tier = ApplyHintToExecutionTier(hint->baseline_tier,
-                                                          result.baseline_tier);
-          result.top_tier =
-              ApplyHintToExecutionTier(hint->top_tier, result.top_tier);
-        }
-      }
-
-      // Skip Turbofan compilation for super-large functions, because it
-      // would likely take so long that it's not worth it.
-      // TODO(jkummerow): This is a stop-gap solution to avoid excessive
-      // compile times. We would like to replace this hard threshold with
-      // a better solution (TBD) eventually.
-      uint32_t size = module->functions[func_index].code.length();
-      constexpr uint32_t kMaxWasmFunctionSizeForTurbofan = 500 * KB;
-      if (size > kMaxWasmFunctionSizeForTurbofan) {
-        result.top_tier = ExecutionTier::kLiftoff;
-        TRACE_COMPILE("Not optimizing function #%d because it's too big",
-                      func_index);
-      }
-
-      // Correct top tier if necessary.
-      static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
-                    "Assume an order on execution tiers");
-      if (result.baseline_tier > result.top_tier) {
-        result.top_tier = result.baseline_tier;
-      }
-      return result;
+  if (module->origin != kWasmOrigin || !FLAG_wasm_tier_up) {
+    result.top_tier = result.baseline_tier;
+    return result;
   }
-  UNREACHABLE();
+
+  // Default tiering behaviour.
+  result.top_tier = ExecutionTier::kTurbofan;
+
+  // Check if compilation hints override default tiering behaviour.
+  if (enabled_features.has_compilation_hints()) {
+    const WasmCompilationHint* hint = GetCompilationHint(module, func_index);
+    if (hint != nullptr) {
+      result.baseline_tier =
+          ApplyHintToExecutionTier(hint->baseline_tier, result.baseline_tier);
+      result.top_tier =
+          ApplyHintToExecutionTier(hint->top_tier, result.top_tier);
+    }
+  }
+
+  // Skip Turbofan compilation for super-large functions, because it
+  // would likely take so long that it's not worth it.
+  // TODO(jkummerow): This is a stop-gap solution to avoid excessive
+  // compile times. We would like to replace this hard threshold with
+  // a better solution (TBD) eventually.
+  uint32_t size = module->functions[func_index].code.length();
+  constexpr uint32_t kMaxWasmFunctionSizeForTurbofan = 500 * KB;
+  if (size > kMaxWasmFunctionSizeForTurbofan) {
+    result.top_tier = ExecutionTier::kLiftoff;
+    TRACE_COMPILE("Not optimizing function #%d because it's too big",
+                  func_index);
+  }
+
+  // Correct top tier if necessary.
+  static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
+                "Assume an order on execution tiers");
+  if (result.baseline_tier > result.top_tier) {
+    result.top_tier = result.baseline_tier;
+  }
+  return result;
 }
 
 // The {CompilationUnitBuilder} builds compilation units and stores them in an
@@ -973,8 +965,8 @@ class CompilationUnitBuilder {
       return;
     }
     ExecutionTierPair tiers = GetRequestedExecutionTiers(
-        native_module_->module(), compilation_state()->compile_mode(),
-        native_module_->enabled_features(), func_index);
+        native_module_->module(), native_module_->enabled_features(),
+        func_index);
     // Compile everything for non-debugging initially. If needed, we will tier
     // down when the module is fully compiled. Synchronization would be pretty
     // difficult otherwise.
@@ -991,8 +983,8 @@ class CompilationUnitBuilder {
 
   void AddTopTierUnit(int func_index) {
     ExecutionTierPair tiers = GetRequestedExecutionTiers(
-        native_module_->module(), compilation_state()->compile_mode(),
-        native_module_->enabled_features(), func_index);
+        native_module_->module(), native_module_->enabled_features(),
+        func_index);
     // In this case, the baseline is lazily compiled, if at all. The compilation
     // unit is added even if the baseline tier is the same.
 #ifdef DEBUG
@@ -1129,8 +1121,8 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
 
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
-  ExecutionTierPair tiers = GetRequestedExecutionTiers(
-      module, compilation_state->compile_mode(), enabled_features, func_index);
+  ExecutionTierPair tiers =
+      GetRequestedExecutionTiers(module, enabled_features, func_index);
 
   DCHECK_LE(native_module->num_imported_functions(), func_index);
   DCHECK_LT(func_index, native_module->num_functions());
@@ -2817,10 +2809,6 @@ CompilationStateImpl::CompilationStateImpl(
     std::shared_ptr<Counters> async_counters)
     : native_module_(native_module.get()),
       native_module_weak_(std::move(native_module)),
-      compile_mode_(FLAG_wasm_tier_up &&
-                            native_module->module()->origin == kWasmOrigin
-                        ? CompileMode::kTiering
-                        : CompileMode::kRegular),
       async_counters_(std::move(async_counters)),
       compilation_unit_queues_(native_module->num_functions()) {}
 
@@ -2880,8 +2868,8 @@ void CompilationStateImpl::InitializeCompilationProgress(
       outstanding_top_tier_functions_++;
       continue;
     }
-    ExecutionTierPair requested_tiers = GetRequestedExecutionTiers(
-        module, compile_mode(), enabled_features, func_index);
+    ExecutionTierPair requested_tiers =
+        GetRequestedExecutionTiers(module, enabled_features, func_index);
     CompileStrategy strategy =
         GetCompileStrategy(module, enabled_features, func_index, lazy_module);
 
