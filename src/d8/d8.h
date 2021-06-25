@@ -430,6 +430,9 @@ class ShellOptions {
       "experimental-d8-web-snapshot-api", false};
   DisallowReassignment<bool> compile_only = {"compile-only", false};
   DisallowReassignment<int> repeat_compile = {"repeat-compile", 1};
+#if V8_ENABLE_WEBASSEMBLY
+  DisallowReassignment<bool> wasm_trap_handler = {"wasm-trap-handler", true};
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 class Shell : public i::AllStatic {

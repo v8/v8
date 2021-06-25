@@ -4369,6 +4369,14 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #endif
       argv[i] = nullptr;
 #endif
+#if V8_ENABLE_WEBASSEMBLY
+    } else if (strcmp(argv[i], "--wasm-trap-handler") == 0) {
+      options.wasm_trap_handler = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--no-wasm-trap-handler") == 0) {
+      options.wasm_trap_handler = false;
+      argv[i] = nullptr;
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
   }
 
@@ -5074,9 +5082,9 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
-    constexpr bool use_default_trap_handler = true;
-    if (!v8::V8::EnableWebAssemblyTrapHandler(use_default_trap_handler)) {
+  if (V8_TRAP_HANDLER_SUPPORTED && options.wasm_trap_handler) {
+    constexpr bool kUseDefaultTrapHandler = true;
+    if (!v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler)) {
       FATAL("Could not register trap handler");
     }
   }
