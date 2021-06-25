@@ -663,6 +663,12 @@ class BaseTestRunner(object):
        self.build_config.arch == 'mipsel':
        no_simd_hardware = not simd_mips
 
+    # S390 hosts without VEF1 do not support Simd.
+    if self.build_config.arch == 's390x' and \
+       not self.build_config.simulator_run and \
+       not utils.IsS390SimdSupported():
+       no_simd_hardware = True
+
     # Ppc64 processors earlier than POWER9 do not support Simd instructions
     if self.build_config.arch == 'ppc64' and \
        not self.build_config.simulator_run and \
