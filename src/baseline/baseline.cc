@@ -23,22 +23,29 @@
 namespace v8 {
 namespace internal {
 
-bool CanCompileWithBaseline(Isolate* isolate,
-                            Handle<SharedFunctionInfo> shared) {
+bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
+  DisallowGarbageCollection no_gc;
+
   // Check that baseline compiler is enabled.
   if (!FLAG_sparkplug) return false;
 
+  // Check that short builtin calls are enabled if needed.
+  if (FLAG_sparkplug_needs_short_builtins &&
+      !isolate->is_short_builtin_calls_enabled()) {
+    return false;
+  }
+
   // Check if we actually have bytecode.
-  if (!shared->HasBytecodeArray()) return false;
+  if (!shared.HasBytecodeArray()) return false;
 
   // Do not optimize when debugger needs to hook into every call.
   if (isolate->debug()->needs_check_on_function_call()) return false;
 
   // Functions with breakpoints have to stay interpreted.
-  if (shared->HasBreakInfo()) return false;
+  if (shared.HasBreakInfo()) return false;
 
   // Do not baseline compile if function doesn't pass sparkplug_filter.
-  if (!shared->PassesFilter(FLAG_sparkplug_filter)) return false;
+  if (!shared.PassesFilter(FLAG_sparkplug_filter)) return false;
 
   return true;
 }
@@ -89,8 +96,7 @@ void EmitReturnBaseline(MacroAssembler* masm) {
 namespace v8 {
 namespace internal {
 
-bool CanCompileWithBaseline(Isolate* isolate,
-                            Handle<SharedFunctionInfo> shared) {
+bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   return false;
 }
 

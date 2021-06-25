@@ -1311,7 +1311,7 @@ void CompileAllWithBaseline(Isolate* isolate,
     Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
     IsCompiledScope is_compiled_scope(*shared_info, isolate);
     if (!is_compiled_scope.is_compiled()) continue;
-    if (!CanCompileWithBaseline(isolate, shared_info)) continue;
+    if (!CanCompileWithBaseline(isolate, *shared_info)) continue;
     Compiler::CompileSharedWithBaseline(
         isolate, shared_info, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
   }
@@ -1941,7 +1941,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   if (shared->HasBaselineData()) return true;
 
   // Check if we actually can compile with baseline.
-  if (!CanCompileWithBaseline(isolate, shared)) return false;
+  if (!CanCompileWithBaseline(isolate, *shared)) return false;
 
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {

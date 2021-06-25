@@ -345,7 +345,8 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
     // a non zero invocation count so we can inline functions.
     function->feedback_vector().set_invocation_count(1);
   }
-  if (FLAG_sparkplug && !function->ActiveTierIsBaseline()) {
+  if (CanCompileWithBaseline(isolate, function->shared()) &&
+      !function->ActiveTierIsBaseline()) {
     if (V8_LIKELY(FLAG_baseline_batch_compilation)) {
       isolate->baseline_batch_compiler()->EnqueueFunction(function);
     } else {
