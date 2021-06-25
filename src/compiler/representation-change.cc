@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "src/base/bits.h"
+#include "src/base/safe_conversions.h"
 #include "src/codegen/code-factory.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
@@ -1090,8 +1091,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     case IrOpcode::kNumberConstant: {
       if (use_info.type_check() != TypeCheckKind::kBigInt) {
         double const fv = OpParameter<double>(node->op());
-        using limits = std::numeric_limits<int64_t>;
-        if (fv <= limits::max() && fv >= limits::min()) {
+        if (base::IsValueInRangeForNumericType<int64_t>(fv)) {
           int64_t const iv = static_cast<int64_t>(fv);
           if (static_cast<double>(iv) == fv) {
             return jsgraph()->Int64Constant(iv);
