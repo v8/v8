@@ -670,7 +670,15 @@ class LiftoffCompiler {
             ? LiftoffAssembler::CacheState::SpillLocation::kStackSlots
             : LiftoffAssembler::CacheState::SpillLocation::kTopOfStack);
     if (V8_UNLIKELY(for_debugging_)) {
+      // When debugging, we do not just push all registers to the stack, but we
+      // spill them to their proper stack locations such that we can inspect
+      // them.
+      // The only exception is the cached memory start, which we just push
+      // before the stack check and pop afterwards.
       regs_to_save = {};
+      if (__ cache_state()->cached_mem_start != no_reg) {
+        regs_to_save.set(__ cache_state()->cached_mem_start);
+      }
       spilled_regs = GetSpilledRegistersForInspection();
     }
     out_of_line_code_.push_back(OutOfLineCode::StackCheck(
@@ -875,12 +883,13 @@ class LiftoffCompiler {
       return;
     }
 
-    // We cannot both push and spill registers.
-    DCHECK(ool->regs_to_save.is_empty() || ool->spilled_registers == nullptr);
     if (!ool->regs_to_save.is_empty()) {
       __ PushRegisters(ool->regs_to_save);
-    } else if (V8_UNLIKELY(ool->spilled_registers != nullptr)) {
+    }
+    if (V8_UNLIKELY(ool->spilled_registers != nullptr)) {
       for (auto& entry : ool->spilled_registers->entries) {
+        // We should not push and spill the same register.
+        DCHECK(!ool->regs_to_save.has(entry.reg));
         __ Spill(entry.offset, entry.reg, entry.kind);
       }
     }
