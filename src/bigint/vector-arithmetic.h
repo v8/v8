@@ -56,6 +56,10 @@ inline bool GreaterThanOrEqual(Digits A, Digits B) {
   return Compare(A, B) >= 0;
 }
 
+inline int BitLength(Digits X) {
+  return X.len() * kDigitBits - CountLeadingZeros(X.msd());
+}
+
 }  // namespace bigint
 }  // namespace v8
 

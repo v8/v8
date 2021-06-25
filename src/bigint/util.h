@@ -50,8 +50,23 @@ constexpr int CountLeadingZeros(uint32_t value) {
 #endif
 }
 
+inline constexpr int CountTrailingZeros(uint32_t value) {
+#if __GNUC__ || __clang__
+  return value == 0 ? 32 : __builtin_ctz(value);
+#elif _MSC_VER
+  unsigned long index = 0;  // NOLINT(runtime/int).
+  return _BitScanForward(&index, value) ? index : 32;
+#else
+#error Unsupported compiler.
+#endif
+}
+
 inline constexpr int BitLength(int n) {
   return 32 - CountLeadingZeros(static_cast<uint32_t>(n));
+}
+
+inline constexpr bool IsPowerOfTwo(int value) {
+  return value > 0 && (value & (value - 1)) == 0;
 }
 
 }  // namespace bigint

@@ -38,9 +38,12 @@ class ProcessorImpl : public Processor {
 
   void Modulo(RWDigits R, Digits A, Digits B);
 
+  // {out_length} initially contains the allocated capacity of {out}, and
+  // upon return will be set to the actual length of the result string.
+  void ToString(char* out, int* out_length, Digits X, int radix, bool sign);
+
   bool should_terminate() { return status_ == Status::kInterrupted; }
 
- private:
   // Each unit is supposed to represent approximately one CPU {mul} instruction.
   // Doesn't need to be accurate; we just want to make sure to check for
   // interrupt requests every now and then (roughly every 10-100 ms; often
@@ -58,6 +61,7 @@ class ProcessorImpl : public Processor {
     }
   }
 
+ private:
   uintptr_t work_estimate_{0};
   Status status_{Status::kOk};
   Platform* platform_;

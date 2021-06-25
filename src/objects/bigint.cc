@@ -139,11 +139,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
                                   digit_t summand, int n, MutableBigInt result);
   void InplaceMultiplyAdd(uintptr_t factor, uintptr_t summand);
 
-  // Specialized helpers for Divide/Remainder.
-  static void AbsoluteDivSmall(Isolate* isolate, Handle<BigIntBase> x,
-                               digit_t divisor, Handle<MutableBigInt>* quotient,
-                               digit_t* remainder);
-
   // Specialized helpers for shift operations.
   static MaybeHandle<BigInt> LeftShiftByAbsolute(Isolate* isolate,
                                                  Handle<BigIntBase> x,
@@ -153,14 +148,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
                                              Handle<BigIntBase> y);
   static Handle<BigInt> RightShiftByMaximum(Isolate* isolate, bool sign);
   static Maybe<digit_t> ToShiftAmount(Handle<BigIntBase> x);
-
-  static MaybeHandle<String> ToStringBasePowerOfTwo(Isolate* isolate,
-                                                    Handle<BigIntBase> x,
-                                                    int radix,
-                                                    ShouldThrow should_throw);
-  static MaybeHandle<String> ToStringGeneric(Isolate* isolate,
-                                             Handle<BigIntBase> x, int radix,
-                                             ShouldThrow should_throw);
 
   static double ToDouble(Handle<BigIntBase> x);
   enum Rounding { kRoundDown, kTie, kRoundUp };
@@ -175,9 +162,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   static inline digit_t digit_add(digit_t a, digit_t b, digit_t* carry);
   static inline digit_t digit_sub(digit_t a, digit_t b, digit_t* borrow);
   static inline digit_t digit_mul(digit_t a, digit_t b, digit_t* high);
-  static inline digit_t digit_div(digit_t high, digit_t low, digit_t divisor,
-                                  digit_t* remainder);
-  static digit_t digit_pow(digit_t base, digit_t exponent);
   static inline bool digit_ismax(digit_t x) {
     return static_cast<digit_t>(~x) == 0;
   }
@@ -1004,11 +988,49 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
   if (bigint->is_zero()) {
     return isolate->factory()->zero_string();
   }
-  if (base::bits::IsPowerOfTwo(radix)) {
-    return MutableBigInt::ToStringBasePowerOfTwo(isolate, bigint, radix,
-                                                 should_throw);
+  DCHECK(radix >= 2 && radix <= 36);
+  const bool sign = bigint->sign();
+  int size = bigint::ToStringResultLength(GetDigits(bigint), radix, sign);
+  if (size > String::kMaxLength) {
+    if (should_throw == kThrowOnError) {
+      THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
+    } else {
+      return {};
+    }
   }
-  return MutableBigInt::ToStringGeneric(isolate, bigint, radix, should_throw);
+  Handle<SeqOneByteString> result =
+      isolate->factory()->NewRawOneByteString(size).ToHandleChecked();
+  int allocated_size = size;
+  DisallowGarbageCollection no_gc;
+  char* characters = reinterpret_cast<char*>(result->GetChars(no_gc));
+  bigint::Status status = isolate->bigint_processor()->ToString(
+      characters, &size, GetDigits(bigint), radix, sign);
+  if (status == bigint::Status::kInterrupted) {
+    AllowGarbageCollection terminating_anyway;
+    isolate->TerminateExecution();
+    return {};
+  }
+
+  // Rigth-trim any over-allocation (which can happen due to conservative
+  // estimates).
+  if (size < allocated_size) {
+    result->set_length(size, kReleaseStore);
+    int string_size = SeqOneByteString::SizeFor(allocated_size);
+    int needed_size = SeqOneByteString::SizeFor(size);
+    if (needed_size < string_size && !isolate->heap()->IsLargeObject(*result)) {
+      Address new_end = result->address() + needed_size;
+      isolate->heap()->CreateFillerObjectAt(
+          new_end, (string_size - needed_size), ClearRecordedSlots::kNo);
+    }
+  }
+#if DEBUG
+  // Verify that all characters have been written.
+  DCHECK(result->length() == size);
+  for (int i = 0; i < size; i++) {
+    DCHECK_NE(characters[i], bigint::kStringZapValue);
+  }
+#endif
+  return result;
 }
 
 MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
@@ -1472,36 +1494,6 @@ void BigInt::InplaceMultiplyAdd(FreshlyAllocatedBigInt x, uintptr_t factor,
                                      bigint);
 }
 
-// Divides {x} by {divisor}, returning the result in {quotient} and {remainder}.
-// Mathematically, the contract is:
-// quotient = (x - remainder) / divisor, with 0 <= remainder < divisor.
-// If {quotient} is an empty handle, an appropriately sized BigInt will be
-// allocated for it; otherwise the caller must ensure that it is big enough.
-// {quotient} can be the same as {x} for an in-place division. {quotient} can
-// also be nullptr if the caller is only interested in the remainder.
-void MutableBigInt::AbsoluteDivSmall(Isolate* isolate, Handle<BigIntBase> x,
-                                     digit_t divisor,
-                                     Handle<MutableBigInt>* quotient,
-                                     digit_t* remainder) {
-  DCHECK_NE(divisor, 0);
-  DCHECK(!x->is_zero());  // Callers check anyway, no need to handle this.
-  *remainder = 0;
-  int length = x->length();
-  if (quotient != nullptr) {
-    if ((*quotient).is_null()) {
-      *quotient = New(isolate, length).ToHandleChecked();
-    }
-    for (int i = length - 1; i >= 0; i--) {
-      digit_t q = digit_div(*remainder, x->digit(i), divisor, remainder);
-      (*quotient)->set_digit(i, q);
-    }
-  } else {
-    for (int i = length - 1; i >= 0; i--) {
-      digit_div(*remainder, x->digit(i), divisor, remainder);
-    }
-  }
-}
-
 MaybeHandle<BigInt> MutableBigInt::LeftShiftByAbsolute(Isolate* isolate,
                                                        Handle<BigIntBase> x,
                                                        Handle<BigIntBase> y) {
@@ -1780,224 +1772,6 @@ MaybeHandle<BigInt> BigInt::FromSerializedDigits(
   }
 #endif  // V8_TARGET_BIG_ENDIAN
   return MutableBigInt::MakeImmutable(result);
-}
-
-static const char kConversionChars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-
-MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(
-    Isolate* isolate, Handle<BigIntBase> x, int radix,
-    ShouldThrow should_throw) {
-  STATIC_ASSERT(base::bits::IsPowerOfTwo(kDigitBits));
-  DCHECK(base::bits::IsPowerOfTwo(radix));
-  DCHECK(radix >= 2 && radix <= 32);
-  DCHECK(!x->is_zero());
-
-  const int length = x->length();
-  const bool sign = x->sign();
-  const int bits_per_char = base::bits::CountTrailingZeros(radix);
-  const int char_mask = radix - 1;
-  // Compute the length of the resulting string: divide the bit length of the
-  // BigInt by the number of bits representable per character (rounding up).
-  const digit_t msd = x->digit(length - 1);
-  const int msd_leading_zeros = base::bits::CountLeadingZeros(msd);
-  const size_t bit_length = length * kDigitBits - msd_leading_zeros;
-  const size_t chars_required =
-      (bit_length + bits_per_char - 1) / bits_per_char + sign;
-
-  if (chars_required > String::kMaxLength) {
-    if (should_throw == kThrowOnError) {
-      THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
-    } else {
-      return MaybeHandle<String>();
-    }
-  }
-
-  Handle<SeqOneByteString> result =
-      isolate->factory()
-          ->NewRawOneByteString(static_cast<int>(chars_required))
-          .ToHandleChecked();
-  DisallowGarbageCollection no_gc;
-  uint8_t* buffer = result->GetChars(no_gc);
-  // Print the number into the string, starting from the last position.
-  int pos = static_cast<int>(chars_required - 1);
-  digit_t digit = 0;
-  // Keeps track of how many unprocessed bits there are in {digit}.
-  int available_bits = 0;
-  for (int i = 0; i < length - 1; i++) {
-    digit_t new_digit = x->digit(i);
-    // Take any leftover bits from the last iteration into account.
-    int current = (digit | (new_digit << available_bits)) & char_mask;
-    buffer[pos--] = kConversionChars[current];
-    int consumed_bits = bits_per_char - available_bits;
-    digit = new_digit >> consumed_bits;
-    available_bits = kDigitBits - consumed_bits;
-    while (available_bits >= bits_per_char) {
-      buffer[pos--] = kConversionChars[digit & char_mask];
-      digit >>= bits_per_char;
-      available_bits -= bits_per_char;
-    }
-  }
-  // Take any leftover bits from the last iteration into account.
-  int current = (digit | (msd << available_bits)) & char_mask;
-  buffer[pos--] = kConversionChars[current];
-  digit = msd >> (bits_per_char - available_bits);
-  while (digit != 0) {
-    buffer[pos--] = kConversionChars[digit & char_mask];
-    digit >>= bits_per_char;
-  }
-  if (sign) buffer[pos--] = '-';
-  DCHECK_EQ(pos, -1);
-  return result;
-}
-
-MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
-                                                   Handle<BigIntBase> x,
-                                                   int radix,
-                                                   ShouldThrow should_throw) {
-  DCHECK(radix >= 2 && radix <= 36);
-  DCHECK(!x->is_zero());
-  Heap* heap = isolate->heap();
-
-  const int length = x->length();
-  const bool sign = x->sign();
-
-  // Compute (an overapproximation of) the length of the resulting string:
-  // Divide bit length of the BigInt by bits representable per character.
-  const size_t bit_length =
-      length * kDigitBits - base::bits::CountLeadingZeros(x->digit(length - 1));
-  // Maximum number of bits we can represent with one character. We'll use this
-  // to find an appropriate chunk size below.
-  const uint8_t max_bits_per_char = kMaxBitsPerChar[radix];
-  // For estimating result length, we have to be pessimistic and work with
-  // the minimum number of bits one character can represent.
-  const uint8_t min_bits_per_char = max_bits_per_char - 1;
-  // Perform the following computation with uint64_t to avoid overflows.
-  uint64_t chars_required = bit_length;
-  chars_required *= kBitsPerCharTableMultiplier;
-  chars_required += min_bits_per_char - 1;  // Round up.
-  chars_required /= min_bits_per_char;
-  chars_required += sign;
-
-  if (chars_required > String::kMaxLength) {
-    if (should_throw == kThrowOnError) {
-      THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
-    } else {
-      return MaybeHandle<String>();
-    }
-  }
-  Handle<SeqOneByteString> result =
-      isolate->factory()
-          ->NewRawOneByteString(static_cast<int>(chars_required))
-          .ToHandleChecked();
-
-#if DEBUG
-  // Zap the string first.
-  {
-    DisallowGarbageCollection no_gc;
-    uint8_t* chars = result->GetChars(no_gc);
-    for (int i = 0; i < static_cast<int>(chars_required); i++) chars[i] = '?';
-  }
-#endif
-
-  // We assemble the result string in reverse order, and then reverse it.
-  // TODO(jkummerow): Consider building the string from the right, and
-  // left-shifting it if the length estimate was too large.
-  int pos = 0;
-
-  digit_t last_digit;
-  if (length == 1) {
-    last_digit = x->digit(0);
-  } else {
-    int chunk_chars =
-        kDigitBits * kBitsPerCharTableMultiplier / max_bits_per_char;
-    digit_t chunk_divisor = digit_pow(radix, chunk_chars);
-    // By construction of chunk_chars, there can't have been overflow.
-    DCHECK_NE(chunk_divisor, 0);
-    int nonzero_digit = length - 1;
-    DCHECK_NE(x->digit(nonzero_digit), 0);
-    // {rest} holds the part of the BigInt that we haven't looked at yet.
-    // Not to be confused with "remainder"!
-    Handle<MutableBigInt> rest;
-    // In the first round, divide the input, allocating a new BigInt for
-    // the result == rest; from then on divide the rest in-place.
-    Handle<BigIntBase>* dividend = &x;
-    uintptr_t work_estimate = 0;
-    do {
-      digit_t chunk;
-      AbsoluteDivSmall(isolate, *dividend, chunk_divisor, &rest, &chunk);
-      DCHECK(!rest.is_null());
-      dividend = reinterpret_cast<Handle<BigIntBase>*>(&rest);
-      DisallowGarbageCollection no_gc;
-      uint8_t* chars = result->GetChars(no_gc);
-      for (int i = 0; i < chunk_chars; i++) {
-        chars[pos++] = kConversionChars[chunk % radix];
-        chunk /= radix;
-      }
-      DCHECK_EQ(chunk, 0);
-      if (rest->digit(nonzero_digit) == 0) nonzero_digit--;
-      // We can never clear more than one digit per iteration, because
-      // chunk_divisor is smaller than max digit value.
-      DCHECK_GT(rest->digit(nonzero_digit), 0);
-
-      // String formatting can take a long time. Check for interrupt requests
-      // every now and then (roughly every 10-20 of milliseconds -- rarely
-      // enough not to create noticeable overhead, frequently enough not to
-      // appear frozen).
-      work_estimate += length;
-      if (work_estimate > 500000) {
-        work_estimate = 0;
-        StackLimitCheck interrupt_check(isolate);
-        if (interrupt_check.InterruptRequested()) {
-          {
-            AllowGarbageCollection might_throw;
-            if (isolate->stack_guard()->HandleInterrupts().IsException(
-                    isolate)) {
-              return MaybeHandle<String>();
-            }
-          }
-          // If there was an interrupt request but no termination, reload
-          // the raw characters pointer (as the string might have moved).
-          chars = result->GetChars(no_gc);
-        }
-      }
-    } while (nonzero_digit > 0);
-    last_digit = rest->digit(0);
-  }
-  DisallowGarbageCollection no_gc;
-  uint8_t* chars = result->GetChars(no_gc);
-  do {
-    chars[pos++] = kConversionChars[last_digit % radix];
-    last_digit /= radix;
-  } while (last_digit > 0);
-  DCHECK_GE(pos, 1);
-  DCHECK(pos <= static_cast<int>(chars_required));
-  // Remove leading zeroes.
-  while (pos > 1 && chars[pos - 1] == '0') pos--;
-  if (sign) chars[pos++] = '-';
-  // Trim any over-allocation (which can happen due to conservative estimates).
-  if (pos < static_cast<int>(chars_required)) {
-    result->set_length(pos, kReleaseStore);
-    int string_size =
-        SeqOneByteString::SizeFor(static_cast<int>(chars_required));
-    int needed_size = SeqOneByteString::SizeFor(pos);
-    if (needed_size < string_size && !heap->IsLargeObject(*result)) {
-      Address new_end = result->address() + needed_size;
-      heap->CreateFillerObjectAt(new_end, (string_size - needed_size),
-                                 ClearRecordedSlots::kNo);
-    }
-  }
-  // Reverse the string.
-  for (int i = 0, j = pos - 1; i < j; i++, j--) {
-    uint8_t tmp = chars[i];
-    chars[i] = chars[j];
-    chars[j] = tmp;
-  }
-#if DEBUG
-  // Verify that all characters have been written.
-  DCHECK(result->length() == pos);
-  for (int i = 0; i < pos; i++) DCHECK_NE(chars[i], '?');
-#endif
-  return result;
 }
 
 Handle<BigInt> BigInt::AsIntN(Isolate* isolate, uint64_t n, Handle<BigInt> x) {
@@ -2356,91 +2130,6 @@ inline BigInt::digit_t MutableBigInt::digit_mul(digit_t a, digit_t b,
       (r_mid1 >> kHalfDigitBits) + (r_mid2 >> kHalfDigitBits) + r_high + carry;
   return low;
 #endif
-}
-
-// Returns the quotient.
-// quotient = (high << kDigitBits + low - remainder) / divisor
-BigInt::digit_t MutableBigInt::digit_div(digit_t high, digit_t low,
-                                         digit_t divisor, digit_t* remainder) {
-  DCHECK(high < divisor);
-#if V8_TARGET_ARCH_X64 && (__GNUC__ || __clang__)
-  digit_t quotient;
-  digit_t rem;
-  __asm__("divq  %[divisor]"
-          // Outputs: {quotient} will be in rax, {rem} in rdx.
-          : "=a"(quotient), "=d"(rem)
-          // Inputs: put {high} into rdx, {low} into rax, and {divisor} into
-          // any register or stack slot.
-          : "d"(high), "a"(low), [divisor] "rm"(divisor));
-  *remainder = rem;
-  return quotient;
-#elif V8_TARGET_ARCH_IA32 && (__GNUC__ || __clang__)
-  digit_t quotient;
-  digit_t rem;
-  __asm__("divl  %[divisor]"
-          // Outputs: {quotient} will be in eax, {rem} in edx.
-          : "=a"(quotient), "=d"(rem)
-          // Inputs: put {high} into edx, {low} into eax, and {divisor} into
-          // any register or stack slot.
-          : "d"(high), "a"(low), [divisor] "rm"(divisor));
-  *remainder = rem;
-  return quotient;
-#else
-  static const digit_t kHalfDigitBase = 1ull << kHalfDigitBits;
-  // Adapted from Warren, Hacker's Delight, p. 152.
-  int s = base::bits::CountLeadingZeros(divisor);
-  DCHECK_NE(s, kDigitBits);  // {divisor} is not 0.
-  divisor <<= s;
-
-  digit_t vn1 = divisor >> kHalfDigitBits;
-  digit_t vn0 = divisor & kHalfDigitMask;
-  // {s} can be 0. {low >> kDigitBits} would be undefined behavior, so
-  // we mask the shift amount with {kShiftMask}, and the result with
-  // {s_zero_mask} which is 0 if s == 0 and all 1-bits otherwise.
-  STATIC_ASSERT(sizeof(intptr_t) == sizeof(digit_t));
-  const int kShiftMask = kDigitBits - 1;
-  digit_t s_zero_mask =
-      static_cast<digit_t>(static_cast<intptr_t>(-s) >> (kDigitBits - 1));
-  digit_t un32 =
-      (high << s) | ((low >> ((kDigitBits - s) & kShiftMask)) & s_zero_mask);
-  digit_t un10 = low << s;
-  digit_t un1 = un10 >> kHalfDigitBits;
-  digit_t un0 = un10 & kHalfDigitMask;
-  digit_t q1 = un32 / vn1;
-  digit_t rhat = un32 - q1 * vn1;
-
-  while (q1 >= kHalfDigitBase || q1 * vn0 > rhat * kHalfDigitBase + un1) {
-    q1--;
-    rhat += vn1;
-    if (rhat >= kHalfDigitBase) break;
-  }
-
-  digit_t un21 = un32 * kHalfDigitBase + un1 - q1 * divisor;
-  digit_t q0 = un21 / vn1;
-  rhat = un21 - q0 * vn1;
-
-  while (q0 >= kHalfDigitBase || q0 * vn0 > rhat * kHalfDigitBase + un0) {
-    q0--;
-    rhat += vn1;
-    if (rhat >= kHalfDigitBase) break;
-  }
-
-  *remainder = (un21 * kHalfDigitBase + un0 - q0 * divisor) >> s;
-  return q1 * kHalfDigitBase + q0;
-#endif
-}
-
-// Raises {base} to the power of {exponent}. Does not check for overflow.
-BigInt::digit_t MutableBigInt::digit_pow(digit_t base, digit_t exponent) {
-  digit_t result = 1ull;
-  while (exponent > 0) {
-    if (exponent & 1) {
-      result *= base;
-    }
-    exponent >>= 1;
-    base *= base;
-  }
-  return result;
 }
 
 #undef HAVE_TWODIGIT_T

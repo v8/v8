@@ -240,6 +240,10 @@ class Processor {
   Status Divide(RWDigits Q, Digits A, Digits B);
   // R := A % B
   Status Modulo(RWDigits R, Digits A, Digits B);
+
+  // {out_length} initially contains the allocated capacity of {out}, and
+  // upon return will be set to the actual length of the result string.
+  Status ToString(char* out, int* out_length, Digits X, int radix, bool sign);
 };
 
 inline int MultiplyResultLength(Digits X, Digits Y) {
@@ -249,6 +253,10 @@ inline int DivideResultLength(Digits A, Digits B) {
   return A.len() - B.len() + 1;
 }
 inline int ModuloResultLength(Digits B) { return B.len(); }
+
+int ToStringResultLength(Digits X, int radix, bool sign);
+// In DEBUG builds, the result of {ToString} will be initialized to this value.
+constexpr char kStringZapValue = '?';
 
 }  // namespace bigint
 }  // namespace v8
