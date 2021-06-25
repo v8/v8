@@ -842,7 +842,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
       __ LoadTaggedPointerField(x2,
                                 FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ CallCodeObject(x2);
+      __ CallCodeTObject(x2);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;

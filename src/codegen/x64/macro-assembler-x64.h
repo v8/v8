@@ -367,6 +367,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
 
   // Helper functions that dispatch either to Call/JumpCodeObject or to
   // Call/JumpCodeDataContainerObject.
+  void LoadCodeTEntry(Register destination, Register code);
   void CallCodeTObject(Register code);
   void JumpCodeTObject(Register code, JumpMode jump_mode = JumpMode::kJump);
 
@@ -871,12 +872,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void AssertSmi(Register object);
   void AssertSmi(Operand object);
 
+  // Abort execution if argument is not a CodeT, enabled via --debug-code.
+  void AssertCodeT(Register object);
+
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object);
-
-  // Abort execution if argument is not a CodeDataContainer, enabled via
-  // --debug-code.
-  void AssertCodeDataContainer(Register object);
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);

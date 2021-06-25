@@ -1508,6 +1508,20 @@ void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
   Check(ne, reason);
 }
 
+void MacroAssembler::AssertCodeT(Register object) {
+  if (!FLAG_debug_code) return;
+  ASM_CODE_COMMENT(this);
+  AssertNotSmi(object, AbortReason::kOperandIsNotACodeT);
+
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+
+  CompareObjectType(
+      object, temp, temp,
+      V8_EXTERNAL_CODE_SPACE_BOOL ? CODE_DATA_CONTAINER_TYPE : CODE_TYPE);
+  Check(eq, AbortReason::kOperandIsNotACodeT);
+}
+
 void MacroAssembler::AssertConstructor(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -2064,6 +2078,69 @@ void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   Jump(x17);
 }
 
+void TurboAssembler::LoadCodeDataContainerEntry(
+    Register destination, Register code_data_container_object) {
+  ASM_CODE_COMMENT(this);
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  Ldr(destination, FieldMemOperand(code_data_container_object,
+                                   CodeDataContainer::kCodeEntryPointOffset));
+}
+
+void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
+    Register destination, Register code_data_container_object) {
+  ASM_CODE_COMMENT(this);
+  LoadTaggedPointerField(destination,
+                         FieldMemOperand(code_data_container_object,
+                                         CodeDataContainer::kCodeOffset));
+}
+
+void TurboAssembler::CallCodeDataContainerObject(
+    Register code_data_container_object) {
+  ASM_CODE_COMMENT(this);
+  LoadCodeDataContainerEntry(code_data_container_object,
+                             code_data_container_object);
+  Call(code_data_container_object);
+}
+
+void TurboAssembler::JumpCodeDataContainerObject(
+    Register code_data_container_object, JumpMode jump_mode) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_EQ(JumpMode::kJump, jump_mode);
+  LoadCodeDataContainerEntry(code_data_container_object,
+                             code_data_container_object);
+  UseScratchRegisterScope temps(this);
+  if (code_data_container_object != x17) {
+    temps.Exclude(x17);
+    Mov(x17, code_data_container_object);
+  }
+  Jump(x17);
+}
+
+void TurboAssembler::LoadCodeTEntry(Register destination, Register code) {
+  ASM_CODE_COMMENT(this);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    LoadCodeDataContainerEntry(destination, code);
+  } else {
+    Add(destination, code, Operand(Code::kHeaderSize - kHeapObjectTag));
+  }
+}
+
+void TurboAssembler::CallCodeTObject(Register code) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    CallCodeDataContainerObject(code);
+  } else {
+    CallCodeObject(code);
+  }
+}
+
+void TurboAssembler::JumpCodeTObject(Register code, JumpMode jump_mode) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    JumpCodeDataContainerObject(code, jump_mode);
+  } else {
+    JumpCodeObject(code, jump_mode);
+  }
+}
+
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   ASM_CODE_COMMENT(this);
   // This generates the final instruction sequence for calls to C functions
@@ -2388,10 +2465,10 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                          FieldMemOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
-      CallCodeObject(code);
+      CallCodeTObject(code);
       break;
     case InvokeType::kJump:
-      JumpCodeObject(code);
+      JumpCodeTObject(code);
       break;
   }
   B(&done);

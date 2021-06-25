@@ -838,9 +838,7 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
   DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
   DCHECK_EQ(closure, kJSFunctionRegister);
   // Store the optimized code in the closure.
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    __ AssertCodeDataContainer(optimized_code);
-  }
+  __ AssertCodeT(optimized_code);
   __ StoreTaggedField(FieldOperand(closure, JSFunction::kCodeOffset),
                       optimized_code);
   // Write barrier clobbers scratch1 below.
@@ -957,8 +955,8 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
+  __ AssertCodeT(optimized_code_entry);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    __ AssertCodeDataContainer(optimized_code_entry);
     __ testl(FieldOperand(optimized_code_entry,
                           CodeDataContainer::kKindSpecificFlagsOffset),
              Immediate(1 << Code::kMarkedForDeoptimizationBit));
@@ -1533,11 +1531,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ LoadTaggedPointerField(
       rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    __ LoadCodeDataContainerEntry(rbx, rbx);
-  } else {
-    __ addq(rbx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  }
+  __ LoadCodeTEntry(rbx, rbx);
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);

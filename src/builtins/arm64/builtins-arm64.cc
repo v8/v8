@@ -552,7 +552,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Mov(x1, x4);
     static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
     __ LoadTaggedPointerField(x2, FieldMemOperand(x1, JSFunction::kCodeOffset));
-    __ JumpCodeObject(x2);
+    __ JumpCodeTObject(x2);
   }
 
   __ Bind(&prepare_step_in_if_stepping);
@@ -969,6 +969,7 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
   ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(optimized_code, closure));
   // Store code entry in the closure.
+  __ AssertCodeT(optimized_code);
   __ StoreTaggedField(optimized_code,
                       FieldMemOperand(closure, JSFunction::kCodeOffset));
   __ RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
@@ -1046,26 +1047,31 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
-  __ LoadTaggedPointerField(
-      scratch,
-      FieldMemOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
-  __ Ldr(scratch.W(),
-         FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
-          &heal_optimized_code_slot);
+  __ AssertCodeT(optimized_code_entry);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    __ Ldr(scratch.W(),
+           FieldMemOperand(optimized_code_entry,
+                           CodeDataContainer::kKindSpecificFlagsOffset));
+    __ Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
+            &heal_optimized_code_slot);
+
+  } else {
+    __ LoadTaggedPointerField(
+        scratch,
+        FieldMemOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
+    __ Ldr(
+        scratch.W(),
+        FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+    __ Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
+            &heal_optimized_code_slot);
+  }
 
   // Optimized code is good, get it into the closure and link the closure into
   // the optimized functions list, then tail call the optimized code.
   ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure);
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
-  __ LoadCodeObjectEntry(x2, optimized_code_entry);
-
-  {
-    UseScratchRegisterScope temps(masm);
-    temps.Exclude(x17);
-    __ Mov(x17, x2);
-    __ Jump(x17);
-  }
+  __ Move(x2, optimized_code_entry);
+  __ JumpCodeTObject(x2);
 
   // Optimized code slot contains deoptimized code or code is cleared and
   // optimized code marker isn't updated. Evict the code, update the marker
@@ -1613,7 +1619,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                             BaselineData::kBaselineCodeOffset));
     static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
     ReplaceClosureCodeWithOptimizedCode(masm, x2, closure);
-    __ JumpCodeObject(x2);
+    __ JumpCodeTObject(x2);
 
     __ bind(&install_baseline_code);
     GenerateTailCallToReturnedCode(masm, Runtime::kInstallBaselineCode);
@@ -1855,7 +1861,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   __ LoadTaggedPointerField(
       x1, FieldMemOperand(x1, InterpreterData::kInterpreterTrampolineOffset));
-  __ Add(x1, x1, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadCodeTEntry(x1, x1);
   __ B(&trampoline_loaded);
 
   __ Bind(&builtin_trampoline);
@@ -4044,6 +4050,9 @@ void Generate_BaselineEntry(MacroAssembler* masm, bool next_bytecode,
       FieldMemOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
   __ LoadTaggedPointerField(
       code_obj, FieldMemOperand(code_obj, BaselineData::kBaselineCodeOffset));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
+  }
 
   // Compute baseline pc for bytecode offset.
   ExternalReference get_baseline_pc_extref;
