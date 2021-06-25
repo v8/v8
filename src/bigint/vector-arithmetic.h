@@ -13,11 +13,11 @@
 namespace v8 {
 namespace bigint {
 
-// Z += X.
-void AddAt(RWDigits Z, Digits X);
+// Z += X. Returns carry on overflow.
+digit_t AddAndReturnOverflow(RWDigits Z, Digits X);
 
-// Z -= X.
-void SubAt(RWDigits Z, Digits X);
+// Z -= X. Returns borrow on overflow.
+digit_t SubAndReturnBorrow(RWDigits Z, Digits X);
 
 // Z := X + Y.
 void Add(RWDigits Z, Digits X, Digits Y);

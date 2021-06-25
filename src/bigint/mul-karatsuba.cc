@@ -102,7 +102,7 @@ void ProcessorImpl::KaratsubaStart(RWDigits Z, Digits X, Digits Y,
     if (Y1.len() > 0) {
       KaratsubaChunk(T, X0, Y1, scratch);
       if (should_terminate()) return;
-      AddAt(Z + k, T);
+      AddAndReturnOverflow(Z + k, T);  // Can't overflow.
     }
 
     // Add Xi * Y0 << i and Xi * Y1 * b << (i + k).
@@ -111,11 +111,11 @@ void ProcessorImpl::KaratsubaStart(RWDigits Z, Digits X, Digits Y,
       Digits Xi(X, i, k);
       KaratsubaChunk(T, Xi, Y0, scratch);
       if (should_terminate()) return;
-      AddAt(Z + i, T);
+      AddAndReturnOverflow(Z + i, T);  // Can't overflow.
       if (Y1.len() > 0) {
         KaratsubaChunk(T, Xi, Y1, scratch);
         if (should_terminate()) return;
-        AddAt(Z + (i + k), T);
+        AddAndReturnOverflow(Z + (i + k), T);  // Can't overflow.
       }
     }
   }
@@ -163,14 +163,16 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
   RWDigits P2(scratch, n, n);
   KaratsubaMain(P2, X1, Y1, scratch_for_recursion, n2);
   if (should_terminate()) return;
-  RWDigits Z1 = Z + n;
-  int end = std::min(Z1.len(), P2.len());
-  for (int i = 0; i < end; i++) Z1[i] = P2[i];
+  RWDigits Z2 = Z + n;
+  int end = std::min(Z2.len(), P2.len());
+  for (int i = 0; i < end; i++) Z2[i] = P2[i];
   for (int i = end; i < n; i++) {
     DCHECK(P2[i] == 0);  // NOLINT(readability/check)
   }
-  AddAt(Z + n2, P0);
-  AddAt(Z + n2, P2);
+  // The intermediate result can be one digit too large; the subtraction
+  // below will fix this.
+  digit_t overflow = AddAndReturnOverflow(Z + n2, P0);
+  overflow += AddAndReturnOverflow(Z + n2, P2);
   RWDigits X_diff(scratch, 0, n2);
   RWDigits Y_diff(scratch, n2, n2);
   int sign = 1;
@@ -179,10 +181,12 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
   RWDigits P1(scratch, n, n);
   KaratsubaMain(P1, X_diff, Y_diff, scratch_for_recursion, n2);
   if (sign > 0) {
-    AddAt(Z + n2, P1);
+    overflow += AddAndReturnOverflow(Z + n2, P1);
   } else {
-    SubAt(Z + n2, P1);
+    overflow -= SubAndReturnBorrow(Z + n2, P1);
   }
+  // The intermediate result may have been bigger, but the final result fits.
+  DCHECK(overflow == 0);  // NOLINT(readability/check)
 }
 
 }  // namespace bigint

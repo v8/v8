@@ -10,29 +10,32 @@
 namespace v8 {
 namespace bigint {
 
-void AddAt(RWDigits Z, Digits X) {
+digit_t AddAndReturnOverflow(RWDigits Z, Digits X) {
   X.Normalize();
-  if (X.len() == 0) return;
+  if (X.len() == 0) return 0;
   digit_t carry = 0;
   int i = 0;
   for (; i < X.len(); i++) {
     Z[i] = digit_add3(Z[i], X[i], carry, &carry);
   }
-  for (; carry != 0; i++) {
+  for (; i < Z.len() && carry != 0; i++) {
     Z[i] = digit_add2(Z[i], carry, &carry);
   }
+  return carry;
 }
 
-void SubAt(RWDigits Z, Digits X) {
+digit_t SubAndReturnBorrow(RWDigits Z, Digits X) {
   X.Normalize();
+  if (X.len() == 0) return 0;
   digit_t borrow = 0;
   int i = 0;
   for (; i < X.len(); i++) {
     Z[i] = digit_sub2(Z[i], X[i], borrow, &borrow);
   }
-  for (; borrow != 0; i++) {
+  for (; i < Z.len() && borrow != 0; i++) {
     Z[i] = digit_sub(Z[i], borrow, &borrow);
   }
+  return borrow;
 }
 
 void Add(RWDigits Z, Digits X, Digits Y) {
