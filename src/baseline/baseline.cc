@@ -5,6 +5,7 @@
 #include "src/baseline/baseline.h"
 
 #include "src/handles/maybe-handles.h"
+#include "src/objects/shared-function-info-inl.h"
 
 // TODO(v8:11421): Remove #if once baseline compiler is ported to other
 // architectures.
@@ -18,7 +19,6 @@
 #include "src/heap/factory-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/script-inl.h"
-#include "src/objects/shared-function-info-inl.h"
 
 namespace v8 {
 namespace internal {
