@@ -5,6 +5,7 @@
 #include "src/objects/elements.h"
 
 #include "src/base/atomicops.h"
+#include "src/base/safe_conversions.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
@@ -3367,8 +3368,8 @@ class TypedElementsAccessor
           }
           return Just(false);
         }
-      } else if (search_value < std::numeric_limits<ElementType>::lowest() ||
-                 search_value > std::numeric_limits<ElementType>::max()) {
+      } else if (!base::IsValueInRangeForNumericType<ElementType>(
+                     search_value)) {
         // Return false if value can't be represented in this space.
         return Just(false);
       }
@@ -3414,8 +3415,8 @@ class TypedElementsAccessor
         if (std::isnan(search_value)) {
           return Just<int64_t>(-1);
         }
-      } else if (search_value < std::numeric_limits<ElementType>::lowest() ||
-                 search_value > std::numeric_limits<ElementType>::max()) {
+      } else if (!base::IsValueInRangeForNumericType<ElementType>(
+                     search_value)) {
         // Return false if value can't be represented in this ElementsKind.
         return Just<int64_t>(-1);
       }
@@ -3467,8 +3468,8 @@ class TypedElementsAccessor
           // Strict Equality Comparison of NaN is always false.
           return Just<int64_t>(-1);
         }
-      } else if (search_value < std::numeric_limits<ElementType>::lowest() ||
-                 search_value > std::numeric_limits<ElementType>::max()) {
+      } else if (!base::IsValueInRangeForNumericType<ElementType>(
+                     search_value)) {
         // Return -1 if value can't be represented in this ElementsKind.
         return Just<int64_t>(-1);
       }
