@@ -148,20 +148,24 @@ def v8_library(
     )
 
 def _torque_impl(ctx):
+    v8root = ctx.attr.v8root[FlagInfo].value
     # Arguments
     args = []
+    args += ctx.attr.args
     args.append("-o")
-    args.append(ctx.genfiles_dir.path + "/torque-generated")
+    args.append(ctx.bin_dir.path + "/torque-generated")
+    args.append("-strip-v8-root")
     args.append("-v8-root")
-    args.append(".")
-    if ctx.attr._v8_annotate_torque_ir[FlagInfo].value:
-        args.append("-annotate-ir")
+    args.append(v8root)
     # Sources
     args += [f.path for f in ctx.files.srcs]
     # Generate/declare output files
     outs = []
     for src in ctx.files.srcs:
         root, period, ext = src.path.rpartition(".")
+        # Strip v8root
+        if root[:len(v8root)] == v8root:
+            root = root[len(v8root):]
         file = "torque-generated/" + root
         outs.append(ctx.actions.declare_file(file + "-tq-csa.cc"))
         outs.append(ctx.actions.declare_file(file + "-tq-csa.h"))
@@ -189,7 +193,8 @@ v8_torque = rule(
             executable = True,
             cfg = "host",
         ),
-        "_v8_annotate_torque_ir": attr.label(default = ":v8_annotate_torque_ir"),
+        "args": attr.string_list(),
+        "v8root": attr.label(default = ":v8_root"),
     },
 )
 

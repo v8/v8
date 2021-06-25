@@ -10,6 +10,7 @@ load(
     "v8_custom_config",
     "v8_flag",
     "v8_int",
+    "v8_string",
     "v8_library",
     "v8_torque",
     "v8_mksnapshot",
@@ -58,6 +59,11 @@ config_setting(
     },
 )
 
+selects.config_setting_group(
+    name = "is_32bits",
+    match_any = [":is_ia32", ":is_arm"],
+)
+
 config_setting(
     name = "is_linux",
     constraint_values = ["@platforms//os:linux"],
@@ -104,6 +110,8 @@ config_setting(
 # =================================================
 # Flags
 # =================================================
+
+v8_string(name = "v8_root", default = ".")
 
 v8_flag(name = "v8_annotate_torque_ir")
 v8_flag(name = "v8_enable_lazy_source_positions", default = True)
@@ -2612,6 +2620,13 @@ v8_torque(
         "objects-body-descriptors-inl.inc",
         "objects-printer.cc",
     ],
+    args = select({
+        ":is_v8_annotate_torque_ir": [ "-annotate-ir" ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_32bits": [ "-m32" ],
+        "//conditions:default": [],
+    }),
 )
 
 genrule(
