@@ -720,7 +720,6 @@ filegroup(
         "src/ast/source-range-ast-visitor.h",
         "src/ast/variables.cc",
         "src/ast/variables.h",
-        "src/baseline/baseline-osr-inl.h",
         "src/baseline/baseline-assembler-inl.h",
         "src/baseline/baseline-assembler.h",
         "src/baseline/baseline-compiler.cc",
