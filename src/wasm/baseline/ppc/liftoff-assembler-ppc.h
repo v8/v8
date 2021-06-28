@@ -49,7 +49,7 @@ inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
 }
 
 inline MemOperand GetStackSlot(uint32_t offset) {
-  return MemOperand(fp, -offset);
+  return MemOperand(fp, -static_cast<int32_t>(offset));
 }
 
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
@@ -525,9 +525,36 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
   bailout(kUnsupportedArchitecture, "LoadReturnStackSlot");
 }
 
+#ifdef V8_TARGET_BIG_ENDIAN
+constexpr int stack_bias = -4;
+#else
+constexpr int stack_bias = 0;
+#endif
+
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueKind kind) {
-  bailout(kUnsupportedArchitecture, "MoveStackValue");
+  DCHECK_NE(dst_offset, src_offset);
+
+  switch (kind) {
+    case kI32:
+    case kF32:
+      LoadU32(ip, liftoff::GetStackSlot(dst_offset + stack_bias), r0);
+      StoreU32(ip, liftoff::GetStackSlot(src_offset + stack_bias), r0);
+      break;
+    case kI64:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kF64:
+      LoadU64(ip, liftoff::GetStackSlot(dst_offset), r0);
+      StoreU64(ip, liftoff::GetStackSlot(src_offset), r0);
+      break;
+    case kS128:
+      bailout(kSimd, "simd op");
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
