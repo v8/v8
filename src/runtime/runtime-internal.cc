@@ -347,7 +347,7 @@ RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterruptFromBytecode) {
   }
   if (CanCompileWithBaseline(isolate, function->shared()) &&
       !function->ActiveTierIsBaseline()) {
-    if (V8_LIKELY(FLAG_baseline_batch_compilation)) {
+    if (FLAG_baseline_batch_compilation) {
       isolate->baseline_batch_compiler()->EnqueueFunction(function);
     } else {
       IsCompiledScope is_compiled_scope(
