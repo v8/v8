@@ -1283,6 +1283,8 @@ TEST(15) {
     uint32_t vmin_s8[4], vmin_u16[4], vmin_s32[4];
     uint32_t vmax_s8[4], vmax_u16[4], vmax_s32[4];
     uint32_t vpadd_i8[2], vpadd_i16[2], vpadd_i32[2];
+    uint32_t vpadal_s8[4], vpadal_s16[4], vpadal_s32[4];
+    uint32_t vpadal_u8[4], vpadal_u16[4], vpadal_u32[4];
     uint32_t vpaddl_s8[4], vpaddl_s16[4], vpaddl_s32[4];
     uint32_t vpaddl_u8[4], vpaddl_u16[4], vpaddl_u32[4];
     uint32_t vpmin_s8[2], vpmin_u16[2], vpmin_s32[2];
@@ -1647,6 +1649,47 @@ TEST(15) {
     __ vstr(d0, r0, offsetof(T, vpadd_i16));
     __ vpadd(Neon32, d0, d0, d2);
     __ vstr(d0, r0, offsetof(T, vpadd_i32));
+
+    // vpadal signed.
+    __ mov(r4, Operand(0x81));
+    __ vdup(Neon8, q0, r4);
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonS8, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_s8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonS16, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_s16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonS32, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_s32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vpadal unsigned.
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonU8, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_u8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonU16, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q2, r4);
+    __ vpadal(NeonU32, q2, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vpadal_u32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
 
     // vpaddl signed.
     __ mov(r4, Operand(0x81));
@@ -2254,6 +2297,14 @@ TEST(15) {
     CHECK_EQ_32X2(vpadd_i8, 0x03030303u, 0x06060606u);
     CHECK_EQ_32X2(vpadd_i16, 0x0C0C0606u, 0x06060606u);
     CHECK_EQ_32X2(vpadd_i32, 0x12120C0Cu, 0x06060606u);
+
+    CHECK_EQ_32X4(vpadal_s8, 0x30003, 0x30003, 0x30003, 0x30003);
+    CHECK_EQ_32X4(vpadal_s16, 0x1000403, 0x1000403, 0x1000403, 0x1000403);
+    CHECK_EQ_32X4(vpadal_s32, 0x4040403, 0x1010100, 0x4040403, 0x1010100);
+
+    CHECK_EQ_32X4(vpadal_u8, 0x2030203, 0x2030203, 0x2030203, 0x2030203);
+    CHECK_EQ_32X4(vpadal_u16, 0x1020403, 0x1020403, 0x1020403, 0x1020403);
+    CHECK_EQ_32X4(vpadal_u32, 0x4040403, 0x1010102, 0x4040403, 0x1010102);
 
     CHECK_EQ_32X4(vpaddl_s8, 0xFF02FF02, 0xFF02FF02, 0xFF02FF02, 0xFF02FF02);
     CHECK_EQ_32X4(vpaddl_s16, 0xFFFF0302, 0xFFFF0302, 0xFFFF0302, 0xFFFF0302);

@@ -4043,6 +4043,8 @@ enum UnaryOp {
   VTRN,
   VRECPE,
   VRSQRTE,
+  VPADAL_S,
+  VPADAL_U,
   VPADDL_S,
   VPADDL_U,
   VCEQ0,
@@ -4115,6 +4117,12 @@ static Instr EncodeNeonUnaryOp(UnaryOp op, NeonRegType reg_type, NeonSize size,
     case VRSQRTE:
       // Only support floating point.
       op_encoding = 0x3 * B16 | 0xB * B7;
+      break;
+    case VPADAL_S:
+      op_encoding = 0xC * B7;
+      break;
+    case VPADAL_U:
+      op_encoding = 0xD * B7;
       break;
     case VPADDL_S:
       op_encoding = 0x4 * B7;
@@ -5011,6 +5019,14 @@ void Assembler::vtrn(NeonSize size, QwNeonRegister src1, QwNeonRegister src2) {
   // vtrn.<size>(Qn, Qm) SIMD element transpose.
   // Instruction details available in ARM DDI 0406C.b, A8-1096.
   emit(EncodeNeonUnaryOp(VTRN, NEON_Q, size, src1.code(), src2.code()));
+}
+
+void Assembler::vpadal(NeonDataType dt, QwNeonRegister dst,
+                       QwNeonRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // vpadal.<dt>(Qd, Qm) SIMD Vector Pairwise Add and Accumulate Long
+  emit(EncodeNeonUnaryOp(NeonU(dt) ? VPADAL_U : VPADAL_S, NEON_Q,
+                         NeonDataTypeToSize(dt), dst.code(), src.code()));
 }
 
 void Assembler::vpaddl(NeonDataType dt, QwNeonRegister dst,

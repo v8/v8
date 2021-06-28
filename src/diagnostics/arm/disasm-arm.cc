@@ -2276,6 +2276,10 @@ void Decoder::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
       out_buffer_pos_ +=
           base::SNPrintF(out_buffer_ + out_buffer_pos_, "vrev%d.%d q%d, q%d",
                          op, esize, Vd, Vm);
+    } else if (opc1 == 0 && opc2 == 0b1100) {
+      Format(instr, q ? "vpadal.s'size2 'Qd, 'Qm" : "vpadal.s'size2 'Dd, 'Dm");
+    } else if (opc1 == 0 && opc2 == 0b1101) {
+      Format(instr, q ? "vpadal.u'size2 'Qd, 'Qm" : "vpadal.u'size2 'Dd, 'Dm");
     } else if (opc1 == 0 && opc2 == 0b0100) {
       Format(instr, q ? "vpaddl.s'size2 'Qd, 'Qm" : "vpaddl.s'size2 'Dd, 'Dm");
     } else if (opc1 == 0 && opc2 == 0b0101) {

@@ -920,6 +920,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
              DwVfpRegister src2);
 
+  void vpadal(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src);
   void vpaddl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src);
   void vqrdmulh(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
                 QwNeonRegister src2);

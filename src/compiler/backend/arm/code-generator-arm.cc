@@ -1848,6 +1848,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(1).high());
       break;
     }
+    case kArmVpadal: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
+      __ vpadal(dt, i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     case kArmVpaddl: {
       auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
       __ vpaddl(dt, i.OutputSimd128Register(), i.InputSimd128Register(0));

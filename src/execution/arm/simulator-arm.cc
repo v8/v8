@@ -4303,6 +4303,21 @@ void PairwiseAddLong(Simulator* simulator, int Vd, int Vm) {
   simulator->set_neon_register<WideType, SIZE>(Vd, dst);
 }
 
+template <typename NarrowType, typename WideType, int SIZE = kSimd128Size>
+void PairwiseAddAccumulateLong(Simulator* simulator, int Vd, int Vm) {
+  DCHECK_EQ(sizeof(WideType), 2 * sizeof(NarrowType));
+  static constexpr int kSElems = SIZE / sizeof(NarrowType);
+  static constexpr int kTElems = SIZE / sizeof(WideType);
+  NarrowType src[kSElems];
+  WideType dst[kTElems];
+  simulator->get_neon_register<NarrowType, SIZE>(Vm, src);
+  simulator->get_neon_register<WideType, SIZE>(Vd, dst);
+  for (int i = 0; i < kTElems; i++) {
+    dst[i] += WideType{src[i * 2]} + WideType{src[i * 2 + 1]};
+  }
+  simulator->set_neon_register<WideType, SIZE>(Vd, dst);
+}
+
 template <typename NarrowType, typename WideType>
 void MultiplyLong(Simulator* simulator, int Vd, int Vn, int Vm) {
   DCHECK_EQ(sizeof(WideType), 2 * sizeof(NarrowType));
@@ -4480,6 +4495,31 @@ void Simulator::DecodeAdvancedSIMDTwoOrThreeRegisters(Instruction* instr) {
         case Neon32:
           is_signed ? PairwiseAddLong<int32_t, int64_t>(this, Vd, Vm)
                     : PairwiseAddLong<uint32_t, uint64_t>(this, Vd, Vm);
+          break;
+        case Neon64:
+          UNREACHABLE();
+      }
+    } else if (opc1 == 0 && (opc2 == 0b1100 || opc2 == 0b1101)) {
+      DCHECK_EQ(1, instr->Bit(6));  // Only support Q regs.
+      int Vd = instr->VFPDRegValue(kSimd128Precision);
+      int Vm = instr->VFPMRegValue(kSimd128Precision);
+      int is_signed = instr->Bit(7) == 0;
+      // vpadal Qd, Qm
+      switch (size) {
+        case Neon8:
+          is_signed
+              ? PairwiseAddAccumulateLong<int8_t, int16_t>(this, Vd, Vm)
+              : PairwiseAddAccumulateLong<uint8_t, uint16_t>(this, Vd, Vm);
+          break;
+        case Neon16:
+          is_signed
+              ? PairwiseAddAccumulateLong<int16_t, int32_t>(this, Vd, Vm)
+              : PairwiseAddAccumulateLong<uint16_t, uint32_t>(this, Vd, Vm);
+          break;
+        case Neon32:
+          is_signed
+              ? PairwiseAddAccumulateLong<int32_t, int64_t>(this, Vd, Vm)
+              : PairwiseAddAccumulateLong<uint32_t, uint64_t>(this, Vd, Vm);
           break;
         case Neon64:
           UNREACHABLE();
