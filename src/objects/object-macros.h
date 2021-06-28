@@ -88,6 +88,13 @@
   }                                                          \
   type holder::name(PtrComprCageBase cage_base) const
 
+#define DEF_RELAXED_GETTER(holder, name, type)               \
+  type holder::name(RelaxedLoadTag tag) const {              \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*this); \
+    return holder::name(cage_base, tag);                     \
+  }                                                          \
+  type holder::name(PtrComprCageBase cage_base, RelaxedLoadTag) const
+
 #define DEF_ACQUIRE_GETTER(holder, name, type)               \
   type holder::name(AcquireLoadTag tag) const {              \
     PtrComprCageBase cage_base = GetPtrComprCageBase(*this); \
@@ -238,11 +245,7 @@
 // Similar to ACCESSORS_RELAXED above but with respective relaxed tags.
 #define RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                                    set_condition)                             \
-  type holder::name(RelaxedLoadTag tag) const {                               \
-    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);                  \
-    return holder::name(cage_base, tag);                                      \
-  }                                                                           \
-  type holder::name(PtrComprCageBase cage_base, RelaxedLoadTag) const {       \
+  DEF_RELAXED_GETTER(holder, name, type) {                                    \
     type value = TaggedField<type, offset>::Relaxed_Load(cage_base, *this);   \
     DCHECK(get_condition);                                                    \
     return value;                                                             \

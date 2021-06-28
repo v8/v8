@@ -233,6 +233,14 @@ inline Code FromCodeT(CodeT code) {
 #endif
 }
 
+inline Code FromCodeT(CodeT code, RelaxedLoadTag) {
+#if V8_EXTERNAL_CODE_SPACE
+  return code.code(kRelaxedLoad);
+#else
+  return code;
+#endif
+}
+
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) {
 #if V8_EXTERNAL_CODE_SPACE
   return code;
@@ -773,6 +781,8 @@ RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,
                         kKindSpecificFlagsOffset)
 ACCESSORS_CHECKED(CodeDataContainer, raw_code, Object, kCodeOffset,
                   V8_EXTERNAL_CODE_SPACE_BOOL)
+RELAXED_ACCESSORS_CHECKED(CodeDataContainer, raw_code, Object, kCodeOffset,
+                          V8_EXTERNAL_CODE_SPACE_BOOL)
 ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 void CodeDataContainer::AllocateExternalPointerEntries(Isolate* isolate) {
@@ -783,6 +793,11 @@ void CodeDataContainer::AllocateExternalPointerEntries(Isolate* isolate) {
 DEF_GETTER(CodeDataContainer, code, Code) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   return Code::cast(raw_code(cage_base));
+}
+
+DEF_RELAXED_GETTER(CodeDataContainer, code, Code) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  return Code::cast(raw_code(cage_base, kRelaxedLoad));
 }
 
 DEF_GETTER(CodeDataContainer, code_entry_point, Address) {

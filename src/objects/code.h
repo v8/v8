@@ -50,6 +50,7 @@ class CodeDataContainer : public HeapObject {
   // Back-reference to the Code object.
   // Available only when V8_EXTERNAL_CODE_SPACE is defined.
   DECL_GETTER(code, Code)
+  DECL_RELAXED_GETTER(code, Code)
 
   // Cached value of code().InstructionStart().
   // Available only when V8_EXTERNAL_CODE_SPACE is defined.
@@ -96,6 +97,7 @@ class CodeDataContainer : public HeapObject {
 
  private:
   DECL_ACCESSORS(raw_code, Object)
+  DECL_RELAXED_ACCESSORS(raw_code, Object)
   inline void set_code_entry_point(Isolate* isolate, Address value);
 
   friend Factory;
@@ -633,6 +635,7 @@ class Code::OptimizedCodeIterator {
 // when V8_EXTERNAL_CODE_SPACE is enabled.
 inline CodeT ToCodeT(Code code);
 inline Code FromCodeT(CodeT code);
+inline Code FromCodeT(CodeT code, RelaxedLoadTag);
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
 class AbstractCode : public HeapObject {

@@ -151,7 +151,7 @@ void JSFunction::set_code(Code code, WriteBarrierMode mode) {
 }
 
 DEF_ACQUIRE_GETTER(JSFunction, code, Code) {
-  return FromCodeT(raw_code(cage_base));
+  return FromCodeT(raw_code(cage_base, kAcquireLoad));
 }
 
 void JSFunction::set_code(Code code, ReleaseStoreTag, WriteBarrierMode mode) {
@@ -293,7 +293,7 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
 
   Object maybe_code = RELAXED_READ_FIELD(*this, kCodeOffset);
   if (!maybe_code.IsCodeT()) return false;
-  Code code = FromCodeT(CodeT::cast(maybe_code));
+  Code code = FromCodeT(CodeT::cast(maybe_code), kRelaxedLoad);
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
   return !shared.is_compiled() && code.builtin_id() != Builtin::kCompileLazy;
