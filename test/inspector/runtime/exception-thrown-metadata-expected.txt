@@ -132,3 +132,40 @@ Check that exceptionThrown is supported by test runner.
         timestamp : <timestamp>
     }
 }
+{
+    method : Runtime.exceptionThrown
+    params : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                className : Object
+                description : Object
+                objectId : <objectId>
+                preview : {
+                    description : Object
+                    overflow : false
+                    properties : [
+                    ]
+                    type : object
+                }
+                type : object
+            }
+            exceptionId : <exceptionId>
+            executionContextId : <executionContextId>
+            lineNumber : 1
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 2
+                        functionName : 
+                        lineNumber : 1
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught [object Object]
+        }
+        timestamp : <timestamp>
+    }
+}
