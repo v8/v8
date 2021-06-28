@@ -1450,7 +1450,8 @@ class LiftoffCompiler {
     CallEmitFn(bound_fn.fn, bound_fn.first_arg, ConvertAssemblerArg(args)...);
   }
 
-  template <ValueKind src_kind, ValueKind result_kind, class EmitFn>
+  template <ValueKind src_kind, ValueKind result_kind,
+            ValueKind result_lane_kind = kVoid, class EmitFn>
   void EmitUnOp(EmitFn fn) {
     constexpr RegClass src_rc = reg_class_for(src_kind);
     constexpr RegClass result_rc = reg_class_for(result_kind);
@@ -1459,9 +1460,14 @@ class LiftoffCompiler {
                               ? __ GetUnusedRegister(result_rc, {src}, {})
                               : __ GetUnusedRegister(result_rc, {});
     CallEmitFn(fn, dst, src);
-    if (V8_UNLIKELY(nondeterminism_) &&
-        (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64)) {
-      CheckNan(dst, LiftoffRegList::ForRegs(src, dst), result_kind);
+    if (V8_UNLIKELY(nondeterminism_)) {
+      auto pinned = LiftoffRegList::ForRegs(dst);
+      if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
+        CheckNan(dst, pinned, result_kind);
+      } else if (result_kind == ValueKind::kS128 &&
+                 (result_lane_kind == kF32 || result_lane_kind == kF64)) {
+        CheckS128Nan(dst, pinned, result_lane_kind);
+      }
     }
     __ PushRegister(result_kind, dst);
   }
@@ -1692,7 +1698,8 @@ class LiftoffCompiler {
   }
 
   template <ValueKind src_kind, ValueKind result_kind,
-            bool swap_lhs_rhs = false, typename EmitFn>
+            bool swap_lhs_rhs = false, ValueKind result_lane_kind = kVoid,
+            typename EmitFn>
   void EmitBinOp(EmitFn fn) {
     static constexpr RegClass src_rc = reg_class_for(src_kind);
     static constexpr RegClass result_rc = reg_class_for(result_kind);
@@ -1705,9 +1712,14 @@ class LiftoffCompiler {
     if (swap_lhs_rhs) std::swap(lhs, rhs);
 
     CallEmitFn(fn, dst, lhs, rhs);
-    if (V8_UNLIKELY(nondeterminism_) &&
-        (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64)) {
-      CheckNan(dst, LiftoffRegList::ForRegs(rhs, lhs, dst), result_kind);
+    if (V8_UNLIKELY(nondeterminism_)) {
+      auto pinned = LiftoffRegList::ForRegs(dst);
+      if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
+        CheckNan(dst, pinned, result_kind);
+      } else if (result_kind == ValueKind::kS128 &&
+                 (result_lane_kind == kF32 || result_lane_kind == kF64)) {
+        CheckS128Nan(dst, pinned, result_lane_kind);
+      }
     }
     __ PushRegister(result_kind, dst);
   }
@@ -3289,7 +3301,8 @@ class LiftoffCompiler {
     __ bind(&cont_false);
   }
 
-  template <ValueKind src_kind, ValueKind result_kind, typename EmitFn>
+  template <ValueKind src_kind, ValueKind result_kind,
+            ValueKind result_lane_kind = kVoid, typename EmitFn>
   void EmitTerOp(EmitFn fn) {
     static constexpr RegClass src_rc = reg_class_for(src_kind);
     static constexpr RegClass result_rc = reg_class_for(result_kind);
@@ -3305,10 +3318,15 @@ class LiftoffCompiler {
                                    LiftoffRegList::ForRegs(src1, src2))
             : __ GetUnusedRegister(result_rc, {});
     CallEmitFn(fn, dst, src1, src2, src3);
-    if (V8_UNLIKELY(nondeterminism_) &&
-        (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64)) {
-      CheckNan(dst, LiftoffRegList::ForRegs(src1, src2, src3, dst),
-               result_kind);
+    if (V8_UNLIKELY(nondeterminism_)) {
+      auto pinned = LiftoffRegList::ForRegs(dst);
+      if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
+        CheckNan(dst, pinned, result_kind);
+      } else if (result_kind == ValueKind::kS128 &&
+                 (result_lane_kind == kF32 || result_lane_kind == kF64)) {
+        CheckS128Nan(dst, LiftoffRegList::ForRegs(src1, src2, src3, dst),
+                     result_lane_kind);
+      }
     }
     __ PushRegister(result_kind, dst);
   }
@@ -3338,6 +3356,7 @@ class LiftoffCompiler {
     }
   }
 
+  template <ValueKind result_lane_kind>
   void EmitSimdFloatRoundingOpWithCFallback(
       bool (LiftoffAssembler::*emit_fn)(LiftoffRegister, LiftoffRegister),
       ExternalReference (*ext_ref)()) {
@@ -3348,6 +3367,10 @@ class LiftoffCompiler {
       // Return v128 via stack for ARM.
       auto sig_v_s = MakeSig::Params(kS128);
       GenerateCCall(&dst, &sig_v_s, kS128, &src, ext_ref());
+    }
+    if (V8_UNLIKELY(nondeterminism_)) {
+      auto pinned = LiftoffRegList::ForRegs(dst);
+      CheckS128Nan(dst, pinned, result_lane_kind);
     }
     __ PushRegister(kS128, dst);
   }
@@ -3371,9 +3394,9 @@ class LiftoffCompiler {
       case wasm::kExprI64x2Splat:
         return EmitUnOp<kI64, kS128>(&LiftoffAssembler::emit_i64x2_splat);
       case wasm::kExprF32x4Splat:
-        return EmitUnOp<kF32, kS128>(&LiftoffAssembler::emit_f32x4_splat);
+        return EmitUnOp<kF32, kS128, kF32>(&LiftoffAssembler::emit_f32x4_splat);
       case wasm::kExprF64x2Splat:
-        return EmitUnOp<kF64, kS128>(&LiftoffAssembler::emit_f64x2_splat);
+        return EmitUnOp<kF64, kS128, kF64>(&LiftoffAssembler::emit_f64x2_splat);
       case wasm::kExprI8x16Eq:
         return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_eq);
       case wasm::kExprI8x16Ne:
@@ -3685,92 +3708,108 @@ class LiftoffCompiler {
         return EmitUnOp<kS128, kS128>(
             &LiftoffAssembler::emit_i64x2_uconvert_i32x4_high);
       case wasm::kExprF32x4Abs:
-        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_abs);
+        return EmitUnOp<kS128, kS128, kF32>(&LiftoffAssembler::emit_f32x4_abs);
       case wasm::kExprF32x4Neg:
-        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_neg);
+        return EmitUnOp<kS128, kS128, kF32>(&LiftoffAssembler::emit_f32x4_neg);
       case wasm::kExprF32x4Sqrt:
-        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_sqrt);
+        return EmitUnOp<kS128, kS128, kF32>(&LiftoffAssembler::emit_f32x4_sqrt);
       case wasm::kExprF32x4Ceil:
-        return EmitSimdFloatRoundingOpWithCFallback(
+        return EmitSimdFloatRoundingOpWithCFallback<kF32>(
             &LiftoffAssembler::emit_f32x4_ceil,
             &ExternalReference::wasm_f32x4_ceil);
       case wasm::kExprF32x4Floor:
-        return EmitSimdFloatRoundingOpWithCFallback(
+        return EmitSimdFloatRoundingOpWithCFallback<kF32>(
             &LiftoffAssembler::emit_f32x4_floor,
             ExternalReference::wasm_f32x4_floor);
       case wasm::kExprF32x4Trunc:
-        return EmitSimdFloatRoundingOpWithCFallback(
+        return EmitSimdFloatRoundingOpWithCFallback<kF32>(
             &LiftoffAssembler::emit_f32x4_trunc,
             ExternalReference::wasm_f32x4_trunc);
       case wasm::kExprF32x4NearestInt:
-        return EmitSimdFloatRoundingOpWithCFallback(
+        return EmitSimdFloatRoundingOpWithCFallback<kF32>(
             &LiftoffAssembler::emit_f32x4_nearest_int,
             ExternalReference::wasm_f32x4_nearest_int);
       case wasm::kExprF32x4Add:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_add);
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_add);
       case wasm::kExprF32x4Sub:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_sub);
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_sub);
       case wasm::kExprF32x4Mul:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_mul);
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_mul);
       case wasm::kExprF32x4Div:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_div);
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_div);
       case wasm::kExprF32x4Min:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_min);
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_min);
       case wasm::kExprF32x4Max:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_max);
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_max);
       case wasm::kExprF32x4Pmin:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_pmin);
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_pmin);
       case wasm::kExprF32x4Pmax:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_pmax);
+        return EmitBinOp<kS128, kS128, false, kF32>(
+            &LiftoffAssembler::emit_f32x4_pmax);
       case wasm::kExprF64x2Abs:
-        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_abs);
+        return EmitUnOp<kS128, kS128, kF64>(&LiftoffAssembler::emit_f64x2_abs);
       case wasm::kExprF64x2Neg:
-        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_neg);
+        return EmitUnOp<kS128, kS128, kF64>(&LiftoffAssembler::emit_f64x2_neg);
       case wasm::kExprF64x2Sqrt:
-        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_sqrt);
+        return EmitUnOp<kS128, kS128, kF64>(&LiftoffAssembler::emit_f64x2_sqrt);
       case wasm::kExprF64x2Ceil:
-        return EmitSimdFloatRoundingOpWithCFallback(
+        return EmitSimdFloatRoundingOpWithCFallback<kF64>(
             &LiftoffAssembler::emit_f64x2_ceil,
             &ExternalReference::wasm_f64x2_ceil);
       case wasm::kExprF64x2Floor:
-        return EmitSimdFloatRoundingOpWithCFallback(
+        return EmitSimdFloatRoundingOpWithCFallback<kF64>(
             &LiftoffAssembler::emit_f64x2_floor,
             ExternalReference::wasm_f64x2_floor);
       case wasm::kExprF64x2Trunc:
-        return EmitSimdFloatRoundingOpWithCFallback(
+        return EmitSimdFloatRoundingOpWithCFallback<kF64>(
             &LiftoffAssembler::emit_f64x2_trunc,
             ExternalReference::wasm_f64x2_trunc);
       case wasm::kExprF64x2NearestInt:
-        return EmitSimdFloatRoundingOpWithCFallback(
+        return EmitSimdFloatRoundingOpWithCFallback<kF64>(
             &LiftoffAssembler::emit_f64x2_nearest_int,
             ExternalReference::wasm_f64x2_nearest_int);
       case wasm::kExprF64x2Add:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_add);
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_add);
       case wasm::kExprF64x2Sub:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_sub);
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_sub);
       case wasm::kExprF64x2Mul:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_mul);
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_mul);
       case wasm::kExprF64x2Div:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_div);
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_div);
       case wasm::kExprF64x2Min:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_min);
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_min);
       case wasm::kExprF64x2Max:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_max);
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_max);
       case wasm::kExprF64x2Pmin:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_pmin);
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_pmin);
       case wasm::kExprF64x2Pmax:
-        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_pmax);
+        return EmitBinOp<kS128, kS128, false, kF64>(
+            &LiftoffAssembler::emit_f64x2_pmax);
       case wasm::kExprI32x4SConvertF32x4:
-        return EmitUnOp<kS128, kS128>(
+        return EmitUnOp<kS128, kS128, kF32>(
             &LiftoffAssembler::emit_i32x4_sconvert_f32x4);
       case wasm::kExprI32x4UConvertF32x4:
-        return EmitUnOp<kS128, kS128>(
+        return EmitUnOp<kS128, kS128, kF32>(
             &LiftoffAssembler::emit_i32x4_uconvert_f32x4);
       case wasm::kExprF32x4SConvertI32x4:
-        return EmitUnOp<kS128, kS128>(
+        return EmitUnOp<kS128, kS128, kF32>(
             &LiftoffAssembler::emit_f32x4_sconvert_i32x4);
       case wasm::kExprF32x4UConvertI32x4:
-        return EmitUnOp<kS128, kS128>(
+        return EmitUnOp<kS128, kS128, kF32>(
             &LiftoffAssembler::emit_f32x4_uconvert_i32x4);
       case wasm::kExprI8x16SConvertI16x8:
         return EmitBinOp<kS128, kS128>(
@@ -3825,16 +3864,16 @@ class LiftoffCompiler {
       case wasm::kExprI64x2Abs:
         return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_abs);
       case wasm::kExprF64x2ConvertLowI32x4S:
-        return EmitUnOp<kS128, kS128>(
+        return EmitUnOp<kS128, kS128, kF64>(
             &LiftoffAssembler::emit_f64x2_convert_low_i32x4_s);
       case wasm::kExprF64x2ConvertLowI32x4U:
-        return EmitUnOp<kS128, kS128>(
+        return EmitUnOp<kS128, kS128, kF64>(
             &LiftoffAssembler::emit_f64x2_convert_low_i32x4_u);
       case wasm::kExprF64x2PromoteLowF32x4:
-        return EmitUnOp<kS128, kS128>(
+        return EmitUnOp<kS128, kS128, kF64>(
             &LiftoffAssembler::emit_f64x2_promote_low_f32x4);
       case wasm::kExprF32x4DemoteF64x2Zero:
-        return EmitUnOp<kS128, kS128>(
+        return EmitUnOp<kS128, kS128, kF32>(
             &LiftoffAssembler::emit_f32x4_demote_f64x2_zero);
       case wasm::kExprI32x4TruncSatF64x2SZero:
         return EmitUnOp<kS128, kS128>(
@@ -6101,6 +6140,20 @@ class LiftoffCompiler {
         nondeterminism_addr,
         WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(nondeterminism_)));
     __ emit_set_if_nan(nondeterminism_addr.gp(), src.fp(), kind);
+  }
+
+  void CheckS128Nan(LiftoffRegister dst, LiftoffRegList pinned,
+                    ValueKind lane_kind) {
+    RegClass rc = reg_class_for(kS128);
+    LiftoffRegister tmp_gp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister tmp_fp = pinned.set(__ GetUnusedRegister(rc, pinned));
+    LiftoffRegister nondeterminism_addr =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(
+        nondeterminism_addr,
+        WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(nondeterminism_)));
+    __ emit_s128_set_if_nan(nondeterminism_addr.gp(), dst.fp(), tmp_gp.gp(),
+                            tmp_fp.fp(), lane_kind);
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
