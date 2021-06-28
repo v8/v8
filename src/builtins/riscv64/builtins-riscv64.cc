@@ -1165,23 +1165,22 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   }
 
   Label call_stack_guard;
+  Register frame_size = descriptor.GetRegisterParameter(
+      BaselineOutOfLinePrologueDescriptor::kStackFrameSize);
   {
-    ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt check")
+    ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt check");
     // Stack check. This folds the checks for both the interrupt stack limit
     // check and the real stack limit into one by just checking for the
     // interrupt limit. The interrupt limit is either equal to the real stack
     // limit or tighter. By ensuring we have space until that limit after
     // building the frame we can quickly precheck both at once.
     UseScratchRegisterScope temps(masm);
-    Register frame_size = temps.Acquire();
-    __ Ld(frame_size,
-          FieldMemOperand(bytecodeArray, BytecodeArray::kFrameSizeOffset));
-    Register sp_minus_frame_size = frame_size;
+    Register sp_minus_frame_size = temps.Acquire();
     __ Sub64(sp_minus_frame_size, sp, frame_size);
     Register interrupt_limit = temps.Acquire();
     __ LoadStackLimit(interrupt_limit,
                       MacroAssembler::StackLimitKind::kInterruptStackLimit);
-    __ BranchShort(&call_stack_guard, Uless, sp_minus_frame_size,
+    __ Branch(&call_stack_guard, Uless, sp_minus_frame_size,
               Operand(interrupt_limit));
   }
 

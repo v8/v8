@@ -2828,6 +2828,22 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
+void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
+                                       ValueKind kind) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  li(scratch, 1);
+  if (kind == kF32) {
+    feq_s(scratch, src, src);  // rd <- !isNan(src)
+  } else {
+    DCHECK_EQ(kind, kF64);
+    feq_d(scratch, src, src);  // rd <- !isNan(src)
+  }
+  not_(scratch, scratch);
+  Sd(scratch, MemOperand(dst));
+}
+
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();

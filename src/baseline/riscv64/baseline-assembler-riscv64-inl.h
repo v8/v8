@@ -535,7 +535,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
-  ASM_CODE_COMMENT(&masm_);
+  ASM_CODE_COMMENT(masm_);
   if (SmiValuesAre31Bits()) {
     __ Add32(lhs, lhs, Operand(rhs));
   } else {
