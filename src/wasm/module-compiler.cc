@@ -1371,8 +1371,7 @@ using JSToWasmWrapperKey = std::pair<bool, FunctionSig>;
 
 // Returns the number of units added.
 int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
-                          CompilationUnitBuilder* builder,
-                          const WasmFeatures& enabled_features) {
+                          CompilationUnitBuilder* builder) {
   std::unordered_set<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>> keys;
   for (auto exp : native_module->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
@@ -1381,7 +1380,8 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
     if (keys.insert(key).second) {
       auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
           isolate, function.sig, native_module->module(), function.imported,
-          enabled_features, JSToWasmWrapperCompilationUnit::kAllowGeneric);
+          native_module->enabled_features(),
+          JSToWasmWrapperCompilationUnit::kAllowGeneric);
       builder->AddJSToWasmWrapperUnit(std::move(unit));
     }
   }
@@ -1416,13 +1416,27 @@ int AddImportWrapperUnits(NativeModule* native_module,
   return static_cast<int>(keys.size());
 }
 
-void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
+std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
+    Isolate* isolate, NativeModule* native_module) {
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   const bool lazy_module = IsLazyModule(native_module->module());
-  ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  CompilationUnitBuilder builder(native_module);
+  auto builder = std::make_unique<CompilationUnitBuilder>(native_module);
+  int num_import_wrappers = AddImportWrapperUnits(native_module, builder.get());
+  int num_export_wrappers =
+      AddExportWrapperUnits(isolate, native_module, builder.get());
+  compilation_state->InitializeCompilationProgress(
+      lazy_module, num_import_wrappers, num_export_wrappers);
+
+  return builder;
+}
+
+void InitializeCompilationUnits(
+    NativeModule* native_module,
+    std::unique_ptr<CompilationUnitBuilder> builder) {
+  const bool lazy_module = IsLazyModule(native_module->module());
   auto* module = native_module->module();
+
   const bool prefer_liftoff = native_module->IsTieredDown();
 
   uint32_t start = module->num_imported_functions;
@@ -1430,13 +1444,13 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
   for (uint32_t func_index = start; func_index < end; func_index++) {
     if (prefer_liftoff) {
-      builder.AddRecompilationUnit(func_index, ExecutionTier::kLiftoff);
+      builder->AddRecompilationUnit(func_index, ExecutionTier::kLiftoff);
       continue;
     }
     CompileStrategy strategy = GetCompileStrategy(
         module, native_module->enabled_features(), func_index, lazy_module);
     if (strategy == CompileStrategy::kEager) {
-      builder.AddUnits(func_index);
+      builder->AddUnits(func_index);
     } else {
       // Open a single scope for all following calls to {UseLazyStub()}, instead
       // of flipping page permissions for each {func_index} individually.
@@ -1447,17 +1461,12 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
         native_module->UseLazyStub(func_index);
       } else {
         DCHECK_EQ(strategy, CompileStrategy::kLazyBaselineEagerTopTier);
-        builder.AddTopTierUnit(func_index);
+        builder->AddTopTierUnit(func_index);
         native_module->UseLazyStub(func_index);
       }
     }
   }
-  int num_import_wrappers = AddImportWrapperUnits(native_module, &builder);
-  int num_export_wrappers = AddExportWrapperUnits(
-      isolate, native_module, &builder, WasmFeatures::FromIsolate(isolate));
-  compilation_state->InitializeCompilationProgress(
-      lazy_module, num_import_wrappers, num_export_wrappers);
-  builder.Commit();
+  builder->Commit();
 }
 
 bool MayCompriseLazyFunctions(const WasmModule* module,
@@ -1589,7 +1598,9 @@ void CompileNativeModule(Isolate* isolate,
   }
 
   // Initialize the compilation units and kick off background compile tasks.
-  InitializeCompilationUnits(isolate, native_module.get());
+  std::unique_ptr<CompilationUnitBuilder> builder =
+      InitializeCompilation(isolate, native_module.get());
+  InitializeCompilationUnits(native_module.get(), std::move(builder));
 
   compilation_state->WaitForCompilationEvent(
       CompilationEvent::kFinishedExportWrappers);
@@ -2360,7 +2371,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // then DoAsync would do the same as NextStep already.
 
       // Add compilation units and kick off compilation.
-      InitializeCompilationUnits(job->isolate(), job->native_module_.get());
+      std::unique_ptr<CompilationUnitBuilder> builder =
+          InitializeCompilation(job->isolate(), job->native_module_.get());
+      InitializeCompilationUnits(job->native_module_.get(), std::move(builder));
       // We are in single-threaded mode, so there are no worker tasks that will
       // do the compilation. We call {WaitForCompilationEvent} here so that the
       // main thread paticipates and finishes the compilation.
@@ -2591,23 +2604,12 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
   compilation_state->SetWireBytesStorage(std::move(wire_bytes_storage));
   DCHECK_EQ(job_->native_module_->module()->origin, kWasmOrigin);
-  const bool lazy_module = job_->wasm_lazy_compilation_;
 
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_.store(2);
-  compilation_unit_builder_.reset(
-      new CompilationUnitBuilder(job_->native_module_.get()));
-
-  NativeModule* native_module = job_->native_module_.get();
-
-  int num_import_wrappers =
-      AddImportWrapperUnits(native_module, compilation_unit_builder_.get());
-  int num_export_wrappers = AddExportWrapperUnits(
-      job_->isolate_, native_module, compilation_unit_builder_.get(),
-      job_->enabled_features_);
-  compilation_state->InitializeCompilationProgress(
-      lazy_module, num_import_wrappers, num_export_wrappers);
+  compilation_unit_builder_ =
+      InitializeCompilation(job_->isolate(), job_->native_module_.get());
   return true;
 }
 
