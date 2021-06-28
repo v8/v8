@@ -2451,7 +2451,7 @@ filegroup(
 )
 
 filegroup(
-    name = "snapshot_common_files",
+    name = "mksnapshot_files",
     srcs = [
         "src/snapshot/embedded/embedded-empty.cc",
         "src/snapshot/embedded/embedded-file-writer.cc",
@@ -2673,41 +2673,45 @@ v8_mksnapshot(
 # =================================================
 
 v8_library(
-    name = "v8",
+    name = "v8_libbase",
     srcs = [
+        ":v8_shared_internal_headers",
+        ":v8_libbase_files",
+    ],
+)
+
+v8_library(
+    name = "v8_libshared",
+    srcs = [
+        ":generated_torque_files",
+        ":torque_runtime_support_files",
         ":v8_base_without_compiler_files",
         ":v8_compiler_files",
         ":v8_initializers_files",
-        ":v8_inspector_files",
-        ":v8_libbase_files",
-        ":v8_libsampler_files",
         ":v8_libplatform_files",
-        ":snapshot_files",
-        ":torque_runtime_support_files",
-        ":generated_torque_files",
+        ":v8_libsampler_files",
         ":v8_shared_internal_headers",
     ],
-    deps = [ "@zlib" ],
+    deps = [
+        ":v8_libbase",
+        "@zlib",
+    ],
+)
+
+v8_library(
+    name = "v8",
+    srcs = [
+        ":snapshot_files",
+        ":v8_inspector_files",
+    ],
+    deps = [ ":v8_libshared" ],
 )
 
 # TODO(victorgomes): Check if v8_enable_webassembly is true.
 v8_library(
     name = "wee8",
-    srcs = [
-        ":generated_torque_files",
-        ":snapshot_files",
-        ":torque_runtime_support_files",
-        ":v8_base_without_compiler_files",
-        ":v8_compiler_files",
-        ":v8_initializers_files",
-        ":v8_inspector_files",
-        ":v8_libbase_files",
-        ":v8_libplatform_files",
-        ":v8_libsampler_files",
-        ":v8_shared_internal_headers",
-        ":wee8_files",
-    ],
-    deps = [ "@zlib" ],
+    srcs = [ ":wee8_files" ],
+    deps = [ ":v8" ],
 )
 
 # =================================================
@@ -2717,8 +2721,6 @@ v8_library(
 v8_binary(
     name = "bytecode_builtins_list_generator",
     srcs = [
-        ":v8_shared_internal_headers",
-        ":v8_libbase_files",
         "src/builtins/generate-bytecodes-builtins-list.cc",
         "src/interpreter/bytecode-operands.cc",
         "src/interpreter/bytecode-operands.h",
@@ -2726,37 +2728,24 @@ v8_binary(
         "src/interpreter/bytecodes.cc",
         "src/interpreter/bytecodes.h",
     ],
+    deps = [ "v8_libbase" ],
 )
 
 v8_binary(
     name = "torque",
     srcs = [
-        ":v8_shared_internal_headers",
-        ":v8_libbase_files",
         ":torque_base_files",
         "src/torque/torque.cc",
     ],
     copts = [ "-fexceptions" ],
-    features = ["-use_header_modules"],
+    features = [ "-use_header_modules" ],
+    deps = [ "v8_libbase" ],
 )
 
 v8_binary(
     name = "mksnapshot",
-    srcs = [
-        ":v8_shared_internal_headers",
-        ":v8_headers_files",
-        ":v8_libbase_files",
-        ":v8_libplatform_files",
-        ":v8_libsampler_files",
-        ":v8_base_without_compiler_files",
-        ":v8_compiler_files",
-        ":v8_initializers_files",
-        ":generated_bytecode_builtins_list",
-        ":snapshot_common_files",
-        ":torque_runtime_support_files",
-        ":generated_torque_files",
-    ],
-    deps = [ "@zlib" ],
+    srcs = [ ":mksnapshot_files" ],
+    deps = [ ":v8_libshared" ],
     linkopts = select({
         "is_android": [ "-llog" ],
         "//conditions:default": [],
@@ -2778,5 +2767,5 @@ v8_binary(
         "src/d8/d8-posix.cc",
         "src/d8/d8-test.cc",
     ],
-    deps = [":v8"],
+    deps = [ ":v8" ],
 )
