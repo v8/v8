@@ -78,7 +78,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
 # The conflicts might be directly contradictory flags or be caused by the
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
-  "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*"]
+  "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*",
+                "--stress-concurrent-inlining"]
                + INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
   "predictable": ["--parallel-compile-tasks",
                   "--concurrent-recompilation",
