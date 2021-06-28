@@ -2687,9 +2687,7 @@ v8_library(
         ":generated_torque_files",
         ":v8_shared_internal_headers",
     ],
-    deps = [
-        ":third_party_zlib",
-    ],
+    deps = [ "@zlib" ],
 )
 
 # TODO(victorgomes): Check if v8_enable_webassembly is true.
@@ -2709,9 +2707,7 @@ v8_library(
         ":v8_shared_internal_headers",
         ":wee8_files",
     ],
-    deps = [
-        ":third_party_zlib",
-    ],
+    deps = [ "@zlib" ],
 )
 
 # =================================================
@@ -2760,9 +2756,7 @@ v8_binary(
         ":torque_runtime_support_files",
         ":generated_torque_files",
     ],
-    deps = [
-        ":third_party_zlib"
-    ],
+    deps = [ "@zlib" ],
     linkopts = select({
         "is_android": [ "-llog" ],
         "//conditions:default": [],
@@ -2785,58 +2779,4 @@ v8_binary(
         "src/d8/d8-test.cc",
     ],
     deps = [":v8"],
-)
-
-# =================================================
-# third_party rules
-# =================================================
-
-cc_library(
-    name = "third_party_zlib",
-    srcs = [
-        "third_party/zlib/adler32.c",
-        "third_party/zlib/chromeconf.h",
-        "third_party/zlib/compress.c",
-        "third_party/zlib/contrib/optimizations/insert_string.h",
-        "third_party/zlib/cpu_features.c",
-        "third_party/zlib/cpu_features.h",
-        "third_party/zlib/crc32.c",
-        "third_party/zlib/crc32.h",
-        "third_party/zlib/deflate.c",
-        "third_party/zlib/deflate.h",
-        "third_party/zlib/gzclose.c",
-        "third_party/zlib/gzguts.h",
-        "third_party/zlib/gzlib.c",
-        "third_party/zlib/gzread.c",
-        "third_party/zlib/gzwrite.c",
-        "third_party/zlib/infback.c",
-        "third_party/zlib/inffast.c",
-        "third_party/zlib/inffast.h",
-        "third_party/zlib/inffixed.h",
-        "third_party/zlib/inflate.c",
-        "third_party/zlib/inflate.h",
-        "third_party/zlib/inftrees.c",
-        "third_party/zlib/inftrees.h",
-        "third_party/zlib/trees.c",
-        "third_party/zlib/trees.h",
-        "third_party/zlib/uncompr.c",
-        "third_party/zlib/zconf.h",
-        "third_party/zlib/zlib.h",
-        "third_party/zlib/zutil.c",
-        "third_party/zlib/zutil.h",
-        "third_party/zlib/google/compression_utils_portable.h",
-        "third_party/zlib/google/compression_utils_portable.cc",
-        ],
-    hdrs = [
-        "third_party/zlib/google/compression_utils_portable.h",
-    ],
-    defines = [
-        "CHROMIUM_ZLIB_NO_CHROMECONF",
-        "HAVE_HIDDEN",
-        "CPU_NO_SIMD",
-    ],
-    copts = [
-        "-Ithird_party/zlib",
-    ],
-    alwayslink = 1,
 )

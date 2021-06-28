@@ -15,3 +15,9 @@ http_archive(
 )
 load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
 bazel_skylib_workspace()
+
+new_local_repository(
+    name = "zlib",
+    path = "third_party/zlib",
+    build_file = "bazel/BUILD.zlib",
+)
