@@ -374,7 +374,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
     if (fp > len) return Smi::FromInt(-1);
     if (V8_LIKELY(fp >=
                   static_cast<double>(std::numeric_limits<int64_t>::min()))) {
-      DCHECK(fp < static_cast<double>(std::numeric_limits<int64_t>::max()));
+      DCHECK(fp < std::numeric_limits<int64_t>::max());
       start_from = static_cast<int64_t>(fp);
     } else {
       start_from = std::numeric_limits<int64_t>::min();
