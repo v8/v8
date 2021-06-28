@@ -2559,7 +2559,7 @@ void TurboAssembler::Branch(int32_t offset) {
 }
 
 void TurboAssembler::Branch(int32_t offset, Condition cond, Register rs,
-                            const Operand& rt) {
+                            const Operand& rt, Label::Distance near_jump) {
   bool is_near = BranchShortCheck(offset, nullptr, cond, rs, rt);
   DCHECK(is_near);
   USE(is_near);
@@ -2582,7 +2582,7 @@ void TurboAssembler::Branch(Label* L) {
 }
 
 void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
-                            const Operand& rt) {
+                            const Operand& rt, Label::Distance near_jump) {
   if (L->is_bound()) {
     if (!BranchShortCheck(0, L, cond, rs, rt)) {
       if (cond != cc_always) {
@@ -2597,7 +2597,7 @@ void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
       }
     }
   } else {
-    if (is_trampoline_emitted()) {
+    if (is_trampoline_emitted() && near_jump == Label::Distance::kFar) {
       if (cond != cc_always) {
         Label skip;
         Condition neg_cond = NegateCondition(cond);

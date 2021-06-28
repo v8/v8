@@ -331,7 +331,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
 
   __ GetObjectType(sfi_data, scratch1, scratch1);
   __ Branch(is_baseline, eq, scratch1, Operand(BASELINE_DATA_TYPE));
-  __ BranchShort(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
+  __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE),
+            Label::Distance::kNear);
   __ LoadTaggedPointerField(
       sfi_data,
       FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
@@ -409,7 +410,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     Label done_loop, loop;
     __ bind(&loop);
     __ Sub64(a3, a3, Operand(1));
-    __ BranchShort(&done_loop, lt, a3, Operand(zero_reg));
+    __ Branch(&done_loop, lt, a3, Operand(zero_reg), Label::Distance::kNear);
     __ CalcScaledAddress(kScratchReg, scratch, a3, kTaggedSizeLog2);
     __ LoadAnyTaggedField(
         kScratchReg, FieldMemOperand(kScratchReg, FixedArray::kHeaderSize));
@@ -503,7 +504,8 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   __ Sub64(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
   __ Sll64(scratch2, argc, kSystemPointerSizeLog2);
-  __ BranchShort(&okay, gt, scratch1, Operand(scratch2));  // Signed comparison.
+  __ Branch(&okay, gt, scratch1, Operand(scratch2),
+            Label::Distance::kNear);  // Signed comparison.
 
   // Out of stack space.
   __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -603,7 +605,8 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
       IsolateAddressId::kJSEntrySPAddress, masm->isolate());
   __ li(s1, js_entry_sp);
   __ Ld(s2, MemOperand(s1));
-  __ BranchShort(&non_outermost_js, ne, s2, Operand(zero_reg));
+  __ Branch(&non_outermost_js, ne, s2, Operand(zero_reg),
+            Label::Distance::kNear);
   __ Sd(fp, MemOperand(s1));
   __ li(s3, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   Label cont;
@@ -673,8 +676,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
   __ pop(a5);
-  __ BranchShort(&non_outermost_js_2, ne, a5,
-            Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ Branch(&non_outermost_js_2, ne, a5,
+            Operand(StackFrame::OUTERMOST_JSENTRY_FRAME),
+            Label::Distance::kNear);
   __ li(a5, js_entry_sp);
   __ Sd(zero_reg, MemOperand(a5));
   __ bind(&non_outermost_js_2);
@@ -842,7 +846,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
-  __ BranchShort(&L1, le, actual_params_size, Operand(params_size));
+  __ Branch(&L1, le, actual_params_size, Operand(params_size),
+            Label::Distance::kNear);
   __ Move(params_size, actual_params_size);
   __ bind(&L1);
 
@@ -860,7 +865,8 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           Runtime::FunctionId function_id) {
   ASM_CODE_COMMENT(masm);
   Label no_match;
-  __ BranchShort(&no_match, ne, actual_marker, Operand(expected_marker));
+  __ Branch(&no_match, ne, actual_marker, Operand(expected_marker),
+            Label::Distance::kNear);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }
@@ -891,7 +897,8 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
       FieldMemOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
   __ Lw(a5, FieldMemOperand(a5, CodeDataContainer::kKindSpecificFlagsOffset));
   __ And(a5, a5, Operand(1 << Code::kMarkedForDeoptimizationBit));
-  __ BranchShort(&heal_optimized_code_slot, ne, a5, Operand(zero_reg));
+  __ Branch(&heal_optimized_code_slot, ne, a5, Operand(zero_reg),
+            Label::Distance::kNear);
 
   // Optimized code is good, get it into the closure and link the closure into
   // the optimized functions list, then tail call the optimized code.
@@ -976,9 +983,11 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   STATIC_ASSERT(2 == static_cast<int>(interpreter::Bytecode::kDebugBreakWide));
   STATIC_ASSERT(3 ==
                 static_cast<int>(interpreter::Bytecode::kDebugBreakExtraWide));
-  __ BranchShort(&process_bytecode, Ugreater, bytecode, Operand(3));
+  __ Branch(&process_bytecode, Ugreater, bytecode, Operand(3),
+            Label::Distance::kNear);
   __ And(scratch2, bytecode, Operand(1));
-  __ BranchShort(&extra_wide, ne, scratch2, Operand(zero_reg));
+  __ Branch(&extra_wide, ne, scratch2, Operand(zero_reg),
+            Label::Distance::kNear);
 
   // Load the next bytecode and update table to the wide scaled table.
   __ Add64(bytecode_offset, bytecode_offset, Operand(1));
@@ -1008,8 +1017,9 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   // If this is a JumpLoop, re-execute it to perform the jump to the beginning
   // of the loop.
   Label end, not_jump_loop;
-  __ BranchShort(&not_jump_loop, ne, bytecode,
-            Operand(static_cast<int>(interpreter::Bytecode::kJumpLoop)));
+  __ Branch(&not_jump_loop, ne, bytecode,
+            Operand(static_cast<int>(interpreter::Bytecode::kJumpLoop)),
+            Label::Distance::kNear);
   // We need to restore the original bytecode_offset since we might have
   // increased it to skip the wide / extra-wide prefix bytecode.
   __ Move(bytecode_offset, original_bytecode_offset);
@@ -1056,7 +1066,8 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
     __ And(
         scratch, optimization_state,
         Operand(FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker));
-    __ BranchShort(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg));
+    __ Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg),
+              Label::Distance::kNear);
   }
   Register optimization_marker = optimization_state;
   __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
@@ -1267,7 +1278,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadTaggedPointerField(
       a4, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
   __ Lhu(a4, FieldMemOperand(a4, Map::kInstanceTypeOffset));
-  __ BranchShort(&push_stack_frame, ne, a4, Operand(FEEDBACK_VECTOR_TYPE));
+  __ Branch(&push_stack_frame, ne, a4, Operand(FEEDBACK_VECTOR_TYPE),
+            Label::Distance::kNear);
 
   // Read off the optimization state in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
@@ -1339,7 +1351,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Continue loop if not done.
     __ bind(&loop_check);
     __ Sub64(a4, a4, Operand(kSystemPointerSize));
-    __ BranchShort(&loop_header, ge, a4, Operand(zero_reg));
+    __ Branch(&loop_header, ge, a4, Operand(zero_reg));
   }
 
   // If the bytecode array has a valid incoming new target or generator object
@@ -1348,8 +1360,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Lw(a5, FieldMemOperand(
                 kInterpreterBytecodeArrayRegister,
                 BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
-  __ BranchShort(&no_incoming_new_target_or_generator_register, eq, a5,
-            Operand(zero_reg));
+  __ Branch(&no_incoming_new_target_or_generator_register, eq, a5,
+            Operand(zero_reg), Label::Distance::kNear);
   __ CalcScaledAddress(a5, fp, a5, kSystemPointerSizeLog2);
   __ Sd(a3, MemOperand(a5));
   __ bind(&no_incoming_new_target_or_generator_register);
@@ -1358,7 +1370,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
   __ LoadStackLimit(a5, MacroAssembler::StackLimitKind::kInterruptStackLimit);
-  __ BranchShort(&stack_check_interrupt, Uless, sp, Operand(a5));
+  __ Branch(&stack_check_interrupt, Uless, sp, Operand(a5),
+            Label::Distance::kNear);
   __ bind(&after_stack_check_interrupt);
 
   // Load accumulator as undefined.
@@ -1433,7 +1446,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Check if optimized code marker is available
   __ And(scratch, optimization_state,
          FeedbackVector::OptimizationTierBits::kMask);
-  __ BranchShort(&maybe_has_optimized_code, ne, scratch, Operand(zero_reg));
+  __ Branch(&maybe_has_optimized_code, ne, scratch, Operand(zero_reg),
+            Label::Distance::kNear);
 
   Register optimization_marker = optimization_state;
   __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
@@ -1651,8 +1665,8 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
       t0, FieldMemOperand(t0, SharedFunctionInfo::kFunctionDataOffset));
   __ GetObjectType(t0, kInterpreterDispatchTableRegister,
                    kInterpreterDispatchTableRegister);
-  __ BranchShort(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
-            Operand(INTERPRETER_DATA_TYPE));
+  __ Branch(&builtin_trampoline, ne, kInterpreterDispatchTableRegister,
+            Operand(INTERPRETER_DATA_TYPE), Label::Distance::kNear);
 
   __ LoadTaggedPointerField(
       t0, FieldMemOperand(t0, InterpreterData::kInterpreterTrampolineOffset));
@@ -1694,8 +1708,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   if (FLAG_debug_code) {
     Label okay;
-    __ BranchShort(&okay, ge, kInterpreterBytecodeOffsetRegister,
-              Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
+    __ Branch(&okay, ge, kInterpreterBytecodeOffsetRegister,
+              Operand(BytecodeArray::kHeaderSize - kHeapObjectTag),
+              Label::Distance::kNear);
     // Unreachable code.
     __ break_(0xCC);
     __ bind(&okay);
@@ -1926,12 +1941,12 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ Ld(arg_array, MemOperand(sp, 2 * kSystemPointerSize));
 
     Label done0, done1;
-    __ BranchShort(&done0, ne, argc, Operand(zero_reg));
+    __ Branch(&done0, ne, argc, Operand(zero_reg), Label::Distance::kNear);
     __ Move(arg_array, undefined_value);  // if argc == 0
     __ Move(this_arg, undefined_value);   // if argc == 0
     __ bind(&done0);                      // else (i.e., argc > 0)
 
-    __ BranchShort(&done1, ne, argc, Operand(1));
+    __ Branch(&done1, ne, argc, Operand(1), Label::Distance::kNear);
     __ Move(arg_array, undefined_value);  // if argc == 1
     __ bind(&done1);                      // else (i.e., argc > 1)
 
@@ -1954,7 +1969,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // 3. Tail call with no arguments if argArray is null or undefined.
   Label no_arguments;
   __ JumpIfRoot(arg_array, RootIndex::kNullValue, &no_arguments);
-  __ BranchShort(&no_arguments, eq, arg_array, Operand(undefined_value));
+  __ Branch(&no_arguments, eq, arg_array, Operand(undefined_value),
+            Label::Distance::kNear);
 
   // 4a. Apply the receiver to the given argArray.
   __ Jump(BUILTIN_CODE(masm->isolate(), CallWithArrayLike),
@@ -1979,7 +1995,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   // a0: actual number of arguments
   {
     Label done;
-    __ BranchShort(&done, ne, a0, Operand(zero_reg));
+    __ Branch(&done, ne, a0, Operand(zero_reg), Label::Distance::kNear);
     __ PushRoot(RootIndex::kUndefinedValue);
     __ Add64(a0, a0, Operand(1));
     __ bind(&done);
@@ -2021,18 +2037,18 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ Ld(arguments_list, MemOperand(sp, 3 * kSystemPointerSize));
 
     Label done0, done1, done2;
-    __ BranchShort(&done0, ne, argc, Operand(zero_reg));
+    __ Branch(&done0, ne, argc, Operand(zero_reg), Label::Distance::kNear);
     __ Move(arguments_list, undefined_value);  // if argc == 0
     __ Move(this_argument, undefined_value);   // if argc == 0
     __ Move(target, undefined_value);          // if argc == 0
     __ bind(&done0);                           // argc != 0
 
-    __ BranchShort(&done1, ne, argc, Operand(1));
+    __ Branch(&done1, ne, argc, Operand(1), Label::Distance::kNear);
     __ Move(arguments_list, undefined_value);  // if argc == 1
     __ Move(this_argument, undefined_value);   // if argc == 1
     __ bind(&done1);                           // argc > 1
 
-    __ BranchShort(&done2, ne, argc, Operand(2));
+    __ Branch(&done2, ne, argc, Operand(2), Label::Distance::kNear);
     __ Move(arguments_list, undefined_value);  // if argc == 2
     __ bind(&done2);                           // argc > 2
 
@@ -2084,18 +2100,18 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ Ld(new_target, MemOperand(sp, 3 * kSystemPointerSize));
 
     Label done0, done1, done2;
-    __ BranchShort(&done0, ne, argc, Operand(zero_reg));
+    __ Branch(&done0, ne, argc, Operand(zero_reg), Label::Distance::kNear);
     __ Move(arguments_list, undefined_value);  // if argc == 0
     __ Move(new_target, undefined_value);      // if argc == 0
     __ Move(target, undefined_value);          // if argc == 0
     __ bind(&done0);
 
-    __ BranchShort(&done1, ne, argc, Operand(1));
+    __ Branch(&done1, ne, argc, Operand(1), Label::Distance::kNear);
     __ Move(arguments_list, undefined_value);  // if argc == 1
     __ Move(new_target, target);               // if argc == 1
     __ bind(&done1);
 
-    __ BranchShort(&done2, ne, argc, Operand(2));
+    __ Branch(&done2, ne, argc, Operand(2), Label::Distance::kNear);
     __ Move(new_target, target);  // if argc == 2
     __ bind(&done2);
 
@@ -2140,9 +2156,11 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Label ok, fail;
     __ AssertNotSmi(a2);
     __ GetObjectType(a2, kScratchReg, kScratchReg);
-    __ BranchShort(&ok, eq, kScratchReg, Operand(FIXED_ARRAY_TYPE));
-    __ BranchShort(&fail, ne, kScratchReg, Operand(FIXED_DOUBLE_ARRAY_TYPE));
-    __ BranchShort(&ok, eq, a4, Operand(zero_reg));
+    __ Branch(&ok, eq, kScratchReg, Operand(FIXED_ARRAY_TYPE),
+              Label::Distance::kNear);
+    __ Branch(&fail, ne, kScratchReg, Operand(FIXED_DOUBLE_ARRAY_TYPE),
+              Label::Distance::kNear);
+    __ Branch(&ok, eq, a4, Operand(zero_reg), Label::Distance::kNear);
     // Fall through.
     __ bind(&fail);
     __ Abort(AbortReason::kOperandIsNotAFixedArray);
@@ -2190,14 +2208,14 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Register hole_value = temps.Acquire();
     __ Add64(src, args, FixedArray::kHeaderSize - kHeapObjectTag);
     __ Add64(a0, a0, len);  // The 'len' argument for Call() or Construct().
-    __ BranchShort(&done, eq, len, Operand(zero_reg));
+    __ Branch(&done, eq, len, Operand(zero_reg), Label::Distance::kNear);
     __ Sll64(scratch, len, kTaggedSizeLog2);
     __ Sub64(scratch, sp, Operand(scratch));
     __ LoadRoot(hole_value, RootIndex::kTheHoleValue);
     __ bind(&loop);
     __ LoadTaggedPointerField(a5, MemOperand(src));
     __ Add64(src, src, kTaggedSize);
-    __ BranchShort(&push, ne, a5, Operand(hole_value));
+    __ Branch(&push, ne, a5, Operand(hole_value), Label::Distance::kNear);
     __ LoadRoot(a5, RootIndex::kUndefinedValue);
     __ bind(&push);
     __ Sd(a5, MemOperand(a7, 0));
@@ -2237,7 +2255,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                               FieldMemOperand(a3, HeapObject::kMapOffset));
     __ Lbu(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
     __ And(scratch, scratch, Operand(Map::Bits1::IsConstructorBit::kMask));
-    __ BranchShort(&new_target_constructor, ne, scratch, Operand(zero_reg));
+    __ Branch(&new_target_constructor, ne, scratch, Operand(zero_reg),
+              Label::Distance::kNear);
     __ bind(&new_target_not_constructor);
     {
       FrameScope scope(masm, StackFrame::MANUAL);
@@ -2481,7 +2500,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ Add64(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
       __ bind(&loop);
       __ Sub64(a4, a4, Operand(1));
-      __ BranchShort(&done_loop, lt, a4, Operand(zero_reg));
+      __ Branch(&done_loop, lt, a4, Operand(zero_reg), Label::Distance::kNear);
       __ CalcScaledAddress(a5, a2, a4, kTaggedSizeLog2);
       __ LoadAnyTaggedField(kScratchReg, MemOperand(a5));
       __ Push(kScratchReg);
@@ -2550,7 +2569,8 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // Check if target has a [[Call]] internal method.
   __ Lbu(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
   __ And(scratch, scratch, Operand(Map::Bits1::IsCallableBit::kMask));
-  __ BranchShort(&non_callable, eq, scratch, Operand(zero_reg));
+  __ Branch(&non_callable, eq, scratch, Operand(zero_reg),
+            Label::Distance::kNear);
 
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET, eq,
           type, Operand(JS_PROXY_TYPE));
@@ -2594,7 +2614,8 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
       a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ Lwu(a4, FieldMemOperand(a4, SharedFunctionInfo::kFlagsOffset));
   __ And(a4, a4, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
-  __ BranchShort(&call_generic_stub, eq, a4, Operand(zero_reg));
+  __ Branch(&call_generic_stub, eq, a4, Operand(zero_reg),
+            Label::Distance::kNear);
 
   __ Jump(BUILTIN_CODE(masm->isolate(), JSBuiltinsConstructStub),
           RelocInfo::CODE_TARGET);
@@ -2622,7 +2643,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ CmpTagged(scratch, a1, a3);
-    __ BranchShort(&skip, ne, scratch, Operand(zero_reg));
+    __ Branch(&skip, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
   }
   __ LoadTaggedPointerField(
       a3, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
@@ -2669,7 +2690,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET, eq, scratch, Operand(JS_BOUND_FUNCTION_TYPE));
 
   // Only dispatch to proxies after checking whether they are constructors.
-  __ BranchShort(&non_proxy, ne, scratch, Operand(JS_PROXY_TYPE));
+  __ Branch(&non_proxy, ne, scratch, Operand(JS_PROXY_TYPE),
+            Label::Distance::kNear);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
           RelocInfo::CODE_TARGET);
 
@@ -2830,7 +2852,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ Ld(a2, MemOperand(a2));
     __ LoadRoot(a4, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
-    __ BranchShort(&okay, eq, a4, Operand(a2));
+    __ Branch(&okay, eq, a4, Operand(a2), Label::Distance::kNear);
     __ stop();
     __ bind(&okay);
   }
@@ -2883,7 +2905,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // If the handler is a JS frame, restore the context to the frame. Note that
   // the context will be set to (cp == 0) for non-JS frames.
   Label zero;
-  __ BranchShort(&zero, eq, cp, Operand(zero_reg));
+  __ Branch(&zero, eq, cp, Operand(zero_reg), Label::Distance::kNear);
   __ Sd(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ bind(&zero);
 
@@ -2925,7 +2947,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   // If we had no exceptions then set result_reg and we are done.
   Label error;
-  __ BranchShort(&error, eq, scratch, Operand(zero_reg));
+  __ Branch(&error, eq, scratch, Operand(zero_reg), Label::Distance::kNear);
   __ Move(result_reg, scratch3);
   __ Branch(&done);
   __ bind(&error);
@@ -2956,7 +2978,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   // If the delta is strictly positive, all bits would be shifted away,
   // which means that we can return 0.
-  __ BranchShort(&normal_exponent, le, result_reg, Operand(zero_reg));
+  __ Branch(&normal_exponent, le, result_reg, Operand(zero_reg),
+            Label::Distance::kNear);
   __ Move(result_reg, zero_reg);
   __ Branch(&done);
 
@@ -2973,7 +2996,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   // We must specially handle shifts greater than 31.
   Label high_shift_needed, high_shift_done;
-  __ BranchShort(&high_shift_needed, lt, scratch, Operand(32));
+  __ Branch(&high_shift_needed, lt, scratch, Operand(32),
+            Label::Distance::kNear);
   __ Move(input_high, zero_reg);
   __ BranchShort(&high_shift_done);
   __ bind(&high_shift_needed);
@@ -2992,7 +3016,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   Label pos_shift, shift_done, sign_negative;
   __ li(kScratchReg, 32);
   __ subw(scratch, kScratchReg, scratch);
-  __ BranchShort(&pos_shift, ge, scratch, Operand(zero_reg));
+  __ Branch(&pos_shift, ge, scratch, Operand(zero_reg), Label::Distance::kNear);
 
   // Negate scratch.
   __ Sub32(scratch, zero_reg, scratch);
@@ -3009,7 +3033,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   result_reg = sign;
   sign = no_reg;
   __ Sub32(result_reg, zero_reg, input_high);
-  __ BranchShort(&sign_negative, ne, scratch, Operand(zero_reg));
+  __ Branch(&sign_negative, ne, scratch, Operand(zero_reg),
+            Label::Distance::kNear);
   __ Move(result_reg, input_high);
   __ bind(&sign_negative);
 
@@ -3064,10 +3089,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     Register scratch = temp.Acquire();
     __ li(scratch, ExternalReference::is_profiling_address(isolate));
     __ Lb(scratch, MemOperand(scratch, 0));
-    __ BranchShort(&profiler_enabled, ne, scratch, Operand(zero_reg));
+    __ Branch(&profiler_enabled, ne, scratch, Operand(zero_reg),
+              Label::Distance::kNear);
     __ li(scratch, ExternalReference::address_of_runtime_stats_flag());
     __ Lw(scratch, MemOperand(scratch, 0));
-    __ BranchShort(&profiler_enabled, ne, scratch, Operand(zero_reg));
+    __ Branch(&profiler_enabled, ne, scratch, Operand(zero_reg),
+              Label::Distance::kNear);
     {
       // Call the api function directly.
       __ Move(scratch, function_address);
@@ -3135,7 +3162,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ LoadRoot(a4, RootIndex::kTheHoleValue);
   __ li(kScratchReg, ExternalReference::scheduled_exception_address(isolate));
   __ Ld(a5, MemOperand(kScratchReg));
-  __ BranchShort(&promote_scheduled_exception, ne, a4, Operand(a5));
+  __ Branch(&promote_scheduled_exception, ne, a4, Operand(a5),
+            Label::Distance::kNear);
 
   __ Ret();
 
@@ -3513,7 +3541,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ Sd(a4, MemOperand(a3, 0));
   __ Add64(a3, a3, sizeof(uint64_t));
   __ bind(&pop_loop_header);
-  __ BranchShort(&pop_loop, ne, a2, Operand(sp));
+  __ Branch(&pop_loop, ne, a2, Operand(sp), Label::Distance::kNear);
   // Compute the output frame in the deoptimizer.
   __ push(a0);  // Preserve deoptimizer object across call.
   // a0: deoptimizer object; a1: scratch.
@@ -3546,11 +3574,11 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ Ld(a7, MemOperand(a6, FrameDescription::frame_content_offset()));
   __ push(a7);
   __ bind(&inner_loop_header);
-  __ BranchShort(&inner_push_loop, ne, a3, Operand(zero_reg));
+  __ Branch(&inner_push_loop, ne, a3, Operand(zero_reg));
 
   __ Add64(a4, a4, Operand(kSystemPointerSize));
   __ bind(&outer_loop_header);
-  __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
+  __ Branch(&outer_push_loop, lt, a4, Operand(a1));
 
   __ Ld(a1, MemOperand(a0, Deoptimizer::input_offset()));
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -3776,8 +3804,9 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 
   Label deopt, bailout;
-  __ BranchShort(&deopt, ne, a0,
-            Operand(static_cast<int>(DynamicCheckMapsStatus::kSuccess)));
+  __ Branch(&deopt, ne, a0,
+            Operand(static_cast<int>(DynamicCheckMapsStatus::kSuccess)),
+            Label::Distance::kNear);
 
   __ MaybeRestoreRegisters(registers);
   __ LeaveFrame(StackFrame::INTERNAL);

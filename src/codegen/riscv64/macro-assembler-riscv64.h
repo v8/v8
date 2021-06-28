@@ -146,10 +146,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   DECLARE_NORELOC_PROTOTYPE(Name, Label*) \
   DECLARE_NORELOC_PROTOTYPE(Name, int32_t)
 
-  DECLARE_BRANCH_PROTOTYPES(Branch)
   DECLARE_BRANCH_PROTOTYPES(BranchAndLink)
   DECLARE_BRANCH_PROTOTYPES(BranchShort)
 
+  void Branch(Label* target);
+  void Branch(int32_t target);
+  void Branch(Label* target, Condition cond, Register r1, const Operand& r2,
+              Label::Distance near_jump = Label::kFar);
+  void Branch(int32_t target, Condition cond, Register r1, const Operand& r2,
+              Label::Distance near_jump = Label::kFar);
 #undef DECLARE_BRANCH_PROTOTYPES
 #undef COND_TYPED_ARGS
 #undef COND_ARGS

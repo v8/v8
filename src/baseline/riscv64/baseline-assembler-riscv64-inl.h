@@ -614,7 +614,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   // arguments.
   Label corrected_args_count;
   __ masm()->Branch(&corrected_args_count, ge, params_size,
-                    Operand(actual_params_size));
+                    Operand(actual_params_size), Label::Distance::kNear);
   __ masm()->Move(params_size, actual_params_size);
   __ Bind(&corrected_args_count);
 
