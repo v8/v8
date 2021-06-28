@@ -173,28 +173,12 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
   TNode<JSTypedArray> receiver_array = CAST(receiver);
-  TNode<JSArrayBuffer> receiver_buffer =
-      LoadJSArrayBufferViewBuffer(receiver_array);
-
-  Label variable_length(this), normal(this);
-  Branch(IsVariableLengthTypedArray(receiver_array), &variable_length, &normal);
-  BIND(&variable_length);
-  {
-    Label miss(this);
-    Return(ChangeUintPtrToTagged(LoadVariableLengthJSTypedArrayLength(
-        receiver_array, receiver_buffer, &miss)));
-    BIND(&miss);
-    Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
-  }
-
-  BIND(&normal);
-  {
-    // Default to zero if the {receiver}s buffer was detached.
-    TNode<UintPtrT> length = Select<UintPtrT>(
-        IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
-        [=] { return LoadJSTypedArrayLength(receiver_array); });
-    Return(ChangeUintPtrToTagged(length));
-  }
+  TVARIABLE(UintPtrT, length);
+  Label detached(this), end(this);
+  length = LoadJSTypedArrayLengthAndCheckDetached(receiver_array, &detached);
+  Return(ChangeUintPtrToTagged(length.value()));
+  BIND(&detached);
+  Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
 }
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(

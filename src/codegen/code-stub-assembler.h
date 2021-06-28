@@ -3555,7 +3555,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       const char* method_name);
 
   // JSTypedArray helpers
-  TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
+  TNode<UintPtrT> LoadJSTypedArrayLengthAndCheckDetached(
+      TNode<JSTypedArray> typed_array, Label* detached);
   // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
   // ResizableArrayBuffer.
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayLength(

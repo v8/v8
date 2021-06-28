@@ -128,6 +128,7 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
   TNode<JSTypedArray> typed_array = CAST(receiver_);
   o_ = typed_array;
 
+  // TODO(v8:11111): Support RAB / GSAB.
   TNode<JSArrayBuffer> array_buffer = LoadJSArrayBufferViewBuffer(typed_array);
   ThrowIfArrayBufferIsDetached(context_, array_buffer, name_);
 
@@ -1309,14 +1310,13 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     TNode<UintPtrT> index_uintptr =
         ChangeSafeIntegerNumberToUintPtr(index, &allocate_iterator_result);
 
-    // Check that the {array}s buffer wasn't detached.
-    ThrowIfArrayBufferViewBufferIsDetached(context, CAST(array), method_name);
-
     // If we go outside of the {length}, we don't need to update the
     // [[ArrayIteratorNextIndex]] anymore, since a JSTypedArray's
     // length cannot change anymore, so this {iterator} will never
     // produce values again anyways.
-    TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(array));
+    Label detached(this);
+    TNode<UintPtrT> length =
+        LoadJSTypedArrayLengthAndCheckDetached(CAST(array), &detached);
     GotoIfNot(UintPtrLessThan(index_uintptr, length),
               &allocate_iterator_result);
     // TODO(v8:4153): Consider storing next index as uintptr. Update this and
@@ -1338,6 +1338,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     var_value = LoadFixedTypedArrayElementAsTagged(data_ptr, index_uintptr,
                                                    elements_kind);
     Goto(&allocate_entry_if_needed);
+
+    BIND(&detached);
+    ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
   }
 
   BIND(&allocate_entry_if_needed);

@@ -2554,7 +2554,7 @@ TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
   Label done(this), if_unknown_type(this, Label::kDeferred);
   int32_t elements_kinds[] = {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      TYPED_ARRAYS(TYPED_ARRAY_CASE) RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
 
@@ -2564,6 +2564,9 @@ TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
 
   Label* elements_kind_labels[] = {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &if_##type##array,
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      // The same labels again for RAB / GSAB. We dispatch RAB / GSAB elements
+      // kinds to the corresponding non-RAB / GSAB elements kinds.
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
@@ -13801,9 +13804,31 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteOffset(
                                    JSArrayBufferView::kByteOffsetOffset);
 }
 
-TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
-    TNode<JSTypedArray> typed_array) {
-  return LoadObjectField<UintPtrT>(typed_array, JSTypedArray::kLengthOffset);
+TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndCheckDetached(
+    TNode<JSTypedArray> typed_array, Label* detached) {
+  TVARIABLE(UintPtrT, result);
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
+
+  Label variable_length(this), fixed_length(this), end(this);
+  Branch(IsVariableLengthTypedArray(typed_array), &variable_length,
+         &fixed_length);
+  BIND(&variable_length);
+  {
+    result =
+        LoadVariableLengthJSTypedArrayLength(typed_array, buffer, detached);
+    Goto(&end);
+  }
+
+  BIND(&fixed_length);
+  {
+    Label not_detached(this);
+    Branch(IsDetachedBuffer(buffer), detached, &not_detached);
+    BIND(&not_detached);
+    result = LoadJSTypedArrayLength(typed_array);
+    Goto(&end);
+  }
+  BIND(&end);
+  return result.value();
 }
 
 // ES #sec-integerindexedobjectlength
