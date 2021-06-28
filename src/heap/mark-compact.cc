@@ -50,6 +50,7 @@
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/smi.h"
 #include "src/objects/transitions-inl.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -2311,7 +2312,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
         if (constructor_or_back_pointer.IsSmi()) {
           DCHECK(isolate()->has_active_deserializer());
           DCHECK_EQ(constructor_or_back_pointer,
-                    Deserializer::uninitialized_field_value());
+                    Smi::uninitialized_deserialization_value());
           continue;
         }
         Map parent = Map::cast(map.constructor_or_back_pointer());
@@ -2339,7 +2340,7 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
     if (raw_target.IsSmi()) {
       // This target is still being deserialized,
       DCHECK(isolate()->has_active_deserializer());
-      DCHECK_EQ(raw_target.ToSmi(), Deserializer::uninitialized_field_value());
+      DCHECK_EQ(raw_target.ToSmi(), Smi::uninitialized_deserialization_value());
 #ifdef DEBUG
       // Targets can only be dead iff this array is fully deserialized.
       for (int i = 0; i < num_transitions; ++i) {

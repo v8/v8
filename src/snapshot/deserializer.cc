@@ -27,7 +27,6 @@
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
-#include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -528,9 +527,9 @@ Handle<HeapObject> Deserializer::ReadObject(SnapshotSpace space) {
   //   * The rest of the object is filled with a fixed Smi value
   //     - This is a Smi so that tagged fields become initialized to a valid
   //       tagged value.
-  //     - It's a fixed value, "uninitialized_field_value", so that we can
-  //       DCHECK for it when reading objects that are assumed to be partially
-  //       initialized objects.
+  //     - It's a fixed value, "Smi::uninitialized_deserialization_value()", so
+  //       that we can DCHECK for it when reading objects that are assumed to be
+  //       partially initialized objects.
   //   * The fields of the object are deserialized in order, under the
   //     assumption that objects are laid out in such a way that any fields
   //     required for object iteration (e.g. length fields) are deserialized
@@ -540,8 +539,8 @@ Handle<HeapObject> Deserializer::ReadObject(SnapshotSpace space) {
   HeapObject raw_obj =
       Allocate(space, size_in_bytes, HeapObject::RequiredAlignment(*map));
   raw_obj.set_map_after_allocation(*map);
-  MemsetTagged(raw_obj.RawField(kTaggedSize), uninitialized_field_value(),
-               size_in_tagged - 1);
+  MemsetTagged(raw_obj.RawField(kTaggedSize),
+               Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
 
   // Make sure BytecodeArrays have a valid age, so that the marker doesn't
   // break when making them older.
@@ -599,8 +598,8 @@ Handle<HeapObject> Deserializer::ReadMetaMap() {
 
   HeapObject raw_obj = Allocate(space, size_in_bytes, kWordAligned);
   raw_obj.set_map_after_allocation(Map::unchecked_cast(raw_obj));
-  MemsetTagged(raw_obj.RawField(kTaggedSize), uninitialized_field_value(),
-               size_in_tagged - 1);
+  MemsetTagged(raw_obj.RawField(kTaggedSize),
+               Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
 
   Handle<HeapObject> obj = handle(raw_obj, isolate());
   back_refs_.push_back(obj);
