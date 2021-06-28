@@ -324,12 +324,12 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- a1 : the JSGeneratorObject to resume
   //  -- ra : return address
   // -----------------------------------
-  __ AssertGeneratorObject(a1);
-
   // Store input value into generator object.
   __ Sd(v0, FieldMemOperand(a1, JSGeneratorObject::kInputOrDebugPosOffset));
   __ RecordWriteField(a1, JSGeneratorObject::kInputOrDebugPosOffset, v0, a3,
                       kRAHasNotBeenSaved, SaveFPRegsMode::kIgnore);
+  // Check that a1 is still valid, RecordWrite might have clobbered it.
+  __ AssertGeneratorObject(a1);
 
   // Load suspended function and context.
   __ Ld(a4, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
@@ -779,6 +779,7 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
                                                 Register closure,
                                                 Register scratch1,
                                                 Register scratch2) {
+  DCHECK(!AreAliased(optimized_code, closure, scratch1, scratch2));
   // Store code entry in the closure.
   __ Sd(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
   __ mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.

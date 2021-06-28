@@ -636,12 +636,13 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- ra : return address
   // -----------------------------------
 
-  __ AssertGeneratorObject(a1);
-
   // Store input value into generator object.
   __ sw(v0, FieldMemOperand(a1, JSGeneratorObject::kInputOrDebugPosOffset));
   __ RecordWriteField(a1, JSGeneratorObject::kInputOrDebugPosOffset, v0, a3,
                       kRAHasNotBeenSaved, SaveFPRegsMode::kIgnore);
+
+  // Check that a1 is still valid, RecordWrite might have clobbered it.
+  __ AssertGeneratorObject(a1);
 
   // Load suspended function and context.
   __ lw(t0, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));

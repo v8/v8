@@ -321,6 +321,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   if (FLAG_debug_code) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
+    DCHECK(!AreAliased(object, value, scratch));
     Ld(scratch, MemOperand(address));
     Assert(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite, scratch,
            Operand(value));
@@ -352,8 +353,12 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   if (ra_status == kRAHasNotBeenSaved) {
     push(ra);
   }
-  CallRecordWriteStubSaveRegisters(object, address, remembered_set_action,
-                                   fp_mode);
+
+  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
+  DCHECK(!AreAliased(object, slot_address, value));
+  mov(slot_address, address);
+  CallRecordWriteStub(object, slot_address, remembered_set_action, fp_mode);
+
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);
   }
@@ -365,6 +370,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   if (FLAG_debug_code) {
     li(address, Operand(bit_cast<int64_t>(kZapValue + 12)));
     li(value, Operand(bit_cast<int64_t>(kZapValue + 16)));
+    li(slot_address, Operand(bit_cast<int64_t>(kZapValue + 20)));
   }
 }
 
@@ -6099,9 +6105,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     DCHECK(root_array_available());
     Label if_code_is_off_heap, out;
 
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-
+    Register scratch = kScratchReg;
     DCHECK(!AreAliased(destination, scratch));
     DCHECK(!AreAliased(code_object, scratch));
 
