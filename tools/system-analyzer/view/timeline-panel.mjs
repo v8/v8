@@ -5,6 +5,7 @@
 import './timeline/timeline-track.mjs';
 import './timeline/timeline-track-map.mjs';
 import './timeline/timeline-track-tick.mjs';
+import './timeline/timeline-track-timer.mjs';
 
 import {SynchronizeSelectionEvent} from './events.mjs';
 import {DOM, V8CustomElement} from './helper.mjs';

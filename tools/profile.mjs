@@ -546,8 +546,8 @@ export class Profile {
 
   addDisassemble(start, kind, disassemble) {
     const entry = this.codeMap_.findDynamicEntryByStartAddress(start);
-    if (!entry) return;
-    this.getOrCreateSourceInfo(entry).setDisassemble(disassemble);
+    if (entry) this.getOrCreateSourceInfo(entry).setDisassemble(disassemble);
+    return entry;
   }
 
   getOrCreateSourceInfo(entry) {

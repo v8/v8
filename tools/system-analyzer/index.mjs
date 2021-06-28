@@ -13,6 +13,7 @@ import {IcLogEntry} from './log/ic.mjs';
 import {LogEntry} from './log/log.mjs';
 import {MapLogEntry} from './log/map.mjs';
 import {TickLogEntry} from './log/tick.mjs';
+import {TimerLogEntry} from './log/timer.mjs';
 import {Processor} from './processor.mjs';
 import {Timeline} from './timeline.mjs'
 import {FocusEvent, SelectionEvent, SelectRelatedEvent, SelectTimeEvent, ToolTipEvent,} from './view/events.mjs';
@@ -35,6 +36,7 @@ class App {
       deoptTrack: $('#deopt-track'),
       codeTrack: $('#code-track'),
       apiTrack: $('#api-track'),
+      timerTrack: $('#timer-track'),
 
       icList: $('#ic-list'),
       mapList: $('#map-list'),
@@ -60,8 +62,15 @@ class App {
 
   static get allEventTypes() {
     return new Set([
-      SourcePosition, MapLogEntry, IcLogEntry, ApiLogEntry, CodeLogEntry,
-      DeoptLogEntry, SharedLibLogEntry, TickLogEntry
+      SourcePosition,
+      MapLogEntry,
+      IcLogEntry,
+      ApiLogEntry,
+      CodeLogEntry,
+      DeoptLogEntry,
+      SharedLibLogEntry,
+      TickLogEntry,
+      TimerLogEntry,
     ]);
   }
 
@@ -112,6 +121,7 @@ class App {
       case Script:
         entries = entry.entries.concat(entry.sourcePositions);
         break;
+      case TimerLogEntry:
       case ApiLogEntry:
       case CodeLogEntry:
       case TickLogEntry:
@@ -169,6 +179,7 @@ class App {
         return this.showDeoptEntries(entries);
       case SharedLibLogEntry:
         return this.showSharedLibEntries(entries);
+      case TimerLogEntry:
       case TickLogEntry:
         break;
       default:
@@ -206,6 +217,7 @@ class App {
   }
 
   showTickEntries(entries, focusView = true) {}
+  showTimerEntries(entries, focusView = true) {}
 
   showSourcePositions(entries, focusView = true) {
     this._view.scriptPanel.selectedSourcePositions = entries
@@ -225,6 +237,7 @@ class App {
     this.showCodeEntries(this._state.codeTimeline.selectionOrSelf, false);
     this.showApiEntries(this._state.apiTimeline.selectionOrSelf, false);
     this.showTickEntries(this._state.tickTimeline.selectionOrSelf, false);
+    this.showTimerEntries(this._state.timerTimeline.selectionOrSelf, false);
     this._view.timelinePanel.timeSelection = {start, end};
   }
 
@@ -253,6 +266,8 @@ class App {
         return this.focusDeoptLogEntry(entry);
       case TickLogEntry:
         return this.focusTickLogEntry(entry);
+      case TimerLogEntry:
+        return this.focusTimerLogEntry(entry);
       default:
         throw new Error(`Unknown selection type: ${entry.constructor?.name}`);
     }
@@ -302,6 +317,11 @@ class App {
   focusTickLogEntry(entry) {
     this._state.tickLogEntry = entry;
     this._view.tickTrack.focusedEntry = entry;
+  }
+
+  focusTimerLogEntry(entry) {
+    this._state.timerLogEntry = entry;
+    this._view.timerTrack.focusedEntry = entry;
   }
 
   focusSourcePosition(sourcePosition) {
@@ -357,9 +377,10 @@ class App {
       const codeTimeline = processor.codeTimeline;
       const apiTimeline = processor.apiTimeline;
       const tickTimeline = processor.tickTimeline;
+      const timerTimeline = processor.timerTimeline;
       this._state.setTimelines(
           mapTimeline, icTimeline, deoptTimeline, codeTimeline, apiTimeline,
-          tickTimeline);
+          tickTimeline, timerTimeline);
       this._view.mapPanel.timeline = mapTimeline;
       this._view.icList.timeline = icTimeline;
       this._view.mapList.timeline = mapTimeline;
@@ -367,6 +388,7 @@ class App {
       this._view.codeList.timeline = codeTimeline;
       this._view.apiList.timeline = apiTimeline;
       this._view.scriptPanel.scripts = processor.scripts;
+      this._view.codePanel.timeline = codeTimeline;
       this._view.codePanel.timeline = codeTimeline;
       this.refreshTimelineTrackView();
     } catch (e) {
@@ -385,6 +407,7 @@ class App {
     this._view.codeTrack.data = this._state.codeTimeline;
     this._view.apiTrack.data = this._state.apiTimeline;
     this._view.tickTrack.data = this._state.tickTimeline;
+    this._view.timerTrack.data = this._state.timerTimeline;
   }
 }
 

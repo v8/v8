@@ -48,6 +48,10 @@ body {
   background-color: var(--background-color);
 }
 
+h3 {
+  margin-block-end: 0.3em;
+}
+
 section {
   margin-bottom: 10px;
 }

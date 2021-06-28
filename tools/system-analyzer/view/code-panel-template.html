@@ -4,11 +4,24 @@ found in the LICENSE file. -->
 <head>
   <link href="./index.css" rel="stylesheet">
 </head>
+
 <style>
   #sourceCode {
     white-space: pre-line;
   }
+  .register {
+    border-bottom: 1px dashed;
+    border-radius: 2px;
+  }
+  .register:hover {
+    background-color: var(--border-color);
+  }
+  .register.selected {
+    color: var(--default-color);
+    background-color: var(--border-color);
+  }
 </style>
+
 <div class="panel">
   <input type="checkbox" id="closer" class="panelCloserInput" checked>
   <label class="panelCloserLabel" for="closer">▼</label>

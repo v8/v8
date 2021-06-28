@@ -18,8 +18,30 @@ export function formatBytes(bytes) {
   return bytes.toFixed(2) + units[index];
 }
 
-export function formatMicroSeconds(millis) {
-  return (millis * kMicro2Milli).toFixed(1) + 'ms';
+export function formatMicroSeconds(micro) {
+  return (micro * kMicro2Milli).toFixed(1) + 'ms';
+}
+
+export function formatDurationMicros(micros, secondsDigits = 3) {
+  return formatDurationMillis(micros * kMicro2Milli, secondsDigits);
+}
+
+export function formatDurationMillis(millis, secondsDigits = 3) {
+  if (millis < 1000) {
+    if (millis < 1) {
+      return (millis / kMicro2Milli).toFixed(1) + 'ns';
+    }
+    return millis.toFixed(2) + 'ms';
+  }
+  let seconds = millis / 1000;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  seconds = seconds % 60;
+  let buffer = ''
+  if (hours > 0) buffer += hours + 'h ';
+  if (hours > 0 || minutes > 0) buffer += minutes + 'm ';
+  buffer += seconds.toFixed(secondsDigits) + 's'
+  return buffer;
 }
 
 export function delay(time) {

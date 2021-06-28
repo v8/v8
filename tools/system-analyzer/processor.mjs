@@ -10,6 +10,7 @@ import {CodeLogEntry, DeoptLogEntry, SharedLibLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {Edge, MapLogEntry} from './log/map.mjs';
 import {TickLogEntry} from './log/tick.mjs';
+import {TimerLogEntry} from './log/timer.mjs';
 import {Timeline} from './timeline.mjs';
 
 // ===========================================================================
@@ -22,6 +23,7 @@ export class Processor extends LogReader {
   _icTimeline = new Timeline();
   _mapTimeline = new Timeline();
   _tickTimeline = new Timeline();
+  _timerTimeline = new Timeline();
   _formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
   _lastTimestamp = 0;
   _lastCodeLogEntry;
@@ -93,8 +95,14 @@ export class Processor extends LogReader {
       'active-runtime-timer': undefined,
       'heap-sample-begin': undefined,
       'heap-sample-end': undefined,
-      'timer-event-start': undefined,
-      'timer-event-end': undefined,
+      'timer-event-start': {
+        parsers: [parseString, parseInt],
+        processor: this.processTimerEventStart
+      },
+      'timer-event-end': {
+        parsers: [parseString, parseInt],
+        processor: this.processTimerEventEnd
+      },
       'map-create':
           {parsers: [parseInt, parseString], processor: this.processMapCreate},
       'map': {
@@ -479,6 +487,24 @@ export class Processor extends LogReader {
         new ApiLogEntry(type, this._lastTimestamp, name, arg1));
   }
 
+  processTimerEventStart(type, time) {
+    const entry = new TimerLogEntry(type, time);
+    this._timerTimeline.push(entry);
+  }
+
+  processTimerEventEnd(type, time) {
+    // Timer-events are infrequent, and not deeply nested, doing a linear walk
+    // is usually good enough.
+    for (let i = this._timerTimeline.length - 1; i >= 0; i--) {
+      const timer = this._timerTimeline.at(i);
+      if (timer.type == type && !timer.isInitialized) {
+        timer.end(time);
+        return;
+      }
+    }
+    console.error('Couldn\'t find matching timer event start', {type, time});
+  }
+
   get icTimeline() {
     return this._icTimeline;
   }
@@ -501,6 +527,10 @@ export class Processor extends LogReader {
 
   get tickTimeline() {
     return this._tickTimeline;
+  }
+
+  get timerTimeline() {
+    return this._timerTimeline;
   }
 
   get scripts() {

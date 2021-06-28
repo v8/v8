@@ -11,10 +11,26 @@ found in the LICENSE file. -->
 }
 .properties > tbody > tr > td:nth-child(2n+1):after {
   content: ':';
+ }
+.properties > tbody > tr > td:nth-child(2n+1) {
+  padding-right: 3px;
 }
+
+.properties > tbody > tr > td:nth-child(2n+2) {
+  width: 100%;
+}
+
+.properties > tfoot {
+  text-align: right;
+}
+
 .properties {
   min-width: 350px;
   border-collapse: collapse;
+}
+
+h3 {
+  margin-block-start: 0em;
 }
 </style>
 

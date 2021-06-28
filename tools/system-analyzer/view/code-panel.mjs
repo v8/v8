@@ -4,6 +4,12 @@
 import {SelectRelatedEvent} from './events.mjs';
 import {CollapsableElement, DOM, formatBytes, formatMicroSeconds} from './helper.mjs';
 
+const kRegisters = ['rsp', 'rbp', 'rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi'];
+// Add Interpreter and x64 registers
+for (let i = 0; i < 14; i++) {
+  kRegisters.push(`r${i}`);
+}
+
 DOM.defineCustomElement('view/code-panel',
                         (templateText) =>
                             class CodePanel extends CollapsableElement {
@@ -13,6 +19,11 @@ DOM.defineCustomElement('view/code-panel',
 
   constructor() {
     super(templateText);
+    this._codeSelectNode = this.$('#codeSelect');
+    this._disassemblyNode = this.$('#disassembly');
+    this._sourceNode = this.$('#sourceCode');
+    this._registerSelector = new RegisterSelector(this._disassemblyNode);
+
     this._codeSelectNode.onchange = this._handleSelectCode.bind(this);
     this.$('#selectedRelatedButton').onclick =
         this._handleSelectRelated.bind(this)
@@ -41,7 +52,7 @@ DOM.defineCustomElement('view/code-panel',
         script: entry.script,
         type: entry.type,
         kind: entry.kindName,
-        variants: entry.variants,
+        variants: entry.variants.length > 1 ? entry.variants : undefined,
       };
     } else {
       this.$('#properties').propertyDict = {};
@@ -49,22 +60,32 @@ DOM.defineCustomElement('view/code-panel',
     this.requestUpdate();
   }
 
-  get _disassemblyNode() {
-    return this.$('#disassembly');
-  }
-
-  get _sourceNode() {
-    return this.$('#sourceCode');
-  }
-
-  get _codeSelectNode() {
-    return this.$('#codeSelect');
-  }
-
   _update() {
     this._updateSelect();
-    this._disassemblyNode.innerText = this._entry?.code ?? '';
+    this._formatDisassembly();
     this._sourceNode.innerText = this._entry?.source ?? '';
+  }
+
+  _formatDisassembly() {
+    if (!this._entry?.code) {
+      this._disassemblyNode.innerText = '';
+      return;
+    }
+    const rawCode = this._entry?.code;
+    try {
+      this._disassemblyNode.innerText = rawCode;
+      let formattedCode = this._disassemblyNode.innerHTML;
+      for (let register of kRegisters) {
+        const button = `<span class="register ${register}">${register}</span>`
+        formattedCode = formattedCode.replaceAll(register, button);
+      }
+      // Let's replace the base-address since it doesn't add any value.
+      // TODO
+      this._disassemblyNode.innerHTML = formattedCode;
+    } catch (e) {
+      console.error(e);
+      this._disassemblyNode.innerText = rawCode;
+    }
   }
 
   _updateSelect() {
@@ -76,12 +97,18 @@ DOM.defineCustomElement('view/code-panel',
         this._selectedEntries.slice().sort((a, b) => a.time - b.time);
     for (const code of this._selectedEntries) {
       const option = DOM.element('option');
-      option.text =
-          `${code.functionName}(...) t=${formatMicroSeconds(code.time)} size=${
-              formatBytes(code.size)} script=${code.script?.toString()}`;
+      option.text = this._entrySummary(code);
       option.data = code;
       select.add(option);
     }
+  }
+  _entrySummary(code) {
+    if (code.isBuiltinKind) {
+      return `${code.functionName}(...) t=${
+          formatMicroSeconds(code.time)} size=${formatBytes(code.size)}`;
+    }
+    return `${code.functionName}(...) t=${formatMicroSeconds(code.time)} size=${
+        formatBytes(code.size)} script=${code.script?.toString()}`;
   }
 
   _handleSelectCode() {
@@ -93,3 +120,36 @@ DOM.defineCustomElement('view/code-panel',
     this.dispatchEvent(new SelectRelatedEvent(this._entry));
   }
 });
+
+class RegisterSelector {
+  _currentRegister;
+  constructor(node) {
+    this._node = node;
+    this._node.onmousemove = this._handleDisassemblyMouseMove.bind(this);
+  }
+
+  _handleDisassemblyMouseMove(event) {
+    const target = event.target;
+    if (!target.classList.contains('register')) {
+      this._clear();
+      return;
+    };
+    this._select(target.innerText);
+  }
+
+  _clear() {
+    if (this._currentRegister == undefined) return;
+    for (let node of this._node.querySelectorAll('.register')) {
+      node.classList.remove('selected');
+    }
+  }
+
+  _select(register) {
+    if (register == this._currentRegister) return;
+    this._clear();
+    this._currentRegister = register;
+    for (let node of this._node.querySelectorAll(`.register.${register}`)) {
+      node.classList.add('selected');
+    }
+  }
+}

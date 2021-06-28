@@ -326,7 +326,7 @@ export class TimelineTrackBase extends V8CustomElement {
   _handleMouseMove(event) {
     if (event.button !== 0) return;
     if (this._selectionHandler.isSelecting) return false;
-    if (this.isLocked) {
+    if (this.isLocked && this._focusedEntry) {
       this._updateToolTip(event);
       return false;
     }

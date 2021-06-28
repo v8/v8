@@ -14,6 +14,7 @@ DOM.defineCustomElement(
       _instanceLinkButtons = false;
       _logEntryClickHandler = this._handleLogEntryClick.bind(this);
       _logEntryRelatedHandler = this._handleLogEntryRelated.bind(this);
+      _arrayValueSelectHandler = this._handleArrayValueSelect.bind(this);
 
       constructor() {
         super(template);
@@ -78,6 +79,7 @@ DOM.defineCustomElement(
           return DOM.text(`${array.length} items`);
         }
         const select = DOM.element('select');
+        select.onchange = this._arrayValueSelectHandler;
         for (let value of array) {
           const option = DOM.element('option');
           option.innerText = value.toString();
@@ -106,11 +108,15 @@ DOM.defineCustomElement(
         showRelatedButton.data = this._instance;
       }
 
-      _handleLogEntryClick(e) {
-        this.dispatchEvent(new FocusEvent(e.currentTarget.data));
+      _handleArrayValueSelect(event) {
+        const logEntry = event.currentTarget.selectedOptions[0].data;
+        this.dispatchEvent(new FocusEvent(logEntry));
+      }
+      _handleLogEntryClick(event) {
+        this.dispatchEvent(new FocusEvent(event.currentTarget.data));
       }
 
-      _handleLogEntryRelated(e) {
-        this.dispatchEvent(new SelectRelatedEvent(e.currentTarget.data));
+      _handleLogEntryRelated(event) {
+        this.dispatchEvent(new SelectRelatedEvent(event.currentTarget.data));
       }
     });

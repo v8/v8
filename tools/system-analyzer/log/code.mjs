@@ -61,6 +61,10 @@ export class CodeLogEntry extends LogEntry {
     return this._kind;
   }
 
+  get isBuiltinKind() {
+    return this._kindName === 'Builtin';
+  }
+
   get kindName() {
     return this._kindName;
   }
@@ -70,7 +74,7 @@ export class CodeLogEntry extends LogEntry {
   }
 
   get functionName() {
-    return this._entry.functionName;
+    return this._entry.functionName ?? this._entry.getRawName();
   }
 
   get size() {
