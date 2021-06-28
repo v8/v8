@@ -83,6 +83,7 @@ class StatsCounter;
     "RegExpMacroAssembler*::CheckStackGuardState()")                           \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
   V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")   \
+  V(javascript_execution_assert, "javascript_execution_assert")                \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_HEAP_SANDBOX(V)
 
 #ifdef V8_HEAP_SANDBOX
