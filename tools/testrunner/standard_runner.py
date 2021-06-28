@@ -285,6 +285,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     })
     return variables
 
+  def _create_sequence_proc(self, options):
+    """Create processor for sequencing heavy tests on swarming."""
+    return SequenceProc(options.max_heavy_tests) if options.swarming else None
+
   def _do_execute(self, tests, args, options):
     jobs = options.j
 
@@ -309,7 +313,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       self._create_predictable_filter(),
       self._create_shard_proc(options),
       self._create_seed_proc(options),
-      SequenceProc(options.max_heavy_tests),
+      self._create_sequence_proc(options),
       sigproc,
     ] + indicators + [
       results,
