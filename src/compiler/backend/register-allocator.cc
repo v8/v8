@@ -135,6 +135,7 @@ LiveRangeBoundArray* LiveRangeFinder::ArrayFor(int operand_index) {
   DCHECK(operand_index < bounds_length_);
   TopLevelLiveRange* range = data_->live_ranges()[operand_index];
   DCHECK(range != nullptr && !range->IsEmpty());
+  DCHECK_EQ(range->vreg(), operand_index);
   LiveRangeBoundArray* array = &bounds_[operand_index];
   if (array->ShouldInitialize()) {
     array->Initialize(zone_, range);
@@ -1365,6 +1366,7 @@ TopLevelLiveRange* TopTierRegisterAllocationData::GetOrCreateLiveRangeFor(
     result = NewLiveRange(index, RepresentationFor(index));
     live_ranges()[index] = result;
   }
+  DCHECK_EQ(live_ranges()[index]->vreg(), index);
   return result;
 }
 
@@ -4628,6 +4630,15 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
   const ReferenceMapDeque* reference_maps = data()->code()->reference_maps();
   ReferenceMapDeque::const_iterator first_it = reference_maps->begin();
   const size_t live_ranges_size = data()->live_ranges().size();
+  // We break the invariant that live ranges are indexed by their vregs here.
+  // This is ok because we don't use that invariant here, and this is the last
+  // phase.
+  std::sort(data()->live_ranges().begin(), data()->live_ranges().end(),
+            [](TopLevelLiveRange* a, TopLevelLiveRange* b) {
+              if (!a || a->IsEmpty()) return false;
+              if (!b || b->IsEmpty()) return true;
+              return a->Start() < b->Start();
+            });
   for (TopLevelLiveRange* range : data()->live_ranges()) {
     CHECK_EQ(live_ranges_size,
              data()->live_ranges().size());  // TODO(neis): crbug.com/831822
@@ -4648,10 +4659,11 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
       DCHECK(cur->Start().ToInstructionIndex() >= start);
     }
 
-    // Most of the ranges are in order, but not all.  Keep an eye on when they
-    // step backwards and reset the first_it so we don't miss any safe points.
-    if (start < last_range_start) first_it = reference_maps->begin();
+    // Ranges should be sorted, so that the first reference map in the current
+    // live range has to be after {first_it}.
+    DCHECK_LE(last_range_start, start);
     last_range_start = start;
+    USE(last_range_start);
 
     // Step across all the safe points that are before the start of this range,
     // recording how far we step in order to save doing this for the next range.
