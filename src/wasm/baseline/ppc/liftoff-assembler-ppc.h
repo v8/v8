@@ -522,7 +522,39 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
 
 void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
                                            ValueKind kind) {
-  bailout(kUnsupportedArchitecture, "LoadReturnStackSlot");
+  switch (kind) {
+    case kI32: {
+#if defined(V8_TARGET_BIG_ENDIAN)
+      LoadS32(dst.gp(), MemOperand(sp, offset + 4), r0);
+      break;
+#else
+      LoadS32(dst.gp(), MemOperand(sp, offset), r0);
+      break;
+#endif
+    }
+    case kRef:
+    case kRtt:
+    case kOptRef:
+    case kRttWithDepth:
+    case kI64: {
+      LoadU64(dst.gp(), MemOperand(sp, offset), r0);
+      break;
+    }
+    case kF32: {
+      LoadF32(dst.fp(), MemOperand(sp, offset), r0);
+      break;
+    }
+    case kF64: {
+      LoadF64(dst.fp(), MemOperand(sp, offset), r0);
+      break;
+    }
+    case kS128: {
+      bailout(kSimd, "simd load");
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 #ifdef V8_TARGET_BIG_ENDIAN
