@@ -136,7 +136,7 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz"},
         close_tree = False,
-        notifies = ["memory sheriffs"],
+        notifies = ["NumFuzz maintainer"],
     ),
     v8_builder(
         name = "V8 NumFuzz - debug",
@@ -145,7 +145,7 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz"},
         close_tree = False,
-        notifies = ["memory sheriffs"],
+        notifies = ["NumFuzz maintainer"],
     ),
     v8_builder(
         name = "V8 NumFuzz - TSAN",
@@ -154,6 +154,6 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz"},
         close_tree = False,
-        notifies = ["memory sheriffs"],
+        notifies = ["NumFuzz maintainer"],
     ),
 )

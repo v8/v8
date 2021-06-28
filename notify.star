@@ -33,6 +33,15 @@ luci.notifier(
 )
 
 luci.notifier(
+    name = "NumFuzz maintainer",
+    on_occurrence = ["FAILURE"],
+    failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
+    notify_emails = [
+        "almuthanna@chromium.org",
+    ],
+)
+
+luci.notifier(
     name = "jsvu/esvu maintainer",
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
