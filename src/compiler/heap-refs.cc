@@ -2292,15 +2292,6 @@ class CodeData : public HeapObjectData {
   unsigned const inlined_bytecode_size_;
 };
 
-class CodeDataContainerData : public HeapObjectData {
- public:
-  CodeDataContainerData(JSHeapBroker* broker, ObjectData** storage,
-                        Handle<CodeDataContainer> object)
-      : HeapObjectData(broker, storage, object) {
-    DCHECK(!broker->is_concurrent_inlining());
-  }
-};
-
 #define DEFINE_IS(Name, ...)                                            \
   bool ObjectData::Is##Name() const {                                   \
     if (should_access_heap()) {                                         \

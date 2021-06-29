@@ -111,7 +111,6 @@ enum class RefSerializationKind {
   V(CallHandlerInfo, RefSerializationKind::kNeverSerialized)              \
   V(Cell, RefSerializationKind::kNeverSerialized)                         \
   V(Code, RefSerializationKind::kNeverSerialized)                         \
-  V(CodeDataContainer, RefSerializationKind::kNeverSerialized)            \
   V(Context, RefSerializationKind::kNeverSerialized)                      \
   V(DescriptorArray, RefSerializationKind::kNeverSerialized)              \
   V(FeedbackCell, RefSerializationKind::kNeverSerialized)                 \
@@ -1049,13 +1048,6 @@ class CodeRef : public HeapObjectRef {
   Handle<Code> object() const;
 
   unsigned GetInlinedBytecodeSize() const;
-};
-
-class CodeDataContainerRef : public HeapObjectRef {
- public:
-  DEFINE_REF_CONSTRUCTOR(CodeDataContainer, HeapObjectRef)
-
-  Handle<CodeDataContainer> object() const;
 };
 
 class InternalizedStringRef : public StringRef {
