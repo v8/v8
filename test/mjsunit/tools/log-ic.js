@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --log-ic --logfile=test/mjsunit/tools/log-ic-test.log
-// Flags: --allow-natives-syntax
+// Flags: --log-ic --logfile='+' --allow-natives-syntax
 
 // The idea behind this test is to make sure we do not crash when using the
 // --log-ic flag.
