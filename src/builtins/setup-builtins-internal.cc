@@ -31,6 +31,8 @@ BUILTIN_LIST_C(FORWARD_DECLARE)
 
 namespace {
 
+const int kBufferSize = 128 * KB;
+
 AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   AssemblerOptions options = AssemblerOptions::Default(isolate);
   CHECK(!options.isolate_independent_code);
@@ -59,7 +61,6 @@ using CodeAssemblerGenerator = void (*)(compiler::CodeAssemblerState*);
 
 Handle<Code> BuildPlaceholder(Isolate* isolate, Builtin builtin) {
   HandleScope scope(isolate);
-  const int kBufferSize = FLAG_code_comments ? 128 * KB : 1 * KB;
   byte buffer[kBufferSize];
   MacroAssembler masm(isolate, CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, kBufferSize));
@@ -87,7 +88,6 @@ Code BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
   // Canonicalize handles, so that we can share constant pool entries pointing
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
-  const int kBufferSize = FLAG_code_comments ? 128 * KB : 32 * KB;
   byte buffer[kBufferSize];
 
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin),
@@ -130,7 +130,6 @@ Code BuildAdaptor(Isolate* isolate, Builtin builtin, Address builtin_address,
   // Canonicalize handles, so that we can share constant pool entries pointing
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
-  const int kBufferSize = FLAG_code_comments ? 128 * KB : 32 * KB;
   byte buffer[kBufferSize];
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin),
                       CodeObjectRequired::kYes,
