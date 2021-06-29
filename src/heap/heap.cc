@@ -5355,10 +5355,6 @@ HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
   FatalProcessOutOfMemory("CALL_AND_RETRY_LAST");
 }
 
-namespace {
-V8_DECLARE_ONCE(initialize_shared_code_range_once);
-}  // namespace
-
 void Heap::SetUp() {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   allocation_timeout_ = NextAllocationTimeout();
@@ -5391,10 +5387,8 @@ void Heap::SetUp() {
       // When sharing a pointer cage among Isolates, also share the
       // CodeRange. isolate_->page_allocator() is the process-wide pointer
       // compression cage's PageAllocator.
-      base::CallOnce(&initialize_shared_code_range_once,
-                     &CodeRange::InitializeProcessWideCodeRangeOnce,
-                     isolate_->page_allocator(), requested_size);
-      code_range_ = CodeRange::GetProcessWideCodeRange();
+      code_range_ = CodeRange::EnsureProcessWideCodeRange(
+          isolate_->page_allocator(), requested_size);
     } else {
       code_range_ = std::make_shared<CodeRange>();
       if (!code_range_->InitReservation(isolate_->page_allocator(),

@@ -14,8 +14,11 @@ namespace internal {
 
 namespace {
 
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(std::shared_ptr<CodeRange>,
-                                GetProcessWideCodeRangeCage)
+// Weak pointer holding the process-wide CodeRange, if one has been created. All
+// Heaps hold a std::shared_ptr to this, so this is destroyed when no Heaps
+// remain.
+base::LazyInstance<std::weak_ptr<CodeRange>>::type process_wide_code_range_ =
+    LAZY_INSTANCE_INITIALIZER;
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(CodeRangeAddressHint, GetCodeRangeAddressHint)
 
@@ -153,19 +156,23 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
 }
 
 // static
-void CodeRange::InitializeProcessWideCodeRangeOnce(
+std::shared_ptr<CodeRange> CodeRange::EnsureProcessWideCodeRange(
     v8::PageAllocator* page_allocator, size_t requested_size) {
-  *GetProcessWideCodeRangeCage() = std::make_shared<CodeRange>();
-  if (!GetProcessWideCodeRange()->InitReservation(page_allocator,
-                                                  requested_size)) {
-    V8::FatalProcessOutOfMemory(
-        nullptr, "Failed to reserve virtual memory for CodeRange");
+  std::shared_ptr<CodeRange> code_range = process_wide_code_range_.Get().lock();
+  if (!code_range) {
+    code_range = std::make_shared<CodeRange>();
+    if (!code_range->InitReservation(page_allocator, requested_size)) {
+      V8::FatalProcessOutOfMemory(
+          nullptr, "Failed to reserve virtual memory for CodeRange");
+    }
+    *process_wide_code_range_.Pointer() = code_range;
   }
+  return code_range;
 }
 
 // static
 std::shared_ptr<CodeRange> CodeRange::GetProcessWideCodeRange() {
-  return *GetProcessWideCodeRangeCage();
+  return process_wide_code_range_.Get().lock();
 }
 
 }  // namespace internal
