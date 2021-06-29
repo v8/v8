@@ -213,6 +213,12 @@
 ################################################################################
 ['third_party_heap', {
   # Requires a second isolate
+  'debugger/stepping-generator-parameters': [SKIP],
+  'debugger/wasm-externref-global': [SKIP],
+  'debugger/stepping-async-generator': [SKIP],
+  'regress/regress-crbug-1222065': [SKIP],
+  'debugger/stepping-generator': [SKIP],
+  'runtime/exception-thrown-metadata': [SKIP],
   'debugger/wasm-side-effect-free-debug-evaluate': [SKIP],
   'regress/regress-crbug-1081162': [SKIP],
   'regress/regress-crbug-1207867': [SKIP],

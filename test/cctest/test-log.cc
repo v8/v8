@@ -908,7 +908,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
 UNINITIALIZED_TEST(LogMapsDetailsStartup) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking) {
+      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
     return;
   }
   // Test that all Map details from Maps in the snapshot are logged properly.
@@ -930,7 +930,7 @@ UNINITIALIZED_TEST(LogMapsDetailsStartup) {
 UNINITIALIZED_TEST(LogMapsDetailsCode) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking) {
+      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
     return;
   }
   SETUP_FLAGS();
@@ -1027,7 +1027,7 @@ UNINITIALIZED_TEST(LogMapsDetailsCode) {
 UNINITIALIZED_TEST(LogMapsDetailsContexts) {
   // Reusing map addresses might cause these tests to fail.
   if (i::FLAG_gc_global || i::FLAG_stress_compaction ||
-      i::FLAG_stress_incremental_marking) {
+      i::FLAG_stress_incremental_marking || i::FLAG_enable_third_party_heap) {
     return;
   }
   // Test that all Map details from Maps in the snapshot are logged properly.

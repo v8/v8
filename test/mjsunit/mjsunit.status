@@ -1531,7 +1531,10 @@
 
 ################################################################################
 ['third_party_heap', {
+  # Requires local heaps
+  'const-field-tracking': [SKIP],
   # Requires --concurrent_inlining / --finalize_streaming_on_background:
+  'regress/regress-1220974': [SKIP],
   'regress-1146106': [SKIP],
   'compiler/bound-functions-serialize': [SKIP],
   'regress/regress-1003730': [SKIP],
@@ -1552,6 +1555,7 @@
   'regress/regress-356053': [SKIP],
   'regress/regress-embedded-cons-string': [SKIP],
   # Requires a second isolate
+  'regress/regress-1212404': [SKIP],
   'resizablearraybuffer-growablesharedarraybuffer': [SKIP],
   'regress/regress-1205290': [SKIP],
   'compiler/regress-725743': [SKIP],
