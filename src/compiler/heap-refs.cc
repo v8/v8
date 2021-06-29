@@ -2914,14 +2914,14 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
                                    kUnserializedReadOnlyHeapObject);
   }
 
-#define CREATE_DATA(Name, Kind)                                   \
-  if (object->Is##Name()) {                                       \
-    CreateDataFunctor<Kind, Name##Data, Name> f;                  \
-    if (!f(this, refs_, object, &entry, &object_data)) {          \
-      CHECK_WITH_MSG(!crash_on_error, "Ref construction failed"); \
-      return nullptr;                                             \
-    }                                                             \
-    /* NOLINTNEXTLINE(readability/braces) */                      \
+#define CREATE_DATA(Name, Kind)                                         \
+  if (object->Is##Name()) {                                             \
+    CreateDataFunctor<Kind, Name##Data, Name> f;                        \
+    if (!f(this, refs_, object, &entry, &object_data)) {                \
+      CHECK_WITH_MSG(!crash_on_error, #Name "Ref construction failed"); \
+      return nullptr;                                                   \
+    }                                                                   \
+    /* NOLINTNEXTLINE(readability/braces) */                            \
   } else
   HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA
