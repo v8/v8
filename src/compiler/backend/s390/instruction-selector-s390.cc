@@ -1311,6 +1311,10 @@ static inline bool TryMatchDoubleConstructFromInsert(
     null)                                                                      \
   V(Float64, Float64RoundTiesAway, kS390_RoundDouble, OperandMode::kNone,      \
     null)                                                                      \
+  V(Float32, Float32RoundTiesEven, kS390_FloatNearestInt, OperandMode::kNone,  \
+    null)                                                                      \
+  V(Float64, Float64RoundTiesEven, kS390_DoubleNearestInt, OperandMode::kNone, \
+    null)                                                                      \
   V(Float32, Float32Neg, kS390_NegFloat, OperandMode::kNone, null)             \
   V(Float64, Float64Neg, kS390_NegDouble, OperandMode::kNone, null)            \
   /* TODO(john.yan): can use kAllowRM */                                       \
@@ -1555,14 +1559,6 @@ void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
   Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1),
        g.UseFixed(node->InputAt(1), d2))
       ->MarkAsCall();
-}
-
-void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
-  UNREACHABLE();
-}
-
-void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
-  UNREACHABLE();
 }
 
 static bool CompareLogical(FlagsContinuation* cont) {
@@ -2875,6 +2871,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundUp |
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTruncate |
+         MachineOperatorBuilder::kFloat32RoundTiesEven |
+         MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
          MachineOperatorBuilder::kWord32Popcnt |
          MachineOperatorBuilder::kInt32AbsWithOverflow |
