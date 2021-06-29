@@ -49,9 +49,6 @@
 ['variant in [jitless, nooptimization, stress]', {
   # Slow tests.
   'kraken/ai-astar': [PASS, SLOW],
-  'kraken/audio-dft': [PASS, SLOW],
-  'kraken/audio-fft': [PASS, SLOW],
-  'kraken/audio-oscillator': [PASS, SLOW],
   'kraken/imaging-darkroom': [PASS, SLOW],
   'kraken/imaging-desaturate': [PASS, SLOW],
   'octane/code-load': [PASS, SLOW],
@@ -117,6 +114,9 @@
 ['tsan', {
   # Slow tests.
   'kraken/audio-beat-detection': [SLOW],
+  'kraken/audio-dft': [SLOW],
+  'kraken/audio-fft': [SLOW],
+  'kraken/audio-oscillator': [SLOW],
 }],  # 'tsan'
 
 ]
