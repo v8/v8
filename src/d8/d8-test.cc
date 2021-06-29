@@ -224,7 +224,11 @@ class FastCApiObject {
       return 0;
     }
 
-    return arg1_i32 + arg2_i32 + arg3_i32 + arg4_u32 + arg5_u32 + arg6_u32;
+    int64_t result = static_cast<int64_t>(arg1_i32) + arg2_i32 + arg3_i32 +
+                     arg4_u32 + arg5_u32 + arg6_u32;
+    if (result > INT_MAX) return INT_MAX;
+    if (result < INT_MIN) return INT_MIN;
+    return static_cast<int>(result);
   }
   static int AddAll32BitIntFastCallback_5Args(
       Local<Object> receiver, bool should_fallback, int32_t arg1_i32,
