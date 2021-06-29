@@ -844,6 +844,7 @@ Handle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
         WASM_VALUE_OBJECT_TYPE, WasmValueObject::kSize,
         TERMINAL_FAST_ELEMENTS_KIND, 2);
     Map::EnsureDescriptorSlack(isolate, map, 2);
+    map->SetConstructor(*isolate->object_function());
     {  // type
       Descriptor d = Descriptor::DataField(
           isolate,
