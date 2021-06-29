@@ -71,7 +71,7 @@ struct WasmFunction {
 struct WasmGlobal {
   ValueType type;     // type of the global.
   bool mutability;    // {true} if mutable.
-  WasmInitExpr init;  // the initialization expression of the global.
+  WireBytesRef init;  // the initialization expression of the global.
   union {
     uint32_t index;   // index of imported mutable global.
     uint32_t offset;  // offset into global memory (if not imported & mutable).
@@ -95,13 +95,13 @@ struct WasmException {
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
   // Construct an active segment.
-  explicit WasmDataSegment(WasmInitExpr dest_addr)
+  explicit WasmDataSegment(WireBytesRef dest_addr)
       : dest_addr(std::move(dest_addr)), active(true) {}
 
   // Construct a passive segment, which has no dest_addr.
   WasmDataSegment() : active(false) {}
 
-  WasmInitExpr dest_addr;  // destination memory address of the data.
+  WireBytesRef dest_addr;  // destination memory address of the data.
   WireBytesRef source;     // start offset in the module bytes.
   bool active = true;      // true if copied automatically during instantiation.
 };
@@ -109,7 +109,7 @@ struct WasmDataSegment {
 // Static representation of wasm element segment (table initializer).
 struct WasmElemSegment {
   // Construct an active segment.
-  WasmElemSegment(ValueType type, uint32_t table_index, WasmInitExpr offset)
+  WasmElemSegment(ValueType type, uint32_t table_index, WireBytesRef offset)
       : type(type),
         table_index(table_index),
         offset(std::move(offset)),
@@ -134,7 +134,7 @@ struct WasmElemSegment {
 
   ValueType type;
   uint32_t table_index;
-  WasmInitExpr offset;
+  WireBytesRef offset;
   std::vector<WasmInitExpr> entries;
   enum Status {
     kStatusActive,      // copied automatically during instantiation.
@@ -377,7 +377,7 @@ struct WasmTable {
   bool has_maximum_size = false;  // true if there is a maximum size.
   bool imported = false;          // true if imported.
   bool exported = false;          // true if exported.
-  WasmInitExpr initial_value;
+  WireBytesRef initial_value;
 };
 
 inline bool is_asmjs_module(const WasmModule* module) {

@@ -194,6 +194,48 @@ std::ostream& operator<<(std::ostream& os, const WasmInitExpr& expr) {
   }
   return os << ")";
 }
+
+// Appends an initializer expression encoded in {wire_bytes}, in the offset
+// contained in {expr}.
+// TODO(7748): Find a way to implement other expressions here.
+void AppendInitExpr(std::ostream& os, ModuleWireBytes wire_bytes,
+                    WireBytesRef expr) {
+  Decoder decoder(wire_bytes.module_bytes());
+  const byte* pc = wire_bytes.module_bytes().begin() + expr.offset();
+  uint32_t length;
+  os << "WasmInitExpr.";
+  switch (static_cast<WasmOpcode>(pc[0])) {
+    case kExprGlobalGet:
+      os << "GlobalGet("
+         << decoder.read_u32v<Decoder::kNoValidation>(pc + 1, &length);
+      break;
+    case kExprI32Const:
+      os << "I32Const("
+         << decoder.read_i32v<Decoder::kNoValidation>(pc + 1, &length);
+      break;
+    case kExprI64Const:
+      os << "I64Const("
+         << decoder.read_i64v<Decoder::kNoValidation>(pc + 1, &length);
+      break;
+    case kExprF32Const: {
+      uint32_t result = decoder.read_u32<Decoder::kNoValidation>(pc + 1);
+      os << "F32Const(" << bit_cast<float>(result);
+      break;
+    }
+    case kExprF64Const: {
+      uint64_t result = decoder.read_u64<Decoder::kNoValidation>(pc + 1);
+      os << "F64Const(" << bit_cast<double>(result);
+      break;
+    }
+    case kExprRefFunc:
+      os << "RefFunc("
+         << decoder.read_u32v<Decoder::kNoValidation>(pc + 1, &length);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  os << ")";
+}
 }  // namespace
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
@@ -249,7 +291,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   for (WasmGlobal& glob : module->globals) {
     os << "builder.addGlobal(" << ValueTypeToConstantName(glob.type) << ", "
-       << glob.mutability << ", " << glob.init << ");\n";
+       << glob.mutability << ", ";
+    AppendInitExpr(os, wire_bytes, glob.init);
+    os << ");\n";
   }
 
   // TODO(7748): Support array/struct types.
@@ -287,7 +331,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                   : "Declarative";
     os << "builder.add" << status_str << "ElementSegment(";
     if (elem_segment.status == WasmElemSegment::kStatusActive) {
-      os << elem_segment.table_index << ", " << elem_segment.offset << ", ";
+      os << elem_segment.table_index << ", ";
+      AppendInitExpr(os, wire_bytes, elem_segment.offset);
+      os << ", ";
     }
     os << "[";
     for (uint32_t i = 0; i < elem_segment.entries.size(); i++) {
