@@ -590,7 +590,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
-  mov(dst, src);
+  mr(dst, src);
 }
 
 void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
