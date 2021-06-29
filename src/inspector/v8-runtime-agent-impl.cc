@@ -799,6 +799,7 @@ void V8RuntimeAgentImpl::bindingCalled(const String16& name,
                                        int executionContextId) {
   if (!m_activeBindings.count(name)) return;
   m_frontend.bindingCalled(name, payload, executionContextId);
+  m_frontend.flush();
 }
 
 void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
