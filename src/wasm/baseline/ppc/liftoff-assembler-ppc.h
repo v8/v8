@@ -39,6 +39,7 @@ namespace liftoff {
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
+//
 
 constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
 
@@ -603,11 +604,55 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 }
 
 void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
-  bailout(kUnsupportedArchitecture, "Spill register");
+  DCHECK_LT(0, offset);
+  RecordUsedSpillOffset(offset);
+
+  switch (kind) {
+    case kI32:
+      StoreU32(reg.gp(), liftoff::GetStackSlot(offset + stack_bias), r0);
+      break;
+    case kI64:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kRttWithDepth:
+      StoreU64(reg.gp(), liftoff::GetStackSlot(offset), r0);
+      break;
+    case kF32:
+      StoreF32(reg.fp(), liftoff::GetStackSlot(offset + stack_bias), r0);
+      break;
+    case kF64:
+      StoreF64(reg.fp(), liftoff::GetStackSlot(offset), r0);
+      break;
+    case kS128: {
+      bailout(kSimd, "simd op");
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Spill(int offset, WasmValue value) {
-  bailout(kUnsupportedArchitecture, "Spill value");
+  RecordUsedSpillOffset(offset);
+  UseScratchRegisterScope temps(this);
+  Register src = no_reg;
+  src = ip;
+  switch (value.type().kind()) {
+    case kI32: {
+      mov(src, Operand(value.to_i32()));
+      StoreU32(src, liftoff::GetStackSlot(offset + stack_bias), r0);
+      break;
+    }
+    case kI64: {
+      mov(src, Operand(value.to_i64()));
+      StoreU64(src, liftoff::GetStackSlot(offset), r0);
+      break;
+    }
+    default:
+      // We do not track f32 and f64 constants, hence they are unreachable.
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
