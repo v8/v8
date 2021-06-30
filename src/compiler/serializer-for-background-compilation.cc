@@ -1783,6 +1783,12 @@ void SerializerForBackgroundCompilation::VisitForInPrepare(
 
 void SerializerForBackgroundCompilation::ProcessCreateContext(
     interpreter::BytecodeArrayIterator* iterator, int scopeinfo_operand_index) {
+  Handle<ScopeInfo> scope_info =
+      Handle<ScopeInfo>::cast(iterator->GetConstantForIndexOperand(
+          scopeinfo_operand_index, broker()->isolate()));
+  ScopeInfoRef scope_info_ref = MakeRef(broker(), scope_info);
+  scope_info_ref.SerializeScopeInfoChain();
+
   Hints const& current_context_hints = environment()->current_context_hints();
   Hints result_hints;
 
@@ -2238,6 +2244,9 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
               FunctionTemplateInfo::cast(target->function_data(kAcquireLoad)));
   if (!target_template_info.has_call_code()) return;
   target_template_info.SerializeCallCode();
+
+  SharedFunctionInfoRef target_ref = MakeRef(broker(), target);
+  target_ref.SerializeFunctionTemplateInfo();
 
   if (target_template_info.accept_any_receiver() &&
       target_template_info.is_signature_undefined()) {
@@ -2884,6 +2893,8 @@ void SerializerForBackgroundCompilation::ProcessCheckContextExtensions(
     ProcessContextAccess(context_hints, Context::EXTENSION_INDEX, i,
                          kSerializeSlot);
   }
+  SharedFunctionInfoRef shared = MakeRef(broker(), function().shared());
+  shared.SerializeScopeInfoChain();
 }
 
 void SerializerForBackgroundCompilation::ProcessLdaLookupGlobalSlot(
