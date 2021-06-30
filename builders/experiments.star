@@ -4,6 +4,12 @@
 
 load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "v8_builder", "v8_notifier")
 
+RECLIENT = struct(
+  DEFAULT = {
+    "instance": "rbe-chromium-trusted",
+  },
+)
+
 def experiment_builder(**kwargs):
     to_notify = kwargs.pop("to_notify", None)
     if to_notify:
@@ -24,6 +30,7 @@ def experiment_builder_pair(name, **kwargs):
     dimensions = kwargs.pop("dimensions", None)
     triggered_by = kwargs.pop("triggered_by", None)
     use_goma = kwargs.pop("use_goma", None)
+    use_rbe = kwargs.pop("use_rbe", None)
 
     to_notify = kwargs.pop("to_notify", None)
     if to_notify:
@@ -44,6 +51,7 @@ def experiment_builder_pair(name, **kwargs):
         dimensions = dimensions,
         triggered_by = triggered_by,
         use_goma = use_goma,
+        use_rbe = use_rbe,
         **kwargs
     )
 
@@ -195,6 +203,17 @@ experiment_builder_pair(
         "v8-waterfall-sheriff@grotations.appspotmail.com",
         "mtv-sf-v8-sheriff@grotations.appspotmail.com",
     ],
+)
+
+experiment_builder(
+    name = "V8 Linux64 - builder - reclient",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.NO,
+    use_rbe = RECLIENT.DEFAULT,
+    to_notify = ["yyanagisawa@google.com"],
 )
 
 experiment_builder(

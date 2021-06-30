@@ -180,6 +180,17 @@ def _goma_properties(use_goma, goma_jobs):
 
     return {"$build/goma": properties}
 
+
+def _reclient_properties(use_rbe):
+    if use_rbe == None:
+        return {}
+
+    return {
+      "$build/reclient": dict(use_rbe),
+      "use_rbe": True,
+    }
+
+
 # These settings enable overwriting variables in V8's DEPS file.
 GCLIENT_VARS = struct(
     INSTRUMENTED_LIBRARIES = {"checkout_instrumented_libraries": "True"},
@@ -246,6 +257,7 @@ def v8_basic_builder(defaults, **kwargs):
         kwargs.pop("use_goma", GOMA.NONE),
         kwargs.pop("goma_jobs", None),
     ))
+    properties.update(_reclient_properties(kwargs.pop("use_rbe", None)))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
     kwargs["properties"] = properties
 
