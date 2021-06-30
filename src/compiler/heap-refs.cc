@@ -1321,11 +1321,6 @@ void AllocationSiteData::SerializeBoilerplate(JSHeapBroker* broker) {
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<HeapObject> object, ObjectDataKind kind)
     : ObjectData(broker, storage, object, kind),
-      // We have to use a raw cast below instead of AsMap() because of
-      // recursion. AsMap() would call IsMap(), which accesses the
-      // instance_type_ member. In the case of constructing the MapData for the
-      // meta map (whose map is itself), this member has not yet been
-      // initialized.
       map_(broker->GetOrCreateData(object->map(kAcquireLoad),
                                    kAssumeMemoryFence)) {
   CHECK_IMPLIES(kind == kSerializedHeapObject,
@@ -2019,15 +2014,28 @@ class CellData : public HeapObjectData {
 class JSGlobalObjectData : public JSObjectData {
  public:
   JSGlobalObjectData(JSHeapBroker* broker, ObjectData** storage,
-                     Handle<JSGlobalObject> object);
-  bool IsDetached() const { return is_detached_; }
+                     Handle<JSGlobalObject> object,
+                     ObjectDataKind kind = kSerializedHeapObject)
+      : JSObjectData(broker, storage, object, kind),
+        properties_(broker->zone()) {
+    if (!broker->is_concurrent_inlining()) {
+      is_detached_ = object->IsDetached();
+    }
+  }
+
+  bool IsDetached() const {
+    DCHECK_EQ(kind(), kSerializedHeapObject);
+    return is_detached_;
+  }
 
   ObjectData* GetPropertyCell(
       JSHeapBroker* broker, ObjectData* name,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
  private:
-  bool const is_detached_;
+  // Only valid if not concurrent inlining.
+
+  bool is_detached_ = false;
 
   // Properties that either
   // (1) are known to exist as property cells on the global object, or
@@ -2035,13 +2043,6 @@ class JSGlobalObjectData : public JSObjectData {
   // In case (2), the second pair component is nullptr.
   ZoneVector<std::pair<ObjectData*, ObjectData*>> properties_;
 };
-
-JSGlobalObjectData::JSGlobalObjectData(JSHeapBroker* broker,
-                                       ObjectData** storage,
-                                       Handle<JSGlobalObject> object)
-    : JSObjectData(broker, storage, object),
-      is_detached_(object->IsDetached()),
-      properties_(broker->zone()) {}
 
 class JSGlobalProxyData : public JSObjectData {
  public:
@@ -2055,17 +2056,12 @@ namespace {
 
 base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
                                                         Handle<Name> name) {
-  LookupIterator it(
-      broker->isolate(),
-      handle(broker->target_native_context().object()->global_object(),
-             broker->isolate()),
-      name, LookupIterator::OWN);
-  it.TryLookupCachedProperty();
-  if (it.state() == LookupIterator::DATA &&
-      it.GetHolder<JSObject>()->IsJSGlobalObject()) {
-    return TryMakeRef(broker, it.GetPropertyCell());
-  }
-  return base::nullopt;
+  base::Optional<PropertyCell> maybe_cell =
+      ConcurrentLookupIterator::TryGetPropertyCell(
+          broker->isolate(), broker->local_isolate_or_isolate(),
+          broker->target_native_context().global_object().object(), name);
+  if (!maybe_cell.has_value()) return {};
+  return TryMakeRef(broker, *maybe_cell);
 }
 
 }  // namespace
@@ -2073,6 +2069,8 @@ base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
 ObjectData* JSGlobalObjectData::GetPropertyCell(JSHeapBroker* broker,
                                                 ObjectData* name,
                                                 SerializationPolicy policy) {
+  DCHECK_EQ(kind(), kSerializedHeapObject);
+
   CHECK_NOT_NULL(name);
   for (auto const& p : properties_) {
     if (p.first == name) return p.second;
@@ -4353,9 +4351,10 @@ bool NativeContextRef::GlobalIsDetached() const {
 
 base::Optional<PropertyCellRef> JSGlobalObjectRef::GetPropertyCell(
     NameRef const& name, SerializationPolicy policy) const {
-  if (data_->should_access_heap()) {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     return GetPropertyCellFromHeap(broker(), name.object());
   }
+
   ObjectData* property_cell_data = data()->AsJSGlobalObject()->GetPropertyCell(
       broker(), name.data(), policy);
   return TryMakeRef<PropertyCell>(broker(), property_cell_data);

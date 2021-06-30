@@ -157,6 +157,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Returns the key at entry.
   inline Object KeyAt(InternalIndex entry);
   inline Object KeyAt(PtrComprCageBase cage_base, InternalIndex entry);
+  inline Object KeyAt(InternalIndex entry, RelaxedLoadTag tag);
+  inline Object KeyAt(PtrComprCageBase cage_base, InternalIndex entry,
+                      RelaxedLoadTag tag);
 
   static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
   static const int kEntrySize = Shape::kEntrySize;

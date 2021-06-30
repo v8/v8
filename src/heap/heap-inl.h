@@ -660,6 +660,10 @@ bool Heap::IsPendingAllocation(HeapObject object) {
   UNREACHABLE();
 }
 
+bool Heap::IsPendingAllocation(Object object) {
+  return object.IsHeapObject() && IsPendingAllocation(HeapObject::cast(object));
+}
+
 void Heap::ExternalStringTable::AddString(String string) {
   DCHECK(string.IsExternalString());
   DCHECK(!Contains(string));

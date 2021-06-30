@@ -1511,5 +1511,43 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
   UNREACHABLE();
 }
 
+// static
+base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
+    Isolate* isolate, LocalIsolate* local_isolate,
+    Handle<JSGlobalObject> holder, Handle<Name> name) {
+  DisallowGarbageCollection no_gc;
+
+  Map holder_map = holder->map();
+  CHECK(!holder_map.is_access_check_needed());
+  CHECK(!holder_map.has_named_interceptor());
+
+  GlobalDictionary dict = holder->global_dictionary(kAcquireLoad);
+  base::Optional<PropertyCell> cell =
+      dict.TryFindPropertyCellForConcurrentLookupIterator(isolate, name,
+                                                          kRelaxedLoad);
+  if (!cell.has_value()) return {};
+
+  if (cell->property_details().kind() == kAccessor) {
+    Object maybe_accessor_pair = cell->value(kAcquireLoad);
+    if (!maybe_accessor_pair.IsAccessorPair()) return {};
+
+    base::Optional<Name> maybe_cached_property_name =
+        FunctionTemplateInfo::TryGetCachedPropertyName(
+            isolate, AccessorPair::cast(maybe_accessor_pair)
+                         .getter(isolate, kRelaxedLoad));
+    if (!maybe_cached_property_name.has_value()) return {};
+
+    cell = dict.TryFindPropertyCellForConcurrentLookupIterator(
+        isolate, handle(*maybe_cached_property_name, local_isolate),
+        kRelaxedLoad);
+    if (!cell.has_value()) return {};
+    if (cell->property_details().kind() != kData) return {};
+  }
+
+  DCHECK(cell.has_value());
+  DCHECK_EQ(cell->property_details().kind(), kData);
+  return cell;
+}
+
 }  // namespace internal
 }  // namespace v8

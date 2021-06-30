@@ -243,6 +243,9 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   inline Name NameAt(PtrComprCageBase cage_base, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Object value);
 
+  base::Optional<PropertyCell> TryFindPropertyCellForConcurrentLookupIterator(
+      Isolate* isolate, Handle<Name> name, RelaxedLoadTag tag);
+
   OBJECT_CONSTRUCTORS(
       GlobalDictionary,
       BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>);
