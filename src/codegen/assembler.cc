@@ -142,8 +142,8 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
 
 class OnHeapAssemblerBuffer : public AssemblerBuffer {
  public:
-  OnHeapAssemblerBuffer(Isolate* isolate, Handle<Code> code, int size)
-      : isolate_(isolate), code_(code), size_(size) {}
+  OnHeapAssemblerBuffer(Handle<Code> code, int size)
+      : code_(code), size_(size) {}
 
   byte* start() const override {
     return reinterpret_cast<byte*>(code_->raw_instruction_start());
@@ -153,13 +153,11 @@ class OnHeapAssemblerBuffer : public AssemblerBuffer {
 
   std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
     DCHECK_LT(size(), new_size);
-    MaybeHandle<Code> code =
-        isolate_->factory()->NewEmptyCode(code_->kind(), new_size);
-    if (code.is_null()) {
-      FATAL("Cannot grow on heap assembler buffer");
-    }
-    return std::make_unique<OnHeapAssemblerBuffer>(
-        isolate_, code.ToHandleChecked(), new_size);
+    // We fall back to the slow path using the default assembler buffer and
+    // compile the code off the GC heap. Compiling directly on heap makes less
+    // sense now, since we will need to allocate a new Code object, copy the
+    // content generated so far and relocate.
+    return std::make_unique<DefaultAssemblerBuffer>(new_size);
   }
 
   bool IsOnHeap() const override { return true; }
@@ -167,7 +165,6 @@ class OnHeapAssemblerBuffer : public AssemblerBuffer {
   MaybeHandle<Code> code() const override { return code_; }
 
  private:
-  Isolate* isolate_;
   Handle<Code> code_;
   const int size_;
 };
@@ -209,12 +206,12 @@ std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size) {
 }
 
 std::unique_ptr<AssemblerBuffer> NewOnHeapAssemblerBuffer(Isolate* isolate,
-                                                          int size) {
+                                                          int estimated) {
+  int size = std::max(AssemblerBase::kMinimalBufferSize, estimated);
   MaybeHandle<Code> code =
       isolate->factory()->NewEmptyCode(CodeKind::BASELINE, size);
   if (code.is_null()) return {};
-  return std::make_unique<OnHeapAssemblerBuffer>(isolate,
-                                                 code.ToHandleChecked(), size);
+  return std::make_unique<OnHeapAssemblerBuffer>(code.ToHandleChecked(), size);
 }
 
 // -----------------------------------------------------------------------------
