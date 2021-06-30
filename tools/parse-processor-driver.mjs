@@ -6,4 +6,4 @@ import { ParseProcessor, ArgumentsProcessor } from "./parse-processor.mjs";
 
 const params = ArgumentsProcessor.process(arguments);
 const parseProcessor = new ParseProcessor();
-parseProcessor.processLogFile(params.logFileName);
+await parseProcessor.processLogFile(params.logFileName);

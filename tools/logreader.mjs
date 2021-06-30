@@ -117,8 +117,8 @@ export class LogReader {
    *
    * @param {string} chunk A portion of log.
    */
-  processLogChunk(chunk) {
-    this.processLog_(chunk.split('\n'));
+  async processLogChunk(chunk) {
+    await this.processLog_(chunk.split('\n'));
   }
 
   /**
@@ -126,14 +126,14 @@ export class LogReader {
    *
    * @param {string} line A line of log.
    */
-  processLogLine(line) {
+  async processLogLine(line) {
     if (!this.timedRange_) {
-      this.processLogLine_(line);
+      await this.processLogLine_(line);
       return;
     }
     if (line.startsWith("current-time")) {
       if (this.hasSeenTimerMarker_) {
-        this.processLog_(this.logLinesSinceLastTimerMarker_);
+        await this.processLog_(this.logLinesSinceLastTimerMarker_);
         this.logLinesSinceLastTimerMarker_ = [];
         // In pairwise mode, a "current-time" line ends the timed range.
         if (this.pairwiseTimedRange_) {
@@ -146,7 +146,7 @@ export class LogReader {
       if (this.hasSeenTimerMarker_) {
         this.logLinesSinceLastTimerMarker_.push(line);
       } else if (!line.startsWith("tick")) {
-        this.processLogLine_(line);
+        await this.processLogLine_(line);
       }
     }
   }
@@ -195,7 +195,7 @@ export class LogReader {
    * @param {Array.<string>} fields Log record.
    * @private
    */
-  dispatchLogRow_(fields) {
+  async dispatchLogRow_(fields) {
     // Obtain the dispatch.
     const command = fields[0];
     const dispatch = this.dispatchTable_[command];
@@ -222,7 +222,7 @@ export class LogReader {
     }
 
     // Run the processor.
-    dispatch.processor.apply(this, parsedFields);
+    await dispatch.processor.apply(this, parsedFields);
   }
 
   /**
@@ -231,9 +231,9 @@ export class LogReader {
    * @param {Array.<string>} lines Log lines.
    * @private
    */
-  processLog_(lines) {
+  async processLog_(lines) {
     for (let i = 0, n = lines.length; i < n; ++i) {
-      this.processLogLine_(lines[i]);
+      await this.processLogLine_(lines[i]);
     }
   }
 
@@ -243,11 +243,11 @@ export class LogReader {
    * @param {String} a log line
    * @private
    */
-  processLogLine_(line) {
+  async processLogLine_(line) {
     if (line.length > 0) {
       try {
         const fields = this.csvParser_.parseLine(line);
-        this.dispatchLogRow_(fields);
+        await this.dispatchLogRow_(fields);
       } catch (e) {
         this.printError(`line ${this.lineNum_ + 1}: ${e.message || e}\n${e.stack}`);
       }

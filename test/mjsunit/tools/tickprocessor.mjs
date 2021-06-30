@@ -82,7 +82,7 @@ import {
 })();
 
 
-(function testUnixCppEntriesProvider() {
+await (async function testUnixCppEntriesProvider() {
   var oldLoadSymbols = LinuxCppEntriesProvider.prototype.loadSymbols;
 
   // shell executable
@@ -99,13 +99,10 @@ import {
       '081f08a0 00000004 B stdout\n'
     ].join('\n'), ''];
   };
-
   var shell_prov = new LinuxCppEntriesProvider();
   var shell_syms = [];
-  shell_prov.parseVmSymbols('shell', 0x08048000, 0x081ee000, 0,
-      function (name, start, end) {
-        shell_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+  await shell_prov.parseVmSymbols('shell', 0x08048000, 0x081ee000, 0,
+      (...params) => shell_syms.push(params));
   assertEquals(
       [['_init', 0x08049790, 0x08049f50],
        ['_start', 0x08049f50, 0x08139150],
@@ -128,10 +125,8 @@ import {
   };
   var libc_prov = new LinuxCppEntriesProvider();
   var libc_syms = [];
-  libc_prov.parseVmSymbols('libc', 0xf7c5c000, 0xf7da5000, 0,
-      function (name, start, end) {
-        libc_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+  await libc_prov.parseVmSymbols('libc', 0xf7c5c000, 0xf7da5000, 0,
+      (...params) => libc_syms.push(params));
   var libc_ref_syms = [['__libc_init_first', 0x000162a0, 0x000162a0 + 0x5],
        ['__isnan', 0x0002a5f0, 0x0002a5f0 + 0x2d],
        ['scalblnf', 0x0002aaa0, 0x0002aaa0 + 0xd],
@@ -165,10 +160,8 @@ import {
   };
   var android_prov = new LinuxCppEntriesProvider();
   var android_syms = [];
-  android_prov.parseVmSymbols('libmonochrome', 0xf7c5c000, 0xf9c5c000, 0,
-      function (name, start, end) {
-        android_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+  await android_prov.parseVmSymbols('libmonochrome', 0xf7c5c000, 0xf9c5c000, 0,
+      (...params) => android_syms.push(params));
   var android_ref_syms = [
        ['v8::internal::interpreter::BytecodeGenerator::BytecodeGenerator(v8::internal::UnoptimizedCompilationInfo*)', 0x013a1088, 0x013a1088 + 0x224],
        ['v8::internal::interpreter::BytecodeGenerator::FinalizeBytecode(v8::internal::Isolate*, v8::internal::Handle<v8::internal::Script>)', 0x013a12ac, 0x013a12ac + 0xd0],
@@ -187,7 +180,7 @@ import {
 })();
 
 
-(function testMacOSCppEntriesProvider() {
+await (async function testMacOSCppEntriesProvider() {
   var oldLoadSymbols = MacOSCppEntriesProvider.prototype.loadSymbols;
 
   // shell executable
@@ -203,13 +196,10 @@ import {
       '00137400 v8::internal::Runtime_DebugGetPropertyDetails\n'
     ].join('\n'), ''];
   };
-
   var shell_prov = new MacOSCppEntriesProvider();
   var shell_syms = [];
-  shell_prov.parseVmSymbols('shell', 0x00001c00, 0x00163256, 0x100,
-      function (name, start, end) {
-        shell_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+  await shell_prov.parseVmSymbols('shell', 0x00001c00, 0x00163256, 0x100,
+      (...params) => shell_syms.push(params));
   assertEquals(
       [['start', 0x00001c00, 0x00001c40],
        ['dyld_stub_binding_helper', 0x00001c40, 0x0011b810],
@@ -229,10 +219,8 @@ import {
   };
   var stdc_prov = new MacOSCppEntriesProvider();
   var stdc_syms = [];
-  stdc_prov.parseVmSymbols('stdc++', 0x95728fb4, 0x95770005, 0,
-      function (name, start, end) {
-        stdc_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+  await stdc_prov.parseVmSymbols('stdc++', 0x95728fb4, 0x95770005, 0,
+      (...params) => stdc_syms.push(params));
   var stdc_ref_syms = [['__gnu_cxx::balloc::__mini_vector<std::pair<__gnu_cxx::bitmap_allocator<char>::_Alloc_block*, __gnu_cxx::bitmap_allocator<char>::_Alloc_block*> >::__mini_vector', 0x0000107a, 0x0002c410],
        ['std::basic_streambuf<char, std::char_traits<char> >::pubseekoff', 0x0002c410, 0x0002c488],
        ['std::basic_streambuf<char, std::char_traits<char> >::pubseekpos', 0x0002c488, 0x000466aa],
@@ -247,7 +235,7 @@ import {
 })();
 
 
-(function testWindowsCppEntriesProvider() {
+await (async function testWindowsCppEntriesProvider() {
   var oldLoadSymbols = WindowsCppEntriesProvider.prototype.loadSymbols;
 
   WindowsCppEntriesProvider.prototype.loadSymbols = function(libName) {
@@ -272,10 +260,8 @@ import {
   };
   var shell_prov = new WindowsCppEntriesProvider();
   var shell_syms = [];
-  shell_prov.parseVmSymbols('shell.exe', 0x00400000, 0x0057c000, 0,
-      function (name, start, end) {
-        shell_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+  await shell_prov.parseVmSymbols('shell.exe', 0x00400000, 0x0057c000, 0,
+      (...params) => shell_syms.push(params));
   assertEquals(
       [['ReadFile', 0x00401000, 0x004010a0],
        ['Print', 0x004010a0, 0x00402230],
@@ -289,7 +275,7 @@ import {
 
 
 // http://code.google.com/p/v8/issues/detail?id=427
-(function testWindowsProcessExeAndDllMapFile() {
+await (async function testWindowsProcessExeAndDllMapFile() {
   function exeSymbols(exeName) {
     return [
       ' 0000:00000000       ___ImageBase               00400000     <linker-defined>',
@@ -312,11 +298,9 @@ import {
 
   read = exeSymbols;
   var exe_exe_syms = [];
-  (new WindowsCppEntriesProvider()).parseVmSymbols(
+  await (new WindowsCppEntriesProvider()).parseVmSymbols(
       'chrome.exe', 0x00400000, 0x00472000, 0,
-      function (name, start, end) {
-        exe_exe_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+      (...params) => exe_exe_syms.push(params));
   assertEquals(
       [['RunMain', 0x00401780, 0x00401ac0],
        ['_main', 0x00401ac0, 0x00472000]],
@@ -324,22 +308,18 @@ import {
 
   read = dllSymbols;
   var exe_dll_syms = [];
-  (new WindowsCppEntriesProvider()).parseVmSymbols(
+  await (new WindowsCppEntriesProvider()).parseVmSymbols(
       'chrome.exe', 0x00400000, 0x00472000, 0,
-      function (name, start, end) {
-        exe_dll_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+      (...params) => exe_dll_syms.push(params));
   assertEquals(
       [],
       exe_dll_syms, '.exe with .dll symbols');
 
   read = dllSymbols;
   var dll_dll_syms = [];
-  (new WindowsCppEntriesProvider()).parseVmSymbols(
+  await (new WindowsCppEntriesProvider()).parseVmSymbols(
       'chrome.dll', 0x01c30000, 0x02b80000, 0,
-      function (name, start, end) {
-        dll_dll_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+      (...params) => dll_dll_syms.push(params));
   assertEquals(
       [['_DllMain@12', 0x01c31780, 0x01c31ac0],
        ['___DllMainCRTStartup', 0x01c31ac0, 0x02b80000]],
@@ -347,11 +327,9 @@ import {
 
   read = exeSymbols;
   var dll_exe_syms = [];
-  (new WindowsCppEntriesProvider()).parseVmSymbols(
+  await (new WindowsCppEntriesProvider()).parseVmSymbols(
       'chrome.dll', 0x01c30000, 0x02b80000, 0,
-      function (name, start, end) {
-        dll_exe_syms.push(Array.prototype.slice.apply(arguments, [0]));
-      });
+      (...params) => dll_exe_syms.push(params));
   assertEquals(
       [],
       dll_exe_syms, '.dll with .exe symbols');
@@ -431,7 +409,7 @@ class PrintMonitor {
   }
 }
 
-(function testProcessing() {
+await (async function testProcessing() {
   const testData = {
     'Default': [
       'tickprocessor-test.log', 'tickprocessor-test.default',
@@ -462,30 +440,30 @@ class PrintMonitor {
   };
   for (var testName in testData) {
     console.log('=== testProcessing-' + testName + ' ===');
-    testTickProcessor(...testData[testName]);
+    await testTickProcessor(...testData[testName]);
   }
 })();
 
-function testTickProcessor(logInput, refOutput, args=[]) {
+async function testTickProcessor(logInput, refOutput, args=[]) {
   // /foo/bar/tickprocesser.mjs => /foo/bar/
   const dir = import.meta.url.split("/").slice(0, -1).join('/') + '/';
   const params = ArgumentsProcessor.process(args);
-  testExpectations(dir, logInput, refOutput, params);
+  await testExpectations(dir, logInput, refOutput, params);
   // TODO(cbruni): enable again after it works on bots
-  // testEndToEnd(dir, 'tickprocessor-test-large.js', refOutput,  params);
+  // await testEndToEnd(dir, 'tickprocessor-test-large.js', refOutput,  params);
 }
 
-function testExpectations(dir, logInput, refOutput, params) {
+async function testExpectations(dir, logInput, refOutput, params) {
   const symbolsFile = dir + logInput + '.symbols.json';
   const cppEntries = new CppEntriesProviderMock(symbolsFile);
   const tickProcessor = TickProcessor.fromParams(params, cppEntries);
   const printMonitor = new PrintMonitor(dir + refOutput);
-  tickProcessor.processLogFileInTest(dir + logInput);
+  await tickProcessor.processLogFileInTest(dir + logInput);
   tickProcessor.printStatistics();
   printMonitor.finish();
 };
 
-function testEndToEnd(dir, sourceFile, ignoredRefOutput, params) {
+async function testEndToEnd(dir, sourceFile, ignoredRefOutput, params) {
   // This test only works on linux.
   if (!os?.system) return;
   if (os.name !== 'linux' && os.name !== 'macos') return;
@@ -499,6 +477,6 @@ function testEndToEnd(dir, sourceFile, ignoredRefOutput, params) {
   // hence we cannot properly compare output expectations.
   // Let's just use a dummy file and only test whether we don't throw.
   const printMonitor = new PrintMonitor(dir + ignoredRefOutput);
-  tickProcessor.processLogFileInTest(tmpLogFile);
+  await tickProcessor.processLogFileInTest(tmpLogFile);
   tickProcessor.printStatistics();
 }

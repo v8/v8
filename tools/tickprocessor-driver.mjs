@@ -29,7 +29,7 @@ import { ArgumentsProcessor, TickProcessor } from "./tickprocessor.mjs";
 
 const params = ArgumentsProcessor.process(arguments);
 const tickProcessor = TickProcessor.fromParams(params);
-tickProcessor.processLogFile(params.logFileName);
+await tickProcessor.processLogFile(params.logFileName);
 if (params.serializeVMSymbols) {
   tickProcessor.printVMSymbols();
 } else {

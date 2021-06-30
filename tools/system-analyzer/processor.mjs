@@ -4,6 +4,7 @@
 
 import {LogReader, parseString, parseVarArgs} from '../logreader.mjs';
 import {Profile} from '../profile.mjs';
+import {RemoteLinuxCppEntriesProvider, RemoteMacOSCppEntriesProvider} from '../tickprocessor.mjs'
 
 import {ApiLogEntry} from './log/api.mjs';
 import {CodeLogEntry, DeoptLogEntry, SharedLibLogEntry} from './log/code.mjs';
@@ -14,6 +15,37 @@ import {TimerLogEntry} from './log/timer.mjs';
 import {Timeline} from './timeline.mjs';
 
 // ===========================================================================
+
+class AsyncConsumer {
+  constructor(consumer_fn) {
+    this._chunks = [];
+    this._consumer = consumer_fn;
+    this._pendingWork = Promise.resolve();
+    this._isConsuming = false;
+  }
+
+  get pendingWork() {
+    return this._pendingWork;
+  }
+
+  push(chunk) {
+    this._chunks.push(chunk);
+    this.consumeAll();
+  }
+
+  async consumeAll() {
+    if (!this._isConsuming) this._pendingWork = this._consumeAll();
+    return await this._pendingWork;
+  }
+
+  async _consumeAll() {
+    this._isConsuming = true;
+    while (this._chunks.length > 0) {
+      await this._consumer(this._chunks.shift());
+    }
+    this._isConsuming = false;
+  }
+}
 
 export class Processor extends LogReader {
   _profile = new Profile();
@@ -32,6 +64,8 @@ export class Processor extends LogReader {
   MINOR_VERSION = 6;
   constructor() {
     super();
+    this._chunkConsumer =
+        new AsyncConsumer((chunk) => this._processChunk(chunk));
     const propertyICParser = [
       parseInt, parseInt, parseInt, parseInt, parseString, parseString,
       parseString, parseString, parseString, parseString
@@ -149,6 +183,8 @@ export class Processor extends LogReader {
         processor: this.processApiEvent
       },
     };
+    // TODO(cbruni): Choose correct cpp entries provider
+    this._cppEntriesProvider = new RemoteLinuxCppEntriesProvider();
   }
 
   printError(str) {
@@ -157,6 +193,10 @@ export class Processor extends LogReader {
   }
 
   processChunk(chunk) {
+    this._chunkConsumer.push(chunk)
+  }
+
+  async _processChunk(chunk) {
     let end = chunk.length;
     let current = 0;
     let next = 0;
@@ -174,21 +214,21 @@ export class Processor extends LogReader {
           this._chunkRemainder = '';
         }
         current = next + 1;
-        this.processLogLine(line);
+        await this.processLogLine(line);
       }
     } catch (e) {
       console.error(`Error occurred during parsing, trying to continue: ${e}`);
     }
   }
 
-  processLogFile(fileName) {
+  async processLogFile(fileName) {
     this.collectEntries = true;
     this.lastLogFileName_ = fileName;
     let i = 1;
     let line;
     try {
       while (line = readline()) {
-        this.processLogLine(line);
+        await this.processLogLine(line);
         i++;
       }
     } catch (e) {
@@ -199,7 +239,8 @@ export class Processor extends LogReader {
     this.finalize();
   }
 
-  finalize() {
+  async finalize() {
+    await this._chunkConsumer.consumeAll();
     // TODO(cbruni): print stats;
     this._mapTimeline.transitions = new Map();
     let id = 0;
@@ -227,12 +268,16 @@ export class Processor extends LogReader {
     }
   }
 
-  processSharedLibrary(name, start, end, aslr_slide) {
-    const entry = this._profile.addLibrary(name, start, end);
+  async processSharedLibrary(name, startAddr, endAddr, aslrSlide) {
+    const entry = this._profile.addLibrary(name, startAddr, endAddr);
     entry.logEntry = new SharedLibLogEntry(entry);
     // Many events rely on having a script around, creating fake entries for
     // shared libraries.
     this._profile.addScriptSource(-1, name, '');
+    await this._cppEntriesProvider.parseVmSymbols(
+        name, startAddr, endAddr, aslrSlide, (fName, fStart, fEnd) => {
+          this._profile.addStaticCode(fName, fStart, fEnd);
+        });
   }
 
   processCodeCreation(type, kind, timestamp, start, size, name, maybe_func) {
@@ -329,6 +374,7 @@ export class Processor extends LogReader {
     this._profile.addSourcePositions(
         start, scriptId, startPos, endPos, sourcePositions, inliningPositions,
         inlinedFunctions);
+    if (this._lastCodeLogEntry === undefined) return;
     let profileEntry = this._profile.findEntry(start);
     if (profileEntry !== this._lastCodeLogEntry._entry) return;
     this.addSourcePosition(profileEntry, this._lastCodeLogEntry);
@@ -383,7 +429,7 @@ export class Processor extends LogReader {
     const script = profileEntry.source?.script;
     if (script !== undefined) return script;
     let fileName;
-    if (profileEntry.type = 'SHARED_LIB') {
+    if (profileEntry.type === 'SHARED_LIB') {
       fileName = profileEntry.name;
     } else {
       // Slow path, try to get the script from the url:

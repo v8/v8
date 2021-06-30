@@ -22,7 +22,7 @@ class ArgumentsProcessor extends BaseArgumentsProcessor {
 
 const params = ArgumentsProcessor.process(arguments);
 const processor = new Processor();
-processor.processLogFile(params.logFileName);
+await processor.processLogFile(params.logFileName);
 
 const typeAccumulator = new Map();
 

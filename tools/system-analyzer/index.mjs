@@ -56,7 +56,7 @@ class App {
         'fileuploadchunk', (e) => this.handleFileUploadChunk(e));
     this._view.logFileReader.addEventListener(
         'fileuploadend', (e) => this.handleFileUploadEnd(e));
-    this._startupPromise = this.runAsyncInitialize();
+    this._startupPromise = this._loadCustomElements();
     this._view.codeTrack.svg = true;
   }
 
@@ -74,7 +74,7 @@ class App {
     ]);
   }
 
-  async runAsyncInitialize() {
+  async _loadCustomElements() {
     await Promise.all([
       import('./view/list-panel.mjs'),
       import('./view/timeline-panel.mjs'),
@@ -84,6 +84,10 @@ class App {
       import('./view/property-link-table.mjs'),
       import('./view/tool-tip.mjs'),
     ]);
+    this._addEventListeners();
+  }
+
+  _addEventListeners() {
     document.addEventListener(
         'keydown', e => this._navigation?.handleKeyDown(e));
     document.addEventListener(
@@ -359,15 +363,14 @@ class App {
     this._processor = new Processor();
   }
 
-  handleFileUploadChunk(e) {
+  async handleFileUploadChunk(e) {
     this._processor.processChunk(e.detail);
   }
 
   async handleFileUploadEnd(e) {
     try {
       const processor = this._processor;
-      processor.finalize();
-
+      await processor.finalize();
       await this._startupPromise;
 
       this._state.profile = processor.profile;

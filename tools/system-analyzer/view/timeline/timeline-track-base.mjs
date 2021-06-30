@@ -297,6 +297,7 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   _updateToolTip(event) {
+    if (!this._focusedEntry) return false;
     this.dispatchEvent(
         new ToolTipEvent(this._focusedEntry, this.toolTipTargetNode));
     event.stopImmediatePropagation();
@@ -350,7 +351,6 @@ export class TimelineTrackBase extends V8CustomElement {
     if (chunk === undefined) return [-1, -1];
     const xFrom = (chunk.index * kChunkWidth + kChunkVisualWidth / 2) | 0;
     const yFrom = kTimelineHeight - chunk.yOffset(entry) | 0;
-    console.log(xFrom, yFrom);
     return [xFrom, yFrom];
   }
 

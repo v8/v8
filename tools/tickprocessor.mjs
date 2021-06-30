@@ -60,12 +60,17 @@ class V8Profile extends Profile {
 }
 
 class CppEntriesProvider {
+  constructor() {
+    this._isEnabled = true;
+  }
+
   inRange(funcInfo, start, end) {
     return funcInfo.start >= start && funcInfo.end <= end;
   }
 
-  parseVmSymbols(libName, libStart, libEnd, libASLRSlide, processorFunc) {
-    this.loadSymbols(libName);
+  async parseVmSymbols(libName, libStart, libEnd, libASLRSlide, processorFunc) {
+    if (!this._isEnabled) return;
+    await this.loadSymbols(libName);
 
     let lastUnknownSize;
     let lastAdded;
@@ -121,11 +126,40 @@ class CppEntriesProvider {
     addEntry({ name: '', start: libEnd });
   }
 
-  loadSymbols(libName) {}
+  async loadSymbols(libName) {}
+
+  async loadSymbolsRemote(platform, libName) {
+    this.parsePos = 0;
+    const url = new URL("http://localhost:8000/v8/loadVMSymbols");
+    url.searchParams.set('libName', libName);
+    url.searchParams.set('platform', platform);
+    this._setRemoteQueryParams(url.searchParams);
+    let response;
+    let json;
+    try {
+      response = await fetch(url);
+      json = await response.json();
+      if (json.error) console.warn(json.error);
+    } catch (e) {
+      if (!response || response.status == 404) {
+        // Assume that the local symbol server is not reachable.
+        console.error("Disabling remote symbol loading:", e);
+        this._isEnabled = false;
+      }
+    }
+    this._handleRemoteSymbolsResult(json);
+  }
+
+  _setRemoteQueryParams(searchParams) {
+    // Subclass responsibility.
+  }
+
+  _handleRemoteSymbolsResult(json) {
+    this.symbols = json.symbols;
+  }
 
   parseNextLine() { return false }
 }
-
 
 export class LinuxCppEntriesProvider extends CppEntriesProvider {
   constructor(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
@@ -142,8 +176,18 @@ export class LinuxCppEntriesProvider extends CppEntriesProvider {
     this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ([0-9a-fA-F]{8,16} )?[tTwW] (.*)$/;
   }
 
+  _setRemoteQueryParams(searchParams) {
+    super._setRemoteQueryParams(searchParams);
+    searchParams.set('targetRootFS', this.targetRootFS ?? "");
+    searchParams.set('apkEmbeddedLibrary', this.apkEmbeddedLibrary);
+  }
 
-  loadSymbols(libName) {
+  _handleRemoteSymbolsResult(json) {
+    super._handleRemoteSymbolsResult(json);
+    this.fileOffsetMinusVma = json.fileOffsetMinusVma;
+  }
+
+  async loadSymbols(libName) {
     this.parsePos = 0;
     if (this.apkEmbeddedLibrary && libName.endsWith('.apk')) {
       libName = this.apkEmbeddedLibrary;
@@ -172,9 +216,7 @@ export class LinuxCppEntriesProvider extends CppEntriesProvider {
   }
 
   parseNextLine() {
-    if (this.symbols.length == 0) {
-      return false;
-    }
+    if (this.symbols.length == 0) return false;
     const lineEndPos = this.symbols[0].indexOf('\n', this.parsePos);
     if (lineEndPos == -1) {
       this.symbols.shift();
@@ -196,6 +238,12 @@ export class LinuxCppEntriesProvider extends CppEntriesProvider {
   }
 }
 
+export class RemoteLinuxCppEntriesProvider extends LinuxCppEntriesProvider {
+  async loadSymbols(libName) {
+    return this.loadSymbolsRemote('linux', libName);
+  }
+}
+
 export class MacOSCppEntriesProvider extends LinuxCppEntriesProvider {
   constructor(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
     super(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary);
@@ -203,18 +251,26 @@ export class MacOSCppEntriesProvider extends LinuxCppEntriesProvider {
     this.FUNC_RE = /^([0-9a-fA-F]{8,16})() (.*)$/;
   }
 
-  loadSymbols(libName) {
+  async loadSymbols(libName) {
     this.parsePos = 0;
     libName = this.targetRootFS + libName;
 
     // It seems that in OS X `nm` thinks that `-f` is a format option, not a
     // "flat" display option flag.
     try {
-      this.symbols = [os.system(this.nmExec, ['-n', libName], -1, -1), ''];
+      this.symbols = [
+        os.system(this.nmExec, ['--demangle', '-n', libName], -1, -1),
+        ''];
     } catch (e) {
       // If the library cannot be found on this system let's not panic.
       this.symbols = '';
     }
+  }
+}
+
+export class RemoteMacOSCppEntriesProvider extends LinuxCppEntriesProvider {
+  async loadSymbols(libName) {
+    return this.loadSymbolsRemote('macos', libName);
   }
 }
 
@@ -640,19 +696,19 @@ export class TickProcessor extends LogReader {
     return name !== "UNKNOWN" && !(name in this.codeTypes_);
   }
 
-  processLogFile(fileName) {
+  async processLogFile(fileName) {
     this.lastLogFileName_ = fileName;
     let line;
     while (line = readline()) {
-      this.processLogLine(line);
+      await this.processLogLine(line);
     }
   }
 
-  processLogFileInTest(fileName) {
+  async processLogFileInTest(fileName) {
     // Hack file name to avoid dealing with platform specifics.
     this.lastLogFileName_ = 'v8.log';
     const contents = d8.file.read(fileName);
-    this.processLogChunk(contents);
+    await this.processLogChunk(contents);
   }
 
   processSharedLibrary(name, startAddr, endAddr, aslrSlide) {

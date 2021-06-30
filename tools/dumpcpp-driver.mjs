@@ -20,5 +20,5 @@ const cppProcessor = new CppProcessor(
   new (entriesProviders[params.platform])(params.nm, params.targetRootFS,
                                           params.apkEmbeddedLibrary),
   params.timedRange, params.pairwiseTimedRange);
-cppProcessor.processLogFile(params.logFileName);
+await cppProcessor.processLogFile(params.logFileName);
 cppProcessor.dumpCppSymbols();

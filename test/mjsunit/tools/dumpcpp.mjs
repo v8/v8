@@ -6,7 +6,7 @@ import {
     CppProcessor, LinuxCppEntriesProvider
   } from "../../../tools/dumpcpp.mjs" ;
 
-(function testProcessSharedLibrary() {
+await (async function testProcessSharedLibrary() {
   var oldLoadSymbols = LinuxCppEntriesProvider.prototype.loadSymbols;
 
   LinuxCppEntriesProvider.prototype.loadSymbols = function(libName) {
@@ -20,7 +20,7 @@ import {
 
   var testCppProcessor = new CppProcessor(new LinuxCppEntriesProvider(),
                                           false, false);
-  testCppProcessor.processSharedLibrary(
+  await testCppProcessor.processSharedLibrary(
     '/usr/local/google/home/lpy/v8/out/native/d8',
     0x00000100, 0x00000400, 0);
 
