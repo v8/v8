@@ -7851,10 +7851,6 @@ bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
                                     WasmGraphBuilder::kCalledFromWasm);
   builder.LowerInt64(sig);
 
-  if (func_index >= FLAG_trace_wasm_ast_start &&
-      func_index < FLAG_trace_wasm_ast_end) {
-    PrintRawWasmCode(allocator, func_body, env->module, wasm::kPrintLocals);
-  }
   return true;
 }
 
