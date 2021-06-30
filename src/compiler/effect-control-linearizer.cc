@@ -1927,12 +1927,14 @@ void EffectControlLinearizer::TryMigrateInstance(Node* value, Node* value_map) {
 }
 
 void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
-                                                    Node* frame_state) {
+                                                    Node* frame_state_node) {
   DynamicCheckMapsParameters const& p =
       DynamicCheckMapsParametersOf(node->op());
+  FrameState frame_state(frame_state_node);
   Node* value = node->InputAt(0);
 
   FeedbackSource const& feedback = p.feedback();
+  Node* feedback_vector = __ HeapConstant(feedback.vector);
   Node* slot_index = __ IntPtrConstant(feedback.index());
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* actual_handler =
@@ -1961,7 +1963,8 @@ void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
       }
 
       __ DynamicCheckMapsWithDeoptUnless(check, slot_index, value_map,
-                                         actual_handler, frame_state);
+                                         actual_handler, feedback_vector,
+                                         frame_state);
       __ Goto(&done);
     } else {
       auto next_map = __ MakeLabel();

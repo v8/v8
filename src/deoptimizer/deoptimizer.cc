@@ -638,6 +638,8 @@ Builtin Deoptimizer::GetDeoptWithResumeBuiltin(DeoptimizeReason reason) {
   switch (reason) {
     case DeoptimizeReason::kDynamicCheckMaps:
       return Builtin::kDynamicCheckMapsTrampoline;
+    case DeoptimizeReason::kDynamicCheckMapsInlined:
+      return Builtin::kDynamicCheckMapsWithFeedbackVectorTrampoline;
     default:
       UNREACHABLE();
   }

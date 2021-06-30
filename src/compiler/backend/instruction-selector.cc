@@ -3158,26 +3158,44 @@ void InstructionSelector::VisitDynamicCheckMapsWithDeoptUnless(Node* node) {
   DynamicCheckMapsWithDeoptUnlessNode n(node);
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
 
-  DynamicCheckMapsDescriptor descriptor;
-  // Note: We use Operator::kNoDeopt here because this builtin does not lazy
-  // deoptimize (which is the meaning of Operator::kNoDeopt), even though it can
-  // eagerly deoptimize.
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
-  InstructionOperand dynamic_check_args[] = {
-      g.UseLocation(n.map(), call_descriptor->GetInputLocation(1)),
-      g.UseImmediate(n.slot()), g.UseImmediate(n.handler())};
+  CallDescriptor* call_descriptor;
+  ZoneVector<InstructionOperand> dynamic_check_args(zone());
+
+  if (p.reason() == DeoptimizeReason::kDynamicCheckMaps) {
+    DynamicCheckMapsDescriptor descriptor;
+    // Note: We use Operator::kNoDeopt here because this builtin does not lazy
+    // deoptimize (which is the meaning of Operator::kNoDeopt), even though it
+    // can eagerly deoptimize.
+    call_descriptor = Linkage::GetStubCallDescriptor(
+        zone(), descriptor, descriptor.GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
+    dynamic_check_args.insert(
+        dynamic_check_args.end(),
+        {g.UseLocation(n.map(), call_descriptor->GetInputLocation(1)),
+         g.UseImmediate(n.slot()), g.UseImmediate(n.handler())});
+  } else {
+    DCHECK_EQ(p.reason(), DeoptimizeReason::kDynamicCheckMapsInlined);
+    DynamicCheckMapsWithFeedbackVectorDescriptor descriptor;
+    call_descriptor = Linkage::GetStubCallDescriptor(
+        zone(), descriptor, descriptor.GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
+    dynamic_check_args.insert(
+        dynamic_check_args.end(),
+        {g.UseLocation(n.map(), call_descriptor->GetInputLocation(1)),
+         g.UseLocation(n.feedback_vector(),
+                       call_descriptor->GetInputLocation(2)),
+         g.UseImmediate(n.slot()), g.UseImmediate(n.handler())});
+  }
 
   if (NeedsPoisoning(IsSafetyCheck::kCriticalSafetyCheck)) {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimizeAndPoison(
         kEqual, p.kind(), p.reason(), p.feedback(), n.frame_state(),
-        dynamic_check_args, 3);
+        dynamic_check_args.data(), static_cast<int>(dynamic_check_args.size()));
     VisitWordCompareZero(node, n.condition(), &cont);
   } else {
     FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
         kEqual, p.kind(), p.reason(), p.feedback(), n.frame_state(),
-        dynamic_check_args, 3);
+        dynamic_check_args.data(), static_cast<int>(dynamic_check_args.size()));
     VisitWordCompareZero(node, n.condition(), &cont);
   }
 }

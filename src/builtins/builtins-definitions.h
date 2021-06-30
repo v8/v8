@@ -272,6 +272,9 @@ namespace internal {
   /* Dynamic check maps */                                                     \
   ASM(DynamicCheckMapsTrampoline, DynamicCheckMaps)                            \
   TFC(DynamicCheckMaps, DynamicCheckMaps)                                      \
+  ASM(DynamicCheckMapsWithFeedbackVectorTrampoline,                            \
+      DynamicCheckMapsWithFeedbackVector)                                      \
+  TFC(DynamicCheckMapsWithFeedbackVector, DynamicCheckMapsWithFeedbackVector)  \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \

@@ -43,6 +43,13 @@ constexpr auto DynamicCheckMapsDescriptor::registers() {
 }
 
 // static
+constexpr auto DynamicCheckMapsWithFeedbackVectorDescriptor::registers() {
+  STATIC_ASSERT(esi == kContextRegister);
+  STATIC_ASSERT(eax == kReturnRegister0);
+  return RegisterArray(eax, ecx, edx, edi, esi);
+}
+
+// static
 constexpr Register LoadDescriptor::ReceiverRegister() { return edx; }
 // static
 constexpr Register LoadDescriptor::NameRegister() { return ecx; }

@@ -211,8 +211,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
 
   DeoptimizeKind deopt_kind = exit->kind();
   DeoptimizeReason deoptimization_reason = exit->reason();
-  Label* jump_deoptimization_entry_label =
-      &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
+  Label* jump_deoptimization_entry_label;
+  if (deopt_kind == DeoptimizeKind::kEagerWithResume) {
+    jump_deoptimization_entry_label =
+        &jump_deoptimization_or_resume_entry_labels_[static_cast<int>(
+            deoptimization_reason)];
+  } else {
+    jump_deoptimization_entry_label =
+        &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
+  }
   if (info()->source_positions()) {
     tasm()->RecordDeoptReason(deoptimization_reason, exit->pos(),
                               deoptimization_id);

@@ -3428,11 +3428,25 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
 }
 
 void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
+  Generate_DynamicCheckMapsTrampoline<DynamicCheckMapsDescriptor>(
+      masm, BUILTIN_CODE(masm->isolate(), DynamicCheckMaps));
+}
+
+void Builtins::Generate_DynamicCheckMapsWithFeedbackVectorTrampoline(
+    MacroAssembler* masm) {
+  Generate_DynamicCheckMapsTrampoline<
+      DynamicCheckMapsWithFeedbackVectorDescriptor>(
+      masm, BUILTIN_CODE(masm->isolate(), DynamicCheckMapsWithFeedbackVector));
+}
+
+template <class Descriptor>
+void Builtins::Generate_DynamicCheckMapsTrampoline(
+    MacroAssembler* masm, Handle<Code> builtin_target) {
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterFrame(StackFrame::INTERNAL);
 
   // Only save the registers that the DynamicCheckMaps builtin can clobber.
-  DynamicCheckMapsDescriptor descriptor;
+  Descriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
   // FLAG_debug_code is enabled CSA checks will call C function and so we need
   // to save all CallerSaved registers too.
@@ -3440,10 +3454,8 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
   __ MaybeSaveRegisters(registers);
 
   // Load the immediate arguments from the deopt exit to pass to the builtin.
-  Register slot_arg =
-      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kSlot);
-  Register handler_arg =
-      descriptor.GetRegisterParameter(DynamicCheckMapsDescriptor::kHandler);
+  Register slot_arg = descriptor.GetRegisterParameter(Descriptor::kSlot);
+  Register handler_arg = descriptor.GetRegisterParameter(Descriptor::kHandler);
   __ LoadU64(handler_arg,
              MemOperand(fp, CommonFrameConstants::kCallerPCOffset));
   __ LoadU64(
@@ -3453,8 +3465,7 @@ void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
       handler_arg,
       MemOperand(handler_arg, Deoptimizer::kEagerWithResumeImmedArgs2PcOffset));
 
-  __ Call(BUILTIN_CODE(masm->isolate(), DynamicCheckMaps),
-          RelocInfo::CODE_TARGET);
+  __ Call(builtin_target, RelocInfo::CODE_TARGET);
 
   Label deopt, bailout;
   __ CmpS64(r2, Operand(static_cast<int>(DynamicCheckMapsStatus::kSuccess)));

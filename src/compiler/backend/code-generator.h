@@ -456,6 +456,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // per Code object. All deopt exits can then near-call to this label. Note:
   // not used on all architectures.
   Label jump_deoptimization_entry_labels_[kDeoptimizeKindCount];
+  Label jump_deoptimization_or_resume_entry_labels_[kDeoptimizeReasonCount];
 
   // The maximal combined height of all frames produced upon deoptimization, and
   // the maximal number of pushed arguments for function calls. Applied as an

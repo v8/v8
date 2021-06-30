@@ -3375,13 +3375,12 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   // Check which deopt kinds exist in this Code object, to avoid emitting jumps
   // to unused entries.
   bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
-  constexpr auto eager_with_resume_reason = DeoptimizeReason::kDynamicCheckMaps;
+  bool saw_deopt_with_resume_reason[kDeoptimizeReasonCount] = {false};
   for (auto exit : *exits) {
-    // TODO(rmcilroy): If we add any other kinds of kEagerWithResume deoptimize
-    // we will need to create a seperate array for each kEagerWithResume builtin
-    DCHECK_IMPLIES(exit->kind() == DeoptimizeKind::kEagerWithResume,
-                   exit->reason() == eager_with_resume_reason);
     saw_deopt_kind[static_cast<int>(exit->kind())] = true;
+    if (exit->kind() == DeoptimizeKind::kEagerWithResume) {
+      saw_deopt_with_resume_reason[static_cast<int>(exit->reason())] = true;
+    }
   }
 
   // Emit the jumps to deoptimization entries.
@@ -3390,13 +3389,17 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     if (!saw_deopt_kind[i]) continue;
-    __ bind(&jump_deoptimization_entry_labels_[i]);
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     if (kind == DeoptimizeKind::kEagerWithResume) {
-      __ LoadEntryFromBuiltin(
-          Deoptimizer::GetDeoptWithResumeBuiltin(eager_with_resume_reason),
-          scratch);
+      for (int j = 0; j < kDeoptimizeReasonCount; j++) {
+        if (!saw_deopt_with_resume_reason[j]) continue;
+        DeoptimizeReason reason = static_cast<DeoptimizeReason>(j);
+        __ bind(&jump_deoptimization_or_resume_entry_labels_[j]);
+        __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptWithResumeBuiltin(reason),
+                                scratch);
+      }
     } else {
+      __ bind(&jump_deoptimization_entry_labels_[i]);
       __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptimizationEntry(kind),
                               scratch);
     }

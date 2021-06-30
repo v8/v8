@@ -176,10 +176,6 @@
   # Needs to be adapted after changes to Function constructor. chromium:1065094
   'cross-realm-filtering': [SKIP],
 
-  # Re-enable again with dynamic map checks. (https://crbug.com/v8/9684)
-  'const-field-tracking-2': [SKIP],
-  'regress/regress-1141502': [SKIP],
-
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'compiler/array-subclass': [PASS, HEAVY],
   'compiler/regress-crbug-11564': [PASS, HEAVY],

@@ -18,6 +18,7 @@ namespace internal {
   V(DeoptimizeNow, "%_DeoptimizeNow")                                          \
   V(DivisionByZero, "division by zero")                                        \
   V(DynamicCheckMaps, "dynamic check maps failed")                             \
+  V(DynamicCheckMapsInlined, "dynamic check maps failed")                      \
   V(Hole, "hole")                                                              \
   V(InstanceMigrationFailed, "instance migration failed")                      \
   V(InsufficientTypeFeedbackForCall, "Insufficient type feedback for call")    \
@@ -77,6 +78,14 @@ enum class DeoptimizeReason : uint8_t {
   DEOPTIMIZE_REASON_LIST(DEOPTIMIZE_REASON)
 #undef DEOPTIMIZE_REASON
 };
+
+constexpr DeoptimizeReason kFirstDeoptimizeReason =
+    DeoptimizeReason::kArrayBufferWasDetached;
+constexpr DeoptimizeReason kLastDeoptimizeReason =
+    DeoptimizeReason::kArrayLengthChanged;
+STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeReason) == 0);
+constexpr int kDeoptimizeReasonCount =
+    static_cast<int>(kLastDeoptimizeReason) + 1;
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, DeoptimizeReason);
 
