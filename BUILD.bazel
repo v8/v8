@@ -117,6 +117,7 @@ v8_flag(name = "v8_annotate_torque_ir")
 v8_flag(name = "v8_enable_lazy_source_positions", default = True)
 v8_flag(name = "v8_enable_minor_mc", default = True)
 v8_flag(name = "v8_enable_webassembly", default = True)
+v8_flag(name = "v8_enable_i18n_support", default = True)
 
 v8_int(
     name = "v8_typed_array_max_size_in_heap",
@@ -128,6 +129,7 @@ v8_custom_config(name = "default")
 v8_config(
     name = "define_flags",
     conditional_defines = {
+        "v8_enable_i18n_support": "V8_INTL_SUPPORT",
         "v8_enable_lazy_source_positions": "V8_ENABLE_LAZY_SOURCE_POSITIONS",
         "v8_enable_minor_mc": "ENABLE_MINOR_MC",
         "v8_enable_webassembly": "V8_ENABLE_WEBASSEMBLY",
@@ -631,7 +633,24 @@ filegroup(
             "src/wasm/wasm-objects.tq",
         ],
         "//conditions:default": [],
-    }),
+    }) + select({
+        ":is_v8_enable_i18n_support": [
+            "src/objects/intl-objects.tq",
+            "src/objects/js-break-iterator.tq",
+            "src/objects/js-collator.tq",
+            "src/objects/js-date-time-format.tq",
+            "src/objects/js-display-names.tq",
+            "src/objects/js-list-format.tq",
+            "src/objects/js-locale.tq",
+            "src/objects/js-number-format.tq",
+            "src/objects/js-plural-rules.tq",
+            "src/objects/js-relative-time-format.tq",
+            "src/objects/js-segment-iterator.tq",
+            "src/objects/js-segmenter.tq",
+            "src/objects/js-segments.tq",
+        ],
+        "//conditions:default": [],
+    })
 )
 
 filegroup(
@@ -1984,9 +2003,54 @@ filegroup(
             "src/wasm/wasm-value.h",
         ],
         "//conditions:default": [],
+    }) + select({
+        ":is_v8_enable_i18n_support": [
+            "src/builtins/builtins-intl.cc",
+            "src/builtins/builtins-intl-gen.cc",
+            "src/objects/intl-objects.cc",
+            "src/objects/intl-objects.h",
+            "src/objects/js-break-iterator.cc",
+            "src/objects/js-break-iterator.h",
+            "src/objects/js-break-iterator-inl.h",
+            "src/objects/js-collator.cc",
+            "src/objects/js-collator.h",
+            "src/objects/js-collator-inl.h",
+            "src/objects/js-date-time-format.cc",
+            "src/objects/js-date-time-format.h",
+            "src/objects/js-date-time-format-inl.h",
+            "src/objects/js-display-names.cc",
+            "src/objects/js-display-names.h",
+            "src/objects/js-display-names-inl.h",
+            "src/objects/js-list-format.cc",
+            "src/objects/js-list-format.h",
+            "src/objects/js-list-format-inl.h",
+            "src/objects/js-locale.cc",
+            "src/objects/js-locale.h",
+            "src/objects/js-locale-inl.h",
+            "src/objects/js-number-format.cc",
+            "src/objects/js-number-format.h",
+            "src/objects/js-number-format-inl.h",
+            "src/objects/js-plural-rules.cc",
+            "src/objects/js-plural-rules.h",
+            "src/objects/js-plural-rules-inl.h",
+            "src/objects/js-relative-time-format.cc",
+            "src/objects/js-relative-time-format.h",
+            "src/objects/js-relative-time-format-inl.h",
+            "src/objects/js-segmenter.cc",
+            "src/objects/js-segmenter.h",
+            "src/objects/js-segmenter-inl.h",
+            "src/objects/js-segment-iterator.cc",
+            "src/objects/js-segment-iterator.h",
+            "src/objects/js-segment-iterator-inl.h",
+            "src/objects/js-segments.cc",
+            "src/objects/js-segments.h",
+            "src/objects/js-segments-inl.h",
+            "src/runtime/runtime-intl.cc",
+            "src/strings/char-predicates.cc",
+        ],
+        "//conditions:default": [],
     }),
 )
-
 
 filegroup(
     name = "v8_compiler_files",
@@ -2664,6 +2728,14 @@ genrule(
     tools = [":bytecode_builtins_list_generator"],
 )
 
+genrule(
+    name = "generated_regexp_special_case",
+    srcs = [],
+    outs = ["src/regexp/special-case.cc"],
+    cmd = "$(location :regexp_special_case_generator) $@",
+    tools = [":regexp_special_case_generator"],
+)
+
 v8_mksnapshot(
     name = "generated_snapshot_files"
 )
@@ -2691,11 +2763,17 @@ v8_library(
         ":v8_libplatform_files",
         ":v8_libsampler_files",
         ":v8_shared_internal_headers",
-    ],
+    ] + select({
+        ":is_v8_enable_i18n_support": [ ":generated_regexp_special_case" ],
+        "//conditions:default": [],
+    }),
     deps = [
         ":v8_libbase",
         "@zlib",
-    ],
+    ] + select({
+        ":is_v8_enable_i18n_support": [ "@icu" ],
+        "//conditions:default": [],
+    }),
 )
 
 v8_library(
@@ -2729,6 +2807,17 @@ v8_binary(
         "src/interpreter/bytecodes.h",
     ],
     deps = [ "v8_libbase" ],
+)
+
+v8_binary(
+    name = "regexp_special_case_generator",
+    srcs = [
+        ":v8_shared_internal_headers",
+        ":v8_libbase_files",
+        "src/regexp/special-case.h",
+        "src/regexp/gen-regexp-special-case.cc",
+    ],
+    deps = [ "@icu" ],
 )
 
 v8_binary(
