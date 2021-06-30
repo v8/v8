@@ -123,7 +123,10 @@ namespace internal {
   /* Total compilation time incl. caching/parsing */                           \
   HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)       \
   /* Total JavaScript execution time (including callbacks and runtime calls */ \
-  HT(execute, V8.Execute, 1000000, MICROSECOND)
+  HT(execute, V8.Execute, 1000000, MICROSECOND)                                \
+  /* Time for lazily compiling Wasm functions. */                              \
+  HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,    \
+     MICROSECOND)
 
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
   /* Timer histograms, thread safe: HT(name, caption, max, unit) */            \
