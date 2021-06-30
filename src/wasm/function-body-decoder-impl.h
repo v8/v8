@@ -3285,7 +3285,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   DECODE(Simd) {
     CHECK_PROTOTYPE_OPCODE(simd);
-    if (!CheckHardwareSupportsSimd() && !FLAG_wasm_simd_ssse3_codegen) {
+    if (!CheckHardwareSupportsSimd()) {
       if (FLAG_correctness_fuzzer_suppressions) {
         FATAL("Aborting on missing Wasm SIMD support");
       }
