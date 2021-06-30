@@ -395,6 +395,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   const char* debug_name() const { return debug_name_; }
 
+  // Difference between the number of parameter slots of *this* and
+  // *tail_caller* (callee minus caller).
   int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
 
   // Returns the offset to the area below the parameter slots on the stack,

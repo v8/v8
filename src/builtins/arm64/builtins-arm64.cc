@@ -3079,7 +3079,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // The stack on entry holds the arguments and the receiver, with the receiver
   // at the highest address:
   //
-  //    sp]argc-1]: receiver
+  //    sp[argc-1]: receiver
   //    sp[argc-2]: arg[argc-2]
   //    ...           ...
   //    sp[1]:      arg[1]
