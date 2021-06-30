@@ -1901,43 +1901,13 @@ ObjectData* JSArrayData::GetOwnElement(JSHeapBroker* broker, uint32_t index,
 class ScopeInfoData : public HeapObjectData {
  public:
   ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
-                Handle<ScopeInfo> object);
-
-  int ContextLength() const { return context_length_; }
-  bool HasContextExtensionSlot() const { return has_context_extension_slot_; }
-  bool HasOuterScopeInfo() const { return has_outer_scope_info_; }
-
-  ObjectData* OuterScopeInfo() const { return outer_scope_info_; }
-  void SerializeScopeInfoChain(JSHeapBroker* broker);
-
- private:
-  int const context_length_;
-  bool const has_context_extension_slot_;
-  bool const has_outer_scope_info_;
-
-  // Only serialized via SerializeScopeInfoChain.
-  ObjectData* outer_scope_info_;
-};
-
-ScopeInfoData::ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
-                             Handle<ScopeInfo> object)
-    : HeapObjectData(broker, storage, object),
-      context_length_(object->ContextLength()),
-      has_context_extension_slot_(object->HasContextExtensionSlot()),
-      has_outer_scope_info_(object->HasOuterScopeInfo()),
-      outer_scope_info_(nullptr) {
-  DCHECK(!broker->is_concurrent_inlining());
-}
-
-void ScopeInfoData::SerializeScopeInfoChain(JSHeapBroker* broker) {
-  if (outer_scope_info_) return;
-  if (!has_outer_scope_info_) return;
-  outer_scope_info_ = broker->GetOrCreateData(
-      Handle<ScopeInfo>::cast(object())->OuterScopeInfo());
-  if (!outer_scope_info_->should_access_heap()) {
-    outer_scope_info_->AsScopeInfo()->SerializeScopeInfoChain(broker);
+                Handle<ScopeInfo> object)
+      : HeapObjectData(broker, storage, object) {
+    // TODO(v8:7790): Remove this class once all kNeverSerialized types are
+    // NeverEverSerialize.
+    UNREACHABLE();
   }
-}
+};
 
 class SharedFunctionInfoData : public HeapObjectData {
  public:
@@ -2658,6 +2628,7 @@ NEVER_EVER_SERIALIZE(NativeContext)
 NEVER_EVER_SERIALIZE(ObjectBoilerplateDescription)
 NEVER_EVER_SERIALIZE(RegExpBoilerplateDescription)
 NEVER_EVER_SERIALIZE(SharedFunctionInfo)
+NEVER_EVER_SERIALIZE(ScopeInfo)
 NEVER_EVER_SERIALIZE(TemplateObjectDescription)
 
 #undef NEVER_EVER_SERIALIZE
@@ -3190,6 +3161,11 @@ int BytecodeArrayRef::handler_table_size() const {
     return BitField::decode(ObjectRef::data()->As##holder()->field()); \
   }
 
+#define HEAP_ACCESSOR(holder, result, name)                   \
+  result##Ref holder##Ref::name() const {                     \
+    return MakeRef(broker(), result::cast(object()->name())); \
+  }
+
 #define HEAP_ACCESSOR_C(holder, result, name) \
   result holder##Ref::name() const { return object()->name(); }
 
@@ -3408,10 +3384,10 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
 
 BIMODAL_ACCESSOR(CallHandlerInfo, Object, data)
 
-BIMODAL_ACCESSOR_C(ScopeInfo, int, ContextLength)
-BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
-BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
-BIMODAL_ACCESSOR(ScopeInfo, ScopeInfo, OuterScopeInfo)
+HEAP_ACCESSOR_C(ScopeInfo, int, ContextLength)
+HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
+HEAP_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
+HEAP_ACCESSOR(ScopeInfo, ScopeInfo, OuterScopeInfo)
 
 HEAP_ACCESSOR_C(SharedFunctionInfo, Builtin, builtin_id)
 
@@ -3586,12 +3562,6 @@ int MapRef::GetInObjectPropertiesStartInWords() const {
 int MapRef::GetInObjectProperties() const {
   IF_ACCESS_FROM_HEAP_C(GetInObjectProperties);
   return data()->AsMap()->in_object_properties();
-}
-
-void ScopeInfoRef::SerializeScopeInfoChain() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsScopeInfo()->SerializeScopeInfoChain(broker());
 }
 
 bool StringRef::IsExternalString() const {
@@ -4423,6 +4393,7 @@ unsigned CodeRef::GetInlinedBytecodeSize() const {
 #undef BIMODAL_ACCESSOR_WITH_FLAG
 #undef BIMODAL_ACCESSOR_WITH_FLAG_B
 #undef BIMODAL_ACCESSOR_WITH_FLAG_C
+#undef HEAP_ACCESSOR
 #undef HEAP_ACCESSOR_C
 #undef IF_ACCESS_FROM_HEAP
 #undef IF_ACCESS_FROM_HEAP_C
