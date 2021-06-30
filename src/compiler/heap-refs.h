@@ -464,91 +464,69 @@ class ContextRef : public HeapObjectRef {
 
   // {previous} decrements {depth} by 1 for each previous link successfully
   // followed. If {depth} != 0 on function return, then it only got partway to
-  // the desired depth. If {serialize} is true, then {previous} will cache its
-  // findings (unless concurrent inlining is enabled).
-  ContextRef previous(size_t* depth,
-                      SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+  // the desired depth.
+  ContextRef previous(size_t* depth) const;
 
   // Only returns a value if the index is valid for this ContextRef.
-  base::Optional<ObjectRef> get(
-      int index, SerializationPolicy policy =
-                     SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> get(int index) const;
 
-  SourceTextModuleRef GetModule(SerializationPolicy policy) const;
+  SourceTextModuleRef GetModule() const;
 };
 
 // TODO(jgruber): Don't serialize NativeContext fields once all refs can be
 // created concurrently.
 
-#define BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V) \
-  V(JSFunction, array_function)                    \
-  V(JSFunction, function_prototype_apply)          \
-  V(JSFunction, boolean_function)                  \
-  V(JSFunction, bigint_function)                   \
-  V(JSFunction, number_function)                   \
-  V(JSFunction, object_function)                   \
-  V(JSFunction, promise_function)                  \
-  V(JSFunction, promise_then)                      \
-  V(JSFunction, regexp_function)                   \
-  V(JSFunction, string_function)                   \
-  V(JSFunction, symbol_function)                   \
-  V(JSGlobalObject, global_object)                 \
-  V(JSGlobalProxy, global_proxy_object)            \
-  V(JSObject, promise_prototype)                   \
-  V(Map, bound_function_with_constructor_map)      \
-  V(Map, bound_function_without_constructor_map)   \
-  V(Map, js_array_holey_double_elements_map)       \
-  V(Map, js_array_holey_elements_map)              \
-  V(Map, js_array_holey_smi_elements_map)          \
-  V(Map, js_array_packed_double_elements_map)      \
-  V(Map, js_array_packed_elements_map)             \
-  V(Map, js_array_packed_smi_elements_map)         \
+#define BROKER_NATIVE_CONTEXT_FIELDS(V)          \
+  V(JSFunction, array_function)                  \
+  V(JSFunction, bigint_function)                 \
+  V(JSFunction, boolean_function)                \
+  V(JSFunction, function_prototype_apply)        \
+  V(JSFunction, number_function)                 \
+  V(JSFunction, object_function)                 \
+  V(JSFunction, promise_function)                \
+  V(JSFunction, promise_then)                    \
+  V(JSFunction, regexp_exec_function)            \
+  V(JSFunction, regexp_function)                 \
+  V(JSFunction, string_function)                 \
+  V(JSFunction, symbol_function)                 \
+  V(JSGlobalObject, global_object)               \
+  V(JSGlobalProxy, global_proxy_object)          \
+  V(JSObject, promise_prototype)                 \
+  V(Map, async_function_object_map)              \
+  V(Map, block_context_map)                      \
+  V(Map, bound_function_with_constructor_map)    \
+  V(Map, bound_function_without_constructor_map) \
+  V(Map, catch_context_map)                      \
+  V(Map, eval_context_map)                       \
+  V(Map, fast_aliased_arguments_map)             \
+  V(Map, function_context_map)                   \
+  V(Map, initial_array_iterator_map)             \
+  V(Map, initial_string_iterator_map)            \
+  V(Map, iterator_result_map)                    \
+  V(Map, js_array_holey_double_elements_map)     \
+  V(Map, js_array_holey_elements_map)            \
+  V(Map, js_array_holey_smi_elements_map)        \
+  V(Map, js_array_packed_double_elements_map)    \
+  V(Map, js_array_packed_elements_map)           \
+  V(Map, js_array_packed_smi_elements_map)       \
+  V(Map, map_key_iterator_map)                   \
+  V(Map, map_key_value_iterator_map)             \
+  V(Map, map_value_iterator_map)                 \
+  V(Map, set_key_value_iterator_map)             \
+  V(Map, set_value_iterator_map)                 \
+  V(Map, sloppy_arguments_map)                   \
+  V(Map, slow_object_with_null_prototype_map)    \
+  V(Map, strict_arguments_map)                   \
+  V(Map, with_context_map)                       \
   V(ScriptContextTable, script_context_table)
-
-#define BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V) \
-  V(JSFunction, regexp_exec_function)
-
-#define BROKER_COMPULSORY_BACKGROUND_NATIVE_CONTEXT_FIELDS(V) \
-  V(Map, block_context_map)                                   \
-  V(Map, catch_context_map)                                   \
-  V(Map, eval_context_map)                                    \
-  V(Map, fast_aliased_arguments_map)                          \
-  V(Map, function_context_map)                                \
-  V(Map, initial_array_iterator_map)                          \
-  V(Map, initial_string_iterator_map)                         \
-  V(Map, iterator_result_map)                                 \
-  V(Map, sloppy_arguments_map)                                \
-  V(Map, slow_object_with_null_prototype_map)                 \
-  V(Map, strict_arguments_map)                                \
-  V(Map, with_context_map)
-
-// Those are set by Bootstrapper::ExportFromRuntime, which may not yet have
-// happened when Turbofan is invoked via --always-opt.
-#define BROKER_OPTIONAL_BACKGROUND_NATIVE_CONTEXT_FIELDS(V) \
-  V(Map, async_function_object_map)                         \
-  V(Map, map_key_iterator_map)                              \
-  V(Map, map_key_value_iterator_map)                        \
-  V(Map, map_value_iterator_map)                            \
-  V(Map, set_key_value_iterator_map)                        \
-  V(Map, set_value_iterator_map)
-
-#define BROKER_NATIVE_CONTEXT_FIELDS(V)                 \
-  BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(V)            \
-  BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(V)              \
-  BROKER_COMPULSORY_BACKGROUND_NATIVE_CONTEXT_FIELDS(V) \
-  BROKER_OPTIONAL_BACKGROUND_NATIVE_CONTEXT_FIELDS(V)
 
 class NativeContextRef : public ContextRef {
  public:
   DEFINE_REF_CONSTRUCTOR(NativeContext, ContextRef)
 
-  bool is_unserialized_heap_object() const;
-
   Handle<NativeContext> object() const;
 
   void Serialize();
-  void SerializeOnBackground();
 
 #define DECL_ACCESSOR(type, name) type##Ref name() const;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)

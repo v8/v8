@@ -694,7 +694,7 @@ class NativeContext : public Context {
   // initialization.  This function should *not* be used from anywhere other
   // than heap-refs.cc.
   // TODO(jgruber): Remove this function after NativeContextRef is actually
-  // never serialized and BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS is removed.
+  // never serialized and BROKER_NATIVE_CONTEXT_FIELDS is removed.
   JSGlobalObject global_object() { return Context::global_object(); }
   JSGlobalObject global_object(AcquireLoadTag) {
     return Context::global_object();

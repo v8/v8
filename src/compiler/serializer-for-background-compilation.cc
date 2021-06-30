@@ -1498,13 +1498,11 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
     case Runtime::kInlineGetImportMetaObject: {
       Hints const& context_hints = environment()->current_context_hints();
       for (auto x : context_hints.constants()) {
-        MakeRef(broker(), Handle<Context>::cast(x))
-            .GetModule(SerializationPolicy::kSerializeIfNeeded)
-            .Serialize();
+        MakeRef(broker(), Handle<Context>::cast(x)).GetModule().Serialize();
       }
       for (auto x : context_hints.virtual_contexts()) {
         MakeRef(broker(), Handle<Context>::cast(x.context))
-            .GetModule(SerializationPolicy::kSerializeIfNeeded)
+            .GetModule()
             .Serialize();
       }
       break;
@@ -1546,8 +1544,7 @@ void SerializerForBackgroundCompilation::ProcessImmutableLoad(
     ContextRef const& context_ref, int slot, ContextProcessingMode mode,
     Hints* result_hints) {
   DCHECK_EQ(mode, kSerializeSlot);
-  base::Optional<ObjectRef> slot_value =
-      context_ref.get(slot, SerializationPolicy::kSerializeIfNeeded);
+  base::Optional<ObjectRef> slot_value = context_ref.get(slot);
 
   // If requested, record the object as a hint for the result value.
   if (result_hints != nullptr && slot_value.has_value()) {
@@ -1568,8 +1565,7 @@ void SerializerForBackgroundCompilation::ProcessContextAccess(
       // Walk this context to the given depth and serialize the slot found.
       ContextRef context_ref = MakeRef(broker(), Handle<Context>::cast(x));
       size_t remaining_depth = depth;
-      context_ref = context_ref.previous(
-          &remaining_depth, SerializationPolicy::kSerializeIfNeeded);
+      context_ref = context_ref.previous(&remaining_depth);
       if (remaining_depth == 0 && mode != kIgnoreSlot) {
         ProcessImmutableLoad(context_ref, slot, mode, result_hints);
       }
@@ -1580,8 +1576,7 @@ void SerializerForBackgroundCompilation::ProcessContextAccess(
       ContextRef context_ref =
           MakeRef(broker(), Handle<Context>::cast(x.context));
       size_t remaining_depth = depth - x.distance;
-      context_ref = context_ref.previous(
-          &remaining_depth, SerializationPolicy::kSerializeIfNeeded);
+      context_ref = context_ref.previous(&remaining_depth);
       if (remaining_depth == 0 && mode != kIgnoreSlot) {
         ProcessImmutableLoad(context_ref, slot, mode, result_hints);
       }
@@ -1994,10 +1989,7 @@ void SerializerForBackgroundCompilation::VisitCallJSRuntime(
     BytecodeArrayIterator* iterator) {
   const int runtime_index = iterator->GetNativeContextIndexOperand(0);
   ObjectRef constant =
-      broker()
-          ->target_native_context()
-          .get(runtime_index, SerializationPolicy::kSerializeIfNeeded)
-          .value();
+      broker()->target_native_context().get(runtime_index).value();
   Hints const callee = Hints::SingleConstant(constant.object(), zone());
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));

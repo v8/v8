@@ -102,12 +102,6 @@ void JSHeapBroker::AttachLocalIsolate(OptimizedCompilationInfo* info,
   DCHECK_NOT_NULL(local_isolate_);
   local_isolate_->heap()->AttachPersistentHandles(
       info->DetachPersistentHandles());
-
-  if (is_concurrent_inlining()) {
-    // Ensure any serialization that happens on the background has been
-    // performed.
-    target_native_context().SerializeOnBackground();
-  }
 }
 
 void JSHeapBroker::DetachLocalIsolate(OptimizedCompilationInfo* info) {
@@ -140,8 +134,7 @@ void JSHeapBroker::SetTargetNativeContextRef(
     Handle<NativeContext> native_context) {
   DCHECK((mode() == kDisabled && !target_native_context_.has_value()) ||
          (mode() == kSerializing &&
-          target_native_context_->object().is_identical_to(native_context) &&
-          target_native_context_->is_unserialized_heap_object()));
+          target_native_context_->object().is_identical_to(native_context)));
   target_native_context_ = MakeRef(this, *native_context);
 }
 
@@ -700,8 +693,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
     }
     ContextRef context_ref = MakeRef(this, context);
     if (immutable) {
-      context_ref.get(context_slot_index,
-                      SerializationPolicy::kSerializeIfNeeded);
+      context_ref.get(context_slot_index);
     }
     return *zone()->New<GlobalAccessFeedback>(context_ref, context_slot_index,
                                               immutable, nexus.kind());

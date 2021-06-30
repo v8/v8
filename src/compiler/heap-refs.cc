@@ -893,94 +893,23 @@ class HeapNumberData : public HeapObjectData {
 class ContextData : public HeapObjectData {
  public:
   ContextData(JSHeapBroker* broker, ObjectData** storage,
-              Handle<Context> object);
-
-  ObjectData* previous(
-      JSHeapBroker* broker,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-
-  // Returns nullptr if the slot index isn't valid or wasn't serialized,
-  // unless {policy} is {kSerializeIfNeeded}.
-  ObjectData* GetSlot(
-      JSHeapBroker* broker, int index,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-
- private:
-  ZoneMap<int, ObjectData*> slots_;
-  ObjectData* previous_ = nullptr;
+              Handle<Context> object)
+      : HeapObjectData(broker, storage, object) {
+    // TODO(v8:7790): Remove this class once all kNeverSerialized types are
+    // NeverEverSerialize.
+    UNREACHABLE();
+  }
 };
-
-ContextData::ContextData(JSHeapBroker* broker, ObjectData** storage,
-                         Handle<Context> object)
-    : HeapObjectData(broker, storage, object), slots_(broker->zone()) {}
-
-ObjectData* ContextData::previous(JSHeapBroker* broker,
-                                  SerializationPolicy policy) {
-  if (policy == SerializationPolicy::kSerializeIfNeeded &&
-      previous_ == nullptr) {
-    TraceScope tracer(broker, this, "ContextData::previous");
-    Handle<Context> context = Handle<Context>::cast(object());
-    previous_ = broker->GetOrCreateData(context->unchecked_previous());
-  }
-  return previous_;
-}
-
-ObjectData* ContextData::GetSlot(JSHeapBroker* broker, int index,
-                                 SerializationPolicy policy) {
-  DCHECK_GE(index, 0);
-  auto search = slots_.find(index);
-  if (search != slots_.end()) {
-    return search->second;
-  }
-
-  if (policy == SerializationPolicy::kSerializeIfNeeded) {
-    Handle<Context> context = Handle<Context>::cast(object());
-    if (index < context->length()) {
-      TraceScope tracer(broker, this, "ContextData::GetSlot");
-      TRACE(broker, "Serializing context slot " << index);
-      ObjectData* odata = broker->GetOrCreateData(context->get(index));
-      slots_.insert(std::make_pair(index, odata));
-      return odata;
-    }
-  }
-
-  return nullptr;
-}
 
 class NativeContextData : public ContextData {
  public:
-#define DECL_ACCESSOR(type, name) \
-  ObjectData* name() const { return name##_; }
-  BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
-#undef DECL_ACCESSOR
-
-  const ZoneVector<ObjectData*>& function_maps() const {
-    CHECK_NE(state_, State::kUnserialized);
-    return function_maps_;
-  }
-
-  ObjectData* scope_info() const {
-    CHECK_NE(state_, State::kUnserialized);
-    return scope_info_;
-  }
-
   NativeContextData(JSHeapBroker* broker, ObjectData** storage,
-                    Handle<NativeContext> object);
-  void Serialize(JSHeapBroker* broker);
-  void SerializeOnBackground(JSHeapBroker* broker);
-
- private:
-  // After Serialize is called the class is partially serialized and it the
-  // kSerializedOnMainThread state. It then becomes kFullySerialized once
-  // SerializeOnBackground is called.
-  enum class State { kUnserialized, kSerializedOnMainThread, kFullySerialized };
-  State state_;
-
-#define DECL_MEMBER(type, name) ObjectData* name##_ = nullptr;
-  BROKER_NATIVE_CONTEXT_FIELDS(DECL_MEMBER)
-#undef DECL_MEMBER
-  ZoneVector<ObjectData*> function_maps_;
-  ObjectData* scope_info_ = nullptr;
+                    Handle<NativeContext> object)
+      : ContextData(broker, storage, object) {
+    // TODO(v8:7790): Remove this class once all kNeverSerialized types are
+    // NeverEverSerialize.
+    UNREACHABLE();
+  }
 };
 
 class NameData : public HeapObjectData {
@@ -2322,12 +2251,12 @@ class CodeDataContainerData : public HeapObjectData {
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS
 
-#define DEFINE_AS(Name, Kind)                                      \
-  Name##Data* ObjectData::As##Name() {                             \
-    CHECK(Is##Name());                                             \
-    CHECK(kind_ == kSerializedHeapObject ||                        \
-          kind_ == kBackgroundSerializedHeapObject);               \
-    return static_cast<Name##Data*>(this);                         \
+#define DEFINE_AS(Name, Kind)                        \
+  Name##Data* ObjectData::As##Name() {               \
+    CHECK(Is##Name());                               \
+    CHECK(kind_ == kSerializedHeapObject ||          \
+          kind_ == kBackgroundSerializedHeapObject); \
+    return static_cast<Name##Data*>(this);           \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
@@ -2572,51 +2501,34 @@ bool ObjectRef::equals(const ObjectRef& other) const {
 
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
 
-ContextRef ContextRef::previous(size_t* depth,
-                                SerializationPolicy policy) const {
+ContextRef ContextRef::previous(size_t* depth) const {
   DCHECK_NOT_NULL(depth);
 
-  if (data_->should_access_heap()) {
-    Context current = *object();
-    while (*depth != 0 && current.unchecked_previous().IsContext()) {
-      current = Context::cast(current.unchecked_previous());
-      (*depth)--;
-    }
-    return MakeRef(broker(), current);
+  Context current = *object();
+  while (*depth != 0 && current.unchecked_previous().IsContext()) {
+    current = Context::cast(current.unchecked_previous());
+    (*depth)--;
   }
-
-  if (*depth == 0) return *this;
-
-  ObjectData* previous_data = data()->AsContext()->previous(broker(), policy);
-  if (previous_data == nullptr || !previous_data->IsContext()) return *this;
-
-  *depth = *depth - 1;
-  return ContextRef(broker(), previous_data).previous(depth, policy);
+  return MakeRef(broker(), current);
 }
 
-base::Optional<ObjectRef> ContextRef::get(int index,
-                                          SerializationPolicy policy) const {
+base::Optional<ObjectRef> ContextRef::get(int index) const {
   CHECK_LE(0, index);
-  if (data_->should_access_heap()) {
-    if (index >= object()->length()) return {};
-    return TryMakeRef(broker(), object()->get(index));
-  }
-  ObjectData* optional_slot =
-      data()->AsContext()->GetSlot(broker(), index, policy);
-  if (optional_slot == nullptr) return {};
-  return ObjectRef(broker(), optional_slot);
+  if (index >= object()->length()) return {};
+  return TryMakeRef(broker(), object()->get(index));
 }
 
-SourceTextModuleRef ContextRef::GetModule(SerializationPolicy policy) const {
+SourceTextModuleRef ContextRef::GetModule() const {
+  // Only called by the serializer.
+  // TODO(v8:7790): Remove this method once the serialization phase is gone.
+  CHECK(broker()->IsMainThread());
   ContextRef current = *this;
   while (current.map().instance_type() != MODULE_CONTEXT_TYPE) {
     size_t depth = 1;
-    current = current.previous(&depth, policy);
+    current = current.previous(&depth);
     CHECK_EQ(depth, 0);
   }
-  return current.get(Context::EXTENSION_INDEX, policy)
-      .value()
-      .AsSourceTextModule();
+  return current.get(Context::EXTENSION_INDEX).value().AsSourceTextModule();
 }
 
 #ifdef DEBUG
@@ -2717,11 +2629,6 @@ void JSHeapBroker::InitializeAndStartSerializing() {
 
   SetTargetNativeContextRef(target_native_context().object());
   target_native_context().Serialize();
-  if (!is_concurrent_inlining()) {
-    // Perform full native context serialization now if we can't do it later on
-    // the background thread.
-    target_native_context().SerializeOnBackground();
-  }
 
   Factory* const f = isolate()->factory();
   if (!is_concurrent_inlining()) {
@@ -2756,9 +2663,8 @@ namespace {
 
 template <RefSerializationKind Kind, class DataT, class ObjectT>
 struct CreateDataFunctor {
-  bool operator()(JSHeapBroker* broker, RefsMap* refs,
-                  Handle<Object> object, RefsMap::Entry** entry_out,
-                  ObjectData** object_data_out) {
+  bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
+                  RefsMap::Entry** entry_out, ObjectData** object_data_out) {
     USE(broker, refs, object, entry_out, object_data_out);
     UNREACHABLE();
   }
@@ -2766,9 +2672,8 @@ struct CreateDataFunctor {
 
 template <class DataT, class ObjectT>
 struct CreateDataFunctor<RefSerializationKind::kSerialized, DataT, ObjectT> {
-  bool operator()(JSHeapBroker* broker, RefsMap* refs,
-                  Handle<Object> object, RefsMap::Entry** entry_out,
-                  ObjectData** object_data_out) {
+  bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
+                  RefsMap::Entry** entry_out, ObjectData** object_data_out) {
     if (broker->mode() == JSHeapBroker::kSerializing) {
       RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
       *object_data_out = broker->zone()->New<DataT>(
@@ -2783,9 +2688,8 @@ struct CreateDataFunctor<RefSerializationKind::kSerialized, DataT, ObjectT> {
 template <class DataT, class ObjectT>
 struct CreateDataFunctor<RefSerializationKind::kBackgroundSerialized, DataT,
                          ObjectT> {
-  bool operator()(JSHeapBroker* broker, RefsMap* refs,
-                  Handle<Object> object, RefsMap::Entry** entry_out,
-                  ObjectData** object_data_out) {
+  bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
+                  RefsMap::Entry** entry_out, ObjectData** object_data_out) {
     if (broker->is_concurrent_inlining()) {
       RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
       *object_data_out = broker->zone()->New<DataT>(
@@ -2823,6 +2727,8 @@ bool NeverEverSerialize() {
 NEVER_EVER_SERIALIZE(ArrayBoilerplateDescription)
 NEVER_EVER_SERIALIZE(BytecodeArray)
 NEVER_EVER_SERIALIZE(Cell)
+NEVER_EVER_SERIALIZE(Context)
+NEVER_EVER_SERIALIZE(NativeContext)
 NEVER_EVER_SERIALIZE(ObjectBoilerplateDescription)
 NEVER_EVER_SERIALIZE(RegExpBoilerplateDescription)
 NEVER_EVER_SERIALIZE(TemplateObjectDescription)
@@ -3803,7 +3709,6 @@ void NativeContextRef::Serialize() {
   // then, we *must* iterate them and create refs at serialization-time (even
   // though NativeContextRef itself is never-serialized).
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  if (data_->should_access_heap()) {
 #define SERIALIZE_MEMBER(type, name)                                          \
   {                                                                           \
     ObjectData* member_data = broker()->GetOrCreateData(object()->name());    \
@@ -3815,44 +3720,29 @@ void NativeContextRef::Serialize() {
       member_data->AsJSFunction()->Serialize(broker());                       \
     }                                                                         \
   }
-    BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
-    BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
+  BROKER_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
 #undef SERIALIZE_MEMBER
-  } else {
-    data()->AsNativeContext()->Serialize(broker());
+
+  for (int i = Context::FIRST_FUNCTION_MAP_INDEX;
+       i <= Context::LAST_FUNCTION_MAP_INDEX; i++) {
+    MapData* member_data = broker()->GetOrCreateData(object()->get(i))->AsMap();
+    if (!InstanceTypeChecker::IsContext(member_data->instance_type())) {
+      member_data->SerializeConstructor(broker());
+    }
   }
-}
-
-void NativeContextRef::SerializeOnBackground() {
-  if (data_->should_access_heap()) return;
-  CHECK(broker()->mode() == JSHeapBroker::kSerializing ||
-        broker()->mode() == JSHeapBroker::kSerialized);
-  data()->AsNativeContext()->SerializeOnBackground(broker());
-}
-
-bool NativeContextRef::is_unserialized_heap_object() const {
-  return data_->kind() == kUnserializedHeapObject;
 }
 
 ScopeInfoRef NativeContextRef::scope_info() const {
-  if (data_->should_access_heap()) {
-    // The scope_info is immutable after initialization.
-    return MakeRefAssumeMemoryFence(broker(), object()->scope_info());
-  }
-  return ScopeInfoRef(broker(), data()->AsNativeContext()->scope_info());
+  // The scope_info is immutable after initialization.
+  return MakeRefAssumeMemoryFence(broker(), object()->scope_info());
 }
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
-  if (data_->should_access_heap()) {
-    CHECK_LT(index, object()->length());
-    return MakeRefAssumeMemoryFence(broker(),
-                                    object()->get(index, kAcquireLoad))
-        .AsMap();
-  }
-  return MapRef(broker(), data()->AsNativeContext()->function_maps().at(
-                              index - Context::FIRST_FUNCTION_MAP_INDEX));
+  CHECK_LT(index, object()->length());
+  return MakeRefAssumeMemoryFence(
+      broker(), Map::cast(object()->get(index, kAcquireLoad)));
 }
 
 MapRef NativeContextRef::GetInitialJSArrayMap(ElementsKind kind) const {
@@ -3874,14 +3764,10 @@ MapRef NativeContextRef::GetInitialJSArrayMap(ElementsKind kind) const {
   }
 }
 
-#define DEF_NATIVE_CONTEXT_ACCESSOR(ResultType, Name)                     \
-  ResultType##Ref NativeContextRef::Name() const {                        \
-    if (data_->should_access_heap()) {                                    \
-      return MakeRefAssumeMemoryFence(                                    \
-          broker(), ResultType::cast(object()->Name(kAcquireLoad)));      \
-    }                                                                     \
-    return ResultType##Ref(broker(),                                      \
-                           ObjectRef::data()->AsNativeContext()->Name()); \
+#define DEF_NATIVE_CONTEXT_ACCESSOR(ResultType, Name)              \
+  ResultType##Ref NativeContextRef::Name() const {                 \
+    return MakeRefAssumeMemoryFence(                               \
+        broker(), ResultType::cast(object()->Name(kAcquireLoad))); \
   }
 BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 #undef DEF_NATIVE_CONTEXT_ACCESSOR
@@ -4371,80 +4257,6 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
                                        const char* function, int line) {
   TRACE_MISSING(broker, "data in function " << function << " at line " << line);
   return AdvancedReducer::NoChange();
-}
-
-NativeContextData::NativeContextData(JSHeapBroker* broker, ObjectData** storage,
-                                     Handle<NativeContext> object)
-    : ContextData(broker, storage, object),
-      state_(State::kUnserialized),
-      function_maps_(broker->zone()) {}
-
-void NativeContextData::Serialize(JSHeapBroker* broker) {
-  if (state_ != State::kUnserialized) return;
-  state_ = State::kSerializedOnMainThread;
-
-  TraceScope tracer(broker, this, "NativeContextData::Serialize");
-  Handle<NativeContext> context = Handle<NativeContext>::cast(object());
-
-#define SERIALIZE_MEMBER(type, name)                                          \
-  DCHECK_NULL(name##_);                                                       \
-  name##_ = broker->GetOrCreateData(context->name());                         \
-  if (!name##_->should_access_heap()) {                                       \
-    if (name##_->IsMap() &&                                                   \
-        !InstanceTypeChecker::IsContext(name##_->AsMap()->instance_type())) { \
-      name##_->AsMap()->SerializeConstructor(broker);                         \
-    }                                                                         \
-    if (name##_->IsJSFunction()) {                                            \
-      name##_->AsJSFunction()->Serialize(broker);                             \
-    }                                                                         \
-  }
-  BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
-  if (!broker->is_isolate_bootstrapping()) {
-    BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
-  }
-#undef SERIALIZE_MEMBER
-
-  if (!bound_function_with_constructor_map_->should_access_heap()) {
-    bound_function_with_constructor_map_->AsMap()->SerializePrototype(broker);
-  }
-  if (!bound_function_without_constructor_map_->should_access_heap()) {
-    bound_function_without_constructor_map_->AsMap()->SerializePrototype(
-        broker);
-  }
-
-  scope_info_ = broker->GetOrCreateData(context->scope_info());
-}
-
-void NativeContextData::SerializeOnBackground(JSHeapBroker* broker) {
-  if (state_ == State::kFullySerialized) return;
-  DCHECK_EQ(state_, State::kSerializedOnMainThread);
-  state_ = State::kSerializedOnMainThread;
-
-  UnparkedScopeIfNeeded unparked_scope(broker);
-  TraceScope tracer(broker, this, "NativeContextData::SerializeOnBackground");
-  Handle<NativeContext> context = Handle<NativeContext>::cast(object());
-
-#define SERIALIZE_MEMBER(type, name)                             \
-  DCHECK_NULL(name##_);                                          \
-  name##_ = broker->GetOrCreateData(context->name(kAcquireLoad), \
-                                    kAssumeMemoryFence);         \
-  if (!name##_->should_access_heap()) {                          \
-    DCHECK(!name##_->IsJSFunction());                            \
-  }
-  BROKER_COMPULSORY_BACKGROUND_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
-  if (!broker->is_isolate_bootstrapping()) {
-    BROKER_OPTIONAL_BACKGROUND_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
-  }
-#undef SERIALIZE_MEMBER
-
-  DCHECK(function_maps_.empty());
-  int const first = Context::FIRST_FUNCTION_MAP_INDEX;
-  int const last = Context::LAST_FUNCTION_MAP_INDEX;
-  function_maps_.reserve(last + 1 - first);
-  for (int i = first; i <= last; ++i) {
-    function_maps_.push_back(broker->GetOrCreateData(
-        context->get(i, kAcquireLoad), kAssumeMemoryFence));
-  }
 }
 
 void JSFunctionRef::Serialize() {
