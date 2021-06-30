@@ -368,6 +368,8 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   ReadOnlyRoots roots(isolate_);
   Handle<JSGlobalProxy> global_proxy(env->global_proxy(), isolate_);
   global_proxy->set_native_context(roots.null_value());
+  // NOTE: Turbofan's JSNativeContextSpecialization depends on DetachGlobal
+  // causing a map change.
   JSObject::ForceSetPrototype(isolate_, global_proxy,
                               isolate_->factory()->null_value());
   global_proxy->map().SetConstructor(roots.null_value());
