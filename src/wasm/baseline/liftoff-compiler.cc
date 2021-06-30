@@ -1611,7 +1611,9 @@ class LiftoffCompiler {
                            kNoTrap)
       case kExprI32Eqz:
         DCHECK(decoder->lookahead(0, kExprI32Eqz));
-        if (decoder->lookahead(1, kExprBrIf) && !for_debugging_) {
+        if ((decoder->lookahead(1, kExprBrIf) ||
+             decoder->lookahead(1, kExprIf)) &&
+            !for_debugging_) {
           DCHECK(!has_outstanding_op());
           outstanding_op_ = kExprI32Eqz;
           break;
