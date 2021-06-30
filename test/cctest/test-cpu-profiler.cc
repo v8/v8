@@ -4145,13 +4145,13 @@ TEST(FastApiCPUProfiler) {
   if (i::FLAG_jitless) return;
   if (i::FLAG_turboprop) return;
 
-  FLAG_SCOPE_EXTERNAL(opt);
-  FLAG_SCOPE_EXTERNAL(turbo_fast_api_calls);
-  FLAG_SCOPE_EXTERNAL(allow_natives_syntax);
+  FLAG_SCOPE(opt);
+  FLAG_SCOPE(turbo_fast_api_calls);
+  FLAG_SCOPE(allow_natives_syntax);
   // Disable --always_opt, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  UNFLAG_SCOPE_EXTERNAL(always_opt);
-  UNFLAG_SCOPE_EXTERNAL(prof_browser_mode);
+  FLAG_VALUE_SCOPE(always_opt, false);
+  FLAG_VALUE_SCOPE(prof_browser_mode, false);
 
   CcTest::InitializeVM();
   LocalContext env;

@@ -26307,7 +26307,7 @@ HostImportModuleDynamicallyWithAssertionsCallbackResolve(
 }
 
 TEST(DynamicImportWithAssertions) {
-  FLAG_SCOPE_EXTERNAL(harmony_import_assertions);
+  FLAG_SCOPE(harmony_import_assertions);
 
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
