@@ -3234,12 +3234,17 @@ void MacroAssembler::EnterExitFramePrologue(Register saved_rax_reg,
       rbx);
 }
 
+#ifdef V8_TARGET_OS_WIN
+static const int kRegisterPassedArguments = 4;
+#else
+static const int kRegisterPassedArguments = 6;
+#endif
+
 void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
                                             bool save_doubles) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_TARGET_OS_WIN
-  const int kShadowSpace = 4;
-  arg_stack_space += kShadowSpace;
+  arg_stack_space += kRegisterPassedArguments;
 #endif
   // Optionally save all XMM registers.
   if (save_doubles) {
@@ -3346,12 +3351,6 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
   Operand c_entry_fp_operand = ExternalReferenceAsOperand(c_entry_fp_address);
   Move(c_entry_fp_operand, 0);
 }
-
-#ifdef V8_TARGET_OS_WIN
-static const int kRegisterPassedArguments = 4;
-#else
-static const int kRegisterPassedArguments = 6;
-#endif
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   ASM_CODE_COMMENT(this);
