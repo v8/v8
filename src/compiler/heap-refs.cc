@@ -1942,87 +1942,13 @@ void ScopeInfoData::SerializeScopeInfoChain(JSHeapBroker* broker) {
 class SharedFunctionInfoData : public HeapObjectData {
  public:
   SharedFunctionInfoData(JSHeapBroker* broker, ObjectData** storage,
-                         Handle<SharedFunctionInfo> object);
-
-  Builtin builtin_id() const { return builtin_id_; }
-  int context_header_size() const { return context_header_size_; }
-  ObjectData* GetBytecodeArray() const { return GetBytecodeArray_; }
-  SharedFunctionInfo::Inlineability GetInlineability() const {
-    return inlineability_;
+                         Handle<SharedFunctionInfo> object)
+      : HeapObjectData(broker, storage, object) {
+    // TODO(v8:7790): Remove this class once all kNeverSerialized types are
+    // NeverEverSerialize.
+    UNREACHABLE();
   }
-  void SerializeFunctionTemplateInfo(JSHeapBroker* broker);
-  ObjectData* scope_info() const { return scope_info_; }
-  void SerializeScopeInfoChain(JSHeapBroker* broker);
-  ObjectData* function_template_info() const { return function_template_info_; }
-  ObjectData* GetTemplateObject(FeedbackSlot slot) const {
-    auto lookup_it = template_objects_.find(slot.ToInt());
-    if (lookup_it != template_objects_.cend()) {
-      return lookup_it->second;
-    }
-    return nullptr;
-  }
-  void SetTemplateObject(FeedbackSlot slot, ObjectData* object) {
-    CHECK(
-        template_objects_.insert(std::make_pair(slot.ToInt(), object)).second);
-  }
-
-#define DECL_ACCESSOR(type, name) \
-  type name() const { return name##_; }
-  BROKER_SFI_FIELDS(DECL_ACCESSOR)
-#undef DECL_ACCESSOR
-
- private:
-  Builtin const builtin_id_;
-  int const context_header_size_;
-  ObjectData* const GetBytecodeArray_;
-#define DECL_MEMBER(type, name) type const name##_;
-  BROKER_SFI_FIELDS(DECL_MEMBER)
-#undef DECL_MEMBER
-  SharedFunctionInfo::Inlineability const inlineability_;
-  ObjectData* function_template_info_;
-  ZoneMap<int, ObjectData*> template_objects_;
-  ObjectData* scope_info_;
 };
-
-SharedFunctionInfoData::SharedFunctionInfoData(
-    JSHeapBroker* broker, ObjectData** storage,
-    Handle<SharedFunctionInfo> object)
-    : HeapObjectData(broker, storage, object),
-      builtin_id_(object->HasBuiltinId() ? object->builtin_id()
-                                         : Builtin::kNoBuiltinId),
-      context_header_size_(object->scope_info().ContextHeaderLength()),
-      GetBytecodeArray_(object->HasBytecodeArray()
-                            ? broker->GetOrCreateData(
-                                  object->GetBytecodeArray(broker->isolate()))
-                            : nullptr)
-#define INIT_MEMBER(type, name) , name##_(object->name())
-          BROKER_SFI_FIELDS(INIT_MEMBER)
-#undef INIT_MEMBER
-      ,
-      inlineability_(
-          object->GetInlineability(broker->isolate(), broker->is_turboprop())),
-      function_template_info_(nullptr),
-      template_objects_(broker->zone()),
-      scope_info_(nullptr) {
-  DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtin::kNoBuiltinId);
-  DCHECK_EQ(HasBytecodeArray_, GetBytecodeArray_ != nullptr);
-}
-
-void SharedFunctionInfoData::SerializeFunctionTemplateInfo(
-    JSHeapBroker* broker) {
-  if (function_template_info_) return;
-  function_template_info_ = broker->GetOrCreateData(
-      Handle<SharedFunctionInfo>::cast(object())->function_data(kAcquireLoad));
-}
-
-void SharedFunctionInfoData::SerializeScopeInfoChain(JSHeapBroker* broker) {
-  if (scope_info_) return;
-  scope_info_ = broker->GetOrCreateData(
-      Handle<SharedFunctionInfo>::cast(object())->scope_info());
-  if (!scope_info_->should_access_heap()) {
-    scope_info_->AsScopeInfo()->SerializeScopeInfoChain(broker);
-  }
-}
 
 class SourceTextModuleData : public HeapObjectData {
  public:
@@ -2731,6 +2657,7 @@ NEVER_EVER_SERIALIZE(Context)
 NEVER_EVER_SERIALIZE(NativeContext)
 NEVER_EVER_SERIALIZE(ObjectBoilerplateDescription)
 NEVER_EVER_SERIALIZE(RegExpBoilerplateDescription)
+NEVER_EVER_SERIALIZE(SharedFunctionInfo)
 NEVER_EVER_SERIALIZE(TemplateObjectDescription)
 
 #undef NEVER_EVER_SERIALIZE
@@ -3263,6 +3190,9 @@ int BytecodeArrayRef::handler_table_size() const {
     return BitField::decode(ObjectRef::data()->As##holder()->field()); \
   }
 
+#define HEAP_ACCESSOR_C(holder, result, name) \
+  result holder##Ref::name() const { return object()->name(); }
+
 BIMODAL_ACCESSOR(AllocationSite, Object, nested_site)
 BIMODAL_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
 BIMODAL_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
@@ -3483,36 +3413,30 @@ BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 BIMODAL_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
 BIMODAL_ACCESSOR(ScopeInfo, ScopeInfo, OuterScopeInfo)
 
-BIMODAL_ACCESSOR_C(SharedFunctionInfo, Builtin, builtin_id)
+HEAP_ACCESSOR_C(SharedFunctionInfo, Builtin, builtin_id)
+
 BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray() const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    BytecodeArray bytecode_array;
-    if (!broker()->IsMainThread()) {
-      bytecode_array = object()->GetBytecodeArray(broker()->local_isolate());
-    } else {
-      bytecode_array = object()->GetBytecodeArray(broker()->isolate());
-    }
-    return MakeRef(broker(), bytecode_array);
+  BytecodeArray bytecode_array;
+  if (!broker()->IsMainThread()) {
+    bytecode_array = object()->GetBytecodeArray(broker()->local_isolate());
+  } else {
+    bytecode_array = object()->GetBytecodeArray(broker()->isolate());
   }
-  return BytecodeArrayRef(
-      broker(), ObjectRef::data()->AsSharedFunctionInfo()->GetBytecodeArray());
+  return MakeRefAssumeMemoryFence(broker(), bytecode_array);
 }
+
 #define DEF_SFI_ACCESSOR(type, name) \
-  BIMODAL_ACCESSOR_WITH_FLAG_C(SharedFunctionInfo, type, name)
+  HEAP_ACCESSOR_C(SharedFunctionInfo, type, name)
 BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 #undef DEF_SFI_ACCESSOR
+
 SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability()
     const {
-  if (data_->should_access_heap()) {
-    if (!broker()->IsMainThread()) {
-      return object()->GetInlineability(broker()->local_isolate(),
-                                        broker()->is_turboprop());
-    } else {
-      return object()->GetInlineability(broker()->isolate(),
-                                        broker()->is_turboprop());
-    }
-  }
-  return ObjectRef::data()->AsSharedFunctionInfo()->GetInlineability();
+  return broker()->IsMainThread()
+             ? object()->GetInlineability(broker()->isolate(),
+                                          broker()->is_turboprop())
+             : object()->GetInlineability(broker()->local_isolate(),
+                                          broker()->is_turboprop());
 }
 
 base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
@@ -4308,41 +4232,19 @@ CodeRef JSFunctionRef::code() const {
   return CodeRef(broker(), ObjectRef::data()->AsJSFunction()->code());
 }
 
-void SharedFunctionInfoRef::SerializeFunctionTemplateInfo() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsSharedFunctionInfo()->SerializeFunctionTemplateInfo(broker());
-}
-
-void SharedFunctionInfoRef::SerializeScopeInfoChain() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsSharedFunctionInfo()->SerializeScopeInfoChain(broker());
-}
-
 base::Optional<FunctionTemplateInfoRef>
 SharedFunctionInfoRef::function_template_info() const {
-  if (data_->should_access_heap()) {
-    if (!object()->IsApiFunction()) return {};
-    return TryMakeRef(broker(), FunctionTemplateInfo::cast(
-                                    object()->function_data(kAcquireLoad)));
-  }
-  ObjectData* function_template_info =
-      data()->AsSharedFunctionInfo()->function_template_info();
-  if (!function_template_info) return base::nullopt;
-  return FunctionTemplateInfoRef(broker(), function_template_info);
+  if (!object()->IsApiFunction()) return {};
+  return TryMakeRef(broker(), FunctionTemplateInfo::cast(
+                                  object()->function_data(kAcquireLoad)));
 }
 
 int SharedFunctionInfoRef::context_header_size() const {
-  IF_ACCESS_FROM_HEAP_C(scope_info().ContextHeaderLength);
-  return data()->AsSharedFunctionInfo()->context_header_size();
+  return object()->scope_info().ContextHeaderLength();
 }
 
 ScopeInfoRef SharedFunctionInfoRef::scope_info() const {
-  if (data_->should_access_heap()) {
-    return MakeRef(broker(), object()->scope_info());
-  }
-  return ScopeInfoRef(broker(), data()->AsSharedFunctionInfo()->scope_info());
+  return MakeRef(broker(), object()->scope_info());
 }
 
 void JSObjectRef::SerializeObjectCreateMap() {
@@ -4518,8 +4420,14 @@ unsigned CodeRef::GetInlinedBytecodeSize() const {
 #undef BIMODAL_ACCESSOR
 #undef BIMODAL_ACCESSOR_B
 #undef BIMODAL_ACCESSOR_C
+#undef BIMODAL_ACCESSOR_WITH_FLAG
+#undef BIMODAL_ACCESSOR_WITH_FLAG_B
+#undef BIMODAL_ACCESSOR_WITH_FLAG_C
+#undef HEAP_ACCESSOR_C
 #undef IF_ACCESS_FROM_HEAP
 #undef IF_ACCESS_FROM_HEAP_C
+#undef IF_ACCESS_FROM_HEAP_WITH_FLAG
+#undef IF_ACCESS_FROM_HEAP_WITH_FLAG_C
 #undef TRACE
 #undef TRACE_MISSING
 
