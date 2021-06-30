@@ -21,7 +21,8 @@ def current_frame(debugger):
   return current_thread(debugger).GetSelectedFrame()
 
 def no_arg_cmd(debugger, cmd):
-  evaluate_result = current_frame(debugger).EvaluateExpression(cmd)
+  cast_to_void_expr = '(void) {}'.format(cmd)
+  evaluate_result = current_frame(debugger).EvaluateExpression(cast_to_void_expr)
   # When a void function is called the return value type is 0x1001 which
   # is specified in http://tiny.cc/bigskz. This does not indicate
   # an error so we check for that value below.
