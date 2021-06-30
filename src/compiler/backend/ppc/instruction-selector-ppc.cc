@@ -1465,14 +1465,6 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
   VisitRR(this, kPPC_RoundDouble, node);
 }
 
-void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
-  UNREACHABLE();
-}
-
-void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
-  UNREACHABLE();
-}
-
 void InstructionSelector::VisitFloat32Neg(Node* node) {
   VisitRR(this, kPPC_NegDouble, node);
 }
@@ -2300,7 +2292,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Ceil)                 \
   V(F64x2Floor)                \
   V(F64x2Trunc)                \
-  V(F64x2NearestInt)           \
   V(F64x2ConvertLowI32x4S)     \
   V(F64x2ConvertLowI32x4U)     \
   V(F64x2PromoteLowF32x4)      \
@@ -2314,7 +2305,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Ceil)                 \
   V(F32x4Floor)                \
   V(F32x4Trunc)                \
-  V(F32x4NearestInt)           \
   V(F32x4DemoteF64x2Zero)      \
   V(I64x2Abs)                  \
   V(I64x2Neg)                  \
@@ -2696,6 +2686,18 @@ void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
                                                         Node* node) {
   UNREACHABLE();
 }
+
+void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitF64x2NearestInt(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitF32x4NearestInt(Node* node) { UNREACHABLE(); }
 
 // static
 MachineOperatorBuilder::Flags

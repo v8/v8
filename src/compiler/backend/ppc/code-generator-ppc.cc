@@ -3344,10 +3344,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xvrdpiz(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kPPC_F64x2NearestInt: {
-      __ xvrdpi(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kPPC_F32x4Ceil: {
       __ xvrspip(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -3358,10 +3354,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_F32x4Trunc: {
       __ xvrspiz(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4NearestInt: {
-      __ xvrspi(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kPPC_I64x2BitMask: {

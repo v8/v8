@@ -136,7 +136,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F64x2Ceil:
     case kPPC_F64x2Floor:
     case kPPC_F64x2Trunc:
-    case kPPC_F64x2NearestInt:
     case kPPC_F64x2Pmin:
     case kPPC_F64x2Pmax:
     case kPPC_F64x2ConvertLowI32x4S:
@@ -167,7 +166,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F32x4Ceil:
     case kPPC_F32x4Floor:
     case kPPC_F32x4Trunc:
-    case kPPC_F32x4NearestInt:
     case kPPC_F32x4Pmin:
     case kPPC_F32x4Pmax:
     case kPPC_F32x4DemoteF64x2Zero:
