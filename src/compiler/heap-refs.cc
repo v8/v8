@@ -745,19 +745,35 @@ class ArrayBoilerplateDescriptionData : public HeapObjectData {
 class JSDataViewData : public JSObjectData {
  public:
   JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<JSDataView> object);
+                 Handle<JSDataView> object,
+                 ObjectDataKind kind = kSerializedHeapObject)
+      : JSObjectData(broker, storage, object, kind) {
+    if (kind == kSerializedHeapObject) {
+      DCHECK(!broker->is_concurrent_inlining());
+      byte_length_ = object->byte_length();
+    } else {
+      DCHECK_EQ(kind, kBackgroundSerializedHeapObject);
+      DCHECK(broker->is_concurrent_inlining());
+    }
+  }
 
-  size_t byte_length() const { return byte_length_; }
+  size_t byte_length() const {
+    DCHECK_EQ(kind(), kSerializedHeapObject);
+    return byte_length_;
+  }
 
  private:
-  size_t const byte_length_;
+  size_t byte_length_ = 0;  // Only valid if not concurrent inlining.
 };
 
 class JSBoundFunctionData : public JSObjectData {
  public:
   JSBoundFunctionData(JSHeapBroker* broker, ObjectData** storage,
-                      Handle<JSBoundFunction> object);
+                      Handle<JSBoundFunction> object,
+                      ObjectDataKind kind = kSerializedHeapObject)
+      : JSObjectData(broker, storage, object, kind) {}
 
+  // For main-thread serialization only.
   bool Serialize(JSHeapBroker* broker);
   bool serialized() const { return serialized_; }
 
@@ -1819,17 +1835,9 @@ class ScriptContextTableData : public FixedArrayData {
       : FixedArrayData(broker, storage, object, kind) {}
 };
 
-JSDataViewData::JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
-                               Handle<JSDataView> object)
-    : JSObjectData(broker, storage, object),
-      byte_length_(object->byte_length()) {}
-
-JSBoundFunctionData::JSBoundFunctionData(JSHeapBroker* broker,
-                                         ObjectData** storage,
-                                         Handle<JSBoundFunction> object)
-    : JSObjectData(broker, storage, object) {}
-
 bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
+  DCHECK(!broker->is_concurrent_inlining());
+
   if (serialized_) return true;
   if (broker->StackHasOverflowed()) return false;
 
@@ -3366,15 +3374,13 @@ BIMODAL_ACCESSOR(HeapObject, Map, map)
 BIMODAL_ACCESSOR_C(HeapNumber, double, value)
 BIMODAL_ACCESSOR_C(HeapNumber, uint64_t, value_as_bits)
 
-// These JSBoundFunction fields are immutable after initialization. Moreover,
-// as long as JSObjects are still serialized on the main thread, all
-// JSBoundFunctionRefs are created at a time when the underlying objects are
-// guaranteed to be fully initialized.
+// Immutable after initialization.
 BIMODAL_ACCESSOR_WITH_FLAG(JSBoundFunction, JSReceiver, bound_target_function)
 BIMODAL_ACCESSOR_WITH_FLAG(JSBoundFunction, Object, bound_this)
 BIMODAL_ACCESSOR_WITH_FLAG(JSBoundFunction, FixedArray, bound_arguments)
 
-BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
+// Immutable after initialization.
+BIMODAL_ACCESSOR_WITH_FLAG_C(JSDataView, size_t, byte_length)
 
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
@@ -4445,10 +4451,20 @@ void JSFunctionRef::SerializeCodeAndFeedback() {
 }
 
 bool JSBoundFunctionRef::serialized() const {
-  if (data_->should_access_heap()) return true;
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    return true;
+  }
   if (data_->AsJSBoundFunction()->serialized()) return true;
   TRACE_BROKER_MISSING(broker(), "data for JSBoundFunction " << this);
   return false;
+}
+
+bool JSBoundFunctionRef::Serialize() {
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    return true;
+  }
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  return data()->AsJSBoundFunction()->Serialize(broker());
 }
 
 bool JSFunctionRef::serialized() const {
@@ -4609,12 +4625,6 @@ bool JSTypedArrayRef::serialized() const {
   if (data_->AsJSTypedArray()->serialized()) return true;
   TRACE_BROKER_MISSING(broker(), "data for JSTypedArray " << this);
   return false;
-}
-
-bool JSBoundFunctionRef::Serialize() {
-  if (data_->should_access_heap()) return true;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  return data()->AsJSBoundFunction()->Serialize(broker());
 }
 
 bool PropertyCellRef::Serialize() const {
