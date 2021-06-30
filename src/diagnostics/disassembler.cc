@@ -365,7 +365,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       out << "\033[33;1m";
     }
     out << static_cast<void*>(prev_pc) << "  " << std::setw(4)
-        << prev_pc - begin;
+        << prev_pc - begin << "  ";
 
     // Instruction.
     out << decode_buffer.begin();
