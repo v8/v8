@@ -127,13 +127,8 @@ class LinkageLocation {
 
   MachineType GetType() const { return machine_type_; }
 
-  int GetSize() const {
-    return 1 << ElementSizeLog2Of(GetType().representation());
-  }
-
   int GetSizeInPointers() const {
-    // Round up
-    return (GetSize() + kSystemPointerSize - 1) / kSystemPointerSize;
+    return ElementSizeInPointers(GetType().representation());
   }
 
   int32_t GetLocation() const {

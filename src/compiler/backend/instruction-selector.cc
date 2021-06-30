@@ -1154,9 +1154,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       // This can insert empty slots before stack_index and will insert enough
       // slots after stack_index to store the parameter.
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
-        int num_slots = std::max(
-            1, (ElementSizeInBytes(location.GetType().representation()) /
-                kSystemPointerSize));
+        int num_slots = location.GetSizeInPointers();
         buffer->pushed_nodes.resize(stack_index + num_slots);
       }
       PushParameter param = {*iter, location};
