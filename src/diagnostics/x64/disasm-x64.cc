@@ -2801,7 +2801,8 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
   for (byte* bp = instr; bp < data; bp++) {
     outp += v8::base::SNPrintF(out_buffer + outp, "%02x", *bp);
   }
-  for (int i = 6 - instr_len; i >= 0; i--) {
+  // Indent instruction, leaving space for 7 bytes, i.e. 14 characters in hex.
+  while (outp < 14) {
     outp += v8::base::SNPrintF(out_buffer + outp, "  ");
   }
 
