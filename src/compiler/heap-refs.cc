@@ -431,7 +431,8 @@ class JSReceiverData : public HeapObjectData {
 class JSObjectData : public JSReceiverData {
  public:
   JSObjectData(JSHeapBroker* broker, ObjectData** storage,
-               Handle<JSObject> object);
+               Handle<JSObject> object,
+               ObjectDataKind kind = kSerializedHeapObject);
 
   // Recursive serialization of all reachable JSObjects.
   void SerializeAsBoilerplate(JSHeapBroker* broker);
@@ -692,12 +693,8 @@ ObjectData* JSObjectData::GetOwnDictionaryProperty(JSHeapBroker* broker,
 class JSTypedArrayData : public JSObjectData {
  public:
   JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
-                   Handle<JSTypedArray> object)
-      : JSObjectData(broker, storage, object) {}
-
-  // TODO(v8:7790): Once JSObject is no longer serialized, also make
-  // JSTypedArrayRef never-serialized.
-  STATIC_ASSERT(IsSerializedRef<JSObject>());
+                   Handle<JSTypedArray> object, ObjectDataKind kind)
+      : JSObjectData(broker, storage, object, kind) {}
 
   void Serialize(JSHeapBroker* broker);
   bool serialized() const { return serialized_; }
@@ -1384,7 +1381,8 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
       // instance_type_ member. In the case of constructing the MapData for the
       // meta map (whose map is itself), this member has not yet been
       // initialized.
-      map_(broker->GetOrCreateData(object->map(kAcquireLoad))) {
+      map_(broker->GetOrCreateData(object->map(kAcquireLoad),
+                                   kAssumeMemoryFence)) {
   CHECK_IMPLIES(kind == kSerializedHeapObject,
                 broker->mode() == JSHeapBroker::kSerializing);
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
@@ -1873,9 +1871,8 @@ bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
 }
 
 JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
-                           Handle<JSObject> object)
-    : JSReceiverData(broker, storage, object,
-                     ObjectDataKind::kSerializedHeapObject),
+                           Handle<JSObject> object, ObjectDataKind kind)
+    : JSReceiverData(broker, storage, object, kind),
       inobject_fields_(broker->zone()),
       own_constant_elements_(broker->zone()),
       own_properties_(broker->zone()) {}
@@ -1907,7 +1904,10 @@ class BytecodeArrayData : public FixedArrayBaseData {
 class JSArrayData : public JSObjectData {
  public:
   JSArrayData(JSHeapBroker* broker, ObjectData** storage,
-              Handle<JSArray> object);
+              Handle<JSArray> object,
+              ObjectDataKind kind = kSerializedHeapObject)
+      : JSObjectData(broker, storage, object, kind),
+        own_elements_(broker->zone()) {}
 
   void Serialize(JSHeapBroker* broker);
   ObjectData* length() const {
@@ -1929,10 +1929,6 @@ class JSArrayData : public JSObjectData {
   // In case (2), the second pair component is nullptr.
   ZoneVector<std::pair<uint32_t, ObjectData*>> own_elements_;
 };
-
-JSArrayData::JSArrayData(JSHeapBroker* broker, ObjectData** storage,
-                         Handle<JSArray> object)
-    : JSObjectData(broker, storage, object), own_elements_(broker->zone()) {}
 
 void JSArrayData::Serialize(JSHeapBroker* broker) {
   CHECK(!broker->is_concurrent_inlining());
@@ -2217,12 +2213,10 @@ JSGlobalObjectData::JSGlobalObjectData(JSHeapBroker* broker,
 class JSGlobalProxyData : public JSObjectData {
  public:
   JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
-                    Handle<JSGlobalProxy> object);
+                    Handle<JSGlobalProxy> object,
+                    ObjectDataKind kind = kSerializedHeapObject)
+      : JSObjectData(broker, storage, object, kind) {}
 };
-
-JSGlobalProxyData::JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
-                                     Handle<JSGlobalProxy> object)
-    : JSObjectData(broker, storage, object) {}
 
 namespace {
 
@@ -3640,7 +3634,8 @@ DescriptorArrayRef MapRef::instance_descriptors() const {
 
 base::Optional<HeapObjectRef> MapRef::prototype() const {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return TryMakeRef(broker(), HeapObject::cast(object()->prototype()));
+    return MakeRefAssumeMemoryFence(broker(),
+                                    HeapObject::cast(object()->prototype()));
   }
   ObjectData* prototype_data = data()->AsMap()->prototype();
   if (prototype_data == nullptr) {
@@ -4612,14 +4607,7 @@ void SourceTextModuleRef::Serialize() {
 
 void JSTypedArrayRef::Serialize() {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Even if the typed array object itself is no longer serialized (besides
-    // the JSObject parts), the `buffer` field still is and thus we need to
-    // make sure to visit it.
-    // TODO(jgruber,v8:7790): Remove once JSObject is no longer serialized.
-    static_assert(
-        std::is_base_of<JSObject, decltype(object()->buffer())>::value, "");
-    STATIC_ASSERT(IsSerializedRef<JSObject>());
-    MakeRef<JSObject>(broker(), object()->buffer());
+    // Nothing to do.
   } else {
     CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
     data()->AsJSTypedArray()->Serialize(broker());

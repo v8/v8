@@ -92,11 +92,14 @@ class PrototypePropertyDependency final : public CompilationDependency {
 
 class StableMapDependency final : public CompilationDependency {
  public:
-  explicit StableMapDependency(const MapRef& map) : map_(map) {
-    DCHECK(map_.is_stable());
-  }
+  explicit StableMapDependency(const MapRef& map) : map_(map) {}
 
-  bool IsValid() const override { return map_.object()->is_stable(); }
+  bool IsValid() const override {
+    // TODO(v8:11670): Consider turn this back into a CHECK inside the
+    // constructor and DependOnStableMap, if possible in light of concurrent
+    // heap state modifications.
+    return !map_.object()->is_dictionary_map() && map_.object()->is_stable();
+  }
 
   void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
@@ -396,15 +399,19 @@ class FieldRepresentationDependency final : public CompilationDependency {
       : owner_(owner),
         descriptor_(descriptor),
         representation_(representation) {
-    CHECK(owner_.equals(owner_.FindFieldOwner(descriptor_)));
-    CHECK(representation_.Equals(
-        owner_.GetPropertyDetails(descriptor_).representation()));
   }
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
     Handle<Map> owner = owner_.object();
-    return representation_.Equals(owner->instance_descriptors(owner_.isolate())
+    Isolate* isolate = owner_.isolate();
+
+    // TODO(v8:11670): Consider turn this back into a CHECK inside the
+    // constructor, if possible in light of concurrent heap state
+    // modifications.
+    if (owner->FindFieldOwner(isolate, descriptor_) != *owner) return false;
+
+    return representation_.Equals(owner->instance_descriptors(isolate)
                                       .GetDetails(descriptor_)
                                       .representation());
   }
@@ -434,17 +441,21 @@ class FieldTypeDependency final : public CompilationDependency {
   // longer need to explicitly store the type.
   FieldTypeDependency(const MapRef& owner, InternalIndex descriptor,
                       const ObjectRef& type)
-      : owner_(owner), descriptor_(descriptor), type_(type) {
-    CHECK(owner_.equals(owner_.FindFieldOwner(descriptor_)));
-    CHECK(type_.equals(owner_.GetFieldType(descriptor_)));
-  }
+      : owner_(owner), descriptor_(descriptor), type_(type) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
     Handle<Map> owner = owner_.object();
+    Isolate* isolate = owner_.isolate();
+
+    // TODO(v8:11670): Consider turn this back into a CHECK inside the
+    // constructor, if possible in light of concurrent heap state
+    // modifications.
+    if (owner->FindFieldOwner(isolate, descriptor_) != *owner) return false;
+
     Handle<Object> type = type_.object();
-    return *type == owner->instance_descriptors(owner_.isolate())
-                        .GetFieldType(descriptor_);
+    return *type ==
+           owner->instance_descriptors(isolate).GetFieldType(descriptor_);
   }
 
   void Install(Handle<Code> code) const override {
@@ -462,19 +473,21 @@ class FieldTypeDependency final : public CompilationDependency {
 class FieldConstnessDependency final : public CompilationDependency {
  public:
   FieldConstnessDependency(const MapRef& owner, InternalIndex descriptor)
-      : owner_(owner), descriptor_(descriptor) {
-    CHECK(owner_.equals(owner_.FindFieldOwner(descriptor_)));
-    CHECK_EQ(PropertyConstness::kConst,
-             owner_.GetPropertyDetails(descriptor_).constness());
-  }
+      : owner_(owner), descriptor_(descriptor) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
     Handle<Map> owner = owner_.object();
-    return PropertyConstness::kConst ==
-           owner->instance_descriptors(owner_.isolate())
-               .GetDetails(descriptor_)
-               .constness();
+    Isolate* isolate = owner_.isolate();
+
+    // TODO(v8:11670): Consider turn this back into a CHECK inside the
+    // constructor, if possible in light of concurrent heap state
+    // modifications.
+    if (owner->FindFieldOwner(isolate, descriptor_) != *owner) return false;
+
+    return PropertyConstness::kConst == owner->instance_descriptors(isolate)
+                                            .GetDetails(descriptor_)
+                                            .constness();
   }
 
   void Install(Handle<Code> code) const override {
@@ -658,12 +671,9 @@ ObjectRef CompilationDependencies::DependOnPrototypeProperty(
 }
 
 void CompilationDependencies::DependOnStableMap(const MapRef& map) {
-  DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsNeverSerializedHeapObject());
   if (map.CanTransition()) {
     RecordDependency(zone_->New<StableMapDependency>(map));
-  } else {
-    DCHECK(map.is_stable());
   }
 }
 
