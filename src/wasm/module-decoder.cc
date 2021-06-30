@@ -15,10 +15,12 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/init-expr-interface.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-opcodes-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -669,8 +671,7 @@ class ModuleDecoderImpl : public Decoder {
         case kExternalGlobal: {
           // ===== Imported global =============================================
           import->index = static_cast<uint32_t>(module_->globals.size());
-          module_->globals.push_back(
-              {kWasmVoid, false, WasmInitExpr(), {0}, true, false});
+          module_->globals.push_back({kWasmVoid, false, {}, {0}, true, false});
           WasmGlobal* global = &module_->globals.back();
           global->type = consume_value_type();
           global->mutability = consume_mutability();
@@ -780,9 +781,8 @@ class ModuleDecoderImpl : public Decoder {
       ValueType type = consume_value_type();
       bool mutability = consume_mutability();
       if (failed()) break;
-      WasmInitExpr init = consume_init_expr(module_.get(), type);
-      module_->globals.push_back(
-          {type, mutability, std::move(init), {0}, false, false});
+      WireBytesRef init = consume_init_expr(module_.get(), type);
+      module_->globals.push_back({type, mutability, init, {0}, false, false});
     }
     if (ok()) CalculateGlobalOffsets(module_.get());
   }
@@ -1009,7 +1009,7 @@ class ModuleDecoderImpl : public Decoder {
 
       bool is_active;
       uint32_t memory_index;
-      WasmInitExpr dest_addr;
+      WireBytesRef dest_addr;
       consume_data_segment_header(&is_active, &memory_index, &dest_addr);
       if (failed()) break;
 
@@ -1383,7 +1383,7 @@ class ModuleDecoderImpl : public Decoder {
     return ok() ? result : nullptr;
   }
 
-  WasmInitExpr DecodeInitExprForTesting(ValueType expected) {
+  WireBytesRef DecodeInitExprForTesting(ValueType expected) {
     return consume_init_expr(module_.get(), expected);
   }
 
@@ -1420,6 +1420,8 @@ class ModuleDecoderImpl : public Decoder {
                 "not enough bits");
   WasmError intermediate_error_;
   ModuleOrigin origin_;
+  AccountingAllocator allocator_;
+  Zone init_expr_zone_{&allocator_, "initializer expression zone"};
 
   ValueType TypeOf(const WasmInitExpr& expr) {
     return expr.type(module_.get(), enabled_features_);
@@ -1687,324 +1689,32 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
-  WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected) {
-    constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
-    WasmOpcode opcode = kExprNop;
-    std::vector<WasmInitExpr> stack;
-    while (pc() < end() && opcode != kExprEnd) {
-      uint32_t len = 1;
-      opcode = static_cast<WasmOpcode>(read_u8<validate>(pc(), "opcode"));
-      switch (opcode) {
-        case kExprGlobalGet: {
-          GlobalIndexImmediate<validate> imm(this, pc() + 1);
-          len = 1 + imm.length;
-          if (V8_UNLIKELY(imm.index >= module->globals.size())) {
-            errorf(pc() + 1, "Invalid global index: %u", imm.index);
-            return {};
-          }
-          WasmGlobal* global = &module->globals[imm.index];
-          if (V8_UNLIKELY(global->mutability)) {
-            error(pc() + 1,
-                  "mutable globals cannot be used in initializer "
-                  "expressions");
-            return {};
-          }
-          if (V8_UNLIKELY(!global->imported && !enabled_features_.has_gc())) {
-            error(pc() + 1,
-                  "non-imported globals cannot be used in initializer "
-                  "expressions");
-            return {};
-          }
-          stack.push_back(WasmInitExpr::GlobalGet(imm.index));
-          break;
-        }
-        case kExprI32Const: {
-          ImmI32Immediate<Decoder::kFullValidation> imm(this, pc() + 1);
-          stack.emplace_back(imm.value);
-          len = 1 + imm.length;
-          break;
-        }
-        case kExprF32Const: {
-          ImmF32Immediate<Decoder::kFullValidation> imm(this, pc() + 1);
-          stack.emplace_back(imm.value);
-          len = 1 + imm.length;
-          break;
-        }
-        case kExprI64Const: {
-          ImmI64Immediate<Decoder::kFullValidation> imm(this, pc() + 1);
-          stack.emplace_back(imm.value);
-          len = 1 + imm.length;
-          break;
-        }
-        case kExprF64Const: {
-          ImmF64Immediate<Decoder::kFullValidation> imm(this, pc() + 1);
-          stack.emplace_back(imm.value);
-          len = 1 + imm.length;
-          break;
-        }
-        case kExprRefNull: {
-          if (V8_UNLIKELY(!enabled_features_.has_reftypes() &&
-                          !enabled_features_.has_eh())) {
-            errorf(pc(),
-                   "invalid opcode 0x%x in initializer expression, enable with "
-                   "--experimental-wasm-reftypes or --experimental-wasm-eh",
-                   kExprRefNull);
-            return {};
-          }
-          HeapTypeImmediate<Decoder::kFullValidation> imm(
-              enabled_features_, this, pc() + 1, module_.get());
-          if (V8_UNLIKELY(failed())) return {};
-          len = 1 + imm.length;
-          stack.push_back(
-              WasmInitExpr::RefNullConst(imm.type.representation()));
-          break;
-        }
-        case kExprRefFunc: {
-          if (V8_UNLIKELY(!enabled_features_.has_reftypes())) {
-            errorf(pc(),
-                   "invalid opcode 0x%x in initializer expression, enable with "
-                   "--experimental-wasm-reftypes",
-                   kExprRefFunc);
-            return {};
-          }
+  WireBytesRef consume_init_expr(WasmModule* module, ValueType expected) {
+    FunctionBody body(FunctionSig::Build(&init_expr_zone_, {expected}, {}),
+                      buffer_offset_, pc_, end_);
+    WasmFeatures detected;
+    WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
+                    kInitExpression>
+        decoder(&init_expr_zone_, module, enabled_features_, &detected, body,
+                module);
 
-          IndexImmediate<Decoder::kFullValidation> imm(this, pc() + 1,
-                                                       "function index");
-          len = 1 + imm.length;
-          if (V8_UNLIKELY(module->functions.size() <= imm.index)) {
-            errorf(pc(), "invalid function index: %u", imm.index);
-            return {};
-          }
-          stack.push_back(WasmInitExpr::RefFuncConst(imm.index));
-          // Functions referenced in the globals section count as "declared".
-          module->functions[imm.index].declared = true;
-          break;
-        }
-        case kSimdPrefix: {
-          // No need to check for Simd in enabled_features_ here; we either
-          // failed to validate the global's type earlier, or will fail in
-          // the type check or stack height check at the end.
-          opcode = read_prefixed_opcode<validate>(pc(), &len);
-          if (V8_UNLIKELY(opcode != kExprS128Const)) {
-            errorf(pc(), "invalid SIMD opcode 0x%x in initializer expression",
-                   opcode);
-            return {};
-          }
+    uint32_t offset = this->pc_offset();
 
-          Simd128Immediate<validate> imm(this, pc() + len);
-          len += kSimd128Size;
-          stack.emplace_back(imm.value);
-          break;
-        }
-        case kGCPrefix: {
-          // No need to check for GC in enabled_features_ here; we either
-          // failed to validate the global's type earlier, or will fail in
-          // the type check or stack height check at the end.
-          opcode = read_prefixed_opcode<validate>(pc(), &len);
-          switch (opcode) {
-            case kExprStructNewWithRtt: {
-              if (!V8_LIKELY(enabled_features_.has_gc_experiments())) {
-                error(pc(),
-                      "invalid opcode struct.new_with_rtt in init. expression, "
-                      "enable with --experimental-wasm-gc-experiments");
-                return {};
-              }
-              IndexImmediate<validate> imm(this, pc() + len, "struct index");
-              if (!V8_LIKELY(module->has_struct(imm.index))) {
-                errorf(pc() + len, "invalid struct type index #%u", imm.index);
-                return {};
-              }
-              len += imm.length;
-              const StructType* type = module->struct_type(imm.index);
-              if (!V8_LIKELY(stack.size() >= type->field_count() + 1)) {
-                errorf(pc(),
-                       "not enough arguments on the stack for struct.new: "
-                       "expected %u, found %zu",
-                       type->field_count() + 1, stack.size());
-                return {};
-              }
-              std::vector<WasmInitExpr> arguments(type->field_count() + 1);
-              WasmInitExpr* stack_args = &stack.back() - type->field_count();
-              for (uint32_t i = 0; i < type->field_count(); i++) {
-                WasmInitExpr& argument = stack_args[i];
-                if (!IsSubtypeOf(TypeOf(argument), type->field(i).Unpacked(),
-                                 module)) {
-                  errorf(pc(), "struct.new[%u]: expected %s, found %s instead",
-                         i, type->field(i).name().c_str(),
-                         TypeOf(argument).name().c_str());
-                  return {};
-                }
-                arguments[i] = std::move(argument);
-              }
-              WasmInitExpr& rtt = stack.back();
-              if (!IsSubtypeOf(TypeOf(rtt), ValueType::Rtt(imm.index),
-                               module)) {
-                errorf(pc(), "struct.new[%u]: expected %s, found %s instead",
-                       type->field_count(),
-                       ValueType::Rtt(imm.index).name().c_str(),
-                       TypeOf(rtt).name().c_str());
-                return {};
-              }
-              arguments[type->field_count()] = std::move(rtt);
-              for (uint32_t i = 0; i <= type->field_count(); i++) {
-                stack.pop_back();
-              }
-              stack.push_back(WasmInitExpr::StructNewWithRtt(
-                  imm.index, std::move(arguments)));
-              break;
-            }
-            case kExprArrayInit: {
-              if (!V8_LIKELY(enabled_features_.has_gc_experiments())) {
-                error(pc(),
-                      "invalid opcode array.init in init. expression, enable "
-                      "with --experimental-wasm-gc-experiments");
-                return {};
-              }
-              IndexImmediate<validate> array_imm(this, pc() + len,
-                                                 "array index");
-              if (!V8_LIKELY(module->has_array(array_imm.index))) {
-                errorf(pc() + len, "invalid array type index #%u",
-                       array_imm.index);
-                return {};
-              }
-              IndexImmediate<validate> length_imm(
-                  this, pc() + len + array_imm.length, "array.init length");
-              uint32_t elem_count = length_imm.index;
-              if (elem_count > kV8MaxWasmArrayInitLength) {
-                errorf(pc() + len + array_imm.length,
-                       "Requested length %u for array.init too large, maximum "
-                       "is %zu",
-                       length_imm.index, kV8MaxWasmArrayInitLength);
-                return {};
-              }
-              len += array_imm.length + length_imm.length;
-              const ArrayType* array_type =
-                  module_->array_type(array_imm.index);
-              if (stack.size() < elem_count + 1) {
-                errorf(pc(),
-                       "not enough arguments on the stack for array.init: "
-                       "expected %u, found %zu",
-                       elem_count + 1, stack.size());
-                return {};
-              }
-              std::vector<WasmInitExpr> arguments(elem_count + 1);
-              WasmInitExpr* stack_args = &stack.back() - elem_count;
-              for (uint32_t i = 0; i < elem_count; i++) {
-                WasmInitExpr& argument = stack_args[i];
-                if (!IsSubtypeOf(TypeOf(argument),
-                                 array_type->element_type().Unpacked(),
-                                 module)) {
-                  errorf(pc(), "array.init[%u]: expected %s, found %s instead",
-                         i, array_type->element_type().name().c_str(),
-                         TypeOf(argument).name().c_str());
-                  return {};
-                }
-                arguments[i] = std::move(argument);
-              }
-              WasmInitExpr& rtt = stack.back();
-              if (!IsSubtypeOf(TypeOf(rtt), ValueType::Rtt(array_imm.index),
-                               module)) {
-                errorf(pc(), "array.init[%u]: expected %s, found %s instead",
-                       elem_count,
-                       ValueType::Rtt(array_imm.index).name().c_str(),
-                       TypeOf(rtt).name().c_str());
-                return {};
-              }
-              arguments[elem_count] = std::move(rtt);
-              for (uint32_t i = 0; i <= elem_count; i++) {
-                stack.pop_back();
-              }
-              stack.push_back(WasmInitExpr::ArrayInit(array_imm.index,
-                                                      std::move(arguments)));
-              break;
-            }
-            case kExprRttCanon: {
-              IndexImmediate<validate> imm(this, pc() + len, "type index");
-              if (V8_UNLIKELY(!module_->has_type(imm.index))) {
-                errorf(pc() + len, "type index %u is out of bounds", imm.index);
-                return {};
-              }
-              len += imm.length;
-              stack.push_back(WasmInitExpr::RttCanon(imm.index));
-              break;
-            }
-            case kExprRttFreshSub:
-              if (!V8_LIKELY(enabled_features_.has_gc_experiments())) {
-                error(pc(),
-                      "rtt.fresh requires --experimental-wasm-gc-experiments");
-                return {};
-              }
-              V8_FALLTHROUGH;
-            case kExprRttSub: {
-              IndexImmediate<validate> imm(this, pc() + len, "type index");
-              if (V8_UNLIKELY(!module_->has_type(imm.index))) {
-                errorf(pc() + len, "type index %u is out of bounds", imm.index);
-                return {};
-              }
-              len += imm.length;
-              if (stack.empty()) {
-                errorf(pc(), "calling %s without arguments",
-                       opcode == kExprRttSub ? "rtt.sub" : "rtt.fresh_sub");
-                return {};
-              }
-              WasmInitExpr parent = std::move(stack.back());
-              stack.pop_back();
-              ValueType parent_type = TypeOf(parent);
-              if (V8_UNLIKELY(!parent_type.is_rtt() ||
-                              !IsHeapSubtypeOf(imm.index,
-                                               parent_type.ref_index(),
-                                               module_.get()))) {
-                errorf(pc(), "%s requires a supertype rtt on stack",
-                       opcode == kExprRttSub ? "rtt.sub" : "rtt.fresh_sub");
-                return {};
-              }
-              stack.push_back(
-                  opcode == kExprRttSub
-                      ? WasmInitExpr::RttSub(imm.index, std::move(parent))
-                      : WasmInitExpr::RttFreshSub(imm.index,
-                                                  std::move(parent)));
-              break;
-            }
-            default: {
-              errorf(pc(), "invalid opcode 0x%x in initializer expression",
-                     opcode);
-              return {};
-            }
-          }
-          break;  // case kGCPrefix
-        }
-        case kExprEnd:
-          break;
-        default: {
-          errorf(pc(), "invalid opcode 0x%x in initializer expression", opcode);
-          return {};
-        }
-      }
-      pc_ += len;
-    }
+    decoder.DecodeFunctionBody();
 
-    if (V8_UNLIKELY(pc() > end())) {
-      error(end(), "Initializer expression extending beyond code end");
-      return {};
-    }
-    if (V8_UNLIKELY(opcode != kExprEnd)) {
-      error(pc(), "Initializer expression is missing 'end'");
-      return {};
-    }
-    if (V8_UNLIKELY(stack.size() != 1)) {
-      errorf(pc(),
-             "Found 'end' in initializer expression, but %s expressions were "
-             "found on the stack",
-             stack.size() > 1 ? "more than one" : "no");
+    this->pc_ = decoder.end();
+
+    if (decoder.failed()) {
+      error(decoder.error().offset(), decoder.error().message().c_str());
       return {};
     }
 
-    WasmInitExpr expr = std::move(stack.back());
-    if (!IsSubtypeOf(TypeOf(expr), expected, module)) {
-      errorf(pc(), "type error in init expression, expected %s, got %s",
-             expected.name().c_str(), TypeOf(expr).name().c_str());
+    if (!decoder.interface().end_found()) {
+      error("Initializer expression is missing 'end'");
+      return {};
     }
-    return expr;
+
+    return {offset, static_cast<uint32_t>(decoder.end() - decoder.start())};
   }
 
   // Read a mutability flag
@@ -2178,7 +1888,7 @@ class ModuleDecoderImpl : public Decoder {
     ValueType table_type =
         is_active ? module_->tables[table_index].type : kWasmBottom;
 
-    WasmInitExpr offset;
+    WireBytesRef offset;
     if (is_active) {
       offset = consume_init_expr(module_.get(), kWasmI32);
       // Failed to parse offset initializer, return early.
@@ -2239,7 +1949,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void consume_data_segment_header(bool* is_active, uint32_t* index,
-                                   WasmInitExpr* offset) {
+                                   WireBytesRef* offset) {
     const byte* pos = pc();
     uint32_t flag = consume_u32v("flag");
 
@@ -2437,7 +2147,7 @@ const FunctionSig* DecodeWasmSignatureForTesting(const WasmFeatures& enabled,
   return decoder.DecodeFunctionSignature(zone, start);
 }
 
-WasmInitExpr DecodeWasmInitExprForTesting(const WasmFeatures& enabled,
+WireBytesRef DecodeWasmInitExprForTesting(const WasmFeatures& enabled,
                                           const byte* start, const byte* end,
                                           ValueType expected) {
   ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
