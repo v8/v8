@@ -290,18 +290,12 @@ void Factory::CodeBuilder::FinalizeOnHeapCode(Handle<Code> code) {
   code->CopyRelocInfoToByteArray(code->unchecked_relocation_info(), code_desc_);
   code->RelocateFromDesc(heap, code_desc_);
 
-  int buffer_size = code_desc_.origin->buffer_size();
-  // TODO(v8:11883): add a hook to GC to check if the filler is just before
-  // the current LAB, and if it is, immediately give back the memory.
-  int old_object_size = Code::SizeFor(buffer_size);
+  int old_object_size = Code::SizeFor(code_desc_.origin->buffer_size());
   int new_object_size =
       Code::SizeFor(code_desc_.instruction_size() + code_desc_.metadata_size());
   int size_to_trim = old_object_size - new_object_size;
   DCHECK_GE(size_to_trim, 0);
-  if (size_to_trim > 0) {
-    heap->CreateFillerObjectAt(code->address() + new_object_size, size_to_trim,
-                               ClearRecordedSlots::kNo);
-  }
+  heap->UndoLastAllocationAt(code->address() + new_object_size, size_to_trim);
 }
 
 MaybeHandle<Code> Factory::NewEmptyCode(CodeKind kind, int buffer_size) {
