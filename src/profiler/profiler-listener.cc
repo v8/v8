@@ -92,17 +92,16 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 namespace {
 
 CodeEntry* GetOrInsertCachedEntry(
-    std::unordered_set<std::unique_ptr<CodeEntry>, CodeEntry::Hasher,
-                       CodeEntry::Equals>* entries,
-    std::unique_ptr<CodeEntry> search_value, CodeEntryStorage& storage) {
+    std::unordered_set<CodeEntry*, CodeEntry::Hasher, CodeEntry::Equals>*
+        entries,
+    CodeEntry* search_value, CodeEntryStorage& storage) {
   auto it = entries->find(search_value);
   if (it != entries->end()) {
-    search_value->ReleaseStrings(storage.strings());
-    return it->get();
+    storage.DecRef(search_value);
+    return *it;
   }
-  CodeEntry* ret = search_value.get();
-  entries->insert(std::move(search_value));
-  return ret;
+  entries->insert(search_value);
+  return search_value;
 }
 
 }  // namespace
@@ -117,8 +116,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   rec->instruction_start = abstract_code->InstructionStart();
   std::unique_ptr<SourcePositionTable> line_table;
   std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks;
-  std::unordered_set<std::unique_ptr<CodeEntry>, CodeEntry::Hasher,
-                     CodeEntry::Equals>
+  std::unordered_set<CodeEntry*, CodeEntry::Hasher, CodeEntry::Equals>
       cached_inline_entries;
   bool is_shared_cross_origin = false;
   if (shared->script().IsScript()) {
@@ -198,7 +196,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
               SourcePosition(pos_info.shared->StartPosition()),
               pos_info.shared);
 
-          std::unique_ptr<CodeEntry> inline_entry = std::make_unique<CodeEntry>(
+          CodeEntry* inline_entry = code_entries_.Create(
               tag, GetFunctionName(*pos_info.shared), resource_name,
               start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
               inline_is_shared_cross_origin);
@@ -207,7 +205,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
           // Create a canonical CodeEntry for each inlined frame and then re-use
           // them for subsequent inline stacks to avoid a lot of duplication.
           CodeEntry* cached_entry = GetOrInsertCachedEntry(
-              &cached_inline_entries, std::move(inline_entry), code_entries_);
+              &cached_inline_entries, inline_entry, code_entries_);
 
           inline_stack.push_back({cached_entry, line_number});
         }

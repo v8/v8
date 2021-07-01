@@ -168,8 +168,7 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
 }
 
 void CodeEntry::SetInlineStacks(
-    std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
-        inline_entries,
+    std::unordered_set<CodeEntry*, Hasher, Equals> inline_entries,
     std::unordered_map<int, std::vector<CodeEntryAndLineNumber>>
         inline_stacks) {
   EnsureRareData()->inline_entries_ = std::move(inline_entries);
@@ -240,14 +239,6 @@ void CodeEntry::ReleaseStrings(StringsStorage& strings) {
   if (resource_name_) {
     strings.Release(resource_name_);
     resource_name_ = nullptr;
-  }
-
-  if (rare_data_) {
-    // All inline entries are exclusively owned by the CodeEntry. They'll be
-    // deallocated when the CodeEntry is deallocated.
-    for (auto& entry : rare_data_->inline_entries_) {
-      entry->ReleaseStrings(strings);
-    }
   }
 }
 
@@ -752,6 +743,11 @@ void CodeEntryStorage::AddRef(CodeEntry* entry) {
 
 void CodeEntryStorage::DecRef(CodeEntry* entry) {
   if (entry->is_ref_counted() && entry->DecRef() == 0) {
+    if (entry->rare_data_) {
+      for (auto* inline_entry : entry->rare_data_->inline_entries_) {
+        DecRef(inline_entry);
+      }
+    }
     entry->ReleaseStrings(function_and_resource_names_);
     delete entry;
   }

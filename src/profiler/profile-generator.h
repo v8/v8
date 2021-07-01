@@ -146,20 +146,16 @@ class CodeEntry {
   int GetSourceLine(int pc_offset) const;
 
   struct Equals {
-    bool operator()(const std::unique_ptr<CodeEntry>& lhs,
-                    const std::unique_ptr<CodeEntry>& rhs) const {
-      return lhs.get()->IsSameFunctionAs(rhs.get());
+    bool operator()(const CodeEntry* lhs, const CodeEntry* rhs) const {
+      return lhs->IsSameFunctionAs(rhs);
     }
   };
   struct Hasher {
-    std::size_t operator()(const std::unique_ptr<CodeEntry>& e) const {
-      return e->GetHash();
-    }
+    std::size_t operator()(CodeEntry* e) const { return e->GetHash(); }
   };
 
   void SetInlineStacks(
-      std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
-          inline_entries,
+      std::unordered_set<CodeEntry*, Hasher, Equals> inline_entries,
       std::unordered_map<int, std::vector<CodeEntryAndLineNumber>>
           inline_stacks);
   const std::vector<CodeEntryAndLineNumber>* GetInlineStack(
@@ -203,8 +199,7 @@ class CodeEntry {
     const char* bailout_reason_ = kEmptyBailoutReason;
     int deopt_id_ = kNoDeoptimizationId;
     std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks_;
-    std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
-        inline_entries_;
+    std::unordered_set<CodeEntry*, Hasher, Equals> inline_entries_;
     std::vector<CpuProfileDeoptFrame> deopt_inlined_frames_;
   };
 
