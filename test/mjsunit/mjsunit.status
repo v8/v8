@@ -1350,10 +1350,12 @@
   # These tests initialize an embedder object that never needs to be serialized
   # to the snapshot, so we don't have a SerializeInternalFieldsCallback for it.
   'compiler/fast-api-calls': [SKIP],
+  'compiler/fast-api-sequences': [SKIP],
   'compiler/fast-api-interface-types': [SKIP],
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
+  'compiler/regress-crbug-1223107': [SKIP],
 }],  # variant == stress_snapshot
 
 ##############################################################################
