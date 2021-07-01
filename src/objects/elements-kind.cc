@@ -256,7 +256,6 @@ bool UnionElementsKindUptoSize(ElementsKind* a_out, ElementsKind b) {
         default:
           return false;
       }
-      break;
     case PACKED_DOUBLE_ELEMENTS:
       switch (b) {
         case PACKED_DOUBLE_ELEMENTS:
@@ -275,8 +274,6 @@ bool UnionElementsKindUptoSize(ElementsKind* a_out, ElementsKind b) {
         default:
           return false;
       }
-
-      break;
     default:
       break;
   }

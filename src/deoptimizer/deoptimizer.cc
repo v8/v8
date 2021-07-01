@@ -961,7 +961,6 @@ void Deoptimizer::DoComputeOutputFrames() {
         break;
       case TranslatedFrame::kInvalid:
         FATAL("invalid frame");
-        break;
     }
     total_output_frame_size += output_[frame_index]->GetFrameSize();
   }

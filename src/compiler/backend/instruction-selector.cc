@@ -2390,7 +2390,6 @@ void InstructionSelector::VisitNode(Node* node) {
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());
-      break;
   }
 }
 

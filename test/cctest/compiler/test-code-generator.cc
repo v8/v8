@@ -114,7 +114,6 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
       }
       default:
         UNREACHABLE();
-        break;
     }
   }
   params.push_back(state_out);
@@ -151,7 +150,6 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
       }
       default:
         UNREACHABLE();
-        break;
     }
     params.push_back(element);
   }
@@ -246,7 +244,6 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
       }
       default:
         UNREACHABLE();
-        break;
     }
   }
   __ Return(result_array);
@@ -672,7 +669,6 @@ class TestEnvironment : public HandleAndZoneScope {
         }
         default:
           UNREACHABLE();
-          break;
       }
     }
     return state;
@@ -757,7 +753,6 @@ class TestEnvironment : public HandleAndZoneScope {
             break;
           default:
             UNREACHABLE();
-            break;
         }
         state_out->set(to_index, *constant_value);
       } else {
@@ -828,7 +823,6 @@ class TestEnvironment : public HandleAndZoneScope {
         return true;
       default:
         UNREACHABLE();
-        break;
     }
   }
 

@@ -123,7 +123,6 @@ const char* GCTracer::Scope::Name(ScopeId id) {
   }
 #undef CASE
   UNREACHABLE();
-  return nullptr;
 }
 
 bool GCTracer::Scope::NeedsYoungEpoch(ScopeId id) {

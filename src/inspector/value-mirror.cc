@@ -217,7 +217,6 @@ String16 descriptionForPrimitiveType(v8::Local<v8::Context> context,
     return toProtocolString(context->GetIsolate(), value.As<v8::String>());
   }
   UNREACHABLE();
-  return String16();
 }
 
 String16 descriptionForRegExp(v8::Isolate* isolate,

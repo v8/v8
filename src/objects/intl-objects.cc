@@ -2183,7 +2183,6 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
       // We're not creating any permill formatter, and it's not even clear how
       // that would be possible with the ICU API.
       UNREACHABLE();
-      return Handle<String>();
 
     case UNUM_COMPACT_FIELD:
       return isolate->factory()->compact_string();
@@ -2192,7 +2191,6 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
 
     default:
       UNREACHABLE();
-      return Handle<String>();
   }
 }
 

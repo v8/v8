@@ -1524,7 +1524,6 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
       }
       default:
         UNREACHABLE();
-        break;
     }
   }
   return num_imported_functions;
@@ -1750,7 +1749,6 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       }
       default:
         UNREACHABLE();
-        break;
     }
 
     v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(

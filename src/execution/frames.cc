@@ -1034,13 +1034,11 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         // These frame types have a context, but they are actually stored
         // in the place on the stack that one finds the frame type.
         UNREACHABLE();
-        break;
       case NATIVE:
       case NONE:
       case NUMBER_OF_TYPES:
       case MANUAL:
         UNREACHABLE();
-        break;
     }
   }
   slot_space -=

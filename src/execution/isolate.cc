@@ -578,8 +578,6 @@ Handle<String> Isolate::StackTraceString() {
     return factory()->empty_string();
   } else {
     base::OS::Abort();
-    // Unreachable
-    return factory()->empty_string();
   }
 }
 
@@ -1944,7 +1942,7 @@ Object Isolate::UnwindAndFindHandler() {
         Code code = js_frame->LookupCode();
         return FoundHandler(Context(), code.InstructionStart(), 0,
                             code.constant_pool(), return_sp, frame->fp());
-      } break;
+      }
 
       default:
         // All other types can not handle exception.
@@ -2050,7 +2048,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
         Isolate::CatchType prediction = ToCatchType(PredictException(js_frame));
         if (prediction == NOT_CAUGHT) break;
         return prediction;
-      } break;
+      }
 
       case StackFrame::STUB: {
         Handle<Code> code(frame->LookupCode(), this);
@@ -3689,7 +3687,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   if (!setup_delegate_->SetupHeap(&heap_)) {
     V8::FatalProcessOutOfMemory(this, "heap object creation");
-    return false;
   }
 
   if (create_heap_objects) {

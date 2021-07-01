@@ -628,7 +628,6 @@ LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   UNREACHABLE();
-  return LinkageLocation::ForCalleeFrameSlot(0, MachineType::AnyTagged());
 }
 
 

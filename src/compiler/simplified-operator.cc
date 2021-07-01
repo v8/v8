@@ -523,7 +523,6 @@ Handle<Map> DoubleMapParameterOf(const Operator* op) {
         .double_map();
   }
   UNREACHABLE();
-  return Handle<Map>::null();
 }
 
 Type ValueTypeParameterOf(const Operator* op) {
@@ -540,7 +539,6 @@ Handle<Map> FastMapParameterOf(const Operator* op) {
         .fast_map();
   }
   UNREACHABLE();
-  return Handle<Map>::null();
 }
 
 std::ostream& operator<<(std::ostream& os, BigIntOperationHint hint) {
@@ -1546,7 +1544,6 @@ const Operator* SimplifiedOperatorBuilder::ConvertReceiver(
       return &cache_.kConvertReceiverNotNullOrUndefinedOperator;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
@@ -1880,7 +1877,6 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
       return &cache_.kSpeculativeNumberEqualNumberOrOddballOperator;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 #define ACCESS_OP_LIST(V)                                                \

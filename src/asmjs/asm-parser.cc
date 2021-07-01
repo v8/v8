@@ -577,7 +577,6 @@ void AsmJsParser::ValidateModuleVarNewStdlib(VarInfo* info) {
 #undef V
     default:
       FAIL("Expected ArrayBuffer view");
-      break;
   }
   EXPECT_TOKEN('(');
   EXPECT_TOKEN(heap_name_);

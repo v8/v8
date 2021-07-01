@@ -219,7 +219,6 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
         break;
       default:
         UNREACHABLE();
-        break;
     }
   }
   DCHECK_EQ(values.size(), effects.size());

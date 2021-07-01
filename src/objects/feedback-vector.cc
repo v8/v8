@@ -308,7 +308,6 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kInvalid:
       case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
-        break;
     }
     for (int j = 1; j < entry_size; j++) {
       vector->Set(slot.WithOffset(j), extra_value, SKIP_WRITE_BARRIER);

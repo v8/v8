@@ -1961,8 +1961,6 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
       // Other UDAT_*_FIELD's cannot show up because there is no way to specify
       // them via options of Intl.DateTimeFormat.
       UNREACHABLE();
-      // To prevent MSVC from issuing C4715 warning.
-      return Handle<String>();
   }
 }
 

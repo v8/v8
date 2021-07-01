@@ -159,7 +159,6 @@ Cell SourceTextModule::GetCell(int cell_index) {
       break;
     case SourceTextModuleDescriptor::kInvalid:
       UNREACHABLE();
-      break;
   }
   return Cell::cast(cell);
 }

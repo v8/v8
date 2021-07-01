@@ -512,7 +512,6 @@ Handle<JSObject> Accessors::FunctionGetArguments(JavaScriptFrame* frame,
     return GetFrameArguments(isolate, &it, inlined_jsframe_index);
   }
   UNREACHABLE();  // Requested frame not found.
-  return Handle<JSObject>();
 }
 
 void Accessors::FunctionArgumentsGetter(

@@ -1070,7 +1070,6 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
       return os << "UNUSED";
   }
   UNREACHABLE();
-  return os;
 }
 
 template <typename IsolateT>

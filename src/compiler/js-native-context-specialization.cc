@@ -2605,7 +2605,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kSimd128:
       case MachineRepresentation::kMapWord:
         UNREACHABLE();
-        break;
     }
     // Check if we need to perform a transitioning store.
     Handle<Map> transition_map;
@@ -2882,7 +2881,6 @@ JSNativeContextSpecialization::BuildElementAccess(
       }
       case AccessMode::kStoreInLiteral:
         UNREACHABLE();
-        break;
       case AccessMode::kStore: {
         // Ensure that the {value} is actually a Number or an Oddball,
         // and truncate it to a Number appropriately.

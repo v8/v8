@@ -1029,7 +1029,6 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case WASM_ARRAY_ELEMENTS:
       // TODO(ishell): implement
       UNIMPLEMENTED();
-      break;
     case NO_ELEMENTS:
       break;
   }
@@ -1219,7 +1218,6 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     case WASM_ARRAY_ELEMENTS:
       // TODO(ishell): implement
       UNIMPLEMENTED();
-      break;
     case NO_ELEMENTS:
       break;
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:

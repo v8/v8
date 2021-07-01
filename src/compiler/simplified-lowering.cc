@@ -214,7 +214,6 @@ bool CanOverflowSigned32(const Operator* op, Type left, Type right,
     default:
       UNREACHABLE();
   }
-  return true;
 }
 
 bool IsSomePositiveOrderedNumber(Type type) {

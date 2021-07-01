@@ -825,7 +825,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     switch (var->location()) {
       case VariableLocation::LOOKUP:
         UNREACHABLE();
-        break;
 
       case VariableLocation::REPL_GLOBAL:
         // REPL declared variables are ignored for now.

@@ -1566,7 +1566,6 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
         break;
       default:
         UNREACHABLE();
-        break;
     }
   } else {
     for (i = 0, shiftCount = valueSizeInBits - 8; i < valueSizeInBits / 2;
@@ -1613,7 +1612,6 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
         break;
       default:
         UNREACHABLE();
-        break;
     }
   }
 
@@ -1649,7 +1647,6 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
     case MachineRepresentation::kWord8:
       // No need to change endianness for byte size, return original node
       return node;
-      break;
     case MachineRepresentation::kSimd128:
       DCHECK(ReverseBytesSupported(m, valueSizeInBytes));
       break;
@@ -1723,7 +1720,6 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
         break;
       default:
         UNREACHABLE();
-        break;
     }
   }
 
@@ -6524,7 +6520,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kBottom:
       case wasm::kVoid:
         UNREACHABLE();
-        break;
     }
   }
 
@@ -6732,7 +6727,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kBottom:
       case wasm::kVoid:
         UNREACHABLE();
-        break;
     }
   }
 
@@ -7495,7 +7489,6 @@ wasm::WasmOpcode GetMathIntrinsicOpcode(WasmImportCallKind kind,
     CASE(F32ConvertF64);
     default:
       UNREACHABLE();
-      return wasm::kExprUnreachable;
   }
 #undef CASE
 }

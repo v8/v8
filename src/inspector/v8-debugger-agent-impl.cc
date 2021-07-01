@@ -271,7 +271,6 @@ String16 scopeType(v8::debug::ScopeIterator::ScopeType type) {
       return Scope::TypeEnum::WasmExpressionStack;
   }
   UNREACHABLE();
-  return String16();
 }
 
 Response buildScopes(v8::Isolate* isolate, v8::debug::ScopeIterator* iterator,

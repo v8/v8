@@ -149,18 +149,15 @@ TNode<Object> IntrinsicsGenerator::IntrinsicAsBuiltinCall(
     case 1:
       return __ CallStub(callable, context,
                          __ LoadRegisterFromRegisterList(args, 0));
-      break;
     case 2:
       return __ CallStub(callable, context,
                          __ LoadRegisterFromRegisterList(args, 0),
                          __ LoadRegisterFromRegisterList(args, 1));
-      break;
     case 3:
       return __ CallStub(callable, context,
                          __ LoadRegisterFromRegisterList(args, 0),
                          __ LoadRegisterFromRegisterList(args, 1),
                          __ LoadRegisterFromRegisterList(args, 2));
-      break;
     default:
       UNREACHABLE();
   }

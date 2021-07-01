@@ -1505,29 +1505,26 @@ bool TopTierRegisterAllocationData::HasFixedUse(MachineRepresentation rep,
                                                 int index) {
   switch (rep) {
     case MachineRepresentation::kFloat32:
-    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd128: {
       if (kSimpleFPAliasing) {
         return fixed_fp_register_use_->Contains(index);
-      } else {
-        int alias_base_index = -1;
-        int aliases = config()->GetAliases(
-            rep, index, MachineRepresentation::kFloat64, &alias_base_index);
-        DCHECK(aliases > 0 || (aliases == 0 && alias_base_index == -1));
-        bool result = false;
-        while (aliases-- && !result) {
-          int aliased_reg = alias_base_index + aliases;
-          result |= fixed_fp_register_use_->Contains(aliased_reg);
-        }
-        return result;
       }
-      break;
+      int alias_base_index = -1;
+      int aliases = config()->GetAliases(
+          rep, index, MachineRepresentation::kFloat64, &alias_base_index);
+      DCHECK(aliases > 0 || (aliases == 0 && alias_base_index == -1));
+      bool result = false;
+      while (aliases-- && !result) {
+        int aliased_reg = alias_base_index + aliases;
+        result |= fixed_fp_register_use_->Contains(aliased_reg);
+      }
+      return result;
+    }
     case MachineRepresentation::kFloat64:
       return fixed_fp_register_use_->Contains(index);
-      break;
     default:
       DCHECK(!IsFloatingPoint(rep));
       return fixed_register_use_->Contains(index);
-      break;
   }
 }
 

@@ -795,7 +795,6 @@ bool TryMergeTruncateInt64ToInt32IntoLoad(InstructionSelector* selector,
         break;
       default:
         UNREACHABLE();
-        return false;
     }
     X64OperandGenerator g(selector);
 #ifdef V8_IS_TSAN
@@ -961,31 +960,22 @@ inline AddressingMode AddDisplacementToAddressingMode(AddressingMode mode) {
   switch (mode) {
     case kMode_MR:
       return kMode_MRI;
-      break;
     case kMode_MR1:
       return kMode_MR1I;
-      break;
     case kMode_MR2:
       return kMode_MR2I;
-      break;
     case kMode_MR4:
       return kMode_MR4I;
-      break;
     case kMode_MR8:
       return kMode_MR8I;
-      break;
     case kMode_M1:
       return kMode_M1I;
-      break;
     case kMode_M2:
       return kMode_M2I;
-      break;
     case kMode_M4:
       return kMode_M4I;
-      break;
     case kMode_M8:
       return kMode_M8I;
-      break;
     case kMode_None:
     case kMode_MRI:
     case kMode_MR1I:

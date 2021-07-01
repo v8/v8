@@ -123,7 +123,6 @@ void Verifier::Visitor::CheckSwitch(Node* node, const AllNodes& all) {
       default: {
         FATAL("Switch #%d illegally used by #%d:%s", node->id(), use->id(),
               use->op()->mnemonic());
-        break;
       }
     }
   }

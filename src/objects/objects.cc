@@ -2346,7 +2346,6 @@ bool HeapObject::CanBeRehashed() const {
     default:
       return false;
   }
-  return false;
 }
 
 void HeapObject::RehashBasedOnMap(Isolate* isolate) {
@@ -5216,7 +5215,6 @@ const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
     default:
       UNREACHABLE();
   }
-  return nullptr;
 }
 
 // static

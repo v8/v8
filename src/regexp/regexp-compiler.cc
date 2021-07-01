@@ -485,7 +485,6 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
           }
           default:
             UNREACHABLE();
-            break;
         }
       }
     }

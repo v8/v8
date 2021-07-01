@@ -529,7 +529,6 @@ int DisassemblerX64::PrintRightOperandHelper(
         AppendToBuffer("[%s]", NameOfCPURegister(rm));
         return 1;
       }
-      break;
     case 1:  // fall through
     case 2:
       if ((rm & 7) == 4) {
@@ -557,7 +556,6 @@ int DisassemblerX64::PrintRightOperandHelper(
         }
         return (mod == 2) ? 5 : 2;
       }
-      break;
     case 3:
       AppendToBuffer("%s", (this->*register_name)(rm));
       return 1;

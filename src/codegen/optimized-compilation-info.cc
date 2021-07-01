@@ -193,7 +193,6 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       UNIMPLEMENTED();
-      return StackFrame::NONE;
   }
 }
 

@@ -5564,7 +5564,6 @@ static void IntPtrCompare(intptr_t left, intptr_t right) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
     m.Return(res);
     CHECK_EQ(expected, m.Call(reinterpret_cast<int32_t*>(left),

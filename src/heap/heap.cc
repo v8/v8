@@ -308,8 +308,9 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize() {
   return kPtrComprCageReservationSize -
          YoungGenerationSizeFromSemiSpaceSize(kMaxSemiSpaceSize) -
          RoundUp(sizeof(Isolate), size_t{1} << kPageSizeBits);
-#endif
+#else
   return std::numeric_limits<size_t>::max();
+#endif
 }
 
 size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
@@ -2985,7 +2986,6 @@ int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
     default:
       UNREACHABLE();
   }
-  return 0;
 }
 
 // static
@@ -5353,7 +5353,6 @@ HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
   }
   // TODO(1181417): Fix this.
   FatalProcessOutOfMemory("CALL_AND_RETRY_LAST");
-  return HeapObject();
 }
 
 namespace {

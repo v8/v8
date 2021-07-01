@@ -2498,11 +2498,9 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
     case DebugInfo::kHasNoSideEffect:
       return true;
     case DebugInfo::kNotComputed:
+    default:
       UNREACHABLE();
-      return false;
   }
-  UNREACHABLE();
-  return false;
 }
 
 Handle<Object> Debug::return_value_handle() {

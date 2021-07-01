@@ -1405,7 +1405,6 @@ TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
       break;
     case JSRegExp::kDotAll:
       UNREACHABLE();  // Never called for dotAll.
-      break;
     case JSRegExp::kSticky:
       name = isolate()->factory()->sticky_string();
       break;

@@ -74,8 +74,6 @@ static v8::CodeEventType GetCodeEventTypeForTag(
   }
   // The execution should never pass here
   UNREACHABLE();
-  // NOTE(mmarchini): Workaround to fix a compiler failure on GCC 4.9
-  return v8::CodeEventType::kUnknownType;
 }
 #define CALL_CODE_EVENT_HANDLER(Call) \
   if (listener_) {                    \

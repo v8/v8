@@ -248,7 +248,6 @@ class DeprecationUpdateContext {
   Handle<AllocationSite> EnterNewScope() { return Handle<AllocationSite>(); }
   Handle<AllocationSite> current() {
     UNREACHABLE();
-    return Handle<AllocationSite>();
   }
 
   static const bool kCopying = false;

@@ -3815,19 +3815,15 @@ Maybe<double> ObjectRef::OddballToNumber() const {
       ObjectRef true_ref = MakeRef<Object>(
           broker(), broker()->isolate()->factory()->true_value());
       return this->equals(true_ref) ? Just(1.0) : Just(0.0);
-      break;
     }
     case OddballType::kUndefined: {
       return Just(std::numeric_limits<double>::quiet_NaN());
-      break;
     }
     case OddballType::kNull: {
       return Just(0.0);
-      break;
     }
     default: {
       return Nothing<double>();
-      break;
     }
   }
 }

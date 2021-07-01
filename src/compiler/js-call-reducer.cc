@@ -7535,7 +7535,6 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
 
             default:
               UNREACHABLE();
-              break;
           }
 
           // Store final {value} and {done} into the {iterator_result}.

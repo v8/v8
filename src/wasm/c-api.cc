@@ -169,7 +169,6 @@ own<ExternType> GetImportExportType(const i::wasm::WasmModule* module,
     }
     case i::wasm::kExternalException:
       UNREACHABLE();
-      return {};
   }
 }
 
@@ -1563,7 +1562,6 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
       case i::wasm::kVoid:
       case i::wasm::kBottom:
         UNREACHABLE();
-        break;
     }
   }
 }
@@ -1604,7 +1602,6 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
       case i::wasm::kVoid:
       case i::wasm::kBottom:
         UNREACHABLE();
-        break;
     }
   }
 }
@@ -1932,7 +1929,6 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       break;
     default:
       UNREACHABLE();
-      return nullptr;
   }
 
   const Limits& limits = type->limits();

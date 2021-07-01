@@ -3577,16 +3577,12 @@ std::string ToString(FieldSectionType type) {
   switch (type) {
     case FieldSectionType::kNoSection:
       return "NoSection";
-      break;
     case FieldSectionType::kWeakSection:
       return "WeakFields";
-      break;
     case FieldSectionType::kStrongSection:
       return "StrongFields";
-      break;
     case FieldSectionType::kScalarSection:
       return "ScalarFields";
-      break;
   }
   UNREACHABLE();
 }

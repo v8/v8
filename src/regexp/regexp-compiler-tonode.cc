@@ -842,7 +842,6 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
     default:
       UNREACHABLE();
   }
-  return on_success;
 }
 
 RegExpNode* RegExpBackReference::ToNode(RegExpCompiler* compiler,

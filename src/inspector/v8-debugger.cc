@@ -153,7 +153,6 @@ std::vector<std::unique_ptr<V8DebuggerScript>> V8Debugger::getCompiledScripts(
 void V8Debugger::setBreakpointsActive(bool active) {
   if (!enabled()) {
     UNREACHABLE();
-    return;
   }
   m_breakpointsActiveCount += active ? 1 : -1;
   v8::debug::SetBreakPointsActive(m_isolate, m_breakpointsActiveCount);

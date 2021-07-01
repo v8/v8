@@ -1131,26 +1131,20 @@ constexpr Builtin ConvertReceiverModeToCompactBuiltin(
   switch (mode) {
     case ConvertReceiverMode::kAny:
       return Builtin::kCall_ReceiverIsAny_Baseline_Compact;
-      break;
     case ConvertReceiverMode::kNullOrUndefined:
       return Builtin::kCall_ReceiverIsNullOrUndefined_Baseline_Compact;
-      break;
     case ConvertReceiverMode::kNotNullOrUndefined:
       return Builtin::kCall_ReceiverIsNotNullOrUndefined_Baseline_Compact;
-      break;
   }
 }
 constexpr Builtin ConvertReceiverModeToBuiltin(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kAny:
       return Builtin::kCall_ReceiverIsAny_Baseline;
-      break;
     case ConvertReceiverMode::kNullOrUndefined:
       return Builtin::kCall_ReceiverIsNullOrUndefined_Baseline;
-      break;
     case ConvertReceiverMode::kNotNullOrUndefined:
       return Builtin::kCall_ReceiverIsNotNullOrUndefined_Baseline;
-      break;
   }
 }
 }  // namespace

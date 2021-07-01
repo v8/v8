@@ -87,7 +87,6 @@ Truncation::TruncationKind Truncation::Generalize(TruncationKind rep1,
   }
   // All other combinations are illegal.
   FATAL("Tried to combine incompatible truncations");
-  return TruncationKind::kNone;
 }
 
 // static

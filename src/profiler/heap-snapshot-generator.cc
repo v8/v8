@@ -1967,12 +1967,10 @@ class EmbedderGraphImpl : public EmbedderGraph {
     const char* Name() override {
       // The name should be retrieved via GetObject().
       UNREACHABLE();
-      return "";
     }
     size_t SizeInBytes() override {
       // The size should be retrieved via GetObject().
       UNREACHABLE();
-      return 0;
     }
 
    private:
