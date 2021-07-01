@@ -3003,10 +3003,13 @@ void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
   if (lookup_start_object_map.equals(global_proxy.map())) {
     base::Optional<PropertyCellRef> cell = global_object.GetPropertyCell(
         name, SerializationPolicy::kSerializeIfNeeded);
-    if (access_mode == AccessMode::kLoad && cell.has_value()) {
-      result_hints->AddConstant(
-          handle(cell->object()->value(), broker()->isolate()), zone(),
-          broker());
+    if (cell.has_value()) {
+      CHECK(cell->Serialize());
+      if (access_mode == AccessMode::kLoad) {
+        result_hints->AddConstant(
+            handle(cell->object()->value(), broker()->isolate()), zone(),
+            broker());
+      }
     }
   }
 
