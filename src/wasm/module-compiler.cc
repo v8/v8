@@ -78,6 +78,7 @@ enum class CompileStrategy : uint8_t {
 };
 
 class CompilationStateImpl;
+class CompilationUnitBuilder;
 
 class V8_NODISCARD BackgroundCompileScope {
  public:
@@ -545,14 +546,24 @@ class CompilationStateImpl {
   bool cancelled() const;
 
   // Initialize compilation progress. Set compilation tiers to expect for
-  // baseline and top tier compilation. Must be set before {AddCompilationUnits}
-  // is invoked which triggers background compilation.
+  // baseline and top tier compilation. Must be set before
+  // {CommitCompilationUnits} is invoked which triggers background compilation.
   void InitializeCompilationProgress(bool lazy_module, int num_import_wrappers,
                                      int num_export_wrappers);
 
   // Initialize the compilation progress after deserialization. This is needed
   // for recompilation (e.g. for tier down) to work later.
   void InitializeCompilationProgressAfterDeserialization();
+
+  // Initializes compilation units based on the information encoded in the
+  // {compilation_progress_}.
+  void InitializeCompilationUnits(
+      std::unique_ptr<CompilationUnitBuilder> builder);
+
+  // Adds compilation units for another function to the
+  // {CompilationUnitBuilder}. This function is the streaming compilation
+  // equivalent to {InitializeCompilationUnits}.
+  void AddCompilationUnit(CompilationUnitBuilder* builder, int func_index);
 
   // Initialize recompilation of the whole module: Setup compilation progress
   // for recompilation and add the respective compilation units. The callback is
@@ -563,17 +574,17 @@ class CompilationStateImpl {
       CompilationState::callback_t recompilation_finished_callback);
 
   // Add the callback function to be called on compilation events. Needs to be
-  // set before {AddCompilationUnits} is run to ensure that it receives all
+  // set before {CommitCompilationUnits} is run to ensure that it receives all
   // events. The callback object must support being deleted from any thread.
   void AddCallback(CompilationState::callback_t);
 
   // Inserts new functions to compile and kicks off compilation.
-  void AddCompilationUnits(
+  void CommitCompilationUnits(
       base::Vector<WasmCompilationUnit> baseline_units,
       base::Vector<WasmCompilationUnit> top_tier_units,
       base::Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
           js_to_wasm_wrapper_units);
-  void AddTopTierCompilationUnit(WasmCompilationUnit);
+  void CommitTopTierCompilationUnit(WasmCompilationUnit);
   void AddTopTierPriorityCompilationUnit(WasmCompilationUnit, size_t);
 
   CompilationUnitQueues::Queue* GetQueueForCompileTask(int task_id);
@@ -649,6 +660,10 @@ class CompilationStateImpl {
   }
 
  private:
+  void AddCompilationUnitInternal(CompilationUnitBuilder* builder,
+                                  int function_index,
+                                  uint8_t function_progress);
+
   // Trigger callbacks according to the internal counters below
   // (outstanding_...), plus the given events.
   // Hold the {callbacks_mutex_} when calling this method.
@@ -981,21 +996,17 @@ class CompilationUnitBuilder {
     js_to_wasm_wrapper_units_.emplace_back(std::move(unit));
   }
 
-  void AddTopTierUnit(int func_index) {
-    ExecutionTierPair tiers = GetRequestedExecutionTiers(
-        native_module_->module(), native_module_->enabled_features(),
-        func_index);
-    // In this case, the baseline is lazily compiled, if at all. The compilation
-    // unit is added even if the baseline tier is the same.
-#ifdef DEBUG
-    auto* module = native_module_->module();
-    DCHECK_EQ(kWasmOrigin, module->origin);
-    const bool lazy_module = false;
-    DCHECK_EQ(CompileStrategy::kLazyBaselineEagerTopTier,
-              GetCompileStrategy(module, native_module_->enabled_features(),
-                                 func_index, lazy_module));
-#endif
-    tiering_units_.emplace_back(func_index, tiers.top_tier, kNoDebugging);
+  void AddBaselineUnit(int func_index, ExecutionTier tier) {
+    baseline_units_.emplace_back(func_index, tier, kNoDebugging);
+  }
+
+  void AddTopTierUnit(int func_index, ExecutionTier tier) {
+    tiering_units_.emplace_back(func_index, tier, kNoDebugging);
+  }
+
+  void AddDebugUnit(int func_index) {
+    baseline_units_.emplace_back(func_index, ExecutionTier::kLiftoff,
+                                 kForDebugging);
   }
 
   void AddRecompilationUnit(int func_index, ExecutionTier tier) {
@@ -1010,7 +1021,7 @@ class CompilationUnitBuilder {
         js_to_wasm_wrapper_units_.empty()) {
       return false;
     }
-    compilation_state()->AddCompilationUnits(
+    compilation_state()->CommitCompilationUnits(
         base::VectorOf(baseline_units_), base::VectorOf(tiering_units_),
         base::VectorOf(js_to_wasm_wrapper_units_));
     Clear();
@@ -1183,7 +1194,7 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
           CompileStrategy::kLazy &&
       tiers.baseline_tier < tiers.top_tier) {
     WasmCompilationUnit tiering_unit{func_index, tiers.top_tier, kNoDebugging};
-    compilation_state->AddTopTierCompilationUnit(tiering_unit);
+    compilation_state->CommitTopTierCompilationUnit(tiering_unit);
   }
 
   return true;
@@ -1424,8 +1435,31 @@ int AddImportWrapperUnits(NativeModule* native_module,
   return static_cast<int>(keys.size());
 }
 
+void InitializeLazyCompilation(NativeModule* native_module) {
+  const bool lazy_module = IsLazyModule(native_module->module());
+  auto* module = native_module->module();
+
+  uint32_t start = module->num_imported_functions;
+  uint32_t end = start + module->num_declared_functions;
+  base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
+  for (uint32_t func_index = start; func_index < end; func_index++) {
+    CompileStrategy strategy = GetCompileStrategy(
+        module, native_module->enabled_features(), func_index, lazy_module);
+    if (strategy == CompileStrategy::kLazy ||
+        strategy == CompileStrategy::kLazyBaselineEagerTopTier) {
+      // Open a single scope for all following calls to {UseLazyStub()}, instead
+      // of flipping page permissions for each {func_index} individually.
+      if (!lazy_code_space_write_scope.has_value()) {
+        lazy_code_space_write_scope.emplace(native_module);
+      }
+      native_module->UseLazyStub(func_index);
+    }
+  }
+}
+
 std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
     Isolate* isolate, NativeModule* native_module) {
+  InitializeLazyCompilation(native_module);
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   const bool lazy_module = IsLazyModule(native_module->module());
@@ -1435,46 +1469,7 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
       AddExportWrapperUnits(isolate, native_module, builder.get());
   compilation_state->InitializeCompilationProgress(
       lazy_module, num_import_wrappers, num_export_wrappers);
-
   return builder;
-}
-
-void InitializeCompilationUnits(
-    NativeModule* native_module,
-    std::unique_ptr<CompilationUnitBuilder> builder) {
-  const bool lazy_module = IsLazyModule(native_module->module());
-  auto* module = native_module->module();
-
-  const bool prefer_liftoff = native_module->IsTieredDown();
-
-  uint32_t start = module->num_imported_functions;
-  uint32_t end = start + module->num_declared_functions;
-  base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
-  for (uint32_t func_index = start; func_index < end; func_index++) {
-    if (prefer_liftoff) {
-      builder->AddRecompilationUnit(func_index, ExecutionTier::kLiftoff);
-      continue;
-    }
-    CompileStrategy strategy = GetCompileStrategy(
-        module, native_module->enabled_features(), func_index, lazy_module);
-    if (strategy == CompileStrategy::kEager) {
-      builder->AddUnits(func_index);
-    } else {
-      // Open a single scope for all following calls to {UseLazyStub()}, instead
-      // of flipping page permissions for each {func_index} individually.
-      if (!lazy_code_space_write_scope.has_value()) {
-        lazy_code_space_write_scope.emplace(native_module);
-      }
-      if (strategy == CompileStrategy::kLazy) {
-        native_module->UseLazyStub(func_index);
-      } else {
-        DCHECK_EQ(strategy, CompileStrategy::kLazyBaselineEagerTopTier);
-        builder->AddTopTierUnit(func_index);
-        native_module->UseLazyStub(func_index);
-      }
-    }
-  }
-  builder->Commit();
 }
 
 bool MayCompriseLazyFunctions(const WasmModule* module,
@@ -1608,7 +1603,7 @@ void CompileNativeModule(Isolate* isolate,
   // Initialize the compilation units and kick off background compile tasks.
   std::unique_ptr<CompilationUnitBuilder> builder =
       InitializeCompilation(isolate, native_module.get());
-  InitializeCompilationUnits(native_module.get(), std::move(builder));
+  compilation_state->InitializeCompilationUnits(std::move(builder));
 
   compilation_state->WaitForCompilationEvent(
       CompilationEvent::kFinishedExportWrappers);
@@ -2373,15 +2368,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     }
 
     if (start_compilation_) {
-      // TODO(ahaas): Try to remove the {start_compilation_} check when
-      // streaming decoding is done in the background. If
-      // InitializeCompilationUnits always returns 0 for streaming compilation,
-      // then DoAsync would do the same as NextStep already.
-
-      // Add compilation units and kick off compilation.
       std::unique_ptr<CompilationUnitBuilder> builder =
           InitializeCompilation(job->isolate(), job->native_module_.get());
-      InitializeCompilationUnits(job->native_module_.get(), std::move(builder));
+      compilation_state->InitializeCompilationUnits(std::move(builder));
       // We are in single-threaded mode, so there are no worker tasks that will
       // do the compilation. We call {WaitForCompilationEvent} here so that the
       // main thread paticipates and finishes the compilation.
@@ -2660,17 +2649,9 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
     return true;
   }
 
-  NativeModule* native_module = job_->native_module_.get();
-  if (strategy == CompileStrategy::kLazy) {
-    native_module->UseLazyStub(func_index);
-  } else if (strategy == CompileStrategy::kLazyBaselineEagerTopTier) {
-    compilation_unit_builder_->AddTopTierUnit(func_index);
-    native_module->UseLazyStub(func_index);
-  } else {
-    DCHECK_EQ(strategy, CompileStrategy::kEager);
-    compilation_unit_builder_->AddUnits(func_index);
-  }
-
+  auto* compilation_state = Impl(job_->native_module_->compilation_state());
+  compilation_state->AddCompilationUnit(compilation_unit_builder_.get(),
+                                        func_index);
   ++num_functions_;
 
   return true;
@@ -2918,6 +2899,68 @@ void CompilationStateImpl::InitializeCompilationProgress(
   TriggerCallbacks();
 }
 
+void CompilationStateImpl::AddCompilationUnitInternal(
+    CompilationUnitBuilder* builder, int function_index,
+    uint8_t function_progress) {
+  ExecutionTier required_baseline_tier =
+      CompilationStateImpl::RequiredBaselineTierField::decode(
+          function_progress);
+  ExecutionTier required_top_tier =
+      CompilationStateImpl::RequiredTopTierField::decode(function_progress);
+  ExecutionTier reached_tier =
+      CompilationStateImpl::ReachedTierField::decode(function_progress);
+
+  if (reached_tier < required_baseline_tier) {
+    builder->AddBaselineUnit(function_index, required_baseline_tier);
+  }
+  if (reached_tier < required_top_tier &&
+      required_baseline_tier != required_top_tier) {
+    builder->AddTopTierUnit(function_index, required_top_tier);
+  }
+}
+
+void CompilationStateImpl::InitializeCompilationUnits(
+    std::unique_ptr<CompilationUnitBuilder> builder) {
+  int offset = native_module_->module()->num_imported_functions;
+  if (native_module_->IsTieredDown()) {
+    for (size_t i = 0; i < compilation_progress_.size(); ++i) {
+      int func_index = offset + static_cast<int>(i);
+      builder->AddDebugUnit(func_index);
+    }
+  } else {
+    base::MutexGuard guard(&callbacks_mutex_);
+
+    for (size_t i = 0; i < compilation_progress_.size(); ++i) {
+      uint8_t function_progress = compilation_progress_[i];
+      int func_index = offset + static_cast<int>(i);
+      AddCompilationUnitInternal(builder.get(), func_index, function_progress);
+    }
+  }
+  builder->Commit();
+}
+
+void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
+                                              int func_index) {
+  if (native_module_->IsTieredDown()) {
+    builder->AddDebugUnit(func_index);
+    return;
+  }
+  int offset = native_module_->module()->num_imported_functions;
+  int progress_index = func_index - offset;
+  uint8_t function_progress;
+  {
+    // TODO(ahaas): This lock may cause overhead. If so, we could get rid of the
+    // lock as follows:
+    // 1) Make compilation_progress_ an array of atomic<uint8_t>, and access it
+    // lock-free.
+    // 2) Have a copy of compilation_progress_ that we use for initialization.
+    // 3) Just re-calculate the content of compilation_progress_.
+    base::MutexGuard guard(&callbacks_mutex_);
+    function_progress = compilation_progress_[progress_index];
+  }
+  AddCompilationUnitInternal(builder, func_index, function_progress);
+}
+
 void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization() {
   auto* module = native_module_->module();
   base::MutexGuard guard(&callbacks_mutex_);
@@ -3033,7 +3076,7 @@ void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
   }
 }
 
-void CompilationStateImpl::AddCompilationUnits(
+void CompilationStateImpl::CommitCompilationUnits(
     base::Vector<WasmCompilationUnit> baseline_units,
     base::Vector<WasmCompilationUnit> top_tier_units,
     base::Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
@@ -3056,8 +3099,9 @@ void CompilationStateImpl::AddCompilationUnits(
   compile_job_->NotifyConcurrencyIncrease();
 }
 
-void CompilationStateImpl::AddTopTierCompilationUnit(WasmCompilationUnit unit) {
-  AddCompilationUnits({}, {&unit, 1}, {});
+void CompilationStateImpl::CommitTopTierCompilationUnit(
+    WasmCompilationUnit unit) {
+  CommitCompilationUnits({}, {&unit, 1}, {});
 }
 
 void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
