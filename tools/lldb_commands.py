@@ -8,8 +8,10 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
-import lldb
+import os
 import re
+
+import lldb
 
 #####################
 # Helper functions. #
@@ -113,7 +115,19 @@ def bta(debugger, *args):
       print("%s -> %s %s (%s)\033[0m" % (
           color, prefix, match.group(2), match.group(1)))
 
+def setup_source_map_for_relative_paths(debugger):
+  # Copied from Chromium's tools/lldb/lldbinit.py.
+  # When relative paths are used for debug symbols, lldb cannot find source
+  # files. Set up a source map to point to V8's root.
+  this_dir = os.path.dirname(os.path.abspath(__file__))
+  source_dir = os.path.join(this_dir, os.pardir)
+
+  debugger.HandleCommand(
+    'settings set target.source-map ../.. ' + source_dir)
+
+
 def __lldb_init_module(debugger, dict):
+  setup_source_map_for_relative_paths(debugger)
   debugger.HandleCommand('settings set target.x86-disassembly-flavor intel')
   for cmd in ('job', 'jlh', 'jco', 'jld', 'jtt', 'jst', 'jss', 'bta'):
     debugger.HandleCommand(
