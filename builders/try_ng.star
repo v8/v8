@@ -360,6 +360,7 @@ optional_rel_cq_properties = {
     "location_regexp": [
         ".+/[+]/src/codegen/ia32/(macro-)?assembler-ia32.(h|cc)",
         ".+/[+]/src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)",
+        ".+/[+]/src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
     ],
     "cancel_stale": False,
 }
