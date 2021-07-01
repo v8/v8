@@ -187,6 +187,7 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
   }
   // The intermediate result may have been bigger, but the final result fits.
   DCHECK(overflow == 0);  // NOLINT(readability/check)
+  USE(overflow);
 }
 
 }  // namespace bigint

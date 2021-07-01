@@ -80,6 +80,8 @@ class ProcessorImpl : public Processor {
 #define DCHECK(cond) (void(0))
 #endif
 
+#define USE(var) ((void)var)
+
 // RAII memory for a Digits array.
 class Storage {
  public:
