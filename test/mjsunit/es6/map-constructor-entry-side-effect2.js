@@ -9,18 +9,16 @@ function TestMapConstructorEntrySideEffect(ctor) {
   const k1 = {};
   const k2 = {};
   let callCount = 0;
-  let prop = {
-    get() {
-      // Verify continuation retains original set function
-      ctor.prototype.set = () => {
-        callCount++;
-      };
-      return k1;
-    }
-  };
-  %PrepareFunctionForOptimization(prop.get);  // To prevent flushing.
   const input = [
-    Object.defineProperty([, 1], "0", prop),
+    Object.defineProperty([, 1], "0", {
+      get() {
+        // Verify continuation retains original set function
+        ctor.prototype.set = () => {
+          callCount++;
+        };
+        return k1;
+      }
+    }),
     [k2, 2]
   ];
   const col = new ctor(input);
