@@ -1643,7 +1643,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::UnoptimizedCompileState compile_state(isolate);
   i::UnoptimizedCompileFlags compile_flags =
       i::UnoptimizedCompileFlags::ForToplevelCompile(
-          isolate, true, LanguageMode::kSloppy, REPLMode::kNo);
+          isolate, true, LanguageMode::kSloppy, REPLMode::kNo,
+          ScriptType::kClassic, FLAG_lazy);
   SetParserFlags(&compile_flags, flags);
   compile_flags.set_is_module(is_module);
 
@@ -4394,6 +4395,7 @@ TEST(SloppyModeUseCount) {
   global_use_counts = use_counts;
   // Force eager parsing (preparser doesn't update use counts).
   i::FLAG_lazy = false;
+  i::FLAG_lazy_streaming = false;
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("function bar() { var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -4407,8 +4409,8 @@ TEST(BothModesUseCount) {
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  // Force eager parsing (preparser doesn't update use counts).
   i::FLAG_lazy = false;
+  i::FLAG_lazy_streaming = false;
   CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
   CompileRun("function bar() { 'use strict'; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);

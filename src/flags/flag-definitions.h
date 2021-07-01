@@ -1445,6 +1445,9 @@ DEFINE_BOOL(trace, false, "trace javascript function calls")
 
 // codegen.cc
 DEFINE_BOOL(lazy, true, "use lazy compilation")
+DEFINE_BOOL(lazy_eval, true, "use lazy compilation during eval")
+DEFINE_BOOL(lazy_streaming, true,
+            "use lazy compilation during streaming compilation")
 DEFINE_BOOL(max_lazy, false, "ignore eager compilation hints")
 DEFINE_IMPLICATION(max_lazy, lazy)
 DEFINE_BOOL(trace_opt, false, "trace optimized compilation")

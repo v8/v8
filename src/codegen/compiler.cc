@@ -1483,7 +1483,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
                                              Isolate* isolate, ScriptType type)
     : flags_(UnoptimizedCompileFlags::ForToplevelCompile(
           isolate, true, construct_language_mode(FLAG_use_strict),
-          REPLMode::kNo, type)),
+          REPLMode::kNo, type, FLAG_lazy_streaming)),
       compile_state_(isolate),
       info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
       isolate_for_local_isolate_(isolate),
@@ -1723,9 +1723,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   // Set up parse info.
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info);
-  flags.set_is_lazy_compile(true);
   flags.set_collect_source_positions(true);
-  flags.set_allow_natives_syntax(FLAG_allow_natives_syntax);
 
   UnoptimizedCompileState compile_state(isolate);
   ParseInfo parse_info(isolate, flags, &compile_state);
@@ -1800,7 +1798,6 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   // Set up parse info.
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info);
-  flags.set_is_lazy_compile(true);
 
   UnoptimizedCompileState compile_state(isolate);
   ParseInfo parse_info(isolate, flags, &compile_state);
@@ -2149,7 +2146,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     allow_eval_cache = true;
   } else {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForToplevelCompile(
-        isolate, true, language_mode, REPLMode::kNo);
+        isolate, true, language_mode, REPLMode::kNo, ScriptType::kClassic,
+        FLAG_lazy_eval);
     flags.set_is_eval(true);
     DCHECK(!flags.is_module());
     flags.set_parse_restriction(restriction);
@@ -2880,7 +2878,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
               isolate, natives == NOT_NATIVES_CODE, language_mode,
               script_details.repl_mode,
               origin_options.IsModule() ? ScriptType::kModule
-                                        : ScriptType::kClassic);
+                                        : ScriptType::kClassic,
+              FLAG_lazy);
 
       flags.set_is_eager(compile_options == ScriptCompiler::kEagerCompile);
 
@@ -2948,7 +2947,8 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   IsCompiledScope is_compiled_scope;
   if (!maybe_result.ToHandle(&wrapped)) {
     UnoptimizedCompileFlags flags = UnoptimizedCompileFlags::ForToplevelCompile(
-        isolate, true, language_mode, script_details.repl_mode);
+        isolate, true, language_mode, script_details.repl_mode,
+        ScriptType::kClassic, FLAG_lazy);
     flags.set_is_eval(true);  // Use an eval scope as declaration scope.
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
     // TODO(delphick): Remove this and instead make the wrapped and wrapper

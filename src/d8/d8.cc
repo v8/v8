@@ -655,7 +655,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     i::UnoptimizedCompileFlags flags =
         i::UnoptimizedCompileFlags::ForToplevelCompile(
             i_isolate, true, i::construct_language_mode(i::FLAG_use_strict),
-            i::REPLMode::kNo);
+            i::REPLMode::kNo, ScriptType::kClassic, i::FLAG_lazy);
 
     if (options.compile_options == v8::ScriptCompiler::kEagerCompile) {
       flags.set_is_eager(true);

@@ -60,10 +60,9 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
             isolate(),
             UnoptimizedCompileFlags::ForToplevelCompile(
                 isolate(), true, construct_language_mode(FLAG_use_strict),
-                REPLMode::kNo),
+                REPLMode::kNo, ScriptType::kClassic, FLAG_lazy),
             &state_),
-        local_isolate_(isolate()->main_thread_local_isolate()) {
-  }
+        local_isolate_(isolate()->main_thread_local_isolate()) {}
 
   FunctionLiteral* ParseProgram(const char* source) {
     auto utf16_source = DecodeUtf8(source);
