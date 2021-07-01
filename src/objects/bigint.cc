@@ -988,35 +988,77 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
   if (bigint->is_zero()) {
     return isolate->factory()->zero_string();
   }
-  DCHECK(radix >= 2 && radix <= 36);
   const bool sign = bigint->sign();
-  int size = bigint::ToStringResultLength(GetDigits(bigint), radix, sign);
-  if (size > String::kMaxLength) {
-    if (should_throw == kThrowOnError) {
-      THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
+  int chars_allocated;
+  int chars_written;
+  Handle<SeqOneByteString> result;
+  if (bigint->length() == 1 && radix == 10) {
+    // Fast path for the most common case, to avoid call/dispatch overhead.
+    // The logic is the same as what the full implementation does below,
+    // just inlined and specialized for the preconditions.
+    // Microbenchmarks rejoice!
+    digit_t digit = bigint->digit(0);
+    int bit_length = kDigitBits - base::bits::CountLeadingZeros(digit);
+    constexpr int kShift = 7;
+    // This is Math.log2(10) * (1 << kShift), scaled just far enough to
+    // make the computations below always precise (after rounding).
+    constexpr int kShiftedBitsPerChar = 425;
+    chars_allocated = (bit_length << kShift) / kShiftedBitsPerChar + 1 + sign;
+    result = isolate->factory()
+                 ->NewRawOneByteString(chars_allocated)
+                 .ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    uint8_t* start = result->GetChars(no_gc);
+    uint8_t* out = start + chars_allocated;
+    while (digit != 0) {
+      *(--out) = '0' + (digit % 10);
+      digit /= 10;
+    }
+    if (sign) *(--out) = '-';
+    if (out == start) {
+      chars_written = chars_allocated;
     } else {
+      DCHECK_LT(start, out);
+      // The result is one character shorter than predicted. This is
+      // unavoidable, e.g. a 4-bit BigInt can be as big as "10" or as small as
+      // "9", so we must allocate 2 characters for it, and will only later find
+      // out whether all characters were used.
+      chars_written = chars_allocated - static_cast<int>(out - start);
+      std::memmove(start, out, chars_written);
+    }
+  } else {
+    // Generic path, handles anything.
+    DCHECK(radix >= 2 && radix <= 36);
+    chars_allocated =
+        bigint::ToStringResultLength(GetDigits(bigint), radix, sign);
+    if (chars_allocated > String::kMaxLength) {
+      if (should_throw == kThrowOnError) {
+        THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
+      } else {
+        return {};
+      }
+    }
+    result = isolate->factory()
+                 ->NewRawOneByteString(chars_allocated)
+                 .ToHandleChecked();
+    chars_written = chars_allocated;
+    DisallowGarbageCollection no_gc;
+    char* characters = reinterpret_cast<char*>(result->GetChars(no_gc));
+    bigint::Status status = isolate->bigint_processor()->ToString(
+        characters, &chars_written, GetDigits(bigint), radix, sign);
+    if (status == bigint::Status::kInterrupted) {
+      AllowGarbageCollection terminating_anyway;
+      isolate->TerminateExecution();
       return {};
     }
   }
-  Handle<SeqOneByteString> result =
-      isolate->factory()->NewRawOneByteString(size).ToHandleChecked();
-  int allocated_size = size;
-  DisallowGarbageCollection no_gc;
-  char* characters = reinterpret_cast<char*>(result->GetChars(no_gc));
-  bigint::Status status = isolate->bigint_processor()->ToString(
-      characters, &size, GetDigits(bigint), radix, sign);
-  if (status == bigint::Status::kInterrupted) {
-    AllowGarbageCollection terminating_anyway;
-    isolate->TerminateExecution();
-    return {};
-  }
 
-  // Rigth-trim any over-allocation (which can happen due to conservative
+  // Right-trim any over-allocation (which can happen due to conservative
   // estimates).
-  if (size < allocated_size) {
-    result->set_length(size, kReleaseStore);
-    int string_size = SeqOneByteString::SizeFor(allocated_size);
-    int needed_size = SeqOneByteString::SizeFor(size);
+  if (chars_written < chars_allocated) {
+    result->set_length(chars_written, kReleaseStore);
+    int string_size = SeqOneByteString::SizeFor(chars_allocated);
+    int needed_size = SeqOneByteString::SizeFor(chars_written);
     if (needed_size < string_size && !isolate->heap()->IsLargeObject(*result)) {
       Address new_end = result->address() + needed_size;
       isolate->heap()->CreateFillerObjectAt(
@@ -1025,9 +1067,11 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
   }
 #if DEBUG
   // Verify that all characters have been written.
-  DCHECK(result->length() == size);
-  for (int i = 0; i < size; i++) {
-    DCHECK_NE(characters[i], bigint::kStringZapValue);
+  DCHECK(result->length() == chars_written);
+  DisallowGarbageCollection no_gc;
+  uint8_t* chars = result->GetChars(no_gc);
+  for (int i = 0; i < chars_written; i++) {
+    DCHECK_NE(chars[i], bigint::kStringZapValue);
   }
 #endif
   return result;
