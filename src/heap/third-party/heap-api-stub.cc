@@ -20,6 +20,8 @@ namespace v8 {
 namespace internal {
 namespace third_party_heap {
 
+class Impl {};
+
 // static
 std::unique_ptr<Heap> Heap::New(v8::internal::Isolate*) { return nullptr; }
 
