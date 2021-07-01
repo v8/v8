@@ -26,6 +26,8 @@ class Heap {
 
   const base::AddressRegion& GetCodeRange();
 
+  bool IsPendingAllocation(HeapObject object);
+
   static bool InSpace(Address address, AllocationSpace space);
 
   static bool InOldSpace(Address address);
@@ -37,6 +39,8 @@ class Heap {
   static bool InLargeObjectSpace(Address address);
 
   static bool IsValidHeapObject(HeapObject object);
+
+  static bool IsImmovable(HeapObject object);
 
   void ResetIterator();
   HeapObject NextObject();

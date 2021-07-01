@@ -37,6 +37,8 @@ const base::AddressRegion& Heap::GetCodeRange() {
   return no_region;
 }
 
+bool Heap::IsPendingAllocation(HeapObject) { return false; }
+
 // static
 bool Heap::InSpace(Address, AllocationSpace) { return false; }
 
