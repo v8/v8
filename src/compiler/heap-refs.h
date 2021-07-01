@@ -899,6 +899,8 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   int context_header_size() const;
   BytecodeArrayRef GetBytecodeArray() const;
   SharedFunctionInfo::Inlineability GetInlineability() const;
+  base::Optional<FunctionTemplateInfoRef> function_template_info() const;
+  ScopeInfoRef scope_info() const;
 
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
@@ -907,12 +909,6 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   bool IsInlineable() const {
     return GetInlineability() == SharedFunctionInfo::kIsInlineable;
   }
-
-  void SerializeFunctionTemplateInfo();
-  base::Optional<FunctionTemplateInfoRef> function_template_info() const;
-
-  void SerializeScopeInfoChain();
-  ScopeInfoRef scope_info() const;
 };
 
 class StringRef : public NameRef {
