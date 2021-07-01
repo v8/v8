@@ -316,6 +316,12 @@ MaybeHandle<Code> Factory::NewEmptyCode(CodeKind kind, int buffer_size) {
   raw_code.set_raw_metadata_size(buffer_size);
   raw_code.set_relocation_info(*empty_byte_array());
   raw_code.initialize_flags(kind, false, 0, kIsNotOffHeapTrampoline);
+  raw_code.set_builtin_id(Builtin::kNoBuiltinId);
+  auto code_data_container =
+      Handle<CodeDataContainer>::cast(trampoline_trivial_code_data_container());
+  raw_code.set_code_data_container(*code_data_container, kReleaseStore);
+  raw_code.set_deoptimization_data(*DeoptimizationData::Empty(isolate()));
+  raw_code.set_bytecode_offset_table(*empty_byte_array());
   raw_code.set_handler_table_offset(0);
   raw_code.set_constant_pool_offset(0);
   raw_code.set_code_comments_offset(0);
