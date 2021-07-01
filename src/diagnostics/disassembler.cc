@@ -364,7 +364,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       // If this is the given "current" pc, make it yellow and bold.
       out << "\033[33;1m";
     }
-    out << static_cast<void*>(prev_pc) << "  " << std::setw(4)
+    out << static_cast<void*>(prev_pc) << "  " << std::setw(4) << std::hex
         << prev_pc - begin << "  ";
 
     // Instruction.
