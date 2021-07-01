@@ -198,12 +198,10 @@ class EffectControlLinearizer {
   Node* LowerLoadMessage(Node* node);
   Node* AdaptFastCallArgument(Node* node, CTypeInfo arg_type,
                               GraphAssemblerLabel<0>* if_error);
-  Node* PrepareFastCall(Node* target);
-  Node* GenerateFastCallAndCleanup(const CallDescriptor* call_descriptor,
-                                   int inputs_size, Node** inputs,
-                                   Node* target_address,
-                                   const CFunctionInfo* c_signature,
-                                   int c_arg_count, Node* stack_slot);
+  Node* WrapFastCall(const CallDescriptor* call_descriptor, int inputs_size,
+                     Node** inputs, Node* target,
+                     const CFunctionInfo* c_signature, int c_arg_count,
+                     Node* stack_slot);
   Node* LowerFastApiCall(Node* node);
   Node* LowerLoadTypedElement(Node* node);
   Node* LowerLoadDataViewElement(Node* node);
@@ -5048,22 +5046,17 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
   }
 }
 
-Node* EffectControlLinearizer::PrepareFastCall(Node* target) {
+Node* EffectControlLinearizer::WrapFastCall(
+    const CallDescriptor* call_descriptor, int inputs_size, Node** inputs,
+    Node* target, const CFunctionInfo* c_signature, int c_arg_count,
+    Node* stack_slot) {
+  // CPU profiler support
   Node* target_address = __ ExternalConstant(
       ExternalReference::fast_api_call_target_address(isolate()));
-
-  // CPU profiler support
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
            target_address, 0, target);
 
-  return target_address;
-}
-
-Node* EffectControlLinearizer::GenerateFastCallAndCleanup(
-    const CallDescriptor* call_descriptor, int inputs_size, Node** inputs,
-    Node* target_address, const CFunctionInfo* c_signature, int c_arg_count,
-    Node* stack_slot) {
   // Disable JS execution
   Node* javascript_execution_assert = __ ExternalConstant(
       ExternalReference::javascript_execution_assert(isolate()));
@@ -5079,7 +5072,6 @@ Node* EffectControlLinearizer::GenerateFastCallAndCleanup(
     __ Unreachable(&do_store);
     __ Bind(&do_store);
   }
-
   __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
            javascript_execution_assert, 0, __ Int32Constant(0));
 
@@ -5159,8 +5151,6 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
 
   call_descriptor->SetCFunctionInfo(c_signature);
 
-  Node* target_address = PrepareFastCall(n.target());
-
   Node** const inputs = graph()->zone()->NewArray<Node*>(
       c_arg_count + n.FastCallExtraInputCount());
   inputs[0] = n.target();
@@ -5176,9 +5166,9 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
     inputs[i] = AdaptFastCallArgument(value, type, &if_error);
   }
 
-  Node* c_call_result = GenerateFastCallAndCleanup(
-      call_descriptor, c_arg_count + n.FastCallExtraInputCount(), inputs,
-      target_address, c_signature, c_arg_count, stack_slot);
+  Node* c_call_result =
+      WrapFastCall(call_descriptor, c_arg_count + n.FastCallExtraInputCount(),
+                   inputs, n.target(), c_signature, c_arg_count, stack_slot);
 
   Node* fast_call_result;
   switch (c_signature->ReturnInfo().GetType()) {
