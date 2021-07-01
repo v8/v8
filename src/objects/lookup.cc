@@ -1527,7 +1527,7 @@ base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
                                                           kRelaxedLoad);
   if (!cell.has_value()) return {};
 
-  if (cell->property_details().kind() == kAccessor) {
+  if (cell->property_details(kAcquireLoad).kind() == kAccessor) {
     Object maybe_accessor_pair = cell->value(kAcquireLoad);
     if (!maybe_accessor_pair.IsAccessorPair()) return {};
 
@@ -1541,11 +1541,11 @@ base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
         isolate, handle(*maybe_cached_property_name, local_isolate),
         kRelaxedLoad);
     if (!cell.has_value()) return {};
-    if (cell->property_details().kind() != kData) return {};
+    if (cell->property_details(kAcquireLoad).kind() != kData) return {};
   }
 
   DCHECK(cell.has_value());
-  DCHECK_EQ(cell->property_details().kind(), kData);
+  DCHECK_EQ(cell->property_details(kAcquireLoad).kind(), kData);
   return cell;
 }
 
