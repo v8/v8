@@ -1029,7 +1029,7 @@ Logger::~Logger() = default;
 const LogSeparator Logger::kNext = LogSeparator::kSeparator;
 
 int64_t Logger::Time() {
-  if (V8_UNLIKELY(FLAG_verify_predictable)) {
+  if (FLAG_verify_predictable) {
     return isolate_->heap()->MonotonicallyIncreasingTimeInMs() * 1000;
   }
   return timer_.Elapsed().InMicroseconds();
