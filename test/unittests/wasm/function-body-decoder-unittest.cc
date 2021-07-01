@@ -161,16 +161,16 @@ class TestModuleBuilder {
     auto& init = mod.elem_segments.back();
     // Add 5 empty elements.
     for (uint32_t j = 0; j < 5; j++) {
-      init.entries.push_back(
-          WasmInitExpr::RefNullConst(type.heap_representation()));
+      init.entries.push_back(WasmElemSegment::Entry(
+          WasmElemSegment::Entry::kRefNullEntry, type.heap_representation()));
     }
     return static_cast<byte>(mod.elem_segments.size() - 1);
   }
 
   byte AddDeclarativeElementSegment() {
     mod.elem_segments.emplace_back(kWasmFuncRef, true);
-    mod.elem_segments.back().entries.push_back(
-        WasmInitExpr::RefNullConst(HeapType::kFunc));
+    mod.elem_segments.back().entries.push_back(WasmElemSegment::Entry(
+        WasmElemSegment::Entry::kRefNullEntry, HeapType::kFunc));
     return static_cast<byte>(mod.elem_segments.size() - 1);
   }
 

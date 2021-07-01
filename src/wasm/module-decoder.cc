@@ -916,10 +916,11 @@ class ModuleDecoderImpl : public Decoder {
           consume_count("number of elements", max_table_init_entries());
 
       for (uint32_t j = 0; j < num_elem; j++) {
-        WasmInitExpr init =
+        WasmElemSegment::Entry init =
             expressions_as_elements
                 ? consume_element_expr()
-                : WasmInitExpr::RefFuncConst(consume_element_func_index());
+                : WasmElemSegment::Entry(WasmElemSegment::Entry::kRefFuncEntry,
+                                         consume_element_func_index());
         if (failed()) return;
         if (!IsSubtypeOf(TypeOf(init), segment.type, module_.get())) {
           errorf(pc_,
@@ -928,7 +929,7 @@ class ModuleDecoderImpl : public Decoder {
                  segment.type.name().c_str(), TypeOf(init).name().c_str());
           return;
         }
-        segment.entries.push_back(std::move(init));
+        segment.entries.push_back(init);
       }
       module_->elem_segments.push_back(std::move(segment));
     }
@@ -1423,8 +1424,16 @@ class ModuleDecoderImpl : public Decoder {
   AccountingAllocator allocator_;
   Zone init_expr_zone_{&allocator_, "initializer expression zone"};
 
-  ValueType TypeOf(const WasmInitExpr& expr) {
-    return expr.type(module_.get(), enabled_features_);
+  ValueType TypeOf(WasmElemSegment::Entry entry) {
+    switch (entry.kind) {
+      case WasmElemSegment::Entry::kGlobalGetEntry:
+        return module_->globals[entry.index].type;
+      case WasmElemSegment::Entry::kRefFuncEntry:
+        return ValueType::Ref(module_->functions[entry.index].sig_index,
+                              kNonNullable);
+      case WasmElemSegment::Entry::kRefNullEntry:
+        return ValueType::Ref(entry.index, kNullable);
+    }
   }
 
   bool has_seen_unordered_section(SectionCode section_code) {
@@ -1991,9 +2000,10 @@ class ModuleDecoderImpl : public Decoder {
     return index;
   }
 
-  // TODO(manoskouk): When reftypes lands, remove this and use
-  // consume_init_expr() instead.
-  WasmInitExpr consume_element_expr() {
+  // TODO(manoskouk): When reftypes lands, consider if we can implement this
+  // with consume_init_expr(). It will require changes in module-instantiate.cc,
+  // in {LoadElemSegmentImpl}.
+  WasmElemSegment::Entry consume_element_expr() {
     uint8_t opcode = consume_u8("element opcode");
     if (failed()) return {};
     switch (opcode) {
@@ -2002,13 +2012,14 @@ class ModuleDecoderImpl : public Decoder {
                                                this->pc(), module_.get());
         consume_bytes(imm.length, "ref.null immediate");
         expect_u8("end opcode", kExprEnd);
-        return WasmInitExpr::RefNullConst(imm.type.representation());
+        return {WasmElemSegment::Entry::kRefNullEntry,
+                static_cast<uint32_t>(imm.type.representation())};
       }
       case kExprRefFunc: {
         uint32_t index = consume_element_func_index();
         if (failed()) return {};
         expect_u8("end opcode", kExprEnd);
-        return WasmInitExpr::RefFuncConst(index);
+        return {WasmElemSegment::Entry::kRefFuncEntry, index};
       }
       case kExprGlobalGet: {
         if (!enabled_features_.has_reftypes()) {
@@ -2025,7 +2036,7 @@ class ModuleDecoderImpl : public Decoder {
           return {};
         }
         expect_u8("end opcode", kExprEnd);
-        return WasmInitExpr::GlobalGet(index);
+        return {WasmElemSegment::Entry::kGlobalGetEntry, index};
       }
       default:
         error("invalid opcode in element");

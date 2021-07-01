@@ -684,6 +684,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (table_count > 0) {
     InitializeIndirectFunctionTables(instance);
+    if (thrower_->error()) return {};
   }
 
   //--------------------------------------------------------------------------
@@ -1770,6 +1771,61 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   }
 }
 
+void SetNullTableEntry(Isolate* isolate, Handle<WasmInstanceObject> instance,
+                       Handle<WasmTableObject> table_object,
+                       uint32_t table_index, uint32_t entry_index) {
+  const WasmModule* module = instance->module();
+  if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
+    IndirectFunctionTableEntry(instance, table_index, entry_index).clear();
+  }
+  WasmTableObject::Set(isolate, table_object, entry_index,
+                       isolate->factory()->null_value());
+}
+
+void SetFunctionTableEntry(Isolate* isolate,
+                           Handle<WasmInstanceObject> instance,
+                           Handle<WasmTableObject> table_object,
+                           uint32_t table_index, uint32_t entry_index,
+                           uint32_t func_index) {
+  const WasmModule* module = instance->module();
+  const WasmFunction* function = &module->functions[func_index];
+
+  // For externref tables, we have to generate the WasmExternalFunction eagerly.
+  // Later we cannot know if an entry is a placeholder or not.
+  if (table_object->type().is_reference_to(HeapType::kExtern)) {
+    Handle<WasmExternalFunction> wasm_external_function =
+        WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
+                                                            func_index);
+    WasmTableObject::Set(isolate, table_object, entry_index,
+                         wasm_external_function);
+  } else {
+    DCHECK(IsSubtypeOf(table_object->type(), kWasmFuncRef, module));
+
+    // Update the local dispatch table first if necessary.
+    uint32_t sig_id = module->canonicalized_type_ids[function->sig_index];
+    IndirectFunctionTableEntry(instance, table_index, entry_index)
+        .Set(sig_id, instance, func_index);
+
+    // Update the table object's other dispatch tables.
+    MaybeHandle<WasmExternalFunction> wasm_external_function =
+        WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
+                                                    func_index);
+    if (wasm_external_function.is_null()) {
+      // No JSFunction entry yet exists for this function. Create a
+      // {Tuple2} holding the information to lazily allocate one.
+      WasmTableObject::SetFunctionTablePlaceholder(
+          isolate, table_object, entry_index, instance, func_index);
+    } else {
+      table_object->entries().set(entry_index,
+                                  *wasm_external_function.ToHandleChecked());
+    }
+    // UpdateDispatchTables() updates all other dispatch tables, since
+    // we have not yet added the dispatch table we are currently building.
+    WasmTableObject::UpdateDispatchTables(isolate, table_object, entry_index,
+                                          function->sig, instance, func_index);
+  }
+}
+
 void InstanceBuilder::InitializeIndirectFunctionTables(
     Handle<WasmInstanceObject> instance) {
   for (int table_index = 0;
@@ -1782,38 +1838,35 @@ void InstanceBuilder::InitializeIndirectFunctionTables(
     }
 
     if (!table.type.is_defaultable()) {
-      WasmValue value =
-          EvaluateInitExpression(table.initial_value, table.type, instance);
-      DCHECK(WasmExportedFunction::IsWasmExportedFunction(*value.to_ref()));
-      auto wasm_external_function =
-          Handle<WasmExportedFunction>::cast(value.to_ref());
-      uint32_t func_index = wasm_external_function->function_index();
-
-      uint32_t sig_id =
-          module_->canonicalized_type_ids[module_->functions[func_index]
-                                              .sig_index];
       auto table_object = handle(
           WasmTableObject::cast(instance->tables().get(table_index)), isolate_);
-      for (uint32_t entry_index = 0; entry_index < table.initial_size;
-           entry_index++) {
-        // Update the local dispatch table first.
-        IndirectFunctionTableEntry(instance, table_index, entry_index)
-            .Set(sig_id, instance, func_index);
-
-        // Update the table object's other dispatch tables.
-        if (wasm_external_function.is_null()) {
-          // No JSFunction entry yet exists for this function. Create a {Tuple2}
-          // holding the information to lazily allocate one.
-          WasmTableObject::SetFunctionTablePlaceholder(
-              isolate_, table_object, entry_index, instance, func_index);
-        } else {
-          table_object->entries().set(entry_index, *wasm_external_function);
+      Handle<Object> value =
+          EvaluateInitExpression(table.initial_value, table.type, instance)
+              .to_ref();
+      if (value.is_null()) {
+        for (uint32_t entry_index = 0; entry_index < table.initial_size;
+             entry_index++) {
+          SetNullTableEntry(isolate_, instance, table_object, table_index,
+                            entry_index);
         }
-        // UpdateDispatchTables() updates all other dispatch tables, since
-        // we have not yet added the dispatch table we are currently building.
-        WasmTableObject::UpdateDispatchTables(
-            isolate_, table_object, entry_index,
-            module_->functions[func_index].sig, instance, func_index);
+      } else if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
+        uint32_t function_index =
+            Handle<WasmExportedFunction>::cast(value)->function_index();
+        for (uint32_t entry_index = 0; entry_index < table.initial_size;
+             entry_index++) {
+          SetFunctionTableEntry(isolate_, instance, table_object, table_index,
+                                entry_index, function_index);
+        }
+      } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
+        // TODO(manoskouk): Support WasmJSFunction.
+        thrower_->TypeError(
+            "Initializing a table with a Webassembly.Function object is not "
+            "supported yet");
+      } else {
+        for (uint32_t entry_index = 0; entry_index < table.initial_size;
+             entry_index++) {
+          WasmTableObject::Set(isolate_, table_object, entry_index, value);
+        }
       }
     }
   }
@@ -1837,68 +1890,39 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     return false;
   }
 
-  const WasmModule* module = instance->module();
   for (size_t i = 0; i < count; ++i) {
-    const WasmInitExpr* init = &elem_segment.entries[src + i];
+    WasmElemSegment::Entry init = elem_segment.entries[src + i];
     int entry_index = static_cast<int>(dst + i);
-
-    if (init->kind() == WasmInitExpr::kRefNullConst) {
-      if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
-        IndirectFunctionTableEntry(instance, table_index, entry_index).clear();
+    switch (init.kind) {
+      case WasmElemSegment::Entry::kRefNullEntry:
+        SetNullTableEntry(isolate, instance, table_object, table_index,
+                          entry_index);
+        break;
+      case WasmElemSegment::Entry::kRefFuncEntry:
+        SetFunctionTableEntry(isolate, instance, table_object, table_index,
+                              entry_index, init.index);
+        break;
+      case WasmElemSegment::Entry::kGlobalGetEntry: {
+        Handle<Object> value =
+            WasmInstanceObject::GetGlobalValue(
+                instance, instance->module()->globals[init.index])
+                .to_ref();
+        if (value.is_null()) {
+          SetNullTableEntry(isolate, instance, table_object, table_index,
+                            entry_index);
+        } else if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
+          uint32_t function_index =
+              Handle<WasmExportedFunction>::cast(value)->function_index();
+          SetFunctionTableEntry(isolate, instance, table_object, table_index,
+                                entry_index, function_index);
+        } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
+          // TODO(manoskouk): Support WasmJSFunction.
+          return false;
+        } else {
+          WasmTableObject::Set(isolate, table_object, entry_index, value);
+        }
+        break;
       }
-      WasmTableObject::Set(isolate, table_object, entry_index,
-                           isolate->factory()->null_value());
-      continue;
-    }
-
-    if (init->kind() == WasmInitExpr::kGlobalGet) {
-      WasmTableObject::Set(
-          isolate, table_object, entry_index,
-          WasmInstanceObject::GetGlobalValue(
-              instance, module->globals[init->immediate().index])
-              .to_ref());
-      continue;
-    }
-
-    DCHECK_EQ(init->kind(), WasmInitExpr::kRefFuncConst);
-
-    const uint32_t func_index = init->immediate().index;
-    const WasmFunction* function = &module->functions[func_index];
-
-    // Update the local dispatch table first if necessary.
-    if (IsSubtypeOf(table_object->type(), kWasmFuncRef, module)) {
-      uint32_t sig_id = module->canonicalized_type_ids[function->sig_index];
-      IndirectFunctionTableEntry(instance, table_index, entry_index)
-          .Set(sig_id, instance, func_index);
-    }
-
-    // For ExternRef tables, we have to generate the WasmExternalFunction
-    // eagerly. Later we cannot know if an entry is a placeholder or not.
-    if (table_object->type().is_reference_to(HeapType::kExtern)) {
-      Handle<WasmExternalFunction> wasm_external_function =
-          WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
-                                                              func_index);
-      WasmTableObject::Set(isolate, table_object, entry_index,
-                           wasm_external_function);
-    } else {
-      // Update the table object's other dispatch tables.
-      MaybeHandle<WasmExternalFunction> wasm_external_function =
-          WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
-                                                      func_index);
-      if (wasm_external_function.is_null()) {
-        // No JSFunction entry yet exists for this function. Create a {Tuple2}
-        // holding the information to lazily allocate one.
-        WasmTableObject::SetFunctionTablePlaceholder(
-            isolate, table_object, entry_index, instance, func_index);
-      } else {
-        table_object->entries().set(entry_index,
-                                    *wasm_external_function.ToHandleChecked());
-      }
-      // UpdateDispatchTables() updates all other dispatch tables, since
-      // we have not yet added the dispatch table we are currently building.
-      WasmTableObject::UpdateDispatchTables(isolate, table_object, entry_index,
-                                            function->sig, instance,
-                                            func_index);
     }
   }
   return true;

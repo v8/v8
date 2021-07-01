@@ -135,7 +135,13 @@ struct WasmElemSegment {
   ValueType type;
   uint32_t table_index;
   WireBytesRef offset;
-  std::vector<WasmInitExpr> entries;
+  struct Entry {
+    enum Kind { kGlobalGetEntry, kRefFuncEntry, kRefNullEntry } kind;
+    uint32_t index;
+    Entry(Kind kind, uint32_t index) : kind(kind), index(index) {}
+    Entry() : kind(kRefNullEntry), index(0) {}
+  };
+  std::vector<Entry> entries;
   enum Status {
     kStatusActive,      // copied automatically during instantiation.
     kStatusPassive,     // copied explicitly after instantiation.
