@@ -42,7 +42,7 @@ class StringUtil {
 };
 
 // A read-only sequence of uninterpreted bytes with reference-counted storage.
-class V8_EXPORT Binary {
+class V8_INSPECTOR_EXPORT Binary {
  public:
   Binary() = default;
 

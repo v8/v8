@@ -55,19 +55,18 @@ inspector_protocol_generate("protocol_generated_sources") {
   outputs = _protocol_generated
 }
 
-config("inspector_config") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  configs = [ "../../:internal_config" ]
-  include_dirs = [ "../../include" ]
+config("external_config") {
+  if (is_component_build) {
+    defines = [ "USING_V8_INSPECTOR_SHARED" ]
+  }
 }
 
-v8_header_set("inspector_test_headers") {
-  configs = [ ":inspector_config" ]
-
-  public_deps = [ "../..:v8_headers" ]
-
-  sources = [ "test-interface.h" ]
+config("internal_config") {
+  visibility = [ ":*" ]
+  configs = [ "../../:internal_config_base" ]
+  if (is_component_build) {
+    defines = [ "BUILDING_V8_INSPECTOR_SHARED" ]
+  }
 }
 
 v8_source_set("inspector_string_conversions") {
@@ -79,7 +78,7 @@ v8_source_set("inspector_string_conversions") {
   deps = [ "../..:v8_libbase" ]
 }
 
-v8_source_set("inspector") {
+v8_component("inspector") {
   deps = [
     ":inspector_string_conversions",
     "../..:v8_tracing",
@@ -88,12 +87,14 @@ v8_source_set("inspector") {
   ]
 
   public_deps = [
-    ":inspector_test_headers",
     ":protocol_generated_sources",
+    "../../:v8_lib",
     "../../:v8_libbase",
   ]
 
-  configs = [ ":inspector_config" ]
+  configs = [ ":internal_config" ]
+
+  public_configs = [ ":external_config" ]
 
   sources = rebase_path(_protocol_generated, ".", target_gen_dir)
   sources += [
@@ -116,6 +117,7 @@ v8_source_set("inspector") {
     "string-util.cc",
     "string-util.h",
     "test-interface.cc",
+    "test-interface.h",
     "v8-console-agent-impl.cc",
     "v8-console-agent-impl.h",
     "v8-console-message.cc",

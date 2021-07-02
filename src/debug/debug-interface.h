@@ -35,21 +35,23 @@ class TypeProfile;
 
 namespace debug {
 
-void SetContextId(Local<Context> context, int id);
-int GetContextId(Local<Context> context);
+V8_EXPORT_PRIVATE void SetContextId(Local<Context> context, int id);
+V8_EXPORT_PRIVATE int GetContextId(Local<Context> context);
 
-void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
-v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
+V8_EXPORT_PRIVATE void SetInspector(Isolate* isolate,
+                                    v8_inspector::V8Inspector*);
+V8_EXPORT_PRIVATE v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
 // Returns the debug name for the function, which is supposed to be used
 // by the debugger and the developer tools. This can thus be different from
 // the name returned by the StackFrame::GetFunctionName() method. For example,
 // in case of WebAssembly, the debug name is WAT-compatible and thus always
 // preceeded by a dollar ('$').
-Local<String> GetFunctionDebugName(Local<StackFrame> frame);
+V8_EXPORT_PRIVATE Local<String> GetFunctionDebugName(Local<StackFrame> frame);
 
 // Returns a debug string representation of the function.
-Local<String> GetFunctionDescription(Local<Function> function);
+V8_EXPORT_PRIVATE Local<String> GetFunctionDescription(
+    Local<Function> function);
 
 // Schedule a debugger break to happen when function is called inside given
 // isolate.
@@ -64,7 +66,8 @@ V8_EXPORT_PRIVATE void ClearBreakOnNextFunctionCall(Isolate* isolate);
  * the following format: [<name>, <value>,...,<name>, <value>]. Result array
  * will be allocated in the current context.
  */
-MaybeLocal<Array> GetInternalProperties(Isolate* isolate, Local<Value> value);
+V8_EXPORT_PRIVATE MaybeLocal<Array> GetInternalProperties(Isolate* isolate,
+                                                          Local<Value> value);
 
 /**
  * Returns through the out parameters names_out a vector of names
@@ -86,7 +89,7 @@ V8_EXPORT_PRIVATE bool GetPrivateMembers(Local<Context> context,
  * Forwards to v8::Object::CreationContext, but with special handling for
  * JSGlobalProxy objects.
  */
-MaybeLocal<Context> GetCreationContext(Local<Object> value);
+V8_EXPORT_PRIVATE MaybeLocal<Context> GetCreationContext(Local<Object> value);
 
 enum ExceptionBreakState {
   NoBreakOnException = 0,
@@ -100,10 +103,11 @@ enum ExceptionBreakState {
  * exception, if BreakOnUncaughtException is set then VM will pause only on
  * uncaught exception, otherwise VM won't stop on any exception.
  */
-void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState state);
+V8_EXPORT_PRIVATE void ChangeBreakOnException(Isolate* isolate,
+                                              ExceptionBreakState state);
 
-void RemoveBreakpoint(Isolate* isolate, BreakpointId id);
-void SetBreakPointsActive(Isolate* isolate, bool is_active);
+V8_EXPORT_PRIVATE void RemoveBreakpoint(Isolate* isolate, BreakpointId id);
+V8_EXPORT_PRIVATE void SetBreakPointsActive(Isolate* isolate, bool is_active);
 
 enum StepAction {
   StepOut = 0,   // Step out of the current function.
@@ -112,8 +116,8 @@ enum StepAction {
                  // in the current function.
 };
 
-void PrepareStep(Isolate* isolate, StepAction action);
-void ClearStepping(Isolate* isolate);
+V8_EXPORT_PRIVATE void PrepareStep(Isolate* isolate, StepAction action);
+V8_EXPORT_PRIVATE void ClearStepping(Isolate* isolate);
 V8_EXPORT_PRIVATE void BreakRightNow(Isolate* isolate);
 
 // Use `SetTerminateOnResume` to indicate that an TerminateExecution interrupt
@@ -123,7 +127,7 @@ V8_EXPORT_PRIVATE void BreakRightNow(Isolate* isolate);
 // the isolate to be entered for further JavaScript execution.
 V8_EXPORT_PRIVATE void SetTerminateOnResume(Isolate* isolate);
 
-bool CanBreakProgram(Isolate* isolate);
+V8_EXPORT_PRIVATE bool CanBreakProgram(Isolate* isolate);
 
 class Script;
 
@@ -183,7 +187,7 @@ class V8_EXPORT_PRIVATE Script {
 
 #if V8_ENABLE_WEBASSEMBLY
 // Specialization for wasm Scripts.
-class WasmScript : public Script {
+class V8_EXPORT_PRIVATE WasmScript : public Script {
  public:
   static WasmScript* Cast(Script* script);
 
@@ -207,8 +211,8 @@ class WasmScript : public Script {
 V8_EXPORT_PRIVATE void GetLoadedScripts(Isolate* isolate,
                                         PersistentValueVector<Script>& scripts);
 
-MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
-                                                 Local<String> source);
+V8_EXPORT_PRIVATE MaybeLocal<UnboundScript> CompileInspectorScript(
+    Isolate* isolate, Local<String> source);
 
 enum ExceptionType { kException, kPromiseRejection };
 
@@ -252,16 +256,18 @@ class AsyncEventDelegate {
                                   bool is_blackboxed) = 0;
 };
 
-void SetAsyncEventDelegate(Isolate* isolate, AsyncEventDelegate* delegate);
+V8_EXPORT_PRIVATE void SetAsyncEventDelegate(Isolate* isolate,
+                                             AsyncEventDelegate* delegate);
 
-void ResetBlackboxedStateCache(Isolate* isolate,
-                               v8::Local<debug::Script> script);
+V8_EXPORT_PRIVATE void ResetBlackboxedStateCache(
+    Isolate* isolate, v8::Local<debug::Script> script);
 
-int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
+V8_EXPORT_PRIVATE int EstimatedValueSize(Isolate* isolate,
+                                         v8::Local<v8::Value> value);
 
 enum Builtin { kStringToLowerCase };
 
-Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
+V8_EXPORT_PRIVATE Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
 
 V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
                                           ConsoleDelegate* delegate);
@@ -269,13 +275,13 @@ V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
 V8_DEPRECATED("See http://crbug.com/v8/10566.")
 int GetStackFrameId(v8::Local<v8::StackFrame> frame);
 
-v8::Local<v8::StackTrace> GetDetailedStackTrace(Isolate* isolate,
-                                                v8::Local<v8::Object> error);
+V8_EXPORT_PRIVATE v8::Local<v8::StackTrace> GetDetailedStackTrace(
+    Isolate* isolate, v8::Local<v8::Object> error);
 
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.
  */
-class GeneratorObject {
+class V8_EXPORT_PRIVATE GeneratorObject {
  public:
   v8::MaybeLocal<debug::Script> Script();
   v8::Local<v8::Function> Function();
@@ -498,14 +504,16 @@ class QueryObjectPredicate {
   virtual bool Filter(v8::Local<v8::Object> object) = 0;
 };
 
-void QueryObjects(v8::Local<v8::Context> context,
-                  QueryObjectPredicate* predicate,
-                  v8::PersistentValueVector<v8::Object>* objects);
+V8_EXPORT_PRIVATE void QueryObjects(
+    v8::Local<v8::Context> context, QueryObjectPredicate* predicate,
+    v8::PersistentValueVector<v8::Object>* objects);
 
-void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
-                             v8::PersistentValueVector<v8::String>* names);
+V8_EXPORT_PRIVATE void GlobalLexicalScopeNames(
+    v8::Local<v8::Context> context,
+    v8::PersistentValueVector<v8::String>* names);
 
-void SetReturnValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+V8_EXPORT_PRIVATE void SetReturnValue(v8::Isolate* isolate,
+                                      v8::Local<v8::Value> value);
 
 enum class NativeAccessorType {
   None = 0,
@@ -513,12 +521,12 @@ enum class NativeAccessorType {
   HasSetter = 1 << 1
 };
 
-int64_t GetNextRandomInt64(v8::Isolate* isolate);
+V8_EXPORT_PRIVATE int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
 using RuntimeCallCounterCallback =
     std::function<void(const char* name, int64_t count, base::TimeDelta time)>;
-void EnumerateRuntimeCallCounters(v8::Isolate* isolate,
-                                  RuntimeCallCounterCallback callback);
+V8_EXPORT_PRIVATE void EnumerateRuntimeCallCounters(
+    v8::Isolate* isolate, RuntimeCallCounterCallback callback);
 
 enum class EvaluateGlobalMode {
   kDefault,
@@ -534,14 +542,15 @@ V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
     v8::Isolate* isolate, v8::Local<v8::Script> function,
     v8::debug::EvaluateGlobalMode mode, bool repl);
 
-int GetDebuggingId(v8::Local<v8::Function> function);
+V8_EXPORT_PRIVATE int GetDebuggingId(v8::Local<v8::Function> function);
 
-bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
-                           v8::Local<v8::String> condition, BreakpointId* id);
+V8_EXPORT_PRIVATE bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
+                                             v8::Local<v8::String> condition,
+                                             BreakpointId* id);
 
-v8::Platform* GetCurrentPlatform();
+V8_EXPORT_PRIVATE v8::Platform* GetCurrentPlatform();
 
-void ForceGarbageCollection(
+V8_EXPORT_PRIVATE void ForceGarbageCollection(
     v8::Isolate* isolate,
     v8::EmbedderHeapTracer::EmbedderStackState embedder_stack_state);
 
@@ -554,7 +563,7 @@ class V8_NODISCARD PostponeInterruptsScope {
   std::unique_ptr<i::PostponeInterruptsScope> scope_;
 };
 
-class V8_NODISCARD DisableBreakScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD DisableBreakScope {
  public:
   explicit DisableBreakScope(v8::Isolate* isolate);
   ~DisableBreakScope();
@@ -609,7 +618,7 @@ struct PropertyDescriptor {
   v8::Local<v8::Value> set;
 };
 
-class PropertyIterator {
+class V8_EXPORT_PRIVATE PropertyIterator {
  public:
   // Creating a PropertyIterator can potentially throw an exception.
   // The returned std::unique_ptr is empty iff that happens.
@@ -661,7 +670,8 @@ AccessorPair* AccessorPair::Cast(v8::Value* value) {
   return static_cast<AccessorPair*>(value);
 }
 
-MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
+V8_EXPORT_PRIVATE MaybeLocal<Message> GetMessageFromPromise(
+    Local<Promise> promise);
 
 }  // namespace debug
 }  // namespace v8

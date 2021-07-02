@@ -127,7 +127,7 @@ V8_EXPORT_PRIVATE const char* IntToCString(int n, base::Vector<char> buffer);
 // The caller is responsible for calling free on the returned pointer.
 char* DoubleToFixedCString(double value, int f);
 char* DoubleToExponentialCString(double value, int f);
-char* DoubleToPrecisionCString(double value, int f);
+V8_EXPORT_PRIVATE char* DoubleToPrecisionCString(double value, int f);
 char* DoubleToRadixCString(double value, int radix);
 
 static inline bool IsMinusZero(double value) {

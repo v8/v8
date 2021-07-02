@@ -61,6 +61,7 @@ v8_header_set("cctest_headers") {
     "../..:v8_internal_headers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
+    "../../src/inspector:inspector",
   ]
 
   sources = [ "cctest.h" ]
@@ -469,6 +470,7 @@ v8_source_set("cctest_sources") {
   deps = [
     "../..:run_torque",
     "../..:v8_shared_internal_headers",
+    "../../src/inspector:inspector",
   ]
 
   if (v8_enable_i18n_support) {

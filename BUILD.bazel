@@ -716,8 +716,6 @@ filegroup(
         ":generated_bytecode_builtins_list",
         "base/trace_event/common/trace_event_common.h",
         "include/cppgc/common.h",
-        "include/v8-inspector-protocol.h",
-        "include/v8-inspector.h",
         "include/v8-metrics.h",
         "include/v8-unwinder-state.h",
         "include/v8-wasm-trap-handler-posix.h",
@@ -2541,6 +2539,8 @@ filegroup(
 filegroup(
     name = "v8_inspector_files",
     srcs = [
+        "include/v8-inspector-protocol.h",
+        "include/v8-inspector.h",
         "src/inspector/custom-preview.cc",
         "src/inspector/custom-preview.h",
         "src/inspector/injected-script.cc",

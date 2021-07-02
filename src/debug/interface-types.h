@@ -94,7 +94,8 @@ class V8_EXPORT_PRIVATE BreakLocation : public Location {
   BreakLocationType type_;
 };
 
-class ConsoleCallArguments : private v8::FunctionCallbackInfo<v8::Value> {
+class V8_EXPORT_PRIVATE ConsoleCallArguments
+    : private v8::FunctionCallbackInfo<v8::Value> {
  public:
   int Length() const { return v8::FunctionCallbackInfo<v8::Value>::Length(); }
   V8_INLINE Local<Value> operator[](int i) const {

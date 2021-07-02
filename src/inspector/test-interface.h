@@ -11,8 +11,10 @@ namespace v8_inspector {
 
 class V8Inspector;
 
-V8_EXPORT void SetMaxAsyncTaskStacksForTest(V8Inspector* inspector, int limit);
-V8_EXPORT void DumpAsyncTaskStacksStateForTest(V8Inspector* inspector);
+V8_INSPECTOR_EXPORT void SetMaxAsyncTaskStacksForTest(V8Inspector* inspector,
+                                                      int limit);
+V8_INSPECTOR_EXPORT void DumpAsyncTaskStacksStateForTest(
+    V8Inspector* inspector);
 
 }  // namespace v8_inspector
 
