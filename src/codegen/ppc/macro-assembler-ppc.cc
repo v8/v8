@@ -3313,6 +3313,10 @@ void TurboAssembler::ZeroExtWord32(Register dst, Register src) {
 void TurboAssembler::Trap() { stop(); }
 void TurboAssembler::DebugBreak() { stop(); }
 
+void TurboAssembler::Popcnt32(Register dst, Register src) { popcntw(dst, src); }
+
+void TurboAssembler::Popcnt64(Register dst, Register src) { popcntd(dst, src); }
+
 }  // namespace internal
 }  // namespace v8
 

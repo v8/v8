@@ -845,16 +845,34 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #undef UNIMPLEMENTED_I32_SHIFTOP
 #undef UNIMPLEMENTED_I64_SHIFTOP
 
-bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "i32_popcnt");
-  return true;
-}
+#define SIGN_EXT(r) lgfr(r, r)
+#define INT32_AND_WITH_1F(x) Operand(x & 0x1f)
+#define REGISTER_AND_WITH_1F    \
+  ([&](Register rhs) {          \
+    andi(r0, rhs, Operand(31)); \
+    return r0;                  \
+  })
 
-bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
-                                       LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "i64_popcnt");
-  return true;
-}
+#define LFR_TO_REG(reg) reg.gp()
+
+// V(name, instr, dtype, stype, dcast, scast, rcast, return_val, return_type)
+#define UNOP_LIST(V)                                                    \
+  V(i32_popcnt, Popcnt32, Register, Register, , , USE, true, bool)      \
+  V(i64_popcnt, Popcnt64, LiftoffRegister, LiftoffRegister, LFR_TO_REG, \
+    LFR_TO_REG, USE, true, bool)
+
+#define EMIT_UNOP_FUNCTION(name, instr, dtype, stype, dcast, scast, rcast, \
+                           ret, return_type)                               \
+  return_type LiftoffAssembler::emit_##name(dtype dst, stype src) {        \
+    auto _dst = dcast(dst);                                                \
+    auto _src = scast(src);                                                \
+    instr(_dst, _src);                                                     \
+    rcast(_dst);                                                           \
+    return ret;                                                            \
+  }
+UNOP_LIST(EMIT_UNOP_FUNCTION)
+#undef EMIT_UNOP_FUNCTION
+#undef UNOP_LIST
 
 void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
                                      int64_t imm) {

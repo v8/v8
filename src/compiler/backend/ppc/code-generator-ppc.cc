@@ -1730,12 +1730,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kPPC_Popcnt32:
-      __ popcntw(i.OutputRegister(), i.InputRegister(0));
+      __ Popcnt32(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_Popcnt64:
-      __ popcntd(i.OutputRegister(), i.InputRegister(0));
+      __ Popcnt64(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
 #endif
