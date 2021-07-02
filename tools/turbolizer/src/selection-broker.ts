@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import { SourceResolver, sourcePositionValid } from "../src/source-resolver";
-import { ClearableHandler, SelectionHandler, NodeSelectionHandler, BlockSelectionHandler, InstructionSelectionHandler } from "../src/selection-handler";
+import { ClearableHandler, SelectionHandler, NodeSelectionHandler, BlockSelectionHandler, InstructionSelectionHandler, RegisterAllocationSelectionHandler } from "../src/selection-handler";
 
 export class SelectionBroker {
   sourceResolver: SourceResolver;
@@ -12,6 +12,7 @@ export class SelectionBroker {
   nodeHandlers: Array<NodeSelectionHandler>;
   blockHandlers: Array<BlockSelectionHandler>;
   instructionHandlers: Array<InstructionSelectionHandler>;
+  registerAllocationHandlers: Array<RegisterAllocationSelectionHandler>;
 
   constructor(sourceResolver) {
     this.allHandlers = [];
@@ -19,6 +20,7 @@ export class SelectionBroker {
     this.nodeHandlers = [];
     this.blockHandlers = [];
     this.instructionHandlers = [];
+    this.registerAllocationHandlers = [];
     this.sourceResolver = sourceResolver;
   }
 
@@ -42,7 +44,13 @@ export class SelectionBroker {
     this.instructionHandlers.push(handler);
   }
 
+  addRegisterAllocatorHandler(handler: RegisterAllocationSelectionHandler & ClearableHandler) {
+    this.allHandlers.push(handler);
+    this.registerAllocationHandlers.push(handler);
+  }
+
   broadcastInstructionSelect(from, instructionOffsets, selected) {
+    // Select the lines from the disassembly (right panel)
     for (const b of this.instructionHandlers) {
       if (b != from) b.brokeredInstructionSelect(instructionOffsets, selected);
     }
