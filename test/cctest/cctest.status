@@ -773,6 +773,8 @@
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
   'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2': [SKIP],
 }],  # no_simd_hardware == True
 
 ################################################################################

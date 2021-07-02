@@ -40,6 +40,36 @@ TEST(NondeterminismUnopF64) {
   CHECK(r.HasNondeterminism());
 }
 
+TEST(NondeterminismUnopF32x4) {
+  WasmRunner<int32_t, float> r(TestExecutionTier::kLiftoffForFuzzing);
+
+  byte value = 0;
+  BUILD(r,
+        WASM_SIMD_UNOP(kExprF32x4Ceil,
+                       WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value))),
+        kExprDrop, WASM_ONE);
+  CHECK(!r.HasNondeterminism());
+  r.CheckCallViaJS(1, 0.0);
+  CHECK(!r.HasNondeterminism());
+  r.CheckCallViaJS(1, std::nanf(""));
+  CHECK(r.HasNondeterminism());
+}
+
+TEST(NondeterminismUnopF64x2) {
+  WasmRunner<int32_t, double> r(TestExecutionTier::kLiftoffForFuzzing);
+
+  byte value = 0;
+  BUILD(r,
+        WASM_SIMD_UNOP(kExprF64x2Ceil,
+                       WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value))),
+        kExprDrop, WASM_ONE);
+  CHECK(!r.HasNondeterminism());
+  r.CheckCallViaJS(1, 0.0);
+  CHECK(!r.HasNondeterminism());
+  r.CheckCallViaJS(1, std::nan(""));
+  CHECK(r.HasNondeterminism());
+}
+
 TEST(NondeterminismBinop) {
   WasmRunner<float> r(TestExecutionTier::kLiftoffForFuzzing);
 

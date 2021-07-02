@@ -264,8 +264,8 @@ class TestingModuleBuilder {
 
   void set_max_steps(int n) { max_steps_ = n; }
   int* max_steps_ptr() { return &max_steps_; }
-  bool nondeterminism() { return nondeterminism_; }
-  bool* non_determinism_ptr() { return &nondeterminism_; }
+  int32_t nondeterminism() { return nondeterminism_; }
+  int32_t* non_determinism_ptr() { return &nondeterminism_; }
 
   void EnableFeature(WasmFeature feature) { enabled_features_.Add(feature); }
 
@@ -282,8 +282,8 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
   RuntimeExceptionSupport runtime_exception_support_;
-  int max_steps_ = kMaxNumSteps;
-  bool nondeterminism_ = false;
+  int32_t max_steps_ = kMaxNumSteps;
+  int32_t nondeterminism_ = 0;
 
   // Data segment arrays that are normally allocated on the instance.
   std::vector<byte> data_segment_data_;

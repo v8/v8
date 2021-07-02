@@ -4822,6 +4822,22 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
   bind(&ret);
 }
 
+void LiftoffAssembler::emit_s128_set_if_nan(Register dst, DoubleRegister src,
+                                            Register tmp_gp,
+                                            DoubleRegister tmp_fp,
+                                            ValueKind lane_kind) {
+  if (lane_kind == kF32) {
+    movaps(tmp_fp, src);
+    cmpunordps(tmp_fp, tmp_fp);
+  } else {
+    DCHECK_EQ(lane_kind, kF64);
+    movapd(tmp_fp, src);
+    cmpunordpd(tmp_fp, tmp_fp);
+  }
+  pmovmskb(tmp_gp, tmp_fp);
+  or_(Operand(dst, 0), tmp_gp);
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();

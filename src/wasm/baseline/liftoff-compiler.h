@@ -58,7 +58,7 @@ V8_EXPORT_PRIVATE WasmCompilationResult ExecuteLiftoffCompilation(
     Counters*, WasmFeatures* detected_features,
     base::Vector<const int> breakpoints = {},
     std::unique_ptr<DebugSideTable>* = nullptr, int dead_breakpoint = 0,
-    int* max_steps = nullptr, bool* nondeterminism = nullptr);
+    int32_t* max_steps = nullptr, int32_t* nondeterminism = nullptr);
 
 V8_EXPORT_PRIVATE std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
     const WasmCode*);
