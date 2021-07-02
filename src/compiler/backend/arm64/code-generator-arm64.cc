@@ -3397,13 +3397,14 @@ void CodeGenerator::PrepareForDeoptimizationExits(
         __ bind(&jump_deoptimization_or_resume_entry_labels_[j]);
         __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptWithResumeBuiltin(reason),
                                 scratch);
+        __ Jump(scratch);
       }
     } else {
       __ bind(&jump_deoptimization_entry_labels_[i]);
       __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptimizationEntry(kind),
                               scratch);
+      __ Jump(scratch);
     }
-    __ Jump(scratch);
   }
 }
 
