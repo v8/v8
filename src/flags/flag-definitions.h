@@ -647,6 +647,9 @@ DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 #endif
 DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
+DEFINE_BOOL(sparkplug_needs_short_builtins, false,
+            "only enable Sparkplug baseline compiler when "
+            "--short-builtin-calls are also enabled")
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
 
 #undef FLAG

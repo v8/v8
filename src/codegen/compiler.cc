@@ -642,26 +642,6 @@ void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
   shared_info.SetScopeInfo(*literal->scope()->scope_info());
 }
 
-bool CanCompileWithBaseline(Isolate* isolate,
-                            Handle<SharedFunctionInfo> shared) {
-  // Check if we actually have bytecode.
-  if (!shared->HasBytecodeArray()) return false;
-
-  // Do not optimize when debugger needs to hook into every call.
-  if (isolate->debug()->needs_check_on_function_call()) return false;
-
-  // Functions with breakpoints have to stay interpreted.
-  if (shared->HasBreakInfo()) return false;
-
-  // Do not baseline compile if sparkplug is disabled or function doesn't pass
-  // sparkplug_filter.
-  if (!FLAG_sparkplug || !shared->PassesFilter(FLAG_sparkplug_filter)) {
-    return false;
-  }
-
-  return true;
-}
-
 bool CompileSharedWithBaseline(Isolate* isolate,
                                Handle<SharedFunctionInfo> shared,
                                Compiler::ClearExceptionFlag flag,
@@ -673,7 +653,7 @@ bool CompileSharedWithBaseline(Isolate* isolate,
   if (shared->HasBaselineData()) return true;
 
   // Check if we actually can compile with baseline.
-  if (!CanCompileWithBaseline(isolate, shared)) return false;
+  if (!CanCompileWithBaseline(isolate, *shared)) return false;
 
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
@@ -1381,7 +1361,7 @@ void CompileAllWithBaseline(Isolate* isolate,
     Handle<SharedFunctionInfo> shared_info = finalize_data.function_handle();
     IsCompiledScope is_compiled_scope(*shared_info, isolate);
     if (!is_compiled_scope.is_compiled()) continue;
-    if (!CanCompileWithBaseline(isolate, shared_info)) continue;
+    if (!CanCompileWithBaseline(isolate, *shared_info)) continue;
     CompileSharedWithBaseline(isolate, shared_info, Compiler::CLEAR_EXCEPTION,
                               &is_compiled_scope);
   }
