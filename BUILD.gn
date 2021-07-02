@@ -3207,6 +3207,12 @@ v8_header_set("v8_internal_headers") {
     ]
   }
 
+  if (!v8_enable_third_party_heap) {
+    sources += filter_include(v8_third_party_heap_files, [ "*.h" ])
+  } else {
+    sources += [ "src/heap/third-party/heap-api.h" ]
+  }
+
   if (v8_enable_i18n_support) {
     sources += [
       "src/objects/intl-objects.h",
@@ -4138,12 +4144,9 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (v8_enable_third_party_heap) {
-    sources += v8_third_party_heap_files
+    sources += filter_exclude(v8_third_party_heap_files, [ "*.h" ])
   } else {
-    sources += [
-      "src/heap/third-party/heap-api-stub.cc",
-      "src/heap/third-party/heap-api.h",
-    ]
+    sources += [ "src/heap/third-party/heap-api-stub.cc" ]
   }
 
   if (v8_enable_conservative_stack_scanning) {
