@@ -1001,9 +1001,12 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   }
 
   using TransitionGroup = ElementAccessFeedback::TransitionGroup;
-  ZoneUnorderedMap<Handle<Map>, TransitionGroup, Handle<Map>::hash,
-                   Handle<Map>::equal_to>
-      transition_groups(zone());
+  struct HandleLess {
+    bool operator()(Handle<Map> x, Handle<Map> y) const {
+      return x.address() < y.address();
+    }
+  };
+  ZoneMap<Handle<Map>, TransitionGroup, HandleLess> transition_groups(zone());
 
   // Separate the actual receiver maps and the possible transition sources.
   for (Handle<Map> map : maps) {
