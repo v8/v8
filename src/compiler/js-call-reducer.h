@@ -265,6 +265,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   CompilationDependencies* const dependencies_;
   std::set<Node*> waitlist_;
 
+  // For preventing infinite recursion via ReduceJSCallWithArrayLikeOrSpread.
+  std::unordered_set<Node*> generated_calls_with_array_like_or_spread_;
+
   bool has_wasm_calls_ = false;
 };
 

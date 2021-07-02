@@ -1375,10 +1375,20 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
 };
 
 template <int kOpcode>
+bool IsExpectedOpcode(int opcode) {
+  return opcode == kOpcode;
+}
+
+template <int kOpcode1, int kOpcode2, int... kOpcodes>
+bool IsExpectedOpcode(int opcode) {
+  return opcode == kOpcode1 || IsExpectedOpcode<kOpcode2, kOpcodes...>(opcode);
+}
+
+template <int... kOpcodes>
 class JSCallNodeBase final : public JSCallOrConstructNode {
  public:
   explicit constexpr JSCallNodeBase(Node* node) : JSCallOrConstructNode(node) {
-    DCHECK_EQ(kOpcode, node->opcode());
+    DCHECK(IsExpectedOpcode<kOpcodes...>(node->opcode()));
   }
 
   const CallParameters& Parameters() const {
@@ -1405,6 +1415,8 @@ class JSCallNodeBase final : public JSCallOrConstructNode {
 using JSCallNode = JSCallNodeBase<IrOpcode::kJSCall>;
 using JSCallWithSpreadNode = JSCallNodeBase<IrOpcode::kJSCallWithSpread>;
 using JSCallWithArrayLikeNode = JSCallNodeBase<IrOpcode::kJSCallWithArrayLike>;
+using JSCallWithArrayLikeOrSpreadNode =
+    JSCallNodeBase<IrOpcode::kJSCallWithArrayLike, IrOpcode::kJSCallWithSpread>;
 
 #if V8_ENABLE_WEBASSEMBLY
 class JSWasmCallNode final : public JSCallOrConstructNode {

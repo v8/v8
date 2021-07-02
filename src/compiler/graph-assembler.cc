@@ -601,6 +601,12 @@ TNode<Boolean> JSGraphAssembler::ReferenceEqual(TNode<Object> lhs,
       graph()->NewNode(simplified()->ReferenceEqual(), lhs, rhs));
 }
 
+TNode<Boolean> JSGraphAssembler::NumberEqual(TNode<Number> lhs,
+                                             TNode<Number> rhs) {
+  return AddNode<Boolean>(
+      graph()->NewNode(simplified()->NumberEqual(), lhs, rhs));
+}
+
 TNode<Number> JSGraphAssembler::NumberMin(TNode<Number> lhs,
                                           TNode<Number> rhs) {
   return AddNode<Number>(graph()->NewNode(simplified()->NumberMin(), lhs, rhs));

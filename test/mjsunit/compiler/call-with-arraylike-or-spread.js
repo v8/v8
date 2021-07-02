@@ -178,29 +178,27 @@
     got_interpreted = %IsBeingInterpreted();
     return 42 + arguments.length;
   }
+
+  var len = 2;
   function foo() {
-    let v = [];
-    v.push(42);
-    let result = fortytwo.apply(null, v);
+    let args = []
+    for (var i = 0; i < len; i++) { args.push(1); }
+    let result = fortytwo.apply(null, args);
     return result;
   }
 
   %PrepareFunctionForOptimization(fortytwo);
   %PrepareFunctionForOptimization(foo);
-  assertEquals(43, foo(1));
+  assertEquals(44, foo());
   %OptimizeFunctionOnNextCall(foo);
   assertTrue(got_interpreted);
-  assertEquals(43, foo(1));
+  assertEquals(44, foo());
   assertTrue(got_interpreted);
-  assertUnoptimized(foo);
+  assertOptimized(foo);
 
-  // Call again, verifies that it stays optimized, but the call is not inlined.
-  %PrepareFunctionForOptimization(foo);
-  assertEquals(43, foo(1));
-  %OptimizeFunctionOnNextCall(foo);
-  assertTrue(got_interpreted);
-  assertEquals(43, foo(1));
-  assertTrue(got_interpreted);
+  len = 0;
+  assertEquals(42, foo());
+  assertFalse(got_interpreted);
   assertOptimized(foo);
 })();
 
@@ -223,6 +221,60 @@
   assertTrue(sum_js_got_interpreted);
   assertEquals('abc', foo('a', 'b', 'c'));
   assertFalse(sum_js_got_interpreted);
+  assertOptimized(foo);
+})();
+
+// Test Reflect.apply() with empty array.
+(function () {
+  "use strict";
+  var got_interpreted = true;
+  function fortytwo() {
+    got_interpreted = %IsBeingInterpreted();
+    return 42;
+  }
+  function foo() {
+    return Reflect.apply(fortytwo, null, []);
+  }
+
+  %PrepareFunctionForOptimization(fortytwo);
+  %PrepareFunctionForOptimization(foo);
+  assertEquals(42, foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(got_interpreted);
+  assertEquals(42, foo());
+  assertFalse(got_interpreted);
+  assertOptimized(foo);
+})();
+
+// Test Reflect.apply() with empty array that changes size.
+(function () {
+  "use strict";
+  var got_interpreted = true;
+  function fortytwo() {
+    got_interpreted = %IsBeingInterpreted();
+    return 42 + arguments.length;
+  }
+
+  var len = 2;
+  function foo() {
+    let args = []
+    for (var i = 0; i < len; i++) { args.push(1); }
+    let result = Reflect.apply(fortytwo, null, args);
+    return result;
+  }
+
+  %PrepareFunctionForOptimization(fortytwo);
+  %PrepareFunctionForOptimization(foo);
+  assertEquals(44, foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(got_interpreted);
+  assertEquals(44, foo());
+  assertTrue(got_interpreted);
+  assertOptimized(foo);
+
+  len = 0;
+  assertEquals(42, foo());
+  assertFalse(got_interpreted);
   assertOptimized(foo);
 })();
 
@@ -272,6 +324,37 @@
   assertOptimized(foo);
 })();
 
+// Test spread call with empty array that changes size.
+(function () {
+  "use strict";
+  var max_got_interpreted = true;
+  function max() {
+    max_got_interpreted = %IsBeingInterpreted();
+    return Math.max(...arguments);
+  }
+
+  var len = 2;
+  function foo(x, y, z) {
+    let args = [];
+    for (var i = 0; i < len; i++) { args.push(4 + i); }
+    return max(x, y, z, ...args);
+  }
+
+  %PrepareFunctionForOptimization(max);
+  %PrepareFunctionForOptimization(foo);
+  assertEquals(5, foo(1, 2, 3));
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(max_got_interpreted);
+  assertEquals(5, foo(1, 2, 3));
+  assertTrue(max_got_interpreted);
+  assertOptimized(foo);
+
+  len = 0;
+  assertEquals(3, foo(1, 2, 3));
+  assertFalse(max_got_interpreted);
+  assertOptimized(foo);
+})();
+
 // Test spread call with more args.
 (function () {
   "use strict";
@@ -294,6 +377,82 @@
   assertEquals('abccba', foo('a', 'b', 'c'));
   assertFalse(sum_js_got_interpreted);
   assertOptimized(foo);
+})();
+
+// Test on speculative optimization of introduced JSCall (array_size != 0).
+(function () {
+  "use strict";
+  var F = Math.max;
+  var len;
+  function foo(x, y, z) {
+    var args = [z];
+    for (var i = 0; i < len; i++) { args.push(0); }
+    return F(x, y, ...args);
+  }
+  function foo1(x, y, z) {
+    var args = [z];
+    for (var i = 0; i < len; i++) { args.push(0); }
+    return F(x, y, ...args);
+  }
+
+  // Optimize JSCallWithSpread and Math.max
+  len = 0;
+  %PrepareFunctionForOptimization(foo);
+  assertEquals(3, foo(1, 2, 3));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(3, foo(1, 2, 3));
+  assertOptimized(foo);
+  // Deoptimize when input of Math.max is not number
+  foo('a', 'b', 3);
+  assertUnoptimized(foo);
+
+  // Optimize JSCallWithSpread and Math.max
+  len = 2;
+  %PrepareFunctionForOptimization(foo1);
+  assertEquals(3, foo1(1, 2, 3));
+  %OptimizeFunctionOnNextCall(foo1);
+  assertEquals(3, foo1(1, 2, 3));
+  //Deoptimize when array length changes
+  assertUnoptimized(foo1);
+})();
+
+// Test on speculative optimization of introduced JSCall (array_size == 0).
+(function () {
+  "use strict";
+  var F = Math.max;
+  var len;
+  function foo(x, y, z) {
+    var args = [];
+    for (var i = 0; i < len; i++) { args.push(z); }
+    return F(x, y, ...args);
+  }
+  function foo1(x, y, z) {
+    var args = [];
+    for (var i = 0; i < len; i++) { args.push(z); }
+    return F(x, y, ...args);
+  }
+
+  // Optimize JSCallWithSpread and Math.max
+  len = 0;
+  %PrepareFunctionForOptimization(foo);
+  assertEquals(2, foo(1, 2, 3));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(2, foo(1, 2, 3));
+  assertOptimized(foo);
+  // Deoptimzie when input of Math.max is not number
+  foo('a', 'b', 3);
+  assertUnoptimized(foo);
+
+  // Optimize JSCallWithSpread and Math.max
+  len = 2;
+  %PrepareFunctionForOptimization(foo1);
+  assertEquals(3, foo1(1, 2, 3));
+  %OptimizeFunctionOnNextCall(foo1);
+  assertEquals(3, foo1(1, 2, 3));
+  assertOptimized(foo1);
+  // No Deoptimization when array length changes
+  foo(1, 2, 3);
+  assertUnoptimized(foo);
 })();
 
 // Test apply on JSCreateClosure.
