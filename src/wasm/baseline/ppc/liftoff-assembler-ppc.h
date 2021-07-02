@@ -656,7 +656,30 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
-  bailout(kUnsupportedArchitecture, "Fill");
+  switch (kind) {
+    case kI32:
+      LoadS32(reg.gp(), liftoff::GetStackSlot(offset + stack_bias), r0);
+      break;
+    case kI64:
+    case kRef:
+    case kOptRef:
+    case kRtt:
+    case kRttWithDepth:
+      LoadU64(reg.gp(), liftoff::GetStackSlot(offset), r0);
+      break;
+    case kF32:
+      LoadF32(reg.fp(), liftoff::GetStackSlot(offset + stack_bias), r0);
+      break;
+    case kF64:
+      LoadF64(reg.fp(), liftoff::GetStackSlot(offset), r0);
+      break;
+    case kS128: {
+      bailout(kSimd, "simd op");
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
