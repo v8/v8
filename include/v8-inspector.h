@@ -35,7 +35,7 @@ class Domain;
 }
 }  // namespace protocol
 
-class V8_INSPECTOR_EXPORT StringView {
+class V8_EXPORT StringView {
  public:
   StringView() : m_is8Bit(true), m_length(0), m_characters8(nullptr) {}
 
@@ -62,7 +62,7 @@ class V8_INSPECTOR_EXPORT StringView {
   };
 };
 
-class V8_INSPECTOR_EXPORT StringBuffer {
+class V8_EXPORT StringBuffer {
  public:
   virtual ~StringBuffer() = default;
   virtual StringView string() const = 0;
@@ -70,7 +70,7 @@ class V8_INSPECTOR_EXPORT StringBuffer {
   static std::unique_ptr<StringBuffer> create(StringView);
 };
 
-class V8_INSPECTOR_EXPORT V8ContextInfo {
+class V8_EXPORT V8ContextInfo {
  public:
   V8ContextInfo(v8::Local<v8::Context> context, int contextGroupId,
                 StringView humanReadableName)
@@ -98,7 +98,7 @@ class V8_INSPECTOR_EXPORT V8ContextInfo {
   V8ContextInfo& operator=(const V8ContextInfo&) = delete;
 };
 
-class V8_INSPECTOR_EXPORT V8StackTrace {
+class V8_EXPORT V8StackTrace {
  public:
   virtual StringView firstNonEmptySourceURL() const = 0;
   virtual bool isEmpty() const = 0;
@@ -121,17 +121,17 @@ class V8_INSPECTOR_EXPORT V8StackTrace {
   virtual std::unique_ptr<V8StackTrace> clone() = 0;
 };
 
-class V8_INSPECTOR_EXPORT V8InspectorSession {
+class V8_EXPORT V8InspectorSession {
  public:
   virtual ~V8InspectorSession() = default;
 
   // Cross-context inspectable values (DOM nodes in different worlds, etc.).
-  class V8_INSPECTOR_EXPORT Inspectable {
+  class V8_EXPORT Inspectable {
    public:
     virtual v8::Local<v8::Value> get(v8::Local<v8::Context>) = 0;
     virtual ~Inspectable() = default;
   };
-  class V8_INSPECTOR_EXPORT CommandLineAPIScope {
+  class V8_EXPORT CommandLineAPIScope {
    public:
     virtual ~CommandLineAPIScope() = default;
   };
@@ -173,7 +173,7 @@ class V8_INSPECTOR_EXPORT V8InspectorSession {
   virtual void triggerPreciseCoverageDeltaUpdate(StringView occasion) = 0;
 };
 
-class V8_INSPECTOR_EXPORT V8InspectorClient {
+class V8_EXPORT V8InspectorClient {
  public:
   virtual ~V8InspectorClient() = default;
 
@@ -246,7 +246,7 @@ class V8_INSPECTOR_EXPORT V8InspectorClient {
 // These stack trace ids are intended to be passed between debuggers and be
 // resolved later. This allows to track cross-debugger calls and step between
 // them if a single client connects to multiple debuggers.
-struct V8_INSPECTOR_EXPORT V8StackTraceId {
+struct V8_EXPORT V8StackTraceId {
   uintptr_t id;
   std::pair<int64_t, int64_t> debugger_id;
   bool should_pause = false;
@@ -265,7 +265,7 @@ struct V8_INSPECTOR_EXPORT V8StackTraceId {
   std::unique_ptr<StringBuffer> ToString();
 };
 
-class V8_INSPECTOR_EXPORT V8Inspector {
+class V8_EXPORT V8Inspector {
  public:
   static std::unique_ptr<V8Inspector> create(v8::Isolate*, V8InspectorClient*);
   virtual ~V8Inspector() = default;
@@ -307,7 +307,7 @@ class V8_INSPECTOR_EXPORT V8Inspector {
                                       v8::Local<v8::Value> value) = 0;
 
   // Connection.
-  class V8_INSPECTOR_EXPORT Channel {
+  class V8_EXPORT Channel {
    public:
     virtual ~Channel() = default;
     virtual void sendResponse(int callId,
@@ -325,8 +325,7 @@ class V8_INSPECTOR_EXPORT V8Inspector {
   virtual std::unique_ptr<V8StackTrace> captureStackTrace(bool fullStack) = 0;
 
   // Performance counters.
-  class V8_INSPECTOR_EXPORT Counters
-      : public std::enable_shared_from_this<Counters> {
+  class V8_EXPORT Counters : public std::enable_shared_from_this<Counters> {
    public:
     explicit Counters(v8::Isolate* isolate);
     ~Counters();

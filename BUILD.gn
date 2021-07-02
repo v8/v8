@@ -2385,6 +2385,8 @@ v8_header_set("v8_internal_headers") {
     "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
     "//base/trace_event/common/trace_event_common.h",
     "include/cppgc/common.h",
+    "include/v8-inspector-protocol.h",
+    "include/v8-inspector.h",
     "include/v8-metrics.h",
     "include/v8-unwinder-state.h",
     "include/v8-wasm-trap-handler-posix.h",
@@ -4403,6 +4405,7 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_shared_internal_headers",
     ":v8_tracing",
     ":v8_version",
+    "src/inspector:inspector",
   ]
 
   public_deps = [
@@ -5199,13 +5202,7 @@ if (v8_check_header_includes) {
   # if the "check_v8_header_includes" gclient variable is set.
   import("check-header-includes/sources.gni")
   v8_source_set("check_headers") {
-    # Doesn't include internal_config as that would bring in the
-    # BUILDING_V8_SHARED defines which breaks builds due to the dependency on
-    # inspector which brings in the USING_V8_SHARED define.
-    configs = [
-      ":internal_config_base",
-      ":v8_header_features",
-    ]
+    configs = [ ":internal_config" ]
     sources = check_header_includes_sources
 
     # Any rules that contain headers files should be added here either directly
@@ -5562,20 +5559,9 @@ group("v8_fuzzers") {
 }
 
 if (is_component_build) {
-  # TODO(v8:11917) Remove this redirect to v8_lib (and rename that to v8), when
-  # chromium depends on inspector directly.
   v8_component("v8") {
     sources = [ "src/utils/v8dll-main.cc" ]
 
-    public_deps = [
-      ":v8_lib",
-      "src/inspector:inspector",
-    ]
-    configs = []
-    public_configs = [ ":external_config" ]
-  }
-
-  v8_component("v8_lib") {
     public_deps = [
       ":v8_base",
       ":v8_snapshot",
@@ -5640,16 +5626,7 @@ if (is_component_build) {
     public_configs = [ ":external_config" ]
   }
 } else {
-  # TODO(v8:11917) Remove this redirect to v8_lib (and rename that to v8), when
-  # chromium depends on inspector directly.
   group("v8") {
-    public_deps = [
-      ":v8_lib",
-      "src/inspector:inspector",
-    ]
-  }
-
-  group("v8_lib") {
     public_deps = [
       ":v8_base",
       ":v8_snapshot",
@@ -5739,7 +5716,6 @@ v8_executable("d8") {
     ":v8_libbase",
     ":v8_libplatform",
     ":v8_tracing",
-    "src/inspector:inspector",
     "//build/win:default_exe_manifest",
   ]
 

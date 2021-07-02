@@ -18,6 +18,8 @@ script_executable = "python3"
 no_check_targets = [
   "//:cppgc_base",
   "//:v8_internal_headers",
+  "//src/inspector:inspector",
+  "//test/cctest:cctest_sources",
   "//third_party/icu:*",
 ]
 

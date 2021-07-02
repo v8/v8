@@ -27,8 +27,8 @@ class String16 {
   String16(const String16&) V8_NOEXCEPT = default;
   String16(String16&&) V8_NOEXCEPT = default;
   String16(const UChar* characters, size_t size);
-  V8_INSPECTOR_EXPORT String16(const UChar* characters);
-  V8_INSPECTOR_EXPORT String16(const char* characters);
+  V8_EXPORT String16(const UChar* characters);
+  V8_EXPORT String16(const char* characters);
   String16(const char* characters, size_t size);
   explicit String16(const std::basic_string<UChar>& impl);
   explicit String16(std::basic_string<UChar>&& impl);
@@ -70,14 +70,13 @@ class String16 {
   }
 
   // Convenience methods.
-  V8_INSPECTOR_EXPORT std::string utf8() const;
-  V8_INSPECTOR_EXPORT static String16 fromUTF8(const char* stringStart,
-                                               size_t length);
+  V8_EXPORT std::string utf8() const;
+  V8_EXPORT static String16 fromUTF8(const char* stringStart, size_t length);
 
   // Instantiates a String16 in native endianness from UTF16 LE.
   // On Big endian architectures, byte order needs to be flipped.
-  V8_INSPECTOR_EXPORT static String16 fromUTF16LE(const UChar* stringStart,
-                                                  size_t length);
+  V8_EXPORT static String16 fromUTF16LE(const UChar* stringStart,
+                                        size_t length);
 
   std::size_t hash() const {
     if (!hash_code) {

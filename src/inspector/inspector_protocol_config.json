@@ -38,7 +38,7 @@
         "string_in": "StringView",
         "string_out": "std::unique_ptr<StringBuffer>",
         "to_string_out": "StringBufferFrom(std::move(%s))",
-        "export_macro": "V8_INSPECTOR_EXPORT"
+        "export_macro": "V8_EXPORT"
     },
 
     "lib": {

@@ -508,37 +508,6 @@ V8 shared library set USING_V8_SHARED.
 
 #endif  // V8_OS_WIN
 
-#ifdef V8_OS_WIN
-
-// Setup for Windows DLL export/import. When building the V8 DLL the
-// BUILDING_V8_INSPECTOR_SHARED needs to be defined. When building a program
-// which uses the inspector DLL USING_V8_INSPECTOR_SHARED needs to be defined.
-// When either building the V8 static library or building a program which uses
-// the inspector static library neither BUILDING_V8_INSPECTOR_SHARED nor
-// USING_V8_INSPECTOR_SHARED should be defined.
-#ifdef BUILDING_V8_INSPECTOR_SHARED
-# define V8_INSPECTOR_EXPORT __declspec(dllexport)
-#elif USING_V8_INSPECTOR_SHARED
-# define V8_INSPECTOR_EXPORT __declspec(dllimport)
-#else
-# define V8_INSPECTOR_EXPORT
-#endif  // BUILDING_V8_INSPECTOR_SHARED
-
-#else  // V8_OS_WIN
-
-// Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY
-# ifdef BUILDING_V8_INSPECTOR_SHARED
-#  define V8_INSPECTOR_EXPORT __attribute__ ((visibility("default")))
-# else
-#  define V8_INSPECTOR_EXPORT
-# endif
-#else
-# define V8_INSPECTOR_EXPORT
-#endif
-
-#endif  // V8_OS_WIN
-
 // clang-format on
 
 #undef V8_HAS_CPP_ATTRIBUTE
