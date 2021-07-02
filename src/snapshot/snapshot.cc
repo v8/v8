@@ -154,7 +154,9 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   SnapshotImpl::CheckVersion(blob);
-  CHECK(VerifyChecksum(blob));
+  if (!FLAG_skip_snapshot_checksum) {
+    CHECK(VerifyChecksum(blob));
+  }
   base::Vector<const byte> startup_data =
       SnapshotImpl::ExtractStartupData(blob);
   base::Vector<const byte> read_only_data =
