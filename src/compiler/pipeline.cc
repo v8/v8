@@ -2923,16 +2923,22 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
 
   data->InitializeFrameData(linkage->GetIncomingDescriptor());
 
-  ComputeScheduledGraph();
+  Run<EffectControlLinearizationPhase>();
+  RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
 
-  Run<ScheduledEffectControlLinearizationPhase>();
-  RunPrintAndVerify(ScheduledEffectControlLinearizationPhase::phase_name(),
-                    true);
+  Run<LateOptimizationPhase>();
+  RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
+
+  // Optimize memory access and allocation operations.
+  Run<MemoryOptimizationPhase>();
+  RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json()) {
     data->node_origins()->RemoveDecorator();
   }
+
+  ComputeScheduledGraph();
 
   return SelectInstructions(linkage);
 }
