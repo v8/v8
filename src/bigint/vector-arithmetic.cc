@@ -90,5 +90,33 @@ digit_t SubtractAndReturnBorrow(RWDigits Z, Digits X, Digits Y) {
   return borrow;
 }
 
+bool AddSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
+               bool y_negative) {
+  if (x_negative == y_negative) {
+    Add(Z, X, Y);
+    return x_negative;
+  }
+  if (GreaterThanOrEqual(X, Y)) {
+    Subtract(Z, X, Y);
+    return x_negative;
+  }
+  Subtract(Z, Y, X);
+  return !x_negative;
+}
+
+bool SubtractSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
+                    bool y_negative) {
+  if (x_negative != y_negative) {
+    Add(Z, X, Y);
+    return x_negative;
+  }
+  if (GreaterThanOrEqual(X, Y)) {
+    Subtract(Z, X, Y);
+    return x_negative;
+  }
+  Subtract(Z, Y, X);
+  return !x_negative;
+}
+
 }  // namespace bigint
 }  // namespace v8

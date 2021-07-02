@@ -269,6 +269,13 @@ void ProcessorImpl::ToString(char* out, int* out_length, Digits X, int radix,
   *out_length -= excess;
 }
 
+Status Processor::ToString(char* out, int* out_length, Digits X, int radix,
+                           bool sign) {
+  ProcessorImpl* impl = static_cast<ProcessorImpl*>(this);
+  impl->ToString(out, out_length, X, radix, sign);
+  return impl->get_and_clear_status();
+}
+
 int ToStringResultLength(Digits X, int radix, bool sign) {
   const int bit_length = BitLength(X);
   int result;

@@ -19,12 +19,6 @@ digit_t AddAndReturnOverflow(RWDigits Z, Digits X);
 // Z -= X. Returns borrow on overflow.
 digit_t SubAndReturnBorrow(RWDigits Z, Digits X);
 
-// Z := X + Y.
-void Add(RWDigits Z, Digits X, Digits Y);
-
-// Z := X - Y.
-void Subtract(RWDigits Z, Digits X, Digits Y);
-
 // X += y.
 inline void Add(RWDigits X, digit_t y) {
   digit_t carry = y;

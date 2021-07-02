@@ -219,6 +219,18 @@ inline int Compare(Digits A, Digits B) {
   return A[i] > B[i] ? 1 : -1;
 }
 
+// Z := X + Y
+void Add(RWDigits Z, Digits X, Digits Y);
+// Addition of signed integers. Returns true if the result is negative.
+bool AddSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
+               bool y_negative);
+
+// Z := X - Y. Requires X >= Y.
+void Subtract(RWDigits Z, Digits X, Digits Y);
+// Subtraction of signed integers. Returns true if the result is negative.
+bool SubtractSigned(RWDigits Z, Digits X, bool x_negative, Digits Y,
+                    bool y_negative);
+
 enum class Status { kOk, kInterrupted };
 
 class Processor {
@@ -246,6 +258,19 @@ class Processor {
   Status ToString(char* out, int* out_length, Digits X, int radix, bool sign);
 };
 
+inline int AddResultLength(int x_length, int y_length) {
+  return std::max(x_length, y_length) + 1;
+}
+inline int AddSignedResultLength(int x_length, int y_length, bool same_sign) {
+  return same_sign ? AddResultLength(x_length, y_length)
+                   : std::max(x_length, y_length);
+}
+inline int SubtractResultLength(int x_length, int y_length) { return x_length; }
+inline int SubtractSignedResultLength(int x_length, int y_length,
+                                      bool same_sign) {
+  return same_sign ? std::max(x_length, y_length)
+                   : AddResultLength(x_length, y_length);
+}
 inline int MultiplyResultLength(Digits X, Digits Y) {
   return X.len() + Y.len();
 }

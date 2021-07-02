@@ -97,15 +97,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
                                                      Handle<BigInt> x,
                                                      bool result_sign);
 
-  static MaybeHandle<BigInt> AbsoluteAdd(Isolate* isolate, Handle<BigInt> x,
-                                         Handle<BigInt> y, bool result_sign);
-
-  static void AbsoluteAdd(MutableBigInt result, BigInt x, BigInt y);
-
-  static Handle<BigInt> AbsoluteSub(Isolate* isolate, Handle<BigInt> x,
-                                    Handle<BigInt> y, bool result_sign);
-  static void AbsoluteSub(MutableBigInt result, BigInt x, BigInt y);
-
   static MaybeHandle<MutableBigInt> AbsoluteAddOne(
       Isolate* isolate, Handle<BigIntBase> x, bool sign,
       MutableBigInt result_storage = MutableBigInt());
@@ -585,34 +576,42 @@ MaybeHandle<BigInt> BigInt::Remainder(Isolate* isolate, Handle<BigInt> x,
 
 MaybeHandle<BigInt> BigInt::Add(Isolate* isolate, Handle<BigInt> x,
                                 Handle<BigInt> y) {
+  if (x->is_zero()) return y;
+  if (y->is_zero()) return x;
   bool xsign = x->sign();
-  if (xsign == y->sign()) {
-    // x + y == x + y
-    // -x + -y == -(x + y)
-    return MutableBigInt::AbsoluteAdd(isolate, x, y, xsign);
+  bool ysign = y->sign();
+  int result_length =
+      bigint::AddSignedResultLength(x->length(), y->length(), xsign == ysign);
+  Handle<MutableBigInt> result;
+  if (!MutableBigInt::New(isolate, result_length).ToHandle(&result)) {
+    // Allocation fails when {result_length} exceeds the max BigInt size.
+    return {};
   }
-  // x + -y == x - y == -(y - x)
-  // -x + y == y - x == -(x - y)
-  if (bigint::Compare(GetDigits(x), GetDigits(y)) >= 0) {
-    return MutableBigInt::AbsoluteSub(isolate, x, y, xsign);
-  }
-  return MutableBigInt::AbsoluteSub(isolate, y, x, !xsign);
+  DisallowGarbageCollection no_gc;
+  bool result_sign = bigint::AddSigned(GetRWDigits(result), GetDigits(x), xsign,
+                                       GetDigits(y), ysign);
+  result->set_sign(result_sign);
+  return MutableBigInt::MakeImmutable(result);
 }
 
 MaybeHandle<BigInt> BigInt::Subtract(Isolate* isolate, Handle<BigInt> x,
                                      Handle<BigInt> y) {
+  if (y->is_zero()) return x;
+  if (x->is_zero()) return UnaryMinus(isolate, y);
   bool xsign = x->sign();
-  if (xsign != y->sign()) {
-    // x - (-y) == x + y
-    // (-x) - y == -(x + y)
-    return MutableBigInt::AbsoluteAdd(isolate, x, y, xsign);
+  bool ysign = y->sign();
+  int result_length = bigint::SubtractSignedResultLength(
+      x->length(), y->length(), xsign == ysign);
+  Handle<MutableBigInt> result;
+  if (!MutableBigInt::New(isolate, result_length).ToHandle(&result)) {
+    // Allocation fails when {result_length} exceeds the max BigInt size.
+    return {};
   }
-  // x - y == -(y - x)
-  // (-x) - (-y) == y - x == -(x - y)
-  if (bigint::Compare(GetDigits(x), GetDigits(y)) >= 0) {
-    return MutableBigInt::AbsoluteSub(isolate, x, y, xsign);
-  }
-  return MutableBigInt::AbsoluteSub(isolate, y, x, !xsign);
+  DisallowGarbageCollection no_gc;
+  bool result_sign = bigint::SubtractSigned(GetRWDigits(result), GetDigits(x),
+                                            xsign, GetDigits(y), ysign);
+  result->set_sign(result_sign);
+  return MutableBigInt::MakeImmutable(result);
 }
 
 MaybeHandle<BigInt> BigInt::LeftShift(Isolate* isolate, Handle<BigInt> x,
@@ -1237,88 +1236,6 @@ void BigInt::BigIntShortPrint(std::ostream& os) {
 }
 
 // Internal helpers.
-
-void MutableBigInt::AbsoluteAdd(MutableBigInt result, BigInt x, BigInt y) {
-  DisallowGarbageCollection no_gc;
-  digit_t carry = 0;
-  int i = 0;
-  for (; i < y.length(); i++) {
-    digit_t new_carry = 0;
-    digit_t sum = digit_add(x.digit(i), y.digit(i), &new_carry);
-    sum = digit_add(sum, carry, &new_carry);
-    result.set_digit(i, sum);
-    carry = new_carry;
-  }
-  for (; i < x.length(); i++) {
-    digit_t new_carry = 0;
-    digit_t sum = digit_add(x.digit(i), carry, &new_carry);
-    result.set_digit(i, sum);
-    carry = new_carry;
-  }
-  result.set_digit(i, carry);
-}
-
-MaybeHandle<BigInt> MutableBigInt::AbsoluteAdd(Isolate* isolate,
-                                               Handle<BigInt> x,
-                                               Handle<BigInt> y,
-                                               bool result_sign) {
-  if (x->length() < y->length()) return AbsoluteAdd(isolate, y, x, result_sign);
-  if (x->is_zero()) {
-    DCHECK(y->is_zero());
-    return x;
-  }
-  if (y->is_zero()) {
-    return result_sign == x->sign() ? x : BigInt::UnaryMinus(isolate, x);
-  }
-  Handle<MutableBigInt> result;
-  if (!New(isolate, x->length() + 1).ToHandle(&result)) {
-    return MaybeHandle<BigInt>();
-  }
-
-  AbsoluteAdd(*result, *x, *y);
-
-  result->set_sign(result_sign);
-  return MakeImmutable(result);
-}
-
-Handle<BigInt> MutableBigInt::AbsoluteSub(Isolate* isolate, Handle<BigInt> x,
-                                          Handle<BigInt> y, bool result_sign) {
-  DCHECK(x->length() >= y->length());
-  SLOW_DCHECK(bigint::Compare(GetDigits(x), GetDigits(y)) >= 0);
-  if (x->is_zero()) {
-    DCHECK(y->is_zero());
-    return x;
-  }
-  if (y->is_zero()) {
-    return result_sign == x->sign() ? x : BigInt::UnaryMinus(isolate, x);
-  }
-  Handle<MutableBigInt> result = New(isolate, x->length()).ToHandleChecked();
-
-  AbsoluteSub(*result, *x, *y);
-
-  result->set_sign(result_sign);
-  return MakeImmutable(result);
-}
-
-void MutableBigInt::AbsoluteSub(MutableBigInt result, BigInt x, BigInt y) {
-  DisallowGarbageCollection no_gc;
-  digit_t borrow = 0;
-  int i = 0;
-  for (; i < y.length(); i++) {
-    digit_t new_borrow = 0;
-    digit_t difference = digit_sub(x.digit(i), y.digit(i), &new_borrow);
-    difference = digit_sub(difference, borrow, &new_borrow);
-    result.set_digit(i, difference);
-    borrow = new_borrow;
-  }
-  for (; i < x.length(); i++) {
-    digit_t new_borrow = 0;
-    digit_t difference = digit_sub(x.digit(i), borrow, &new_borrow);
-    result.set_digit(i, difference);
-    borrow = new_borrow;
-  }
-  DCHECK_EQ(0, borrow);
-}
 
 // Adds 1 to the absolute value of {x} and sets the result's sign to {sign}.
 // {result_storage} is optional; if present, it will be used to store the
@@ -2211,7 +2128,7 @@ void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
   BigInt y = BigInt::cast(Object(y_addr));
   MutableBigInt result = MutableBigInt::cast(Object(result_addr));
 
-  MutableBigInt::AbsoluteAdd(result, x, y);
+  bigint::Add(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
 }
 
@@ -2228,7 +2145,7 @@ void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
   BigInt y = BigInt::cast(Object(y_addr));
   MutableBigInt result = MutableBigInt::cast(Object(result_addr));
 
-  MutableBigInt::AbsoluteSub(result, x, y);
+  bigint::Subtract(GetRWDigits(result), GetDigits(x), GetDigits(y));
   MutableBigInt::Canonicalize(result);
 }
 
