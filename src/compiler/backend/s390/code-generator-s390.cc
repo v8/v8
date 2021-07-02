@@ -131,7 +131,7 @@ class S390OperandConverter final : public InstructionOperandConverter {
 #if V8_TARGET_ARCH_S390X && !V8_TARGET_LITTLE_ENDIAN
     // We want to read the 32-bits directly from memory
     MemOperand mem = InputStackSlot(index);
-    return MemOperand(mem.rb(), mem.rx(), mem.offset() + 4);
+    return MemOperand(mem.rx(), mem.rb(), mem.offset() + 4);
 #else
     return InputStackSlot(index);
 #endif
