@@ -52,7 +52,7 @@ vars = {
   'gn_version': 'git_revision:4d207c94eab41f09c9a8505eb47f3d2919e47943',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:e20098f56b10587e3cc0bc9ccac4934a13158de3',
+  'luci_go': 'git_revision:40f945205c8670537d14901c310374774f589254',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -92,7 +92,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd5bb24e5d9802c8c917fcaa4375d5239a586c168',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f79e8a3b530a306732a93a6d9f28ef140cea46ba',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '979d8e9c7f4847f99157dd0ec03785d0fdbe8c34',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fd3f3c19981cd8fe4e4f11e0a7b8fb6cf329807e',
   'buildtools/clang_format/script':
@@ -218,7 +218,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '36f311b03407b2b9131891a482cd2c5ecf077a86',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'de5768d3116cc7792bf7c0b679912a6ca82db758',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -285,7 +285,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '00ade15d946d72f75c786dc2e66c419a9d99e2ad',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '5633839bd5ef2dd9a19e8fc547447d04f832c698',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e1e56a58075d9d3ee55a86be0ed2e87be317968a',
   'tools/clang/dsymutil': {
     'packages': [
       {
