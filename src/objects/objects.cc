@@ -221,12 +221,13 @@ Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
   if (!representation.IsDouble()) return object;
   auto result = isolate->factory()->NewHeapNumberWithHoleNaN();
   if (object->IsUninitialized(isolate)) {
-    result->set_value_as_bits(kHoleNanInt64);
+    result->set_value_as_bits(kHoleNanInt64, kRelaxedStore);
   } else if (object->IsHeapNumber()) {
     // Ensure that all bits of the double value are preserved.
-    result->set_value_as_bits(HeapNumber::cast(*object).value_as_bits());
+    result->set_value_as_bits(
+        HeapNumber::cast(*object).value_as_bits(kRelaxedLoad), kRelaxedStore);
   } else {
-    result->set_value(object->Number());
+    result->set_value(object->Number(), kRelaxedStore);
   }
   return result;
 }
@@ -240,7 +241,7 @@ Handle<Object> Object::WrapForRead(IsolateT* isolate, Handle<Object> object,
     return object;
   }
   return isolate->factory()->template NewHeapNumberFromBits<allocation_type>(
-      HeapNumber::cast(*object).value_as_bits());
+      HeapNumber::cast(*object).value_as_bits(kRelaxedLoad));
 }
 
 template Handle<Object> Object::WrapForRead<AllocationType::kYoung>(
@@ -4715,7 +4716,7 @@ void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
       isolate->factory()->InternalizeUtf8String(type_of);
   if (to_number->IsHeapNumber()) {
     oddball->set_to_number_raw_as_bits(
-        Handle<HeapNumber>::cast(to_number)->value_as_bits());
+        Handle<HeapNumber>::cast(to_number)->value_as_bits(kRelaxedLoad));
   } else {
     oddball->set_to_number_raw(to_number->Number());
   }

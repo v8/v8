@@ -880,7 +880,7 @@ class HeapNumberData : public HeapObjectData {
                  ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
       : HeapObjectData(broker, storage, object, kind),
         value_(object->value()),
-        value_as_bits_(object->value_as_bits()) {}
+        value_as_bits_(object->value_as_bits(kRelaxedLoad)) {}
 
   double value() const { return value_; }
   uint64_t value_as_bits() const { return value_as_bits_; }
@@ -3135,7 +3135,14 @@ BIMODAL_ACCESSOR_C(FeedbackVector, double, invocation_count)
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 
 BIMODAL_ACCESSOR_C(HeapNumber, double, value)
-BIMODAL_ACCESSOR_C(HeapNumber, uint64_t, value_as_bits)
+
+uint64_t HeapNumberRef::value_as_bits() const {
+  if (data_->should_access_heap()) {
+    return object()->value_as_bits(kRelaxedLoad);
+  }
+
+  return ObjectRef::data()->AsHeapNumber()->value_as_bits();
+}
 
 // Immutable after initialization.
 BIMODAL_ACCESSOR_WITH_FLAG(JSBoundFunction, JSReceiver, bound_target_function)

@@ -416,10 +416,10 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
       bits = kHoleNanInt64;
     } else {
       DCHECK(value.IsHeapNumber());
-      bits = HeapNumber::cast(value).value_as_bits();
+      bits = HeapNumber::cast(value).value_as_bits(kRelaxedLoad);
     }
     auto box = HeapNumber::cast(RawFastPropertyAt(index));
-    box.set_value_as_bits(bits);
+    box.set_value_as_bits(bits, kRelaxedStore);
   } else {
     FastPropertyAtPut(index, value);
   }

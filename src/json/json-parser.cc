@@ -599,7 +599,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 
           HeapObject hn = HeapObject::FromAddress(mutable_double_address);
           hn.set_map_after_allocation(*factory()->heap_number_map());
-          HeapNumber::cast(hn).set_value_as_bits(bits);
+          HeapNumber::cast(hn).set_value_as_bits(bits, kRelaxedStore);
           value = hn;
           mutable_double_address += kMutableDoubleSize;
         } else {
