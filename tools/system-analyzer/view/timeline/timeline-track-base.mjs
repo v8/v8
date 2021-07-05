@@ -5,7 +5,7 @@
 import {delay} from '../../helper.mjs';
 import {kChunkHeight, kChunkVisualWidth, kChunkWidth} from '../../log/map.mjs';
 import {SelectionEvent, SelectTimeEvent, SynchronizeSelectionEvent, ToolTipEvent,} from '../events.mjs';
-import {CSSColor, DOM, SVG, V8CustomElement} from '../helper.mjs';
+import {CSSColor, DOM, formatDurationMicros, SVG, V8CustomElement} from '../helper.mjs';
 
 export const kTimelineHeight = 200;
 
@@ -242,8 +242,8 @@ export class TimelineTrackBase extends V8CustomElement {
     let lastHeight = kTimelineHeight;
     for (let i = 0; i < groups.length; i++) {
       const group = groups[i];
-      if (group.count == 0) break;
-      const height = (group.count / chunk.size() * kHeight) | 0;
+      if (group.length == 0) break;
+      const height = (group.length / chunk.size() * kHeight) | 0;
       lastHeight -= height;
       const color = this._legend.colorForType(group.key);
       buffer += `<rect x=${chunkIndex * kChunkWidth} y=${lastHeight} height=${
@@ -511,6 +511,7 @@ class Legend {
 
   constructor(table) {
     this._table = table;
+    this._enableDuration = false;
   }
 
   set timeline(timeline) {
@@ -548,10 +549,12 @@ class Legend {
   update() {
     const tbody = DOM.tbody();
     const missingTypes = new Set(this._typesFilters.keys());
-    this.selection.getBreakdown().forEach(group => {
-      tbody.appendChild(this._addTypeRow(group));
-      missingTypes.delete(group.key);
-    });
+    this._checkDurationField();
+    this.selection.getBreakdown(undefined, this._enableDuration)
+        .forEach(group => {
+          tbody.appendChild(this._addTypeRow(group));
+          missingTypes.delete(group.key);
+        });
     missingTypes.forEach(key => tbody.appendChild(this._row('', key, 0, '0%')));
     if (this._timeline.selection) {
       tbody.appendChild(
@@ -561,12 +564,26 @@ class Legend {
     this._table.tBodies[0].replaceWith(tbody);
   }
 
-  _row(color, type, count, percent) {
+  _checkDurationField() {
+    if (this._enableDuration) return;
+    const example = this.selection.at(0);
+    if (!example || !('duration' in example)) return;
+    this._enableDuration = true;
+    this._table.tHead.appendChild(DOM.td('Duration'));
+    this._table.tHead.appendChild(DOM.td(''));
+  }
+
+  _row(colorNode, type, count, countPercent, duration, durationPercent) {
     const row = DOM.tr();
-    row.appendChild(DOM.td(color));
-    row.appendChild(DOM.td(type));
+    row.appendChild(DOM.td(colorNode));
+    const typeCell = row.appendChild(DOM.td(type));
+    typeCell.setAttribute('title', type);
     row.appendChild(DOM.td(count.toString()));
-    row.appendChild(DOM.td(percent));
+    row.appendChild(DOM.td(countPercent));
+    if (this._enableDuration) {
+      row.appendChild(DOM.td(formatDurationMicros(duration ?? 0)));
+      row.appendChild(DOM.td(durationPercent ?? '0%'));
+    }
     return row
   }
 
@@ -579,8 +596,17 @@ class Legend {
       colorDiv.style.borderColor = color;
       colorDiv.style.backgroundColor = CSSColor.backgroundImage;
     }
-    let percent = `${(group.count / this.selection.length * 100).toFixed(1)}%`;
-    const row = this._row(colorDiv, group.key, group.count, percent);
+    let duration = 0;
+    if (this._enableDuration) {
+      const entries = group.entries;
+      for (let i = 0; i < entries.length; i++) {
+        duration += entries[i].duration;
+      }
+    }
+    let countPercent =
+        `${(group.length / this.selection.length * 100).toFixed(1)}%`;
+    const row = this._row(
+        colorDiv, group.key, group.length, countPercent, duration, '');
     row.className = 'clickable';
     row.onclick = this._typeClickHandler;
     row.data = group.key;

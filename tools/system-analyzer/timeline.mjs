@@ -207,8 +207,13 @@ class Timeline {
     return minIndex;
   }
 
-  getBreakdown(keyFunction) {
-    if (keyFunction) return groupBy(this._values, keyFunction);
+  getBreakdown(keyFunction, collect = false) {
+    if (keyFunction || collect) {
+      if (!keyFunction) {
+        keyFunction = each => each.type;
+      }
+      return groupBy(this._values, keyFunction, collect);
+    }
     if (this._breakdown === undefined) {
       this._breakdown = groupBy(this._values, each => each.type);
     }

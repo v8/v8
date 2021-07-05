@@ -176,7 +176,7 @@ DOM.defineCustomElement('view/list-panel',
   _render(groups, table) {
     let last;
     new LazyTable(table, groups, group => {
-      if (last && last.count < group.count) {
+      if (last && last.count < group.length) {
         console.log(last, group);
       }
       last = group;
@@ -185,7 +185,7 @@ DOM.defineCustomElement('view/list-panel',
       const details = tr.appendChild(DOM.td('', 'toggle'));
       details.onclick = this._detailsClickHandler;
       tr.appendChild(DOM.td(`${group.percent.toFixed(2)}%`, 'percentage'));
-      tr.appendChild(DOM.td(group.count, 'count'));
+      tr.appendChild(DOM.td(group.length, 'count'));
       const valueTd = tr.appendChild(DOM.td(group.key?.toString(), 'key'));
       if (App.isClickable(group.key)) {
         tr.onclick = this._logEntryClickHandler;

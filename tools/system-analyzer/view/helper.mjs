@@ -458,7 +458,7 @@ export function gradientStopsFromGroups(
   const stops = [];
   for (let group of groups) {
     const color = colorFn(group.key);
-    increment += group.count;
+    increment += group.length;
     const height = (increment / totalLength * kMaxHeight) | 0;
     stops.push(`${color} ${lastHeight}${kUnit} ${height}${kUnit}`)
     lastHeight = height;

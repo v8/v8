@@ -63,21 +63,21 @@ export class Group {
   constructor(key, id, parentTotal, entries) {
     this.key = key;
     this.id = id;
-    this.count = 1;
     this.entries = entries;
+    this.length = entries.length;
     this.parentTotal = parentTotal;
   }
 
   get percent() {
-    return this.count / this.parentTotal * 100;
+    return this.length / this.parentTotal * 100;
   }
 
   add() {
-    this.count++;
+    this.length++;
   }
 
   addEntry(entry) {
-    this.count++;
+    this.length++;
     this.entries.push(entry);
   }
 }
@@ -87,6 +87,7 @@ export function groupBy(array, keyFunction, collect = false) {
   if (keyFunction === undefined) keyFunction = each => each;
   const keyToGroup = new Map();
   const groups = [];
+  const sharedEmptyArray = [];
   let id = 0;
   // This is performance critical, resorting to for-loop
   for (let each of array) {
@@ -96,8 +97,7 @@ export function groupBy(array, keyFunction, collect = false) {
       collect ? group.addEntry(each) : group.add();
       continue;
     }
-    let entries = undefined;
-    if (collect) entries = [each];
+    let entries = collect ? [each] : sharedEmptyArray;
     group = new Group(key, id++, array.length, entries);
     groups.push(group);
     keyToGroup.set(key, group);

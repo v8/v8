@@ -138,6 +138,10 @@ class CppEntriesProvider {
     let json;
     try {
       response = await fetch(url);
+      if (response.status == 404) {
+        throw new Error(
+          `Local symbol server returned 404: ${await response.text()}`);
+      }
       json = await response.json();
       if (json.error) console.warn(json.error);
     } catch (e) {
@@ -145,6 +149,7 @@ class CppEntriesProvider {
         // Assume that the local symbol server is not reachable.
         console.error("Disabling remote symbol loading:", e);
         this._isEnabled = false;
+        return;
       }
     }
     this._handleRemoteSymbolsResult(json);

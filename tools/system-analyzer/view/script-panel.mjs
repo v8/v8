@@ -151,10 +151,10 @@ DOM.defineCustomElement('view/script-panel',
     const entries = sourcePosition.entries;
     let text = groupBy(entries, each => each.constructor, true)
                    .map(group => {
-                     let text = `${group.key.name}: ${group.count}\n`
+                     let text = `${group.key.name}: ${group.length}\n`
                      text += groupBy(group.entries, each => each.type, true)
                                  .map(group => {
-                                   return `  - ${group.key}: ${group.count}`;
+                                   return `  - ${group.key}: ${group.length}`;
                                  })
                                  .join('\n');
                      return text;

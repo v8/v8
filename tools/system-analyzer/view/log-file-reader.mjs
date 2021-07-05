@@ -66,12 +66,11 @@ DOM.defineCustomElement('view/log-file-reader',
     }
     this.fileReader.blur();
     this.root.className = 'loading';
-    this.asyncReadFile(file);
+    // Delay the loading a bit to allow for CSS animations to happen.
+    window.requestAnimationFrame(() => this.asyncReadFile(file));
   }
 
   async asyncReadFile(file) {
-    // Delay the loading a bit to allow for CSS animations to happen.
-    await delay(5);
     const decoder = globalThis.TextDecoderStream;
     if (decoder) {
       await this._streamFile(file, decoder);
