@@ -858,10 +858,14 @@ class LiftoffCompiler {
         (std::string("out of line: ") + GetRuntimeStubName(ool->stub)).c_str());
     __ bind(ool->label.get());
     const bool is_stack_check = ool->stub == WasmCode::kWasmStackGuard;
-    const bool is_mem_out_of_bounds =
-        ool->stub == WasmCode::kThrowWasmTrapMemOutOfBounds;
 
-    if (is_mem_out_of_bounds && env_->use_trap_handler) {
+    // Only memory OOB traps need a {pc}, but not unconditionally. Static OOB
+    // accesses do not need protected instruction information, hence they also
+    // do not set {pc}.
+    DCHECK_IMPLIES(ool->stub != WasmCode::kThrowWasmTrapMemOutOfBounds,
+                   ool->pc == 0);
+
+    if (env_->use_trap_handler && ool->pc != 0) {
       uint32_t pc = static_cast<uint32_t>(__ pc_offset());
       DCHECK_EQ(pc, __ pc_offset());
       protected_instructions_.emplace_back(
@@ -2609,6 +2613,8 @@ class LiftoffCompiler {
 
   Label* AddOutOfLineTrap(FullDecoder* decoder, WasmCode::RuntimeStubId stub,
                           uint32_t pc = 0) {
+    // Only memory OOB traps need a {pc}.
+    DCHECK_IMPLIES(stub != WasmCode::kThrowWasmTrapMemOutOfBounds, pc == 0);
     DCHECK(FLAG_wasm_bounds_checks);
     OutOfLineSafepointInfo* safepoint_info = nullptr;
     if (V8_UNLIKELY(for_debugging_)) {
@@ -2658,12 +2664,10 @@ class LiftoffCompiler {
 
     CODE_COMMENT("bounds check memory");
 
-    // TODO(wasm): This adds protected instruction information for the jump
-    // instruction we are about to generate. It would be better to just not add
-    // protected instruction info when the pc is 0.
+    // Set {pc} of the OOL code to {0} to avoid generation of protected
+    // instruction information (see {GenerateOutOfLineCode}.
     Label* trap_label =
-        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
-                         env_->use_trap_handler ? __ pc_offset() : 0);
+        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds, 0);
 
     if (statically_oob) {
       __ emit_jump(trap_label);
