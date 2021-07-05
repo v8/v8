@@ -318,7 +318,7 @@ CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   const bool use_trap_handler =
       V8_TRAP_HANDLER_SUPPORTED && !i::FLAG_wasm_enforce_bounds_checks;
   return {test_module_.get(),
-          use_trap_handler ? kUseTrapHandler : kNoTrapHandler,
+          use_trap_handler ? kTrapHandler : kExplicitBoundsChecks,
           runtime_exception_support_, enabled_features_};
 }
 

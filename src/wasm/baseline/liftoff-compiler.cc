@@ -865,7 +865,7 @@ class LiftoffCompiler {
     DCHECK_IMPLIES(ool->stub != WasmCode::kThrowWasmTrapMemOutOfBounds,
                    ool->pc == 0);
 
-    if (env_->use_trap_handler && ool->pc != 0) {
+    if (env_->bounds_checks == kTrapHandler && ool->pc != 0) {
       uint32_t pc = static_cast<uint32_t>(__ pc_offset());
       DCHECK_EQ(pc, __ pc_offset());
       protected_instructions_.emplace_back(
@@ -2666,11 +2666,17 @@ class LiftoffCompiler {
     Register index_ptrsize =
         kNeedI64RegPair && index.is_gp_pair() ? index.low_gp() : index.gp();
 
+    // Without bounds checks (testing only), just return the ptrsize index.
+    if (V8_UNLIKELY(env_->bounds_checks == kNoBoundsChecks)) {
+      return index_ptrsize;
+    }
+
+    // Early return for trap handler.
     if (!force_check && !statically_oob &&
-        (!FLAG_wasm_bounds_checks || env_->use_trap_handler)) {
+        env_->bounds_checks == kTrapHandler) {
       // With trap handlers we should not have a register pair as input (we
       // would only return the lower half).
-      DCHECK_IMPLIES(env_->use_trap_handler, index.is_gp());
+      DCHECK(index.is_gp());
       return index_ptrsize;
     }
 
@@ -2681,7 +2687,7 @@ class LiftoffCompiler {
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds, 0);
 
-    if (statically_oob) {
+    if (V8_UNLIKELY(statically_oob)) {
       __ emit_jump(trap_label);
       decoder->SetSucceedingCodeDynamicallyUnreachable();
       return no_reg;
@@ -2810,7 +2816,8 @@ class LiftoffCompiler {
 
   Register AddMemoryMasking(Register index, uintptr_t* offset,
                             LiftoffRegList* pinned) {
-    if (!FLAG_untrusted_code_mitigations || env_->use_trap_handler) {
+    if (!FLAG_untrusted_code_mitigations ||
+        env_->bounds_checks == kTrapHandler) {
       return index;
     }
     CODE_COMMENT("mask memory index");
@@ -2901,7 +2908,7 @@ class LiftoffCompiler {
       uint32_t protected_load_pc = 0;
       __ Load(value, mem, index, offset, type, pinned, &protected_load_pc, true,
               i64_offset);
-      if (env_->use_trap_handler) {
+      if (env_->bounds_checks == kTrapHandler) {
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                          protected_load_pc);
       }
@@ -2944,7 +2951,7 @@ class LiftoffCompiler {
     __ LoadTransform(value, addr, index, offset, type, transform,
                      &protected_load_pc);
 
-    if (env_->use_trap_handler) {
+    if (env_->bounds_checks == kTrapHandler) {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_load_pc);
     }
@@ -2984,7 +2991,7 @@ class LiftoffCompiler {
 
     __ LoadLane(result, value, addr, index, offset, type, laneidx,
                 &protected_load_pc);
-    if (env_->use_trap_handler) {
+    if (env_->bounds_checks == kTrapHandler) {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_load_pc);
     }
@@ -3032,7 +3039,7 @@ class LiftoffCompiler {
       if (V8_UNLIKELY(FLAG_trace_wasm_memory)) outer_pinned.set(index);
       __ Store(mem, index, offset, value, type, outer_pinned,
                &protected_store_pc, true);
-      if (env_->use_trap_handler) {
+      if (env_->bounds_checks == kTrapHandler) {
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                          protected_store_pc);
       }
@@ -3062,7 +3069,7 @@ class LiftoffCompiler {
     Register addr = pinned.set(GetMemoryStart(pinned));
     uint32_t protected_store_pc = 0;
     __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc);
-    if (env_->use_trap_handler) {
+    if (env_->bounds_checks == kTrapHandler) {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_store_pc);
     }

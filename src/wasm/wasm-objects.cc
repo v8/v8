@@ -783,7 +783,8 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
                        Handle<JSArrayBuffer> buffer) {
   bool is_wasm_module = instance->module()->origin == wasm::kWasmOrigin;
   bool use_trap_handler =
-      instance->module_object().native_module()->use_trap_handler();
+      instance->module_object().native_module()->bounds_checks() ==
+      wasm::kTrapHandler;
   // Wasm modules compiled to use the trap handler don't have bounds checks,
   // so they must have a memory that has guard regions.
   CHECK_IMPLIES(is_wasm_module && use_trap_handler,

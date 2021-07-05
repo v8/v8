@@ -510,8 +510,8 @@ class WasmGraphBuilder {
 
   bool has_simd() const { return has_simd_; }
 
-  wasm::UseTrapHandler use_trap_handler() const {
-    return env_ ? env_->use_trap_handler : wasm::kNoTrapHandler;
+  wasm::BoundsCheckStrategy bounds_checks() const {
+    return env_->bounds_checks;
   }
 
   MachineGraph* mcgraph() { return mcgraph_; }

@@ -847,11 +847,12 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache())),
-      // TODO(clemensb): Rename this field.
-      use_trap_handler_(trap_handler::IsTrapHandlerEnabled() &&
-                                !FLAG_wasm_enforce_bounds_checks
-                            ? kUseTrapHandler
-                            : kNoTrapHandler) {
+      bounds_checks_(!FLAG_wasm_bounds_checks
+                         ? kNoBoundsChecks
+                         : FLAG_wasm_enforce_bounds_checks ||
+                                   !trap_handler::IsTrapHandlerEnabled()
+                               ? kExplicitBoundsChecks
+                               : kTrapHandler) {
   DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.
@@ -928,7 +929,7 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 }
 
 CompilationEnv NativeModule::CreateCompilationEnv() const {
-  return {module(), use_trap_handler_, kRuntimeExceptionSupport,
+  return {module(), bounds_checks_, kRuntimeExceptionSupport,
           enabled_features_};
 }
 

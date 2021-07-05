@@ -461,7 +461,8 @@ WasmGraphBuilder::WasmGraphBuilder(
       sig_(sig),
       source_position_table_(source_position_table),
       isolate_(isolate) {
-  DCHECK_IMPLIES(use_trap_handler(), trap_handler::IsTrapHandlerEnabled());
+  DCHECK_IMPLIES(env && env->bounds_checks == wasm::kTrapHandler,
+                 trap_handler::IsTrapHandlerEnabled());
   DCHECK_NOT_NULL(mcgraph_);
 }
 
@@ -3772,8 +3773,8 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   } else if (kSystemPointerSize == kInt32Size) {
     // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero to
     // succeed the bounds check.
-    DCHECK(!use_trap_handler());
-    if (FLAG_wasm_bounds_checks) {
+    DCHECK_NE(wasm::kTrapHandler, env_->bounds_checks);
+    if (env_->bounds_checks == wasm::kExplicitBoundsChecks) {
       Node* high_word = gasm_->TruncateInt64ToInt32(
           gasm_->Word64Shr(index, Int32Constant(32)));
       TrapIfTrue(wasm::kTrapMemOutOfBounds, high_word, position);
@@ -3784,7 +3785,7 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
 
   // If no bounds checks should be performed (for testing), just return the
   // converted index and assume it to be in-bounds.
-  if (!FLAG_wasm_bounds_checks) return {index, kInBounds};
+  if (env_->bounds_checks == wasm::kNoBoundsChecks) return {index, kInBounds};
 
   // The accessed memory is [index + offset, index + end_offset].
   // Check that the last read byte (at {index + end_offset}) is in bounds.
@@ -3805,7 +3806,8 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
     return {index, kInBounds};
   }
 
-  if (use_trap_handler() && enforce_check == kCanOmitBoundsCheck) {
+  if (env_->bounds_checks == wasm::kTrapHandler &&
+      enforce_check == kCanOmitBoundsCheck) {
     return {index, kTrapHandler};
   }
 
@@ -7513,7 +7515,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
           InstructionSelector::AlignmentRequirements()));
 
   wasm::CompilationEnv env(
-      nullptr, wasm::UseTrapHandler::kNoTrapHandler,
+      nullptr, wasm::kNoBoundsChecks,
       wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport,
       wasm::WasmFeatures::All());
 

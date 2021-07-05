@@ -691,7 +691,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   uint32_t num_imported_functions() const {
     return module_->num_imported_functions;
   }
-  UseTrapHandler use_trap_handler() const { return use_trap_handler_; }
+  BoundsCheckStrategy bounds_checks() const { return bounds_checks_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
   base::Vector<const uint8_t> wire_bytes() const {
@@ -924,7 +924,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  UseTrapHandler use_trap_handler_ = kNoTrapHandler;
+  const BoundsCheckStrategy bounds_checks_;
   bool lazy_compile_frozen_ = false;
   std::atomic<size_t> liftoff_bailout_count_{0};
   std::atomic<size_t> liftoff_code_size_{0};
