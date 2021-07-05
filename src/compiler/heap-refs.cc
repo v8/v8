@@ -916,86 +916,46 @@ class NameData : public HeapObjectData {
  public:
   NameData(JSHeapBroker* broker, ObjectData** storage, Handle<Name> object)
       : HeapObjectData(broker, storage, object) {
-    DCHECK(!broker->is_concurrent_inlining());
+    // StringData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
   }
 };
 
 class StringData : public NameData {
  public:
-  StringData(JSHeapBroker* broker, ObjectData** storage, Handle<String> object);
-
-  int length() const { return length_; }
-  uint16_t first_char() const { return first_char_; }
-  base::Optional<double> to_number() const { return to_number_; }
-  bool is_external_string() const { return is_external_string_; }
-  bool is_seq_string() const { return is_seq_string_; }
-
-  ObjectData* GetCharAsStringOrUndefined(
-      JSHeapBroker* broker, uint32_t index,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-
- private:
-  int const length_;
-  uint16_t const first_char_;
-  base::Optional<double> to_number_;
-  bool const is_external_string_;
-  bool const is_seq_string_;
-
-  // Known individual characters as strings, corresponding to the semantics of
-  // element access (s[i]). The first pair component is always less than
-  // {length_}. The second component is never nullptr.
-  ZoneVector<std::pair<uint32_t, ObjectData*>> chars_as_strings_;
+  StringData(JSHeapBroker* broker, ObjectData** storage, Handle<String> object)
+      : NameData(broker, storage, object) {
+    // StringData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
+  }
 };
 
 class SymbolData : public NameData {
  public:
   SymbolData(JSHeapBroker* broker, ObjectData** storage, Handle<Symbol> object)
       : NameData(broker, storage, object) {
-    DCHECK(!broker->is_concurrent_inlining());
+    // StringData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
   }
 };
-
-StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
-                       Handle<String> object)
-    : NameData(broker, storage, object),
-      length_(object->length()),
-      first_char_(length_ > 0 ? object->Get(0) : 0),
-      to_number_(TryStringToDouble(broker->local_isolate(), object)),
-      is_external_string_(object->IsExternalString()),
-      is_seq_string_(object->IsSeqString()),
-      chars_as_strings_(broker->zone()) {
-  DCHECK(!broker->is_concurrent_inlining());
-}
 
 class InternalizedStringData : public StringData {
  public:
   InternalizedStringData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<InternalizedString> object)
       : StringData(broker, storage, object) {
-    DCHECK(!broker->is_concurrent_inlining());
+    // InternalizedStringData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
   }
 };
-
-ObjectData* StringData::GetCharAsStringOrUndefined(JSHeapBroker* broker,
-                                                   uint32_t index,
-                                                   SerializationPolicy policy) {
-  if (index >= static_cast<uint32_t>(length())) return nullptr;
-
-  for (auto const& p : chars_as_strings_) {
-    if (p.first == index) return p.second;
-  }
-
-  if (policy == SerializationPolicy::kAssumeSerialized) {
-    TRACE_MISSING(broker, "knowledge about index " << index << " on " << this);
-    return nullptr;
-  }
-
-  base::Optional<ObjectRef> element =
-      GetOwnElementFromHeap(broker, object(), index, true);
-  ObjectData* result = element.has_value() ? element->data() : nullptr;
-  chars_as_strings_.push_back({index, result});
-  return result;
-}
 
 namespace {
 
@@ -2623,10 +2583,14 @@ NEVER_EVER_SERIALIZE(BytecodeArray)
 NEVER_EVER_SERIALIZE(Cell)
 NEVER_EVER_SERIALIZE(Context)
 NEVER_EVER_SERIALIZE(NativeContext)
+NEVER_EVER_SERIALIZE(InternalizedString)
+NEVER_EVER_SERIALIZE(Name)
 NEVER_EVER_SERIALIZE(ObjectBoilerplateDescription)
 NEVER_EVER_SERIALIZE(RegExpBoilerplateDescription)
 NEVER_EVER_SERIALIZE(SharedFunctionInfo)
 NEVER_EVER_SERIALIZE(ScopeInfo)
+NEVER_EVER_SERIALIZE(String)
+NEVER_EVER_SERIALIZE(Symbol)
 NEVER_EVER_SERIALIZE(TemplateObjectDescription)
 
 #undef NEVER_EVER_SERIALIZE
@@ -2996,70 +2960,55 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
 
 base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
     uint32_t index, SerializationPolicy policy) const {
-  if (data_->should_access_heap()) {
     // TODO(solanes, neis, v8:7790, v8:11012): Re-enable this optimization for
     // concurrent inlining when we have the infrastructure to safely do so.
     if (broker()->is_concurrent_inlining()) return base::nullopt;
     CHECK_EQ(data_->kind(), ObjectDataKind::kUnserializedHeapObject);
     return GetOwnElementFromHeap(broker(), object(), index, true);
-  }
-  ObjectData* element =
-      data()->AsString()->GetCharAsStringOrUndefined(broker(), index, policy);
-  if (element == nullptr) return base::nullopt;
-  return ObjectRef(broker(), element);
 }
 
 bool StringRef::SupportedStringKind() const {
-  DCHECK(broker()->is_concurrent_inlining());
+  if (!broker()->is_concurrent_inlining()) return true;
   return IsInternalizedString() || object()->IsThinString();
 }
 
 base::Optional<int> StringRef::length() const {
-  if (data_->should_access_heap()) {
-    if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
-      TRACE_BROKER_MISSING(
-          broker(),
-          "length for kNeverSerialized unsupported string kind " << *this);
-      return base::nullopt;
-    } else {
-      return object()->length(kAcquireLoad);
-    }
+  if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "length for kNeverSerialized unsupported string kind " << *this);
+    return base::nullopt;
+  } else {
+    return object()->length(kAcquireLoad);
   }
-  return data()->AsString()->length();
 }
 
 base::Optional<uint16_t> StringRef::GetFirstChar() {
-  if (data_->should_access_heap()) {
-    if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
-      TRACE_BROKER_MISSING(
-          broker(),
-          "first char for kNeverSerialized unsupported string kind " << *this);
-      return base::nullopt;
-    }
-
-    if (!broker()->IsMainThread()) {
-      return object()->Get(0, broker()->local_isolate());
-    } else {
-      // TODO(solanes, v8:7790): Remove this case once the inlining phase is
-      // done concurrently all the time.
-      return object()->Get(0);
-    }
+  if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "first char for kNeverSerialized unsupported string kind " << *this);
+    return base::nullopt;
   }
-  return data()->AsString()->first_char();
+
+  if (!broker()->IsMainThread()) {
+    return object()->Get(0, broker()->local_isolate());
+  } else {
+    // TODO(solanes, v8:7790): Remove this case once the inlining phase is
+    // done concurrently all the time.
+    return object()->Get(0);
+  }
 }
 
 base::Optional<double> StringRef::ToNumber() {
-  if (data_->should_access_heap()) {
-    if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
-      TRACE_BROKER_MISSING(
-          broker(),
-          "number for kNeverSerialized unsupported string kind " << *this);
-      return base::nullopt;
-    }
-
-    return TryStringToDouble(broker()->local_isolate(), object());
+  if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "number for kNeverSerialized unsupported string kind " << *this);
+    return base::nullopt;
   }
-  return data()->AsString()->to_number();
+
+  return TryStringToDouble(broker()->local_isolate(), object());
 }
 
 int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
@@ -3558,8 +3507,7 @@ int MapRef::GetInObjectProperties() const {
 }
 
 bool StringRef::IsExternalString() const {
-  IF_ACCESS_FROM_HEAP_C(IsExternalString);
-  return data()->AsString()->is_external_string();
+  return object()->IsExternalString();
 }
 
 Address CallHandlerInfoRef::callback() const {
@@ -3585,10 +3533,7 @@ ZoneVector<const CFunctionInfo*> FunctionTemplateInfoRef::c_signatures() const {
   return HeapObjectRef::data()->AsFunctionTemplateInfo()->c_signatures();
 }
 
-bool StringRef::IsSeqString() const {
-  IF_ACCESS_FROM_HEAP_C(IsSeqString);
-  return data()->AsString()->is_seq_string();
-}
+bool StringRef::IsSeqString() const { return object()->IsSeqString(); }
 
 void NativeContextRef::Serialize() {
   // TODO(jgruber): Disable visitation if should_access_heap() once all
@@ -4083,7 +4028,6 @@ void RegExpBoilerplateDescriptionRef::Serialize() {
   // Until then, we have to call these functions once on the main thread to
   // trigger serialization.
   data();
-  source();
 }
 
 Handle<Object> ObjectRef::object() const {
