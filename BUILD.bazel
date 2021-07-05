@@ -137,6 +137,7 @@ v8_config(
     defines = [
         "GOOGLE3",
         "CHROMIUM_ZLIB_NO_CHROMECONF",
+        "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_CONCURRENT_MARKING",
     ] + select({
         ":is_ia32": [ "V8_TARGET_ARCH_IA32" ],
@@ -2509,6 +2510,7 @@ filegroup(
         "src/bigint/div-schoolbook.cc",
         "src/bigint/mul-karatsuba.cc",
         "src/bigint/mul-schoolbook.cc",
+        "src/bigint/mul-toom.cc",
         "src/bigint/tostring.cc",
         "src/bigint/util.h",
         "src/bigint/vector-arithmetic.cc",

@@ -13,6 +13,7 @@ namespace v8 {
 namespace bigint {
 
 constexpr int kKaratsubaThreshold = 34;
+constexpr int kToomThreshold = 193;
 constexpr int kBurnikelThreshold = 57;
 
 class ProcessorImpl : public Processor {
@@ -37,6 +38,11 @@ class ProcessorImpl : public Processor {
   void DivideBurnikelZiegler(RWDigits Q, RWDigits R, Digits A, Digits B);
 
   void Modulo(RWDigits R, Digits A, Digits B);
+
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+  void MultiplyToomCook(RWDigits Z, Digits X, Digits Y);
+  void Toom3Main(RWDigits Z, Digits X, Digits Y);
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
 
   // {out_length} initially contains the allocated capacity of {out}, and
   // upon return will be set to the actual length of the result string.

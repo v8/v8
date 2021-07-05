@@ -27,7 +27,8 @@ int PrintHelp(char** argv) {
   return 1;
 }
 
-#define TESTS(V) V(kKaratsuba, "karatsuba") V(kBurnikel, "burnikel")
+#define TESTS(V) \
+  V(kKaratsuba, "karatsuba") V(kBurnikel, "burnikel") V(kToom, "toom")
 
 enum Operation { kNoOp, kList, kTest };
 
@@ -163,6 +164,10 @@ class Runner {
       for (int i = 0; i < runs_; i++) {
         TestBurnikel(&count);
       }
+    } else if (test_ == kToom) {
+      for (int i = 0; i < runs_; i++) {
+        TestToom(&count);
+      }
     } else {
       DCHECK(false);  // Unreachable.
     }
@@ -174,8 +179,8 @@ class Runner {
   void TestKaratsuba(int* count) {
     // Calling {MultiplyKaratsuba} directly is only valid if
     // left_size >= right_size and right_size >= kKaratsubaThreshold.
-    static const int kMin = kKaratsubaThreshold;
-    static const int kMax = 3 * kKaratsubaThreshold;
+    constexpr int kMin = kKaratsubaThreshold;
+    constexpr int kMax = 3 * kKaratsubaThreshold;
     for (int right_size = kMin; right_size <= kMax; right_size++) {
       for (int left_size = right_size; left_size <= kMax; left_size++) {
         ScratchDigits A(left_size);
@@ -194,10 +199,36 @@ class Runner {
     }
   }
 
+  void TestToom(int* count) {
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+    // {MultiplyToomCook} works fine even below the threshold, so we can
+    // save some time by starting small.
+    constexpr int kMin = kToomThreshold - 60;
+    constexpr int kMax = kToomThreshold + 10;
+    for (int right_size = kMin; right_size <= kMax; right_size++) {
+      for (int left_size = right_size; left_size <= kMax; left_size++) {
+        ScratchDigits A(left_size);
+        ScratchDigits B(right_size);
+        int result_len = MultiplyResultLength(A, B);
+        ScratchDigits result(result_len);
+        ScratchDigits result_karatsuba(result_len);
+        GenerateRandom(A);
+        GenerateRandom(B);
+        processor()->MultiplyToomCook(result, A, B);
+        // Using Karatsuba as reference.
+        processor()->MultiplyKaratsuba(result_karatsuba, A, B);
+        AssertEquals(A, B, result_karatsuba, result);
+        if (error_) return;
+        (*count)++;
+      }
+    }
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+  }
+
   void TestBurnikel(int* count) {
     // Start small to save test execution time.
-    static const int kMin = kBurnikelThreshold / 2;
-    static const int kMax = 2 * kBurnikelThreshold;
+    constexpr int kMin = kBurnikelThreshold / 2;
+    constexpr int kMax = 2 * kBurnikelThreshold;
     for (int right_size = kMin; right_size <= kMax; right_size++) {
       for (int left_size = right_size; left_size <= kMax; left_size++) {
         ScratchDigits A(left_size);
