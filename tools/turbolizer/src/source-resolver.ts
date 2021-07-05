@@ -276,7 +276,7 @@ export class SourceResolver {
   }
 
   sourcePositionsToNodeIds(sourcePositions) {
-    const nodeIds = new Set();
+    const nodeIds = new Set<string>();
     for (const sp of sourcePositions) {
       const key = sourcePositionToStringKey(sp);
       const nodeIdsForPosition = this.positionToNodes.get(key);
@@ -526,7 +526,8 @@ export class SourceResolver {
   instructionsToKeyPcOffsets(instructionIds: Iterable<number>): Array<number> {
     const keyPcOffsets = [];
     for (const instructionId of instructionIds) {
-      keyPcOffsets.push(this.instructionToPCOffset[instructionId].gap);
+      const pcOffset = this.instructionToPCOffset[instructionId];
+      if (pcOffset !== undefined) keyPcOffsets.push(pcOffset.gap);
     }
     return keyPcOffsets;
   }

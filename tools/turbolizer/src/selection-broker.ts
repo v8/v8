@@ -56,22 +56,49 @@ export class SelectionBroker {
       }
       return true;
     });
+
+    // Select the lines from the source panel (left panel)
     for (const b of this.sourcePositionHandlers) {
       if (b != from) b.brokeredSourcePositionSelect(sourcePositions, selected);
     }
+
+    // Select the nodes (middle panel)
     const nodes = this.sourceResolver.sourcePositionsToNodeIds(sourcePositions);
     for (const b of this.nodeHandlers) {
       if (b != from) b.brokeredNodeSelect(nodes, selected);
     }
+
+    // Select the lines from the disassembly (right panel)
+    for (const node of nodes) {
+      const instructionOffsets = this.sourceResolver.nodeIdToInstructionRange[node];
+      // Skip nodes which do not have an associated instruction range.
+      if (instructionOffsets == undefined) continue;
+      for (const b of this.instructionHandlers) {
+        if (b != from) b.brokeredInstructionSelect(instructionOffsets, selected);
+      }
+    }
   }
 
   broadcastNodeSelect(from, nodes, selected) {
+    // Select the nodes (middle panel)
     for (const b of this.nodeHandlers) {
       if (b != from) b.brokeredNodeSelect(nodes, selected);
     }
+
+    // Select the lines from the source panel (left panel)
     const sourcePositions = this.sourceResolver.nodeIdsToSourcePositions(nodes);
     for (const b of this.sourcePositionHandlers) {
       if (b != from) b.brokeredSourcePositionSelect(sourcePositions, selected);
+    }
+
+    // Select the lines from the disassembly (right panel)
+    for (const node of nodes) {
+      const instructionOffsets = this.sourceResolver.nodeIdToInstructionRange[node];
+      // Skip nodes which do not have an associated instruction range.
+      if (instructionOffsets == undefined) continue;
+      for (const b of this.instructionHandlers) {
+        if (b != from) b.brokeredInstructionSelect(instructionOffsets, selected);
+      }
     }
   }
 
