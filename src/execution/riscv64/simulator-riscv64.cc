@@ -1388,6 +1388,8 @@ void Simulator::SoftwareInterrupt() {
     // See comment in codegen-arm.cc and bug 1242173.
     int64_t saved_ra = get_register(ra);
 
+    int64_t pc = get_pc();
+
     intptr_t external =
         reinterpret_cast<intptr_t>(redirection->external_function());
 
@@ -1403,17 +1405,20 @@ void Simulator::SoftwareInterrupt() {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
-            PrintF("Call to host function at %p with args %f, %f",
+            PrintF("Call to host function %s at %p with args %f, %f",
+                   ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                    reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                    dval0, dval1);
             break;
           case ExternalReference::BUILTIN_FP_CALL:
-            PrintF("Call to host function at %p with arg %f",
+            PrintF("Call to host function %s at %p with arg %f",
+                   ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                    reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                    dval0);
             break;
           case ExternalReference::BUILTIN_FP_INT_CALL:
-            PrintF("Call to host function at %p with args %f, %d",
+            PrintF("Call to host function %s at %p with args %f, %d",
+                   ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                    reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                    dval0, ival);
             break;
@@ -1473,7 +1478,8 @@ void Simulator::SoftwareInterrupt() {
       }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 " \n",
+        PrintF("Call to host function %s at %p args %08" PRIx64 " \n",
+               ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                reinterpret_cast<void*>(external), arg0);
       }
       SimulatorRuntimeDirectApiCall target =
@@ -1481,8 +1487,9 @@ void Simulator::SoftwareInterrupt() {
       target(arg0);
     } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
+        PrintF("Call to host function %s at %p args %08" PRIx64 "  %08" PRIx64
                " \n",
+               ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                reinterpret_cast<void*>(external), arg0, arg1);
       }
       SimulatorRuntimeProfilingApiCall target =
@@ -1490,8 +1497,9 @@ void Simulator::SoftwareInterrupt() {
       target(arg0, Redirection::ReverseRedirection(arg1));
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
+        PrintF("Call to host function %s at %p args %08" PRIx64 "  %08" PRIx64
                " \n",
+               ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                reinterpret_cast<void*>(external), arg0, arg1);
       }
       SimulatorRuntimeDirectGetterCall target =
@@ -1500,8 +1508,9 @@ void Simulator::SoftwareInterrupt() {
     } else if (redirection->type() ==
                ExternalReference::PROFILING_GETTER_CALL) {
       if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
+        PrintF("Call to host function %s at %p args %08" PRIx64 "  %08" PRIx64
                "  %08" PRIx64 " \n",
+               ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                reinterpret_cast<void*>(external), arg0, arg1, arg2);
       }
       SimulatorRuntimeProfilingGetterCall target =
@@ -1514,10 +1523,11 @@ void Simulator::SoftwareInterrupt() {
           reinterpret_cast<SimulatorRuntimeCall>(external);
       if (::v8::internal::FLAG_trace_sim) {
         PrintF(
-            "Call to host function at %p "
+            "Call to host function %s at %p "
             "args %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
             " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
             " , %08" PRIx64 " , %08" PRIx64 " \n",
+            ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
             reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
             arg3, arg4, arg5, arg6, arg7, arg8, arg9);
       }
