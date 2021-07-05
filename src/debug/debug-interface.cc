@@ -939,6 +939,31 @@ v8::Local<GeneratorObject> GeneratorObject::Cast(v8::Local<v8::Value> value) {
   return ToApiHandle<GeneratorObject>(Utils::OpenHandle(*value));
 }
 
+MaybeLocal<Value> CallFunctionOn(Local<Context> context,
+                                 Local<Function> function, Local<Value> recv,
+                                 int argc, Local<Value> argv[],
+                                 bool throw_on_side_effect) {
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(isolate, Value);
+  auto self = Utils::OpenHandle(*function);
+  auto recv_obj = Utils::OpenHandle(*recv);
+  STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
+  auto args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+  // Disable breaks in side-effect free mode.
+  i::DisableBreak disable_break_scope(isolate->debug(), throw_on_side_effect);
+  if (throw_on_side_effect) {
+    isolate->debug()->StartSideEffectCheckMode();
+  }
+  Local<Value> result;
+  has_pending_exception = !ToLocal<Value>(
+      i::Execution::Call(isolate, self, recv_obj, argc, args), &result);
+  if (throw_on_side_effect) {
+    isolate->debug()->StopSideEffectCheckMode();
+  }
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
+}
+
 MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
                                      v8::Local<v8::String> source,
                                      EvaluateGlobalMode mode, bool repl) {

@@ -1347,6 +1347,8 @@ domain Runtime
       # Symbolic group name that can be used to release multiple objects. If objectGroup is not
       # specified and objectId is, objectGroup will be inherited from object.
       optional string objectGroup
+      # Whether to throw an exception if side effect cannot be ruled out during evaluation.
+      experimental optional boolean throwOnSideEffect
     returns
       # Call result.
       RemoteObject result

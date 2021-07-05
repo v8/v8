@@ -520,6 +520,11 @@ using RuntimeCallCounterCallback =
 void EnumerateRuntimeCallCounters(v8::Isolate* isolate,
                                   RuntimeCallCounterCallback callback);
 
+MaybeLocal<Value> CallFunctionOn(Local<Context> context,
+                                 Local<Function> function, Local<Value> recv,
+                                 int argc, Local<Value> argv[],
+                                 bool throw_on_side_effect);
+
 enum class EvaluateGlobalMode {
   kDefault,
   kDisableBreaks,
