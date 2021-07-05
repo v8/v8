@@ -1967,6 +1967,17 @@ bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
 
 void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
                         v8::debug::ExceptionType exception_type) {
+  // Do not trigger exception event on stack overflow. We cannot perform
+  // anything useful for debugging in that situation.
+  StackLimitCheck stack_limit_check(isolate_);
+  if (stack_limit_check.JsHasOverflowed()) return;
+
+  // Return if the event has nowhere to go.
+  if (!debug_delegate_) return;
+
+  // Return if we are not interested in exception events.
+  if (!break_on_exception_ && !break_on_uncaught_exception_) return;
+
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
 
   // Don't notify listener of exceptions that are internal to a desugaring.
@@ -1989,15 +2000,11 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     }
   }
 
-  if (!debug_delegate_) return;
-
-  // Bail out if exception breaks are not active
-  if (uncaught) {
-    // Uncaught exceptions are reported by either flags.
-    if (!(break_on_uncaught_exception_ || break_on_exception_)) return;
-  } else {
-    // Caught exceptions are reported is activated.
-    if (!break_on_exception_) return;
+  // Return if the exception is caught and we only care about uncaught
+  // exceptions.
+  if (!uncaught && !break_on_exception_) {
+    DCHECK(break_on_uncaught_exception_);
+    return;
   }
 
   {
@@ -2009,11 +2016,6 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     }
     if (it.done()) return;  // Do not trigger an event with an empty stack.
   }
-
-  // Do not trigger exception event on stack overflow. We cannot perform
-  // anything useful for debugging in that situation.
-  StackLimitCheck stack_limit_check(isolate_);
-  if (stack_limit_check.JsHasOverflowed()) return;
 
   DebugScope debug_scope(this);
   HandleScope scope(isolate_);
