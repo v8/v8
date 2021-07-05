@@ -2898,14 +2898,6 @@ class AstNodeFactory final {
                                          HandlerTable::UNCAUGHT, pos);
   }
 
-  TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,
-                                                       Scope* scope,
-                                                       Block* catch_block,
-                                                       int pos) {
-    return zone_->New<TryCatchStatement>(try_block, scope, catch_block,
-                                         HandlerTable::DESUGARING, pos);
-  }
-
   TryCatchStatement* NewTryCatchStatementForAsyncAwait(Block* try_block,
                                                        Scope* scope,
                                                        Block* catch_block,

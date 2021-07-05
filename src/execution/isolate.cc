@@ -2005,8 +2005,6 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
       return Isolate::CAUGHT_BY_JAVASCRIPT;
     case HandlerTable::PROMISE:
       return Isolate::CAUGHT_BY_PROMISE;
-    case HandlerTable::DESUGARING:
-      return Isolate::CAUGHT_BY_DESUGARING;
     case HandlerTable::UNCAUGHT_ASYNC_AWAIT:
     case HandlerTable::ASYNC_AWAIT:
       return Isolate::CAUGHT_BY_ASYNC_AWAIT;
@@ -2525,7 +2523,6 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
       case HandlerTable::UNCAUGHT:
         continue;
       case HandlerTable::CAUGHT:
-      case HandlerTable::DESUGARING:
         if (retval->IsJSPromise()) {
           // Caught the result of an inner async/await invocation.
           // Mark the inner promise as caught in the "synchronous case" so

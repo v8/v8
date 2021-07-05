@@ -1038,9 +1038,6 @@ void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
     case HandlerTable::CAUGHT:
       prediction = "CAUGHT";
       break;
-    case HandlerTable::DESUGARING:
-      prediction = "DESUGARING";
-      break;
     case HandlerTable::ASYNC_AWAIT:
       prediction = "ASYNC_AWAIT";
       break;

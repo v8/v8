@@ -1980,9 +1980,6 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
 
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
 
-  // Don't notify listener of exceptions that are internal to a desugaring.
-  if (catch_type == Isolate::CAUGHT_BY_DESUGARING) return;
-
   bool uncaught = catch_type == Isolate::NOT_CAUGHT;
   if (promise->IsJSObject()) {
     Handle<JSObject> jspromise = Handle<JSObject>::cast(promise);
