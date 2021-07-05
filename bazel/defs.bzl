@@ -143,7 +143,6 @@ def v8_library(
         copts = copts + default.copts,
         linkopts = linkopts + default.linkopts,
         alwayslink = 1,
-        linkstatic = 1,
         **kwargs
     )
 
