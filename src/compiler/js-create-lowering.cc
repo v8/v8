@@ -156,7 +156,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
 
   // Use the ArgumentsAccessStub for materializing both mapped and unmapped
   // arguments object, but only for non-inlined (i.e. outermost) frames.
-  if (!frame_state.has_outer_frame_state()) {
+  if (frame_state.outer_frame_state()->opcode() != IrOpcode::kFrameState) {
     switch (type) {
       case CreateArgumentsType::kMappedArguments: {
         // TODO(turbofan): Duplicate parameters are not handled yet.

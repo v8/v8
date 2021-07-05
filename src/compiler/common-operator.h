@@ -617,12 +617,7 @@ class CommonNodeWrapperBase : public NodeWrapper {
 class FrameState : public CommonNodeWrapperBase {
  public:
   explicit constexpr FrameState(Node* node) : CommonNodeWrapperBase(node) {
-    // TODO(jgruber): Disallow kStart (needed for PromiseConstructorBasic unit
-    // test, among others). Also, outer_frame_state points at the start node
-    // for non-inlined functions. This could be avoided by checking
-    // has_outer_frame_state() before casting to FrameState.
-    DCHECK(node->opcode() == IrOpcode::kFrameState ||
-           node->opcode() == IrOpcode::kStart);
+    DCHECK_EQ(node->opcode(), IrOpcode::kFrameState);
   }
 
   FrameStateInfo frame_state_info() const {
@@ -657,15 +652,13 @@ class FrameState : public CommonNodeWrapperBase {
   Node* function() const { return node()->InputAt(kFrameStateFunctionInput); }
 
   // An outer frame state exists for inlined functions; otherwise it points at
-  // the start node.
-  bool has_outer_frame_state() const {
-    Node* maybe_outer_frame_state = node()->InputAt(kFrameStateOuterStateInput);
-    DCHECK(maybe_outer_frame_state->opcode() == IrOpcode::kFrameState ||
-           maybe_outer_frame_state->opcode() == IrOpcode::kStart);
-    return maybe_outer_frame_state->opcode() == IrOpcode::kFrameState;
-  }
-  FrameState outer_frame_state() const {
-    return FrameState{node()->InputAt(kFrameStateOuterStateInput)};
+  // the start node. Could also be dead.
+  Node* outer_frame_state() const {
+    Node* result = node()->InputAt(kFrameStateOuterStateInput);
+    DCHECK(result->opcode() == IrOpcode::kFrameState ||
+           result->opcode() == IrOpcode::kStart ||
+           result->opcode() == IrOpcode::kDeadValue);
+    return result;
   }
 };
 

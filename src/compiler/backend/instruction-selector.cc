@@ -752,16 +752,14 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
     FrameStateDescriptor* descriptor, FrameState state, OperandGenerator* g,
     StateObjectDeduplicator* deduplicator, InstructionOperandVector* inputs,
     FrameStateInputKind kind, Zone* zone) {
-  DCHECK_EQ(IrOpcode::kFrameState, state->op()->opcode());
-
   size_t entries = 0;
   size_t initial_size = inputs->size();
   USE(initial_size);  // initial_size is only used for debug.
 
   if (descriptor->outer_state()) {
     entries += AddInputsToFrameStateDescriptor(
-        descriptor->outer_state(), state.outer_frame_state(), g, deduplicator,
-        inputs, kind, zone);
+        descriptor->outer_state(), FrameState{state.outer_frame_state()}, g,
+        deduplicator, inputs, kind, zone);
   }
 
   Node* parameters = state.parameters();
@@ -3343,9 +3341,9 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone,
   int stack = state_info.type() == FrameStateType::kUnoptimizedFunction ? 1 : 0;
 
   FrameStateDescriptor* outer_state = nullptr;
-  if (state.has_outer_frame_state()) {
-    outer_state =
-        GetFrameStateDescriptorInternal(zone, state.outer_frame_state());
+  if (state.outer_frame_state()->opcode() == IrOpcode::kFrameState) {
+    outer_state = GetFrameStateDescriptorInternal(
+        zone, FrameState{state.outer_frame_state()});
   }
 
 #if V8_ENABLE_WEBASSEMBLY

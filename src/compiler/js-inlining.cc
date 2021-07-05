@@ -497,9 +497,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // To ensure inlining always terminates, we have an upper limit on inlining
   // the nested calls.
   int nesting_level = 0;
-  for (FrameState frame_state = FrameState{call.frame_state()};
+  for (Node* frame_state = call.frame_state();
        frame_state->opcode() == IrOpcode::kFrameState;
-       frame_state = frame_state.outer_frame_state()) {
+       frame_state = FrameState{frame_state}.outer_frame_state()) {
     nesting_level++;
     if (nesting_level > kMaxDepthForInlining) {
       TRACE("Not inlining "

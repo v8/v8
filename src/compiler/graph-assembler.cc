@@ -861,11 +861,11 @@ Node* GraphAssembler::DynamicCheckMapsWithDeoptUnless(Node* condition,
                                                       Node* value, Node* map,
                                                       Node* feedback_vector,
                                                       FrameState frame_state) {
-  return AddNode(graph()->NewNode(common()->DynamicCheckMapsWithDeoptUnless(
-                                      frame_state.has_outer_frame_state()),
-                                  condition, slot_index, value, map,
-                                  feedback_vector, frame_state, effect(),
-                                  control()));
+  return AddNode(graph()->NewNode(
+      common()->DynamicCheckMapsWithDeoptUnless(
+          frame_state.outer_frame_state()->opcode() == IrOpcode::kFrameState),
+      condition, slot_index, value, map, feedback_vector, frame_state, effect(),
+      control()));
 }
 
 TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,
