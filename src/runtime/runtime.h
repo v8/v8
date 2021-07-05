@@ -375,7 +375,6 @@ namespace internal {
   F(PromiseHookInit, 2, 1)               \
   F(AwaitPromisesInit, 5, 1)             \
   F(AwaitPromisesInitOld, 5, 1)          \
-  F(PromiseMarkAsHandled, 1, 1)          \
   F(PromiseRejectEventFromStack, 2, 1)   \
   F(PromiseRevokeReject, 1, 1)           \
   F(PromiseStatus, 1, 1)                 \
