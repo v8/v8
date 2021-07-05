@@ -419,17 +419,13 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   Zone zone(&allocator, ZONE_NAME);
 
   ZoneBuffer buffer(&zone);
-  int32_t num_args = 0;
-  std::unique_ptr<WasmValue[]> interpreter_args;
-  std::unique_ptr<Handle<Object>[]> compiler_args;
   // The first byte builds the bitmask to control which function will be
   // compiled with Turbofan and which one with Liftoff.
   uint8_t tier_mask = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
   uint8_t debug_mask = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
-  if (!GenerateModule(i_isolate, &zone, data, &buffer, &num_args,
-                      &interpreter_args, &compiler_args)) {
+  if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
     return;
   }
 

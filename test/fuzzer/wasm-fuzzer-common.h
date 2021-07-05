@@ -44,11 +44,9 @@ class WasmExecutionFuzzer {
   virtual size_t max_input_size() const { return 512; }
 
  protected:
-  virtual bool GenerateModule(
-      Isolate* isolate, Zone* zone, base::Vector<const uint8_t> data,
-      ZoneBuffer* buffer, int32_t* num_args,
-      std::unique_ptr<WasmValue[]>* interpreter_args,
-      std::unique_ptr<Handle<Object>[]>* compiler_args) = 0;
+  virtual bool GenerateModule(Isolate* isolate, Zone* zone,
+                              base::Vector<const uint8_t> data,
+                              ZoneBuffer* buffer) = 0;
 };
 
 }  // namespace fuzzer

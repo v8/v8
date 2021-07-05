@@ -18,11 +18,9 @@ namespace wasm {
 namespace fuzzer {
 
 class WasmCodeFuzzer : public WasmExecutionFuzzer {
-  bool GenerateModule(
-      Isolate* isolate, Zone* zone, base::Vector<const uint8_t> data,
-      ZoneBuffer* buffer, int32_t* num_args,
-      std::unique_ptr<WasmValue[]>* interpreter_args,
-      std::unique_ptr<Handle<Object>[]>* compiler_args) override {
+  bool GenerateModule(Isolate* isolate, Zone* zone,
+                      base::Vector<const uint8_t> data,
+                      ZoneBuffer* buffer) override {
     TestSignatures sigs;
     WasmModuleBuilder builder(zone);
     WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
@@ -33,14 +31,6 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
 
     builder.SetMaxMemorySize(32);
     builder.WriteTo(buffer);
-    *num_args = 3;
-    interpreter_args->reset(
-        new WasmValue[3]{WasmValue(1), WasmValue(2), WasmValue(3)});
-
-    compiler_args->reset(new Handle<Object>[3] {
-      handle(Smi::FromInt(1), isolate), handle(Smi::FromInt(2), isolate),
-          handle(Smi::FromInt(3), isolate)
-    });
     return true;
   }
 };
