@@ -2697,6 +2697,7 @@ v8_torque(
 
 genrule(
     name = "generated_inspector_files",
+    srcs = [ "include/js_protocol.pdl" ],
     outs = [
         "include/inspector/Debugger.h",
         "include/inspector/Runtime.h",
