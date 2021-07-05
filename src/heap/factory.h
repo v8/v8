@@ -19,6 +19,7 @@
 #include "src/heap/heap.h"
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/shared-function-info.h"
@@ -929,7 +930,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
    private:
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
     MaybeHandle<Code> AllocateCode(bool retry_allocation_or_fail);
-    void FinalizeOnHeapCode(Handle<Code> code);
+    void FinalizeOnHeapCode(Handle<Code> code, ByteArray reloc_info);
 
     Isolate* const isolate_;
     const CodeDesc& code_desc_;

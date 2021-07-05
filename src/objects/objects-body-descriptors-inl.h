@@ -790,8 +790,15 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     // GC does not visit data/code in the header and in the body directly.
     IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
-    RelocIterator it(Code::cast(obj), kRelocModeMask);
-    v->VisitRelocInfo(&it);
+    Code code = Code::cast(obj);
+    HeapObject relocation_info =
+        code.synchronized_unchecked_relocation_info_or_undefined();
+
+    if (!relocation_info.IsUndefined()) {
+      RelocIterator it(code, ByteArray::unchecked_cast(relocation_info),
+                       kRelocModeMask);
+      v->VisitRelocInfo(&it);
+    }
   }
 
   template <typename ObjectVisitor>

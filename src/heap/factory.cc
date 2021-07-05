@@ -148,13 +148,11 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     DisallowGarbageCollection no_gc;
 
     if (code_is_on_heap) {
-      // TODO(victorgomes): we must notify the GC that code layout will change.
-      heap->EnsureSweepingCompleted(code);
+      heap->NotifyCodeObjectChangeStart(raw_code, no_gc);
     }
 
     raw_code.set_raw_instruction_size(code_desc_.instruction_size());
     raw_code.set_raw_metadata_size(code_desc_.metadata_size());
-    raw_code.set_relocation_info(*reloc_info);
     raw_code.initialize_flags(kind_, is_turbofanned_, stack_slots_,
                               kIsNotOffHeapTrampoline);
     raw_code.set_builtin_id(builtin_);
@@ -202,7 +200,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     }
 
     if (code_is_on_heap) {
-      FinalizeOnHeapCode(code);
+      FinalizeOnHeapCode(code, *reloc_info);
     } else {
       // Migrate generated code.
       // The generated code can contain embedded objects (typically from
@@ -210,10 +208,19 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       // like a handle) that are dereferenced during the copy to point directly
       // to the actual heap objects. These pointers can include references to
       // the code object itself, through the self_reference parameter.
-      raw_code.CopyFromNoFlush(heap, code_desc_);
+      raw_code.CopyFromNoFlush(*reloc_info, heap, code_desc_);
     }
 
     raw_code.clear_padding();
+
+    if (code_is_on_heap) {
+      raw_code.set_relocation_info(*reloc_info, kReleaseStore);
+      // Now that object is properly initialized, the GC needs to revisit this
+      // object if marking is on.
+      heap->NotifyCodeObjectChangeEnd(raw_code, no_gc);
+    } else {
+      raw_code.set_relocation_info(*reloc_info);
+    }
 
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       data_container->SetCodeAndEntryPoint(isolate_, raw_code);
@@ -281,14 +288,15 @@ MaybeHandle<Code> Factory::CodeBuilder::AllocateCode(
   return code;
 }
 
-void Factory::CodeBuilder::FinalizeOnHeapCode(Handle<Code> code) {
+void Factory::CodeBuilder::FinalizeOnHeapCode(Handle<Code> code,
+                                              ByteArray reloc_info) {
   Heap* heap = isolate_->heap();
 
   // We cannot trim the Code object in CODE_LO_SPACE.
   DCHECK(!heap->code_lo_space()->Contains(*code));
 
-  code->CopyRelocInfoToByteArray(code->unchecked_relocation_info(), code_desc_);
-  code->RelocateFromDesc(heap, code_desc_);
+  code->CopyRelocInfoToByteArray(reloc_info, code_desc_);
+  code->RelocateFromDesc(reloc_info, heap, code_desc_);
 
   int old_object_size = Code::SizeFor(code_desc_.origin->buffer_size());
   int new_object_size =
@@ -314,7 +322,7 @@ MaybeHandle<Code> Factory::NewEmptyCode(CodeKind kind, int buffer_size) {
   constexpr bool kIsNotOffHeapTrampoline = false;
   raw_code.set_raw_instruction_size(0);
   raw_code.set_raw_metadata_size(buffer_size);
-  raw_code.set_relocation_info(*empty_byte_array());
+  raw_code.set_relocation_info_or_undefined(*undefined_value());
   raw_code.initialize_flags(kind, false, 0, kIsNotOffHeapTrampoline);
   raw_code.set_builtin_id(Builtin::kNoBuiltinId);
   auto code_data_container =

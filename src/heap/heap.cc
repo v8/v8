@@ -2280,10 +2280,10 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
   array_buffer_sweeper()->EnsureFinished();
 }
 
-void Heap::EnsureSweepingCompleted(Handle<HeapObject> object) {
+void Heap::EnsureSweepingCompleted(HeapObject object) {
   if (!mark_compact_collector()->sweeping_in_progress()) return;
 
-  BasicMemoryChunk* basic_chunk = BasicMemoryChunk::FromHeapObject(*object);
+  BasicMemoryChunk* basic_chunk = BasicMemoryChunk::FromHeapObject(object);
   if (basic_chunk->InReadOnlySpace()) return;
 
   MemoryChunk* chunk = MemoryChunk::cast(basic_chunk);
@@ -3747,6 +3747,27 @@ void Heap::NotifyObjectLayoutChange(
     pending_layout_change_object_ = object;
   }
 #endif
+}
+
+void Heap::NotifyCodeObjectChangeStart(Code code,
+                                       const DisallowGarbageCollection&) {
+  // Updating the code object will also trim the object size, this results in
+  // free memory which we want to give back to the LAB. Sweeping that object's
+  // page will ensure that we don't add that memory to the free list as well.
+  EnsureSweepingCompleted(code);
+}
+
+void Heap::NotifyCodeObjectChangeEnd(Code code,
+                                     const DisallowGarbageCollection&) {
+  // Ensure relocation_info is already initialized.
+  DCHECK(code.relocation_info_or_undefined().IsByteArray());
+
+  if (incremental_marking()->IsMarking()) {
+    // Object might have been marked already without relocation_info. Force
+    // revisitation of the object such that we find all pointers in the
+    // instruction stream.
+    incremental_marking()->MarkBlackAndRevisitObject(code);
+  }
 }
 
 #ifdef VERIFY_HEAP

@@ -269,6 +269,8 @@ class Code : public HeapObject {
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(relocation_info, ByteArray)
+  DECL_ACCESSORS(relocation_info_or_undefined, HeapObject)
 
   // This function should be called only from GC.
   void ClearEmbeddedObjects(Heap* heap);
@@ -297,6 +299,7 @@ class Code : public HeapObject {
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
+  inline HeapObject synchronized_unchecked_relocation_info_or_undefined() const;
 
   inline int relocation_size() const;
 
@@ -432,8 +435,8 @@ class Code : public HeapObject {
   void Relocate(intptr_t delta);
 
   // Migrate code from desc without flushing the instruction cache.
-  void CopyFromNoFlush(Heap* heap, const CodeDesc& desc);
-  void RelocateFromDesc(Heap* heap, const CodeDesc& desc);
+  void CopyFromNoFlush(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
+  void RelocateFromDesc(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
 
   // Copy the RelocInfo portion of |desc| to |dest|. The ByteArray must be
   // exactly the same size as the RelocInfo in |desc|.
