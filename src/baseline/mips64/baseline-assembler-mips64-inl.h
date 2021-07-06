@@ -387,14 +387,14 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
                          JSFunction::kFeedbackCellOffset);
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
-  __ Ld(interrupt_budget,
+  __ Lw(interrupt_budget,
         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
-  __ Daddu(interrupt_budget, interrupt_budget, weight);
-  __ Sd(interrupt_budget,
+  __ Addu(interrupt_budget, interrupt_budget, weight);
+  __ Sw(interrupt_budget,
         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   if (skip_interrupt_label) {
     DCHECK_LT(weight, 0);
-    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(weight));
+    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(zero_reg));
   }
 }
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
@@ -407,13 +407,13 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
                          JSFunction::kFeedbackCellOffset);
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
-  __ Ld(interrupt_budget,
+  __ Lw(interrupt_budget,
         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
-  __ Daddu(interrupt_budget, interrupt_budget, weight);
-  __ Sd(interrupt_budget,
+  __ Addu(interrupt_budget, interrupt_budget, weight);
+  __ Sw(interrupt_budget,
         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   if (skip_interrupt_label)
-    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(weight));
+    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(zero_reg));
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {

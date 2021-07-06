@@ -396,7 +396,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   if (skip_interrupt_label) {
     DCHECK_LT(weight, 0);
-    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(weight));
+    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(zero_reg));
   }
 }
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
@@ -415,7 +415,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   __ Sw(interrupt_budget,
         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   if (skip_interrupt_label)
-    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(weight));
+    __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(zero_reg));
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
