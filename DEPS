@@ -49,10 +49,10 @@ vars = {
   'reclient_version': 're_client_version:0.33.0.3e223d5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:4d207c94eab41f09c9a8505eb47f3d2919e47943',
+  'gn_version': 'git_revision:31f2bba8aafa8015ca5761100a21f17c2d741062',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:40f945205c8670537d14901c310374774f589254',
+  'luci_go': 'git_revision:a5505c14c78e1a27562164fb55f7d2d8190a0a9b',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -92,7 +92,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd5bb24e5d9802c8c917fcaa4375d5239a586c168',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a0862c377d884cb990d82fbc4ad9bd6328784700',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ced9667e177bb9fbc17a2f918460c7e9a89a0455',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'fd3f3c19981cd8fe4e4f11e0a7b8fb6cf329807e',
   'buildtools/clang_format/script':
@@ -285,7 +285,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '00ade15d946d72f75c786dc2e66c419a9d99e2ad',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e1e56a58075d9d3ee55a86be0ed2e87be317968a',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '081034a4ff0462c46b9261be81de77562d19936e',
   'tools/clang/dsymutil': {
     'packages': [
       {
