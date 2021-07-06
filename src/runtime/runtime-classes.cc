@@ -675,12 +675,11 @@ MaybeHandle<JSReceiver> GetSuperHolder(Isolate* isolate,
   PrototypeIterator iter(isolate, home_object);
   Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
   if (!proto->IsJSReceiver()) {
-    MessageTemplate message =
-        mode == SuperMode::kLoad
-            ? MessageTemplate::kNonObjectPropertyLoadWithProperty
-            : MessageTemplate::kNonObjectPropertyStoreWithProperty;
+    MessageTemplate message = mode == SuperMode::kLoad
+                                  ? MessageTemplate::kNonObjectPropertyLoad
+                                  : MessageTemplate::kNonObjectPropertyStore;
     Handle<Name> name = key->GetName(isolate);
-    THROW_NEW_ERROR(isolate, NewTypeError(message, proto, name), JSReceiver);
+    THROW_NEW_ERROR(isolate, NewTypeError(message, name, proto), JSReceiver);
   }
   return Handle<JSReceiver>::cast(proto);
 }

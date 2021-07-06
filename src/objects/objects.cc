@@ -463,8 +463,8 @@ Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
 }  // namespace
 
 // static
-MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
-                                                       Handle<Object> input) {
+Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
+                                             Handle<Object> input) {
   DisallowJavascriptExecution no_js(isolate);
 
   if (input->IsString() || input->IsNumber() || input->IsOddball()) {
@@ -560,20 +560,6 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
         }
       }
     }
-  }
-  return MaybeHandle<String>(kNullMaybeHandle);
-}
-
-// static
-Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
-                                             Handle<Object> input) {
-  DisallowJavascriptExecution no_js(isolate);
-
-  // Try to convert input to a meaningful string.
-  MaybeHandle<String> maybe_string = NoSideEffectsToMaybeString(isolate, input);
-  Handle<String> string_handle;
-  if (maybe_string.ToHandle(&string_handle)) {
-    return string_handle;
   }
 
   // At this point, input is either none of the above or a JSReceiver.
