@@ -792,7 +792,6 @@ UNIMPLEMENTED_I32_BINOP_I(i32_xor)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
 UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
-UNIMPLEMENTED_I64_BINOP(i64_add)
 UNIMPLEMENTED_I64_BINOP(i64_sub)
 UNIMPLEMENTED_I64_BINOP(i64_mul)
 #ifdef V8_TARGET_ARCH_PPC64
@@ -845,7 +844,7 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #undef UNIMPLEMENTED_I32_SHIFTOP
 #undef UNIMPLEMENTED_I64_SHIFTOP
 
-#define SIGN_EXT(r) lgfr(r, r)
+#define SIGN_EXT(r) extsw(r, r)
 #define INT32_AND_WITH_1F(x) Operand(x & 0x1f)
 #define REGISTER_AND_WITH_1F    \
   ([&](Register rhs) {          \
@@ -874,10 +873,33 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
 #undef EMIT_UNOP_FUNCTION
 #undef UNOP_LIST
 
-void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
-                                     int64_t imm) {
-  bailout(kUnsupportedArchitecture, "i64_addi");
-}
+// V(name, instr, dtype, stype1, stype2, dcast, scast1, scast2, rcast,
+// return_val, return_type)
+#define BINOP_LIST(V)                                                        \
+  V(i64_add, AddS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
+  V(i64_addi, AddS64, LiftoffRegister, LiftoffRegister, int64_t, LFR_TO_REG, \
+    LFR_TO_REG, Operand, USE, , void)
+
+#define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \
+                            scast2, rcast, ret, return_type)                   \
+  return_type LiftoffAssembler::emit_##name(dtype dst, stype1 lhs,             \
+                                            stype2 rhs) {                      \
+    auto _dst = dcast(dst);                                                    \
+    auto _lhs = scast1(lhs);                                                   \
+    auto _rhs = scast2(rhs);                                                   \
+    instr(_dst, _lhs, _rhs);                                                   \
+    rcast(_dst);                                                               \
+    return ret;                                                                \
+  }
+
+BINOP_LIST(EMIT_BINOP_FUNCTION)
+#undef BINOP_LIST
+#undef EMIT_BINOP_FUNCTION
+#undef SIGN_EXT
+#undef INT32_AND_WITH_1F
+#undef REGISTER_AND_WITH_1F
+#undef LFR_TO_REG
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,

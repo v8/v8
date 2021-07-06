@@ -735,7 +735,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
     __ bind(&stack_ok);
 
     // Allocate space on stack for registers.
-    __ Add(sp, sp, -num_registers_ * kSystemPointerSize, r0);
+    __ AddS64(sp, sp, Operand(-num_registers_ * kSystemPointerSize), r0);
     // Load string end.
     __ LoadU64(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
     // Load input start.

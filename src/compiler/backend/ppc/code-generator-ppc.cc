@@ -773,13 +773,13 @@ void AdjustStackPointerForTailCall(
     if (pending_pushes != nullptr) {
       FlushPendingPushRegisters(tasm, state, pending_pushes);
     }
-    tasm->Add(sp, sp, -stack_slot_delta * kSystemPointerSize, r0);
+    tasm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize), r0);
     state->IncreaseSPDelta(stack_slot_delta);
   } else if (allow_shrinkage && stack_slot_delta < 0) {
     if (pending_pushes != nullptr) {
       FlushPendingPushRegisters(tasm, state, pending_pushes);
     }
-    tasm->Add(sp, sp, -stack_slot_delta * kSystemPointerSize, r0);
+    tasm->AddS64(sp, sp, Operand(-stack_slot_delta * kSystemPointerSize), r0);
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
@@ -4176,7 +4176,8 @@ void CodeGenerator::AssembleConstructFrame() {
                             WasmInstanceObject::kRealStackLimitAddressOffset),
             r0);
         __ LoadU64(scratch, MemOperand(scratch), r0);
-        __ Add(scratch, scratch, required_slots * kSystemPointerSize, r0);
+        __ AddS64(scratch, scratch,
+                  Operand(required_slots * kSystemPointerSize), r0);
         __ cmpl(sp, scratch);
         __ bge(&done);
       }
@@ -4198,7 +4199,7 @@ void CodeGenerator::AssembleConstructFrame() {
     required_slots -= frame()->GetReturnSlotCount();
     required_slots -= (kDoubleSize / kSystemPointerSize) *
                       base::bits::CountPopulation(saves_fp);
-    __ Add(sp, sp, -required_slots * kSystemPointerSize, r0);
+    __ AddS64(sp, sp, Operand(-required_slots * kSystemPointerSize), r0);
   }
 
   // Save callee-saved Double registers.
@@ -4224,7 +4225,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
     // Create space for returns.
-    __ Add(sp, sp, returns * kSystemPointerSize, r0);
+    __ AddS64(sp, sp, Operand(returns * kSystemPointerSize), r0);
   }
 
   // Restore registers.

@@ -310,7 +310,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
 void TurboAssembler::Drop(int count) {
   if (count > 0) {
-    Add(sp, sp, count * kSystemPointerSize, r0);
+    AddS64(sp, sp, Operand(count * kSystemPointerSize), r0);
   }
 }
 
@@ -665,7 +665,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so so offset must be a multiple of kSystemPointerSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  Add(slot_address, object, offset - kHeapObjectTag, r0);
+  AddS64(slot_address, object, Operand(offset - kHeapObjectTag), r0);
   if (FLAG_debug_code) {
     Label ok;
     andi(r0, slot_address, Operand(kTaggedSize - 1));
@@ -1232,7 +1232,9 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   }
   mtlr(r0);
   frame_ends = pc_offset();
-  Add(sp, fp, StandardFrameConstants::kCallerSPOffset + stack_adjustment, r0);
+  AddS64(sp, fp,
+         Operand(StandardFrameConstants::kCallerSPOffset + stack_adjustment),
+         r0);
   mr(fp, ip);
   return frame_ends;
 }
@@ -1769,7 +1771,7 @@ void TurboAssembler::AddAndCheckForOverflow(Register dst, Register left,
     original_left = overflow_dst;
     mr(original_left, left);
   }
-  Add(dst, left, right, scratch);
+  AddS64(dst, left, Operand(right), scratch);
   xor_(overflow_dst, dst, original_left);
   if (right >= 0) {
     and_(overflow_dst, overflow_dst, dst, SetRC);
@@ -2594,12 +2596,16 @@ void TurboAssembler::MovFloatToInt(Register dst, DoubleRegister src) {
   addi(sp, sp, Operand(kFloatSize));
 }
 
-void TurboAssembler::Add(Register dst, Register src, intptr_t value,
-                         Register scratch) {
-  if (is_int16(value)) {
-    addi(dst, src, Operand(value));
+void TurboAssembler::AddS64(Register dst, Register src, Register value) {
+  add(dst, src, value);
+}
+
+void TurboAssembler::AddS64(Register dst, Register src, const Operand& value,
+                            Register scratch) {
+  if (is_int16(value.immediate())) {
+    addi(dst, src, value);
   } else {
-    mov(scratch, Operand(value));
+    mov(scratch, value);
     add(dst, src, scratch);
   }
 }
@@ -2721,7 +2727,7 @@ void MacroAssembler::CmplSmiLiteral(Register src1, Smi smi, Register scratch,
 void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  Add(dst, src, static_cast<intptr_t>(smi.ptr()), scratch);
+  AddS64(dst, src, Operand(smi.ptr()), scratch);
 #else
   LoadSmiLiteral(scratch, smi);
   add(dst, src, scratch);
@@ -2731,7 +2737,7 @@ void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi smi,
 void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  Add(dst, src, -(static_cast<intptr_t>(smi.ptr())), scratch);
+  AddS64(dst, src, Operand(-(static_cast<intptr_t>(smi.ptr()))), scratch);
 #else
   LoadSmiLiteral(scratch, smi);
   sub(dst, src, scratch);
