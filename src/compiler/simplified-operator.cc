@@ -577,6 +577,7 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kSpeculativeNumberAdd ||
          op->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
          op->opcode() == IrOpcode::kSpeculativeNumberMultiply ||
+         op->opcode() == IrOpcode::kSpeculativeNumberPow ||
          op->opcode() == IrOpcode::kSpeculativeNumberDivide ||
          op->opcode() == IrOpcode::kSpeculativeNumberModulus ||
          op->opcode() == IrOpcode::kSpeculativeNumberShiftLeft ||

@@ -829,6 +829,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeNumberBitwiseAnd(NumberOperationHint hint);
   const Operator* SpeculativeNumberBitwiseOr(NumberOperationHint hint);
   const Operator* SpeculativeNumberBitwiseXor(NumberOperationHint hint);
+  const Operator* SpeculativeNumberPow(NumberOperationHint hint);
 
   const Operator* SpeculativeNumberLessThan(NumberOperationHint hint);
   const Operator* SpeculativeNumberLessThanOrEqual(NumberOperationHint hint);

@@ -91,6 +91,7 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceSpeculativeNumberAdd(node);
     case IrOpcode::kSpeculativeNumberSubtract:
     case IrOpcode::kSpeculativeNumberMultiply:
+    case IrOpcode::kSpeculativeNumberPow:
     case IrOpcode::kSpeculativeNumberDivide:
     case IrOpcode::kSpeculativeNumberModulus:
       return ReduceSpeculativeNumberBinop(node);
@@ -769,6 +770,8 @@ const Operator* NumberOpFromSpeculativeNumberOp(
       return simplified->NumberSubtract();
     case IrOpcode::kSpeculativeNumberMultiply:
       return simplified->NumberMultiply();
+    case IrOpcode::kSpeculativeNumberPow:
+      return simplified->NumberPow();
     case IrOpcode::kSpeculativeNumberDivide:
       return simplified->NumberDivide();
     case IrOpcode::kSpeculativeNumberModulus:

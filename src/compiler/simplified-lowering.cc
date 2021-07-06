@@ -2802,6 +2802,15 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kSpeculativeNumberPow: {
+        // Checked float64 ** float64 => float64
+        VisitBinop<T>(node,
+                      UseInfo::CheckedNumberOrOddballAsFloat64(
+                          kDistinguishZeros, FeedbackSource()),
+                      MachineRepresentation::kFloat64, Type::Number());
+        if (lower<T>()) ChangeToPureOp(node, Float64Op(node));
+        return;
+      }
       case IrOpcode::kNumberAtan2:
       case IrOpcode::kNumberPow: {
         VisitBinop<T>(node, UseInfo::TruncatingFloat64(),

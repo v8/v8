@@ -446,6 +446,9 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
       case Operation::kModulus:
         result = CallBuiltin(Builtin::kModulus, context(), lhs, rhs);
         break;
+      case Operation::kExponentiate:
+        result = CallBuiltin(Builtin::kExponentiate, context(), lhs, rhs);
+        break;
       default:
         UNREACHABLE();
     }
@@ -576,11 +579,19 @@ TNode<Object> BinaryOpAssembler::Generate_ExponentiateWithFeedback(
     TNode<Object> exponent, TNode<UintPtrT> slot_id,
     const LazyNode<HeapObject>& maybe_feedback_vector,
     UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
-  // We currently don't optimize exponentiation based on feedback.
-  TNode<Smi> dummy_feedback = SmiConstant(BinaryOperationFeedback::kAny);
-  UpdateFeedback(dummy_feedback, maybe_feedback_vector(), slot_id,
-                 update_feedback_mode);
-  return CallBuiltin(Builtin::kExponentiate, context(), base, exponent);
+  auto smiFunction = [=](TNode<Smi> base, TNode<Smi> exponent,
+                         TVariable<Smi>* var_type_feedback) {
+    *var_type_feedback = SmiConstant(BinaryOperationFeedback::kNumber);
+    return AllocateHeapNumberWithValue(
+        Float64Pow(SmiToFloat64(base), SmiToFloat64(exponent)));
+  };
+  auto floatFunction = [=](TNode<Float64T> base, TNode<Float64T> exponent) {
+    return Float64Pow(base, exponent);
+  };
+  return Generate_BinaryOperationWithFeedback(
+      context, base, exponent, slot_id, maybe_feedback_vector, smiFunction,
+      floatFunction, Operation::kExponentiate, update_feedback_mode,
+      rhs_known_smi);
 }
 
 TNode<Object> BinaryOpAssembler::Generate_BitwiseBinaryOpWithOptionalFeedback(
