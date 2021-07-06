@@ -217,6 +217,17 @@ experiment_builder(
 )
 
 experiment_builder(
+    name = "V8 Linux64 - node.js integration ng - reclient",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    executable = "recipe:v8/node_integration_ng",
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {"v8_tot": True, "builder_group": "client.v8"},
+    use_rbe = RECLIENT.DEFAULT,
+    to_notify = ["yyanagisawa@google.com"],
+)
+
+experiment_builder(
     name = "V8 Linux gcc",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
