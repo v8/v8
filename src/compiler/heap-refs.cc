@@ -591,9 +591,8 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
     }
     // Since we don't have a guarantee that {value} is the correct value of the
     // property, we use the expected {representation} to weed out the most
-    // egregious types  of wrong values.
-    if ((representation.IsSmi() && !value->IsSmi()) ||
-        (representation.IsDouble() && !value->IsHeapNumber())) {
+    // egregious types of wrong values.
+    if (!value->object()->FitsRepresentation(representation)) {
       TRACE_BROKER_MISSING(
           broker, "Mismatch between representation and value in " << holder);
       return {};
