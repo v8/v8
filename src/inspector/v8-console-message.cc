@@ -402,6 +402,7 @@ V8ConsoleMessage::getAssociatedExceptionData(
       inspector->getAssociatedExceptionData(exception);
   v8::Local<v8::Object> data;
   if (!maybe_data.ToLocal(&data)) return nullptr;
+  v8::TryCatch tryCatch(isolate);
   v8::MicrotasksScope microtasksScope(isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Context::Scope contextScope(context);
