@@ -54,6 +54,18 @@ export class SelectionBroker {
     for (const b of this.instructionHandlers) {
       if (b != from) b.brokeredInstructionSelect(instructionOffsets, selected);
     }
+
+    // Select the lines from the source panel (left panel)
+    const pcOffsets = this.sourceResolver.instructionsToKeyPcOffsets(instructionOffsets);
+    for (const offset of pcOffsets) {
+      const nodes = this.sourceResolver.nodesForPCOffset(offset)[0];
+      const sourcePositions = this.sourceResolver.nodeIdsToSourcePositions(nodes);
+      for (const b of this.sourcePositionHandlers) {
+        if (b != from) b.brokeredSourcePositionSelect(sourcePositions, selected);
+      }
+    }
+
+    // The middle panel lines have already been selected so there's no need to reselect them.
   }
 
   broadcastSourcePositionSelect(from, sourcePositions, selected) {
@@ -76,13 +88,19 @@ export class SelectionBroker {
       if (b != from) b.brokeredNodeSelect(nodes, selected);
     }
 
-    // Select the lines from the disassembly (right panel)
     for (const node of nodes) {
       const instructionOffsets = this.sourceResolver.nodeIdToInstructionRange[node];
       // Skip nodes which do not have an associated instruction range.
       if (instructionOffsets == undefined) continue;
+
+      // Select the lines from the disassembly (right panel)
       for (const b of this.instructionHandlers) {
         if (b != from) b.brokeredInstructionSelect(instructionOffsets, selected);
+      }
+
+      // Select the lines from the middle panel for the register allocation phase.
+      for (const b of this.registerAllocationHandlers) {
+        if (b != from) b.brokeredRegisterAllocationSelect(instructionOffsets, selected);
       }
     }
   }
@@ -99,13 +117,18 @@ export class SelectionBroker {
       if (b != from) b.brokeredSourcePositionSelect(sourcePositions, selected);
     }
 
-    // Select the lines from the disassembly (right panel)
     for (const node of nodes) {
       const instructionOffsets = this.sourceResolver.nodeIdToInstructionRange[node];
       // Skip nodes which do not have an associated instruction range.
       if (instructionOffsets == undefined) continue;
+      // Select the lines from the disassembly (right panel)
       for (const b of this.instructionHandlers) {
         if (b != from) b.brokeredInstructionSelect(instructionOffsets, selected);
+      }
+
+      // Select the lines from the middle panel for the register allocation phase.
+      for (const b of this.registerAllocationHandlers) {
+        if (b != from) b.brokeredRegisterAllocationSelect(instructionOffsets, selected);
       }
     }
   }
