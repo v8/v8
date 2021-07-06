@@ -1609,7 +1609,7 @@ void BackgroundCompileTask::Run() {
   // Save the language mode.
   language_mode_ = info_->language_mode();
 
-  if (!FLAG_finalize_streaming_on_background || info_->flags().is_module()) {
+  if (!FLAG_finalize_streaming_on_background) {
     if (info_->literal() != nullptr) {
       CompileOnBackgroundThread(info_.get(), compile_state_.allocator(),
                                 &compilation_jobs_);
@@ -3034,7 +3034,7 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
     DCHECK_EQ(task->flags().is_module(), origin_options.IsModule());
 
     Handle<Script> script;
-    if (FLAG_finalize_streaming_on_background && !origin_options.IsModule()) {
+    if (FLAG_finalize_streaming_on_background) {
       RCS_SCOPE(isolate,
                 RuntimeCallCounterId::kCompilePublishBackgroundFinalization);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
