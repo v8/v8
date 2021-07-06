@@ -1789,18 +1789,11 @@ class TemplateObjectDescriptionData : public HeapObjectData {
 class CodeData : public HeapObjectData {
  public:
   CodeData(JSHeapBroker* broker, ObjectData** storage, Handle<Code> object)
-      : HeapObjectData(broker, storage, object),
-        inlined_bytecode_size_(object->inlined_bytecode_size() > 0 &&
-                                       !object->marked_for_deoptimization()
-                                   ? object->inlined_bytecode_size()
-                                   : 0) {
-    DCHECK(!broker->is_concurrent_inlining());
+      : HeapObjectData(broker, storage, object) {
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
   }
-
-  unsigned inlined_bytecode_size() const { return inlined_bytecode_size_; }
-
- private:
-  unsigned const inlined_bytecode_size_;
 };
 
 class CodeDataContainerData : public HeapObjectData {
@@ -1808,7 +1801,9 @@ class CodeDataContainerData : public HeapObjectData {
   CodeDataContainerData(JSHeapBroker* broker, ObjectData** storage,
                         Handle<CodeDataContainer> object)
       : HeapObjectData(broker, storage, object) {
-    DCHECK(!broker->is_concurrent_inlining());
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
   }
 };
 
@@ -2288,6 +2283,8 @@ NEVER_EVER_SERIALIZE(ArrayBoilerplateDescription)
 NEVER_EVER_SERIALIZE(BytecodeArray)
 NEVER_EVER_SERIALIZE(Cell)
 NEVER_EVER_SERIALIZE(CallHandlerInfo)
+NEVER_EVER_SERIALIZE(Code)
+NEVER_EVER_SERIALIZE(CodeDataContainer)
 NEVER_EVER_SERIALIZE(Context)
 NEVER_EVER_SERIALIZE(FunctionTemplateInfo)
 NEVER_EVER_SERIALIZE(InternalizedString)
@@ -3974,17 +3971,13 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
 }
 
 unsigned CodeRef::GetInlinedBytecodeSize() const {
-  if (data_->should_access_heap()) {
-    unsigned value = object()->inlined_bytecode_size();
-    if (value > 0) {
-      // Don't report inlined bytecode size if the code object was already
-      // deoptimized.
-      value = object()->marked_for_deoptimization() ? 0 : value;
-    }
-    return value;
+  unsigned value = object()->inlined_bytecode_size();
+  if (value > 0) {
+    // Don't report inlined bytecode size if the code object was already
+    // deoptimized.
+    value = object()->marked_for_deoptimization() ? 0 : value;
   }
-
-  return ObjectRef::data()->AsCode()->inlined_bytecode_size();
+  return value;
 }
 
 #undef BIMODAL_ACCESSOR
