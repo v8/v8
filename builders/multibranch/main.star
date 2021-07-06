@@ -61,6 +61,17 @@ exceptions(
         properties = {"builder_group": "client.v8", "target_platform": "fuchsia", "triggers": ["V8 Fuchsia"]},
         use_goma = GOMA.DEFAULT,
         in_console = "main/Fuchsia",
+        close_tree = True,
+    ),
+    v8_builder(
+        name = "V8 Fuchsia",
+        bucket = "ci",
+        dimensions = {"host_class": "multibot"},
+        properties = {"target_platform": "fuchsia", "builder_group": "client.v8"},
+        use_goma = GOMA.DEFAULT,
+        in_console = "main/Fuchsia",
+        notifies = ["beta/stable notifier"],
+        close_tree = True,
     ),
     v8_builder(
         name = "V8 Linux64 - builder",

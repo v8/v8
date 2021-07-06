@@ -255,17 +255,6 @@ experiment_builder(
 )
 
 experiment_builder(
-    name = "V8 Fuchsia",
-    bucket = "ci",
-    dimensions = {"host_class": "multibot"},
-    properties = {"builder_group": "client.v8"},
-    to_notify = [
-        "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
-    ],
-)
-
-experiment_builder(
     name = "V8 Mac64 - full debug",
     bucket = "ci",
     triggered_by = ["v8-trigger"],

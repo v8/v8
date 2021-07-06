@@ -30,7 +30,7 @@ try_builder(
 try_builder(
     name = "v8_fuchsia_compile_rel",
     bucket = "try",
-    cq_properties = {"cancel_stale": False},
+    cq_properties = {"includable_only": "true", "cancel_stale": False},
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
     use_goma = GOMA.DEFAULT,

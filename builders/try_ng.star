@@ -53,8 +53,8 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_fuchsia_rel",
-    cq_properties_trigger = {"includable_only": "true", "cancel_stale": False},
-    cq_properties_triggered = {"includable_only": "true", "cancel_stale": False},
+    cq_properties_trigger = {"cancel_stale": False},
+    cq_properties_triggered = {"cancel_stale": False},
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
     use_goma = GOMA.DEFAULT,
