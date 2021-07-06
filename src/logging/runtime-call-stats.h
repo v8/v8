@@ -391,8 +391,8 @@ class RuntimeCallTimer final {
   V(CodeGenerationFromStringsCallbacks)        \
   V(CompileBackgroundCompileTask)              \
   V(CompileBaseline)                           \
-  V(CompileBaselineVisit)                      \
   V(CompileBaselinePreVisit)                   \
+  V(CompileBaselineVisit)                      \
   V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \
   V(CompileEnqueueOnDispatcher)                \
@@ -404,6 +404,8 @@ class RuntimeCallTimer final {
   V(CompileWaitForDispatcher)                  \
   V(ConfigureInstance)                         \
   V(CreateApiFunction)                         \
+  V(Debugger)                                  \
+  V(DebuggerCallback)                          \
   V(DeoptimizeCode)                            \
   V(DeserializeContext)                        \
   V(DeserializeIsolate)                        \
@@ -412,11 +414,11 @@ class RuntimeCallTimer final {
   V(FunctionLengthGetter)                      \
   V(FunctionPrototypeGetter)                   \
   V(FunctionPrototypeSetter)                   \
+  V(GCEpilogueCallback)                        \
+  V(GCPrologueCallback)                        \
   V(GC_Custom_AllAvailableGarbage)             \
   V(GC_Custom_IncrementalMarkingObserver)      \
   V(GC_Custom_SlowAllocateRaw)                 \
-  V(GCEpilogueCallback)                        \
-  V(GCPrologueCallback)                        \
   V(Genesis)                                   \
   V(GetCompatibleReceiver)                     \
   V(GetMoreDataCallback)                       \
@@ -447,8 +449,8 @@ class RuntimeCallTimer final {
   V(NamedGetterCallback)                       \
   V(NamedQueryCallback)                        \
   V(NamedSetterCallback)                       \
-  V(Object_DeleteProperty)                     \
   V(ObjectVerify)                              \
+  V(Object_DeleteProperty)                     \
   V(OptimizeBackgroundDispatcherJob)           \
   V(OptimizeCode)                              \
   V(OptimizeConcurrentFinalize)                \
@@ -465,11 +467,11 @@ class RuntimeCallTimer final {
   V(PrototypeMap_TransitionToDataProperty)     \
   V(PrototypeObject_DeleteProperty)            \
   V(ReconfigureToDataProperty)                 \
-  V(UpdateProtector)                           \
   V(StringLengthGetter)                        \
   V(TestCounter1)                              \
   V(TestCounter2)                              \
   V(TestCounter3)                              \
+  V(UpdateProtector)                           \
   V(WebSnapshotDeserialize)                    \
   V(WebSnapshotDeserialize_Arrays)             \
   V(WebSnapshotDeserialize_Contexts)           \
