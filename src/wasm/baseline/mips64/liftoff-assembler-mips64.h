@@ -3187,6 +3187,13 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
   Sd(scratch, MemOperand(dst));
 }
 
+void LiftoffAssembler::emit_s128_set_if_nan(Register dst, DoubleRegister src,
+                                            Register tmp_gp,
+                                            DoubleRegister tmp_fp,
+                                            ValueKind lane_kind) {
+  UNIMPLEMENTED();
+}
+
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();
