@@ -4908,6 +4908,12 @@ class V8_EXPORT Promise : public Object {
    */
   void MarkAsHandled();
 
+  /**
+   * Marks this promise as silent to prevent pausing the debugger when the
+   * promise is rejected.
+   */
+  void MarkAsSilent();
+
   V8_INLINE static Promise* Cast(Value* obj);
 
   static const int kEmbedderFieldCount = V8_PROMISE_INTERNAL_FIELD_COUNT;

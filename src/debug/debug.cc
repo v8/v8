@@ -2032,16 +2032,20 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
 
   bool uncaught = catch_type == Isolate::NOT_CAUGHT;
   if (promise->IsJSObject()) {
-    Handle<JSObject> jspromise = Handle<JSObject>::cast(promise);
+    Handle<JSObject> jsobject = Handle<JSObject>::cast(promise);
     // Mark the promise as already having triggered a message.
     Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
-    Object::SetProperty(isolate_, jspromise, key, key, StoreOrigin::kMaybeKeyed,
+    Object::SetProperty(isolate_, jsobject, key, key, StoreOrigin::kMaybeKeyed,
                         Just(ShouldThrow::kThrowOnError))
         .Assert();
     // Check whether the promise reject is considered an uncaught exception.
-    if (jspromise->IsJSPromise()) {
-      uncaught = !isolate_->PromiseHasUserDefinedRejectHandler(
-          Handle<JSPromise>::cast(jspromise));
+    if (jsobject->IsJSPromise()) {
+      Handle<JSPromise> jspromise = Handle<JSPromise>::cast(jsobject);
+
+      // Ignore the exception if the promise was marked as silent
+      if (jspromise->is_silent()) return;
+
+      uncaught = !isolate_->PromiseHasUserDefinedRejectHandler(jspromise);
     } else {
       uncaught = true;
     }

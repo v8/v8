@@ -7482,6 +7482,11 @@ void Promise::MarkAsHandled() {
   js_promise->set_has_handler(true);
 }
 
+void Promise::MarkAsSilent() {
+  i::Handle<i::JSPromise> js_promise = Utils::OpenHandle(this);
+  js_promise->set_is_silent(true);
+}
+
 Local<Value> Proxy::GetTarget() {
   i::Handle<i::JSProxy> self = Utils::OpenHandle(this);
   i::Handle<i::Object> target(self->target(), self->GetIsolate());
