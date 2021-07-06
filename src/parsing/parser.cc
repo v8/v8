@@ -345,7 +345,7 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
 Expression* Parser::NewV8Intrinsic(const AstRawString* name,
                                    const ScopedPtrList<Expression>& args,
                                    int pos) {
-  if (extension_ != nullptr) {
+  if (ParsingExtension()) {
     // The extension structures are only accessible while parsing the
     // very first time, not when reparsing because of lazy compilation.
     GetClosureScope()->ForceEagerCompilation();
@@ -421,7 +421,7 @@ Expression* Parser::NewV8RuntimeFunctionForFuzzing(
 
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(
-          info->zone(), &scanner_, info->stack_limit(), info->extension(),
+          info->zone(), &scanner_, info->stack_limit(),
           info->GetOrCreateAstValueFactory(), info->pending_error_handler(),
           info->runtime_call_stats(), info->logger(), info->flags(), true),
       info_(info),
@@ -1785,7 +1785,7 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos) {
   // other functions are set up when entering the surrounding scope.
   VariableProxy* proxy = DeclareBoundVariable(name, VariableMode::kVar, pos);
   NativeFunctionLiteral* lit =
-      factory()->NewNativeFunctionLiteral(name, extension_, kNoSourcePosition);
+      factory()->NewNativeFunctionLiteral(name, extension(), kNoSourcePosition);
   return factory()->NewExpressionStatement(
       factory()->NewAssignment(Token::INIT, proxy, lit, kNoSourcePosition),
       pos);
@@ -2559,7 +2559,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // that tracks unresolved variables.
   DCHECK_IMPLIES(parse_lazily(), info()->flags().allow_lazy_compile());
   DCHECK_IMPLIES(parse_lazily(), has_error() || allow_lazy_);
-  DCHECK_IMPLIES(parse_lazily(), extension_ == nullptr);
+  DCHECK_IMPLIES(parse_lazily(), extension() == nullptr);
 
   const bool is_lazy =
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
