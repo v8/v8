@@ -5049,6 +5049,10 @@ v8_header_set("cppgc_headers") {
     "include/cppgc/process-heap-statistics.h",
     "include/cppgc/sentinel-pointer.h",
     "include/cppgc/source-location.h",
+
+    # TODO(v8:11952): Remove the testing header here once depending on both,
+    # //v8:v8 and //v8:v8_for_testing does not result in ODR violations.
+    "include/cppgc/testing.h",
     "include/cppgc/trace-trait.h",
     "include/cppgc/type-traits.h",
     "include/cppgc/visitor.h",
@@ -5145,6 +5149,10 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/sweeper.cc",
     "src/heap/cppgc/sweeper.h",
     "src/heap/cppgc/task-handle.h",
+
+    # TODO(v8:11952): Remove the testing header here once depending on both,
+    # //v8:v8 and //v8:v8_for_testing does not result in ODR violations.
+    "src/heap/cppgc/testing.cc",
     "src/heap/cppgc/trace-event.h",
     "src/heap/cppgc/trace-trait.cc",
     "src/heap/cppgc/virtual-memory.cc",
@@ -5179,22 +5187,6 @@ v8_source_set("cppgc_base") {
   } else {
     public_deps += [ ":v8_tracing" ]
   }
-}
-
-v8_source_set("cppgc_base_for_testing") {
-  visibility = [ ":*" ]
-
-  sources = [
-    "include/cppgc/testing.h",
-    "src/heap/cppgc/testing.cc",
-  ]
-
-  configs = [
-    ":internal_config",
-    ":cppgc_base_config",
-  ]
-
-  public_deps = [ ":cppgc_base" ]
 }
 
 if (v8_check_header_includes) {
@@ -5578,7 +5570,6 @@ if (is_component_build) {
     sources = [ "src/utils/v8dll-main.cc" ]
 
     public_deps = [
-      ":cppgc_base_for_testing",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
@@ -5607,10 +5598,7 @@ if (is_component_build) {
     v8_component("cppgc_for_testing") {
       testonly = true
 
-      public_deps = [
-        ":cppgc_base",
-        ":cppgc_base_for_testing",
-      ]
+      public_deps = [ ":cppgc_base" ]
 
       configs = []
       public_configs = [ ":external_config" ]
@@ -5639,7 +5627,6 @@ if (is_component_build) {
     testonly = true
 
     public_deps = [
-      ":cppgc_base_for_testing",
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
@@ -5664,10 +5651,7 @@ if (is_component_build) {
     group("cppgc_for_testing") {
       testonly = true
 
-      public_deps = [
-        ":cppgc_base",
-        ":cppgc_base_for_testing",
-      ]
+      public_deps = [ ":cppgc_base" ]
 
       public_configs = [ ":external_config" ]
     }
