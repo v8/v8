@@ -884,7 +884,13 @@ class InternalizedStringData : public StringData {
 class AccessorInfoData : public HeapObjectData {
  public:
   AccessorInfoData(JSHeapBroker* broker, ObjectData** storage,
-                   Handle<AccessorInfo> object);
+                   Handle<AccessorInfo> object)
+      : HeapObjectData(broker, storage, object) {
+    // AccessorInfoData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
+  }
 };
 
 class AllocationSiteData : public HeapObjectData {
@@ -1069,12 +1075,6 @@ class MapData : public HeapObjectData {
 
   bool serialized_for_element_store_ = false;
 };
-
-AccessorInfoData::AccessorInfoData(JSHeapBroker* broker, ObjectData** storage,
-                                   Handle<AccessorInfo> object)
-    : HeapObjectData(broker, storage, object) {
-  DCHECK(!broker->is_concurrent_inlining());
-}
 
 AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
                                        ObjectData** storage,
@@ -2409,6 +2409,7 @@ bool NeverEverSerialize() {
     return true;                    \
   }
 
+NEVER_EVER_SERIALIZE(AccessorInfo)
 NEVER_EVER_SERIALIZE(ArrayBoilerplateDescription)
 NEVER_EVER_SERIALIZE(BytecodeArray)
 NEVER_EVER_SERIALIZE(Cell)
