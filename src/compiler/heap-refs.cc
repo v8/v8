@@ -1569,7 +1569,9 @@ class FixedDoubleArrayData : public FixedArrayBaseData {
       Handle<FixedDoubleArray> object,
       ObjectDataKind kind = ObjectDataKind::kNeverSerializedHeapObject)
       : FixedArrayBaseData(broker, storage, object, kind) {
-    DCHECK(!broker->is_concurrent_inlining());
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
   }
 };
 
@@ -2286,6 +2288,7 @@ NEVER_EVER_SERIALIZE(CallHandlerInfo)
 NEVER_EVER_SERIALIZE(Code)
 NEVER_EVER_SERIALIZE(CodeDataContainer)
 NEVER_EVER_SERIALIZE(Context)
+NEVER_EVER_SERIALIZE(FixedDoubleArray)
 NEVER_EVER_SERIALIZE(FunctionTemplateInfo)
 NEVER_EVER_SERIALIZE(InternalizedString)
 NEVER_EVER_SERIALIZE(Name)
