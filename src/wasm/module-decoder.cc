@@ -2173,10 +2173,6 @@ FunctionResult DecodeWasmFunctionForTesting(
     const byte* function_end, Counters* counters) {
   size_t size = function_end - function_start;
   CHECK_LE(function_start, function_end);
-  auto size_histogram =
-      SELECT_WASM_COUNTER(counters, module->origin, wasm, function_size_bytes);
-  // TODO(bradnelson): Improve histogram handling of ptrdiff_t.
-  size_histogram->AddSample(static_cast<int>(size));
   if (size > kV8MaxWasmFunctionSize) {
     return FunctionResult{WasmError{0,
                                     "size > maximum function size (%zu): %zu",
