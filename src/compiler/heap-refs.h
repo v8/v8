@@ -474,8 +474,6 @@ class ContextRef : public HeapObjectRef {
 
   // Only returns a value if the index is valid for this ContextRef.
   base::Optional<ObjectRef> get(int index) const;
-
-  SourceTextModuleRef GetModule() const;
 };
 
 // TODO(jgruber): Don't serialize NativeContext fields once all refs can be
@@ -963,8 +961,6 @@ class SourceTextModuleRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(SourceTextModule, HeapObjectRef)
 
   Handle<SourceTextModule> object() const;
-
-  void Serialize();
 
   base::Optional<CellRef> GetCell(int cell_index) const;
   base::Optional<ObjectRef> import_meta() const;

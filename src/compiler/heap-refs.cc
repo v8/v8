@@ -1705,87 +1705,14 @@ class SharedFunctionInfoData : public HeapObjectData {
 class SourceTextModuleData : public HeapObjectData {
  public:
   SourceTextModuleData(JSHeapBroker* broker, ObjectData** storage,
-                       Handle<SourceTextModule> object);
-  void Serialize(JSHeapBroker* broker);
-
-  ObjectData* GetCell(JSHeapBroker* broker, int cell_index) const;
-  ObjectData* GetImportMeta(JSHeapBroker* broker) const;
-
- private:
-  bool serialized_ = false;
-  ZoneVector<ObjectData*> imports_;
-  ZoneVector<ObjectData*> exports_;
-  ObjectData* import_meta_;
+                       Handle<SourceTextModule> object)
+      : HeapObjectData(broker, storage, object) {
+    // SourceTextModuleData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
+  }
 };
-
-SourceTextModuleData::SourceTextModuleData(JSHeapBroker* broker,
-                                           ObjectData** storage,
-                                           Handle<SourceTextModule> object)
-    : HeapObjectData(broker, storage, object),
-      imports_(broker->zone()),
-      exports_(broker->zone()),
-      import_meta_(nullptr) {}
-
-ObjectData* SourceTextModuleData::GetCell(JSHeapBroker* broker,
-                                          int cell_index) const {
-  if (!serialized_) {
-    DCHECK(imports_.empty());
-    TRACE_BROKER_MISSING(broker,
-                         "module cell " << cell_index << " on " << this);
-    return nullptr;
-  }
-  ObjectData* cell;
-  switch (SourceTextModuleDescriptor::GetCellIndexKind(cell_index)) {
-    case SourceTextModuleDescriptor::kImport:
-      cell = imports_.at(SourceTextModule::ImportIndex(cell_index));
-      break;
-    case SourceTextModuleDescriptor::kExport:
-      cell = exports_.at(SourceTextModule::ExportIndex(cell_index));
-      break;
-    case SourceTextModuleDescriptor::kInvalid:
-      UNREACHABLE();
-  }
-  CHECK_NOT_NULL(cell);
-  return cell;
-}
-
-ObjectData* SourceTextModuleData::GetImportMeta(JSHeapBroker* broker) const {
-  CHECK(serialized_);
-  return import_meta_;
-}
-
-void SourceTextModuleData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;
-  serialized_ = true;
-
-  TraceScope tracer(broker, this, "SourceTextModuleData::Serialize");
-  Handle<SourceTextModule> module = Handle<SourceTextModule>::cast(object());
-
-  // TODO(neis): We could be smarter and only serialize the cells we care about.
-  // TODO(neis): Define a helper for serializing a FixedArray into a ZoneVector.
-
-  DCHECK(imports_.empty());
-  Handle<FixedArray> imports(module->regular_imports(), broker->isolate());
-  int const imports_length = imports->length();
-  imports_.reserve(imports_length);
-  for (int i = 0; i < imports_length; ++i) {
-    imports_.push_back(broker->GetOrCreateData(imports->get(i)));
-  }
-  TRACE(broker, "Copied " << imports_.size() << " imports");
-
-  DCHECK(exports_.empty());
-  Handle<FixedArray> exports(module->regular_exports(), broker->isolate());
-  int const exports_length = exports->length();
-  exports_.reserve(exports_length);
-  for (int i = 0; i < exports_length; ++i) {
-    exports_.push_back(broker->GetOrCreateData(exports->get(i)));
-  }
-  TRACE(broker, "Copied " << exports_.size() << " exports");
-
-  DCHECK_NULL(import_meta_);
-  import_meta_ = broker->GetOrCreateData(module->import_meta(kAcquireLoad));
-  TRACE(broker, "Copied import_meta");
-}
 
 class CellData : public HeapObjectData {
  public:
@@ -2203,19 +2130,6 @@ base::Optional<ObjectRef> ContextRef::get(int index) const {
   return TryMakeRef(broker(), object()->get(index));
 }
 
-SourceTextModuleRef ContextRef::GetModule() const {
-  // Only called by the serializer.
-  // TODO(v8:7790): Remove this method once the serialization phase is gone.
-  CHECK(broker()->IsMainThread());
-  ContextRef current = *this;
-  while (current.map().instance_type() != MODULE_CONTEXT_TYPE) {
-    size_t depth = 1;
-    current = current.previous(&depth);
-    CHECK_EQ(depth, 0);
-  }
-  return current.get(Context::EXTENSION_INDEX).value().AsSourceTextModule();
-}
-
 #ifdef DEBUG
 void JSHeapBroker::PrintRefsAnalysis() const {
   // Usage counts
@@ -2423,6 +2337,7 @@ NEVER_EVER_SERIALIZE(ObjectBoilerplateDescription)
 NEVER_EVER_SERIALIZE(RegExpBoilerplateDescription)
 NEVER_EVER_SERIALIZE(SharedFunctionInfo)
 NEVER_EVER_SERIALIZE(ScopeInfo)
+NEVER_EVER_SERIALIZE(SourceTextModule)
 NEVER_EVER_SERIALIZE(String)
 NEVER_EVER_SERIALIZE(Symbol)
 NEVER_EVER_SERIALIZE(TemplateObjectDescription)
@@ -3660,21 +3575,11 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
 }
 
 base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
-  if (data_->should_access_heap()) {
-    return TryMakeRef(broker(), object()->GetCell(cell_index));
-  }
-  ObjectData* cell =
-      data()->AsSourceTextModule()->GetCell(broker(), cell_index);
-  if (cell == nullptr) return base::nullopt;
-  return CellRef(broker(), cell);
+  return TryMakeRef(broker(), object()->GetCell(cell_index));
 }
 
 base::Optional<ObjectRef> SourceTextModuleRef::import_meta() const {
-  if (data_->should_access_heap()) {
-    return TryMakeRef(broker(), object()->import_meta(kAcquireLoad));
-  }
-  return ObjectRef(broker(),
-                   data()->AsSourceTextModule()->GetImportMeta(broker()));
+  return TryMakeRef(broker(), object()->import_meta(kAcquireLoad));
 }
 
 base::Optional<MapRef> HeapObjectRef::map_direct_read() const {
@@ -4035,12 +3940,6 @@ bool MapRef::TrySerializePrototype() {
 }
 
 void MapRef::SerializePrototype() { CHECK(TrySerializePrototype()); }
-
-void SourceTextModuleRef::Serialize() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsSourceTextModule()->Serialize(broker());
-}
 
 void JSTypedArrayRef::Serialize() {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {

@@ -1495,18 +1495,6 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
                             Builtin::kCopyDataProperties));
       break;
     }
-    case Runtime::kInlineGetImportMetaObject: {
-      Hints const& context_hints = environment()->current_context_hints();
-      for (auto x : context_hints.constants()) {
-        MakeRef(broker(), Handle<Context>::cast(x)).GetModule().Serialize();
-      }
-      for (auto x : context_hints.virtual_contexts()) {
-        MakeRef(broker(), Handle<Context>::cast(x.context))
-            .GetModule()
-            .Serialize();
-      }
-      break;
-    }
     default: {
       break;
     }
@@ -1638,9 +1626,7 @@ void SerializerForBackgroundCompilation::ProcessModuleVariableAccess(
   ProcessContextAccess(context_hints, slot, depth, kSerializeSlot,
                        &result_hints);
   for (Handle<Object> constant : result_hints.constants()) {
-    ObjectRef object = MakeRef(broker(), constant);
-    // For JSTypedLowering::BuildGetModuleCell.
-    if (object.IsSourceTextModule()) object.AsSourceTextModule().Serialize();
+    MakeRef(broker(), constant);
   }
 }
 
