@@ -36,9 +36,9 @@ struct HeapStatistics final {
    * these objects.
    */
   struct ObjectStatistics {
-    /** Number of distinct types in the heap. */
+    /** Number of distinct object types. */
     size_t num_types = 0;
-    /** Name of each type in the heap. */
+    /** Name of each type. */
     std::vector<std::string> type_name;
     /** Number of allocated objects per each type. */
     std::vector<size_t> type_count;
@@ -51,10 +51,21 @@ struct HeapStatistics final {
    * allocated memory size and overall used memory size for the page.
    */
   struct PageStatistics {
-    /** Overall amount of memory allocated for the page. */
+    /** Overall committed amount of memory for the page. */
+    size_t committed_size_bytes = 0;
+    /**
+     * Resident amount of memory held by the page.
+     *
+     * Deprecated, use `resident_size_bytes`.
+     */
     size_t physical_size_bytes = 0;
+    /** Resident amount of memory held by the page. */
+    size_t resident_size_bytes = 0;
     /** Amount of memory actually used on the page. */
     size_t used_size_bytes = 0;
+    /** Statistics for object allocated on the page. Filled only when
+     * NameProvider::HideInternalNames() is false. */
+    ObjectStatistics object_stats;
   };
 
   /**
@@ -81,8 +92,16 @@ struct HeapStatistics final {
   struct SpaceStatistics {
     /** The space name */
     std::string name;
-    /** Overall amount of memory allocated for the space. */
+    /** Overall committed amount of memory for the heap. */
+    size_t committed_size_bytes = 0;
+    /**
+     * Resident amount of memory held by the heap.
+     *
+     * Deprecated, use `resident_size_bytes`.
+     */
     size_t physical_size_bytes = 0;
+    /** Resident amount of memory held by the heap. */
+    size_t resident_size_bytes = 0;
     /** Amount of memory actually used on the space. */
     size_t used_size_bytes = 0;
     /** Statistics for each of the pages in the space. */
@@ -94,16 +113,30 @@ struct HeapStatistics final {
     ObjectStatistics object_stats;
   };
 
-  /** Overall amount of memory allocated for the heap. */
+  /** Overall committed amount of memory for the heap. */
+  size_t committed_size_bytes = 0;
+  /**
+   *Resident amount of memory help by the heap.
+   *
+   * Deprecated, use `resident_size_bytes`.
+   */
   size_t physical_size_bytes = 0;
+  /** Resident amount of memory help by the heap. */
+  size_t resident_size_bytes = 0;
   /** Amount of memory actually used on the heap. */
   size_t used_size_bytes = 0;
   /** Detail level of this HeapStatistics. */
   DetailLevel detail_level;
 
   /** Statistics for each of the spaces in the heap. Filled only when
-   * detail_level is kDetailed. */
+   * `detail_level` is `DetailLevel::kDetailed`. */
   std::vector<SpaceStatistics> space_stats;
+
+  /**
+   * Vector of `cppgc::GarbageCollected` types that are potentially used on the
+   * heap. Unused types in the vector are represented by empty strings.
+   */
+  std::vector<std::string> type_names;
 };
 
 }  // namespace cppgc

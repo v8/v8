@@ -6,8 +6,10 @@
 
 #include <string>
 
+#include "include/cppgc/heap-statistics.h"
 #include "include/cppgc/name-provider.h"
 #include "src/heap/cppgc/free-list.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/raw-heap.h"
@@ -47,6 +49,22 @@ HeapStatistics::SpaceStatistics* InitializeSpace(HeapStatistics* stats,
   return space_stats;
 }
 
+HeapStatistics::PageStatistics* InitializePage(
+    HeapStatistics::SpaceStatistics* stats) {
+  stats->page_stats.emplace_back();
+  HeapStatistics::PageStatistics* page_stats = &stats->page_stats.back();
+
+  if (!NameProvider::HideInternalNames()) {
+    const size_t num_types = GlobalGCInfoTable::Get().NumberOfGCInfos();
+    page_stats->object_stats.num_types = num_types;
+    page_stats->object_stats.type_name.resize(num_types);
+    page_stats->object_stats.type_count.resize(num_types);
+    page_stats->object_stats.type_bytes.resize(num_types);
+  }
+
+  return page_stats;
+}
+
 void FinalizePage(HeapStatistics::SpaceStatistics* space_stats,
                   HeapStatistics::PageStatistics** page_stats) {
   if (*page_stats) {
@@ -69,16 +87,19 @@ void FinalizeSpace(HeapStatistics* stats,
   *space_stats = nullptr;
 }
 
-void RecordObjectType(HeapStatistics::SpaceStatistics* space_stats,
+void RecordObjectType(std::vector<std::string>& type_names,
+                      HeapStatistics::ObjectStatistics& object_stats,
                       HeapObjectHeader* header, size_t object_size) {
   if (!NameProvider::HideInternalNames()) {
     // Detailed names available.
-    GCInfoIndex gc_info_index = header->GetGCInfoIndex();
-    space_stats->object_stats.type_count[gc_info_index]++;
-    space_stats->object_stats.type_bytes[gc_info_index] += object_size;
-    if (space_stats->object_stats.type_name[gc_info_index].empty()) {
-      space_stats->object_stats.type_name[gc_info_index] =
-          header->GetName().value;
+    const GCInfoIndex gc_info_index = header->GetGCInfoIndex();
+    object_stats.type_count[gc_info_index]++;
+    object_stats.type_bytes[gc_info_index] += object_size;
+    if (object_stats.type_name[gc_info_index].empty()) {
+      object_stats.type_name[gc_info_index] = header->GetName().value;
+    }
+    if (type_names[gc_info_index].empty()) {
+      type_names[gc_info_index] = header->GetName().value;
     }
   }
 }
@@ -89,6 +110,11 @@ HeapStatistics HeapStatisticsCollector::CollectStatistics(HeapBase* heap) {
   HeapStatistics stats;
   stats.detail_level = HeapStatistics::DetailLevel::kDetailed;
   current_stats_ = &stats;
+
+  if (!NameProvider::HideInternalNames()) {
+    const size_t num_types = GlobalGCInfoTable::Get().NumberOfGCInfos();
+    current_stats_->type_names.resize(num_types);
+  }
 
   Traverse(heap->raw_heap());
   FinalizeSpace(current_stats_, &current_space_stats_, &current_page_stats_);
@@ -122,35 +148,45 @@ bool HeapStatisticsCollector::VisitLargePageSpace(LargePageSpace& space) {
 bool HeapStatisticsCollector::VisitNormalPage(NormalPage& page) {
   DCHECK_NOT_NULL(current_space_stats_);
   FinalizePage(current_space_stats_, &current_page_stats_);
-  current_space_stats_->page_stats.emplace_back(
-      HeapStatistics::PageStatistics{kPageSize, 0});
-  current_page_stats_ = &current_space_stats_->page_stats.back();
+
+  current_page_stats_ = InitializePage(current_space_stats_);
+  current_page_stats_->committed_size_bytes = kPageSize;
+  current_page_stats_->physical_size_bytes = kPageSize;
   return false;
 }
 
 bool HeapStatisticsCollector::VisitLargePage(LargePage& page) {
   DCHECK_NOT_NULL(current_space_stats_);
   FinalizePage(current_space_stats_, &current_page_stats_);
-  HeapObjectHeader* object_header = page.ObjectHeader();
-  size_t object_size = page.PayloadSize();
-  RecordObjectType(current_space_stats_, object_header, object_size);
-  size_t allocated_size = LargePage::AllocationSize(object_size);
-  current_space_stats_->physical_size_bytes += allocated_size;
-  current_space_stats_->used_size_bytes += object_size;
-  current_space_stats_->page_stats.emplace_back(
-      HeapStatistics::PageStatistics{allocated_size, object_size});
 
-  return true;
+  const size_t object_size = page.PayloadSize();
+  const size_t allocated_size = LargePage::AllocationSize(object_size);
+  current_page_stats_ = InitializePage(current_space_stats_);
+  current_page_stats_->committed_size_bytes = allocated_size;
+  current_page_stats_->physical_size_bytes = allocated_size;
+  return false;
 }
 
 bool HeapStatisticsCollector::VisitHeapObjectHeader(HeapObjectHeader& header) {
-  DCHECK(!header.IsLargeObject());
+  if (header.IsFree()) return true;
+
   DCHECK_NOT_NULL(current_space_stats_);
   DCHECK_NOT_NULL(current_page_stats_);
-  if (header.IsFree()) return true;
-  size_t object_size = header.AllocatedSize();
-  RecordObjectType(current_space_stats_, &header, object_size);
-  current_page_stats_->used_size_bytes += object_size;
+  // For the purpose of heap statistics, the header counts towards the allocated
+  // object size.
+  const size_t allocated_object_size =
+      header.IsLargeObject()
+          ? LargePage::From(
+                BasePage::FromPayload(const_cast<HeapObjectHeader*>(&header)))
+                ->PayloadSize()
+          : header.AllocatedSize();
+  RecordObjectType(current_stats_->type_names,
+                   current_space_stats_->object_stats, &header,
+                   allocated_object_size);
+  RecordObjectType(current_stats_->type_names,
+                   current_page_stats_->object_stats, &header,
+                   allocated_object_size);
+  current_page_stats_->used_size_bytes += allocated_object_size;
   return true;
 }
 
