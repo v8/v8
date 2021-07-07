@@ -748,54 +748,57 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
                                 cache_state_.stack_state[stack_base + i]);
   }
 
-  if (cache_state_.cached_instance != target.cached_instance &&
-      target.cached_instance != no_reg) {
+  // Check whether the cached instance and/or memory start need to be moved to
+  // another register. Register moves are executed as part of the
+  // {StackTransferRecipe}. Remember whether the register content has to be
+  // reloaded after executing the stack transfers.
+  bool reload_instance = false;
+  bool reload_mem_start = false;
+  for (auto tuple :
+       {std::make_tuple(&reload_instance, cache_state_.cached_instance,
+                        &target.cached_instance),
+        std::make_tuple(&reload_mem_start, cache_state_.cached_mem_start,
+                        &target.cached_mem_start)}) {
+    bool* reload = std::get<0>(tuple);
+    Register src_reg = std::get<1>(tuple);
+    Register* dst_reg = std::get<2>(tuple);
+    // If the registers match, or the destination has no cache register, nothing
+    // needs to be done.
+    if (src_reg == *dst_reg || *dst_reg == no_reg) continue;
+    // On forward jumps, just reset the cached register in the target state.
     if (jump_direction == kForwardJump) {
-      // On forward jumps, just reset the cached instance in the target state.
-      target.ClearCachedInstanceRegister();
+      target.ClearCacheRegister(dst_reg);
+    } else if (src_reg != no_reg) {
+      // If the source has the content but in the wrong register, execute a
+      // register move as part of the stack transfer.
+      transfers.MoveRegister(LiftoffRegister{*dst_reg},
+                             LiftoffRegister{src_reg}, kPointerKind);
     } else {
-      // On backward jumps, we already generated code assuming that the instance
-      // is available in that register. Thus move it there.
-      if (cache_state_.cached_instance == no_reg) {
-        LoadInstanceFromFrame(target.cached_instance);
-      } else {
-        Move(target.cached_instance, cache_state_.cached_instance,
-             kPointerKind);
-      }
-      if (target.cached_instance == cache_state_.cached_mem_start) {
-        // We just overwrote the cached mem-start register, so we have to tell
-        // the cache state about it.
-        cache_state_.ClearCachedMemStartRegister();
-      }
+      // Otherwise (the source state has no cached content), we reload later.
+      *reload = true;
     }
   }
-  if (cache_state_.cached_mem_start != target.cached_mem_start &&
-      target.cached_mem_start != no_reg) {
-    if (jump_direction == kForwardJump) {
-      // On forward jumps, reset the cached memory start in the target state.
-      target.ClearCachedMemStartRegister();
-    } else {
-      // On backward jumps, we already generated code assuming that the
-      // memory start is available in that register. Thus move it there.
-      if (cache_state_.cached_mem_start == no_reg) {
-        // {target.cached_instance} already got restored above, so we can use it
-        // if it exists.
-        Register instance = target.cached_instance;
-        if (instance == no_reg) {
-          // We don't have the instance available yet. Store it into the target
-          // mem_start, so that we can load the mem_start from there.
-          instance = target.cached_mem_start;
-          LoadInstanceFromFrame(instance);
-        }
-        LoadFromInstance(
-            target.cached_mem_start, instance,
-            ObjectAccess::ToTagged(WasmInstanceObject::kMemoryStartOffset),
-            sizeof(size_t));
-      } else {
-        Move(target.cached_mem_start, cache_state_.cached_mem_start,
-             kPointerKind);
-      }
+
+  // Now execute stack transfers and register moves/loads.
+  transfers.Execute();
+
+  if (reload_instance) {
+    LoadInstanceFromFrame(target.cached_instance);
+  }
+  if (reload_mem_start) {
+    // {target.cached_instance} already got restored above, so we can use it
+    // if it exists.
+    Register instance = target.cached_instance;
+    if (instance == no_reg) {
+      // We don't have the instance available yet. Store it into the target
+      // mem_start, so that we can load the mem_start from there.
+      instance = target.cached_mem_start;
+      LoadInstanceFromFrame(instance);
     }
+    LoadFromInstance(
+        target.cached_mem_start, instance,
+        ObjectAccess::ToTagged(WasmInstanceObject::kMemoryStartOffset),
+        sizeof(size_t));
   }
 }
 

@@ -308,6 +308,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     void ClearCacheRegister(Register* cache) {
+      DCHECK(cache == &cached_instance || cache == &cached_mem_start);
       if (*cache == no_reg) return;
       int liftoff_code = LiftoffRegister{*cache}.liftoff_code();
       DCHECK_EQ(1, register_use_count[liftoff_code]);
