@@ -313,12 +313,7 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
 }
 
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
-  // This is a hack so we don't need to call
-  // trap_handler::IsTrapHandlerEnabled().
-  const bool use_trap_handler =
-      V8_TRAP_HANDLER_SUPPORTED && !i::FLAG_wasm_enforce_bounds_checks;
-  return {test_module_.get(),
-          use_trap_handler ? kTrapHandler : kExplicitBoundsChecks,
+  return {test_module_.get(), native_module_->bounds_checks(),
           runtime_exception_support_, enabled_features_};
 }
 
