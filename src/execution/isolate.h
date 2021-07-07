@@ -1802,6 +1802,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool HasClientIsolates() const { return client_isolate_head_; }
 
+  template <typename Callback>
+  void IterateClientIsolates(Callback callback) {
+    for (Isolate* current = client_isolate_head_; current;
+         current = current->next_client_isolate_) {
+      callback(current);
+    }
+  }
+
+  base::Mutex* client_isolate_mutex() { return &client_isolate_mutex_; }
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
                    bool is_shared);

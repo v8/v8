@@ -841,6 +841,11 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType kind) {
   UNREACHABLE();
 }
 
+inline constexpr bool IsSharedAllocationType(AllocationType kind) {
+  return kind == AllocationType::kSharedOld ||
+         kind == AllocationType::kSharedMap;
+}
+
 // TODO(ishell): review and rename kWordAligned to kTaggedAligned.
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 

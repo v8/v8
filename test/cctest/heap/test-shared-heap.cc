@@ -6,6 +6,8 @@
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap.h"
+#include "src/objects/fixed-array-inl.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
 #include "test/cctest/cctest.h"
 
@@ -140,7 +142,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationInSharedMapSpace) {
   Isolate::Delete(shared_isolate);
 }
 
-UNINITIALIZED_TEST(SharedCollection) {
+UNINITIALIZED_TEST(SharedCollectionWithoutClients) {
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
@@ -152,6 +154,44 @@ UNINITIALIZED_TEST(SharedCollection) {
   DCHECK_NULL(shared_isolate->heap()->new_lo_space());
 
   CcTest::CollectGarbage(OLD_SPACE, shared_isolate);
+  Isolate::Delete(shared_isolate);
+}
+
+void AllocateInSharedSpace(Isolate* shared_isolate) {
+  SetupClientIsolateAndRunCallback(
+      shared_isolate,
+      [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+        HandleScope scope(i_client_isolate);
+        std::vector<Handle<FixedArray>> arrays;
+        const int kKeptAliveArrays = 1000;
+
+        for (int i = 0; i < kNumIterations * 100; i++) {
+          HandleScope scope(i_client_isolate);
+          Handle<FixedArray> array = i_client_isolate->factory()->NewFixedArray(
+              100, AllocationType::kSharedOld);
+          if (i < kKeptAliveArrays) {
+            // Keep some of those arrays alive across GCs.
+            arrays.push_back(scope.CloseAndEscape(array));
+          }
+        }
+
+        for (Handle<FixedArray> array : arrays) {
+          CHECK_EQ(array->length(), 100);
+        }
+      });
+}
+
+UNINITIALIZED_TEST(SharedCollectionWithOneClient) {
+  FLAG_max_old_space_size = 8;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = allocator.get();
+  Isolate* shared_isolate = Isolate::NewShared(create_params);
+
+  AllocateInSharedSpace(shared_isolate);
+
   Isolate::Delete(shared_isolate);
 }
 
