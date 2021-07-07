@@ -3153,6 +3153,9 @@ class WasmInterpreterInternals {
           switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
             case HeapType::kFunc:
+            case HeapType::kEq:
+            case HeapType::kData:
+            case HeapType::kI31:
             case HeapType::kAny: {
               Handle<Object> ref = value.to_ref();
               encoded_values->set(encoded_index++, *ref);
@@ -3160,9 +3163,6 @@ class WasmInterpreterInternals {
             }
             case HeapType::kBottom:
               UNREACHABLE();
-            case HeapType::kEq:
-            case HeapType::kData:
-            case HeapType::kI31:
             default:
               // TODO(7748): Implement these.
               UNIMPLEMENTED();
@@ -3274,6 +3274,9 @@ class WasmInterpreterInternals {
           switch (sig->GetParam(i).heap_representation()) {
             case HeapType::kExtern:
             case HeapType::kFunc:
+            case HeapType::kEq:
+            case HeapType::kData:
+            case HeapType::kI31:
             case HeapType::kAny: {
               Handle<Object> ref(encoded_values->get(encoded_index++),
                                  isolate_);

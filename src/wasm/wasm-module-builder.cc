@@ -120,6 +120,23 @@ void WasmFunctionBuilder::EmitWithU32V(WasmOpcode opcode, uint32_t immediate) {
   body_.write_u32v(immediate);
 }
 
+namespace {
+void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
+  buffer->write_u8(type.value_type_code());
+  if (type.encoding_needs_heap_type()) {
+    buffer->write_i32v(type.heap_type().code());
+  }
+  if (type.is_rtt()) {
+    if (type.has_depth()) buffer->write_u32v(type.depth());
+    buffer->write_u32v(type.ref_index());
+  }
+}
+}  // namespace
+
+void WasmFunctionBuilder::EmitValueType(ValueType type) {
+  WriteValueType(&body_, type);
+}
+
 void WasmFunctionBuilder::EmitI32Const(int32_t value) {
   EmitWithI32V(kExprI32Const, value);
 }
@@ -437,17 +454,6 @@ void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
 void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 
 namespace {
-void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
-  buffer->write_u8(type.value_type_code());
-  if (type.encoding_needs_heap_type()) {
-    buffer->write_i32v(type.heap_type().code());
-  }
-  if (type.is_rtt()) {
-    if (type.has_depth()) buffer->write_u32v(type.depth());
-    buffer->write_u32v(type.ref_index());
-  }
-}
-
 void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
                                 ValueType type) {
   switch (init.kind()) {
@@ -507,11 +513,16 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
           break;
         case kOptRef:
           buffer->write_u8(kExprRefNull);
+          buffer->write_i32v(type.heap_type().code());
+          break;
+        case kS128:
+          buffer->write_u8(static_cast<byte>(kSimdPrefix));
+          buffer->write_u8(static_cast<byte>(kExprS128Const & 0xff));
+          for (int i = 0; i < kSimd128Size; i++) buffer->write_u8(0);
           break;
         case kI8:
         case kI16:
         case kVoid:
-        case kS128:
         case kBottom:
         case kRef:
         case kRtt:
