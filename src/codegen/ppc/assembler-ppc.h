@@ -495,17 +495,19 @@ class Assembler : public AssemblerBase {
 
   inline void vx_form(Instr instr, Simd128Register rt, Simd128Register rb,
                       const Operand& imm) {
-    emit(instr | rt.code() * B21 | imm.immediate() * B16 | rb.code() * B11);
+    emit(instr | (rt.code() & 0x1F) * B21 | (imm.immediate() & 0x1F) * B16 |
+         (rb.code() & 0x1F) * B11);
   }
   inline void vx_form(Instr instr, Simd128Register rt, Simd128Register ra,
                       Simd128Register rb) {
-    emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11);
+    emit(instr | (rt.code() & 0x1F) * B21 | ra.code() * B16 |
+         (rb.code() & 0x1F) * B11);
   }
   inline void vx_form(Instr instr, Simd128Register rt, Simd128Register rb) {
-    emit(instr | rt.code() * B21 | rb.code() * B11);
+    emit(instr | (rt.code() & 0x1F) * B21 | (rb.code() & 0x1F) * B11);
   }
   inline void vx_form(Instr instr, Simd128Register rt, const Operand& imm) {
-    emit(instr | rt.code() * B21 | (imm.immediate() & 0x1F) * B16);
+    emit(instr | (rt.code() & 0x1F) * B21 | (imm.immediate() & 0x1F) * B16);
   }
 
   PPC_VX_OPCODE_A_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_A_FORM)
@@ -528,8 +530,8 @@ class Assembler : public AssemblerBase {
 
   inline void va_form(Instr instr, Simd128Register rt, Simd128Register ra,
                       Simd128Register rb, Simd128Register rc) {
-    emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 |
-         rc.code() * B6);
+    emit(instr | (rt.code() & 0x1F) * B21 | (ra.code() & 0x1F) * B16 |
+         (rb.code() & 0x1F) * B11 | (rc.code() & 0x1F) * B6);
   }
 
   PPC_VA_OPCODE_A_FORM_LIST(DECLARE_PPC_VA_INSTRUCTIONS_A_FORM)
@@ -543,8 +545,8 @@ class Assembler : public AssemblerBase {
 
   inline void vc_form(Instr instr, Simd128Register rt, Simd128Register ra,
                       Simd128Register rb, int rc) {
-    emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 |
-         rc * B10);
+    emit(instr | (rt.code() & 0x1F) * B21 | (ra.code() & 0x1F) * B16 |
+         (rb.code() & 0x1F) * B11 | rc * B10);
   }
 
   PPC_VC_OPCODE_LIST(DECLARE_PPC_VC_INSTRUCTIONS)
