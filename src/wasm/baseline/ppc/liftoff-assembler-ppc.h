@@ -1011,7 +1011,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
     switch (kind) {
       case kI32:
         if (use_signed) {
-          cmpw(lhs, rhs);
+          CmpS32(lhs, rhs);
         } else {
           cmplw(lhs, rhs);
         }
@@ -1035,7 +1035,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
   } else {
     DCHECK_EQ(kind, kI32);
     CHECK(use_signed);
-    cmpwi(lhs, Operand::Zero());
+    CmpS32(lhs, Operand::Zero(), r0);
   }
 
   b(cond, label);
@@ -1045,13 +1045,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
                                            Label* label, Register lhs,
                                            int32_t imm) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
-  Cmpwi(lhs, Operand(imm), r0);
+  CmpS32(lhs, Operand(imm), r0);
   b(cond, label);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   Label done;
-  cmpwi(src, Operand(0));
+  CmpS32(src, Operand(0), r0);
   mov(dst, Operand(1));
   beq(&done);
   mov(dst, Operand::Zero());
@@ -1063,7 +1063,7 @@ void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
                                          Register rhs) {
   bool use_signed = liftoff::UseSignedOp(liftoff_cond);
   if (use_signed) {
-    cmpw(lhs, rhs);
+    CmpS32(lhs, rhs);
   } else {
     cmplw(lhs, rhs);
   }

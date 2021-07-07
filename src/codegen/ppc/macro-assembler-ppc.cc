@@ -1930,7 +1930,7 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
 
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
-  cmpwi(in, Operand(kClearedWeakHeapObjectLower32));
+  CmpS32(in, Operand(kClearedWeakHeapObjectLower32), r0);
   beq(target_if_cleared);
 
   mov(r0, Operand(~kWeakHeapObjectMask));
@@ -2640,15 +2640,19 @@ void TurboAssembler::CmpU64(Register src1, Register src2, CRegister cr) {
   cmpl(src1, src2, cr);
 }
 
-void TurboAssembler::Cmpwi(Register src1, const Operand& src2, Register scratch,
-                           CRegister cr) {
+void TurboAssembler::CmpS32(Register src1, const Operand& src2,
+                            Register scratch, CRegister cr) {
   intptr_t value = src2.immediate();
   if (is_int16(value)) {
     cmpwi(src1, src2, cr);
   } else {
     mov(scratch, src2);
-    cmpw(src1, scratch, cr);
+    CmpS32(src1, scratch, cr);
   }
+}
+
+void TurboAssembler::CmpS32(Register src1, Register src2, CRegister cr) {
+  cmpw(src1, src2, cr);
 }
 
 void MacroAssembler::Cmplwi(Register src1, const Operand& src2,
@@ -2715,7 +2719,7 @@ void MacroAssembler::Xor(Register ra, Register rs, const Operand& rb,
 void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
                                    CRegister cr) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  Cmpwi(src1, Operand(smi), scratch, cr);
+  CmpS32(src1, Operand(smi), scratch, cr);
 #else
   LoadSmiLiteral(scratch, smi);
   CmpS64(src1, scratch, cr);
