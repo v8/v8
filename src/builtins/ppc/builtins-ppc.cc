@@ -375,7 +375,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   __ Move(scratch, debug_suspended_generator);
   __ LoadU64(scratch, MemOperand(scratch));
-  __ cmp(scratch, r4);
+  __ CmpS64(scratch, r4);
   __ beq(&prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
@@ -828,7 +828,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   Label corrected_args_count;
-  __ cmp(params_size, actual_params_size);
+  __ CmpS64(params_size, actual_params_size);
   __ bge(&corrected_args_count);
   __ mr(params_size, actual_params_size);
   __ bind(&corrected_args_count);
@@ -2881,13 +2881,13 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ StoreU64(r14, MemOperand(r17, kNextOffset));
   if (FLAG_debug_code) {
     __ lwz(r4, MemOperand(r17, kLevelOffset));
-    __ cmp(r4, r16);
+    __ CmpS64(r4, r16);
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);
   }
   __ subi(r16, r16, Operand(1));
   __ stw(r16, MemOperand(r17, kLevelOffset));
   __ LoadU64(r0, MemOperand(r17, kLimitOffset));
-  __ cmp(r15, r0);
+  __ CmpS64(r15, r0);
   __ bne(&delete_allocated_handles);
 
   // Leave the API exit frame.
@@ -2904,7 +2904,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ LoadRoot(r14, RootIndex::kTheHoleValue);
   __ Move(r15, ExternalReference::scheduled_exception_address(isolate));
   __ LoadU64(r15, MemOperand(r15));
-  __ cmp(r14, r15);
+  __ CmpS64(r14, r15);
   __ bne(&promote_scheduled_exception);
 
   __ blr();
@@ -3304,7 +3304,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ StoreU64(r7, MemOperand(r6, 0));
   __ addi(r6, r6, Operand(kSystemPointerSize));
   __ bind(&pop_loop_header);
-  __ cmp(r5, sp);
+  __ CmpS64(r5, sp);
   __ bne(&pop_loop);
 
   // Compute the output frame in the deoptimizer.
@@ -3349,7 +3349,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   __ addi(r7, r7, Operand(kSystemPointerSize));
   __ bind(&outer_loop_header);
-  __ cmp(r7, r4);
+  __ CmpS64(r7, r4);
   __ blt(&outer_push_loop);
 
   __ LoadU64(r4, MemOperand(r3, Deoptimizer::input_offset()));

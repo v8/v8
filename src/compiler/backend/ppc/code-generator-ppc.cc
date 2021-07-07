@@ -832,7 +832,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
   Register scratch = kScratchReg;
   __ ComputeCodeStartAddress(scratch);
-  __ cmp(scratch, kJavaScriptCallCodeStartRegister);
+  __ CmpS64(scratch, kJavaScriptCallCodeStartRegister);
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
 
@@ -847,7 +847,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   if (FLAG_debug_code) {
     // Check that {kJavaScriptCallCodeStartRegister} is correct.
     __ ComputeCodeStartAddress(ip);
-    __ cmp(ip, kJavaScriptCallCodeStartRegister);
+    __ CmpS64(ip, kJavaScriptCallCodeStartRegister);
     __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
   }
 
@@ -869,7 +869,7 @@ void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
 
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
-  __ cmp(kJavaScriptCallCodeStartRegister, scratch);
+  __ CmpS64(kJavaScriptCallCodeStartRegister, scratch);
   __ li(scratch, Operand::Zero());
   __ notx(kSpeculationPoisonRegister, scratch);
   __ isel(eq, kSpeculationPoisonRegister, kSpeculationPoisonRegister, scratch);
@@ -990,7 +990,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Check the function's context matches the context argument.
         __ LoadTaggedPointerField(
             kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset), r0);
-        __ cmp(cp, kScratchReg);
+        __ CmpS64(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
@@ -2183,22 +2183,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldarx, stdcx);
       break;
     case kWord32AtomicCompareExchangeInt8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lbarx, stbcx, extsb);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(CmpS64, lbarx, stbcx, extsb);
       break;
     case kPPC_AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lbarx, stbcx, ZeroExtByte);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(CmpS64, lbarx, stbcx, ZeroExtByte);
       break;
     case kWord32AtomicCompareExchangeInt16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lharx, sthcx, extsh);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(CmpS64, lharx, sthcx, extsh);
       break;
     case kPPC_AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lharx, sthcx, ZeroExtHalfWord);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(CmpS64, lharx, sthcx, ZeroExtHalfWord);
       break;
     case kPPC_AtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmpw, lwarx, stwcx, ZeroExtWord32);
       break;
     case kPPC_AtomicCompareExchangeWord64:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, ldarx, stdcx, mr);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(CmpS64, ldarx, stdcx, mr);
       break;
 
 #define ATOMIC_BINOP_CASE(op, inst)                            \
@@ -4300,7 +4300,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ addi(argc_reg, argc_reg, Operand(1));  // Also pop the receiver.
     if (parameter_slots > 1) {
       Label skip;
-      __ Cmpi(argc_reg, Operand(parameter_slots), r0);
+      __ CmpS64(argc_reg, Operand(parameter_slots), r0);
       __ bgt(&skip);
       __ mov(argc_reg, Operand(parameter_slots));
       __ bind(&skip);

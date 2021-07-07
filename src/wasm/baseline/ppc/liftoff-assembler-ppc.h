@@ -714,7 +714,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     bind(&loop);
     StoreU64(r0, MemOperand(r0));
     addi(r0, r0, Operand(kSystemPointerSize));
-    cmp(r4, r5);
+    CmpS64(r4, r5);
     bne(&loop);
 
     pop(r4);
@@ -1024,7 +1024,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
         V8_FALLTHROUGH;
       case kI64:
         if (use_signed) {
-          cmp(lhs, rhs);
+          CmpS64(lhs, rhs);
         } else {
           cmpl(lhs, rhs);
         }
@@ -1088,7 +1088,7 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
                                          LiftoffRegister rhs) {
   bool use_signed = liftoff::UseSignedOp(liftoff_cond);
   if (use_signed) {
-    cmp(lhs.gp(), rhs.gp());
+    CmpS64(lhs.gp(), rhs.gp());
   } else {
     cmpl(lhs.gp(), rhs.gp());
   }

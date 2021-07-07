@@ -801,7 +801,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   DCHECK(!AreAliased(object, value, slot_address));
   if (FLAG_debug_code) {
     LoadTaggedPointerField(r0, MemOperand(slot_address));
-    cmp(r0, value);
+    CmpS64(r0, value);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
@@ -1459,7 +1459,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
   sub(scratch, sp, scratch);
   // Check if the arguments will overflow the stack.
   ShiftLeftImm(r0, num_args, Operand(kSystemPointerSizeLog2));
-  cmp(scratch, r0);
+  CmpS64(scratch, r0);
   ble(stack_overflow);  // Signed comparison.
 }
 
@@ -1478,7 +1478,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   // If the expected parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
   mov(r0, Operand(kDontAdaptArgumentsSentinel));
-  cmp(expected_parameter_count, r0);
+  CmpS64(expected_parameter_count, r0);
   beq(&regular_invoke);
 
   // If overapplication or if the actual argument count is equal to the
@@ -1720,7 +1720,7 @@ void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   DCHECK(obj != r0);
   LoadRoot(r0, index);
-  cmp(obj, r0);
+  CmpS64(obj, r0);
 }
 
 void TurboAssembler::AddAndCheckForOverflow(Register dst, Register left,
@@ -2610,14 +2610,18 @@ void TurboAssembler::AddS64(Register dst, Register src, const Operand& value,
   }
 }
 
-void TurboAssembler::Cmpi(Register src1, const Operand& src2, Register scratch,
-                          CRegister cr) {
+void TurboAssembler::CmpS64(Register src1, Register src2, CRegister cr) {
+  cmp(src1, src2, cr);
+}
+
+void TurboAssembler::CmpS64(Register src1, const Operand& src2,
+                            Register scratch, CRegister cr) {
   intptr_t value = src2.immediate();
   if (is_int16(value)) {
     cmpi(src1, src2, cr);
   } else {
     mov(scratch, src2);
-    cmp(src1, scratch, cr);
+    CmpS64(src1, scratch, cr);
   }
 }
 
@@ -2710,7 +2714,7 @@ void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
   Cmpwi(src1, Operand(smi), scratch, cr);
 #else
   LoadSmiLiteral(scratch, smi);
-  cmp(src1, scratch, cr);
+  CmpS64(src1, scratch, cr);
 #endif
 }
 
@@ -3158,12 +3162,12 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
 }
 
 void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
-  Cmpi(x, Operand(y), r0);
+  CmpS64(x, Operand(y), r0);
   beq(dest);
 }
 
 void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
-  Cmpi(x, Operand(y), r0);
+  CmpS64(x, Operand(y), r0);
   blt(dest);
 }
 
