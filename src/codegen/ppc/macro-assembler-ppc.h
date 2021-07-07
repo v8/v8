@@ -155,8 +155,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CmpS64(Register src1, const Operand& src2, Register scratch,
               CRegister cr = cr7);
   void CmpS64(Register src1, Register src2, CRegister cr = cr7);
-  void Cmpli(Register src1, const Operand& src2, Register scratch,
-             CRegister cr = cr7);
+  void CmpU64(Register src1, const Operand& src2, Register scratch,
+              CRegister cr = cr7);
+  void CmpU64(Register src1, Register src2, CRegister cr = cr7);
   void Cmpwi(Register src1, const Operand& src2, Register scratch,
              CRegister cr = cr7);
   void CompareTagged(Register src1, Register src2, CRegister cr = cr7) {

@@ -1201,7 +1201,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       constexpr size_t kValueIndex = 0;
       DCHECK(instr->InputAt(kValueIndex)->IsRegister());
-      __ cmpl(lhs_register, i.InputRegister(kValueIndex), cr0);
+      __ CmpU64(lhs_register, i.InputRegister(kValueIndex), cr0);
       break;
     }
     case kArchStackCheckOffset:
@@ -4039,7 +4039,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
     cases[index] = GetLabel(i.InputRpo(index + 2));
   }
   Label* const table = AddJumpTable(cases, case_count);
-  __ Cmpli(input, Operand(case_count), r0);
+  __ CmpU64(input, Operand(case_count), r0);
   __ bge(GetLabel(i.InputRpo(1)));
   __ mov_label_addr(kScratchReg, table);
   __ ShiftLeftImm(r0, input, Operand(kSystemPointerSizeLog2));
@@ -4178,7 +4178,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ LoadU64(scratch, MemOperand(scratch), r0);
         __ AddS64(scratch, scratch,
                   Operand(required_slots * kSystemPointerSize), r0);
-        __ cmpl(sp, scratch);
+        __ CmpU64(sp, scratch);
         __ bge(&done);
       }
 

@@ -1407,7 +1407,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   addi(src_reg, src_reg, Operand(kSystemPointerSize));
 
   if (FLAG_debug_code) {
-    cmpl(src_reg, dst_reg);
+    CmpU64(src_reg, dst_reg);
     Check(lt, AbortReason::kStackAccessBelowStackPointer);
   }
 
@@ -1821,7 +1821,7 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
     cmpli(scratch, Operand(higher_limit - lower_limit));
   } else {
     mov(scratch, Operand(higher_limit));
-    cmpl(value, scratch);
+    CmpU64(value, scratch);
   }
   ble(on_in_range);
 }
@@ -2625,15 +2625,19 @@ void TurboAssembler::CmpS64(Register src1, const Operand& src2,
   }
 }
 
-void TurboAssembler::Cmpli(Register src1, const Operand& src2, Register scratch,
-                           CRegister cr) {
+void TurboAssembler::CmpU64(Register src1, const Operand& src2,
+                            Register scratch, CRegister cr) {
   intptr_t value = src2.immediate();
   if (is_uint16(value)) {
     cmpli(src1, src2, cr);
   } else {
     mov(scratch, src2);
-    cmpl(src1, scratch, cr);
+    CmpU64(src1, scratch, cr);
   }
+}
+
+void TurboAssembler::CmpU64(Register src1, Register src2, CRegister cr) {
+  cmpl(src1, src2, cr);
 }
 
 void TurboAssembler::Cmpwi(Register src1, const Operand& src2, Register scratch,
@@ -2721,10 +2725,10 @@ void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
 void MacroAssembler::CmplSmiLiteral(Register src1, Smi smi, Register scratch,
                                     CRegister cr) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  Cmpli(src1, Operand(smi), scratch, cr);
+  CmpU64(src1, Operand(smi), scratch, cr);
 #else
   LoadSmiLiteral(scratch, smi);
-  cmpl(src1, scratch, cr);
+  CmpU64(src1, scratch, cr);
 #endif
 }
 

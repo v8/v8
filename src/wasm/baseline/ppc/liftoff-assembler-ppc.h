@@ -1026,7 +1026,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
         if (use_signed) {
           CmpS64(lhs, rhs);
         } else {
-          cmpl(lhs, rhs);
+          CmpU64(lhs, rhs);
         }
         break;
       default:
@@ -1090,7 +1090,7 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
   if (use_signed) {
     CmpS64(lhs.gp(), rhs.gp());
   } else {
-    cmpl(lhs.gp(), rhs.gp());
+    CmpU64(lhs.gp(), rhs.gp());
   }
   Label done;
   mov(dst, Operand(1));

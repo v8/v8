@@ -383,7 +383,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
   __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
-  __ cmpl(sp, scratch);
+  __ CmpU64(sp, scratch);
   __ blt(&stack_overflow);
 
   // ----------- S t a t e -------------
@@ -1155,7 +1155,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Do a stack check to ensure we don't go over the limit.
     __ sub(r8, sp, r5);
     __ LoadStackLimit(r0, StackLimitKind::kRealStackLimit);
-    __ cmpl(r8, r0);
+    __ CmpU64(r8, r0);
     __ blt(&stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1189,7 +1189,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // TODO(solanes): Merge with the real stack limit check above.
   Label stack_check_interrupt, after_stack_check_interrupt;
   __ LoadStackLimit(r0, StackLimitKind::kInterruptStackLimit);
-  __ cmpl(sp, r0);
+  __ CmpU64(sp, r0);
   __ blt(&stack_check_interrupt);
   __ bind(&after_stack_check_interrupt);
 
@@ -2183,7 +2183,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       // limit".
       {
         __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
-        __ cmpl(r0, scratch);
+        __ CmpU64(r0, scratch);
       }
       __ bgt(&done);  // Signed comparison.
       {
