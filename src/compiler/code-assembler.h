@@ -30,6 +30,7 @@
 #include "src/objects/js-proxy.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
+#include "src/objects/object-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/smi.h"
@@ -85,20 +86,6 @@ TORQUE_DEFINED_CLASS_LIST(MAKE_FORWARD_DECLARATION)
 
 template <typename T>
 class Signature;
-
-#define ENUM_ELEMENT(Name) k##Name,
-#define ENUM_STRUCT_ELEMENT(NAME, Name, name) k##Name,
-enum class ObjectType {
-  ENUM_ELEMENT(Object)                 //
-  ENUM_ELEMENT(Smi)                    //
-  ENUM_ELEMENT(TaggedIndex)            //
-  ENUM_ELEMENT(HeapObject)             //
-  OBJECT_TYPE_LIST(ENUM_ELEMENT)       //
-  HEAP_OBJECT_TYPE_LIST(ENUM_ELEMENT)  //
-  STRUCT_LIST(ENUM_STRUCT_ELEMENT)     //
-};
-#undef ENUM_ELEMENT
-#undef ENUM_STRUCT_ELEMENT
 
 enum class CheckBounds { kAlways, kDebugOnly };
 inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
@@ -192,13 +179,6 @@ using AtomicUint64 = UintPtrT;
 #else
 #error Unknown architecture.
 #endif
-
-// {raw_value} must be a tagged Object.
-// {raw_type} must be a tagged Smi.
-// {raw_location} must be a tagged String.
-// Returns a tagged Smi.
-Address CheckObjectType(Address raw_value, Address raw_type,
-                        Address raw_location);
 
 namespace compiler {
 
