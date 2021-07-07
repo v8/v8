@@ -3685,8 +3685,9 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
 
     base::Optional<ObjectRef> result =
         TryMakeRef(broker(), maybe_element.value());
-    if (dependencies != nullptr && result.has_value()) {
-      dependencies->DependOnOwnConstantElement(*this, index, result.value());
+    if (policy == SerializationPolicy::kAssumeSerialized &&
+        result.has_value()) {
+      dependencies->DependOnOwnConstantElement(*this, index, *result);
     }
     return result;
   } else {
@@ -3746,7 +3747,8 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     base::Optional<ObjectRef> result = GetOwnFastDataPropertyFromHeap(
         broker(), *this, field_representation, index);
-    if (dependencies != nullptr && result.has_value()) {
+    if (policy == SerializationPolicy::kAssumeSerialized &&
+        result.has_value()) {
       dependencies->DependOnOwnConstantDataProperty(
           *this, map(), field_representation, index, *result);
     }
@@ -3764,7 +3766,8 @@ base::Optional<ObjectRef> JSObjectRef::GetOwnDictionaryProperty(
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
     base::Optional<ObjectRef> result =
         GetOwnDictionaryPropertyFromHeap(broker(), object(), index);
-    if (dependencies != nullptr && result.has_value()) {
+    if (policy == SerializationPolicy::kAssumeSerialized &&
+        result.has_value()) {
       dependencies->DependOnOwnConstantDictionaryProperty(*this, index,
                                                           *result);
     }
