@@ -172,6 +172,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     }
   }
 
+  void MinF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              DoubleRegister scratch = kScratchDoubleReg);
+  void MaxF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              DoubleRegister scratch = kScratchDoubleReg);
+
   // Set new rounding mode RN to FPSCR
   void SetRoundingMode(FPRoundingMode RN);
 

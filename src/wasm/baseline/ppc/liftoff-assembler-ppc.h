@@ -808,8 +808,6 @@ UNIMPLEMENTED_FP_BINOP(f32_add)
 UNIMPLEMENTED_FP_BINOP(f32_sub)
 UNIMPLEMENTED_FP_BINOP(f32_mul)
 UNIMPLEMENTED_FP_BINOP(f32_div)
-UNIMPLEMENTED_FP_BINOP(f32_min)
-UNIMPLEMENTED_FP_BINOP(f32_max)
 UNIMPLEMENTED_FP_BINOP(f32_copysign)
 UNIMPLEMENTED_FP_UNOP(f32_abs)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
@@ -822,8 +820,6 @@ UNIMPLEMENTED_FP_BINOP(f64_add)
 UNIMPLEMENTED_FP_BINOP(f64_sub)
 UNIMPLEMENTED_FP_BINOP(f64_mul)
 UNIMPLEMENTED_FP_BINOP(f64_div)
-UNIMPLEMENTED_FP_BINOP(f64_min)
-UNIMPLEMENTED_FP_BINOP(f64_max)
 UNIMPLEMENTED_FP_BINOP(f64_copysign)
 UNIMPLEMENTED_FP_UNOP(f64_abs)
 UNIMPLEMENTED_FP_UNOP(f64_neg)
@@ -876,6 +872,14 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
 // V(name, instr, dtype, stype1, stype2, dcast, scast1, scast2, rcast,
 // return_val, return_type)
 #define BINOP_LIST(V)                                                        \
+  V(f32_min, MinF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f32_max, MaxF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f64_min, MinF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f64_max, MaxF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
   V(i64_add, AddS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
     LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
   V(i64_addi, AddS64, LiftoffRegister, LiftoffRegister, int64_t, LFR_TO_REG, \

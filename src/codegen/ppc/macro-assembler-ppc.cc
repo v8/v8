@@ -1811,6 +1811,85 @@ void TurboAssembler::SubAndCheckForOverflow(Register dst, Register left,
   }
 }
 
+void TurboAssembler::MinF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, DoubleRegister scratch) {
+  Label check_zero, return_left, return_right, return_nan, done;
+  fcmpu(lhs, rhs);
+  bunordered(&return_nan);
+  beq(&check_zero);
+  ble(&return_left);
+  b(&return_right);
+
+  bind(&check_zero);
+  fcmpu(lhs, kDoubleRegZero);
+  /* left == right != 0. */
+  bne(&return_left);
+  /* At this point, both left and right are either 0 or -0. */
+  /* Min: The algorithm is: -((-L) + (-R)), which in case of L and R */
+  /* being different registers is most efficiently expressed */
+  /* as -((-L) - R). */
+  fneg(scratch, lhs);
+  if (scratch == rhs) {
+    fadd(dst, scratch, rhs);
+  } else {
+    fsub(dst, scratch, rhs);
+  }
+  fneg(dst, dst);
+  b(&done);
+
+  bind(&return_nan);
+  /* If left or right are NaN, fadd propagates the appropriate one.*/
+  fadd(dst, lhs, rhs);
+  b(&done);
+
+  bind(&return_right);
+  if (rhs != dst) {
+    fmr(dst, rhs);
+  }
+  b(&done);
+
+  bind(&return_left);
+  if (lhs != dst) {
+    fmr(dst, lhs);
+  }
+  bind(&done);
+}
+
+void TurboAssembler::MaxF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, DoubleRegister scratch) {
+  Label check_zero, return_left, return_right, return_nan, done;
+  fcmpu(lhs, rhs);
+  bunordered(&return_nan);
+  beq(&check_zero);
+  bge(&return_left);
+  b(&return_right);
+
+  bind(&check_zero);
+  fcmpu(lhs, kDoubleRegZero);
+  /* left == right != 0. */
+  bne(&return_left);
+  /* At this point, both left and right are either 0 or -0. */
+  fadd(dst, lhs, rhs);
+  b(&done);
+
+  bind(&return_nan);
+  /* If left or right are NaN, fadd propagates the appropriate one.*/
+  fadd(dst, lhs, rhs);
+  b(&done);
+
+  bind(&return_right);
+  if (rhs != dst) {
+    fmr(dst, rhs);
+  }
+  b(&done);
+
+  bind(&return_left);
+  if (lhs != dst) {
+    fmr(dst, lhs);
+  }
+  bind(&done);
+}
+
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      unsigned higher_limit,
                                      Label* on_in_range) {

@@ -463,91 +463,6 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
   } while (0)
 
-#define ASSEMBLE_FLOAT_MAX()                                            \
-  do {                                                                  \
-    DoubleRegister left_reg = i.InputDoubleRegister(0);                 \
-    DoubleRegister right_reg = i.InputDoubleRegister(1);                \
-    DoubleRegister result_reg = i.OutputDoubleRegister();               \
-    Label check_zero, return_left, return_right, return_nan, done;      \
-    __ fcmpu(left_reg, right_reg);                                      \
-    __ bunordered(&return_nan);                                         \
-    __ beq(&check_zero);                                                \
-    __ bge(&return_left);                                               \
-    __ b(&return_right);                                                \
-                                                                        \
-    __ bind(&check_zero);                                               \
-    __ fcmpu(left_reg, kDoubleRegZero);                                 \
-    /* left == right != 0. */                                           \
-    __ bne(&return_left);                                               \
-    /* At this point, both left and right are either 0 or -0. */        \
-    __ fadd(result_reg, left_reg, right_reg);                           \
-    __ b(&done);                                                        \
-                                                                        \
-    __ bind(&return_nan);                                               \
-    /* If left or right are NaN, fadd propagates the appropriate one.*/ \
-    __ fadd(result_reg, left_reg, right_reg);                           \
-    __ b(&done);                                                        \
-                                                                        \
-    __ bind(&return_right);                                             \
-    if (right_reg != result_reg) {                                      \
-      __ fmr(result_reg, right_reg);                                    \
-    }                                                                   \
-    __ b(&done);                                                        \
-                                                                        \
-    __ bind(&return_left);                                              \
-    if (left_reg != result_reg) {                                       \
-      __ fmr(result_reg, left_reg);                                     \
-    }                                                                   \
-    __ bind(&done);                                                     \
-  } while (0)
-
-#define ASSEMBLE_FLOAT_MIN()                                              \
-  do {                                                                    \
-    DoubleRegister left_reg = i.InputDoubleRegister(0);                   \
-    DoubleRegister right_reg = i.InputDoubleRegister(1);                  \
-    DoubleRegister result_reg = i.OutputDoubleRegister();                 \
-    Label check_zero, return_left, return_right, return_nan, done;        \
-    __ fcmpu(left_reg, right_reg);                                        \
-    __ bunordered(&return_nan);                                           \
-    __ beq(&check_zero);                                                  \
-    __ ble(&return_left);                                                 \
-    __ b(&return_right);                                                  \
-                                                                          \
-    __ bind(&check_zero);                                                 \
-    __ fcmpu(left_reg, kDoubleRegZero);                                   \
-    /* left == right != 0. */                                             \
-    __ bne(&return_left);                                                 \
-    /* At this point, both left and right are either 0 or -0. */          \
-    /* Min: The algorithm is: -((-L) + (-R)), which in case of L and R */ \
-    /* being different registers is most efficiently expressed */         \
-    /* as -((-L) - R). */                                                 \
-    __ fneg(kScratchDoubleReg, left_reg);                                 \
-    if (kScratchDoubleReg == right_reg) {                                 \
-      __ fadd(result_reg, kScratchDoubleReg, right_reg);                  \
-    } else {                                                              \
-      __ fsub(result_reg, kScratchDoubleReg, right_reg);                  \
-    }                                                                     \
-    __ fneg(result_reg, result_reg);                                      \
-    __ b(&done);                                                          \
-                                                                          \
-    __ bind(&return_nan);                                                 \
-    /* If left or right are NaN, fadd propagates the appropriate one.*/   \
-    __ fadd(result_reg, left_reg, right_reg);                             \
-    __ b(&done);                                                          \
-                                                                          \
-    __ bind(&return_right);                                               \
-    if (right_reg != result_reg) {                                        \
-      __ fmr(result_reg, right_reg);                                      \
-    }                                                                     \
-    __ b(&done);                                                          \
-                                                                          \
-    __ bind(&return_left);                                                \
-    if (left_reg != result_reg) {                                         \
-      __ fmr(result_reg, left_reg);                                       \
-    }                                                                     \
-    __ bind(&done);                                                       \
-  } while (0)
-
 #define ASSEMBLE_LOAD_FLOAT(asm_instr, asm_instrx)    \
   do {                                                \
     DoubleRegister result = i.OutputDoubleRegister(); \
@@ -1693,10 +1608,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ neg(i.OutputRegister(), i.InputRegister(0), LeaveOE, i.OutputRCBit());
       break;
     case kPPC_MaxDouble:
-      ASSEMBLE_FLOAT_MAX();
+      __ MaxF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1), kScratchDoubleReg);
       break;
     case kPPC_MinDouble:
-      ASSEMBLE_FLOAT_MIN();
+      __ MinF64(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1), kScratchDoubleReg);
       break;
     case kPPC_AbsDouble:
       ASSEMBLE_FLOAT_UNOP_RC(fabs, 0);
