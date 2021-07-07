@@ -296,7 +296,6 @@ void Factory::CodeBuilder::FinalizeOnHeapCode(Handle<Code> code,
   DCHECK(!heap->code_lo_space()->Contains(*code));
 
   code->CopyRelocInfoToByteArray(reloc_info, code_desc_);
-  code->RelocateFromDesc(reloc_info, heap, code_desc_);
 
   int old_object_size = Code::SizeFor(code_desc_.origin->buffer_size());
   int new_object_size =
