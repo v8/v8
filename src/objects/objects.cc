@@ -5354,12 +5354,9 @@ Handle<Object> JSPromise::Fulfill(Handle<JSPromise> promise,
 }
 
 static void MoveMessageToPromise(Isolate* isolate, Handle<JSPromise> promise) {
-  if (isolate->thread_local_top()->pending_message_obj_.IsTheHole(isolate)) {
-    return;
-  }
+  if (!isolate->has_pending_message()) return;
 
-  Handle<Object> message =
-      handle(isolate->thread_local_top()->pending_message_obj_, isolate);
+  Handle<Object> message = handle(isolate->pending_message(), isolate);
   Handle<Symbol> key = isolate->factory()->promise_debug_message_symbol();
   Object::SetProperty(isolate, promise, key, message, StoreOrigin::kMaybeKeyed,
                       Just(ShouldThrow::kThrowOnError))

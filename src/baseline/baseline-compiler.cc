@@ -2053,7 +2053,7 @@ void BaselineCompiler::VisitSetPendingMessage() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register pending_message = scratch_scope.AcquireScratch();
   __ Move(pending_message,
-          ExternalReference::address_of_pending_message_obj(isolate_));
+          ExternalReference::address_of_pending_message(isolate_));
   Register tmp = scratch_scope.AcquireScratch();
   __ Move(tmp, kInterpreterAccumulatorRegister);
   __ Move(kInterpreterAccumulatorRegister, MemOperand(pending_message, 0));

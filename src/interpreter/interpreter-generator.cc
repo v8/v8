@@ -2608,7 +2608,7 @@ IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
 // previous pending message in the accumulator.
 IGNITION_HANDLER(SetPendingMessage, InterpreterAssembler) {
   TNode<ExternalReference> pending_message = ExternalConstant(
-      ExternalReference::address_of_pending_message_obj(isolate()));
+      ExternalReference::address_of_pending_message(isolate()));
   TNode<HeapObject> previous_message =
       UncheckedCast<HeapObject>(LoadFullTagged(pending_message));
   TNode<Object> new_message = GetAccumulator();

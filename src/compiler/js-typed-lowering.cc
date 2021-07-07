@@ -2079,7 +2079,7 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
 Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadMessage, node->opcode());
   ExternalReference const ref =
-      ExternalReference::address_of_pending_message_obj(isolate());
+      ExternalReference::address_of_pending_message(isolate());
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
   NodeProperties::ChangeOp(node, simplified()->LoadMessage());
   return Changed(node);
@@ -2088,7 +2088,7 @@ Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
 Reduction JSTypedLowering::ReduceJSStoreMessage(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreMessage, node->opcode());
   ExternalReference const ref =
-      ExternalReference::address_of_pending_message_obj(isolate());
+      ExternalReference::address_of_pending_message(isolate());
   Node* value = NodeProperties::GetValueInput(node, 0);
   node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
   node->ReplaceInput(1, value);

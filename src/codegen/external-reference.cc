@@ -492,9 +492,9 @@ ExternalReference ExternalReference::scheduled_exception_address(
   return ExternalReference(isolate->scheduled_exception_address());
 }
 
-ExternalReference ExternalReference::address_of_pending_message_obj(
+ExternalReference ExternalReference::address_of_pending_message(
     Isolate* isolate) {
-  return ExternalReference(isolate->pending_message_obj_address());
+  return ExternalReference(isolate->pending_message_address());
 }
 
 FUNCTION_REFERENCE(abort_with_reason, i::abort_with_reason)
