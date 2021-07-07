@@ -589,9 +589,13 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
     // Since we don't have a guarantee that {constant} is the correct value of
     // the property, we use the expected {representation} to weed out the most
     // egregious types of wrong values.
-    if (!constant->FitsRepresentation(representation)) {
-      TRACE_BROKER_MISSING(
-          broker, "Mismatch between representation and value in " << holder);
+    Representation constant_representation =
+        constant->OptimalRepresentation(broker->isolate());
+    if (!constant_representation.CanBeInPlaceChangedTo(representation)) {
+      TRACE_BROKER_MISSING(broker,
+                           "Mismatched representation for "
+                               << holder << ". Expected " << representation
+                               << ", have: " << constant_representation);
       return {};
     }
   }
