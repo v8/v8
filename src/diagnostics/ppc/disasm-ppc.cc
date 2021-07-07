@@ -285,7 +285,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 3;
     }
     case 'U': {  // UIM
-      int32_t value = instr->Bits(20, 16);
+      uint8_t value = instr->Bits(19, 16);
       out_buffer_pos_ +=
           base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 3;

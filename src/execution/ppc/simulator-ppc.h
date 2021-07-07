@@ -431,6 +431,16 @@ class Simulator : public SimulatorBase {
   }
 
   template <class T>
+  T get_simd_register_bytes(int reg, int byte_from) {
+    // Byte location is reversed in memory.
+    int from = kSimd128Size - 1 - (byte_from + sizeof(T) - 1);
+    void* src = bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
+    T dst;
+    memcpy(&dst, src, sizeof(T));
+    return dst;
+  }
+
+  template <class T>
   void set_simd_register_by_lane(int reg, int lane, const T& value,
                                  bool force_ibm_lane_numbering = true) {
     if (force_ibm_lane_numbering) {
@@ -443,7 +453,15 @@ class Simulator : public SimulatorBase {
     (reinterpret_cast<T*>(&simd_registers_[reg]))[lane] = value;
   }
 
-  simdr_t get_simd_register(int reg) { return simd_registers_[reg]; }
+  template <class T>
+  void set_simd_register_bytes(int reg, int byte_from, T value) {
+    // Byte location is reversed in memory.
+    int from = kSimd128Size - 1 - (byte_from + sizeof(T) - 1);
+    void* dst = bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
+    memcpy(dst, &value, sizeof(T));
+  }
+
+  simdr_t& get_simd_register(int reg) { return simd_registers_[reg]; }
 
   void set_simd_register(int reg, const simdr_t& value) {
     simd_registers_[reg] = value;
