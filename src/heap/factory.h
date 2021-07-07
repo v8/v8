@@ -467,10 +467,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
-  // This method expects a COW array in new space, and creates a copy
-  // of it in old space.
-  Handle<FixedArray> CopyAndTenureFixedCOWArray(Handle<FixedArray> array);
-
   Handle<FixedDoubleArray> CopyFixedDoubleArray(Handle<FixedDoubleArray> array);
 
   // Creates a new HeapNumber in read-only space if possible otherwise old
