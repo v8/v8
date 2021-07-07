@@ -137,7 +137,15 @@ class WasmGraphBuildingInterface {
     }
     while (index < num_locals) {
       ValueType type = decoder->local_type(index);
-      TFNode* node = DefaultValue(type);
+      TFNode* node;
+      if (decoder->enabled_.has_nn_locals() && !type.is_defaultable()) {
+        DCHECK(type.is_reference());
+        // TODO(jkummerow): Consider using "the hole" instead, to make any
+        // illegal uses more obvious.
+        node = builder_->RefNull();
+      } else {
+        node = DefaultValue(type);
+      }
       while (index < num_locals && decoder->local_type(index) == type) {
         // Do a whole run of like-typed locals at a time.
         ssa_env->locals[index++] = node;

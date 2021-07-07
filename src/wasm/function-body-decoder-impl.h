@@ -861,6 +861,8 @@ struct ControlBase : public PcForErrors<validate> {
   ControlKind kind = kControlBlock;
   uint32_t locals_count = 0;  // Additional locals introduced in this 'let'.
   uint32_t stack_depth = 0;   // Stack height at the beginning of the construct.
+  uint32_t init_stack_depth = 0;  // Height of "locals initialization" stack
+                                  // at the beginning of the construct.
   int32_t previous_catch = -1;  // Depth of the innermost catch containing this
                                 // 'try'.
   Reachability reachability = kReachable;
@@ -872,11 +874,13 @@ struct ControlBase : public PcForErrors<validate> {
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ControlBase);
 
   ControlBase(ControlKind kind, uint32_t locals_count, uint32_t stack_depth,
-              const uint8_t* pc, Reachability reachability)
+              uint32_t init_stack_depth, const uint8_t* pc,
+              Reachability reachability)
       : PcForErrors<validate>(pc),
         kind(kind),
         locals_count(locals_count),
         stack_depth(stack_depth),
+        init_stack_depth(init_stack_depth),
         reachability(reachability),
         start_merge(reachability == kReachable) {
     DCHECK(kind == kControlLet || locals_count == 0);
@@ -1099,6 +1103,8 @@ class WasmDecoder : public Decoder {
               const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, end, buffer_offset),
         local_types_(zone),
+        initialized_locals_(zone),
+        locals_initializers_stack_(zone),
         module_(module),
         enabled_(enabled),
         detected_(detected),
@@ -2083,6 +2089,47 @@ class WasmDecoder : public Decoder {
     // clang-format on
   }
 
+  bool is_local_initialized(uint32_t local_index) {
+    return initialized_locals_[local_index];
+  }
+
+  void set_local_initialized(uint32_t local_index) {
+    if (!enabled_.has_nn_locals()) return;
+    // This implicitly covers defaultable locals too (which are always
+    // initialized).
+    if (is_local_initialized(local_index)) return;
+    initialized_locals_[local_index] = true;
+    locals_initializers_stack_.push_back(local_index);
+  }
+
+  uint32_t locals_initialization_stack_depth() const {
+    return static_cast<uint32_t>(locals_initializers_stack_.size());
+  }
+
+  void RollbackLocalsInitialization(uint32_t previous_stack_height) {
+    if (!enabled_.has_nn_locals()) return;
+    while (locals_initializers_stack_.size() > previous_stack_height) {
+      uint32_t local_index = locals_initializers_stack_.back();
+      locals_initializers_stack_.pop_back();
+      initialized_locals_[local_index] = false;
+    }
+  }
+
+  void InitializeInitializedLocalsTracking(int non_defaultable_locals) {
+    initialized_locals_.assign(num_locals_, false);
+    // Parameters count as initialized...
+    const uint32_t num_params = static_cast<uint32_t>(sig_->parameter_count());
+    for (uint32_t i = 0; i < num_params; i++) {
+      initialized_locals_[i] = true;
+    }
+    // ...and so do defaultable locals.
+    for (uint32_t i = num_params; i < num_locals_; i++) {
+      if (local_types_[i].is_defaultable()) initialized_locals_[i] = true;
+    }
+    if (non_defaultable_locals == 0) return;
+    locals_initializers_stack_.reserve(non_defaultable_locals);
+  }
+
   // The {Zone} is implicitly stored in the {ZoneAllocator} which is part of
   // this {ZoneVector}. Hence save one field and just get it from there if
   // needed (see {zone()} accessor below).
@@ -2091,6 +2138,17 @@ class WasmDecoder : public Decoder {
   // Cached value, for speed (yes, it's measurably faster to load this value
   // than to load the start and end pointer from a vector, subtract and shift).
   uint32_t num_locals_ = 0;
+
+  // Indicates whether the local with the given index is currently initialized.
+  // Entries for defaultable locals are meaningless; we have a bit for each
+  // local because we expect that the effort required to densify this bit
+  // vector would more than offset the memory savings.
+  ZoneVector<bool> initialized_locals_;
+  // Keeps track of initializing assignments to non-defaultable locals that
+  // happened, so they can be discarded at the end of the current block.
+  // Contains no duplicates, so the size of this stack is bounded (and pre-
+  // allocated) to the number of non-defaultable locals in the function.
+  ZoneVector<uint32_t> locals_initializers_stack_;
 
   const WasmModule* module_;
   const WasmFeatures enabled_;
@@ -2163,14 +2221,18 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     this->DecodeLocals(this->pc(), &locals_length, params_count);
     if (this->failed()) return TraceFailed();
     this->consume_bytes(locals_length);
+    int non_defaultable = 0;
     for (uint32_t index = params_count; index < this->num_locals(); index++) {
-      if (!VALIDATE(this->local_type(index).is_defaultable())) {
+      if (!VALIDATE(this->enabled_.has_nn_locals() ||
+                    this->local_type(index).is_defaultable())) {
         this->DecodeError(
             "Cannot define function-level local of non-defaultable type %s",
             this->local_type(index).name().c_str());
         return this->TraceFailed();
       }
+      if (!this->local_type(index).is_defaultable()) non_defaultable++;
     }
+    this->InitializeInitializedLocalsTracking(non_defaultable);
 
     // Cannot use CALL_INTERFACE_* macros because control is empty.
     interface().StartFunction(this);
@@ -2269,7 +2331,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     // Set up initial function block.
     {
       DCHECK(control_.empty());
-      control_.emplace_back(kControlBlock, 0, 0, this->pc_, kReachable);
+      constexpr uint32_t kLocalsCount = 0;
+      constexpr uint32_t kStackDepth = 0;
+      constexpr uint32_t kInitStackDepth = 0;
+      control_.emplace_back(kControlBlock, kLocalsCount, kStackDepth,
+                            kInitStackDepth, this->pc_, kReachable);
       Control* c = &control_.back();
       if (decoding_mode == kFunctionBody) {
         InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
@@ -3058,6 +3124,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   DECODE(LocalGet) {
     IndexImmediate<validate> imm(this, this->pc_ + 1, "local index");
     if (!this->ValidateLocal(this->pc_ + 1, imm)) return 0;
+    if (!VALIDATE(!this->enabled_.has_nn_locals() ||
+                  this->is_local_initialized(imm.index))) {
+      this->DecodeError(this->pc_, "uninitialized non-defaultable local: %u",
+                        imm.index);
+      return 0;
+    }
     Value value = CreateValue(this->local_type(imm.index));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(LocalGet, &value, imm);
     Push(value);
@@ -3070,6 +3142,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     Value value = Peek(0, 0, this->local_type(imm.index));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(LocalSet, value, imm);
     Drop(value);
+    this->set_local_initialized(imm.index);
     return 1 + imm.length;
   }
 
@@ -3082,6 +3155,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     CALL_INTERFACE_IF_OK_AND_REACHABLE(LocalTee, value, &result, imm);
     Drop(value);
     Push(result);
+    this->set_local_initialized(imm.index);
     return 1 + imm.length;
   }
 
@@ -3626,8 +3700,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     uint32_t stack_depth =
         stack_size() >= drop_values ? stack_size() - drop_values : 0;
     stack_depth = std::max(stack_depth, control_.back().stack_depth);
-    control_.emplace_back(kind, locals_count, stack_depth, this->pc_,
-                          reachability);
+    uint32_t init_stack_depth = this->locals_initialization_stack_depth();
+    control_.emplace_back(kind, locals_count, stack_depth, init_stack_depth,
+                          this->pc_, reachability);
     current_code_reachable_and_ok_ = this->ok() && reachability == kReachable;
     return &control_.back();
   }
@@ -3648,6 +3723,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     if (!c->is_loop() || c->unreachable()) {
       PushMergeValues(c, &c->end_merge);
     }
+    this->RollbackLocalsInitialization(c->init_stack_depth);
 
     bool parent_reached =
         c->reachable() || c->end_merge.reached || c->is_onearmed_if();
