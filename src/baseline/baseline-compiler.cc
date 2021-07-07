@@ -60,7 +60,6 @@ namespace baseline {
 template <typename IsolateT>
 Handle<ByteArray> BytecodeOffsetTableBuilder::ToBytecodeOffsetTable(
     IsolateT* isolate) {
-  if (bytes_.empty()) return isolate->factory()->empty_byte_array();
   Handle<ByteArray> table = isolate->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), AllocationType::kOld);
   MemCopy(table->GetDataStartAddress(), bytes_.data(), bytes_.size());

@@ -115,15 +115,17 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
       int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a weak fixed array-like object with given map and initialized
-  // with undefined values.
+  // with undefined values. Length must be > 0.
   Handle<WeakFixedArray> NewWeakFixedArrayWithMap(
       Map map, int length, AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a fixed array which may contain in-place weak references. The
   // array is initialized with undefined values
+  // The function returns a pre-allocated empty weak fixed array for length = 0.
   Handle<WeakFixedArray> NewWeakFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
+  // The function returns a pre-allocated empty byte array for length = 0.
   Handle<ByteArray> NewByteArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 

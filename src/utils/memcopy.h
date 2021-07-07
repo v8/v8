@@ -89,6 +89,7 @@ inline void MemCopy(void* dest, const void* src, size_t size) {
   case N:                 \
     memcpy(dest, src, N); \
     return;
+    CASE(0)
     CASE(1)
     CASE(2)
     CASE(3)
