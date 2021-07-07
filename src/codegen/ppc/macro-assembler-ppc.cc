@@ -2655,7 +2655,7 @@ void TurboAssembler::CmpS32(Register src1, Register src2, CRegister cr) {
   cmpw(src1, src2, cr);
 }
 
-void MacroAssembler::Cmplwi(Register src1, const Operand& src2,
+void TurboAssembler::CmpU32(Register src1, const Operand& src2,
                             Register scratch, CRegister cr) {
   intptr_t value = src2.immediate();
   if (is_uint16(value)) {
@@ -2664,6 +2664,10 @@ void MacroAssembler::Cmplwi(Register src1, const Operand& src2,
     mov(scratch, src2);
     cmplw(src1, scratch, cr);
   }
+}
+
+void TurboAssembler::CmpU32(Register src1, Register src2, CRegister cr) {
+  cmplw(src1, src2, cr);
 }
 
 void MacroAssembler::And(Register ra, Register rs, const Operand& rb,

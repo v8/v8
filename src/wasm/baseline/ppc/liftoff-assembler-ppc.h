@@ -1013,7 +1013,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
         if (use_signed) {
           CmpS32(lhs, rhs);
         } else {
-          cmplw(lhs, rhs);
+          CmpU32(lhs, rhs);
         }
         break;
       case kRef:
@@ -1065,7 +1065,7 @@ void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
   if (use_signed) {
     CmpS32(lhs, rhs);
   } else {
-    cmplw(lhs, rhs);
+    CmpU32(lhs, rhs);
   }
   Label done;
   mov(dst, Operand(1));

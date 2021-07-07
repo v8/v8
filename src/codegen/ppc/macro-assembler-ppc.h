@@ -161,6 +161,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CmpS32(Register src1, const Operand& src2, Register scratch,
               CRegister cr = cr7);
   void CmpS32(Register src1, Register src2, CRegister cr = cr7);
+  void CmpU32(Register src1, const Operand& src2, Register scratch,
+              CRegister cr = cr7);
+  void CmpU32(Register src1, Register src2, CRegister cr = cr7);
   void CompareTagged(Register src1, Register src2, CRegister cr = cr7) {
     if (COMPRESS_POINTERS_BOOL) {
       CmpS32(src1, src2, cr);
@@ -823,8 +826,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // load a literal double value <value> to FPR <result>
 
-  void Cmplwi(Register src1, const Operand& src2, Register scratch,
-              CRegister cr = cr7);
   void And(Register ra, Register rs, const Operand& rb, RCBit rc = LeaveRC);
   void Or(Register ra, Register rs, const Operand& rb, RCBit rc = LeaveRC);
   void Xor(Register ra, Register rs, const Operand& rb, RCBit rc = LeaveRC);
