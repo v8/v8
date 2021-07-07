@@ -2271,12 +2271,20 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       DCHECK(control_.empty());
       control_.emplace_back(kControlBlock, 0, 0, this->pc_, kReachable);
       Control* c = &control_.back();
-      InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
-      InitMerge(&c->end_merge,
-                static_cast<uint32_t>(this->sig_->return_count()),
-                [&](uint32_t i) {
-                  return Value{this->pc_, this->sig_->GetReturn(i)};
-                });
+      if (decoding_mode == kFunctionBody) {
+        InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
+        InitMerge(&c->end_merge,
+                  static_cast<uint32_t>(this->sig_->return_count()),
+                  [&](uint32_t i) {
+                    return Value{this->pc_, this->sig_->GetReturn(i)};
+                  });
+      } else {
+        DCHECK_EQ(this->sig_->parameter_count(), 0);
+        DCHECK_EQ(this->sig_->return_count(), 1);
+        c->start_merge.arity = 0;
+        c->end_merge.arity = 1;
+        c->end_merge.vals.first = Value{this->pc_, this->sig_->GetReturn(0)};
+      }
       CALL_INTERFACE_IF_OK_AND_REACHABLE(StartFunctionBody, c);
     }
 

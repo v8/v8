@@ -291,6 +291,7 @@ class InstanceBuilder {
   std::vector<Handle<WasmExceptionObject>> exception_wrappers_;
   Handle<WasmExportedFunction> start_function_;
   std::vector<SanitizedImport> sanitized_imports_;
+  Zone init_expr_zone_;
 
 // Helper routines to print out errors with imports.
 #define ERROR_THROWER_WITH_MESSAGE(TYPE)                                      \
@@ -434,7 +435,8 @@ InstanceBuilder::InstanceBuilder(Isolate* isolate,
       thrower_(thrower),
       module_object_(module_object),
       ffi_(ffi),
-      memory_buffer_(memory_buffer) {
+      memory_buffer_(memory_buffer),
+      init_expr_zone_(isolate_->allocator(), "init. expression zone") {
   sanitized_imports_.reserve(module_->import_table.size());
 }
 
@@ -1538,19 +1540,17 @@ T* InstanceBuilder::GetRawUntaggedGlobalPtr(const WasmGlobal& global) {
 WasmValue InstanceBuilder::EvaluateInitExpression(
     WireBytesRef init, ValueType expected,
     Handle<WasmInstanceObject> instance) {
-  AccountingAllocator allocator;
-  Zone zone(&allocator, "consume_init_expr");
   base::Vector<const byte> module_bytes =
       instance->module_object().native_module()->wire_bytes();
-  FunctionBody body(FunctionSig::Build(&zone, {expected}, {}), init.offset(),
-                    module_bytes.begin() + init.offset(),
+  FunctionBody body(FunctionSig::Build(&init_expr_zone_, {expected}, {}),
+                    init.offset(), module_bytes.begin() + init.offset(),
                     module_bytes.begin() + init.end_offset());
   WasmFeatures detected;
   // We use kFullValidation so we do not have to create another instance of
   // WasmFullDecoder, which would cost us >50Kb binary code size.
   WasmFullDecoder<Decoder::kFullValidation, InitExprInterface, kInitExpression>
-      decoder(&zone, module_, WasmFeatures::All(), &detected, body, module_,
-              isolate_, instance, tagged_globals_, untagged_globals_);
+      decoder(&init_expr_zone_, module_, WasmFeatures::All(), &detected, body,
+              module_, isolate_, instance, tagged_globals_, untagged_globals_);
 
   decoder.DecodeFunctionBody();
 
