@@ -2082,11 +2082,14 @@ void Shell::AsyncHooksTriggerAsyncId(
 void Shell::SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   if (i::FLAG_correctness_fuzzer_suppressions) {
-    // Make sure we have no pending promises if correctness fuzzing is active.
-    // Due to fast-paths we might have not created all intermediate promises
-    // that aren't spec visible. However, the promise hook might expose them
-    // and cause different output.
-    isolate->PerformMicrotaskCheckpoint();
+    // Setting promise hoooks dynamically has unexpected timing side-effects
+    // with certain promise optimizations. We might not get all callbacks for
+    // previously scheduled Promises or optimized code-paths that skip Promise
+    // creation.
+    isolate->ThrowError(
+        "d8.promise.setHooks is disabled with "
+        "--correctness-fuzzer-suppressions");
+    return;
   }
   Local<Context> context = isolate->GetCurrentContext();
   HandleScope handle_scope(isolate);
