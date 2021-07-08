@@ -170,6 +170,7 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
   }
+  if (length == 0) return impl()->empty_byte_array();
   int size = ByteArray::SizeFor(length);
   HeapObject result = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().byte_array_map());
