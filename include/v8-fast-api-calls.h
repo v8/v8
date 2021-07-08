@@ -612,6 +612,16 @@ struct TypeInfoHelper<v8::Local<v8::Array>> {
 };
 
 template <>
+struct TypeInfoHelper<v8::Local<v8::Uint32Array>> {
+  static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
+
+  static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::kUint32; }
+  static constexpr CTypeInfo::SequenceType SequenceType() {
+    return CTypeInfo::SequenceType::kIsTypedArray;
+  }
+};
+
+template <>
 struct TypeInfoHelper<FastApiCallbackOptions&> {
   static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
 

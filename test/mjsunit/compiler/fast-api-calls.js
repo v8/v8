@@ -126,8 +126,8 @@ assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(0, fast_c_api.slow_call_count());
 
 // ----------- Test various signature mismatches -----------
-function add_32bit_int_mismatch(arg0, arg1, arg2, arg3) {
-  return fast_c_api.add_32bit_int(arg0, arg1, arg2, arg3);
+function add_32bit_int_mismatch(arg0, arg1, arg2) {
+  return fast_c_api.add_32bit_int(arg0, arg1, arg2);
 }
 
 %PrepareFunctionForOptimization(add_32bit_int_mismatch);
@@ -179,51 +179,62 @@ assertOptimized(add_32bit_int_mismatch);
 assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(0, fast_c_api.slow_call_count());
 
-// Test function overloads
+// Test function overloads with different arity.
 const add_all_32bit_int_arg1 = -42;
 const add_all_32bit_int_arg2 = 45;
 const add_all_32bit_int_arg3 = -12345678;
 const add_all_32bit_int_arg4 = 0x1fffffff;
 const add_all_32bit_int_arg5 = 1e6;
 const add_all_32bit_int_arg6 = 1e8;
-const add_all_32bit_int_result_4args = add_all_32bit_int_arg1 + add_all_32bit_int_arg2 + add_all_32bit_int_arg3 +
-  add_all_32bit_int_arg4;
-const add_all_32bit_int_result_5args = add_all_32bit_int_result_4args + add_all_32bit_int_arg5;
-const add_all_32bit_int_result_6args = add_all_32bit_int_result_5args + add_all_32bit_int_arg6;
+const add_all_32bit_int_result_4args = add_all_32bit_int_arg1 +
+  add_all_32bit_int_arg2 + add_all_32bit_int_arg3 + add_all_32bit_int_arg4;
+const add_all_32bit_int_result_5args = add_all_32bit_int_result_4args +
+  add_all_32bit_int_arg5;
+const add_all_32bit_int_result_6args = add_all_32bit_int_result_5args +
+  add_all_32bit_int_arg6;
 
-function overloaded_add_all(should_fallback = false) {
-  let result_under = fast_c_api.overloaded_add_all_32bit_int(should_fallback,
-    add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3, add_all_32bit_int_arg4);
-  let result_5args = fast_c_api.overloaded_add_all_32bit_int(should_fallback,
-    add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3, add_all_32bit_int_arg4,
-    add_all_32bit_int_arg5);
-  let result_6args = fast_c_api.overloaded_add_all_32bit_int(should_fallback,
-    add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3, add_all_32bit_int_arg4,
-    add_all_32bit_int_arg5, add_all_32bit_int_arg6);
-  let result_over = fast_c_api.overloaded_add_all_32bit_int(should_fallback,
-    add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3, add_all_32bit_int_arg4,
-    add_all_32bit_int_arg5, add_all_32bit_int_arg6, 42);
+(function () {
+  function overloaded_add_all(should_fallback = false) {
+    let result_under = fast_c_api.overloaded_add_all_32bit_int(should_fallback,
+      add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
+      add_all_32bit_int_arg4);
+    let result_5args = fast_c_api.overloaded_add_all_32bit_int(should_fallback,
+      add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
+      add_all_32bit_int_arg4, add_all_32bit_int_arg5);
+    let result_6args = fast_c_api.overloaded_add_all_32bit_int(should_fallback,
+      add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
+      add_all_32bit_int_arg4, add_all_32bit_int_arg5, add_all_32bit_int_arg6);
+    let result_over = fast_c_api.overloaded_add_all_32bit_int(should_fallback,
+      add_all_32bit_int_arg1, add_all_32bit_int_arg2, add_all_32bit_int_arg3,
+      add_all_32bit_int_arg4, add_all_32bit_int_arg5, add_all_32bit_int_arg6,
+      42);
+    let result_5args_with_undefined = fast_c_api.overloaded_add_all_32bit_int(
+      should_fallback, add_all_32bit_int_arg1, add_all_32bit_int_arg2,
+      add_all_32bit_int_arg3, add_all_32bit_int_arg4, undefined);
+    return [result_under, result_5args, result_6args, result_over,
+            result_5args_with_undefined];
+  }
 
-  return [result_under, result_5args, result_6args, result_over];
-}
+  %PrepareFunctionForOptimization(overloaded_add_all);
+  let result = overloaded_add_all();
+  assertEquals(add_all_32bit_int_result_4args, result[0]);
+  assertEquals(add_all_32bit_int_result_5args, result[1]);
+  assertEquals(add_all_32bit_int_result_6args, result[2]);
+  assertEquals(add_all_32bit_int_result_6args, result[3]);
+  assertEquals(add_all_32bit_int_result_4args, result[4]);
 
-%PrepareFunctionForOptimization(overloaded_add_all);
-let result = overloaded_add_all();
-assertEquals(add_all_32bit_int_result_4args, result[0]);
-assertEquals(add_all_32bit_int_result_5args, result[1]);
-assertEquals(add_all_32bit_int_result_6args, result[2]);
-assertEquals(add_all_32bit_int_result_6args, result[3]);
+  fast_c_api.reset_counts();
+  %OptimizeFunctionOnNextCall(overloaded_add_all);
+  result = overloaded_add_all();
+  assertOptimized(overloaded_add_all);
 
-fast_c_api.reset_counts();
-%OptimizeFunctionOnNextCall(overloaded_add_all);
-result = overloaded_add_all();
-assertOptimized(overloaded_add_all);
+  // Only the call with less arguments goes falls back to the slow path.
+  assertEquals(4, fast_c_api.fast_call_count());
+  assertEquals(1, fast_c_api.slow_call_count());
 
-// Only the call with less arguments goes falls back to the slow path.
-assertEquals(3, fast_c_api.fast_call_count());
-assertEquals(1, fast_c_api.slow_call_count());
-
-assertEquals(add_all_32bit_int_result_4args, result[0]);
-assertEquals(add_all_32bit_int_result_5args, result[1]);
-assertEquals(add_all_32bit_int_result_6args, result[2]);
-assertEquals(add_all_32bit_int_result_6args, result[3]);
+  assertEquals(add_all_32bit_int_result_4args, result[0]);
+  assertEquals(add_all_32bit_int_result_5args, result[1]);
+  assertEquals(add_all_32bit_int_result_6args, result[2]);
+  assertEquals(add_all_32bit_int_result_6args, result[3]);
+  assertEquals(add_all_32bit_int_result_4args, result[4]);
+})();

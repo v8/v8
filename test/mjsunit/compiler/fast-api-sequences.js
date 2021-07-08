@@ -63,8 +63,7 @@ if (fast_c_api.supports_fp_params) {
 }
 
 function add_all_sequence_mismatch(arg) {
-  return fast_c_api.add_all_sequence(false /*should_fallback*/,
-    arg);
+  return fast_c_api.add_all_sequence(false /*should_fallback*/, arg);
 }
 
 %PrepareFunctionForOptimization(add_all_sequence_mismatch);
@@ -95,3 +94,106 @@ assertThrows(() => add_all_sequence_mismatch(Symbol()));
 assertOptimized(add_all_sequence_mismatch);
 assertEquals(0, fast_c_api.fast_call_count());
 assertEquals(1, fast_c_api.slow_call_count());
+
+
+//----------- Test function overloads with same arity. -----------
+//Only overloads between JSArray and TypedArray are supported
+
+// Test with TypedArray.
+(function () {
+  function overloaded_test(should_fallback = false) {
+    let typed_array = new Uint32Array([1, 2, 3]);
+    return fast_c_api.add_all_overload(false /* should_fallback */,
+        typed_array);
+  }
+
+  %PrepareFunctionForOptimization(overloaded_test);
+  let result = overloaded_test();
+  assertEquals(0, result);
+
+  fast_c_api.reset_counts();
+  %OptimizeFunctionOnNextCall(overloaded_test);
+  result = overloaded_test();
+  assertEquals(0, result);
+  assertOptimized(overloaded_test);
+  assertEquals(1, fast_c_api.fast_call_count());
+})();
+
+// Mismatched TypedArray.
+(function () {
+  function overloaded_test(should_fallback = false) {
+    let typed_array = new Float32Array([1.1, 2.2, 3.3]);
+    return fast_c_api.add_all_overload(false /* should_fallback */,
+        typed_array);
+  }
+
+  %PrepareFunctionForOptimization(overloaded_test);
+  let result = overloaded_test();
+  assertEquals(0, result);
+
+  fast_c_api.reset_counts();
+  %OptimizeFunctionOnNextCall(overloaded_test);
+  result = overloaded_test();
+  assertEquals(0, result);
+  assertOptimized(overloaded_test);
+  assertEquals(0, fast_c_api.fast_call_count());
+})();
+
+// Test with JSArray.
+(function () {
+  function overloaded_test(should_fallback = false) {
+    let js_array = [26, -6, 42];
+    return fast_c_api.add_all_overload(false /* should_fallback */, js_array);
+  }
+
+  %PrepareFunctionForOptimization(overloaded_test);
+  let result = overloaded_test();
+  assertEquals(62, result);
+
+  fast_c_api.reset_counts();
+  %OptimizeFunctionOnNextCall(overloaded_test);
+  result = overloaded_test();
+  assertEquals(62, result);
+  assertOptimized(overloaded_test);
+  assertEquals(1, fast_c_api.fast_call_count());
+})();
+
+// Test function overloads with undefined.
+(function () {
+  function overloaded_test(should_fallback = false) {
+    return fast_c_api.add_all_overload(false /* should_fallback */, undefined);
+  }
+
+  %PrepareFunctionForOptimization(overloaded_test);
+  assertThrows(() => overloaded_test());
+
+  fast_c_api.reset_counts();
+  %OptimizeFunctionOnNextCall(overloaded_test);
+  assertThrows(() => overloaded_test());
+  assertOptimized(overloaded_test);
+  assertEquals(0, fast_c_api.fast_call_count());
+})();
+
+// Test function with invalid overloads.
+(function () {
+  function overloaded_test(should_fallback = false) {
+    return fast_c_api.add_all_invalid_overload(false /* should_fallback */,
+      [26, -6, 42]);
+  }
+
+  %PrepareFunctionForOptimization(overloaded_test);
+  result = overloaded_test();
+  assertEquals(62, result);
+
+  fast_c_api.reset_counts();
+  %OptimizeFunctionOnNextCall(overloaded_test);
+  result = overloaded_test();
+  assertEquals(62, result);
+  // Here we deopt because with this invalid overload:
+  // - add_all_int_invalid_func(Receiver, Bool, Int32, Options)
+  // - add_all_seq_c_func(Receiver, Bool, JSArray, Options)
+  // we expect that a number will be passed as 3rd argument
+  // (SimplifiedLowering takes the type from the first overloaded function).
+  assertUnoptimized(overloaded_test);
+  assertEquals(0, fast_c_api.fast_call_count());
+})();

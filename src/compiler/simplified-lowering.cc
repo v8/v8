@@ -1815,8 +1815,11 @@ class RepresentationSelector {
         CHECK_EQ(type.GetType(), CTypeInfo::Type::kVoid);
         return UseInfo::AnyTagged();
       }
+      case CTypeInfo::SequenceType::kIsTypedArray: {
+        return UseInfo::AnyTagged();
+      }
       default: {
-        UNREACHABLE();  // TODO(mslekova): Implement typed arrays.
+        UNREACHABLE();  // TODO(mslekova): Implement array buffers.
       }
     }
   }
@@ -1827,7 +1830,12 @@ class RepresentationSelector {
   void VisitFastApiCall(Node* node, SimplifiedLowering* lowering) {
     FastApiCallParameters const& op_params =
         FastApiCallParametersOf(node->op());
-    const CFunctionInfo* c_signature = op_params.signature();
+    // We only consider the first function signature here. In case of function
+    // overloads, we only support the case of two functions that differ for one
+    // argument, which must be a JSArray in one function and a TypedArray in the
+    // other function, and both JSArrays and TypedArrays have the same UseInfo
+    // UseInfo::AnyTagged(). All the other argument types must match.
+    const CFunctionInfo* c_signature = op_params.c_functions()[0].signature;
     const int c_arg_count = c_signature->ArgumentCount();
     CallDescriptor* call_descriptor = op_params.descriptor();
     int js_arg_count = static_cast<int>(call_descriptor->ParameterCount());
@@ -1837,28 +1845,21 @@ class RepresentationSelector {
 
     base::SmallVector<UseInfo, kInitialArgumentsCount> arg_use_info(
         c_arg_count);
-    // The target of the fast call.
-    ProcessInput<T>(node, 0, UseInfo::Word());
     // Propagate representation information from TypeInfo.
     for (int i = 0; i < c_arg_count; i++) {
       arg_use_info[i] = UseInfoForFastApiCallArgument(
           c_signature->ArgumentInfo(i), op_params.feedback());
-      ProcessInput<T>(node, i + FastApiCallNode::kFastTargetInputCount,
-                      arg_use_info[i]);
+      ProcessInput<T>(node, i, arg_use_info[i]);
     }
 
     // The call code for the slow call.
-    ProcessInput<T>(node, c_arg_count + FastApiCallNode::kFastTargetInputCount,
-                    UseInfo::AnyTagged());
+    ProcessInput<T>(node, c_arg_count, UseInfo::AnyTagged());
     for (int i = 1; i <= js_arg_count; i++) {
-      ProcessInput<T>(node,
-                      c_arg_count + FastApiCallNode::kFastTargetInputCount + i,
+      ProcessInput<T>(node, c_arg_count + i,
                       TruncatingUseInfoFromRepresentation(
                           call_descriptor->GetInputType(i).representation()));
     }
-    for (int i = c_arg_count + FastApiCallNode::kFastTargetInputCount +
-                 js_arg_count;
-         i < value_input_count; ++i) {
+    for (int i = c_arg_count + js_arg_count; i < value_input_count; ++i) {
       ProcessInput<T>(node, i, UseInfo::AnyTagged());
     }
     ProcessRemainingInputs<T>(node, value_input_count);

@@ -1627,9 +1627,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kFastApiCall:
-      CHECK_GE(value_count, 2);
-      CheckValueInputIs(node, 0, Type::ExternalPointer());  // callee
-      CheckValueInputIs(node, 1, Type::Any());              // receiver
+      CHECK_GE(value_count, 1);
+      CheckValueInputIs(node, 0, Type::Any());  // receiver
       break;
 #if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kJSWasmCall:

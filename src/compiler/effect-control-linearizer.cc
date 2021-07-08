@@ -12,6 +12,7 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/fast-api-calls.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
@@ -198,10 +199,22 @@ class EffectControlLinearizer {
   Node* LowerLoadMessage(Node* node);
   Node* AdaptFastCallArgument(Node* node, CTypeInfo arg_type,
                               GraphAssemblerLabel<0>* if_error);
+
+  struct AdaptOverloadedFastCallResult {
+    Node* target_address;
+    Node* argument;
+  };
+  AdaptOverloadedFastCallResult AdaptOverloadedFastCallArgument(
+      Node* node, const FastApiCallFunctionVector& c_functions,
+      const fast_api_call::OverloadsResolutionResult&
+          overloads_resolution_result,
+      GraphAssemblerLabel<0>* if_error);
+
   Node* WrapFastCall(const CallDescriptor* call_descriptor, int inputs_size,
                      Node** inputs, Node* target,
                      const CFunctionInfo* c_signature, int c_arg_count,
                      Node* stack_slot);
+  Node* GenerateSlowApiCall(Node* node);
   Node* LowerFastApiCall(Node* node);
   Node* LowerLoadTypedElement(Node* node);
   Node* LowerLoadDataViewElement(Node* node);
@@ -5040,10 +5053,96 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
 
       return stack_slot;
     }
+    case CTypeInfo::SequenceType::kIsTypedArray:
+      // TODO(mslekova): Implement typed arrays.
+      return node;
     default: {
-      UNREACHABLE();  // TODO(mslekova): Implement typed arrays.
+      UNREACHABLE();
     }
   }
+}
+
+EffectControlLinearizer::AdaptOverloadedFastCallResult
+EffectControlLinearizer::AdaptOverloadedFastCallArgument(
+    Node* node, const FastApiCallFunctionVector& c_functions,
+    const fast_api_call::OverloadsResolutionResult& overloads_resolution_result,
+    GraphAssemblerLabel<0>* if_error) {
+  static constexpr int kReceiver = 1;
+
+  auto merge = __ MakeLabel(MachineRepresentation::kTagged);
+
+  int kAlign = alignof(uintptr_t);
+  int kSize = sizeof(uintptr_t);
+  Node* stack_slot = __ StackSlot(kSize, kAlign);
+  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                               kNoWriteBarrier),
+           stack_slot, 0, node);
+
+  for (size_t func_index = 0; func_index < c_functions.size(); func_index++) {
+    const CFunctionInfo* c_signature = c_functions[func_index].signature;
+    CTypeInfo arg_type = c_signature->ArgumentInfo(
+        overloads_resolution_result.distinguishable_arg_index + kReceiver);
+
+    auto next = __ MakeLabel();
+
+    // Check that the value is a HeapObject.
+    Node* value_is_smi = ObjectIsSmi(node);
+    __ GotoIf(value_is_smi, if_error);
+
+    switch (arg_type.GetSequenceType()) {
+      case CTypeInfo::SequenceType::kIsSequence: {
+        CHECK_EQ(arg_type.GetType(), CTypeInfo::Type::kVoid);
+
+        // Check that the value is a JSArray.
+        Node* value_map = __ LoadField(AccessBuilder::ForMap(), node);
+        Node* value_instance_type =
+            __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+        Node* value_is_js_array = __ Word32Equal(
+            value_instance_type, __ Int32Constant(JS_ARRAY_TYPE));
+        __ GotoIfNot(value_is_js_array, &next);
+
+        Node* target_address = __ ExternalConstant(
+            ExternalReference::Create(c_functions[func_index].address));
+        __ Goto(&merge, target_address);
+        break;
+      }
+
+      case CTypeInfo::SequenceType::kIsTypedArray: {
+        // Check that the value is a TypedArray with a type that matches the
+        // type declared in the c-function.
+        ElementsKind typed_array_elements_kind =
+            fast_api_call::GetTypedArrayElementsKind(
+                overloads_resolution_result.element_type);
+
+        Node* value_map = __ LoadField(AccessBuilder::ForMap(), node);
+        Node* value_bit_field2 =
+            __ LoadField(AccessBuilder::ForMapBitField2(), value_map);
+        Node* value_elements_kind = __ WordShr(
+            __ WordAnd(value_bit_field2,
+                       __ Int32Constant(Map::Bits2::ElementsKindBits::kMask)),
+            __ Int32Constant(Map::Bits2::ElementsKindBits::kShift));
+        Node* is_same_kind = __ Word32Equal(
+            value_elements_kind,
+            __ Int32Constant(GetPackedElementsKind(typed_array_elements_kind)));
+        __ GotoIfNot(is_same_kind, &next);
+
+        Node* target_address = __ ExternalConstant(
+            ExternalReference::Create(c_functions[func_index].address));
+        __ Goto(&merge, target_address);
+        break;
+      }
+
+      default: {
+        UNREACHABLE();
+      }
+    }
+
+    __ Bind(&next);
+  }
+  __ Goto(if_error);
+
+  __ Bind(&merge);
+  return {merge.PhiAt(0), stack_slot};
 }
 
 Node* EffectControlLinearizer::WrapFastCall(
@@ -5100,10 +5199,39 @@ Node* EffectControlLinearizer::WrapFastCall(
   return call;
 }
 
+Node* EffectControlLinearizer::GenerateSlowApiCall(Node* node) {
+  FastApiCallNode n(node);
+  FastApiCallParameters const& params = n.Parameters();
+  const CFunctionInfo* c_signature = params.c_functions()[0].signature;
+  const int c_arg_count = c_signature->ArgumentCount();
+
+  Node** const slow_inputs = graph()->zone()->NewArray<Node*>(
+      n.SlowCallArgumentCount() + FastApiCallNode::kEffectAndControlInputCount);
+
+  int fast_call_params = c_arg_count;
+  CHECK_EQ(node->op()->ValueInputCount() - fast_call_params,
+           n.SlowCallArgumentCount());
+  int index = 0;
+  for (; index < n.SlowCallArgumentCount(); ++index) {
+    slow_inputs[index] = n.SlowCallArgument(index);
+  }
+
+  slow_inputs[index] = __ effect();
+  slow_inputs[index + 1] = __ control();
+  Node* slow_call_result = __ Call(
+      params.descriptor(), index + FastApiCallNode::kEffectAndControlInputCount,
+      slow_inputs);
+  return slow_call_result;
+}
+
 Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   FastApiCallNode n(node);
   FastApiCallParameters const& params = n.Parameters();
-  const CFunctionInfo* c_signature = params.signature();
+
+  static constexpr int kReceiver = 1;
+
+  const FastApiCallFunctionVector& c_functions = params.c_functions();
+  const CFunctionInfo* c_signature = params.c_functions()[0].signature;
   const int c_arg_count = c_signature->ArgumentCount();
   CallDescriptor* js_call_descriptor = params.descriptor();
   int js_arg_count = static_cast<int>(js_call_descriptor->ParameterCount());
@@ -5149,26 +5277,82 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   CallDescriptor* call_descriptor =
       Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
 
-  call_descriptor->SetCFunctionInfo(c_signature);
-
-  Node** const inputs = graph()->zone()->NewArray<Node*>(
-      c_arg_count + n.FastCallExtraInputCount());
-  inputs[0] = n.target();
-
   // Hint to fast path.
   auto if_success = __ MakeLabel();
   auto if_error = __ MakeDeferredLabel();
 
-  for (int i = FastApiCallNode::kFastTargetInputCount;
-       i < c_arg_count + FastApiCallNode::kFastTargetInputCount; ++i) {
-    Node* value = NodeProperties::GetValueInput(node, i);
-    CTypeInfo type = c_signature->ArgumentInfo(i - 1);
-    inputs[i] = AdaptFastCallArgument(value, type, &if_error);
+  // Overload resolution
+
+  bool generate_fast_call = false;
+  int distinguishable_arg_index = INT_MIN;
+  fast_api_call::OverloadsResolutionResult overloads_resolution_result =
+      fast_api_call::OverloadsResolutionResult::Invalid();
+
+  if (c_functions.size() == 1) {
+    generate_fast_call = true;
+  } else {
+    DCHECK_EQ(c_functions.size(), 2);
+    overloads_resolution_result = fast_api_call::ResolveOverloads(
+        graph()->zone(), c_functions, c_arg_count);
+    if (overloads_resolution_result.is_valid()) {
+      generate_fast_call = true;
+      distinguishable_arg_index =
+          overloads_resolution_result.distinguishable_arg_index;
+    }
   }
 
-  Node* c_call_result =
-      WrapFastCall(call_descriptor, c_arg_count + n.FastCallExtraInputCount(),
-                   inputs, n.target(), c_signature, c_arg_count, stack_slot);
+  if (!generate_fast_call) {
+    // Only generate the slow call.
+    return GenerateSlowApiCall(node);
+  }
+
+  // Generate fast call.
+
+  const int kFastTargetAddressInputIndex = 0;
+  const int kFastTargetAddressInputCount = 1;
+
+  Node** const inputs = graph()->zone()->NewArray<Node*>(
+      kFastTargetAddressInputCount + c_arg_count + n.FastCallExtraInputCount());
+
+  // The inputs to {Call} node for the fast call look like:
+  // [fast callee, receiver, ... C arguments, [optional Options], effect,
+  //  control].
+  //
+  // The first input node represents the target address for the fast call.
+  // If the function is not overloaded (c_functions.size() == 1) this is the
+  // address associated to the first and only element in the c_functions vector.
+  // If there are multiple overloads the value of this input will be set later
+  // with a Phi node created by AdaptOverloadedFastCallArgument.
+  inputs[kFastTargetAddressInputIndex] =
+      (c_functions.size() == 1) ? __ ExternalConstant(ExternalReference::Create(
+                                      c_functions[0].address))
+                                : nullptr;
+
+  for (int i = 0; i < c_arg_count; ++i) {
+    Node* value = NodeProperties::GetValueInput(node, i);
+
+    if (i == distinguishable_arg_index + kReceiver) {
+      // This only happens when the FastApiCall node represents multiple
+      // overloaded functions and {i} is the index of the distinguishable
+      // argument.
+      AdaptOverloadedFastCallResult nodes = AdaptOverloadedFastCallArgument(
+          value, c_functions, overloads_resolution_result, &if_error);
+      inputs[i + kFastTargetAddressInputCount] = nodes.argument;
+
+      // Replace the target address node with a Phi node that represents the
+      // choice between the target addreseses of overloaded functions.
+      inputs[kFastTargetAddressInputIndex] = nodes.target_address;
+    } else {
+      CTypeInfo type = c_signature->ArgumentInfo(i);
+      inputs[i + kFastTargetAddressInputCount] =
+          AdaptFastCallArgument(value, type, &if_error);
+    }
+  }
+  DCHECK_NOT_NULL(inputs[0]);
+
+  Node* c_call_result = WrapFastCall(
+      call_descriptor, c_arg_count + n.FastCallExtraInputCount() + 1, inputs,
+      inputs[0], c_signature, c_arg_count, stack_slot);
 
   Node* fast_call_result;
   switch (c_signature->ReturnInfo().GetType()) {
@@ -5220,22 +5404,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   // Generate direct slow call.
   __ Bind(&if_error);
   {
-    Node** const slow_inputs = graph()->zone()->NewArray<Node*>(
-        n.SlowCallArgumentCount() +
-        FastApiCallNode::kEffectAndControlInputCount);
-
-    int fast_call_params = c_arg_count + FastApiCallNode::kFastTargetInputCount;
-    CHECK_EQ(value_input_count - fast_call_params, n.SlowCallArgumentCount());
-    int index = 0;
-    for (; index < n.SlowCallArgumentCount(); ++index) {
-      slow_inputs[index] = n.SlowCallArgument(index);
-    }
-
-    slow_inputs[index] = __ effect();
-    slow_inputs[index + 1] = __ control();
-    Node* slow_call_result = __ Call(
-        params.descriptor(),
-        index + FastApiCallNode::kEffectAndControlInputCount, slow_inputs);
+    Node* slow_call_result = GenerateSlowApiCall(node);
     __ Goto(&merge, slow_call_result);
   }
 
