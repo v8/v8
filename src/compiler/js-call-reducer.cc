@@ -4935,6 +4935,8 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
+  if (broker()->StackHasOverflowed()) return NoChange();
+
   JSConstructNode n(node);
   ConstructParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
