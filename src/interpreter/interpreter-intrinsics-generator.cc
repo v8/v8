@@ -34,14 +34,6 @@ class IntrinsicsGenerator {
       const InterpreterAssembler::RegListNodePair& args);
 
  private:
-  enum InstanceTypeCompareMode {
-    kInstanceTypeEqual,
-    kInstanceTypeGreaterThanOrEqual
-  };
-
-  TNode<Oddball> IsInstanceType(TNode<Object> input, int type);
-  TNode<BoolT> CompareInstanceType(TNode<HeapObject> map, int type,
-                                   InstanceTypeCompareMode mode);
   TNode<Object> IntrinsicAsBuiltinCall(
       const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
       Builtin name, int arg_count);
@@ -116,29 +108,6 @@ TNode<Object> IntrinsicsGenerator::InvokeIntrinsic(
 
   __ BIND(&end);
   return result.value();
-}
-
-TNode<BoolT> IntrinsicsGenerator::CompareInstanceType(
-    TNode<HeapObject> object, int type, InstanceTypeCompareMode mode) {
-  TNode<Uint16T> instance_type = __ LoadInstanceType(object);
-
-  if (mode == kInstanceTypeEqual) {
-    return __ Word32Equal(instance_type, __ Int32Constant(type));
-  } else {
-    DCHECK_EQ(mode, kInstanceTypeGreaterThanOrEqual);
-    return __ Int32GreaterThanOrEqual(instance_type, __ Int32Constant(type));
-  }
-}
-
-TNode<Oddball> IntrinsicsGenerator::IsInstanceType(TNode<Object> input,
-                                                   int type) {
-  TNode<Oddball> result = __ Select<Oddball>(
-      __ TaggedIsSmi(input), [=] { return __ FalseConstant(); },
-      [=] {
-        return __ SelectBooleanConstant(
-            CompareInstanceType(__ CAST(input), type, kInstanceTypeEqual));
-      });
-  return result;
 }
 
 TNode<Object> IntrinsicsGenerator::IntrinsicAsBuiltinCall(
