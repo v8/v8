@@ -173,21 +173,11 @@ void RuntimeProfiler::MaybeOptimizeFrame(JSFunction function,
 
 bool RuntimeProfiler::MaybeOSR(JSFunction function, UnoptimizedFrame* frame) {
   int ticks = function.feedback_vector().profiler_ticks();
-  // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
-  // than kMaxToplevelSourceSize.
-
   if (function.IsMarkedForOptimization() ||
       function.IsMarkedForConcurrentOptimization() ||
       function.HasAvailableOptimizedCode()) {
-    // Attempt OSR if we are still running interpreted code even though the
-    // the function has long been marked or even already been optimized.
-    // OSR should happen roughly at the same with or without FLAG_turboprop.
-    // Turboprop has much lower interrupt budget so scale the ticks accordingly.
-    int scale_factor =
-        FLAG_turboprop ? FLAG_interrupt_budget_scale_factor_for_top_tier : 1;
-    int64_t scaled_ticks = static_cast<int64_t>(ticks) / scale_factor;
     int64_t allowance = kOSRBytecodeSizeAllowanceBase +
-                        scaled_ticks * kOSRBytecodeSizeAllowancePerTick;
+                        ticks * kOSRBytecodeSizeAllowancePerTick;
     if (function.shared().GetBytecodeArray(isolate_).length() <= allowance) {
       AttemptOnStackReplacement(frame);
     }
