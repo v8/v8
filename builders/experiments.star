@@ -5,9 +5,9 @@
 load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "v8_builder", "v8_notifier")
 
 RECLIENT = struct(
-  DEFAULT = {
-    "instance": "rbe-chromium-trusted",
-  },
+    DEFAULT = {
+        "instance": "rbe-chromium-trusted",
+    },
 )
 
 def experiment_builder(**kwargs):
@@ -206,7 +206,7 @@ experiment_builder_pair(
 )
 
 experiment_builder(
-    name = "V8 Linux64 - builder - reclient",
+    name = "V8 Linux64 - builder (reclient)",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -217,12 +217,23 @@ experiment_builder(
 )
 
 experiment_builder(
-    name = "V8 Linux64 - node.js integration ng - reclient",
+    name = "V8 Linux64 - node.js integration ng (reclient)",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     executable = "recipe:v8/node_integration_ng",
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"v8_tot": True, "builder_group": "client.v8"},
+    use_rbe = RECLIENT.DEFAULT,
+    to_notify = ["yyanagisawa@google.com"],
+)
+
+experiment_builder(
+    name = "V8 Official Linux64 (reclient)",
+    bucket = "ci",
+    triggered_by = ["v8-trigger-official"],
+    executable = "recipe:v8/archive",
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64},
     use_rbe = RECLIENT.DEFAULT,
     to_notify = ["yyanagisawa@google.com"],
 )
