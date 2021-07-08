@@ -4917,6 +4917,20 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
+    case VMLADDUHM: {
+      int vrt = instr->RTValue();
+      int vra = instr->RAValue();
+      int vrb = instr->RBValue();
+      int vrc = instr->RCValue();
+      FOR_EACH_LANE(i, uint16_t) {
+        uint16_t vra_val = get_simd_register_by_lane<uint16_t>(vra, i);
+        uint16_t vrb_val = get_simd_register_by_lane<uint16_t>(vrb, i);
+        uint16_t vrc_val = get_simd_register_by_lane<uint16_t>(vrc, i);
+        set_simd_register_by_lane<uint16_t>(vrt, i,
+                                            (vra_val * vrb_val) + vrc_val);
+      }
+      break;
+    }
 #define VECTOR_UNARY_OP(type, op)                         \
   int t = instr->RTValue();                               \
   int b = instr->RBValue();                               \

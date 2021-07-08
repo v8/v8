@@ -2441,14 +2441,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register dst = i.OutputSimd128Register();
-      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
-      __ vmuleuh(kScratchSimd128Reg, src0, src1);
-      __ vmulouh(i.OutputSimd128Register(), src0, src1);
-      __ xxspltib(tempFPReg1, Operand(16));
-      __ vslw(kScratchSimd128Reg, kScratchSimd128Reg, tempFPReg1);
-      __ vslw(dst, dst, tempFPReg1);
-      __ vsrw(dst, dst, tempFPReg1);
-      __ vor(dst, kScratchSimd128Reg, dst);
+      __ vxor(kScratchSimd128Reg, kScratchSimd128Reg, kScratchSimd128Reg);
+      __ vmladduhm(dst, src0, src1, kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16Add: {
