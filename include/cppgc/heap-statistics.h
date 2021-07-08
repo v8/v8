@@ -47,6 +47,20 @@ struct HeapStatistics final {
   };
 
   /**
+   * Object statistics for a single type.
+   */
+  struct ObjectStatsEntry {
+    /**
+     * Number of allocated bytes.
+     */
+    size_t allocated_bytes;
+    /**
+     * Number of allocated objects.
+     */
+    size_t object_count;
+  };
+
+  /**
    * Page granularity statistics. For each page the statistics record the
    * allocated memory size and overall used memory size for the page.
    */
@@ -66,6 +80,9 @@ struct HeapStatistics final {
     /** Statistics for object allocated on the page. Filled only when
      * NameProvider::HideInternalNames() is false. */
     ObjectStatistics object_stats;
+    /** Statistics for object allocated on the page. Filled only when
+     * NameProvider::HideInternalNames() is false. */
+    std::vector<ObjectStatsEntry> object_statistics;
   };
 
   /**
@@ -111,6 +128,9 @@ struct HeapStatistics final {
     /** Statistics for object allocated on the space. Filled only when
      * NameProvider::HideInternalNames() is false. */
     ObjectStatistics object_stats;
+    /** Statistics for object allocated on the page. Filled only when
+     * NameProvider::HideInternalNames() is false. */
+    std::vector<ObjectStatsEntry> object_statistics;
   };
 
   /** Overall committed amount of memory for the heap. */
@@ -133,8 +153,7 @@ struct HeapStatistics final {
   std::vector<SpaceStatistics> space_stats;
 
   /**
-   * Vector of `cppgc::GarbageCollected` types that are potentially used on the
-   * heap. Unused types in the vector are represented by empty strings.
+   * Vector of `cppgc::GarbageCollected` type names.
    */
   std::vector<std::string> type_names;
 };
