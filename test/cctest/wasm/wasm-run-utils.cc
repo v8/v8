@@ -24,13 +24,14 @@ namespace wasm {
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ManuallyImportedJSFunction* maybe_import,
     TestExecutionTier tier, RuntimeExceptionSupport exception_support,
-    Isolate* isolate)
+    TestingModuleMemoryType mem_type, Isolate* isolate)
     : test_module_(std::make_shared<WasmModule>()),
       isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       enabled_features_(WasmFeatures::FromIsolate(isolate_)),
       execution_tier_(tier),
       runtime_exception_support_(exception_support) {
   WasmJs::Install(isolate_, true);
+  test_module_->is_memory64 = mem_type == kMemory64;
   test_module_->untagged_globals_buffer_size = kMaxGlobalsSize;
   memset(globals_data_, 0, sizeof(globals_data_));
 

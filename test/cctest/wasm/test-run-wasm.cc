@@ -2456,7 +2456,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
-                                   kRuntimeExceptionSupport,
+                                   kRuntimeExceptionSupport, kMemory32,
                                    isolate_scope.i_isolate());
 
   WasmFunctionCompiler& fact_aux_fn =
@@ -2494,7 +2494,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
-                                   kRuntimeExceptionSupport,
+                                   kRuntimeExceptionSupport, kMemory32,
                                    isolate_scope.i_isolate());
 
   WasmFunctionCompiler& f_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("f");
@@ -2541,7 +2541,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
-                                   kRuntimeExceptionSupport,
+                                   kRuntimeExceptionSupport, kMemory32,
                                    isolate_scope.i_isolate());
 
   TestSignatures sigs;
@@ -2590,7 +2590,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
-                                 kRuntimeExceptionSupport,
+                                 kRuntimeExceptionSupport, kMemory32,
                                  isolate_scope.i_isolate());
   TestSignatures sigs;
 
@@ -2632,7 +2632,7 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<int32_t, int32_t> r(execution_tier, nullptr, "main",
-                                 kRuntimeExceptionSupport,
+                                 kRuntimeExceptionSupport, kMemory32,
                                  isolate_scope.i_isolate());
   TestSignatures sigs;
 

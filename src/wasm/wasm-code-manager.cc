@@ -837,6 +837,17 @@ size_t WasmCodeAllocator::GetNumCodeSpaces() const {
 // static
 constexpr base::AddressRegion WasmCodeAllocator::kUnrestrictedRegion;
 
+namespace {
+BoundsCheckStrategy GetBoundsChecks(const WasmModule* module) {
+  if (!FLAG_wasm_bounds_checks) return kNoBoundsChecks;
+  if (FLAG_wasm_enforce_bounds_checks) return kExplicitBoundsChecks;
+  // We do not have trap handler support for memory64 yet.
+  if (module->is_memory64) return kExplicitBoundsChecks;
+  if (trap_handler::IsTrapHandlerEnabled()) return kTrapHandler;
+  return kExplicitBoundsChecks;
+}
+}  // namespace
+
 NativeModule::NativeModule(const WasmFeatures& enabled,
                            VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
@@ -849,12 +860,7 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache())),
-      bounds_checks_(!FLAG_wasm_bounds_checks
-                         ? kNoBoundsChecks
-                         : FLAG_wasm_enforce_bounds_checks ||
-                                   !trap_handler::IsTrapHandlerEnabled()
-                               ? kExplicitBoundsChecks
-                               : kTrapHandler) {
+      bounds_checks_(GetBoundsChecks(module_.get())) {
   DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.

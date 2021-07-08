@@ -58,6 +58,8 @@ static_assert(
                  std::underlying_type<TestExecutionTier>::type>::value,
     "enum types match");
 
+enum TestingModuleMemoryType { kMemory32, kMemory64 };
+
 using base::ReadLittleEndianValue;
 using base::WriteLittleEndianValue;
 
@@ -101,7 +103,8 @@ struct ManuallyImportedJSFunction {
 class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, TestExecutionTier,
-                       RuntimeExceptionSupport, Isolate* isolate = nullptr);
+                       RuntimeExceptionSupport, TestingModuleMemoryType,
+                       Isolate* isolate);
   ~TestingModuleBuilder();
 
   void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
@@ -189,8 +192,6 @@ class TestingModuleBuilder {
   }
 
   void SetHasSharedMemory() { test_module_->has_shared_memory = true; }
-
-  void SetMemory64() { test_module_->is_memory64 = true; }
 
   enum FunctionType { kImport, kWasm };
   uint32_t AddFunction(const FunctionSig* sig, const char* name,
@@ -396,12 +397,14 @@ class WasmRunnerBase : public InitializedHandleScope {
  public:
   WasmRunnerBase(ManuallyImportedJSFunction* maybe_import,
                  TestExecutionTier execution_tier, int num_params,
-                 RuntimeExceptionSupport runtime_exception_support,
+                 RuntimeExceptionSupport runtime_exception_support =
+                     kNoRuntimeExceptionSupport,
+                 TestingModuleMemoryType mem_type = kMemory32,
                  Isolate* isolate = nullptr)
       : InitializedHandleScope(isolate),
         zone_(&allocator_, ZONE_NAME, kCompressGraphZone),
         builder_(&zone_, maybe_import, execution_tier,
-                 runtime_exception_support, isolate),
+                 runtime_exception_support, mem_type, isolate),
         wrapper_(&zone_, num_params) {}
 
   static void SetUpTrapCallback() {
@@ -563,9 +566,10 @@ class WasmRunner : public WasmRunnerBase {
              const char* main_fn_name = "main",
              RuntimeExceptionSupport runtime_exception_support =
                  kNoRuntimeExceptionSupport,
+             TestingModuleMemoryType mem_type = kMemory32,
              Isolate* isolate = nullptr)
       : WasmRunnerBase(maybe_import, execution_tier, sizeof...(ParamTypes),
-                       runtime_exception_support, isolate) {
+                       runtime_exception_support, mem_type, isolate) {
     WasmFunctionCompiler& main_fn =
         NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     // Non-zero if there is an import.

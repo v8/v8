@@ -2672,6 +2672,8 @@ class LiftoffCompiler {
     }
 
     // Early return for trap handler.
+    DCHECK_IMPLIES(env_->module->is_memory64,
+                   env_->bounds_checks == kExplicitBoundsChecks);
     if (!force_check && !statically_oob &&
         env_->bounds_checks == kTrapHandler) {
       // With trap handlers we should not have a register pair as input (we
