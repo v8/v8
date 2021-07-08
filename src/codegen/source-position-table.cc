@@ -173,7 +173,9 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
 template <typename IsolateT>
 Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
     IsolateT* isolate) {
+  if (bytes_.empty()) return isolate->factory()->empty_byte_array();
   DCHECK(!Omit());
+
   Handle<ByteArray> table = isolate->factory()->NewByteArray(
       static_cast<int>(bytes_.size()), AllocationType::kOld);
   MemCopy(table->GetDataStartAddress(), bytes_.data(), bytes_.size());

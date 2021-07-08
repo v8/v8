@@ -983,6 +983,10 @@ Handle<PodArray<InliningPosition>> CreateInliningPositions(
     OptimizedCompilationInfo* info, Isolate* isolate) {
   const OptimizedCompilationInfo::InlinedFunctionList& inlined_functions =
       info->inlined_functions();
+  if (inlined_functions.size() == 0) {
+    return Handle<PodArray<InliningPosition>>::cast(
+        isolate->factory()->empty_byte_array());
+  }
   Handle<PodArray<InliningPosition>> inl_positions =
       PodArray<InliningPosition>::New(
           isolate, static_cast<int>(inlined_functions.size()),
