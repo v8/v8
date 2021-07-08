@@ -3345,6 +3345,8 @@ void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
   DCHECK_EQ(buffer_start_, buffer_->start());
 
+  bool previously_on_heap = buffer_->IsOnHeap();
+
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = 2 * old_size;
@@ -3390,6 +3392,14 @@ void Assembler::GrowBuffer() {
   for (RelocIterator it(instructions, reloc_info, 0, mode_mask); !it.done();
        it.next()) {
     it.rinfo()->apply(pc_delta);
+  }
+
+  // Patch on-heap references to handles.
+  if (previously_on_heap && !buffer_->IsOnHeap()) {
+    Address base = reinterpret_cast<Address>(buffer_->start());
+    for (auto p : saved_handles_for_raw_object_ptr_) {
+      WriteUnalignedValue<uint32_t>(base + p.first, p.second);
+    }
   }
 
   DCHECK(!buffer_overflow());
