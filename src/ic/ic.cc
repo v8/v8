@@ -1726,8 +1726,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       SetCache(name, StoreHandler::StoreSlow(isolate()));
       TraceIC("StoreIC", name);
     }
-    return TypeError(MessageTemplate::kNonObjectPropertyStoreWithProperty, name,
-                     object);
+    return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
   }
 
   JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
