@@ -38,15 +38,6 @@ HeapStatistics::SpaceStatistics* InitializeSpace(HeapStatistics* stats,
   stats->space_stats.emplace_back();
   HeapStatistics::SpaceStatistics* space_stats = &stats->space_stats.back();
   space_stats->name = std::move(name);
-
-  if (!NameProvider::HideInternalNames()) {
-    const size_t num_types = GlobalGCInfoTable::Get().NumberOfGCInfos();
-    space_stats->object_stats.num_types = num_types;
-    space_stats->object_stats.type_name.resize(num_types);
-    space_stats->object_stats.type_count.resize(num_types);
-    space_stats->object_stats.type_bytes.resize(num_types);
-  }
-
   return space_stats;
 }
 
@@ -54,15 +45,6 @@ HeapStatistics::PageStatistics* InitializePage(
     HeapStatistics::SpaceStatistics* stats) {
   stats->page_stats.emplace_back();
   HeapStatistics::PageStatistics* page_stats = &stats->page_stats.back();
-
-  if (!NameProvider::HideInternalNames()) {
-    const size_t num_types = GlobalGCInfoTable::Get().NumberOfGCInfos();
-    page_stats->object_stats.num_types = num_types;
-    page_stats->object_stats.type_name.resize(num_types);
-    page_stats->object_stats.type_count.resize(num_types);
-    page_stats->object_stats.type_bytes.resize(num_types);
-  }
-
   return page_stats;
 }
 
@@ -70,7 +52,6 @@ void FinalizePage(HeapStatistics::SpaceStatistics* space_stats,
                   HeapStatistics::PageStatistics** page_stats) {
   if (*page_stats) {
     DCHECK_NOT_NULL(space_stats);
-    space_stats->physical_size_bytes += (*page_stats)->physical_size_bytes;
     space_stats->resident_size_bytes += (*page_stats)->resident_size_bytes;
     space_stats->used_size_bytes += (*page_stats)->used_size_bytes;
   }
@@ -83,7 +64,6 @@ void FinalizeSpace(HeapStatistics* stats,
   FinalizePage(*space_stats, page_stats);
   if (*space_stats) {
     DCHECK_NOT_NULL(stats);
-    stats->physical_size_bytes += (*space_stats)->physical_size_bytes;
     stats->resident_size_bytes += (*space_stats)->resident_size_bytes;
     stats->used_size_bytes += (*space_stats)->used_size_bytes;
   }
@@ -92,17 +72,9 @@ void FinalizeSpace(HeapStatistics* stats,
 
 void RecordObjectType(
     std::unordered_map<const char*, size_t>& type_map,
-    HeapStatistics::ObjectStatistics& object_stats,
     std::vector<HeapStatistics::ObjectStatsEntry>& object_statistics,
     HeapObjectHeader* header, size_t object_size) {
   if (!NameProvider::HideInternalNames()) {
-    // Detailed names available.
-    const GCInfoIndex gc_info_index = header->GetGCInfoIndex();
-    object_stats.type_count[gc_info_index]++;
-    object_stats.type_bytes[gc_info_index] += object_size;
-    if (object_stats.type_name[gc_info_index].empty()) {
-      object_stats.type_name[gc_info_index] = header->GetName().value;
-    }
     // Tries to insert a new entry into the typemap with a running counter. If
     // the entry is already present, just returns the old one.
     const auto it = type_map.insert({header->GetName().value, type_map.size()});
@@ -139,8 +111,6 @@ HeapStatistics HeapStatisticsCollector::CollectStatistics(HeapBase* heap) {
   }
 
   DCHECK_EQ(heap->stats_collector()->allocated_memory_size(),
-            stats.physical_size_bytes);
-  DCHECK_EQ(heap->stats_collector()->allocated_memory_size(),
             stats.resident_size_bytes);
   return stats;
 }
@@ -172,7 +142,6 @@ bool HeapStatisticsCollector::VisitNormalPage(NormalPage& page) {
 
   current_page_stats_ = InitializePage(current_space_stats_);
   current_page_stats_->committed_size_bytes = kPageSize;
-  current_page_stats_->physical_size_bytes = kPageSize;
   current_page_stats_->resident_size_bytes = kPageSize;
   return false;
 }
@@ -185,7 +154,6 @@ bool HeapStatisticsCollector::VisitLargePage(LargePage& page) {
   const size_t allocated_size = LargePage::AllocationSize(object_size);
   current_page_stats_ = InitializePage(current_space_stats_);
   current_page_stats_->committed_size_bytes = allocated_size;
-  current_page_stats_->physical_size_bytes = allocated_size;
   current_page_stats_->resident_size_bytes = allocated_size;
   return false;
 }
@@ -203,10 +171,7 @@ bool HeapStatisticsCollector::VisitHeapObjectHeader(HeapObjectHeader& header) {
                 BasePage::FromPayload(const_cast<HeapObjectHeader*>(&header)))
                 ->PayloadSize()
           : header.AllocatedSize();
-  RecordObjectType(type_name_to_index_map_, current_space_stats_->object_stats,
-                   current_space_stats_->object_statistics, &header,
-                   allocated_object_size);
-  RecordObjectType(type_name_to_index_map_, current_page_stats_->object_stats,
+  RecordObjectType(type_name_to_index_map_,
                    current_page_stats_->object_statistics, &header,
                    allocated_object_size);
   current_page_stats_->used_size_bytes += allocated_object_size;

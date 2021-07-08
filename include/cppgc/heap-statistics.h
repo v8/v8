@@ -31,22 +31,6 @@ struct HeapStatistics final {
   };
 
   /**
-   * Statistics of object types. For each type the statistics record its name,
-   * how many objects of that type were allocated, and the overall size used by
-   * these objects.
-   */
-  struct ObjectStatistics {
-    /** Number of distinct object types. */
-    size_t num_types = 0;
-    /** Name of each type. */
-    std::vector<std::string> type_name;
-    /** Number of allocated objects per each type. */
-    std::vector<size_t> type_count;
-    /** Overall size of allocated objects per each type. */
-    std::vector<size_t> type_bytes;
-  };
-
-  /**
    * Object statistics for a single type.
    */
   struct ObjectStatsEntry {
@@ -67,19 +51,10 @@ struct HeapStatistics final {
   struct PageStatistics {
     /** Overall committed amount of memory for the page. */
     size_t committed_size_bytes = 0;
-    /**
-     * Resident amount of memory held by the page.
-     *
-     * Deprecated, use `resident_size_bytes`.
-     */
-    size_t physical_size_bytes = 0;
     /** Resident amount of memory held by the page. */
     size_t resident_size_bytes = 0;
     /** Amount of memory actually used on the page. */
     size_t used_size_bytes = 0;
-    /** Statistics for object allocated on the page. Filled only when
-     * NameProvider::HideInternalNames() is false. */
-    ObjectStatistics object_stats;
     /** Statistics for object allocated on the page. Filled only when
      * NameProvider::HideInternalNames() is false. */
     std::vector<ObjectStatsEntry> object_statistics;
@@ -111,12 +86,6 @@ struct HeapStatistics final {
     std::string name;
     /** Overall committed amount of memory for the heap. */
     size_t committed_size_bytes = 0;
-    /**
-     * Resident amount of memory held by the heap.
-     *
-     * Deprecated, use `resident_size_bytes`.
-     */
-    size_t physical_size_bytes = 0;
     /** Resident amount of memory held by the heap. */
     size_t resident_size_bytes = 0;
     /** Amount of memory actually used on the space. */
@@ -125,9 +94,6 @@ struct HeapStatistics final {
     std::vector<PageStatistics> page_stats;
     /** Statistics for the freelist of the space. */
     FreeListStatistics free_list_stats;
-    /** Statistics for object allocated on the space. Filled only when
-     * NameProvider::HideInternalNames() is false. */
-    ObjectStatistics object_stats;
     /** Statistics for object allocated on the page. Filled only when
      * NameProvider::HideInternalNames() is false. */
     std::vector<ObjectStatsEntry> object_statistics;
@@ -135,12 +101,6 @@ struct HeapStatistics final {
 
   /** Overall committed amount of memory for the heap. */
   size_t committed_size_bytes = 0;
-  /**
-   *Resident amount of memory help by the heap.
-   *
-   * Deprecated, use `resident_size_bytes`.
-   */
-  size_t physical_size_bytes = 0;
   /** Resident amount of memory help by the heap. */
   size_t resident_size_bytes = 0;
   /** Amount of memory actually used on the heap. */
