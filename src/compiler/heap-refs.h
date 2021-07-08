@@ -81,8 +81,8 @@ enum class RefSerializationKind {
 #define HEAP_BROKER_OBJECT_LIST(V)                                        \
   /* Subtypes of JSObject */                                              \
   V(JSArray, RefSerializationKind::kBackgroundSerialized)                 \
-  V(JSBoundFunction, RefSerializationKind::kSerialized)                   \
-  V(JSDataView, RefSerializationKind::kSerialized)                        \
+  V(JSBoundFunction, RefSerializationKind::kBackgroundSerialized)         \
+  V(JSDataView, RefSerializationKind::kBackgroundSerialized)              \
   V(JSFunction, RefSerializationKind::kSerialized)                        \
   V(JSGlobalObject, RefSerializationKind::kBackgroundSerialized)          \
   V(JSGlobalProxy, RefSerializationKind::kBackgroundSerialized)           \
@@ -386,11 +386,11 @@ class JSBoundFunctionRef : public JSObjectRef {
   Handle<JSBoundFunction> object() const;
 
   bool Serialize();
-  bool serialized() const;
 
-  // The following are available only after calling Serialize().
-  JSReceiverRef bound_target_function() const;
-  ObjectRef bound_this() const;
+  // TODO(neis): Make return types non-optional once JSFunction is no longer
+  // fg-serialized.
+  base::Optional<JSReceiverRef> bound_target_function() const;
+  base::Optional<ObjectRef> bound_this() const;
   FixedArrayRef bound_arguments() const;
 };
 

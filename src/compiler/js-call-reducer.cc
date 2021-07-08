@@ -4308,11 +4308,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       return ReduceJSCall(node, function.shared());
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      if (!function.serialized()) return NoChange();
-
-      ObjectRef bound_this = function.bound_this();
+      base::Optional<JSReceiverRef> bound_target_function =
+          function.bound_target_function();
+      if (!bound_target_function.has_value()) return NoChange();
+      base::Optional<ObjectRef> bound_this = function.bound_this();
+      if (!bound_this.has_value()) return NoChange();
       ConvertReceiverMode const convert_mode =
-          bound_this.IsNullOrUndefined()
+          bound_this->IsNullOrUndefined()
               ? ConvertReceiverMode::kNullOrUndefined
               : ConvertReceiverMode::kNotNullOrUndefined;
 
@@ -4333,9 +4335,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
       // Patch {node} to use [[BoundTargetFunction]] and [[BoundThis]].
       NodeProperties::ReplaceValueInput(
-          node, jsgraph()->Constant(function.bound_target_function()),
+          node, jsgraph()->Constant(*bound_target_function),
           JSCallNode::TargetIndex());
-      NodeProperties::ReplaceValueInput(node, jsgraph()->Constant(bound_this),
+      NodeProperties::ReplaceValueInput(node, jsgraph()->Constant(*bound_this),
                                         JSCallNode::ReceiverIndex());
 
       // Insert the [[BoundArguments]] for {node}.
@@ -5012,8 +5014,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      if (!function.serialized()) return NoChange();
-      ObjectRef bound_target_function = function.bound_target_function();
+      base::Optional<JSReceiverRef> bound_target_function =
+          function.bound_target_function();
+      if (!bound_target_function.has_value()) return NoChange();
       FixedArrayRef bound_arguments = function.bound_arguments();
       const int bound_arguments_length = bound_arguments.length();
 
@@ -5032,7 +5035,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
       // Patch {node} to use [[BoundTargetFunction]].
       node->ReplaceInput(n.TargetIndex(),
-                         jsgraph()->Constant(bound_target_function));
+                         jsgraph()->Constant(*bound_target_function));
 
       // Patch {node} to use [[BoundTargetFunction]]
       // as new.target if {new_target} equals {target}.
@@ -5041,7 +5044,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
                            graph()->NewNode(simplified()->ReferenceEqual(),
                                             target, new_target),
-                           jsgraph()->Constant(bound_target_function),
+                           jsgraph()->Constant(*bound_target_function),
                            new_target));
 
       // Insert the [[BoundArguments]] for {node}.

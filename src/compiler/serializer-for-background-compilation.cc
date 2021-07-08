@@ -2046,7 +2046,7 @@ JSReceiverRef UnrollBoundFunction(JSBoundFunctionRef const& bound_function,
   JSReceiverRef target = bound_function.AsJSReceiver();
   HintsVector reversed_bound_arguments(zone);
   for (; target.IsJSBoundFunction();
-       target = target.AsJSBoundFunction().bound_target_function()) {
+       target = target.AsJSBoundFunction().bound_target_function().value()) {
     for (int i = target.AsJSBoundFunction().bound_arguments().length() - 1;
          i >= 0; --i) {
       Hints const arg = Hints::SingleConstant(
@@ -2054,7 +2054,7 @@ JSReceiverRef UnrollBoundFunction(JSBoundFunctionRef const& bound_function,
       reversed_bound_arguments.push_back(arg);
     }
     Hints const arg = Hints::SingleConstant(
-        target.AsJSBoundFunction().bound_this().object(), zone);
+        target.AsJSBoundFunction().bound_this().value().object(), zone);
     reversed_bound_arguments.push_back(arg);
   }
 
@@ -3405,7 +3405,7 @@ void SerializerForBackgroundCompilation::ProcessConstantForOrdinaryHasInstance(
   if (constructor.IsJSBoundFunction()) {
     constructor.AsJSBoundFunction().Serialize();
     ProcessConstantForInstanceOf(
-        constructor.AsJSBoundFunction().bound_target_function(),
+        constructor.AsJSBoundFunction().bound_target_function().value(),
         walk_prototypes);
   } else if (constructor.IsJSFunction()) {
     constructor.AsJSFunction().Serialize();

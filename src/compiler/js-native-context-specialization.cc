@@ -629,15 +629,15 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // OrdinaryHasInstance on bound functions turns into a recursive invocation
     // of the instanceof operator again.
     JSBoundFunctionRef function = m.Ref(broker()).AsJSBoundFunction();
-    if (!function.serialized()) return NoChange();
-
-    JSReceiverRef bound_target_function = function.bound_target_function();
+    base::Optional<JSReceiverRef> bound_target_function =
+        function.bound_target_function();
+    if (bound_target_function.has_value()) return NoChange();
 
     Node* feedback = jsgraph()->UndefinedConstant();
     NodeProperties::ReplaceValueInput(node, object,
                                       JSInstanceOfNode::LeftIndex());
     NodeProperties::ReplaceValueInput(
-        node, jsgraph()->Constant(bound_target_function),
+        node, jsgraph()->Constant(*bound_target_function),
         JSInstanceOfNode::RightIndex());
     node->InsertInput(zone(), JSInstanceOfNode::FeedbackVectorIndex(),
                       feedback);
