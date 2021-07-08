@@ -5039,13 +5039,18 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
       // Patch {node} to use [[BoundTargetFunction]]
       // as new.target if {new_target} equals {target}.
-      node->ReplaceInput(
-          n.NewTargetIndex(),
-          graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                           graph()->NewNode(simplified()->ReferenceEqual(),
-                                            target, new_target),
-                           jsgraph()->Constant(*bound_target_function),
-                           new_target));
+      if (target == new_target) {
+        node->ReplaceInput(n.NewTargetIndex(),
+                           jsgraph()->Constant(*bound_target_function));
+      } else {
+        node->ReplaceInput(
+            n.NewTargetIndex(),
+            graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                             graph()->NewNode(simplified()->ReferenceEqual(),
+                                              target, new_target),
+                             jsgraph()->Constant(*bound_target_function),
+                             new_target));
+      }
 
       // Insert the [[BoundArguments]] for {node}.
       for (int i = 0; i < bound_arguments_length; ++i) {
@@ -5078,12 +5083,16 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
     // Patch {node} to use [[BoundTargetFunction]]
     // as new.target if {new_target} equals {target}.
-    node->ReplaceInput(
-        n.NewTargetIndex(),
-        graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                         graph()->NewNode(simplified()->ReferenceEqual(),
-                                          target, new_target),
-                         bound_target_function, new_target));
+    if (target == new_target) {
+      node->ReplaceInput(n.NewTargetIndex(), bound_target_function);
+    } else {
+      node->ReplaceInput(
+          n.NewTargetIndex(),
+          graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                           graph()->NewNode(simplified()->ReferenceEqual(),
+                                            target, new_target),
+                           bound_target_function, new_target));
+    }
 
     // Insert the [[BoundArguments]] for {node}.
     for (int i = 0; i < bound_arguments_length; ++i) {
