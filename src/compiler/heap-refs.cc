@@ -604,10 +604,7 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
   Handle<Object> value = broker->CanonicalPersistentHandle(constant.value());
   Handle<Object> possibly_wrapped = Object::WrapForRead<AllocationType::kOld>(
       broker->local_isolate_or_isolate(), value, representation);
-  // MakeRef will always succeed, because either {possibly_wrapped} is {value}
-  // or we allocated a HeapNumber via the local isolate, which is thus
-  // guaranteed to pass the gc predicate.
-  return MakeRef(broker, *possibly_wrapped);
+  return TryMakeRef(broker, *possibly_wrapped);
 }
 
 // Tries to get the property at {dict_index}. If we are within bounds of the
