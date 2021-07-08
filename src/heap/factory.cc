@@ -344,6 +344,7 @@ MaybeHandle<Code> Factory::NewEmptyCode(CodeKind kind, int buffer_size) {
       !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
       heap->code_region().contains(code->address()));
 
+  DCHECK(heap->code_space()->Contains(raw_code));
   return code;
 }
 

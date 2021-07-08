@@ -257,7 +257,8 @@ std::unique_ptr<AssemblerBuffer> AllocateBuffer(
   // TODO(victorgomes): When compiling on heap, we allocate whatever is left
   // over on the page with a minimum of the estimated_size.
   if (code_location == BaselineCompiler::kOnHeap &&
-      estimated_size < heap->MaxRegularHeapObjectSize(AllocationType::kCode)) {
+      Code::SizeFor(estimated_size) <
+          heap->MaxRegularHeapObjectSize(AllocationType::kCode)) {
     // TODO(victorgomes): We're currently underestimating the size of the
     // buffer, since we don't know how big the reloc info will be. We could
     // use a separate zone vector for the RelocInfo.
