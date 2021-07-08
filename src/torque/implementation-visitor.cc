@@ -4135,6 +4135,23 @@ void CppClassGenerator::GenerateClass() {
   hdr_ << "};\n\n";
 
   if (type_->ShouldGenerateFullClassDefinition()) {
+    // If this class extends from another class which is defined in the same tq
+    // file, and that other class doesn't generate a full class definition, then
+    // the resulting .inc file would be uncompilable due to ordering
+    // requirements: the generated file must go before the hand-written
+    // definition of the base class, but it must also go after that same
+    // hand-written definition.
+    base::Optional<const ClassType*> parent = type_->parent()->ClassSupertype();
+    while (parent) {
+      if ((*parent)->GenerateCppClassDefinitions() &&
+          !(*parent)->ShouldGenerateFullClassDefinition() &&
+          (*parent)->AttributedToFile() == type_->AttributedToFile()) {
+        Error("Exported ", *type_,
+              " cannot be in the same file as its parent extern ", **parent);
+      }
+      parent = (*parent)->parent()->ClassSupertype();
+    }
+
     GenerateClassExport(type_, hdr_, inl_);
   }
 }
