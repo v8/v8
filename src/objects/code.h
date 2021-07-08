@@ -438,6 +438,10 @@ class Code : public HeapObject {
   void CopyFromNoFlush(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
   void RelocateFromDesc(ByteArray reloc_info, Heap* heap, const CodeDesc& desc);
 
+#ifdef VERIFY_HEAP
+  void VerifyRelocInfo(Isolate* isolate, ByteArray reloc_info);
+#endif
+
   // Copy the RelocInfo portion of |desc| to |dest|. The ByteArray must be
   // exactly the same size as the RelocInfo in |desc|.
   static inline void CopyRelocInfoToByteArray(ByteArray dest,

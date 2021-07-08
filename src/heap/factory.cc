@@ -297,6 +297,10 @@ void Factory::CodeBuilder::FinalizeOnHeapCode(Handle<Code> code,
 
   code->CopyRelocInfoToByteArray(reloc_info, code_desc_);
 
+#ifdef VERIFY_HEAP
+  code->VerifyRelocInfo(isolate_, reloc_info);
+#endif
+
   int old_object_size = Code::SizeFor(code_desc_.origin->buffer_size());
   int new_object_size =
       Code::SizeFor(code_desc_.instruction_size() + code_desc_.metadata_size());
