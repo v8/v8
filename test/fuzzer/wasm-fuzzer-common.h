@@ -23,8 +23,10 @@ namespace fuzzer {
 // possible. If the interpretation finishes within kMaxSteps steps,
 // module_object is instantiated again and the compiled "main" function is
 // executed.
-void InterpretAndExecuteModule(Isolate* isolate,
-                               Handle<WasmModuleObject> module_object);
+void InterpretAndExecuteModule(
+    Isolate* isolate, Handle<WasmModuleObject> module_object,
+    Handle<WasmModuleObject> module_ref = Handle<WasmModuleObject>::null(),
+    int32_t* max_steps = nullptr, int32_t* nondeterminism = nullptr);
 
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles);
