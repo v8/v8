@@ -113,6 +113,11 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   RemoveDuplicates();
   TrimEntries(&bits_per_entry);
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
+  // We cannot emit a const pool within the safepoint table.
+  Assembler::BlockConstPoolScope block_const_pool(assembler);
+#endif
+
   // Make sure the safepoint table is properly aligned. Pad with nops.
   assembler->Align(Code::kMetadataAlignment);
   assembler->RecordComment(";;; Safepoint table.");
