@@ -102,7 +102,7 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
     // Fortunately, sigemptyset and sigaddset are async-signal-safe according to
     // the POSIX standard.
     sigemptyset(&sigs);
-    sigaddset(&sigs, SIGSEGV);
+    sigaddset(&sigs, kOobSignal);
     SigUnmaskStack unmask(sigs);
 
     ucontext_t* uc = reinterpret_cast<ucontext_t*>(context);
@@ -137,9 +137,9 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
 void HandleSignal(int signum, siginfo_t* info, void* context) {
   if (!TryHandleSignal(signum, info, context)) {
     // Since V8 didn't handle this signal, we want to re-raise the same signal.
-    // For kernel-generated SEGV signals, we do this by restoring the original
-    // SEGV handler and then returning. The fault will happen again and the
-    // usual SEGV handling will happen.
+    // For kernel-generated signals, we do this by restoring the original
+    // handler and then returning. The fault will happen again and the usual
+    // signal handling will happen.
     //
     // We handle user-generated signals by calling raise() instead. This is for
     // completeness. We should never actually see one of these, but just in
