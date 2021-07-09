@@ -155,10 +155,11 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     Handle<WasmInstanceObject> instance_ref;
     {
       ErrorThrower thrower(isolate, "WebAssembly Instantiation");
-      DCHECK(GetWasmEngine()
-                 ->SyncInstantiate(isolate, &thrower, module_ref, {},
-                                   {})  // no imports & memory
-                 .ToHandle(&instance_ref));
+      // We instantiated before, so the second instantiation must also succeed:
+      CHECK(GetWasmEngine()
+                ->SyncInstantiate(isolate, &thrower, module_ref, {},
+                                  {})  // no imports & memory
+                .ToHandle(&instance_ref));
     }
     result_ref = testing::CallWasmFunctionForTesting(
         isolate, instance_ref, "main", static_cast<int>(compiled_args.size()),
