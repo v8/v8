@@ -142,6 +142,15 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
       DCHECK(interpreter_result.trapped());
       exception_ref = true;
     }
+    // Reset the instance before the test run.
+    {
+      ErrorThrower thrower(isolate, "Second Instantiation");
+      // We instantiated before, so the second instantiation must also succeed:
+      CHECK(GetWasmEngine()
+                ->SyncInstantiate(isolate, &thrower, module_object, {},
+                                  {})  // no imports & memory
+                .ToHandle(&instance));
+    }
   } else {
     Handle<WasmInstanceObject> instance_ref;
     {
