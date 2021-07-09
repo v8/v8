@@ -425,8 +425,13 @@ MaybeHandle<JSLocale> JSLocale::Maximize(Isolate* isolate,
     // Base name is not changed
     result = source;
   }
-  DCHECK(U_SUCCESS(status));
-  DCHECK(!result.isBogus());
+  if (U_FAILURE(status) || result.isBogus()) {
+    // Due to https://unicode-org.atlassian.net/browse/ICU-21639
+    // Valid but super long locale will fail. Just throw here for now.
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kLocaleBadParameters),
+                    JSLocale);
+  }
   return Construct(isolate, result);
 }
 
@@ -455,8 +460,13 @@ MaybeHandle<JSLocale> JSLocale::Minimize(Isolate* isolate,
     // Base name is not changed
     result = source;
   }
-  DCHECK(U_SUCCESS(status));
-  DCHECK(!result.isBogus());
+  if (U_FAILURE(status) || result.isBogus()) {
+    // Due to https://unicode-org.atlassian.net/browse/ICU-21639
+    // Valid but super long locale will fail. Just throw here for now.
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kLocaleBadParameters),
+                    JSLocale);
+  }
   return Construct(isolate, result);
 }
 
