@@ -228,6 +228,17 @@ experiment_builder(
 )
 
 experiment_builder(
+    name = "V8 Official Linux64 (reclient)",
+    bucket = "ci",
+    triggered_by = ["v8-trigger-official"],
+    executable = "recipe:v8/archive",
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "upload_archive": False},
+    use_rbe = RECLIENT.DEFAULT,
+    to_notify = ["yyanagisawa@google.com"],
+)
+
+experiment_builder(
     name = "V8 Linux gcc",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
