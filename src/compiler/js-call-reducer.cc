@@ -4198,7 +4198,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   int new_argument_count;
 
   // Find array length and elements' kind from the feedback's allocation
-  // site's boilerplate JSArray..
+  // site's boilerplate JSArray.
   JSCreateLiteralOpNode args_node(arguments_list);
   CreateLiteralParameters const& args_params = args_node.Parameters();
   const FeedbackSource& array_feedback = args_params.feedback();
@@ -4207,8 +4207,6 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   if (feedback.IsInsufficient()) return NoChange();
 
   AllocationSiteRef site = feedback.AsLiteral().value();
-  if (!site.IsFastLiteral()) return NoChange();
-
   base::Optional<JSArrayRef> boilerplate_array =
       site.boilerplate()->AsJSArray();
   int const array_length = boilerplate_array->GetBoilerplateLength().AsSmi();

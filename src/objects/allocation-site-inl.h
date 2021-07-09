@@ -30,7 +30,7 @@ ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
 RELEASE_ACQUIRE_ACCESSORS(AllocationSite, transition_info_or_boilerplate,
                           Object, kTransitionInfoOrBoilerplateOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
-INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
+RELAXED_INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_create_count,
                 kPretenureCreateCountOffset)
 ACCESSORS(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
@@ -55,12 +55,13 @@ void AllocationSite::set_boilerplate(JSObject value, ReleaseStoreTag tag,
 
 int AllocationSite::transition_info() const {
   DCHECK(!PointsToLiteral());
-  return Smi::cast(transition_info_or_boilerplate()).value();
+  return Smi::cast(transition_info_or_boilerplate(kAcquireLoad)).value();
 }
 
 void AllocationSite::set_transition_info(int value) {
   DCHECK(!PointsToLiteral());
-  set_transition_info_or_boilerplate(Smi::FromInt(value), SKIP_WRITE_BARRIER);
+  set_transition_info_or_boilerplate(Smi::FromInt(value), kReleaseStore,
+                                     SKIP_WRITE_BARRIER);
 }
 
 bool AllocationSite::HasWeakNext() const {
@@ -113,7 +114,7 @@ void AllocationSite::SetDoNotInlineCall() {
 }
 
 bool AllocationSite::PointsToLiteral() const {
-  Object raw_value = transition_info_or_boilerplate();
+  Object raw_value = transition_info_or_boilerplate(kAcquireLoad);
   DCHECK_EQ(!raw_value.IsSmi(),
             raw_value.IsJSArray() || raw_value.IsJSObject());
   return !raw_value.IsSmi();
@@ -234,6 +235,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
                  is_nested ? "(nested)" : " ", ElementsKindToString(kind),
                  ElementsKindToString(to_kind));
         }
+        CHECK_NE(to_kind, DICTIONARY_ELEMENTS);
         JSObject::TransitionElementsKind(boilerplate, to_kind);
         site->dependent_code().DeoptimizeDependentCodeGroup(
             DependentCode::kAllocationSiteTransitionChangedGroup);

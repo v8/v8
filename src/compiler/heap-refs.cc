@@ -435,13 +435,16 @@ class JSObjectData : public JSReceiverData {
                ObjectDataKind kind = kSerializedHeapObject);
 
   // Recursive serialization of all reachable JSObjects.
-  void SerializeAsBoilerplate(JSHeapBroker* broker);
+  bool SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
+                                       int max_depth = kMaxFastLiteralDepth);
   ObjectData* GetInobjectField(int property_index) const;
 
   // Shallow serialization of {elements}.
   void SerializeElements(JSHeapBroker* broker);
   bool serialized_elements() const { return serialized_elements_; }
   ObjectData* elements() const;
+
+  ObjectData* raw_properties_or_hash() const { return raw_properties_or_hash_; }
 
   void SerializeObjectCreateMap(JSHeapBroker* broker);
 
@@ -468,10 +471,14 @@ class JSObjectData : public JSReceiverData {
   // This method is only used to assert our invariants.
   bool cow_or_empty_elements_tenured() const;
 
- private:
-  void SerializeRecursiveAsBoilerplate(JSHeapBroker* broker, int max_depths);
+  bool has_extra_serialized_data() const {
+    return serialized_as_boilerplate_ || serialized_elements_ ||
+           serialized_object_create_map_;
+  }
 
+ private:
   ObjectData* elements_ = nullptr;
+  ObjectData* raw_properties_or_hash_ = nullptr;
   bool cow_or_empty_elements_tenured_ = false;
   // The {serialized_as_boilerplate} flag is set when all recursively
   // reachable JSObjects are serialized.
@@ -953,94 +960,6 @@ class InternalizedStringData : public StringData {
   }
 };
 
-namespace {
-
-bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
-                         int* max_properties) {
-  DCHECK_GE(max_depth, 0);
-  DCHECK_GE(*max_properties, 0);
-
-  // Check for too deep nesting.
-  if (max_depth == 0) return false;
-
-  Isolate* const isolate = boilerplate->GetIsolate();
-
-  // If the boilerplate map has been deprecated, bailout of fast literal
-  // optimization.  The map could be deprecated at some point after the line
-  // below, but it's not a correctness issue -- it only means the literal isn't
-  // created with the most up to date map(s).
-  if (boilerplate->map().is_deprecated()) return false;
-
-  // Check the elements.
-  Handle<FixedArrayBase> elements(boilerplate->elements(), isolate);
-  if (elements->length() > 0 &&
-      elements->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) {
-    if (boilerplate->HasSmiOrObjectElements()) {
-      Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
-      int length = elements->length();
-      for (int i = 0; i < length; i++) {
-        if ((*max_properties)-- == 0) return false;
-        Handle<Object> value(fast_elements->get(i), isolate);
-        if (value->IsJSObject()) {
-          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-          if (!IsFastLiteralHelper(value_object, max_depth - 1,
-                                   max_properties)) {
-            return false;
-          }
-        }
-      }
-    } else if (boilerplate->HasDoubleElements()) {
-      if (elements->Size() > kMaxRegularHeapObjectSize) return false;
-    } else {
-      return false;
-    }
-  }
-
-  // TODO(turbofan): Do we want to support out-of-object properties?
-  if (!(boilerplate->HasFastProperties() &&
-        boilerplate->property_array().length() == 0)) {
-    return false;
-  }
-
-  // Check the in-object properties.
-  Handle<DescriptorArray> descriptors(
-      boilerplate->map().instance_descriptors(isolate, kRelaxedLoad), isolate);
-  for (InternalIndex i : boilerplate->map().IterateOwnDescriptors()) {
-    PropertyDetails details = descriptors->GetDetails(i);
-    if (details.location() != kField) continue;
-    DCHECK_EQ(kData, details.kind());
-    if ((*max_properties)-- == 0) return false;
-    FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
-    Handle<Object> value(boilerplate->RawFastPropertyAt(field_index), isolate);
-    if (value->IsJSObject()) {
-      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      if (!IsFastLiteralHelper(value_object, max_depth - 1, max_properties)) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-// Maximum depth and total number of elements and properties for literal
-// graphs to be considered for fast deep-copying. The limit is chosen to
-// match the maximum number of inobject properties, to ensure that the
-// performance of using object literals is not worse than using constructor
-// functions, see crbug.com/v8/6211 for details.
-const int kMaxFastLiteralDepth = 3;
-const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
-
-// Determines whether the given array or object literal boilerplate satisfies
-// all limits to be considered for fast deep-copying and computes the total
-// size of all objects that are part of the graph.
-bool IsInlinableFastLiteral(Handle<JSObject> boilerplate) {
-  int max_properties = kMaxFastLiteralProperties;
-  return IsFastLiteralHelper(boilerplate, kMaxFastLiteralDepth,
-                             &max_properties);
-}
-
-}  // namespace
-
 class AccessorInfoData : public HeapObjectData {
  public:
   AccessorInfoData(JSHeapBroker* broker, ObjectData** storage,
@@ -1051,12 +970,11 @@ class AllocationSiteData : public HeapObjectData {
  public:
   AllocationSiteData(JSHeapBroker* broker, ObjectData** storage,
                      Handle<AllocationSite> object);
-  void SerializeBoilerplate(JSHeapBroker* broker);
+  void Serialize(JSHeapBroker* broker);
 
   bool PointsToLiteral() const { return PointsToLiteral_; }
   AllocationType GetAllocationType() const { return GetAllocationType_; }
   ObjectData* nested_site() const { return nested_site_; }
-  bool IsFastLiteral() const { return IsFastLiteral_; }
   ObjectData* boilerplate() const { return boilerplate_; }
 
   // These are only valid if PointsToLiteral is false.
@@ -1067,11 +985,10 @@ class AllocationSiteData : public HeapObjectData {
   bool const PointsToLiteral_;
   AllocationType const GetAllocationType_;
   ObjectData* nested_site_ = nullptr;
-  bool IsFastLiteral_ = false;
   ObjectData* boilerplate_ = nullptr;
   ElementsKind GetElementsKind_ = NO_ELEMENTS;
   bool CanInlineCall_ = false;
-  bool serialized_boilerplate_ = false;
+  bool serialized_ = false;
 };
 
 class BigIntData : public HeapObjectData {
@@ -1244,34 +1161,27 @@ AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
     : HeapObjectData(broker, storage, object),
       PointsToLiteral_(object->PointsToLiteral()),
       GetAllocationType_(object->GetAllocationType()) {
-  if (PointsToLiteral_) {
-    IsFastLiteral_ = IsInlinableFastLiteral(
-        handle(object->boilerplate(kAcquireLoad), broker->isolate()));
-  } else {
+  DCHECK(!broker->is_concurrent_inlining());
+  if (!PointsToLiteral_) {
     GetElementsKind_ = object->GetElementsKind();
     CanInlineCall_ = object->CanInlineCall();
   }
 }
 
-void AllocationSiteData::SerializeBoilerplate(JSHeapBroker* broker) {
-  if (serialized_boilerplate_) return;
-  serialized_boilerplate_ = true;
+void AllocationSiteData::Serialize(JSHeapBroker* broker) {
+  if (serialized_) return;
+  serialized_ = true;
 
-  TraceScope tracer(broker, this, "AllocationSiteData::SerializeBoilerplate");
+  TraceScope tracer(broker, this, "AllocationSiteData::Serialize");
   Handle<AllocationSite> site = Handle<AllocationSite>::cast(object());
 
-  CHECK(IsFastLiteral_);
-  DCHECK_NULL(boilerplate_);
-  boilerplate_ = broker->GetOrCreateData(site->boilerplate(kAcquireLoad));
-  if (!boilerplate_->should_access_heap()) {
-    boilerplate_->AsJSObject()->SerializeAsBoilerplate(broker);
+  if (PointsToLiteral_) {
+    DCHECK_NULL(boilerplate_);
+    boilerplate_ = broker->GetOrCreateData(site->boilerplate(kAcquireLoad));
   }
 
   DCHECK_NULL(nested_site_);
   nested_site_ = broker->GetOrCreateData(site->nested_site());
-  if (nested_site_->IsAllocationSite() && !nested_site_->should_access_heap()) {
-    nested_site_->AsAllocationSite()->SerializeBoilerplate(broker);
-  }
 }
 
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
@@ -2125,10 +2035,6 @@ ObjectData* JSObjectData::elements() const {
   return elements_;
 }
 
-void JSObjectData::SerializeAsBoilerplate(JSHeapBroker* broker) {
-  SerializeRecursiveAsBoilerplate(broker, kMaxFastLiteralDepth);
-}
-
 void JSObjectData::SerializeElements(JSHeapBroker* broker) {
   if (serialized_elements_) return;
   serialized_elements_ = true;
@@ -2237,18 +2143,17 @@ void MapData::SerializeRootMap(JSHeapBroker* broker) {
 
 ObjectData* MapData::FindRootMap() const { return root_map_; }
 
-void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
-                                                   int depth) {
-  if (serialized_as_boilerplate_) return;
-  serialized_as_boilerplate_ = true;
+bool JSObjectData::SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
+                                                   int max_depth) {
+  if (serialized_as_boilerplate_) return true;
+  // If serialization succeeds, we set this to true at the end.
 
   TraceScope tracer(broker, this,
-                    "JSObjectData::SerializeRecursiveAsBoilerplate");
+                    "JSObjectData::SerializeAsBoilerplateRecursive");
   Handle<JSObject> boilerplate = Handle<JSObject>::cast(object());
 
-  // We only serialize boilerplates that pass the IsInlinableFastLiteral
-  // check, so we only do a check on the depth here.
-  CHECK_GT(depth, 0);
+  DCHECK_GE(max_depth, 0);
+  if (max_depth == 0) return false;
 
   // Serialize the elements.
   Isolate* const isolate = broker->isolate();
@@ -2264,41 +2169,24 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
     cow_or_empty_elements_tenured_ = !ObjectInYoungGeneration(*elements_object);
   }
 
-  DCHECK_NULL(elements_);
-  DCHECK(!serialized_elements_);
+  raw_properties_or_hash_ =
+      broker->GetOrCreateData(boilerplate->raw_properties_or_hash());
+
   serialized_elements_ = true;
   elements_ = broker->GetOrCreateData(elements_object);
   DCHECK(elements_->IsFixedArrayBase());
 
-  if (empty_or_cow || elements_->should_access_heap()) {
-    // No need to do anything here. Empty or copy-on-write elements
-    // do not need to be serialized because we only need to store the elements
-    // reference to the allocated object.
-  } else if (boilerplate->HasSmiOrObjectElements()) {
-    Handle<FixedArray> fast_elements =
-        Handle<FixedArray>::cast(elements_object);
-    int length = elements_object->length();
-    for (int i = 0; i < length; i++) {
-      Handle<Object> value(fast_elements->get(i), isolate);
-      if (value->IsJSObject()) {
-        ObjectData* value_data = broker->GetOrCreateData(value);
-        if (!value_data->should_access_heap()) {
-          value_data->AsJSObject()->SerializeRecursiveAsBoilerplate(broker,
-                                                                    depth - 1);
-        }
-      }
-    }
-  } else {
-    CHECK(boilerplate->HasDoubleElements());
-    CHECK_LE(elements_object->Size(), kMaxRegularHeapObjectSize);
+  if (!boilerplate->HasFastProperties() ||
+      boilerplate->property_array().length() != 0) {
+    return false;
   }
 
-  // TODO(turbofan): Do we want to support out-of-object properties?
-  CHECK(boilerplate->HasFastProperties() &&
-        boilerplate->property_array().length() == 0);
-  CHECK_EQ(inobject_fields_.size(), 0u);
+  if (!map()->should_access_heap()) {
+    map()->AsMap()->SerializeOwnDescriptors(broker);
+  }
 
   // Check the in-object properties.
+  inobject_fields_.clear();
   Handle<DescriptorArray> descriptors(
       boilerplate->map().instance_descriptors(isolate), isolate);
   for (InternalIndex i : boilerplate->map().IterateOwnDescriptors()) {
@@ -2313,21 +2201,47 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
               static_cast<int>(inobject_fields_.size()));
     Handle<Object> value(boilerplate->RawFastPropertyAt(field_index), isolate);
     ObjectData* value_data = broker->GetOrCreateData(value);
-    if (value_data->IsJSObject() && !value_data->should_access_heap()) {
-      value_data->AsJSObject()->SerializeRecursiveAsBoilerplate(broker,
-                                                                depth - 1);
-    }
     inobject_fields_.push_back(value_data);
+    if (value_data->IsJSObject() && !value_data->should_access_heap()) {
+      if (!value_data->AsJSObject()->SerializeAsBoilerplateRecursive(
+              broker, max_depth - 1))
+        return false;
+    }
   }
   TRACE(broker, "Copied " << inobject_fields_.size() << " in-object fields");
 
-  if (!map()->should_access_heap()) {
-    map()->AsMap()->SerializeOwnDescriptors(broker);
+  if (empty_or_cow || elements_->should_access_heap()) {
+    // No need to do anything here. Empty or copy-on-write elements
+    // do not need to be serialized because we only need to store the elements
+    // reference to the allocated object.
+  } else if (boilerplate->HasSmiOrObjectElements()) {
+    Handle<FixedArray> fast_elements =
+        Handle<FixedArray>::cast(elements_object);
+    int length = elements_object->length();
+    for (int i = 0; i < length; i++) {
+      Handle<Object> value(fast_elements->get(i), isolate);
+      if (value->IsJSObject()) {
+        ObjectData* value_data = broker->GetOrCreateData(value);
+        if (!value_data->should_access_heap()) {
+          if (!value_data->AsJSObject()->SerializeAsBoilerplateRecursive(
+                  broker, max_depth - 1)) {
+            return false;
+          }
+        }
+      }
+    }
+  } else {
+    if (!boilerplate->HasDoubleElements()) return false;
+    int const size = FixedDoubleArray::SizeFor(elements_object->length());
+    if (size > kMaxRegularHeapObjectSize) return false;
   }
 
   if (IsJSArray() && !broker->is_concurrent_inlining()) {
     AsJSArray()->Serialize(broker);
   }
+
+  serialized_as_boilerplate_ = true;
+  return true;
 }
 
 #ifdef DEBUG
@@ -2632,6 +2546,11 @@ void JSHeapBroker::ClearReconstructibleData() {
           value->AsMap()->has_extra_serialized_data()) {
         continue;
       }
+      if (value->IsJSObject() &&
+          value->kind() == ObjectDataKind::kBackgroundSerializedHeapObject &&
+          value->AsJSObject()->has_extra_serialized_data()) {
+        continue;
+      }
       // Can be reconstructed from the background thread.
       CHECK_NOT_NULL(refs_->Remove(key));
     }
@@ -2836,6 +2755,13 @@ FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
       data()->AsFeedbackVector()->GetClosureFeedbackCell(broker(), index));
 }
 
+base::Optional<ObjectRef> JSObjectRef::raw_properties_or_hash() const {
+  if (data_->should_access_heap()) {
+    return TryMakeRef(broker(), object()->raw_properties_or_hash());
+  }
+  return ObjectRef(broker(), data()->AsJSObject()->raw_properties_or_hash());
+}
+
 base::Optional<ObjectRef> JSObjectRef::RawInobjectPropertyAt(
     FieldIndex index) const {
   CHECK(index.is_inobject());
@@ -2864,19 +2790,23 @@ base::Optional<ObjectRef> JSObjectRef::RawInobjectPropertyAt(
                    object_data->GetInobjectField(index.property_index()));
 }
 
-bool AllocationSiteRef::IsFastLiteral() const {
-  if (data_->should_access_heap()) {
-    CHECK_NE(data_->kind(), ObjectDataKind::kNeverSerializedHeapObject);
-    return IsInlinableFastLiteral(
-        handle(object()->boilerplate(kAcquireLoad), broker()->isolate()));
-  }
-  return data()->AsAllocationSite()->IsFastLiteral();
-}
-
-void AllocationSiteRef::SerializeBoilerplate() {
+void JSObjectRef::SerializeAsBoilerplateRecursive() {
   if (data_->should_access_heap()) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsAllocationSite()->SerializeBoilerplate(broker());
+  data()->AsJSObject()->SerializeAsBoilerplateRecursive(broker());
+}
+
+void AllocationSiteRef::SerializeRecursive() {
+  if (!data_->should_access_heap()) {
+    data()->AsAllocationSite()->Serialize(broker());
+  }
+
+  if (boilerplate().has_value()) {
+    boilerplate()->SerializeAsBoilerplateRecursive();
+  }
+  if (nested_site().IsAllocationSite()) {
+    nested_site().AsAllocationSite().SerializeRecursive();
+  }
 }
 
 void JSObjectRef::SerializeElements() {
@@ -3020,6 +2950,7 @@ base::Optional<ObjectRef> FixedArrayRef::TryGet(int i) const {
 Float64 FixedDoubleArrayRef::GetFromImmutableFixedDoubleArray(int i) const {
   STATIC_ASSERT(ref_traits<FixedDoubleArray>::ref_serialization_kind ==
                 RefSerializationKind::kNeverSerialized);
+  CHECK(data_->should_access_heap());
   return Float64::FromBits(object()->get_representation(i));
 }
 
@@ -3938,15 +3869,13 @@ HeapObjectType HeapObjectRef::GetHeapObjectType() const {
 }
 
 base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
+  if (!PointsToLiteral()) return {};
   if (data_->should_access_heap()) {
     return TryMakeRef(broker(), object()->boilerplate(kAcquireLoad));
   }
   ObjectData* boilerplate = data()->AsAllocationSite()->boilerplate();
-  if (boilerplate) {
-    return JSObjectRef(broker(), boilerplate);
-  } else {
-    return base::nullopt;
-  }
+  if (boilerplate == nullptr) return {};
+  return JSObjectRef(broker(), boilerplate);
 }
 
 base::Optional<FixedArrayBaseRef> JSObjectRef::elements(

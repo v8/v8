@@ -25,8 +25,6 @@ CompilationDependencies::CompilationDependencies(JSHeapBroker* broker,
 
 class InitialMapDependency final : public CompilationDependency {
  public:
-  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
-  // longer need to explicitly store the initial map.
   InitialMapDependency(const JSFunctionRef& function, const MapRef& initial_map)
       : function_(function), initial_map_(initial_map) {
     DCHECK(function_.has_initial_map());
@@ -53,8 +51,6 @@ class InitialMapDependency final : public CompilationDependency {
 
 class PrototypePropertyDependency final : public CompilationDependency {
  public:
-  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
-  // longer need to explicitly store the prototype.
   PrototypePropertyDependency(const JSFunctionRef& function,
                               const ObjectRef& prototype)
       : function_(function), prototype_(prototype) {
@@ -362,13 +358,9 @@ class TransitionDependency final : public CompilationDependency {
 
 class PretenureModeDependency final : public CompilationDependency {
  public:
-  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
-  // longer need to explicitly store the mode.
   PretenureModeDependency(const AllocationSiteRef& site,
                           AllocationType allocation)
-      : site_(site), allocation_(allocation) {
-    DCHECK_EQ(allocation, site_.GetAllocationType());
-  }
+      : site_(site), allocation_(allocation) {}
 
   bool IsValid() const override {
     return allocation_ == site_.object()->GetAllocationType();
@@ -392,8 +384,6 @@ class PretenureModeDependency final : public CompilationDependency {
 
 class FieldRepresentationDependency final : public CompilationDependency {
  public:
-  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
-  // longer need to explicitly store the representation.
   FieldRepresentationDependency(const MapRef& owner, InternalIndex descriptor,
                                 Representation representation)
       : owner_(owner),
@@ -437,8 +427,6 @@ class FieldRepresentationDependency final : public CompilationDependency {
 
 class FieldTypeDependency final : public CompilationDependency {
  public:
-  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
-  // longer need to explicitly store the type.
   FieldTypeDependency(const MapRef& owner, InternalIndex descriptor,
                       const ObjectRef& type)
       : owner_(owner), descriptor_(descriptor), type_(type) {}
@@ -556,14 +544,9 @@ class ProtectorDependency final : public CompilationDependency {
 
 class ElementsKindDependency final : public CompilationDependency {
  public:
-  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
-  // longer need to explicitly store the elements kind.
   ElementsKindDependency(const AllocationSiteRef& site, ElementsKind kind)
       : site_(site), kind_(kind) {
     DCHECK(AllocationSite::ShouldTrack(kind_));
-    DCHECK_EQ(kind_, site_.PointsToLiteral()
-                         ? site_.boilerplate().value().map().elements_kind()
-                         : site_.GetElementsKind());
   }
 
   bool IsValid() const override {
@@ -686,7 +669,7 @@ void CompilationDependencies::DependOnConstantInDictionaryPrototypeChain(
 
 AllocationType CompilationDependencies::DependOnPretenureMode(
     const AllocationSiteRef& site) {
-  DCHECK(!site.IsNeverSerializedHeapObject());
+  if (!FLAG_allocation_site_pretenuring) return AllocationType::kYoung;
   AllocationType allocation = site.GetAllocationType();
   RecordDependency(zone_->New<PretenureModeDependency>(site, allocation));
   return allocation;
@@ -769,8 +752,6 @@ bool CompilationDependencies::DependOnPromiseThenProtector() {
 
 void CompilationDependencies::DependOnElementsKind(
     const AllocationSiteRef& site) {
-  DCHECK(!site.IsNeverSerializedHeapObject());
-  // Do nothing if the object doesn't have any useful element transitions left.
   ElementsKind kind = site.PointsToLiteral()
                           ? site.boilerplate().value().map().elements_kind()
                           : site.GetElementsKind();

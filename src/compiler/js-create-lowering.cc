@@ -1095,27 +1095,18 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
       broker()->GetFeedbackForArrayOrObjectLiteral(p.feedback());
   if (!feedback.IsInsufficient()) {
     AllocationSiteRef site = feedback.AsLiteral().value();
-    if (site.IsFastLiteral()) {
-      AllocationType allocation = FLAG_allocation_site_pretenuring
-                                      ? site.GetAllocationType()
-                                      : AllocationType::kYoung;
-      JSObjectRef boilerplate = site.boilerplate().value();
-      base::Optional<Node*> maybe_value =
-          TryAllocateFastLiteral(effect, control, boilerplate, allocation);
-      if (!maybe_value.has_value()) {
-        TRACE_BROKER_MISSING(broker(), "bound argument");
-        return NoChange();
-      }
-      if (FLAG_allocation_site_pretenuring) {
-        CHECK_EQ(dependencies()->DependOnPretenureMode(site), allocation);
-      }
-      dependencies()->DependOnElementsKinds(site);
-      Node* value = effect = maybe_value.value();
-      ReplaceWithValue(node, value, effect, control);
-      return Replace(value);
-    }
+    if (!site.boilerplate().has_value()) return NoChange();
+    AllocationType allocation = dependencies()->DependOnPretenureMode(site);
+    int max_properties = kMaxFastLiteralProperties;
+    base::Optional<Node*> maybe_value =
+        TryAllocateFastLiteral(effect, control, *site.boilerplate(), allocation,
+                               kMaxFastLiteralDepth, &max_properties);
+    if (!maybe_value.has_value()) return NoChange();
+    dependencies()->DependOnElementsKinds(site);
+    Node* value = effect = maybe_value.value();
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
   }
-
   return NoChange();
 }
 
@@ -1660,19 +1651,47 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
 
 base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     Node* effect, Node* control, JSObjectRef boilerplate,
-    AllocationType allocation) {
+    AllocationType allocation, int max_depth, int* max_properties) {
+  DCHECK_GE(max_depth, 0);
+  DCHECK_GE(*max_properties, 0);
+
+  if (max_depth == 0) return {};
+
   // Prevent concurrent migrations of boilerplate objects.
   JSHeapBroker::BoilerplateMigrationGuardIfNeeded boilerplate_access_guard(
       broker());
 
   // Now that we hold the migration lock, get the current map.
   MapRef boilerplate_map = boilerplate.map();
-  base::Optional<MapRef> current_boilerplate_map =
-      boilerplate.map_direct_read();
+  {
+    base::Optional<MapRef> current_boilerplate_map =
+        boilerplate.map_direct_read();
+    if (!current_boilerplate_map.has_value() ||
+        !current_boilerplate_map->equals(boilerplate_map)) {
+      return {};
+    }
+  }
 
-  if (!current_boilerplate_map.has_value() ||
-      !current_boilerplate_map.value().equals(boilerplate_map)) {
+  // Bail out if the boilerplate map has been deprecated.  The map could of
+  // course be deprecated at some point after the line below, but it's not a
+  // correctness issue -- it only means the literal won't be created with the
+  // most up to date map(s).
+  if (boilerplate_map.is_deprecated()) return {};
+
+  // We currently only support in-object properties.
+  if (boilerplate.map().elements_kind() == DICTIONARY_ELEMENTS ||
+      boilerplate.map().is_dictionary_map() ||
+      !boilerplate.raw_properties_or_hash().has_value()) {
     return {};
+  }
+  {
+    ObjectRef properties = *boilerplate.raw_properties_or_hash();
+    bool const empty = properties.IsSmi() ||
+                       properties.equals(MakeRef<Object>(
+                           broker(), factory()->empty_fixed_array())) ||
+                       properties.equals(MakeRef<Object>(
+                           broker(), factory()->empty_property_array()));
+    if (!empty) return {};
   }
 
   // Compute the in-object properties to store first (might have effects).
@@ -1684,6 +1703,8 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
         boilerplate_map.GetPropertyDetails(i);
     if (property_details.location() != kField) continue;
     DCHECK_EQ(kData, property_details.kind());
+    if ((*max_properties)-- == 0) return {};
+
     NameRef property_name = boilerplate_map.GetPropertyKey(i);
     FieldIndex index = boilerplate_map.GetFieldIndexFor(i);
     ConstFieldInfo const_field_info(boilerplate_map.object());
@@ -1730,8 +1751,9 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     Node* value;
     if (boilerplate_value.IsJSObject()) {
       JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
-      base::Optional<Node*> maybe_value = TryAllocateFastLiteral(
-          effect, control, boilerplate_object, allocation);
+      base::Optional<Node*> maybe_value =
+          TryAllocateFastLiteral(effect, control, boilerplate_object,
+                                 allocation, max_depth - 1, max_properties);
       if (!maybe_value.has_value()) return {};
       value = effect = maybe_value.value();
     } else if (property_details.representation().IsDouble()) {
@@ -1770,8 +1792,8 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
   }
 
   // Setup the elements backing store.
-  base::Optional<Node*> maybe_elements =
-      TryAllocateFastLiteralElements(effect, control, boilerplate, allocation);
+  base::Optional<Node*> maybe_elements = TryAllocateFastLiteralElements(
+      effect, control, boilerplate, allocation, max_depth, max_properties);
   if (!maybe_elements.has_value()) return {};
   Node* elements = maybe_elements.value();
   if (elements->op()->EffectOutputCount() > 0) effect = elements;
@@ -1798,7 +1820,10 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
 
 base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
     Node* effect, Node* control, JSObjectRef boilerplate,
-    AllocationType allocation) {
+    AllocationType allocation, int max_depth, int* max_properties) {
+  DCHECK_GT(max_depth, 0);
+  DCHECK_GE(*max_properties, 0);
+
   base::Optional<FixedArrayBaseRef> maybe_boilerplate_elements =
       boilerplate.elements(kRelaxedLoad);
   if (!maybe_boilerplate_elements.has_value()) return {};
@@ -1812,34 +1837,36 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
         !boilerplate.IsElementsTenured(boilerplate_elements)) {
       return {};
     }
-    return jsgraph()->HeapConstant(boilerplate_elements.object());
+    return jsgraph()->Constant(boilerplate_elements);
   }
 
   // Compute the elements to store first (might have effects).
   ZoneVector<Node*> elements_values(elements_length, zone());
-  if (elements_map.instance_type() == FIXED_DOUBLE_ARRAY_TYPE) {
+  if (boilerplate_elements.IsFixedDoubleArray()) {
+    int const size = FixedDoubleArray::SizeFor(boilerplate_elements.length());
+    if (size > kMaxRegularHeapObjectSize) return {};
+
     FixedDoubleArrayRef elements = boilerplate_elements.AsFixedDoubleArray();
     for (int i = 0; i < elements_length; ++i) {
       Float64 value = elements.GetFromImmutableFixedDoubleArray(i);
-      if (value.is_hole_nan()) {
-        elements_values[i] = jsgraph()->TheHoleConstant();
-      } else {
-        elements_values[i] = jsgraph()->Constant(value.get_scalar());
-      }
+      elements_values[i] = value.is_hole_nan()
+                               ? jsgraph()->TheHoleConstant()
+                               : jsgraph()->Constant(value.get_scalar());
     }
   } else {
     FixedArrayRef elements = boilerplate_elements.AsFixedArray();
     for (int i = 0; i < elements_length; ++i) {
-      base::Optional<ObjectRef> maybe_element_value = elements.TryGet(i);
-      if (!maybe_element_value.has_value()) return {};
-      ObjectRef element_value = maybe_element_value.value();
-      if (element_value.IsJSObject()) {
-        base::Optional<Node*> maybe_value = TryAllocateFastLiteral(
-            effect, control, element_value.AsJSObject(), allocation);
-        if (!maybe_value.has_value()) return {};
-        elements_values[i] = effect = maybe_value.value();
+      if ((*max_properties)-- == 0) return {};
+      base::Optional<ObjectRef> element_value = elements.TryGet(i);
+      if (!element_value.has_value()) return {};
+      if (element_value->IsJSObject()) {
+        base::Optional<Node*> object =
+            TryAllocateFastLiteral(effect, control, element_value->AsJSObject(),
+                                   allocation, max_depth - 1, max_properties);
+        if (!object.has_value()) return {};
+        elements_values[i] = effect = *object;
       } else {
-        elements_values[i] = jsgraph()->Constant(element_value);
+        elements_values[i] = jsgraph()->Constant(*element_value);
       }
     }
   }
@@ -1848,10 +1875,9 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
   AllocationBuilder ab(jsgraph(), effect, control);
   CHECK(ab.CanAllocateArray(elements_length, elements_map, allocation));
   ab.AllocateArray(elements_length, elements_map, allocation);
-  ElementAccess const access =
-      (elements_map.instance_type() == FIXED_DOUBLE_ARRAY_TYPE)
-          ? AccessBuilder::ForFixedDoubleArrayElement()
-          : AccessBuilder::ForFixedArrayElement();
+  ElementAccess const access = boilerplate_elements.IsFixedDoubleArray()
+                                   ? AccessBuilder::ForFixedDoubleArrayElement()
+                                   : AccessBuilder::ForFixedArrayElement();
   for (int i = 0; i < elements_length; ++i) {
     ab.Store(access, jsgraph()->Constant(i), elements_values[i]);
   }

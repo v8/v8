@@ -762,12 +762,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  AllocationSiteRef site =
-      MakeRef(this, handle(AllocationSite::cast(object), isolate()));
-  if (site.IsFastLiteral()) {
-    site.SerializeBoilerplate();
-  }
-
+  AllocationSiteRef site = MakeRef(this, AllocationSite::cast(object));
+  if (site.PointsToLiteral()) site.SerializeRecursive();
   return *zone()->New<LiteralFeedback>(site, nexus.kind());
 }
 
