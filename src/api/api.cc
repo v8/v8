@@ -8303,23 +8303,6 @@ void Isolate::Initialize(Isolate* isolate,
   } else {
     i_isolate->set_snapshot_blob(i::Snapshot::DefaultSnapshotBlob());
   }
-  auto code_event_handler = params.code_event_handler;
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  if (code_event_handler == nullptr && i::FLAG_gdbjit) {
-    code_event_handler = i::GDBJITInterface::EventHandler;
-  }
-#endif  // ENABLE_GDB_JIT_INTERFACE
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-  if (code_event_handler == nullptr && i::FLAG_enable_system_instrumentation) {
-    code_event_handler = i::ETWJITInterface::EventHandler;
-  }
-#endif  // defined(V8_OS_WIN)
-
-  if (code_event_handler) {
-    i_isolate->InitializeLoggingAndCounters();
-    i_isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,
-                                             code_event_handler);
-  }
   if (params.counter_lookup_callback) {
     isolate->SetCounterFunction(params.counter_lookup_callback);
   }
@@ -8356,6 +8339,28 @@ void Isolate::Initialize(Isolate* isolate,
         "Failed to deserialize the V8 snapshot blob. This can mean that the "
         "snapshot blob file is corrupted or missing.");
   }
+
+  {
+    // Set up code event handlers. Needs to be after i::Snapshot::Initialize
+    // because that is where we add the isolate to WasmEngine.
+    auto code_event_handler = params.code_event_handler;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+    if (code_event_handler == nullptr && i::FLAG_gdbjit) {
+      code_event_handler = i::GDBJITInterface::EventHandler;
+    }
+#endif  // ENABLE_GDB_JIT_INTERFACE
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+    if (code_event_handler == nullptr &&
+        i::FLAG_enable_system_instrumentation) {
+      code_event_handler = i::ETWJITInterface::EventHandler;
+    }
+#endif  // defined(V8_OS_WIN)
+
+    if (code_event_handler) {
+      isolate->SetJitCodeEventHandler(kJitCodeEventDefault, code_event_handler);
+    }
+  }
+
   i_isolate->set_only_terminate_in_safe_scope(
       params.only_terminate_in_safe_scope);
   i_isolate->set_embedder_wrapper_type_index(
