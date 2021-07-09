@@ -35,36 +35,23 @@ namespace internal {
 
 #include "torque-generated/src/wasm/wasm-objects-tq-inl.inc"
 
-OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
-OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData, WasmFunctionData)
-OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, WasmFunctionData)
-OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmInstanceObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(WasmObject, JSReceiver)
-OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(WasmTableObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(AsmWasmData, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTableObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(AsmWasmData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTypeInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
 
-CAST_ACCESSOR(WasmCapiFunctionData)
-CAST_ACCESSOR(WasmExceptionObject)
-CAST_ACCESSOR(WasmExportedFunctionData)
-CAST_ACCESSOR(WasmGlobalObject)
 CAST_ACCESSOR(WasmInstanceObject)
-CAST_ACCESSOR(WasmObject)
-CAST_ACCESSOR(WasmMemoryObject)
-CAST_ACCESSOR(WasmModuleObject)
-CAST_ACCESSOR(WasmTableObject)
-CAST_ACCESSOR(AsmWasmData)
-CAST_ACCESSOR(WasmFunctionData)
-CAST_ACCESSOR(WasmTypeInfo)
-CAST_ACCESSOR(WasmStruct)
-CAST_ACCESSOR(WasmArray)
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset)                  \
   DEF_GETTER(holder, has_##name, bool) {                                \
@@ -101,10 +88,6 @@ CAST_ACCESSOR(WasmArray)
   }
 
 // WasmModuleObject
-ACCESSORS(WasmModuleObject, managed_native_module, Managed<wasm::NativeModule>,
-          kNativeModuleOffset)
-ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
-ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
 wasm::NativeModule* WasmModuleObject::native_module() const {
   return managed_native_module().raw();
 }
@@ -122,28 +105,13 @@ bool WasmModuleObject::is_asm_js() {
   return asm_js;
 }
 
-// WasmTableObject
-ACCESSORS(WasmTableObject, instance, HeapObject, kInstanceOffset)
-ACCESSORS(WasmTableObject, entries, FixedArray, kEntriesOffset)
-SMI_ACCESSORS(WasmTableObject, current_length, kCurrentLengthOffset)
-ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
-ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
-SMI_ACCESSORS(WasmTableObject, raw_type, kRawTypeOffset)
-
 // WasmMemoryObject
-ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
-SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
 OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakArrayList, kInstancesOffset)
 
 // WasmGlobalObject
-ACCESSORS(WasmGlobalObject, instance, HeapObject, kInstanceOffset)
 ACCESSORS(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
           kUntaggedBufferOffset)
 ACCESSORS(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
-SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
-// TODO(7748): Try to come up with some encoding that includes is_mutable?
-SMI_ACCESSORS(WasmGlobalObject, raw_type, kRawTypeOffset)
-SMI_ACCESSORS(WasmGlobalObject, is_mutable, kIsMutableOffset)
 
 wasm::ValueType WasmGlobalObject::type() const {
   return wasm::ValueType::FromRawBitField(static_cast<uint32_t>(raw_type()));
@@ -321,16 +289,6 @@ ImportedFunctionEntry::ImportedFunctionEntry(
   DCHECK_LT(index, instance->module()->num_imported_functions);
 }
 
-// WasmCapiFunctionData
-ACCESSORS(WasmCapiFunctionData, embedder_data, Foreign, kEmbedderDataOffset)
-ACCESSORS(WasmCapiFunctionData, serialized_signature, PodArray<wasm::ValueType>,
-          kSerializedSignatureOffset)
-
-// WasmExceptionObject
-ACCESSORS(WasmExceptionObject, serialized_signature, PodArray<wasm::ValueType>,
-          kSerializedSignatureOffset)
-ACCESSORS(WasmExceptionObject, exception_tag, HeapObject, kExceptionTagOffset)
-
 // WasmExceptionPackage
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSReceiver)
 CAST_ACCESSOR(WasmExceptionPackage)
@@ -351,15 +309,6 @@ void WasmFunctionData::set_wrapper_code(Code code, WriteBarrierMode mode) {
   TorqueGeneratedClass::set_wrapper_code(ToCodeT(code), mode);
 }
 
-// WasmExportedFunctionData
-ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
-          kInstanceOffset)
-SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
-ACCESSORS(WasmExportedFunctionData, signature, Foreign, kSignatureOffset)
-SMI_ACCESSORS(WasmExportedFunctionData, wrapper_budget, kWrapperBudgetOffset)
-ACCESSORS(WasmExportedFunctionData, c_wrapper_code, CodeT, kCWrapperCodeOffset)
-SMI_ACCESSORS(WasmExportedFunctionData, packed_args_size, kPackedArgsSizeOffset)
-
 wasm::FunctionSig* WasmExportedFunctionData::sig() const {
   return reinterpret_cast<wasm::FunctionSig*>(signature().foreign_address());
 }
@@ -371,14 +320,7 @@ WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {
 CAST_ACCESSOR(WasmJSFunction)
 
 // WasmJSFunctionData
-OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData, WasmFunctionData)
-CAST_ACCESSOR(WasmJSFunctionData)
-SMI_ACCESSORS(WasmJSFunctionData, serialized_return_count,
-              kSerializedReturnCountOffset)
-SMI_ACCESSORS(WasmJSFunctionData, serialized_parameter_count,
-              kSerializedParameterCountOffset)
-ACCESSORS(WasmJSFunctionData, serialized_signature, PodArray<wasm::ValueType>,
-          kSerializedSignatureOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData)
 ACCESSORS(WasmJSFunctionData, raw_wasm_to_js_wrapper_code, CodeT,
           kWasmToJsWrapperCodeOffset)
 
@@ -403,16 +345,13 @@ WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
 CAST_ACCESSOR(WasmExternalFunction)
 
 // WasmIndirectFunctionTable
-OBJECT_CONSTRUCTORS_IMPL(WasmIndirectFunctionTable, Struct)
-CAST_ACCESSOR(WasmIndirectFunctionTable)
-PRIMITIVE_ACCESSORS(WasmIndirectFunctionTable, size, uint32_t, kSizeOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmIndirectFunctionTable)
 PRIMITIVE_ACCESSORS(WasmIndirectFunctionTable, sig_ids, uint32_t*,
                     kSigIdsOffset)
 PRIMITIVE_ACCESSORS(WasmIndirectFunctionTable, targets, Address*,
                     kTargetsOffset)
 OPTIONAL_ACCESSORS(WasmIndirectFunctionTable, managed_native_allocations,
                    Foreign, kManagedNativeAllocationsOffset)
-ACCESSORS(WasmIndirectFunctionTable, refs, FixedArray, kRefsOffset)
 
 #undef OPTIONAL_ACCESSORS
 #undef READ_PRIMITIVE_FIELD
@@ -424,12 +363,6 @@ wasm::ValueType WasmTableObject::type() {
 }
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
-
-// AsmWasmData
-ACCESSORS(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,
-          kManagedNativeModuleOffset)
-ACCESSORS(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
-ACCESSORS(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
 
 // static
 Handle<Object> WasmObject::ReadValueAt(Isolate* isolate, Handle<HeapObject> obj,

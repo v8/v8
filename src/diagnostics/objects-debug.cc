@@ -1633,7 +1633,6 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-USE_TORQUE_VERIFIER(AsmWasmData)
 
 void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
@@ -1653,8 +1652,6 @@ void WasmValueObject::WasmValueObjectVerify(Isolate* isolate) {
   CHECK(IsWasmValueObject());
 }
 
-USE_TORQUE_VERIFIER(WasmObject)
-
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
     Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WasmExportedFunctionDataVerify(*this, isolate);
@@ -1664,20 +1661,6 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
          wrapper_code().builtin_id() == Builtin::kGenericJSToWasmWrapper));
 }
 
-USE_TORQUE_VERIFIER(WasmModuleObject)
-
-USE_TORQUE_VERIFIER(WasmTableObject)
-
-USE_TORQUE_VERIFIER(WasmMemoryObject)
-
-USE_TORQUE_VERIFIER(WasmGlobalObject)
-
-USE_TORQUE_VERIFIER(WasmExceptionObject)
-
-USE_TORQUE_VERIFIER(WasmCapiFunctionData)
-USE_TORQUE_VERIFIER(WasmJSFunctionData)
-
-USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
