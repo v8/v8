@@ -123,11 +123,8 @@ void ProcessorImpl::Toom3Main(RWDigits Z, Digits X, Digits Y) {
 
   // Phase 3a: Pointwise multiplication, steps 0, 1, m1.
   Multiply(r_0, X0, Y0);
-  if (should_terminate()) return;
   Multiply(r_1, p_1, q_1);
-  if (should_terminate()) return;
   Multiply(r_m1, p_m1, q_m1);
-  if (should_terminate()) return;
   bool r_m1_sign = p_m1_sign != q_m1_sign;
 
   // Phase 2b: Evaluation, steps m2 and inf.
@@ -152,14 +149,12 @@ void ProcessorImpl::Toom3Main(RWDigits Z, Digits X, Digits Y) {
   MARK_INVALID(p_m1);
   MARK_INVALID(q_m1);
   Multiply(r_m2, p_m2, q_m2);
-  if (should_terminate()) return;
   bool r_m2_sign = p_m2_sign != q_m2_sign;
 
   RWDigits r_inf(t + r_len, r_len);
   MARK_INVALID(p_m2);
   MARK_INVALID(q_m2);
   Multiply(r_inf, X2, Y2);
-  if (should_terminate()) return;
 
   // Phase 4: Interpolation.
   Digits R0 = r_0;
@@ -215,7 +210,6 @@ void ProcessorImpl::MultiplyToomCook(RWDigits Z, Digits X, Digits Y) {
   if (X.len() > Y.len()) {
     ScratchDigits T(2 * k);
     for (int i = k; i < X.len(); i += k) {
-      if (should_terminate()) return;
       Digits Xi(X, i, k);
       // TODO(jkummerow): would it be a measurable improvement to craft a
       // "ToomChunk" method in the style of {KaratsubaChunk}?
