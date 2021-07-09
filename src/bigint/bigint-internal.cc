@@ -35,8 +35,7 @@ void ProcessorImpl::Multiply(RWDigits Z, Digits X, Digits Y) {
   return MultiplyKaratsuba(Z, X, Y);
 #else
   if (Y.len() < kToomThreshold) return MultiplyKaratsuba(Z, X, Y);
-  if (Y.len() < kFftThreshold) return MultiplyToomCook(Z, X, Y);
-  return MultiplyFFT(Z, X, Y);
+  return MultiplyToomCook(Z, X, Y);
 #endif
 }
 

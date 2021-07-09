@@ -4964,10 +4964,7 @@ v8_source_set("v8_bigint") {
   ]
 
   if (v8_advanced_bigint_algorithms) {
-    sources += [
-      "src/bigint/mul-fft.cc",
-      "src/bigint/mul-toom.cc",
-    ]
+    sources += [ "src/bigint/mul-toom.cc" ]
 
     defines = [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
   }
