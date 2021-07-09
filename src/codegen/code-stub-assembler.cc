@@ -4019,14 +4019,9 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     // folding trick. Instead, we first allocate the elements in large object
     // space, and then allocate the JSArray (and possibly the allocation
     // memento) in new space.
-    const bool inline_allocation =
-        !V8_DISABLE_WRITE_BARRIERS_BOOL || V8_ALLOCATION_FOLDING_BOOL;
-    if ((allocation_flags & kAllowLargeObjectAllocation) ||
-        !inline_allocation) {
+    if (allocation_flags & kAllowLargeObjectAllocation) {
       Label next(this);
-      if (inline_allocation) {
-        GotoIf(IsRegularHeapObjectSize(size), &next);
-      }
+      GotoIf(IsRegularHeapObjectSize(size), &next);
 
       CSA_CHECK(this, IsValidFastJSArrayCapacity(capacity));
 
@@ -4048,13 +4043,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
 
       Goto(&out);
 
-      if (inline_allocation) {
-        BIND(&next);
-      }
+      BIND(&next);
     }
-
-    if (!inline_allocation) Unreachable();
-
     // Fold all objects into a single new space allocation.
     array =
         AllocateUninitializedJSArray(array_map, length, allocation_site, size);
