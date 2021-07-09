@@ -32,11 +32,6 @@ links {
     url: "/p/v8/g/chromium"
     alt: "Chromium V8 Console"
   }
-  links {
-    text: "infra"
-    url: "/p/v8/g/infra"
-    alt: "Infra V8 Console"
-  }
 }
 
 links {

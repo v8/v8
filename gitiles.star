@@ -31,10 +31,3 @@ luci.gitiles_poller(
         "refs/heads/\\d+\\.\\d+\\.\\d+",
     ],
 )
-
-luci.gitiles_poller(
-    name = "v8-trigger-branches-auto-tag",
-    bucket = "ci",
-    repo = "https://chromium.googlesource.com/v8/v8",
-    refs = ["refs/branch-heads/\\d+\\.\\d+"],
-)

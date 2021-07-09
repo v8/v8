@@ -34,18 +34,11 @@ def define_all_recipes():
         "run_presubmit",
         "v8",
         "v8/archive",
-        "v8/auto_roll_deps",
-        "v8/auto_roll_push",
-        "v8/auto_roll_release_process",
-        "v8/auto_roll_v8_deps",
-        "v8/auto_tag",
         "v8/bazel",
         "v8/flako",
         "v8/node_integration_ng",
         "v8/verify_flakes",
         "v8/presubmit",
-        "lkgr_finder",
-        "v8/spike",
     ]
     for recipe in build_recipes:
         build_recipe(name = "recipe:" + recipe)
