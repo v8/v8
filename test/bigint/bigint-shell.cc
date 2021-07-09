@@ -27,8 +27,9 @@ int PrintHelp(char** argv) {
   return 1;
 }
 
-#define TESTS(V) \
-  V(kKaratsuba, "karatsuba") V(kBurnikel, "burnikel") V(kToom, "toom")
+#define TESTS(V)             \
+  V(kKaratsuba, "karatsuba") \
+  V(kBurnikel, "burnikel") V(kToom, "toom") V(kFFT, "fft")
 
 enum Operation { kNoOp, kList, kTest };
 
@@ -168,6 +169,10 @@ class Runner {
       for (int i = 0; i < runs_; i++) {
         TestToom(&count);
       }
+    } else if (test_ == kFFT) {
+      for (int i = 0; i < runs_; i++) {
+        TestFFT(&count);
+      }
     } else {
       DCHECK(false);  // Unreachable.
     }
@@ -218,6 +223,40 @@ class Runner {
         // Using Karatsuba as reference.
         processor()->MultiplyKaratsuba(result_karatsuba, A, B);
         AssertEquals(A, B, result_karatsuba, result);
+        if (error_) return;
+        (*count)++;
+      }
+    }
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+  }
+
+  void TestFFT(int* count) {
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+    // Larger multiplications are slower, so to keep individual runs fast,
+    // we test a few random samples. With build bots running 24/7, we'll
+    // get decent coverage over time.
+    uint64_t random_bits = rng_.NextUint64();
+    int min = kFftThreshold - static_cast<int>(random_bits & 1023);
+    random_bits >>= 10;
+    int max = kFftThreshold + static_cast<int>(random_bits & 1023);
+    random_bits >>= 10;
+    // If delta is too small, then this run gets too slow. If it happened
+    // to be zero, we'd even loop forever!
+    int delta = 10 + (random_bits & 127);
+    std::cout << "min " << min << " max " << max << " delta " << delta << "\n";
+    for (int right_size = min; right_size <= max; right_size += delta) {
+      for (int left_size = right_size; left_size <= max; left_size += delta) {
+        ScratchDigits A(left_size);
+        ScratchDigits B(right_size);
+        int result_len = MultiplyResultLength(A, B);
+        ScratchDigits result(result_len);
+        ScratchDigits result_toom(result_len);
+        GenerateRandom(A);
+        GenerateRandom(B);
+        processor()->MultiplyFFT(result, A, B);
+        // Using Toom-Cook as reference.
+        processor()->MultiplyToomCook(result_toom, A, B);
+        AssertEquals(A, B, result_toom, result);
         if (error_) return;
         (*count)++;
       }

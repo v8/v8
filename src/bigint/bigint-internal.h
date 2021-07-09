@@ -14,6 +14,9 @@ namespace bigint {
 
 constexpr int kKaratsubaThreshold = 34;
 constexpr int kToomThreshold = 193;
+constexpr int kFftThreshold = 1500;
+constexpr int kFftInnerThreshold = 200;
+
 constexpr int kBurnikelThreshold = 57;
 
 class ProcessorImpl : public Processor {
@@ -42,6 +45,8 @@ class ProcessorImpl : public Processor {
 #if V8_ADVANCED_BIGINT_ALGORITHMS
   void MultiplyToomCook(RWDigits Z, Digits X, Digits Y);
   void Toom3Main(RWDigits Z, Digits X, Digits Y);
+
+  void MultiplyFFT(RWDigits Z, Digits X, Digits Y);
 #endif  // V8_ADVANCED_BIGINT_ALGORITHMS
 
   // {out_length} initially contains the allocated capacity of {out}, and
