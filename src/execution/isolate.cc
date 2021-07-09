@@ -2901,6 +2901,7 @@ Isolate* Isolate::New() { return Isolate::Allocate(false); }
 
 // static
 Isolate* Isolate::NewShared(const v8::Isolate::CreateParams& params) {
+  DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
   Isolate* isolate = Isolate::Allocate(true);
   v8::Isolate::Initialize(reinterpret_cast<v8::Isolate*>(isolate), params);
   return isolate;

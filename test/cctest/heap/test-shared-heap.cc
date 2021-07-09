@@ -6,6 +6,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/read-only-spaces.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-object.h"
@@ -63,6 +64,7 @@ class SharedOldSpaceAllocationThread final : public v8::base::Thread {
 }  // namespace
 
 UNINITIALIZED_TEST(ConcurrentAllocationInSharedOldSpace) {
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
@@ -118,6 +120,7 @@ class SharedMapSpaceAllocationThread final : public v8::base::Thread {
 }  // namespace
 
 UNINITIALIZED_TEST(ConcurrentAllocationInSharedMapSpace) {
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
@@ -143,6 +146,7 @@ UNINITIALIZED_TEST(ConcurrentAllocationInSharedMapSpace) {
 }
 
 UNINITIALIZED_TEST(SharedCollectionWithoutClients) {
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
@@ -183,6 +187,7 @@ void AllocateInSharedSpace(Isolate* shared_isolate) {
 
 UNINITIALIZED_TEST(SharedCollectionWithOneClient) {
   FLAG_max_old_space_size = 8;
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
