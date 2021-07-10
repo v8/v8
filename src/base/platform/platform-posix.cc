@@ -1051,8 +1051,9 @@ Stack::StackSlot Stack::GetStackStart() {
   // the start of the stack.
   // See https://code.google.com/p/nativeclient/issues/detail?id=3431.
   return __libc_stack_end;
-#endif  // !defined(V8_LIBC_GLIBC)
+#else
   return nullptr;
+#endif  // !defined(V8_LIBC_GLIBC)
 }
 
 #endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_MACOSX) &&
