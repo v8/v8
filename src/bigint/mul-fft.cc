@@ -67,7 +67,8 @@ void ModFnDoubleWidth(digit_t* dest, const digit_t* src, int len) {
   for (int i = 0; i < K; i++) {
     dest[i] = digit_sub2(src[i], src[i + K], borrow, &borrow);
   }
-  dest[K] = digit_sub(0, borrow, &borrow);
+  dest[K] = digit_sub2(0, src[2 * K], borrow, &borrow);
+  // {borrow} may be non-zero here, that's OK as {ModFn} will take care of it.
   ModFn(dest, len);
 }
 
@@ -191,43 +192,57 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
   // it turns out that:
   //    x * 2^{2K+m} == x * 2^m   mod 2^K + 1.
   while (digit_shift >= 2 * K) digit_shift -= 2 * K;  // Faster than '%'!
-  digit_t borrow = 0;
   if (digit_shift >= K) {
     return ShiftModFn_Large(result, input, digit_shift, bits_shift, K);
   }
+  digit_t borrow = 0;
   if (bits_shift == 0) {
+    // We do a single pass over {input}, starting by copying digits [i1] to
+    // [iX-1] to result indices digit_shift+1 to K-1.
     int i = 1;
-    // Regular loop: read input digits unless we know they are zero.
+    // Read input digits unless we know they are zero.
     int cap = std::min(K - digit_shift, zero_above);
     for (; i < cap; i++) {
       result[i + digit_shift] = input[i];
     }
+    // Any remaining work can hard-code the knowledge that input[i] == 0.
+    for (; i < K - digit_shift; i++) {
+      DCHECK(input[i] == 0);  // NOLINT(readability/check)
+      result[i + digit_shift] = 0;
+    }
+    // Second phase: subtract input digits [iX] to [iK] from (virtually) zero-
+    // initialized result indices 0 to digit_shift-1.
     cap = std::min(K, zero_above);
     for (; i < cap; i++) {
       digit_t d = input[i];
       result[i - K + digit_shift] = digit_sub2(0, d, borrow, &borrow);
     }
-    // Fallthrough: any remaining work can hard-code the knowledge that
-    // input[i] == 0.
-    for (; i < K - digit_shift; i++) {
-      DCHECK(input[i] == 0);  // NOLINT(readability/check)
-      result[i + digit_shift] = 0;
-    }
+    // Any remaining work can hard-code the knowledge that input[i] == 0.
     for (; i < K; i++) {
       DCHECK(input[i] == 0);  // NOLINT(readability/check)
       result[i - K + digit_shift] = digit_sub(0, borrow, &borrow);
     }
+    // Last step: subtract [iK] from [i0] and store at result index digit_shift.
     result[digit_shift] = digit_sub2(input[0], input[K], borrow, &borrow);
   } else {
+    // Same flow as before, but taking bits_shift != 0 into account.
+    // First phase: result indices digit_shift+1 to K.
     digit_t carry = 0;
     int i = 0;
-    // Regular loop: read input digits unless we know they are zero.
+    // Read input digits unless we know they are zero.
     int cap = std::min(K - digit_shift, zero_above);
     for (; i < cap; i++) {
       digit_t d = input[i];
       result[i + digit_shift] = (d << bits_shift) | carry;
       carry = d >> (kDigitBits - bits_shift);
     }
+    // Any remaining work can hard-code the knowledge that input[i] == 0.
+    for (; i < K - digit_shift; i++) {
+      DCHECK(input[i] == 0);  // NOLINT(readability/check)
+      result[i + digit_shift] = carry;
+      carry = 0;
+    }
+    // Second phase: result indices 0 to digit_shift - 1.
     cap = std::min(K, zero_above);
     for (; i < cap; i++) {
       digit_t d = input[i];
@@ -235,13 +250,7 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
           digit_sub2(0, (d << bits_shift) | carry, borrow, &borrow);
       carry = d >> (kDigitBits - bits_shift);
     }
-    // Fallthrough: any remaining work can hard-code the knowledge that
-    // input[i] == 0.
-    for (; i < K - digit_shift; i++) {
-      DCHECK(input[i] == 0);  // NOLINT(readability/check)
-      result[i + digit_shift] = carry;
-      carry = 0;
-    }
+    // Any remaining work can hard-code the knowledge that input[i] == 0.
     if (i < K) {
       DCHECK(input[i] == 0);  // NOLINT(readability/check)
       result[i - K + digit_shift] = digit_sub2(0, carry, borrow, &borrow);
@@ -252,6 +261,7 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
       DCHECK(input[i] == 0);  // NOLINT(readability/check)
       result[i - K + digit_shift] = digit_sub(0, borrow, &borrow);
     }
+    // Last step: compute result[digit_shift].
     digit_t d = input[K];
     result[digit_shift] = digit_sub2(
         result[digit_shift], (d << bits_shift) | carry, borrow, &borrow);
