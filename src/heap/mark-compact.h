@@ -376,7 +376,7 @@ class MainMarkingVisitor final
                      MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
-                     BytecodeFlushMode bytecode_flush_mode,
+                     CodeFlushMode bytecode_flush_mode,
                      bool embedder_tracing_enabled, bool is_forced_gc)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
             kMainThreadTask, local_marking_worklists, weak_objects, heap,
@@ -570,7 +570,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   unsigned epoch() const { return epoch_; }
 
-  BytecodeFlushMode bytecode_flush_mode() const { return bytecode_flush_mode_; }
+  CodeFlushMode bytecode_flush_mode() const { return bytecode_flush_mode_; }
 
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
@@ -668,9 +668,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Flushes a weakly held bytecode array from a shared function info.
   void FlushBytecodeFromSFI(SharedFunctionInfo shared_info);
 
-  // Clears bytecode arrays that have not been executed for multiple
-  // collections.
-  void ClearOldBytecodeCandidates();
+  // Marks the BaselineData as live and records the slots of baseline data
+  // fields. This assumes that the objects in the data fields are alive.
+  void MarkBaselineDataAsLive(BaselineData baseline_data);
+
+  // Clears bytecode arrays / baseline code that have not been executed for
+  // multiple collections.
+  void ProcessOldCodeCandidates();
+  void ProcessFlushedBaselineCandidates();
 
   // Resets any JSFunctions which have had their bytecode flushed.
   void ClearFlushedJsFunctions();
@@ -793,7 +798,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // that can happen while a GC is happening and we need the
   // bytecode_flush_mode_ to remain the same through out a GC, we record this at
   // the start of each GC.
-  BytecodeFlushMode bytecode_flush_mode_;
+  CodeFlushMode bytecode_flush_mode_;
 
   friend class FullEvacuator;
   friend class RecordMigratedSlotVisitor;

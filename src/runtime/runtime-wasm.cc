@@ -238,7 +238,7 @@ void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
       WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
                                                   function_index)
           .ToHandleChecked();
-  exported_function->set_code(*wrapper_code);
+  exported_function->set_code(*wrapper_code, kReleaseStore);
   WasmExportedFunctionData function_data =
       exported_function->shared().wasm_exported_function_data();
   function_data.set_wrapper_code(*wrapper_code);

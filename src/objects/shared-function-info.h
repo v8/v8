@@ -534,7 +534,7 @@ class SharedFunctionInfo
   // Returns true if the function has old bytecode that could be flushed. This
   // function shouldn't access any flags as it is used by concurrent marker.
   // Hence it takes the mode as an argument.
-  inline bool ShouldFlushBytecode(BytecodeFlushMode mode);
+  inline bool ShouldFlushBytecode(CodeFlushMode mode);
 
   enum Inlineability {
     kIsInlineable,
