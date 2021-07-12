@@ -460,7 +460,7 @@ class Heap {
 
   // Helper function to get the bytecode flushing mode based on the flags. This
   // is required because it is not safe to acess flags in concurrent marker.
-  static inline CodeFlushMode GetCodeFlushMode(Isolate* isolate);
+  static inline BytecodeFlushMode GetBytecodeFlushMode(Isolate* isolate);
 
   static uintptr_t ZapValue() {
     return FLAG_clear_free_memory ? kClearedFreeMemoryValue : kZapValue;

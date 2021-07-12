@@ -59,7 +59,6 @@ class TransitionArray;
   F(WeakCell, weak_cells, WeakCells)                                         \
   F(SharedFunctionInfo, bytecode_flushing_candidates,                        \
     BytecodeFlushingCandidates)                                              \
-  F(JSFunction, baseline_flushing_candidates, BaselineFlushingCandidates)    \
   F(JSFunction, flushed_js_functions, FlushedJSFunctions)
 
 class WeakObjects {

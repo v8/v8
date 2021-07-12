@@ -296,39 +296,6 @@ class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static const int kStartOffset = JSObject::BodyDescriptor::kStartOffset;
-
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    if (offset < kStartOffset) return false;
-    return IsValidJSObjectSlotImpl(map, obj, offset);
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    // Iterate JSFunction header fields first.
-    int header_size = JSFunction::GetHeaderSize(map.has_prototype_slot());
-    DCHECK_GE(object_size, header_size);
-    IteratePointers(obj, kStartOffset, kCodeOffset, v);
-    // Code field is treated as a custom weak pointer. This field is visited as
-    // a weak pointer if the Code is baseline code and the bytecode array
-    // corresponding to this function is old. In the rest of the cases this
-    // field is treated as strong pointer.
-    IterateCustomWeakPointer(obj, kCodeOffset, v);
-    // Iterate rest of the header fields
-    DCHECK_GE(header_size, kCodeOffset);
-    IteratePointers(obj, kCodeOffset + kTaggedSize, header_size, v);
-    // Iterate rest of the fields starting after the header.
-    IterateJSObjectBodyImpl(map, obj, header_size, object_size, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) {
-    return map.instance_size();
-  }
-};
-
 class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {

@@ -430,7 +430,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  function.ResetIfCodeFlushed();
+  function.ResetIfBytecodeFlushed();
   if (code.is_null()) code = function.code();
 
   if (CodeKindCanDeoptimize(code.kind())) {

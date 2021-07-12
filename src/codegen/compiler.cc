@@ -1862,7 +1862,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
 
   // Reset the JSFunction if we are recompiling due to the bytecode having been
   // flushed.
-  function->ResetIfCodeFlushed();
+  function->ResetIfBytecodeFlushed();
 
   Handle<SharedFunctionInfo> shared_info = handle(function->shared(), isolate);
 

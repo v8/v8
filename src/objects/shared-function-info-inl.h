@@ -575,8 +575,8 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
   set_function_data(bytecode, kReleaseStore);
 }
 
-bool SharedFunctionInfo::ShouldFlushBytecode(CodeFlushMode mode) {
-  if (mode == CodeFlushMode::kDoNotFlushCode) return false;
+bool SharedFunctionInfo::ShouldFlushBytecode(BytecodeFlushMode mode) {
+  if (mode == BytecodeFlushMode::kDoNotFlushBytecode) return false;
 
   // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
   if (IsResumableFunction(kind()) || !allows_lazy_compilation()) {
@@ -587,13 +587,9 @@ bool SharedFunctionInfo::ShouldFlushBytecode(CodeFlushMode mode) {
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
   Object data = function_data(kAcquireLoad);
-  if (data.IsBaselineData()) {
-    data =
-        ACQUIRE_READ_FIELD(BaselineData::cast(data), BaselineData::kDataOffset);
-  }
   if (!data.IsBytecodeArray()) return false;
 
-  if (mode == CodeFlushMode::kStressFlushCode) return true;
+  if (mode == BytecodeFlushMode::kStressFlushBytecode) return true;
 
   BytecodeArray bytecode = BytecodeArray::cast(data);
 
