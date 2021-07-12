@@ -361,6 +361,15 @@ void CppHeap::RegisterV8References(
   marking_done_ = false;
 }
 
+namespace {
+
+bool ShouldReduceMemory(CppHeap::TraceFlags flags) {
+  return (flags == CppHeap::TraceFlags::kReduceMemory) ||
+         (flags == CppHeap::TraceFlags::kForced);
+}
+
+}  // namespace
+
 void CppHeap::TracePrologue(TraceFlags flags) {
   // Finish sweeping in case it is still running.
   sweeper_.FinishIfRunning();
@@ -380,7 +389,7 @@ void CppHeap::TracePrologue(TraceFlags flags) {
   DCHECK_IMPLIES(!isolate_, (cppgc::Heap::MarkingType::kAtomic ==
                              marking_config.marking_type) ||
                                 force_incremental_marking_for_testing_);
-  if ((flags == TraceFlags::kReduceMemory) || (flags == TraceFlags::kForced)) {
+  if (ShouldReduceMemory(flags)) {
     // Only enable compaction when in a memory reduction garbage collection as
     // it may significantly increase the final garbage collection pause.
     compactor_.InitializeIfShouldCompact(marking_config.marking_type,
@@ -461,7 +470,7 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
             : cppgc::internal::Sweeper::SweepingConfig::SweepingType::
                   kIncrementalAndConcurrent,
         compactable_space_handling,
-        current_flags_ & TraceFlags::kReduceMemory
+        ShouldReduceMemory(current_flags_)
             ? cppgc::internal::Sweeper::SweepingConfig::FreeMemoryHandling::
                   kDiscardWherePossible
             : cppgc::internal::Sweeper::SweepingConfig::FreeMemoryHandling::
