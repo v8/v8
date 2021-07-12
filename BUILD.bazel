@@ -2145,6 +2145,8 @@ filegroup(
         "src/compiler/escape-analysis.h",
         "src/compiler/escape-analysis-reducer.cc",
         "src/compiler/escape-analysis-reducer.h",
+        "src/compiler/fast-api-calls.cc",
+        "src/compiler/fast-api-calls.h",
         "src/compiler/feedback-source.cc",
         "src/compiler/feedback-source.h",
         "src/compiler/frame.cc",
