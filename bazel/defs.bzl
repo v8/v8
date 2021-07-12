@@ -22,9 +22,14 @@ _create_option_int = rule(
     build_setting = config.int(flag = True),
 )
 
+def v8_raw_flag(name, default = False):
+    _create_option_flag(name = name, build_setting_default = default)
+    native.config_setting(name = "raw_" + name, flag_values = {name: "True"})
+
 def v8_flag(name, default = False):
     _create_option_flag(name = name, build_setting_default = default)
     native.config_setting(name = "is_" + name, flag_values = {name: "True"})
+    native.config_setting(name = "is_not_" + name, flag_values = {name: "False"})
 
 def v8_string(name, default = ""):
     _create_option_string(name = name, build_setting_default = default)
@@ -89,6 +94,7 @@ def _default_args(configs):
             "-fPIC",
             "-Werror",
             "-Wextra",
+            "-Wno-builtin-assume-aligned-alignment",
             "-Wno-unused-parameter",
             "-Wno-implicit-int-float-conversion",
             "-Wno-deprecated-copy",
@@ -209,7 +215,7 @@ def _mksnapshot(ctx):
             "--embedded_variant=Default",
             "--startup_src", outs[0].path,
             "--embedded_src", outs[1].path,
-        ],
+        ] + ctx.attr.args,
         executable = ctx.executable.tool,
         progress_message = "Running mksnapshot"
     )
@@ -219,6 +225,7 @@ def _mksnapshot(ctx):
 v8_mksnapshot = rule(
     implementation = _mksnapshot,
     attrs = {
+        "args": attr.string_list(),
         "tool": attr.label(
             default = ":mksnapshot",
             allow_files = True,

@@ -8,6 +8,7 @@ load(
     "v8_binary",
     "v8_config",
     "v8_custom_config",
+    "v8_raw_flag",
     "v8_flag",
     "v8_int",
     "v8_string",
@@ -111,17 +112,124 @@ config_setting(
 # Flags
 # =================================================
 
+# V8 GN flags not currently supported:
+# v8_custom_deps
+# v8_embed_script
+# v8_embedder_string
+# v8_promise_internal_field_count
+# v8_enable_vtunejit
+# v8_enable_vtunetracemark
+# v8_enable_fast_torque
+# v8_win64_unwinding_info
+# v8_enable_31bit_smis_on_64bit_arch
+# v8_enable_object_print
+# v8_enable_trace_maps
+# v8_enable_v8_checks
+# v8_enable_trace_unoptimized
+# v8_enable_trace_ignition
+# v8_enable_trace_baseline_exec
+# v8_enable_trace_feedback_updates
+# v8_enable_atomic_object_field_writes
+# v8_enable_atomic_marking_state
+# v8_enable_concurrent_marking
+# v8_enable_ignition_dispatch_counting
+# v8_enable_builtins_profiling
+# v8_enable_builtins_profiling_verbose
+# v8_builtins_profiling_log_file
+# v8_enable_test_features
+# v8_enable_short_builtin_calls
+# v8_enable_external_code_space
+# v8_postmortem_support
+# v8_use_siphash
+# v8_no_inline
+# v8_os_page_size
+# v8_can_use_fpu_instructions
+# v8_use_mips_abi_hardfloat
+# v8_enable_gdbjit
+# v8_untrusted_code_mitigations
+# v8_enable_minor_mc
+# v8_check_header_includes
+# v8_enable_shared_ro_heap
+# v8_enable_lazy_source_positions
+# v8_enable_third_party_heap
+# v8_third_party_heap_files
+# v8_disable_write_barriers
+# v8_enable_unconditional_write_barriers
+# v8_enable_single_generation
+# v8_enable_regexp_interpreter_threaded_dispatch
+# v8_verify_torque_generation_invariance
+# v8_enable_snapshot_compression
+# v8_control_flow_integrity
+# cppgc_enable_object_names
+# cppgc_enable_caged_heap
+# cppgc_enable_verify_live_bytes
+# cppgc_enable_check_assignments_in_prefinalizers
+# cppgc_enable_young_generation
+# v8_enable_zone_compression
+# v8_enable_heap_sandbox
+# v8_enable_precise_zone_stats
+# v8_enable_swiss_name_dictionary
+# v8_generate_external_defines_header
+# v8_dict_property_const_tracking
+# v8_enable_map_packing
+# v8_allow_javascript_in_promise_hooks
+# v8_enable_allocation_folding
+# v8_allocation_site_tracking
+
 v8_string(name = "v8_root", default = ".")
 
+v8_flag(name = "v8_android_log_stdout")
 v8_flag(name = "v8_annotate_torque_ir")
+
+v8_flag(name = "v8_code_comments")
+
+v8_flag(name = "v8_deprecation_warnings", default = True)
+v8_flag(name = "v8_imminent_deprecation_warnings", default = True)
+
+v8_flag(name = "v8_enable_debug_code")
+v8_flag(name = "v8_enable_disassembler")
+v8_flag(name = "v8_enable_handle_zapping", default = True)
+v8_flag(name = "v8_enable_hugepage")
+v8_flag(name = "v8_enable_fast_mksnapshot")
+v8_flag(name = "v8_enable_future")
+v8_flag(name = "v8_enable_i18n_support", default = True)
 v8_flag(name = "v8_enable_lazy_source_positions", default = True)
 v8_flag(name = "v8_enable_minor_mc", default = True)
+v8_flag(name = "v8_enable_slow_dchecks")
+v8_flag(name = "v8_enable_snapshot_code_comments")
+v8_flag(name = "v8_enable_snapshot_native_code_counters")
+v8_flag(name = "v8_enable_verify_csa")
+v8_flag(name = "v8_enable_verify_heap")
+v8_flag(name = "v8_enable_verify_predictable")
 v8_flag(name = "v8_enable_webassembly", default = True)
-v8_flag(name = "v8_enable_i18n_support", default = True)
 
-v8_int(
-    name = "v8_typed_array_max_size_in_heap",
-    default = 64,
+v8_int(name = "v8_typed_array_max_size_in_heap", default = 64)
+
+# Pointer compression, true by default if x64 or arm64.
+v8_raw_flag(name = "v8_enable_pointer_compression")
+selects.config_setting_group(
+    name = "is_v8_enable_pointer_compression",
+    match_any = [ ":raw_v8_enable_pointer_compression", ":is_x64", ":is_arm64" ],
+)
+# Pointer cage, true by default if v8_enable_pointer_compression.
+v8_flag(name = "v8_enable_pointer_compression_shared_cage", default = True)
+# Enable shared cage if v8_enable_pointer_compression
+# and v8_enable_pointer_compression_shared_cage.
+selects.config_setting_group(
+    name = "enable_pointer_compression_shared_cage",
+    match_all = [
+        ":is_v8_enable_pointer_compression",
+        ":is_v8_enable_pointer_compression_shared_cage",
+    ],
+)
+# Enable isolated cage if v8_enable_pointer_compression and
+# NOT v8_enable_pointer_compression_shared_cage.
+selects.config_setting_group(
+    name = "enable_pointer_compression_isolated_cage",
+    match_all = [
+        ":is_v8_enable_pointer_compression",
+        ":is_not_v8_enable_pointer_compression_shared_cage",
+    ],
 )
 
 v8_custom_config(name = "default")
@@ -129,9 +237,24 @@ v8_custom_config(name = "default")
 v8_config(
     name = "define_flags",
     conditional_defines = {
+        "v8_android_log_stdout": "V8_ANDROID_LOG_STDOUT",
+        "v8_code_comments": "V8_CODE_COMMENTS",
+        "v8_deprecation_warnings": "V8_DEPRECATION_WARNINGS",
+        "v8_imminent_deprecation_warnings": "V8_IMMINENT_DEPRECATION_WARNINGS",
+        "v8_enable_debug_code": "V8_ENABLE_DEBUG_CODE",
+        "v8_enable_disassembler": "ENABLE_DISASSEMBLER",
+        "v8_enable_handle_zapping": "ENABLE_HANDLE_ZAPPING",
+        "v8_enable_hugepage": "ENABLE_HUGEPAGE",
+        "v8_enable_future": "V8_ENABLE_FUTURE",
         "v8_enable_i18n_support": "V8_INTL_SUPPORT",
         "v8_enable_lazy_source_positions": "V8_ENABLE_LAZY_SOURCE_POSITIONS",
         "v8_enable_minor_mc": "ENABLE_MINOR_MC",
+        "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
+        "v8_enable_snapshot_native_code_counters":
+            "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
+        "v8_enable_verify_csa": "ENABLE_VERIFY_CSA",
+        "v8_enable_verify_heap": "VERIFY_HEAP",
+        "v8_enable_verify_predictable": "VERIFY_PREDICTABLE",
         "v8_enable_webassembly": "V8_ENABLE_WEBASSEMBLY",
     },
     defines = [
@@ -162,7 +285,21 @@ v8_config(
             "V8_TARGET_OS_MACOSX",
         ],
     }) + select({
-        "is_android_x86": [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ],
+        ":is_android_x86": [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_v8_enable_pointer_compression": [
+            "V8_COMPRESS_POINTERS",
+            "V8_31BIT_SMIS_ON_64BIT_ARCH",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_pointer_compression_shared_cage": [
+            "V8_COMPRESS_POINTERS_IN_SHARED_CAGE"
+        ],
+        ":enable_pointer_compression_isolated_cage": [
+            "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE"
+        ],
         "//conditions:default": [],
     }),
     deps = [ ":default" ],
@@ -2747,7 +2884,25 @@ genrule(
 )
 
 v8_mksnapshot(
-    name = "generated_snapshot_files"
+    name = "generated_snapshot_files",
+    args = select({
+        ":is_v8_enable_verify_heap": [ "--verify-heap" ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_v8_enable_fast_mksnapshot": [
+            "--no-turbo-rewrite-far-jumps",
+            "--no-turbo-verify-allocation",
+         ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_v8_enable_snapshot_code_comments": [ "--code-comments" ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_v8_enable_snapshot_native_code_counters": [
+            "--native-code-counters"
+        ],
+        "//conditions:default": [ "--no-native-code-counters" ],
+    })
 )
 
 # =================================================
