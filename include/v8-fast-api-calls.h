@@ -782,7 +782,7 @@ using CFunctionBuilder = internal::CFunctionBuilder;
  * to the requested destination type, is considered unsupported. The operation
  * returns true on success. `type_info` will be used for conversions.
  */
-template <typename T, const CTypeInfo* type_info>
+template <const CTypeInfo* type_info, typename T>
 bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
                                     uint32_t max_length);
 

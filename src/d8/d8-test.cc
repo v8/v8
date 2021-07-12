@@ -120,7 +120,7 @@ class FastCApiObject {
 
     Type buffer[1024];
     bool result =
-        CopyAndConvertArrayToCppBuffer<Type, &type_info>(seq_arg, buffer, 1024);
+        CopyAndConvertArrayToCppBuffer<&type_info, Type>(seq_arg, buffer, 1024);
     if (!result) {
       options.fallback = 1;
       return 0;
@@ -168,7 +168,7 @@ class FastCApiObject {
     }
     Type buffer[1024];
     bool result =
-        CopyAndConvertArrayToCppBuffer<Type, &type_info>(seq_arg, buffer, 1024);
+        CopyAndConvertArrayToCppBuffer<&type_info, Type>(seq_arg, buffer, 1024);
     if (!result) {
       isolate->ThrowError("Array conversion unsuccessful.");
       return;

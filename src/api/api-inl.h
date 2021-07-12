@@ -263,7 +263,7 @@ void CopyDoubleElementsToTypedBuffer(T* dst, uint32_t length,
   }
 }
 
-template <typename T, const CTypeInfo* type_info>
+template <const CTypeInfo* type_info, typename T>
 bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
                                     uint32_t max_length) {
   static_assert(
