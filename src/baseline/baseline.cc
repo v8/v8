@@ -13,6 +13,7 @@
 
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-compiler.h"
+#include "src/debug/debug.h"
 #include "src/heap/factory-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/script-inl.h"
