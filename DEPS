@@ -567,17 +567,6 @@ hooks = [
     ],
   },
   {
-    # Mac doesn't use lld so it's not included in the default clang bundle
-    # there. However, lld is need in Fuchsia cross builds, so
-    # download it there.
-    # Should run after the clang hook.
-    'name': 'lld/mac',
-    'pattern': '.',
-    'condition': 'host_os == "mac" and checkout_fuchsia',
-    'action': ['python', 'tools/clang/scripts/update.py',
-               '--package=lld_mac'],
-  },
-  {
       # Mac does not have llvm-objdump, download it for cross builds in Fuchsia.
     'name': 'llvm-objdump',
     'pattern': '.',
