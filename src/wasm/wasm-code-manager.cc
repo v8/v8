@@ -767,26 +767,6 @@ bool WasmCodeAllocator::SetWritable(bool writable) {
   return true;
 }
 
-bool WasmCodeAllocator::SetThreadWritable(bool writable) {
-  static thread_local int writable_nesting_level = 0;
-  if (writable) {
-    if (++writable_nesting_level > 1) return true;
-  } else {
-    DCHECK_GT(writable_nesting_level, 0);
-    if (--writable_nesting_level > 0) return true;
-  }
-  writable = writable_nesting_level > 0;
-
-  int key = GetWasmCodeManager()->memory_protection_key_;
-
-  MemoryProtectionKeyPermission permissions =
-      writable ? kNoRestrictions : kDisableWrite;
-
-  TRACE_HEAP("Setting memory protection key %d to writable: %d.\n", key,
-             writable);
-  return SetPermissionsForMemoryProtectionKey(key, permissions);
-}
-
 void WasmCodeAllocator::FreeCode(base::Vector<WasmCode* const> codes) {
   // Zap code area and collect freed code regions.
   DisjointAllocationPool freed_regions;
@@ -1972,6 +1952,25 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
       (sizeof(WasmCode) * num_wasm_functions);   /* code object size */
 
   return wasm_module_estimate + native_module_estimate;
+}
+
+bool WasmCodeManager::SetThreadWritable(bool writable) {
+  static thread_local int writable_nesting_level = 0;
+  if (writable) {
+    if (++writable_nesting_level > 1) return true;
+  } else {
+    DCHECK_GT(writable_nesting_level, 0);
+    if (--writable_nesting_level > 0) return true;
+  }
+  writable = writable_nesting_level > 0;
+
+  MemoryProtectionKeyPermission permissions =
+      writable ? kNoRestrictions : kDisableWrite;
+
+  TRACE_HEAP("Setting memory protection key %d to writable: %d.\n",
+             memory_protection_key_, writable);
+  return SetPermissionsForMemoryProtectionKey(memory_protection_key_,
+                                              permissions);
 }
 
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(

@@ -5,6 +5,7 @@
 #include "src/wasm/code-space-access.h"
 
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
 
 namespace v8 {
 namespace internal {
@@ -38,7 +39,7 @@ CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
     : native_module_(native_module) {
   DCHECK_NOT_NULL(native_module_);
   if (FLAG_wasm_memory_protection_keys) {
-    bool success = native_module_->SetThreadWritable(true);
+    bool success = GetWasmCodeManager()->SetThreadWritable(true);
     if (!success && FLAG_wasm_write_protect_code_memory) {
       // Fallback to mprotect-based write protection (much slower).
       success = native_module_->SetWritable(true);
@@ -52,7 +53,7 @@ CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
 
 CodeSpaceWriteScope::~CodeSpaceWriteScope() {
   if (FLAG_wasm_memory_protection_keys) {
-    bool success = native_module_->SetThreadWritable(false);
+    bool success = GetWasmCodeManager()->SetThreadWritable(false);
     if (!success && FLAG_wasm_write_protect_code_memory) {
       // Fallback to mprotect-based write protection (much slower).
       success = native_module_->SetWritable(false);
