@@ -370,7 +370,6 @@ class V8_EXPORT_PRIVATE CpuProfiler {
 
  private:
   void StartProcessorIfNotStarted();
-  void StopProcessorIfLastProfile(const char* title);
   void StopProcessor();
   void ResetProfiles();
 

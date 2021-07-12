@@ -350,9 +350,6 @@ ProfilerCodeObserver::ProfilerCodeObserver(Isolate* isolate,
 void ProfilerCodeObserver::ClearCodeMap() {
   weak_code_registry_.Clear();
   code_map_.Clear();
-  // We don't currently expect any references to refcounted strings to be
-  // maintained with zero profiles after the code map is cleared.
-  DCHECK(code_entries_.strings().empty());
 }
 
 void ProfilerCodeObserver::CodeEventHandler(
@@ -504,6 +501,11 @@ CpuProfiler::~CpuProfiler() {
   GetProfilersManager()->RemoveProfiler(isolate_, this);
 
   DisableLogging();
+  profiles_.reset();
+
+  // We don't currently expect any references to refcounted strings to be
+  // maintained with zero profiles after the code map is cleared.
+  DCHECK(code_entries_.strings().empty());
 }
 
 void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
@@ -519,11 +521,6 @@ void CpuProfiler::set_use_precise_sampling(bool value) {
 void CpuProfiler::ResetProfiles() {
   profiles_.reset(new CpuProfilesCollection(isolate_));
   profiles_->set_cpu_profiler(this);
-  symbolizer_.reset();
-  if (!profiling_scope_) {
-    profiler_listener_.reset();
-    code_observer_->ClearCodeMap();
-  }
 }
 
 void CpuProfiler::EnableLogging() {
@@ -543,6 +540,8 @@ void CpuProfiler::DisableLogging() {
 
   DCHECK(profiler_listener_);
   profiling_scope_.reset();
+  profiler_listener_.reset();
+  code_observer_->ClearCodeMap();
 }
 
 base::TimeDelta CpuProfiler::ComputeSamplingInterval() const {
@@ -620,9 +619,17 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
   if (!is_profiling_) return nullptr;
-  StopProcessorIfLastProfile(title);
+  const bool last_profile = profiles_->IsLastProfile(title);
+  if (last_profile) StopProcessor();
   CpuProfile* result = profiles_->StopProfiling(title);
+
   AdjustSamplingInterval();
+
+  DCHECK(profiling_scope_);
+  if (last_profile && logging_mode_ == kLazyLogging) {
+    DisableLogging();
+  }
+
   return result;
 }
 
@@ -630,20 +637,10 @@ CpuProfile* CpuProfiler::StopProfiling(String title) {
   return StopProfiling(profiles_->GetName(title));
 }
 
-void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
-  if (!profiles_->IsLastProfile(title)) return;
-  StopProcessor();
-}
-
 void CpuProfiler::StopProcessor() {
   is_profiling_ = false;
   processor_->StopSynchronously();
   processor_.reset();
-
-  DCHECK(profiling_scope_);
-  if (logging_mode_ == kLazyLogging) {
-    DisableLogging();
-  }
 }
 }  // namespace internal
 }  // namespace v8

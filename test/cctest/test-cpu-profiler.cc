@@ -306,16 +306,11 @@ TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
   CpuProfile* profile = profiler.StopProfiling("");
   CHECK(profile);
 
-  // Check that our code is still in the code map.
+  // Check that the code map is empty.
   CodeMap* code_map = profiler.code_map_for_test();
-  CodeEntry* code1_entry = code_map->FindEntry(code1->InstructionStart());
-  CHECK(code1_entry);
-  CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
+  CHECK_EQ(code_map->size(), 0);
 
   profiler.DeleteProfile(profile);
-
-  // Check that the code map is emptied once the last profile is deleted.
-  CHECK(!code_map->FindEntry(code1->InstructionStart()));
 
   // Create code between profiles. This should not be logged yet.
   i::Handle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
@@ -537,9 +532,12 @@ TEST(ProfileStartEndTime) {
 
 class ProfilerHelper {
  public:
-  explicit ProfilerHelper(const v8::Local<v8::Context>& context)
+  explicit ProfilerHelper(
+      const v8::Local<v8::Context>& context,
+      v8::CpuProfilingLoggingMode logging_mode = kLazyLogging)
       : context_(context),
-        profiler_(v8::CpuProfiler::New(context->GetIsolate())) {
+        profiler_(v8::CpuProfiler::New(context->GetIsolate(), kDebugNaming,
+                                       logging_mode)) {
     i::ProfilerExtension::set_profiler(profiler_);
   }
   ~ProfilerHelper() {
@@ -4194,7 +4192,7 @@ TEST(FastApiCPUProfiler) {
   // Setup and start CPU profiler.
   v8::Local<v8::Value> args[] = {
       v8::Integer::New(env->GetIsolate(), num_runs_arg)};
-  ProfilerHelper helper(env.local());
+  ProfilerHelper helper(env.local(), kEagerLogging);
   // TODO(mslekova): We could tweak the following count to reduce test
   // runtime, while still keeping the test stable.
   unsigned external_samples = 1000;
