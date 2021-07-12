@@ -3121,7 +3121,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     }
   }
 
-  DECODE(LocalGet) {
+  V8_INLINE DECODE(LocalGet) {
     IndexImmediate<validate> imm(this, this->pc_ + 1, "local index");
     if (!this->ValidateLocal(this->pc_ + 1, imm)) return 0;
     if (!VALIDATE(!this->enabled_.has_nn_locals() ||
