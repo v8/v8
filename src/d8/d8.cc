@@ -1583,8 +1583,11 @@ void Shell::PerformanceMeasureMemory(
     Local<Object> object = args[0].As<Object>();
     Local<Value> value = TryGetValue(isolate, context, object, "detailed")
                              .FromMaybe(Local<Value>());
-    if (!value.IsEmpty() && value->IsBoolean() &&
-        value->BooleanValue(isolate)) {
+    if (value.IsEmpty()) {
+      // Exception was thrown and scheduled, so return from the callback.
+      return;
+    }
+    if (value->IsBoolean() && value->BooleanValue(isolate)) {
       mode = v8::MeasureMemoryMode::kDetailed;
     }
   }
