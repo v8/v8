@@ -13,6 +13,7 @@
 #include "src/heap/cppgc/heap-space.h"
 #include "src/heap/cppgc/heap-visitor.h"
 #include "src/heap/cppgc/heap.h"
+#include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/stats-collector.h"
@@ -54,6 +55,8 @@ void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
 }
 
 void AddToFreeList(NormalPageSpace& space, Address start, size_t size) {
+  // No need for SetMemoryInaccessible() as LAB memory is retrieved as free
+  // inaccessible memory.
   space.free_list().Add({start, size});
   NormalPage::From(BasePage::FromPayload(start))
       ->object_start_bitmap()

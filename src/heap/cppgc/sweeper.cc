@@ -203,6 +203,7 @@ typename FinalizationBuilder::ResultType SweepNormalPage(NormalPage* page) {
     // Check if this is a free list entry.
     if (header->IsFree<kAtomicAccess>()) {
       SetMemoryInaccessible(header, std::min(kFreeListEntrySize, size));
+      CheckMemoryIsInaccessible(header, size);
       begin += size;
       continue;
     }
