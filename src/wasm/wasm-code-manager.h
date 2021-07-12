@@ -956,10 +956,14 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   static size_t EstimateNativeModuleMetaDataSize(const WasmModule* module);
 
   // Set this thread's permission of all owned code space to read-write or
-  // read-only (if {writable} is false). Uses memory protection keys.
-  // Returns true on success. Since the permission is thread-local, there is no
-  // requirement to hold any lock when calling this method.
-  bool SetThreadWritable(bool writable);
+  // read-only (if {writable} is false). Can only be called if
+  // {HasMemoryProtectionKeySupport()} is {true}.
+  // Since the permission is thread-local, there is no requirement to hold any
+  // lock when calling this method.
+  void SetThreadWritable(bool writable);
+
+  // Returns true if there is PKU support, false otherwise.
+  bool HasMemoryProtectionKeySupport() const;
 
  private:
   friend class WasmCodeAllocator;
