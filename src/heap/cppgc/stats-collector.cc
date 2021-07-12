@@ -328,8 +328,16 @@ void StatsCollector::ResetDiscardedMemory() {
   discarded_bytes_.store(0, std::memory_order_relaxed);
 }
 
-size_t StatsCollector::discarded_memory() const {
+size_t StatsCollector::discarded_memory_size() const {
   return discarded_bytes_.load(std::memory_order_relaxed);
+}
+
+size_t StatsCollector::resident_memory_size() const {
+  const auto allocated = allocated_memory_size();
+  const auto discarded = discarded_memory_size();
+  DCHECK_IMPLIES(allocated == 0, discarded == 0);
+  DCHECK_IMPLIES(allocated > 0, allocated > discarded);
+  return allocated - discarded;
 }
 
 void StatsCollector::RecordHistogramSample(ScopeId scope_id_,

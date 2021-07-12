@@ -14,6 +14,7 @@
 #include "src/heap/cppgc/marking-verifier.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc/sweeper.h"
 
 namespace cppgc {
 
@@ -45,6 +46,8 @@ void Heap::ForceGarbageCollectionSlow(const char* source, const char* reason,
   internal::Heap::From(this)->CollectGarbage(
       {internal::GarbageCollector::Config::CollectionType::kMajor, stack_state,
        MarkingType::kAtomic, SweepingType::kAtomic,
+       internal::GarbageCollector::Config::FreeMemoryHandling::
+           kDiscardWherePossible,
        internal::GarbageCollector::Config::IsForcedGC::kForced});
 }
 
@@ -195,7 +198,8 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   subtle::NoGarbageCollectionScope no_gc(*this);
   const Sweeper::SweepingConfig sweeping_config{
       config_.sweeping_type,
-      Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep};
+      Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep,
+      config_.free_memory_handling};
   sweeper_.Start(sweeping_config);
   in_atomic_pause_ = false;
   sweeper_.NotifyDoneIfNeeded();

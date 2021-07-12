@@ -17,7 +17,7 @@ class HeapStatisticsCollector : private HeapVisitor<HeapStatisticsCollector> {
   friend class HeapVisitor<HeapStatisticsCollector>;
 
  public:
-  HeapStatistics CollectStatistics(HeapBase*);
+  HeapStatistics CollectDetailedStatistics(HeapBase*);
 
  private:
   bool VisitNormalPageSpace(NormalPageSpace&);

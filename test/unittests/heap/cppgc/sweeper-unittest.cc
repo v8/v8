@@ -373,5 +373,32 @@ TEST_F(SweeperTest, AllocationDuringFinalizationIsNotSwept) {
   EXPECT_EQ(0u, g_destructor_callcount);
 }
 
+TEST_F(SweeperTest, DiscardingNormalPageMemory) {
+  if (!Sweeper::CanDiscardMemory()) return;
+
+  // Test ensures that free list payload is discarded and accounted for on page
+  // level.
+  auto* holder = MakeGarbageCollected<GCed<1>>(GetAllocationHandle());
+  ConservativeMemoryDiscardingGC();
+  auto* page = NormalPage::FromPayload(holder);
+  // Assume the `holder` object is the first on the page for simplifying exact
+  // discarded count.
+  ASSERT_EQ(static_cast<void*>(page->PayloadStart() + sizeof(HeapObjectHeader)),
+            holder);
+  // No other object on the page is live.
+  Address free_list_payload_start =
+      page->PayloadStart() +
+      HeapObjectHeader::FromObject(holder).AllocatedSize() +
+      sizeof(kFreeListEntrySize);
+  uintptr_t start =
+      RoundUp(reinterpret_cast<uintptr_t>(free_list_payload_start),
+              GetPlatform().GetPageAllocator()->CommitPageSize());
+  uintptr_t end = RoundDown(reinterpret_cast<uintptr_t>(page->PayloadEnd()),
+                            GetPlatform().GetPageAllocator()->CommitPageSize());
+  EXPECT_GT(end, start);
+  EXPECT_EQ(page->discarded_memory(), end - start);
+  USE(holder);
+}
+
 }  // namespace internal
 }  // namespace cppgc

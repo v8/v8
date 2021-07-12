@@ -323,6 +323,8 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
 // - returns (unmaps) empty pages;
 // - merges freelists to the space's freelist.
 class SweepFinalizer final {
+  using FreeMemoryHandling = Sweeper::SweepingConfig::FreeMemoryHandling;
+
  public:
   SweepFinalizer(cppgc::Platform* platform,
                  FreeMemoryHandling free_memory_handling)
@@ -412,6 +414,8 @@ class SweepFinalizer final {
 
 class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   friend class HeapVisitor<MutatorThreadSweeper>;
+
+  using FreeMemoryHandling = Sweeper::SweepingConfig::FreeMemoryHandling;
 
  public:
   MutatorThreadSweeper(SpaceStates* states, cppgc::Platform* platform,
@@ -517,6 +521,8 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
 class ConcurrentSweepTask final : public cppgc::JobTask,
                                   private HeapVisitor<ConcurrentSweepTask> {
   friend class HeapVisitor<ConcurrentSweepTask>;
+
+  using FreeMemoryHandling = Sweeper::SweepingConfig::FreeMemoryHandling;
 
  public:
   ConcurrentSweepTask(HeapBase& heap, SpaceStates* states, Platform* platform,
@@ -637,6 +643,8 @@ class PrepareForSweepVisitor final
 }  // namespace
 
 class Sweeper::SweeperImpl final {
+  using FreeMemoryHandling = Sweeper::SweepingConfig::FreeMemoryHandling;
+
  public:
   SweeperImpl(RawHeap& heap, StatsCollector* stats_collector)
       : heap_(heap),
@@ -658,7 +666,7 @@ class Sweeper::SweeperImpl final {
 
     // If inaccessible memory is touched to check whether it is set up
     // correctly it cannot be discarded.
-    if (!CheckMemoryIsInaccessibleIsNoop()) {
+    if (!CanDiscardMemory()) {
       config_.free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
     }
 

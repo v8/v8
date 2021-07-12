@@ -52,6 +52,7 @@ void FinalizePage(HeapStatistics::SpaceStatistics* space_stats,
                   HeapStatistics::PageStatistics** page_stats) {
   if (*page_stats) {
     DCHECK_NOT_NULL(space_stats);
+    space_stats->committed_size_bytes += (*page_stats)->committed_size_bytes;
     space_stats->resident_size_bytes += (*page_stats)->resident_size_bytes;
     space_stats->used_size_bytes += (*page_stats)->used_size_bytes;
   }
@@ -64,6 +65,7 @@ void FinalizeSpace(HeapStatistics* stats,
   FinalizePage(*space_stats, page_stats);
   if (*space_stats) {
     DCHECK_NOT_NULL(stats);
+    stats->committed_size_bytes += (*space_stats)->committed_size_bytes;
     stats->resident_size_bytes += (*space_stats)->resident_size_bytes;
     stats->used_size_bytes += (*space_stats)->used_size_bytes;
   }
@@ -89,7 +91,8 @@ void RecordObjectType(
 
 }  // namespace
 
-HeapStatistics HeapStatisticsCollector::CollectStatistics(HeapBase* heap) {
+HeapStatistics HeapStatisticsCollector::CollectDetailedStatistics(
+    HeapBase* heap) {
   HeapStatistics stats;
   stats.detail_level = HeapStatistics::DetailLevel::kDetailed;
   current_stats_ = &stats;
@@ -142,7 +145,8 @@ bool HeapStatisticsCollector::VisitNormalPage(NormalPage& page) {
 
   current_page_stats_ = InitializePage(current_space_stats_);
   current_page_stats_->committed_size_bytes = kPageSize;
-  current_page_stats_->resident_size_bytes = kPageSize;
+  current_page_stats_->resident_size_bytes =
+      kPageSize - page.discarded_memory();
   return false;
 }
 

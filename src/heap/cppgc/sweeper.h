@@ -10,6 +10,7 @@
 #include "include/cppgc/heap.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
+#include "src/heap/cppgc/memory.h"
 
 namespace cppgc {
 
@@ -21,22 +22,22 @@ class HeapBase;
 class ConcurrentSweeperTest;
 class NormalPageSpace;
 
-enum class FreeMemoryHandling : uint8_t {
-  kDoNotDiscard,
-  kDiscardWherePossible
-};
-
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
   struct SweepingConfig {
     using SweepingType = cppgc::Heap::SweepingType;
     enum class CompactableSpaceHandling { kSweep, kIgnore };
+    enum class FreeMemoryHandling { kDoNotDiscard, kDiscardWherePossible };
 
     SweepingType sweeping_type = SweepingType::kIncrementalAndConcurrent;
     CompactableSpaceHandling compactable_space_handling =
         CompactableSpaceHandling::kSweep;
     FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
   };
+
+  static constexpr bool CanDiscardMemory() {
+    return CheckMemoryIsInaccessibleIsNoop();
+  }
 
   explicit Sweeper(HeapBase&);
   ~Sweeper();

@@ -94,9 +94,6 @@ struct HeapStatistics final {
     std::vector<PageStatistics> page_stats;
     /** Statistics for the freelist of the space. */
     FreeListStatistics free_list_stats;
-    /** Statistics for object allocated on the page. Filled only when
-     * NameProvider::HideInternalNames() is false. */
-    std::vector<ObjectStatsEntry> object_statistics;
   };
 
   /** Overall committed amount of memory for the heap. */
