@@ -22,6 +22,13 @@ load(
 # =================================================
 
 config_setting(
+    name = "is_debug",
+    values = {
+        "compilation_mode": "dbg",
+    },
+)
+
+config_setting(
     name = "is_k8",
     values = {"cpu": "k8"},
 )
@@ -122,9 +129,6 @@ config_setting(
 # v8_enable_fast_torque
 # v8_win64_unwinding_info
 # v8_enable_31bit_smis_on_64bit_arch
-# v8_enable_object_print
-# v8_enable_trace_maps
-# v8_enable_v8_checks
 # v8_enable_trace_unoptimized
 # v8_enable_trace_ignition
 # v8_enable_trace_baseline_exec
@@ -136,7 +140,6 @@ config_setting(
 # v8_enable_builtins_profiling
 # v8_enable_builtins_profiling_verbose
 # v8_builtins_profiling_log_file
-# v8_enable_test_features
 # v8_enable_short_builtin_calls
 # v8_enable_external_code_space
 # v8_postmortem_support
@@ -186,6 +189,7 @@ v8_flag(name = "v8_code_comments")
 v8_flag(name = "v8_deprecation_warnings", default = True)
 v8_flag(name = "v8_imminent_deprecation_warnings", default = True)
 
+v8_flag(name = "v8_enable_backtrace")
 v8_flag(name = "v8_enable_debug_code")
 v8_flag(name = "v8_enable_disassembler")
 v8_flag(name = "v8_enable_handle_zapping", default = True)
@@ -195,12 +199,16 @@ v8_flag(name = "v8_enable_future")
 v8_flag(name = "v8_enable_i18n_support", default = True)
 v8_flag(name = "v8_enable_lazy_source_positions", default = True)
 v8_flag(name = "v8_enable_minor_mc", default = True)
+v8_flag(name = "v8_enable_object_print")
 v8_flag(name = "v8_enable_slow_dchecks")
 v8_flag(name = "v8_enable_snapshot_code_comments")
 v8_flag(name = "v8_enable_snapshot_native_code_counters")
+v8_flag(name = "v8_enable_trace_maps")
+v8_flag(name = "v8_enable_v8_checks")
 v8_flag(name = "v8_enable_verify_csa")
 v8_flag(name = "v8_enable_verify_heap")
 v8_flag(name = "v8_enable_verify_predictable")
+v8_flag(name = "v8_enable_test_features")
 v8_flag(name = "v8_enable_webassembly", default = True)
 
 v8_int(name = "v8_typed_array_max_size_in_heap", default = 64)
@@ -232,6 +240,12 @@ selects.config_setting_group(
     ],
 )
 
+# Enable -rdynamic.
+selects.config_setting_group(
+    name = "should_add_rdynamic",
+    match_all = [ ":is_linux", ":is_v8_enable_backtrace" ],
+)
+
 v8_custom_config(name = "default")
 
 v8_config(
@@ -249,9 +263,12 @@ v8_config(
         "v8_enable_i18n_support": "V8_INTL_SUPPORT",
         "v8_enable_lazy_source_positions": "V8_ENABLE_LAZY_SOURCE_POSITIONS",
         "v8_enable_minor_mc": "ENABLE_MINOR_MC",
+        "v8_enable_object_print": "OBJECT_PRINT",
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
         "v8_enable_snapshot_native_code_counters":
             "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
+        "v8_enable_trace_maps": "V8_TRACE_MAPS",
+        "v8_enable_v8_checks": "V8_ENABLE_CHECKS",
         "v8_enable_verify_csa": "ENABLE_VERIFY_CSA",
         "v8_enable_verify_heap": "VERIFY_HEAP",
         "v8_enable_verify_predictable": "VERIFY_PREDICTABLE",
@@ -263,6 +280,9 @@ v8_config(
         "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_CONCURRENT_MARKING",
     ] + select({
+        ":is_debug": [ "DEBUG" ],
+        "//conditions:default": [],
+    }) + select({
         ":is_ia32": [ "V8_TARGET_ARCH_IA32" ],
         ":is_x64": [ "V8_TARGET_ARCH_X64" ],
         ":is_arm": [
@@ -299,6 +319,13 @@ v8_config(
         ],
         ":enable_pointer_compression_isolated_cage": [
             "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE"
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_v8_enable_test_features": [
+            "V8_ENABLE_ALLOCATION_TIMEOUT",
+            "V8_ENABLE_FORCE_SLOW_PATH",
+            "V8_ENABLE_DOUBLE_CONST_STORE_CHECK",
         ],
         "//conditions:default": [],
     }),

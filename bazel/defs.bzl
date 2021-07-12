@@ -99,7 +99,7 @@ def _default_args(configs):
             "-Wno-implicit-int-float-conversion",
             "-Wno-deprecated-copy",
             "-Wno-non-virtual-dtor",
-            "-std=c++14",
+            "-std=c++17",
             "-isystem .",
         ],
         includes = ["include"],
@@ -108,6 +108,9 @@ def _default_args(configs):
         ] + select({
             ":is_macos": [],
             "//conditions:default": [ "-Wl,--no-as-needed -ldl" ],
+        }) + select({
+            ":should_add_rdynamic": [ "-rdynamic" ],
+            "//conditions:default": [],
         }),
     )
 
