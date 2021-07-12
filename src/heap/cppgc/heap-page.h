@@ -78,6 +78,13 @@ class V8_EXPORT_PRIVATE BasePage {
 #endif
   }
 
+  void IncrementDiscardedMemory(size_t value) {
+    DCHECK_GE(discarded_memory_ + value, discarded_memory_);
+    discarded_memory_ += value;
+  }
+  void ResetDiscardedMemory() { discarded_memory_ = 0; }
+  size_t discarded_memory() const { return discarded_memory_; }
+
  protected:
   enum class PageType : uint8_t { kNormal, kLarge };
   BasePage(HeapBase&, BaseSpace&, PageType);
@@ -86,6 +93,7 @@ class V8_EXPORT_PRIVATE BasePage {
   HeapBase& heap_;
   BaseSpace& space_;
   PageType type_;
+  size_t discarded_memory_ = 0;
 };
 
 class V8_EXPORT_PRIVATE NormalPage final : public BasePage {

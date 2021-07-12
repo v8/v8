@@ -5,6 +5,7 @@
 #include "src/heap/cppgc/stats-collector.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 #include "src/base/atomicops.h"
@@ -307,6 +308,28 @@ void StatsCollector::NotifyFreedMemory(int64_t size) {
   // AllocatedSizeDecreased() must not trigger GC.
   DCHECK_EQ(saved_epoch, current_.epoch);
 #endif  // DEBUG
+}
+
+void StatsCollector::IncrementDiscardedMemory(size_t value) {
+  const size_t old =
+      discarded_bytes_.fetch_add(value, std::memory_order_relaxed);
+  DCHECK_GE(old + value, old);
+  USE(old);
+}
+
+void StatsCollector::DecrementDiscardedMemory(size_t value) {
+  const size_t old =
+      discarded_bytes_.fetch_sub(value, std::memory_order_relaxed);
+  DCHECK_GE(old, old - value);
+  USE(old);
+}
+
+void StatsCollector::ResetDiscardedMemory() {
+  discarded_bytes_.store(0, std::memory_order_relaxed);
+}
+
+size_t StatsCollector::discarded_memory() const {
+  return discarded_bytes_.load(std::memory_order_relaxed);
 }
 
 void StatsCollector::RecordHistogramSample(ScopeId scope_id_,

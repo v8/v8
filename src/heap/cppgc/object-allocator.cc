@@ -179,6 +179,13 @@ void* ObjectAllocator::AllocateFromFreeList(NormalPageSpace& space, size_t size,
   const FreeList::Block entry = space.free_list().Allocate(size);
   if (!entry.address) return nullptr;
 
+  // Assume discarded memory on that page is now zero.
+  auto& page = *NormalPage::From(BasePage::FromPayload(entry.address));
+  if (page.discarded_memory()) {
+    stats_collector_->DecrementDiscardedMemory(page.discarded_memory());
+    page.ResetDiscardedMemory();
+  }
+
   ReplaceLinearAllocationBuffer(space, *stats_collector_,
                                 static_cast<Address>(entry.address),
                                 entry.size);

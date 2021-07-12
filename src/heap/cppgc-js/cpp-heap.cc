@@ -460,7 +460,10 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
             ? cppgc::internal::Sweeper::SweepingConfig::SweepingType::kAtomic
             : cppgc::internal::Sweeper::SweepingConfig::SweepingType::
                   kIncrementalAndConcurrent,
-        compactable_space_handling};
+        compactable_space_handling,
+        current_flags_ & TraceFlags::kReduceMemory
+            ? cppgc::internal::FreeMemoryHandling::kDiscardWherePossible
+            : cppgc::internal::FreeMemoryHandling::kDoNotDiscard};
     DCHECK_IMPLIES(
         !isolate_,
         cppgc::internal::Sweeper::SweepingConfig::SweepingType::kAtomic ==

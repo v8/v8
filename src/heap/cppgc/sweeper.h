@@ -21,6 +21,11 @@ class HeapBase;
 class ConcurrentSweeperTest;
 class NormalPageSpace;
 
+enum class FreeMemoryHandling : uint8_t {
+  kDoNotDiscard,
+  kDiscardWherePossible
+};
+
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
   struct SweepingConfig {
@@ -30,6 +35,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
     SweepingType sweeping_type = SweepingType::kIncrementalAndConcurrent;
     CompactableSpaceHandling compactable_space_handling =
         CompactableSpaceHandling::kSweep;
+    FreeMemoryHandling free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
   };
 
   explicit Sweeper(HeapBase&);

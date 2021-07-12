@@ -45,6 +45,13 @@ const BasePage* BasePage::FromInnerAddress(const HeapBase* heap,
 
 // static
 void BasePage::Destroy(BasePage* page) {
+  if (page->discarded_memory()) {
+    page->space()
+        .raw_heap()
+        ->heap()
+        ->stats_collector()
+        ->DecrementDiscardedMemory(page->discarded_memory());
+  }
   if (page->is_large()) {
     LargePage::Destroy(LargePage::From(page));
   } else {
