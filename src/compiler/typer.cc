@@ -392,6 +392,8 @@ Type Typer::Visitor::BinaryNumberOpTyper(Type lhs, Type rhs, Typer* t,
                                          BinaryTyperFun f) {
   lhs = ToNumeric(lhs, t);
   rhs = ToNumeric(rhs, t);
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+
   bool lhs_is_number = lhs.Is(Type::Number());
   bool rhs_is_number = rhs.Is(Type::Number());
   if (lhs_is_number && rhs_is_number) {
