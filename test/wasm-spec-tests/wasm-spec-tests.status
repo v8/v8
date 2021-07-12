@@ -96,41 +96,12 @@
 }],  # '(arch == mipsel or arch == mips64el) and simulator_run'
 
 ['arch == riscv64', {
-  'conversions': [SKIP],
-  'proposals/JS-BigInt-integration/conversions': [SKIP],
-  'proposals/bulk-memory-operations/conversions': [SKIP],
-  'proposals/js-types/conversions': [SKIP],
-  'proposals/multi-value/conversions': [SKIP],
-  'proposals/reference-types/conversions': [SKIP],
-
-   # the following all fail w/ symptons captured in issue #166
-   'float_exprs': [SKIP],
-   'proposals/tail-call/conversions': [SKIP],
-   'proposals/tail-call/float_exprs': [SKIP],
-   'proposals/tail-call/f64': [SKIP],
-   'proposals/tail-call/f32': [SKIP],
-
    # These tests need larger stack size on simulator.
    'skip-stack-guard-page': '--sim-stack-size=8192',
    'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 
    # SIMD is not fully implemented yet.
    'proposals/simd/*': [SKIP],
-
-   # See issue #403
-   'proposals/js-types/exports': [SKIP],
-   'proposals/js-types/imports': [SKIP],
-
-   # riscv64 don't implemented some wasm atomic func
-   'left-to-right': [SKIP],
-   'float_misc': [SKIP],
-   'f64_bitwise': [SKIP],
-   'f32_bitwise': [SKIP],
-   'proposals/tail-call/f32_bitwise': [SKIP],
-   'proposals/tail-call/f64_bitwise': [SKIP],
-   'proposals/tail-call/float_misc': [SKIP],
-   'proposals/tail-call/left-to-right': [SKIP],
-
 }],  # 'arch == riscv64
 
 ['arch == ppc or arch == ppc64', {

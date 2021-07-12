@@ -429,30 +429,26 @@
 
 ##############################################################################
 ['arch == riscv64', {
-  # this test is unstable, sometimes fail when running w/ other tests
+  # this test is unstable, sometimes fail when running w/ other tests.
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 
-  # https://github.com/v8-riscv/v8/issues/297
+  # SIMD not fully implemented yet.
   'test-run-wasm-simd/RunWasm_F64x2ExtractLaneWithI64x2_liftoff': [SKIP],
   'test-run-wasm-simd/RunWasm_I64x2ExtractWithF64x2_liftoff': [SKIP],
-
-  # https://github.com/v8-riscv/v8/issues/290
-  'test-orderedhashtable/SmallOrderedNameDictionaryInsertionMax': [SKIP],
-  'test-orderedhashtable/SmallOrderedNameDictionarySetAndMigrateHash': [SKIP],
-
-  # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd/*':[SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
 
-  # Some wasm functionality is not implemented yet
+  # Some wasm functionality is not implemented yet.
   'test-run-wasm-atomics64/*': [SKIP],
   'test-run-wasm-atomics/*': [SKIP],
   'test-run-wasm-64/*': [SKIP],
-  'test-run-wasm/*': [SKIP],
-
-
+  'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
+  'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x2': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4': [SKIP],
 }],  # 'arch == riscv64'
 
 ##############################################################################

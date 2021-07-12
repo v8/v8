@@ -1727,6 +1727,22 @@ void TurboAssembler::RoundFloatingPointToInteger(Register rd, FPURegister fs,
   }
 }
 
+void TurboAssembler::Clear_if_nan_d(Register rd, FPURegister fs) {
+  Label no_nan;
+  feq_d(kScratchReg, fs, fs);
+  bnez(kScratchReg, &no_nan);
+  Move(rd, zero_reg);
+  bind(&no_nan);
+}
+
+void TurboAssembler::Clear_if_nan_s(Register rd, FPURegister fs) {
+  Label no_nan;
+  feq_s(kScratchReg, fs, fs);
+  bnez(kScratchReg, &no_nan);
+  Move(rd, zero_reg);
+  bind(&no_nan);
+}
+
 void TurboAssembler::Trunc_uw_d(Register rd, FPURegister fs, Register result) {
   RoundFloatingPointToInteger(
       rd, fs, result, [](TurboAssembler* tasm, Register dst, FPURegister src) {
@@ -2597,7 +2613,7 @@ void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
       }
     }
   } else {
-    if (is_trampoline_emitted() && near_jump == Label::Distance::kFar) {
+    if (is_trampoline_emitted()) {
       if (cond != cc_always) {
         Label skip;
         Condition neg_cond = NegateCondition(cond);
