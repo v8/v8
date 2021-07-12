@@ -82,5 +82,4 @@ console_groups {
   console_ids: "v8/integration"
   console_ids: "v8/experiments"
   console_ids: "v8/chromium"
-  console_ids: "v8/infra"
 }
