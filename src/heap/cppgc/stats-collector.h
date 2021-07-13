@@ -304,6 +304,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
     metric_recorder_ = std::move(histogram_recorder);
   }
 
+  MetricRecorder* GetMetricRecorder() const { return metric_recorder_.get(); }
+
  private:
   enum class GarbageCollectionState : uint8_t {
     kNotRunning,

@@ -42,7 +42,6 @@
 #include "src/heap/marking-worklist.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
-#include "src/logging/metrics.h"
 #include "src/profiler/heap-profiler.h"
 
 namespace v8 {
@@ -220,65 +219,96 @@ void UnifiedHeapMarker::AddObject(void* object) {
 
 }  // namespace
 
-class CppHeap::MetricRecorderAdapter final
-    : public cppgc::internal::MetricRecorder {
- public:
-  explicit MetricRecorderAdapter(CppHeap& cpp_heap) : cpp_heap_(cpp_heap) {}
+void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
+    const FullCycle& cppgc_event) {
+  last_full_gc_event_ = cppgc_event;
+  GetIsolate()->heap()->tracer()->NotifyGCCompleted();
+}
 
-  void AddMainThreadEvent(const FullCycle& cppgc_event) final {
-    cpp_heap_.last_cppgc_full_gc_event_ = cppgc_event;
-    GetIsolate()->heap()->tracer()->NotifyGCCompleted();
+void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
+    const MainThreadIncrementalMark& cppgc_event) {
+  // Incremental marking steps might be nested in V8 marking steps. In such
+  // cases, stash the relevant values and delegate to V8 to report them. For
+  // non-nested steps, report to the Recorder directly.
+  if (cpp_heap_.is_in_v8_marking_step_) {
+    last_incremental_mark_event_ = cppgc_event;
+    return;
   }
-
-  void AddMainThreadEvent(const MainThreadIncrementalMark& cppgc_event) final {
-    // Incremental marking steps might be nested in V8 marking steps. In such
-    // cases, stash the relevant values and delegate to V8 to report them. For
-    // non-nested steps, report to the Recorder directly.
-    if (cpp_heap_.is_in_v8_marking_step_) {
-      cpp_heap_.last_cppgc_incremental_mark_event_ = cppgc_event;
-      return;
-    }
-    // This is a standalone incremental marking step.
-    const std::shared_ptr<metrics::Recorder>& recorder =
-        GetIsolate()->metrics_recorder();
-    DCHECK_NOT_NULL(recorder);
-    if (!recorder->HasEmbedderRecorder()) return;
-    ::v8::metrics::GarbageCollectionFullMainThreadIncrementalMark event;
-    event.cpp_wall_clock_duration_in_us = cppgc_event.duration_us;
-    // TODO(chromium:1154636): Populate event.wall_clock_duration_in_us.
-    recorder->AddMainThreadEvent(event, GetContextId());
+  // This is a standalone incremental marking step.
+  const std::shared_ptr<metrics::Recorder>& recorder =
+      GetIsolate()->metrics_recorder();
+  DCHECK_NOT_NULL(recorder);
+  if (!recorder->HasEmbedderRecorder()) return;
+  incremental_mark_batched_events_.events.emplace_back();
+  incremental_mark_batched_events_.events.back().cpp_wall_clock_duration_in_us =
+      cppgc_event.duration_us;
+  // TODO(chromium:1154636): Populate event.wall_clock_duration_in_us.
+  if (incremental_mark_batched_events_.events.size() == kMaxBatchedEvents) {
+    recorder->AddMainThreadEvent(std::move(incremental_mark_batched_events_),
+                                 GetContextId());
   }
+}
 
-  void AddMainThreadEvent(const MainThreadIncrementalSweep& cppgc_event) final {
-    // Incremental sweeping steps are never nested inside V8 sweeping steps, so
-    // report to the Recorder directly.
-    const std::shared_ptr<metrics::Recorder>& recorder =
-        GetIsolate()->metrics_recorder();
-    DCHECK_NOT_NULL(recorder);
-    if (!recorder->HasEmbedderRecorder()) return;
-    ::v8::metrics::GarbageCollectionFullMainThreadIncrementalSweep event;
-    event.cpp_wall_clock_duration_in_us = cppgc_event.duration_us;
-    // TODO(chromium:1154636): Populate event.wall_clock_duration_in_us.
-    recorder->AddMainThreadEvent(event, GetContextId());
+void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
+    const MainThreadIncrementalSweep& cppgc_event) {
+  // Incremental sweeping steps are never nested inside V8 sweeping steps, so
+  // report to the Recorder directly.
+  const std::shared_ptr<metrics::Recorder>& recorder =
+      GetIsolate()->metrics_recorder();
+  DCHECK_NOT_NULL(recorder);
+  if (!recorder->HasEmbedderRecorder()) return;
+  incremental_sweep_batched_events_.events.emplace_back();
+  incremental_sweep_batched_events_.events.back()
+      .cpp_wall_clock_duration_in_us = cppgc_event.duration_us;
+  // TODO(chromium:1154636): Populate event.wall_clock_duration_in_us.
+  if (incremental_sweep_batched_events_.events.size() == kMaxBatchedEvents) {
+    recorder->AddMainThreadEvent(std::move(incremental_sweep_batched_events_),
+                                 GetContextId());
   }
+}
 
- private:
-  Isolate* GetIsolate() {
-    DCHECK_NOT_NULL(cpp_heap_.isolate());
-    return reinterpret_cast<Isolate*>(cpp_heap_.isolate());
+void CppHeap::MetricRecorderAdapter::FlushBatchedIncrementalEvents() {
+  const std::shared_ptr<metrics::Recorder>& recorder =
+      GetIsolate()->metrics_recorder();
+  DCHECK_NOT_NULL(recorder);
+  if (!incremental_mark_batched_events_.events.empty()) {
+    recorder->AddMainThreadEvent(std::move(incremental_mark_batched_events_),
+                                 GetContextId());
   }
-
-  v8::metrics::Recorder::ContextId GetContextId() {
-    DCHECK_NOT_NULL(GetIsolate());
-    if (GetIsolate()->context().is_null())
-      return v8::metrics::Recorder::ContextId::Empty();
-    HandleScope scope(GetIsolate());
-    return GetIsolate()->GetOrRegisterRecorderContextId(
-        GetIsolate()->native_context());
+  if (!incremental_sweep_batched_events_.events.empty()) {
+    recorder->AddMainThreadEvent(std::move(incremental_sweep_batched_events_),
+                                 GetContextId());
   }
+}
 
-  CppHeap& cpp_heap_;
-};
+bool CppHeap::MetricRecorderAdapter::MetricsReportPending() const {
+  return last_full_gc_event_.has_value();
+}
+
+const base::Optional<cppgc::internal::MetricRecorder::FullCycle>
+CppHeap::MetricRecorderAdapter::ExtractLastFullGcEvent() {
+  return std::move(last_full_gc_event_);
+}
+
+const base::Optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
+CppHeap::MetricRecorderAdapter::ExtractLastIncrementalMarkEvent() {
+  return std::move(last_incremental_mark_event_);
+}
+
+Isolate* CppHeap::MetricRecorderAdapter::GetIsolate() const {
+  DCHECK_NOT_NULL(cpp_heap_.isolate());
+  return reinterpret_cast<Isolate*>(cpp_heap_.isolate());
+}
+
+v8::metrics::Recorder::ContextId CppHeap::MetricRecorderAdapter::GetContextId()
+    const {
+  DCHECK_NOT_NULL(GetIsolate());
+  if (GetIsolate()->context().is_null())
+    return v8::metrics::Recorder::ContextId::Empty();
+  HandleScope scope(GetIsolate());
+  return GetIsolate()->GetOrRegisterRecorderContextId(
+      GetIsolate()->native_context());
+}
 
 CppHeap::CppHeap(
     v8::Platform* platform,
@@ -648,6 +678,11 @@ void CppHeap::CollectCustomSpaceStatisticsAtLastGC(
   }
   ReportCustomSpaceStatistics(raw_heap(), std::move(custom_spaces),
                               std::move(receiver));
+}
+
+CppHeap::MetricRecorderAdapter* CppHeap::GetMetricRecorder() const {
+  return static_cast<MetricRecorderAdapter*>(
+      stats_collector_->GetMetricRecorder());
 }
 
 }  // namespace internal
