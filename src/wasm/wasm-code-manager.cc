@@ -1954,13 +1954,14 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
   return wasm_module_estimate + native_module_estimate;
 }
 
-bool WasmCodeManager::SetThreadWritable(bool writable) {
+void WasmCodeManager::SetThreadWritable(bool writable) {
+  DCHECK(HasMemoryProtectionKeySupport());
   static thread_local int writable_nesting_level = 0;
   if (writable) {
-    if (++writable_nesting_level > 1) return true;
+    if (++writable_nesting_level > 1) return;
   } else {
     DCHECK_GT(writable_nesting_level, 0);
-    if (--writable_nesting_level > 0) return true;
+    if (--writable_nesting_level > 0) return;
   }
   writable = writable_nesting_level > 0;
 
@@ -1969,8 +1970,11 @@ bool WasmCodeManager::SetThreadWritable(bool writable) {
 
   TRACE_HEAP("Setting memory protection key %d to writable: %d.\n",
              memory_protection_key_, writable);
-  return SetPermissionsForMemoryProtectionKey(memory_protection_key_,
-                                              permissions);
+  SetPermissionsForMemoryProtectionKey(memory_protection_key_, permissions);
+}
+
+bool WasmCodeManager::HasMemoryProtectionKeySupport() const {
+  return memory_protection_key_ != kNoMemoryProtectionKey;
 }
 
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(

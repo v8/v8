@@ -39,13 +39,14 @@ CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
     : native_module_(native_module) {
   DCHECK_NOT_NULL(native_module_);
   if (FLAG_wasm_memory_protection_keys) {
-    bool success = GetWasmCodeManager()->SetThreadWritable(true);
-    if (!success && FLAG_wasm_write_protect_code_memory) {
-      // Fallback to mprotect-based write protection (much slower).
-      success = native_module_->SetWritable(true);
-      CHECK(success);
+    auto* code_manager = GetWasmCodeManager();
+    if (code_manager->HasMemoryProtectionKeySupport()) {
+      code_manager->SetThreadWritable(true);
+      return;
     }
-  } else if (FLAG_wasm_write_protect_code_memory) {
+    // Fallback to mprotect-based write protection, if enabled.
+  }
+  if (FLAG_wasm_write_protect_code_memory) {
     bool success = native_module_->SetWritable(true);
     CHECK(success);
   }
@@ -53,13 +54,14 @@ CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
 
 CodeSpaceWriteScope::~CodeSpaceWriteScope() {
   if (FLAG_wasm_memory_protection_keys) {
-    bool success = GetWasmCodeManager()->SetThreadWritable(false);
-    if (!success && FLAG_wasm_write_protect_code_memory) {
-      // Fallback to mprotect-based write protection (much slower).
-      success = native_module_->SetWritable(false);
-      CHECK(success);
+    auto* code_manager = GetWasmCodeManager();
+    if (code_manager->HasMemoryProtectionKeySupport()) {
+      code_manager->SetThreadWritable(false);
+      return;
     }
-  } else if (FLAG_wasm_write_protect_code_memory) {
+    // Fallback to mprotect-based write protection, if enabled.
+  }
+  if (FLAG_wasm_write_protect_code_memory) {
     bool success = native_module_->SetWritable(false);
     CHECK(success);
   }
