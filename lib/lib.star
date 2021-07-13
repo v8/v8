@@ -278,7 +278,7 @@ def multibranch_builder(**kwargs):
             # is no longer present on the builder struct, so we add it here in
             # the properties and trust that it gets removed by a generator
             args["properties"]["parent_builder"] = parent_builder
-            # Disambiguate the scheduler job names, because they are not 
+            # Disambiguate the scheduler job names, because they are not
             # nested by bucket, while builders are.
             args["triggered_by"] = [branch.bucket + "/" + parent_builder]
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
