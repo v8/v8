@@ -6,6 +6,14 @@ load("//lib/lib.star", "GOMA", "greedy_batching_of_1", "in_console", "v8_builder
 
 in_category = in_console("official")
 
+# The official builder's binaries won't be used by users.  It is fine to use
+# the same RBE instance with CI.
+RECLIENT = struct(
+    DEFAULT = {
+        "instance": "rbe-chromium-trusted",
+    },
+)
+
 in_category(
     "Linux",
     v8_builder(
@@ -87,6 +95,17 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Debug", "builder_group": "client.v8.official", "target_bits": 64},
         use_goma = GOMA.DEFAULT,
+    ),
+    # reclient shadow.
+    v8_builder(
+        name = "V8 Official Linux64 (reclient)",
+        bucket = "ci",
+        triggered_by = ["v8-trigger-official"],
+        triggering_policy = greedy_batching_of_1,
+        executable = "recipe:v8/archive",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "upload_archive": False},
+        use_rbe = RECLIENT.DEFAULT,
     ),
 )
 
