@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "include/cppgc/internal/name-trait.h"
 #include "include/cppgc/trace-trait.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-profiler.h"
@@ -34,20 +35,14 @@ using cppgc::internal::HeapObjectHeader;
 // Node representing a C++ object on the heap.
 class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
-  explicit EmbedderNode(const char* name, size_t size)
+  EmbedderNode(cppgc::internal::HeapObjectName name, size_t size)
       : name_(name), size_(size) {
     USE(size_);
   }
   ~EmbedderNode() override = default;
 
-  const char* Name() final { return name_; }
-  size_t SizeInBytes() final {
-#if CPPGC_SUPPORTS_OBJECT_NAMES
-    return size_;
-#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
-    return 0;
-#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
-  }
+  const char* Name() final { return name_.value; }
+  size_t SizeInBytes() final { return name_.name_was_hidden ? 0 : size_; }
 
   void SetWrapperNode(v8::EmbedderGraph::Node* wrapper_node) {
     wrapper_node_ = wrapper_node;
@@ -70,7 +65,7 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
   }
 
  private:
-  const char* name_;
+  cppgc::internal::HeapObjectName name_;
   size_t size_;
   Node* wrapper_node_ = nullptr;
   Detachedness detachedness_ = Detachedness::kUnknown;
@@ -80,7 +75,8 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
 // Node representing an artificial root group, e.g., set of Persistent handles.
 class EmbedderRootNode final : public EmbedderNode {
  public:
-  explicit EmbedderRootNode(const char* name) : EmbedderNode(name, 0) {}
+  explicit EmbedderRootNode(const char* name)
+      : EmbedderNode({name, false}, 0) {}
   ~EmbedderRootNode() final = default;
 
   bool IsRootNode() final { return true; }
@@ -411,7 +407,7 @@ class CppGraphBuilderImpl final {
   EmbedderNode* AddNode(const HeapObjectHeader& header) {
     return static_cast<EmbedderNode*>(
         graph_.AddNode(std::unique_ptr<v8::EmbedderGraph::Node>{
-            new EmbedderNode(header.GetName().value, header.AllocatedSize())}));
+            new EmbedderNode(header.GetName(), header.AllocatedSize())}));
   }
 
   void AddEdge(State& parent, const HeapObjectHeader& header,
