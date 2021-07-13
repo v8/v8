@@ -1970,14 +1970,6 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
 
 void WasmCodeManager::SetThreadWritable(bool writable) {
   DCHECK(HasMemoryProtectionKeySupport());
-  static thread_local int writable_nesting_level = 0;
-  if (writable) {
-    if (++writable_nesting_level > 1) return;
-  } else {
-    DCHECK_GT(writable_nesting_level, 0);
-    if (--writable_nesting_level > 0) return;
-  }
-  writable = writable_nesting_level > 0;
 
   MemoryProtectionKeyPermission permissions =
       writable ? kNoRestrictions : kDisableWrite;

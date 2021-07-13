@@ -54,15 +54,18 @@ class V8_NODISCARD CodeSpaceWriteScope final {
   CodeSpaceWriteScope& operator=(const CodeSpaceWriteScope&) = delete;
 
  private:
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
   static thread_local int code_space_write_nesting_level_;
-#else   // On non-M1 hardware:
+
+  void SetWritable() const;
+  void SetExecutable() const;
+
   // The M1 implementation knows implicitly from the {MAP_JIT} flag during
-  // allocation which region to switch permissions for. On non-M1 hardware,
-  // however, we either need the protection key or code space from the
+  // allocation which region to switch permissions for. On non-M1 hardware
+  // without memory protection key support, we need the code space from the
   // {native_module_}.
-  NativeModule* native_module_;
-#endif  // defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
+  NativeModule* const native_module_;
+#endif
 };
 
 }  // namespace wasm

@@ -11,59 +11,55 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-
 thread_local int CodeSpaceWriteScope::code_space_write_nesting_level_ = 0;
 
-// The {NativeModule} argument is unused; it is just here for a common API with
-// the non-M1 implementation.
 // TODO(jkummerow): Background threads could permanently stay in
 // writable mode; only the main thread has to switch back and forth.
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
 CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule*) {
-  if (code_space_write_nesting_level_ == 0) {
-    SwitchMemoryPermissionsToWritable();
-  }
+#else
+CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
+    : native_module_(native_module) {
+#endif
+  if (code_space_write_nesting_level_ == 0) SetWritable();
   code_space_write_nesting_level_++;
 }
 
 CodeSpaceWriteScope::~CodeSpaceWriteScope() {
   code_space_write_nesting_level_--;
-  if (code_space_write_nesting_level_ == 0) {
-    SwitchMemoryPermissionsToExecutable();
-  }
+  if (code_space_write_nesting_level_ == 0) SetExecutable();
 }
 
-#else  // Not on MacOS on ARM64 (M1 hardware): Use Intel PKU and/or mprotect.
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
 
-CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
-    : native_module_(native_module) {
+void CodeSpaceWriteScope::SetWritable() const {
+  SwitchMemoryPermissionsToWritable();
+}
+
+void CodeSpaceWriteScope::SetExecutable() const {
+  SwitchMemoryPermissionsToExecutable();
+}
+
+#else  // Not Mac-on-arm64.
+
+void CodeSpaceWriteScope::SetWritable() const {
   DCHECK_NOT_NULL(native_module_);
-  if (FLAG_wasm_memory_protection_keys) {
-    auto* code_manager = GetWasmCodeManager();
-    if (code_manager->HasMemoryProtectionKeySupport()) {
-      code_manager->SetThreadWritable(true);
-      return;
-    }
-    // Fallback to mprotect-based write protection, if enabled.
-  }
-  if (FLAG_wasm_write_protect_code_memory) {
-    bool success = native_module_->SetWritable(true);
-    CHECK(success);
+  auto* code_manager = GetWasmCodeManager();
+  if (code_manager->HasMemoryProtectionKeySupport()) {
+    DCHECK(FLAG_wasm_memory_protection_keys);
+    code_manager->SetThreadWritable(true);
+  } else if (FLAG_wasm_write_protect_code_memory) {
+    CHECK(native_module_->SetWritable(true));
   }
 }
 
-CodeSpaceWriteScope::~CodeSpaceWriteScope() {
-  if (FLAG_wasm_memory_protection_keys) {
-    auto* code_manager = GetWasmCodeManager();
-    if (code_manager->HasMemoryProtectionKeySupport()) {
-      code_manager->SetThreadWritable(false);
-      return;
-    }
-    // Fallback to mprotect-based write protection, if enabled.
-  }
-  if (FLAG_wasm_write_protect_code_memory) {
-    bool success = native_module_->SetWritable(false);
-    CHECK(success);
+void CodeSpaceWriteScope::SetExecutable() const {
+  auto* code_manager = GetWasmCodeManager();
+  if (code_manager->HasMemoryProtectionKeySupport()) {
+    DCHECK(FLAG_wasm_memory_protection_keys);
+    code_manager->SetThreadWritable(false);
+  } else if (FLAG_wasm_write_protect_code_memory) {
+    CHECK(native_module_->SetWritable(false));
   }
 }
 
