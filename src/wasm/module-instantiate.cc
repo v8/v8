@@ -1507,15 +1507,15 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
       }
       case kExternalException: {
         if (!value->IsWasmExceptionObject()) {
-          ReportLinkError("exception import requires a WebAssembly.Exception",
-                          index, module_name, import_name);
+          ReportLinkError("tag import requires a WebAssembly.Tag", index,
+                          module_name, import_name);
           return -1;
         }
         Handle<WasmExceptionObject> imported_exception =
             Handle<WasmExceptionObject>::cast(value);
         if (!imported_exception->MatchesSignature(
                 module_->exceptions[import.index].sig)) {
-          ReportLinkError("imported exception does not match the expected type",
+          ReportLinkError("imported tag does not match the expected type",
                           index, module_name, import_name);
           return -1;
         }
