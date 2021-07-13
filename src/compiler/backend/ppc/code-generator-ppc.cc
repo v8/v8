@@ -1106,12 +1106,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
         lhs_register = i.TempRegister(0);
-        if (is_int16(offset)) {
-          __ subi(lhs_register, sp, Operand(offset));
-        } else {
-          __ mov(kScratchReg, Operand(offset));
-          __ sub(lhs_register, sp, kScratchReg);
-        }
+        __ SubS64(lhs_register, sp, Operand(offset), kScratchReg);
       }
 
       constexpr size_t kValueIndex = 0;
@@ -1165,8 +1160,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      __ addi(i.OutputRegister(), offset.from_stack_pointer() ? sp : fp,
-              Operand(offset.offset()));
+      __ AddS64(i.OutputRegister(), offset.from_stack_pointer() ? sp : fp,
+                Operand(offset.offset()), r0);
       break;
     }
     case kArchWordPoisonOnSpeculation:
@@ -1380,8 +1375,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                  LeaveOE, i.OutputRCBit());
         } else {
-          __ addi(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1));
-          DCHECK_EQ(LeaveRC, i.OutputRCBit());
+          __ AddS64(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1),
+                    r0, LeaveOE, i.OutputRCBit());
         }
         __ extsw(i.OutputRegister(), i.OutputRegister());
 #if V8_TARGET_ARCH_PPC64
@@ -1397,8 +1392,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                  LeaveOE, i.OutputRCBit());
         } else {
-          __ addi(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1));
-          DCHECK_EQ(LeaveRC, i.OutputRCBit());
+          __ AddS64(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1),
+                    r0, LeaveOE, i.OutputRCBit());
         }
       }
       break;
@@ -1419,15 +1414,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ sub(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
                  LeaveOE, i.OutputRCBit());
         } else {
-          if (is_int16(i.InputImmediate(1).immediate())) {
-            __ subi(i.OutputRegister(), i.InputRegister(0),
-                    i.InputImmediate(1));
-            DCHECK_EQ(LeaveRC, i.OutputRCBit());
-          } else {
-            __ mov(kScratchReg, i.InputImmediate(1));
-            __ sub(i.OutputRegister(), i.InputRegister(0), kScratchReg, LeaveOE,
-                   i.OutputRCBit());
-          }
+          __ SubS64(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1),
+                    r0, LeaveOE, i.OutputRCBit());
         }
 #if V8_TARGET_ARCH_PPC64
       }
@@ -4006,7 +3994,8 @@ void CodeGenerator::AssembleConstructFrame() {
         if (FLAG_enable_embedded_constant_pool) {
           __ Push(r0, fp, kConstantPoolRegister);
           // Adjust FP to point to saved FP.
-          __ subi(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+          __ SubS64(fp, sp,
+                    Operand(StandardFrameConstants::kConstantPoolOffset), r0);
         } else {
           __ Push(r0, fp);
           __ mr(fp, sp);

@@ -156,11 +156,8 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
                                             intptr_t offset) {
   if (offset == 0) {
     mr(destination, kRootRegister);
-  } else if (is_int16(offset)) {
-    addi(destination, kRootRegister, Operand(offset));
   } else {
-    mov(destination, Operand(offset));
-    add(destination, kRootRegister, destination);
+    AddS64(destination, kRootRegister, Operand(offset), destination);
   }
 }
 
@@ -1299,7 +1296,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     // since the sp slot and code slot were pushed after the fp.
   }
 
-  addi(sp, sp, Operand(-stack_space * kSystemPointerSize));
+  AddS64(sp, sp, Operand(-stack_space * kSystemPointerSize));
 
   // Allocate and align the frame preparing for calling the runtime
   // function.
@@ -1315,7 +1312,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
 
   // Set the exit frame sp value to point just before the return address
   // location.
-  addi(r8, sp, Operand((kStackFrameExtraParamSlot + 1) * kSystemPointerSize));
+  AddS64(r8, sp, Operand((kStackFrameExtraParamSlot + 1) * kSystemPointerSize),
+         r0);
   StoreU64(r8, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
@@ -1344,7 +1342,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
     const int kNumRegs = kNumCallerSavedDoubles;
     const int offset =
         (ExitFrameConstants::kFixedFrameSizeFromFp + kNumRegs * kDoubleSize);
-    addi(r6, fp, Operand(-offset));
+    AddS64(r6, fp, Operand(-offset), r0);
     MultiPopDoubles(kCallerSavedDoubles, r6);
   }
 
@@ -1397,14 +1395,15 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   Register dst_reg = scratch0;
   ShiftLeftImm(dst_reg, caller_args_count, Operand(kSystemPointerSizeLog2));
   add(dst_reg, fp, dst_reg);
-  addi(dst_reg, dst_reg,
-       Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize));
+  AddS64(dst_reg, dst_reg,
+         Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize),
+         scratch0);
 
   Register src_reg = caller_args_count;
   // Calculate the end of source area. +kSystemPointerSize is for the receiver.
   ShiftLeftImm(src_reg, callee_args_count, Operand(kSystemPointerSizeLog2));
   add(src_reg, sp, src_reg);
-  addi(src_reg, src_reg, Operand(kSystemPointerSize));
+  AddS64(src_reg, src_reg, Operand(kSystemPointerSize), scratch0);
 
   if (FLAG_debug_code) {
     CmpU64(src_reg, dst_reg);
@@ -2237,7 +2236,8 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
     // Make stack end at alignment and make room for stack arguments
     // -- preserving original value of sp.
     mr(scratch, sp);
-    addi(sp, sp, Operand(-(stack_passed_arguments + 1) * kSystemPointerSize));
+    AddS64(sp, sp, Operand(-(stack_passed_arguments + 1) * kSystemPointerSize),
+           scratch);
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     ClearRightImm(sp, sp,
                   Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
@@ -2378,9 +2378,9 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
   int stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;
   if (ActivationFrameAlignment() > kSystemPointerSize) {
-    LoadU64(sp, MemOperand(sp, stack_space * kSystemPointerSize));
+    LoadU64(sp, MemOperand(sp, stack_space * kSystemPointerSize), r0);
   } else {
-    addi(sp, sp, Operand(stack_space * kSystemPointerSize));
+    AddS64(sp, sp, Operand(stack_space * kSystemPointerSize), r0);
   }
 }
 
@@ -2675,17 +2675,33 @@ void TurboAssembler::MovFloatToInt(Register dst, DoubleRegister src) {
   addi(sp, sp, Operand(kFloatSize));
 }
 
-void TurboAssembler::AddS64(Register dst, Register src, Register value) {
-  add(dst, src, value);
+void TurboAssembler::AddS64(Register dst, Register src, Register value, OEBit s,
+                            RCBit r) {
+  add(dst, src, value, s, r);
 }
 
 void TurboAssembler::AddS64(Register dst, Register src, const Operand& value,
-                            Register scratch) {
-  if (is_int16(value.immediate())) {
+                            Register scratch, OEBit s, RCBit r) {
+  if (is_int16(value.immediate()) && s == LeaveOE && r == LeaveRC) {
     addi(dst, src, value);
   } else {
     mov(scratch, value);
-    add(dst, src, scratch);
+    add(dst, src, scratch, s, r);
+  }
+}
+
+void TurboAssembler::SubS64(Register dst, Register src, Register value, OEBit s,
+                            RCBit r) {
+  sub(dst, src, value, s, r);
+}
+
+void TurboAssembler::SubS64(Register dst, Register src, const Operand& value,
+                            Register scratch, OEBit s, RCBit r) {
+  if (is_int16(value.immediate()) && s == LeaveOE && r == LeaveRC) {
+    subi(dst, src, value);
+  } else {
+    mov(scratch, value);
+    sub(dst, src, scratch, s, r);
   }
 }
 
@@ -3276,8 +3292,8 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
     ShiftLeftImm(builtin_index, builtin_index,
                  Operand(kSystemPointerSizeLog2 - kSmiShift));
   }
-  addi(builtin_index, builtin_index,
-       Operand(IsolateData::builtin_entry_table_offset()));
+  AddS64(builtin_index, builtin_index,
+         Operand(IsolateData::builtin_entry_table_offset()));
   LoadU64(builtin_index, MemOperand(kRootRegister, builtin_index));
 }
 

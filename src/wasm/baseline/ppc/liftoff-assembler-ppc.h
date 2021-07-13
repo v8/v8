@@ -707,8 +707,8 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // Use r4 for start address (inclusive), r5 for end address (exclusive).
     push(r4);
     push(r5);
-    subi(r4, fp, Operand(start + size));
-    subi(r5, fp, Operand(start));
+    SubS64(r4, fp, Operand(start + size), r0);
+    SubS64(r5, fp, Operand(start), r0);
 
     Label loop;
     bind(&loop);
@@ -792,7 +792,6 @@ UNIMPLEMENTED_I32_BINOP_I(i32_xor)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
 UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
-UNIMPLEMENTED_I64_BINOP(i64_sub)
 UNIMPLEMENTED_I64_BINOP(i64_mul)
 #ifdef V8_TARGET_ARCH_PPC64
 UNIMPLEMENTED_I64_BINOP_I(i64_and)
@@ -880,6 +879,8 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
     USE, , void)                                                             \
   V(f64_max, MaxF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
     USE, , void)                                                             \
+  V(i64_sub, SubS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
   V(i64_add, AddS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
     LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
   V(i64_addi, AddS64, LiftoffRegister, LiftoffRegister, int64_t, LFR_TO_REG, \
