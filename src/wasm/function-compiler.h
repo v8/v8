@@ -71,6 +71,7 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
                                            WasmFeatures* detected);
 
   ExecutionTier tier() const { return tier_; }
+  ForDebugging for_debugging() const { return for_debugging_; }
   int func_index() const { return func_index_; }
 
   static void CompileWasmFunction(Isolate*, NativeModule*,

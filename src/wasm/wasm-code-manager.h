@@ -698,12 +698,22 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t liftoff_bailout_count() const { return liftoff_bailout_count_.load(); }
   size_t liftoff_code_size() const { return liftoff_code_size_.load(); }
   size_t turbofan_code_size() const { return turbofan_code_size_.load(); }
+  size_t baseline_compilation_cpu_duration() const {
+    return baseline_compilation_cpu_duration_.load();
+  }
+  size_t tier_up_cpu_duration() const { return tier_up_cpu_duration_.load(); }
 
   bool HasWireBytes() const {
     auto wire_bytes = std::atomic_load(&wire_bytes_);
     return wire_bytes && !wire_bytes->empty();
   }
   void SetWireBytes(base::OwnedVector<const uint8_t> wire_bytes);
+
+  void UpdateCPUDuration(size_t cpu_duration, ExecutionTier tier);
+  void AddLiftoffBailout() {
+    liftoff_bailout_count_.fetch_add(1,
+                                     std::memory_order::memory_order_relaxed);
+  }
 
   WasmCode* Lookup(Address) const;
 
@@ -919,6 +929,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::atomic<size_t> liftoff_bailout_count_{0};
   std::atomic<size_t> liftoff_code_size_{0};
   std::atomic<size_t> turbofan_code_size_{0};
+  std::atomic<size_t> baseline_compilation_cpu_duration_{0};
+  std::atomic<size_t> tier_up_cpu_duration_{0};
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

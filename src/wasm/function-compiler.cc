@@ -4,6 +4,7 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include "src/base/platform/time.h"
 #include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"

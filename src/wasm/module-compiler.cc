@@ -1138,6 +1138,10 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
 
   TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
 
+  base::ThreadTicks thread_ticks = base::ThreadTicks::IsSupported()
+                                       ? base::ThreadTicks::Now()
+                                       : base::ThreadTicks();
+
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   ExecutionTierPair tiers =
@@ -1154,6 +1158,11 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
       &env, compilation_state->GetWireBytesStorage().get(), counters,
       &detected_features);
   compilation_state->OnCompilationStopped(detected_features);
+  if (!thread_ticks.IsNull()) {
+    native_module->UpdateCPUDuration(
+        (base::ThreadTicks::Now() - thread_ticks).InMicroseconds(),
+        tiers.baseline_tier);
+  }
 
   // During lazy compilation, we can only get compilation errors when
   // {--wasm-lazy-validation} is enabled. Otherwise, the module was fully
@@ -1312,6 +1321,10 @@ CompilationExecutionResult ExecuteCompilationUnits(
 
   WasmFeatures detected_features = WasmFeatures::None();
 
+  base::ThreadTicks thread_ticks = base::ThreadTicks::IsSupported()
+                                       ? base::ThreadTicks::Now()
+                                       : base::ThreadTicks();
+
   // Preparation (synchronized): Initialize the fields above and get the first
   // compilation unit.
   {
@@ -1349,10 +1362,19 @@ CompilationExecutionResult ExecuteCompilationUnits(
         return kNoMoreUnits;
       }
 
+      if (!unit->for_debugging() && result.result_tier != current_tier) {
+        compile_scope.native_module()->AddLiftoffBailout();
+      }
+
       // Yield or get next unit.
       if (yield ||
           !(unit = compile_scope.compilation_state()->GetNextCompilationUnit(
                 queue, baseline_only))) {
+        if (!thread_ticks.IsNull()) {
+          compile_scope.native_module()->UpdateCPUDuration(
+              (base::ThreadTicks::Now() - thread_ticks).InMicroseconds(),
+              current_tier);
+        }
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(std::move(results_to_publish)));
@@ -1374,6 +1396,12 @@ CompilationExecutionResult ExecuteCompilationUnits(
       bool liftoff_finished = unit->tier() != current_tier &&
                               unit->tier() == ExecutionTier::kTurbofan;
       if (batch_full || liftoff_finished) {
+        if (!thread_ticks.IsNull()) {
+          base::ThreadTicks thread_ticks_now = base::ThreadTicks::Now();
+          compile_scope.native_module()->UpdateCPUDuration(
+              (thread_ticks_now - thread_ticks).InMicroseconds(), current_tier);
+          thread_ticks = thread_ticks_now;
+        }
         std::vector<std::unique_ptr<WasmCode>> unpublished_code =
             compile_scope.native_module()->AddCompiledCode(
                 base::VectorOf(std::move(results_to_publish)));
@@ -1519,7 +1547,6 @@ class CompilationTimeCallback {
         histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
       }
 
-      // TODO(sartang@microsoft.com): Remove wall_clock_time_in_us field
       v8::metrics::WasmModuleCompiled event{
           (compile_mode_ != kSynchronous),         // async
           (compile_mode_ == kStreaming),           // streamed
@@ -1529,8 +1556,9 @@ class CompilationTimeCallback {
           true,                                    // success
           native_module->liftoff_code_size(),      // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds()                // wall_clock_duration_in_us
-      };
+          duration.InMicroseconds(),               // wall_clock_duration_in_us
+          static_cast<int64_t>(                    // cpu_time_duration_in_us
+              native_module->baseline_compilation_cpu_duration())};
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
     if (event == CompilationEvent::kFinishedTopTierCompilation) {
@@ -1540,8 +1568,9 @@ class CompilationTimeCallback {
       v8::metrics::WasmModuleTieredUp event{
           FLAG_wasm_lazy_compilation,           // lazy
           native_module->turbofan_code_size(),  // code_size_in_bytes
-          duration.InMicroseconds()             // wall_clock_duration_in_us
-      };
+          duration.InMicroseconds(),            // wall_clock_duration_in_us
+          static_cast<int64_t>(                 // cpu_time_duration_in_us
+              native_module->tier_up_cpu_duration())};
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
     if (event == CompilationEvent::kFailedCompilation) {
@@ -1554,8 +1583,9 @@ class CompilationTimeCallback {
           false,                                   // success
           native_module->liftoff_code_size(),      // code_size_in_bytes
           native_module->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds()                // wall_clock_duration_in_us
-      };
+          duration.InMicroseconds(),               // wall_clock_duration_in_us
+          static_cast<int64_t>(                    // cpu_time_duration_in_us
+              native_module->baseline_compilation_cpu_duration())};
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
   }
@@ -1954,10 +1984,11 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
           is_after_deserialization,                 // deserialized
           wasm_lazy_compilation_,                   // lazy
           !compilation_state->failed(),             // success
-          native_module_->liftoff_code_size(),      // code_size_in_bytes
+          native_module_->turbofan_code_size(),     // code_size_in_bytes
           native_module_->liftoff_bailout_count(),  // liftoff_bailout_count
-          duration.InMicroseconds()                 // wall_clock_duration_in_us
-      };
+          duration.InMicroseconds(),                // wall_clock_duration_in_us
+          static_cast<int64_t>(                     // cpu_time_duration_in_us
+              native_module_->baseline_compilation_cpu_duration())};
       isolate_->metrics_recorder()->DelayMainThreadEvent(event, context_id_);
     }
   }

@@ -78,6 +78,7 @@ struct WasmModuleDecoded {
   size_t module_size_in_bytes = 0;
   size_t function_count = 0;
   int64_t wall_clock_duration_in_us = -1;
+  int64_t cpu_duration_in_us = -1;
 };
 
 struct WasmModuleCompiled {
@@ -90,6 +91,7 @@ struct WasmModuleCompiled {
   size_t code_size_in_bytes = 0;
   size_t liftoff_bailout_count = 0;
   int64_t wall_clock_duration_in_us = -1;
+  int64_t cpu_duration_in_us = -1;
 };
 
 struct WasmModuleInstantiated {
@@ -103,6 +105,7 @@ struct WasmModuleTieredUp {
   bool lazy = false;
   size_t code_size_in_bytes = 0;
   int64_t wall_clock_duration_in_us = -1;
+  int64_t cpu_duration_in_us = -1;
 };
 
 struct WasmModulesPerIsolate {
