@@ -4276,6 +4276,8 @@ bool Assembler::IsImmFP64(double imm) {
 }
 
 void Assembler::GrowBuffer() {
+  bool previously_on_heap = buffer_->IsOnHeap();
+
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = std::min(2 * old_size, old_size + 1 * MB);
@@ -4316,6 +4318,21 @@ void Assembler::GrowBuffer() {
     intptr_t internal_ref = ReadUnalignedValue<intptr_t>(address);
     internal_ref += pc_delta;
     WriteUnalignedValue<intptr_t>(address, internal_ref);
+  }
+
+  // Patch on-heap references to handles.
+  if (previously_on_heap && !buffer_->IsOnHeap()) {
+    Address base = reinterpret_cast<Address>(buffer_->start());
+    for (auto p : saved_handles_for_raw_object_ptr_) {
+      WriteUnalignedValue(base + p.first, p.second);
+    }
+    for (auto p : saved_offsets_for_runtime_entries_) {
+      Instruction* instr = reinterpret_cast<Instruction*>(base + p.first);
+      DCHECK(is_int26(p.second));
+      DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+      instr->SetInstructionBits(instr->Mask(UnconditionalBranchMask) |
+                                p.second);
+    }
   }
 
   // Pending relocation entries are also relative, no need to relocate.
