@@ -164,9 +164,9 @@ bool SetPermissionsAndMemoryProtectionKey(
 }
 
 DISABLE_CFI_ICALL
-void SetPermissionsForMemoryProtectionKey(
+bool SetPermissionsForMemoryProtectionKey(
     int key, MemoryProtectionKeyPermission permissions) {
-  CHECK_NE(kNoMemoryProtectionKey, key);
+  if (key == kNoMemoryProtectionKey) return false;
 
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
   typedef int (*pkey_set_t)(int, unsigned int);
@@ -175,10 +175,11 @@ void SetPermissionsForMemoryProtectionKey(
   DCHECK_NOT_NULL(pkey_set);
 
   int ret = pkey_set(key, permissions);
-  CHECK_EQ(0 /* success */, ret);
+
+  return ret == /* success */ 0;
 #else
-  // On platforms without PKU support, we should have failed the CHECK above
-  // because the key must be {kNoMemoryProtectionKey}.
+  // On platforms without PKU support, we should have already returned because
+  // the key must be {kNoMemoryProtectionKey}.
   UNREACHABLE();
 #endif
 }
