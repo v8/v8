@@ -149,7 +149,7 @@ in_category(
         name = "V8 Linux - builder",
         triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 Linux"], "binary_size_tracking": {"category": "linux32", "binary": "d8"}},
+        properties = {"binary_size_tracking": {"category": "linux32", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
         use_goma = GOMA.DEFAULT,
     ),
@@ -163,6 +163,7 @@ in_category(
         name = "V8 Linux",
         triggered_by_gitiles = False,
         dimensions = {"host_class": "multibot"},
+        parent_builder = "V8 Linux - builder",
         properties = {"builder_group": "client.v8"},
     ),
     main_multibranch_builder(

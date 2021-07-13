@@ -272,10 +272,19 @@ def multibranch_builder(**kwargs):
     close_tree = kwargs.pop("close_tree", True)
     for branch in branch_descriptors:
         args = dict(kwargs)
+        parent_builder = args.pop("parent_builder", None)
+        if parent_builder:
+            # By the time the callbacks are excuted the parent_builder property
+            # is no longer present on the builder struct, so we add it here in
+            # the properties and trust that it gets removed by a generator
+            args["properties"]["parent_builder"] = parent_builder
+            # Disambiguate the scheduler job names, because they are not 
+            # nested by bucket, while builders are.
+            args["triggered_by"] = [branch.bucket + "/" + parent_builder]
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
         first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
-            args["triggered_by"] = [branch.poller_name]
+            args.setdefault("triggered_by", []).append(branch.poller_name)
             args["use_goma"] = args.get("use_goma", GOMA.DEFAULT)
         else:
             args["dimensions"] = {"host_class": "multibot"}
