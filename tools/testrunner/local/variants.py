@@ -58,6 +58,11 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "slow_path": ["--no-force-slow-path"],
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
   "stress_concurrent_inlining": ["--single-threaded", "--predictable"],
+  # The fast API tests initialize an embedder object that never needs to be
+  # serialized to the snapshot, so we don't have a
+  # SerializeInternalFieldsCallback for it, so they are incompatible with
+  # stress_snapshot.
+  "stress_snapshot": [["--turbo-fast-api-calls"]],
   "stress": ["--always-opt", "--no-always-opt",
              "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",
