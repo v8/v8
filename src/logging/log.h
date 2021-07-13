@@ -173,12 +173,28 @@ class Logger : public CodeEventListener {
   void ScriptDetails(Script script);
 
   // ==== Events logged by --log-api. ====
-  void ApiSecurityCheck();
-  void ApiNamedPropertyAccess(const char* tag, JSObject holder, Object name);
+  void ApiSecurityCheck() {
+    if (!FLAG_log_api) return;
+    WriteApiSecurityCheck();
+  }
+  void ApiNamedPropertyAccess(const char* tag, JSObject holder, Object name) {
+    if (!FLAG_log_api) return;
+    WriteApiNamedPropertyAccess(tag, holder, name);
+  }
   void ApiIndexedPropertyAccess(const char* tag, JSObject holder,
-                                uint32_t index);
-  void ApiObjectAccess(const char* tag, JSReceiver obj);
-  void ApiEntryCall(const char* name);
+                                uint32_t index) {
+    if (!FLAG_log_api) return;
+    WriteApiIndexedPropertyAccess(tag, holder, index);
+  }
+
+  void ApiObjectAccess(const char* tag, JSReceiver obj) {
+    if (!FLAG_log_api) return;
+    WriteApiObjectAccess(tag, obj);
+  }
+  void ApiEntryCall(const char* name) {
+    if (!FLAG_log_api) return;
+    WriteApiEntryCall(name);
+  }
 
   // ==== Events logged by --log-code. ====
   V8_EXPORT_PRIVATE void AddCodeEventListener(CodeEventListener* listener);
@@ -311,6 +327,14 @@ class Logger : public CodeEventListener {
   void LogSourceCodeInformation(Handle<AbstractCode> code,
                                 Handle<SharedFunctionInfo> shared);
   void LogCodeDisassemble(Handle<AbstractCode> code);
+
+  void WriteApiSecurityCheck();
+  void WriteApiNamedPropertyAccess(const char* tag, JSObject holder,
+                                   Object name);
+  void WriteApiIndexedPropertyAccess(const char* tag, JSObject holder,
+                                     uint32_t index);
+  void WriteApiObjectAccess(const char* tag, JSReceiver obj);
+  void WriteApiEntryCall(const char* name);
 
   int64_t Time();
 

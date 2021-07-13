@@ -1075,8 +1075,8 @@ void Logger::HandleEvent(const char* name, Address* location) {
   msg.WriteToLogFile();
 }
 
-void Logger::ApiSecurityCheck() {
-  if (!FLAG_log_api) return;
+void Logger::WriteApiSecurityCheck() {
+  DCHECK(FLAG_log_api);
   MSG_BUILDER();
   msg << "api" << kNext << "check-security";
   msg.WriteToLogFile();
@@ -1146,34 +1146,34 @@ bool Logger::is_logging() {
 TIMER_EVENTS_LIST(V)
 #undef V
 
-void Logger::ApiNamedPropertyAccess(const char* tag, JSObject holder,
-                                    Object property_name) {
+void Logger::WriteApiNamedPropertyAccess(const char* tag, JSObject holder,
+                                         Object property_name) {
+  DCHECK(FLAG_log_api);
   DCHECK(property_name.IsName());
-  if (!FLAG_log_api) return;
   MSG_BUILDER();
   msg << "api" << kNext << tag << kNext << holder.class_name() << kNext
       << Name::cast(property_name);
   msg.WriteToLogFile();
 }
 
-void Logger::ApiIndexedPropertyAccess(const char* tag, JSObject holder,
-                                      uint32_t index) {
-  if (!FLAG_log_api) return;
+void Logger::WriteApiIndexedPropertyAccess(const char* tag, JSObject holder,
+                                           uint32_t index) {
+  DCHECK(FLAG_log_api);
   MSG_BUILDER();
   msg << "api" << kNext << tag << kNext << holder.class_name() << kNext
       << index;
   msg.WriteToLogFile();
 }
 
-void Logger::ApiObjectAccess(const char* tag, JSReceiver object) {
-  if (!FLAG_log_api) return;
+void Logger::WriteApiObjectAccess(const char* tag, JSReceiver object) {
+  DCHECK(FLAG_log_api);
   MSG_BUILDER();
   msg << "api" << kNext << tag << kNext << object.class_name();
   msg.WriteToLogFile();
 }
 
-void Logger::ApiEntryCall(const char* name) {
-  if (!FLAG_log_api) return;
+void Logger::WriteApiEntryCall(const char* name) {
+  DCHECK(FLAG_log_api);
   MSG_BUILDER();
   msg << "api" << kNext << name;
   msg.WriteToLogFile();
