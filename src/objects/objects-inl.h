@@ -497,11 +497,12 @@ ElementsKind Object::OptimalElementsKind(PtrComprCageBase cage_base) const {
   return PACKED_ELEMENTS;
 }
 
-bool Object::FitsRepresentation(Representation representation) {
+bool Object::FitsRepresentation(Representation representation,
+                                bool allow_coercion) const {
   if (FLAG_track_fields && representation.IsSmi()) {
     return IsSmi();
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
-    return IsNumber();
+    return allow_coercion ? IsNumber() : IsHeapNumber();
   } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     return IsHeapObject();
   } else if (FLAG_track_fields && representation.IsNone()) {

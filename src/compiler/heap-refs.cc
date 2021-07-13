@@ -514,16 +514,17 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
     // {constant} needs to pass the gc predicate before we can introspect on it.
     if (broker->ObjectMayBeUninitialized(constant.value())) return {};
 
-    // Since we don't have a guarantee that {constant} is the correct value of
-    // the property, we use the expected {representation} to weed out the most
-    // egregious types of wrong values.
-    Representation constant_representation =
-        constant->OptimalRepresentation(broker->isolate());
-    if (!constant_representation.CanBeInPlaceChangedTo(representation)) {
-      TRACE_BROKER_MISSING(broker,
-                           "Mismatched representation for "
-                               << holder << ". Expected " << representation
-                               << ", have: " << constant_representation);
+    // Ensure that {constant} matches the {representation} we expect for the
+    // field.
+    if (!constant->FitsRepresentation(representation, false)) {
+      const char* repString =
+          constant->IsSmi()
+              ? "Smi"
+              : constant->IsHeapNumber() ? "HeapNumber" : "HeapObject";
+      TRACE_BROKER_MISSING(broker, "Mismatched representation for "
+                                       << holder << ". Expected "
+                                       << representation << ", but object is a "
+                                       << repString);
       return {};
     }
   }

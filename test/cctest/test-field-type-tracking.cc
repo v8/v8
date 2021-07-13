@@ -3145,6 +3145,48 @@ TEST(DeletePropertyGeneralizesConstness) {
   }
 }
 
+#define CHECK_SAME(object, rep, expected)           \
+  CHECK_EQ(object->FitsRepresentation(rep, true),   \
+           object->FitsRepresentation(rep, false)); \
+  CHECK_EQ(object->FitsRepresentation(rep, true), expected)
+
+TEST(CheckFitsRepresentationPredicate) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  i::Factory* factory = CcTest::i_isolate()->factory();
+
+  Handle<Smi> smi_value = factory->last_script_id();
+  Handle<HeapNumber> double_value = factory->nan_value();
+  Handle<OrderedHashMap> heapobject_value = factory->empty_ordered_hash_map();
+
+  Representation rep_smi = Representation::Smi();
+  Representation rep_double = Representation::Double();
+  Representation rep_heapobject = Representation::HeapObject();
+  Representation rep_tagged = Representation::Tagged();
+
+  // Verify the behavior of Object::FitsRepresentation() with and
+  // without coercion. A Smi can be "coerced" into a Double
+  // representation by converting it to a HeapNumber. If coercion is
+  // disallowed, that query should fail.
+  CHECK_SAME(smi_value, rep_smi, true);
+  CHECK_EQ(smi_value->FitsRepresentation(rep_double, true), true);
+  CHECK_EQ(smi_value->FitsRepresentation(rep_double, false), false);
+  CHECK_SAME(smi_value, rep_heapobject, false);
+  CHECK_SAME(smi_value, rep_tagged, true);
+
+  CHECK_SAME(double_value, rep_smi, false);
+  CHECK_SAME(double_value, rep_double, true);
+  CHECK_SAME(double_value, rep_heapobject, true);
+  CHECK_SAME(double_value, rep_tagged, true);
+
+  CHECK_SAME(heapobject_value, rep_smi, false);
+  CHECK_SAME(heapobject_value, rep_double, false);
+  CHECK_SAME(heapobject_value, rep_heapobject, true);
+  CHECK_SAME(heapobject_value, rep_tagged, true);
+}
+
+#undef CHECK_SAME
+
 }  // namespace test_field_type_tracking
 }  // namespace compiler
 }  // namespace internal

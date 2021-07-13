@@ -327,7 +327,11 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   inline ElementsKind OptimalElementsKind(PtrComprCageBase cage_base) const;
 
-  inline bool FitsRepresentation(Representation representation);
+  // If {allow_coercion} is true, then a Smi will be considered to fit
+  // a Double representation, since it can be converted to a HeapNumber
+  // and stored.
+  inline bool FitsRepresentation(Representation representation,
+                                 bool allow_coercion = true) const;
 
   inline bool FilterKey(PropertyFilter filter);
 
