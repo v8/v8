@@ -311,7 +311,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   ~Assembler() override;
 
-  void AbortedCodeGeneration() override { pending_32_bit_constants_.clear(); }
+  void AbortedCodeGeneration() override {
+    pending_32_bit_constants_.clear();
+    first_const_pool_32_use_ = -1;
+  }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
