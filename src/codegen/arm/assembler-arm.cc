@@ -555,7 +555,10 @@ Assembler::Assembler(const AssemblerOptions& options,
   }
 }
 
-Assembler::~Assembler() { DCHECK_EQ(const_pool_blocked_nesting_, 0); }
+Assembler::~Assembler() {
+  DCHECK_EQ(const_pool_blocked_nesting_, 0);
+  DCHECK_EQ(first_const_pool_32_use_, -1);
+}
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
