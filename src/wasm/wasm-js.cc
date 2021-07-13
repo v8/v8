@@ -1408,19 +1408,19 @@ uint32_t GetIterableLength(i::Isolate* isolate, Local<Context> context,
 
 }  // namespace
 
-// WebAssembly.Exception
-void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
+// WebAssembly.Tag
+void WebAssemblyTag(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
 
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Exception()");
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Tag()");
   if (!args.IsConstructCall()) {
-    thrower.TypeError("WebAssembly.Exception must be invoked with 'new'");
+    thrower.TypeError("WebAssembly.Tag must be invoked with 'new'");
     return;
   }
   if (!args[0]->IsObject()) {
-    thrower.TypeError("Argument 0 must be an exception type");
+    thrower.TypeError("Argument 0 must be a tag type");
     return;
   }
 
@@ -1435,7 +1435,7 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Local<v8::Value> parameters_value;
   if (!parameters_maybe.ToLocal(&parameters_value) ||
       !parameters_value->IsObject()) {
-    thrower.TypeError("Argument 0 must be an exception type with 'parameters'");
+    thrower.TypeError("Argument 0 must be a tag type with 'parameters'");
     return;
   }
   Local<Object> parameters = parameters_value.As<Object>();
@@ -2287,8 +2287,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Exception
   if (enabled_features.has_eh()) {
-    Handle<JSFunction> exception_constructor = InstallConstructorFunc(
-        isolate, webassembly, "Exception", WebAssemblyException);
+    Handle<JSFunction> exception_constructor =
+        InstallConstructorFunc(isolate, webassembly, "Tag", WebAssemblyTag);
     context->set_wasm_exception_constructor(*exception_constructor);
     SetDummyInstanceTemplate(isolate, exception_constructor);
     JSFunction::EnsureHasInitialMap(exception_constructor);
@@ -2349,7 +2349,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 void WasmJs::InstallConditionalFeatures(Isolate* isolate,
                                         Handle<Context> context) {
   // Exception handling may have been enabled by an origin trial. If so, make
-  // sure that the {WebAssembly.Exception} constructor is set up.
+  // sure that the {WebAssembly.Tag} constructor is set up.
   auto enabled_features = i::wasm::WasmFeatures::FromContext(isolate, context);
   if (enabled_features.has_eh()) {
     Handle<JSGlobalObject> global = handle(context->global_object(), isolate);
@@ -2368,7 +2368,7 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
     }
     Handle<JSObject> webassembly = Handle<JSObject>::cast(webassembly_obj);
     // Setup Exception
-    Handle<String> exception_name = v8_str(isolate, "Exception");
+    Handle<String> exception_name = v8_str(isolate, "Tag");
     if (JSObject::HasOwnProperty(webassembly, exception_name).FromMaybe(true)) {
       // The {Exception} constructor already exists, there is nothing more to
       // do.
@@ -2377,14 +2377,14 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
 
     bool has_prototype = true;
     Handle<JSFunction> exception_constructor =
-        CreateFunc(isolate, exception_name, WebAssemblyException, has_prototype,
+        CreateFunc(isolate, exception_name, WebAssemblyTag, has_prototype,
                    SideEffectType::kHasNoSideEffect);
     exception_constructor->shared().set_length(1);
     auto result = Object::SetProperty(
         isolate, webassembly, exception_name, exception_constructor,
         StoreOrigin::kNamed, Just(ShouldThrow::kDontThrow));
     if (result.is_null()) {
-      // Setting the {Exception} constructor failed. We just bail out.
+      // Setting the {Tag} constructor failed. We just bail out.
       return;
     }
     // Install the constructor on the context.
