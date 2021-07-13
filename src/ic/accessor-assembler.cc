@@ -1445,9 +1445,6 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
                                        TNode<Word32T> representation,
                                        TNode<Object> value, Label* bailout) {
   Label r_smi(this), r_double(this), r_heapobject(this), all_fine(this);
-  // Ignore FLAG_track_fields etc. and always emit code for all checks,
-  // because this builtin is part of the snapshot and therefore should
-  // be flag independent.
   GotoIf(Word32Equal(representation, Int32Constant(Representation::kSmi)),
          &r_smi);
   GotoIf(Word32Equal(representation, Int32Constant(Representation::kDouble)),

@@ -473,22 +473,17 @@ bool Object::FilterKey(PropertyFilter filter) {
 }
 
 Representation Object::OptimalRepresentation(PtrComprCageBase cage_base) const {
-  if (!FLAG_track_fields) return Representation::Tagged();
   if (IsSmi()) {
     return Representation::Smi();
   }
   HeapObject heap_object = HeapObject::cast(*this);
-  if (FLAG_track_double_fields && heap_object.IsHeapNumber(cage_base)) {
+  if (heap_object.IsHeapNumber(cage_base)) {
     return Representation::Double();
-  } else if (FLAG_track_computed_fields &&
-             heap_object.IsUninitialized(
+  } else if (heap_object.IsUninitialized(
                  heap_object.GetReadOnlyRoots(cage_base))) {
     return Representation::None();
-  } else if (FLAG_track_heap_object_fields) {
-    return Representation::HeapObject();
-  } else {
-    return Representation::Tagged();
   }
+  return Representation::HeapObject();
 }
 
 ElementsKind Object::OptimalElementsKind(PtrComprCageBase cage_base) const {
@@ -499,13 +494,13 @@ ElementsKind Object::OptimalElementsKind(PtrComprCageBase cage_base) const {
 
 bool Object::FitsRepresentation(Representation representation,
                                 bool allow_coercion) const {
-  if (FLAG_track_fields && representation.IsSmi()) {
+  if (representation.IsSmi()) {
     return IsSmi();
-  } else if (FLAG_track_double_fields && representation.IsDouble()) {
+  } else if (representation.IsDouble()) {
     return allow_coercion ? IsNumber() : IsHeapNumber();
-  } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
+  } else if (representation.IsHeapObject()) {
     return IsHeapObject();
-  } else if (FLAG_track_fields && representation.IsNone()) {
+  } else if (representation.IsNone()) {
     return false;
   }
   return true;

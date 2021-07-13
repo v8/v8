@@ -496,9 +496,8 @@ DEFINE_BOOL(jitless, V8_LITE_BOOL,
 
 // Jitless V8 has a few implications:
 DEFINE_NEG_IMPLICATION(jitless, opt)
-// Field representation tracking is only used by TurboFan.
+// Field type tracking is only used by TurboFan.
 DEFINE_NEG_IMPLICATION(jitless, track_field_types)
-DEFINE_NEG_IMPLICATION(jitless, track_heap_object_fields)
 // Regexps are interpreted.
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 #if ENABLE_SPARKPLUG
@@ -542,16 +541,7 @@ DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
 DEFINE_BOOL(trace_pretenuring_statistics, false,
             "trace allocation site pretenuring statistics")
-DEFINE_BOOL(track_fields, true, "track fields with only smi values")
-DEFINE_BOOL(track_double_fields, true, "track fields with double values")
-DEFINE_BOOL(track_heap_object_fields, true, "track fields with heap values")
-DEFINE_BOOL(track_computed_fields, true, "track computed boilerplate fields")
-DEFINE_IMPLICATION(track_double_fields, track_fields)
-DEFINE_IMPLICATION(track_heap_object_fields, track_fields)
-DEFINE_IMPLICATION(track_computed_fields, track_fields)
 DEFINE_BOOL(track_field_types, true, "track field types")
-DEFINE_IMPLICATION(track_field_types, track_fields)
-DEFINE_IMPLICATION(track_field_types, track_heap_object_fields)
 DEFINE_BOOL(trace_block_coverage, false,
             "trace collected block coverage information")
 DEFINE_BOOL(trace_protector_invalidation, false,
