@@ -480,7 +480,7 @@ assert(!v8_use_multi_snapshots || !v8_control_flow_integrity,
 assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
        "V8 Heap Sandbox requires pointer compression")
 
-assert(!v8_enable_heap_sandbox || v8_enable_external_code_space,
+assert(!v8_enable_heap_sandbox || !v8_enable_external_code_space,
        "V8 Heap Sandbox is not compatible with external code space YET")
 
 assert(
