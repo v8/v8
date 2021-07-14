@@ -187,6 +187,11 @@ enum class SkipRoot {
   kWeak
 };
 
+enum UnprotectMemoryOrigin {
+  kMainThread,
+  kMaybeOffMainThread,
+};
+
 class StrongRootsEntry final {
   explicit StrongRootsEntry(const char* label) : label(label) {}
 
@@ -659,8 +664,10 @@ class Heap {
     code_space_memory_modification_scope_depth_--;
   }
 
-  void UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk);
-  V8_EXPORT_PRIVATE void UnprotectAndRegisterMemoryChunk(HeapObject object);
+  void UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
+                                       UnprotectMemoryOrigin origin);
+  V8_EXPORT_PRIVATE void UnprotectAndRegisterMemoryChunk(
+      HeapObject object, UnprotectMemoryOrigin origin);
   void UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk);
   V8_EXPORT_PRIVATE void ProtectUnprotectedMemoryChunks();
 
@@ -2451,6 +2458,7 @@ class Heap {
 
   HeapObject pending_layout_change_object_;
 
+  base::Mutex unprotected_memory_chunks_mutex_;
   std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
   bool unprotected_memory_chunks_registry_enabled_ = false;
 
