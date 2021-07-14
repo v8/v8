@@ -4716,6 +4716,7 @@ v8_component("v8_libbase") {
     "src/base/type-traits.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
+    "src/base/v8-fallthrough.h",
     "src/base/vector.h",
     "src/base/vlq-base64.cc",
     "src/base/vlq-base64.h",
@@ -4983,6 +4984,7 @@ v8_source_set("v8_cppgc_shared") {
     "src/heap/base/stack.h",
     "src/heap/base/worklist.cc",
     "src/heap/base/worklist.h",
+    "src/heap/cppgc/globals.h",
   ]
 
   if (is_clang || !is_win) {
@@ -5017,7 +5019,10 @@ v8_source_set("v8_cppgc_shared") {
 
   configs = [ ":internal_config" ]
 
-  public_deps = [ ":v8_libbase" ]
+  public_deps = [
+    ":cppgc_headers",
+    ":v8_libbase",
+  ]
 }
 
 # This is split out to be a non-code containing target that the Chromium browser
@@ -5075,7 +5080,10 @@ v8_header_set("cppgc_headers") {
     sources += [ "include/cppgc/internal/caged-heap-local-data.h" ]
   }
 
-  deps = [ ":v8_libplatform" ]
+  deps = [
+    ":v8_libbase",
+    ":v8_libplatform",
+  ]
 
   public_deps = [ ":v8_config_headers" ]
 }
@@ -5171,6 +5179,7 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/virtual-memory.cc",
     "src/heap/cppgc/virtual-memory.h",
     "src/heap/cppgc/visitor.cc",
+    "src/heap/cppgc/visitor.h",
     "src/heap/cppgc/write-barrier.cc",
     "src/heap/cppgc/write-barrier.h",
   ]
