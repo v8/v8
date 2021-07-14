@@ -41,9 +41,6 @@ def experiment_builder_pair(name, **kwargs):
             notified_by = [builder_name, builder_name + " - builder"],
         )
 
-    old_triggers = properties.pop("triggers", None)
-    properties["triggers"] = [name]
-
     v8_builder(
         in_console = "experiments/V8",
         name = name + " - builder",
@@ -55,12 +52,10 @@ def experiment_builder_pair(name, **kwargs):
         **kwargs
     )
 
-    properties["triggers"] = old_triggers
-
     v8_builder(
         in_console = "experiments/V8",
         name = name,
-        triggered_by = [name + " - builder"],
+        parent_builder = name + " - builder",
         dimensions = {"host_class": "multibot"},
         properties = properties,
         **kwargs
@@ -272,7 +267,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - release"]},
+    properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
     # TODO consider moving tree closer builder out of the experimental file
     close_tree = True,
@@ -284,6 +279,7 @@ experiment_builder(
 
 experiment_builder(
     name = "V8 Mac - arm64 - release",
+    parent_builder = "V8 Mac - arm64 - release builder",
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
@@ -299,7 +295,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - debug"]},
+    properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
@@ -309,6 +305,7 @@ experiment_builder(
 
 experiment_builder(
     name = "V8 Mac - arm64 - debug",
+    parent_builder = "V8 Mac - arm64 - debug builder",
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
@@ -324,7 +321,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - release"]},
+    properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
@@ -334,6 +331,7 @@ experiment_builder(
 
 experiment_builder(
     name = "V8 Mac - arm64 - sim - release",
+    parent_builder = "V8 Mac - arm64 - sim - release builder",
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
@@ -349,7 +347,7 @@ experiment_builder(
     bucket = "ci",
     triggered_by = ["v8-trigger"],
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8", "triggers": ["V8 Mac - arm64 - sim - debug"]},
+    properties = {"builder_group": "client.v8"},
     use_goma = GOMA.DEFAULT,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
@@ -359,6 +357,7 @@ experiment_builder(
 
 experiment_builder(
     name = "V8 Mac - arm64 - sim - debug",
+    parent_builder = "V8 Mac - arm64 - sim - debug builder",
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
