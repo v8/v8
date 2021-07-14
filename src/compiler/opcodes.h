@@ -83,6 +83,7 @@
   V(Unreachable)          \
   V(DeadValue)            \
   V(Dead)                 \
+  V(Plug)                 \
   V(StaticAssert)
 
 // Opcodes for JavaScript operators.

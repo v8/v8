@@ -469,6 +469,11 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   CommonOperatorBuilder(const CommonOperatorBuilder&) = delete;
   CommonOperatorBuilder& operator=(const CommonOperatorBuilder&) = delete;
 
+  // A dummy value node temporarily used as input when the actual value doesn't
+  // matter. This operator is inserted only in SimplifiedLowering and is
+  // expected to not survive dead code elimination.
+  const Operator* Plug();
+
   const Operator* Dead();
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();

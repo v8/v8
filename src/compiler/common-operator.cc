@@ -461,6 +461,7 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
 }
 
 #define COMMON_CACHED_OP_LIST(V)                          \
+  V(Plug, Operator::kNoProperties, 0, 0, 0, 1, 0, 0)      \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)          \
   V(Unreachable, Operator::kFoldable, 0, 1, 1, 1, 1, 0)   \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
