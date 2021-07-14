@@ -4025,8 +4025,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64S16x8HalfShuffle1: {
       XMMRegister dst = i.OutputSimd128Register();
-      ASSEMBLE_SIMD_IMM_INSTR(Pshuflw, dst, 0, i.InputUint8(1));
-      __ Pshufhw(dst, dst, i.InputUint8(2));
+      uint8_t mask_lo = i.InputUint8(1);
+      uint8_t mask_hi = i.InputUint8(2);
+      if (mask_lo != 0xe4) {
+        ASSEMBLE_SIMD_IMM_INSTR(Pshuflw, dst, 0, mask_lo);
+        if (mask_hi != 0xe4) __ Pshufhw(dst, dst, mask_hi);
+      } else {
+        DCHECK_NE(mask_hi, 0xe4);
+        ASSEMBLE_SIMD_IMM_INSTR(Pshufhw, dst, 0, mask_hi);
+      }
       break;
     }
     case kX64S16x8HalfShuffle2: {
