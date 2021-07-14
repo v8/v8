@@ -151,6 +151,7 @@ experiment_builder(
 
 experiment_builder(
     name = "V8 Linux64 - fyi",
+    parent_builder = "V8 Linux64 - builder",
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
@@ -160,6 +161,7 @@ experiment_builder(
 
 experiment_builder(
     name = "V8 Linux64 - debug - fyi",
+    parent_builder = "V8 Linux64 - debug builder",
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,

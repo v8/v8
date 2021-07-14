@@ -54,13 +54,13 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 - release builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 NumFuzz"], "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}},
+        properties = {"clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}},
         use_goma = GOMA.DEFAULT,
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 - debug builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 NumFuzz - debug"], "clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}},
+        properties = {"clusterfuzz_archive": {"bucket": "v8-asan", "name": "d8"}},
         use_goma = GOMA.DEFAULT,
     ),
     clusterfuzz_builder(
@@ -86,7 +86,7 @@ in_category(
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 TSAN - release builder",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"triggers": ["V8 NumFuzz - TSAN"], "clusterfuzz_archive": {"bucket": "v8-tsan", "name": "d8-tsan"}},
+        properties = {"clusterfuzz_archive": {"bucket": "v8-tsan", "name": "d8-tsan"}},
     ),
     clusterfuzz_builder(
         name = "V8 Clusterfuzz Linux64 UBSan - release builder",
@@ -131,6 +131,7 @@ in_category(
     "Fuzzers",
     v8_builder(
         name = "V8 NumFuzz",
+        parent_builder = "V8 Clusterfuzz Linux64 - release builder",
         bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
@@ -140,6 +141,7 @@ in_category(
     ),
     v8_builder(
         name = "V8 NumFuzz - debug",
+        parent_builder = "V8 Clusterfuzz Linux64 - debug builder",
         bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
@@ -149,6 +151,7 @@ in_category(
     ),
     v8_builder(
         name = "V8 NumFuzz - TSAN",
+        parent_builder = "V8 Clusterfuzz Linux64 TSAN - release builder",
         bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
