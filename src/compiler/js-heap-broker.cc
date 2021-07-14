@@ -804,16 +804,12 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 
   base::Optional<HeapObjectRef> target_ref;
   {
-    // TODO(mvstanton): this read has a special danger when done on the
-    // background thread, because the CallIC has a site in generated code
-    // where a JSFunction is installed in this slot without store ordering.
-    // Therefore, we will need to check {maybe_target} to ensure that it
-    // has been store ordered by the heap's mechanism for store-ordering
-    // batches of new objects.
     MaybeObject maybe_target = nexus.GetFeedback();
     HeapObject target_object;
     if (maybe_target->GetHeapObject(&target_object)) {
-      target_ref = MakeRef(this, handle(target_object, isolate()));
+      // TryMakeRef is used because the GC predicate may fail if the
+      // JSFunction was allocated too recently to be store-ordered.
+      target_ref = TryMakeRef(this, handle(target_object, isolate()));
     }
   }
   float frequency = nexus.ComputeCallFrequency();
