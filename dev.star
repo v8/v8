@@ -75,9 +75,6 @@ luci.builder(
             "rpc_extra_params": "?prod",
             "server_host": "goma.chromium.org",
         },
-        "$recipe_engine/isolated": {
-            "server": "https://isolateserver-dev.appspot.com/",
-        },
         "builder_group": "client.v8",
         "recipe": "v8",
     },

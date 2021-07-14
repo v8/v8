@@ -225,7 +225,9 @@ def v8_builder(defaults = None, **kwargs):
         notifies = kwargs.pop("notifies", [])
         notifies.append("v8 tree closer")
         kwargs["notifies"] = notifies
-    resolve_parent_tiggering(kwargs, bucket_name)
+    parent_builder = kwargs.pop("parent_builder", None)
+    if parent_builder:
+        resolve_parent_tiggering(kwargs, bucket_name, parent_builder)
     v8_basic_builder(defaults, **kwargs)
     if in_console:
         splited = in_console.split("/")
@@ -261,7 +263,6 @@ def v8_basic_builder(defaults, **kwargs):
     properties.update(_reclient_properties(kwargs.pop("use_rbe", None)))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
     kwargs["properties"] = properties
-
     properties["$recipe_engine/isolated"] = {
         "server": "https://isolateserver.appspot.com/",
     }
@@ -273,7 +274,10 @@ def multibranch_builder(**kwargs):
     close_tree = kwargs.pop("close_tree", True)
     for branch in branch_descriptors:
         args = dict(kwargs)
-        resolve_parent_tiggering(args, branch.bucket)
+        parent_builder = args.pop("parent_builder", None)
+        if parent_builder:
+            args["triggered_by_gitiles"] = False
+            resolve_parent_tiggering(args, branch.bucket, parent_builder)
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
         first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
@@ -295,26 +299,27 @@ def multibranch_builder(**kwargs):
         added_builders.append(branch.bucket + "/" + kwargs["name"])
     return added_builders
 
-def resolve_parent_tiggering(args, bucket_name):
-    parent_builder = args.pop("parent_builder", None)
-    if parent_builder:
-        # By the time the generators are excuted the parent_builder property
-        # is no longer present on the builder struct, so we add it here in
-        # the properties and it will get removed by a generator
-        args.setdefault("properties", {})["parent_builder"] = parent_builder
-        # Disambiguate the scheduler job names, because they are not
-        # nested by bucket, while builders are.
-        args.setdefault("triggered_by", []).append(
-            bucket_name + "/" + parent_builder)
+def resolve_parent_tiggering(args, bucket_name, parent_builder):
+    # By the time the generators are executed the parent_builder property
+    # is no longer present on the builder struct, so we add it here in
+    # the properties and it will get removed by a generator
+    args.setdefault("properties", {})["parent_builder"] = parent_builder
+    # Disambiguate the scheduler job names, because they are not
+    # nested by bucket, while builders are.
+    args.setdefault("triggered_by", []).append(
+        bucket_name + "/" + parent_builder)
 
 def _builder_is_not_supported(bucket_name, first_branch_version):
     # do we need to skip the builder in this bucket?
     if first_branch_version:
         branch_id = bucket_name.split(".")[2]
-        branch_version = versions[branch_id].replace(".", "")
-        builder_first_version = first_branch_version.replace(".", "")
-        return int(branch_version) < int(builder_first_version)
+        branch_version = _to_int_tuple(versions[branch_id])
+        builder_first_version = _to_int_tuple(first_branch_version)
+        return branch_version < builder_first_version
     return False
+
+def _to_int_tuple(version_str):
+    return [int(n) for n in version_str.split(".")]
 
 def fix_args(defaults, **kwargs):
     args = dict(kwargs)
