@@ -3344,6 +3344,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register tempFPReg1 = i.ToDoubleRegister(instr->TempAt(0));
+      DCHECK_NE(dst, tempFPReg1);
       // NaN to 0
       __ vlr(kScratchDoubleReg, src, Condition(0), Condition(0), Condition(0));
       __ vfce(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
@@ -3362,6 +3363,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register tempFPReg1 = i.ToDoubleRegister(instr->TempAt(0));
+      DCHECK_NE(dst, tempFPReg1);
       // NaN to 0, negative to 0
       __ vx(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg,
             Condition(0), Condition(0), Condition(0));
@@ -3492,6 +3494,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   Simd128Register src2 = i.InputSimd128Register(1);                     \
   Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));   \
   Simd128Register tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));   \
+  DCHECK_NE(src1, tempFPReg1);                                          \
+  DCHECK_NE(src2, tempFPReg1);                                          \
   __ extract_high(kScratchDoubleReg, src1, Condition(0), Condition(0),  \
                   Condition(mode));                                     \
   __ extract_high(tempFPReg1, src2, Condition(0), Condition(0),         \
@@ -3584,6 +3588,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      DCHECK_NE(src0, tempFPReg1);
       // Saturate the indices to 5 bits. Input indices more than 31 should
       // return 0.
       __ vrepi(kScratchDoubleReg, Operand(31), Condition(0));
@@ -3782,6 +3787,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   Simd128Register src = i.InputSimd128Register(0);                            \
   Simd128Register dst = i.OutputSimd128Register();                            \
   Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));         \
+  DCHECK_NE(src, tempFPReg1);                                                 \
   __ vrepi(tempFPReg1, Operand(1), Condition(lane_size));                     \
   __ mul_even(kScratchDoubleReg, src, tempFPReg1, Condition(0), Condition(0), \
               Condition(lane_size));                                          \
@@ -3811,22 +3817,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef EXT_ADD_PAIRWISE
-#define Q15_MUL_ROAUND(accumulator, unpack)                                    \
-  __ unpack(tempFPReg1, i.InputSimd128Register(0), Condition(0), Condition(0), \
-            Condition(1));                                                     \
-  __ unpack(accumulator, i.InputSimd128Register(1), Condition(0),              \
-            Condition(0), Condition(1));                                       \
-  __ vml(accumulator, tempFPReg1, accumulator, Condition(0), Condition(0),     \
-         Condition(2));                                                        \
-  __ va(accumulator, accumulator, tempFPReg2, Condition(0), Condition(0),      \
-        Condition(2));                                                         \
-  __ vrepi(tempFPReg1, Operand(15), Condition(2));                             \
-  __ vesrav(accumulator, accumulator, tempFPReg1, Condition(0), Condition(0),  \
+#define Q15_MUL_ROAUND(accumulator, unpack)                                   \
+  __ unpack(tempFPReg1, src0, Condition(0), Condition(0), Condition(1));      \
+  __ unpack(accumulator, src1, Condition(0), Condition(0), Condition(1));     \
+  __ vml(accumulator, tempFPReg1, accumulator, Condition(0), Condition(0),    \
+         Condition(2));                                                       \
+  __ va(accumulator, accumulator, tempFPReg2, Condition(0), Condition(0),     \
+        Condition(2));                                                        \
+  __ vrepi(tempFPReg1, Operand(15), Condition(2));                            \
+  __ vesrav(accumulator, accumulator, tempFPReg1, Condition(0), Condition(0), \
             Condition(2));
     case kS390_I16x8Q15MulRSatS: {
       Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register src0 = i.InputSimd128Register(0);
+      Simd128Register src1 = i.InputSimd128Register(1);
       Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
       Simd128Register tempFPReg2 = i.ToSimd128Register(instr->TempAt(1));
+      DCHECK_NE(src1, tempFPReg1);
+      DCHECK_NE(src0, tempFPReg2);
+      DCHECK_NE(src1, tempFPReg2);
       __ vrepi(tempFPReg2, Operand(0x4000), Condition(2));
       Q15_MUL_ROAUND(kScratchDoubleReg, vupl)
       Q15_MUL_ROAUND(dst, vuph)
