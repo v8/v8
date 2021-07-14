@@ -5175,6 +5175,8 @@ void Assembler::RecordConstPool(int size) {
 void Assembler::GrowBuffer() {
   DCHECK_EQ(buffer_start_, buffer_->start());
 
+  bool previously_on_heap = buffer_->IsOnHeap();
+
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = std::min(2 * old_size, old_size + 1 * MB);
@@ -5206,6 +5208,14 @@ void Assembler::GrowBuffer() {
   byte* new_last_pc = reinterpret_cast<byte*>(
       reinterpret_cast<Address>(reloc_info_writer.last_pc()) + pc_delta);
   reloc_info_writer.Reposition(new_reloc_start, new_last_pc);
+
+  // Patch on-heap references to handles.
+  if (previously_on_heap && !buffer_->IsOnHeap()) {
+    Address base = reinterpret_cast<Address>(buffer_->start());
+    for (auto p : saved_handles_for_raw_object_ptr_) {
+      WriteUnalignedValue(base + p.first, p.second);
+    }
+  }
 
   // None of our relocation types are pc relative pointing outside the code
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
@@ -5400,6 +5410,13 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     CHECK_LE(pc_offset(),
              first_const_pool_32_use_ + kMaxDistToPcRelativeConstant);
 
+    // Check that the code buffer is large enough before emitting the constant
+    // pool (this includes the gap to the relocation information).
+    int needed_space = pending_32_bit_constants_.size() * kPointerSize + kGap;
+    while (buffer_space() <= needed_space) {
+      GrowBuffer();
+    }
+
     // Emit 32-bit constant pool entries.
     for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
       ConstantPoolEntry& entry = pending_32_bit_constants_[i];
@@ -5432,7 +5449,17 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       instr_at_put(entry.position(),
                    SetLdrRegisterImmediateOffset(instr, delta));
       if (!entry.is_merged()) {
-        emit(entry.value());
+        if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(entry.rmode())) {
+          saved_handles_for_raw_object_ptr_.push_back(
+              std::make_pair(pc_offset(), entry.value()));
+          Handle<HeapObject> handle(reinterpret_cast<Address*>(entry.value()));
+          emit(handle->ptr());
+          // We must ensure that `emit` is not growing the assembler buffer
+          // and falling back to off-heap compilation.
+          DCHECK(IsOnHeap());
+        } else {
+          emit(entry.value());
+        }
       }
     }
 

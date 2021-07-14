@@ -358,6 +358,9 @@ void ConstantPool::Emit(const ConstantPoolKey& key) {
           std::make_pair(assm_->pc_offset(), key.value64()));
       Handle<Object> handle = assm_->GetEmbeddedObject(key.value64());
       assm_->dq(handle->ptr());
+      // We must ensure that `dq` is not growing the assembler buffer
+      // and falling back to off-heap compilation.
+      DCHECK(assm_->IsOnHeap());
     } else {
       assm_->dq(key.value64());
     }

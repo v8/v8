@@ -190,6 +190,9 @@ void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
       saved_handles_for_raw_object_ptr_.push_back(
           std::make_pair(pc_offset(), x));
       emit(object->ptr());
+      // We must ensure that `emit` is not growing the assembler buffer
+      // and falling back to off-heap compilation.
+      DCHECK(IsOnHeap());
       return;
     }
   }
@@ -216,6 +219,9 @@ void Assembler::emit(const Immediate& x) {
     saved_handles_for_raw_object_ptr_.push_back(
         std::make_pair(pc_offset(), x.immediate()));
     emit(x.embedded_object()->ptr());
+    // We must ensure that `emit` is not growing the assembler buffer
+    // and falling back to off-heap compilation.
+    DCHECK(IsOnHeap());
     return;
   }
   emit(x.immediate());

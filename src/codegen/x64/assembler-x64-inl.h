@@ -45,6 +45,9 @@ void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
     saved_offsets_for_runtime_entries_.push_back(
         std::make_pair(pc_offset(), offset));
     emitl(relative_target_offset(entry, reinterpret_cast<Address>(pc_)));
+    // We must ensure that `emitl` is not growing the assembler buffer
+    // and falling back to off-heap compilation.
+    DCHECK(IsOnHeap());
   } else {
     emitl(offset);
   }
@@ -67,6 +70,9 @@ void Assembler::emit(Immediate64 x) {
       saved_handles_for_raw_object_ptr_.push_back(
           std::make_pair(pc_offset(), x.value_));
       emitq(static_cast<uint64_t>(object->ptr()));
+      // We must ensure that `emitq` is not growing the assembler buffer
+      // and falling back to off-heap compilation.
+      DCHECK(IsOnHeap());
       return;
     }
   }
