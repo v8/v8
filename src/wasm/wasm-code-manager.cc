@@ -1216,8 +1216,10 @@ WasmCode* NativeModule::PublishCodeLocked(
        (tiering_state_ == kTieredDown
             // Tiered down: Install breakpoints over normal debug code.
             ? prior_code->for_debugging() <= code->for_debugging()
-            // Tiered up: Install if the tier is higher than before.
-            : prior_code->tier() < code->tier()));
+            // Tiered up: Install if the tier is higher than before or we
+            // replace debugging code with non-debugging code.
+            : (prior_code->tier() < code->tier() ||
+               (prior_code->for_debugging() && !code->for_debugging()))));
   if (update_code_table) {
     code_table_[slot_idx] = code;
     if (prior_code) {
@@ -1246,7 +1248,9 @@ void NativeModule::ReinstallDebugCode(WasmCode* code) {
   DCHECK(!code->IsAnonymous());
   DCHECK_LE(module_->num_imported_functions, code->index());
   DCHECK_LT(code->index(), num_functions());
-  DCHECK_EQ(kTieredDown, tiering_state_);
+
+  // If the module is tiered up by now, do not reinstall debug code.
+  if (tiering_state_ != kTieredDown) return;
 
   uint32_t slot_idx = declared_function_index(module(), code->index());
   if (WasmCode* prior_code = code_table_[slot_idx]) {
