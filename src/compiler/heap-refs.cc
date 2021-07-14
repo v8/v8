@@ -976,12 +976,6 @@ class MapData : public HeapObjectData {
 
   // Extra information.
 
-  void SerializeElementsKindGeneralizations(JSHeapBroker* broker);
-  const ZoneVector<ObjectData*>& elements_kind_generalizations() const {
-    CHECK(serialized_elements_kind_generalizations_);
-    return elements_kind_generalizations_;
-  }
-
   // Serialize a single (or all) own slot(s) of the descriptor array and recurse
   // on field owner(s).
   bool TrySerializeOwnDescriptor(JSHeapBroker* broker,
@@ -1021,8 +1015,7 @@ class MapData : public HeapObjectData {
   void SerializeForElementStore(JSHeapBroker* broker);
 
   bool has_extra_serialized_data() const {
-    return serialized_elements_kind_generalizations_ ||
-           serialized_own_descriptors_ || serialized_constructor_ ||
+    return serialized_own_descriptors_ || serialized_constructor_ ||
            serialized_backpointer_ || serialized_prototype_ ||
            serialized_root_map_ || serialized_for_element_store_;
   }
@@ -1056,9 +1049,6 @@ class MapData : public HeapObjectData {
   // being directly read. This means that, for example, even though we can get
   // the prototype itself with direct reads, some of its fields require
   // serialization.
-  bool serialized_elements_kind_generalizations_ = false;
-  ZoneVector<ObjectData*> elements_kind_generalizations_;
-
   bool serialized_own_descriptors_ = false;
   ObjectData* instance_descriptors_ = nullptr;
 
@@ -1194,8 +1184,7 @@ bool SupportsFastArrayResize(JSHeapBroker* broker, Handle<Map> map) {
 
 MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
                  ObjectDataKind kind)
-    : HeapObjectData(broker, storage, object, kind),
-      elements_kind_generalizations_(broker->zone()) {
+    : HeapObjectData(broker, storage, object, kind) {
   // This lock ensure that MapData can always be background-serialized, i.e.
   // while the lock is held the Map object may not be modified (except in
   // benign ways).
@@ -1283,9 +1272,6 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
         function->ComputeInstanceSizeWithMinSlack(broker->isolate());
   }
   if (initial_map_ != nullptr && !initial_map_->should_access_heap()) {
-    if (initial_map_->AsMap()->instance_type() == JS_ARRAY_TYPE) {
-      initial_map_->AsMap()->SerializeElementsKindGeneralizations(broker);
-    }
     initial_map_->AsMap()->SerializeConstructor(broker);
     // TODO(neis): This is currently only needed for native_context's
     // object_function, as used by GetObjectCreateMap. If no further use sites
@@ -1315,26 +1301,6 @@ void JSFunctionData::SerializeCodeAndFeedback(JSHeapBroker* broker) {
   feedback_vector_ = has_feedback_vector()
                          ? broker->GetOrCreateData(function->feedback_vector())
                          : nullptr;
-}
-
-void MapData::SerializeElementsKindGeneralizations(JSHeapBroker* broker) {
-  if (serialized_elements_kind_generalizations_) return;
-  serialized_elements_kind_generalizations_ = true;
-
-  TraceScope tracer(broker, this,
-                    "MapData::SerializeElementsKindGeneralizations");
-  DCHECK_EQ(instance_type(), JS_ARRAY_TYPE);
-  MapRef self(broker, this);
-  ElementsKind from_kind = self.elements_kind();
-  DCHECK(elements_kind_generalizations_.empty());
-  for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
-    ElementsKind to_kind = static_cast<ElementsKind>(i);
-    if (IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
-      Handle<Map> target =
-          Map::AsElementsKind(broker->isolate(), self.object(), to_kind);
-      elements_kind_generalizations_.push_back(broker->GetOrCreateData(target));
-    }
-  }
 }
 
 class DescriptorArrayData : public HeapObjectData {
@@ -2484,18 +2450,17 @@ INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
 base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
-  if (data_->should_access_heap()) {
-    return MakeRef(broker(),
-                   Map::AsElementsKind(broker()->isolate(), object(), kind));
-  }
-  if (kind == elements_kind()) return *this;
-  const ZoneVector<ObjectData*>& elements_kind_generalizations =
-      data()->AsMap()->elements_kind_generalizations();
-  for (auto data : elements_kind_generalizations) {
-    MapRef map(broker(), data);
-    if (map.elements_kind() == kind) return map;
-  }
-  return base::Optional<MapRef>();
+  // TODO(jgruber): Consider supporting transitions other than for JSArray
+  // initial maps (e.g. by walking transitions concurrently and finding an
+  // existing map that fits).
+
+  const ElementsKind current_kind = elements_kind();
+  if (kind == current_kind) return *this;
+
+  NativeContextRef native_context = broker()->target_native_context();
+  if (!equals(native_context.GetInitialJSArrayMap(current_kind))) return {};
+
+  return native_context.GetInitialJSArrayMap(kind);
 }
 
 void MapRef::SerializeForElementStore() {

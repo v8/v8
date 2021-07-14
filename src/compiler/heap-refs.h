@@ -672,6 +672,10 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   OddballType oddball_type() const;
 
+  // Note: Only returns a value if the requested elements kind matches the
+  // current kind, or if the current map is an unmodified JSArray initial map.
+  base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
+
 #define DEF_TESTER(Type, ...) bool Is##Type##Map() const;
   INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
@@ -710,7 +714,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   // Available after calling JSFunctionRef::Serialize on a function that has
   // this map as initial map.
   ObjectRef GetConstructor() const;
-  base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
 };
 
 struct HolderLookupResult {
