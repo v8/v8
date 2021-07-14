@@ -545,9 +545,8 @@ bool Script::SetBreakpointOnScriptEntry(BreakpointId* id) const {
   i::Isolate* isolate = script->GetIsolate();
 #if V8_ENABLE_WEBASSEMBLY
   if (script->type() == i::Script::TYPE_WASM) {
-    int position = i::WasmScript::kOnEntryBreakpointPosition;
-    return isolate->debug()->SetBreakPointForScript(
-        script, isolate->factory()->empty_string(), &position, id);
+    isolate->debug()->SetOnEntryBreakpointForWasmScript(script, id);
+    return true;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   i::SharedFunctionInfo::ScriptIterator it(isolate, *script);

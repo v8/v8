@@ -252,6 +252,7 @@ class V8_EXPORT_PRIVATE Debug {
                                 Handle<String> condition, int* id);
   void RemoveBreakpoint(int id);
 #if V8_ENABLE_WEBASSEMBLY
+  void SetOnEntryBreakpointForWasmScript(Handle<Script> script, int* id);
   void RemoveBreakpointForWasmScript(Handle<Script> script, int id);
 
   void RecordWasmScriptWithBreakpoints(Handle<Script> script);

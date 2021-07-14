@@ -805,6 +805,16 @@ void Debug::RemoveBreakpoint(int id) {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+void Debug::SetOnEntryBreakpointForWasmScript(Handle<Script> script, int* id) {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  DCHECK_EQ(Script::TYPE_WASM, script->type());
+  *id = ++thread_local_.last_breakpoint_id_;
+  Handle<BreakPoint> break_point = isolate_->factory()->NewBreakPoint(
+      *id, isolate_->factory()->empty_string());
+  RecordWasmScriptWithBreakpoints(script);
+  WasmScript::SetBreakPointOnEntry(script, break_point);
+}
+
 void Debug::RemoveBreakpointForWasmScript(Handle<Script> script, int id) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (script->type() == Script::TYPE_WASM) {
