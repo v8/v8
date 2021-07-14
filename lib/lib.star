@@ -263,9 +263,6 @@ def v8_basic_builder(defaults, **kwargs):
     properties.update(_reclient_properties(kwargs.pop("use_rbe", None)))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
     kwargs["properties"] = properties
-    properties["$recipe_engine/isolated"] = {
-        "server": "https://isolateserver.appspot.com/",
-    }
     kwargs = fix_args(defaults, **kwargs)
     luci.builder(**kwargs)
 
