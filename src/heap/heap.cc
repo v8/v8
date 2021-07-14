@@ -2656,16 +2656,22 @@ void Heap::ComputeFastPromotionMode() {
   }
 }
 
-void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk) {
+void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
+                                           UnprotectMemoryOrigin origin) {
   if (unprotected_memory_chunks_registry_enabled_) {
+    base::Optional<base::MutexGuard> guard;
+    if (origin != UnprotectMemoryOrigin::kMainThread) {
+      guard.emplace(&unprotected_memory_chunks_mutex_);
+    }
     if (unprotected_memory_chunks_.insert(chunk).second) {
       chunk->SetReadAndWritable();
     }
   }
 }
 
-void Heap::UnprotectAndRegisterMemoryChunk(HeapObject object) {
-  UnprotectAndRegisterMemoryChunk(MemoryChunk::FromHeapObject(object));
+void Heap::UnprotectAndRegisterMemoryChunk(HeapObject object,
+                                           UnprotectMemoryOrigin origin) {
+  UnprotectAndRegisterMemoryChunk(MemoryChunk::FromHeapObject(object), origin);
 }
 
 void Heap::UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk) {

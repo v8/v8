@@ -425,7 +425,8 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
     // Ensure that there is a valid object
     if (identity() == CODE_SPACE) {
       MemoryChunk* chunk = MemoryChunk::FromAddress(soon_object);
-      heap()->UnprotectAndRegisterMemoryChunk(chunk);
+      heap()->UnprotectAndRegisterMemoryChunk(
+          chunk, UnprotectMemoryOrigin::kMainThread);
     }
     heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size_in_bytes),
                                 ClearRecordedSlots::kNo);

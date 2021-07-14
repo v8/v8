@@ -276,7 +276,8 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
     if (AllocationType::kCode == type && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
       // Unprotect the memory chunk of the object if it was not unprotected
       // already.
-      UnprotectAndRegisterMemoryChunk(object);
+      UnprotectAndRegisterMemoryChunk(object,
+                                      UnprotectMemoryOrigin::kMainThread);
       ZapCodeObject(object.address(), size_in_bytes);
       if (!large_object) {
         MemoryChunk::FromHeapObject(object)
