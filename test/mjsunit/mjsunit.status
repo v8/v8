@@ -77,7 +77,7 @@
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
   'd8/d8-os': [PASS, NO_VARIANTS],
-  'd8/d8-performance-now': [PASS, NO_VARIANTS],
+  'd8/d8-performance-now': [PASS, NO_VARIANTS, ['mode != release or simulator_run', SKIP]],
   'regexp-global': [PASS, NO_VARIANTS],
   'regress/regress-4595': [PASS, NO_VARIANTS],
   'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
