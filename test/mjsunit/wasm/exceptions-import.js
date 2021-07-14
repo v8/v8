@@ -53,7 +53,7 @@ function NewExportedException() {
       /module is not an object or function/);
   assertThrows(
       () => builder.instantiate({ m: {}}), WebAssembly.LinkError,
-      /tag import requires a WebAssembly.Tag/);
+      /exception import requires a WebAssembly.Exception/);
 })();
 
 (function TestImportValueMismatch() {
@@ -63,14 +63,14 @@ function NewExportedException() {
 
   assertThrows(
       () => builder.instantiate({ m: { ex: 23 }}), WebAssembly.LinkError,
-      /tag import requires a WebAssembly.Tag/);
+      /exception import requires a WebAssembly.Exception/);
   assertThrows(
       () => builder.instantiate({ m: { ex: {} }}), WebAssembly.LinkError,
-      /tag import requires a WebAssembly.Tag/);
+      /exception import requires a WebAssembly.Exception/);
   var monkey = Object.create(NewExportedException());
   assertThrows(
       () => builder.instantiate({ m: { ex: monkey }}), WebAssembly.LinkError,
-      /tag import requires a WebAssembly.Tag/);
+      /exception import requires a WebAssembly.Exception/);
 })();
 
 (function TestImportSignatureMismatch() {
@@ -81,7 +81,7 @@ function NewExportedException() {
 
   assertThrows(
       () => builder.instantiate({ m: { ex: exported }}), WebAssembly.LinkError,
-      /imported tag does not match the expected type/);
+      /imported exception does not match the expected type/);
 })();
 
 (function TestImportModuleGetImports() {
