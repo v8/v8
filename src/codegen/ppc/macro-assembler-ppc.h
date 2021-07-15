@@ -191,6 +191,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
               Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
   void SubS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
+  void AddS32(Register dst, Register src, const Operand& value,
+              Register scratch = r0, RCBit r = LeaveRC);
+  void AddS32(Register dst, Register src, Register value, RCBit r = LeaveRC);
+  void SubS32(Register dst, Register src, const Operand& value,
+              Register scratch = r0, RCBit r = LeaveRC);
+  void SubS32(Register dst, Register src, Register value, RCBit r = LeaveRC);
 
   void Push(Register src) { push(src); }
   // Push a handle.

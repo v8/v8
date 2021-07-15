@@ -783,8 +783,6 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
   }
 
-UNIMPLEMENTED_I32_BINOP_I(i32_add)
-UNIMPLEMENTED_I32_BINOP_I(i32_sub)
 UNIMPLEMENTED_I32_BINOP(i32_mul)
 UNIMPLEMENTED_I32_BINOP_I(i32_and)
 UNIMPLEMENTED_I32_BINOP_I(i32_or)
@@ -884,7 +882,11 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
   V(i64_add, AddS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
     LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
   V(i64_addi, AddS64, LiftoffRegister, LiftoffRegister, int64_t, LFR_TO_REG, \
-    LFR_TO_REG, Operand, USE, , void)
+    LFR_TO_REG, Operand, USE, , void)                                        \
+  V(i32_sub, SubS32, Register, Register, Register, , , , USE, , void)        \
+  V(i32_add, AddS32, Register, Register, Register, , , , USE, , void)        \
+  V(i32_addi, AddS32, Register, Register, int32_t, , , Operand, USE, , void) \
+  V(i32_subi, SubS32, Register, Register, int32_t, , , Operand, USE, , void)
 
 #define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \
                             scast2, rcast, ret, return_type)                   \

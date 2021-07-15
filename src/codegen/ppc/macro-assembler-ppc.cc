@@ -2705,6 +2705,30 @@ void TurboAssembler::SubS64(Register dst, Register src, const Operand& value,
   }
 }
 
+void TurboAssembler::AddS32(Register dst, Register src, Register value,
+                            RCBit r) {
+  AddS64(dst, src, value, LeaveOE, r);
+  extsw(dst, dst, r);
+}
+
+void TurboAssembler::AddS32(Register dst, Register src, const Operand& value,
+                            Register scratch, RCBit r) {
+  AddS64(dst, src, value, scratch, LeaveOE, r);
+  extsw(dst, dst, r);
+}
+
+void TurboAssembler::SubS32(Register dst, Register src, Register value,
+                            RCBit r) {
+  SubS64(dst, src, value, LeaveOE, r);
+  extsw(dst, dst, r);
+}
+
+void TurboAssembler::SubS32(Register dst, Register src, const Operand& value,
+                            Register scratch, RCBit r) {
+  SubS64(dst, src, value, scratch, LeaveOE, r);
+  extsw(dst, dst, r);
+}
+
 void TurboAssembler::CmpS64(Register src1, Register src2, CRegister cr) {
   cmp(src1, src2, cr);
 }
