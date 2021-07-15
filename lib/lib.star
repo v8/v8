@@ -335,8 +335,6 @@ def fix_args(defaults, **kwargs):
     for key in mergeable_keys:
         merge_defaults(defaults, args, key)
     args["execution_timeout"] = args["execution_timeout"] * time.second
-    if args["bucket"] in ["ci.br.beta", "ci.br.stable"]:
-        args["dimensions"]["pool"] = "luci.v8.ci"
     if args.get("dimensions", {}).get("host_class", "") == "multibot":
         args["caches"] = multibot_caches
     if args.get("properties", {}).get("triggers", None):
