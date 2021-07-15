@@ -28,8 +28,11 @@ int PrintHelp(char** argv) {
 }
 
 #define TESTS(V)             \
+  V(kBarrett, "barrett")     \
+  V(kBurnikel, "burnikel")   \
+  V(kFFT, "fft")             \
   V(kKaratsuba, "karatsuba") \
-  V(kBurnikel, "burnikel") V(kToom, "toom") V(kFFT, "fft")
+  V(kToom, "toom")
 
 enum Operation { kNoOp, kList, kTest };
 
@@ -157,21 +160,25 @@ class Runner {
 
   int RunTest() {
     int count = 0;
-    if (test_ == kKaratsuba) {
+    if (test_ == kBarrett) {
       for (int i = 0; i < runs_; i++) {
-        TestKaratsuba(&count);
+        TestBarrett(&count);
       }
     } else if (test_ == kBurnikel) {
       for (int i = 0; i < runs_; i++) {
         TestBurnikel(&count);
       }
-    } else if (test_ == kToom) {
-      for (int i = 0; i < runs_; i++) {
-        TestToom(&count);
-      }
     } else if (test_ == kFFT) {
       for (int i = 0; i < runs_; i++) {
         TestFFT(&count);
+      }
+    } else if (test_ == kKaratsuba) {
+      for (int i = 0; i < runs_; i++) {
+        TestKaratsuba(&count);
+      }
+    } else if (test_ == kToom) {
+      for (int i = 0; i < runs_; i++) {
+        TestToom(&count);
       }
     } else {
       DCHECK(false);  // Unreachable.
@@ -291,6 +298,56 @@ class Runner {
     }
   }
 
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+  void TestBarrett_Internal(int left_size, int right_size) {
+    ScratchDigits A(left_size);
+    ScratchDigits B(right_size);
+    GenerateRandom(A);
+    GenerateRandom(B);
+    int quotient_len = DivideResultLength(A, B);
+    // {DivideResultLength} doesn't expect to be called for sizes below
+    // {kBarrettThreshold} (which we do here to save time), so we have to
+    // manually adjust the allocated result length.
+    if (B.len() < kBarrettThreshold) quotient_len++;
+    int remainder_len = right_size;
+    ScratchDigits quotient(quotient_len);
+    ScratchDigits quotient_burnikel(quotient_len);
+    ScratchDigits remainder(remainder_len);
+    ScratchDigits remainder_burnikel(remainder_len);
+    processor()->DivideBarrett(quotient, remainder, A, B);
+    processor()->DivideBurnikelZiegler(quotient_burnikel, remainder_burnikel, A,
+                                       B);
+    AssertEquals(A, B, quotient_burnikel, quotient);
+    AssertEquals(A, B, remainder_burnikel, remainder);
+  }
+
+  void TestBarrett(int* count) {
+    // We pick a range around kBurnikelThreshold (instead of kBarrettThreshold)
+    // to save test execution time.
+    constexpr int kMin = kBurnikelThreshold / 2;
+    constexpr int kMax = 2 * kBurnikelThreshold;
+    // {DivideBarrett(A, B)} requires that A.len > B.len!
+    for (int right_size = kMin; right_size <= kMax; right_size++) {
+      for (int left_size = right_size + 1; left_size <= kMax; left_size++) {
+        TestBarrett_Internal(left_size, right_size);
+        if (error_) return;
+        (*count)++;
+      }
+    }
+    // We also test one random large case.
+    uint64_t random_bits = rng_.NextUint64();
+    int right_size = kBarrettThreshold + static_cast<int>(random_bits & 0x3FF);
+    random_bits >>= 10;
+    int left_size = right_size + 1 + static_cast<int>(random_bits & 0x3FFF);
+    random_bits >>= 14;
+    TestBarrett_Internal(left_size, right_size);
+    if (error_) return;
+    (*count)++;
+  }
+#else
+  void TestBarrett(int* count) {}
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+
   int ParseOptions(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
       if (strcmp(argv[i], "--list") == 0) {
@@ -325,6 +382,9 @@ class Runner {
   }
 
  private:
+  // TODO(jkummerow): Also generate "non-random-looking" inputs, i.e. long
+  // strings of zeros and ones in the binary representation, such as
+  // ((1 << random) ± 1).
   void GenerateRandom(RWDigits Z) {
     if (Z.len() == 0) return;
     if (sizeof(digit_t) == 8) {

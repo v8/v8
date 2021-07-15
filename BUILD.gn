@@ -4969,6 +4969,7 @@ v8_source_set("v8_bigint") {
 
   if (v8_advanced_bigint_algorithms) {
     sources += [
+      "src/bigint/div-barrett.cc",
       "src/bigint/mul-fft.cc",
       "src/bigint/mul-toom.cc",
     ]

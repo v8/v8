@@ -18,6 +18,8 @@ constexpr int kFftThreshold = 1500;
 constexpr int kFftInnerThreshold = 200;
 
 constexpr int kBurnikelThreshold = 57;
+constexpr int kNewtonInversionThreshold = 50;
+// kBarrettThreshold is defined in bigint.h.
 
 class ProcessorImpl : public Processor {
  public:
@@ -47,6 +49,14 @@ class ProcessorImpl : public Processor {
   void Toom3Main(RWDigits Z, Digits X, Digits Y);
 
   void MultiplyFFT(RWDigits Z, Digits X, Digits Y);
+
+  void DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B);
+  void DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B, Digits I,
+                     RWDigits scratch);
+
+  void Invert(RWDigits Z, Digits V, RWDigits scratch);
+  void InvertBasecase(RWDigits Z, Digits V, RWDigits scratch);
+  void InvertNewton(RWDigits Z, Digits V, RWDigits scratch);
 #endif  // V8_ADVANCED_BIGINT_ALGORITHMS
 
   // {out_length} initially contains the allocated capacity of {out}, and

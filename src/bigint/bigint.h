@@ -274,8 +274,15 @@ inline int SubtractSignedResultLength(int x_length, int y_length,
 inline int MultiplyResultLength(Digits X, Digits Y) {
   return X.len() + Y.len();
 }
+constexpr int kBarrettThreshold = 13310;
 inline int DivideResultLength(Digits A, Digits B) {
-  return A.len() - B.len() + 1;
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+  // The Barrett division algorithm needs one extra digit for temporary use.
+  int kBarrettExtraScratch = B.len() >= kBarrettThreshold ? 1 : 0;
+#else
+  constexpr int kBarrettExtraScratch = 0;
+#endif
+  return A.len() - B.len() + 1 + kBarrettExtraScratch;
 }
 inline int ModuloResultLength(Digits B) { return B.len(); }
 
