@@ -1741,8 +1741,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(isolate_, proto, factory->constructor_string(),
                           array_function, DONT_ENUM);
 
-    SimpleInstallFunction(isolate_, proto, "concat", Builtin::kArrayConcat, 1,
-                          false);
+    SimpleInstallFunction(isolate_, proto, "concat",
+                          Builtin::kArrayPrototypeConcat, 1, false);
     SimpleInstallFunction(isolate_, proto, "copyWithin",
                           Builtin::kArrayPrototypeCopyWithin, 2, false);
     SimpleInstallFunction(isolate_, proto, "fill", Builtin::kArrayPrototypeFill,

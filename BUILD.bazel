@@ -610,6 +610,7 @@ filegroup(
     srcs = [
         "src/builtins/aggregate-error.tq",
         "src/builtins/array-at.tq",
+        "src/builtins/array-concat.tq",
         "src/builtins/array-copywithin.tq",
         "src/builtins/array-every.tq",
         "src/builtins/array-filter.tq",

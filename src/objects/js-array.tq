@@ -66,6 +66,10 @@ transient type FastJSArrayForRead extends JSArray;
 // A FastJSArray when the global ArraySpeciesProtector is not invalidated.
 transient type FastJSArrayForCopy extends FastJSArray;
 
+// A FastJSArray when the global ArraySpeciesProtector and
+// IsConcatSpreadableProtector are not invalidated.
+transient type FastJSArrayForConcat extends FastJSArrayForRead;
+
 // A FastJSArray when the global ArrayIteratorProtector is not invalidated.
 transient type FastJSArrayWithNoCustomIteration extends FastJSArray;
 

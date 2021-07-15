@@ -1198,6 +1198,7 @@ extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
 extern macro IsNoElementsProtectorCellInvalid(): bool;
 extern macro IsArrayIteratorProtectorCellInvalid(): bool;
 extern macro IsArraySpeciesProtectorCellInvalid(): bool;
+extern macro IsIsConcatSpreadableProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 extern macro IsMockArrayBufferAllocatorFlag(): bool;

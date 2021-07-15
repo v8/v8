@@ -560,6 +560,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kArrayPrototypeValues:
     case Builtin::kArrayIncludes:
     case Builtin::kArrayPrototypeAt:
+    case Builtin::kArrayPrototypeConcat:
     case Builtin::kArrayPrototypeEntries:
     case Builtin::kArrayPrototypeFill:
     case Builtin::kArrayPrototypeFind:
