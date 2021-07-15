@@ -32,13 +32,18 @@ CodeSpaceWriteScope::~CodeSpaceWriteScope() {
 
 #if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
 
+// Ignoring this warning is considered better than relying on
+// __builtin_available.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
 void CodeSpaceWriteScope::SetWritable() const {
-  SwitchMemoryPermissionsToWritable();
+  pthread_jit_write_protect_np(0);
 }
 
 void CodeSpaceWriteScope::SetExecutable() const {
-  SwitchMemoryPermissionsToExecutable();
+  pthread_jit_write_protect_np(1);
 }
+#pragma clang diagnostic pop
 
 #else  // Not Mac-on-arm64.
 

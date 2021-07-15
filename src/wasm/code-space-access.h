@@ -69,32 +69,6 @@ class V8_NODISCARD CodeSpaceWriteScope final {
 };
 
 }  // namespace wasm
-
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-
-// Low-level API for switching MAP_JIT pages between writable and executable.
-// TODO(wasm): Access to these functions is only needed in tests. Remove?
-
-// Ignoring this warning is considered better than relying on
-// __builtin_available.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunguarded-availability-new"
-inline void SwitchMemoryPermissionsToWritable() {
-  pthread_jit_write_protect_np(0);
-}
-inline void SwitchMemoryPermissionsToExecutable() {
-  pthread_jit_write_protect_np(1);
-}
-#pragma clang diagnostic pop
-
-#else  // Not Mac-on-arm64.
-
-// Nothing to do, we map code memory with rwx permissions.
-inline void SwitchMemoryPermissionsToWritable() {}
-inline void SwitchMemoryPermissionsToExecutable() {}
-
-#endif  // defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-
 }  // namespace internal
 }  // namespace v8
 
