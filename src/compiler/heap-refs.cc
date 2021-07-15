@@ -1476,7 +1476,7 @@ class FixedArrayBaseData : public HeapObjectData {
   FixedArrayBaseData(JSHeapBroker* broker, ObjectData** storage,
                      Handle<FixedArrayBase> object, ObjectDataKind kind)
       : HeapObjectData(broker, storage, object, kind),
-        length_(object->length()) {}
+        length_(object->length(kAcquireLoad)) {}
 
   int length() const { return length_; }
 
@@ -2749,7 +2749,15 @@ int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
 ObjectRef FixedArrayRef::get(int i) const { return TryGet(i).value(); }
 
 base::Optional<ObjectRef> FixedArrayRef::TryGet(int i) const {
-  return TryMakeRef(broker(), object()->get(i, kRelaxedLoad));
+  DisallowGarbageCollection no_gc;
+  CHECK_GE(i, 0);
+  Object value = object()->get(i, kAcquireLoad);
+  if (i >= object()->length(kAcquireLoad)) {
+    // Right-trimming happened.
+    CHECK_LT(i, length());
+    return {};
+  }
+  return TryMakeRef(broker(), value);
 }
 
 Float64 FixedDoubleArrayRef::GetFromImmutableFixedDoubleArray(int i) const {
