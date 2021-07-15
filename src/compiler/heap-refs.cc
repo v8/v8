@@ -679,7 +679,6 @@ class JSDataViewData : public JSObjectData {
       byte_length_ = object->byte_length();
     } else {
       DCHECK_EQ(kind, kBackgroundSerializedHeapObject);
-      DCHECK(broker->is_concurrent_inlining());
     }
   }
 
@@ -2256,18 +2255,12 @@ struct CreateDataFunctor<RefSerializationKind::kBackgroundSerialized, DataT,
                          ObjectT> {
   bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
                   RefsMap::Entry** entry_out, ObjectData** object_data_out) {
-    if (broker->is_concurrent_inlining()) {
+    if (broker->is_concurrent_inlining() ||
+        broker->mode() == JSHeapBroker::kSerializing) {
       RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
       *object_data_out = broker->zone()->New<DataT>(
           broker, &entry->value, Handle<ObjectT>::cast(object),
           kBackgroundSerializedHeapObject);
-      *entry_out = entry;
-      return true;
-    } else if (broker->mode() == JSHeapBroker::kSerializing) {
-      RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
-      *object_data_out = broker->zone()->New<DataT>(
-          broker, &entry->value, Handle<ObjectT>::cast(object),
-          ObjectDataKind::kSerializedHeapObject);
       *entry_out = entry;
       return true;
     }
