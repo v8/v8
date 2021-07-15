@@ -7,6 +7,7 @@ load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "v8_builder", "v8_notifier")
 RECLIENT = struct(
     DEFAULT = {
         "instance": "rbe-chromium-trusted",
+        "metrics_project": "chromium-reclient-metrics",
     },
 )
 

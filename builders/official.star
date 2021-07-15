@@ -11,6 +11,7 @@ in_category = in_console("official")
 RECLIENT = struct(
     DEFAULT = {
         "instance": "rbe-chromium-trusted",
+        "metrics_project": "chromium-reclient-metrics",
     },
 )
 
