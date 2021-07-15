@@ -496,6 +496,16 @@ void FFTContainer::Start_Default(Digits X, int chunk_size, int theta,
   int i = 0;
   for (; i < n_ && len > 0; i++, current_theta += theta) {
     chunk_size = std::min(chunk_size, len);
+    // For invocations via MultiplyFFT_Inner, X.len() == n_ * chunk_size + 1,
+    // because the outer layer's "K" is passed as the inner layer's "N".
+    // Since X is (mod Fn)-normalized on the outer layer, there is the rare
+    // corner case where X[n_ * chunk_size] == 1. Detect that case, and handle
+    // the extra bit as part of the last chunk; we always have the space.
+    if (i == n_ - 1 && len == chunk_size + 1) {
+      DCHECK(X[n_ * chunk_size] <= 1);  // NOLINT(readability/check)
+      DCHECK(length_ >= chunk_size + 1);
+      chunk_size++;
+    }
     if (current_theta != 0) {
       // Multiply with theta^i, and reduce modulo 2^K + 1.
       // We pass theta as a shift amount; it really means 2^theta.
@@ -507,6 +517,7 @@ void FFTContainer::Start_Default(Digits X, int chunk_size, int theta,
     pointer += chunk_size;
     len -= chunk_size;
   }
+  DCHECK(len == 0);  // NOLINT(readability/check)
   for (; i < n_; i++) {
     memset(part_[i], 0, part_length_in_bytes);
   }
