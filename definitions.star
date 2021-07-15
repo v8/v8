@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 versions = {
-    "beta": "9.2",
-    "stable": "9.1",
+    "beta": "9.3",
+    "stable": "9.2",
     "extended": "9.0",
 }
