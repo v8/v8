@@ -397,6 +397,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 
+#ifdef DEBUG
+  bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object) {
+    return *reinterpret_cast<uint32_t*>(buffer_->start() + pc_offset) ==
+           (IsOnHeap() ? object->ptr() : object.address());
+  }
+#endif
+
   // Read/Modify the code target in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   inline static Address target_address_at(Address pc, Address constant_pool);

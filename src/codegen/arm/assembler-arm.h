@@ -1187,6 +1187,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     }
   }
 
+#ifdef DEBUG
+  bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object) {
+    return *reinterpret_cast<uint32_t*>(buffer_->start() + pc_offset) ==
+           (IsOnHeap() ? object->ptr() : object.address());
+  }
+#endif
+
   // Move a 32-bit immediate into a register, potentially via the constant pool.
   void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
 

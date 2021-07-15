@@ -5450,13 +5450,12 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
                    SetLdrRegisterImmediateOffset(instr, delta));
       if (!entry.is_merged()) {
         if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(entry.rmode())) {
+          int offset = pc_offset();
           saved_handles_for_raw_object_ptr_.push_back(
-              std::make_pair(pc_offset(), entry.value()));
-          Handle<HeapObject> handle(reinterpret_cast<Address*>(entry.value()));
-          emit(handle->ptr());
-          // We must ensure that `emit` is not growing the assembler buffer
-          // and falling back to off-heap compilation.
-          DCHECK(IsOnHeap());
+              std::make_pair(offset, entry.value()));
+          Handle<HeapObject> object(reinterpret_cast<Address*>(entry.value()));
+          emit(object->ptr());
+          DCHECK(EmbeddedObjectMatches(offset, object));
         } else {
           emit(entry.value());
         }
