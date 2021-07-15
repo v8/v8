@@ -422,6 +422,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "deopt reason";
     case DEOPT_ID:
       return "deopt index";
+    case LITERAL_CONSTANT:
+      return "literal constant";
     case CONST_POOL:
       return "constant pool";
     case VENEER_POOL:
@@ -525,6 +527,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEOPT_INLINING_ID:
     case DEOPT_REASON:
     case DEOPT_ID:
+    case LITERAL_CONSTANT:
     case CONST_POOL:
     case VENEER_POOL:
     case WASM_CALL:

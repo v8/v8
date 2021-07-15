@@ -404,6 +404,9 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
         !options().record_reloc_info_for_serialization && !FLAG_debug_code) {
       return false;
     }
+#ifndef ENABLE_DISASSEMBLER
+    if (RelocInfo::IsLiteralConstant(rmode)) return false;
+#endif
     return true;
   }
 

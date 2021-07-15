@@ -171,7 +171,7 @@ void CodeGenerator::AssembleDeoptImmediateArgs(
 
     switch (constant.type()) {
       case Constant::kInt32:
-        tasm()->dp(constant.ToInt32());
+        tasm()->dp(constant.ToInt32(), RelocInfo::LITERAL_CONSTANT);
         break;
 #ifdef V8_TARGET_ARCH_64_BIT
       case Constant::kInt64:
@@ -181,7 +181,7 @@ void CodeGenerator::AssembleDeoptImmediateArgs(
       case Constant::kFloat64: {
         int smi;
         CHECK(DoubleToSmiInteger(constant.ToFloat64().value(), &smi));
-        tasm()->dp(Smi::FromInt(smi).ptr());
+        tasm()->dp(Smi::FromInt(smi).ptr(), RelocInfo::LITERAL_CONSTANT);
         break;
       }
       case Constant::kCompressedHeapObject:

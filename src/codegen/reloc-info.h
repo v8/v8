@@ -89,6 +89,8 @@ class RelocInfo {
     DEOPT_REASON,       // Deoptimization reason index.
     DEOPT_ID,           // Deoptimization inlining id.
 
+    LITERAL_CONSTANT,  // An constant embedded in the instruction stream.
+
     // This is not an actual reloc mode, but used to encode a long pc jump that
     // cannot be encoded as part of another record.
     PC_JUMP,
@@ -169,6 +171,9 @@ class RelocInfo {
     return mode == DEOPT_REASON;
   }
   static constexpr bool IsDeoptId(Mode mode) { return mode == DEOPT_ID; }
+  static constexpr bool IsLiteralConstant(Mode mode) {
+    return mode == LITERAL_CONSTANT;
+  }
   static constexpr bool IsExternalReference(Mode mode) {
     return mode == EXTERNAL_REFERENCE;
   }
