@@ -1254,6 +1254,7 @@ filegroup(
         "src/heap/invalidated-slots.h",
         "src/heap/large-spaces.cc",
         "src/heap/large-spaces.h",
+        "src/heap/linear-allocation-area.h",
         "src/heap/list.h",
         "src/heap/local-allocator-inl.h",
         "src/heap/local-allocator.h",

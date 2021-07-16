@@ -3461,12 +3461,8 @@ void Heap::RightTrimWeakFixedArray(WeakFixedArray object,
 void Heap::UndoLastAllocationAt(Address addr, int size) {
   DCHECK_LE(0, size);
   if (size == 0) return;
-  if (code_space_->Contains(addr)) {
-    Address* top = code_space_->allocation_top_address();
-    if (addr + size == *top && code_space_->original_top() <= addr) {
-      *top = addr;
-      return;
-    }
+  if (code_space_->TryFreeLast(addr, size)) {
+    return;
   }
   CreateFillerObjectAt(addr, size, ClearRecordedSlots::kNo);
 }
