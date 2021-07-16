@@ -660,9 +660,10 @@ class CompilationStateImpl {
   }
 
  private:
-  void AddCompilationUnitInternal(CompilationUnitBuilder* builder,
-                                  int function_index,
-                                  uint8_t function_progress);
+  // Returns the potentially-updated {function_progress}.
+  uint8_t AddCompilationUnitInternal(CompilationUnitBuilder* builder,
+                                     int function_index,
+                                     uint8_t function_progress);
 
   // Trigger callbacks according to the internal counters below
   // (outstanding_...), plus the given events.
@@ -943,19 +944,6 @@ ExecutionTierPair GetRequestedExecutionTiers(
     }
   }
 
-  // Skip Turbofan compilation for super-large functions, because it
-  // would likely take so long that it's not worth it.
-  // TODO(jkummerow): This is a stop-gap solution to avoid excessive
-  // compile times. We would like to replace this hard threshold with
-  // a better solution (TBD) eventually.
-  uint32_t size = module->functions[func_index].code.length();
-  constexpr uint32_t kMaxWasmFunctionSizeForTurbofan = 500 * KB;
-  if (size > kMaxWasmFunctionSizeForTurbofan) {
-    result.top_tier = ExecutionTier::kLiftoff;
-    TRACE_COMPILE("Not optimizing function #%d because it's too big",
-                  func_index);
-  }
-
   // Correct top tier if necessary.
   static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                 "Assume an order on execution tiers");
@@ -1033,6 +1021,8 @@ class CompilationUnitBuilder {
     tiering_units_.clear();
     js_to_wasm_wrapper_units_.clear();
   }
+
+  const WasmModule* module() { return native_module_->module(); }
 
  private:
   CompilationStateImpl* compilation_state() const {
@@ -2930,7 +2920,7 @@ void CompilationStateImpl::InitializeCompilationProgress(
   TriggerCallbacks();
 }
 
-void CompilationStateImpl::AddCompilationUnitInternal(
+uint8_t CompilationStateImpl::AddCompilationUnitInternal(
     CompilationUnitBuilder* builder, int function_index,
     uint8_t function_progress) {
   ExecutionTier required_baseline_tier =
@@ -2941,6 +2931,27 @@ void CompilationStateImpl::AddCompilationUnitInternal(
   ExecutionTier reached_tier =
       CompilationStateImpl::ReachedTierField::decode(function_progress);
 
+  if (FLAG_experimental_wasm_gc) {
+    // The Turbofan optimizations we enable for WasmGC code can (for now)
+    // take a very long time, so skip Turbofan compilation for super-large
+    // functions.
+    // Besides, module serialization currently requires that all functions
+    // have been TF-compiled. By enabling this limit only for WasmGC, we
+    // make sure that non-experimental modules can be serialize as usual.
+    // TODO(jkummerow): This is a stop-gap solution to avoid excessive
+    // compile times. We would like to replace this hard threshold with
+    // a better solution (TBD) eventually.
+    constexpr uint32_t kMaxWasmFunctionSizeForTurbofan = 500 * KB;
+    uint32_t size = builder->module()->functions[function_index].code.length();
+    if (size > kMaxWasmFunctionSizeForTurbofan) {
+      required_baseline_tier = ExecutionTier::kLiftoff;
+      if (required_top_tier == ExecutionTier::kTurbofan) {
+        required_top_tier = ExecutionTier::kLiftoff;
+        outstanding_top_tier_functions_--;
+      }
+    }
+  }
+
   if (reached_tier < required_baseline_tier) {
     builder->AddBaselineUnit(function_index, required_baseline_tier);
   }
@@ -2948,6 +2959,10 @@ void CompilationStateImpl::AddCompilationUnitInternal(
       required_baseline_tier != required_top_tier) {
     builder->AddTopTierUnit(function_index, required_top_tier);
   }
+  return CompilationStateImpl::RequiredBaselineTierField::encode(
+             required_baseline_tier) |
+         CompilationStateImpl::RequiredTopTierField::encode(required_top_tier) |
+         CompilationStateImpl::ReachedTierField::encode(reached_tier);
 }
 
 void CompilationStateImpl::InitializeCompilationUnits(
@@ -2964,7 +2979,8 @@ void CompilationStateImpl::InitializeCompilationUnits(
     for (size_t i = 0; i < compilation_progress_.size(); ++i) {
       uint8_t function_progress = compilation_progress_[i];
       int func_index = offset + static_cast<int>(i);
-      AddCompilationUnitInternal(builder.get(), func_index, function_progress);
+      compilation_progress_[i] = AddCompilationUnitInternal(
+          builder.get(), func_index, function_progress);
     }
   }
   builder->Commit();
@@ -2989,7 +3005,14 @@ void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
     base::MutexGuard guard(&callbacks_mutex_);
     function_progress = compilation_progress_[progress_index];
   }
-  AddCompilationUnitInternal(builder, func_index, function_progress);
+  uint8_t updated_function_progress =
+      AddCompilationUnitInternal(builder, func_index, function_progress);
+  if (updated_function_progress != function_progress) {
+    // This should happen very rarely (only for super-large functions), so we're
+    // not worried about overhead.
+    base::MutexGuard guard(&callbacks_mutex_);
+    compilation_progress_[progress_index] = updated_function_progress;
+  }
 }
 
 void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization() {
