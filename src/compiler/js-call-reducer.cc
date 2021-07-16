@@ -6415,16 +6415,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
   Effect effect = n.effect();
   Control control = n.control();
 
-  if (n.ArgumentCount() < 1) {
-    effect = graph()->NewNode(simplified()->CheckString(p.feedback()), receiver,
-                              effect, control);
-
-    Node* value = jsgraph()->FalseConstant();
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
-  }
-
-  Node* search_string = n.Argument(0);
+  Node* search_string = n.ArgumentOr(0, jsgraph()->UndefinedConstant());
   Node* position = n.ArgumentOr(1, jsgraph()->ZeroConstant());
 
   HeapObjectMatcher m(search_string);
@@ -6432,51 +6423,60 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsString()) {
       StringRef str = target_ref.AsString();
-      if (str.length().has_value() && str.length().value() == 1) {
-        receiver = effect = graph()->NewNode(
-            simplified()->CheckString(p.feedback()), receiver, effect, control);
-
-        position = effect = graph()->NewNode(
-            simplified()->CheckSmi(p.feedback()), position, effect, control);
-
-        Node* string_length =
-            graph()->NewNode(simplified()->StringLength(), receiver);
-        Node* unsigned_position = graph()->NewNode(
-            simplified()->NumberMax(), position, jsgraph()->ZeroConstant());
-
-        Node* check = graph()->NewNode(simplified()->NumberLessThan(),
-                                       unsigned_position, string_length);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
-                                        check, control);
-
-        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-        Node* efalse = effect;
-        Node* vfalse = jsgraph()->FalseConstant();
-
-        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-        Node* etrue = effect;
-        Node* vtrue;
-        {
-          Node* masked_position =
-              graph()->NewNode(simplified()->PoisonIndex(), unsigned_position);
-          Node* string_first = etrue =
-              graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                               masked_position, etrue, if_true);
-
-          Node* search_first = jsgraph()->Constant(str.GetFirstChar().value());
-          vtrue = graph()->NewNode(simplified()->NumberEqual(), string_first,
-                                   search_first);
+      if (str.length().has_value()) {
+        if (str.length().value() == 0) {
+          Node* value = jsgraph()->TrueConstant();
+          ReplaceWithValue(node, value, effect, control);
+          return Replace(value);
         }
+        if (str.length().value() == 1) {
+          receiver = effect =
+              graph()->NewNode(simplified()->CheckString(p.feedback()),
+                               receiver, effect, control);
 
-        control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-        Node* value =
-            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                             vtrue, vfalse, control);
-        effect =
-            graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+          position = effect = graph()->NewNode(
+              simplified()->CheckSmi(p.feedback()), position, effect, control);
 
-        ReplaceWithValue(node, value, effect, control);
-        return Replace(value);
+          Node* string_length =
+              graph()->NewNode(simplified()->StringLength(), receiver);
+          Node* unsigned_position = graph()->NewNode(
+              simplified()->NumberMax(), position, jsgraph()->ZeroConstant());
+
+          Node* check = graph()->NewNode(simplified()->NumberLessThan(),
+                                         unsigned_position, string_length);
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
+                                          check, control);
+
+          Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+          Node* efalse = effect;
+          Node* vfalse = jsgraph()->FalseConstant();
+
+          Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+          Node* etrue = effect;
+          Node* vtrue;
+          {
+            Node* masked_position = graph()->NewNode(
+                simplified()->PoisonIndex(), unsigned_position);
+            Node* string_first = etrue =
+                graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
+                                 masked_position, etrue, if_true);
+
+            Node* search_first =
+                jsgraph()->Constant(str.GetFirstChar().value());
+            vtrue = graph()->NewNode(simplified()->NumberEqual(), string_first,
+                                     search_first);
+          }
+
+          control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+          Node* value =
+              graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                               vtrue, vfalse, control);
+          effect =
+              graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+
+          ReplaceWithValue(node, value, effect, control);
+          return Replace(value);
+        }
       }
     }
   }
