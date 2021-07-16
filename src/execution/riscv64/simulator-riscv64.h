@@ -610,6 +610,7 @@ class Simulator : public SimulatorBase {
     return alu_out;
   }
 
+  Builtin LookUp(Address pc);
   // RISCV decoding routine
   void DecodeRVRType();
   void DecodeRVR4Type();
