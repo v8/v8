@@ -1632,8 +1632,8 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind) {
 
 class WasmCompileFuzzer : public WasmExecutionFuzzer {
   bool GenerateModule(Isolate* isolate, Zone* zone,
-                      base::Vector<const uint8_t> data,
-                      ZoneBuffer* buffer) override {
+                      base::Vector<const uint8_t> data, ZoneBuffer* buffer,
+                      bool liftoff_as_reference) override {
     TestSignatures sigs;
 
     WasmModuleBuilder builder(zone);
@@ -1693,12 +1693,28 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     for (int i = 0; i < num_functions; ++i) {
       builder.SetIndirectFunction(i, i);
     }
-
+    if (liftoff_as_reference) {
+      uint32_t count = 4;
+      StructType::Builder struct_builder(zone, count);
+      struct_builder.AddField(kWasmI32, false);
+      struct_builder.AddField(kWasmI64, false);
+      struct_builder.AddField(kWasmF32, false);
+      struct_builder.AddField(kWasmF64, false);
+      StructType* struct_fuz = struct_builder.Build();
+      builder.AddStructType(struct_fuz);
+      ArrayType* array_fuzI32 = zone->New<ArrayType>(kWasmI32, true);
+      ArrayType* array_fuzI64 = zone->New<ArrayType>(kWasmI64, true);
+      ArrayType* array_fuzF32 = zone->New<ArrayType>(kWasmF32, true);
+      ArrayType* array_fuzF64 = zone->New<ArrayType>(kWasmF64, true);
+      builder.AddArrayType(array_fuzI32);
+      builder.AddArrayType(array_fuzI64);
+      builder.AddArrayType(array_fuzF32);
+      builder.AddArrayType(array_fuzF64);
+    }
     builder.SetMaxMemorySize(32);
     // We enable shared memory to be able to test atomics.
     builder.SetHasSharedMemory();
     builder.WriteTo(buffer);
-
     return true;
   }
 };

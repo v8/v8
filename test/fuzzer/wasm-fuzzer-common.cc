@@ -521,7 +521,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   bool liftoff_as_reference = false;
 #endif
   if (!data.empty()) data += 1;
-  if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
+  if (!GenerateModule(i_isolate, &zone, data, &buffer, liftoff_as_reference)) {
     return;
   }
 
