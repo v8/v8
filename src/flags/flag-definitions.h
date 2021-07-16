@@ -631,6 +631,7 @@ DEFINE_BOOL(
     turboprop_as_toptier, false,
     "enable experimental turboprop compiler without further tierup to turbofan")
 DEFINE_IMPLICATION(turboprop_as_toptier, turboprop)
+DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 115 * KB)
 DEFINE_UINT_READONLY(max_minimorphic_map_checks, 4,
                      "max number of map checks to perform in minimorphic state")
 DEFINE_INT(turboprop_inline_scaling_factor, 4,
@@ -638,7 +639,7 @@ DEFINE_INT(turboprop_inline_scaling_factor, 4,
            "TurboProp compared to TurboFan")
 // The scale factor determines the interrupt budget when tiering up from
 // Turboprop to TurboFan.
-DEFINE_INT(interrupt_budget_scale_factor_for_top_tier, 5,
+DEFINE_INT(interrupt_budget_scale_factor_for_top_tier, 20,
            "scale factor for profiler ticks when tiering up from midtier")
 
 // Flags for Sparkplug
