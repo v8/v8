@@ -12,7 +12,7 @@ ArrayPrototypeConcat(
   // Fast path if we invoke as `x.concat()`.
   if (arguments.length == 0) {
     typeswitch (receiver) {
-      case (a: FastJSArrayForCopy): {
+      case (a: FastJSArrayForConcat): {
         return CloneFastJSArray(context, a);
       }
       case (JSAny): {

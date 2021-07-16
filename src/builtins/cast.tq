@@ -547,6 +547,7 @@ Cast<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
     FastJSArrayForCopy
     labels CastError {
   if (IsArraySpeciesProtectorCellInvalid()) goto CastError;
+  // TODO(victorgomes): Check if we can cast from FastJSArrayForRead instead.
   const a = Cast<FastJSArray>(o) otherwise CastError;
   return %RawDownCast<FastJSArrayForCopy>(a);
 }
@@ -554,9 +555,8 @@ Cast<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
 Cast<FastJSArrayForConcat>(implicit context: Context)(o: HeapObject):
     FastJSArrayForConcat
     labels CastError {
-  if (IsArraySpeciesProtectorCellInvalid()) goto CastError;
   if (IsIsConcatSpreadableProtectorCellInvalid()) goto CastError;
-  const a = Cast<FastJSArrayForRead>(o) otherwise CastError;
+  const a = Cast<FastJSArrayForCopy>(o) otherwise CastError;
   return %RawDownCast<FastJSArrayForConcat>(a);
 }
 
