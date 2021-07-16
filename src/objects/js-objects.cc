@@ -3954,6 +3954,17 @@ bool JSObject::IsExtensible(Handle<JSObject> object) {
   return object->map().is_extensible();
 }
 
+// static
+MaybeHandle<Object> JSObject::ReadFromOptionsBag(Handle<Object> options,
+                                                 Handle<String> option_name,
+                                                 Isolate* isolate) {
+  if (options->IsJSReceiver()) {
+    Handle<JSReceiver> js_options = Handle<JSReceiver>::cast(options);
+    return JSObject::GetProperty(isolate, js_options, option_name);
+  }
+  return MaybeHandle<Object>(isolate->factory()->undefined_value());
+}
+
 template <typename Dictionary>
 void JSObject::ApplyAttributesToDictionary(
     Isolate* isolate, ReadOnlyRoots roots, Handle<Dictionary> dictionary,

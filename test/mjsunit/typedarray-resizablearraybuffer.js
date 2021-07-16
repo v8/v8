@@ -22,8 +22,12 @@ const ctors = [
   MyUint8Array
 ];
 
+function CreateResizableArrayBuffer(byteLength, maxByteLength) {
+  return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
+}
+
 (function TypedArrayPrototype() {
-  const rab = new ResizableArrayBuffer(40, 80);
+  const rab = CreateResizableArrayBuffer(40, 80);
   const ab = new ArrayBuffer(80);
 
   for (let ctor of ctors) {
@@ -34,7 +38,7 @@ const ctors = [
 })();
 
 (function TypedArrayLengthAndByteLength() {
-  const rab = new ResizableArrayBuffer(40, 80);
+  const rab = CreateResizableArrayBuffer(40, 80);
 
   for (let ctor of ctors) {
     const ta = new ctor(rab, 0, 3);
@@ -77,7 +81,7 @@ const ctors = [
 })();
 
 (function ConstructInvalid() {
-  const rab = new ResizableArrayBuffer(40, 80);
+  const rab = CreateResizableArrayBuffer(40, 80);
 
   for (let ctor of ctors) {
     // Length too big.
@@ -107,7 +111,7 @@ const ctors = [
 })();
 
 (function TypedArrayLengthWhenResizedOutOfBounds1() {
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
 
   // Create TAs which cover the bytes 0-7.
   let tas_and_lengths = [];
@@ -146,7 +150,7 @@ const ctors = [
 
 // The previous test with offsets.
 (function TypedArrayLengthWhenResizedOutOfBounds2() {
-  const rab = new ResizableArrayBuffer(20, 40);
+  const rab = CreateResizableArrayBuffer(20, 40);
 
   // Create TAs which cover the bytes 8-15.
   let tas_and_lengths = [];
@@ -184,7 +188,7 @@ const ctors = [
 })();
 
 (function LengthTracking1() {
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
 
   let tas = [];
   for (let ctor of ctors) {
@@ -246,7 +250,7 @@ const ctors = [
 
 // The previous test with offsets.
 (function LengthTracking2() {
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
 
   const offset = 8;
   let tas = [];
@@ -322,7 +326,7 @@ const ctors = [
     if (ctor.BYTES_PER_ELEMENT != 1) {
       continue;
     }
-    const rab = new ResizableArrayBuffer(16, 40);
+    const rab = CreateResizableArrayBuffer(16, 40);
     const array = new ctor(rab, 0, 4);
 
     // Initial values
@@ -381,7 +385,7 @@ const ctors = [
     if (ctor.BYTES_PER_ELEMENT != 1) {
       continue;
     }
-    const rab = new ResizableArrayBuffer(16, 40);
+    const rab = CreateResizableArrayBuffer(16, 40);
     const array = new ctor(rab, 0, 4);
 
     // Within-bounds read
@@ -419,7 +423,7 @@ const ctors = [
   }
   %EnsureFeedbackVectorForFunction(ReadElement2);
 
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
 
   const i8a = new Int8Array(rab, 0, 4);
   for (let i = 0; i < 3; ++i) {
@@ -469,7 +473,7 @@ const ctors = [
   }
   %EnsureFeedbackVectorForFunction(HasElement2);
 
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
 
   const i8a = new Int8Array(rab, 0, 4);
 
@@ -505,7 +509,7 @@ const ctors = [
   }
   %EnsureFeedbackVectorForFunction(WriteElement2);
 
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
 
   const i8a = new Int8Array(rab, 0, 4);
   assertEquals(0, i8a[2]);
@@ -554,7 +558,7 @@ const ctors = [
     return 2 in ta;
   }
 
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
   const i8a = new Int8Array(rab, 0, 4);
   i8a.__proto__ = {2: 'wrong value'};
   i8a[2] = 10;
@@ -576,7 +580,7 @@ const ctors = [
   %EnsureFeedbackVectorForFunction(ReadElement2);
   %EnsureFeedbackVectorForFunction(HasElement2);
 
-  const rab = new ResizableArrayBuffer(16, 40);
+  const rab = CreateResizableArrayBuffer(16, 40);
   const i8a = new Int8Array(rab, 0, 4);
   i8a.__proto__ = {2: 'wrong value'};
   i8a[2] = 10;
@@ -593,7 +597,7 @@ const ctors = [
 })();
 
 (function EnumerateElements() {
-  let rab = new ResizableArrayBuffer(100, 200);
+  let rab = CreateResizableArrayBuffer(100, 200);
   for (let ctor of ctors) {
     const ta = new ctor(rab, 0, 3);
     let keys = '';
@@ -625,7 +629,7 @@ const ctors = [
     const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
     // We can use the same RAB for all the TAs below, since we won't modify it
     // after writing the initial values.
-    const rab = new ResizableArrayBuffer(buffer_byte_length,
+    const rab = CreateResizableArrayBuffer(buffer_byte_length,
                                          2 * buffer_byte_length);
     const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
 
@@ -674,7 +678,7 @@ const ctors = [
 
 // Helpers for iteration tests.
 function CreateRab(buffer_byte_length, ctor) {
-  const rab = new ResizableArrayBuffer(buffer_byte_length,
+  const rab = CreateResizableArrayBuffer(buffer_byte_length,
                                        2 * buffer_byte_length);
   // Write some data into the array.
   let ta_write = new ctor(rab);
