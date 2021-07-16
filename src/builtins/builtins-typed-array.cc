@@ -99,7 +99,12 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   count = count * element_size;
 
   uint8_t* data = static_cast<uint8_t*>(array->DataPtr());
-  std::memmove(data + to, data + from, count);
+  if (array->buffer().is_shared()) {
+    base::Relaxed_Memmove(reinterpret_cast<base::Atomic8*>(data + to),
+                          reinterpret_cast<base::Atomic8*>(data + from), count);
+  } else {
+    std::memmove(data + to, data + from, count);
+  }
 
   return *array;
 }

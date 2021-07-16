@@ -1093,6 +1093,7 @@
   'wasm/futex': [SKIP],
   'regress/regress-1205290': [SKIP],
   'regress/regress-1212404': [SKIP],
+  'regress/regress-1221035': [SKIP],
   'regress/wasm/regress-1067621': [SKIP],
 
   # BUG(v8:9975).
