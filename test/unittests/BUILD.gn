@@ -488,6 +488,12 @@ v8_source_set("unittests_sources") {
     sources += [ "wasm/trap-handler-win-unittest.cc" ]
   }
 
+  # Include this test only on arm64 simulator builds on x64 on Linux.
+  if (current_cpu == "x64" && v8_current_cpu == "arm64" && is_linux &&
+      v8_enable_webassembly) {
+    sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
+  }
+
   configs = [
     "../..:cppgc_base_config",
     "../..:external_config",
