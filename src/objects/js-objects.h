@@ -793,6 +793,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   static const int kMaxInstanceSize = 255 * kTaggedSize;
 
+  static const int kMapCacheSize = 128;
+
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
   // to the same object requires fewer allocations and copies.

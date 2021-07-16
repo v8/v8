@@ -3323,41 +3323,27 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
 
 Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
                                                int number_of_properties) {
-  if (number_of_properties == 0) {
-    // Reuse the initial map of the Object function if the literal has no
-    // predeclared properties.
-    return handle(context->object_function().initial_map(), isolate());
-  }
-
   // Use initial slow object proto map for too many properties.
-  const int kMapCacheSize = 128;
-  if (number_of_properties > kMapCacheSize) {
+  if (number_of_properties >= JSObject::kMapCacheSize) {
     return handle(context->slow_object_with_object_prototype_map(), isolate());
   }
 
-  int cache_index = number_of_properties - 1;
-  Handle<Object> maybe_cache(context->map_cache(), isolate());
-  if (maybe_cache->IsUndefined(isolate())) {
-    // Allocate the new map cache for the native context.
-    maybe_cache = NewWeakFixedArray(kMapCacheSize, AllocationType::kOld);
-    context->set_map_cache(*maybe_cache);
-  } else {
-    // Check to see whether there is a matching element in the cache.
-    Handle<WeakFixedArray> cache = Handle<WeakFixedArray>::cast(maybe_cache);
-    MaybeObject result = cache->Get(cache_index);
-    HeapObject heap_object;
-    if (result->GetHeapObjectIfWeak(&heap_object)) {
-      Map map = Map::cast(heap_object);
-      DCHECK(!map.is_dictionary_map());
-      return handle(map, isolate());
-    }
+  Handle<WeakFixedArray> cache(WeakFixedArray::cast(context->map_cache()),
+                               isolate());
+
+  // Check to see whether there is a matching element in the cache.
+  MaybeObject result = cache->Get(number_of_properties);
+  HeapObject heap_object;
+  if (result->GetHeapObjectIfWeak(&heap_object)) {
+    Map map = Map::cast(heap_object);
+    DCHECK(!map.is_dictionary_map());
+    return handle(map, isolate());
   }
 
   // Create a new map and add it to the cache.
-  Handle<WeakFixedArray> cache = Handle<WeakFixedArray>::cast(maybe_cache);
   Handle<Map> map = Map::Create(isolate(), number_of_properties);
   DCHECK(!map->is_dictionary_map());
-  cache->Set(cache_index, HeapObjectReference::Weak(*map));
+  cache->Set(number_of_properties, HeapObjectReference::Weak(*map));
   return map;
 }
 

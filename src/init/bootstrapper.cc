@@ -249,7 +249,7 @@ class Genesis {
                                        ElementsKind elements_kind,
                                        InstanceType type,
                                        int rab_gsab_initial_map_index);
-  void InitializeNormalizedMapCaches();
+  void InitializeMapCaches();
 
   enum ExtensionTraversalState { UNVISITED, VISITED, INSTALLED };
 
@@ -5009,9 +5009,23 @@ bool Genesis::InstallExtrasBindings() {
   return true;
 }
 
-void Genesis::InitializeNormalizedMapCaches() {
-  Handle<NormalizedMapCache> cache = NormalizedMapCache::New(isolate());
-  native_context()->set_normalized_map_cache(*cache);
+void Genesis::InitializeMapCaches() {
+  {
+    Handle<NormalizedMapCache> cache = NormalizedMapCache::New(isolate());
+    native_context()->set_normalized_map_cache(*cache);
+  }
+
+  {
+    Handle<WeakFixedArray> cache = factory()->NewWeakFixedArray(
+        JSObject::kMapCacheSize, AllocationType::kOld);
+
+    DisallowGarbageCollection no_gc;
+    native_context()->set_map_cache(*cache);
+    Map initial = native_context()->object_function().initial_map();
+    cache->Set(0, HeapObjectReference::Weak(initial), SKIP_WRITE_BARRIER);
+    cache->Set(initial.GetInObjectProperties(),
+               HeapObjectReference::Weak(initial), SKIP_WRITE_BARRIER);
+  }
 }
 
 bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
@@ -5489,8 +5503,8 @@ Genesis::Genesis(
     CreateAsyncFunctionMaps(empty_function);
     Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);
+    InitializeMapCaches();
     InitializeGlobal(global_object, empty_function);
-    InitializeNormalizedMapCaches();
     InitializeIteratorFunctions();
     InitializeCallSiteBuiltins();
 
