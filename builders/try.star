@@ -68,6 +68,14 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_disable_runtime_call_stats_rel",
+    bucket = "try",
+    cq_properties = {"includable_only": "true", "cancel_stale": False},
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_builder(
     name = "v8_linux64_gcc_compile_dbg",
     bucket = "try",
     cq_properties = {"includable_only": "true", "cancel_stale": False},
