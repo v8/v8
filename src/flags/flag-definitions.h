@@ -865,8 +865,7 @@ DEFINE_BOOL(turbo_compress_translation_arrays, false,
             "compress translation arrays (experimental)")
 DEFINE_BOOL(turbo_inline_js_wasm_calls, false, "inline JS->Wasm calls")
 
-DEFINE_BOOL(turbo_optimize_apply, false, "optimize Function.prototype.apply")
-DEFINE_WEAK_IMPLICATION(future, turbo_optimize_apply)
+DEFINE_BOOL(turbo_optimize_apply, true, "optimize Function.prototype.apply")
 
 DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, true,
             "enable experimental feedback collection in generic lowering.")
