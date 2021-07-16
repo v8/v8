@@ -1031,6 +1031,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreReturnAddressAndCall(Register target);
 
   // ---------------------------------------------------------------------------
+  // Simd Support.
+  void F64x2Splat(Simd128Register dst, Simd128Register src);
+  void F32x4Splat(Simd128Register dst, Simd128Register src);
+  void I64x2Splat(Simd128Register dst, Register src);
+  void I32x4Splat(Simd128Register dst, Register src);
+  void I16x8Splat(Simd128Register dst, Register src);
+  void I8x16Splat(Simd128Register dst, Register src);
+
+  // ---------------------------------------------------------------------------
   // Pointer compression Support
 
   // Loads a field containing a HeapObject and decompresses it if pointer

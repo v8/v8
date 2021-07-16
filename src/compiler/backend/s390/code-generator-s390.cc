@@ -2481,41 +2481,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Word64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64();
       break;
-      // vector replicate element
-    case kS390_F64x2Splat: {
-      __ vrep(i.OutputSimd128Register(), i.InputDoubleRegister(0), Operand(0),
-              Condition(3));
-      break;
-    }
-    case kS390_F32x4Splat: {
-      __ vrep(i.OutputSimd128Register(), i.InputDoubleRegister(0), Operand(0),
-              Condition(2));
-      break;
-    }
-    case kS390_I64x2Splat: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vlvg(dst, i.InputRegister(0), MemOperand(r0, 0), Condition(3));
-      __ vrep(dst, dst, Operand(0), Condition(3));
-      break;
-    }
-    case kS390_I32x4Splat: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vlvg(dst, i.InputRegister(0), MemOperand(r0, 0), Condition(2));
-      __ vrep(dst, dst, Operand(0), Condition(2));
-      break;
-    }
-    case kS390_I16x8Splat: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vlvg(dst, i.InputRegister(0), MemOperand(r0, 0), Condition(1));
-      __ vrep(dst, dst, Operand(0), Condition(1));
-      break;
-    }
-    case kS390_I8x16Splat: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vlvg(dst, i.InputRegister(0), MemOperand(r0, 0), Condition(0));
-      __ vrep(dst, dst, Operand(0), Condition(0));
-      break;
-    }
+      // Simd Support.
+#define SIMD_UNOP_LIST(V)                                    \
+  V(F64x2Splat, F64x2Splat, Simd128Register, DoubleRegister) \
+  V(F32x4Splat, F32x4Splat, Simd128Register, DoubleRegister) \
+  V(I64x2Splat, I64x2Splat, Simd128Register, Register)       \
+  V(I32x4Splat, I32x4Splat, Simd128Register, Register)       \
+  V(I16x8Splat, I16x8Splat, Simd128Register, Register)       \
+  V(I8x16Splat, I8x16Splat, Simd128Register, Register)
+
+#define EMIT_SIMD_UNOP(name, op, dtype, stype)   \
+  case kS390_##name: {                           \
+    __ op(i.Output##dtype(), i.Input##stype(0)); \
+    break;                                       \
+  }
+      SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
+#undef EMIT_SIMD_UNOP
+#undef SIMD_UNOP_LIST
     // vector extract element
     case kS390_F64x2ExtractLane: {
       __ vrep(i.OutputDoubleRegister(), i.InputSimd128Register(0),

@@ -5086,6 +5086,35 @@ void TurboAssembler::AtomicExchangeU16(Register addr, Register value,
   bind(&done);
 }
 
+// Simd Support.
+void TurboAssembler::F64x2Splat(Simd128Register dst, Simd128Register src) {
+  vrep(dst, src, Operand(0), Condition(3));
+}
+
+void TurboAssembler::F32x4Splat(Simd128Register dst, Simd128Register src) {
+  vrep(dst, src, Operand(0), Condition(2));
+}
+
+void TurboAssembler::I64x2Splat(Simd128Register dst, Register src) {
+  vlvg(dst, src, MemOperand(r0, 0), Condition(3));
+  vrep(dst, dst, Operand(0), Condition(3));
+}
+
+void TurboAssembler::I32x4Splat(Simd128Register dst, Register src) {
+  vlvg(dst, src, MemOperand(r0, 0), Condition(2));
+  vrep(dst, dst, Operand(0), Condition(2));
+}
+
+void TurboAssembler::I16x8Splat(Simd128Register dst, Register src) {
+  vlvg(dst, src, MemOperand(r0, 0), Condition(1));
+  vrep(dst, dst, Operand(0), Condition(1));
+}
+
+void TurboAssembler::I8x16Splat(Simd128Register dst, Register src) {
+  vlvg(dst, src, MemOperand(r0, 0), Condition(0));
+  vrep(dst, dst, Operand(0), Condition(0));
+}
+
 }  // namespace internal
 }  // namespace v8
 
