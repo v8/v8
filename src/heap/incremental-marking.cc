@@ -159,7 +159,7 @@ bool IncrementalMarking::CanBeActivated() {
 
 bool IncrementalMarking::IsBelowActivationThresholds() const {
   return heap_->OldGenerationSizeOfObjects() <= kV8ActivationThreshold &&
-         heap_->GlobalSizeOfObjects() <= kGlobalActivationThreshold;
+         heap_->EmbedderSizeOfObjects() <= kEmbedderActivationThreshold;
 }
 
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
