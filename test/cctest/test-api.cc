@@ -28737,7 +28737,7 @@ TEST(FastApiCalls) {
 #ifndef V8_LITE_MODE
 namespace {
 void FastCallback1TypedArray(v8::Local<v8::Object> receiver, int arg0,
-                             const v8::FastApiTypedArray<double>& arg1) {
+                             v8::FastApiTypedArray<double> arg1) {
   // TODO(mslekova): Use the TypedArray parameter
 }
 

@@ -1660,10 +1660,4 @@
   'wasm/shared-memory-gc-stress': [SKIP],
 }], # third_party_heap
 
-##############################################################################
-['arch != x64', {
-  # Tests that include types only supported on x64.
-  'compiler/fast-api-sequences-x64': [SKIP],
-}],  # arch != x64
-
 ]

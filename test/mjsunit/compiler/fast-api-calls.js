@@ -163,7 +163,7 @@ assertEquals(add_32bit_int_result, add_32bit_int_mismatch(false, -42, 45));
 assertOptimized(add_32bit_int_mismatch);
 
 // Test that passing too few argument falls down the slow path,
-// because one of the arguments is undefined.
+// because it's an argument type mismatch (undefined vs. int).
 fast_c_api.reset_counts();
 assertEquals(-42, add_32bit_int_mismatch(false, -42));
 assertUnoptimized(add_32bit_int_mismatch);
