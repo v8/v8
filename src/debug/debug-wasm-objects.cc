@@ -1142,10 +1142,9 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
   JSObject::SetPrototype(final_entries, isolate->factory()->null_value(), false,
                          kDontThrow)
       .Check();
-  result = ArrayList::Add(
-      isolate, result,
-      isolate->factory()->NewStringFromStaticChars("[[Entries]]"),
-      final_entries);
+  Handle<String> entries_string =
+      isolate->factory()->NewStringFromStaticChars("[[Entries]]");
+  result = ArrayList::Add(isolate, result, entries_string, final_entries);
   return result;
 }
 
