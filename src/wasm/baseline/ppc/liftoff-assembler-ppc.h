@@ -784,18 +784,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 
 UNIMPLEMENTED_I32_BINOP(i32_mul)
-UNIMPLEMENTED_I32_BINOP_I(i32_and)
-UNIMPLEMENTED_I32_BINOP_I(i32_or)
-UNIMPLEMENTED_I32_BINOP_I(i32_xor)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
 UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
 UNIMPLEMENTED_I64_BINOP(i64_mul)
-#ifdef V8_TARGET_ARCH_PPC64
-UNIMPLEMENTED_I64_BINOP_I(i64_and)
-UNIMPLEMENTED_I64_BINOP_I(i64_or)
-UNIMPLEMENTED_I64_BINOP_I(i64_xor)
-#endif
 UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
 UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
 UNIMPLEMENTED_I64_SHIFTOP(i64_shr)
@@ -886,7 +878,28 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
   V(i32_sub, SubS32, Register, Register, Register, , , , USE, , void)        \
   V(i32_add, AddS32, Register, Register, Register, , , , USE, , void)        \
   V(i32_addi, AddS32, Register, Register, int32_t, , , Operand, USE, , void) \
-  V(i32_subi, SubS32, Register, Register, int32_t, , , Operand, USE, , void)
+  V(i32_subi, SubS32, Register, Register, int32_t, , , Operand, USE, , void) \
+  V(i32_andi, AndU32, Register, Register, int32_t, , , Operand, SIGN_EXT, ,  \
+    void)                                                                    \
+  V(i32_ori, OrU32, Register, Register, int32_t, , , Operand, SIGN_EXT, ,    \
+    void)                                                                    \
+  V(i32_xori, XorU32, Register, Register, int32_t, , , Operand, SIGN_EXT, ,  \
+    void)                                                                    \
+  V(i32_and, AndU32, Register, Register, Register, , , , SIGN_EXT, , void)   \
+  V(i32_or, OrU32, Register, Register, Register, , , , SIGN_EXT, , void)     \
+  V(i32_xor, XorU32, Register, Register, Register, , , , SIGN_EXT, , void)   \
+  V(i64_and, AndU64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
+  V(i64_or, OrU64, LiftoffRegister, LiftoffRegister, LiftoffRegister,        \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
+  V(i64_xor, XorU64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
+  V(i64_andi, AndU64, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG, \
+    LFR_TO_REG, Operand, USE, , void)                                        \
+  V(i64_ori, OrU64, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG,   \
+    LFR_TO_REG, Operand, USE, , void)                                        \
+  V(i64_xori, XorU64, LiftoffRegister, LiftoffRegister, int32_t, LFR_TO_REG, \
+    LFR_TO_REG, Operand, USE, , void)
 
 #define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \
                             scast2, rcast, ret, return_type)                   \

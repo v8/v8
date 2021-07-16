@@ -2729,6 +2729,87 @@ void TurboAssembler::SubS32(Register dst, Register src, const Operand& value,
   extsw(dst, dst, r);
 }
 
+void TurboAssembler::AndU64(Register dst, Register src, const Operand& value,
+                            Register scratch, RCBit r) {
+  if (is_int16(value.immediate()) && r == SetRC) {
+    andi(dst, src, value);
+  } else {
+    mov(scratch, value);
+    and_(dst, src, scratch, r);
+  }
+}
+
+void TurboAssembler::AndU64(Register dst, Register src, Register value,
+                            RCBit r) {
+  and_(dst, src, value, r);
+}
+
+void TurboAssembler::OrU64(Register dst, Register src, const Operand& value,
+                           Register scratch, RCBit r) {
+  if (is_int16(value.immediate()) && r == SetRC) {
+    ori(dst, src, value);
+  } else {
+    mov(scratch, value);
+    orx(dst, src, scratch, r);
+  }
+}
+
+void TurboAssembler::OrU64(Register dst, Register src, Register value,
+                           RCBit r) {
+  orx(dst, src, value, r);
+}
+
+void TurboAssembler::XorU64(Register dst, Register src, const Operand& value,
+                            Register scratch, RCBit r) {
+  if (is_int16(value.immediate()) && r == SetRC) {
+    xori(dst, src, value);
+  } else {
+    mov(scratch, value);
+    xor_(dst, src, scratch, r);
+  }
+}
+
+void TurboAssembler::XorU64(Register dst, Register src, Register value,
+                            RCBit r) {
+  xor_(dst, src, value, r);
+}
+
+void TurboAssembler::AndU32(Register dst, Register src, const Operand& value,
+                            Register scratch, RCBit r) {
+  AndU64(dst, src, value, scratch, r);
+  extsw(dst, dst, r);
+}
+
+void TurboAssembler::AndU32(Register dst, Register src, Register value,
+                            RCBit r) {
+  AndU64(dst, src, value, r);
+  extsw(dst, dst, r);
+}
+
+void TurboAssembler::OrU32(Register dst, Register src, const Operand& value,
+                           Register scratch, RCBit r) {
+  OrU64(dst, src, value, scratch, r);
+  extsw(dst, dst, r);
+}
+
+void TurboAssembler::OrU32(Register dst, Register src, Register value,
+                           RCBit r) {
+  OrU64(dst, src, value, r);
+  extsw(dst, dst, r);
+}
+
+void TurboAssembler::XorU32(Register dst, Register src, const Operand& value,
+                            Register scratch, RCBit r) {
+  XorU64(dst, src, value, scratch, r);
+  extsw(dst, dst, r);
+}
+
+void TurboAssembler::XorU32(Register dst, Register src, Register value,
+                            RCBit r) {
+  XorU64(dst, src, value, r);
+  extsw(dst, dst, r);
+}
+
 void TurboAssembler::CmpS64(Register src1, Register src2, CRegister cr) {
   cmp(src1, src2, cr);
 }
