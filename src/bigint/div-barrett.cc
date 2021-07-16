@@ -23,20 +23,6 @@ namespace bigint {
 
 namespace {
 
-constexpr int DivideBarrettScratchSpace(int n) { return n + 2; }
-
-// Local values S and W need "n plus a few" digits; U needs 2*n "plus a few".
-// In all tested cases the "few" were either 2 or 3, so give 5 to be safe.
-// S and W are not live at the same time.
-constexpr int kInvertNewtonExtraSpace = 5;
-constexpr int InvertNewtonScratchSpace(int n) {
-  return 3 * n + 2 * kInvertNewtonExtraSpace;
-}
-
-constexpr int InvertScratchSpace(int n) {
-  return n < kNewtonInversionThreshold ? 2 * n : InvertNewtonScratchSpace(n);
-}
-
 void DcheckIntegerPartRange(Digits X, digit_t min, digit_t max) {
 #if DEBUG
   digit_t integer_part = X.msd();

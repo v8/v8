@@ -21,6 +21,8 @@ constexpr int kBurnikelThreshold = 57;
 constexpr int kNewtonInversionThreshold = 50;
 // kBarrettThreshold is defined in bigint.h.
 
+constexpr int kToStringFastThreshold = 43;
+
 class ProcessorImpl : public Processor {
  public:
   explicit ProcessorImpl(Platform* platform);
@@ -62,6 +64,8 @@ class ProcessorImpl : public Processor {
   // {out_length} initially contains the allocated capacity of {out}, and
   // upon return will be set to the actual length of the result string.
   void ToString(char* out, int* out_length, Digits X, int radix, bool sign);
+  void ToStringImpl(char* out, int* out_length, Digits X, int radix, bool sign,
+                    bool use_fast_algorithm);
 
   bool should_terminate() { return status_ == Status::kInterrupted; }
 
@@ -87,6 +91,20 @@ class ProcessorImpl : public Processor {
   Status status_{Status::kOk};
   Platform* platform_;
 };
+
+// These constants are primarily needed for Barrett division in div-barrett.cc,
+// and they're also needed by fast to-string conversion in tostring.cc.
+constexpr int DivideBarrettScratchSpace(int n) { return n + 2; }
+// Local values S and W need "n plus a few" digits; U needs 2*n "plus a few".
+// In all tested cases the "few" were either 2 or 3, so give 5 to be safe.
+// S and W are not live at the same time.
+constexpr int kInvertNewtonExtraSpace = 5;
+constexpr int InvertNewtonScratchSpace(int n) {
+  return 3 * n + 2 * kInvertNewtonExtraSpace;
+}
+constexpr int InvertScratchSpace(int n) {
+  return n < kNewtonInversionThreshold ? 2 * n : InvertNewtonScratchSpace(n);
+}
 
 #define CHECK(cond)                                   \
   if (!(cond)) {                                      \

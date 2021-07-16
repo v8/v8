@@ -106,6 +106,16 @@ char* DivideByMagic(RWDigits rest, Digits input, char* output) {
   return output;
 }
 
+class RecursionLevel;
+
+// The classic algorithm must check for interrupt requests if no faster
+// algorithm is available.
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+#define MAYBE_INTERRUPT(code) ((void)0)
+#else
+#define MAYBE_INTERRUPT(code) code
+#endif
+
 class ToStringFormatter {
  public:
   ToStringFormatter(Digits X, int radix, bool sign, char* out,
@@ -142,16 +152,16 @@ class ToStringFormatter {
       if (radix_ == 10) {
         // Faster but costs binary size, so we optimize the most common case.
         out_ = DivideByMagic<10>(rest, dividend, out_);
-        processor_->AddWorkEstimate(rest.len() * 2);
+        MAYBE_INTERRUPT(processor_->AddWorkEstimate(rest.len() * 2));
       } else {
         digit_t chunk;
         processor_->DivideSingle(rest, &chunk, dividend, chunk_divisor_);
         out_ = BasecaseMiddle(chunk, out_);
         // Assume that a division is about ten times as expensive as a
         // multiplication.
-        processor_->AddWorkEstimate(rest.len() * 10);
+        MAYBE_INTERRUPT(processor_->AddWorkEstimate(rest.len() * 10));
       }
-      if (processor_->should_terminate()) return;
+      MAYBE_INTERRUPT(if (processor_->should_terminate()) return );
       rest.Normalize();
       dividend = rest;
     } while (rest.len() > 1);
@@ -159,6 +169,10 @@ class ToStringFormatter {
   }
 
   void BasePowerOfTwo();
+
+  void Fast();
+  char* ProcessLevel(RecursionLevel* level, Digits chunk, char* out,
+                     bool is_last_on_level);
 
  private:
   // When processing the last (most significant) digit, don't write leading
@@ -196,6 +210,8 @@ class ToStringFormatter {
   digit_t chunk_divisor_ = 0;
   ProcessorImpl* processor_;
 };
+
+#undef MAYBE_INTERRUPT
 
 // Prepares data for {Classic}. Not needed for {BasePowerOfTwo}.
 void ToStringFormatter::Start() {
@@ -251,16 +267,256 @@ void ToStringFormatter::BasePowerOfTwo() {
   }
 }
 
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+
+// "Fast" divide-and-conquer conversion to string. The basic idea is to
+// recursively cut the BigInt in half (using a division with remainder,
+// the divisor being ~half as large (in bits) as the current dividend).
+//
+// As preparation, we build up a linked list of metadata for each recursion
+// level. We do this bottom-up, i.e. start with the level that will produce
+// two halves that are register-sized and bail out to the base case.
+// Each higher level (executed earlier, prepared later) uses a divisor that is
+// the square of the previously-created "next" level's divisor. Preparation
+// terminates when the current divisor is at least half as large as the bigint.
+// We also precompute each level's divisor's inverse, so we can use
+// Barrett division later.
+//
+// Example: say we want to format 1234567890123, and we can fit two decimal
+// digits into a register for the base case.
+//
+//              1234567890123
+//                    ↓
+//               %100000000 (a)              // RecursionLevel 2,
+//             /            \                // is_toplevel_ == true.
+//         12345            67890123
+//           ↓                  ↓
+//    (e) %10000             %10000 (b)      // RecursionLevel 1
+//        /    \            /      \
+//       1     2345      6789      0123
+//       ↓   (f) ↓         ↓ (d)     ↓
+// (g) %100    %100      %100      %100 (c)  // RecursionLevel 0
+//     / \     /   \     /   \     /   \
+//    00 01   23   45   67   89   01   23
+//        ↓    ↓    ↓    ↓    ↓    ↓    ↓    // Base case.
+//       "1" "23" "45" "67" "89" "01" "23"
+//
+// We start building RecursionLevels in order 0 -> 1 -> 2, performing the
+// squarings 100² = 10000 and 10000² = 100000000 each only once. Execution
+// then happens in order (a) through (g); lower-level divisors are used
+// repeatedly. We build the string from right to left.
+// Note that we can skip the division at (g) and fall through directly.
+// Also, note that there are two chunks with value 1: one of them must produce
+// a leading "0" in its string representation, the other must not.
+//
+// In this example, {base_divisor} is 100 and {base_char_count} is 2.
+
+// TODO(jkummerow): Investigate whether it is beneficial to build one or two
+// fewer RecursionLevels, and use the topmost level for more than one division.
+
+class RecursionLevel {
+ public:
+  static RecursionLevel* CreateLevels(digit_t base_divisor, int base_char_count,
+                                      int target_bit_length,
+                                      ProcessorImpl* processor);
+  ~RecursionLevel() { delete next_; }
+
+  void ComputeInverse(ProcessorImpl* proc, int dividend_length = 0);
+  Digits GetInverse(int dividend_length);
+
+ private:
+  friend class ToStringFormatter;
+  RecursionLevel(digit_t base_divisor, int base_char_count)
+      : char_count_(base_char_count), divisor_(1) {
+    divisor_[0] = base_divisor;
+  }
+  explicit RecursionLevel(RecursionLevel* next)
+      : char_count_(next->char_count_ * 2),
+        next_(next),
+        divisor_(next->divisor_.len() * 2) {
+    next->is_toplevel_ = false;
+  }
+
+  void LeftShiftDivisor() {
+    leading_zero_shift_ = CountLeadingZeros(divisor_.msd());
+    LeftShift(divisor_, divisor_, leading_zero_shift_);
+  }
+
+  int leading_zero_shift_{0};
+  // The number of characters generated by *each half* of this level.
+  int char_count_;
+  bool is_toplevel_{true};
+  RecursionLevel* next_{nullptr};
+  ScratchDigits divisor_;
+  std::unique_ptr<Storage> inverse_storage_;
+  Digits inverse_{nullptr, 0};
+};
+
+// static
+RecursionLevel* RecursionLevel::CreateLevels(digit_t base_divisor,
+                                             int base_char_count,
+                                             int target_bit_length,
+                                             ProcessorImpl* processor) {
+  RecursionLevel* level = new RecursionLevel(base_divisor, base_char_count);
+  while (BitLength(level->divisor_) * 2 <= target_bit_length) {
+    RecursionLevel* prev = level;
+    level = new RecursionLevel(prev);
+    processor->Multiply(level->divisor_, prev->divisor_, prev->divisor_);
+    if (processor->should_terminate()) {
+      delete level;
+      return nullptr;
+    }
+    level->divisor_.Normalize();
+    // Left-shifting the divisor must only happen after it's been used to
+    // compute the next divisor.
+    prev->LeftShiftDivisor();
+    prev->ComputeInverse(processor);
+  }
+  level->LeftShiftDivisor();
+  // Not calling info->ComputeInverse here so that it can take the input's
+  // length into account to save some effort on inverse generation.
+  return level;
+}
+
+// The top level might get by with a smaller inverse than we could maximally
+// compute, so the caller should provide the dividend length.
+void RecursionLevel::ComputeInverse(ProcessorImpl* processor,
+                                    int dividend_length) {
+  int inverse_len = divisor_.len();
+  if (dividend_length != 0) {
+    inverse_len = dividend_length - divisor_.len();
+    DCHECK(inverse_len <= divisor_.len());
+  }
+  int scratch_len = InvertScratchSpace(inverse_len);
+  ScratchDigits scratch(scratch_len);
+  Storage* inv_storage = new Storage(inverse_len + 1);
+  inverse_storage_.reset(inv_storage);
+  RWDigits inverse_initializer(inv_storage->get(), inverse_len + 1);
+  Digits input(divisor_, divisor_.len() - inverse_len, inverse_len);
+  processor->Invert(inverse_initializer, input, scratch);
+  inverse_initializer.TrimOne();
+  inverse_ = inverse_initializer;
+}
+
+Digits RecursionLevel::GetInverse(int dividend_length) {
+  DCHECK(inverse_.len() != 0);  // NOLINT(readability/check)
+  int inverse_len = dividend_length - divisor_.len();
+  DCHECK(inverse_len <= inverse_.len());
+  return inverse_ + (inverse_.len() - inverse_len);
+}
+
+void ToStringFormatter::Fast() {
+  std::unique_ptr<RecursionLevel> recursion_levels(RecursionLevel::CreateLevels(
+      chunk_divisor_, chunk_chars_, BitLength(digits_), processor_));
+  if (processor_->should_terminate()) return;
+  out_ = ProcessLevel(recursion_levels.get(), digits_, out_, true);
+}
+
+char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
+                                      char* out, bool is_last_on_level) {
+  // Step 0: if only one digit is left, bail out to the base case.
+  Digits normalized = chunk;
+  normalized.Normalize();
+  if (normalized.len() <= 1) {
+    char* prev_cursor = out;
+    if (normalized.len() == 1) {
+      out = BasecaseLast(normalized[0], out);
+    }
+    // Fill up with zeros up to the character count expected to be generated
+    // on this level; unless this is the left edge of the result.
+    if (is_last_on_level) return out;
+    int chunk_chars = level == nullptr ? chunk_chars_ : level->char_count_;
+    char* end = prev_cursor - chunk_chars;
+    while (out != end) {
+      *(--out) = '0';
+    }
+    return out;
+  }
+
+  // Step 1: If the chunk is guaranteed to remain smaller than the divisor
+  // even after left-shifting, fall through to the next level immediately.
+  if (normalized.len() < level->divisor_.len()) {
+    return ProcessLevel(level->next_, chunk, out, is_last_on_level);
+  }
+  // Step 2: Prepare the chunk.
+  bool allow_inplace_modification = !level->is_toplevel_;
+  ShiftedDigits chunk_shifted(chunk, level->leading_zero_shift_,
+                              allow_inplace_modification);
+  chunk = chunk_shifted;
+  chunk.Normalize();
+  // Check (now precisely) if the chunk is smaller than the divisor.
+  if (Compare(chunk, level->divisor_) <= 0) {
+    // In case we shifted {chunk} in-place, we must undo that before the call.
+    chunk_shifted.Reset();
+    return ProcessLevel(level->next_, chunk, out, is_last_on_level);
+  }
+  // Step 3: Allocate space for the results.
+  // Allocate one extra digit so the next level can left-shift in-place.
+  ScratchDigits right(level->divisor_.len() + 1);
+  // Allocate one extra digit because DivideBarrett requires it.
+  ScratchDigits left(chunk.len() - level->divisor_.len() + 1);
+
+  // Step 4: Divide to split {chunk} into {left} and {right}.
+  int inverse_len = chunk.len() - level->divisor_.len();
+  if (inverse_len == 0) {
+    processor_->DivideSchoolbook(left, right, chunk, level->divisor_);
+  } else if (level->divisor_.len() == 1) {
+    processor_->DivideSingle(left, right.digits(), chunk, level->divisor_[0]);
+    for (int i = 1; i < right.len(); i++) right[i] = 0;
+  } else {
+    ScratchDigits scratch(DivideBarrettScratchSpace(chunk.len()));
+    // The top level only computes its inverse when {chunk.len()} is
+    // available. Other levels have precomputed theirs.
+    if (level->is_toplevel_) {
+      level->ComputeInverse(processor_, chunk.len());
+      if (processor_->should_terminate()) return out;
+    }
+    Digits inverse = level->GetInverse(chunk.len());
+    processor_->DivideBarrett(left, right, chunk, level->divisor_, inverse,
+                              scratch);
+    if (processor_->should_terminate()) return out;
+  }
+  RightShift(right, right, level->leading_zero_shift_);
+#if DEBUG
+  Digits left_test = left;
+  left_test.Normalize();
+  DCHECK(left_test.len() <= level->divisor_.len());
+#endif
+
+  // Step 5: Recurse.
+  ProcessLevel(level->next_, right, out, false);
+  if (processor_->should_terminate()) return out;
+  return ProcessLevel(level->next_, left, out - level->char_count_,
+                      is_last_on_level);
+}
+
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+
 }  // namespace
 
 void ProcessorImpl::ToString(char* out, int* out_length, Digits X, int radix,
                              bool sign) {
+  const bool use_fast_algorithm = X.len() >= kToStringFastThreshold;
+  ToStringImpl(out, out_length, X, radix, sign, use_fast_algorithm);
+}
+
+// Factored out so that tests can call it.
+void ProcessorImpl::ToStringImpl(char* out, int* out_length, Digits X,
+                                 int radix, bool sign, bool fast) {
 #if DEBUG
   for (int i = 0; i < *out_length; i++) out[i] = kStringZapValue;
 #endif
   ToStringFormatter formatter(X, radix, sign, out, *out_length, this);
   if (IsPowerOfTwo(radix)) {
     formatter.BasePowerOfTwo();
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+  } else if (fast) {
+    formatter.Start();
+    formatter.Fast();
+    if (should_terminate()) return;
+#else
+    USE(fast);
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
   } else {
     formatter.Start();
     formatter.Classic();

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
 #include <string>
 
 #include "src/bigint/bigint-internal.h"
@@ -32,7 +33,8 @@ int PrintHelp(char** argv) {
   V(kBurnikel, "burnikel")   \
   V(kFFT, "fft")             \
   V(kKaratsuba, "karatsuba") \
-  V(kToom, "toom")
+  V(kToom, "toom")           \
+  V(kToString, "tostring")
 
 enum Operation { kNoOp, kList, kTest };
 
@@ -158,6 +160,19 @@ class Runner {
     error_ = true;
   }
 
+  void AssertEquals(Digits X, int radix, char* expected, int expected_length,
+                    char* actual, int actual_length) {
+    if (expected_length == actual_length &&
+        std::memcmp(expected, actual, actual_length) == 0) {
+      return;
+    }
+    std::cerr << "Input:    " << FormatHex(X) << "\n";
+    std::cerr << "Radix:    " << radix << "\n";
+    std::cerr << "Expected: " << std::string(expected, expected_length) << "\n";
+    std::cerr << "Actual:   " << std::string(actual, actual_length) << "\n";
+    error_ = true;
+  }
+
   int RunTest() {
     int count = 0;
     if (test_ == kBarrett) {
@@ -179,6 +194,10 @@ class Runner {
     } else if (test_ == kToom) {
       for (int i = 0; i < runs_; i++) {
         TestToom(&count);
+      }
+    } else if (test_ == kToString) {
+      for (int i = 0; i < runs_; i++) {
+        TestToString(&count);
       }
     } else {
       DCHECK(false);  // Unreachable.
@@ -347,6 +366,30 @@ class Runner {
 #else
   void TestBarrett(int* count) {}
 #endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+
+  void TestToString(int* count) {
+    constexpr int kMin = kToStringFastThreshold / 2;
+    constexpr int kMax = kToStringFastThreshold * 2;
+    for (int size = kMin; size < kMax; size++) {
+      ScratchDigits X(size);
+      GenerateRandom(X);
+      for (int radix = 2; radix <= 36; radix++) {
+        int chars_required = ToStringResultLength(X, radix, false);
+        int result_len = chars_required;
+        int reference_len = chars_required;
+        std::unique_ptr<char[]> result(new char[result_len]);
+        std::unique_ptr<char[]> reference(new char[reference_len]);
+        processor()->ToStringImpl(result.get(), &result_len, X, radix, false,
+                                  true);
+        processor()->ToStringImpl(reference.get(), &reference_len, X, radix,
+                                  false, false);
+        AssertEquals(X, radix, reference.get(), reference_len, result.get(),
+                     result_len);
+        if (error_) return;
+        (*count)++;
+      }
+    }
+  }
 
   int ParseOptions(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
