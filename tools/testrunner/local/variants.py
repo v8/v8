@@ -69,6 +69,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
              "--liftoff-only"],
   "sparkplug": ["--jitless"],
   "always_sparkplug": ["--jitless"],
+  "future": ["--interrupt-budget=*"],
   "turboprop": ["--interrupt-budget=*"],
   "turboprop_as_toptier": ["--interrupt-budget=*"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache",

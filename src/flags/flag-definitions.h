@@ -480,8 +480,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
-DEFINE_WEAK_IMPLICATION(future, finalize_streaming_on_background)
-DEFINE_WEAK_IMPLICATION(future, super_ic)
 DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, sparkplug)
@@ -489,6 +487,7 @@ DEFINE_WEAK_IMPLICATION(future, sparkplug)
 #if V8_SHORT_BUILTIN_CALLS
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #endif
+DEFINE_WEAK_IMPLICATION(future, turboprop)
 
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
