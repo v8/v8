@@ -2613,7 +2613,7 @@ void TurboAssembler::Branch(Label* L, Condition cond, Register rs,
       }
     }
   } else {
-    if (is_trampoline_emitted()) {
+    if (is_trampoline_emitted() && near_jump == Label::Distance::kFar) {
       if (cond != cc_always) {
         Label skip;
         Condition neg_cond = NegateCondition(cond);
@@ -3934,7 +3934,7 @@ void TurboAssembler::Assert(Condition cc, AbortReason reason, Register rs,
 void TurboAssembler::Check(Condition cc, AbortReason reason, Register rs,
                            Operand rt) {
   Label L;
-  Branch(&L, cc, rs, rt);
+  BranchShort(&L, cc, rs, rt);
   Abort(reason);
   // Will not return here.
   bind(&L);
@@ -4196,7 +4196,7 @@ void MacroAssembler::AssertStackIsAligned() {
         UseScratchRegisterScope temps(this);
         Register scratch = temps.Acquire();
         andi(scratch, sp, frame_alignment_mask);
-        Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
+        BranchShort(&alignment_as_expected, eq, scratch, Operand(zero_reg));
       }
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
       ebreak();
@@ -4317,13 +4317,13 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   Label done;
 
   // Check if JSGeneratorObject
-  Branch(&done, eq, kScratchReg, Operand(JS_GENERATOR_OBJECT_TYPE));
+  BranchShort(&done, eq, kScratchReg, Operand(JS_GENERATOR_OBJECT_TYPE));
 
   // Check if JSAsyncFunctionObject (See MacroAssembler::CompareInstanceType)
-  Branch(&done, eq, kScratchReg, Operand(JS_ASYNC_FUNCTION_OBJECT_TYPE));
+  BranchShort(&done, eq, kScratchReg, Operand(JS_ASYNC_FUNCTION_OBJECT_TYPE));
 
   // Check if JSAsyncGeneratorObject
-  Branch(&done, eq, kScratchReg, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
+  BranchShort(&done, eq, kScratchReg, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
 
   Abort(AbortReason::kOperandIsNotAGeneratorObject);
 
@@ -4336,7 +4336,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     Label done_checking;
     AssertNotSmi(object);
     LoadRoot(scratch, RootIndex::kUndefinedValue);
-    Branch(&done_checking, eq, object, Operand(scratch));
+    BranchShort(&done_checking, eq, object, Operand(scratch));
     GetObjectType(object, scratch, scratch);
     Assert(eq, AbortReason::kExpectedUndefinedOrCell, scratch,
            Operand(ALLOCATION_SITE_TYPE));
@@ -4510,7 +4510,7 @@ void TurboAssembler::CallCFunctionHelper(Register function,
         UseScratchRegisterScope temps(this);
         Register scratch = temps.Acquire();
         And(scratch, sp, Operand(frame_alignment_mask));
-        Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
+        BranchShort(&alignment_as_expected, eq, scratch, Operand(zero_reg));
       }
       // Don't use Check here, as it will call Runtime_Abort possibly
       // re-entering here.
