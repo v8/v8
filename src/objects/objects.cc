@@ -5905,7 +5905,6 @@ GlobalDictionary::TryFindPropertyCellForConcurrentLookupIterator(
     CHECK(element.IsPropertyCell(cage_base));
     return PropertyCell::cast(element);
   }
-  return {};
 }
 
 Handle<StringSet> StringSet::New(Isolate* isolate) {
