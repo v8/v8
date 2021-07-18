@@ -49,7 +49,7 @@ vars = {
   'reclient_version': 're_client_version:0.33.0.3e223d5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:6c6885302fd94f41b060013ea94eeb0d886124e2',
+  'gn_version': 'git_revision:b2d77ab1373192d1532af94b68fb8bab727b0e5b',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:d10ff2af1182ccaad573bc5acb84a36f4c280876',
@@ -155,7 +155,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'Gw2KXJAmd7MQfsDtWMYLLl6hvactBx7vjZgGKtL4bv8C'
+              'version': 'eghzU3LI6jsGYPkSzAoCDHeiVyaydZjwxB5kjkPImaMC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -218,7 +218,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1ef8e41f0e93096daf74803fdc794cacb016d8b2',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5cb305306ad74c3b68e432ee221a1943dd79b64d',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
