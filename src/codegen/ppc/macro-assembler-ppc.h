@@ -217,6 +217,31 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
               Register scratch = r0, RCBit r = SetRC);
   void XorU32(Register dst, Register src, Register value, RCBit r = LeaveRC);
 
+  void ShiftLeftU64(Register dst, Register src, const Operand& value,
+                    RCBit r = LeaveRC);
+  void ShiftRightU64(Register dst, Register src, const Operand& value,
+                     RCBit r = LeaveRC);
+  void ShiftRightS64(Register dst, Register src, const Operand& value,
+                     RCBit r = LeaveRC);
+  void ShiftLeftU32(Register dst, Register src, const Operand& value,
+                    RCBit r = LeaveRC);
+  void ShiftRightU32(Register dst, Register src, const Operand& value,
+                     RCBit r = LeaveRC);
+  void ShiftRightS32(Register dst, Register src, const Operand& value,
+                     RCBit r = LeaveRC);
+  void ShiftLeftU64(Register dst, Register src, Register value,
+                    RCBit r = LeaveRC);
+  void ShiftRightU64(Register dst, Register src, Register value,
+                     RCBit r = LeaveRC);
+  void ShiftRightS64(Register dst, Register src, Register value,
+                     RCBit r = LeaveRC);
+  void ShiftLeftU32(Register dst, Register src, Register value,
+                    RCBit r = LeaveRC);
+  void ShiftRightU32(Register dst, Register src, Register value,
+                     RCBit r = LeaveRC);
+  void ShiftRightS32(Register dst, Register src, Register value,
+                     RCBit r = LeaveRC);
+
   void Push(Register src) { push(src); }
   // Push a handle.
   void Push(Handle<HeapObject> handle);

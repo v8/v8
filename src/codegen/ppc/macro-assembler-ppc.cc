@@ -2810,6 +2810,66 @@ void TurboAssembler::XorU32(Register dst, Register src, Register value,
   extsw(dst, dst, r);
 }
 
+void TurboAssembler::ShiftLeftU64(Register dst, Register src,
+                                  const Operand& value, RCBit r) {
+  sldi(dst, src, value, r);
+}
+
+void TurboAssembler::ShiftRightU64(Register dst, Register src,
+                                   const Operand& value, RCBit r) {
+  srdi(dst, src, value, r);
+}
+
+void TurboAssembler::ShiftRightS64(Register dst, Register src,
+                                   const Operand& value, RCBit r) {
+  sradi(dst, src, value.immediate(), r);
+}
+
+void TurboAssembler::ShiftLeftU32(Register dst, Register src,
+                                  const Operand& value, RCBit r) {
+  slwi(dst, src, value, r);
+}
+
+void TurboAssembler::ShiftRightU32(Register dst, Register src,
+                                   const Operand& value, RCBit r) {
+  srwi(dst, src, value, r);
+}
+
+void TurboAssembler::ShiftRightS32(Register dst, Register src,
+                                   const Operand& value, RCBit r) {
+  srawi(dst, src, value.immediate(), r);
+}
+
+void TurboAssembler::ShiftLeftU64(Register dst, Register src, Register value,
+                                  RCBit r) {
+  sld(dst, src, value, r);
+}
+
+void TurboAssembler::ShiftRightU64(Register dst, Register src, Register value,
+                                   RCBit r) {
+  srd(dst, src, value, r);
+}
+
+void TurboAssembler::ShiftRightS64(Register dst, Register src, Register value,
+                                   RCBit r) {
+  srad(dst, src, value, r);
+}
+
+void TurboAssembler::ShiftLeftU32(Register dst, Register src, Register value,
+                                  RCBit r) {
+  slw(dst, src, value, r);
+}
+
+void TurboAssembler::ShiftRightU32(Register dst, Register src, Register value,
+                                   RCBit r) {
+  srw(dst, src, value, r);
+}
+
+void TurboAssembler::ShiftRightS32(Register dst, Register src, Register value,
+                                   RCBit r) {
+  sraw(dst, src, value, r);
+}
+
 void TurboAssembler::CmpS64(Register src1, Register src2, CRegister cr) {
   cmp(src1, src2, cr);
 }
