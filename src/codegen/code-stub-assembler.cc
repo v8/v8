@@ -1891,7 +1891,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectPropertiesStartInWords(
   // See Map::GetInObjectPropertiesStartInWords() for details.
   CSA_ASSERT(this, IsJSObjectMap(map));
   return ChangeInt32ToIntPtr(LoadObjectField<Uint8T>(
-      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset));
+      map, Map::kInobjectPropertiesStartOrConstructorFunctionIndexOffset));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
@@ -1899,7 +1899,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
   // See Map::GetConstructorFunctionIndex() for details.
   CSA_ASSERT(this, IsPrimitiveInstanceType(LoadMapInstanceType(map)));
   return ChangeInt32ToIntPtr(LoadObjectField<Uint8T>(
-      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset));
+      map, Map::kInobjectPropertiesStartOrConstructorFunctionIndexOffset));
 }
 
 TNode<Object> CodeStubAssembler::LoadMapConstructor(TNode<Map> map) {

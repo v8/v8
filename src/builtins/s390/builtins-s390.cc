@@ -870,7 +870,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ LoadU64(params_size,
              MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   __ LoadU32(params_size,
-            FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
+             FieldMemOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
   Register actual_params_size = scratch2;
   // Compute the size of the actual parameters + receiver (in bytes).
@@ -1174,12 +1174,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ mov(r1, Operand(0));
   __ StoreU16(r1,
               FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                              BytecodeArray::kOsrNestingLevelOffset),
+                              BytecodeArray::kOsrLoopNestingLevelOffset),
               r0);
 
   // Load the initial bytecode offset.

@@ -290,14 +290,14 @@ int Map::inobject_properties_start_or_constructor_function_index() const {
   // TODO(solanes, v8:7790, v8:11353): Make this and the setter non-atomic
   // when TSAN sees the map's store synchronization.
   return RELAXED_READ_BYTE_FIELD(
-      *this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset);
+      *this, kInobjectPropertiesStartOrConstructorFunctionIndexOffset);
 }
 
 void Map::set_inobject_properties_start_or_constructor_function_index(
     int value) {
   CHECK_LT(static_cast<unsigned>(value), 256);
   RELAXED_WRITE_BYTE_FIELD(
-      *this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
+      *this, kInobjectPropertiesStartOrConstructorFunctionIndexOffset,
       static_cast<byte>(value));
 }
 

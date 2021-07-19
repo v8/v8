@@ -942,7 +942,7 @@ class BytecodeArray : public FixedArrayBase {
   // InterpreterEntryTrampoline expects these fields to be next to each other
   // and writes a 16-bit value to reset them.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                kOsrNestingLevelOffset + kCharSize);
+                kOsrLoopNestingLevelOffset + kCharSize);
 
   // Maximal memory consumption for a single BytecodeArray.
   static const int kMaxSize = 512 * MB;

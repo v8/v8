@@ -9,7 +9,7 @@ extern class DataHandler extends Struct {
   validity_cell: Smi|Cell;
 
   // Space for the following fields may or may not be allocated.
-  @noVerifier data_1: MaybeObject;
-  @noVerifier data_2: MaybeObject;
-  @noVerifier data_3: MaybeObject;
+  @noVerifier data1: MaybeObject;
+  @noVerifier data2: MaybeObject;
+  @noVerifier data3: MaybeObject;
 }

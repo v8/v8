@@ -1187,10 +1187,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ movw(FieldOperand(kInterpreterBytecodeArrayRegister,
-                       BytecodeArray::kOsrNestingLevelOffset),
+                       BytecodeArray::kOsrLoopNestingLevelOffset),
           Immediate(0));
 
   // Load initial bytecode offset.
@@ -1704,11 +1704,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       // are 8-bit fields next to each other, so we could just optimize by
       // writing a 16-bit. These static asserts guard our assumption is valid.
       STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                    BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+                    BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
       STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-      __ movw(
-          FieldOperand(bytecode_array, BytecodeArray::kOsrNestingLevelOffset),
-          Immediate(0));
+      __ movw(FieldOperand(bytecode_array,
+                           BytecodeArray::kOsrLoopNestingLevelOffset),
+              Immediate(0));
       __ Push(bytecode_array);
 
       // Baseline code frames store the feedback vector where interpreter would
@@ -4498,7 +4498,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // TODO(pthier): Separate baseline Sparkplug from TF arming and don't disarm
     // Sparkplug here.
     __ movw(FieldOperand(kInterpreterBytecodeArrayRegister,
-                         BytecodeArray::kOsrNestingLevelOffset),
+                         BytecodeArray::kOsrLoopNestingLevelOffset),
             Immediate(0));
     Generate_OSREntry(masm, code_obj);
   } else {

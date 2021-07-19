@@ -1868,7 +1868,7 @@ void BaselineCompiler::VisitJumpLoop() {
     Register osr_level = scratch;
     __ LoadRegister(osr_level, interpreter::Register::bytecode_array());
     __ LoadByteField(osr_level, osr_level,
-                     BytecodeArray::kOsrNestingLevelOffset);
+                     BytecodeArray::kOsrLoopNestingLevelOffset);
     int loop_depth = iterator().GetImmediateOperand(1);
     __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_level, loop_depth,
                   &osr_not_armed);

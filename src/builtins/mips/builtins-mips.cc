@@ -1085,10 +1085,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // are 8-bit fields next to each other, so we could just optimize by writing
     // a 16-bit. These static asserts guard our assumption is valid.
     STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                  BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+                  BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
     STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
     __ sh(zero_reg, FieldMemOperand(bytecodeArray,
-                                    BytecodeArray::kOsrNestingLevelOffset));
+                                    BytecodeArray::kOsrLoopNestingLevelOffset));
 
     __ Push(argc, bytecodeArray);
 
@@ -1243,10 +1243,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // 8-bit fields next to each other, so we could just optimize by writing a
   // 16-bit. These static asserts guard our assumption is valid.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ sh(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                  BytecodeArray::kOsrNestingLevelOffset));
+                                  BytecodeArray::kOsrLoopNestingLevelOffset));
 
   // Load initial bytecode offset.
   __ li(kInterpreterBytecodeOffsetRegister,
@@ -4061,7 +4061,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ Lw(kInterpreterBytecodeArrayRegister,
           MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
     __ sh(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                    BytecodeArray::kOsrNestingLevelOffset));
+                                    BytecodeArray::kOsrLoopNestingLevelOffset));
     Generate_OSREntry(masm, code_obj,
                       Operand(Code::kHeaderSize - kHeapObjectTag));
   } else {

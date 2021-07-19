@@ -1291,7 +1291,7 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
 
 TNode<Int8T> InterpreterAssembler::LoadOsrNestingLevel() {
   return LoadObjectField<Int8T>(BytecodeArrayTaggedPointer(),
-                                BytecodeArray::kOsrNestingLevelOffset);
+                                BytecodeArray::kOsrLoopNestingLevelOffset);
 }
 
 void InterpreterAssembler::Abort(AbortReason abort_reason) {
