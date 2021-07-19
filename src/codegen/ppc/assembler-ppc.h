@@ -565,6 +565,7 @@ class Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void LoopHeaderAlign() { CodeTargetAlign(); }
 
   // Branch instructions
   void bclr(BOfield bo, int condition_bit, LKBit lk);

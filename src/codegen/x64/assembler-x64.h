@@ -551,6 +551,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void Nop(int bytes = 1);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void LoopHeaderAlign();
 
   // Stack
   void pushfq();

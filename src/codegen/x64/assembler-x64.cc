@@ -443,6 +443,10 @@ void Assembler::CodeTargetAlign() {
   Align(16);  // Preferred alignment of jump targets on x64.
 }
 
+void Assembler::LoopHeaderAlign() {
+  Align(64);  // Preferred alignment of loop header on x64.
+}
+
 bool Assembler::IsNop(Address addr) {
   byte* a = reinterpret_cast<byte*>(addr);
   while (*a == 0x66) a++;
