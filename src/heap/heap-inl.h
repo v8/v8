@@ -84,16 +84,16 @@ Address AllocationResult::ToAddress() {
 }
 
 // static
-BytecodeFlushMode Heap::GetBytecodeFlushMode(Isolate* isolate) {
+CodeFlushMode Heap::GetCodeFlushMode(Isolate* isolate) {
   if (isolate->disable_bytecode_flushing()) {
-    return BytecodeFlushMode::kDoNotFlushBytecode;
+    return CodeFlushMode::kDoNotFlushCode;
   }
   if (FLAG_stress_flush_bytecode) {
-    return BytecodeFlushMode::kStressFlushBytecode;
+    return CodeFlushMode::kStressFlushCode;
   } else if (FLAG_flush_bytecode) {
-    return BytecodeFlushMode::kFlushBytecode;
+    return CodeFlushMode::kFlushCode;
   }
-  return BytecodeFlushMode::kDoNotFlushBytecode;
+  return CodeFlushMode::kDoNotFlushCode;
 }
 
 Isolate* Heap::isolate() {

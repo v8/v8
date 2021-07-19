@@ -153,6 +153,21 @@ void WeakObjects::UpdateFlushedJSFunctions(
       });
 }
 
+void WeakObjects::UpdateBaselineFlushingCandidates(
+    WeakObjectWorklist<JSFunction>& baseline_flush_candidates) {
+  baseline_flush_candidates.Update(
+      [](JSFunction slot_in, JSFunction* slot_out) -> bool {
+        JSFunction forwarded = ForwardingAddress(slot_in);
+
+        if (!forwarded.is_null()) {
+          *slot_out = forwarded;
+          return true;
+        }
+
+        return false;
+      });
+}
+
 #ifdef DEBUG
 template <typename Type>
 bool WeakObjects::ContainsYoungObjects(WeakObjectWorklist<Type>& worklist) {

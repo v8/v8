@@ -879,10 +879,10 @@ enum class CompactionSpaceKind {
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum class BytecodeFlushMode {
-  kDoNotFlushBytecode,
-  kFlushBytecode,
-  kStressFlushBytecode,
+enum class CodeFlushMode {
+  kDoNotFlushCode,
+  kFlushCode,
+  kStressFlushCode,
 };
 
 // Indicates whether a script should be parsed and compiled in REPL mode.

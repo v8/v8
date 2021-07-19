@@ -86,7 +86,7 @@ class ConcurrentMarkingVisitor final
                            MarkingWorklists::Local* local_marking_worklists,
                            WeakObjects* weak_objects, Heap* heap,
                            unsigned mark_compact_epoch,
-                           BytecodeFlushMode bytecode_flush_mode,
+                           CodeFlushMode bytecode_flush_mode,
                            bool embedder_tracing_enabled, bool is_forced_gc,
                            MemoryChunkDataMap* memory_chunk_data)
       : MarkingVisitorBase(task_id, local_marking_worklists, weak_objects, heap,
@@ -365,7 +365,7 @@ StrongDescriptorArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
 class ConcurrentMarking::JobTask : public v8::JobTask {
  public:
   JobTask(ConcurrentMarking* concurrent_marking, unsigned mark_compact_epoch,
-          BytecodeFlushMode bytecode_flush_mode, bool is_forced_gc)
+          CodeFlushMode bytecode_flush_mode, bool is_forced_gc)
       : concurrent_marking_(concurrent_marking),
         mark_compact_epoch_(mark_compact_epoch),
         bytecode_flush_mode_(bytecode_flush_mode),
@@ -397,7 +397,7 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
  private:
   ConcurrentMarking* concurrent_marking_;
   const unsigned mark_compact_epoch_;
-  BytecodeFlushMode bytecode_flush_mode_;
+  CodeFlushMode bytecode_flush_mode_;
   const bool is_forced_gc_;
 };
 
@@ -418,7 +418,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap,
 }
 
 void ConcurrentMarking::Run(JobDelegate* delegate,
-                            BytecodeFlushMode bytecode_flush_mode,
+                            CodeFlushMode bytecode_flush_mode,
                             unsigned mark_compact_epoch, bool is_forced_gc) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
@@ -534,6 +534,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
     weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->weak_objects_in_code.FlushToGlobal(task_id);
     weak_objects_->bytecode_flushing_candidates.FlushToGlobal(task_id);
+    weak_objects_->baseline_flushing_candidates.FlushToGlobal(task_id);
     weak_objects_->flushed_js_functions.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
@@ -569,7 +570,7 @@ void ConcurrentMarking::ScheduleJob(TaskPriority priority) {
   job_handle_ = V8::GetCurrentPlatform()->PostJob(
       priority, std::make_unique<JobTask>(
                     this, heap_->mark_compact_collector()->epoch(),
-                    heap_->mark_compact_collector()->bytecode_flush_mode(),
+                    heap_->mark_compact_collector()->code_flush_mode(),
                     heap_->is_current_gc_forced()));
   DCHECK(job_handle_->IsValid());
 }
