@@ -2746,7 +2746,7 @@ void TurboAssembler::AndU64(Register dst, Register src, Register value,
 
 void TurboAssembler::OrU64(Register dst, Register src, const Operand& value,
                            Register scratch, RCBit r) {
-  if (is_int16(value.immediate()) && r == SetRC) {
+  if (is_int16(value.immediate()) && r == LeaveRC) {
     ori(dst, src, value);
   } else {
     mov(scratch, value);
@@ -2761,7 +2761,7 @@ void TurboAssembler::OrU64(Register dst, Register src, Register value,
 
 void TurboAssembler::XorU64(Register dst, Register src, const Operand& value,
                             Register scratch, RCBit r) {
-  if (is_int16(value.immediate()) && r == SetRC) {
+  if (is_int16(value.immediate()) && r == LeaveRC) {
     xori(dst, src, value);
   } else {
     mov(scratch, value);
@@ -2868,56 +2868,6 @@ void TurboAssembler::CmpU32(Register src1, const Operand& src2,
 
 void TurboAssembler::CmpU32(Register src1, Register src2, CRegister cr) {
   cmplw(src1, src2, cr);
-}
-
-void MacroAssembler::And(Register ra, Register rs, const Operand& rb,
-                         RCBit rc) {
-  if (rb.is_reg()) {
-    and_(ra, rs, rb.rm(), rc);
-  } else {
-    if (is_uint16(rb.immediate()) && RelocInfo::IsNone(rb.rmode_) &&
-        rc == SetRC) {
-      andi(ra, rs, rb);
-    } else {
-      // mov handles the relocation.
-      DCHECK(rs != r0);
-      mov(r0, rb);
-      and_(ra, rs, r0, rc);
-    }
-  }
-}
-
-void MacroAssembler::Or(Register ra, Register rs, const Operand& rb, RCBit rc) {
-  if (rb.is_reg()) {
-    orx(ra, rs, rb.rm(), rc);
-  } else {
-    if (is_uint16(rb.immediate()) && RelocInfo::IsNone(rb.rmode_) &&
-        rc == LeaveRC) {
-      ori(ra, rs, rb);
-    } else {
-      // mov handles the relocation.
-      DCHECK(rs != r0);
-      mov(r0, rb);
-      orx(ra, rs, r0, rc);
-    }
-  }
-}
-
-void MacroAssembler::Xor(Register ra, Register rs, const Operand& rb,
-                         RCBit rc) {
-  if (rb.is_reg()) {
-    xor_(ra, rs, rb.rm(), rc);
-  } else {
-    if (is_uint16(rb.immediate()) && RelocInfo::IsNone(rb.rmode_) &&
-        rc == LeaveRC) {
-      xori(ra, rs, rb);
-    } else {
-      // mov handles the relocation.
-      DCHECK(rs != r0);
-      mov(r0, rb);
-      xor_(ra, rs, r0, rc);
-    }
-  }
 }
 
 void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,

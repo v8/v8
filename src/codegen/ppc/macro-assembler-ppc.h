@@ -203,19 +203,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void AndU64(Register dst, Register src, Register value, RCBit r = SetRC);
   void OrU64(Register dst, Register src, const Operand& value,
              Register scratch = r0, RCBit r = SetRC);
-  void OrU64(Register dst, Register src, Register value, RCBit r = SetRC);
+  void OrU64(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void XorU64(Register dst, Register src, const Operand& value,
               Register scratch = r0, RCBit r = SetRC);
-  void XorU64(Register dst, Register src, Register value, RCBit r = SetRC);
+  void XorU64(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void AndU32(Register dst, Register src, const Operand& value,
               Register scratch = r0, RCBit r = SetRC);
   void AndU32(Register dst, Register src, Register value, RCBit r = SetRC);
   void OrU32(Register dst, Register src, const Operand& value,
              Register scratch = r0, RCBit r = SetRC);
-  void OrU32(Register dst, Register src, Register value, RCBit r = SetRC);
+  void OrU32(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void XorU32(Register dst, Register src, const Operand& value,
               Register scratch = r0, RCBit r = SetRC);
-  void XorU32(Register dst, Register src, Register value, RCBit r = SetRC);
+  void XorU32(Register dst, Register src, Register value, RCBit r = LeaveRC);
 
   void Push(Register src) { push(src); }
   // Push a handle.
@@ -860,10 +860,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // than assembler-ppc and may generate variable length sequences
 
   // load a literal double value <value> to FPR <result>
-
-  void And(Register ra, Register rs, const Operand& rb, RCBit rc = LeaveRC);
-  void Or(Register ra, Register rs, const Operand& rb, RCBit rc = LeaveRC);
-  void Xor(Register ra, Register rs, const Operand& rb, RCBit rc = LeaveRC);
 
   void AddSmiLiteral(Register dst, Register src, Smi smi, Register scratch);
   void SubSmiLiteral(Register dst, Register src, Smi smi, Register scratch);
