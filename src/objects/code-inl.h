@@ -524,8 +524,8 @@ inline bool Code::is_interpreter_trampoline_builtin() const {
 inline bool Code::is_baseline_trampoline_builtin() const {
   return builtin_id() != Builtin::kNoBuiltinId &&
          (builtin_id() == Builtin::kBaselineOutOfLinePrologue ||
-          builtin_id() == Builtin::kBaselineEnterAtBytecode ||
-          builtin_id() == Builtin::kBaselineEnterAtNextBytecode);
+          builtin_id() == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
+          builtin_id() == Builtin::kBaselineOrInterpreterEnterAtNextBytecode);
 }
 
 inline bool Code::is_baseline_leave_frame_builtin() const {

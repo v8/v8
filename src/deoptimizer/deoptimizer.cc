@@ -996,8 +996,8 @@ namespace {
 // Get the dispatch builtin for unoptimized frames.
 Builtin DispatchBuiltinFor(bool is_baseline, bool advance_bc) {
   if (is_baseline) {
-    return advance_bc ? Builtin::kBaselineEnterAtNextBytecode
-                      : Builtin::kBaselineEnterAtBytecode;
+    return advance_bc ? Builtin::kBaselineOrInterpreterEnterAtNextBytecode
+                      : Builtin::kBaselineOrInterpreterEnterAtBytecode;
   } else {
     return advance_bc ? Builtin::kInterpreterEnterAtNextBytecode
                       : Builtin::kInterpreterEnterAtBytecode;

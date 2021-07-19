@@ -1301,12 +1301,13 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
         JavaScriptFrame* frame = it.frame();
         Address pc = frame->pc();
         Builtin builtin = InstructionStream::TryLookupCode(isolate, pc);
-        if (builtin == Builtin::kBaselineEnterAtBytecode ||
-            builtin == Builtin::kBaselineEnterAtNextBytecode) {
+        if (builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
+            builtin == Builtin::kBaselineOrInterpreterEnterAtNextBytecode) {
           Address* pc_addr = frame->pc_address();
-          Builtin advance = builtin == Builtin::kBaselineEnterAtBytecode
-                                ? Builtin::kInterpreterEnterAtBytecode
-                                : Builtin::kInterpreterEnterAtNextBytecode;
+          Builtin advance =
+              builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode
+                  ? Builtin::kInterpreterEnterAtBytecode
+                  : Builtin::kInterpreterEnterAtNextBytecode;
           Address advance_pc =
               isolate->builtins()->code(advance).InstructionStart();
           PointerAuthentication::ReplacePC(pc_addr, advance_pc,
