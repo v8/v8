@@ -1273,7 +1273,7 @@
 }],
 
 ##############################################################################
-['variant == turboprop or variant == turboprop_as_toptier or variant == future', {
+['variant == turboprop or variant == turboprop_as_toptier', {
   # Deopts differently than TurboFan.
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/number-comparison-truncations': [SKIP],
