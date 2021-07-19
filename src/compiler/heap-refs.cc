@@ -725,40 +725,61 @@ class JSBoundFunctionData : public JSObjectData {
 class JSFunctionData : public JSObjectData {
  public:
   JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<JSFunction> object);
+                 Handle<JSFunction> object,
+                 ObjectDataKind kind = kSerializedHeapObject)
+      : JSObjectData(broker, storage, object, kind) {
+    Serialize(broker);
+  }
 
-  bool has_feedback_vector() const { return has_feedback_vector_; }
-  bool has_initial_map() const { return has_initial_map_; }
-  bool has_prototype() const { return has_prototype_; }
+  bool IsConsistentWithHeapState(JSHeapBroker* broker) const;
+
+  bool recorded_dependency() const { return recorded_dependency_; }
+  void set_recorded_dependency() { recorded_dependency_ = true; }
+
+  bool has_feedback_vector() const {
+    CHECK(serialized_);
+    return has_feedback_vector_;
+  }
+  bool has_initial_map() const {
+    CHECK(serialized_);
+    return has_initial_map_;
+  }
+  bool has_instance_prototype() const {
+    CHECK(serialized_);
+    return has_instance_prototype_;
+  }
   bool PrototypeRequiresRuntimeLookup() const {
+    CHECK(serialized_);
     return PrototypeRequiresRuntimeLookup_;
   }
 
-  void Serialize(JSHeapBroker* broker);
-  bool serialized() const { return serialized_; }
-
-  void SerializeCodeAndFeedback(JSHeapBroker* broker);
-  bool serialized_code_and_feedback() const {
-    return serialized_code_and_feedback_;
+  ObjectData* context() const {
+    CHECK(serialized_);
+    return context_;
   }
-
-  ObjectData* context() const { return context_; }
-  ObjectData* native_context() const { return native_context_; }
-  ObjectData* initial_map() const { return initial_map_; }
-  ObjectData* prototype() const { return prototype_; }
-  ObjectData* shared() const { return shared_; }
+  ObjectData* native_context() const {
+    CHECK(serialized_);
+    return native_context_;
+  }
+  MapData* initial_map() const {
+    CHECK(serialized_);
+    return initial_map_;
+  }
+  ObjectData* instance_prototype() const {
+    CHECK(serialized_);
+    return instance_prototype_;
+  }
+  ObjectData* shared() const {
+    CHECK(serialized_);
+    return shared_;
+  }
   ObjectData* raw_feedback_cell() const {
-    DCHECK(serialized_code_and_feedback());
+    CHECK(serialized_);
     return feedback_cell_;
   }
   ObjectData* feedback_vector() const {
-    DCHECK(serialized_code_and_feedback());
+    CHECK(serialized_);
     return feedback_vector_;
-  }
-  ObjectData* code() const {
-    DCHECK(serialized_code_and_feedback());
-    DCHECK(!broker()->is_concurrent_inlining());
-    return code_;
   }
   int initial_map_instance_size_with_min_slack() const {
     CHECK(serialized_);
@@ -766,23 +787,28 @@ class JSFunctionData : public JSObjectData {
   }
 
  private:
-  bool has_feedback_vector_;
-  bool has_initial_map_;
-  bool has_prototype_;
-  bool PrototypeRequiresRuntimeLookup_;
-
+  void Serialize(JSHeapBroker* broker);
   bool serialized_ = false;
-  bool serialized_code_and_feedback_ = false;
+
+  bool recorded_dependency_ = false;
+
+  bool has_feedback_vector_ = false;
+  ObjectData* prototype_or_initial_map_ = nullptr;
+  bool has_initial_map_ = false;
+  bool has_instance_prototype_ = false;
+  bool PrototypeRequiresRuntimeLookup_ = false;
 
   ObjectData* context_ = nullptr;
-  ObjectData* native_context_ = nullptr;
-  ObjectData* initial_map_ = nullptr;
-  ObjectData* prototype_ = nullptr;
+  ObjectData* native_context_ = nullptr;  // Derives from context_.
+  MapData* initial_map_ = nullptr;  // Derives from prototype_or_initial_map_.
+  ObjectData* instance_prototype_ =
+      nullptr;  // Derives from prototype_or_initial_map_.
   ObjectData* shared_ = nullptr;
-  ObjectData* feedback_vector_ = nullptr;
+  ObjectData* feedback_vector_ = nullptr;  // Derives from feedback_cell.
   ObjectData* feedback_cell_ = nullptr;
-  ObjectData* code_ = nullptr;
-  int initial_map_instance_size_with_min_slack_;
+  int initial_map_instance_size_with_min_slack_;  // Derives from
+                                                  // prototype_or_initial_map_.
+  ObjectData* function_data_ = nullptr;
 };
 
 class RegExpBoilerplateDescriptionData : public HeapObjectData {
@@ -1061,6 +1087,189 @@ class MapData : public HeapObjectData {
   bool serialized_for_element_store_ = false;
 };
 
+// IMPORTANT: Keep this sync'd with JSFunctionData::IsConsistentWithHeapState.
+void JSFunctionData::Serialize(JSHeapBroker* broker) {
+  CHECK(!serialized_);
+  CHECK(!broker->ObjectMayBeUninitialized(HeapObject::cast(*object())));
+
+  TraceScope tracer(broker, this, "JSFunctionData::Serialize");
+  Handle<JSFunction> function = Handle<JSFunction>::cast(object());
+
+  // This function may run on the background thread and thus must be individual
+  // fields in a thread-safe manner. Consistency between fields is *not*
+  // guaranteed here, instead we verify it in `IsConsistentWithHeapState`,
+  // called during job finalization. Relaxed loads are thus okay: we're
+  // guaranteed to see an initialized JSFunction object, and after
+  // initialization fields remain in a valid state.
+
+  Context context = function->context(kRelaxedLoad);
+  context_ = broker->GetOrCreateData(context, kAssumeMemoryFence);
+  CHECK(context_->IsContext());
+
+  native_context_ = broker->GetOrCreateData(context.map().native_context(),
+                                            kAssumeMemoryFence);
+  CHECK(native_context_->IsNativeContext());
+
+  SharedFunctionInfo shared = function->shared(kRelaxedLoad);
+  shared_ = broker->GetOrCreateData(shared, kAssumeMemoryFence);
+
+  function_data_ = broker->GetOrCreateData(shared.function_data(kAcquireLoad),
+                                           kAssumeMemoryFence);
+
+  if (function->has_prototype_slot()) {
+    prototype_or_initial_map_ = broker->GetOrCreateData(
+        function->prototype_or_initial_map(kAcquireLoad), kAssumeMemoryFence);
+
+    has_initial_map_ = prototype_or_initial_map_->IsMap();
+    if (has_initial_map_) {
+      initial_map_ = prototype_or_initial_map_->AsMap();
+
+      MapRef initial_map_ref = TryMakeRef<Map>(broker, initial_map_).value();
+      if (initial_map_ref.IsInobjectSlackTrackingInProgress()) {
+        initial_map_instance_size_with_min_slack_ =
+            initial_map_ref.object()->InstanceSizeFromSlack(
+                initial_map_ref.object()->ComputeMinObjectSlack(
+                    broker->isolate()));
+      } else {
+        initial_map_instance_size_with_min_slack_ =
+            initial_map_ref.instance_size();
+      }
+
+      if (!initial_map_->should_access_heap() &&
+          !broker->is_concurrent_inlining()) {
+        // TODO(neis): This is currently only needed for native_context's
+        // object_function, as used by GetObjectCreateMap. If no further use
+        // sites show up, we should move this into NativeContextData::Serialize.
+        initial_map_->SerializePrototype(broker);
+        initial_map_->SerializeConstructor(broker);
+      }
+    }
+
+    if (has_initial_map_) {
+      has_instance_prototype_ = true;
+      instance_prototype_ = broker->GetOrCreateData(
+          Handle<Map>::cast(initial_map_->object())->prototype(),
+          kAssumeMemoryFence);
+    } else if (prototype_or_initial_map_->IsHeapObject() &&
+               !Handle<HeapObject>::cast(prototype_or_initial_map_->object())
+                    ->IsTheHole()) {
+      has_instance_prototype_ = true;
+      instance_prototype_ = prototype_or_initial_map_;
+    }
+  }
+
+  PrototypeRequiresRuntimeLookup_ = function->PrototypeRequiresRuntimeLookup();
+
+  FeedbackCell feedback_cell = function->raw_feedback_cell(kAcquireLoad);
+  feedback_cell_ = broker->GetOrCreateData(feedback_cell, kAssumeMemoryFence);
+
+  ObjectData* maybe_feedback_vector = broker->GetOrCreateData(
+      feedback_cell.value(kAcquireLoad), kAssumeMemoryFence);
+  if (shared.is_compiled() && maybe_feedback_vector->IsFeedbackVector()) {
+    has_feedback_vector_ = true;
+    feedback_vector_ = maybe_feedback_vector;
+  }
+
+  serialized_ = true;
+}
+
+// IMPORTANT: Keep this sync'd with JSFunctionData::Serialize.
+bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
+  CHECK(serialized_);
+
+  Handle<JSFunction> f = Handle<JSFunction>::cast(object());
+
+  if (*context_->object() != f->context()) {
+    TRACE_BROKER_MISSING(broker, "JSFunction::context");
+    return false;
+  }
+
+  CHECK_EQ(*native_context_->object(), f->native_context());
+  CHECK_EQ(*shared_->object(), f->shared());
+
+  if (*function_data_->object() !=
+      Handle<SharedFunctionInfo>::cast(shared_->object())
+          ->function_data(kAcquireLoad)) {
+    TRACE_BROKER_MISSING(broker, "JSFunction::function_data");
+    return false;
+  }
+
+  if (f->has_prototype_slot()) {
+    if (*prototype_or_initial_map_->object() !=
+        f->prototype_or_initial_map(kAcquireLoad)) {
+      TRACE_BROKER_MISSING(broker, "JSFunction::prototype_or_initial_map");
+      return false;
+    }
+    if (has_initial_map_ != f->has_initial_map()) {
+      TRACE_BROKER_MISSING(broker, "JSFunction::has_initial_map");
+      return false;
+    }
+    if (has_instance_prototype_ != f->has_instance_prototype()) {
+      TRACE_BROKER_MISSING(broker, "JSFunction::has_instance_prototype");
+      return false;
+    }
+  } else {
+    DCHECK(!has_initial_map_);
+    DCHECK(!has_instance_prototype_);
+  }
+
+  if (has_initial_map()) {
+    if (*initial_map_->object() != f->initial_map()) {
+      TRACE_BROKER_MISSING(broker, "JSFunction::initial_map");
+      return false;
+    }
+    if (initial_map_instance_size_with_min_slack_ !=
+        f->ComputeInstanceSizeWithMinSlack(f->GetIsolate())) {
+      TRACE_BROKER_MISSING(broker,
+                           "JSFunction::ComputeInstanceSizeWithMinSlack");
+      return false;
+    }
+  } else {
+    DCHECK_NULL(initial_map_);
+  }
+
+  if (has_instance_prototype_) {
+    if (*instance_prototype_->object() != f->instance_prototype()) {
+      TRACE_BROKER_MISSING(broker, "JSFunction::instance_prototype");
+      return false;
+    }
+  } else {
+    DCHECK_NULL(instance_prototype_);
+  }
+
+  if (PrototypeRequiresRuntimeLookup_ != f->PrototypeRequiresRuntimeLookup()) {
+    TRACE_BROKER_MISSING(broker, "JSFunction::PrototypeRequiresRuntimeLookup");
+    return false;
+  }
+
+  if (*feedback_cell_->object() != f->raw_feedback_cell()) {
+    TRACE_BROKER_MISSING(broker, "JSFunction::raw_feedback_cell");
+    return false;
+  }
+
+  if (has_feedback_vector_ != f->has_feedback_vector()) {
+    TRACE_BROKER_MISSING(broker, "JSFunction::has_feedback_vector");
+    return false;
+  }
+
+  if (has_feedback_vector_) {
+    if (*feedback_vector_->object() != f->feedback_vector()) {
+      TRACE_BROKER_MISSING(broker, "JSFunction::feedback_vector");
+      return false;
+    }
+  } else {
+    DCHECK_NULL(feedback_vector_);
+  }
+
+  return true;
+}
+
+bool JSFunctionRef::IsConsistentWithHeapState() const {
+  DCHECK(broker()->is_concurrent_inlining());
+  DCHECK(broker()->IsMainThread());
+  return data()->AsJSFunction()->IsConsistentWithHeapState(broker());
+}
+
 AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
                                        ObjectData** storage,
                                        Handle<AllocationSite> object)
@@ -1226,75 +1435,6 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
     supports_fast_array_iteration_ = SupportsFastArrayIteration(broker, object);
     supports_fast_array_resize_ = SupportsFastArrayResize(broker, object);
   }
-}
-
-JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
-                               Handle<JSFunction> object)
-    : JSObjectData(broker, storage, object),
-      has_feedback_vector_(object->has_feedback_vector()),
-      has_initial_map_(object->has_prototype_slot() &&
-                       object->has_initial_map()),
-      has_prototype_(object->has_prototype_slot() && object->has_prototype()),
-      PrototypeRequiresRuntimeLookup_(
-          object->PrototypeRequiresRuntimeLookup()) {}
-
-void JSFunctionData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;
-  serialized_ = true;
-
-  TraceScope tracer(broker, this, "JSFunctionData::Serialize");
-  Handle<JSFunction> function = Handle<JSFunction>::cast(object());
-
-  DCHECK_NULL(context_);
-  DCHECK_NULL(native_context_);
-  DCHECK_NULL(initial_map_);
-  DCHECK_NULL(prototype_);
-  DCHECK_NULL(shared_);
-
-  context_ = broker->GetOrCreateData(function->context());
-  native_context_ = broker->GetOrCreateData(function->native_context());
-  shared_ = broker->GetOrCreateData(function->shared());
-
-  initial_map_ = has_initial_map()
-                     ? broker->GetOrCreateData(function->initial_map())
-                     : nullptr;
-  prototype_ = has_prototype() ? broker->GetOrCreateData(function->prototype())
-                               : nullptr;
-
-  if (initial_map_ != nullptr) {
-    initial_map_instance_size_with_min_slack_ =
-        function->ComputeInstanceSizeWithMinSlack(broker->isolate());
-  }
-  if (initial_map_ != nullptr && !initial_map_->should_access_heap()) {
-    initial_map_->AsMap()->SerializeConstructor(broker);
-    // TODO(neis): This is currently only needed for native_context's
-    // object_function, as used by GetObjectCreateMap. If no further use sites
-    // show up, we should move this into NativeContextData::Serialize.
-    initial_map_->AsMap()->SerializePrototype(broker);
-  }
-}
-
-void JSFunctionData::SerializeCodeAndFeedback(JSHeapBroker* broker) {
-  DCHECK(serialized_);
-  if (serialized_code_and_feedback_) return;
-  serialized_code_and_feedback_ = true;
-
-  TraceScope tracer(broker, this, "JSFunctionData::SerializeCodeAndFeedback");
-  Handle<JSFunction> function = Handle<JSFunction>::cast(object());
-
-  DCHECK_NULL(feedback_cell_);
-  DCHECK_NULL(feedback_vector_);
-  DCHECK_NULL(code_);
-  if (!broker->is_concurrent_inlining()) {
-    // This is conditionalized because Code objects are never serialized now.
-    // We only need to represent the code object in serialized data when
-    // we're unable to perform direct heap accesses.
-    code_ = broker->GetOrCreateData(function->code(kAcquireLoad));
-  }
-  feedback_cell_ = broker->GetOrCreateData(function->raw_feedback_cell());
-  feedback_vector_ = has_feedback_vector()
-                         ? broker->GetOrCreateData(function->feedback_vector())
-                         : nullptr;
 }
 
 class DescriptorArrayData : public HeapObjectData {
@@ -1527,8 +1667,6 @@ bool JSBoundFunctionData::Serialize(JSHeapBroker* broker) {
     if (bound_target_function_->IsJSBoundFunction()) {
       serialized_nested =
           bound_target_function_->AsJSBoundFunction()->Serialize(broker);
-    } else if (bound_target_function_->IsJSFunction()) {
-      bound_target_function_->AsJSFunction()->Serialize(broker);
     }
   }
   if (!serialized_nested) {
@@ -1855,6 +1993,8 @@ void JSObjectData::SerializeElements(JSHeapBroker* broker) {
 }
 
 void MapData::SerializeConstructor(JSHeapBroker* broker) {
+  CHECK(!broker->is_concurrent_inlining());
+
   if (serialized_constructor_) return;
   serialized_constructor_ = true;
 
@@ -1866,6 +2006,8 @@ void MapData::SerializeConstructor(JSHeapBroker* broker) {
 }
 
 void MapData::SerializeBackPointer(JSHeapBroker* broker) {
+  CHECK(!broker->is_concurrent_inlining());
+
   if (serialized_backpointer_) return;
   serialized_backpointer_ = true;
 
@@ -1877,6 +2019,8 @@ void MapData::SerializeBackPointer(JSHeapBroker* broker) {
 }
 
 bool MapData::TrySerializePrototype(JSHeapBroker* broker) {
+  CHECK(!broker->is_concurrent_inlining());
+
   if (serialized_prototype_) return true;
 
   TraceScope tracer(broker, this, "MapData::SerializePrototype");
@@ -2503,10 +2647,12 @@ bool MapRef::supports_fast_array_resize() const {
   return data()->AsMap()->supports_fast_array_resize();
 }
 
-int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
+int JSFunctionRef::InitialMapInstanceSizeWithMinSlack(
+    CompilationDependencies* dependencies) const {
   if (data_->should_access_heap()) {
     return object()->ComputeInstanceSizeWithMinSlack(broker()->isolate());
   }
+  RecordDependencyIfNeeded(dependencies);
   return data()->AsJSFunction()->initial_map_instance_size_with_min_slack();
 }
 
@@ -2899,18 +3045,6 @@ FixedArrayRef JSBoundFunctionRef::bound_arguments() const {
 // Immutable after initialization.
 BIMODAL_ACCESSOR_WITH_FLAG_C(JSDataView, size_t, byte_length)
 
-BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
-BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
-BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
-BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
-BIMODAL_ACCESSOR(JSFunction, Context, context)
-BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
-BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
-BIMODAL_ACCESSOR(JSFunction, Object, prototype)
-BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
-BIMODAL_ACCESSOR(JSFunction, FeedbackCell, raw_feedback_cell)
-BIMODAL_ACCESSOR(JSFunction, FeedbackVector, feedback_vector)
-
 BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field2, elements_kind,
                              Map::Bits2::ElementsKindBits)
 BIMODAL_ACCESSOR_WITH_FLAG_B(Map, bit_field3, is_dictionary_map,
@@ -3229,16 +3363,15 @@ void NativeContextRef::Serialize() {
   // then, we *must* iterate them and create refs at serialization-time (even
   // though NativeContextRef itself is never-serialized).
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-#define SERIALIZE_MEMBER(type, name)                                          \
-  {                                                                           \
-    ObjectData* member_data = broker()->GetOrCreateData(object()->name());    \
-    if (member_data->IsMap() && !InstanceTypeChecker::IsContext(              \
-                                    member_data->AsMap()->instance_type())) { \
-      member_data->AsMap()->SerializeConstructor(broker());                   \
-    }                                                                         \
-    if (member_data->IsJSFunction()) {                                        \
-      member_data->AsJSFunction()->Serialize(broker());                       \
-    }                                                                         \
+#define SERIALIZE_MEMBER(type, name)                                       \
+  {                                                                        \
+    ObjectData* member_data = broker()->GetOrCreateData(object()->name()); \
+    if (member_data->IsMap() &&                                            \
+        !InstanceTypeChecker::IsContext(                                   \
+            member_data->AsMap()->instance_type()) &&                      \
+        !broker()->is_concurrent_inlining()) {                             \
+      member_data->AsMap()->SerializeConstructor(broker());                \
+    }                                                                      \
   }
   BROKER_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
 #undef SERIALIZE_MEMBER
@@ -3246,7 +3379,8 @@ void NativeContextRef::Serialize() {
   for (int i = Context::FIRST_FUNCTION_MAP_INDEX;
        i <= Context::LAST_FUNCTION_MAP_INDEX; i++) {
     MapData* member_data = broker()->GetOrCreateData(object()->get(i))->AsMap();
-    if (!InstanceTypeChecker::IsContext(member_data->instance_type())) {
+    if (!InstanceTypeChecker::IsContext(member_data->instance_type()) &&
+        !broker()->is_concurrent_inlining()) {
       member_data->SerializeConstructor(broker());
     }
   }
@@ -3749,13 +3883,12 @@ ObjectData* ObjectRef::data() const {
       CHECK_NE(data_->kind(), kUnserializedHeapObject);
       return data_;
     case JSHeapBroker::kSerialized:
+    case JSHeapBroker::kRetired:
 #ifdef DEBUG
       data_->used_status = ObjectData::Usage::kDataUsed;
 #endif  // DEBUG
       CHECK_NE(data_->kind(), kUnserializedHeapObject);
       return data_;
-    case JSHeapBroker::kRetired:
-      UNREACHABLE();
   }
 }
 
@@ -3763,18 +3896,6 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
                                        const char* function, int line) {
   TRACE_MISSING(broker, "data in function " << function << " at line " << line);
   return AdvancedReducer::NoChange();
-}
-
-void JSFunctionRef::Serialize() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsJSFunction()->Serialize(broker());
-}
-
-void JSFunctionRef::SerializeCodeAndFeedback() {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsJSFunction()->SerializeCodeAndFeedback(broker());
 }
 
 bool JSBoundFunctionRef::Serialize() {
@@ -3785,24 +3906,48 @@ bool JSBoundFunctionRef::Serialize() {
   return data()->AsJSBoundFunction()->Serialize(broker());
 }
 
-bool JSFunctionRef::serialized() const {
-  if (data_->should_access_heap()) return true;
-  if (data_->AsJSFunction()->serialized()) return true;
-  TRACE_BROKER_MISSING(broker(), "data for JSFunction " << this);
-  return false;
+void JSFunctionRef::RecordDependencyIfNeeded(
+    CompilationDependencies* dependencies) const {
+  CHECK_NOT_NULL(dependencies);
+  if (broker()->is_concurrent_inlining() &&
+      !data()->AsJSFunction()->recorded_dependency()) {
+    dependencies->DependOnConsistentJSFunctionView(*this);
+    data()->AsJSFunction()->set_recorded_dependency();
+  }
 }
 
-bool JSFunctionRef::serialized_code_and_feedback() const {
-  if (data_->should_access_heap()) return true;
-  return data()->AsJSFunction()->serialized_code_and_feedback();
-}
-
-CodeRef JSFunctionRef::code() const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return MakeRefAssumeMemoryFence(broker(), object()->code(kAcquireLoad));
+#define JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(result, name)               \
+  result##Ref JSFunctionRef::name(CompilationDependencies* dependencies) \
+      const {                                                            \
+    IF_ACCESS_FROM_HEAP(result, name);                                   \
+    RecordDependencyIfNeeded(dependencies);                              \
+    return result##Ref(broker(), data()->AsJSFunction()->name());        \
   }
 
-  return CodeRef(broker(), ObjectRef::data()->AsJSFunction()->code());
+#define JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(result, name)                \
+  result JSFunctionRef::name(CompilationDependencies* dependencies) const { \
+    IF_ACCESS_FROM_HEAP_C(name);                                            \
+    RecordDependencyIfNeeded(dependencies);                                 \
+    return data()->AsJSFunction()->name();                                  \
+  }
+
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_feedback_vector)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_initial_map)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_instance_prototype)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, PrototypeRequiresRuntimeLookup)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Context, context)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(NativeContext, native_context)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Map, initial_map)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Object, instance_prototype)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(SharedFunctionInfo, shared)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackVector, feedback_vector)
+
+#undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
+#undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C
+
+CodeRef JSFunctionRef::code() const {
+  return MakeRefAssumeMemoryFence(broker(), object()->code(kAcquireLoad));
 }
 
 base::Optional<FunctionTemplateInfoRef>
@@ -3886,15 +4031,15 @@ bool MapRef::serialized_own_descriptor(InternalIndex descriptor_index) const {
 
 void MapRef::SerializeBackPointer() {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) return;
-  CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
-                broker()->mode() == JSHeapBroker::kSerializing);
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeBackPointer(broker());
 }
 
 bool MapRef::TrySerializePrototype() {
-  if (data_->should_access_heap()) return true;
-  CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
-                broker()->mode() == JSHeapBroker::kSerializing);
+  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
+    return true;
+  }
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   return data()->AsMap()->TrySerializePrototype(broker());
 }
 

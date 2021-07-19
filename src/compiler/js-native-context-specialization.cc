@@ -649,12 +649,12 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // Optimize if we currently know the "prototype" property.
 
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    if (!function.serialized()) return NoChange();
 
     // TODO(neis): Remove the has_prototype_slot condition once the broker is
     // always enabled.
-    if (!function.map().has_prototype_slot() || !function.has_prototype() ||
-        function.PrototypeRequiresRuntimeLookup()) {
+    if (!function.map().has_prototype_slot() ||
+        !function.has_instance_prototype(dependencies()) ||
+        function.PrototypeRequiresRuntimeLookup(dependencies())) {
       return NoChange();
     }
 
@@ -1478,11 +1478,11 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         name.equals(MakeRef(broker(), factory()->prototype_string()))) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
-      if (!function.serialized()) return NoChange();
       // TODO(neis): Remove the has_prototype_slot condition once the broker is
       // always enabled.
-      if (!function.map().has_prototype_slot() || !function.has_prototype() ||
-          function.PrototypeRequiresRuntimeLookup()) {
+      if (!function.map().has_prototype_slot() ||
+          !function.has_instance_prototype(dependencies()) ||
+          function.PrototypeRequiresRuntimeLookup(dependencies())) {
         return NoChange();
       }
       ObjectRef prototype = dependencies()->DependOnPrototypeProperty(function);

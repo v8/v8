@@ -197,6 +197,12 @@
   'regress/regress-crbug-941743': [PASS, HEAVY],
   'regress/regress-crbug-1191886': [PASS, HEAVY],
   'wasm/externref-globals': [PASS, HEAVY],
+
+  # Unpredictable results due to assertOptimized with concurrent optimization.
+  # TODO(v8:12004): Add a runtime function to flush the optimizing compile
+  # dispatcher *without* aborting existing jobs.
+  'interrupt-budget-override': [PASS,FAIL],
+  'never-optimize': [PASS,FAIL],
 }],  # ALWAYS
 
 ##############################################################################

@@ -404,6 +404,16 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool ObjectMayBeUninitialized(Object object) const;
   bool ObjectMayBeUninitialized(HeapObject object) const;
 
+  void set_dependencies(CompilationDependencies* dependencies) {
+    DCHECK_NOT_NULL(dependencies);
+    DCHECK_NULL(dependencies_);
+    dependencies_ = dependencies;
+  }
+  CompilationDependencies* dependencies() const {
+    DCHECK_NOT_NULL(dependencies_);
+    return dependencies_;
+  }
+
  private:
   friend class HeapObjectRef;
   friend class ObjectRef;
@@ -512,6 +522,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     }
   };
   ZoneMultimap<SerializedFunction, HintsVector> serialized_functions_;
+
+  CompilationDependencies* dependencies_ = nullptr;
 
   // The MapUpdater mutex is used in recursive patterns; for example,
   // ComputePropertyAccessInfo may call itself recursively. Thus we need to

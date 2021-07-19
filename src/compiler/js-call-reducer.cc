@@ -59,6 +59,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
             reducer->ZoneForGraphAssembler(),
             [reducer](Node* n) { reducer->RevisitForGraphAssembler(n); },
             nullptr, kMarkLoopExits),
+        dependencies_(reducer->dependencies()),
         node_(node),
         outermost_catch_scope_(
             CatchScope::Outermost(reducer->ZoneForGraphAssembler())),
@@ -656,9 +657,11 @@ class JSCallReducerAssembler : public JSGraphAssembler {
 
   JSOperatorBuilder* javascript() const { return jsgraph()->javascript(); }
 
- private:
-  Node* const node_;
+  CompilationDependencies* dependencies() const { return dependencies_; }
 
+ private:
+  CompilationDependencies* const dependencies_;
+  Node* const node_;
   CatchScope outermost_catch_scope_;
   Node* outermost_handler_;
   CatchScope* catch_scope_;
@@ -2153,7 +2156,7 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
   DCHECK_EQ(target, NewTargetInput());
 
   SharedFunctionInfoRef promise_shared =
-      native_context.promise_function().shared();
+      native_context.promise_function().shared(dependencies());
 
   PromiseCtorFrameStateParams frame_state_params{jsgraph(),  promise_shared,
                                                  node_ptr(), context,
@@ -2739,8 +2742,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   HeapObjectMatcher m(target);
   if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    if (!function.serialized()) return NoChange();
-    context = jsgraph()->Constant(function.context());
+    context = jsgraph()->Constant(function.context(dependencies()));
   } else {
     context = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
@@ -4286,12 +4288,11 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
 }
 
 bool JSCallReducer::IsBuiltinOrApiFunction(JSFunctionRef function) const {
-  if (!function.serialized()) return false;
   // TODO(neis): Add a way to check if function template info isn't serialized
   // and add a warning in such cases. Currently we can't tell if function
   // template info doesn't exist or wasn't serialized.
-  return function.shared().HasBuiltinId() ||
-         function.shared().function_template_info().has_value();
+  return function.shared(dependencies()).HasBuiltinId() ||
+         function.shared(dependencies()).function_template_info().has_value();
 }
 
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
@@ -4310,14 +4311,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      if (!function.serialized()) return NoChange();
 
       // Don't inline cross native context.
-      if (!function.native_context().equals(native_context())) {
+      if (!function.native_context(dependencies()).equals(native_context())) {
         return NoChange();
       }
 
-      return ReduceJSCall(node, function.shared());
+      return ReduceJSCall(node, function.shared(dependencies()));
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
       base::Optional<JSReceiverRef> bound_target_function =
@@ -5012,23 +5012,22 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      if (!function.serialized()) return NoChange();
 
       // Do not reduce constructors with break points.
       // If this state changes during background compilation, the compilation
       // job will be aborted from the main thread (see
       // Debug::PrepareFunctionForDebugExecution()).
-      if (function.shared().HasBreakInfo()) return NoChange();
+      SharedFunctionInfoRef sfi = function.shared(dependencies());
+      if (sfi.HasBreakInfo()) return NoChange();
 
       // Don't inline cross native context.
-      if (!function.native_context().equals(native_context())) {
+      if (!function.native_context(dependencies()).equals(native_context())) {
         return NoChange();
       }
 
       // Check for known builtin functions.
-      Builtin builtin = function.shared().HasBuiltinId()
-                            ? function.shared().builtin_id()
-                            : Builtin::kNoBuiltinId;
+      Builtin builtin =
+          sfi.HasBuiltinId() ? sfi.builtin_id() : Builtin::kNoBuiltinId;
       switch (builtin) {
         case Builtin::kArrayConstructor: {
           // TODO(bmeurer): Deal with Array subclasses here.
@@ -5068,7 +5067,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         case Builtin::kPromiseConstructor:
           return ReducePromiseConstructor(node);
         case Builtin::kTypedArrayConstructor:
-          return ReduceTypedArrayConstructor(node, function.shared());
+          return ReduceTypedArrayConstructor(node,
+                                             function.shared(dependencies()));
         default:
           break;
       }
@@ -7006,7 +7006,8 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   // doesn't escape to user JavaScript. So bake this information
   // into the graph such that subsequent passes can use the
   // information for further optimizations.
-  MapRef promise_map = native_context().promise_function().initial_map();
+  MapRef promise_map =
+      native_context().promise_function().initial_map(dependencies());
   effect = graph()->NewNode(
       simplified()->MapGuard(ZoneHandleSet<Map>(promise_map.object())), promise,
       effect, control);
@@ -7969,7 +7970,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   // check as well as the lowered builtin call rely on a known location of the
   // lastIndex field.
   Handle<Map> regexp_initial_map =
-      native_context().regexp_function().initial_map().object();
+      native_context().regexp_function().initial_map(dependencies()).object();
 
   MapInference inference(broker(), regexp, effect);
   if (!inference.Is(regexp_initial_map)) return inference.NoChange();
@@ -8069,7 +8070,7 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
 
   // Create the artificial frame state in the middle of the Number constructor.
   SharedFunctionInfoRef shared_info =
-      native_context().number_function().shared();
+      native_context().number_function().shared(dependencies());
   Node* stack_parameters[] = {receiver};
   int stack_parameter_count = arraysize(stack_parameters);
   Node* continuation_frame_state =
@@ -8113,6 +8114,10 @@ Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
   }
 
   return NoChange();
+}
+
+CompilationDependencies* JSCallReducer::dependencies() const {
+  return broker()->dependencies();
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

@@ -168,8 +168,12 @@ Address JSFunction::code_entry_point() const {
 
 // TODO(ishell): Why relaxed read but release store?
 DEF_GETTER(JSFunction, shared, SharedFunctionInfo) {
-  return SharedFunctionInfo::cast(
-      RELAXED_READ_FIELD(*this, kSharedFunctionInfoOffset));
+  return shared(cage_base, kRelaxedLoad);
+}
+
+DEF_RELAXED_GETTER(JSFunction, shared, SharedFunctionInfo) {
+  return TaggedField<SharedFunctionInfo,
+                     kSharedFunctionInfoOffset>::Relaxed_Load(cage_base, *this);
 }
 
 void JSFunction::set_shared(SharedFunctionInfo value, WriteBarrierMode mode) {
@@ -198,6 +202,10 @@ bool JSFunction::has_closure_feedback_cell_array() const {
 
 Context JSFunction::context() {
   return TaggedField<Context, kContextOffset>::load(*this);
+}
+
+DEF_RELAXED_GETTER(JSFunction, context, Context) {
+  return TaggedField<Context, kContextOffset>::Relaxed_Load(cage_base, *this);
 }
 
 bool JSFunction::has_context() const {
@@ -258,8 +266,9 @@ DEF_GETTER(JSFunction, PrototypeRequiresRuntimeLookup, bool) {
 
 DEF_GETTER(JSFunction, instance_prototype, HeapObject) {
   DCHECK(has_instance_prototype(cage_base));
-  if (has_initial_map(cage_base))
+  if (has_initial_map(cage_base)) {
     return initial_map(cage_base).prototype(cage_base);
+  }
   // When there is no initial map and the prototype is a JSReceiver, the
   // initial map field is used for the prototype field.
   return HeapObject::cast(prototype_or_initial_map(cage_base, kAcquireLoad));

@@ -389,17 +389,17 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     DCHECK(closure_type.AsHeapConstant()->Ref().IsJSFunction());
     JSFunctionRef js_function =
         closure_type.AsHeapConstant()->Ref().AsJSFunction();
-    if (!js_function.has_initial_map()) return NoChange();
+    if (!js_function.has_initial_map(dependencies())) return NoChange();
 
     SlackTrackingPrediction slack_tracking_prediction =
         dependencies()->DependOnInitialMapInstanceSizePrediction(js_function);
 
-    MapRef initial_map = js_function.initial_map();
+    MapRef initial_map = js_function.initial_map(dependencies());
     DCHECK(initial_map.instance_type() == JS_GENERATOR_OBJECT_TYPE ||
            initial_map.instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
     // Allocate a register file.
-    SharedFunctionInfoRef shared = js_function.shared();
+    SharedFunctionInfoRef shared = js_function.shared(dependencies());
     DCHECK(shared.HasBytecodeArray());
     int parameter_count_no_receiver = shared.internal_formal_parameter_count();
     int length = parameter_count_no_receiver +
@@ -1060,7 +1060,8 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreatePromise, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  MapRef promise_map = native_context().promise_function().initial_map();
+  MapRef promise_map =
+      native_context().promise_function().initial_map(dependencies());
 
   AllocationBuilder a(jsgraph(), effect, graph()->start());
   a.Allocate(promise_map.instance_size());
@@ -1140,7 +1141,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Retrieve the initial map for the object.
-  MapRef map = native_context().object_function().initial_map();
+  MapRef map = native_context().object_function().initial_map(dependencies());
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
   Node* js_object_map = jsgraph()->Constant(map);
@@ -1313,10 +1314,12 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 }
 
 namespace {
+
 base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
                                           HeapObjectRef prototype) {
   MapRef standard_map =
-      broker->target_native_context().object_function().initial_map();
+      broker->target_native_context().object_function().initial_map(
+          broker->dependencies());
   if (prototype.equals(standard_map.prototype().value())) {
     return standard_map;
   }
@@ -1329,6 +1332,7 @@ base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
   }
   return base::Optional<MapRef>();
 }
+
 }  // namespace
 
 Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
@@ -1886,7 +1890,8 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteralElements(
 
 Node* JSCreateLowering::AllocateLiteralRegExp(
     Node* effect, Node* control, RegExpBoilerplateDescriptionRef boilerplate) {
-  MapRef initial_map = native_context().regexp_function().initial_map();
+  MapRef initial_map =
+      native_context().regexp_function().initial_map(dependencies());
 
   // Sanity check that JSRegExp object layout hasn't changed.
   STATIC_ASSERT(JSRegExp::kDataOffset == JSObject::kHeaderSize);

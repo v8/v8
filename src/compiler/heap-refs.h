@@ -83,7 +83,7 @@ enum class RefSerializationKind {
   V(JSArray, RefSerializationKind::kBackgroundSerialized)                 \
   V(JSBoundFunction, RefSerializationKind::kBackgroundSerialized)         \
   V(JSDataView, RefSerializationKind::kBackgroundSerialized)              \
-  V(JSFunction, RefSerializationKind::kSerialized)                        \
+  V(JSFunction, RefSerializationKind::kBackgroundSerialized)              \
   V(JSGlobalObject, RefSerializationKind::kBackgroundSerialized)          \
   V(JSGlobalProxy, RefSerializationKind::kBackgroundSerialized)           \
   V(JSTypedArray, RefSerializationKind::kBackgroundSerialized)            \
@@ -404,28 +404,34 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
 
   Handle<JSFunction> object() const;
 
-  bool has_feedback_vector() const;
-  bool has_initial_map() const;
-  bool has_prototype() const;
-  bool PrototypeRequiresRuntimeLookup() const;
+  // Returns true, iff the serialized JSFunctionData contents are consistent
+  // with the state of the underlying JSFunction object. Must be called from
+  // the main thread.
+  bool IsConsistentWithHeapState() const;
 
-  void Serialize();
-  bool serialized() const;
+  // TODO(jgruber): Consider more fine-grained dependencies that keep track of
+  // which fields were actually inspected during compilation.
+  bool has_feedback_vector(CompilationDependencies* dependencies) const;
+  bool has_initial_map(CompilationDependencies* dependencies) const;
+  bool PrototypeRequiresRuntimeLookup(
+      CompilationDependencies* dependencies) const;
+  bool has_instance_prototype(CompilationDependencies* dependencies) const;
+  ObjectRef instance_prototype(CompilationDependencies* dependencies) const;
+  MapRef initial_map(CompilationDependencies* dependencies) const;
+  ContextRef context(CompilationDependencies* dependencies) const;
+  NativeContextRef native_context(CompilationDependencies* dependencies) const;
+  SharedFunctionInfoRef shared(CompilationDependencies* dependencies) const;
+  int InitialMapInstanceSizeWithMinSlack(
+      CompilationDependencies* dependencies) const;
+  FeedbackVectorRef feedback_vector(
+      CompilationDependencies* dependencies) const;
+  FeedbackCellRef raw_feedback_cell(
+      CompilationDependencies* dependencies) const;
 
-  // The following are available only after calling Serialize().
-  ObjectRef prototype() const;
-  MapRef initial_map() const;
-  ContextRef context() const;
-  NativeContextRef native_context() const;
-  SharedFunctionInfoRef shared() const;
-  int InitialMapInstanceSizeWithMinSlack() const;
-
-  void SerializeCodeAndFeedback();
-  bool serialized_code_and_feedback() const;
-
-  FeedbackVectorRef feedback_vector() const;
-  FeedbackCellRef raw_feedback_cell() const;
   CodeRef code() const;
+
+ private:
+  void RecordDependencyIfNeeded(CompilationDependencies* dependencies) const;
 };
 
 class RegExpBoilerplateDescriptionRef : public HeapObjectRef {

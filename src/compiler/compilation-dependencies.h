@@ -125,6 +125,8 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Like DependOnElementsKind but also applies to all nested allocation sites.
   void DependOnElementsKinds(const AllocationSiteRef& site);
 
+  void DependOnConsistentJSFunctionView(const JSFunctionRef& function);
+
   // Predict the final instance size for {function}'s initial map and record
   // the assumption that this prediction is correct. In addition, register
   // the initial map dependency. This method returns the {function}'s the

@@ -1510,14 +1510,10 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     return Type::NonInternal();
   }
   JSFunctionRef function = fun.AsHeapConstant()->Ref().AsJSFunction();
-  if (!function.serialized()) {
-    TRACE_BROKER_MISSING(t->broker(), "data for function " << function);
+  if (!function.shared(t->broker()->dependencies()).HasBuiltinId()) {
     return Type::NonInternal();
   }
-  if (!function.shared().HasBuiltinId()) {
-    return Type::NonInternal();
-  }
-  switch (function.shared().builtin_id()) {
+  switch (function.shared(t->broker()->dependencies()).builtin_id()) {
     case Builtin::kMathRandom:
       return Type::PlainNumber();
     case Builtin::kMathFloor:

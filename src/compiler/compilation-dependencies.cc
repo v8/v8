@@ -21,14 +21,17 @@ namespace compiler {
 
 CompilationDependencies::CompilationDependencies(JSHeapBroker* broker,
                                                  Zone* zone)
-    : zone_(zone), broker_(broker), dependencies_(zone) {}
+    : zone_(zone), broker_(broker), dependencies_(zone) {
+  broker->set_dependencies(this);
+}
 
 class InitialMapDependency final : public CompilationDependency {
  public:
-  InitialMapDependency(const JSFunctionRef& function, const MapRef& initial_map)
+  InitialMapDependency(JSHeapBroker* broker, const JSFunctionRef& function,
+                       const MapRef& initial_map)
       : function_(function), initial_map_(initial_map) {
-    DCHECK(function_.has_initial_map());
-    DCHECK(function_.initial_map().equals(initial_map_));
+    DCHECK(function_.has_initial_map(broker->dependencies()));
+    DCHECK(function_.initial_map(broker->dependencies()).equals(initial_map_));
   }
 
   bool IsValid() const override {
@@ -51,19 +54,22 @@ class InitialMapDependency final : public CompilationDependency {
 
 class PrototypePropertyDependency final : public CompilationDependency {
  public:
-  PrototypePropertyDependency(const JSFunctionRef& function,
+  PrototypePropertyDependency(JSHeapBroker* broker,
+                              const JSFunctionRef& function,
                               const ObjectRef& prototype)
       : function_(function), prototype_(prototype) {
-    DCHECK(function_.has_prototype());
-    DCHECK(!function_.PrototypeRequiresRuntimeLookup());
-    DCHECK(function_.prototype().equals(prototype_));
+    DCHECK(function_.has_instance_prototype(broker->dependencies()));
+    DCHECK(!function_.PrototypeRequiresRuntimeLookup(broker->dependencies()));
+    DCHECK(function_.instance_prototype(broker->dependencies())
+               .equals(prototype_));
   }
 
   bool IsValid() const override {
     Handle<JSFunction> function = function_.object();
-    return function->has_prototype_slot() && function->has_prototype() &&
+    return function->has_prototype_slot() &&
+           function->has_instance_prototype() &&
            !function->PrototypeRequiresRuntimeLookup() &&
-           function->prototype() == *prototype_.object();
+           function->instance_prototype() == *prototype_.object();
   }
 
   void PrepareInstall() const override {
@@ -338,6 +344,21 @@ class OwnConstantDictionaryPropertyDependency final
   ObjectRef const value_;
 };
 
+class ConsistentJSFunctionViewDependency final : public CompilationDependency {
+ public:
+  explicit ConsistentJSFunctionViewDependency(const JSFunctionRef& function)
+      : function_(function) {}
+
+  bool IsValid() const override {
+    return function_.IsConsistentWithHeapState();
+  }
+
+  void Install(Handle<Code> code) const override {}
+
+ private:
+  const JSFunctionRef function_;
+};
+
 class TransitionDependency final : public CompilationDependency {
  public:
   explicit TransitionDependency(const MapRef& map) : map_(map) {
@@ -388,8 +409,7 @@ class FieldRepresentationDependency final : public CompilationDependency {
                                 Representation representation)
       : owner_(owner),
         descriptor_(descriptor),
-        representation_(representation) {
-  }
+        representation_(representation) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
@@ -639,17 +659,17 @@ void CompilationDependencies::RecordDependency(
 MapRef CompilationDependencies::DependOnInitialMap(
     const JSFunctionRef& function) {
   DCHECK(!function.IsNeverSerializedHeapObject());
-  MapRef map = function.initial_map();
-  RecordDependency(zone_->New<InitialMapDependency>(function, map));
+  MapRef map = function.initial_map(this);
+  RecordDependency(zone_->New<InitialMapDependency>(broker_, function, map));
   return map;
 }
 
 ObjectRef CompilationDependencies::DependOnPrototypeProperty(
     const JSFunctionRef& function) {
   DCHECK(!function.IsNeverSerializedHeapObject());
-  ObjectRef prototype = function.prototype();
+  ObjectRef prototype = function.instance_prototype(this);
   RecordDependency(
-      zone_->New<PrototypePropertyDependency>(function, prototype));
+      zone_->New<PrototypePropertyDependency>(broker_, function, prototype));
   return prototype;
 }
 
@@ -859,7 +879,9 @@ void CompilationDependencies::DependOnStablePrototypeChains(
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       base::Optional<JSFunctionRef> constructor =
           broker_->target_native_context().GetConstructorFunction(receiver_map);
-      if (constructor.has_value()) receiver_map = constructor->initial_map();
+      if (constructor.has_value()) {
+        receiver_map = constructor->initial_map(this);
+      }
     }
     DependOnStablePrototypeChain(this, receiver_map, last_prototype);
   }
@@ -882,6 +904,12 @@ void CompilationDependencies::DependOnElementsKinds(
   CHECK_EQ(current.nested_site().AsSmi(), 0);
 }
 
+void CompilationDependencies::DependOnConsistentJSFunctionView(
+    const JSFunctionRef& function) {
+  DCHECK(broker_->is_concurrent_inlining());
+  RecordDependency(zone_->New<ConsistentJSFunctionViewDependency>(function));
+}
+
 SlackTrackingPrediction::SlackTrackingPrediction(MapRef initial_map,
                                                  int instance_size)
     : instance_size_(instance_size),
@@ -893,13 +921,13 @@ SlackTrackingPrediction
 CompilationDependencies::DependOnInitialMapInstanceSizePrediction(
     const JSFunctionRef& function) {
   MapRef initial_map = DependOnInitialMap(function);
-  int instance_size = function.InitialMapInstanceSizeWithMinSlack();
+  int instance_size = function.InitialMapInstanceSizeWithMinSlack(this);
   // Currently, we always install the prediction dependency. If this turns out
   // to be too expensive, we can only install the dependency if slack
   // tracking is active.
   RecordDependency(zone_->New<InitialMapInstanceSizePredictionDependency>(
       function, instance_size));
-  DCHECK_LE(instance_size, function.initial_map().instance_size());
+  DCHECK_LE(instance_size, function.initial_map(this).instance_size());
   return SlackTrackingPrediction(initial_map, instance_size);
 }
 

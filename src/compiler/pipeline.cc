@@ -1353,11 +1353,11 @@ struct GraphBuilderPhase {
     JSFunctionRef closure = MakeRef(data->broker(), data->info()->closure());
     CallFrequency frequency(1.0f);
     BuildGraphFromBytecode(
-        data->broker(), temp_zone, closure.shared(),
-        closure.raw_feedback_cell(), data->info()->osr_offset(),
-        data->jsgraph(), frequency, data->source_positions(),
-        SourcePosition::kNotInlined, data->info()->code_kind(), flags,
-        &data->info()->tick_counter(),
+        data->broker(), temp_zone, closure.shared(data->dependencies()),
+        closure.raw_feedback_cell(data->dependencies()),
+        data->info()->osr_offset(), data->jsgraph(), frequency,
+        data->source_positions(), SourcePosition::kNotInlined,
+        data->info()->code_kind(), flags, &data->info()->tick_counter(),
         ObserveNodeInfo{data->observe_node_manager(),
                         data->info()->node_observer()});
   }
@@ -1385,8 +1385,7 @@ struct InliningPhase {
       call_reducer_flags |= JSCallReducer::kInlineJSToWasmCalls;
     }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(), data->broker(),
-                               temp_zone, call_reducer_flags,
-                               data->dependencies());
+                               temp_zone, call_reducer_flags);
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(),
         data->specialization_context(),

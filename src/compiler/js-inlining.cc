@@ -305,7 +305,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
 
     // The function might have not been called yet.
-    if (!function.has_feedback_vector()) {
+    if (!function.has_feedback_vector(broker()->dependencies())) {
       return base::nullopt;
     }
 
@@ -317,11 +317,12 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
     // TODO(turbofan): We might want to revisit this restriction later when we
     // have a need for this, and we know how to model different native contexts
     // in the same graph in a compositional way.
-    if (!function.native_context().equals(broker()->target_native_context())) {
+    if (!function.native_context(broker()->dependencies())
+             .equals(broker()->target_native_context())) {
       return base::nullopt;
     }
 
-    return function.shared();
+    return function.shared(broker()->dependencies());
   }
 
   // This reducer can also handle calls where the target is statically known to
@@ -355,11 +356,12 @@ FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
   if (match.HasResolvedValue() && match.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
     // This was already ensured by DetermineCallTarget
-    CHECK(function.has_feedback_vector());
+    CHECK(function.has_feedback_vector(broker()->dependencies()));
 
     // The inlinee specializes to the context from the JSFunction object.
-    *context_out = jsgraph()->Constant(function.context());
-    return function.raw_feedback_cell();
+    *context_out =
+        jsgraph()->Constant(function.context(broker()->dependencies()));
+    return function.raw_feedback_cell(broker()->dependencies());
   }
 
   if (match.IsJSCreateClosure()) {

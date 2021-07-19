@@ -58,15 +58,17 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // [prototype_or_initial_map]:
   DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map, HeapObject)
 
-  // [shared]: The information about the function that
-  // can be shared by instances.
+  // [shared]: The information about the function that can be shared by
+  // instances.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
+  DECL_RELAXED_GETTER(shared, SharedFunctionInfo)
 
   // Fast binding requires length and name accessors.
   static const int kMinDescriptorsForFastBind = 2;
 
   // [context]: The context for this function.
   inline Context context();
+  DECL_RELAXED_GETTER(context, Context)
   inline bool has_context() const;
   inline void set_context(HeapObject context,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

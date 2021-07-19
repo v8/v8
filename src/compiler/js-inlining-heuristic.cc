@@ -50,21 +50,15 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
 
 bool CanConsiderForInlining(JSHeapBroker* broker,
                             JSFunctionRef const& function) {
-  if (!function.has_feedback_vector()) {
+  if (!function.has_feedback_vector(broker->dependencies())) {
     TRACE("Cannot consider " << function
                              << " for inlining (no feedback vector)");
     return false;
   }
 
-  if (!function.serialized() || !function.serialized_code_and_feedback()) {
-    TRACE_BROKER_MISSING(
-        broker, "data for " << function << " (cannot consider for inlining)");
-    TRACE("Cannot consider " << function << " for inlining (missing data)");
-    return false;
-  }
-
-  return CanConsiderForInlining(broker, function.shared(),
-                                function.feedback_vector());
+  return CanConsiderForInlining(
+      broker, function.shared(broker->dependencies()),
+      function.feedback_vector(broker->dependencies()));
 }
 
 }  // namespace
@@ -81,7 +75,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     out.functions[0] = m.Ref(broker()).AsJSFunction();
     JSFunctionRef function = out.functions[0].value();
     if (CanConsiderForInlining(broker(), function)) {
-      out.bytecode[0] = function.shared().GetBytecodeArray();
+      out.bytecode[0] = function.shared(dependencies()).GetBytecodeArray();
       out.num_functions = 1;
       return out;
     }
@@ -102,7 +96,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
       out.functions[n] = m.Ref(broker()).AsJSFunction();
       JSFunctionRef function = out.functions[n].value();
       if (CanConsiderForInlining(broker(), function)) {
-        out.bytecode[n] = function.shared().GetBytecodeArray();
+        out.bytecode[n] = function.shared(dependencies()).GetBytecodeArray();
       }
     }
     out.num_functions = value_input_count;
@@ -179,9 +173,10 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       continue;
     }
 
-    SharedFunctionInfoRef shared = candidate.functions[i].has_value()
-                                       ? candidate.functions[i].value().shared()
-                                       : candidate.shared_info.value();
+    SharedFunctionInfoRef shared =
+        candidate.functions[i].has_value()
+            ? candidate.functions[i].value().shared(dependencies())
+            : candidate.shared_info.value();
     candidate.can_inline_function[i] = candidate.bytecode[i].has_value();
     CHECK_IMPLIES(candidate.can_inline_function[i], shared.IsInlineable());
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
@@ -794,9 +789,10 @@ void JSInliningHeuristic::PrintCandidates() {
        << candidate.node->id() << " with frequency " << candidate.frequency
        << ", " << candidate.num_functions << " target(s):" << std::endl;
     for (int i = 0; i < candidate.num_functions; ++i) {
-      SharedFunctionInfoRef shared = candidate.functions[i].has_value()
-                                         ? candidate.functions[i]->shared()
-                                         : candidate.shared_info.value();
+      SharedFunctionInfoRef shared =
+          candidate.functions[i].has_value()
+              ? candidate.functions[i]->shared(dependencies())
+              : candidate.shared_info.value();
       os << "  - target: " << shared;
       if (candidate.bytecode[i].has_value()) {
         os << ", bytecode size: " << candidate.bytecode[i]->length();
@@ -818,6 +814,10 @@ void JSInliningHeuristic::PrintCandidates() {
 }
 
 Graph* JSInliningHeuristic::graph() const { return jsgraph()->graph(); }
+
+CompilationDependencies* JSInliningHeuristic::dependencies() const {
+  return broker()->dependencies();
+}
 
 CommonOperatorBuilder* JSInliningHeuristic::common() const {
   return jsgraph()->common();
