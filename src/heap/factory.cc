@@ -2720,10 +2720,19 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
 
 Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
     std::shared_ptr<BackingStore> backing_store) {
-  DCHECK_IMPLIES(backing_store->is_resizable(), FLAG_harmony_rab_gsab);
-  Handle<Map> map(
-      isolate()->native_context()->shared_array_buffer_fun().initial_map(),
-      isolate());
+  Handle<Map> map;
+  if (backing_store->is_resizable()) {
+    DCHECK(FLAG_harmony_rab_gsab);
+    map = Handle<Map>(isolate()
+                          ->native_context()
+                          ->growable_shared_array_buffer_fun()
+                          .initial_map(),
+                      isolate());
+  } else {
+    map = Handle<Map>(
+        isolate()->native_context()->shared_array_buffer_fun().initial_map(),
+        isolate());
+  }
   auto result = Handle<JSArrayBuffer>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
   ResizableFlag resizable = backing_store->is_resizable()

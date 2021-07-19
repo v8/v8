@@ -233,7 +233,12 @@ class Genesis {
 #undef DECLARE_FEATURE_INITIALIZATION
   void InitializeGlobal_regexp_linear_flag();
 
-  enum ArrayBufferKind { ARRAY_BUFFER, SHARED_ARRAY_BUFFER };
+  enum ArrayBufferKind {
+    ARRAY_BUFFER,
+    SHARED_ARRAY_BUFFER,
+    RESIZABLE_ARRAY_BUFFER,
+    GROWABLE_SHARED_ARRAY_BUFFER
+  };
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,
                                        ArrayBufferKind array_buffer_kind);
 
@@ -3278,6 +3283,25 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallSpeciesGetter(isolate_, shared_array_buffer_fun);
   }
 
+  {  // R e s i z a b l e A r r a y B u f f e r
+    Handle<String> name = factory->ResizableArrayBuffer_string();
+    Handle<JSFunction> resizable_array_buffer_fun =
+        CreateArrayBuffer(name, RESIZABLE_ARRAY_BUFFER);
+    InstallWithIntrinsicDefaultProto(isolate_, resizable_array_buffer_fun,
+                                     Context::RESIZABLE_ARRAY_BUFFER_FUN_INDEX);
+    InstallSpeciesGetter(isolate_, resizable_array_buffer_fun);
+  }
+
+  {  // G r o w a b l e S h a r e d A r r a y B u f f e r
+    Handle<String> name = factory->GrowableSharedArrayBuffer_string();
+    Handle<JSFunction> growable_shared_array_buffer_fun =
+        CreateArrayBuffer(name, GROWABLE_SHARED_ARRAY_BUFFER);
+    InstallWithIntrinsicDefaultProto(
+        isolate_, growable_shared_array_buffer_fun,
+        Context::GROWABLE_SHARED_ARRAY_BUFFER_FUN_INDEX);
+    InstallSpeciesGetter(isolate_, growable_shared_array_buffer_fun);
+  }
+
   {  // -- A t o m i c s
     Handle<JSObject> atomics_object =
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
@@ -4394,7 +4418,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_brand_checks)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_error_cause)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rab_gsab)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
@@ -4560,6 +4583,19 @@ void Genesis::InitializeGlobal_harmony_intl_locale_info() {
 
 #endif  // V8_INTL_SUPPORT
 
+void Genesis::InitializeGlobal_harmony_rab_gsab() {
+  if (!FLAG_harmony_rab_gsab) return;
+
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+
+  JSObject::AddProperty(isolate_, global, "ResizableArrayBuffer",
+                        isolate()->resizable_array_buffer_fun(), DONT_ENUM);
+
+  JSObject::AddProperty(isolate_, global, "GrowableSharedArrayBuffer",
+                        isolate()->growable_shared_array_buffer_fun(),
+                        DONT_ENUM);
+}
+
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
   // Create the %ArrayBufferPrototype%
@@ -4585,38 +4621,44 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(
       InstallFunctionWithBuiltinId(isolate(), array_buffer_fun, "isView",
                                    Builtin::kArrayBufferIsView, 1, true);
 
-      // Install the "byteLength" and "maxByteLength" getters on the
-      // {prototype}.
+      // Install the "byteLength" getter on the {prototype}.
       SimpleInstallGetter(isolate(), prototype, factory()->byte_length_string(),
                           Builtin::kArrayBufferPrototypeGetByteLength, false);
-      SimpleInstallGetter(
-          isolate(), prototype, factory()->max_byte_length_string(),
-          Builtin::kArrayBufferPrototypeGetMaxByteLength, false);
-      SimpleInstallGetter(isolate(), prototype, factory()->resizable_string(),
-                          Builtin::kArrayBufferPrototypeGetResizable, false);
 
       SimpleInstallFunction(isolate(), prototype, "slice",
                             Builtin::kArrayBufferPrototypeSlice, 2, true);
-      SimpleInstallFunction(isolate(), prototype, "resize",
-                            Builtin::kArrayBufferPrototypeResize, 1, true);
       break;
 
     case SHARED_ARRAY_BUFFER:
-      // Install the "byteLength" and "maxByteLength" getters on the
-      // {prototype}.
+      // Install the "byteLength" getter on the {prototype}.
       SimpleInstallGetter(isolate(), prototype, factory()->byte_length_string(),
                           Builtin::kSharedArrayBufferPrototypeGetByteLength,
                           false);
-      SimpleInstallGetter(
-          isolate(), prototype, factory()->max_byte_length_string(),
-          Builtin::kSharedArrayBufferPrototypeGetMaxByteLength, false);
-      SimpleInstallGetter(isolate(), prototype, factory()->growable_string(),
-                          Builtin::kSharedArrayBufferPrototypeGetGrowable,
-                          false);
+
       SimpleInstallFunction(isolate(), prototype, "slice",
                             Builtin::kSharedArrayBufferPrototypeSlice, 2, true);
+      break;
+    case RESIZABLE_ARRAY_BUFFER:
+      SimpleInstallGetter(isolate(), prototype, factory()->byte_length_string(),
+                          Builtin::kResizableArrayBufferPrototypeGetByteLength,
+                          false);
+      SimpleInstallGetter(
+          isolate(), prototype, factory()->max_byte_length_string(),
+          Builtin::kResizableArrayBufferPrototypeGetMaxByteLength, false);
+      SimpleInstallFunction(isolate(), prototype, "resize",
+                            Builtin::kResizableArrayBufferPrototypeResize, 1,
+                            true);
+      break;
+    case GROWABLE_SHARED_ARRAY_BUFFER:
+      SimpleInstallGetter(
+          isolate(), prototype, factory()->byte_length_string(),
+          Builtin::kGrowableSharedArrayBufferPrototypeGetByteLength, true);
+      SimpleInstallGetter(
+          isolate(), prototype, factory()->max_byte_length_string(),
+          Builtin::kGrowableSharedArrayBufferPrototypeGetMaxByteLength, false);
       SimpleInstallFunction(isolate(), prototype, "grow",
-                            Builtin::kSharedArrayBufferPrototypeGrow, 1, true);
+                            Builtin::kGrowableSharedArrayBufferPrototypeGrow, 1,
+                            true);
       break;
   }
 
