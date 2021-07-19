@@ -289,6 +289,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       StoreHandler::cast(*this).StoreHandlerVerify(isolate);
       break;
 
+    case BIG_INT_BASE_TYPE:
+      BigIntBase::cast(*this).BigIntBaseVerify(isolate);
+      break;
+
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:
@@ -330,15 +334,7 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   // - Jumps must go to new instructions starts.
   // - No Illegal bytecodes.
   // - No consecutive sequences of prefix Wide / ExtraWide.
-  CHECK(IsBytecodeArray(isolate));
-  CHECK(constant_pool(isolate).IsFixedArray(isolate));
-  VerifyHeapPointer(isolate, constant_pool(isolate));
-  {
-    Object table = source_position_table(isolate, kAcquireLoad);
-    CHECK(table.IsUndefined(isolate) || table.IsException(isolate) ||
-          table.IsByteArray(isolate));
-  }
-  CHECK(handler_table(isolate).IsByteArray(isolate));
+  TorqueGeneratedClassVerifiers::BytecodeArrayVerify(*this, isolate);
   for (int i = 0; i < constant_pool(isolate).length(); ++i) {
     // No ThinStrings in the constant pool.
     CHECK(!constant_pool(isolate).get(isolate, i).IsThinString(isolate));
@@ -1490,7 +1486,6 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestVerify(Isolate* isolate) {
 }
 
 void BigIntBase::BigIntBaseVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::BigIntBaseVerify(*this, isolate);
   CHECK_GE(length(), 0);
   CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
 }
@@ -1750,8 +1745,6 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
     VerifyPointer(isolate, child);
   }
 }
-
-USE_TORQUE_VERIFIER(InterpreterData)
 
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);

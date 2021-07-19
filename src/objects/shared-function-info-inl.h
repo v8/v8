@@ -94,10 +94,8 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(BaselineData)
 
-OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
 
-CAST_ACCESSOR(InterpreterData)
-ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
 ACCESSORS(InterpreterData, raw_interpreter_trampoline, CodeT,
           kInterpreterTrampolineOffset)
 

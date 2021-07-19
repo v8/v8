@@ -32,6 +32,8 @@ namespace interpreter {
 class Register;
 }  // namespace interpreter
 
+#include "torque-generated/src/objects/code-tq.inc"
+
 // CodeDataContainer is a container for all mutable fields associated with its
 // referencing {Code} object. Since {Code} objects reside on write-protected
 // pages within the heap, its header fields need to be immutable. There always
@@ -828,7 +830,8 @@ class DependentCode : public WeakFixedArray {
 };
 
 // BytecodeArray represents a sequence of interpreter bytecodes.
-class BytecodeArray : public FixedArrayBase {
+class BytecodeArray
+    : public TorqueGeneratedBytecodeArray<BytecodeArray, FixedArrayBase> {
  public:
   enum Age {
     kNoAgeBytecodeAge = 0,
@@ -881,21 +884,6 @@ class BytecodeArray : public FixedArrayBase {
   inline Age bytecode_age() const;
   inline void set_bytecode_age(Age age);
 
-  // Accessors for the constant pool.
-  DECL_ACCESSORS(constant_pool, FixedArray)
-
-  // Accessors for handler table containing offsets of exception handlers.
-  DECL_ACCESSORS(handler_table, ByteArray)
-
-  // Accessors for source position table. Can contain:
-  // * undefined (initial value)
-  // * empty_byte_array (for bytecode generated for functions that will never
-  // have source positions, e.g. native functions).
-  // * ByteArray (when source positions have been collected for the bytecode)
-  // * exception (when an error occurred while explicitly collecting source
-  // positions for pre-existing bytecode).
-  DECL_RELEASE_ACQUIRE_ACCESSORS(source_position_table, Object)
-
   inline bool HasSourcePositionTable() const;
   inline bool DidSourcePositionGenerationFail() const;
 
@@ -908,8 +896,6 @@ class BytecodeArray : public FixedArrayBase {
   // |SourcePositionTable| will return an empty byte array rather than crashing
   // as it would if no attempt was ever made to collect source positions.
   inline void SetSourcePositionsFailedToCollect();
-
-  DECL_CAST(BytecodeArray)
 
   // Dispatched behavior.
   inline int BytecodeArraySize();
@@ -935,10 +921,6 @@ class BytecodeArray : public FixedArrayBase {
   // is deterministic.
   inline void clear_padding();
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
-                                TORQUE_GENERATED_BYTECODE_ARRAY_FIELDS)
-
   // InterpreterEntryTrampoline expects these fields to be next to each other
   // and writes a 16-bit value to reset them.
   STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
@@ -951,7 +933,11 @@ class BytecodeArray : public FixedArrayBase {
 
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(BytecodeArray, FixedArrayBase);
+ private:
+  // Hide accessors inherited from generated class. Use parameter_count instead.
+  DECL_INT_ACCESSORS(parameter_size)
+
+  TQ_OBJECT_CONSTRUCTORS(BytecodeArray)
 };
 
 // DeoptimizationData is a fixed array used to hold the deoptimization data for

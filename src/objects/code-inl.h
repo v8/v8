@@ -31,8 +31,10 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/code-tq-inl.inc"
+
 OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
-OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
+TQ_OBJECT_CONSTRUCTORS_IMPL(BytecodeArray)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
@@ -40,7 +42,6 @@ OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
 CAST_ACCESSOR(AbstractCode)
-CAST_ACCESSOR(BytecodeArray)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
@@ -942,11 +943,6 @@ int32_t BytecodeArray::parameter_count() const {
   // it to be used directly by generated code.
   return ReadField<int32_t>(kParameterSizeOffset) >> kSystemPointerSizeLog2;
 }
-
-ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
-ACCESSORS(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
-RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table, Object,
-                          kSourcePositionTableOffset)
 
 void BytecodeArray::clear_padding() {
   int data_size = kHeaderSize + length();

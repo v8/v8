@@ -214,7 +214,7 @@ extern class GlobalDictionary extends HashTable;
 extern class SimpleNumberDictionary extends HashTable;
 extern class EphemeronHashTable extends HashTable;
 type ObjectHashTable extends HashTable
-    generates 'TNode<ObjectHashTable>';
+    generates 'TNode<ObjectHashTable>' constexpr 'ObjectHashTable';
 extern class NumberDictionary extends HashTable;
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';

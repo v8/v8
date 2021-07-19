@@ -4,6 +4,7 @@
 
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast
+@generateCppClass
 extern class RegExpMatchInfo extends FixedArray {
   macro GetStartOfCapture(implicit context: Context)(captureIndex:
                                                          constexpr int31): Smi {

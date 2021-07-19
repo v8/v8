@@ -141,22 +141,17 @@ class UncompiledDataWithPreparseData
   TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData)
 };
 
-class InterpreterData : public Struct {
+class InterpreterData
+    : public TorqueGeneratedInterpreterData<InterpreterData, Struct> {
  public:
-  DECL_ACCESSORS(bytecode_array, BytecodeArray)
   DECL_ACCESSORS(interpreter_trampoline, Code)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                TORQUE_GENERATED_INTERPRETER_DATA_FIELDS)
-
-  DECL_CAST(InterpreterData)
   DECL_PRINTER(InterpreterData)
-  DECL_VERIFIER(InterpreterData)
 
  private:
   DECL_ACCESSORS(raw_interpreter_trampoline, CodeT)
 
-  OBJECT_CONSTRUCTORS(InterpreterData, Struct);
+  TQ_OBJECT_CONSTRUCTORS(InterpreterData)
 };
 
 class BaselineData : public TorqueGeneratedBaselineData<BaselineData, Struct> {

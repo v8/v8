@@ -820,13 +820,10 @@ class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
 //
 // The API expects that all ExternalStrings are created through the
 // API.  Therefore, ExternalStrings should not be used internally.
-class ExternalString : public String {
+class ExternalString
+    : public TorqueGeneratedExternalString<ExternalString, String> {
  public:
-  DECL_CAST(ExternalString)
   DECL_VERIFIER(ExternalString)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize,
-                                TORQUE_GENERATED_EXTERNAL_STRING_FIELDS)
 
   // Size of uncached external strings.
   static const int kUncachedSize =
@@ -851,12 +848,19 @@ class ExternalString : public String {
   STATIC_ASSERT(kResourceOffset == Internals::kStringResourceOffset);
   static const int kSizeOfAllExternalStrings = kHeaderSize;
 
-  OBJECT_CONSTRUCTORS(ExternalString, String);
+ private:
+  // Hide generated accessors.
+  DECL_ACCESSORS(resource, void*)
+  DECL_ACCESSORS(resource_data, void*)
+
+  TQ_OBJECT_CONSTRUCTORS(ExternalString)
 };
 
 // The ExternalOneByteString class is an external string backed by an
 // one-byte string.
-class ExternalOneByteString : public ExternalString {
+class ExternalOneByteString
+    : public TorqueGeneratedExternalOneByteString<ExternalOneByteString,
+                                                  ExternalString> {
  public:
   static const bool kHasOneByteEncoding = true;
 
@@ -884,17 +888,11 @@ class ExternalOneByteString : public ExternalString {
   inline uint8_t Get(int index,
                      const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  DECL_CAST(ExternalOneByteString)
-
   class BodyDescriptor;
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      ExternalString::kHeaderSize,
-      TORQUE_GENERATED_EXTERNAL_ONE_BYTE_STRING_FIELDS)
 
   STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
-  OBJECT_CONSTRUCTORS(ExternalOneByteString, ExternalString);
+  TQ_OBJECT_CONSTRUCTORS(ExternalOneByteString)
 
  private:
   // The underlying resource as a non-const pointer.
@@ -903,7 +901,9 @@ class ExternalOneByteString : public ExternalString {
 
 // The ExternalTwoByteString class is an external string backed by a UTF-16
 // encoded string.
-class ExternalTwoByteString : public ExternalString {
+class ExternalTwoByteString
+    : public TorqueGeneratedExternalTwoByteString<ExternalTwoByteString,
+                                                  ExternalString> {
  public:
   static const bool kHasOneByteEncoding = false;
 
@@ -934,17 +934,11 @@ class ExternalTwoByteString : public ExternalString {
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
 
-  DECL_CAST(ExternalTwoByteString)
-
   class BodyDescriptor;
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      ExternalString::kHeaderSize,
-      TORQUE_GENERATED_EXTERNAL_TWO_BYTE_STRING_FIELDS)
 
   STATIC_ASSERT(kSize == kSizeOfAllExternalStrings);
 
-  OBJECT_CONSTRUCTORS(ExternalTwoByteString, ExternalString);
+  TQ_OBJECT_CONSTRUCTORS(ExternalTwoByteString)
 
  private:
   // The underlying resource as a non-const pointer.

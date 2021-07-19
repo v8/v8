@@ -231,6 +231,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataPrint(os);
       break;
+    case BIG_INT_BASE_TYPE:
+      BigIntBase::cast(*this).BigIntBasePrint(os);
+      break;
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:

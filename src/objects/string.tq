@@ -50,6 +50,7 @@ extern class ConsString extends String {
 
 @abstract
 @doNotGenerateCast
+@generateCppClass
 extern class ExternalString extends String {
   resource: ExternalPointer;
   // WARNING: This field is missing for uncached external strings.
@@ -71,6 +72,7 @@ extern macro ExternalTwoByteStringGetChars(ExternalTwoByteString):
     RawPtr<char16>;
 
 @doNotGenerateCast
+@generateCppClass
 extern class ExternalOneByteString extends ExternalString {
   macro GetChars(): RawPtr<char8> {
     if (this.StringInstanceType().is_uncached) {
@@ -82,6 +84,7 @@ extern class ExternalOneByteString extends ExternalString {
 }
 
 @doNotGenerateCast
+@generateCppClass
 extern class ExternalTwoByteString extends ExternalString {
   macro GetChars(): RawPtr<char16> {
     if (this.StringInstanceType().is_uncached) {

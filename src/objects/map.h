@@ -188,7 +188,7 @@ using MapHandles = std::vector<Handle<Map>>;
 // |               |   [raw_transitions]                             |
 // +---------------+-------------------------------------------------+
 
-class Map : public HeapObject {
+class Map : public TorqueGeneratedMap<Map, HeapObject> {
  public:
   // Instance size.
   // Size in bytes or kVariableSizeSentinel if instances do not have
@@ -750,8 +750,6 @@ class Map : public HeapObject {
   // Returns the number of enumerable properties.
   int NumberOfEnumerableProperties() const;
 
-  DECL_CAST(Map)
-
   static inline int SlackForArraySize(int old_size, int size_limit);
 
   V8_EXPORT_PRIVATE static void EnsureDescriptorSlack(Isolate* isolate,
@@ -810,9 +808,6 @@ class Map : public HeapObject {
                                                 Handle<Map> map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_MAP_FIELDS)
 
   STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
@@ -923,6 +918,10 @@ class Map : public HeapObject {
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
   DECL_RELEASE_SETTER(instance_descriptors, DescriptorArray)
 
+  // Hide inherited accessors from the generated superclass.
+  DECL_ACCESSORS(constructor_or_back_pointer_or_native_context, Object)
+  DECL_ACCESSORS(transitions_or_prototype_info, Object)
+
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;
 
@@ -930,7 +929,7 @@ class Map : public HeapObject {
   template <typename ConcreteVisitor, typename MarkingState>
   friend class MarkingVisitorBase;
 
-  OBJECT_CONSTRUCTORS(Map, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(Map)
 };
 
 // The cache for maps used by normalized (dictionary mode) objects.

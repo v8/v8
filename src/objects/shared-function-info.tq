@@ -9,6 +9,7 @@ extern class PreparseData extends HeapObject {
   children_length: int32;
 }
 
+@generateCppClass
 extern class InterpreterData extends Struct {
   bytecode_array: BytecodeArray;
   @if(V8_EXTERNAL_CODE_SPACE) interpreter_trampoline: CodeDataContainer;
