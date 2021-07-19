@@ -158,31 +158,6 @@ class ObjectData : public ZoneObject {
 #endif                          // DEBUG
 };
 
-namespace {
-
-template <class T>
-constexpr bool IsSerializedRef() {
-  return ref_traits<T>::ref_serialization_kind ==
-         RefSerializationKind::kSerialized;
-}
-
-RefSerializationKind RefSerializationKindOf(ObjectData* const data) {
-  Object o = *data->object();
-  if (o.IsSmi()) {
-    return RefSerializationKind::kNeverSerialized;
-#define DEFINE_REF_SERIALIZATION_KIND(Name, Kind) \
-  }                                               \
-  /* NOLINTNEXTLINE(readability/braces) */        \
-  else if (o.Is##Name()) {                        \
-    return ref_traits<Name>::ref_serialization_kind;
-    HEAP_BROKER_OBJECT_LIST(DEFINE_REF_SERIALIZATION_KIND)
-#undef DEFINE_REF_SERIALIZATION_KIND
-  }
-  UNREACHABLE();
-}
-
-}  // namespace
-
 class HeapObjectData : public ObjectData {
  public:
   HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
@@ -2372,21 +2347,6 @@ struct CreateDataFunctor {
 };
 
 template <class DataT, class ObjectT>
-struct CreateDataFunctor<RefSerializationKind::kSerialized, DataT, ObjectT> {
-  bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
-                  RefsMap::Entry** entry_out, ObjectData** object_data_out) {
-    if (broker->mode() == JSHeapBroker::kSerializing) {
-      RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
-      *object_data_out = broker->zone()->New<DataT>(
-          broker, &entry->value, Handle<ObjectT>::cast(object));
-      *entry_out = entry;
-      return true;
-    }
-    return false;
-  }
-};
-
-template <class DataT, class ObjectT>
 struct CreateDataFunctor<RefSerializationKind::kBackgroundSerialized, DataT,
                          ObjectT> {
   bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
@@ -2477,22 +2437,18 @@ void JSHeapBroker::ClearReconstructibleData() {
     Address key = p->key;
     ObjectData* value = p->value;
     p = refs_->Next(p);
-    const auto kind = RefSerializationKindOf(value);
-    if (kind == RefSerializationKind::kNeverSerialized ||
-        kind == RefSerializationKind::kBackgroundSerialized) {
-      if (value->IsMap() &&
-          value->kind() == ObjectDataKind::kBackgroundSerializedHeapObject &&
-          value->AsMap()->has_extra_serialized_data()) {
-        continue;
-      }
-      if (value->IsJSObject() &&
-          value->kind() == ObjectDataKind::kBackgroundSerializedHeapObject &&
-          value->AsJSObject()->has_extra_serialized_data()) {
-        continue;
-      }
-      // Can be reconstructed from the background thread.
-      CHECK_NOT_NULL(refs_->Remove(key));
+    if (value->IsMap() &&
+        value->kind() == ObjectDataKind::kBackgroundSerializedHeapObject &&
+        value->AsMap()->has_extra_serialized_data()) {
+      continue;
     }
+    if (value->IsJSObject() &&
+        value->kind() == ObjectDataKind::kBackgroundSerializedHeapObject &&
+        value->AsJSObject()->has_extra_serialized_data()) {
+      continue;
+    }
+    // Can be reconstructed from the background thread.
+    CHECK_NOT_NULL(refs_->Remove(key));
   }
 }
 
@@ -2948,7 +2904,7 @@ int BytecodeArrayRef::handler_table_size() const {
   }
 
 // Like IF_ACCESS_FROM_HEAP[_C] but we also allow direct heap access for
-// kSerialized only for methods that we identified to be safe.
+// kBackgroundSerialized only for methods that we identified to be safe.
 #define IF_ACCESS_FROM_HEAP_WITH_FLAG(result, name)                        \
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) { \
     return MakeRef(broker(), result::cast(object()->name()));              \
@@ -2959,9 +2915,9 @@ int BytecodeArrayRef::handler_table_size() const {
   }
 
 // Like BIMODAL_ACCESSOR[_C] except that we force a direct heap access if
-// broker()->is_concurrent_inlining() is true (even for kSerialized). This is
-// because we identified the method to be safe to use direct heap access, but
-// the holder##Data class still needs to be serialized.
+// broker()->is_concurrent_inlining() is true (even for kBackgroundSerialized).
+// This is because we identified the method to be safe to use direct heap
+// access, but the holder##Data class still needs to be serialized.
 #define BIMODAL_ACCESSOR_WITH_FLAG(holder, result, name)                   \
   result##Ref holder##Ref::name() const {                                  \
     IF_ACCESS_FROM_HEAP_WITH_FLAG(result, name);                           \

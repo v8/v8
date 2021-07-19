@@ -73,7 +73,6 @@ enum class RefSerializationKind {
   kNeverSerialized,
   // Can be serialized on demand from the background thread.
   kBackgroundSerialized,
-  kSerialized,
 };
 
 // This list is sorted such that subtypes appear before their supertypes.
