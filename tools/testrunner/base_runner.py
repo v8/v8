@@ -173,7 +173,7 @@ class BuildConfig(object):
     self.control_flow_integrity = build_config['v8_control_flow_integrity']
     self.concurrent_marking = build_config['v8_enable_concurrent_marking']
     self.single_generation = build_config['v8_enable_single_generation']
-    self.dcheck_always_on = build_config['dcheck_always_on']
+    self.v8_dcheck_always_on = build_config['v8_dcheck_always_on']
     self.gcov_coverage = build_config['is_gcov_coverage']
     self.is_android = build_config['is_android']
     self.is_clang = build_config['is_clang']
@@ -212,8 +212,8 @@ class BuildConfig(object):
       detected_options.append('cfi_vptr')
     if self.control_flow_integrity:
       detected_options.append('control_flow_integrity')
-    if self.dcheck_always_on:
-      detected_options.append('dcheck_always_on')
+    if self.v8_dcheck_always_on:
+      detected_options.append('v8_dcheck_always_on')
     if self.gcov_coverage:
       detected_options.append('gcov_coverage')
     if self.msan:
@@ -495,7 +495,7 @@ class BaseTestRunner(object):
   def _process_default_options(self, options):
     if self.build_config.is_debug:
       self.mode_options = DEBUG_MODE
-    elif self.build_config.dcheck_always_on:
+    elif self.build_config.v8_dcheck_always_on:
       self.mode_options = TRY_RELEASE_MODE
     else:
       self.mode_options = RELEASE_MODE
@@ -683,7 +683,7 @@ class BaseTestRunner(object):
       "control_flow_integrity": self.build_config.control_flow_integrity,
       "concurrent_marking": self.build_config.concurrent_marking,
       "single_generation": self.build_config.single_generation,
-      "dcheck_always_on": self.build_config.dcheck_always_on,
+      "v8_dcheck_always_on": self.build_config.v8_dcheck_always_on,
       "deopt_fuzzer": False,
       "endurance_fuzzer": False,
       "gc_fuzzer": False,
