@@ -822,6 +822,7 @@
   'regress/regress-490': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
+  'compiler/regress-1226988': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
