@@ -2498,50 +2498,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_UNOP_LIST(EMIT_SIMD_UNOP)
 #undef EMIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
-    // vector extract element
-    case kS390_F64x2ExtractLane: {
-      __ vrep(i.OutputDoubleRegister(), i.InputSimd128Register(0),
-              Operand(1 - i.InputInt8(1)), Condition(3));
-      break;
-    }
-    case kS390_F32x4ExtractLane: {
-      __ vrep(i.OutputDoubleRegister(), i.InputSimd128Register(0),
-              Operand(3 - i.InputInt8(1)), Condition(2));
-      break;
-    }
-    case kS390_I64x2ExtractLane: {
-      __ vlgv(i.OutputRegister(), i.InputSimd128Register(0),
-              MemOperand(r0, 1 - i.InputInt8(1)), Condition(3));
-      break;
-    }
-    case kS390_I32x4ExtractLane: {
-      __ vlgv(i.OutputRegister(), i.InputSimd128Register(0),
-              MemOperand(r0, 3 - i.InputInt8(1)), Condition(2));
-      break;
-    }
-    case kS390_I16x8ExtractLaneU: {
-      __ vlgv(i.OutputRegister(), i.InputSimd128Register(0),
-              MemOperand(r0, 7 - i.InputInt8(1)), Condition(1));
-      break;
-    }
-    case kS390_I16x8ExtractLaneS: {
-      __ vlgv(kScratchReg, i.InputSimd128Register(0),
-              MemOperand(r0, 7 - i.InputInt8(1)), Condition(1));
-      __ lghr(i.OutputRegister(), kScratchReg);
-      break;
-    }
-    case kS390_I8x16ExtractLaneU: {
-      __ vlgv(i.OutputRegister(), i.InputSimd128Register(0),
-              MemOperand(r0, 15 - i.InputInt8(1)), Condition(0));
-      break;
-    }
-    case kS390_I8x16ExtractLaneS: {
-      __ vlgv(kScratchReg, i.InputSimd128Register(0),
-              MemOperand(r0, 15 - i.InputInt8(1)), Condition(0));
-      __ lgbr(i.OutputRegister(), kScratchReg);
-      break;
-    }
-    // vector replace element
+
+#define SIMD_EXTRACT_LANE_LIST(V)     \
+  V(F64x2ExtractLane, DoubleRegister) \
+  V(F32x4ExtractLane, DoubleRegister) \
+  V(I64x2ExtractLane, Register)       \
+  V(I32x4ExtractLane, Register)       \
+  V(I16x8ExtractLaneU, Register)      \
+  V(I16x8ExtractLaneS, Register)      \
+  V(I8x16ExtractLaneU, Register)      \
+  V(I8x16ExtractLaneS, Register)
+
+#define EMIT_SIMD_EXTRACT_LANE(name, dtype)                                \
+  case kS390_##name: {                                                     \
+    __ name(i.Output##dtype(), i.InputSimd128Register(0), i.InputInt8(1)); \
+    break;                                                                 \
+  }
+      SIMD_EXTRACT_LANE_LIST(EMIT_SIMD_EXTRACT_LANE)
+#undef EMIT_SIMD_EXTRACT_LANE
+#undef SIMD_EXTRACT_LANE_LIST
+      // vector replace element
     case kS390_F64x2ReplaceLane: {
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();

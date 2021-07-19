@@ -5115,6 +5115,48 @@ void TurboAssembler::I8x16Splat(Simd128Register dst, Register src) {
   vrep(dst, dst, Operand(0), Condition(0));
 }
 
+void TurboAssembler::F64x2ExtractLane(DoubleRegister dst, Simd128Register src,
+                                      uint8_t imm_lane_idx) {
+  vrep(dst, src, Operand(1 - imm_lane_idx), Condition(3));
+}
+
+void TurboAssembler::F32x4ExtractLane(DoubleRegister dst, Simd128Register src,
+                                      uint8_t imm_lane_idx) {
+  vrep(dst, src, Operand(3 - imm_lane_idx), Condition(2));
+}
+
+void TurboAssembler::I64x2ExtractLane(Register dst, Simd128Register src,
+                                      uint8_t imm_lane_idx) {
+  vlgv(dst, src, MemOperand(r0, 1 - imm_lane_idx), Condition(3));
+}
+
+void TurboAssembler::I32x4ExtractLane(Register dst, Simd128Register src,
+                                      uint8_t imm_lane_idx) {
+  vlgv(dst, src, MemOperand(r0, 3 - imm_lane_idx), Condition(2));
+}
+
+void TurboAssembler::I16x8ExtractLaneU(Register dst, Simd128Register src,
+                                       uint8_t imm_lane_idx) {
+  vlgv(dst, src, MemOperand(r0, 7 - imm_lane_idx), Condition(1));
+}
+
+void TurboAssembler::I16x8ExtractLaneS(Register dst, Simd128Register src,
+                                       uint8_t imm_lane_idx) {
+  vlgv(r0, src, MemOperand(r0, 7 - imm_lane_idx), Condition(1));
+  lghr(dst, r0);
+}
+
+void TurboAssembler::I8x16ExtractLaneU(Register dst, Simd128Register src,
+                                       uint8_t imm_lane_idx) {
+  vlgv(dst, src, MemOperand(r0, 15 - imm_lane_idx), Condition(0));
+}
+
+void TurboAssembler::I8x16ExtractLaneS(Register dst, Simd128Register src,
+                                       uint8_t imm_lane_idx) {
+  vlgv(r0, src, MemOperand(r0, 15 - imm_lane_idx), Condition(0));
+  lgbr(dst, r0);
+}
+
 }  // namespace internal
 }  // namespace v8
 
