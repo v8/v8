@@ -1436,11 +1436,6 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
     JSObject::AddProperty(isolate, prototype, factory->message_string(),
                           factory->empty_string(), DONT_ENUM);
 
-    if (FLAG_harmony_error_cause) {
-      JSObject::AddProperty(isolate, prototype, factory->cause_string(),
-                            factory->undefined_value(), DONT_ENUM);
-    }
-
     if (context_index == Context::ERROR_FUNCTION_INDEX) {
       Handle<JSFunction> to_string_fun =
           SimpleInstallFunction(isolate, prototype, "toString",
