@@ -153,6 +153,11 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
+  V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // TODO(v8:11880): support external code space.
+    VisitPointer(host, MaybeObjectSlot(slot));
+  }
   V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
   void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,

@@ -890,6 +890,12 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
   }
 }
 
+void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
+                                                    CodeObjectSlot slot) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  VisitPointers(host, ObjectSlot(slot), ObjectSlot(slot + 1));
+}
+
 void Serializer::ObjectSerializer::OutputExternalReference(Address target,
                                                            int target_size,
                                                            bool sandboxify) {

@@ -183,6 +183,12 @@ class ConcurrentMarkingVisitor final
       }
     }
 
+    void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+      CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+      // TODO(v8:11880): support external code space.
+      VisitPointers(host, ObjectSlot(slot), ObjectSlot(slot + 1));
+    }
+
     void VisitPointers(HeapObject host, MaybeObjectSlot start,
                        MaybeObjectSlot end) override {
       // This should never happen, because we don't use snapshotting for objects

@@ -88,6 +88,7 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
   virtual void VerifyMap(Map map) = 0;
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
   virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
+  virtual void VerifyCodePointer(CodeObjectSlot slot) = 0;
   virtual void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) = 0;
 
   virtual bool IsMarked(HeapObject object) = 0;
@@ -102,6 +103,11 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
     VerifyPointers(start, end);
+  }
+
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    VerifyCodePointer(slot);
   }
 
   void VisitRootPointers(Root root, const char* description,
@@ -227,6 +233,12 @@ class FullMarkingVerifier : public MarkingVerifier {
     VerifyPointersImpl(start, end);
   }
 
+  void VerifyCodePointer(CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // TODO(v8:11880): support external code space.
+    VerifyPointersImpl(MaybeObjectSlot(slot), MaybeObjectSlot(slot + 1));
+  }
+
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
@@ -281,6 +293,11 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
     VerifyPointers(start, end);
   }
 
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    VerifyCodePointer(slot);
+  }
+
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     VerifyRootPointers(start, end);
@@ -296,6 +313,7 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
   virtual void VerifyMap(Map map) = 0;
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
   virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
+  virtual void VerifyCodePointer(CodeObjectSlot slot) = 0;
   virtual void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) = 0;
 
   void VerifyRoots();
@@ -384,6 +402,11 @@ class FullEvacuationVerifier : public EvacuationVerifier {
   }
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
     VerifyPointersImpl(start, end);
+  }
+  void VerifyCodePointer(CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // TODO(v8:11880): support external code space.
+    VerifyPointersImpl(MaybeObjectSlot(slot), MaybeObjectSlot(slot + 1));
   }
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -1046,6 +1069,13 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     }
   }
 
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // At the moment, custom roots cannot contain CodeDataContainers - the only
+    // objects that can contain Code pointers.
+    UNREACHABLE();
+  }
+
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) final {
     // At the moment, custom roots cannot contain weak pointers.
@@ -1211,6 +1241,12 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
       VisitPointer(host, start);
       ++start;
     }
+  }
+
+  inline void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // TODO(v8:11880): support external code space.
+    VisitPointer(host, MaybeObjectSlot(slot));
   }
 
   inline void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
@@ -2816,6 +2852,12 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
     }
   }
 
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // TODO(v8:11880): support external code space.
+    VisitPointer(host, ObjectSlot(slot));
+  }
+
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) override {
     DCHECK(!MapWord::IsPacked(p.Relaxed_Load().ptr()));
@@ -4231,6 +4273,13 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
+  void VerifyCodePointer(CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // Code slots never appear in new space because CodeDataContainers, the
+    // only object that can contain code pointers, are always allocated in
+    // the old space.
+    UNREACHABLE();
+  }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -4299,6 +4348,11 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) override {
     VerifyPointersImpl(start, end);
   }
+  void VerifyCodePointer(CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // TODO(v8:11880): support external code space.
+    VerifyPointersImpl(MaybeObjectSlot(slot), MaybeObjectSlot(slot + 1));
+  }
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     VerifyHeapObjectImpl(target);
@@ -4338,6 +4392,15 @@ class YoungGenerationMarkingVisitor final
   V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
+  }
+
+  V8_INLINE void VisitCodePointer(HeapObject host,
+                                  CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    // Code slots never appear in new space because CodeDataContainers, the
+    // only object that can contain code pointers, are always allocated in
+    // the old space.
+    UNREACHABLE();
   }
 
   V8_INLINE void VisitPointer(HeapObject host, ObjectSlot slot) final {

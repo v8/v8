@@ -758,6 +758,11 @@ class IndexedReferencesExtractor : public ObjectVisitor {
     }
   }
 
+  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
+    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+    VisitPointers(host, MaybeObjectSlot(slot), MaybeObjectSlot(slot + 1));
+  }
+
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     VisitHeapObjectImpl(target, -1);

@@ -893,9 +893,7 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
         CodeDataContainer::kPointerFieldsWeakEndOffset, v);
 
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      // TODO(v8:11880): Currently, the |code| field is still compressed and
-      // the |code_entry_point| field doesn't require custom visitation, so
-      // nothing to do here yet.
+      v->VisitCodePointer(obj, obj.RawField(kCodeOffset));
     }
   }
 

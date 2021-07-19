@@ -77,11 +77,13 @@ class CodeDataContainer : public HeapObject {
 // Layout description.
 #define CODE_DATA_FIELDS(V)                                     \
   /* Strong pointer fields. */                                  \
-  V(kCodeOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0) \
   V(kPointerFieldsStrongEndOffset, 0)                           \
   /* Weak pointer fields. */                                    \
   V(kNextCodeLinkOffset, kTaggedSize)                           \
   V(kPointerFieldsWeakEndOffset, 0)                             \
+  /* Strong Code pointer fields. */                             \
+  V(kCodeOffset, V8_EXTERNAL_CODE_SPACE_BOOL ? kTaggedSize : 0) \
+  V(kCodePointerFieldsStrongEndOffset, 0)                       \
   /* Raw data fields. */                                        \
   V(kCodeEntryPointOffset,                                      \
     V8_EXTERNAL_CODE_SPACE_BOOL ? kExternalPointerSize : 0)     \

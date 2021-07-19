@@ -750,11 +750,15 @@ struct SlotTraits {
   using TMaybeObjectSlot = CompressedMaybeObjectSlot;
   using THeapObjectSlot = CompressedHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapCompressedObjectSlot;
+  // TODO(v8:11880): switch to OffHeapCompressedObjectSlot.
+  using TCodeObjectSlot = CompressedObjectSlot;
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
+  // TODO(v8:11880): switch to OffHeapFullObjectSlot.
+  using TCodeObjectSlot = FullObjectSlot;
 #endif
 };
 
@@ -775,6 +779,12 @@ using HeapObjectSlot = SlotTraits::THeapObjectSlot;
 // holding an Object value (smi or strong heap object), whose slot location is
 // off-heap.
 using OffHeapObjectSlot = SlotTraits::TOffHeapObjectSlot;
+
+// A CodeObjectSlot instance describes a kTaggedSize-sized field ("slot")
+// holding a strong pointer to a Code object. The Code object slots might be
+// compressed and since code space might be allocated off the main heap
+// the load operations require explicit cage base value for code space.
+using CodeObjectSlot = SlotTraits::TCodeObjectSlot;
 
 using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 

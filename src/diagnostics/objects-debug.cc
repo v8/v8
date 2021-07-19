@@ -311,7 +311,7 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
 // static
 void HeapObject::VerifyCodePointer(Isolate* isolate, Object p) {
   CHECK(p.IsHeapObject());
-  CHECK(isolate->heap()->InCodeSpace(HeapObject::cast(p)));
+  CHECK(IsValidCodeObject(isolate->heap(), HeapObject::cast(p)));
   CHECK(HeapObject::cast(p).IsCode());
 }
 
