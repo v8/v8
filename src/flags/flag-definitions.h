@@ -1678,6 +1678,7 @@ DEFINE_BOOL(regexp_interpret_all, false, "interpret all regexp code")
 DEFINE_BOOL(regexp_tier_up, true,
             "enable regexp interpreter and tier up to the compiler after the "
             "number of executions set by the tier up ticks flag")
+DEFINE_NEG_IMPLICATION(regexp_interpret_all, regexp_tier_up)
 DEFINE_INT(regexp_tier_up_ticks, 1,
            "set the number of executions for the regexp interpreter before "
            "tiering-up to the compiler")
