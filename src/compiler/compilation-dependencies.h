@@ -116,9 +116,8 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   // For each given map, depend on the stability of (the maps of) all prototypes
   // up to (and including) the {last_prototype}.
-  template <class MapContainer>
   void DependOnStablePrototypeChains(
-      MapContainer const& receiver_maps, WhereToStart start,
+      ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
       base::Optional<JSObjectRef> last_prototype =
           base::Optional<JSObjectRef>());
 

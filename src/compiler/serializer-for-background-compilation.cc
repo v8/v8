@@ -2613,13 +2613,12 @@ PropertyAccessInfo SerializerForBackgroundCompilation::ProcessMapForRegExpTest(
       AccessMode::kLoad, dependencies(),
       SerializationPolicy::kSerializeIfNeeded);
 
-  Handle<JSObject> holder;
-  if (ai_exec.IsFastDataConstant() && ai_exec.holder().ToHandle(&holder)) {
+  base::Optional<JSObjectRef> holder = ai_exec.holder();
+  if (ai_exec.IsFastDataConstant() && holder.has_value()) {
     // The property is on the prototype chain.
-    JSObjectRef holder_ref = MakeRef(broker(), holder);
-    holder_ref.GetOwnFastDataProperty(ai_exec.field_representation(),
-                                      ai_exec.field_index(), nullptr,
-                                      SerializationPolicy::kSerializeIfNeeded);
+    holder->GetOwnFastDataProperty(ai_exec.field_representation(),
+                                   ai_exec.field_index(), nullptr,
+                                   SerializationPolicy::kSerializeIfNeeded);
   }
   return ai_exec;
 }
@@ -2632,13 +2631,12 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
     Handle<Map> regexp_map(regexp->map(), broker()->isolate());
     PropertyAccessInfo ai_exec =
         ProcessMapForRegExpTest(MakeRef(broker(), regexp_map));
-    Handle<JSObject> holder;
-    if (ai_exec.IsFastDataConstant() && !ai_exec.holder().ToHandle(&holder)) {
+    base::Optional<JSObjectRef> holder = ai_exec.holder();
+    if (ai_exec.IsFastDataConstant() && holder.has_value()) {
       // The property is on the object itself.
-      JSObjectRef holder_ref = MakeRef(broker(), regexp);
-      holder_ref.GetOwnFastDataProperty(
-          ai_exec.field_representation(), ai_exec.field_index(), nullptr,
-          SerializationPolicy::kSerializeIfNeeded);
+      holder->GetOwnFastDataProperty(ai_exec.field_representation(),
+                                     ai_exec.field_index(), nullptr,
+                                     SerializationPolicy::kSerializeIfNeeded);
     }
   }
 
@@ -2927,12 +2925,12 @@ void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
 
   // For JSNativeContextSpecialization::InlinePropertySetterCall
   // and InlinePropertyGetterCall.
+  base::Optional<ObjectRef> constant = access_info.constant();
   if ((access_info.IsFastAccessorConstant() ||
        access_info.IsDictionaryProtoAccessorConstant()) &&
-      !access_info.constant().is_null()) {
-    if (access_info.constant()->IsJSFunction()) {
-      JSFunctionRef function =
-          MakeRef(broker(), Handle<JSFunction>::cast(access_info.constant()));
+      constant.has_value()) {
+    if (constant->IsJSFunction()) {
+      JSFunctionRef function = constant->AsJSFunction();
 
       if (receiver_map.has_value()) {
         // For JSCallReducer and JSInlining(Heuristic).
@@ -2957,16 +2955,10 @@ void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
           }
         }
       }
-    } else if (access_info.constant()->IsJSBoundFunction()) {
-      // For JSCallReducer::ReduceJSCall.
-      MakeRef(broker(), Handle<JSBoundFunction>::cast(access_info.constant()));
-    } else {
-      MakeRef(broker(), FunctionTemplateInfo::cast(*access_info.constant()));
     }
   } else if (access_info.IsModuleExport()) {
     // For JSNativeContextSpecialization::BuildPropertyLoad
-    DCHECK(!access_info.constant().is_null());
-    MakeRef(broker(), Handle<Cell>::cast(access_info.constant()));
+    DCHECK(access_info.constant()->IsCell());
   }
 
   switch (access_mode) {
@@ -2975,11 +2967,8 @@ void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
       // PropertyAccessBuilder::BuildLoadDictPrototypeConstant
       if (access_info.IsFastDataConstant() ||
           access_info.IsDictionaryProtoDataConstant()) {
-        base::Optional<JSObjectRef> holder;
-        Handle<JSObject> prototype;
-        if (access_info.holder().ToHandle(&prototype)) {
-          holder = MakeRef(broker(), prototype);
-        } else {
+        base::Optional<JSObjectRef> holder = access_info.holder();
+        if (!holder.has_value()) {
           CHECK_IMPLIES(concrete_receiver.has_value(),
                         concrete_receiver->map().equals(*receiver_map));
           holder = concrete_receiver;
@@ -3004,12 +2993,12 @@ void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     case AccessMode::kStoreInLiteral:
       // For MapInference (StoreField case).
       if (access_info.IsDataField() || access_info.IsFastDataConstant()) {
-        Handle<Map> transition_map;
-        if (access_info.transition_map().ToHandle(&transition_map)) {
-          MapRef map_ref = MakeRef(broker(), transition_map);
+        base::Optional<MapRef> transition_map = access_info.transition_map();
+        if (transition_map.has_value()) {
           TRACE_BROKER(broker(), "Propagating transition map "
-                                     << map_ref << " to receiver hints.");
-          receiver->AddMap(transition_map, zone(), broker_, false);
+                                     << transition_map.value()
+                                     << " to receiver hints.");
+          receiver->AddMap(transition_map->object(), zone(), broker_, false);
         }
       }
       break;
@@ -3323,10 +3312,10 @@ void SerializerForBackgroundCompilation::ProcessConstantForInstanceOf(
     ProcessConstantForOrdinaryHasInstance(constructor_heap_object,
                                           walk_prototypes);
   } else if (access_info.IsFastDataConstant()) {
-    Handle<JSObject> holder;
-    bool found_on_proto = access_info.holder().ToHandle(&holder);
+    base::Optional<JSObjectRef> holder = access_info.holder();
+    bool found_on_proto = holder.has_value();
     JSObjectRef holder_ref =
-        found_on_proto ? MakeRef(broker(), holder) : constructor.AsJSObject();
+        found_on_proto ? holder.value() : constructor.AsJSObject();
     base::Optional<ObjectRef> constant = holder_ref.GetOwnFastDataProperty(
         access_info.field_representation(), access_info.field_index(), nullptr,
         SerializationPolicy::kSerializeIfNeeded);

@@ -881,12 +881,10 @@ void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
 }
 }  // namespace
 
-template <class MapContainer>
 void CompilationDependencies::DependOnStablePrototypeChains(
-    MapContainer const& receiver_maps, WhereToStart start,
+    ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
     base::Optional<JSObjectRef> last_prototype) {
-  for (auto map : receiver_maps) {
-    MapRef receiver_map = MakeRef(broker_, map);
+  for (MapRef receiver_map : receiver_maps) {
     if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
     if (receiver_map.IsPrimitiveMap()) {
       // Perform the implicit ToObject for primitives here.
@@ -900,12 +898,6 @@ void CompilationDependencies::DependOnStablePrototypeChains(
     DependOnStablePrototypeChain(this, receiver_map, last_prototype);
   }
 }
-template void CompilationDependencies::DependOnStablePrototypeChains(
-    ZoneVector<Handle<Map>> const& receiver_maps, WhereToStart start,
-    base::Optional<JSObjectRef> last_prototype);
-template void CompilationDependencies::DependOnStablePrototypeChains(
-    ZoneHandleSet<Map> const& receiver_maps, WhereToStart start,
-    base::Optional<JSObjectRef> last_prototype);
 
 void CompilationDependencies::DependOnElementsKinds(
     const AllocationSiteRef& site) {

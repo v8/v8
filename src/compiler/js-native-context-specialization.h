@@ -210,7 +210,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.
-  bool CanTreatHoleAsUndefined(ZoneVector<Handle<Map>> const& receiver_maps);
+  bool CanTreatHoleAsUndefined(ZoneVector<MapRef> const& receiver_maps);
 
   void RemoveImpossibleMaps(Node* object, ZoneVector<Handle<Map>>* maps) const;
 
