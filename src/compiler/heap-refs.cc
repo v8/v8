@@ -802,16 +802,11 @@ class HeapNumberData : public HeapObjectData {
   HeapNumberData(JSHeapBroker* broker, ObjectData** storage,
                  Handle<HeapNumber> object,
                  ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
-      : HeapObjectData(broker, storage, object, kind),
-        value_(object->value()),
-        value_as_bits_(object->value_as_bits(kRelaxedLoad)) {}
-
-  double value() const { return value_; }
-  uint64_t value_as_bits() const { return value_as_bits_; }
-
- private:
-  double const value_;
-  uint64_t const value_as_bits_;
+      : HeapObjectData(broker, storage, object, kind) {
+    // TODO(jgruber): Remove this class once all kNeverSerialized types are
+    // NeverEverSerialize.
+    UNREACHABLE();
+  }
 };
 
 class ContextData : public HeapObjectData {
@@ -2290,6 +2285,7 @@ NEVER_EVER_SERIALIZE(CodeDataContainer)
 NEVER_EVER_SERIALIZE(Context)
 NEVER_EVER_SERIALIZE(FixedDoubleArray)
 NEVER_EVER_SERIALIZE(FunctionTemplateInfo)
+NEVER_EVER_SERIALIZE(HeapNumber)
 NEVER_EVER_SERIALIZE(InternalizedString)
 NEVER_EVER_SERIALIZE(Name)
 NEVER_EVER_SERIALIZE(NativeContext)
@@ -2867,14 +2863,10 @@ BIMODAL_ACCESSOR_C(FeedbackVector, double, invocation_count)
 
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 
-BIMODAL_ACCESSOR_C(HeapNumber, double, value)
+HEAP_ACCESSOR_C(HeapNumber, double, value)
 
 uint64_t HeapNumberRef::value_as_bits() const {
-  if (data_->should_access_heap()) {
-    return object()->value_as_bits(kRelaxedLoad);
-  }
-
-  return ObjectRef::data()->AsHeapNumber()->value_as_bits();
+  return object()->value_as_bits(kRelaxedLoad);
 }
 
 base::Optional<JSReceiverRef> JSBoundFunctionRef::bound_target_function()
