@@ -70,10 +70,10 @@
   # Too slow on debug simulators.
   'dfg-inline-function-dot-caller': [SKIP],
 }],  # 'mode == debug and simulator_run'
-['dcheck_always_on == True and (arch == arm or arch == arm64)', {
+['v8_dcheck_always_on == True and (arch == arm or arch == arm64)', {
   # Doesn't work with gcc 4.6 on arm or arm64 for some reason.
   'reentrant-caching': [SKIP],
-}],  # 'dcheck_always_on == True and (arch == arm or arch == arm64)'
+}],  # 'v8_dcheck_always_on == True and (arch == arm or arch == arm64)'
 ['arch == mips', {
   # Too slow for mips big-endian boards on bots (no FPU).
   'dfg-int-overflow-in-loop': [SKIP],

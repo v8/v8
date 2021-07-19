@@ -345,7 +345,7 @@ class SystemTest(unittest.TestCase):
     """
     with temp_base() as basedir:
       override_build_config(
-          basedir, dcheck_always_on=True, is_asan=True, is_cfi=True,
+          basedir, v8_dcheck_always_on=True, is_asan=True, is_cfi=True,
           is_msan=True, is_tsan=True, is_ubsan_vptr=True, target_cpu='x86',
           v8_enable_i18n_support=False, v8_target_cpu='x86',
           v8_enable_verify_csa=False, v8_enable_lite_mode=False,
@@ -361,7 +361,7 @@ class SystemTest(unittest.TestCase):
           '>>> Autodetected:\n'
           'asan\n'
           'cfi_vptr\n'
-          'dcheck_always_on\n'
+          'v8_dcheck_always_on\n'
           'msan\n'
           'no_i18n\n'
           'tsan\n'
