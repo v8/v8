@@ -4258,6 +4258,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
   __ bind(&install_baseline_code);
   {
+    __ mov(kContextRegister,
+           Operand(ebp, StandardFrameConstants::kContextOffset));
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(closure);
     __ CallRuntime(Runtime::kInstallBaselineCode, 1);
