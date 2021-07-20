@@ -512,11 +512,6 @@ ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
   return ExternalReference(&FLAG_builtin_subclassing);
 }
 
-ExternalReference
-ExternalReference::address_of_harmony_regexp_match_indices_flag() {
-  return ExternalReference(&FLAG_harmony_regexp_match_indices);
-}
-
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&TracingFlags::runtime_stats);
 }
