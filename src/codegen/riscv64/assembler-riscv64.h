@@ -660,9 +660,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void c_bnez(Register rs1, Label* L) { c_bnez(rs1, branch_offset(L)); }
   void c_beqz(Register rs1, int16_t imm9);
   inline void c_beqz(Register rs1, Label* L) { c_beqz(rs1, branch_offset(L)); }
-  void c_srli(Register rs1, uint8_t uimm6);
-  void c_srai(Register rs1, uint8_t uimm6);
-  void c_andi(Register rs1, uint8_t uimm6);
+  void c_srli(Register rs1, int8_t imm6);
+  void c_srai(Register rs1, int8_t imm6);
+  void c_andi(Register rs1, int8_t imm6);
+  void NOP();
+  void EBREAK();
 
   // Privileged
   void uret();
@@ -1144,7 +1146,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrCJ(uint8_t funct3, Opcode opcode, uint16_t uint11);
   void GenInstrCB(uint8_t funct3, Opcode opcode, Register rs1, uint8_t uimm8);
   void GenInstrCBA(uint8_t funct3, uint8_t funct2, Opcode opcode, Register rs1,
-                   uint8_t uimm6);
+                   int8_t imm6);
 
   // ----- Instruction class templates match those in LLVM's RISCVInstrInfo.td
   void GenInstrBranchCC_rri(uint8_t funct3, Register rs1, Register rs2,

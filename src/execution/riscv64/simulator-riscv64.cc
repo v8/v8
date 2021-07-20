@@ -1271,7 +1271,7 @@ T Simulator::ReadMem(int64_t addr, Instruction* instr) {
   }
 #ifndef V8_COMPRESS_POINTERS  // TODO(RISCV): v8:11812
   // check for natural alignment
-  if ((addr & (sizeof(T) - 1)) != 0) {
+  if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned read at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
            reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -1293,7 +1293,7 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
   }
 #ifndef V8_COMPRESS_POINTERS  // TODO(RISCV): v8:11812
   // check for natural alignment
-  if ((addr & (sizeof(T) - 1)) != 0) {
+  if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned write at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n", addr,
            reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -3316,20 +3316,22 @@ void Simulator::DecodeCLType() {
   switch (instr_.RvcOpcode()) {
     case RO_C_LW: {
       int64_t addr = rvc_rs1s() + rvc_imm5_w();
-      auto val = ReadMem<int32_t>(addr, instr_.instr());
+      int64_t val = ReadMem<int32_t>(addr, instr_.instr());
       set_rvc_rs2s(sext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
       break;
     }
     case RO_C_LD: {
       int64_t addr = rvc_rs1s() + rvc_imm5_d();
-      auto val = ReadMem<int64_t>(addr, instr_.instr());
+      int64_t val = ReadMem<int64_t>(addr, instr_.instr());
       set_rvc_rs2s(sext_xlen(val), false);
+      TraceMemRd(addr, val, get_register(rvc_rs2s_reg()));
       break;
     }
     case RO_C_FLD: {
       int64_t addr = rvc_rs1s() + rvc_imm5_d();
-      auto val = ReadMem<double>(addr, instr_.instr());
-      set_rvc_drs2s(sext_xlen(val), false);
+      double val = ReadMem<double>(addr, instr_.instr());
+      set_rvc_drs2s(val, false);
       break;
     }
     default:

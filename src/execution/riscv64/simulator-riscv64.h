@@ -522,11 +522,15 @@ class Simulator : public SimulatorBase {
     set_register(rvc_rs1s_reg(), value);
     if (trace) TraceRegWr(get_register(rvc_rs1s_reg()), DWORD);
   }
+  inline void set_rvc_rs2(int64_t value, bool trace = true) {
+    set_register(rvc_rs2_reg(), value);
+    if (trace) TraceRegWr(get_register(rvc_rs2_reg()), DWORD);
+  }
   inline void set_rvc_drd(double value, bool trace = true) {
     set_fpu_register_double(rvc_rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rd_reg()), DOUBLE);
   }
-  inline void set_rvc_rs2s(double value, bool trace = true) {
+  inline void set_rvc_rs2s(int64_t value, bool trace = true) {
     set_register(rvc_rs2s_reg(), value);
     if (trace) TraceRegWr(get_register(rvc_rs2s_reg()), DWORD);
   }
