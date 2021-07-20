@@ -243,7 +243,7 @@ deps = {
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
-    'url': Var('chromium_url') + '/external/github.com/intel/ittapi' + '@' + 'b4ae0122ba749163096058b4f1bb065bf4a7de94',
+    'url': Var('chromium_url') + '/external/github.com/intel/ittapi' + '@' + 'a3911fff01a775023a06af8754f9ec1e5977dd97',
     'condition': "checkout_ittapi or check_v8_header_includes",
   },
   'third_party/jinja2':
