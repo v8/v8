@@ -472,7 +472,8 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
                                             Handle<Context> context);
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig);
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
+                                    bool for_exception = false);
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,

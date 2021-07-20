@@ -237,7 +237,8 @@ Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
 }
 }  // namespace
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig) {
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
+                                    bool for_exception) {
   Factory* factory = isolate->factory();
 
   // Extract values for the {ValueType[]} arrays.
@@ -248,23 +249,29 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig) {
     Handle<String> type_value = ToValueTypeString(isolate, type);
     param_values->set(param_index++, *type_value);
   }
-  int result_index = 0;
-  int result_count = static_cast<int>(sig->return_count());
-  Handle<FixedArray> result_values = factory->NewFixedArray(result_count);
-  for (ValueType type : sig->returns()) {
-    Handle<String> type_value = ToValueTypeString(isolate, type);
-    result_values->set(result_index++, *type_value);
-  }
 
   // Create the resulting {FunctionType} object.
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
   Handle<JSArray> params = factory->NewJSArrayWithElements(param_values);
-  Handle<JSArray> results = factory->NewJSArrayWithElements(result_values);
   Handle<String> params_string = factory->InternalizeUtf8String("parameters");
   Handle<String> results_string = factory->InternalizeUtf8String("results");
   JSObject::AddProperty(isolate, object, params_string, params, NONE);
-  JSObject::AddProperty(isolate, object, results_string, results, NONE);
+
+  // Now add the result types if needed.
+  if (for_exception) {
+    DCHECK_EQ(sig->returns().size(), 0);
+  } else {
+    int result_index = 0;
+    int result_count = static_cast<int>(sig->return_count());
+    Handle<FixedArray> result_values = factory->NewFixedArray(result_count);
+    for (ValueType type : sig->returns()) {
+      Handle<String> type_value = ToValueTypeString(isolate, type);
+      result_values->set(result_index++, *type_value);
+    }
+    Handle<JSArray> results = factory->NewJSArrayWithElements(result_values);
+    JSObject::AddProperty(isolate, object, results_string, results, NONE);
+  }
 
   return object;
 }
