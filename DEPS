@@ -49,10 +49,10 @@ vars = {
   'reclient_version': 're_client_version:0.33.0.3e223d5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:b2d77ab1373192d1532af94b68fb8bab727b0e5b',
+  'gn_version': 'git_revision:61a0153b5e60f11100a04e51393cae15268d1ee3',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:d10ff2af1182ccaad573bc5acb84a36f4c280876',
+  'luci_go': 'git_revision:6387586e5b3279aebdf22bdab7ae619dbc156b66',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -90,9 +90,9 @@ vars = {
 
 deps = {
   'base/trace_event/common':
-    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd5bb24e5d9802c8c917fcaa4375d5239a586c168',
+    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd41864d96303785b1404942ceeb6fa51e8664479',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fd86d60f33cbc794537c4da2ef7e298d7f81138e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '33763d1a462119b06cd66cd833ca2286cc692603',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '37dc929ecb351687006a61744b116cda601753d7',
   'buildtools/clang_format/script':
@@ -120,7 +120,7 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '79a2e924d96e2fc1e4b937c42efd08898fa472d7',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '7d5c92f6cfb1ddb73158233a194bb568c5b13554',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'e8bf577fbfe1b1ce53fcade2a5f3f0fe02fa1a2e',
   'buildtools/third_party/libunwind/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd7b11d7989774617bd7df93af95734faac8c0b2c',
   'buildtools/win': {
@@ -155,7 +155,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'eghzU3LI6jsGYPkSzAoCDHeiVyaydZjwxB5kjkPImaMC'
+              'version': 'XSfC0vpqwj2Qzz0hAfMHYCCe5KDFiXqzb4M3U-cT6i4C'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -251,7 +251,7 @@ deps = {
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '9059f5cad030ba11d37818847443a53918c327b1',
   'third_party/logdog/logdog':
-    Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '88ab86314c7c9e8e95edefae189aca496407292e',
+    Var('chromium_url') + '/infra/luci/luci-py/client/libs/logdog' + '@' + '17ec234f823f7bff6ada6584fdbbee9d54b8fc58',
   'third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '1b882ef6372b58bfd55a3285f37ed801be9137cd',
   'third_party/perfetto':
