@@ -4,7 +4,6 @@
 
 type DependentCode extends WeakFixedArray;
 
-@generateCppClass
 extern class BytecodeArray extends FixedArrayBase {
   // TODO(v8:8983): bytecode array object sizes vary based on their contents.
   constant_pool: FixedArray;

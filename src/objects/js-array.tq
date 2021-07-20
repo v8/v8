@@ -4,6 +4,7 @@
 
 extern enum IterationKind extends uint31 { kKeys, kValues, kEntries }
 
+@doNotGenerateCppClass
 extern class JSArrayIterator extends JSObject {
   iterated_object: JSReceiver;
   next_index: Number;
@@ -24,6 +25,7 @@ macro CreateArrayIterator(implicit context: NativeContext)(
   };
 }
 
+@doNotGenerateCppClass
 extern class JSArray extends JSObject {
   macro IsEmpty(): bool {
     return this.length == 0;

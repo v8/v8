@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 @abstract
-@generateCppClass
 extern class DataHandler extends Struct {
   // [smi_handler]: A Smi which encodes a handler or Code object (we still
   // use code handlers for accessing lexical environment variables, but soon
