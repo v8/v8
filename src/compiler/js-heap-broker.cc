@@ -1078,8 +1078,8 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
 
   CHECK_NOT_NULL(dependencies);
   AccessInfoFactory factory(this, dependencies, zone());
-  PropertyAccessInfo access_info = factory.ComputePropertyAccessInfo(
-      map.object(), name.object(), access_mode);
+  PropertyAccessInfo access_info =
+      factory.ComputePropertyAccessInfo(map, name, access_mode);
   if (is_concurrent_inlining_) {
     CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
                   mode() == kSerializing);

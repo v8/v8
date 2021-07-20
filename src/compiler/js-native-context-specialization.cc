@@ -408,20 +408,12 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
   JSObjectRef receiver_ref = MakeRef(broker(), receiver);
   MapRef receiver_map = receiver_ref.map();
-
-  PropertyAccessInfo access_info = PropertyAccessInfo::Invalid(graph()->zone());
-  if (broker()->is_concurrent_inlining()) {
-    access_info = broker()->GetPropertyAccessInfo(
-        receiver_map,
-        MakeRef(broker(), isolate()->factory()->has_instance_symbol()),
-        AccessMode::kLoad, dependencies());
-  } else {
-    AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                          graph()->zone());
-    access_info = access_info_factory.ComputePropertyAccessInfo(
-        receiver_map.object(), factory()->has_instance_symbol(),
-        AccessMode::kLoad);
-  }
+  NameRef name = MakeRef(broker(), isolate()->factory()->has_instance_symbol());
+  PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+      receiver_map, name, AccessMode::kLoad, dependencies(),
+      broker()->is_concurrent_inlining()
+          ? SerializationPolicy::kAssumeSerialized
+          : SerializationPolicy::kSerializeIfNeeded);
 
   // TODO(v8:11457) Support dictionary mode holders here.
   if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
@@ -724,18 +716,15 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!broker()->is_concurrent_inlining()) {
-    access_info_factory.ComputePropertyAccessInfos(
-        resolution_maps, factory()->then_string(), AccessMode::kLoad,
-        &access_infos);
-  } else {
-    // Obtain pre-computed access infos from the broker.
-    for (auto map : resolution_maps) {
-      MapRef map_ref = MakeRef(broker(), map);
-      access_infos.push_back(broker()->GetPropertyAccessInfo(
-          map_ref, MakeRef(broker(), isolate()->factory()->then_string()),
-          AccessMode::kLoad, dependencies()));
-    }
+
+  for (auto map : resolution_maps) {
+    access_infos.push_back(broker()->GetPropertyAccessInfo(
+        MakeRef(broker(), map),
+        MakeRef(broker(), isolate()->factory()->then_string()),
+        AccessMode::kLoad, dependencies(),
+        broker()->is_concurrent_inlining()
+            ? SerializationPolicy::kAssumeSerialized
+            : SerializationPolicy::kSerializeIfNeeded));
   }
   PropertyAccessInfo access_info =
       access_info_factory.FinalizePropertyAccessInfosAsOne(access_infos,
