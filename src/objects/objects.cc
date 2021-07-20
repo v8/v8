@@ -2363,7 +2363,8 @@ bool HeapObject::CanBeRehashed() const {
   }
 }
 
-void HeapObject::RehashBasedOnMap(Isolate* isolate) {
+template <typename IsolateT>
+void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
   switch (map().instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
@@ -2399,11 +2400,11 @@ void HeapObject::RehashBasedOnMap(Isolate* isolate) {
     case ORDERED_HASH_SET_TYPE:
       UNREACHABLE();  // We'll rehash from the JSMap or JSSet referencing them.
     case JS_MAP_TYPE: {
-      JSMap::cast(*this).Rehash(isolate);
+      JSMap::cast(*this).Rehash(isolate->AsIsolate());
       break;
     }
     case JS_SET_TYPE: {
-      JSSet::cast(*this).Rehash(isolate);
+      JSSet::cast(*this).Rehash(isolate->AsIsolate());
       break;
     }
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
@@ -2419,6 +2420,8 @@ void HeapObject::RehashBasedOnMap(Isolate* isolate) {
       UNREACHABLE();
   }
 }
+template void HeapObject::RehashBasedOnMap(Isolate* isolate);
+template void HeapObject::RehashBasedOnMap(LocalIsolate* isolate);
 
 bool HeapObject::IsExternal(Isolate* isolate) const {
   return map().FindRootMap(isolate) == isolate->heap()->external_map();

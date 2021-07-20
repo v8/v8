@@ -130,7 +130,14 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kWordAligned);
 
+  inline void CreateFillerObjectAt(Address addr, int size,
+                                   ClearRecordedSlots clear_slots_mode);
+
   bool is_main_thread() const { return is_main_thread_; }
+  bool deserialization_complete() const {
+    return heap_->deserialization_complete();
+  }
+  ReadOnlySpace* read_only_space() { return heap_->read_only_space(); }
 
   // Requests GC and blocks until the collection finishes.
   bool TryPerformCollection();
