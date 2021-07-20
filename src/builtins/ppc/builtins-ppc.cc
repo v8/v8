@@ -407,7 +407,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ subi(r6, r6, Operand(1));
     __ cmpi(r6, Operand::Zero());
     __ blt(&done_loop);
-    __ ShiftLeftImm(r10, r6, Operand(kTaggedSizeLog2));
+    __ ShiftLeftU64(r10, r6, Operand(kTaggedSizeLog2));
     __ add(scratch, r5, r10);
     __ LoadAnyTaggedField(
         scratch, FieldMemOperand(scratch, FixedArray::kHeaderSize), r0);
@@ -725,7 +725,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ cmpi(r7, Operand::Zero());
     __ beq(&done);
 
-    __ ShiftLeftImm(r9, r7, Operand(kSystemPointerSizeLog2));
+    __ ShiftLeftU64(r9, r7, Operand(kSystemPointerSizeLog2));
     __ add(r8, r8, r9);  // point to last arg
 
     __ mtctr(r7);
@@ -821,7 +821,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // Compute the size of the actual parameters + receiver (in bytes).
   __ LoadU64(actual_params_size,
              MemOperand(fp, StandardFrameConstants::kArgCOffset));
-  __ ShiftLeftImm(actual_params_size, actual_params_size,
+  __ ShiftLeftU64(actual_params_size, actual_params_size,
                   Operand(kSystemPointerSizeLog2));
   __ addi(actual_params_size, actual_params_size, Operand(kSystemPointerSize));
 
@@ -1162,7 +1162,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
     Label loop, no_args;
     __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
-    __ ShiftRightImm(r5, r5, Operand(kSystemPointerSizeLog2), SetRC);
+    __ ShiftRightU64(r5, r5, Operand(kSystemPointerSizeLog2), SetRC);
     __ beq(&no_args, cr0);
     __ mtctr(r5);
     __ bind(&loop);
@@ -1181,7 +1181,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
              r0);
   __ cmpi(r8, Operand::Zero());
   __ beq(&no_incoming_new_target_or_generator_register);
-  __ ShiftLeftImm(r8, r8, Operand(kSystemPointerSizeLog2));
+  __ ShiftLeftU64(r8, r8, Operand(kSystemPointerSizeLog2));
   __ StoreU64(r6, MemOperand(fp, r8));
   __ bind(&no_incoming_new_target_or_generator_register);
 
@@ -1204,7 +1204,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
       ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
   __ lbzx(r6, MemOperand(kInterpreterBytecodeArrayRegister,
                          kInterpreterBytecodeOffsetRegister));
-  __ ShiftLeftImm(r6, r6, Operand(kSystemPointerSizeLog2));
+  __ ShiftLeftU64(r6, r6, Operand(kSystemPointerSizeLog2));
   __ LoadU64(kJavaScriptCallCodeStartRegister,
              MemOperand(kInterpreterDispatchTableRegister, r6));
   __ Call(kJavaScriptCallCodeStartRegister);
@@ -1277,7 +1277,7 @@ static void GenerateInterpreterPushArgs(MacroAssembler* masm, Register num_args,
                                         Register scratch) {
   ASM_CODE_COMMENT(masm);
   __ subi(scratch, num_args, Operand(1));
-  __ ShiftLeftImm(scratch, scratch, Operand(kSystemPointerSizeLog2));
+  __ ShiftLeftU64(scratch, scratch, Operand(kSystemPointerSizeLog2));
   __ sub(start_address, start_address, scratch);
   // Push the arguments.
   __ PushArray(start_address, num_args, scratch, r0,
@@ -1483,7 +1483,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   Register scratch = temps.Acquire();
   __ lbzx(ip, MemOperand(kInterpreterBytecodeArrayRegister,
                          kInterpreterBytecodeOffsetRegister));
-  __ ShiftLeftImm(scratch, scratch, Operand(kSystemPointerSizeLog2));
+  __ ShiftLeftU64(scratch, scratch, Operand(kSystemPointerSizeLog2));
   __ LoadU64(kJavaScriptCallCodeStartRegister,
              MemOperand(kInterpreterDispatchTableRegister, scratch));
   __ Jump(kJavaScriptCallCodeStartRegister);
@@ -1572,7 +1572,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     // from LAZY is always the last argument.
     __ addi(r3, r3,
             Operand(BuiltinContinuationFrameConstants::kFixedSlotCount));
-    __ ShiftLeftImm(r0, r3, Operand(kSystemPointerSizeLog2));
+    __ ShiftLeftU64(r0, r3, Operand(kSystemPointerSizeLog2));
     __ StoreU64(scratch, MemOperand(sp, r0));
     // Recover arguments count.
     __ subi(r3, r3,
@@ -1698,7 +1698,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ LoadU64(r5, MemOperand(sp, 2 * kSystemPointerSize));  // argArray
 
     __ bind(&done);
-    __ ShiftLeftImm(ip, r3, Operand(kSystemPointerSizeLog2));
+    __ ShiftLeftU64(ip, r3, Operand(kSystemPointerSizeLog2));
     __ add(sp, sp, ip);
     __ StoreU64(r8, MemOperand(sp));
   }
@@ -1783,7 +1783,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ LoadU64(r5, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
 
     __ bind(&done);
-    __ ShiftLeftImm(ip, r3, Operand(kSystemPointerSizeLog2));
+    __ ShiftLeftU64(ip, r3, Operand(kSystemPointerSizeLog2));
     __ add(sp, sp, ip);
     __ StoreU64(r8, MemOperand(sp));
   }
@@ -1833,7 +1833,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ blt(&done);
     __ LoadU64(r6, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
     __ bind(&done);
-    __ ShiftLeftImm(r0, r3, Operand(kSystemPointerSizeLog2));
+    __ ShiftLeftU64(r0, r3, Operand(kSystemPointerSizeLog2));
     __ add(sp, sp, r0);
     __ StoreU64(r7, MemOperand(sp));
   }
@@ -1902,7 +1902,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Label copy;
     Register src = r9, dest = r8;
     __ addi(src, sp, Operand(-kSystemPointerSize));
-    __ ShiftLeftImm(r0, r7, Operand(kSystemPointerSizeLog2));
+    __ ShiftLeftU64(r0, r7, Operand(kSystemPointerSizeLog2));
     __ sub(sp, sp, r0);
     // Update stack pointer.
     __ addi(dest, sp, Operand(-kSystemPointerSize));
@@ -1997,7 +1997,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ addi(r7, fp,
             Operand(CommonFrameConstants::kFixedFrameSizeAboveFp +
                     kSystemPointerSize));
-    __ ShiftLeftImm(scratch, r5, Operand(kSystemPointerSizeLog2));
+    __ ShiftLeftU64(scratch, r5, Operand(kSystemPointerSizeLog2));
     __ add(r7, r7, scratch);
 
     // Move the arguments already in the stack,
@@ -2007,7 +2007,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       Register src = ip, dest = r5;  // r7 and r10 are context and root.
       __ addi(src, sp, Operand(-kSystemPointerSize));
       // Update stack pointer.
-      __ ShiftLeftImm(scratch, r8, Operand(kSystemPointerSizeLog2));
+      __ ShiftLeftU64(scratch, r8, Operand(kSystemPointerSizeLog2));
       __ sub(sp, sp, scratch);
       __ addi(dest, sp, Operand(-kSystemPointerSize));
       __ addi(r0, r3, Operand(1));
@@ -2028,7 +2028,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ bind(&loop);
       {
         __ subi(r8, r8, Operand(1));
-        __ ShiftLeftImm(scratch, r8, Operand(kSystemPointerSizeLog2));
+        __ ShiftLeftU64(scratch, r8, Operand(kSystemPointerSizeLog2));
         __ LoadU64(r0, MemOperand(r7, scratch));
         __ StoreU64(r0, MemOperand(r5, scratch));
         __ cmpi(r8, Operand::Zero());
@@ -2176,7 +2176,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Reserve stack space for the [[BoundArguments]].
     {
       Label done;
-      __ ShiftLeftImm(r10, r7, Operand(kSystemPointerSizeLog2));
+      __ ShiftLeftU64(r10, r7, Operand(kSystemPointerSizeLog2));
       __ sub(r0, sp, r10);
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
@@ -2206,7 +2206,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
 
       __ bind(&loop);
       __ subi(r7, r7, Operand(1));
-      __ ShiftLeftImm(scratch, r7, Operand(kTaggedSizeLog2));
+      __ ShiftLeftU64(scratch, r7, Operand(kTaggedSizeLog2));
       __ add(scratch, scratch, r5);
       __ LoadAnyTaggedField(scratch, MemOperand(scratch), r0);
       __ Push(scratch);
@@ -2520,7 +2520,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ mr(r4, r5);
   } else {
     // Compute the argv pointer.
-    __ ShiftLeftImm(r4, r3, Operand(kSystemPointerSizeLog2));
+    __ ShiftLeftU64(r4, r3, Operand(kSystemPointerSizeLog2));
     __ add(r4, r4, sp);
     __ subi(r4, r4, Operand(kSystemPointerSize));
   }
@@ -2756,7 +2756,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   STATIC_ASSERT(HeapNumber::kMantissaBitsInTopWord >= 16);
   __ oris(result_reg, result_reg,
           Operand(1 << ((HeapNumber::kMantissaBitsInTopWord)-16)));
-  __ slw(r0, result_reg, scratch);
+  __ ShiftLeftU32(r0, result_reg, scratch);
   __ orx(result_reg, scratch_low, r0);
   __ b(&negate);
 
@@ -2768,7 +2768,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // 52 <= exponent <= 83, shift only scratch_low.
   // On entry, scratch contains: 52 - exponent.
   __ neg(scratch, scratch);
-  __ slw(result_reg, scratch_low, scratch);
+  __ ShiftLeftU32(result_reg, scratch_low, scratch);
 
   __ bind(&negate);
   // If input was positive, scratch_high ASR 31 equals 0 and
@@ -3025,7 +3025,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // from the API function here.
   __ mov(scratch,
          Operand((FCA::kArgsLength + 1 /* receiver */) * kSystemPointerSize));
-  __ ShiftLeftImm(ip, argc, Operand(kSystemPointerSizeLog2));
+  __ ShiftLeftU64(ip, argc, Operand(kSystemPointerSizeLog2));
   __ add(scratch, scratch, ip);
   __ StoreU64(scratch, MemOperand(sp, (kStackFrameExtraParamSlot + 4) *
                                           kSystemPointerSize));
@@ -3327,7 +3327,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   __ lwz(r4, MemOperand(r3, Deoptimizer::output_count_offset()));
   __ LoadU64(r7,
              MemOperand(r3, Deoptimizer::output_offset()));  // r7 is output_.
-  __ ShiftLeftImm(r4, r4, Operand(kSystemPointerSizeLog2));
+  __ ShiftLeftU64(r4, r4, Operand(kSystemPointerSizeLog2));
   __ add(r4, r7, r4);
   __ b(&outer_loop_header);
 

@@ -313,7 +313,7 @@ void TurboAssembler::Drop(int count) {
 }
 
 void TurboAssembler::Drop(Register count, Register scratch) {
-  ShiftLeftImm(scratch, count, Operand(kSystemPointerSizeLog2));
+  ShiftLeftU64(scratch, count, Operand(kSystemPointerSizeLog2));
   add(sp, sp, scratch);
 }
 
@@ -336,7 +336,7 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
   if (order == kNormal) {
     cmpi(size, Operand::Zero());
     beq(&done);
-    ShiftLeftImm(scratch, size, Operand(kSystemPointerSizeLog2));
+    ShiftLeftU64(scratch, size, Operand(kSystemPointerSizeLog2));
     add(scratch, array, scratch);
     mtctr(size);
 
@@ -1011,16 +1011,16 @@ void TurboAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
   blt(&less_than_32);
   // If shift >= 32
   andi(scratch, shift, Operand(0x1F));
-  slw(dst_high, src_low, scratch);
+  ShiftLeftU32(dst_high, src_low, scratch);
   li(dst_low, Operand::Zero());
   b(&done);
   bind(&less_than_32);
   // If shift < 32
   subfic(scratch, shift, Operand(32));
-  slw(dst_high, src_high, shift);
+  ShiftLeftU32(dst_high, src_high, shift);
   srw(scratch, src_low, scratch);
   orx(dst_high, dst_high, scratch);
-  slw(dst_low, src_low, shift);
+  ShiftLeftU32(dst_low, src_low, shift);
   bind(&done);
 }
 
@@ -1034,15 +1034,15 @@ void TurboAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
     li(dst_low, Operand::Zero());
   } else if (shift > 32) {
     shift &= 0x1F;
-    slwi(dst_high, src_low, Operand(shift));
+    ShiftLeftU32(dst_high, src_low, Operand(shift));
     li(dst_low, Operand::Zero());
   } else if (shift == 0) {
     Move(dst_low, src_low);
     Move(dst_high, src_high);
   } else {
-    slwi(dst_high, src_high, Operand(shift));
+    ShiftLeftU32(dst_high, src_high, Operand(shift));
     rlwimi(dst_high, src_low, shift, 32 - shift, 31);
-    slwi(dst_low, src_low, Operand(shift));
+    ShiftLeftU32(dst_low, src_low, Operand(shift));
   }
 }
 
@@ -1065,7 +1065,7 @@ void TurboAssembler::ShiftRightPair(Register dst_low, Register dst_high,
   // If shift < 32
   subfic(scratch, shift, Operand(32));
   srw(dst_low, src_low, shift);
-  slw(scratch, src_high, scratch);
+  ShiftLeftU32(scratch, src_high, scratch);
   orx(dst_low, dst_low, scratch);
   srw(dst_high, src_high, shift);
   bind(&done);
@@ -1111,7 +1111,7 @@ void TurboAssembler::ShiftRightAlgPair(Register dst_low, Register dst_high,
   // If shift < 32
   subfic(scratch, shift, Operand(32));
   srw(dst_low, src_low, shift);
-  slw(scratch, src_high, scratch);
+  ShiftLeftU32(scratch, src_high, scratch);
   orx(dst_low, dst_low, scratch);
   sraw(dst_high, src_high, shift);
   bind(&done);
@@ -1370,7 +1370,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
 
   if (argument_count.is_valid()) {
     if (!argument_count_is_length) {
-      ShiftLeftImm(argument_count, argument_count,
+      ShiftLeftU64(argument_count, argument_count,
                    Operand(kSystemPointerSizeLog2));
     }
     add(sp, sp, argument_count);
@@ -1394,7 +1394,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
   // after we drop current frame. We add kSystemPointerSize to count the
   // receiver argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  ShiftLeftImm(dst_reg, caller_args_count, Operand(kSystemPointerSizeLog2));
+  ShiftLeftU64(dst_reg, caller_args_count, Operand(kSystemPointerSizeLog2));
   add(dst_reg, fp, dst_reg);
   AddS64(dst_reg, dst_reg,
          Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize),
@@ -1402,7 +1402,7 @@ void TurboAssembler::PrepareForTailCall(Register callee_args_count,
 
   Register src_reg = caller_args_count;
   // Calculate the end of source area. +kSystemPointerSize is for the receiver.
-  ShiftLeftImm(src_reg, callee_args_count, Operand(kSystemPointerSizeLog2));
+  ShiftLeftU64(src_reg, callee_args_count, Operand(kSystemPointerSizeLog2));
   add(src_reg, sp, src_reg);
   AddS64(src_reg, src_reg, Operand(kSystemPointerSize), scratch0);
 
@@ -1458,7 +1458,7 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch,
   // here which will cause scratch to become negative.
   sub(scratch, sp, scratch);
   // Check if the arguments will overflow the stack.
-  ShiftLeftImm(r0, num_args, Operand(kSystemPointerSizeLog2));
+  ShiftLeftU64(r0, num_args, Operand(kSystemPointerSizeLog2));
   CmpS64(scratch, r0);
   ble(stack_overflow);  // Signed comparison.
 }
@@ -1497,7 +1497,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     Label copy;
     Register src = r9, dest = r8;
     addi(src, sp, Operand(-kSystemPointerSize));
-    ShiftLeftImm(r0, expected_parameter_count, Operand(kSystemPointerSizeLog2));
+    ShiftLeftU64(r0, expected_parameter_count, Operand(kSystemPointerSizeLog2));
     sub(sp, sp, r0);
     // Update stack pointer.
     addi(dest, sp, Operand(-kSystemPointerSize));
@@ -2552,7 +2552,7 @@ void TurboAssembler::MovInt64ComponentsToDouble(DoubleRegister dst,
                                                 Register src_lo,
                                                 Register scratch) {
   if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
-    sldi(scratch, src_hi, Operand(32));
+    ShiftLeftU64(scratch, src_hi, Operand(32));
     rldimi(scratch, src_lo, 0, 32);
     mtfprd(dst, scratch);
     return;
@@ -3401,11 +3401,11 @@ void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
 
   // The builtin_index register contains the builtin index as a Smi.
   if (SmiValuesAre32Bits()) {
-    ShiftRightArithImm(builtin_index, builtin_index,
-                       kSmiShift - kSystemPointerSizeLog2);
+    ShiftRightS64(builtin_index, builtin_index,
+                  Operand(kSmiShift - kSystemPointerSizeLog2));
   } else {
     DCHECK(SmiValuesAre31Bits());
-    ShiftLeftImm(builtin_index, builtin_index,
+    ShiftLeftU64(builtin_index, builtin_index,
                  Operand(kSystemPointerSizeLog2 - kSmiShift));
   }
   AddS64(builtin_index, builtin_index,
@@ -3456,7 +3456,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     bind(&if_code_is_off_heap);
     LoadS32(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset),
             r0);
-    ShiftLeftImm(destination, scratch, Operand(kSystemPointerSizeLog2));
+    ShiftLeftU64(destination, scratch, Operand(kSystemPointerSizeLog2));
     add(destination, destination, kRootRegister);
     LoadU64(destination,
             MemOperand(destination, IsolateData::builtin_entry_table_offset()),

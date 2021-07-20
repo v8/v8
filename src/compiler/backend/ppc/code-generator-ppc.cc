@@ -347,7 +347,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
                        i.InputRegister(1), i.OutputRCBit());   \
     } else {                                                   \
       __ asm_instr_imm(i.OutputRegister(), i.InputRegister(0), \
-                       i.InputInt32(1), i.OutputRCBit());      \
+                       i.InputImmediate(1), i.OutputRCBit());  \
     }                                                          \
   } while (0)
 
@@ -1227,29 +1227,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kPPC_ShiftLeft32:
-      ASSEMBLE_BINOP_RC(slw, slwi);
+      ASSEMBLE_BINOP_RC(ShiftLeftU32, ShiftLeftU32);
       break;
-#if V8_TARGET_ARCH_PPC64
     case kPPC_ShiftLeft64:
-      ASSEMBLE_BINOP_RC(sld, sldi);
+      ASSEMBLE_BINOP_RC(ShiftLeftU64, ShiftLeftU64);
       break;
-#endif
     case kPPC_ShiftRight32:
-      ASSEMBLE_BINOP_RC(srw, srwi);
+      ASSEMBLE_BINOP_RC(ShiftRightU32, ShiftRightU32);
       break;
-#if V8_TARGET_ARCH_PPC64
     case kPPC_ShiftRight64:
-      ASSEMBLE_BINOP_RC(srd, srdi);
+      ASSEMBLE_BINOP_RC(ShiftRightU64, ShiftRightU64);
       break;
-#endif
     case kPPC_ShiftRightAlg32:
-      ASSEMBLE_BINOP_INT_RC(sraw, srawi);
+      ASSEMBLE_BINOP_INT_RC(ShiftRightS32, ShiftRightS32);
       break;
-#if V8_TARGET_ARCH_PPC64
     case kPPC_ShiftRightAlg64:
-      ASSEMBLE_BINOP_INT_RC(srad, sradi);
+      ASSEMBLE_BINOP_INT_RC(ShiftRightS64, ShiftRightS64);
       break;
-#endif
 #if !V8_TARGET_ARCH_PPC64
     case kPPC_AddPair:
       // i.InputRegister(0) ... left low word.
@@ -1830,7 +1824,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
         __ li(kScratchReg, Operand(1));
-        __ sldi(kScratchReg, kScratchReg, Operand(31));  // generate INT32_MIN.
+        __ ShiftLeftU64(kScratchReg, kScratchReg,
+                        Operand(31));  // generate INT32_MIN.
         __ isel(i.OutputRegister(0), kScratchReg, i.OutputRegister(0), crbit);
       }
       break;
@@ -3941,7 +3936,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ CmpU64(input, Operand(case_count), r0);
   __ bge(GetLabel(i.InputRpo(1)));
   __ mov_label_addr(kScratchReg, table);
-  __ ShiftLeftImm(r0, input, Operand(kSystemPointerSizeLog2));
+  __ ShiftLeftU64(r0, input, Operand(kSystemPointerSizeLog2));
   __ LoadU64(kScratchReg, MemOperand(kScratchReg, r0));
   __ Jump(kScratchReg);
 }
