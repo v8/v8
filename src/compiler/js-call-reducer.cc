@@ -6424,19 +6424,18 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
     if (target_ref.IsString()) {
       StringRef str = target_ref.AsString();
       if (str.length().has_value()) {
+        receiver = effect = graph()->NewNode(
+            simplified()->CheckString(p.feedback()), receiver, effect, control);
+
+        position = effect = graph()->NewNode(
+            simplified()->CheckSmi(p.feedback()), position, effect, control);
+
         if (str.length().value() == 0) {
           Node* value = jsgraph()->TrueConstant();
           ReplaceWithValue(node, value, effect, control);
           return Replace(value);
         }
         if (str.length().value() == 1) {
-          receiver = effect =
-              graph()->NewNode(simplified()->CheckString(p.feedback()),
-                               receiver, effect, control);
-
-          position = effect = graph()->NewNode(
-              simplified()->CheckSmi(p.feedback()), position, effect, control);
-
           Node* string_length =
               graph()->NewNode(simplified()->StringLength(), receiver);
           Node* unsigned_position = graph()->NewNode(
