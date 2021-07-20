@@ -498,24 +498,6 @@
   'language/expressions/coalesce/tco-pos-undefined': [FAIL],
   'language/expressions/coalesce/tco-pos-null': [FAIL],
 
-  # https://github.com/tc39/test262/issues/2034
-  'language/expressions/postfix-decrement/arguments': [SKIP],
-  'language/expressions/postfix-decrement/arguments-nostrict': [SKIP],
-  'language/expressions/postfix-decrement/eval': [SKIP],
-  'language/expressions/postfix-decrement/eval-nostrict': [SKIP],
-  'language/expressions/postfix-increment/arguments': [SKIP],
-  'language/expressions/postfix-increment/arguments-nostrict': [SKIP],
-  'language/expressions/postfix-increment/eval': [SKIP],
-  'language/expressions/postfix-increment/eval-nostrict': [SKIP],
-  'language/expressions/prefix-decrement/arguments': [SKIP],
-  'language/expressions/prefix-decrement/arguments-nostrict': [SKIP],
-  'language/expressions/prefix-decrement/eval': [SKIP],
-  'language/expressions/prefix-decrement/eval-nostrict': [SKIP],
-  'language/expressions/prefix-increment/arguments': [SKIP],
-  'language/expressions/prefix-increment/arguments-nostrict': [SKIP],
-  'language/expressions/prefix-increment/eval': [SKIP],
-  'language/expressions/prefix-increment/eval-nostrict': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
