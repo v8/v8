@@ -3377,15 +3377,8 @@ v8_header_set("v8_internal_headers") {
     if (v8_control_flow_integrity) {
       sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
     }
-    if (v8_enable_webassembly) {
-      # Trap handling is enabled on arm64 Mac and in simulators on x64 on Linux.
-      if ((current_cpu == "arm64" && is_mac) ||
-          (current_cpu == "x64" && is_linux)) {
-        sources += [ "src/trap-handler/handler-inside-posix.h" ]
-      }
-      if (current_cpu == "x64" && is_linux) {
-        sources += [ "src/trap-handler/trap-handler-simulator.h" ]
-      }
+    if (v8_enable_webassembly && current_cpu == "arm64" && is_mac) {
+      sources += [ "src/trap-handler/handler-inside-posix.h" ]
     }
     if (is_win) {
       sources += [ "src/diagnostics/unwinding-info-win64.h" ]
@@ -4285,18 +4278,11 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/arm64/simulator-logic-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
     ]
-    if (v8_enable_webassembly) {
-      # Trap handling is enabled on arm64 Mac and in simulators on x64 on Linux.
-      if ((current_cpu == "arm64" && is_mac) ||
-          (current_cpu == "x64" && is_linux)) {
-        sources += [
-          "src/trap-handler/handler-inside-posix.cc",
-          "src/trap-handler/handler-outside-posix.cc",
-        ]
-      }
-      if (current_cpu == "x64" && is_linux) {
-        sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
-      }
+    if (v8_enable_webassembly && current_cpu == "arm64" && is_mac) {
+      sources += [
+        "src/trap-handler/handler-inside-posix.cc",
+        "src/trap-handler/handler-outside-posix.cc",
+      ]
     }
     if (is_win) {
       sources += [ "src/diagnostics/unwinding-info-win64.cc" ]

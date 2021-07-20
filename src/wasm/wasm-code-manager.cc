@@ -823,10 +823,7 @@ BoundsCheckStrategy GetBoundsChecks(const WasmModule* module) {
   if (FLAG_wasm_enforce_bounds_checks) return kExplicitBoundsChecks;
   // We do not have trap handler support for memory64 yet.
   if (module->is_memory64) return kExplicitBoundsChecks;
-    // TODO(clemensb): Enable trap handling in the arm64 simulator.
-#ifndef USE_SIMULATOR
   if (trap_handler::IsTrapHandlerEnabled()) return kTrapHandler;
-#endif  // USE_SIMULATOR
   return kExplicitBoundsChecks;
 }
 }  // namespace
