@@ -109,16 +109,13 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
       i_isolate(), reinterpret_cast<Address>(desc.buffer));
 
   SetThreadInWasm();
-  // TODO(clemensb): This should pass after adding memory probing in the
-  // simulator.
-  // code.Call();
-  EXPECT_DEATH_IF_SUPPORTED(code.Call(), "");
+  code.Call();
   ResetThreadInWasm();
 
   ReleaseHandlerData(handler_data_index);
   RemoveTrapHandler();
 
-  // EXPECT_EQ(1u, GetRecoveredTrapCount());
+  EXPECT_EQ(1u, GetRecoveredTrapCount());
 }
 
 }  // namespace trap_handler

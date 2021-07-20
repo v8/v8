@@ -277,13 +277,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
 RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(0, args.length());
-  // We currently lie to tests about enabled trap handling in simulator builds.
-  // TODO(clemensb): Remove this once the arm64 simulator support trap handling.
-#ifdef USE_SIMULATOR
-  return isolate->heap()->ToBoolean(false);
-#else
   return isolate->heap()->ToBoolean(trap_handler::IsTrapHandlerEnabled());
-#endif
 }
 
 RUNTIME_FUNCTION(Runtime_IsThreadInWasm) {
