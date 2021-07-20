@@ -103,7 +103,7 @@
   ##############################################################################
   # Tests verifying CHECK and ASSERT.
   'verify-check-false': [FAIL, NO_VARIANTS],
-  'verify-assert-false': [NO_VARIANTS, ['mode == release and v8_dcheck_always_on == False', PASS], ['mode == debug', FAIL]],
+  'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug', FAIL]],
 
   ##############################################################################
   # Tests with different versions for release and debug.
@@ -138,15 +138,15 @@
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
   'regress/regress-crbug-808192': [PASS, SLOW, NO_VARIANTS, ['arch not in (ia32, x64)', SKIP], ['tsan', SKIP]],
-  'regress/regress-crbug-918301': [PASS, SLOW, NO_VARIANTS, ['mode != release or v8_dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
+  'regress/regress-crbug-918301': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/futex': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
-  'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or v8_dcheck_always_on', SKIP], ['tsan', SKIP]],
-  'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or v8_dcheck_always_on', SKIP], ['tsan', SKIP]],
+  'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
+  'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
 
