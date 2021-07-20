@@ -480,8 +480,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
-DEFINE_WEAK_IMPLICATION(future, finalize_streaming_on_background)
-DEFINE_WEAK_IMPLICATION(future, super_ic)
 DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, sparkplug)
@@ -489,6 +487,7 @@ DEFINE_WEAK_IMPLICATION(future, sparkplug)
 #if V8_SHORT_BUILTIN_CALLS
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #endif
+DEFINE_WEAK_IMPLICATION(future, turboprop)
 
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
@@ -631,7 +630,7 @@ DEFINE_BOOL(
     turboprop_as_toptier, false,
     "enable experimental turboprop compiler without further tierup to turbofan")
 DEFINE_IMPLICATION(turboprop_as_toptier, turboprop)
-DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 115 * KB)
+DEFINE_WEAK_VALUE_IMPLICATION(turboprop, interrupt_budget, 115 * KB)
 DEFINE_UINT_READONLY(max_minimorphic_map_checks, 4,
                      "max number of map checks to perform in minimorphic state")
 DEFINE_INT(turboprop_inline_scaling_factor, 4,
