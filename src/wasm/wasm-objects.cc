@@ -1469,7 +1469,9 @@ WasmInstanceObject::GetOrCreateWasmExternalFunction(
   const WasmModule* module = module_object->module();
   const WasmFunction& function = module->functions[function_index];
   int wrapper_index =
-      GetExportWrapperIndex(module, function.sig, function.imported);
+      GetExportWrapperIndex(module, function.sig_index, function.imported);
+  DCHECK_EQ(wrapper_index,
+            GetExportWrapperIndex(module, function.sig, function.imported));
 
   Handle<Object> entry =
       FixedArray::get(module_object->export_wrappers(), wrapper_index, isolate);

@@ -51,13 +51,23 @@ int MaxNumExportWrappers(const WasmModule* module) {
   return static_cast<int>(module->signature_map.size()) * 2;
 }
 
-// static
+int GetExportWrapperIndexInternal(const WasmModule* module,
+                                  int canonical_sig_index, bool is_import) {
+  if (is_import) canonical_sig_index += module->signature_map.size();
+  return canonical_sig_index;
+}
+
 int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
                           bool is_import) {
-  int result = module->signature_map.Find(*sig);
-  CHECK_GE(result, 0);
-  result += is_import ? module->signature_map.size() : 0;
-  return result;
+  int canonical_sig_index = module->signature_map.Find(*sig);
+  CHECK_GE(canonical_sig_index, 0);
+  return GetExportWrapperIndexInternal(module, canonical_sig_index, is_import);
+}
+
+int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
+                          bool is_import) {
+  uint32_t canonical_sig_index = module->canonicalized_type_ids[sig_index];
+  return GetExportWrapperIndexInternal(module, canonical_sig_index, is_import);
 }
 
 // static
