@@ -451,8 +451,11 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   if (!map_ref.has_value()) return Invalid();
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
-  if (!map_ref->TrySerializeOwnDescriptor(descriptor)) {
-    return Invalid();
+  if (!broker()->is_concurrent_inlining()) {
+    if (!map_ref->TrySerializeOwnDescriptor(
+            descriptor, NotConcurrentInliningTag{broker()})) {
+      return Invalid();
+    }
   }
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
@@ -857,7 +860,11 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     // Walk up the prototype chain.
     base::Optional<MapRef> map_ref = TryMakeRef(broker(), map);
     if (!map_ref.has_value()) return Invalid();
-    if (!map_ref->TrySerializePrototype()) return Invalid();
+    if (!broker()->is_concurrent_inlining()) {
+      if (!map_ref->TrySerializePrototype(NotConcurrentInliningTag{broker()})) {
+        return Invalid();
+      }
+    }
 
     // Acquire synchronously the map's prototype's map to guarantee that every
     // time we use it, we use the same Map.
@@ -1112,16 +1119,22 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-    if (!transition_map_ref->TrySerializeOwnDescriptor(number)) {
-      return Invalid();
+    if (!broker()->is_concurrent_inlining()) {
+      if (!transition_map_ref->TrySerializeOwnDescriptor(
+              number, NotConcurrentInliningTag{broker()})) {
+        return Invalid();
+      }
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
             *transition_map_ref, number));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
-    if (!transition_map_ref->TrySerializeOwnDescriptor(number)) {
-      return Invalid();
+    if (!broker()->is_concurrent_inlining()) {
+      if (!transition_map_ref->TrySerializeOwnDescriptor(
+              number, NotConcurrentInliningTag{broker()})) {
+        return Invalid();
+      }
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
@@ -1135,8 +1148,11 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
       // Store is not safe if the field type was cleared.
       return Invalid();
     }
-    if (!transition_map_ref->TrySerializeOwnDescriptor(number)) {
-      return Invalid();
+    if (!broker()->is_concurrent_inlining()) {
+      if (!transition_map_ref->TrySerializeOwnDescriptor(
+              number, NotConcurrentInliningTag{broker()})) {
+        return Invalid();
+      }
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
@@ -1156,7 +1172,10 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   }
   unrecorded_dependencies.push_back(
       dependencies()->TransitionDependencyOffTheRecord(*transition_map_ref));
-  transition_map_ref->SerializeBackPointer();  // For BuildPropertyStore.
+  if (!broker()->is_concurrent_inlining()) {
+    transition_map_ref->SerializeBackPointer(
+        NotConcurrentInliningTag{broker()});  // For BuildPropertyStore.
+  }
   // Transitioning stores *may* store to const fields. The resulting
   // DataConstant access infos can be distinguished from later, i.e. redundant,
   // stores to the same constant field by the presence of a transition map.

@@ -793,7 +793,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* lookup_start_object, Node* receiver, Node* value,
     NameRef const& name, AccessMode access_mode, Node* key,
     PropertyCellRef const& property_cell, Node* effect) {
-  if (!property_cell.Serialize()) {
+  if (!property_cell.Cache()) {
     TRACE_BROKER_MISSING(broker(), "usable data for " << property_cell);
     return NoChange();
   }

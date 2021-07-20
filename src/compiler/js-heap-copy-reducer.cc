@@ -31,14 +31,15 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(node->op()));
       base::Optional<FeedbackVectorRef> feedback_vector = cell.value();
       if (feedback_vector.has_value()) {
-        feedback_vector->Serialize();
+        feedback_vector->Serialize(NotConcurrentInliningTag{broker()});
       }
       break;
     }
     case IrOpcode::kHeapConstant: {
       ObjectRef object = MakeRef(broker(), HeapConstantOf(node->op()));
       if (object.IsJSObject()) {
-        object.AsJSObject().SerializeObjectCreateMap();
+        object.AsJSObject().SerializeObjectCreateMap(
+            NotConcurrentInliningTag{broker()});
       }
       break;
     }

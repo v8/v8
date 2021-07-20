@@ -652,7 +652,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   } else {
     PropertyCellRef array_constructor_protector =
         MakeRef(broker(), factory()->array_constructor_protector());
-    array_constructor_protector.SerializeAsProtector();
+    array_constructor_protector.CacheAsProtector();
     can_inline_call = array_constructor_protector.value().AsSmi() ==
                       Protectors::kProtectorValid;
   }
