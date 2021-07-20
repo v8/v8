@@ -22,8 +22,12 @@ const ctors = [
   MyUint8Array
 ];
 
+function CreateGrowableSharedArrayBuffer(byteLength, maxByteLength) {
+  return new SharedArrayBuffer(byteLength, {maxByteLength: maxByteLength});
+}
+
 (function TypedArrayPrototype() {
-  const gsab = new GrowableSharedArrayBuffer(40, 80);
+  const gsab = CreateGrowableSharedArrayBuffer(40, 80);
   const sab = new SharedArrayBuffer(80);
 
   for (let ctor of ctors) {
@@ -34,7 +38,7 @@ const ctors = [
 })();
 
 (function TypedArrayLengthAndByteLength() {
-  const gsab = new GrowableSharedArrayBuffer(40, 80);
+  const gsab = CreateGrowableSharedArrayBuffer(40, 80);
 
   for (let ctor of ctors) {
     const ta = new ctor(gsab, 0, 3);
@@ -77,7 +81,7 @@ const ctors = [
 })();
 
 (function ConstructInvalid() {
-  const gsab = new GrowableSharedArrayBuffer(40, 80);
+  const gsab = CreateGrowableSharedArrayBuffer(40, 80);
 
   for (let ctor of ctors) {
     // Length too big.
@@ -107,7 +111,7 @@ const ctors = [
 })();
 
 (function TypedArrayLengthWhenGrown1() {
-  const gsab = new GrowableSharedArrayBuffer(16, 40);
+  const gsab = CreateGrowableSharedArrayBuffer(16, 40);
 
   // Create TAs which cover the bytes 0-7.
   let tas_and_lengths = [];
@@ -138,7 +142,7 @@ const ctors = [
 
 // The previous test with offsets.
 (function TypedArrayLengthWhenGrown2() {
-  const gsab = new GrowableSharedArrayBuffer(20, 40);
+  const gsab = CreateGrowableSharedArrayBuffer(20, 40);
 
   // Create TAs which cover the bytes 8-15.
   let tas_and_lengths = [];
@@ -168,7 +172,7 @@ const ctors = [
 })();
 
 (function LengthTracking1() {
-  const gsab = new GrowableSharedArrayBuffer(16, 40);
+  const gsab = CreateGrowableSharedArrayBuffer(16, 40);
 
   let tas = [];
   for (let ctor of ctors) {
@@ -204,7 +208,7 @@ const ctors = [
 
 // The previous test with offsets.
 (function LengthTracking2() {
-  const gsab = new GrowableSharedArrayBuffer(16, 40);
+  const gsab = CreateGrowableSharedArrayBuffer(16, 40);
 
   const offset = 8;
   let tas = [];
@@ -245,7 +249,7 @@ const ctors = [
   }
   %EnsureFeedbackVectorForFunction(ReadElement2);
 
-  const gsab = new GrowableSharedArrayBuffer(16, 40);
+  const gsab = CreateGrowableSharedArrayBuffer(16, 40);
 
   const i8a = new Int8Array(gsab, 0, 4);
   for (let i = 0; i < 3; ++i) {
@@ -294,7 +298,7 @@ const ctors = [
   %EnsureFeedbackVectorForFunction(HasElement);
   %EnsureFeedbackVectorForFunction(WriteElement);
 
-  const gsab = new GrowableSharedArrayBuffer(16, 40);
+  const gsab = CreateGrowableSharedArrayBuffer(16, 40);
 
   const i8a = new Int8Array(gsab); // length-tracking
   assertEquals(16, i8a.length);
@@ -342,7 +346,7 @@ const ctors = [
 })();
 
 (function EnumerateElements() {
-  let gsab = new GrowableSharedArrayBuffer(100, 200);
+  let gsab = CreateGrowableSharedArrayBuffer(100, 200);
   for (let ctor of ctors) {
     const ta = new ctor(gsab, 0, 3);
     let keys = '';
@@ -374,7 +378,7 @@ const ctors = [
     const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
     // We can use the same GSAB for all the TAs below, since we won't modify it
     // after writing the initial values.
-    const gsab = new GrowableSharedArrayBuffer(buffer_byte_length,
+    const gsab = CreateGrowableSharedArrayBuffer(buffer_byte_length,
                                                2 * buffer_byte_length);
     const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
 
@@ -423,7 +427,7 @@ const ctors = [
 
 // Helpers for iteration tests.
 function CreateGsab(buffer_byte_length, ctor) {
-  const gsab = new GrowableSharedArrayBuffer(buffer_byte_length,
+  const gsab = CreateGrowableSharedArrayBuffer(buffer_byte_length,
                                              2 * buffer_byte_length);
   // Write some data into the array.
   let ta_write = new ctor(gsab);

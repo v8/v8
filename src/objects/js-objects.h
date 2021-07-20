@@ -715,6 +715,10 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   static bool IsExtensible(Handle<JSObject> object);
 
+  static MaybeHandle<Object> ReadFromOptionsBag(Handle<Object> options,
+                                                Handle<String> option_name,
+                                                Isolate* isolate);
+
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
   DECL_PRINTER(JSObject)

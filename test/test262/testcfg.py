@@ -58,6 +58,7 @@ FEATURE_FLAGS = {
   'import-assertions': '--harmony-import-assertions',
   'Object.hasOwn': '--harmony-object-has-own',
   'class-static-block': '--harmony-class-static-blocks',
+  'resizable-arraybuffer': '--harmony-rab-gsab',
 }
 
 SKIPPED_FEATURES = set([])

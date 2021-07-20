@@ -132,8 +132,6 @@ enum ContextLookupFlags {
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, generator_object_prototype_map) \
   V(ASYNC_GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map,                           \
     async_generator_object_prototype_map)                                      \
-  V(GROWABLE_SHARED_ARRAY_BUFFER_FUN_INDEX, JSFunction,                        \
-    growable_shared_array_buffer_fun)                                          \
   V(INITIAL_ARRAY_ITERATOR_MAP_INDEX, Map, initial_array_iterator_map)         \
   V(INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX, JSObject,                          \
     initial_array_iterator_prototype)                                          \
@@ -245,7 +243,6 @@ enum ContextLookupFlags {
   V(REGEXP_SPLIT_FUNCTION_INDEX, JSFunction, regexp_split_function)            \
   V(INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX, Map,                   \
     initial_regexp_string_iterator_prototype_map)                              \
-  V(RESIZABLE_ARRAY_BUFFER_FUN_INDEX, JSFunction, resizable_array_buffer_fun)  \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SCRIPT_EXECUTION_CALLBACK_INDEX, Object, script_execution_callback)        \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
