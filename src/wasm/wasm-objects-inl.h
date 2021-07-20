@@ -193,6 +193,14 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, stack_limit_address, Address,
                     kStackLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, real_stack_limit_address, Address,
                     kRealStackLimitAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, new_allocation_limit_address, Address*,
+                    kNewAllocationLimitAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, new_allocation_top_address, Address*,
+                    kNewAllocationTopAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, old_allocation_limit_address, Address*,
+                    kOldAllocationLimitAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, old_allocation_top_address, Address*,
+                    kOldAllocationTopAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_function_targets, Address*,
                     kImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, globals_start, byte*,

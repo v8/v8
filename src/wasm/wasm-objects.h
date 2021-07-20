@@ -360,6 +360,10 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(isolate_root, Address)
   DECL_PRIMITIVE_ACCESSORS(stack_limit_address, Address)
   DECL_PRIMITIVE_ACCESSORS(real_stack_limit_address, Address)
+  DECL_PRIMITIVE_ACCESSORS(new_allocation_limit_address, Address*)
+  DECL_PRIMITIVE_ACCESSORS(new_allocation_top_address, Address*)
+  DECL_PRIMITIVE_ACCESSORS(old_allocation_limit_address, Address*)
+  DECL_PRIMITIVE_ACCESSORS(old_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(imported_function_targets, Address*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(imported_mutable_globals, Address*)
@@ -402,6 +406,10 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kIsolateRootOffset, kSystemPointerSize)                               \
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
+  V(kNewAllocationLimitAddressOffset, kSystemPointerSize)                 \
+  V(kNewAllocationTopAddressOffset, kSystemPointerSize)                   \
+  V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
+  V(kOldAllocationTopAddressOffset, kSystemPointerSize)                   \
   V(kModuleObjectOffset, kTaggedSize)                                     \
   V(kExportsObjectOffset, kTaggedSize)                                    \
   V(kNativeContextOffset, kTaggedSize)                                    \

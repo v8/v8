@@ -244,6 +244,21 @@ class WasmGraphAssembler : public GraphAssembler {
   // Rule of thumb: if access to a given field in an object is required in
   // at least two places, put a helper function here.
 
+  Node* Allocate(int size) {
+    AllowLargeObjects allow_large = size < kMaxRegularHeapObjectSize
+                                        ? AllowLargeObjects::kFalse
+                                        : AllowLargeObjects::kTrue;
+    return Allocate(Int32Constant(size), allow_large);
+  }
+
+  Node* Allocate(Node* size,
+                 AllowLargeObjects allow_large = AllowLargeObjects::kTrue) {
+    return AddNode(
+        graph()->NewNode(simplified_.AllocateRaw(
+                             Type::Any(), AllocationType::kYoung, allow_large),
+                         size, effect(), control()));
+  }
+
   Node* LoadFromObject(MachineType type, Node* base, Node* offset) {
     return AddNode(graph()->NewNode(
         simplified_.LoadFromObject(ObjectAccess(type, kNoWriteBarrier)), base,
@@ -5560,8 +5575,13 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
                                          const wasm::StructType* type,
                                          Node* rtt,
                                          base::Vector<Node*> fields) {
-  Node* s = gasm_->CallBuiltin(Builtin::kWasmAllocateStructWithRtt,
-                               Operator::kEliminatable, rtt);
+  int size = WasmStruct::Size(type);
+  Node* s = gasm_->Allocate(size);
+  gasm_->StoreMap(s, TNode<Map>::UncheckedCast(rtt));
+  gasm_->StoreToObject(
+      ObjectAccess(MachineType::TaggedPointer(), kNoWriteBarrier), s,
+      wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),
+      LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
   for (uint32_t i = 0; i < type->field_count(); i++) {
     gasm_->StoreStructField(s, type, i, fields[i]);
   }
