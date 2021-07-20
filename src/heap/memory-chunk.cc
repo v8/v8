@@ -252,7 +252,9 @@ void MemoryChunk::ReleaseAllAllocatedMemory() {
 
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
+#ifdef V8_EXTERNAL_CODE_SPACE
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_CODE>();
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 template <RememberedSetType type>
 SlotSet* MemoryChunk::AllocateSlotSet() {
@@ -277,7 +279,9 @@ SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
 
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW>();
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
+#ifdef V8_EXTERNAL_CODE_SPACE
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_CODE>();
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseSlotSet() {
