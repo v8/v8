@@ -166,18 +166,25 @@ class FastCApiObject {
           "Invalid length of array, must be between 0 and 1024.");
       return;
     }
-    Type buffer[1024];
-    bool result =
-        CopyAndConvertArrayToCppBuffer<&type_info, Type>(seq_arg, buffer, 1024);
-    if (!result) {
-      isolate->ThrowError("Array conversion unsuccessful.");
-      return;
-    }
-    DCHECK_EQ(seq_arg->Length(), length);
 
     Type sum = 0;
     for (uint32_t i = 0; i < length; ++i) {
-      sum += buffer[i];
+      v8::Local<v8::Value> element =
+          seq_arg
+              ->Get(isolate->GetCurrentContext(),
+                    v8::Integer::NewFromUnsigned(isolate, i))
+              .ToLocalChecked();
+      if (element->IsNumber()) {
+        double value = element->ToNumber(isolate->GetCurrentContext())
+                           .ToLocalChecked()
+                           ->Value();
+        sum += value;
+      } else if (element->IsUndefined()) {
+        // Hole: ignore the element.
+      } else {
+        isolate->ThrowError("unexpected element type in JSArray");
+        return;
+      }
     }
     args.GetReturnValue().Set(Number::New(isolate, sum));
   }

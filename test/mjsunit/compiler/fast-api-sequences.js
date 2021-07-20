@@ -62,6 +62,23 @@ if (fast_c_api.supports_fp_params) {
   assertEquals(0, fast_c_api.slow_call_count());
 }
 
+// Test holey arrays
+fast_c_api.reset_counts();
+if (fast_c_api.supports_fp_params) {
+  // Test that regular call hits the fast path.
+  assertEquals(add_all_result_full, add_all_sequence_full([, ...full_array]));
+  assertOptimized(add_all_sequence_full);
+  assertEquals(1, fast_c_api.fast_call_count());
+  assertEquals(1, fast_c_api.slow_call_count());
+} else {
+  // Smi only test - regular call hits the fast path.
+  assertEquals(3, add_all_sequence_smi([-42, , 45]));
+  assertOptimized(add_all_sequence_smi);
+  assertEquals(1, fast_c_api.fast_call_count());
+  assertEquals(1, fast_c_api.slow_call_count());
+}
+
+
 function add_all_sequence_mismatch(arg) {
   return fast_c_api.add_all_sequence(false /*should_fallback*/, arg);
 }

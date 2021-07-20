@@ -281,15 +281,16 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
   i::JSArray obj = *reinterpret_cast<i::JSArray*>(*src);
 
   i::FixedArrayBase elements = obj.elements();
-  if (obj.HasSmiElements()) {
-    CopySmiElementsToTypedBuffer(dst, length, i::FixedArray::cast(elements));
-    return true;
-  } else if (obj.HasDoubleElements()) {
-    CopyDoubleElementsToTypedBuffer(dst, length,
-                                    i::FixedDoubleArray::cast(elements));
-    return true;
-  } else {
-    return false;
+  switch (obj.GetElementsKind()) {
+    case i::PACKED_SMI_ELEMENTS:
+      CopySmiElementsToTypedBuffer(dst, length, i::FixedArray::cast(elements));
+      return true;
+    case i::PACKED_DOUBLE_ELEMENTS:
+      CopyDoubleElementsToTypedBuffer(dst, length,
+                                      i::FixedDoubleArray::cast(elements));
+      return true;
+    default:
+      return false;
   }
 }
 
