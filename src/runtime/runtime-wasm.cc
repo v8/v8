@@ -663,7 +663,8 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   CONVERT_UINT32_ARG_CHECKED(length, 4);
   bool overlapping_ranges =
       dst_array->ptr() == src_array->ptr() &&
-      (dst_index + length > src_index || src_index + length > dst_index);
+      (dst_index < src_index ? dst_index + length > src_index
+                             : src_index + length > dst_index);
   wasm::ValueType element_type = src_array->type()->element_type();
   if (element_type.is_reference()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
