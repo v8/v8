@@ -154,9 +154,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
     VisitPointersImpl(host, start, end);
   }
   V8_INLINE void VisitCodePointer(HeapObject host, CodeObjectSlot slot) final {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // TODO(v8:11880): support external code space.
-    VisitPointer(host, MaybeObjectSlot(slot));
+    VisitCodePointerImpl(host, slot);
   }
   V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
@@ -182,6 +180,10 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
+
+  // Similar to VisitPointersImpl() but using code cage base for loading from
+  // the slot.
+  V8_INLINE void VisitCodePointerImpl(HeapObject host, CodeObjectSlot slot);
 
   V8_INLINE void VisitDescriptors(DescriptorArray descriptors,
                                   int number_of_own_descriptors);

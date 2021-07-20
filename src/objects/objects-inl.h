@@ -730,12 +730,8 @@ void HeapObject::set_map(Map value) {
 #endif
 }
 
-Map HeapObject::map(AcquireLoadTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::map(cage_base, tag);
-}
-Map HeapObject::map(PtrComprCageBase cage_base, AcquireLoadTag tag) const {
-  return map_word(cage_base, tag).ToMap();
+DEF_ACQUIRE_GETTER(HeapObject, map, Map) {
+  return map_word(cage_base, kAcquireLoad).ToMap();
 }
 
 void HeapObject::set_map(Map value, ReleaseStoreTag tag) {
@@ -781,11 +777,7 @@ ObjectSlot HeapObject::map_slot() const {
   return ObjectSlot(MapField::address(*this));
 }
 
-MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::map_word(cage_base, tag);
-}
-MapWord HeapObject::map_word(PtrComprCageBase cage_base, RelaxedLoadTag) const {
+DEF_RELAXED_GETTER(HeapObject, map_word, MapWord) {
   return MapField::Relaxed_Load_Map_Word(cage_base, *this);
 }
 
@@ -793,11 +785,7 @@ void HeapObject::set_map_word(MapWord map_word, RelaxedStoreTag) {
   MapField::Relaxed_Store_Map_Word(*this, map_word);
 }
 
-MapWord HeapObject::map_word(AcquireLoadTag tag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::map_word(cage_base, tag);
-}
-MapWord HeapObject::map_word(PtrComprCageBase cage_base, AcquireLoadTag) const {
+DEF_ACQUIRE_GETTER(HeapObject, map_word, MapWord) {
   return MapField::Acquire_Load_No_Unpack(cage_base, *this);
 }
 

@@ -89,6 +89,23 @@ MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitPointersImpl(
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
+V8_INLINE void
+MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerImpl(
+    HeapObject host, CodeObjectSlot slot) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // TODO(v8:11880): support external code space.
+  PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
+  Object object = slot.Relaxed_Load(code_cage_base);
+  HeapObject heap_object;
+  if (object.GetHeapObjectIfStrong(&heap_object)) {
+    // If the reference changes concurrently from strong to weak, the write
+    // barrier will treat the weak reference as strong, so we won't miss the
+    // weak reference.
+    ProcessStrongHeapObject(host, HeapObjectSlot(slot), heap_object);
+  }
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
     Code host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));

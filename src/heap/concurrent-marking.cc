@@ -177,8 +177,9 @@ class ConcurrentMarkingVisitor final
 
     void VisitPointers(HeapObject host, ObjectSlot start,
                        ObjectSlot end) override {
+      PtrComprCageBase cage_base = GetPtrComprCageBase(host);
       for (ObjectSlot p = start; p < end; ++p) {
-        Object object = p.Relaxed_Load();
+        Object object = p.Relaxed_Load(cage_base);
         slot_snapshot_->add(p, object);
       }
     }
@@ -186,7 +187,9 @@ class ConcurrentMarkingVisitor final
     void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
       CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
       // TODO(v8:11880): support external code space.
-      VisitPointers(host, ObjectSlot(slot), ObjectSlot(slot + 1));
+      PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
+      Object code = slot.Relaxed_Load(code_cage_base);
+      slot_snapshot_->add(slot, code);
     }
 
     void VisitPointers(HeapObject host, MaybeObjectSlot start,

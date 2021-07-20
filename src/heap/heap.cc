@@ -3830,7 +3830,9 @@ class SlotCollectingVisitor final : public ObjectVisitor {
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    slots_.push_back(MaybeObjectSlot(slot));
+#if V8_EXTERNAL_CODE_SPACE
+    code_slots_.push_back(slot);
+#endif
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) final { UNREACHABLE(); }
@@ -3844,9 +3846,16 @@ class SlotCollectingVisitor final : public ObjectVisitor {
   int number_of_slots() { return static_cast<int>(slots_.size()); }
 
   MaybeObjectSlot slot(int i) { return slots_[i]; }
+#if V8_EXTERNAL_CODE_SPACE
+  ObjectSlot code_slot(int i) { return code_slots_[i]; }
+  int number_of_code_slots() { return static_cast<int>(code_slots_.size()); }
+#endif
 
  private:
   std::vector<MaybeObjectSlot> slots_;
+#if V8_EXTERNAL_CODE_SPACE
+  std::vector<ObjectSlot> code_slots_;
+#endif
 };
 
 void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
@@ -3883,6 +3892,13 @@ void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
     for (int i = 0; i < new_visitor.number_of_slots(); i++) {
       DCHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));
     }
+#if V8_EXTERNAL_CODE_SPACE
+    DCHECK_EQ(new_visitor.number_of_code_slots(),
+              old_visitor.number_of_code_slots());
+    for (int i = 0; i < new_visitor.number_of_code_slots(); i++) {
+      DCHECK_EQ(new_visitor.code_slot(i), old_visitor.code_slot(i));
+    }
+#endif  // V8_EXTERNAL_CODE_SPACE
   } else {
     DCHECK_EQ(pending_layout_change_object_, object);
     pending_layout_change_object_ = HeapObject();
@@ -4453,7 +4469,12 @@ class SlotVerifyingVisitor : public ObjectVisitor {
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     // TODO(v8:11880): support external code space.
-    VisitPointers(host, MaybeObjectSlot(slot), MaybeObjectSlot(slot + 1));
+    PtrComprCageBase code_cage_base =
+        GetPtrComprCageBaseFromOnHeapAddress(slot.address());
+    if (ShouldHaveBeenRecorded(
+            host, MaybeObject::FromObject(slot.load(code_cage_base)))) {
+      CHECK_GT(untyped_->count(slot.address()), 0);
+    }
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
@@ -6329,7 +6350,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
       CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
       // TODO(v8:11880): support external code space.
-      VisitPointers(host, MaybeObjectSlot(slot), MaybeObjectSlot(slot + 1));
+      PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
+      HeapObject code = HeapObject::unchecked_cast(slot.load(code_cage_base));
+      MarkHeapObject(code);
     }
 
     void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
