@@ -89,7 +89,8 @@ class DataRange {
   }
 };
 
-ValueType GetValueType(DataRange* data) {
+ValueType GetValueType(uint32_t num_types, DataRange* data,
+                       bool liftoff_as_reference) {
   constexpr ValueType types[] = {
       kWasmI32,     kWasmI64,
       kWasmF32,     kWasmF64,
@@ -97,6 +98,13 @@ ValueType GetValueType(DataRange* data) {
       kWasmFuncRef, kWasmEqRef,
       kWasmAnyRef,  ValueType::Ref(HeapType(HeapType::kData), kNullable)};
 
+  if (liftoff_as_reference) {
+    uint32_t id = data->get<uint8_t>() % (arraysize(types) + num_types);
+    if (id >= arraysize(types)) {
+      return ValueType::Ref(id - arraysize(types), kNullable);
+    }
+    return types[id];
+  }
   return types[data->get<uint8_t>() % arraysize(types)];
 }
 
@@ -484,7 +492,9 @@ class WasmGenerator {
   }
 
   void drop(DataRange* data) {
-    Generate(GetValueType(data), data);
+    Generate(GetValueType(builder_->builder()->NumTypes(), data,
+                          liftoff_as_reference_),
+             data);
     builder_->Emit(kExprDrop);
   }
 
@@ -780,11 +790,13 @@ class WasmGenerator {
  public:
   WasmGenerator(WasmFunctionBuilder* fn, const std::vector<uint32_t>& functions,
                 const std::vector<ValueType>& globals,
-                const std::vector<uint8_t>& mutable_globals, DataRange* data)
+                const std::vector<uint8_t>& mutable_globals, DataRange* data,
+                bool liftoff_as_reference)
       : builder_(fn),
         functions_(functions),
         globals_(globals),
-        mutable_globals_(mutable_globals) {
+        mutable_globals_(mutable_globals),
+        liftoff_as_reference_(liftoff_as_reference) {
     FunctionSig* sig = fn->signature();
     blocks_.emplace_back();
     for (size_t i = 0; i < sig->return_count(); ++i) {
@@ -794,7 +806,8 @@ class WasmGenerator {
     constexpr uint32_t kMaxLocals = 32;
     locals_.resize(data->get<uint8_t>() % kMaxLocals);
     for (ValueType& local : locals_) {
-      local = GetValueType(data);
+      local = GetValueType(builder_->builder()->NumTypes(), data,
+                           liftoff_as_reference_);
       fn->AddLocal(local);
     }
   }
@@ -832,7 +845,7 @@ class WasmGenerator {
   std::vector<int> try_blocks_;
   std::vector<int> catch_blocks_;
   bool has_simd_;
-
+  bool liftoff_as_reference_;
   static constexpr uint32_t kMaxRecursionDepth = 64;
 
   bool recursion_limit_reached() {
@@ -1561,7 +1574,8 @@ std::vector<ValueType> WasmGenerator::GenerateTypes(DataRange* data) {
   std::vector<ValueType> types;
   int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
   for (int i = 0; i < num_params; ++i) {
-    types.push_back(GetValueType(data));
+    types.push_back(GetValueType(builder_->builder()->NumTypes(), data,
+                                 liftoff_as_reference_));
   }
   return types;
 }
@@ -1615,7 +1629,8 @@ void WasmGenerator::ConsumeAndGenerate(
 
 enum SigKind { kFunctionSig, kExceptionSig };
 
-FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind) {
+FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
+                         uint32_t num_types, bool liftoff_as_reference) {
   // Generate enough parameters to spill some to the stack.
   int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
   int num_returns = sig_kind == kFunctionSig
@@ -1623,8 +1638,12 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind) {
                         : 0;
 
   FunctionSig::Builder builder(zone, num_returns, num_params);
-  for (int i = 0; i < num_returns; ++i) builder.AddReturn(GetValueType(data));
-  for (int i = 0; i < num_params; ++i) builder.AddParam(GetValueType(data));
+  for (int i = 0; i < num_returns; ++i) {
+    builder.AddReturn(GetValueType(num_types, data, liftoff_as_reference));
+  }
+  for (int i = 0; i < num_params; ++i) {
+    builder.AddParam(GetValueType(num_types, data, liftoff_as_reference));
+  }
   return builder.Build();
 }
 
@@ -1646,7 +1665,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     int num_functions = 1 + (range.get<uint8_t>() % kMaxFunctions);
 
     for (int i = 1; i < num_functions; ++i) {
-      FunctionSig* sig = GenerateSig(zone, &range, kFunctionSig);
+      FunctionSig* sig = GenerateSig(zone, &range, kFunctionSig,
+                                     builder.NumTypes(), liftoff_as_reference);
       uint32_t signature_index = builder.AddSignature(sig);
       function_signatures.push_back(signature_index);
     }
@@ -1659,40 +1679,11 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     int num_exceptions = 1 + (range.get<uint8_t>() % kMaxExceptions);
     for (int i = 0; i < num_exceptions; ++i) {
-      FunctionSig* sig = GenerateSig(zone, &range, kExceptionSig);
+      FunctionSig* sig = GenerateSig(zone, &range, kExceptionSig,
+                                     builder.NumTypes(), liftoff_as_reference);
       builder.AddException(sig);
     }
 
-    for (int i = 0; i < num_globals; ++i) {
-      ValueType type = GetValueType(&range);
-      // 1/8 of globals are immutable.
-      const bool mutability = (range.get<uint8_t>() % 8) != 0;
-      builder.AddGlobal(type, mutability, WasmInitExpr());
-      globals.push_back(type);
-      if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
-    }
-
-    for (int i = 0; i < num_functions; ++i) {
-      DataRange function_range =
-          i == num_functions - 1 ? std::move(range) : range.split();
-
-      FunctionSig* sig = builder.GetSignature(function_signatures[i]);
-      WasmFunctionBuilder* f = builder.AddFunction(sig);
-
-      WasmGenerator gen(f, function_signatures, globals, mutable_globals,
-                        &function_range);
-      base::Vector<const ValueType> return_types(sig->returns().begin(),
-                                                 sig->return_count());
-      gen.Generate(return_types, &function_range);
-      if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return false;
-      f->Emit(kExprEnd);
-      if (i == 0) builder.AddExport(base::CStrVector("main"), f);
-    }
-
-    builder.AllocateIndirectFunctions(num_functions);
-    for (int i = 0; i < num_functions; ++i) {
-      builder.SetIndirectFunction(i, i);
-    }
     if (liftoff_as_reference) {
       uint32_t count = 4;
       StructType::Builder struct_builder(zone, count);
@@ -1710,6 +1701,38 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       builder.AddArrayType(array_fuzI64);
       builder.AddArrayType(array_fuzF32);
       builder.AddArrayType(array_fuzF64);
+    }
+
+    for (int i = 0; i < num_globals; ++i) {
+      ValueType type =
+          GetValueType(builder.NumTypes(), &range, liftoff_as_reference);
+      // 1/8 of globals are immutable.
+      const bool mutability = (range.get<uint8_t>() % 8) != 0;
+      builder.AddGlobal(type, mutability, WasmInitExpr());
+      globals.push_back(type);
+      if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
+    }
+
+    for (int i = 0; i < num_functions; ++i) {
+      DataRange function_range =
+          i == num_functions - 1 ? std::move(range) : range.split();
+
+      FunctionSig* sig = builder.GetSignature(function_signatures[i]);
+      WasmFunctionBuilder* f = builder.AddFunction(sig);
+
+      WasmGenerator gen(f, function_signatures, globals, mutable_globals,
+                        &function_range, liftoff_as_reference);
+      base::Vector<const ValueType> return_types(sig->returns().begin(),
+                                                 sig->return_count());
+      gen.Generate(return_types, &function_range);
+      if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return false;
+      f->Emit(kExprEnd);
+      if (i == 0) builder.AddExport(base::CStrVector("main"), f);
+    }
+
+    builder.AllocateIndirectFunctions(num_functions);
+    for (int i = 0; i < num_functions; ++i) {
+      builder.SetIndirectFunction(i, i);
     }
     builder.SetMaxMemorySize(32);
     // We enable shared memory to be able to test atomics.

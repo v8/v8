@@ -295,6 +295,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   int NumExceptions() { return static_cast<int>(exceptions_.size()); }
 
+  int NumTypes() { return static_cast<int>(types_.size()); }
+
   FunctionSig* GetExceptionType(int index) {
     return types_[exceptions_[index]].sig;
   }
