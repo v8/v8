@@ -294,14 +294,10 @@ TEST_F(ConcurrentSweeperTest, DestroyLargePageOnMainThread) {
   auto* object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
   auto* page = BasePage::FromPayload(object);
 
-  fprintf(stderr, "Original page: %p\n", page);
-
   StartSweeping();
 
   // Allocating another large object should not race here.
-  auto* a = MakeGarbageCollected<GCedType>(GetAllocationHandle());
-
-  fprintf(stderr, "Other page: %p\n", BasePage::FromPayload(a));
+  MakeGarbageCollected<GCedType>(GetAllocationHandle());
 
   // Wait for concurrent sweeping to finish.
   WaitForConcurrentSweeping();
