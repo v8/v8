@@ -364,6 +364,7 @@ class JSTypedArray
 #endif
 
  private:
+  template <typename IsolateT>
   friend class Deserializer;
   friend class Factory;
 

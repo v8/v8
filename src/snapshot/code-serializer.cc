@@ -4,12 +4,16 @@
 
 #include "src/snapshot/code-serializer.h"
 
+#include <memory>
+
 #include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -277,18 +281,39 @@ class StressOffThreadDeserializeThread final : public base::Thread {
 
   void Run() final {
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
+    UnparkedScope unparked_scope(&local_isolate);
+    LocalHandleScope handle_scope(&local_isolate);
+
     MaybeHandle<SharedFunctionInfo> local_maybe_result =
-        ObjectDeserializer::DeserializeSharedFunctionInfoOffThread(
-            &local_isolate, scd_, local_isolate.factory()->empty_string());
+        OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
+            &local_isolate, scd_, &scripts_);
 
     maybe_result_ =
         local_isolate.heap()->NewPersistentMaybeHandle(local_maybe_result);
+
+    persistent_handles_ = local_isolate.heap()->DetachPersistentHandles();
+  }
+
+  void Finalize(Isolate* isolate) {
+    Handle<WeakArrayList> list = isolate->factory()->script_list();
+    for (Handle<Script> script : scripts_) {
+      DCHECK(persistent_handles_->Contains(script.location()));
+      list = WeakArrayList::AddToEnd(isolate, list,
+                                     MaybeObjectHandle::Weak(script));
+    }
+    isolate->heap()->SetRootScriptList(*list);
+    Handle<SharedFunctionInfo> result;
+    if (maybe_result_.ToHandle(&result)) {
+      maybe_result_ = handle(*result, isolate);
+    }
   }
 
  private:
   Isolate* isolate_;
   const SerializedCodeData* scd_;
   MaybeHandle<SharedFunctionInfo> maybe_result_;
+  std::vector<Handle<Script>> scripts_;
+  std::unique_ptr<PersistentHandles> persistent_handles_;
 };
 }  // namespace
 
@@ -315,12 +340,12 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   // Deserialize.
   MaybeHandle<SharedFunctionInfo> maybe_result;
-  // TODO(leszeks): Add LocalHeap support to deserializer
-  if (false && FLAG_stress_background_compile) {
+  if (FLAG_stress_background_compile) {
     StressOffThreadDeserializeThread thread(isolate, &scd);
     CHECK(thread.Start());
     thread.Join();
 
+    thread.Finalize(isolate);
     maybe_result = thread.maybe_result();
 
     // Fix-up result script source.

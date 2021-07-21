@@ -26,6 +26,13 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind,
 
 LocalIsolate::~LocalIsolate() = default;
 
+void LocalIsolate::RegisterDeserializerStarted() {
+  return isolate_->RegisterDeserializerStarted();
+}
+void LocalIsolate::RegisterDeserializerFinished() {
+  return isolate_->RegisterDeserializerFinished();
+}
+
 int LocalIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }
 
 #if V8_SFI_HAS_UNIQUE_ID

@@ -172,7 +172,8 @@ class String : public TorqueGeneratedString<String, Name> {
     friend class IterableSubString;
   };
 
-  void MakeThin(Isolate* isolate, String canonical);
+  template <typename IsolateT>
+  void MakeThin(IsolateT* isolate, String canonical);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(
@@ -570,6 +571,8 @@ class String : public TorqueGeneratedString<String, Name> {
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
   V8_EXPORT_PRIVATE bool SlowEquals(String other) const;
+  V8_EXPORT_PRIVATE bool SlowEquals(
+      String other, const SharedStringAccessGuardIfNeeded&) const;
 
   V8_EXPORT_PRIVATE static bool SlowEquals(Isolate* isolate, Handle<String> one,
                                            Handle<String> two);
@@ -580,6 +583,8 @@ class String : public TorqueGeneratedString<String, Name> {
 
   // Compute and set the hash code.
   V8_EXPORT_PRIVATE uint32_t ComputeAndSetHash();
+  V8_EXPORT_PRIVATE uint32_t
+  ComputeAndSetHash(const SharedStringAccessGuardIfNeeded&);
 
   TQ_OBJECT_CONSTRUCTORS(String)
 };
