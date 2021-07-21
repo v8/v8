@@ -1280,12 +1280,8 @@
 
 ##############################################################################
 ['variant == turboprop or variant == turboprop_as_toptier or variant == future or deopt_fuzzer or (tsan and not concurrent_marking)', {
-  # Deopts differently than TurboFan.
-  'compiler/native-context-specialization-hole-check': [SKIP],
-  'compiler/number-comparison-truncations': [SKIP],
-  'compiler/redundancy-elimination': [SKIP],
+#  # Deopts differently than TurboFan.
   'compiler/regress-9945-*': [SKIP],
-  'es6/super-ic-opt-no-turboprop': [SKIP],
 
   # Static asserts for optimizations don't hold due to removed optimization
   # phases.
@@ -1303,28 +1299,9 @@
   'compiler/serializer-feedback-propagation-*': [SKIP],
   'compiler/serializer-transition-propagation': [SKIP],
 
-  # Some tests rely on inlining.
+  # Some tests rely on TurboFan inlining heuristics.
   'compiler/call-with-arraylike-or-spread*': [SKIP],
-  'compiler/inlined-call-polymorphic': [SKIP],
   'compiler/opt-higher-order-functions': [SKIP],
-  'regress/regress-1049982-1': [SKIP],
-  'regress/regress-1049982-2': [SKIP],
-  'es6/iterator-eager-deopt': [SKIP],
-
-  # In turboprop we reuse the optimized code on soft deopt. The following tests
-  # test for a soft deopt and they won't work in TurboProp.
-  'deopt-recursive-soft-once': [SKIP],
-  'regress/regress-3709': [SKIP],
-  'regress/regress-5790': [SKIP],
-
-  # const field tracking is disabled in turboprop
-  'const-field-tracking': [SKIP],
-
-  # Dynamic map checks doesn't use information from maps so we don't inline
-  # array builtins or track field representation.
-  'compiler/deopt-inlined-from-call': [SKIP],
-  'compiler/field-representation-tracking': [SKIP],
-  'field-type-tracking': [SKIP],
 
   # Tests failing for the lack of function context specialization in Turboprop.
   'compiler/abstract-equal-receiver': [SKIP],
