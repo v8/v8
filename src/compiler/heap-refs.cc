@@ -1163,11 +1163,7 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
 
   Handle<JSFunction> f = Handle<JSFunction>::cast(object());
 
-  if (*context_->object() != f->context()) {
-    TRACE_BROKER_MISSING(broker, "JSFunction::context");
-    return false;
-  }
-
+  CHECK_EQ(*context_->object(), f->context());
   CHECK_EQ(*native_context_->object(), f->native_context());
   CHECK_EQ(*shared_->object(), f->shared());
 
