@@ -567,6 +567,11 @@ class Heap {
 
   V8_EXPORT_PRIVATE static bool IsLargeObject(HeapObject object);
 
+  // This method supports the deserialization allocator.  All allocations
+  // are word-aligned.  The method should never fail to allocate since the
+  // total space requirements of the deserializer are known at build time.
+  inline Address DeserializerAllocate(AllocationType type, int size_in_bytes);
+
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   V8_EXPORT_PRIVATE FixedArrayBase LeftTrimFixedArray(FixedArrayBase obj,
@@ -2100,12 +2105,6 @@ class Heap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kWordAligned);
 
-  // Call AllocateRawWith with kRetryOrFail. Matches the method in LocalHeap.
-  V8_WARN_UNUSED_RESULT inline Address AllocateRawOrFail(
-      int size, AllocationType allocation,
-      AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kWordAligned);
-
   // This method will try to perform an allocation of a given size of a given
   // AllocationType. If the allocation fails, a regular full garbage collection
   // is triggered and the allocation is retried. This is performed multiple
@@ -2528,7 +2527,6 @@ class Heap {
 
   // The allocator interface.
   friend class Factory;
-  template <typename IsolateT>
   friend class Deserializer;
 
   // The Isolate constructs us.
@@ -2582,6 +2580,8 @@ class V8_NODISCARD AlwaysAllocateScope {
 
  private:
   friend class AlwaysAllocateScopeForTesting;
+  friend class Deserializer;
+  friend class DeserializerAllocator;
   friend class Evacuator;
   friend class Heap;
   friend class Isolate;

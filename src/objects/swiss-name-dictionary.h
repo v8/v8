@@ -133,8 +133,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary : public HeapObject {
   static Handle<SwissNameDictionary> Rehash(IsolateT* isolate,
                                             Handle<SwissNameDictionary> table,
                                             int new_capacity);
-  template <typename IsolateT>
-  void Rehash(IsolateT* isolate);
+  void Rehash(Isolate* isolate);
 
   inline void SetHash(int hash);
   inline int Hash();

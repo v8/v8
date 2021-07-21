@@ -5,7 +5,6 @@
 #include "src/logging/local-logger.h"
 
 #include "src/execution/isolate.h"
-#include "src/objects/map.h"
 
 namespace v8 {
 namespace internal {
@@ -27,10 +26,6 @@ void LocalLogger::CodeLinePosInfoRecordEvent(Address code_start,
                                              ByteArray source_position_table) {
   logger_->CodeLinePosInfoRecordEvent(code_start, source_position_table);
 }
-
-void LocalLogger::MapCreate(Map map) { logger_->MapCreate(map); }
-
-void LocalLogger::MapDetails(Map map) { logger_->MapDetails(map); }
 
 }  // namespace internal
 }  // namespace v8

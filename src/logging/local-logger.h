@@ -25,9 +25,6 @@ class LocalLogger {
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray source_position_table);
 
-  void MapCreate(Map map);
-  void MapDetails(Map map);
-
  private:
   Logger* logger_;
   bool is_logging_;

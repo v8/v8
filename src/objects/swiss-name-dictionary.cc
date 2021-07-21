@@ -207,8 +207,7 @@ Handle<SwissNameDictionary> SwissNameDictionary::Shrink(
 // storing it somewhere in the main table or the meta table, for those
 // SwissNameDictionaries that we know will be in-place rehashed, most notably
 // those stored in the snapshot.
-template <typename IsolateT>
-void SwissNameDictionary::Rehash(IsolateT* isolate) {
+void SwissNameDictionary::Rehash(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
 
   struct Entry {
@@ -307,10 +306,6 @@ SwissNameDictionary::Rehash(LocalIsolate* isolate,
 template V8_EXPORT_PRIVATE Handle<SwissNameDictionary>
 SwissNameDictionary::Rehash(Isolate* isolate, Handle<SwissNameDictionary> table,
                             int new_capacity);
-
-template V8_EXPORT_PRIVATE void SwissNameDictionary::Rehash(
-    LocalIsolate* isolate);
-template V8_EXPORT_PRIVATE void SwissNameDictionary::Rehash(Isolate* isolate);
 
 constexpr int SwissNameDictionary::kInitialCapacity;
 constexpr int SwissNameDictionary::kGroupWidth;

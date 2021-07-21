@@ -17,8 +17,7 @@ class Isolate;
 
 // Deserializes the context-dependent object graph rooted at a given object.
 // The ContextDeserializer is not expected to deserialize any code objects.
-class V8_EXPORT_PRIVATE ContextDeserializer final
-    : public Deserializer<Isolate> {
+class V8_EXPORT_PRIVATE ContextDeserializer final : public Deserializer {
  public:
   static MaybeHandle<Context> DeserializeContext(
       Isolate* isolate, const SnapshotData* data, bool can_rehash,

@@ -20,8 +20,7 @@ class StringComparator {
     State(const State&) = delete;
     State& operator=(const State&) = delete;
 
-    void Init(String string,
-              const SharedStringAccessGuardIfNeeded& access_guard);
+    void Init(String string);
 
     inline void VisitOneByteString(const uint8_t* chars, int length) {
       is_one_byte_ = true;
@@ -35,8 +34,7 @@ class StringComparator {
       length_ = length;
     }
 
-    void Advance(int consumed,
-                 const SharedStringAccessGuardIfNeeded& access_guard);
+    void Advance(int consumed);
 
     ConsStringIterator iter_;
     bool is_one_byte_;
@@ -59,8 +57,7 @@ class StringComparator {
     return CompareCharsEqual(a, b, to_check);
   }
 
-  bool Equals(String string_1, String string_2,
-              const SharedStringAccessGuardIfNeeded& access_guard);
+  bool Equals(String string_1, String string_2);
 
  private:
   State state_1_;

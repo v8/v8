@@ -335,11 +335,14 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   UNREACHABLE();
 }
 
-Address Heap::AllocateRawOrFail(int size, AllocationType allocation,
-                                AllocationOrigin origin,
-                                AllocationAlignment alignment) {
-  return AllocateRawWith<kRetryOrFail>(size, allocation, origin, alignment)
-      .address();
+Address Heap::DeserializerAllocate(AllocationType type, int size_in_bytes) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+    AllocationResult allocation = tp_heap_->Allocate(
+        size_in_bytes, type, AllocationAlignment::kDoubleAligned);
+    return allocation.ToObjectChecked().ptr();
+  } else {
+    UNIMPLEMENTED();  // unimplemented
+  }
 }
 
 void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {
