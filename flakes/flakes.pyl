@@ -20,6 +20,37 @@
 [
   {
     "bisect_builder_group": "client.v8.clusterfuzz",
+    "bisect_buildername": "V8 Clusterfuzz Linux64 - debug builder",
+    "bug_url": "https://crbug.com/v8/12010",
+    "extra_args": [
+      "--extra-flags",
+      "--interrupt-budget=100",
+      "--extra-flags",
+      "--no-lazy-feedback-allocation",
+      "--extra-flags",
+      "--regexp-interpret-all",
+      "--extra-flags",
+      "--stress-concurrent-inlining",
+      "--extra-flags",
+      "--stress-compaction-random",
+      "--extra-flags",
+      "--fuzzer-random-seed=1871466975",
+    ],
+    "isolated_name": "run-num-fuzzer",
+    "num_shards": 2,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64",
+      "os:Ubuntu-18.04",
+      "pool:chromium.tests",
+    ],
+    "test_name": "mjsunit/compiler/regress-890057",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "default",
+  },
+  {
+    "bisect_builder_group": "client.v8.clusterfuzz",
     "bisect_buildername": "V8 Clusterfuzz Linux64 TSAN - release builder",
     "bug_url": "https://crbug.com/v8/11953",
     "extra_args": [
