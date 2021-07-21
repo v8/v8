@@ -254,17 +254,12 @@ DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 // faster creation of RegExp exec results.
 // This class just holds constants used when creating the result.
 // After creation the result must be treated as a JSArray in all regards.
-class JSRegExpResult : public JSArray {
+class JSRegExpResult
+    : public TorqueGeneratedJSRegExpResult<JSRegExpResult, JSArray> {
  public:
-  DECL_CAST(JSRegExpResult)
-
   // TODO(joshualitt): We would like to add printers and verifiers to
   // JSRegExpResult, and maybe JSRegExpResultIndices, but both have the same
   // instance type as JSArray.
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kHeaderSize,
-                                TORQUE_GENERATED_JS_REG_EXP_RESULT_FIELDS)
 
   // Indices of in-object properties.
   static const int kIndexIndex = 0;
@@ -279,25 +274,20 @@ class JSRegExpResult : public JSArray {
 
   static const int kMapIndexInContext = Context::REGEXP_RESULT_MAP_INDEX;
 
-  OBJECT_CONSTRUCTORS(JSRegExpResult, JSArray);
+  TQ_OBJECT_CONSTRUCTORS(JSRegExpResult)
 };
 
-class JSRegExpResultWithIndices : public JSRegExpResult {
+class JSRegExpResultWithIndices
+    : public TorqueGeneratedJSRegExpResultWithIndices<JSRegExpResultWithIndices,
+                                                      JSRegExpResult> {
  public:
-  DECL_CAST(JSRegExpResultWithIndices)
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSRegExpResult::kSize,
-      TORQUE_GENERATED_JS_REG_EXP_RESULT_WITH_INDICES_FIELDS)
-
   static_assert(
       JSRegExpResult::kInObjectPropertyCount == 6,
       "JSRegExpResultWithIndices must be a subclass of JSRegExpResult");
   static const int kIndicesIndex = 6;
   static const int kInObjectPropertyCount = 7;
 
-  OBJECT_CONSTRUCTORS(JSRegExpResultWithIndices, JSRegExpResult);
+  TQ_OBJECT_CONSTRUCTORS(JSRegExpResultWithIndices)
 };
 
 // JSRegExpResultIndices is just a JSArray with a specific initial map.
@@ -306,14 +296,10 @@ class JSRegExpResultWithIndices : public JSRegExpResult {
 // faster creation of RegExp exec results.
 // This class just holds constants used when creating the result.
 // After creation the result must be treated as a JSArray in all regards.
-class JSRegExpResultIndices : public JSArray {
+class JSRegExpResultIndices
+    : public TorqueGeneratedJSRegExpResultIndices<JSRegExpResultIndices,
+                                                  JSArray> {
  public:
-  DECL_CAST(JSRegExpResultIndices)
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSArray::kHeaderSize, TORQUE_GENERATED_JS_REG_EXP_RESULT_INDICES_FIELDS)
-
   static Handle<JSRegExpResultIndices> BuildIndices(
       Isolate* isolate, Handle<RegExpMatchInfo> match_info,
       Handle<Object> maybe_names);
@@ -325,7 +311,7 @@ class JSRegExpResultIndices : public JSArray {
   // Descriptor index of groups.
   static const int kGroupsDescriptorIndex = 1;
 
-  OBJECT_CONSTRUCTORS(JSRegExpResultIndices, JSArray);
+  TQ_OBJECT_CONSTRUCTORS(JSRegExpResultIndices)
 };
 
 }  // namespace internal

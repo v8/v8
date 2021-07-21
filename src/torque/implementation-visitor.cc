@@ -3855,11 +3855,13 @@ namespace {
 class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
  public:
   ClassFieldOffsetGenerator(std::ostream& header, std::ostream& inline_header,
-                            const ClassType* type, std::string gen_name)
+                            const ClassType* type, std::string gen_name,
+                            const ClassType* parent)
       : FieldOffsetsGenerator(type),
         hdr_(header),
         inl_(inline_header),
-        previous_field_end_("P::kHeaderSize"),
+        previous_field_end_((parent && parent->IsShape()) ? "P::kSize"
+                                                          : "P::kHeaderSize"),
         gen_name_(gen_name) {}
   void WriteField(const Field& f, const std::string& size_string) override {
     std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
@@ -3981,7 +3983,7 @@ base::Optional<std::vector<Field>> GetOrderedUniqueIndexFields(
 
 void CppClassGenerator::GenerateClass() {
   // Is<name>_NonInline(HeapObject)
-  {
+  if (!type_->IsShape()) {
     cpp::Function f("Is"s + name_ + "_NonInline");
     f.SetDescription("Alias for HeapObject::Is"s + name_ +
                      "() that avoids inlining.");
@@ -4046,7 +4048,8 @@ void CppClassGenerator::GenerateClass() {
   }
 
   hdr_ << "\n";
-  ClassFieldOffsetGenerator g(hdr_, inl_, type_, gen_name_);
+  ClassFieldOffsetGenerator g(hdr_, inl_, type_, gen_name_,
+                              type_->GetSuperClass());
   for (auto f : type_->fields()) {
     CurrentSourcePosition::Scope scope(f.pos);
     g.RecordOffsetFor(f);
@@ -4174,6 +4177,15 @@ void CppClassGenerator::GenerateClassCasts() {
 }
 
 void CppClassGenerator::GenerateClassConstructors() {
+  const ClassType* typecheck_type = type_;
+  while (typecheck_type->IsShape()) {
+    typecheck_type = typecheck_type->GetSuperClass();
+
+    // Shapes have already been checked earlier to inherit from JSObject, so we
+    // should have found an appropriate type.
+    DCHECK(typecheck_type);
+  }
+
   hdr_ << " public:\n";
   hdr_ << "  template <class DAlias = D>\n";
   hdr_ << "  constexpr " << gen_name_ << "() : P() {\n";
@@ -4194,7 +4206,8 @@ void CppClassGenerator::GenerateClassConstructors() {
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
   inl_ << "  : P(ptr) {\n";
-  inl_ << "  SLOW_DCHECK(Is" << name_ << "_NonInline(*this));\n";
+  inl_ << "  SLOW_DCHECK(Is" << typecheck_type->name()
+       << "_NonInline(*this));\n";
   inl_ << "}\n";
 
   inl_ << "template<class D, class P>\n";
@@ -4204,7 +4217,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   inl_ << "  SLOW_DCHECK("
        << "(allow_smi == HeapObject::AllowInlineSmiStorage::kAllowBeingASmi"
           " && this->IsSmi()) || Is"
-       << name_ << "_NonInline(*this));\n";
+       << typecheck_type->name() << "_NonInline(*this));\n";
   inl_ << "}\n";
 }
 
@@ -4603,9 +4616,11 @@ void ImplementationVisitor::GenerateClassDefinitions(
     for (const ClassType* type : TypeOracle::GetClasses()) {
       auto& streams = GlobalContext::GeneratedPerFile(type->AttributedToFile());
       std::ostream& header = streams.class_definition_headerfile;
-      header << "class " << type->GetGeneratedTNodeTypeName() << ";\n";
-      forward_declarations << "class " << type->GetGeneratedTNodeTypeName()
-                           << ";\n";
+      std::string name = type->GenerateCppClassDefinitions()
+                             ? type->name()
+                             : type->GetGeneratedTNodeTypeName();
+      header << "class " << name << ";\n";
+      forward_declarations << "class " << name << ";\n";
     }
 
     for (const ClassType* type : TypeOracle::GetClasses()) {

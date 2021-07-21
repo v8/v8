@@ -14,14 +14,12 @@ macro IsJSArgumentsObjectWithLength(implicit context: Context)(o: Object):
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
-@doNotGenerateCppClass
 extern shape JSSloppyArgumentsObject extends JSArgumentsObject {
   length: JSAny;
   callee: JSAny;
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
-@doNotGenerateCppClass
 extern shape JSStrictArgumentsObject extends JSArgumentsObject {
   length: JSAny;
 }
