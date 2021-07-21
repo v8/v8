@@ -575,15 +575,17 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
       page.space().AddPage(&page);
       return true;
     }
-    if (!header->IsFinalizable()) {
-      LargePage::Destroy(&page);
-      return true;
+    std::vector<HeapObjectHeader*> unfinalized_objects;
+    if (header->IsFinalizable()) {
+      unfinalized_objects.push_back(page.ObjectHeader());
     }
     const size_t space_index = page.space().index();
     DCHECK_GT(states_->size(), space_index);
     SpaceState& state = (*states_)[space_index];
+    // Avoid directly destroying large pages here as counter updates and
+    // backend access in BasePage::Destroy() are not concurrency safe.
     state.swept_unfinalized_pages.Push(
-        {&page, {page.ObjectHeader()}, {}, {}, true});
+        {&page, std::move(unfinalized_objects), {}, {}, true});
     return true;
   }
 
