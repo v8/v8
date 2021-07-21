@@ -413,19 +413,15 @@ class FieldRepresentationDependency final : public CompilationDependency {
                                 Representation representation)
       : owner_(owner),
         descriptor_(descriptor),
-        representation_(representation) {}
+        representation_(representation) {
+    DCHECK_EQ(owner.object()->FindFieldOwner(owner.isolate(), descriptor),
+              *owner.object());
+  }
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
-    Handle<Map> owner = owner_.object();
-    Isolate* isolate = owner_.isolate();
-
-    // TODO(v8:11670): Consider turn this back into a CHECK inside the
-    // constructor, if possible in light of concurrent heap state
-    // modifications.
-    if (owner->FindFieldOwner(isolate, descriptor_) != *owner) return false;
-
-    return representation_.Equals(owner->instance_descriptors(isolate)
+    return representation_.Equals(owner_.object()
+                                      ->instance_descriptors(owner_.isolate())
                                       .GetDetails(descriptor_)
                                       .representation());
   }
@@ -453,21 +449,16 @@ class FieldTypeDependency final : public CompilationDependency {
  public:
   FieldTypeDependency(const MapRef& owner, InternalIndex descriptor,
                       const ObjectRef& type)
-      : owner_(owner), descriptor_(descriptor), type_(type) {}
+      : owner_(owner), descriptor_(descriptor), type_(type) {
+    DCHECK_EQ(owner.object()->FindFieldOwner(owner.isolate(), descriptor),
+              *owner.object());
+  }
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
-    Handle<Map> owner = owner_.object();
-    Isolate* isolate = owner_.isolate();
-
-    // TODO(v8:11670): Consider turn this back into a CHECK inside the
-    // constructor, if possible in light of concurrent heap state
-    // modifications.
-    if (owner->FindFieldOwner(isolate, descriptor_) != *owner) return false;
-
-    Handle<Object> type = type_.object();
-    return *type ==
-           owner->instance_descriptors(isolate).GetFieldType(descriptor_);
+    return *type_.object() == owner_.object()
+                                  ->instance_descriptors(owner_.isolate())
+                                  .GetFieldType(descriptor_);
   }
 
   void Install(Handle<Code> code) const override {
@@ -485,21 +476,18 @@ class FieldTypeDependency final : public CompilationDependency {
 class FieldConstnessDependency final : public CompilationDependency {
  public:
   FieldConstnessDependency(const MapRef& owner, InternalIndex descriptor)
-      : owner_(owner), descriptor_(descriptor) {}
+      : owner_(owner), descriptor_(descriptor) {
+    DCHECK_EQ(owner.object()->FindFieldOwner(owner.isolate(), descriptor),
+              *owner.object());
+  }
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
-    Handle<Map> owner = owner_.object();
-    Isolate* isolate = owner_.isolate();
-
-    // TODO(v8:11670): Consider turn this back into a CHECK inside the
-    // constructor, if possible in light of concurrent heap state
-    // modifications.
-    if (owner->FindFieldOwner(isolate, descriptor_) != *owner) return false;
-
-    return PropertyConstness::kConst == owner->instance_descriptors(isolate)
-                                            .GetDetails(descriptor_)
-                                            .constness();
+    return PropertyConstness::kConst ==
+           owner_.object()
+               ->instance_descriptors(owner_.isolate())
+               .GetDetails(descriptor_)
+               .constness();
   }
 
   void Install(Handle<Code> code) const override {

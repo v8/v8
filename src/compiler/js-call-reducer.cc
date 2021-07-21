@@ -7993,28 +7993,23 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
       access_info_factory.FinalizePropertyAccessInfosAsOne(access_infos,
                                                            AccessMode::kLoad);
   if (ai_exec.IsInvalid()) return inference.NoChange();
+  if (!ai_exec.IsFastDataConstant()) return inference.NoChange();
 
-  // If "exec" has been modified on {regexp}, we can't do anything.
-  if (ai_exec.IsFastDataConstant()) {
-    base::Optional<JSObjectRef> holder = ai_exec.holder();
-    // Do not reduce if the exec method is not on the prototype chain.
-    if (!holder.has_value()) return inference.NoChange();
+  // Do not reduce if the exec method is not on the prototype chain.
+  base::Optional<JSObjectRef> holder = ai_exec.holder();
+  if (!holder.has_value()) return inference.NoChange();
 
-    // Bail out if the exec method is not the original one.
-    base::Optional<ObjectRef> constant = holder->GetOwnFastDataProperty(
-        ai_exec.field_representation(), ai_exec.field_index(), dependencies());
-    if (!constant.has_value() ||
-        !constant->equals(native_context().regexp_exec_function())) {
-      return inference.NoChange();
-    }
-
-    // Add proper dependencies on the {regexp}s [[Prototype]]s.
-    dependencies()->DependOnStablePrototypeChains(
-        ai_exec.lookup_start_object_maps(), kStartAtPrototype, holder.value());
-  } else {
-    // TODO(v8:11457) Support dictionary mode protoypes here.
+  // Bail out if the exec method is not the original one.
+  base::Optional<ObjectRef> constant = holder->GetOwnFastDataProperty(
+      ai_exec.field_representation(), ai_exec.field_index(), dependencies());
+  if (!constant.has_value() ||
+      !constant->equals(native_context().regexp_exec_function())) {
     return inference.NoChange();
   }
+
+  // Add proper dependencies on the {regexp}s [[Prototype]]s.
+  dependencies()->DependOnStablePrototypeChains(
+      ai_exec.lookup_start_object_maps(), kStartAtPrototype, holder.value());
 
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());

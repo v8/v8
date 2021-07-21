@@ -271,16 +271,22 @@ bool OptionalRefEquals(base::Optional<RefT> lhs, base::Optional<RefT> rhs) {
   return lhs->equals(rhs.value());
 }
 
+template <class T>
+void AppendVector(ZoneVector<T>* dst, const ZoneVector<T>& src) {
+  dst->insert(dst->end(), src.begin(), src.end());
+}
+
 }  // namespace
 
 bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
                                AccessMode access_mode, Zone* zone) {
-  if (this->kind_ != that->kind_) return false;
+  if (kind_ != that->kind_) return false;
   if (!OptionalRefEquals(holder_, that->holder_)) return false;
 
-  switch (this->kind_) {
+  switch (kind_) {
     case kInvalid:
-      return that->kind_ == kInvalid;
+      DCHECK_EQ(that->kind_, kInvalid);
+      return true;
 
     case kDataField:
     case kFastDataConstant: {
@@ -288,89 +294,70 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       // GetFieldAccessStubKey method here just like the ICs do
       // since that way we only compare the relevant bits of the
       // field indices).
-      if (this->field_index_.GetFieldAccessStubKey() ==
+      if (field_index_.GetFieldAccessStubKey() !=
           that->field_index_.GetFieldAccessStubKey()) {
-        switch (access_mode) {
-          case AccessMode::kHas:
-          case AccessMode::kLoad: {
-            if (!this->field_representation_.Equals(
-                    that->field_representation_)) {
-              if (this->field_representation_.IsDouble() ||
-                  that->field_representation_.IsDouble()) {
-                return false;
-              }
-              this->field_representation_ = Representation::Tagged();
-            }
-            if (!OptionalRefEquals(field_map_, that->field_map_)) {
-              field_map_ = {};
-            }
-            break;
-          }
-          case AccessMode::kStore:
-          case AccessMode::kStoreInLiteral: {
-            // For stores, the field map and field representation information
-            // must match exactly, otherwise we cannot merge the stores. We
-            // also need to make sure that in case of transitioning stores,
-            // the transition targets match.
-            if (!OptionalRefEquals(field_map_, that->field_map_) ||
-                !this->field_representation_.Equals(
-                    that->field_representation_) ||
-                !OptionalRefEquals(transition_map_, that->transition_map_)) {
+        return false;
+      }
+
+      switch (access_mode) {
+        case AccessMode::kHas:
+        case AccessMode::kLoad: {
+          if (!field_representation_.Equals(that->field_representation_)) {
+            if (field_representation_.IsDouble() ||
+                that->field_representation_.IsDouble()) {
               return false;
             }
-            break;
+            field_representation_ = Representation::Tagged();
           }
+          if (!OptionalRefEquals(field_map_, that->field_map_)) {
+            field_map_ = {};
+          }
+          break;
         }
-        this->field_type_ =
-            Type::Union(this->field_type_, that->field_type_, zone);
-        this->lookup_start_object_maps_.insert(
-            this->lookup_start_object_maps_.end(),
-            that->lookup_start_object_maps_.begin(),
-            that->lookup_start_object_maps_.end());
-        this->unrecorded_dependencies_.insert(
-            this->unrecorded_dependencies_.end(),
-            that->unrecorded_dependencies_.begin(),
-            that->unrecorded_dependencies_.end());
-        return true;
+        case AccessMode::kStore:
+        case AccessMode::kStoreInLiteral: {
+          // For stores, the field map and field representation information
+          // must match exactly, otherwise we cannot merge the stores. We
+          // also need to make sure that in case of transitioning stores,
+          // the transition targets match.
+          if (!OptionalRefEquals(field_map_, that->field_map_) ||
+              !field_representation_.Equals(that->field_representation_) ||
+              !OptionalRefEquals(transition_map_, that->transition_map_)) {
+            return false;
+          }
+          break;
+        }
       }
-      return false;
+
+      field_type_ = Type::Union(field_type_, that->field_type_, zone);
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
+      AppendVector(&unrecorded_dependencies_, that->unrecorded_dependencies_);
+      return true;
     }
 
     case kDictionaryProtoAccessorConstant:
     case kFastAccessorConstant: {
       // Check if we actually access the same constant.
-      if (OptionalRefEquals(constant_, that->constant_)) {
-        DCHECK(this->unrecorded_dependencies_.empty());
-        DCHECK(that->unrecorded_dependencies_.empty());
-        this->lookup_start_object_maps_.insert(
-            this->lookup_start_object_maps_.end(),
-            that->lookup_start_object_maps_.begin(),
-            that->lookup_start_object_maps_.end());
-        return true;
-      }
-      return false;
+      if (!OptionalRefEquals(constant_, that->constant_)) return false;
+
+      DCHECK(unrecorded_dependencies_.empty());
+      DCHECK(that->unrecorded_dependencies_.empty());
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
+      return true;
     }
 
     case kDictionaryProtoDataConstant: {
       DCHECK_EQ(AccessMode::kLoad, access_mode);
-      if (this->dictionary_index_ == that->dictionary_index_) {
-        this->lookup_start_object_maps_.insert(
-            this->lookup_start_object_maps_.end(),
-            that->lookup_start_object_maps_.begin(),
-            that->lookup_start_object_maps_.end());
-        return true;
-      }
-      return false;
+      if (dictionary_index_ != that->dictionary_index_) return false;
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
+      return true;
     }
 
     case kNotFound:
     case kStringLength: {
-      DCHECK(this->unrecorded_dependencies_.empty());
+      DCHECK(unrecorded_dependencies_.empty());
       DCHECK(that->unrecorded_dependencies_.empty());
-      this->lookup_start_object_maps_.insert(
-          this->lookup_start_object_maps_.end(),
-          that->lookup_start_object_maps_.begin(),
-          that->lookup_start_object_maps_.end());
+      AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
       return true;
     }
     case kModuleExport:
@@ -512,7 +499,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     constness = dependencies()->DependOnFieldConstness(map, descriptor);
   }
 
-  // TODO(v8:11670): Make FindFieldOwner and friends robust wrt concurrency.
+  // Note: FindFieldOwner may be called multiple times throughout one
+  // compilation. This is safe since its result is fixed for a given map and
+  // descriptor.
   MapRef field_owner_map = map.FindFieldOwner(descriptor);
 
   switch (constness) {
@@ -742,6 +731,11 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     MapRef map, NameRef name, AccessMode access_mode) const {
   CHECK(name.IsUniqueName());
 
+  // Dictionary property const tracking is unsupported when concurrent inlining
+  // is enabled.
+  CHECK_IMPLIES(V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+                !broker()->is_concurrent_inlining());
+
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker());
 
   if (access_mode == AccessMode::kHas && !map.object()->IsJSReceiverMap()) {
@@ -779,9 +773,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         DCHECK(!map.is_dictionary_map());
 
         // Don't bother optimizing stores to read-only properties.
-        if (details.IsReadOnly()) {
-          return Invalid();
-        }
+        if (details.IsReadOnly()) return Invalid();
+
         if (details.kind() == kData && holder.has_value()) {
           // This is a store to a property not found on the receiver but on a
           // prototype. According to ES6 section 9.1.9 [[Set]], we need to
@@ -790,6 +783,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
           return LookupTransition(receiver_map, name, holder);
         }
       }
+
       if (map.is_dictionary_map()) {
         DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 
@@ -806,6 +800,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         return ComputeDictionaryProtoAccessInfo(
             receiver_map, name, holder.value(), index, access_mode, details);
       }
+
       if (dictionary_prototype_on_chain) {
         // If V8_DICT_PROPERTY_CONST_TRACKING_BOOL was disabled, then a
         // dictionary prototype would have caused a bailout earlier.
@@ -843,6 +838,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // The property wasn't found on {map}. Look on the prototype if appropriate.
+    DCHECK(!index.is_found());
 
     // Don't search on the prototype chain for special indices in case of
     // integer indexed exotic objects (see ES6 section 9.4.5).

@@ -138,7 +138,12 @@ class PropertyAccessInfo final {
     DCHECK(!HasDictionaryHolder());
     return transition_map_;
   }
-  base::Optional<ObjectRef> constant() const { return constant_; }
+  base::Optional<ObjectRef> constant() const {
+    DCHECK_IMPLIES(constant_.has_value(),
+                   IsModuleExport() || IsFastAccessorConstant() ||
+                       IsDictionaryProtoAccessorConstant());
+    return constant_;
+  }
   FieldIndex field_index() const {
     DCHECK(!HasDictionaryHolder());
     return field_index_;

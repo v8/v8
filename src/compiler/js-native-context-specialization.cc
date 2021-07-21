@@ -453,8 +453,9 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
         access_info.field_representation(), access_info.field_index(),
         dependencies());
     if (!constant.has_value() || !constant->IsHeapObject() ||
-        !constant->AsHeapObject().map().is_callable())
+        !constant->AsHeapObject().map().is_callable()) {
       return NoChange();
+    }
 
     if (found_on_proto) {
       dependencies()->DependOnStablePrototypeChains(
@@ -731,8 +732,9 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
                                                            AccessMode::kLoad);
 
   // TODO(v8:11457) Support dictionary mode prototypes here.
-  if (access_info.IsInvalid() || access_info.HasDictionaryHolder())
+  if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
     return inference.NoChange();
+  }
 
   // Only optimize when {resolution} definitely doesn't have a "then" property.
   if (!access_info.IsNotFound()) return inference.NoChange();
