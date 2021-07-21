@@ -389,27 +389,36 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 // Layout description.
 #define WASM_INSTANCE_OBJECT_FIELDS(V)                                    \
   /* Often-accessed fields go first to minimize generated code size. */   \
+  /* Less than system pointer sized fields come first. */                 \
+  V(kImportedFunctionRefsOffset, kTaggedSize)                             \
+  V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
+  V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
+  /* Optional padding to align system pointer size fields */              \
+  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kMemoryStartOffset, kSystemPointerSize)                               \
   V(kMemorySizeOffset, kSizetSize)                                        \
   V(kMemoryMaskOffset, kSizetSize)                                        \
   V(kStackLimitAddressOffset, kSystemPointerSize)                         \
-  V(kImportedFunctionRefsOffset, kTaggedSize)                             \
   V(kImportedFunctionTargetsOffset, kSystemPointerSize)                   \
-  V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
   V(kIndirectFunctionTableTargetsOffset, kSystemPointerSize)              \
   V(kIndirectFunctionTableSigIdsOffset, kSystemPointerSize)               \
-  V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
-  /* Optional padding to align system pointer size fields */              \
-  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kGlobalsStartOffset, kSystemPointerSize)                              \
   V(kImportedMutableGlobalsOffset, kSystemPointerSize)                    \
   V(kIsolateRootOffset, kSystemPointerSize)                               \
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
+  /* Continue with system pointer size fields to maintain alignment. */   \
   V(kNewAllocationLimitAddressOffset, kSystemPointerSize)                 \
   V(kNewAllocationTopAddressOffset, kSystemPointerSize)                   \
   V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
   V(kOldAllocationTopAddressOffset, kSystemPointerSize)                   \
+  V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
+  V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
+  V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
+  V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
+  V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
+  V(kNumLiftoffFunctionCallsArrayOffset, kSystemPointerSize)              \
+  /* Less than system pointer size aligned fields are below. */           \
   V(kModuleObjectOffset, kTaggedSize)                                     \
   V(kExportsObjectOffset, kTaggedSize)                                    \
   V(kNativeContextOffset, kTaggedSize)                                    \
@@ -423,12 +432,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kExceptionsTableOffset, kTaggedSize)                                  \
   V(kWasmExternalFunctionsOffset, kTaggedSize)                            \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
-  V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
-  V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
-  V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
-  V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
-  V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
-  V(kNumLiftoffFunctionCallsArrayOffset, kSystemPointerSize)              \
   V(kBreakOnEntryOffset, kUInt8Size)                                      \
   /* More padding to make the header pointer-size aligned */              \
   V(kHeaderPaddingOffset, POINTER_SIZE_PADDING(kHeaderPaddingOffset))     \
