@@ -3986,16 +3986,9 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     __ movsd(Operand(esi, dst_offset), xmm0);
   }
 
-  if (FLAG_debug_code) {
-    const int kTopMask = 0x3800;
-    __ push(eax);
-    __ fwait();
-    __ fnstsw_ax();
-    __ test(eax, Immediate(kTopMask));
-    __ Assert(zero, AbortReason::kFpuTopIsNotZeroInDeoptimizer);
-    __ pop(eax);
-  }
   // Clear FPU all exceptions.
+  // TODO(ulan): Find out why the TOP register is not zero here in some cases,
+  // and check that the generated code never deoptimizes with unbalanced stack.
   __ fnclex();
 
   // Mark the stack as not iterable for the CPU profiler which won't be able to

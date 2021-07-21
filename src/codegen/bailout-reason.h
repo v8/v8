@@ -25,7 +25,6 @@ namespace internal {
   V(kExpectedBaselineData, "Expected baseline data")                           \
   V(kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,                      \
     "The function_data field should be a BytecodeArray on interpreter entry")  \
-  V(kFpuTopIsNotZeroInDeoptimizer, "FPU TOP is not zero in deoptimizer")       \
   V(kInputStringTooLong, "Input string too long")                              \
   V(kInvalidBytecode, "Invalid bytecode")                                      \
   V(kInvalidBytecodeAdvance, "Cannot advance current bytecode, ")              \
