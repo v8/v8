@@ -504,9 +504,6 @@
   # http://crbug/v8/10447
   'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9818
-  'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=10381
   'built-ins/Array/prototype/concat/arg-length-near-integer-limit': [FAIL],
 
