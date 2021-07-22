@@ -427,7 +427,13 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
     }
   }
 
-  if (MigrateDeprecated(isolate(), object)) use_ic = false;
+  // If we encounter an object with a deprecated map, we want to update the
+  // feedback vector with the migrated map.
+  // Mark ourselves as RECOMPUTE_HANDLER so that we don't turn megamorphic due
+  // to seeing the same map and handler.
+  if (MigrateDeprecated(isolate(), object)) {
+    UpdateState(object, name);
+  }
 
   JSObject::MakePrototypesFast(object, kStartAtReceiver, isolate());
   update_lookup_start_object_map(object);
