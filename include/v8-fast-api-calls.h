@@ -578,7 +578,7 @@ PRIMITIVE_C_TYPES(DEFINE_TYPE_INFO_TRAITS)
 
 #define SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA(T, Enum)                       \
   template <>                                                                 \
-  struct TypeInfoHelper<FastApiTypedArray<T>> {                               \
+  struct TypeInfoHelper<const FastApiTypedArray<T>&> {                        \
     static constexpr CTypeInfo::Flags Flags() {                               \
       return CTypeInfo::Flags::kNone;                                         \
     }                                                                         \
