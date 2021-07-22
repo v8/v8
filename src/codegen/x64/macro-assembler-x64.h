@@ -510,6 +510,21 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void StubPrologue(StackFrame::Type type);
   void Prologue();
 
+  // Helpers for argument handling
+  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
+  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
+  void DropArguments(Register count, Register scratch,
+                     ArgumentsCountType type = kCountIsInteger,
+                     ArgumentsCountMode mode = kCountExcludesReceiver);
+  void DropArgumentsAndPushNewReceiver(
+      Register argc, Register receiver, Register scratch,
+      ArgumentsCountType type = kCountIsInteger,
+      ArgumentsCountMode mode = kCountExcludesReceiver);
+  void DropArgumentsAndPushNewReceiver(
+      Register argc, Operand receiver, Register scratch,
+      ArgumentsCountType type = kCountIsInteger,
+      ArgumentsCountMode mode = kCountExcludesReceiver);
+
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cc, AbortReason reason);
@@ -694,6 +709,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.
   Register GetSmiConstant(Smi value);
+
+  // Drops arguments assuming that the return address was already popped.
+  void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,
+                     ArgumentsCountMode mode = kCountExcludesReceiver);
 };
 
 // MacroAssembler implements a collection of frequently used macros.

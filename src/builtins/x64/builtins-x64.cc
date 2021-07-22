@@ -129,10 +129,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  __ PopReturnAddressTo(rcx);
-  SmiIndex index = masm->SmiToIndex(rbx, rbx, kSystemPointerSizeLog2);
-  __ leaq(rsp, Operand(rsp, index.reg, index.scale, 1 * kSystemPointerSize));
-  __ PushReturnAddressFrom(rcx);
+  __ DropArguments(rbx, rcx, MacroAssembler::kCountIsSmi);
 
   __ ret(0);
 
@@ -281,10 +278,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ movq(rbx, Operand(rbp, ConstructFrameConstants::kLengthOffset));
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.
-  __ PopReturnAddressTo(rcx);
-  SmiIndex index = masm->SmiToIndex(rbx, rbx, kSystemPointerSizeLog2);
-  __ leaq(rsp, Operand(rsp, index.reg, index.scale, 1 * kSystemPointerSize));
-  __ PushReturnAddressFrom(rcx);
+  __ DropArguments(rbx, rcx, MacroAssembler::kCountIsSmi);
   __ ret(0);
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
@@ -880,10 +874,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  Register return_pc = scratch2;
-  __ PopReturnAddressTo(return_pc);
-  __ addq(rsp, params_size);
-  __ PushReturnAddressFrom(return_pc);
+  __ DropArguments(params_size, scratch2, MacroAssembler::kCountIsBytes,
+                   MacroAssembler::kCountIncludesReceiver);
 }
 
 // Tail-call |function_id| if |actual_marker| == |expected_marker|
@@ -1899,11 +1891,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
-    __ PopReturnAddressTo(rcx);
-    __ leaq(rsp,
-            Operand(rsp, rax, times_system_pointer_size, kSystemPointerSize));
-    __ Push(rdx);
-    __ PushReturnAddressFrom(rcx);
+    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx);
   }
 
   // ----------- S t a t e -------------
@@ -2006,11 +1994,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ j(below, &done, Label::kNear);
     __ movq(rbx, args[3]);  // argumentsList
     __ bind(&done);
-    __ PopReturnAddressTo(rcx);
-    __ leaq(rsp,
-            Operand(rsp, rax, times_system_pointer_size, kSystemPointerSize));
-    __ Push(rdx);
-    __ PushReturnAddressFrom(rcx);
+    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx);
   }
 
   // ----------- S t a t e -------------
@@ -2059,11 +2043,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ j(below, &done, Label::kNear);
     __ movq(rdx, args[3]);  // new.target
     __ bind(&done);
-    __ PopReturnAddressTo(rcx);
-    __ leaq(rsp,
-            Operand(rsp, rax, times_system_pointer_size, kSystemPointerSize));
-    __ PushRoot(RootIndex::kUndefinedValue);
-    __ PushReturnAddressFrom(rcx);
+    __ DropArgumentsAndPushNewReceiver(
+        rax, masm->RootAsOperand(RootIndex::kUndefinedValue), rcx);
   }
 
   // ----------- S t a t e -------------
@@ -3345,16 +3326,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // expected to be on the top of the stack).
   // We cannot use just the ret instruction for this, because we cannot pass the
   // number of slots to remove in a Register as an argument.
-  Register return_addr = rbx;
-  __ popq(return_addr);
-  Register caller_frame_slots_count = param_count;
-  // Add one to also pop the receiver. The receiver is passed to a JSFunction
-  // over the stack but is neither included in the number of parameters passed
-  // to this function nor in the number of parameters expected in this function.
-  __ addq(caller_frame_slots_count, Immediate(1));
-  __ shlq(caller_frame_slots_count, Immediate(kSystemPointerSizeLog2));
-  __ addq(rsp, caller_frame_slots_count);
-  __ pushq(return_addr);
+  __ DropArguments(param_count, rbx);
   __ ret(0);
 
   // --------------------------------------------------------------------------
