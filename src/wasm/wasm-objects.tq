@@ -130,6 +130,15 @@ extern class WasmTypeInfo extends Foreign {
   subtypes: ArrayList;
   // In bytes, used for struct allocation.
   instance_size: Smi;
+  // We must make sure that the StructType/ArrayType, which is allocated in
+  // the WasmModule's "signature_zone", stays around as long as there are
+  // HeapObjects referring to it. Short term, we simply keep a reference to
+  // the instance, which in turn keeps the entire WasmModule alive.
+  // TODO(jkummerow): Possible optimization: manage the "signature_zone"'s
+  // lifetime separately by having WasmModule refer to it via std::shared_ptr,
+  // and introduce a new link from here to just that zone using a Managed<...>.
+  // Details: https://bit.ly/2UxD4hW
+  instance: WasmInstanceObject;
 }
 
 // WasmObject corresponds to data ref types which are WasmStruct and WasmArray.

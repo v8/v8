@@ -139,7 +139,8 @@ Handle<DescriptorArray> CreateArrayDescriptorArray(
 
 // TODO(jkummerow): Move these elsewhere.
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
-                            int struct_index, Handle<Map> opt_rtt_parent) {
+                            int struct_index, Handle<Map> opt_rtt_parent,
+                            Handle<WasmInstanceObject> instance) {
   const wasm::StructType* type = module->struct_type(struct_index);
   const int inobject_properties = 0;
   // We have to use the variable size sentinel because the instance size
@@ -150,7 +151,8 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   // TODO(jkummerow): If NO_ELEMENTS were supported, we could use that here.
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), opt_rtt_parent, real_instance_size);
+      reinterpret_cast<Address>(type), opt_rtt_parent, real_instance_size,
+      instance);
   Handle<DescriptorArray> descriptors =
       CreateStructDescriptorArray(isolate, type);
   Handle<Map> map = isolate->factory()->NewMap(
@@ -163,7 +165,8 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
 }
 
 Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
-                           int array_index, Handle<Map> opt_rtt_parent) {
+                           int array_index, Handle<Map> opt_rtt_parent,
+                           Handle<WasmInstanceObject> instance) {
   const wasm::ArrayType* type = module->array_type(array_index);
   const int inobject_properties = 0;
   const int instance_size = kVariableSizeSentinel;
@@ -172,7 +175,8 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   const InstanceType instance_type = WASM_ARRAY_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      reinterpret_cast<Address>(type), opt_rtt_parent, cached_instance_size);
+      reinterpret_cast<Address>(type), opt_rtt_parent, cached_instance_size,
+      instance);
   // TODO(ishell): get canonical descriptor array for WasmArrays from roots.
   Handle<DescriptorArray> descriptors =
       CreateArrayDescriptorArray(isolate, type);
@@ -242,10 +246,10 @@ Handle<Map> AllocateSubRtt(Isolate* isolate,
   // Allocate a fresh RTT otherwise.
   Handle<Map> rtt;
   if (module->has_struct(type)) {
-    rtt = wasm::CreateStructMap(isolate, module, type, parent);
+    rtt = wasm::CreateStructMap(isolate, module, type, parent, instance);
   } else {
     DCHECK(module->has_array(type));
-    rtt = wasm::CreateArrayMap(isolate, module, type, parent);
+    rtt = wasm::CreateArrayMap(isolate, module, type, parent, instance);
   }
 
   if (mode == WasmRttSubMode::kCanonicalize) {
@@ -658,10 +662,12 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       Handle<Map> map;
       switch (module_->type_kinds[map_index]) {
         case kWasmStructTypeCode:
-          map = CreateStructMap(isolate_, module_, map_index, Handle<Map>());
+          map = CreateStructMap(isolate_, module_, map_index, Handle<Map>(),
+                                instance);
           break;
         case kWasmArrayTypeCode:
-          map = CreateArrayMap(isolate_, module_, map_index, Handle<Map>());
+          map = CreateArrayMap(isolate_, module_, map_index, Handle<Map>(),
+                               instance);
           break;
         case kWasmFunctionTypeCode:
           // TODO(7748): Think about canonicalizing rtts to make them work for

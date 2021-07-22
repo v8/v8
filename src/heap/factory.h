@@ -561,7 +561,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 #if V8_ENABLE_WEBASSEMBLY
   Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
                                        Handle<Map> opt_parent,
-                                       int instance_size_bytes);
+                                       int instance_size_bytes,
+                                       Handle<WasmInstanceObject> instance);
   Handle<WasmCapiFunctionData> NewWasmCapiFunctionData(
       Address call_target, Handle<Foreign> embedder_data,
       Handle<Code> wrapper_code,

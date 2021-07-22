@@ -617,6 +617,7 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
                                                         v);
     IteratePointer(obj, kSupertypesOffset, v);
     IteratePointer(obj, kSubtypesOffset, v);
+    IteratePointer(obj, kInstanceOffset, v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
@@ -719,6 +720,8 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
+    // The type is safe to use because it's kept alive by the {map}'s
+    // WasmTypeInfo.
     if (!WasmArray::GcSafeType(map)->element_type().is_reference()) return;
     IteratePointers(obj, WasmArray::kHeaderSize, object_size, v);
   }
@@ -741,6 +744,8 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     WasmStruct wasm_struct = WasmStruct::cast(obj);
+    // The {type} is safe to use because it's kept alive by the {map}'s
+    // WasmTypeInfo.
     wasm::StructType* type = WasmStruct::GcSafeType(map);
     for (uint32_t i = 0; i < type->field_count(); i++) {
       if (!type->field(i).is_reference()) continue;

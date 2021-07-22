@@ -1858,6 +1858,7 @@ void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
   os << "\n - type address: " << reinterpret_cast<void*>(foreign_address());
   os << "\n - supertypes: " << Brief(supertypes());
   os << "\n - subtypes: " << Brief(subtypes());
+  os << "\n - instance: " << Brief(instance());
   os << "\n";
 }
 
