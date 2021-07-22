@@ -147,9 +147,6 @@ class PipelineData {
         may_have_unverifiable_graph_(false),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
-        roots_relative_addressing_enabled_(
-            !isolate->serializer_enabled() &&
-            !isolate->IsGeneratingEmbeddedBuiltins()),
         graph_zone_scope_(zone_stats_, kGraphZoneName, kCompressGraphZone),
         graph_zone_(graph_zone_scope_.zone()),
         instruction_zone_scope_(zone_stats_, kInstructionZoneName),
@@ -551,7 +548,7 @@ class PipelineData {
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
-        info()->GetPoisoningMitigationLevel(), assembler_options_,
+        info()->GetPoisoningMitigationLevel(), assembler_options(),
         info_->builtin(), max_unoptimized_frame_height(),
         max_pushed_argument_count(),
         FLAG_trace_turbo_stack_accesses ? debug_name_.get() : nullptr);
@@ -570,10 +567,6 @@ class PipelineData {
   }
 
   const char* debug_name() const { return debug_name_.get(); }
-
-  bool roots_relative_addressing_enabled() {
-    return roots_relative_addressing_enabled_;
-  }
 
   const ProfileDataFromFile* profile_data() const { return profile_data_; }
   void set_profile_data(const ProfileDataFromFile* profile_data) {
@@ -615,7 +608,6 @@ class PipelineData {
   CodeGenerator* code_generator_ = nullptr;
   Typer* typer_ = nullptr;
   Typer::Flags typer_flags_ = Typer::kNoFlags;
-  bool roots_relative_addressing_enabled_ = false;
 
   // All objects in the following group of fields are allocated in graph_zone_.
   // They are all set to nullptr when the graph_zone_ is destroyed.
@@ -2245,7 +2237,7 @@ struct InstructionSelectionPhase {
         FLAG_turbo_instruction_scheduling
             ? InstructionSelector::kEnableScheduling
             : InstructionSelector::kDisableScheduling,
-        data->roots_relative_addressing_enabled()
+        data->assembler_options().enable_root_relative_access
             ? InstructionSelector::kEnableRootsRelativeAddressing
             : InstructionSelector::kDisableRootsRelativeAddressing,
         data->info()->GetPoisoningMitigationLevel(),

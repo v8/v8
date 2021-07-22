@@ -57,7 +57,7 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   const bool generating_embedded_builtin =
       isolate->IsGeneratingEmbeddedBuiltins();
   options.record_reloc_info_for_serialization = serializer;
-  options.enable_root_array_delta_access =
+  options.enable_root_relative_access =
       !serializer && !generating_embedded_builtin;
 #ifdef USE_SIMULATOR
   // Even though the simulator is enabled, we may still need to generate code

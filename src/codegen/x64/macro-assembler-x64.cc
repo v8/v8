@@ -46,7 +46,7 @@ Operand StackArgumentsAccessor::GetArgumentOperand(int index) const {
 }
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
-  if (root_array_available_ && options().enable_root_array_delta_access) {
+  if (root_array_available_ && options().enable_root_relative_access) {
     intptr_t delta = RootRegisterOffsetForExternalReference(isolate(), source);
     if (is_int32(delta)) {
       movq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -62,7 +62,7 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
 }
 
 void MacroAssembler::Store(ExternalReference destination, Register source) {
-  if (root_array_available_ && options().enable_root_array_delta_access) {
+  if (root_array_available_ && options().enable_root_relative_access) {
     intptr_t delta =
         RootRegisterOffsetForExternalReference(isolate(), destination);
     if (is_int32(delta)) {
@@ -103,7 +103,7 @@ void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
 
 void TurboAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
-  if (root_array_available_ && options().enable_root_array_delta_access) {
+  if (root_array_available_ && options().enable_root_relative_access) {
     intptr_t delta = RootRegisterOffsetForExternalReference(isolate(), source);
     if (is_int32(delta)) {
       leaq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -123,7 +123,7 @@ void TurboAssembler::LoadAddress(Register destination,
 
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
-  if (root_array_available_ && options().enable_root_array_delta_access) {
+  if (root_array_available_ && options().enable_root_relative_access) {
     int64_t delta =
         RootRegisterOffsetForExternalReference(isolate(), reference);
     if (is_int32(delta)) {

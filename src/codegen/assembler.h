@@ -157,9 +157,9 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // assembler is used on existing code directly (e.g. JumpTableAssembler)
   // without any buffer to hold reloc information.
   bool disable_reloc_info_for_patching = false;
-  // Enables access to exrefs by computing a delta from the root array.
-  // Only valid if code will not survive the process.
-  bool enable_root_array_delta_access = false;
+  // Enables root-relative access to arbitrary untagged addresses (usually
+  // external references). Only valid if code will not survive the process.
+  bool enable_root_relative_access = false;
   // Enables specific assembler sequences only used for the simulator.
   bool enable_simulator_code = false;
   // Enables use of isolate-independent constants, indirected through the

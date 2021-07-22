@@ -8193,7 +8193,7 @@ AssemblerOptions WasmAssemblerOptions() {
   AssemblerOptions options;
   // Relocation info required to serialize {WasmCode} for proper functions.
   options.record_reloc_info_for_serialization = true;
-  options.enable_root_array_delta_access = false;
+  options.enable_root_relative_access = false;
   return options;
 }
 
@@ -8201,7 +8201,7 @@ AssemblerOptions WasmStubAssemblerOptions() {
   AssemblerOptions options;
   // Relocation info not necessary because stubs are not serialized.
   options.record_reloc_info_for_serialization = false;
-  options.enable_root_array_delta_access = false;
+  options.enable_root_relative_access = false;
   return options;
 }
 
