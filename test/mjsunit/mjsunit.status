@@ -1279,45 +1279,6 @@
 }],
 
 ##############################################################################
-['variant == turboprop or variant == turboprop_as_toptier or variant == future or deopt_fuzzer or (tsan and not concurrent_marking)', {
-#  # Deopts differently than TurboFan.
-  'compiler/regress-9945-*': [SKIP],
-
-  # Static asserts for optimizations don't hold due to removed optimization
-  # phases.
-  'compiler/concurrent-inlining-1': [SKIP],
-  'compiler/concurrent-inlining-2': [SKIP],
-  'compiler/constant-fold-add-static': [SKIP],
-  'compiler/diamond-followedby-branch': [SKIP],
-  'compiler/is-being-interpreted-*': [SKIP],
-  'compiler/load-elimination-const-field': [SKIP],
-  'compiler/serializer-accessors': [SKIP],
-  'compiler/serializer-apply': [SKIP],
-  'compiler/serializer-call': [SKIP],
-  'compiler/serializer-dead-after-jump': [SKIP],
-  'compiler/serializer-dead-after-return': [SKIP],
-  'compiler/serializer-feedback-propagation-*': [SKIP],
-  'compiler/serializer-transition-propagation': [SKIP],
-
-  # Some tests rely on TurboFan inlining heuristics.
-  'compiler/call-with-arraylike-or-spread*': [SKIP],
-  'compiler/opt-higher-order-functions': [SKIP],
-
-  # Tests failing for the lack of function context specialization in Turboprop.
-  'compiler/abstract-equal-receiver': [SKIP],
-  'compiler/constant-fold-cow-array': [SKIP],
-  'compiler/promise-resolve-stable-maps': [SKIP],
-
-  # Tests failing due to reduced constant propagation in Turboprop.
-  'compiler/js-create-arguments': [SKIP],
-  'compiler/catch-block-load': [SKIP],
-  'compiler/construct-bound-function': [SKIP],
-  'compiler/construct-object': [SKIP],
-  'compiler/construct-receiver': [SKIP],
-  'compiler/js-create': [SKIP],
-}],  # variant == turboprop or variant = turboprop_as_toptier
-
-##############################################################################
 ['variant == top_level_await', {
   # specifically expects to fail on top level await.
   'harmony/modules-import-15': [SKIP],
