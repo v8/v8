@@ -5859,14 +5859,7 @@ bool v8::V8::Initialize(const int build_config) {
 #if V8_OS_LINUX || V8_OS_MACOSX
 bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
                                    void* context) {
-  // When the target code runs on the V8 arm simulator, the trap handler does
-  // not behave as expected: the instruction pointer points inside the simulator
-  // code rather than the wasm code, so the trap handler cannot find the landing
-  // pad and lets the process crash. Therefore, only enable trap handlers if
-  // the host and target arch are the same.
-#if V8_ENABLE_WEBASSEMBLY &&                   \
-    ((V8_TARGET_ARCH_X64 && !V8_OS_ANDROID) || \
-     (V8_HOST_ARCH_ARM64 && V8_TARGET_ARCH_ARM64 && V8_OS_MACOSX))
+#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
   return i::trap_handler::TryHandleSignal(sig_code, info, context);
 #else
   return false;
@@ -5881,7 +5874,7 @@ bool V8::TryHandleSignal(int signum, void* info, void* context) {
 
 #if V8_OS_WIN
 bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
-#if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
+#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
   return i::trap_handler::TryHandleWasmTrap(exception);
 #else
   return false;
