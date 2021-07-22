@@ -4,6 +4,7 @@
 
 #include "src/objects/feedback-vector.h"
 
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
