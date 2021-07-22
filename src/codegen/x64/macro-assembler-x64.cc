@@ -155,26 +155,28 @@ void MacroAssembler::PushAddress(ExternalReference source) {
   Push(kScratchRegister);
 }
 
+Operand TurboAssembler::RootAsOperand(RootIndex index) {
+  return Operand(kRootRegister, RootRegisterOffsetForRootIndex(index));
+}
+
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   DCHECK(root_array_available_);
-  movq(destination,
-       Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+  movq(destination, RootAsOperand(index));
 }
 
 void MacroAssembler::PushRoot(RootIndex index) {
   DCHECK(root_array_available_);
-  Push(Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+  Push(RootAsOperand(index));
 }
 
 void TurboAssembler::CompareRoot(Register with, RootIndex index) {
   DCHECK(root_array_available_);
   if (base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                       RootIndex::kLastStrongOrReadOnlyRoot)) {
-    cmp_tagged(with,
-               Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    cmp_tagged(with, RootAsOperand(index));
   } else {
     // Some smi roots contain system pointer size values like stack limits.
-    cmpq(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    cmpq(with, RootAsOperand(index));
   }
 }
 
@@ -1192,7 +1194,7 @@ Register TurboAssembler::GetSmiConstant(Smi source) {
   return kScratchRegister;
 }
 
-void MacroAssembler::Cmp(Register dst, int32_t src) {
+void TurboAssembler::Cmp(Register dst, int32_t src) {
   if (src == 0) {
     testl(dst, dst);
   } else {
@@ -1200,7 +1202,7 @@ void MacroAssembler::Cmp(Register dst, int32_t src) {
   }
 }
 
-void MacroAssembler::SmiTag(Register reg) {
+void TurboAssembler::SmiTag(Register reg) {
   STATIC_ASSERT(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
@@ -1210,7 +1212,7 @@ void MacroAssembler::SmiTag(Register reg) {
   }
 }
 
-void MacroAssembler::SmiTag(Register dst, Register src) {
+void TurboAssembler::SmiTag(Register dst, Register src) {
   DCHECK(dst != src);
   if (COMPRESS_POINTERS_BOOL) {
     movl(dst, src);
@@ -1261,18 +1263,18 @@ void TurboAssembler::SmiUntag(Register dst, Operand src) {
   }
 }
 
-void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
+void TurboAssembler::SmiCompare(Register smi1, Register smi2) {
   AssertSmi(smi1);
   AssertSmi(smi2);
   cmp_tagged(smi1, smi2);
 }
 
-void MacroAssembler::SmiCompare(Register dst, Smi src) {
+void TurboAssembler::SmiCompare(Register dst, Smi src) {
   AssertSmi(dst);
   Cmp(dst, src);
 }
 
-void MacroAssembler::Cmp(Register dst, Smi src) {
+void TurboAssembler::Cmp(Register dst, Smi src) {
   if (src.value() == 0) {
     test_tagged(dst, dst);
   } else {
@@ -1282,19 +1284,19 @@ void MacroAssembler::Cmp(Register dst, Smi src) {
   }
 }
 
-void MacroAssembler::SmiCompare(Register dst, Operand src) {
+void TurboAssembler::SmiCompare(Register dst, Operand src) {
   AssertSmi(dst);
   AssertSmi(src);
   cmp_tagged(dst, src);
 }
 
-void MacroAssembler::SmiCompare(Operand dst, Register src) {
+void TurboAssembler::SmiCompare(Operand dst, Register src) {
   AssertSmi(dst);
   AssertSmi(src);
   cmp_tagged(dst, src);
 }
 
-void MacroAssembler::SmiCompare(Operand dst, Smi src) {
+void TurboAssembler::SmiCompare(Operand dst, Smi src) {
   AssertSmi(dst);
   if (SmiValuesAre32Bits()) {
     cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src.value()));
@@ -1304,7 +1306,7 @@ void MacroAssembler::SmiCompare(Operand dst, Smi src) {
   }
 }
 
-void MacroAssembler::Cmp(Operand dst, Smi src) {
+void TurboAssembler::Cmp(Operand dst, Smi src) {
   // The Operand cannot use the smi register.
   Register smi_reg = GetSmiConstant(src);
   DCHECK(!dst.AddressUsesRegister(smi_reg));
@@ -1329,19 +1331,19 @@ void TurboAssembler::JumpIfSmi(Register src, Label* on_smi,
   j(smi, on_smi, near_jump);
 }
 
-void MacroAssembler::JumpIfNotSmi(Register src, Label* on_not_smi,
+void TurboAssembler::JumpIfNotSmi(Register src, Label* on_not_smi,
                                   Label::Distance near_jump) {
   Condition smi = CheckSmi(src);
   j(NegateCondition(smi), on_not_smi, near_jump);
 }
 
-void MacroAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
+void TurboAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
                                   Label::Distance near_jump) {
   Condition smi = CheckSmi(src);
   j(NegateCondition(smi), on_not_smi, near_jump);
 }
 
-void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
+void TurboAssembler::SmiAddConstant(Operand dst, Smi constant) {
   if (constant.value() != 0) {
     if (SmiValuesAre32Bits()) {
       addl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(constant.value()));
@@ -1361,7 +1363,7 @@ void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
   }
 }
 
-SmiIndex MacroAssembler::SmiToIndex(Register dst, Register src, int shift) {
+SmiIndex TurboAssembler::SmiToIndex(Register dst, Register src, int shift) {
   if (SmiValuesAre32Bits()) {
     DCHECK(is_uint6(shift));
     // There is a possible optimization if shift is in the range 60-63, but that
@@ -2694,21 +2696,21 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   cmpl(kScratchRegister, Immediate(higher_limit - lower_limit));
 }
 
-void MacroAssembler::AssertNotSmi(Register object) {
+void TurboAssembler::AssertNotSmi(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
   Condition is_smi = CheckSmi(object);
   Check(NegateCondition(is_smi), AbortReason::kOperandIsASmi);
 }
 
-void MacroAssembler::AssertSmi(Register object) {
+void TurboAssembler::AssertSmi(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
   Condition is_smi = CheckSmi(object);
   Check(is_smi, AbortReason::kOperandIsNotASmi);
 }
 
-void MacroAssembler::AssertSmi(Operand object) {
+void TurboAssembler::AssertSmi(Operand object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
   Condition is_smi = CheckSmi(object);

@@ -123,6 +123,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Ret(int bytes_dropped, Register scratch);
 
   // Operations on roots in the root-array.
+  Operand RootAsOperand(RootIndex index);
   void LoadRoot(Register destination, RootIndex index) final;
   void LoadRoot(Operand destination, RootIndex index) {
     LoadRoot(kScratchRegister, index);
@@ -224,13 +225,73 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void Popcntq(Register dst, Register src);
   void Popcntq(Register dst, Operand src);
 
-  // Is the value a tagged smi.
+  void Cmp(Register dst, Smi src);
+  void Cmp(Operand dst, Smi src);
+  void Cmp(Register dst, int32_t src);
+
+  // ---------------------------------------------------------------------------
+  // Conversions between tagged smi values and non-tagged integer values.
+
+  // Tag an word-size value. The result must be known to be a valid smi value.
+  void SmiTag(Register reg);
+  // Requires dst != src
+  void SmiTag(Register dst, Register src);
+
+  // Simple comparison of smis.  Both sides must be known smis to use these,
+  // otherwise use Cmp.
+  void SmiCompare(Register smi1, Register smi2);
+  void SmiCompare(Register dst, Smi src);
+  void SmiCompare(Register dst, Operand src);
+  void SmiCompare(Operand dst, Register src);
+  void SmiCompare(Operand dst, Smi src);
+
+  // Functions performing a check on a known or potential smi. Returns
+  // a condition that is satisfied if the check is successful.
   Condition CheckSmi(Register src);
   Condition CheckSmi(Operand src);
+
+  // Abort execution if argument is a smi, enabled via --debug-code.
+  void AssertNotSmi(Register object);
+
+  // Abort execution if argument is not a smi, enabled via --debug-code.
+  void AssertSmi(Register object);
+  void AssertSmi(Operand object);
+
+  // Test-and-jump functions. Typically combines a check function
+  // above with a conditional jump.
 
   // Jump to label if the value is a tagged smi.
   void JumpIfSmi(Register src, Label* on_smi,
                  Label::Distance near_jump = Label::kFar);
+
+  // Jump to label if the value is not a tagged smi.
+  void JumpIfNotSmi(Register src, Label* on_not_smi,
+                    Label::Distance near_jump = Label::kFar);
+
+  // Jump to label if the value is not a tagged smi.
+  void JumpIfNotSmi(Operand src, Label* on_not_smi,
+                    Label::Distance near_jump = Label::kFar);
+
+  // Operations on tagged smi values.
+
+  // Smis represent a subset of integers. The subset is always equivalent to
+  // a two's complement interpretation of a fixed number of bits.
+
+  // Add an integer constant to a tagged smi, giving a tagged smi as result.
+  // No overflow testing on the result is done.
+  void SmiAddConstant(Operand dst, Smi constant);
+
+  // Specialized operations
+
+  // Converts, if necessary, a smi to a combination of number and
+  // multiplier to be used as a scaled index.
+  // The src register contains a *positive* smi value. The shift is the
+  // power of two to multiply the index value by (e.g. to index by
+  // smi-value * kSystemPointerSize, pass the smi and kSystemPointerSizeLog2).
+  // The returned index register may be either src or dst, depending
+  // on what is most efficient. If src and dst are different registers,
+  // src is always unchanged.
+  SmiIndex SmiToIndex(Register dst, Register src, int shift);
 
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
     cmpl(a, Immediate(b));
@@ -754,64 +815,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                       Register actual_parameter_count, InvokeType type);
 
   // ---------------------------------------------------------------------------
-  // Conversions between tagged smi values and non-tagged integer values.
-
-  // Tag an word-size value. The result must be known to be a valid smi value.
-  void SmiTag(Register reg);
-  // Requires dst != src
-  void SmiTag(Register dst, Register src);
-
-  // Simple comparison of smis.  Both sides must be known smis to use these,
-  // otherwise use Cmp.
-  void SmiCompare(Register smi1, Register smi2);
-  void SmiCompare(Register dst, Smi src);
-  void SmiCompare(Register dst, Operand src);
-  void SmiCompare(Operand dst, Register src);
-  void SmiCompare(Operand dst, Smi src);
-
-  // Functions performing a check on a known or potential smi. Returns
-  // a condition that is satisfied if the check is successful.
-
-  // Test-and-jump functions. Typically combines a check function
-  // above with a conditional jump.
-
-  // Jump to label if the value is not a tagged smi.
-  void JumpIfNotSmi(Register src, Label* on_not_smi,
-                    Label::Distance near_jump = Label::kFar);
-
-  // Jump to label if the value is not a tagged smi.
-  void JumpIfNotSmi(Operand src, Label* on_not_smi,
-                    Label::Distance near_jump = Label::kFar);
-
-  // Operations on tagged smi values.
-
-  // Smis represent a subset of integers. The subset is always equivalent to
-  // a two's complement interpretation of a fixed number of bits.
-
-  // Add an integer constant to a tagged smi, giving a tagged smi as result.
-  // No overflow testing on the result is done.
-  void SmiAddConstant(Operand dst, Smi constant);
-
-  // Specialized operations
-
-  // Converts, if necessary, a smi to a combination of number and
-  // multiplier to be used as a scaled index.
-  // The src register contains a *positive* smi value. The shift is the
-  // power of two to multiply the index value by (e.g. to index by
-  // smi-value * kSystemPointerSize, pass the smi and kSystemPointerSizeLog2).
-  // The returned index register may be either src or dst, depending
-  // on what is most efficient. If src and dst are different registers,
-  // src is always unchanged.
-  SmiIndex SmiToIndex(Register dst, Register src, int shift);
-
-  // ---------------------------------------------------------------------------
   // Macro instructions.
 
+  using TurboAssembler::Cmp;
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(Operand dst, Handle<Object> source);
-  void Cmp(Register dst, Smi src);
-  void Cmp(Operand dst, Smi src);
-  void Cmp(Register dst, int32_t src);
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison.
@@ -827,7 +835,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // clobbering the rsp register.
   void DropUnderReturnAddress(int stack_elements,
                               Register scratch = kScratchRegister);
-
   void PushQuad(Operand src);
   void PushImm32(int32_t imm32);
   void Pop(Register dst);
@@ -864,13 +871,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     }
     andq(reg, Immediate(mask));
   }
-
-  // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object);
-
-  // Abort execution if argument is not a smi, enabled via --debug-code.
-  void AssertSmi(Register object);
-  void AssertSmi(Operand object);
 
   // Abort execution if argument is not a CodeT, enabled via --debug-code.
   void AssertCodeT(Register object);
