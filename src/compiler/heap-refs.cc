@@ -517,14 +517,18 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
 // object, we are guaranteed to see valid heap words even if the data is wrong.
 base::Optional<ObjectRef> GetOwnDictionaryPropertyFromHeap(
     JSHeapBroker* broker, Handle<JSObject> receiver, InternalIndex dict_index) {
-  DisallowGarbageCollection no_gc;
-  // DictionaryPropertyAt will check that we are within the bounds of the
-  // object.
-  base::Optional<Object> maybe_constant = JSObject::DictionaryPropertyAt(
-      receiver, dict_index, broker->isolate()->heap());
-  DCHECK_IMPLIES(broker->IsMainThread(), maybe_constant);
-  if (!maybe_constant) return {};
-  return TryMakeRef(broker, maybe_constant.value());
+  Handle<Object> constant;
+  {
+    DisallowGarbageCollection no_gc;
+    // DictionaryPropertyAt will check that we are within the bounds of the
+    // object.
+    base::Optional<Object> maybe_constant = JSObject::DictionaryPropertyAt(
+        receiver, dict_index, broker->isolate()->heap());
+    DCHECK_IMPLIES(broker->IsMainThread(), maybe_constant);
+    if (!maybe_constant) return {};
+    constant = broker->CanonicalPersistentHandle(maybe_constant.value());
+  }
+  return TryMakeRef(broker, constant);
 }
 
 }  // namespace
@@ -2691,24 +2695,28 @@ base::Optional<ObjectRef> JSObjectRef::RawInobjectPropertyAt(
     FieldIndex index) const {
   CHECK(index.is_inobject());
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    DisallowGarbageCollection no_gc;
-    Map current_map = object()->map(kAcquireLoad);
+    Handle<Object> value;
+    {
+      DisallowGarbageCollection no_gc;
+      Map current_map = object()->map(kAcquireLoad);
 
-    // If the map changed in some prior GC epoch, our {index} could be
-    // outside the valid bounds of the cached map.
-    if (*map().object() != current_map) {
-      TRACE_BROKER_MISSING(broker(), "Map change detected in " << *this);
-      return {};
-    }
+      // If the map changed in some prior GC epoch, our {index} could be
+      // outside the valid bounds of the cached map.
+      if (*map().object() != current_map) {
+        TRACE_BROKER_MISSING(broker(), "Map change detected in " << *this);
+        return {};
+      }
 
-    base::Optional<Object> value =
-        object()->RawInobjectPropertyAt(current_map, index);
-    if (!value.has_value()) {
-      TRACE_BROKER_MISSING(broker(),
-                           "Unable to safely read property in " << *this);
-      return {};
+      base::Optional<Object> maybe_value =
+          object()->RawInobjectPropertyAt(current_map, index);
+      if (!maybe_value.has_value()) {
+        TRACE_BROKER_MISSING(broker(),
+                             "Unable to safely read property in " << *this);
+        return {};
+      }
+      value = broker()->CanonicalPersistentHandle(maybe_value.value());
     }
-    return TryMakeRef(broker(), value.value());
+    return TryMakeRef(broker(), value);
   }
   JSObjectData* object_data = data()->AsJSObject();
   return ObjectRef(broker(),
@@ -2870,13 +2878,16 @@ int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
 ObjectRef FixedArrayRef::get(int i) const { return TryGet(i).value(); }
 
 base::Optional<ObjectRef> FixedArrayRef::TryGet(int i) const {
-  DisallowGarbageCollection no_gc;
-  CHECK_GE(i, 0);
-  Object value = object()->get(i, kAcquireLoad);
-  if (i >= object()->length(kAcquireLoad)) {
-    // Right-trimming happened.
-    CHECK_LT(i, length());
-    return {};
+  Handle<Object> value;
+  {
+    DisallowGarbageCollection no_gc;
+    CHECK_GE(i, 0);
+    value = broker()->CanonicalPersistentHandle(object()->get(i, kAcquireLoad));
+    if (i >= object()->length(kAcquireLoad)) {
+      // Right-trimming happened.
+      CHECK_LT(i, length());
+      return {};
+    }
   }
   return TryMakeRef(broker(), value);
 }
@@ -3115,17 +3126,22 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
 
   DCHECK(has_call_code());
 
-  DisallowGarbageCollection no_gc;
-  HeapObject signature = object()->signature();
-  if (signature.IsUndefined()) {
-    return HolderLookupResult(CallOptimization::kHolderIsReceiver);
-  }
-  auto expected_receiver_type = FunctionTemplateInfo::cast(signature);
-  if (expected_receiver_type.IsTemplateFor(*receiver_map.object())) {
-    return HolderLookupResult(CallOptimization::kHolderIsReceiver);
+  Handle<FunctionTemplateInfo> expected_receiver_type;
+  {
+    DisallowGarbageCollection no_gc;
+    HeapObject signature = object()->signature();
+    if (signature.IsUndefined()) {
+      return HolderLookupResult(CallOptimization::kHolderIsReceiver);
+    }
+    expected_receiver_type = broker()->CanonicalPersistentHandle(
+        FunctionTemplateInfo::cast(signature));
+    if (expected_receiver_type->IsTemplateFor(*receiver_map.object())) {
+      return HolderLookupResult(CallOptimization::kHolderIsReceiver);
+    }
+
+    if (!receiver_map.IsJSGlobalProxyMap()) return not_found;
   }
 
-  if (!receiver_map.IsJSGlobalProxyMap()) return not_found;
   if (policy == SerializationPolicy::kSerializeIfNeeded) {
     receiver_map.SerializePrototype(NotConcurrentInliningTag{broker()});
   }
@@ -3133,8 +3149,7 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
   if (!prototype.has_value()) return not_found;
   if (prototype->IsNull()) return not_found;
 
-  JSObject raw_prototype = JSObject::cast(*prototype->object());
-  if (!expected_receiver_type.IsTemplateFor(raw_prototype.map())) {
+  if (!expected_receiver_type->IsTemplateFor(prototype->object()->map())) {
     return not_found;
   }
   return HolderLookupResult(CallOptimization::kHolderFound,
