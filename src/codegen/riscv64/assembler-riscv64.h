@@ -158,9 +158,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   explicit Assembler(const AssemblerOptions&,
                      std::unique_ptr<AssemblerBuffer> = {});
 
-  virtual ~Assembler() { CHECK(constpool_.IsEmpty()); }
-
-  void AbortedCodeGeneration() { constpool_.Clear(); }
+  virtual ~Assembler();
+  void AbortedCodeGeneration();
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;

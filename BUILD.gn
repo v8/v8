@@ -552,6 +552,10 @@ config("internal_config") {
   if (is_component_build) {
     defines += [ "BUILDING_V8_SHARED" ]
   }
+
+  if (v8_current_cpu == "riscv64") {
+    libs = [ "atomic" ]
+  }
 }
 
 # Should be applied to all targets that write trace events.
@@ -619,6 +623,10 @@ config("external_config") {
   defines = []
   if (is_component_build) {
     defines += [ "USING_V8_SHARED" ]
+  }
+
+  if(current_cpu == "riscv64") {
+    libs = [ "atomic"]
   }
 }
 
@@ -4959,6 +4967,10 @@ v8_component("v8_libplatform") {
     } else if (is_win) {
       sources += [ "src/libplatform/tracing/recorder-win.cc" ]
     }
+  }
+
+  if (v8_current_cpu == "riscv64") {
+    libs = [ "atomic" ]
   }
 }
 

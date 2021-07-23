@@ -227,6 +227,9 @@ Assembler::Assembler(const AssemblerOptions& options,
   block_buffer_growth_ = false;
 }
 
+void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
+Assembler::~Assembler() { CHECK(constpool_.IsEmpty()); }
+
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
