@@ -2974,7 +2974,7 @@ void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi smi,
 void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch, RCBit rc) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  And(dst, src, Operand(smi), rc);
+  AndU64(dst, src, Operand(smi), scratch, rc);
 #else
   LoadSmiLiteral(scratch, smi);
   and_(dst, src, scratch, rc);
