@@ -5158,6 +5158,58 @@ void TurboAssembler::I8x16ExtractLaneS(Register dst, Simd128Register src,
   lgbr(dst, r0);
 }
 
+void TurboAssembler::F64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      DoubleRegister src2,
+                                      uint8_t imm_lane_idx) {
+  vlgv(r0, src2, MemOperand(r0, 0), Condition(3));
+  if (src1 != dst) {
+    vlr(dst, src1, Condition(0), Condition(0), Condition(0));
+  }
+  vlvg(dst, r0, MemOperand(r0, 1 - imm_lane_idx), Condition(3));
+}
+
+void TurboAssembler::F32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      DoubleRegister src2,
+                                      uint8_t imm_lane_idx) {
+  vlgv(r0, src2, MemOperand(r0, 0), Condition(2));
+  if (src1 != dst) {
+    vlr(dst, src1, Condition(0), Condition(0), Condition(0));
+  }
+  vlvg(dst, r0, MemOperand(r0, 3 - imm_lane_idx), Condition(2));
+}
+
+void TurboAssembler::I64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      Register src2, uint8_t imm_lane_idx) {
+  if (src1 != dst) {
+    vlr(dst, src1, Condition(0), Condition(0), Condition(0));
+  }
+  vlvg(dst, src2, MemOperand(r0, 1 - imm_lane_idx), Condition(3));
+}
+
+void TurboAssembler::I32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      Register src2, uint8_t imm_lane_idx) {
+  if (src1 != dst) {
+    vlr(dst, src1, Condition(0), Condition(0), Condition(0));
+  }
+  vlvg(dst, src2, MemOperand(r0, 3 - imm_lane_idx), Condition(2));
+}
+
+void TurboAssembler::I16x8ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      Register src2, uint8_t imm_lane_idx) {
+  if (src1 != dst) {
+    vlr(dst, src1, Condition(0), Condition(0), Condition(0));
+  }
+  vlvg(dst, src2, MemOperand(r0, 7 - imm_lane_idx), Condition(1));
+}
+
+void TurboAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      Register src2, uint8_t imm_lane_idx) {
+  if (src1 != dst) {
+    vlr(dst, src1, Condition(0), Condition(0), Condition(0));
+  }
+  vlvg(dst, src2, MemOperand(r0, 15 - imm_lane_idx), Condition(0));
+}
+
 }  // namespace internal
 }  // namespace v8
 

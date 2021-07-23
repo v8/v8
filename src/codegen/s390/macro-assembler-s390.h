@@ -1054,6 +1054,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                          uint8_t imm_lane_idx);
   void I8x16ExtractLaneS(Register dst, Simd128Register src,
                          uint8_t imm_lane_idx);
+  void F64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        DoubleRegister src2, uint8_t imm_lane_idx);
+  void F32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        DoubleRegister src2, uint8_t imm_lane_idx);
+  void I64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        Register src2, uint8_t imm_lane_idx);
+  void I32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        Register src2, uint8_t imm_lane_idx);
+  void I16x8ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        Register src2, uint8_t imm_lane_idx);
+  void I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
+                        Register src2, uint8_t imm_lane_idx);
 
   // ---------------------------------------------------------------------------
   // Pointer compression Support
