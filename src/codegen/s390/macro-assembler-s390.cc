@@ -5210,6 +5210,23 @@ void TurboAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
   vlvg(dst, src2, MemOperand(r0, 15 - imm_lane_idx), Condition(0));
 }
 
+#define SIMD_BINOP_LIST(V) \
+  V(F64x2Add, vfa, 3)      \
+  V(F32x4Add, vfa, 2)      \
+  V(I64x2Add, va, 3)       \
+  V(I32x4Add, va, 2)       \
+  V(I16x8Add, va, 1)       \
+  V(I8x16Add, va, 0)
+
+#define EMIT_SIMD_BINOP(name, op, condition)                               \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1,     \
+                            Simd128Register src2) {                        \
+    op(dst, src1, src2, Condition(0), Condition(0), Condition(condition)); \
+  }
+SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
+#undef EMIT_SIMD_BINOP
+#undef SIMD_BINOP_LIST
+
 }  // namespace internal
 }  // namespace v8
 
