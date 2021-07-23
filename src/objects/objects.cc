@@ -1767,9 +1767,14 @@ bool Object::IterationHasObservableEffects() {
 #endif
 
   // Check that we have the original ArrayPrototype.
+  i::HandleScope handle_scope(isolate);
+  i::Handle<i::Context> context;
+  if (!array.GetCreationContext().ToHandle(&context)) return false;
   if (!array.map().prototype().IsJSObject()) return true;
   JSObject array_proto = JSObject::cast(array.map().prototype());
-  if (!isolate->is_initial_array_prototype(array_proto)) return true;
+  auto initial_array_prototype =
+      context->native_context().initial_array_prototype();
+  if (initial_array_prototype != array_proto) return true;
 
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.

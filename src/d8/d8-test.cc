@@ -119,8 +119,8 @@ class FastCApiObject {
     }
 
     Type buffer[1024];
-    bool result =
-        CopyAndConvertArrayToCppBuffer<&type_info, Type>(seq_arg, buffer, 1024);
+    bool result = TryCopyAndConvertArrayToCppBuffer<&type_info, Type>(
+        seq_arg, buffer, 1024);
     if (!result) {
       options.fallback = 1;
       return 0;

@@ -9,6 +9,7 @@
 #include "src/api/api.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/microtask-queue.h"
+#include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/foreign-inl.h"
@@ -279,6 +280,10 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
 
   i::DisallowGarbageCollection no_gc;
   i::JSArray obj = *reinterpret_cast<i::JSArray*>(*src);
+  if (obj.IterationHasObservableEffects()) {
+    // The array has a custom iterator.
+    return false;
+  }
 
   i::FixedArrayBase elements = obj.elements();
   switch (obj.GetElementsKind()) {
@@ -292,6 +297,13 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
     default:
       return false;
   }
+}
+
+template <const CTypeInfo* type_info, typename T>
+inline bool V8_EXPORT TryCopyAndConvertArrayToCppBuffer(Local<Array> src,
+                                                        T* dst,
+                                                        uint32_t max_length) {
+  return CopyAndConvertArrayToCppBuffer<type_info, T>(src, dst, max_length);
 }
 
 namespace internal {

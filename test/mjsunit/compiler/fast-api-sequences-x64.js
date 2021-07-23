@@ -11,6 +11,9 @@
 // The test relies on optimizing/deoptimizing at predictable moments, so
 // it's not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0
+// The test relies on TryCopyAndConvertArrayToCppBuffer that fails with
+// --force-slow-path.
+// Flags: --no-force-slow-path
 
 d8.file.execute('test/mjsunit/compiler/fast-api-helpers.js');
 
