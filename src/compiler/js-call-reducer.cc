@@ -4301,10 +4301,10 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   }
 
   NodeProperties::ChangeOp(
-      node, javascript()->Call(
-                JSCallNode::ArityForArgc(new_argument_count), frequency,
-                feedback_source, ConvertReceiverMode::kNullOrUndefined,
-                speculation_mode, CallFeedbackRelation::kUnrelated));
+      node,
+      javascript()->Call(JSCallNode::ArityForArgc(new_argument_count),
+                         frequency, feedback_source, ConvertReceiverMode::kAny,
+                         speculation_mode, CallFeedbackRelation::kUnrelated));
   NodeProperties::ReplaceEffectInput(node, effect);
   return Changed(node).FollowedBy(ReduceJSCall(node));
 }

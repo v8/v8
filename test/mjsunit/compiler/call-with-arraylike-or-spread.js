@@ -37,6 +37,24 @@
   assertFalse(sum_js_got_interpreted);
 })();
 
+// Test using receiver
+(function () {
+  function bar() {
+    return this.gaga;
+  }
+  function foo(receiver) {
+    return bar.apply(receiver, [""]);
+  }
+
+  %PrepareFunctionForOptimization(bar);
+  %PrepareFunctionForOptimization(foo);
+  var receiver = { gaga: 42 };
+  assertEquals(42, foo(receiver));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(42, foo(receiver));
+  assertOptimized(foo);
+})();
+
 // Test with holey array.
 (function () {
   "use strict";
