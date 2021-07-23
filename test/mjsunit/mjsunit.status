@@ -1456,6 +1456,12 @@
   'concurrent-initial-prototype-change-1': [SKIP],
 }],  # variant == concurrent_inlining
 
+##############################################################################
+['variant == instruction_scheduling or variant == stress_instruction_scheduling', {
+  # BUG(12018): This test currently fails with --turbo-instruction-scheduling.
+  'regress/wasm/regress-1231950': [SKIP],
+}],  # variant == instruction_scheduling or variant == stress_instruction_scheduling
+
 ################################################################################
 ['single_generation', {
   # These tests rely on allocation site tracking which only works in the young generation.
