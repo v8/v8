@@ -238,6 +238,23 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ShiftRightS32(Register dst, Register src, Register value,
                      RCBit r = LeaveRC);
 
+  void AddF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              RCBit r = LeaveRC);
+  void SubF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              RCBit r = LeaveRC);
+  void MulF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              RCBit r = LeaveRC);
+  void DivF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              RCBit r = LeaveRC);
+  void AddF32(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              RCBit r = LeaveRC);
+  void SubF32(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              RCBit r = LeaveRC);
+  void MulF32(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              RCBit r = LeaveRC);
+  void DivF32(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+              RCBit r = LeaveRC);
+
   void Push(Register src) { push(src); }
   // Push a handle.
   void Push(Handle<HeapObject> handle);

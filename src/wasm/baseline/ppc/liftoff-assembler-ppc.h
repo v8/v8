@@ -786,10 +786,6 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 
 UNIMPLEMENTED_GP_UNOP(i32_clz)
 UNIMPLEMENTED_GP_UNOP(i32_ctz)
-UNIMPLEMENTED_FP_BINOP(f32_add)
-UNIMPLEMENTED_FP_BINOP(f32_sub)
-UNIMPLEMENTED_FP_BINOP(f32_mul)
-UNIMPLEMENTED_FP_BINOP(f32_div)
 UNIMPLEMENTED_FP_BINOP(f32_copysign)
 UNIMPLEMENTED_FP_UNOP(f32_abs)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
@@ -798,10 +794,6 @@ UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_floor)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_trunc)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_nearest_int)
 UNIMPLEMENTED_FP_UNOP(f32_sqrt)
-UNIMPLEMENTED_FP_BINOP(f64_add)
-UNIMPLEMENTED_FP_BINOP(f64_sub)
-UNIMPLEMENTED_FP_BINOP(f64_mul)
-UNIMPLEMENTED_FP_BINOP(f64_div)
 UNIMPLEMENTED_FP_BINOP(f64_copysign)
 UNIMPLEMENTED_FP_UNOP(f64_abs)
 UNIMPLEMENTED_FP_UNOP(f64_neg)
@@ -916,7 +908,23 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
   V(i64_sari, ShiftRightS64, LiftoffRegister, LiftoffRegister, int32_t,      \
     LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                            \
   V(i64_shri, ShiftRightU64, LiftoffRegister, LiftoffRegister, int32_t,      \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)
+    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                            \
+  V(f64_add, AddF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f64_sub, SubF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f64_mul, MulF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f64_div, DivF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f32_add, AddF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f32_sub, SubF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f32_mul, MulF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)                                                             \
+  V(f32_div, DivF32, DoubleRegister, DoubleRegister, DoubleRegister, , , ,   \
+    USE, , void)
 
 #define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \
                             scast2, rcast, ret, return_type)                   \

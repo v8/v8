@@ -2958,6 +2958,50 @@ void TurboAssembler::CmpU32(Register src1, Register src2, CRegister cr) {
   cmplw(src1, src2, cr);
 }
 
+void TurboAssembler::AddF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, RCBit r) {
+  fadd(dst, lhs, rhs, r);
+}
+
+void TurboAssembler::SubF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, RCBit r) {
+  fsub(dst, lhs, rhs, r);
+}
+
+void TurboAssembler::MulF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, RCBit r) {
+  fmul(dst, lhs, rhs, r);
+}
+
+void TurboAssembler::DivF64(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, RCBit r) {
+  fdiv(dst, lhs, rhs, r);
+}
+
+void TurboAssembler::AddF32(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, RCBit r) {
+  fadd(dst, lhs, rhs, r);
+  frsp(dst, dst, r);
+}
+
+void TurboAssembler::SubF32(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, RCBit r) {
+  fsub(dst, lhs, rhs, r);
+  frsp(dst, dst, r);
+}
+
+void TurboAssembler::MulF32(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, RCBit r) {
+  fmul(dst, lhs, rhs, r);
+  frsp(dst, dst, r);
+}
+
+void TurboAssembler::DivF32(DoubleRegister dst, DoubleRegister lhs,
+                            DoubleRegister rhs, RCBit r) {
+  fdiv(dst, lhs, rhs, r);
+  frsp(dst, dst, r);
+}
+
 void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
                                    CRegister cr) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
