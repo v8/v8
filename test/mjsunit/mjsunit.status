@@ -34,6 +34,7 @@
   'regress/modules-skip*': [SKIP],
   'wasm/exceptions-utils': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
+  'compiler/fast-api-helpers': [SKIP],
 
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
@@ -1303,13 +1304,6 @@
 }],  # variant == assert_types
 
 ##############################################################################
-['variant == stress_snapshot', {
-  # Not an actual test, only helpers, but the flag --turbo-fast-api-calls is
-  # declared as incompatible with stress_snapshot.
-  'compiler/fast-api-helpers': [SKIP],
-}],  # variant == stress_snapshot
-
-##############################################################################
 ['variant == stress_snapshot and arch != x64', {
   # Deserialization fails due to read-only snapshot checksum verification.
   # https://crbug.com/v8/10491
@@ -1477,6 +1471,7 @@
   'compiler/native-context-specialization-hole-check': [SKIP],
   'compiler/test-literal-map-migration': [SKIP],
   'compiler/deopt-pretenure': [SKIP],
+  'compiler/fast-api-sequences-x64': [SKIP],
 }], # single_generation
 
 ################################################################################
