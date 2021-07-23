@@ -59,6 +59,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   if (!backing_store) {
     set_backing_store(GetIsolate(), nullptr);
     set_byte_length(0);
+    set_max_byte_length(0);
   } else {
     Attach(std::move(backing_store));
   }
@@ -72,6 +73,9 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   DCHECK_NOT_NULL(backing_store);
   DCHECK_EQ(is_shared(), backing_store->is_shared());
   DCHECK_EQ(is_resizable(), backing_store->is_resizable());
+  DCHECK_IMPLIES(
+      !backing_store->is_wasm_memory() && !backing_store->is_resizable(),
+      backing_store->byte_length() == backing_store->max_byte_length());
   DCHECK(!was_detached());
   Isolate* isolate = GetIsolate();
   set_backing_store(isolate, backing_store->buffer_start());
@@ -82,6 +86,7 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   } else {
     set_byte_length(backing_store->byte_length());
   }
+  set_max_byte_length(backing_store->max_byte_length());
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
   if (!backing_store->free_on_destruct()) set_is_external(true);
   Heap* heap = isolate->heap();

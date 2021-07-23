@@ -108,8 +108,8 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
     }
     constexpr bool kIsWasmMemory = false;
     backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
-        isolate, byte_length, page_size, initial_pages, max_pages,
-        kIsWasmMemory, shared);
+        isolate, byte_length, max_byte_length, page_size, initial_pages,
+        max_pages, kIsWasmMemory, shared);
   }
   if (!backing_store) {
     // Allocation of backing store failed.
@@ -474,6 +474,9 @@ BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
   CHECK_RECEIVER(JSArrayBuffer, array_buffer, kMethodName);
   // 3. If IsSharedArrayBuffer(O) is false, throw a TypeError exception.
   CHECK_SHARED(true, array_buffer, kMethodName);
+
+  DCHECK_EQ(array_buffer->max_byte_length(),
+            array_buffer->GetBackingStore()->max_byte_length());
 
   // 4. Let length be ArrayBufferByteLength(O, SeqCst).
   size_t byte_length;

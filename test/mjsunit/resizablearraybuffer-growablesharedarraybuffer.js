@@ -534,6 +534,7 @@ const ctors = [[ArrayBuffer, (b) => b.resizable],
       assert(!(gsab instanceof ArrayBuffer));
       assert(gsab instanceof SharedArrayBuffer);
       assert(10 == gsab.byteLength);
+      assert(20 == gsab.maxByteLength);
       gsab.grow(15);
       postMessage('ok');
     }
