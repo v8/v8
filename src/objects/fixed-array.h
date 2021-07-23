@@ -285,6 +285,10 @@ class WeakFixedArray
       int index, MaybeObject value,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
+  static inline Handle<WeakFixedArray> EnsureSpace(Isolate* isolate,
+                                                   Handle<WeakFixedArray> array,
+                                                   int length);
+
   // Forward declare the non-atomic (set_)length defined in torque.
   using TorqueGeneratedWeakFixedArray::length;
   using TorqueGeneratedWeakFixedArray::set_length;
