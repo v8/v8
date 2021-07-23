@@ -276,7 +276,7 @@ static String16 identifierFromTitleOrStackTrace(
   String16 identifier;
   if (title.isEmpty()) {
     std::unique_ptr<V8StackTraceImpl> stackTrace =
-        V8StackTraceImpl::capture(inspector->debugger(), helper.groupId(), 1);
+        V8StackTraceImpl::capture(inspector->debugger(), 1);
     if (stackTrace && !stackTrace->isEmpty()) {
       identifier = toString16(stackTrace->topSourceURL()) + ":" +
                    String16::fromInteger(stackTrace->topLineNumber());
