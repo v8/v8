@@ -208,8 +208,6 @@
   # There are still memory leaks in some inspector tests
   # (https://crbug.com/v8/11107).
   'runtime/evaluate-async': [SKIP],
-  # https://crbug.com/1231890
-  'runtime/remote-object': [PASS, ['system == macos', SKIP]],
 }], # asan == True
 
 ################################################################################
