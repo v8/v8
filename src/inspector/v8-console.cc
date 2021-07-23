@@ -591,8 +591,8 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
     hints->setBoolean("queryObjects", true);
   }
   if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
-    session->runtimeAgent()->inspect(std::move(wrappedObject),
-                                     std::move(hints));
+    session->runtimeAgent()->inspect(std::move(wrappedObject), std::move(hints),
+                                     helper.contextId());
   }
 }
 
