@@ -311,7 +311,8 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 
 void LiftoffAssembler::AlignFrameSize() {}
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset,
+                                              SafepointTableBuilder*) {
   int frame_size = GetTotalFrameSize() - kSystemPointerSize;
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.

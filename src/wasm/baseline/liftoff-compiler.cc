@@ -310,9 +310,9 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   return;
 #endif
 
-  // TODO(11235): On arm and arm64 there is still a limit on the size of
-  // supported stack frames.
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
+  // TODO(11235): On arm64 there is still a limit on the size of supported stack
+  // frames.
+#if V8_TARGET_ARCH_ARM64
   if (strstr(detail, "Stack limited to 512 bytes")) return;
 #endif
 
@@ -954,7 +954,8 @@ class LiftoffCompiler {
       GenerateOutOfLineCode(&ool);
     }
     DCHECK_EQ(frame_size, __ GetTotalFrameSize());
-    __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_);
+    __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
+                              &safepoint_table_builder_);
     __ FinishCode();
     safepoint_table_builder_.Emit(&asm_, __ GetTotalFrameSlotCountForGC());
     // Emit the handler table.

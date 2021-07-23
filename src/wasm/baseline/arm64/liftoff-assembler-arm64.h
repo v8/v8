@@ -307,7 +307,8 @@ void LiftoffAssembler::AlignFrameSize() {
   }
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
+void LiftoffAssembler::PatchPrepareStackFrame(int offset,
+                                              SafepointTableBuilder*) {
   // The frame_size includes the frame marker. The frame marker has already been
   // pushed on the stack though, so we don't need to allocate memory for it
   // anymore.
