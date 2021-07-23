@@ -185,6 +185,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SubS32(Register dst, Register src, const Operand& value,
               Register scratch = r0, RCBit r = LeaveRC);
   void SubS32(Register dst, Register src, Register value, RCBit r = LeaveRC);
+  void MulS64(Register dst, Register src, const Operand& value,
+              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
+  void MulS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
+              RCBit r = LeaveRC);
+  void MulS32(Register dst, Register src, const Operand& value,
+              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
+  void MulS32(Register dst, Register src, Register value, OEBit s = LeaveOE,
+              RCBit r = LeaveRC);
 
   void AndU64(Register dst, Register src, const Operand& value,
               Register scratch = r0, RCBit r = SetRC);

@@ -2730,6 +2730,33 @@ void TurboAssembler::SubS32(Register dst, Register src, const Operand& value,
   extsw(dst, dst, r);
 }
 
+void TurboAssembler::MulS64(Register dst, Register src, const Operand& value,
+                            Register scratch, OEBit s, RCBit r) {
+  if (is_int16(value.immediate()) && s == LeaveOE && r == LeaveRC) {
+    mulli(dst, src, value);
+  } else {
+    mov(scratch, value);
+    mulld(dst, src, scratch, s, r);
+  }
+}
+
+void TurboAssembler::MulS64(Register dst, Register src, Register value, OEBit s,
+                            RCBit r) {
+  mulld(dst, src, value, s, r);
+}
+
+void TurboAssembler::MulS32(Register dst, Register src, const Operand& value,
+                            Register scratch, OEBit s, RCBit r) {
+  MulS64(dst, src, value, scratch, s, r);
+  extsw(dst, dst, r);
+}
+
+void TurboAssembler::MulS32(Register dst, Register src, Register value, OEBit s,
+                            RCBit r) {
+  MulS64(dst, src, value, s, r);
+  extsw(dst, dst, r);
+}
+
 void TurboAssembler::AndU64(Register dst, Register src, const Operand& value,
                             Register scratch, RCBit r) {
   if (is_int16(value.immediate()) && r == SetRC) {

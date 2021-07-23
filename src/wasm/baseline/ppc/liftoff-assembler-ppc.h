@@ -783,8 +783,6 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
   }
 
-UNIMPLEMENTED_I32_BINOP(i32_mul)
-UNIMPLEMENTED_I64_BINOP(i64_mul)
 UNIMPLEMENTED_GP_UNOP(i32_clz)
 UNIMPLEMENTED_GP_UNOP(i32_ctz)
 UNIMPLEMENTED_FP_BINOP(f32_add)
@@ -873,15 +871,15 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
   V(i32_add, AddS32, Register, Register, Register, , , , USE, , void)        \
   V(i32_addi, AddS32, Register, Register, int32_t, , , Operand, USE, , void) \
   V(i32_subi, SubS32, Register, Register, int32_t, , , Operand, USE, , void) \
-  V(i32_andi, AndU32, Register, Register, int32_t, , , Operand, SIGN_EXT, ,  \
-    void)                                                                    \
-  V(i32_ori, OrU32, Register, Register, int32_t, , , Operand, SIGN_EXT, ,    \
-    void)                                                                    \
-  V(i32_xori, XorU32, Register, Register, int32_t, , , Operand, SIGN_EXT, ,  \
-    void)                                                                    \
-  V(i32_and, AndU32, Register, Register, Register, , , , SIGN_EXT, , void)   \
-  V(i32_or, OrU32, Register, Register, Register, , , , SIGN_EXT, , void)     \
-  V(i32_xor, XorU32, Register, Register, Register, , , , SIGN_EXT, , void)   \
+  V(i32_mul, MulS32, Register, Register, Register, , , , USE, , void)        \
+  V(i64_mul, MulS64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
+    LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
+  V(i32_andi, AndU32, Register, Register, int32_t, , , Operand, USE, , void) \
+  V(i32_ori, OrU32, Register, Register, int32_t, , , Operand, USE, , void)   \
+  V(i32_xori, XorU32, Register, Register, int32_t, , , Operand, USE, , void) \
+  V(i32_and, AndU32, Register, Register, Register, , , , USE, , void)        \
+  V(i32_or, OrU32, Register, Register, Register, , , , USE, , void)          \
+  V(i32_xor, XorU32, Register, Register, Register, , , , USE, , void)        \
   V(i64_and, AndU64, LiftoffRegister, LiftoffRegister, LiftoffRegister,      \
     LFR_TO_REG, LFR_TO_REG, LFR_TO_REG, USE, , void)                         \
   V(i64_or, OrU64, LiftoffRegister, LiftoffRegister, LiftoffRegister,        \

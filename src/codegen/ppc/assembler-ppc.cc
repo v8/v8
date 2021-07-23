@@ -868,6 +868,10 @@ void Assembler::mullw(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | MULLW, dst, src1, src2, o, r);
 }
 
+void Assembler::mulli(Register dst, Register src, const Operand& imm) {
+  d_form(MULLI, dst, src, imm.immediate(), true);
+}
+
 // Multiply hi word
 void Assembler::mulhw(Register dst, Register src1, Register src2, RCBit r) {
   xo_form(EXT2 | MULHWX, dst, src1, src2, LeaveOE, r);
