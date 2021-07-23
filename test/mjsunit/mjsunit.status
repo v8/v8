@@ -1303,6 +1303,13 @@
 }],  # variant == assert_types
 
 ##############################################################################
+['variant == stress_snapshot', {
+  # Not an actual test, only helpers, but the flag --turbo-fast-api-calls is
+  # declared as incompatible with stress_snapshot.
+  'compiler/fast-api-helpers': [SKIP],
+}],  # variant == stress_snapshot
+
+##############################################################################
 ['variant == stress_snapshot and arch != x64', {
   # Deserialization fails due to read-only snapshot checksum verification.
   # https://crbug.com/v8/10491
