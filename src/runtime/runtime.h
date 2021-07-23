@@ -801,8 +801,8 @@ class Runtime : public AllStatic {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> HasProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetInternalProperties(
-      Isolate* isolate, Handle<Object>);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray>
+  GetInternalProperties(Isolate* isolate, Handle<Object>);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ThrowIteratorError(
       Isolate* isolate, Handle<Object> object);
