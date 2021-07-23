@@ -1471,6 +1471,36 @@ void WebAssemblyTag(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(exception));
 }
 
+void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Exception()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Exception must be invoked with 'new'");
+    return;
+  }
+  if (!args[0]->IsObject()) {
+    thrower.TypeError("Argument 0 must be a WebAssembly tag");
+    return;
+  }
+  i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
+  if (!i::HeapObject::cast(*arg0).IsWasmExceptionObject()) {
+    thrower.TypeError("Argument 0 must be a WebAssembly tag");
+    return;
+  }
+  auto tag_object = i::Handle<i::WasmExceptionObject>::cast(arg0);
+  auto tag = i::Handle<i::WasmExceptionTag>(
+      i::WasmExceptionTag::cast(tag_object->exception_tag()), i_isolate);
+  // TODO(thibaudm): Encode arguments in the exception package.
+  uint32_t size = 0;
+  i::Handle<i::WasmExceptionPackage> runtime_exception =
+      i::WasmExceptionPackage::New(i_isolate, tag, size);
+  args.GetReturnValue().Set(
+      Utils::ToLocal(i::Handle<i::Object>::cast(runtime_exception)));
+}
+
 // WebAssembly.Function
 void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -2324,6 +2354,20 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
         i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
     JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
                               exception_proto);
+
+    // Set up runtime exception constructor.
+    Handle<JSFunction> runtime_exception_constructor = InstallConstructorFunc(
+        isolate, webassembly, "Exception", WebAssemblyException);
+    SetDummyInstanceTemplate(isolate, runtime_exception_constructor);
+    Handle<Map> initial_map(
+        isolate->native_context()->wasm_runtime_error_function().initial_map(),
+        isolate);
+    Handle<HeapObject> instance_prototype(isolate->native_context()
+                                              ->wasm_runtime_error_function()
+                                              .instance_prototype(),
+                                          isolate);
+    JSFunction::SetInitialMap(isolate, runtime_exception_constructor,
+                              initial_map, instance_prototype);
   }
 
   // Setup Function

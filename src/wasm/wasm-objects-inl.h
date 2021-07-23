@@ -298,7 +298,7 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 }
 
 // WasmExceptionPackage
-OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSReceiver)
+OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSObject)
 CAST_ACCESSOR(WasmExceptionPackage)
 
 // WasmExportedFunction

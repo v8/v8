@@ -57,3 +57,33 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let res = instance.exports.ex;
   assertEquals(res, js_ex_i32);
 })();
+
+
+(function TestExceptionConstructor() {
+  print(arguments.callee.name);
+  // Check errors.
+  let js_tag = new WebAssembly.Tag({parameters: []});
+  assertThrows(() => new WebAssembly.Exception(0), TypeError,
+      /Argument 0 must be a WebAssembly tag/);
+  assertThrows(() => new WebAssembly.Exception({}), TypeError,
+      /Argument 0 must be a WebAssembly tag/);
+  assertThrows(() => WebAssembly.Exception(js_tag), TypeError,
+      /WebAssembly.Exception must be invoked with 'new'/);
+  let js_exception = new WebAssembly.Exception(js_tag);
+
+  // Check prototype.
+  assertSame(WebAssembly.Exception.prototype, js_exception.__proto__);
+  assertTrue(js_exception instanceof WebAssembly.Exception);
+
+  // Check prototype of a thrown exception.
+  let builder = new WasmModuleBuilder();
+  let wasm_tag = builder.addException(kSig_v_v);
+  builder.addFunction("throw", kSig_v_v)
+      .addBody([kExprThrow, wasm_tag]).exportFunc();
+  let instance = builder.instantiate();
+  try {
+    instance.exports.throw();
+  } catch (e) {
+    assertTrue(e instanceof WebAssembly.Exception);
+  }
+})();

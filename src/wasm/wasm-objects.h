@@ -570,7 +570,7 @@ class WasmExceptionObject
 };
 
 // A Wasm exception that has been thrown out of Wasm code.
-class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSReceiver {
+class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
  public:
   static Handle<WasmExceptionPackage> New(
       Isolate* isolate, Handle<WasmExceptionTag> exception_tag,
@@ -587,7 +587,7 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSReceiver {
   static uint32_t GetEncodedSize(const wasm::WasmException* exception);
 
   DECL_CAST(WasmExceptionPackage)
-  OBJECT_CONSTRUCTORS(WasmExceptionPackage, JSReceiver);
+  OBJECT_CONSTRUCTORS(WasmExceptionPackage, JSObject);
 };
 
 // A Wasm function that is wrapped and exported to JavaScript.
