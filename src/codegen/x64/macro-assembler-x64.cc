@@ -2920,55 +2920,6 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value) {
   }
 }
 
-void TurboAssembler::PrepareForTailCall(Register callee_args_count,
-                                        Register caller_args_count,
-                                        Register scratch0, Register scratch1) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
-
-  // Calculate the destination address where we will put the return address
-  // after we drop current frame.
-  Register new_sp_reg = scratch0;
-  subq(caller_args_count, callee_args_count);
-  leaq(new_sp_reg, Operand(rbp, caller_args_count, times_system_pointer_size,
-                           StandardFrameConstants::kCallerPCOffset));
-
-  if (FLAG_debug_code) {
-    cmpq(rsp, new_sp_reg);
-    Check(below, AbortReason::kStackAccessBelowStackPointer);
-  }
-
-  // Copy return address from caller's frame to current frame's return address
-  // to avoid its trashing and let the following loop copy it to the right
-  // place.
-  Register tmp_reg = scratch1;
-  movq(tmp_reg, Operand(rbp, StandardFrameConstants::kCallerPCOffset));
-  movq(Operand(rsp, 0), tmp_reg);
-
-  // Restore caller's frame pointer now as it could be overwritten by
-  // the copying loop.
-  movq(rbp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-
-  // +2 here is to copy both receiver and return address.
-  Register count_reg = caller_args_count;
-  leaq(count_reg, Operand(callee_args_count, 2));
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-  Label loop, entry;
-  jmp(&entry, Label::kNear);
-  bind(&loop);
-  decq(count_reg);
-  movq(tmp_reg, Operand(rsp, count_reg, times_system_pointer_size, 0));
-  movq(Operand(new_sp_reg, count_reg, times_system_pointer_size, 0), tmp_reg);
-  bind(&entry);
-  cmpq(count_reg, Immediate(0));
-  j(not_equal, &loop, Label::kNear);
-
-  // Leave current frame.
-  movq(rsp, new_sp_reg);
-}
-
 void MacroAssembler::InvokeFunction(Register function, Register new_target,
                                     Register actual_parameter_count,
                                     InvokeType type) {

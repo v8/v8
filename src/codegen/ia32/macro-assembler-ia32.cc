@@ -1431,60 +1431,6 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
   jmp(entry, RelocInfo::OFF_HEAP_TARGET);
 }
 
-void TurboAssembler::PrepareForTailCall(
-    Register callee_args_count, Register caller_args_count, Register scratch0,
-    Register scratch1, int number_of_temp_values_after_return_address) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
-
-  // Calculate the destination address where we will put the return address
-  // after we drop current frame.
-  Register new_sp_reg = scratch0;
-  sub(caller_args_count, callee_args_count);
-  lea(new_sp_reg, Operand(ebp, caller_args_count, times_system_pointer_size,
-                          StandardFrameConstants::kCallerPCOffset -
-                              number_of_temp_values_after_return_address *
-                                  kSystemPointerSize));
-
-  if (FLAG_debug_code) {
-    cmp(esp, new_sp_reg);
-    Check(below, AbortReason::kStackAccessBelowStackPointer);
-  }
-
-  // Copy return address from caller's frame to current frame's return address
-  // to avoid its trashing and let the following loop copy it to the right
-  // place.
-  Register tmp_reg = scratch1;
-  mov(tmp_reg, Operand(ebp, StandardFrameConstants::kCallerPCOffset));
-  mov(Operand(esp,
-              number_of_temp_values_after_return_address * kSystemPointerSize),
-      tmp_reg);
-
-  // Restore caller's frame pointer now as it could be overwritten by
-  // the copying loop.
-  mov(ebp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-
-  // +2 here is to copy both receiver and return address.
-  Register count_reg = caller_args_count;
-  lea(count_reg, Operand(callee_args_count,
-                         2 + number_of_temp_values_after_return_address));
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-  Label loop, entry;
-  jmp(&entry, Label::kNear);
-  bind(&loop);
-  dec(count_reg);
-  mov(tmp_reg, Operand(esp, count_reg, times_system_pointer_size, 0));
-  mov(Operand(new_sp_reg, count_reg, times_system_pointer_size, 0), tmp_reg);
-  bind(&entry);
-  cmp(count_reg, Immediate(0));
-  j(not_equal, &loop, Label::kNear);
-
-  // Leave current frame.
-  mov(esp, new_sp_reg);
-}
-
 void MacroAssembler::CompareStackLimit(Register with, StackLimitKind kind) {
   ASM_CODE_COMMENT(this);
   DCHECK(root_array_available());
