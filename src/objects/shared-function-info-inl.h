@@ -466,21 +466,31 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope(IsolateT* isolate) const {
 
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
                                  Isolate* isolate)
-    : retain_bytecode_(shared.HasBytecodeArray()
-                           ? handle(shared.GetBytecodeArray(isolate), isolate)
-                           : MaybeHandle<BytecodeArray>()),
-      is_compiled_(shared.is_compiled()) {
-  DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
+    : is_compiled_(shared.is_compiled()) {
+  if (shared.HasBytecodeArray()) {
+    retain_code_ = handle(shared.GetBytecodeArray(isolate), isolate);
+  } else if (shared.HasBaselineData()) {
+    retain_code_ = handle(shared.baseline_data(), isolate);
+  } else {
+    retain_code_ = MaybeHandle<HeapObject>();
+  }
+
+  DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
 }
 
 IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
                                  LocalIsolate* isolate)
-    : retain_bytecode_(shared.HasBytecodeArray()
-                           ? isolate->heap()->NewPersistentHandle(
-                                 shared.GetBytecodeArray(isolate))
-                           : MaybeHandle<BytecodeArray>()),
-      is_compiled_(shared.is_compiled()) {
-  DCHECK_IMPLIES(!retain_bytecode_.is_null(), is_compiled());
+    : is_compiled_(shared.is_compiled()) {
+  if (shared.HasBytecodeArray()) {
+    retain_code_ =
+        isolate->heap()->NewPersistentHandle(shared.GetBytecodeArray(isolate));
+  } else if (shared.HasBaselineData()) {
+    retain_code_ = isolate->heap()->NewPersistentHandle(shared.baseline_data());
+  } else {
+    retain_code_ = MaybeHandle<HeapObject>();
+  }
+
+  DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
 }
 
 bool SharedFunctionInfo::has_simple_parameters() {

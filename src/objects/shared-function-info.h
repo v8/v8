@@ -691,12 +691,12 @@ class V8_NODISCARD IsCompiledScope {
   inline IsCompiledScope(const SharedFunctionInfo shared, Isolate* isolate);
   inline IsCompiledScope(const SharedFunctionInfo shared,
                          LocalIsolate* isolate);
-  inline IsCompiledScope() : retain_bytecode_(), is_compiled_(false) {}
+  inline IsCompiledScope() : retain_code_(), is_compiled_(false) {}
 
   inline bool is_compiled() const { return is_compiled_; }
 
  private:
-  MaybeHandle<BytecodeArray> retain_bytecode_;
+  MaybeHandle<HeapObject> retain_code_;
   bool is_compiled_;
 };
 
