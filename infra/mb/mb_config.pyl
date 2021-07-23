@@ -665,7 +665,7 @@
     },
 
     'v8_dcheck_always_on': {
-      'gn_args': 'v8_dcheck_always_on=true',
+      'gn_args': 'v8_dcheck_always_on=true dcheck_always_on=true',
     },
 
     'debug': {
@@ -783,7 +783,7 @@
     },
 
     'release': {
-      'gn_args': 'is_debug=false',
+      'gn_args': 'is_debug=false dcheck_always_on=false',
     },
 
     'release_bot': {
