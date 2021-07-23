@@ -5216,7 +5216,17 @@ void TurboAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
   V(I64x2Add, va, 3)       \
   V(I32x4Add, va, 2)       \
   V(I16x8Add, va, 1)       \
-  V(I8x16Add, va, 0)
+  V(I8x16Add, va, 0)       \
+  V(F64x2Sub, vfs, 3)      \
+  V(F32x4Sub, vfs, 2)      \
+  V(I64x2Sub, vs, 3)       \
+  V(I32x4Sub, vs, 2)       \
+  V(I16x8Sub, vs, 1)       \
+  V(I8x16Sub, vs, 0)       \
+  V(F64x2Mul, vfm, 3)      \
+  V(F32x4Mul, vfm, 2)      \
+  V(I32x4Mul, vml, 2)      \
+  V(I16x8Mul, vml, 1)
 
 #define EMIT_SIMD_BINOP(name, op, condition)                               \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1,     \
@@ -5226,6 +5236,20 @@ void TurboAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
 SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
 #undef EMIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
+
+void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  Register scratch_1 = r0;
+  Register scratch_2 = r1;
+  for (int i = 0; i < 2; i++) {
+    vlgv(scratch_1, src1, MemOperand(r0, i), Condition(3));
+    vlgv(scratch_2, src2, MemOperand(r0, i), Condition(3));
+    MulS64(scratch_1, scratch_2);
+    scratch_1 = r1;
+    scratch_2 = ip;
+  }
+  vlvgp(dst, r0, r1);
+}
 
 }  // namespace internal
 }  // namespace v8

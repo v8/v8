@@ -1066,18 +1066,31 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                         Register src2, uint8_t imm_lane_idx);
   void I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
                         Register src2, uint8_t imm_lane_idx);
-  void F64x2Add(Simd128Register dst, Simd128Register src1,
-                Simd128Register src2);
-  void F32x4Add(Simd128Register dst, Simd128Register src1,
-                Simd128Register src2);
-  void I64x2Add(Simd128Register dst, Simd128Register src1,
-                Simd128Register src2);
-  void I32x4Add(Simd128Register dst, Simd128Register src1,
-                Simd128Register src2);
-  void I16x8Add(Simd128Register dst, Simd128Register src1,
-                Simd128Register src2);
-  void I8x16Add(Simd128Register dst, Simd128Register src1,
-                Simd128Register src2);
+
+#define SIMD_BINOP_LIST(V) \
+  V(F64x2Add)              \
+  V(F32x4Add)              \
+  V(I64x2Add)              \
+  V(I32x4Add)              \
+  V(I16x8Add)              \
+  V(I8x16Add)              \
+  V(F64x2Sub)              \
+  V(F32x4Sub)              \
+  V(I64x2Sub)              \
+  V(I32x4Sub)              \
+  V(I16x8Sub)              \
+  V(I8x16Sub)              \
+  V(F64x2Mul)              \
+  V(F32x4Mul)              \
+  V(I64x2Mul)              \
+  V(I32x4Mul)              \
+  V(I16x8Mul)
+
+#define PROTOTYPE_SIMD_BINOP(name) \
+  void name(Simd128Register dst, Simd128Register src1, Simd128Register src2);
+  SIMD_BINOP_LIST(PROTOTYPE_SIMD_BINOP)
+#undef PROTOTYPE_SIMD_BINOP
+#undef SIMD_BINOP_LIST
 
   // ---------------------------------------------------------------------------
   // Pointer compression Support
