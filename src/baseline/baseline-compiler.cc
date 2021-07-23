@@ -558,7 +558,7 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
 
     if (weight < 0) {
       SaveAccumulatorScope accumulator_scope(&basm_);
-      CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode,
+      CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheckFromBytecode,
                   __ FunctionOperand());
     }
   }
