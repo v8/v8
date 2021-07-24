@@ -1482,6 +1482,7 @@
   'regress/wasm/regress-1165966': [SKIP],
   'regress/wasm/regress-1187831': [SKIP],
   'regress/wasm/regress-1199662': [SKIP],
+  'regress/wasm/regress-1231950': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
@@ -1505,6 +1506,12 @@
 ['variant == concurrent_inlining', {
   'concurrent-initial-prototype-change-1': [SKIP],
 }],  # variant == concurrent_inlining
+
+##############################################################################
+['variant == instruction_scheduling or variant == stress_instruction_scheduling', {
+  # BUG(12018): This test currently fails with --turbo-instruction-scheduling.
+  'regress/wasm/regress-1231950': [SKIP],
+}],  # variant == instruction_scheduling or variant == stress_instruction_scheduling
 
 ################################################################################
 ['single_generation', {

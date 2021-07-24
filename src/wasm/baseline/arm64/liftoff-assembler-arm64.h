@@ -138,27 +138,23 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm,
                     : MemOperand(effective_addr, offset.W(), UXTW);
 }
 
-// Certain load instructions do not support offset (register or immediate).
-// This creates a MemOperand that is suitable for such instructions by adding
-// |addr|, |offset| (if needed), and |offset_imm| into a temporary.
-inline MemOperand GetMemOpWithImmOffsetZero(LiftoffAssembler* assm,
-                                            UseScratchRegisterScope* temps,
-                                            Register addr, Register offset,
-                                            uintptr_t offset_imm) {
+// Compute the effective address (sum of |addr|, |offset| (if given) and
+// |offset_imm|) into a temporary register. This is needed for certain load
+// instructions that do not support an offset (register or immediate).
+// Returns |addr| if both |offset| and |offset_imm| are zero.
+inline Register GetEffectiveAddress(LiftoffAssembler* assm,
+                                    UseScratchRegisterScope* temps,
+                                    Register addr, Register offset,
+                                    uintptr_t offset_imm) {
+  if (!offset.is_valid() && offset_imm == 0) return addr;
   Register tmp = temps->AcquireX();
   if (offset.is_valid()) {
-    // offset has passed BoundsCheckMem in liftoff-compiler, and been unsigned
-    // extended, so it is fine to use the full width of the register.
-    assm->Add(tmp, addr, offset);
-    if (offset_imm != 0) {
-      assm->Add(tmp, tmp, offset_imm);
-    }
-  } else {
-    if (offset_imm != 0) {
-      assm->Add(tmp, addr, offset_imm);
-    }
+    // TODO(clemensb): This needs adaption for memory64.
+    assm->Add(tmp, addr, Operand(offset, UXTW));
+    addr = tmp;
   }
-  return MemOperand(tmp.X(), 0);
+  if (offset_imm != 0) assm->Add(tmp, addr, offset_imm);
+  return tmp;
 }
 
 enum class ShiftDirection : bool { kLeft, kRight };
@@ -1500,11 +1496,11 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
 }
 
 void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  sxtb(dst, src);
+  sxtb(dst.W(), src.W());
 }
 
 void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  sxth(dst, src);
+  sxth(dst.W(), src.W());
 }
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
@@ -1638,8 +1634,8 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   UseScratchRegisterScope temps(this);
   MemOperand src_op =
       transform == LoadTransformationKind::kSplat
-          ? liftoff::GetMemOpWithImmOffsetZero(this, &temps, src_addr,
-                                               offset_reg, offset_imm)
+          ? MemOperand{liftoff::GetEffectiveAddress(this, &temps, src_addr,
+                                                    offset_reg, offset_imm)}
           : liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
   *protected_load_pc = pc_offset();
   MachineType memtype = type.mem_type();
@@ -1690,8 +1686,8 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 uintptr_t offset_imm, LoadType type,
                                 uint8_t laneidx, uint32_t* protected_load_pc) {
   UseScratchRegisterScope temps(this);
-  MemOperand src_op = liftoff::GetMemOpWithImmOffsetZero(
-      this, &temps, addr, offset_reg, offset_imm);
+  MemOperand src_op{
+      liftoff::GetEffectiveAddress(this, &temps, addr, offset_reg, offset_imm)};
   *protected_load_pc = pc_offset();
 
   MachineType mem_type = type.mem_type();
@@ -1717,8 +1713,8 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
                                  StoreType type, uint8_t lane,
                                  uint32_t* protected_store_pc) {
   UseScratchRegisterScope temps(this);
-  MemOperand dst_op =
-      liftoff::GetMemOpWithImmOffsetZero(this, &temps, dst, offset, offset_imm);
+  MemOperand dst_op{
+      liftoff::GetEffectiveAddress(this, &temps, dst, offset, offset_imm)};
   if (protected_store_pc) *protected_store_pc = pc_offset();
 
   MachineRepresentation rep = type.mem_rep();
