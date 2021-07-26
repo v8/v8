@@ -9696,7 +9696,7 @@ void CodeStubAssembler::TryLookupElement(
   // TODO(verwaest): Support other elements kinds as well.
   Label if_isobjectorsmi(this), if_isdouble(this), if_isdictionary(this),
       if_isfaststringwrapper(this), if_isslowstringwrapper(this), if_oob(this),
-      if_typedarray(this);
+      if_typedarray(this), if_rab_gsab_typedarray(this);
   // clang-format off
   int32_t values[] = {
       // Handled by {if_isobjectorsmi}.
@@ -9726,8 +9726,18 @@ void CodeStubAssembler::TryLookupElement(
       UINT8_CLAMPED_ELEMENTS,
       BIGUINT64_ELEMENTS,
       BIGINT64_ELEMENTS,
+      RAB_GSAB_UINT8_ELEMENTS,
+      RAB_GSAB_INT8_ELEMENTS,
+      RAB_GSAB_UINT16_ELEMENTS,
+      RAB_GSAB_INT16_ELEMENTS,
+      RAB_GSAB_UINT32_ELEMENTS,
+      RAB_GSAB_INT32_ELEMENTS,
+      RAB_GSAB_FLOAT32_ELEMENTS,
+      RAB_GSAB_FLOAT64_ELEMENTS,
+      RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
+      RAB_GSAB_BIGUINT64_ELEMENTS,
+      RAB_GSAB_BIGINT64_ELEMENTS,
   };
-  // TODO(v8:11111): Support RAB / GSAB.
   Label* labels[] = {
       &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
       &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
@@ -9749,6 +9759,17 @@ void CodeStubAssembler::TryLookupElement(
       &if_typedarray,
       &if_typedarray,
       &if_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
+      &if_rab_gsab_typedarray,
   };
   // clang-format on
   STATIC_ASSERT(arraysize(values) == arraysize(labels));
@@ -9813,6 +9834,13 @@ void CodeStubAssembler::TryLookupElement(
     GotoIf(IsDetachedBuffer(buffer), if_absent);
 
     TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(object));
+    Branch(UintPtrLessThan(intptr_index, length), if_found, if_absent);
+  }
+  BIND(&if_rab_gsab_typedarray);
+  {
+    TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(object));
+    TNode<UintPtrT> length =
+        LoadVariableLengthJSTypedArrayLength(CAST(object), buffer, if_absent);
     Branch(UintPtrLessThan(intptr_index, length), if_found, if_absent);
   }
   BIND(&if_oob);
