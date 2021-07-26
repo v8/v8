@@ -326,14 +326,15 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
         byte* ptr =
             base::ReadUnalignedValue<byte*>(reinterpret_cast<Address>(pc));
         if (RelocInfo::IsInternalReference(it->rinfo()->rmode())) {
-          SNPrintF(decode_buffer, "%08" V8PRIxPTR "      jump table entry %4zu",
+          SNPrintF(decode_buffer,
+                   "%08" V8PRIxPTR "       jump table entry %4zu",
                    reinterpret_cast<intptr_t>(ptr),
                    static_cast<size_t>(ptr - begin));
         } else {
           const char* kType = RelocInfo::IsLiteralConstant(it->rinfo()->rmode())
                                   ? "    literal constant"
                                   : "embedded data object";
-          SNPrintF(decode_buffer, "%08" V8PRIxPTR "      %s 0x%08" V8PRIxPTR,
+          SNPrintF(decode_buffer, "%08" V8PRIxPTR "       %s 0x%08" V8PRIxPTR,
                    reinterpret_cast<intptr_t>(ptr), kType,
                    reinterpret_cast<intptr_t>(ptr));
         }
