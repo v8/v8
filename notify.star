@@ -24,6 +24,14 @@ luci.notifier(
 )
 
 luci.notifier(
+    name = "infra-failure",
+    on_occurrence = ["INFRA_FAILURE"],
+    notify_emails = [
+        "v8-infra@google.com",
+    ],
+)
+
+luci.notifier(
     name = "memory sheriffs",
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,

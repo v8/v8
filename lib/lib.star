@@ -224,6 +224,7 @@ def v8_builder(defaults = None, **kwargs):
     if kwargs.pop("close_tree", False):
         notifies = kwargs.pop("notifies", [])
         notifies.append("v8 tree closer")
+        notifies.append("infra-failure")
         kwargs["notifies"] = notifies
     parent_builder = kwargs.pop("parent_builder", None)
     if parent_builder:
