@@ -190,13 +190,6 @@ struct MaybeBoolFlag {
 #define ENABLE_SPARKPLUG false
 #endif
 
-#if ENABLE_SPARKPLUG && !defined(ANDROID)
-// Enable Sparkplug by default on desktop-only.
-#define ENABLE_SPARKPLUG_BY_DEFAULT true
-#else
-#define ENABLE_SPARKPLUG_BY_DEFAULT false
-#endif
-
 // Supported ARM configurations are:
 //  "armv6":       ARMv6 + VFPv2
 //  "armv7":       ARMv7 + VFPv3-D32 + NEON
@@ -654,8 +647,7 @@ DEFINE_INT(interrupt_budget_scale_factor_for_top_tier, 20,
 #else
 #define FLAG FLAG_READONLY
 #endif
-DEFINE_BOOL(sparkplug, ENABLE_SPARKPLUG_BY_DEFAULT,
-            "enable Sparkplug baseline compiler")
+DEFINE_BOOL(sparkplug, false, "enable experimental Sparkplug baseline compiler")
 DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
 DEFINE_BOOL(sparkplug_on_heap, false, "compile Sparkplug code directly on heap")
 #if ENABLE_SPARKPLUG
