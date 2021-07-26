@@ -898,26 +898,13 @@ class AccessorInfoData : public HeapObjectData {
 class AllocationSiteData : public HeapObjectData {
  public:
   AllocationSiteData(JSHeapBroker* broker, ObjectData** storage,
-                     Handle<AllocationSite> object);
-  void Serialize(JSHeapBroker* broker, NotConcurrentInliningTag tag);
-
-  bool PointsToLiteral() const { return PointsToLiteral_; }
-  AllocationType GetAllocationType() const { return GetAllocationType_; }
-  ObjectData* nested_site() const { return nested_site_; }
-  ObjectData* boilerplate() const { return boilerplate_; }
-
-  // These are only valid if PointsToLiteral is false.
-  ElementsKind GetElementsKind() const { return GetElementsKind_; }
-  bool CanInlineCall() const { return CanInlineCall_; }
-
- private:
-  bool const PointsToLiteral_;
-  AllocationType const GetAllocationType_;
-  ObjectData* nested_site_ = nullptr;
-  ObjectData* boilerplate_ = nullptr;
-  ElementsKind GetElementsKind_ = NO_ELEMENTS;
-  bool CanInlineCall_ = false;
-  bool serialized_ = false;
+                     Handle<AllocationSite> object)
+      : HeapObjectData(broker, storage, object) {
+    // AllocationSiteData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
+  }
 };
 
 class BigIntData : public HeapObjectData {
@@ -1252,36 +1239,6 @@ bool JSFunctionRef::IsConsistentWithHeapState() const {
   DCHECK(broker()->is_concurrent_inlining());
   DCHECK(broker()->IsMainThread());
   return data()->AsJSFunction()->IsConsistentWithHeapState(broker());
-}
-
-AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
-                                       ObjectData** storage,
-                                       Handle<AllocationSite> object)
-    : HeapObjectData(broker, storage, object),
-      PointsToLiteral_(object->PointsToLiteral()),
-      GetAllocationType_(object->GetAllocationType()) {
-  DCHECK(!broker->is_concurrent_inlining());
-  if (!PointsToLiteral_) {
-    GetElementsKind_ = object->GetElementsKind();
-    CanInlineCall_ = object->CanInlineCall();
-  }
-}
-
-void AllocationSiteData::Serialize(JSHeapBroker* broker,
-                                   NotConcurrentInliningTag) {
-  if (serialized_) return;
-  serialized_ = true;
-
-  TraceScope tracer(broker, this, "AllocationSiteData::Serialize");
-  Handle<AllocationSite> site = Handle<AllocationSite>::cast(object());
-
-  if (PointsToLiteral_) {
-    DCHECK_NULL(boilerplate_);
-    boilerplate_ = broker->GetOrCreateData(site->boilerplate(kAcquireLoad));
-  }
-
-  DCHECK_NULL(nested_site_);
-  nested_site_ = broker->GetOrCreateData(site->nested_site());
 }
 
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
@@ -2414,6 +2371,7 @@ bool NeverEverSerialize() {
   }
 
 NEVER_EVER_SERIALIZE(AccessorInfo)
+NEVER_EVER_SERIALIZE(AllocationSite)
 NEVER_EVER_SERIALIZE(ArrayBoilerplateDescription)
 NEVER_EVER_SERIALIZE(BytecodeArray)
 NEVER_EVER_SERIALIZE(Cell)
@@ -2731,10 +2689,9 @@ void JSObjectRef::SerializeAsBoilerplateRecursive(
 }
 
 void AllocationSiteRef::SerializeRecursive(NotConcurrentInliningTag tag) {
-  if (!data_->should_access_heap()) {
-    data()->AsAllocationSite()->Serialize(broker(), tag);
-  }
-
+  DCHECK(data_->should_access_heap());
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  DCHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   if (boilerplate().has_value()) {
     boilerplate()->SerializeAsBoilerplateRecursive(tag);
   }
@@ -2983,11 +2940,11 @@ int BytecodeArrayRef::handler_table_size() const {
 #define HEAP_ACCESSOR_C(holder, result, name) \
   result holder##Ref::name() const { return object()->name(); }
 
-BIMODAL_ACCESSOR(AllocationSite, Object, nested_site)
-BIMODAL_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
-BIMODAL_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
-BIMODAL_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
-BIMODAL_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)
+HEAP_ACCESSOR(AllocationSite, Object, nested_site)
+HEAP_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
+HEAP_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
+HEAP_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
+HEAP_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)
 
 BIMODAL_ACCESSOR_C(BigInt, uint64_t, AsUint64)
 
@@ -3724,12 +3681,8 @@ HeapObjectType HeapObjectRef::GetHeapObjectType() const {
 
 base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
   if (!PointsToLiteral()) return {};
-  if (data_->should_access_heap()) {
-    return TryMakeRef(broker(), object()->boilerplate(kAcquireLoad));
-  }
-  ObjectData* boilerplate = data()->AsAllocationSite()->boilerplate();
-  if (boilerplate == nullptr) return {};
-  return JSObjectRef(broker(), boilerplate);
+  DCHECK(data_->should_access_heap());
+  return TryMakeRef(broker(), object()->boilerplate(kAcquireLoad));
 }
 
 base::Optional<FixedArrayBaseRef> JSObjectRef::elements(
