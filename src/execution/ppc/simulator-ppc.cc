@@ -2523,7 +2523,6 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
-#if V8_TARGET_ARCH_PPC64
     case CNTLZDX: {
       int rs = instr->RSValue();
       int ra = instr->RAValue();
@@ -2549,7 +2548,42 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
-#endif
+    case CNTTZWX: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uint32_t rs_val = static_cast<uint32_t>(get_register(rs));
+      uintptr_t count = __builtin_ctz(rs_val);
+      set_register(ra, count);
+      if (instr->Bit(0)) {  // RC Bit set
+        int bf = 0;
+        if (count > 0) {
+          bf |= 0x40000000;
+        }
+        if (count == 0) {
+          bf |= 0x20000000;
+        }
+        condition_reg_ = (condition_reg_ & ~0xF0000000) | bf;
+      }
+      break;
+    }
+    case CNTTZDX: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uint64_t rs_val = get_register(rs);
+      uintptr_t count = __builtin_ctz(rs_val);
+      set_register(ra, count);
+      if (instr->Bit(0)) {  // RC Bit set
+        int bf = 0;
+        if (count > 0) {
+          bf |= 0x40000000;
+        }
+        if (count == 0) {
+          bf |= 0x20000000;
+        }
+        condition_reg_ = (condition_reg_ & ~0xF0000000) | bf;
+      }
+      break;
+    }
     case ANDX: {
       int rs = instr->RSValue();
       int ra = instr->RAValue();

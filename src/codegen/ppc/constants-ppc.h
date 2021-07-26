@@ -1172,6 +1172,10 @@ using Instr = uint32_t;
   V(cntlzw, CNTLZWX, 0x7C000034)       \
   /* Count Leading Zeros Doubleword */ \
   V(cntlzd, CNTLZDX, 0x7C000074)       \
+  /* Count Tailing Zeros Word */       \
+  V(cnttzw, CNTTZWX, 0x7C000434)       \
+  /* Count Tailing Zeros Doubleword */ \
+  V(cnttzd, CNTTZDX, 0x7C000474)       \
   /* Population Count Byte-wise */     \
   V(popcntb, POPCNTB, 0x7C0000F4)      \
   /* Population Count Words */         \
