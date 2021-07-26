@@ -358,7 +358,17 @@ RecursionLevel* RecursionLevel::CreateLevels(digit_t base_divisor,
                                              int target_bit_length,
                                              ProcessorImpl* processor) {
   RecursionLevel* level = new RecursionLevel(base_divisor, base_char_count);
-  while (BitLength(level->divisor_) * 2 <= target_bit_length) {
+  // We can stop creating levels when the next level's divisor, which is the
+  // square of the current level's divisor, would be strictly bigger (in terms
+  // of its numeric value) than the input we're formatting. Since computing that
+  // next divisor is expensive, we want to predict the necessity based on bit
+  // lengths. Bit lengths are an imperfect predictor of numeric value, so we
+  // have to be careful:
+  // - since we can't estimate which one of two numbers of equal bit length
+  //   is bigger, we have to aim for a strictly bigger bit length.
+  // - when squaring, the bit length sometimes doubles (e.g. 0b11² == 0b1001),
+  //   but usually we "lose" a bit (e.g. 0b10² == 0b100).
+  while (BitLength(level->divisor_) * 2 - 1 <= target_bit_length) {
     RecursionLevel* prev = level;
     level = new RecursionLevel(prev);
     processor->Multiply(level->divisor_, prev->divisor_, prev->divisor_);
@@ -439,15 +449,18 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
     return ProcessLevel(level->next_, chunk, out, is_last_on_level);
   }
   // Step 2: Prepare the chunk.
-  bool allow_inplace_modification = !level->is_toplevel_;
+  bool allow_inplace_modification = chunk.digits() != digits_.digits();
+  Digits original_chunk = chunk;
   ShiftedDigits chunk_shifted(chunk, level->leading_zero_shift_,
                               allow_inplace_modification);
   chunk = chunk_shifted;
   chunk.Normalize();
   // Check (now precisely) if the chunk is smaller than the divisor.
   if (Compare(chunk, level->divisor_) <= 0) {
-    // In case we shifted {chunk} in-place, we must undo that before the call.
+    // In case we shifted {chunk} in-place, we must undo that before the call...
     chunk_shifted.Reset();
+    // ...and otherwise undo the {chunk = chunk_shifted} assignment above.
+    chunk = original_chunk;
     return ProcessLevel(level->next_, chunk, out, is_last_on_level);
   }
   // Step 3: Allocate space for the results.

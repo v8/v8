@@ -124,6 +124,7 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
 
     // (3d): U = T * S, truncated so that at least 2k+1 fraction bits remain
     // (U has one integer digit, which might be zero).
+    fraction_digits = DIV_CEIL(2 * k + 1, kDigitBits);
     RWDigits U(scratch, kUOffset, S.len() + T.len());
     DCHECK(U.len() > fraction_digits);
     Multiply(U, S, T);
@@ -202,6 +203,7 @@ void ProcessorImpl::Invert(RWDigits Z, Digits V, RWDigits scratch) {
     InvertBasecase(Z, V, scratch);
     if (Z[vn] == 1) {
       for (int i = 0; i < vn; i++) Z[i] = ~digit_t{0};
+      Z[vn] = 0;
     }
   }
 }
