@@ -760,6 +760,19 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   // Remember the receiver map. We use {map} as loop variable.
   MapRef receiver_map = map;
   base::Optional<JSObjectRef> holder;
+
+  // Perform the implicit ToObject for primitives here.
+  // Implemented according to ES6 section 7.3.2 GetV (V, P).
+  // Note: Keep sync'd with
+  // CompilationDependencies::DependOnStablePrototypeChains.
+  if (receiver_map.IsPrimitiveMap()) {
+    base::Optional<JSFunctionRef> constructor =
+        broker()->target_native_context().GetConstructorFunction(receiver_map);
+    if (!constructor.has_value()) return Invalid();
+    map = constructor->initial_map(broker()->dependencies());
+    DCHECK(!map.IsPrimitiveMap());
+  }
+
   while (true) {
     PropertyDetails details = PropertyDetails::Empty();
     InternalIndex index = InternalIndex::NotFound();
@@ -890,43 +903,34 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     MapRef map_prototype_map = prototype->map();
     if (!map_prototype_map.object()->IsJSObjectMap()) {
-      // Perform the implicit ToObject for primitives here.
-      // Implemented according to ES6 section 7.3.2 GetV (V, P).
-      Handle<JSFunction> constructor;
-      base::Optional<JSFunction> maybe_constructor =
-          Map::GetConstructorFunction(
-              *map.object(), *broker()->target_native_context().object());
-      if (maybe_constructor.has_value()) {
-        map = MakeRefAssumeMemoryFence(broker(),
-                                       maybe_constructor->initial_map());
-        prototype = map.prototype();
-        if (!prototype.has_value()) return Invalid();
-        map_prototype_map = prototype->map();
-        DCHECK(map_prototype_map.object()->IsJSObjectMap());
-      } else if (prototype->IsNull()) {
-        if (dictionary_prototype_on_chain) {
-          // TODO(v8:11248) See earlier comment about
-          // dictionary_prototype_on_chain. We don't support absent properties
-          // with dictionary mode prototypes on the chain, either. This is again
-          // just due to how we currently deal with dependencies for dictionary
-          // properties during finalization.
-          return Invalid();
-        }
-
-        // Store to property not found on the receiver or any prototype, we need
-        // to transition to a new data property.
-        // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
-        if (access_mode == AccessMode::kStore) {
-          return LookupTransition(receiver_map, name, holder);
-        }
-
-        // The property was not found (access returns undefined or throws
-        // depending on the language mode of the load operation.
-        // Implemented according to ES6 section 9.1.8 [[Get]] (P, Receiver)
-        return PropertyAccessInfo::NotFound(zone(), receiver_map, holder);
-      } else {
+      // Don't allow proxies on the prototype chain.
+      if (!prototype->IsNull()) {
+        DCHECK(prototype->object()->IsJSProxy());
         return Invalid();
       }
+
+      DCHECK(prototype->IsNull());
+
+      if (dictionary_prototype_on_chain) {
+        // TODO(v8:11248) See earlier comment about
+        // dictionary_prototype_on_chain. We don't support absent properties
+        // with dictionary mode prototypes on the chain, either. This is again
+        // just due to how we currently deal with dependencies for dictionary
+        // properties during finalization.
+        return Invalid();
+      }
+
+      // Store to property not found on the receiver or any prototype, we need
+      // to transition to a new data property.
+      // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
+      if (access_mode == AccessMode::kStore) {
+        return LookupTransition(receiver_map, name, holder);
+      }
+
+      // The property was not found (access returns undefined or throws
+      // depending on the language mode of the load operation.
+      // Implemented according to ES6 section 9.1.8 [[Get]] (P, Receiver)
+      return PropertyAccessInfo::NotFound(zone(), receiver_map, holder);
     }
 
     holder = prototype->AsJSObject();
