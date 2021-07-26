@@ -368,8 +368,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
     case IrOpcode::kDynamicCheckMapsWithDeoptUnless:
-      CheckNotTyped(node);
-      break;
+    case IrOpcode::kPlug:
     case IrOpcode::kTrapIf:
     case IrOpcode::kTrapUnless:
       CheckNotTyped(node);

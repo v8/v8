@@ -939,9 +939,8 @@ class RepresentationSelector {
       TRACE("disconnecting unused #%d:%s\n", node->id(),
             node->op()->mnemonic());
       DisconnectFromEffectAndControl(node);
-      node->NullAllInputs();
-      // We still keep the partial node connected to its uses, knowing that
-      // lowering these operators is going to eliminate the uses.
+      node->NullAllInputs();  // Node is now dead.
+      DeferReplacement(node, graph()->NewNode(common()->Plug()));
     }
   }
 
@@ -3847,6 +3846,8 @@ class RepresentationSelector {
         return SetOutput<T>(node, MachineRepresentation::kTaggedPointer);
 
       case IrOpcode::kTypeGuard: {
+        if (truncation.IsUnused()) return VisitUnused<T>(node);
+
         // We just get rid of the sigma here, choosing the best representation
         // for the sigma's type.
         Type type = TypeOf(node);
