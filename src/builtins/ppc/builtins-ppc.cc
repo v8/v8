@@ -2831,7 +2831,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ lbz(scratch, MemOperand(scratch, 0));
   __ cmpi(scratch, Operand::Zero());
 
-  if (CpuFeatures::IsSupported(ISELECT)) {
+  if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
     __ Move(scratch, thunk_ref);
     __ isel(eq, scratch, function_address, scratch);
   } else {

@@ -2450,7 +2450,7 @@ void TurboAssembler::LoadDoubleLiteral(DoubleRegister result,
   litVal.dval = value.AsUint64();
 
 #if V8_TARGET_ARCH_PPC64
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     mov(scratch, Operand(litVal.ival));
     mtfprd(result, scratch);
     return;
@@ -2476,7 +2476,7 @@ void TurboAssembler::MovIntToDouble(DoubleRegister dst, Register src,
                                     Register scratch) {
 // sign-extend src to 64-bit
 #if V8_TARGET_ARCH_PPC64
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     mtfprwa(dst, src);
     return;
   }
@@ -2501,7 +2501,7 @@ void TurboAssembler::MovUnsignedIntToDouble(DoubleRegister dst, Register src,
                                             Register scratch) {
 // zero-extend src to 64-bit
 #if V8_TARGET_ARCH_PPC64
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     mtfprwz(dst, src);
     return;
   }
@@ -2528,7 +2528,7 @@ void TurboAssembler::MovInt64ToDouble(DoubleRegister dst,
 #endif
                                       Register src) {
 #if V8_TARGET_ARCH_PPC64
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     mtfprd(dst, src);
     return;
   }
@@ -2551,7 +2551,7 @@ void TurboAssembler::MovInt64ComponentsToDouble(DoubleRegister dst,
                                                 Register src_hi,
                                                 Register src_lo,
                                                 Register scratch) {
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     ShiftLeftU64(scratch, src_hi, Operand(32));
     rldimi(scratch, src_lo, 0, 32);
     mtfprd(dst, scratch);
@@ -2570,7 +2570,7 @@ void TurboAssembler::MovInt64ComponentsToDouble(DoubleRegister dst,
 void TurboAssembler::InsertDoubleLow(DoubleRegister dst, Register src,
                                      Register scratch) {
 #if V8_TARGET_ARCH_PPC64
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     mffprd(scratch, dst);
     rldimi(scratch, src, 0, 32);
     mtfprd(dst, scratch);
@@ -2589,7 +2589,7 @@ void TurboAssembler::InsertDoubleLow(DoubleRegister dst, Register src,
 void TurboAssembler::InsertDoubleHigh(DoubleRegister dst, Register src,
                                       Register scratch) {
 #if V8_TARGET_ARCH_PPC64
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     mffprd(scratch, dst);
     rldimi(scratch, src, 32, 0);
     mtfprd(dst, scratch);
@@ -2607,7 +2607,7 @@ void TurboAssembler::InsertDoubleHigh(DoubleRegister dst, Register src,
 
 void TurboAssembler::MovDoubleLowToInt(Register dst, DoubleRegister src) {
 #if V8_TARGET_ARCH_PPC64
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     mffprwz(dst, src);
     return;
   }
@@ -2622,7 +2622,7 @@ void TurboAssembler::MovDoubleLowToInt(Register dst, DoubleRegister src) {
 
 void TurboAssembler::MovDoubleHighToInt(Register dst, DoubleRegister src) {
 #if V8_TARGET_ARCH_PPC64
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     mffprd(dst, src);
     srdi(dst, dst, Operand(32));
     return;
@@ -2642,7 +2642,7 @@ void TurboAssembler::MovDoubleToInt64(
 #endif
     Register dst, DoubleRegister src) {
 #if V8_TARGET_ARCH_PPC64
-  if (CpuFeatures::IsSupported(FPR_GPR_MOV)) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
     mffprd(dst, src);
     return;
   }

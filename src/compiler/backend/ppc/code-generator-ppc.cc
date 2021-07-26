@@ -1487,7 +1487,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_FLOAT_BINOP_RC(fdiv, MiscField::decode(instr->opcode()));
       break;
     case kPPC_Mod32:
-      if (CpuFeatures::IsSupported(MODULO)) {
+      if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
         __ modsw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         ASSEMBLE_MODULO(divw, mullw);
@@ -1495,7 +1495,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_Mod64:
-      if (CpuFeatures::IsSupported(MODULO)) {
+      if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
         __ modsd(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         ASSEMBLE_MODULO(divd, mulld);
@@ -1503,7 +1503,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kPPC_ModU32:
-      if (CpuFeatures::IsSupported(MODULO)) {
+      if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
         __ moduw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         ASSEMBLE_MODULO(divwu, mullw);
@@ -1511,7 +1511,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_ModU64:
-      if (CpuFeatures::IsSupported(MODULO)) {
+      if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
         __ modud(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         ASSEMBLE_MODULO(divdu, mulld);
@@ -1868,7 +1868,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
         // Handle conversion failures (such as overflow).
-        if (CpuFeatures::IsSupported(ISELECT)) {
+        if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
           if (check_conversion) {
             __ li(i.OutputRegister(1), Operand(1));
             __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
@@ -1905,7 +1905,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         int crbit = v8::internal::Assembler::encode_crbit(
             cr, static_cast<CRBit>(VXCVI % CRWIDTH));
         __ mcrfs(cr, VXCVI);  // extract FPSCR field containing VXCVI into cr7
-        if (CpuFeatures::IsSupported(ISELECT)) {
+        if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
           __ li(i.OutputRegister(1), Operand(1));
           __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
         } else {
@@ -3885,7 +3885,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     // Unnecessary for eq/lt & ne/ge since only FU bit will be set.
   }
 
-  if (CpuFeatures::IsSupported(ISELECT)) {
+  if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
     switch (cond) {
       case eq:
       case lt:

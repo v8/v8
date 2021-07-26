@@ -56,7 +56,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 
 bool CpuFeatures::SupportsWasmSimd128() {
 #if V8_ENABLE_WEBASSEMBLY
-  return CpuFeatures::IsSupported(SIMD);
+  return CpuFeatures::IsSupported(PPC_9_PLUS);
 #else
   return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -69,65 +69,33 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-// Detect whether frim instruction is supported (POWER5+)
-// For now we will just check for processors we know do not
-// support it
-#ifndef USE_SIMULATOR
-  // Probe for additional features at runtime.
+// Probe for additional features at runtime.
+#ifdef USE_SIMULATOR
+  // Simulator
+  supported_ |= (1u << PPC_10_PLUS);
+#else
   base::CPU cpu;
-  if (cpu.part() == base::CPU::kPPCPower9 ||
-      cpu.part() == base::CPU::kPPCPower10) {
-    supported_ |= (1u << MODULO);
-  }
-#if V8_TARGET_ARCH_PPC64
-  if (cpu.part() == base::CPU::kPPCPower8 ||
-      cpu.part() == base::CPU::kPPCPower9 ||
-      cpu.part() == base::CPU::kPPCPower10) {
-    supported_ |= (1u << FPR_GPR_MOV);
-  }
-  // V8 PPC Simd implementations need P9 at a minimum.
-  if (cpu.part() == base::CPU::kPPCPower9 ||
-      cpu.part() == base::CPU::kPPCPower10) {
-    supported_ |= (1u << SIMD);
-  }
-#endif
-  if (cpu.part() == base::CPU::kPPCPower6 ||
-      cpu.part() == base::CPU::kPPCPower7 ||
-      cpu.part() == base::CPU::kPPCPower8 ||
-      cpu.part() == base::CPU::kPPCPower9 ||
-      cpu.part() == base::CPU::kPPCPower10) {
-    supported_ |= (1u << LWSYNC);
-  }
-  if (cpu.part() == base::CPU::kPPCPower7 ||
-      cpu.part() == base::CPU::kPPCPower8 ||
-      cpu.part() == base::CPU::kPPCPower9 ||
-      cpu.part() == base::CPU::kPPCPower10) {
-    supported_ |= (1u << ISELECT);
-    supported_ |= (1u << VSX);
+  if (cpu.part() == base::CPU::kPPCPower10) {
+    supported_ |= (1u << PPC_10_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower9) {
+    supported_ |= (1u << PPC_9_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower8) {
+    supported_ |= (1u << PPC_8_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower7) {
+    supported_ |= (1u << PPC_7_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower6) {
+    supported_ |= (1u << PPC_6_PLUS);
   }
 #if V8_OS_LINUX
-  if (!(cpu.part() == base::CPU::kPPCG5 || cpu.part() == base::CPU::kPPCG4)) {
-    // Assume support
-    supported_ |= (1u << FPU);
-  }
   if (cpu.icache_line_size() != base::CPU::kUnknownCacheLineSize) {
     icache_line_size_ = cpu.icache_line_size();
   }
-#elif V8_OS_AIX
-  // Assume support FP support and default cache line size
-  supported_ |= (1u << FPU);
-#endif
-#else  // Simulator
-  supported_ |= (1u << FPU);
-  supported_ |= (1u << LWSYNC);
-  supported_ |= (1u << ISELECT);
-  supported_ |= (1u << VSX);
-  supported_ |= (1u << MODULO);
-  supported_ |= (1u << SIMD);
-#if V8_TARGET_ARCH_PPC64
-  supported_ |= (1u << FPR_GPR_MOV);
 #endif
 #endif
+  if (supported_ & (1u << PPC_10_PLUS)) supported_ |= (1u << PPC_9_PLUS);
+  if (supported_ & (1u << PPC_9_PLUS)) supported_ |= (1u << PPC_8_PLUS);
+  if (supported_ & (1u << PPC_8_PLUS)) supported_ |= (1u << PPC_7_PLUS);
+  if (supported_ & (1u << PPC_7_PLUS)) supported_ |= (1u << PPC_6_PLUS);
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
@@ -149,12 +117,11 @@ void CpuFeatures::PrintTarget() {
 }
 
 void CpuFeatures::PrintFeatures() {
-  printf("FPU=%d\n", CpuFeatures::IsSupported(FPU));
-  printf("FPR_GPR_MOV=%d\n", CpuFeatures::IsSupported(FPR_GPR_MOV));
-  printf("LWSYNC=%d\n", CpuFeatures::IsSupported(LWSYNC));
-  printf("ISELECT=%d\n", CpuFeatures::IsSupported(ISELECT));
-  printf("VSX=%d\n", CpuFeatures::IsSupported(VSX));
-  printf("MODULO=%d\n", CpuFeatures::IsSupported(MODULO));
+  printf("PPC_6_PLUS=%d\n", CpuFeatures::IsSupported(PPC_6_PLUS));
+  printf("PPC_7_PLUS=%d\n", CpuFeatures::IsSupported(PPC_7_PLUS));
+  printf("PPC_8_PLUS=%d\n", CpuFeatures::IsSupported(PPC_8_PLUS));
+  printf("PPC_9_PLUS=%d\n", CpuFeatures::IsSupported(PPC_9_PLUS));
+  printf("PPC_10_PLUS=%d\n", CpuFeatures::IsSupported(PPC_10_PLUS));
 }
 
 Register ToRegister(int num) {
