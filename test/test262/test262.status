@@ -597,9 +597,6 @@
   'built-ins/DataView/prototype/setUint8/resizable-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-different-type': [FAIL],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-same-type': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/resizable-array-buffer-auto': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/HasProperty/resizable-array-buffer-fixed': [FAIL],
-  'built-ins/TypedArrayConstructors/internals/OwnPropertyKeys/integer-indexes-resizable-array-buffer-auto': [FAIL],
   'built-ins/TypedArray/prototype/at/return-abrupt-from-this-out-of-bounds': [FAIL],
   'built-ins/TypedArray/prototype/byteOffset/resizable-array-buffer-auto': [FAIL],
   'built-ins/TypedArray/prototype/byteOffset/resizable-array-buffer-fixed': [FAIL],
@@ -691,6 +688,9 @@
   'built-ins/SharedArrayBuffer/options-non-object': [FAIL],
   'built-ins/SharedArrayBuffer/prototype/growable/this-is-arraybuffer': [FAIL],
   'built-ins/SharedArrayBuffer/prototype/maxByteLength/this-is-arraybuffer': [FAIL],
+
+  # https://github.com/tc39/test262/issues/3109
+  'built-ins/TypedArrayConstructors/internals/HasProperty/resizable-array-buffer-fixed': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 

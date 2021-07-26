@@ -503,6 +503,66 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   }
 })();
 
+(function HasWithOffsetsWithFeedback() {
+  function GetElements(ta) {
+    let result = '';
+    for (let i = 0; i < 8; ++i) {
+      result += (i in ta) + ',';
+      //           ^ feedback will be here
+    }
+    return result;
+  }
+  %EnsureFeedbackVectorForFunction(GetElements);
+
+  const rab = CreateResizableArrayBuffer(4, 8);
+  const fixedLength = new Int8Array(rab, 0, 4);
+  const fixedLengthWithOffset = new Int8Array(rab, 1, 3);
+  const lengthTracking = new Int8Array(rab, 0);
+  const lengthTrackingWithOffset = new Int8Array(rab, 1);
+
+  assertEquals('true,true,true,true,false,false,false,false,',
+               GetElements(fixedLength));
+  assertEquals('true,true,true,false,false,false,false,false,',
+              GetElements(fixedLengthWithOffset));
+  assertEquals('true,true,true,true,false,false,false,false,',
+              GetElements(lengthTracking));
+  assertEquals('true,true,true,false,false,false,false,false,',
+              GetElements(lengthTrackingWithOffset));
+
+  rab.resize(2);
+
+  assertEquals('false,false,false,false,false,false,false,false,',
+               GetElements(fixedLength));
+  assertEquals('false,false,false,false,false,false,false,false,',
+              GetElements(fixedLengthWithOffset));
+  assertEquals('true,true,false,false,false,false,false,false,',
+              GetElements(lengthTracking));
+  assertEquals('true,false,false,false,false,false,false,false,',
+              GetElements(lengthTrackingWithOffset));
+
+  // Resize beyond the offset of the length tracking arrays.
+  rab.resize(1);
+  assertEquals('false,false,false,false,false,false,false,false,',
+               GetElements(fixedLength));
+  assertEquals('false,false,false,false,false,false,false,false,',
+              GetElements(fixedLengthWithOffset));
+  assertEquals('true,false,false,false,false,false,false,false,',
+              GetElements(lengthTracking));
+  assertEquals('false,false,false,false,false,false,false,false,',
+              GetElements(lengthTrackingWithOffset));
+
+  rab.resize(8);
+
+  assertEquals('true,true,true,true,false,false,false,false,',
+               GetElements(fixedLength));
+  assertEquals('true,true,true,false,false,false,false,false,',
+               GetElements(fixedLengthWithOffset));
+  assertEquals('true,true,true,true,true,true,true,true,',
+               GetElements(lengthTracking));
+  assertEquals('true,true,true,true,true,true,true,false,',
+               GetElements(lengthTrackingWithOffset));
+})();
+
 (function StoreToOutOfBoundsTypedArrayWithFeedback() {
   function WriteElement2(ta, i) {
     ta[2] = i;

@@ -204,9 +204,17 @@ size_t JSTypedArray::GetLength() const {
   if (WasDetached()) return 0;
   if (is_length_tracking()) {
     if (is_backed_by_rab()) {
-      return buffer().byte_length() / element_size();
+      if (byte_offset() >= buffer().byte_length()) {
+        return 0;
+      }
+      return (buffer().byte_length() - byte_offset()) / element_size();
     }
-    return buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst) /
+    if (byte_offset() >=
+        buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst)) {
+      return 0;
+    }
+    return (buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst) -
+            byte_offset()) /
            element_size();
   }
   size_t array_length = LengthUnchecked();
