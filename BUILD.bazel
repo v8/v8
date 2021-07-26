@@ -358,6 +358,7 @@ filegroup(
     srcs = [
         "include/cppgc/allocation.h",
         "include/cppgc/common.h",
+        "include/cppgc/cross-thread-persistent.h",
         "include/cppgc/custom-space.h",
         "include/cppgc/default-platform.h",
         "include/cppgc/ephemeron-pair.h",
@@ -1593,6 +1594,7 @@ filegroup(
         "src/objects/prototype-info.h",
         "src/objects/prototype.h",
         "src/objects/prototype-inl.h",
+        "src/objects/regexp-match-info-inl.h",
         "src/objects/regexp-match-info.h",
         "src/objects/scope-info-inl.h",
         "src/objects/scope-info.cc",
