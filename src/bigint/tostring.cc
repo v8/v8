@@ -425,7 +425,7 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
     // Fill up with zeros up to the character count expected to be generated
     // on this level; unless this is the left edge of the result.
     if (is_last_on_level) return out;
-    int chunk_chars = level == nullptr ? chunk_chars_ : level->char_count_;
+    int chunk_chars = level == nullptr ? chunk_chars_ : level->char_count_ * 2;
     char* end = prev_cursor - chunk_chars;
     while (out != end) {
       *(--out) = '0';
