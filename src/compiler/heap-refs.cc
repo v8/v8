@@ -1465,22 +1465,14 @@ void DescriptorArrayData::SerializeDescriptor(JSHeapBroker* broker,
 class FeedbackCellData : public HeapObjectData {
  public:
   FeedbackCellData(JSHeapBroker* broker, ObjectData** storage,
-                   Handle<FeedbackCell> object);
-
-  ObjectData* value() const { return value_; }
-
- private:
-  ObjectData* const value_;
+                   Handle<FeedbackCell> object)
+      : HeapObjectData(broker, storage, object) {
+    // FeedbackCellData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
+  }
 };
-
-FeedbackCellData::FeedbackCellData(JSHeapBroker* broker, ObjectData** storage,
-                                   Handle<FeedbackCell> object)
-    : HeapObjectData(broker, storage, object),
-      value_(object->value().IsFeedbackVector()
-                 ? broker->GetOrCreateData(object->value())
-                 : nullptr) {
-  DCHECK(!broker->is_concurrent_inlining());
-}
 
 class FeedbackVectorData : public HeapObjectData {
  public:
@@ -2379,6 +2371,7 @@ NEVER_EVER_SERIALIZE(CallHandlerInfo)
 NEVER_EVER_SERIALIZE(Code)
 NEVER_EVER_SERIALIZE(CodeDataContainer)
 NEVER_EVER_SERIALIZE(Context)
+NEVER_EVER_SERIALIZE(FeedbackCell)
 NEVER_EVER_SERIALIZE(FixedDoubleArray)
 NEVER_EVER_SERIALIZE(FunctionTemplateInfo)
 NEVER_EVER_SERIALIZE(HeapNumber)
@@ -3147,14 +3140,11 @@ SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability()
 }
 
 base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
-  if (data_->should_access_heap()) {
-    // Note that we use the synchronized accessor.
-    Object value = object()->value(kAcquireLoad);
-    if (!value.IsFeedbackVector()) return base::nullopt;
-    return TryMakeRef(broker(), FeedbackVector::cast(value));
-  }
-  ObjectData* vector = ObjectRef::data()->AsFeedbackCell()->value();
-  return FeedbackVectorRef(broker(), vector->AsFeedbackVector());
+  DisallowGarbageCollection no_gc;
+  DCHECK(data_->should_access_heap());
+  Object value = object()->value(kAcquireLoad);
+  if (!value.IsFeedbackVector()) return base::nullopt;
+  return TryMakeRef(broker(), FeedbackVector::cast(value));
 }
 
 base::Optional<ObjectRef> MapRef::GetStrongValue(
@@ -3753,11 +3743,9 @@ base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
 
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
     const {
-  if (value()) {
+  if (value().has_value()) {
     FeedbackVectorRef vector = *value();
-    if (vector.serialized()) {
-      return vector.shared_function_info();
-    }
+    if (vector.serialized()) return vector.shared_function_info();
   }
   return base::nullopt;
 }
