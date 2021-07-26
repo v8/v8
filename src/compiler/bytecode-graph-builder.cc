@@ -4563,7 +4563,6 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             ObserveNodeInfo const& observe_node_info) {
   DCHECK(broker->IsSerializedForCompilation(
       shared_info, feedback_cell.value()->AsFeedbackVector()));
-  DCHECK(feedback_cell.value()->AsFeedbackVector().serialized());
   BytecodeGraphBuilder builder(
       broker, local_zone, broker->target_native_context(), shared_info,
       feedback_cell, osr_offset, jsgraph, invocation_frequency,

@@ -27,14 +27,6 @@ JSHeapBroker* JSHeapCopyReducer::broker() { return broker_; }
 
 Reduction JSHeapCopyReducer::Reduce(Node* node) {
   switch (node->opcode()) {
-    case IrOpcode::kCheckClosure: {
-      FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(node->op()));
-      base::Optional<FeedbackVectorRef> feedback_vector = cell.value();
-      if (feedback_vector.has_value()) {
-        feedback_vector->Serialize(NotConcurrentInliningTag{broker()});
-      }
-      break;
-    }
     case IrOpcode::kHeapConstant: {
       ObjectRef object = MakeRef(broker(), HeapConstantOf(node->op()));
       if (object.IsJSObject()) {

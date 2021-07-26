@@ -1477,71 +1477,13 @@ class FeedbackCellData : public HeapObjectData {
 class FeedbackVectorData : public HeapObjectData {
  public:
   FeedbackVectorData(JSHeapBroker* broker, ObjectData** storage,
-                     Handle<FeedbackVector> object);
-
-  double invocation_count() const { return invocation_count_; }
-
-  ObjectData* shared_function_info() {
-    CHECK(serialized_);
-    return shared_function_info_;
+                     Handle<FeedbackVector> object)
+      : HeapObjectData(broker, storage, object) {
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
   }
-
-  void Serialize(JSHeapBroker* broker, NotConcurrentInliningTag tag);
-  bool serialized() const { return serialized_; }
-  ObjectData* GetClosureFeedbackCell(JSHeapBroker* broker, int index) const;
-
- private:
-  double const invocation_count_;
-
-  bool serialized_ = false;
-  ObjectData* shared_function_info_;
-  ZoneVector<ObjectData*> closure_feedback_cell_array_;
 };
-
-FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
-                                       ObjectData** storage,
-                                       Handle<FeedbackVector> object)
-    : HeapObjectData(broker, storage, object),
-      invocation_count_(object->invocation_count()),
-      closure_feedback_cell_array_(broker->zone()) {
-  DCHECK(!broker->is_concurrent_inlining());
-}
-
-ObjectData* FeedbackVectorData::GetClosureFeedbackCell(JSHeapBroker* broker,
-                                                       int index) const {
-  CHECK_GE(index, 0);
-
-  size_t cell_array_size = closure_feedback_cell_array_.size();
-  if (!serialized_) {
-    DCHECK_EQ(cell_array_size, 0);
-    TRACE_BROKER_MISSING(broker,
-                         " closure feedback cell array for vector " << this);
-    return nullptr;
-  }
-  CHECK_LT(index, cell_array_size);
-  return closure_feedback_cell_array_[index];
-}
-
-void FeedbackVectorData::Serialize(JSHeapBroker* broker,
-                                   NotConcurrentInliningTag tag) {
-  if (serialized_) return;
-  serialized_ = true;
-
-  TraceScope tracer(broker, this, "FeedbackVectorData::Serialize");
-  Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(object());
-  Handle<SharedFunctionInfo> sfi(vector->shared_function_info(),
-                                 broker->isolate());
-  shared_function_info_ = broker->GetOrCreateData(sfi);
-  DCHECK(closure_feedback_cell_array_.empty());
-  int length = vector->closure_feedback_cell_array().length();
-  closure_feedback_cell_array_.reserve(length);
-  for (int i = 0; i < length; ++i) {
-    Handle<FeedbackCell> cell = vector->GetClosureFeedbackCell(i);
-    ObjectData* cell_data = broker->GetOrCreateData(cell);
-    closure_feedback_cell_array_.push_back(cell_data);
-  }
-  TRACE(broker, "Copied " << length << " feedback cells");
-}
 
 class FixedArrayBaseData : public HeapObjectData {
  public:
@@ -2372,6 +2314,7 @@ NEVER_EVER_SERIALIZE(Code)
 NEVER_EVER_SERIALIZE(CodeDataContainer)
 NEVER_EVER_SERIALIZE(Context)
 NEVER_EVER_SERIALIZE(FeedbackCell)
+NEVER_EVER_SERIALIZE(FeedbackVector)
 NEVER_EVER_SERIALIZE(FixedDoubleArray)
 NEVER_EVER_SERIALIZE(FunctionTemplateInfo)
 NEVER_EVER_SERIALIZE(HeapNumber)
@@ -2624,15 +2567,9 @@ OddballType MapRef::oddball_type() const {
 }
 
 FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
-  if (data_->should_access_heap()) {
-    // These should all be available because we request the cell for each
-    // CreateClosure bytecode.
-    return MakeRef(broker(), object()->closure_feedback_cell(index));
-  }
-
-  return FeedbackCellRef(
-      broker(),
-      data()->AsFeedbackVector()->GetClosureFeedbackCell(broker(), index));
+  // These should all be available because we request the cell for each
+  // CreateClosure bytecode.
+  return MakeRef(broker(), object()->closure_feedback_cell(index));
 }
 
 base::Optional<ObjectRef> JSObjectRef::raw_properties_or_hash() const {
@@ -2952,7 +2889,7 @@ BytecodeArrayRef::incoming_new_target_or_generator_register() const {
   return object()->incoming_new_target_or_generator_register();
 }
 
-BIMODAL_ACCESSOR_C(FeedbackVector, double, invocation_count)
+HEAP_ACCESSOR_C(FeedbackVector, double, invocation_count)
 
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 
@@ -3743,31 +3680,14 @@ base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
 
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
     const {
-  if (value().has_value()) {
-    FeedbackVectorRef vector = *value();
-    if (vector.serialized()) return vector.shared_function_info();
+  if (value()) {
+    return value()->shared_function_info();
   }
   return base::nullopt;
 }
 
-void FeedbackVectorRef::Serialize(NotConcurrentInliningTag tag) {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsFeedbackVector()->Serialize(broker(), tag);
-}
-
-bool FeedbackVectorRef::serialized() const {
-  if (data_->should_access_heap()) return true;
-  return data()->AsFeedbackVector()->serialized();
-}
-
 SharedFunctionInfoRef FeedbackVectorRef::shared_function_info() const {
-  if (data_->should_access_heap()) {
-    return MakeRef(broker(), object()->shared_function_info());
-  }
-
-  return SharedFunctionInfoRef(
-      broker(), data()->AsFeedbackVector()->shared_function_info());
+  return MakeRef(broker(), object()->shared_function_info());
 }
 
 bool NameRef::IsUniqueName() const {

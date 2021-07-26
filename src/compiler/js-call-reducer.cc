@@ -4493,13 +4493,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     if (feedback_cell.value().has_value()) {
       // Check that {target} is a closure with given {feedback_cell},
       // which uniquely identifies a given function inside a native context.
-      FeedbackVectorRef feedback_vector = *feedback_cell.value();
-      if (!feedback_vector.serialized()) {
-        TRACE_BROKER_MISSING(
-            broker(), "feedback vector, not serialized: " << feedback_vector);
-        return NoChange();
-      }
-
       Node* target_closure = effect =
           graph()->NewNode(simplified()->CheckClosure(feedback_cell.object()),
                            target, effect, control);
