@@ -2169,7 +2169,7 @@ class WasmInterpreterInternals {
         *len += 1;
         break;
       case kExprI32AtomicWait: {
-        if (!module()->has_shared_memory) {
+        if (!module()->has_shared_memory || !isolate_->allow_atomics_wait()) {
           DoTrap(kTrapUnreachable, pc);
           return false;
         }
@@ -2189,7 +2189,7 @@ class WasmInterpreterInternals {
         break;
       }
       case kExprI64AtomicWait: {
-        if (!module()->has_shared_memory) {
+        if (!module()->has_shared_memory || !isolate_->allow_atomics_wait()) {
           DoTrap(kTrapUnreachable, pc);
           return false;
         }
