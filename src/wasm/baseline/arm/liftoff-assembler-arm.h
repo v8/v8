@@ -546,8 +546,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   AllocateStackSpace(frame_size);
 
   // Jump back to the start of the function, from {pc_offset()} to
-  // right after the reserved space for the {sub_sp_32} (which is a branch
-  // now).
+  // right after the reserved space for the {__ sub(sp, sp, framesize)} (which
+  // is a branch now).
   int func_start_offset =
       offset + liftoff::kPatchInstructionsRequired * kInstrSize;
   b(func_start_offset - pc_offset() - Instruction::kPcLoadDelta);

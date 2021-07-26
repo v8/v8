@@ -310,12 +310,6 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   return;
 #endif
 
-  // TODO(11235): On arm64 there is still a limit on the size of supported stack
-  // frames.
-#if V8_TARGET_ARCH_ARM64
-  if (strstr(detail, "Stack limited to 512 bytes")) return;
-#endif
-
 #define LIST_FEATURE(name, ...) kFeature_##name,
   constexpr WasmFeatures kExperimentalFeatures{
       FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(LIST_FEATURE)};
