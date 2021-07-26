@@ -1698,8 +1698,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                 JSHasPropertyNode::ObjectIndex() == 0);
 
   Node* receiver = NodeProperties::GetValueInput(node, 0);
-  FrameState frame_state{
-      NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead())};
   Effect effect{NodeProperties::GetEffectInput(node)};
   Control control{NodeProperties::GetControlInput(node)};
 
@@ -1803,6 +1801,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // elements kind transition above. This is because those operators
     // don't have the kNoWrite flag on it, even though they are not
     // observable by JavaScript.
+    Node* frame_state =
+        NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
     effect =
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
