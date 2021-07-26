@@ -873,7 +873,6 @@ void CompilationDependencies::DependOnStablePrototypeChains(
     ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
     base::Optional<JSObjectRef> last_prototype) {
   for (MapRef receiver_map : receiver_maps) {
-    if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
     if (receiver_map.IsPrimitiveMap()) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
@@ -883,6 +882,7 @@ void CompilationDependencies::DependOnStablePrototypeChains(
       CHECK(constructor.has_value());
       receiver_map = constructor->initial_map(this);
     }
+    if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
     DependOnStablePrototypeChain(this, receiver_map, last_prototype);
   }
 }
