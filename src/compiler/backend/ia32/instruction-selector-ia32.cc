@@ -2989,9 +2989,6 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   }
   Emit(opcode, 1, &dst, input_count, inputs, temp_count, temps);
 }
-#else
-void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   InstructionCode op = kIA32I8x16Swizzle;
@@ -3012,6 +3009,10 @@ void InstructionSelector::VisitI8x16Swizzle(Node* node) {
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        arraysize(temps), temps);
 }
+#else
+void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitI8x16Swizzle(Node* node) { UNREACHABLE(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 void VisitPminOrPmax(InstructionSelector* selector, Node* node,
