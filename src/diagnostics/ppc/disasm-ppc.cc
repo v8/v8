@@ -435,6 +435,13 @@ void Decoder::DecodeExt0(Instruction* instr) {
   }
     PPC_VX_OPCODE_D_FORM_LIST(DECODE_VX_D_FORM__INSTRUCTIONS)
 #undef DECODE_VX_D_FORM__INSTRUCTIONS
+#define DECODE_VX_F_FORM__INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'rt, 'Vb");                                   \
+    return;                                                             \
+  }
+    PPC_VX_OPCODE_F_FORM_LIST(DECODE_VX_F_FORM__INSTRUCTIONS)
+#undef DECODE_VX_F_FORM__INSTRUCTIONS
   }
   // Some encodings are 5-0 bits, handle those first
   switch (EXT0 | (instr->BitField(5, 0))) {

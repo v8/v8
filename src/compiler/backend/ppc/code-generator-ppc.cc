@@ -3251,43 +3251,59 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_I64x2BitMask: {
-      __ mov(kScratchReg,
-             Operand(0x8080808080800040));  // Select 0 for the high bits.
-      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
-      __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
-                 kScratchSimd128Reg);
-      __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
-      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+        __ vextractdm(i.OutputRegister(), i.InputSimd128Register(0));
+      } else {
+        __ mov(kScratchReg,
+               Operand(0x8080808080800040));  // Select 0 for the high bits.
+        __ mtvsrd(kScratchSimd128Reg, kScratchReg);
+        __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
+                   kScratchSimd128Reg);
+        __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
+        __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      }
       break;
     }
     case kPPC_I32x4BitMask: {
-      __ mov(kScratchReg,
-             Operand(0x8080808000204060));  // Select 0 for the high bits.
-      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
-      __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
-                 kScratchSimd128Reg);
-      __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
-      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+        __ vextractwm(i.OutputRegister(), i.InputSimd128Register(0));
+      } else {
+        __ mov(kScratchReg,
+               Operand(0x8080808000204060));  // Select 0 for the high bits.
+        __ mtvsrd(kScratchSimd128Reg, kScratchReg);
+        __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
+                   kScratchSimd128Reg);
+        __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
+        __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      }
       break;
     }
     case kPPC_I16x8BitMask: {
-      __ mov(kScratchReg, Operand(0x10203040506070));
-      __ mtvsrd(kScratchSimd128Reg, kScratchReg);
-      __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
-                 kScratchSimd128Reg);
-      __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
-      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+        __ vextracthm(i.OutputRegister(), i.InputSimd128Register(0));
+      } else {
+        __ mov(kScratchReg, Operand(0x10203040506070));
+        __ mtvsrd(kScratchSimd128Reg, kScratchReg);
+        __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
+                   kScratchSimd128Reg);
+        __ vextractub(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
+        __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      }
       break;
     }
     case kPPC_I8x16BitMask: {
-      Register temp = i.ToRegister(instr->TempAt(0));
-      __ mov(temp, Operand(0x8101820283038));
-      __ mov(ip, Operand(0x4048505860687078));
-      __ mtvsrdd(kScratchSimd128Reg, temp, ip);
-      __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
-                 kScratchSimd128Reg);
-      __ vextractuh(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
-      __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+        __ vextractbm(i.OutputRegister(), i.InputSimd128Register(0));
+      } else {
+        Register temp = i.ToRegister(instr->TempAt(0));
+        __ mov(temp, Operand(0x8101820283038));
+        __ mov(ip, Operand(0x4048505860687078));
+        __ mtvsrdd(kScratchSimd128Reg, temp, ip);
+        __ vbpermq(kScratchSimd128Reg, i.InputSimd128Register(0),
+                   kScratchSimd128Reg);
+        __ vextractuh(kScratchSimd128Reg, kScratchSimd128Reg, Operand(6));
+        __ mfvsrd(i.OutputRegister(), kScratchSimd128Reg);
+      }
       break;
     }
     case kPPC_I32x4DotI16x8S: {

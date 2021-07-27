@@ -492,6 +492,10 @@ class Assembler : public AssemblerBase {
   inline void name(const Simd128Register rt, const Operand& imm) {        \
     vx_form(instr_name, rt, imm);                                         \
   }
+#define DECLARE_PPC_VX_INSTRUCTIONS_F_FORM(name, instr_name, instr_value) \
+  inline void name(const Register rt, const Simd128Register rb) {         \
+    vx_form(instr_name, rt, rb);                                          \
+  }
 
   inline void vx_form(Instr instr, Simd128Register rt, Simd128Register rb,
                       const Operand& imm) {
@@ -509,6 +513,9 @@ class Assembler : public AssemblerBase {
   inline void vx_form(Instr instr, Simd128Register rt, const Operand& imm) {
     emit(instr | (rt.code() & 0x1F) * B21 | (imm.immediate() & 0x1F) * B16);
   }
+  inline void vx_form(Instr instr, Register rt, Simd128Register rb) {
+    emit(instr | (rt.code() & 0x1F) * B21 | (rb.code() & 0x1F) * B11);
+  }
 
   PPC_VX_OPCODE_A_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_A_FORM)
   PPC_VX_OPCODE_B_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_B_FORM)
@@ -517,10 +524,12 @@ class Assembler : public AssemblerBase {
       DECLARE_PPC_VX_INSTRUCTIONS_C_FORM) /* OPCODE_D_FORM can use
                                              INSTRUCTIONS_C_FORM */
   PPC_VX_OPCODE_E_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_E_FORM)
+  PPC_VX_OPCODE_F_FORM_LIST(DECLARE_PPC_VX_INSTRUCTIONS_F_FORM)
 #undef DECLARE_PPC_VX_INSTRUCTIONS_A_FORM
 #undef DECLARE_PPC_VX_INSTRUCTIONS_B_FORM
 #undef DECLARE_PPC_VX_INSTRUCTIONS_C_FORM
 #undef DECLARE_PPC_VX_INSTRUCTIONS_E_FORM
+#undef DECLARE_PPC_VX_INSTRUCTIONS_F_FORM
 
 #define DECLARE_PPC_VA_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
   inline void name(const Simd128Register rt, const Simd128Register ra,    \

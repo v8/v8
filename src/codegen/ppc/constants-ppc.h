@@ -2458,6 +2458,16 @@ using Instr = uint32_t;
   /* Vector Splat Immediate Signed Word */     \
   V(vspltisw, VSPLTISW, 0x1000038C)
 
+#define PPC_VX_OPCODE_F_FORM_LIST(V)    \
+  /* Vector Extract Byte Mask */        \
+  V(vextractbm, VEXTRACTBM, 0x10080642) \
+  /* Vector Extract Halfword Mask */    \
+  V(vextracthm, VEXTRACTHM, 0x10090642) \
+  /* Vector Extract Word Mask */        \
+  V(vextractwm, VEXTRACTWM, 0x100A0642) \
+  /* Vector Extract Doubleword Mask */  \
+  V(vextractdm, VEXTRACTDM, 0x100B0642)
+
 #define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
   V(bcdadd, BCDADD, 0xF0000400)                                           \
@@ -2610,6 +2620,7 @@ using Instr = uint32_t;
   PPC_VX_OPCODE_C_FORM_LIST(V) \
   PPC_VX_OPCODE_D_FORM_LIST(V) \
   PPC_VX_OPCODE_E_FORM_LIST(V) \
+  PPC_VX_OPCODE_F_FORM_LIST(V) \
   PPC_VX_OPCODE_UNUSED_LIST(V)
 
 #define PPC_XS_OPCODE_LIST(V)                      \
@@ -2948,6 +2959,7 @@ class Instruction {
     opcode = extcode | BitField(20, 16) | BitField(10, 0);
     switch (opcode) {
       PPC_VX_OPCODE_D_FORM_LIST(OPCODE_CASES)
+      PPC_VX_OPCODE_F_FORM_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
     opcode = extcode | BitField(10, 0);
