@@ -419,10 +419,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                             Register scratch);
   void PrepareCallCFunction(int num_reg_arguments, Register scratch);
 
-  void PrepareForTailCall(Register callee_args_count,
-                          Register caller_args_count, Register scratch0,
-                          Register scratch1);
-
   // There are two ways of passing double arguments on ARM, depending on
   // whether soft or hard floating point ABI is used. These functions
   // abstract parameter passing for the three different ways we call

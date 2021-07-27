@@ -812,10 +812,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #endif
   }
 
-  void PrepareForTailCall(Register callee_args_count,
-                          Register caller_args_count, Register scratch0,
-                          Register scratch1);
-
   // ---------------------------------------------------------------------------
   // Runtime calls
 

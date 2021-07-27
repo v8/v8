@@ -1578,55 +1578,6 @@ void TurboAssembler::MovFromFloatParameter(const DoubleRegister dst) {
   Move(dst, d0);
 }
 
-void TurboAssembler::PrepareForTailCall(Register callee_args_count,
-                                        Register caller_args_count,
-                                        Register scratch0, Register scratch1) {
-  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
-
-  // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We AddS64 kSystemPointerSize to count the
-  // receiver argument which is not included into formal parameters count.
-  Register dst_reg = scratch0;
-  ShiftLeftU64(dst_reg, caller_args_count, Operand(kSystemPointerSizeLog2));
-  AddS64(dst_reg, fp, dst_reg);
-  AddS64(dst_reg, dst_reg,
-         Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize));
-
-  Register src_reg = caller_args_count;
-  // Calculate the end of source area. +kSystemPointerSize is for the receiver.
-  ShiftLeftU64(src_reg, callee_args_count, Operand(kSystemPointerSizeLog2));
-  AddS64(src_reg, sp, src_reg);
-  AddS64(src_reg, src_reg, Operand(kSystemPointerSize));
-
-  if (FLAG_debug_code) {
-    CmpU64(src_reg, dst_reg);
-    Check(lt, AbortReason::kStackAccessBelowStackPointer);
-  }
-
-  // Restore caller's frame pointer and return address now as they will be
-  // overwritten by the copying loop.
-  RestoreFrameStateForTailCall();
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-
-  // Both src_reg and dst_reg are pointing to the word after the one to copy,
-  // so they must be pre-decremented in the loop.
-  Register tmp_reg = scratch1;
-  Label loop;
-  AddS64(tmp_reg, callee_args_count, Operand(1));  // +1 for receiver
-  mov(r1, tmp_reg);
-  bind(&loop);
-  LoadU64(tmp_reg, MemOperand(src_reg, -kSystemPointerSize));
-  StoreU64(tmp_reg, MemOperand(dst_reg, -kSystemPointerSize));
-  lay(src_reg, MemOperand(src_reg, -kSystemPointerSize));
-  lay(dst_reg, MemOperand(dst_reg, -kSystemPointerSize));
-  BranchOnCount(r1, &loop);
-
-  // Leave current frame.
-  mov(sp, dst_reg);
-}
-
 MemOperand MacroAssembler::StackLimitAsMemOperand(StackLimitKind kind) {
   DCHECK(root_array_available());
   Isolate* isolate = this->isolate();
