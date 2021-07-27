@@ -6,6 +6,8 @@
 
 "use strict";
 
+d8.file.execute('test/mjsunit/typedarray-helpers.js');
+
 class MyUint8Array extends Uint8Array {};
 
 const ctors = [
@@ -967,3 +969,86 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     });
   }
 }());
+
+(function TestFill() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    assertEquals([0, 0, 0, 0], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(fixedLength, 1);
+    assertEquals([1, 1, 1, 1], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(fixedLengthWithOffset, 2);
+    assertEquals([1, 1, 2, 2], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTracking, 3);
+    assertEquals([3, 3, 3, 3], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTrackingWithOffset, 4);
+    assertEquals([3, 3, 4, 4], ReadDataFromBuffer(rab, ctor));
+
+    // Shrink so that fixed length TAs go out of bounds.
+    rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+
+    FillHelper(fixedLength, 5);
+    assertEquals([3, 3, 4], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(fixedLengthWithOffset, 6);
+    assertEquals([3, 3, 4], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTracking, 7);
+    assertEquals([7, 7, 7], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTrackingWithOffset, 8);
+    assertEquals([7, 7, 8], ReadDataFromBuffer(rab, ctor));
+
+    // Shrink so that the TAs with offset go out of bounds.
+    rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+
+    FillHelper(fixedLength, 9);
+    assertEquals([7], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(fixedLengthWithOffset, 10);
+    assertEquals([7], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTracking, 11);
+    assertEquals([11], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTrackingWithOffset, 12);
+    assertEquals([11], ReadDataFromBuffer(rab, ctor));
+
+    // Grow so that all TAs are back in-bounds.
+    rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+
+    FillHelper(fixedLength, 13);
+    assertEquals([13, 13, 13, 13, 0, 0], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(fixedLengthWithOffset, 14);
+    assertEquals([13, 13, 14, 14, 0, 0], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTracking, 15);
+    assertEquals([15, 15, 15, 15, 15, 15], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTrackingWithOffset, 16);
+    assertEquals([15, 15, 16, 16, 16, 16], ReadDataFromBuffer(rab, ctor));
+
+    // Filling with non-undefined start & end.
+    FillHelper(fixedLength, 17, 1, 3);
+    assertEquals([15, 17, 17, 16, 16, 16], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(fixedLengthWithOffset, 18, 1, 2);
+    assertEquals([15, 17, 17, 18, 16, 16], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTracking, 19, 1, 3);
+    assertEquals([15, 19, 19, 18, 16, 16], ReadDataFromBuffer(rab, ctor));
+
+    FillHelper(lengthTrackingWithOffset, 20, 1, 2);
+    assertEquals([15, 19, 19, 20, 16, 16], ReadDataFromBuffer(rab, ctor));
+  }
+})();

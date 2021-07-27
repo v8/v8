@@ -119,7 +119,7 @@ BUILTIN(TypedArrayPrototypeFill) {
   ElementsKind kind = array->GetElementsKind();
 
   Handle<Object> obj_value = args.atOrUndefined(isolate, 1);
-  if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
+  if (IsBigIntTypedArrayElementsKind(kind)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj_value,
                                        BigInt::FromObject(isolate, obj_value));
   } else {
@@ -127,7 +127,7 @@ BUILTIN(TypedArrayPrototypeFill) {
                                        Object::ToNumber(isolate, obj_value));
   }
 
-  int64_t len = array->length();
+  int64_t len = array->GetLength();
   int64_t start = 0;
   int64_t end = len;
 
