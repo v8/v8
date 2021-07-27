@@ -3083,20 +3083,6 @@ class WasmInterpreterInternals {
     return false;
   }
 
-  void EncodeI32ExceptionValue(Handle<FixedArray> encoded_values,
-                               uint32_t* encoded_index, uint32_t value) {
-    encoded_values->set((*encoded_index)++, Smi::FromInt(value >> 16));
-    encoded_values->set((*encoded_index)++, Smi::FromInt(value & 0xffff));
-  }
-
-  void EncodeI64ExceptionValue(Handle<FixedArray> encoded_values,
-                               uint32_t* encoded_index, uint64_t value) {
-    EncodeI32ExceptionValue(encoded_values, encoded_index,
-                            static_cast<uint32_t>(value >> 32));
-    EncodeI32ExceptionValue(encoded_values, encoded_index,
-                            static_cast<uint32_t>(value));
-  }
-
   // Allocate, initialize and throw a new exception. The exception values are
   // being popped off the operand stack. Returns true if the exception is being
   // handled locally by the interpreter, false otherwise (interpreter exits).

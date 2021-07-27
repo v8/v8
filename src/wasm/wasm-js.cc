@@ -20,6 +20,7 @@
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/templates.h"
@@ -1231,6 +1232,48 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   return true;
 }
 
+namespace {
+
+bool ToI32(Local<v8::Value> value, Local<Context> context, int32_t* i32_value) {
+  if (!value->IsUndefined()) {
+    v8::Local<v8::Int32> int32_value;
+    if (!value->ToInt32(context).ToLocal(&int32_value)) return false;
+    if (!int32_value->Int32Value(context).To(i32_value)) return false;
+  }
+  return true;
+}
+
+bool ToI64(Local<v8::Value> value, Local<Context> context, int64_t* i64_value) {
+  if (!value->IsUndefined()) {
+    v8::Local<v8::BigInt> bigint_value;
+    if (!value->ToBigInt(context).ToLocal(&bigint_value)) return false;
+    *i64_value = bigint_value->Int64Value();
+  }
+  return true;
+}
+
+bool ToF32(Local<v8::Value> value, Local<Context> context, float* f32_value) {
+  if (!value->IsUndefined()) {
+    double f64_value = 0;
+    v8::Local<v8::Number> number_value;
+    if (!value->ToNumber(context).ToLocal(&number_value)) return false;
+    if (!number_value->NumberValue(context).To(&f64_value)) return false;
+    *f32_value = i::DoubleToFloat32(f64_value);
+  }
+  return true;
+}
+
+bool ToF64(Local<v8::Value> value, Local<Context> context, double* f64_value) {
+  if (!value->IsUndefined()) {
+    v8::Local<v8::Number> number_value;
+    if (!value->ToNumber(context).ToLocal(&number_value)) return false;
+    if (!number_value->NumberValue(context).To(f64_value)) return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 // WebAssembly.Global
 void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -1296,43 +1339,25 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   switch (type.kind()) {
     case i::wasm::kI32: {
       int32_t i32_value = 0;
-      if (!value->IsUndefined()) {
-        v8::Local<v8::Int32> int32_value;
-        if (!value->ToInt32(context).ToLocal(&int32_value)) return;
-        if (!int32_value->Int32Value(context).To(&i32_value)) return;
-      }
+      if (!ToI32(value, context, &i32_value)) return;
       global_obj->SetI32(i32_value);
       break;
     }
     case i::wasm::kI64: {
       int64_t i64_value = 0;
-      if (!value->IsUndefined()) {
-        v8::Local<v8::BigInt> bigint_value;
-        if (!value->ToBigInt(context).ToLocal(&bigint_value)) return;
-        i64_value = bigint_value->Int64Value();
-      }
+      if (!ToI64(value, context, &i64_value)) return;
       global_obj->SetI64(i64_value);
       break;
     }
     case i::wasm::kF32: {
       float f32_value = 0;
-      if (!value->IsUndefined()) {
-        double f64_value = 0;
-        v8::Local<v8::Number> number_value;
-        if (!value->ToNumber(context).ToLocal(&number_value)) return;
-        if (!number_value->NumberValue(context).To(&f64_value)) return;
-        f32_value = i::DoubleToFloat32(f64_value);
-      }
+      if (!ToF32(value, context, &f32_value)) return;
       global_obj->SetF32(f32_value);
       break;
     }
     case i::wasm::kF64: {
       double f64_value = 0;
-      if (!value->IsUndefined()) {
-        v8::Local<v8::Number> number_value;
-        if (!value->ToNumber(context).ToLocal(&number_value)) return;
-        if (!number_value->NumberValue(context).To(&f64_value)) return;
-      }
+      if (!ToF64(value, context, &f64_value)) return;
       global_obj->SetF64(f64_value);
       break;
     }
@@ -1471,6 +1496,93 @@ void WebAssemblyTag(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(exception));
 }
 
+namespace {
+
+uint32_t GetEncodedSize(i::Handle<i::WasmExceptionObject> tag_object) {
+  auto serialized_sig = tag_object->serialized_signature();
+  i::wasm::WasmExceptionSig sig{0, static_cast<size_t>(serialized_sig.length()),
+                                reinterpret_cast<i::wasm::ValueType*>(
+                                    serialized_sig.GetDataStartAddress())};
+  i::wasm::WasmException exception(&sig);
+  return i::WasmExceptionPackage::GetEncodedSize(&exception);
+}
+
+void EncodeExceptionValues(v8::Isolate* isolate,
+                           i::PodArray<i::wasm::ValueType> signature,
+                           const Local<Value>& arg,
+                           ScheduledErrorThrower* thrower,
+                           i::Handle<i::FixedArray> values_out) {
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t index = 0;
+  if (!arg->IsObject()) {
+    thrower->TypeError("Exception values must be an iterable object");
+    return;
+  }
+  auto values = arg.As<Object>();
+  for (int i = 0; i < signature.length(); ++i) {
+    MaybeLocal<Value> maybe_value = values->Get(context, i);
+    Local<Value> value = maybe_value.ToLocalChecked();
+    i::wasm::ValueType type = signature.get(i);
+    switch (type.kind()) {
+      case i::wasm::kI32: {
+        int32_t i32 = 0;
+        if (!ToI32(value, context, &i32)) return;
+        i::EncodeI32ExceptionValue(values_out, &index, i32);
+        break;
+      }
+      case i::wasm::kI64: {
+        int64_t i64 = 0;
+        if (!ToI64(value, context, &i64)) return;
+        i::EncodeI64ExceptionValue(values_out, &index, i64);
+        break;
+      }
+      case i::wasm::kF32: {
+        float f32 = 0;
+        if (!ToF32(value, context, &f32)) return;
+        int32_t i32 = bit_cast<int32_t>(f32);
+        i::EncodeI32ExceptionValue(values_out, &index, i32);
+        break;
+      }
+      case i::wasm::kF64: {
+        double f64 = 0;
+        if (!ToF64(value, context, &f64)) return;
+        int64_t i64 = bit_cast<int64_t>(f64);
+        i::EncodeI64ExceptionValue(values_out, &index, i64);
+        break;
+      }
+      case i::wasm::kRef:
+      case i::wasm::kOptRef:
+        switch (type.heap_representation()) {
+          case i::wasm::HeapType::kExtern:
+          case i::wasm::HeapType::kFunc:
+          case i::wasm::HeapType::kAny:
+          case i::wasm::HeapType::kEq:
+          case i::wasm::HeapType::kI31:
+          case i::wasm::HeapType::kData:
+            values_out->set(index++, *Utils::OpenHandle(*value));
+            break;
+          case internal::wasm::HeapType::kBottom:
+            UNREACHABLE();
+          default:
+            // TODO(7748): Add support for custom struct/array types.
+            UNIMPLEMENTED();
+        }
+        break;
+      case i::wasm::kRtt:
+      case i::wasm::kRttWithDepth:
+      case i::wasm::kI8:
+      case i::wasm::kI16:
+      case i::wasm::kVoid:
+      case i::wasm::kBottom:
+      case i::wasm::kS128:
+        UNREACHABLE();
+        break;
+    }
+  }
+}
+
+}  // namespace
+
 void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -1493,10 +1605,16 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto tag_object = i::Handle<i::WasmExceptionObject>::cast(arg0);
   auto tag = i::Handle<i::WasmExceptionTag>(
       i::WasmExceptionTag::cast(tag_object->exception_tag()), i_isolate);
-  // TODO(thibaudm): Encode arguments in the exception package.
-  uint32_t size = 0;
+  uint32_t size = GetEncodedSize(tag_object);
   i::Handle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);
+  // The constructor above should guarantee that the cast below succeeds.
+  auto values = i::Handle<i::FixedArray>::cast(
+      i::WasmExceptionPackage::GetExceptionValues(i_isolate,
+                                                  runtime_exception));
+  auto signature = tag_object->serialized_signature();
+  EncodeExceptionValues(isolate, signature, args[1], &thrower, values);
+  if (thrower.error()) return;
   args.GetReturnValue().Set(
       Utils::ToLocal(i::Handle<i::Object>::cast(runtime_exception)));
 }

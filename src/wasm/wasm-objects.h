@@ -590,6 +590,12 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
   OBJECT_CONSTRUCTORS(WasmExceptionPackage, JSObject);
 };
 
+void V8_EXPORT_PRIVATE EncodeI32ExceptionValue(
+    Handle<FixedArray> encoded_values, uint32_t* encoded_index, uint32_t value);
+
+void V8_EXPORT_PRIVATE EncodeI64ExceptionValue(
+    Handle<FixedArray> encoded_values, uint32_t* encoded_index, uint64_t value);
+
 // A Wasm function that is wrapped and exported to JavaScript.
 // Representation of WebAssembly.Function JavaScript-level object.
 class WasmExportedFunction : public JSFunction {
