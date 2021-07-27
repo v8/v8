@@ -7,6 +7,15 @@
 namespace v8 {
 namespace bigint {
 
+// Used for checking consistency between library and public header.
+#if DEBUG
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+bool kAdvancedAlgorithmsEnabledInLibrary = true;
+#else
+bool kAdvancedAlgorithmsEnabledInLibrary = false;
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+#endif  // DEBUG
+
 ProcessorImpl::ProcessorImpl(Platform* platform) : platform_(platform) {}
 
 ProcessorImpl::~ProcessorImpl() { delete platform_; }

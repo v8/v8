@@ -23,6 +23,8 @@ namespace bigint {
     std::cerr << "Assertion failed: " #cond "\n";     \
     abort();                                          \
   }
+
+extern bool kAdvancedAlgorithmsEnabledInLibrary;
 #else
 #define BIGINT_H_DCHECK(cond) (void(0))
 #endif
@@ -277,9 +279,13 @@ inline int MultiplyResultLength(Digits X, Digits Y) {
 constexpr int kBarrettThreshold = 13310;
 inline int DivideResultLength(Digits A, Digits B) {
 #if V8_ADVANCED_BIGINT_ALGORITHMS
+  BIGINT_H_DCHECK(kAdvancedAlgorithmsEnabledInLibrary);
   // The Barrett division algorithm needs one extra digit for temporary use.
   int kBarrettExtraScratch = B.len() >= kBarrettThreshold ? 1 : 0;
 #else
+  // If this fails, set -DV8_ADVANCED_BIGINT_ALGORITHMS in any compilation unit
+  // that #includes this header.
+  BIGINT_H_DCHECK(!kAdvancedAlgorithmsEnabledInLibrary);
   constexpr int kBarrettExtraScratch = 0;
 #endif
   return A.len() - B.len() + 1 + kBarrettExtraScratch;

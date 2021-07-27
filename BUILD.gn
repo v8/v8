@@ -621,8 +621,8 @@ config("external_config") {
     defines += [ "USING_V8_SHARED" ]
   }
 
-  if(current_cpu == "riscv64") {
-    libs = [ "atomic"]
+  if (current_cpu == "riscv64") {
+    libs = [ "atomic" ]
   }
 }
 
@@ -925,6 +925,9 @@ config("features") {
   }
   if (v8_allocation_site_tracking) {
     defines += [ "V8_ALLOCATION_SITE_TRACKING" ]
+  }
+  if (v8_advanced_bigint_algorithms) {
+    defines += [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
   }
 }
 
@@ -5012,8 +5015,6 @@ v8_source_set("v8_bigint") {
       "src/bigint/mul-fft.cc",
       "src/bigint/mul-toom.cc",
     ]
-
-    defines = [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
   }
 
   configs = [ ":internal_config" ]
