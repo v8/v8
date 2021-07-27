@@ -19,6 +19,11 @@
 #include <ostream>
 
 #if V8_OS_WIN
+#include <windows.h>
+
+// This has to come after windows.h.
+#include <mmsystem.h>  // For timeGetTime().
+
 #include "src/base/lazy-instance.h"
 #include "src/base/win32-headers.h"
 #endif

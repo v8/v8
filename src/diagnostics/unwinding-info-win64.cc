@@ -17,6 +17,11 @@
 #error "Unsupported OS"
 #endif  // V8_OS_WIN_X64
 
+#include <windows.h>
+
+// This has to come after windows.h.
+#include <versionhelpers.h>  // For IsWindows8OrGreater().
+
 namespace v8 {
 namespace internal {
 namespace win64_unwindinfo {

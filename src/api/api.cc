@@ -130,8 +130,10 @@
 #endif
 
 #if V8_OS_WIN
-#include <versionhelpers.h>
 #include <windows.h>
+
+// This has to come after windows.h.
+#include <versionhelpers.h>
 
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
