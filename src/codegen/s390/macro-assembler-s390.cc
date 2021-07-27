@@ -1411,6 +1411,9 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
 
   mov(ip, Operand(StackFrame::TypeToMarker(type)));
   PushCommonFrame(ip);
+#if V8_ENABLE_WEBASSEMBLY
+  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {

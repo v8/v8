@@ -124,7 +124,7 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               SafepointTableBuilder*) {
-  int frame_size = GetTotalFrameSize() - kSystemPointerSize;
+  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
 
   constexpr int LayInstrSize = 6;
 
