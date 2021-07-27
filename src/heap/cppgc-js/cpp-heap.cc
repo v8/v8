@@ -474,13 +474,6 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
     marker_->LeaveAtomicPause();
   }
   marker_.reset();
-  if (isolate_) {
-    auto* tracer = isolate_->heap()->local_embedder_heap_tracer();
-    DCHECK_NOT_NULL(tracer);
-    tracer->UpdateRemoteStats(
-        stats_collector_->marked_bytes(),
-        stats_collector_->marking_time().InMillisecondsF());
-  }
   ExecutePreFinalizers();
   // TODO(chromium:1056170): replace build flag with dedicated flag.
 #if DEBUG
@@ -526,6 +519,20 @@ void CppHeap::AllocatedObjectSizeIncreased(size_t bytes) {
 void CppHeap::AllocatedObjectSizeDecreased(size_t bytes) {
   buffered_allocated_bytes_ -= static_cast<int64_t>(bytes);
   ReportBufferedAllocationSizeIfPossible();
+}
+
+void CppHeap::ResetAllocatedObjectSize(size_t bytes) {
+  DCHECK(!sweeper().IsSweepingOnMutatorThread());
+  DCHECK(!in_no_gc_scope());
+  buffered_allocated_bytes_ = 0;
+  if (isolate_) {
+    auto* tracer = isolate_->heap()->local_embedder_heap_tracer();
+    DCHECK_NOT_NULL(tracer);
+    DCHECK_EQ(bytes, stats_collector_->marked_bytes());
+    tracer->UpdateRemoteStats(
+        stats_collector_->marked_bytes(),
+        stats_collector_->marking_time().InMillisecondsF());
+  }
 }
 
 void CppHeap::ReportBufferedAllocationSizeIfPossible() {
