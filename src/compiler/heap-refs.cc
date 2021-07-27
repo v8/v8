@@ -921,12 +921,8 @@ class BigIntData : public HeapObjectData {
 };
 
 struct PropertyDescriptor {
-  ObjectData* key = nullptr;
-  ObjectData* value = nullptr;
-  PropertyDetails details = PropertyDetails::Empty();
   FieldIndex field_index;
   ObjectData* field_owner = nullptr;
-  ObjectData* field_type = nullptr;
 };
 
 class MapData : public HeapObjectData {
@@ -1385,30 +1381,24 @@ class DescriptorArrayData : public HeapObjectData {
                       Handle<DescriptorArray> object)
       : HeapObjectData(broker, storage, object), contents_(broker->zone()) {
     DCHECK(!broker->is_concurrent_inlining());
+    // TODO(solanes, v8:7790): If Map moves to never serialized, the
+    // DescriptorArray can become never ever serialized. Alternatively, if
+    // bg-serialization is enabled for the default config we can also move
+    // DescriptorArray to never ever serialized.
+    STATIC_ASSERT(ref_traits<Map>::ref_serialization_kind ==
+                  RefSerializationKind::kBackgroundSerialized);
   }
 
+  // TODO(solanes, v8:7790): If we move FieldOwner and FieldIndex to MapData, we
+  // can make DescriptorArray never ever serialized but at the cost of different
+  // maps with the same descriptor not benefiting from having said same
+  // descriptor.
   ObjectData* FindFieldOwner(InternalIndex descriptor_index) const {
     return contents_.at(descriptor_index.as_int()).field_owner;
   }
 
-  PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const {
-    return contents_.at(descriptor_index.as_int()).details;
-  }
-
-  ObjectData* GetPropertyKey(InternalIndex descriptor_index) const {
-    return contents_.at(descriptor_index.as_int()).key;
-  }
-
   FieldIndex GetFieldIndexFor(InternalIndex descriptor_index) const {
     return contents_.at(descriptor_index.as_int()).field_index;
-  }
-
-  ObjectData* GetFieldType(InternalIndex descriptor_index) const {
-    return contents_.at(descriptor_index.as_int()).field_type;
-  }
-
-  ObjectData* GetStrongValue(InternalIndex descriptor_index) const {
-    return contents_.at(descriptor_index.as_int()).value;
   }
 
   bool serialized_descriptor(InternalIndex descriptor_index) const {
@@ -1435,23 +1425,16 @@ void DescriptorArrayData::SerializeDescriptor(JSHeapBroker* broker,
   CHECK_EQ(*descriptors, map->instance_descriptors(isolate));
 
   PropertyDescriptor d;
-  d.key = broker->GetOrCreateData(descriptors->GetKey(descriptor_index));
-  MaybeObject value = descriptors->GetValue(descriptor_index);
-  HeapObject obj;
-  if (value.GetHeapObjectIfStrong(&obj)) {
-    d.value = broker->GetOrCreateData(obj);
-  }
-  d.details = descriptors->GetDetails(descriptor_index);
-  if (d.details.location() == kField) {
+  const bool is_field =
+      descriptors->GetDetails(descriptor_index).location() == kField;
+  if (is_field) {
     d.field_index = FieldIndex::ForDescriptor(*map, descriptor_index);
     d.field_owner =
         broker->GetOrCreateData(map->FindFieldOwner(isolate, descriptor_index));
-    d.field_type =
-        broker->GetOrCreateData(descriptors->GetFieldType(descriptor_index));
   }
   contents_[descriptor_index.as_int()] = d;
 
-  if (d.details.location() == kField && !d.field_owner->should_access_heap()) {
+  if (is_field && !d.field_owner->should_access_heap()) {
     // Recurse on the owner map.
     d.field_owner->AsMap()->SerializeOwnDescriptor(broker, descriptor_index,
                                                    tag);
@@ -3632,50 +3615,34 @@ int FixedArrayBaseRef::length() const {
 
 PropertyDetails DescriptorArrayRef::GetPropertyDetails(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    return object()->GetDetails(descriptor_index);
-  }
-  return data()->AsDescriptorArray()->GetPropertyDetails(descriptor_index);
+  return object()->GetDetails(descriptor_index);
 }
 
 NameRef DescriptorArrayRef::GetPropertyKey(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    NameRef result = MakeRef(broker(), object()->GetKey(descriptor_index));
-    CHECK(result.IsUniqueName());
-    return result;
-  }
-  return NameRef(broker(),
-                 data()->AsDescriptorArray()->GetPropertyKey(descriptor_index));
+  NameRef result = MakeRef(broker(), object()->GetKey(descriptor_index));
+  CHECK(result.IsUniqueName());
+  return result;
 }
 
 ObjectRef DescriptorArrayRef::GetFieldType(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    return MakeRef<Object>(broker(), object()->GetFieldType(descriptor_index));
-  }
-  return ObjectRef(broker(),
-                   data()->AsDescriptorArray()->GetFieldType(descriptor_index));
+  return MakeRef(broker(),
+                 Object::cast(object()->GetFieldType(descriptor_index)));
 }
 
 base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
     InternalIndex descriptor_index) const {
-  if (data_->should_access_heap()) {
-    HeapObject heap_object;
-    if (!object()
-             ->GetValue(descriptor_index)
-             .GetHeapObjectIfStrong(&heap_object)) {
-      return {};
-    }
-    // Since the descriptors in the descriptor array can be changed in-place
-    // via DescriptorArray::Replace, we might get a value that we haven't seen
-    // before.
-    return TryMakeRef(broker(), heap_object);
+  HeapObject heap_object;
+  if (!object()
+           ->GetValue(descriptor_index)
+           .GetHeapObjectIfStrong(&heap_object)) {
+    return {};
   }
-  ObjectData* value =
-      data()->AsDescriptorArray()->GetStrongValue(descriptor_index);
-  if (!value) return base::nullopt;
-  return ObjectRef(broker(), value);
+  // Since the descriptors in the descriptor array can be changed in-place
+  // via DescriptorArray::Replace, we might get a value that we haven't seen
+  // before.
+  return TryMakeRef(broker(), heap_object);
 }
 
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
