@@ -2603,11 +2603,11 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Push<TurboAssembler::kSignLR>(lr, fp);
     Mov(fp, sp);
-    Push(type_reg, padreg);
+    Push(type_reg, kWasmInstanceRegister);
     // sp[3] : lr
     // sp[2] : fp
     // sp[1] : type
-    // sp[0] : for alignment
+    // sp[0] : wasm instance
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else if (type == StackFrame::CONSTRUCT) {
     Register type_reg = temps.AcquireX();

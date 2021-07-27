@@ -741,8 +741,6 @@ class LiftoffCompiler {
               Register::from_code(
                   descriptor_->GetInputLocation(kInstanceParameterIndex)
                       .AsRegister()));
-    // Store the instance parameter to a special stack slot.
-    __ SpillInstance(kWasmInstanceRegister);
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
     if (for_debugging_) __ ResetOSRTarget();
 

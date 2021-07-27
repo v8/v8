@@ -306,9 +306,9 @@ void LiftoffAssembler::AlignFrameSize() {
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder) {
-  // The frame_size includes the frame marker. The frame marker has already been
-  // pushed on the stack though, so we don't need to allocate memory for it
-  // anymore.
+  // The frame_size includes the frame marker and the instance slot. Both are
+  // pushed as part of frame construction, so we don't need to allocate memory
+  // for them anymore.
   int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
 
   // The stack pointer is required to be quadword aligned.
@@ -361,7 +361,6 @@ void LiftoffAssembler::PatchPrepareStackFrame(
 
   // The instance was not written to the frame yet, but the slot was already
   // reserved in {EnterFrame}. The runtime call expects it, thus spill it now.
-  SpillInstance(kWasmInstanceRegister);
   Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
   // The call will not return; just define an empty safepoint.
   safepoint_table_builder->DefineSafepoint(this);

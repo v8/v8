@@ -3159,6 +3159,9 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   if (!StackFrame::IsJavaScript(type)) {
     Push(Immediate(StackFrame::TypeToMarker(type)));
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {

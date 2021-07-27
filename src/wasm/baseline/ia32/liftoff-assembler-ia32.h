@@ -222,10 +222,10 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               SafepointTableBuilder*) {
-  // The frame_size includes the frame marker. The frame marker has already been
-  // pushed on the stack though, so we don't need to allocate memory for it
-  // anymore.
-  int frame_size = GetTotalFrameSize() - kSystemPointerSize;
+  // The frame_size includes the frame marker and the instance slot. Both are
+  // pushed as part of frame construction, so we don't need to allocate memory
+  // for them anymore.
+  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
   DCHECK_EQ(frame_size % kSystemPointerSize, 0);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
