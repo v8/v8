@@ -33,10 +33,6 @@ declare_args() {
   # Dynamically set an additional dependency from v8/custom_deps.
   v8_custom_deps = ""
 
-  # Separate control for dchecks in V8. Defaults to Chromium's behavior if
-  # built with Chromium.
-  v8_dcheck_always_on = build_with_chromium && dcheck_always_on
-
   # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
   # within a release Chrome.
   v8_enable_debugging_features = is_debug
@@ -362,7 +358,7 @@ if (v8_enable_trace_maps == "") {
   v8_enable_trace_maps = v8_enable_debugging_features
 }
 if (v8_enable_test_features == "") {
-  v8_enable_test_features = v8_enable_debugging_features || v8_dcheck_always_on
+  v8_enable_test_features = v8_enable_debugging_features || dcheck_always_on
 }
 if (v8_enable_v8_checks == "") {
   v8_enable_v8_checks = v8_enable_debugging_features
@@ -1153,7 +1149,7 @@ config("toolchain") {
     if (v8_enable_slow_dchecks) {
       defines += [ "ENABLE_SLOW_DCHECKS" ]
     }
-  } else if (v8_dcheck_always_on) {
+  } else if (dcheck_always_on) {
     defines += [ "DEBUG" ]
   }
 
@@ -1998,6 +1994,7 @@ action("v8_dump_build_config") {
   args = [
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
     "current_cpu=\"$current_cpu\"",
+    "dcheck_always_on=$dcheck_always_on",
     "is_android=$is_android",
     "is_asan=$is_asan",
     "is_cfi=$is_cfi",
@@ -2011,7 +2008,6 @@ action("v8_dump_build_config") {
     "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
     "v8_current_cpu=\"$v8_current_cpu\"",
-    "v8_dcheck_always_on=$v8_dcheck_always_on",
     "v8_enable_atomic_marking_state=$v8_enable_atomic_marking_state",
     "v8_enable_atomic_object_field_writes=" +
         "$v8_enable_atomic_object_field_writes",
