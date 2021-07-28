@@ -117,6 +117,7 @@
   'kraken/audio-dft': [SLOW],
   'kraken/audio-fft': [SLOW],
   'kraken/audio-oscillator': [SLOW],
+  'octane/pdfjs': [SLOW],
 }],  # 'tsan'
 
 ]
