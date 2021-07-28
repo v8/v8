@@ -52,7 +52,7 @@ vars = {
   'gn_version': 'git_revision:c0a2d23c21e87f27f5af3e5dc2a99f2ef3480b9e',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:75ff299b9adf969190cafebe902255856a346f0b',
+  'luci_go': 'git_revision:2c98a90e4f4daa808cb69d51e71eee9289bd5422',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -92,7 +92,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'ad56859ef8c85cc09a3d8e95dcedadb5109a0af8',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '96a4da9412f72c4477c2496b1d3ee2748ccd56d4',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0c49d5160b5f1af664757a57cc1d10b8ed2cd776',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '37dc929ecb351687006a61744b116cda601753d7',
   'buildtools/clang_format/script':
@@ -155,7 +155,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'LiTUyHa0AyC2fE72v094aZIjv1aTdQEZfYm-LIJVQIwC'
+              'version': 'EfaAueisHmQB3i2Cqncpzj07xFoDNrwT09yreit16bgC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -285,7 +285,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'dfbc590f5855bc2765256a743cad0abc56330a30',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2a8bb1ca80b166cb11a81ffc35e8f374af240e04',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'def6c30818bcbffdccfb6b87e862dba658f16e21',
   'tools/clang/dsymutil': {
     'packages': [
       {
