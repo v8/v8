@@ -149,12 +149,14 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Gather the assumption that the field representation of a field does not
   // change. The field is identified by the arguments.
   CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor) const;
+      const MapRef& map, InternalIndex descriptor,
+      Representation representation) const;
 
   // Gather the assumption that the field type of a field does not change. The
   // field is identified by the arguments.
   CompilationDependency const* FieldTypeDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor) const;
+      const MapRef& map, InternalIndex descriptor,
+      const ObjectRef& /* Contains a FieldType underneath. */ type) const;
 
  private:
   Zone* const zone_;
