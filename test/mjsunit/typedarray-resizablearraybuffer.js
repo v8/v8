@@ -996,10 +996,10 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
 
-    FillHelper(fixedLength, 5);
+    assertThrows(() => FillHelper(fixedLength, 5), TypeError);
     assertEquals([3, 3, 4], ReadDataFromBuffer(rab, ctor));
 
-    FillHelper(fixedLengthWithOffset, 6);
+    assertThrows(() => FillHelper(fixedLengthWithOffset, 6), TypeError);
     assertEquals([3, 3, 4], ReadDataFromBuffer(rab, ctor));
 
     FillHelper(lengthTracking, 7);
@@ -1011,16 +1011,16 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    FillHelper(fixedLength, 9);
+    assertThrows(() => FillHelper(fixedLength, 9), TypeError);
     assertEquals([7], ReadDataFromBuffer(rab, ctor));
 
-    FillHelper(fixedLengthWithOffset, 10);
+    assertThrows(() => FillHelper(fixedLengthWithOffset, 10), TypeError);
     assertEquals([7], ReadDataFromBuffer(rab, ctor));
 
     FillHelper(lengthTracking, 11);
     assertEquals([11], ReadDataFromBuffer(rab, ctor));
 
-    FillHelper(lengthTrackingWithOffset, 12);
+    assertThrows(() => FillHelper(lengthTrackingWithOffset, 12), TypeError);
     assertEquals([11], ReadDataFromBuffer(rab, ctor));
 
     // Grow so that all TAs are back in-bounds.
