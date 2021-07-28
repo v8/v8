@@ -5373,6 +5373,9 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     li(kScratchReg, Operand(StackFrame::TypeToMarker(type)));
     Push(kScratchReg);
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
