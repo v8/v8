@@ -266,6 +266,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // If the frame is bigger than the stack, we throw the stack overflow
   // exception unconditionally. Thereby we can avoid the integer overflow
   // check in the condition code.
+  RecordComment("OOL: stack check for large frame");
   Label continuation;
   if (frame_size < FLAG_stack_size * 1024) {
     // We do not have a scratch register, so pick any and push it first.
