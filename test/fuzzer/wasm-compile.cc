@@ -750,6 +750,49 @@ class WasmGenerator {
       ref_null(type, data);
     }
   }
+  void new_object(HeapType type, DataRange* data) {
+    if (liftoff_as_reference_ && type.is_index()) {
+      bool new_default = data->get<uint8_t>() % 2;
+      uint32_t index = type.ref_index();
+      if (builder_->builder()->IsStructType(index)) {
+        if (new_default) {
+          builder_->EmitWithPrefix(kExprRttCanon);
+          builder_->EmitU32V(index);
+          builder_->EmitWithPrefix(kExprStructNewDefault);
+          builder_->EmitU32V(index);
+        } else {
+          StructType* struct_gen = builder_->builder()->GetStructType(index);
+          int field_count = struct_gen->field_count();
+          for (int i = 0; i < field_count; i++) {
+            Generate(struct_gen->field(i), data);
+          }
+          builder_->EmitWithPrefix(kExprRttCanon);
+          builder_->EmitU32V(index);
+          builder_->EmitWithPrefix(kExprStructNewWithRtt);
+          builder_->EmitU32V(index);
+        }
+        return;
+      } else if (builder_->builder()->IsArrayType(index)) {
+        if (new_default) {
+          Generate(kWasmI32, data);
+          builder_->EmitWithPrefix(kExprRttCanon);
+          builder_->EmitU32V(index);
+          builder_->EmitWithPrefix(kExprArrayNewDefault);
+          builder_->EmitU32V(index);
+        } else {
+          Generate(builder_->builder()->GetArrayType(index)->element_type(),
+                   data);
+          Generate(kWasmI32, data);
+          builder_->EmitWithPrefix(kExprRttCanon);
+          builder_->EmitU32V(index);
+          builder_->EmitWithPrefix(kExprArrayNewWithRtt);
+          builder_->EmitU32V(index);
+        }
+        return;
+      }
+    }
+    ref_null(type, data);
+  }
 
   using GenerateFn = void (WasmGenerator::*const)(DataRange*);
   using GenerateFnWithHeap = void (WasmGenerator::*const)(HeapType, DataRange*);
@@ -1565,7 +1608,8 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
 
 void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
   constexpr GenerateFnWithHeap alternatives[] = {
-      &WasmGenerator::ref_null, &WasmGenerator::get_local_opt_ref};
+      &WasmGenerator::ref_null, &WasmGenerator::get_local_opt_ref,
+      &WasmGenerator::new_object};
 
   GenerateOneOf(alternatives, type, data);
 }
