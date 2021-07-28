@@ -255,8 +255,6 @@ class BytecodeGraphBuilder {
   // former points at JumpLoop, the latter at the loop header, i.e. the target
   // of JumpLoop).
   void PrepareFrameStateForOSREntryStackCheck(Node* node) {
-    DCHECK_EQ(bytecode_iterator().current_offset(),
-              bytecode_analysis().osr_entry_point());
     DCHECK(OperatorProperties::HasFrameStateInput(node->op()));
     DCHECK(node->opcode() == IrOpcode::kJSStackCheck);
     const int offset = bytecode_analysis().osr_bailout_id().ToInt();
@@ -361,7 +359,7 @@ class BytecodeGraphBuilder {
   // StackChecks.
   void BuildFunctionEntryStackCheck();
   void BuildIterationBodyStackCheck();
-  void MaybeBuildOSREntryStackCheck();
+  void BuildOSREntryStackCheck();
 
   // Control flow plumbing.
   void BuildJump();
@@ -511,7 +509,6 @@ class BytecodeGraphBuilder {
   Environment* environment_;
   bool const osr_;
   int currently_peeled_loop_offset_;
-  bool is_osr_entry_stack_check_pending_;
 
   const bool skip_first_stack_and_tierup_check_;
 
@@ -1107,7 +1104,6 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       environment_(nullptr),
       osr_(!osr_offset.IsNone()),
       currently_peeled_loop_offset_(-1),
-      is_osr_entry_stack_check_pending_(osr_),
       skip_first_stack_and_tierup_check_(
           flags & BytecodeGraphBuilderFlag::kSkipFirstStackAndTierupCheck),
       merge_environments_(local_zone),
@@ -1460,6 +1456,7 @@ void BytecodeGraphBuilder::RemoveMergeEnvironmentsBeforeOffset(
 
 void BytecodeGraphBuilder::BuildFunctionEntryStackCheck() {
   if (!skip_first_stack_check()) {
+    DCHECK(exception_handlers_.empty());
     Node* node =
         NewNode(javascript()->StackCheck(StackCheckKind::kJSFunctionEntry));
     PrepareFrameStateForFunctionEntryStackCheck(node);
@@ -1472,25 +1469,35 @@ void BytecodeGraphBuilder::BuildIterationBodyStackCheck() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::MaybeBuildOSREntryStackCheck() {
-  if (V8_UNLIKELY(is_osr_entry_stack_check_pending_)) {
-    is_osr_entry_stack_check_pending_ = false;
-    Node* node =
-        NewNode(javascript()->StackCheck(StackCheckKind::kJSFunctionEntry));
-    PrepareFrameStateForOSREntryStackCheck(node);
-  }
+void BytecodeGraphBuilder::BuildOSREntryStackCheck() {
+  DCHECK(exception_handlers_.empty());
+  Node* node =
+      NewNode(javascript()->StackCheck(StackCheckKind::kJSFunctionEntry));
+  PrepareFrameStateForOSREntryStackCheck(node);
 }
 
 // We will iterate through the OSR loop, then its parent, and so on
 // until we have reached the outmost loop containing the OSR loop. We do
 // not generate nodes for anything before the outermost loop.
 void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops() {
+  environment()->FillWithOsrValues();
+
+  // The entry stack check has to happen *before* initialising the OSR prelude;
+  // it has to happen before setting up exception handlers, so that the
+  // optimized code can't accidentally catch a failingstack with a OSR-ed loop
+  // inside a try-catch, e.g.
+  //
+  //   try {
+  //     loop { OSR(); }
+  //   } catch {
+  //     // Ignore failed stack check.
+  //   }
+  BuildOSREntryStackCheck();
+
   OsrIteratorState iterator_states(this);
   iterator_states.ProcessOsrPrelude();
   int osr_entry = bytecode_analysis().osr_entry_point();
   DCHECK_EQ(bytecode_iterator().current_offset(), osr_entry);
-
-  environment()->FillWithOsrValues();
 
   // Suppose we have n nested loops, loop_0 being the outermost one, and
   // loop_n being the OSR loop. We start iterating the bytecode at the header
@@ -1561,12 +1568,6 @@ void BytecodeGraphBuilder::VisitSingleBytecode() {
 
   if (environment() != nullptr) {
     BuildLoopHeaderEnvironment(current_offset);
-
-    // The OSR-entry stack check must be emitted during the first call to
-    // VisitSingleBytecode in an OSR'd function. We don't know if that call
-    // will be made from AdvanceToOsrEntryAndPeelLoops or from VisitBytecodes,
-    // therefore we insert the logic here inside VisitSingleBytecode itself.
-    MaybeBuildOSREntryStackCheck();
 
     switch (bytecode_iterator().current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
