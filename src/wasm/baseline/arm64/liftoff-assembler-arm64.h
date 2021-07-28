@@ -359,8 +359,6 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     B(hs /* higher or same */, &continuation);
   }
 
-  // The instance was not written to the frame yet, but the slot was already
-  // reserved in {EnterFrame}. The runtime call expects it, thus spill it now.
   Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
   // The call will not return; just define an empty safepoint.
   safepoint_table_builder->DefineSafepoint(this);
