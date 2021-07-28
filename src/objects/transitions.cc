@@ -382,6 +382,9 @@ void TransitionsAccessor::PutPrototypeTransition(Handle<Object> prototype,
   int capacity = cache->length() - header;
   int transitions = TransitionArray::NumberOfPrototypeTransitions(*cache) + 1;
 
+  base::SharedMutexGuard<base::kExclusive> scope(
+      isolate_->full_transition_array_access());
+
   if (transitions > capacity) {
     // Grow the array if compacting it doesn't free space.
     if (!TransitionArray::CompactPrototypeTransitionArray(isolate_, *cache)) {
@@ -518,7 +521,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
     case kWeakRef: {
       Map simple_target =
           Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
-      TransitionsAccessor(isolate_, simple_target, no_gc)
+      TransitionsAccessor(isolate_, simple_target, no_gc, concurrent_access_)
           .TraverseTransitionTreeInternal(callback, no_gc);
       break;
     }
@@ -531,7 +534,8 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
           MaybeObject target = proto_trans.Get(index);
           HeapObject heap_object;
           if (target->GetHeapObjectIfWeak(&heap_object)) {
-            TransitionsAccessor(isolate_, Map::cast(heap_object), no_gc)
+            TransitionsAccessor(isolate_, Map::cast(heap_object), no_gc,
+                                concurrent_access_)
                 .TraverseTransitionTreeInternal(callback, no_gc);
           } else {
             DCHECK(target->IsCleared());
@@ -539,7 +543,8 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
         }
       }
       for (int i = 0; i < transitions().number_of_transitions(); ++i) {
-        TransitionsAccessor(isolate_, transitions().GetTarget(i), no_gc)
+        TransitionsAccessor(isolate_, transitions().GetTarget(i), no_gc,
+                            concurrent_access_)
             .TraverseTransitionTreeInternal(callback, no_gc);
       }
       break;

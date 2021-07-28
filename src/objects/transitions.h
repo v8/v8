@@ -6,6 +6,7 @@
 #define V8_OBJECTS_TRANSITIONS_H_
 
 #include "src/common/checks.h"
+#include "src/execution/isolate.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/map.h"
@@ -45,12 +46,12 @@ using ForEachTransitionCallback = std::function<void(Map)>;
 // cleared when the map they refer to is not otherwise reachable.
 class V8_EXPORT_PRIVATE TransitionsAccessor {
  public:
-  // For concurrent access, use the other constructor.
-  inline TransitionsAccessor(Isolate* isolate, Map map,
-                             DisallowGarbageCollection* no_gc);
   // {concurrent_access} signals that the TransitionsAccessor will only be used
   // in background threads. It acquires a reader lock for critical paths, as
   // well as blocking the accessor from modifying the TransitionsArray.
+  inline TransitionsAccessor(Isolate* isolate, Map map,
+                             DisallowGarbageCollection* no_gc,
+                             bool concurrent_access = false);
   inline TransitionsAccessor(Isolate* isolate, Handle<Map> map,
                              bool concurrent_access = false);
   // Insert a new transition into |map|'s transition array, extending it
@@ -110,6 +111,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   void TraverseTransitionTree(TraverseCallback callback) {
     // Make sure that we do not allocate in the callback.
     DisallowGarbageCollection no_gc;
+    base::SharedMutexGuardIf<base::kShared> scope(
+        isolate_->full_transition_array_access(), concurrent_access_);
     TraverseTransitionTreeInternal(callback, &no_gc);
   }
 

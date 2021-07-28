@@ -1056,6 +1056,43 @@ class MapData : public HeapObjectData {
   bool serialized_for_element_store_ = false;
 };
 
+namespace {
+
+int InstanceSizeWithMinSlack(JSHeapBroker* broker, MapRef map) {
+  // This operation is split into two phases (1. map collection, 2. map
+  // processing). This is to avoid having to take two locks
+  // (full_transition_array_access and map_updater_access) at once and thus
+  // having to deal with related deadlock issues.
+  ZoneVector<Handle<Map>> maps(broker->zone());
+  maps.push_back(map.object());
+
+  {
+    DisallowGarbageCollection no_gc;
+
+    // Has to be an initial map.
+    DCHECK(map.object()->GetBackPointer().IsUndefined(broker->isolate()));
+
+    static constexpr bool kConcurrentAccess = true;
+    TransitionsAccessor(broker->isolate(), *map.object(), &no_gc,
+                        kConcurrentAccess)
+        .TraverseTransitionTree([&](Map m) {
+          maps.push_back(broker->CanonicalPersistentHandle(m));
+        });
+  }
+
+  // The lock is needed for UnusedPropertyFields and InstanceSizeFromSlack.
+  JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker);
+
+  int slack = std::numeric_limits<int>::max();
+  for (Handle<Map> m : maps) {
+    slack = std::min(slack, m->UnusedPropertyFields());
+  }
+
+  return map.object()->InstanceSizeFromSlack(slack);
+}
+
+}  // namespace
+
 // IMPORTANT: Keep this sync'd with JSFunctionData::IsConsistentWithHeapState.
 void JSFunctionData::Cache(JSHeapBroker* broker) {
   CHECK(!serialized_);
@@ -1096,13 +1133,12 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
       MapRef initial_map_ref = TryMakeRef<Map>(broker, initial_map_).value();
       if (initial_map_ref.IsInobjectSlackTrackingInProgress()) {
         initial_map_instance_size_with_min_slack_ =
-            initial_map_ref.object()->InstanceSizeFromSlack(
-                initial_map_ref.object()->ComputeMinObjectSlack(
-                    broker->isolate()));
+            InstanceSizeWithMinSlack(broker, initial_map_ref);
       } else {
         initial_map_instance_size_with_min_slack_ =
             initial_map_ref.instance_size();
       }
+      CHECK_GT(initial_map_instance_size_with_min_slack_, 0);
 
       if (!initial_map_->should_access_heap() &&
           !broker->is_concurrent_inlining()) {
