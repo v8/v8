@@ -2770,12 +2770,11 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
 
   Handle<Object> to_assign = value;
   // Convert the incoming value to a number for storing into typed arrays.
-  // TODO(v8:11111): Support RAB / GSAB.
   if (it->IsElement() && receiver->IsJSObject(isolate) &&
-      JSObject::cast(*receiver).HasTypedArrayElements(isolate)) {
+      JSObject::cast(*receiver).HasTypedArrayOrRabGsabTypedArrayElements(
+          isolate)) {
     ElementsKind elements_kind = JSObject::cast(*receiver).GetElementsKind();
-    if (elements_kind == BIGINT64_ELEMENTS ||
-        elements_kind == BIGUINT64_ELEMENTS) {
+    if (IsBigIntTypedArrayElementsKind(elements_kind)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
                                        BigInt::FromObject(isolate, value),
                                        Nothing<bool>());

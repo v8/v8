@@ -2,6 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+class MyUint8Array extends Uint8Array {};
+class MyBigInt64Array extends BigInt64Array {};
+
+const ctors = [
+  Uint8Array,
+  Int8Array,
+  Uint16Array,
+  Int16Array,
+  Int32Array,
+  Float32Array,
+  Float64Array,
+  Uint8ClampedArray,
+  BigUint64Array,
+  BigInt64Array,
+  MyUint8Array,
+  MyBigInt64Array,
+];
+
 function ReadDataFromBuffer(ab, ctor) {
   let result = [];
   const ta = new ctor(ab, 0, ab.byteLength / ctor.BYTES_PER_ELEMENT);
@@ -9,6 +27,15 @@ function ReadDataFromBuffer(ab, ctor) {
     result.push(Number(item));
   }
   return result;
+}
+
+function WriteToTypedArray(array, index, value) {
+  if (array instanceof BigInt64Array ||
+      array instanceof BigUint64Array) {
+    array[index] = BigInt(value);
+  } else {
+    array[index] = value;
+  }
 }
 
 function FillHelper(ta, n, start, end) {

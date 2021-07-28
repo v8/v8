@@ -8,22 +8,6 @@
 
 d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
-class MyUint8Array extends Uint8Array {};
-
-const ctors = [
-  Uint8Array,
-  Int8Array,
-  Uint16Array,
-  Int16Array,
-  Int32Array,
-  Float32Array,
-  Float64Array,
-  Uint8ClampedArray,
-  BigUint64Array,
-  BigInt64Array,
-  MyUint8Array
-];
-
 function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
 }
@@ -677,17 +661,12 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   function TestIteration(ta, expected) {
     let values = [];
     for (const value of ta) {
-      values.push(value);
+      values.push(Number(value));
     }
     assertEquals(expected, values);
   }
 
   for (let ctor of ctors) {
-    if (ctor == BigInt64Array || ctor == BigUint64Array) {
-      // This test doesn't work for BigInts.
-      continue;
-    }
-
     const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
     // We can use the same RAB for all the TAs below, since we won't modify it
     // after writing the initial values.
@@ -698,7 +677,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
     // Write some data into the array.
     let ta_write = new ctor(rab);
     for (let i = 0; i < no_elements; ++i) {
-      ta_write[i] = i % 128;
+      WriteToTypedArray(ta_write, i, i % 128);
     }
 
     // Create various different styles of TypedArrays with the RAB as the
@@ -741,11 +720,11 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
 // Helpers for iteration tests.
 function CreateRab(buffer_byte_length, ctor) {
   const rab = CreateResizableArrayBuffer(buffer_byte_length,
-                                       2 * buffer_byte_length);
+                                         2 * buffer_byte_length);
   // Write some data into the array.
   let ta_write = new ctor(rab);
   for (let i = 0; i < buffer_byte_length / ctor.BYTES_PER_ELEMENT; ++i) {
-    ta_write[i] = i % 128;
+    WriteToTypedArray(ta_write, i, i % 128);
   }
   return rab;
 }
@@ -755,7 +734,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   let values = [];
   let resized = false;
   for (const value of ta) {
-    values.push(value);
+    values.push(Number(value));
     if (!resized && values.length == resize_after) {
       rab.resize(new_byte_length);
       resized = true;
@@ -770,10 +749,6 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   const offset = 2;
 
   for (let ctor of ctors) {
-    if (ctor == BigInt64Array || ctor == BigUint64Array) {
-      // This test doesn't work for BigInts.
-      continue;
-    }
     const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
     const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
 
@@ -828,10 +803,6 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
 
   // We need to recreate the RAB between all TA tests, since we grow it.
   for (let ctor of ctors) {
-    if (ctor == BigInt64Array || ctor == BigUint64Array) {
-      // This test doesn't work for BigInts.
-      continue;
-    }
     const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
     const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
 
@@ -875,10 +846,6 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   const offset = 2;
 
   for (let ctor of ctors) {
-    if (ctor == BigInt64Array || ctor == BigUint64Array) {
-      // This test doesn't work for BigInts.
-      continue;
-    }
     const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
     const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
 
@@ -935,10 +902,6 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   const offset = 2;
 
   for (let ctor of ctors) {
-    if (ctor == BigInt64Array || ctor == BigUint64Array) {
-      // This test doesn't work for BigInts.
-      continue;
-    }
     const buffer_byte_length = no_elements * ctor.BYTES_PER_ELEMENT;
     const byte_offset = offset * ctor.BYTES_PER_ELEMENT;
 
