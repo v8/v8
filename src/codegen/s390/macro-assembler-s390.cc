@@ -5164,28 +5164,34 @@ void TurboAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
   vlvg(dst, src2, MemOperand(r0, 15 - imm_lane_idx), Condition(0));
 }
 
-#define SIMD_BINOP_LIST(V) \
-  V(F64x2Add, vfa, 3)      \
-  V(F32x4Add, vfa, 2)      \
-  V(I64x2Add, va, 3)       \
-  V(I32x4Add, va, 2)       \
-  V(I16x8Add, va, 1)       \
-  V(I8x16Add, va, 0)       \
-  V(F64x2Sub, vfs, 3)      \
-  V(F32x4Sub, vfs, 2)      \
-  V(I64x2Sub, vs, 3)       \
-  V(I32x4Sub, vs, 2)       \
-  V(I16x8Sub, vs, 1)       \
-  V(I8x16Sub, vs, 0)       \
-  V(F64x2Mul, vfm, 3)      \
-  V(F32x4Mul, vfm, 2)      \
-  V(I32x4Mul, vml, 2)      \
-  V(I16x8Mul, vml, 1)
+#define SIMD_BINOP_LIST(V)    \
+  V(F64x2Add, vfa, 0, 0, 3)   \
+  V(F64x2Sub, vfs, 0, 0, 3)   \
+  V(F64x2Mul, vfm, 0, 0, 3)   \
+  V(F64x2Div, vfd, 0, 0, 3)   \
+  V(F64x2Min, vfmin, 1, 0, 3) \
+  V(F64x2Max, vfmax, 1, 0, 3) \
+  V(F32x4Add, vfa, 0, 0, 2)   \
+  V(F32x4Sub, vfs, 0, 0, 2)   \
+  V(F32x4Mul, vfm, 0, 0, 2)   \
+  V(F32x4Div, vfd, 0, 0, 2)   \
+  V(F32x4Min, vfmin, 1, 0, 2) \
+  V(F32x4Max, vfmax, 1, 0, 2) \
+  V(I64x2Add, va, 0, 0, 3)    \
+  V(I64x2Sub, vs, 0, 0, 3)    \
+  V(I32x4Add, va, 0, 0, 2)    \
+  V(I32x4Sub, vs, 0, 0, 2)    \
+  V(I32x4Mul, vml, 0, 0, 2)   \
+  V(I16x8Add, va, 0, 0, 1)    \
+  V(I16x8Sub, vs, 0, 0, 1)    \
+  V(I16x8Mul, vml, 0, 0, 1)   \
+  V(I8x16Add, va, 0, 0, 0)    \
+  V(I8x16Sub, vs, 0, 0, 0)
 
-#define EMIT_SIMD_BINOP(name, op, condition)                               \
-  void TurboAssembler::name(Simd128Register dst, Simd128Register src1,     \
-                            Simd128Register src2) {                        \
-    op(dst, src1, src2, Condition(0), Condition(0), Condition(condition)); \
+#define EMIT_SIMD_BINOP(name, op, c1, c2, c3)                          \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
+                            Simd128Register src2) {                    \
+    op(dst, src1, src2, Condition(c1), Condition(c2), Condition(c3));  \
   }
 SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
 #undef EMIT_SIMD_BINOP

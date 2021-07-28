@@ -1065,22 +1065,28 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
 #define SIMD_BINOP_LIST(V) \
   V(F64x2Add)              \
-  V(F32x4Add)              \
-  V(I64x2Add)              \
-  V(I32x4Add)              \
-  V(I16x8Add)              \
-  V(I8x16Add)              \
   V(F64x2Sub)              \
-  V(F32x4Sub)              \
-  V(I64x2Sub)              \
-  V(I32x4Sub)              \
-  V(I16x8Sub)              \
-  V(I8x16Sub)              \
   V(F64x2Mul)              \
+  V(F64x2Div)              \
+  V(F64x2Min)              \
+  V(F64x2Max)              \
+  V(F32x4Add)              \
+  V(F32x4Sub)              \
   V(F32x4Mul)              \
+  V(F32x4Div)              \
+  V(F32x4Min)              \
+  V(F32x4Max)              \
+  V(I64x2Add)              \
+  V(I64x2Sub)              \
   V(I64x2Mul)              \
+  V(I32x4Add)              \
+  V(I32x4Sub)              \
   V(I32x4Mul)              \
-  V(I16x8Mul)
+  V(I16x8Add)              \
+  V(I16x8Sub)              \
+  V(I16x8Mul)              \
+  V(I8x16Add)              \
+  V(I8x16Sub)
 
 #define PROTOTYPE_SIMD_BINOP(name) \
   void name(Simd128Register dst, Simd128Register src1, Simd128Register src2);
