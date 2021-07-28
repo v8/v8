@@ -4053,6 +4053,16 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
   }
 }
 
+void TurboAssembler::BranchLong(int32_t offset, BranchDelaySlot bdslot) {
+  if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT && (is_int26(offset))) {
+    BranchShortHelperR6(offset, nullptr);
+  } else {
+    // Generate position independent long branch.
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    GenPCRelativeJump(t8, t9, offset, RelocInfo::NONE, bdslot);
+  }
+}
+
 void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
   if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT &&
       (!L->is_bound() || is_near_r6(L))) {

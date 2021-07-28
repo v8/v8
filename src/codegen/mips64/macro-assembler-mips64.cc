@@ -4556,6 +4556,25 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
   }
 }
 
+void TurboAssembler::BranchLong(int32_t offset, BranchDelaySlot bdslot) {
+  if (kArchVariant == kMips64r6 && bdslot == PROTECT && (is_int26(offset))) {
+    BranchShortHelperR6(offset, nullptr);
+  } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    or_(t8, ra, zero_reg);
+    nal();                                         // Read PC into ra register.
+    lui(t9, (offset & kHiMaskOf32) >> kLuiShift);  // Branch delay slot.
+    ori(t9, t9, (offset & kImm16Mask));
+    daddu(t9, ra, t9);
+    if (bdslot == USE_DELAY_SLOT) {
+      or_(ra, t8, zero_reg);
+    }
+    jr(t9);
+    // Emit a or_ in the branch delay slot if it's protected.
+    if (bdslot == PROTECT) or_(ra, t8, zero_reg);
+  }
+}
+
 void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
   if (kArchVariant == kMips64r6 && bdslot == PROTECT &&
       (!L->is_bound() || is_near_r6(L))) {
