@@ -1,4 +1,4 @@
-Execute it separately
+Evaluate with and without side effect checks
 {
     id : <messageId>
     result : {
