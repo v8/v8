@@ -784,8 +784,6 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
   }
 
-UNIMPLEMENTED_GP_UNOP(i32_clz)
-UNIMPLEMENTED_GP_UNOP(i32_ctz)
 UNIMPLEMENTED_FP_BINOP(f32_copysign)
 UNIMPLEMENTED_FP_UNOP(f32_abs)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
@@ -825,9 +823,15 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #define LFR_TO_REG(reg) reg.gp()
 
 // V(name, instr, dtype, stype, dcast, scast, rcast, return_val, return_type)
-#define UNOP_LIST(V)                                                    \
-  V(i32_popcnt, Popcnt32, Register, Register, , , USE, true, bool)      \
-  V(i64_popcnt, Popcnt64, LiftoffRegister, LiftoffRegister, LFR_TO_REG, \
+#define UNOP_LIST(V)                                                     \
+  V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)  \
+  V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void) \
+  V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,     \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                 \
+  V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister,    \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                 \
+  V(i32_popcnt, Popcnt32, Register, Register, , , USE, true, bool)       \
+  V(i64_popcnt, Popcnt64, LiftoffRegister, LiftoffRegister, LFR_TO_REG,  \
     LFR_TO_REG, USE, true, bool)
 
 #define EMIT_UNOP_FUNCTION(name, instr, dtype, stype, dcast, scast, rcast, \
@@ -994,14 +998,6 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      Label* trap_div_by_zero) {
   bailout(kUnsupportedArchitecture, "i64_remu");
   return true;
-}
-
-void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "i64_clz");
-}
-
-void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "i64_ctz");
 }
 
 void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {

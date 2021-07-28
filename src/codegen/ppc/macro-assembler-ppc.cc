@@ -3573,6 +3573,24 @@ void TurboAssembler::Popcnt32(Register dst, Register src) { popcntw(dst, src); }
 
 void TurboAssembler::Popcnt64(Register dst, Register src) { popcntd(dst, src); }
 
+void TurboAssembler::CountLeadingZerosU32(Register dst, Register src, RCBit r) {
+  cntlzw(dst, src, r);
+}
+
+void TurboAssembler::CountLeadingZerosU64(Register dst, Register src, RCBit r) {
+  cntlzd(dst, src, r);
+}
+
+void TurboAssembler::CountTrailingZerosU32(Register dst, Register src,
+                                           RCBit r) {
+  cnttzw(dst, src, r);
+}
+
+void TurboAssembler::CountTrailingZerosU64(Register dst, Register src,
+                                           RCBit r) {
+  cnttzd(dst, src, r);
+}
+
 }  // namespace internal
 }  // namespace v8
 

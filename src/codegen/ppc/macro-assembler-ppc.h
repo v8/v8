@@ -238,6 +238,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ShiftRightS32(Register dst, Register src, Register value,
                      RCBit r = LeaveRC);
 
+  void CountLeadingZerosU32(Register dst, Register src, RCBit r = LeaveRC);
+  void CountLeadingZerosU64(Register dst, Register src, RCBit r = LeaveRC);
+  void CountTrailingZerosU32(Register dst, Register src, RCBit r = LeaveRC);
+  void CountTrailingZerosU64(Register dst, Register src, RCBit r = LeaveRC);
+
   void AddF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
               RCBit r = LeaveRC);
   void SubF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
