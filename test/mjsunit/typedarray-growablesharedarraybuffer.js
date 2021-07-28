@@ -568,6 +568,74 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
   }
 }());
 
+(function Destructuring() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    let ta_write = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(ta_write, i, i);
+    }
+
+    {
+      let [a, b, c, d, e] = fixedLength;
+      assertEquals([0, 1, 2, 3], ToNumbers([a, b, c, d]));
+      assertEquals(undefined, e);
+    }
+
+    {
+      let [a, b, c] = fixedLengthWithOffset;
+      assertEquals([2, 3], ToNumbers([a, b]));
+      assertEquals(undefined, c);
+    }
+
+    {
+      let [a, b, c, d, e] = lengthTracking;
+      assertEquals([0, 1, 2, 3], ToNumbers([a, b, c, d]));
+      assertEquals(undefined, e);
+    }
+
+    {
+      let [a, b, c] = lengthTrackingWithOffset;
+      assertEquals([2, 3], ToNumbers([a, b]));
+      assertEquals(undefined, c);
+    }
+
+    // Grow. The new memory is zeroed.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+
+    {
+      let [a, b, c, d, e] = fixedLength;
+      assertEquals([0, 1, 2, 3], ToNumbers([a, b, c, d]));
+      assertEquals(undefined, e);
+    }
+
+    {
+      let [a, b, c] = fixedLengthWithOffset;
+      assertEquals([2, 3], ToNumbers([a, b]));
+      assertEquals(undefined, c);
+    }
+
+    {
+      let [a, b, c, d, e, f, g] = lengthTracking;
+      assertEquals([0, 1, 2, 3, 0, 0], ToNumbers([a, b, c, d, e, f]));
+      assertEquals(undefined, g);
+    }
+
+    {
+      let [a, b, c, d, e] = lengthTrackingWithOffset;
+      assertEquals([2, 3, 0, 0], ToNumbers([a, b, c, d]));
+      assertEquals(undefined, e);
+    }
+  }
+}());
+
 (function TestFill() {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,

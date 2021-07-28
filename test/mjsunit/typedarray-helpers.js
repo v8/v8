@@ -38,6 +38,14 @@ function WriteToTypedArray(array, index, value) {
   }
 }
 
+function ToNumbers(array) {
+  let result = [];
+  for (let item of array) {
+    result.push(Number(item));
+  }
+  return result;
+}
+
 function FillHelper(ta, n, start, end) {
   if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
     ta.fill(BigInt(n), start, end);

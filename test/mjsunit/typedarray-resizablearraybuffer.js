@@ -933,6 +933,119 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   }
 }());
 
+(function Destructuring() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    let ta_write = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(ta_write, i, i);
+    }
+
+    {
+      let [a, b, c, d, e] = fixedLength;
+      assertEquals([0, 1, 2, 3], ToNumbers([a, b, c, d]));
+      assertEquals(undefined, e);
+    }
+
+    {
+      let [a, b, c] = fixedLengthWithOffset;
+      assertEquals([2, 3], ToNumbers([a, b]));
+      assertEquals(undefined, c);
+    }
+
+    {
+      let [a, b, c, d, e] = lengthTracking;
+      assertEquals([0, 1, 2, 3], ToNumbers([a, b, c, d]));
+      assertEquals(undefined, e);
+    }
+
+    {
+      let [a, b, c] = lengthTrackingWithOffset;
+      assertEquals([2, 3], ToNumbers([a, b]));
+      assertEquals(undefined, c);
+    }
+
+    // Shrink so that fixed length TAs go out of bounds.
+    rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { let [a, b, c] = fixedLength; }, TypeError);
+    assertThrows(() => { let [a, b, c] = fixedLengthWithOffset; }, TypeError);
+
+    {
+      let [a, b, c, d] = lengthTracking;
+      assertEquals([0, 1, 2], ToNumbers([a, b, c]));
+      assertEquals(undefined, d);
+    }
+
+    {
+      let [a, b] = lengthTrackingWithOffset;
+      assertEquals([2], ToNumbers([a]));
+      assertEquals(undefined, b);
+    }
+
+    // Shrink so that the TAs with offset go out of bounds.
+    rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { let [a, b, c] = fixedLength; }, TypeError);
+    assertThrows(() => { let [a, b, c] = fixedLengthWithOffset; }, TypeError);
+    assertThrows(() => { let [a, b, c] = lengthTrackingWithOffset; },
+                 TypeError);
+
+    {
+      let [a, b] = lengthTracking;
+      assertEquals([0], ToNumbers([a]));
+      assertEquals(undefined, b);
+    }
+
+    // Shrink to 0.
+    rab.resize(0);
+
+    assertThrows(() => { let [a, b, c] = fixedLength; }, TypeError);
+    assertThrows(() => { let [a, b, c] = fixedLengthWithOffset; }, TypeError);
+    assertThrows(() => { let [a, b, c] = lengthTrackingWithOffset; },
+                 TypeError);
+
+    {
+      let [a] = lengthTracking;
+      assertEquals(undefined, a);
+    }
+
+    // Grow so that all TAs are back in-bounds. The new memory is zeroed.
+    rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+
+    {
+      let [a, b, c, d, e] = fixedLength;
+      assertEquals([0, 0, 0, 0], ToNumbers([a, b, c, d]));
+      assertEquals(undefined, e);
+    }
+
+    {
+      let [a, b, c] = fixedLengthWithOffset;
+      assertEquals([0, 0], ToNumbers([a, b]));
+      assertEquals(undefined, c);
+    }
+
+    {
+      let [a, b, c, d, e, f, g] = lengthTracking;
+      assertEquals([0, 0, 0, 0, 0, 0], ToNumbers([a, b, c, d, e, f]));
+      assertEquals(undefined, g);
+    }
+
+    {
+      let [a, b, c, d, e] = lengthTrackingWithOffset;
+      assertEquals([0, 0, 0, 0], ToNumbers([a, b, c, d]));
+      assertEquals(undefined, e);
+    }
+  }
+}());
+
 (function TestFill() {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
