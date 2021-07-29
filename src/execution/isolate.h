@@ -1452,7 +1452,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                                    size_t heap_limit);
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
-  void FireCallCompletedCallback(MicrotaskQueue* microtask_queue);
+  void FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
+    if (!thread_local_top()->CallDepthIsZero()) return;
+    FireCallCompletedCallbackInternal(microtask_queue);
+  }
 
   void AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
   void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
@@ -1829,6 +1832,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static Isolate* Allocate(bool is_shared);
 
   static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
+
+  void FireCallCompletedCallbackInternal(MicrotaskQueue* microtask_queue);
 
   class ThreadDataTable {
    public:
