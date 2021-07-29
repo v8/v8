@@ -127,14 +127,13 @@ template <typename T>
 inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            UseScratchRegisterScope* temps, Register addr,
                            Register offset, T offset_imm) {
-  if (offset.is_valid()) {
-    if (offset_imm == 0) return MemOperand(addr.X(), offset.X());
-    Register tmp = temps->AcquireX();
-    DCHECK_GE(kMaxUInt32, offset_imm);
-    assm->Add(tmp, offset.X(), offset_imm);
-    return MemOperand(addr.X(), tmp);
+  if (!offset.is_valid()) return MemOperand(addr.X(), offset_imm);
+  Register effective_addr = addr.X();
+  if (offset_imm) {
+    effective_addr = temps->AcquireX();
+    assm->Add(effective_addr, addr.X(), offset_imm);
   }
-  return MemOperand(addr.X(), offset_imm);
+  return MemOperand(effective_addr, offset.W(), UXTW);
 }
 
 // Compute the effective address (sum of |addr|, |offset| (if given) and
@@ -456,11 +455,18 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned,
                                           SkipWriteBarrier skip_write_barrier) {
-  // Store the value.
   UseScratchRegisterScope temps(this);
-  MemOperand dst_op =
-      liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
-  StoreTaggedField(src.gp(), dst_op);
+  Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
+                                            : Operand(offset_imm);
+  // For the write barrier (below), we cannot have both an offset register and
+  // an immediate offset. Add them to a 32-bit offset initially, but in a 64-bit
+  // register, because that's needed in the MemOperand below.
+  if (offset_reg.is_valid() && offset_imm) {
+    Register effective_offset = temps.AcquireX();
+    Add(effective_offset.W(), offset_reg.W(), offset_imm);
+    offset_op = effective_offset;
+  }
+  StoreTaggedField(src.gp(), MemOperand(dst_addr.X(), offset_op));
 
   if (skip_write_barrier || FLAG_disable_write_barriers) return;
 
@@ -477,12 +483,8 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   }
   CheckPageFlag(src.gp(), MemoryChunk::kPointersToHereAreInterestingMask, ne,
                 &exit);
-  CallRecordWriteStub(dst_addr,
-                      dst_op.IsRegisterOffset()
-                          ? Operand(dst_op.regoffset().X())
-                          : Operand(dst_op.offset()),
-                      RememberedSetAction::kEmit, SaveFPRegsMode::kSave,
-                      wasm::WasmCode::kRecordWrite);
+  CallRecordWriteStub(dst_addr, offset_op, RememberedSetAction::kEmit,
+                      SaveFPRegsMode::kSave, wasm::WasmCode::kRecordWrite);
   bind(&exit);
 }
 
