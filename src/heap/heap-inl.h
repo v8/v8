@@ -45,6 +45,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-hasher.h"
+#include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 
 namespace v8 {
@@ -615,7 +616,7 @@ void Heap::UpdateAllocationSite(Map map, HeapObject object,
   (*pretenuring_feedback)[AllocationSite::unchecked_cast(Object(key))]++;
 }
 
-bool Heap::IsPendingAllocation(HeapObject object) {
+bool Heap::IsPendingAllocationInternal(HeapObject object) {
   DCHECK(deserialization_complete());
 
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -665,6 +666,15 @@ bool Heap::IsPendingAllocation(HeapObject object) {
   }
 
   UNREACHABLE();
+}
+
+bool Heap::IsPendingAllocation(HeapObject object) {
+  bool result = IsPendingAllocationInternal(object);
+  if (FLAG_trace_pending_allocations && result) {
+    StdoutStream{} << "Pending allocation: " << std::hex << "0x" << object.ptr()
+                   << "\n";
+  }
+  return result;
 }
 
 bool Heap::IsPendingAllocation(Object object) {

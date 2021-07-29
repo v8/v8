@@ -2149,6 +2149,9 @@ class Heap {
     force_gc_on_next_allocation_ = true;
   }
 
+  // Helper for IsPendingAllocation.
+  inline bool IsPendingAllocationInternal(HeapObject object);
+
   // ===========================================================================
   // Retaining path tracing ====================================================
   // ===========================================================================

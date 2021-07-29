@@ -720,6 +720,7 @@ DEFINE_BOOL(trace_heap_broker, false,
             "trace the heap broker (reports on missing data only)")
 DEFINE_IMPLICATION(trace_heap_broker_verbose, trace_heap_broker)
 DEFINE_IMPLICATION(trace_heap_broker_memory, trace_heap_broker)
+DEFINE_IMPLICATION(trace_heap_broker, trace_pending_allocations)
 
 // Flags for stress-testing the compiler.
 DEFINE_INT(stress_runs, 0, "number of stress runs")
@@ -1130,6 +1131,8 @@ DEFINE_BOOL(
     trace_allocations_origins, false,
     "Show statistics about the origins of allocations. "
     "Combine with --no-inline-new to track allocations from generated code")
+DEFINE_BOOL(trace_pending_allocations, false,
+            "trace calls to Heap::IsAllocationPending that return true")
 
 DEFINE_INT(trace_allocation_stack_interval, -1,
            "print stack trace after <n> free-list allocations")
