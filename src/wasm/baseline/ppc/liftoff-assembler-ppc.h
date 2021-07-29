@@ -785,21 +785,15 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 
 UNIMPLEMENTED_FP_BINOP(f32_copysign)
-UNIMPLEMENTED_FP_UNOP(f32_abs)
-UNIMPLEMENTED_FP_UNOP(f32_neg)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_ceil)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_floor)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_trunc)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_nearest_int)
-UNIMPLEMENTED_FP_UNOP(f32_sqrt)
 UNIMPLEMENTED_FP_BINOP(f64_copysign)
-UNIMPLEMENTED_FP_UNOP(f64_abs)
-UNIMPLEMENTED_FP_UNOP(f64_neg)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_ceil)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_floor)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_trunc)
 UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_nearest_int)
-UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 
 #undef UNIMPLEMENTED_I32_BINOP
 #undef UNIMPLEMENTED_I32_BINOP_I
@@ -813,6 +807,7 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #undef UNIMPLEMENTED_I64_SHIFTOP
 
 #define SIGN_EXT(r) extsw(r, r)
+#define ROUND_F64_TO_F32(fpr) frsp(fpr, fpr)
 #define INT32_AND_WITH_1F(x) Operand(x & 0x1f)
 #define REGISTER_AND_WITH_1F    \
   ([&](Register rhs) {          \
@@ -824,6 +819,15 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 
 // V(name, instr, dtype, stype, dcast, scast, rcast, return_val, return_type)
 #define UNOP_LIST(V)                                                         \
+  V(f32_abs, fabs, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, ,   \
+    void)                                                                    \
+  V(f32_neg, fneg, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, ,   \
+    void)                                                                    \
+  V(f32_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, , \
+    void)                                                                    \
+  V(f64_abs, fabs, DoubleRegister, DoubleRegister, , , USE, , void)          \
+  V(f64_neg, fneg, DoubleRegister, DoubleRegister, , , USE, , void)          \
+  V(f64_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , USE, , void)        \
   V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)      \
   V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void)     \
   V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,         \
