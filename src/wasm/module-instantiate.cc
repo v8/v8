@@ -292,7 +292,7 @@ class InstanceBuilder {
   Handle<WasmMemoryObject> memory_object_;
   Handle<JSArrayBuffer> untagged_globals_;
   Handle<FixedArray> tagged_globals_;
-  std::vector<Handle<WasmExceptionObject>> exception_wrappers_;
+  std::vector<Handle<WasmTagObject>> tags_wrappers_;
   Handle<WasmExportedFunction> start_function_;
   std::vector<SanitizedImport> sanitized_imports_;
   Zone init_expr_zone_;
@@ -405,9 +405,9 @@ class InstanceBuilder {
 
   void LoadTableSegments(Handle<WasmInstanceObject> instance);
 
-  // Creates new exception tags for all exceptions. Note that some tags might
-  // already exist if they were imported, those tags will be re-used.
-  void InitializeExceptions(Handle<WasmInstanceObject> instance);
+  // Creates new tags. Note that some tags might already exist if they were
+  // imported, those tags will be re-used.
+  void InitializeTags(Handle<WasmInstanceObject> instance);
 };
 
 MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
@@ -584,14 +584,14 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Set up the exception table used for exception tag checks.
+  // Set up the tag table used for exception tag checks.
   //--------------------------------------------------------------------------
-  int exceptions_count = static_cast<int>(module_->exceptions.size());
-  if (exceptions_count > 0) {
-    Handle<FixedArray> exception_table = isolate_->factory()->NewFixedArray(
-        exceptions_count, AllocationType::kOld);
-    instance->set_exceptions_table(*exception_table);
-    exception_wrappers_.resize(exceptions_count);
+  int tags_count = static_cast<int>(module_->tags.size());
+  if (tags_count > 0) {
+    Handle<FixedArray> tag_table =
+        isolate_->factory()->NewFixedArray(tags_count, AllocationType::kOld);
+    instance->set_tags_table(*tag_table);
+    tags_wrappers_.resize(tags_count);
   }
 
   //--------------------------------------------------------------------------
@@ -696,10 +696,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Initialize the exceptions table.
+  // Initialize the tags table.
   //--------------------------------------------------------------------------
-  if (exceptions_count > 0) {
-    InitializeExceptions(instance);
+  if (tags_count > 0) {
+    InitializeTags(instance);
   }
 
   //--------------------------------------------------------------------------
@@ -1511,24 +1511,22 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         }
         break;
       }
-      case kExternalException: {
-        if (!value->IsWasmExceptionObject()) {
+      case kExternalTag: {
+        if (!value->IsWasmTagObject()) {
           ReportLinkError("tag import requires a WebAssembly.Tag", index,
                           module_name, import_name);
           return -1;
         }
-        Handle<WasmExceptionObject> imported_exception =
-            Handle<WasmExceptionObject>::cast(value);
-        if (!imported_exception->MatchesSignature(
-                module_->exceptions[import.index].sig)) {
+        Handle<WasmTagObject> imported_tag = Handle<WasmTagObject>::cast(value);
+        if (!imported_tag->MatchesSignature(module_->tags[import.index].sig)) {
           ReportLinkError("imported tag does not match the expected type",
                           index, module_name, import_name);
           return -1;
         }
-        Object exception_tag = imported_exception->exception_tag();
-        DCHECK(instance->exceptions_table().get(import.index).IsUndefined());
-        instance->exceptions_table().set(import.index, exception_tag);
-        exception_wrappers_[import.index] = imported_exception;
+        Object tag = imported_tag->tag();
+        DCHECK(instance->tags_table().get(import.index).IsUndefined());
+        instance->tags_table().set(import.index, tag);
+        tags_wrappers_[import.index] = imported_tag;
         break;
       }
       default:
@@ -1740,16 +1738,15 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         desc.set_value(global_obj);
         break;
       }
-      case kExternalException: {
-        const WasmException& exception = module_->exceptions[exp.index];
-        Handle<WasmExceptionObject> wrapper = exception_wrappers_[exp.index];
+      case kExternalTag: {
+        const WasmTag& tag = module_->tags[exp.index];
+        Handle<WasmTagObject> wrapper = tags_wrappers_[exp.index];
         if (wrapper.is_null()) {
-          Handle<HeapObject> exception_tag(
-              HeapObject::cast(instance->exceptions_table().get(exp.index)),
+          Handle<HeapObject> tag_object(
+              HeapObject::cast(instance->tags_table().get(exp.index)),
               isolate_);
-          wrapper =
-              WasmExceptionObject::New(isolate_, exception.sig, exception_tag);
-          exception_wrappers_[exp.index] = wrapper;
+          wrapper = WasmTagObject::New(isolate_, tag.sig, tag_object);
+          tags_wrappers_[exp.index] = wrapper;
         }
         desc.set_value(wrapper);
         break;
@@ -1980,14 +1977,12 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   }
 }
 
-void InstanceBuilder::InitializeExceptions(
-    Handle<WasmInstanceObject> instance) {
-  Handle<FixedArray> exceptions_table(instance->exceptions_table(), isolate_);
-  for (int index = 0; index < exceptions_table->length(); ++index) {
-    if (!exceptions_table->get(index).IsUndefined(isolate_)) continue;
-    Handle<WasmExceptionTag> exception_tag =
-        WasmExceptionTag::New(isolate_, index);
-    exceptions_table->set(index, *exception_tag);
+void InstanceBuilder::InitializeTags(Handle<WasmInstanceObject> instance) {
+  Handle<FixedArray> tags_table(instance->tags_table(), isolate_);
+  for (int index = 0; index < tags_table->length(); ++index) {
+    if (!tags_table->get(index).IsUndefined(isolate_)) continue;
+    Handle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
+    tags_table->set(index, *tag);
   }
 }
 

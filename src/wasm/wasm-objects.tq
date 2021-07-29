@@ -112,9 +112,9 @@ extern class WasmGlobalObject extends JSObject {
   is_mutable: Smi;
 }
 
-extern class WasmExceptionObject extends JSObject {
+extern class WasmTagObject extends JSObject {
   serialized_signature: PodArrayOfWasmValueType;
-  exception_tag: HeapObject;
+  tag: HeapObject;
 }
 
 type WasmExportedFunction extends JSFunction;

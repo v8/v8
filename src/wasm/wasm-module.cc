@@ -354,7 +354,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
   Handle<String> table_string = factory->InternalizeUtf8String("table");
   Handle<String> memory_string = factory->InternalizeUtf8String("memory");
   Handle<String> global_string = factory->InternalizeUtf8String("global");
-  Handle<String> exception_string = factory->InternalizeUtf8String("exception");
+  Handle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
   const WasmModule* module = module_object->module();
@@ -413,8 +413,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
         }
         import_kind = global_string;
         break;
-      case kExternalException:
-        import_kind = exception_string;
+      case kExternalTag:
+        import_kind = tag_string;
         break;
     }
     DCHECK(!import_kind->is_null());
@@ -453,7 +453,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
   Handle<String> table_string = factory->InternalizeUtf8String("table");
   Handle<String> memory_string = factory->InternalizeUtf8String("memory");
   Handle<String> global_string = factory->InternalizeUtf8String("global");
-  Handle<String> exception_string = factory->InternalizeUtf8String("exception");
+  Handle<String> tag_string = factory->InternalizeUtf8String("tag");
 
   // Create the result array.
   const WasmModule* module = module_object->module();
@@ -510,8 +510,8 @@ Handle<JSArray> GetExports(Isolate* isolate,
         }
         export_kind = global_string;
         break;
-      case kExternalException:
-        export_kind = exception_string;
+      case kExternalTag:
+        export_kind = tag_string;
         break;
       default:
         UNREACHABLE();
@@ -618,7 +618,7 @@ size_t EstimateStoredSize(const WasmModule* module) {
          VectorSize(module->canonicalized_type_ids) +
          VectorSize(module->functions) + VectorSize(module->data_segments) +
          VectorSize(module->tables) + VectorSize(module->import_table) +
-         VectorSize(module->export_table) + VectorSize(module->exceptions) +
+         VectorSize(module->export_table) + VectorSize(module->tags) +
          VectorSize(module->elem_segments);
 }
 

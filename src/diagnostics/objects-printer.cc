@@ -2076,10 +2076,10 @@ void WasmMemoryObject::WasmMemoryObjectPrint(std::ostream& os) {
   os << "\n";
 }
 
-void WasmExceptionObject::WasmExceptionObjectPrint(std::ostream& os) {
-  PrintHeader(os, "WasmExceptionObject");
+void WasmTagObject::WasmTagObjectPrint(std::ostream& os) {
+  PrintHeader(os, "WasmTagObject");
   os << "\n - serialized_signature: " << Brief(serialized_signature());
-  os << "\n - exception_tag: " << Brief(exception_tag());
+  os << "\n - tag: " << Brief(tag());
   os << "\n";
 }
 

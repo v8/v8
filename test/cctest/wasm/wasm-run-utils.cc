@@ -246,12 +246,12 @@ uint32_t TestingModuleBuilder::AddBytes(base::Vector<const byte> bytes) {
 
 uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
   DCHECK_EQ(0, sig->return_count());
-  uint32_t index = static_cast<uint32_t>(test_module_->exceptions.size());
-  test_module_->exceptions.push_back(WasmException{sig});
+  uint32_t index = static_cast<uint32_t>(test_module_->tags.size());
+  test_module_->tags.push_back(WasmTag{sig});
   Handle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
-  Handle<FixedArray> table(instance_object_->exceptions_table(), isolate_);
+  Handle<FixedArray> table(instance_object_->tags_table(), isolate_);
   table = isolate_->factory()->CopyFixedArrayAndGrow(table, 1);
-  instance_object_->set_exceptions_table(*table);
+  instance_object_->set_tags_table(*table);
   table->set(index, *tag);
   return index;
 }
@@ -351,7 +351,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
   auto instance = WasmInstanceObject::New(isolate_, module_object);
-  instance->set_exceptions_table(*isolate_->factory()->empty_fixed_array());
+  instance->set_tags_table(*isolate_->factory()->empty_fixed_array());
   instance->set_globals_start(globals_data_);
   return instance;
 }

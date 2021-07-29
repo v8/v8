@@ -50,8 +50,8 @@ const char* ExternalKindName(ImportExportKindCode kind) {
       return "memory";
     case kExternalGlobal:
       return "global";
-    case kExternalException:
-      return "exception";
+    case kExternalTag:
+      return "tag";
   }
   return "unknown";
 }
@@ -84,8 +84,8 @@ const char* SectionName(SectionCode code) {
       return "Element";
     case kDataSectionCode:
       return "Data";
-    case kExceptionSectionCode:
-      return "Exception";
+    case kTagSectionCode:
+      return "Tag";
     case kDataCountSectionCode:
       return "DataCount";
     case kNameSectionCode:
@@ -413,7 +413,7 @@ class ModuleDecoderImpl : public Decoder {
                                kCodeSectionCode))
           return;
         break;
-      case kExceptionSectionCode:
+      case kTagSectionCode:
         if (!CheckUnorderedSection(section_code)) return;
         if (!CheckSectionOrder(section_code, kMemorySectionCode,
                                kGlobalSectionCode))
@@ -526,9 +526,9 @@ class ModuleDecoderImpl : public Decoder {
       case kDataCountSectionCode:
         DecodeDataCountSection();
         break;
-      case kExceptionSectionCode:
+      case kTagSectionCode:
         if (enabled_features_.has_eh()) {
-          DecodeExceptionSection();
+          DecodeTagSection();
         } else {
           errorf(pc(),
                  "unexpected section <%s> (enable with --experimental-wasm-eh)",
@@ -680,17 +680,17 @@ class ModuleDecoderImpl : public Decoder {
           }
           break;
         }
-        case kExternalException: {
-          // ===== Imported exception ==========================================
+        case kExternalTag: {
+          // ===== Imported tag ================================================
           if (!enabled_features_.has_eh()) {
             errorf(pos, "unknown import kind 0x%02x", import->kind);
             break;
           }
-          import->index = static_cast<uint32_t>(module_->exceptions.size());
-          const WasmExceptionSig* exception_sig = nullptr;
+          import->index = static_cast<uint32_t>(module_->tags.size());
+          const WasmTagSig* tag_sig = nullptr;
           consume_exception_attribute();  // Attribute ignored for now.
-          consume_exception_sig_index(module_.get(), &exception_sig);
-          module_->exceptions.emplace_back(exception_sig);
+          consume_tag_sig_index(module_.get(), &tag_sig);
+          module_->tags.emplace_back(tag_sig);
           break;
         }
         default:
@@ -845,13 +845,13 @@ class ModuleDecoderImpl : public Decoder {
           }
           break;
         }
-        case kExternalException: {
+        case kExternalTag: {
           if (!enabled_features_.has_eh()) {
             errorf(pos, "invalid export kind 0x%02x", exp->kind);
             break;
           }
-          WasmException* exception = nullptr;
-          exp->index = consume_exception_index(module_.get(), &exception);
+          WasmTag* tag = nullptr;
+          exp->index = consume_tag_index(module_.get(), &tag);
           break;
         }
         default:
@@ -1259,16 +1259,14 @@ class ModuleDecoderImpl : public Decoder {
         consume_count("data segments count", kV8MaxWasmDataSegments);
   }
 
-  void DecodeExceptionSection() {
-    uint32_t exception_count =
-        consume_count("exception count", kV8MaxWasmExceptions);
-    for (uint32_t i = 0; ok() && i < exception_count; ++i) {
-      TRACE("DecodeException[%d] module+%d\n", i,
-            static_cast<int>(pc_ - start_));
-      const WasmExceptionSig* exception_sig = nullptr;
+  void DecodeTagSection() {
+    uint32_t tag_count = consume_count("tag count", kV8MaxWasmTags);
+    for (uint32_t i = 0; ok() && i < tag_count; ++i) {
+      TRACE("DecodeTag[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
+      const WasmTagSig* tag_sig = nullptr;
       consume_exception_attribute();  // Attribute ignored for now.
-      consume_exception_sig_index(module_.get(), &exception_sig);
-      module_->exceptions.emplace_back(exception_sig);
+      consume_tag_sig_index(module_.get(), &tag_sig);
+      module_->tags.emplace_back(tag_sig);
     }
   }
 
@@ -1544,12 +1542,11 @@ class ModuleDecoderImpl : public Decoder {
     return sig_index;
   }
 
-  uint32_t consume_exception_sig_index(WasmModule* module,
-                                       const FunctionSig** sig) {
+  uint32_t consume_tag_sig_index(WasmModule* module, const FunctionSig** sig) {
     const byte* pos = pc_;
     uint32_t sig_index = consume_sig_index(module, sig);
     if (*sig && (*sig)->return_count() != 0) {
-      errorf(pos, "exception signature %u has non-void return", sig_index);
+      errorf(pos, "tag signature %u has non-void return", sig_index);
       *sig = nullptr;
       return 0;
     }
@@ -1579,8 +1576,8 @@ class ModuleDecoderImpl : public Decoder {
     return consume_index("table index", &module->tables, table);
   }
 
-  uint32_t consume_exception_index(WasmModule* module, WasmException** except) {
-    return consume_index("exception index", &module->exceptions, except);
+  uint32_t consume_tag_index(WasmModule* module, WasmTag** tag) {
+    return consume_index("tag index", &module->tags, tag);
   }
 
   template <typename T>

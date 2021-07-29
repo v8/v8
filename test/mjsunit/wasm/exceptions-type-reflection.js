@@ -19,8 +19,8 @@ let testcases = [
   let builder = new WasmModuleBuilder();
 
   testcases.forEach(function(expected, i) {
-    let except = builder.addException(expected.sig);
-    builder.addExportOfKind("ex" + i, kExternalException, except);
+    let except = builder.addTag(expected.sig);
+    builder.addExportOfKind("ex" + i, kExternalTag, except);
   });
 
   let instance = builder.instantiate();
@@ -37,8 +37,8 @@ let testcases = [
 
   testcases.forEach(function(expected, i) {
     let t = new WebAssembly.Tag(expected.types);
-    let index = builder.addImportedException("m", "ex" + i, expected.sig);
-    builder.addExportOfKind("ex" + i, kExternalException, index);
+    let index = builder.addImportedTag("m", "ex" + i, expected.sig);
+    builder.addExportOfKind("ex" + i, kExternalTag, index);
     imports.m["ex" + i] = t;
   });
 

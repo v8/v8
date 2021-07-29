@@ -109,10 +109,10 @@ class TestModuleBuilder {
     mod.functions[result].imported = true;
     return result;
   }
-  byte AddException(WasmExceptionSig* sig) {
-    mod.exceptions.emplace_back(sig);
+  byte AddException(WasmTagSig* sig) {
+    mod.tags.emplace_back(sig);
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
-    return static_cast<byte>(mod.exceptions.size() - 1);
+    return static_cast<byte>(mod.tags.size() - 1);
   }
 
   byte AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,

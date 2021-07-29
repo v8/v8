@@ -31,9 +31,9 @@ namespace wasm {
 class InterpretedFrame;
 class NativeModule;
 class WasmCode;
-struct WasmException;
 struct WasmGlobal;
 struct WasmModule;
+struct WasmTag;
 class WasmValue;
 class WireBytesRef;
 }  // namespace wasm
@@ -351,7 +351,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(imported_function_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
-  DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
   DECL_OPTIONAL_ACCESSORS(wasm_external_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
@@ -429,7 +429,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kTablesOffset, kTaggedSize)                                           \
   V(kIndirectFunctionTablesOffset, kTaggedSize)                           \
   V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
-  V(kExceptionsTableOffset, kTaggedSize)                                  \
+  V(kTagsTableOffset, kTaggedSize)                                        \
   V(kWasmExternalFunctionsOffset, kTaggedSize)                            \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
   V(kBreakOnEntryOffset, kUInt8Size)                                      \
@@ -465,7 +465,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kTablesOffset,
       kIndirectFunctionTablesOffset,
       kManagedNativeAllocationsOffset,
-      kExceptionsTableOffset,
+      kTagsTableOffset,
       kWasmExternalFunctionsOffset,
       kManagedObjectMapsOffset};
 
@@ -552,21 +552,21 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 };
 
 // Representation of WebAssembly.Exception JavaScript-level object.
-class WasmExceptionObject
-    : public TorqueGeneratedWasmExceptionObject<WasmExceptionObject, JSObject> {
+class WasmTagObject
+    : public TorqueGeneratedWasmTagObject<WasmTagObject, JSObject> {
  public:
   // Dispatched behavior.
-  DECL_PRINTER(WasmExceptionObject)
+  DECL_PRINTER(WasmTagObject)
 
   // Checks whether the given {sig} has the same parameter types as the
-  // serialized signature stored within this exception object.
+  // serialized signature stored within this tag object.
   bool MatchesSignature(const wasm::FunctionSig* sig);
 
-  static Handle<WasmExceptionObject> New(Isolate* isolate,
-                                         const wasm::FunctionSig* sig,
-                                         Handle<HeapObject> exception_tag);
+  static Handle<WasmTagObject> New(Isolate* isolate,
+                                   const wasm::FunctionSig* sig,
+                                   Handle<HeapObject> tag);
 
-  TQ_OBJECT_CONSTRUCTORS(WasmExceptionObject)
+  TQ_OBJECT_CONSTRUCTORS(WasmTagObject)
 };
 
 // A Wasm exception that has been thrown out of Wasm code.
@@ -584,7 +584,7 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
       Isolate* isolate, Handle<WasmExceptionPackage> exception_package);
 
   // Determines the size of the array holding all encoded exception values.
-  static uint32_t GetEncodedSize(const wasm::WasmException* exception);
+  static uint32_t GetEncodedSize(const wasm::WasmTag* tag);
 
   DECL_CAST(WasmExceptionPackage)
   OBJECT_CONSTRUCTORS(WasmExceptionPackage, JSObject);
@@ -822,8 +822,8 @@ class WasmScript : public AllStatic {
 
 // Tags provide an object identity for each exception defined in a wasm module
 // header. They are referenced by the following fields:
-//  - {WasmExceptionObject::exception_tag}  : The tag of the exception object.
-//  - {WasmInstanceObject::exceptions_table}: List of tags used by an instance.
+//  - {WasmTagObject::tag}: The tag of the {Tag} object.
+//  - {WasmInstanceObject::tags_table}: List of tags used by an instance.
 class WasmExceptionTag
     : public TorqueGeneratedWasmExceptionTag<WasmExceptionTag, Struct> {
  public:

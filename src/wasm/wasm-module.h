@@ -80,16 +80,16 @@ struct WasmGlobal {
   bool exported;  // true if exported.
 };
 
-// Note: An exception signature only uses the params portion of a
-// function signature.
-using WasmExceptionSig = FunctionSig;
+// Note: An exception tag signature only uses the params portion of a function
+// signature.
+using WasmTagSig = FunctionSig;
 
-// Static representation of a wasm exception type.
-struct WasmException {
-  explicit WasmException(const WasmExceptionSig* sig) : sig(sig) {}
+// Static representation of a wasm tag type.
+struct WasmTag {
+  explicit WasmTag(const WasmTagSig* sig) : sig(sig) {}
   const FunctionSig* ToFunctionSig() const { return sig; }
 
-  const WasmExceptionSig* sig;  // type signature of the exception.
+  const WasmTagSig* sig;  // type signature of the tag.
 };
 
 // Static representation of a wasm data segment.
@@ -342,7 +342,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmTable> tables;
   std::vector<WasmImport> import_table;
   std::vector<WasmExport> export_table;
-  std::vector<WasmException> exceptions;
+  std::vector<WasmTag> tags;
   std::vector<WasmElemSegment> elem_segments;
   std::vector<WasmCompilationHint> compilation_hints;
   BranchHintInfo branch_hints;

@@ -217,7 +217,7 @@ class ZoneForwardList;
   V(UniqueName)                                \
   IF_WASM(V, WasmArray)                        \
   IF_WASM(V, WasmCapiFunctionData)             \
-  IF_WASM(V, WasmExceptionObject)              \
+  IF_WASM(V, WasmTagObject)                    \
   IF_WASM(V, WasmExceptionPackage)             \
   IF_WASM(V, WasmExportedFunctionData)         \
   IF_WASM(V, WasmFunctionData)                 \

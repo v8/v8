@@ -10,7 +10,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestSerializeDeserializeRuntimeCall() {
   var builder = new WasmModuleBuilder();
-  var except = builder.addException(kSig_v_v);
+  var except = builder.addTag(kSig_v_v);
   builder.addFunction("f", kSig_v_v)
       .addBody([
         kExprThrow, except,

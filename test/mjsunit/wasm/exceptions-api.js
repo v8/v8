@@ -21,7 +21,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let js_except_i32 = new WebAssembly.Tag({parameters: ['i32']});
   let js_except_v = new WebAssembly.Tag({parameters: []});
   let builder = new WasmModuleBuilder();
-  builder.addImportedException("m", "ex", kSig_v_i);
+  builder.addImportedTag("m", "ex", kSig_v_i);
 
   assertDoesNotThrow(() => builder.instantiate({ m: { ex: js_except_i32 }}));
   assertThrows(
@@ -35,8 +35,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestExport() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_v);
-  builder.addExportOfKind("ex", kExternalException, except);
+  let except = builder.addTag(kSig_v_v);
+  builder.addExportOfKind("ex", kExternalTag, except);
   let instance = builder.instantiate();
 
   assertTrue(Object.prototype.hasOwnProperty.call(instance.exports, 'ex'));
@@ -50,8 +50,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let js_ex_i32 = new WebAssembly.Tag({parameters: ['i32']});
   let builder = new WasmModuleBuilder();
-  let index = builder.addImportedException("m", "ex", kSig_v_i);
-  builder.addExportOfKind("ex", kExternalException, index);
+  let index = builder.addImportedTag("m", "ex", kSig_v_i);
+  builder.addExportOfKind("ex", kExternalTag, index);
 
   let instance = builder.instantiate({ m: { ex: js_ex_i32 }});
   let res = instance.exports.ex;
@@ -77,7 +77,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   // Check prototype of a thrown exception.
   let builder = new WasmModuleBuilder();
-  let wasm_tag = builder.addException(kSig_v_v);
+  let wasm_tag = builder.addTag(kSig_v_v);
   builder.addFunction("throw", kSig_v_v)
       .addBody([kExprThrow, wasm_tag]).exportFunc();
   let instance = builder.instantiate();
@@ -102,9 +102,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
   let js_tag = new WebAssembly.Tag({parameters: []});
   let js_func_index = builder.addImport('m', 'js_func', kSig_v_v);
-  let js_tag_index = builder.addImportedException("m", "js_tag", kSig_v_v);
-  let tag_index = builder.addException(kSig_v_v);
-  builder.addExportOfKind("wasm_tag", kExternalException, tag_index);
+  let js_tag_index = builder.addImportedTag("m", "js_tag", kSig_v_v);
+  let tag_index = builder.addTag(kSig_v_v);
+  builder.addExportOfKind("wasm_tag", kExternalTag, tag_index);
   builder.addFunction("catch", kSig_i_v)
       .addBody([
         kExprTry, kWasmI32,
@@ -134,10 +134,10 @@ function TestCatchJS(types_str, types, values) {
   let js_func_index = builder.addImport('m', 'js_func', kSig_v_v);
   let sig1 = makeSig(types, []);
   let sig2 = makeSig([], types);
-  let js_tag_index = builder.addImportedException("m", "js_tag", sig1);
-  let tag_index = builder.addException(sig1);
+  let js_tag_index = builder.addImportedTag("m", "js_tag", sig1);
+  let tag_index = builder.addTag(sig1);
   let return_type = builder.addType(sig2);
-  builder.addExportOfKind("wasm_tag", kExternalException, tag_index);
+  builder.addExportOfKind("wasm_tag", kExternalTag, tag_index);
   builder.addFunction("catch", sig2)
       .addBody([
         kExprTry, return_type,

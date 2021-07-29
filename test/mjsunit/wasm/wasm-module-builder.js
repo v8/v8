@@ -67,7 +67,7 @@ let kElementSectionCode = 9;     // Elements section
 let kCodeSectionCode = 10;       // Function code
 let kDataSectionCode = 11;       // Data segments
 let kDataCountSectionCode = 12;  // Data segment count (between Element & Code)
-let kExceptionSectionCode = 13;  // Exception section (between Memory & Global)
+let kTagSectionCode = 13;        // Tag section (between Memory & Global)
 
 // Name section types
 let kModuleNameCode = 0;
@@ -136,7 +136,7 @@ let kExternalFunction = 0;
 let kExternalTable = 1;
 let kExternalMemory = 2;
 let kExternalGlobal = 3;
-let kExternalException = 4;
+let kExternalTag = 4;
 
 let kTableZero = 0;
 let kMemoryZero = 0;
@@ -1276,7 +1276,7 @@ class WasmModuleBuilder {
     this.exports = [];
     this.globals = [];
     this.tables = [];
-    this.exceptions = [];
+    this.tags = [];
     this.functions = [];
     this.compilation_hints = [];
     this.element_segments = [];
@@ -1285,7 +1285,7 @@ class WasmModuleBuilder {
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
     this.num_imported_tables = 0;
-    this.num_imported_exceptions = 0;
+    this.num_imported_tags = 0;
     return this;
   }
 
@@ -1382,11 +1382,11 @@ class WasmModuleBuilder {
     return table;
   }
 
-  addException(type) {
+  addTag(type) {
     let type_index = (typeof type) == 'number' ? type : this.addType(type);
-    let except_index = this.exceptions.length + this.num_imported_exceptions;
-    this.exceptions.push(type_index);
-    return except_index;
+    let tag_index = this.tags.length + this.num_imported_tags;
+    this.tags.push(type_index);
+    return tag_index;
   }
 
   addFunction(name, type, arg_names) {
@@ -1461,19 +1461,19 @@ class WasmModuleBuilder {
     return this.num_imported_tables++;
   }
 
-  addImportedException(module, name, type) {
-    if (this.exceptions.length != 0) {
-      throw new Error('Imported exceptions must be declared before local ones');
+  addImportedTag(module, name, type) {
+    if (this.tags.length != 0) {
+      throw new Error('Imported tags must be declared before local ones');
     }
     let type_index = (typeof type) == 'number' ? type : this.addType(type);
     let o = {
       module: module,
       name: name,
-      kind: kExternalException,
+      kind: kExternalTag,
       type_index: type_index
     };
     this.imports.push(o);
-    return this.num_imported_exceptions++;
+    return this.num_imported_tags++;
   }
 
   addExport(name, index) {
@@ -1644,7 +1644,7 @@ class WasmModuleBuilder {
             section.emit_u8(has_max ? 1 : 0);             // flags
             section.emit_u32v(imp.initial);               // initial
             if (has_max) section.emit_u32v(imp.maximum);  // maximum
-          } else if (imp.kind == kExternalException) {
+          } else if (imp.kind == kExternalTag) {
             section.emit_u32v(kExceptionAttribute);
             section.emit_u32v(imp.type_index);
           } else {
@@ -1708,12 +1708,12 @@ class WasmModuleBuilder {
       });
     }
 
-    // Add event section.
-    if (wasm.exceptions.length > 0) {
-      if (debug) print('emitting events @ ' + binary.length);
-      binary.emit_section(kExceptionSectionCode, section => {
-        section.emit_u32v(wasm.exceptions.length);
-        for (let type_index of wasm.exceptions) {
+    // Add tag section.
+    if (wasm.tags.length > 0) {
+      if (debug) print('emitting tags @ ' + binary.length);
+      binary.emit_section(kTagSectionCode, section => {
+        section.emit_u32v(wasm.tags.length);
+        for (let type_index of wasm.tags) {
           section.emit_u32v(kExceptionAttribute);
           section.emit_u32v(type_index);
         }

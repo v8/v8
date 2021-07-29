@@ -2334,8 +2334,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return WasmTableObject::kHeaderSize;
     case WASM_VALUE_OBJECT_TYPE:
       return WasmValueObject::kHeaderSize;
-    case WASM_EXCEPTION_OBJECT_TYPE:
-      return WasmExceptionObject::kHeaderSize;
+    case WASM_TAG_OBJECT_TYPE:
+      return WasmTagObject::kHeaderSize;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default: {
       std::stringstream ss;

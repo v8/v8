@@ -57,7 +57,7 @@ enum ImportExportKindCode : uint8_t {
   kExternalTable = 1,
   kExternalMemory = 2,
   kExternalGlobal = 3,
-  kExternalException = 4
+  kExternalTag = 4
 };
 
 enum LimitsFlags : uint8_t {
@@ -91,7 +91,7 @@ enum SectionCode : int8_t {
   kCodeSectionCode = 10,       // Function code
   kDataSectionCode = 11,       // Data segments
   kDataCountSectionCode = 12,  // Number of data segments
-  kExceptionSectionCode = 13,  // Exception section
+  kTagSectionCode = 13,        // Tag section
 
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed

@@ -597,7 +597,7 @@ namespace internal {
   F(DeserializeWasmModule, 2, 1)           \
   F(DisallowWasmCodegen, 1, 1)             \
   F(FreezeWasmLazyCompilation, 1, 1)       \
-  F(GetWasmExceptionId, 2, 1)              \
+  F(GetWasmExceptionTagId, 2, 1)           \
   F(GetWasmExceptionValues, 1, 1)          \
   F(GetWasmRecoveredTrapCount, 0, 1)       \
   F(IsAsmWasmCode, 1, 1)                   \

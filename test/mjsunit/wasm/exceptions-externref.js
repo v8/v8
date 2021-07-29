@@ -11,7 +11,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 (function TestThrowRefNull() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_r);
+  let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_null", kSig_v_v)
       .addBody([
         kExprRefNull, kWasmExternRef,
@@ -26,7 +26,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 (function TestThrowCatchRefNull() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_r);
+  let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_catch_null", kSig_i_i)
       .addBody([
         kExprTry, kWasmI32,
@@ -57,7 +57,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 (function TestThrowRefParam() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_r);
+  let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_param", kSig_v_r)
       .addBody([
         kExprLocalGet, 0,
@@ -76,7 +76,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 (function TestThrowCatchRefParam() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_r);
+  let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_catch_param", kSig_r_r)
       .addBody([
         kExprTry, kWasmExternRef,

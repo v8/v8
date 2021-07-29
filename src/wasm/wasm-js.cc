@@ -1474,7 +1474,7 @@ void WebAssemblyTag(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  // Decode the exception type and construct a signature.
+  // Decode the tag type and construct a signature.
   std::vector<i::wasm::ValueType> param_types(parameters_len,
                                               i::wasm::kWasmVoid);
   for (uint32_t i = 0; i < parameters_len; ++i) {
@@ -1491,20 +1491,20 @@ void WebAssemblyTag(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Set the tag index to 0. It is only used for debugging purposes, and has no
   // meaningful value when declared outside of a wasm module.
   auto tag = i::WasmExceptionTag::New(i_isolate, 0);
-  i::Handle<i::JSObject> exception =
-      i::WasmExceptionObject::New(i_isolate, &sig, tag);
-  args.GetReturnValue().Set(Utils::ToLocal(exception));
+  i::Handle<i::JSObject> tag_object =
+      i::WasmTagObject::New(i_isolate, &sig, tag);
+  args.GetReturnValue().Set(Utils::ToLocal(tag_object));
 }
 
 namespace {
 
-uint32_t GetEncodedSize(i::Handle<i::WasmExceptionObject> tag_object) {
+uint32_t GetEncodedSize(i::Handle<i::WasmTagObject> tag_object) {
   auto serialized_sig = tag_object->serialized_signature();
-  i::wasm::WasmExceptionSig sig{0, static_cast<size_t>(serialized_sig.length()),
-                                reinterpret_cast<i::wasm::ValueType*>(
-                                    serialized_sig.GetDataStartAddress())};
-  i::wasm::WasmException exception(&sig);
-  return i::WasmExceptionPackage::GetEncodedSize(&exception);
+  i::wasm::WasmTagSig sig{0, static_cast<size_t>(serialized_sig.length()),
+                          reinterpret_cast<i::wasm::ValueType*>(
+                              serialized_sig.GetDataStartAddress())};
+  i::wasm::WasmTag tag(&sig);
+  return i::WasmExceptionPackage::GetEncodedSize(&tag);
 }
 
 void EncodeExceptionValues(v8::Isolate* isolate,
@@ -1598,13 +1598,13 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
-  if (!i::HeapObject::cast(*arg0).IsWasmExceptionObject()) {
+  if (!i::HeapObject::cast(*arg0).IsWasmTagObject()) {
     thrower.TypeError("Argument 0 must be a WebAssembly tag");
     return;
   }
-  auto tag_object = i::Handle<i::WasmExceptionObject>::cast(arg0);
+  auto tag_object = i::Handle<i::WasmTagObject>::cast(arg0);
   auto tag = i::Handle<i::WasmExceptionTag>(
-      i::WasmExceptionTag::cast(tag_object->exception_tag()), i_isolate);
+      i::WasmExceptionTag::cast(tag_object->tag()), i_isolate);
   uint32_t size = GetEncodedSize(tag_object);
   i::Handle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);
@@ -1769,7 +1769,7 @@ constexpr const char* kName_WasmGlobalObject = "WebAssembly.Global";
 constexpr const char* kName_WasmMemoryObject = "WebAssembly.Memory";
 constexpr const char* kName_WasmInstanceObject = "WebAssembly.Instance";
 constexpr const char* kName_WasmTableObject = "WebAssembly.Table";
-constexpr const char* kName_WasmExceptionObject = "WebAssembly.Tag";
+constexpr const char* kName_WasmTagObject = "WebAssembly.Tag";
 
 #define EXTRACT_THIS(var, WasmType)                                  \
   i::Handle<i::WasmType> var;                                        \
@@ -2008,7 +2008,7 @@ void WebAssemblyTagType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Tag.type()");
 
-  EXTRACT_THIS(tag, WasmExceptionObject);
+  EXTRACT_THIS(tag, WasmTagObject);
   if (thrower.error()) return;
 
   int n = tag->serialized_signature().length();
@@ -2457,26 +2457,25 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
   // Setup Exception
   if (enabled_features.has_eh()) {
-    Handle<JSFunction> exception_constructor =
+    Handle<JSFunction> tag_constructor =
         InstallConstructorFunc(isolate, webassembly, "Tag", WebAssemblyTag);
-    context->set_wasm_exception_constructor(*exception_constructor);
+    context->set_wasm_tag_constructor(*tag_constructor);
 
-    SetDummyInstanceTemplate(isolate, exception_constructor);
-    JSFunction::EnsureHasInitialMap(exception_constructor);
-    Handle<JSObject> exception_proto(
-        JSObject::cast(exception_constructor->instance_prototype()), isolate);
+    SetDummyInstanceTemplate(isolate, tag_constructor);
+    JSFunction::EnsureHasInitialMap(tag_constructor);
+    Handle<JSObject> tag_proto(
+        JSObject::cast(tag_constructor->instance_prototype()), isolate);
     if (enabled_features.has_type_reflection()) {
-      InstallFunc(isolate, exception_proto, "type", WebAssemblyTagType, 0);
+      InstallFunc(isolate, tag_proto, "type", WebAssemblyTagType, 0);
     }
-    Handle<Map> exception_map = isolate->factory()->NewMap(
-        i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
-    JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
-                              exception_proto);
+    Handle<Map> tag_map = isolate->factory()->NewMap(
+        i::WASM_TAG_OBJECT_TYPE, WasmTagObject::kHeaderSize);
+    JSFunction::SetInitialMap(isolate, tag_constructor, tag_map, tag_proto);
 
     // Set up runtime exception constructor.
-    Handle<JSFunction> runtime_exception_constructor = InstallConstructorFunc(
+    Handle<JSFunction> exception_constructor = InstallConstructorFunc(
         isolate, webassembly, "Exception", WebAssemblyException);
-    SetDummyInstanceTemplate(isolate, runtime_exception_constructor);
+    SetDummyInstanceTemplate(isolate, exception_constructor);
     Handle<Map> initial_map(
         isolate->native_context()->wasm_runtime_error_function().initial_map(),
         isolate);
@@ -2484,8 +2483,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                                               ->wasm_runtime_error_function()
                                               .instance_prototype(),
                                           isolate);
-    JSFunction::SetInitialMap(isolate, runtime_exception_constructor,
-                              initial_map, instance_prototype);
+    JSFunction::SetInitialMap(isolate, exception_constructor, initial_map,
+                              instance_prototype);
   }
 
   // Setup Function
@@ -2546,48 +2545,47 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
     Handle<Object> webassembly_obj;
     if (!maybe_webassembly.ToHandle(&webassembly_obj)) {
       // There is not {WebAssembly} object. We just return without adding the
-      // {Exception} constructor.
+      // {Tag} constructor.
       return;
     }
     if (!webassembly_obj->IsJSObject()) {
-      // The {WebAssembly} object is invalid. As we cannot add the {Exception}
+      // The {WebAssembly} object is invalid. As we cannot add the {Tag}
       // constructor, we just return.
       return;
     }
     Handle<JSObject> webassembly = Handle<JSObject>::cast(webassembly_obj);
     // Setup Exception
-    Handle<String> exception_name = v8_str(isolate, "Tag");
-    if (JSObject::HasOwnProperty(webassembly, exception_name).FromMaybe(true)) {
+    Handle<String> tag_name = v8_str(isolate, "Tag");
+    if (JSObject::HasOwnProperty(webassembly, tag_name).FromMaybe(true)) {
       // The {Exception} constructor already exists, there is nothing more to
       // do.
       return;
     }
 
     bool has_prototype = true;
-    Handle<JSFunction> exception_constructor =
-        CreateFunc(isolate, exception_name, WebAssemblyTag, has_prototype,
+    Handle<JSFunction> tag_constructor =
+        CreateFunc(isolate, tag_name, WebAssemblyTag, has_prototype,
                    SideEffectType::kHasNoSideEffect);
-    exception_constructor->shared().set_length(1);
-    auto result = Object::SetProperty(
-        isolate, webassembly, exception_name, exception_constructor,
-        StoreOrigin::kNamed, Just(ShouldThrow::kDontThrow));
+    tag_constructor->shared().set_length(1);
+    auto result =
+        Object::SetProperty(isolate, webassembly, tag_name, tag_constructor,
+                            StoreOrigin::kNamed, Just(ShouldThrow::kDontThrow));
     if (result.is_null()) {
       // Setting the {Tag} constructor failed. We just bail out.
       return;
     }
     // Install the constructor on the context.
-    context->set_wasm_exception_constructor(*exception_constructor);
-    SetDummyInstanceTemplate(isolate, exception_constructor);
-    JSFunction::EnsureHasInitialMap(exception_constructor);
-    Handle<JSObject> exception_proto(
-        JSObject::cast(exception_constructor->instance_prototype()), isolate);
+    context->set_wasm_tag_constructor(*tag_constructor);
+    SetDummyInstanceTemplate(isolate, tag_constructor);
+    JSFunction::EnsureHasInitialMap(tag_constructor);
+    Handle<JSObject> tag_proto(
+        JSObject::cast(tag_constructor->instance_prototype()), isolate);
     if (enabled_features.has_type_reflection()) {
-      InstallFunc(isolate, exception_proto, "type", WebAssemblyTagType, 0);
+      InstallFunc(isolate, tag_proto, "type", WebAssemblyTagType, 0);
     }
-    Handle<Map> exception_map = isolate->factory()->NewMap(
-        i::WASM_EXCEPTION_OBJECT_TYPE, WasmExceptionObject::kHeaderSize);
-    JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
-                              exception_proto);
+    Handle<Map> tag_map = isolate->factory()->NewMap(
+        i::WASM_TAG_OBJECT_TYPE, WasmTagObject::kHeaderSize);
+    JSFunction::SetInitialMap(isolate, tag_constructor, tag_map, tag_proto);
   }
 }
 #undef ASSIGN
