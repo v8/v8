@@ -2372,26 +2372,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       constexpr int lane_width_in_bytes = 8;
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register tempFPReg1 = i.ToSimd128Register(instr->TempAt(0));
+      Simd128Register tempFPReg0 = i.ToSimd128Register(instr->TempAt(0));
+      Register tempReg1 = i.ToRegister(instr->TempAt(2));
+      Register scratch_0 = ip;
+      Register scratch_1 = r0;
       Simd128Register dst = i.OutputSimd128Register();
-      for (int i = 0; i < 2; i++) {
-        if (i > 0) {
-          __ vextractd(kScratchSimd128Reg, src0,
-                       Operand(1 * lane_width_in_bytes));
-          __ vextractd(tempFPReg1, src1, Operand(1 * lane_width_in_bytes));
-          src0 = kScratchSimd128Reg;
-          src1 = tempFPReg1;
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+        __ vmulld(dst, src0, src1);
+      } else {
+        for (int i = 0; i < 2; i++) {
+          if (i > 0) {
+            __ vextractd(kScratchSimd128Reg, src0,
+                         Operand(1 * lane_width_in_bytes));
+            __ vextractd(tempFPReg0, src1, Operand(1 * lane_width_in_bytes));
+            src0 = kScratchSimd128Reg;
+            src1 = tempFPReg0;
+          }
+          __ mfvsrd(scratch_0, src0);
+          __ mfvsrd(scratch_1, src1);
+          __ mulld(scratch_0, scratch_0, scratch_1);
+          scratch_0 = r0;
+          scratch_1 = tempReg1;
         }
-        __ mfvsrd(r0, src0);
-        __ mfvsrd(ip, src1);
-        __ mulld(r0, r0, ip);
-        if (i <= 0) {
-          __ mtvsrd(dst, r0);
-        } else {
-          __ mtvsrd(kScratchSimd128Reg, r0);
-          __ vinsertd(dst, kScratchSimd128Reg,
-                      Operand(1 * lane_width_in_bytes));
-        }
+        __ mtvsrdd(dst, ip, r0);
       }
       break;
     }

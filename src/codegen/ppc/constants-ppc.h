@@ -2313,6 +2313,8 @@ using Instr = uint32_t;
   V(vmulosw, VMULOSW, 0x10000188)                          \
   /* Vector Multiply Odd Unsigned Word */                  \
   V(vmulouw, VMULOUW, 0x10000088)                          \
+  /* Vector Multiply Low Doubleword */                     \
+  V(vmulld, VMULLD, 0x100001C9)                            \
   /* Vector Sum across Quarter Signed Halfword Saturate */ \
   V(vsum4shs, VSUM4SHS, 0x10000648)                        \
   /* Vector Pack Unsigned Word Unsigned Saturate */        \

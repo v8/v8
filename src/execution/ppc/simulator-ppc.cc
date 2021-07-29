@@ -4252,6 +4252,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       VECTOR_ARITHMETIC_OP(int64_t, -)
       break;
     }
+    case VMULLD: {
+      VECTOR_ARITHMETIC_OP(int64_t, *)
+      break;
+    }
     case VADDUWM: {
       VECTOR_ARITHMETIC_OP(int32_t, +)
       break;
