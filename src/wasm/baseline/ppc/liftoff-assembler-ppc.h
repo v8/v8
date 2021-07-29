@@ -785,15 +785,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 
 UNIMPLEMENTED_FP_BINOP(f32_copysign)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_ceil)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_floor)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_trunc)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f32_nearest_int)
 UNIMPLEMENTED_FP_BINOP(f64_copysign)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_ceil)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_floor)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_trunc)
-UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_nearest_int)
 
 #undef UNIMPLEMENTED_I32_BINOP
 #undef UNIMPLEMENTED_I32_BINOP_I
@@ -825,9 +817,22 @@ UNIMPLEMENTED_FP_UNOP_RETURN_TRUE(f64_nearest_int)
     void)                                                                    \
   V(f32_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, , \
     void)                                                                    \
+  V(f32_floor, frim, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,   \
+    true, bool)                                                              \
+  V(f32_ceil, frip, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,    \
+    true, bool)                                                              \
+  V(f32_trunc, friz, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,   \
+    true, bool)                                                              \
+  V(f32_nearest_int, frin, DoubleRegister, DoubleRegister, , ,               \
+    ROUND_F64_TO_F32, true, bool)                                            \
   V(f64_abs, fabs, DoubleRegister, DoubleRegister, , , USE, , void)          \
   V(f64_neg, fneg, DoubleRegister, DoubleRegister, , , USE, , void)          \
   V(f64_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , USE, , void)        \
+  V(f64_floor, frim, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
+  V(f64_ceil, frip, DoubleRegister, DoubleRegister, , , USE, true, bool)     \
+  V(f64_trunc, friz, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
+  V(f64_nearest_int, frin, DoubleRegister, DoubleRegister, , , USE, true,    \
+    bool)                                                                    \
   V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)      \
   V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void)     \
   V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,         \
