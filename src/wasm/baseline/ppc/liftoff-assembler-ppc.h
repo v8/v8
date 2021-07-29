@@ -823,15 +823,24 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #define LFR_TO_REG(reg) reg.gp()
 
 // V(name, instr, dtype, stype, dcast, scast, rcast, return_val, return_type)
-#define UNOP_LIST(V)                                                     \
-  V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)  \
-  V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void) \
-  V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,     \
-    LFR_TO_REG, LFR_TO_REG, USE, , void)                                 \
-  V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister,    \
-    LFR_TO_REG, LFR_TO_REG, USE, , void)                                 \
-  V(i32_popcnt, Popcnt32, Register, Register, , , USE, true, bool)       \
-  V(i64_popcnt, Popcnt64, LiftoffRegister, LiftoffRegister, LFR_TO_REG,  \
+#define UNOP_LIST(V)                                                         \
+  V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)      \
+  V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void)     \
+  V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,         \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                     \
+  V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister,        \
+    LFR_TO_REG, LFR_TO_REG, USE, , void)                                     \
+  V(u32_to_intptr, ZeroExtWord32, Register, Register, , , USE, , void)       \
+  V(i32_signextend_i8, extsb, Register, Register, , , USE, , void)           \
+  V(i32_signextend_i16, extsh, Register, Register, , , USE, , void)          \
+  V(i64_signextend_i8, extsb, LiftoffRegister, LiftoffRegister, LFR_TO_REG,  \
+    LFR_TO_REG, USE, , void)                                                 \
+  V(i64_signextend_i16, extsh, LiftoffRegister, LiftoffRegister, LFR_TO_REG, \
+    LFR_TO_REG, USE, , void)                                                 \
+  V(i64_signextend_i32, extsw, LiftoffRegister, LiftoffRegister, LFR_TO_REG, \
+    LFR_TO_REG, USE, , void)                                                 \
+  V(i32_popcnt, Popcnt32, Register, Register, , , USE, true, bool)           \
+  V(i64_popcnt, Popcnt64, LiftoffRegister, LiftoffRegister, LFR_TO_REG,      \
     LFR_TO_REG, USE, true, bool)
 
 #define EMIT_UNOP_FUNCTION(name, instr, dtype, stype, dcast, scast, rcast, \
@@ -1000,42 +1009,11 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
   return true;
 }
 
-void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
-#ifdef V8_TARGET_ARCH_PPC64
-  bailout(kUnsupportedArchitecture, "emit_u32_to_intptr");
-#else
-// This is a nop on ppc32.
-#endif
-}
-
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
   bailout(kUnsupportedArchitecture, "emit_type_conversion");
   return true;
-}
-
-void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "emit_i32_signextend_i8");
-}
-
-void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
-  bailout(kUnsupportedArchitecture, "emit_i32_signextend_i16");
-}
-
-void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
-                                              LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i8");
-}
-
-void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
-                                               LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i16");
-}
-
-void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
-                                               LiftoffRegister src) {
-  bailout(kUnsupportedArchitecture, "emit_i64_signextend_i32");
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { b(al, label); }
