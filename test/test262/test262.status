@@ -543,9 +543,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # http://crbug/v8/11530
-  'built-ins/Function/internals/Call/class-ctor-realm': [FAIL],
-
   # http://crbug/v8/11531
   'built-ins/RegExp/prototype/flags/get-order': [FAIL],
 
