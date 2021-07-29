@@ -132,8 +132,7 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   void AddCallback(callback_t);
 
-  void InitializeAfterDeserialization(
-      base::Vector<const int> missing_functions);
+  void InitializeAfterDeserialization();
 
   // Wait until top tier compilation finished, or compilation failed.
   void WaitForTopTierFinished();

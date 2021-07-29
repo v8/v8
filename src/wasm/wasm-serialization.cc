@@ -304,7 +304,7 @@ NativeModuleSerializer::NativeModuleSerializer(
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   if (code == nullptr) return sizeof(bool);
   DCHECK_EQ(WasmCode::kFunction, code->kind());
-  if (code->tier() != ExecutionTier::kTurbofan) {
+  if (FLAG_wasm_lazy_compilation && code->tier() != ExecutionTier::kTurbofan) {
     return sizeof(bool);
   }
   return kCodeHeaderSize + code->instructions().size() +
@@ -338,8 +338,11 @@ bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   // Only serialize TurboFan code, as Liftoff code can contain breakpoints or
   // non-relocatable constants.
   if (code->tier() != ExecutionTier::kTurbofan) {
-    writer->Write(false);
-    return true;
+    if (FLAG_wasm_lazy_compilation) {
+      writer->Write(false);
+      return true;
+    }
+    return false;
   }
   writer->Write(true);
   // Write the size of the entire code section, followed by the code header.
@@ -533,10 +536,6 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
 
   bool Read(Reader* reader);
 
-  base::Vector<const int> missing_functions() {
-    return base::VectorOf(missing_functions_);
-  }
-
  private:
   friend class CopyAndRelocTask;
   friend class PublishTask;
@@ -555,7 +554,6 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   size_t remaining_code_size_ = 0;
   base::Vector<byte> current_code_space_;
   NativeModule::JumpTablesRef current_jump_tables_;
-  std::vector<int> missing_functions_;
 };
 
 class CopyAndRelocTask : public JobTask {
@@ -689,7 +687,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
                                                        Reader* reader) {
   bool has_code = reader->Read<bool>();
   if (!has_code) {
-    missing_functions_.push_back(fn_index);
+    DCHECK(FLAG_wasm_lazy_compilation ||
+           native_module_->enabled_features().has_compilation_hints());
+    native_module_->UseLazyStub(fn_index);
     return {};
   }
   int constant_pool_offset = reader->Read<int>();
@@ -862,14 +862,9 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     NativeModuleDeserializer deserializer(shared_native_module.get());
     Reader reader(data + WasmSerializer::kHeaderSize);
     bool error = !deserializer.Read(&reader);
-    if (error) {
-      wasm_engine->UpdateNativeModuleCache(error, &shared_native_module,
-                                           isolate);
-      return {};
-    }
-    shared_native_module->compilation_state()->InitializeAfterDeserialization(
-        deserializer.missing_functions());
+    shared_native_module->compilation_state()->InitializeAfterDeserialization();
     wasm_engine->UpdateNativeModuleCache(error, &shared_native_module, isolate);
+    if (error) return {};
   }
 
   Handle<FixedArray> export_wrappers;

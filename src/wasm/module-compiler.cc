@@ -553,8 +553,7 @@ class CompilationStateImpl {
 
   // Initialize the compilation progress after deserialization. This is needed
   // for recompilation (e.g. for tier down) to work later.
-  void InitializeCompilationProgressAfterDeserialization(
-      base::Vector<const int> missing_functions);
+  void InitializeCompilationProgressAfterDeserialization();
 
   // Initializes compilation units based on the information encoded in the
   // {compilation_progress_}.
@@ -661,10 +660,6 @@ class CompilationStateImpl {
   }
 
  private:
-  uint8_t SetupCompilationProgressForFunction(
-      bool lazy_module, const WasmModule* module,
-      const WasmFeatures& enabled_features, int func_index);
-
   // Returns the potentially-updated {function_progress}.
   uint8_t AddCompilationUnitInternal(CompilationUnitBuilder* builder,
                                      int function_index,
@@ -836,10 +831,8 @@ void CompilationState::WaitForTopTierFinished() {
 
 void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
 
-void CompilationState::InitializeAfterDeserialization(
-    base::Vector<const int> missing_functions) {
-  Impl(this)->InitializeCompilationProgressAfterDeserialization(
-      missing_functions);
+void CompilationState::InitializeAfterDeserialization() {
+  Impl(this)->InitializeCompilationProgressAfterDeserialization();
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
@@ -2861,38 +2854,6 @@ bool CompilationStateImpl::cancelled() const {
   return compile_cancelled_.load(std::memory_order_relaxed);
 }
 
-uint8_t CompilationStateImpl::SetupCompilationProgressForFunction(
-    bool lazy_module, const WasmModule* module,
-    const WasmFeatures& enabled_features, int func_index) {
-  ExecutionTierPair requested_tiers =
-      GetRequestedExecutionTiers(module, enabled_features, func_index);
-  CompileStrategy strategy =
-      GetCompileStrategy(module, enabled_features, func_index, lazy_module);
-
-  bool required_for_baseline = strategy == CompileStrategy::kEager;
-  bool required_for_top_tier = strategy != CompileStrategy::kLazy;
-  DCHECK_EQ(required_for_top_tier,
-            strategy == CompileStrategy::kEager ||
-                strategy == CompileStrategy::kLazyBaselineEagerTopTier);
-
-  // Count functions to complete baseline and top tier compilation.
-  if (required_for_baseline) outstanding_baseline_units_++;
-  if (required_for_top_tier) outstanding_top_tier_functions_++;
-
-  // Initialize function's compilation progress.
-  ExecutionTier required_baseline_tier = required_for_baseline
-                                             ? requested_tiers.baseline_tier
-                                             : ExecutionTier::kNone;
-  ExecutionTier required_top_tier =
-      required_for_top_tier ? requested_tiers.top_tier : ExecutionTier::kNone;
-  uint8_t function_progress =
-      ReachedTierField::encode(ExecutionTier::kNone) |
-      RequiredBaselineTierField::encode(required_baseline_tier) |
-      RequiredTopTierField::encode(required_top_tier);
-
-  return function_progress;
-}
-
 void CompilationStateImpl::InitializeCompilationProgress(
     bool lazy_module, int num_import_wrappers, int num_export_wrappers) {
   DCHECK(!failed());
@@ -2919,8 +2880,32 @@ void CompilationStateImpl::InitializeCompilationProgress(
       outstanding_top_tier_functions_++;
       continue;
     }
-    uint8_t function_progress = SetupCompilationProgressForFunction(
-        lazy_module, module, enabled_features, func_index);
+    ExecutionTierPair requested_tiers =
+        GetRequestedExecutionTiers(module, enabled_features, func_index);
+    CompileStrategy strategy =
+        GetCompileStrategy(module, enabled_features, func_index, lazy_module);
+
+    bool required_for_baseline = strategy == CompileStrategy::kEager;
+    bool required_for_top_tier = strategy != CompileStrategy::kLazy;
+    DCHECK_EQ(required_for_top_tier,
+              strategy == CompileStrategy::kEager ||
+                  strategy == CompileStrategy::kLazyBaselineEagerTopTier);
+
+    // Count functions to complete baseline and top tier compilation.
+    if (required_for_baseline) outstanding_baseline_units_++;
+    if (required_for_top_tier) outstanding_top_tier_functions_++;
+
+    // Initialize function's compilation progress.
+    ExecutionTier required_baseline_tier = required_for_baseline
+                                               ? requested_tiers.baseline_tier
+                                               : ExecutionTier::kNone;
+    ExecutionTier required_top_tier =
+        required_for_top_tier ? requested_tiers.top_tier : ExecutionTier::kNone;
+    uint8_t function_progress = ReachedTierField::encode(ExecutionTier::kNone);
+    function_progress = RequiredBaselineTierField::update(
+        function_progress, required_baseline_tier);
+    function_progress =
+        RequiredTopTierField::update(function_progress, required_top_tier);
     compilation_progress_.push_back(function_progress);
   }
   DCHECK_IMPLIES(lazy_module, outstanding_baseline_units_ == 0);
@@ -3030,31 +3015,19 @@ void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
   }
 }
 
-void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
-    base::Vector<const int> missing_functions) {
+void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization() {
   auto* module = native_module_->module();
-  auto enabled_features = native_module_->enabled_features();
-  const bool lazy_module = IsLazyModule(module);
-  {
-    base::MutexGuard guard(&callbacks_mutex_);
-    DCHECK(compilation_progress_.empty());
-    constexpr uint8_t kProgressAfterDeserialization =
-        RequiredBaselineTierField::encode(ExecutionTier::kTurbofan) |
-        RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
-        ReachedTierField::encode(ExecutionTier::kTurbofan);
-    finished_events_.Add(CompilationEvent::kFinishedExportWrappers);
-    finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
-    finished_events_.Add(CompilationEvent::kFinishedTopTierCompilation);
-    compilation_progress_.assign(module->num_declared_functions,
-                                 kProgressAfterDeserialization);
-    for (auto func_index : missing_functions) {
-      compilation_progress_[func_index] = SetupCompilationProgressForFunction(
-          lazy_module, module, enabled_features, func_index);
-    }
-  }
-  auto builder = std::make_unique<CompilationUnitBuilder>(native_module_);
-  InitializeCompilationUnits(std::move(builder));
-  WaitForCompilationEvent(CompilationEvent::kFinishedBaselineCompilation);
+  base::MutexGuard guard(&callbacks_mutex_);
+  DCHECK(compilation_progress_.empty());
+  constexpr uint8_t kProgressAfterDeserialization =
+      RequiredBaselineTierField::encode(ExecutionTier::kTurbofan) |
+      RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
+      ReachedTierField::encode(ExecutionTier::kTurbofan);
+  finished_events_.Add(CompilationEvent::kFinishedExportWrappers);
+  finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
+  finished_events_.Add(CompilationEvent::kFinishedTopTierCompilation);
+  compilation_progress_.assign(module->num_declared_functions,
+                               kProgressAfterDeserialization);
 }
 
 void CompilationStateImpl::InitializeRecompilation(
