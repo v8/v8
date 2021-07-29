@@ -936,7 +936,6 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     holder = prototype->AsJSObject();
     map = map_prototype_map;
-    CHECK(!map.is_deprecated());
 
     if (!CanInlinePropertyAccess(map, access_mode)) {
       return Invalid();
@@ -944,8 +943,12 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     // Successful lookup on prototype chain needs to guarantee that all the
     // prototypes up to the holder have stable maps, except for dictionary-mode
-    // prototypes.
-    CHECK_IMPLIES(!map.is_dictionary_map(), map.is_stable());
+    // prototypes. We currently do this by taking a
+    // DependOnStablePrototypeChains dependency in the caller.
+    //
+    // TODO(jgruber): This is brittle and easy to miss. Consider a refactor
+    // that moves the responsibility of taking the dependency into
+    // AccessInfoFactory.
   }
   UNREACHABLE();
 }

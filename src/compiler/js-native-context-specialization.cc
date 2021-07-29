@@ -551,8 +551,9 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
       }
       map = map_prototype->map();
       // TODO(v8:11457) Support dictionary mode protoypes here.
-      if (!map.is_stable() || map.is_dictionary_map())
+      if (!map.is_stable() || map.is_dictionary_map()) {
         return kMayBeInPrototypeChain;
+      }
       if (map.oddball_type() == OddballType::kNull) {
         all = false;
         break;
