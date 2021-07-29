@@ -4356,9 +4356,10 @@ namespace {
 void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
                                          bool next_bytecode,
                                          bool is_osr = false) {
-  __ pushq(kInterpreterAccumulatorRegister);
   Label start;
   __ bind(&start);
+
+  // Get function from the frame.
   Register closure = rdi;
   __ movq(closure, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
 
@@ -4378,7 +4379,6 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ j(equal, &start_with_baseline);
 
     // Start with bytecode as there is no baseline code.
-    __ popq(kInterpreterAccumulatorRegister);
     Builtin builtin_id = next_bytecode
                              ? Builtin::kInterpreterEnterAtNextBytecode
                              : Builtin::kInterpreterEnterAtBytecode;
@@ -4400,7 +4400,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   }
 
   // Load the feedback vector.
-  Register feedback_vector = rax;
+  Register feedback_vector = r11;
   __ LoadTaggedPointerField(
       feedback_vector, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedPointerField(feedback_vector,
@@ -4430,7 +4430,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     get_baseline_pc_extref =
         ExternalReference::baseline_pc_for_bytecode_offset();
   }
-  Register get_baseline_pc = rax;
+  Register get_baseline_pc = r11;
   __ LoadAddress(get_baseline_pc, get_baseline_pc_extref);
 
   // If the code deoptimizes during the implicit function entry stack interrupt
@@ -4453,6 +4453,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // Get bytecode array from the stack frame.
   __ movq(kInterpreterBytecodeArrayRegister,
           MemOperand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ pushq(kInterpreterAccumulatorRegister);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ PrepareCallCFunction(3);
@@ -4493,8 +4494,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ bind(&install_baseline_code);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    __ pushq(kInterpreterAccumulatorRegister);
     __ Push(closure);
     __ CallRuntime(Runtime::kInstallBaselineCode, 1);
+    __ popq(kInterpreterAccumulatorRegister);
   }
   // Retry from the start after installing baseline code.
   __ jmp(&start);

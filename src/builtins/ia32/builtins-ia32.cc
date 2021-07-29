@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/register-arch.h"
 #if V8_TARGET_ARCH_IA32
 
 #include "src/api/api-arguments.h"
@@ -4115,9 +4116,12 @@ namespace {
 void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
                                          bool next_bytecode,
                                          bool is_osr = false) {
-  __ push(kInterpreterAccumulatorRegister);
   Label start;
   __ bind(&start);
+
+  // Spill the accumulator register; note that we're not within a frame, so we
+  // have to make sure to pop it before doing any GC-visible calls.
+  __ push(kInterpreterAccumulatorRegister);
 
   // Get function from the frame.
   Register closure = eax;
@@ -4250,12 +4254,23 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   }
 
   __ bind(&install_baseline_code);
+  // Pop/re-push the accumulator so that it's spilled within the below frame
+  // scope, to keep the stack valid. Use ecx for this -- we can't save it in
+  // kInterpreterAccumulatorRegister because that aliases with closure.
+  DCHECK(!AreAliased(ecx, kContextRegister, closure));
+  __ pop(ecx);
+  // Restore the clobbered context register.
+  __ mov(kContextRegister,
+         Operand(ebp, StandardFrameConstants::kContextOffset));
   {
-    __ mov(kContextRegister,
-           Operand(ebp, StandardFrameConstants::kContextOffset));
     FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(ecx);
     __ Push(closure);
     __ CallRuntime(Runtime::kInstallBaselineCode, 1);
+    // Now that we're restarting, we don't have to worry about closure and
+    // accumulator aliasing, so pop the spilled accumulator directly back into
+    // the right register.
+    __ Pop(kInterpreterAccumulatorRegister);
   }
   // Retry from the start after installing baseline code.
   __ jmp(&start);
