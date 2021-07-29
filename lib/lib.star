@@ -161,6 +161,12 @@ GOMA = struct(
         "rpc_extra_params": "?prod",
         "use_luci_auth": True,
     },
+    CACHE_SILO = {
+        "server_host": "goma.chromium.org",
+        "rpc_extra_params": "?prod",
+        "use_luci_auth": True,
+        "cache_silo": True,
+    },
     NO = {"use_goma": False},
     NONE = {},
 )
@@ -173,23 +179,49 @@ def _goma_properties(use_goma, goma_jobs):
     if use_goma == GOMA.NONE or use_goma == GOMA.NO:
         return use_goma
 
+    ret = {}
     properties = dict(use_goma)
+    if properties.get("cache_silo"):
+        properties.pop("cache_silo")
+        ret.update({
+            "$build/chromium": {
+                "goma_cache_silo": True,
+            },
+        })
 
     if goma_jobs:
         properties["jobs"] = goma_jobs
 
-    return {"$build/goma": properties}
+    ret.update({
+        "$build/goma": properties,
+    })
+    return ret
 
-
-def _reclient_properties(use_rbe):
+def _reclient_properties(use_rbe, name):
     if use_rbe == None:
         return {}
 
-    return {
-      "$build/reclient": dict(use_rbe),
-      "use_rbe": True,
-    }
+    reclient = dict(use_rbe)
+    rewrapper_env = {}
+    if reclient.get("cache_silo"):
+        reclient.pop("cache_silo")
+        rewrapper_env.update({
+            "RBE_cache_silo": name,
+        })
 
+    if reclient.get("compare"):
+        reclient.pop("compare")
+        rewrapper_env.update({
+            "RBE_compare": True,
+        })
+
+    if rewrapper_env:
+        reclient["rewrapper_env"] = rewrapper_env
+
+    return {
+        "$build/reclient": reclient,
+        "use_rbe": True,
+    }
 
 # These settings enable overwriting variables in V8's DEPS file.
 GCLIENT_VARS = struct(
@@ -261,7 +293,7 @@ def v8_basic_builder(defaults, **kwargs):
         kwargs.pop("use_goma", GOMA.NONE),
         kwargs.pop("goma_jobs", None),
     ))
-    properties.update(_reclient_properties(kwargs.pop("use_rbe", None)))
+    properties.update(_reclient_properties(kwargs.pop("use_rbe", None), kwargs["name"]))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
     kwargs["properties"] = properties
     kwargs = fix_args(defaults, **kwargs)
@@ -302,10 +334,12 @@ def resolve_parent_tiggering(args, bucket_name, parent_builder):
     # is no longer present on the builder struct, so we add it here in
     # the properties and it will get removed by a generator
     args.setdefault("properties", {})["parent_builder"] = parent_builder
+
     # Disambiguate the scheduler job names, because they are not
     # nested by bucket, while builders are.
     args.setdefault("triggered_by", []).append(
-        bucket_name + "/" + parent_builder)
+        bucket_name + "/" + parent_builder,
+    )
 
 def _builder_is_not_supported(bucket_name, first_branch_version):
     # do we need to skip the builder in this bucket?

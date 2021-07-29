@@ -9,6 +9,16 @@ RECLIENT = struct(
         "instance": "rbe-chromium-trusted",
         "metrics_project": "chromium-reclient-metrics",
     },
+    CACHE_SILO = {
+        "instance": "rbe-chromium-trusted",
+        "metrics_project": "chromium-reclient-metrics",
+        "cache_silo": True,
+    },
+    COMPARE = {
+        "instance": "rbe-chromium-trusted",
+        "metrics_project": "chromium-reclient-metrics",
+        "compare": True,
+    },
 )
 
 def experiment_builder(**kwargs):
@@ -220,7 +230,28 @@ experiment_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
     use_goma = GOMA.NO,
-    use_rbe = RECLIENT.DEFAULT,
+    use_rbe = RECLIENT.CACHE_SILO,
+    to_notify = ["yyanagisawa@google.com"],
+)
+
+experiment_builder(
+    name = "V8 Linux64 - builder (goma cache silo)",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.CACHE_SILO,
+    to_notify = ["yyanagisawa@google.com"],
+)
+
+experiment_builder(
+    name = "V8 Linux64 - builder (reclient compare)",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.NO,
+    use_rbe = RECLIENT.COMPARE,
     to_notify = ["yyanagisawa@google.com"],
 )
 
