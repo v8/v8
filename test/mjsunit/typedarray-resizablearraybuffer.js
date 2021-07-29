@@ -148,6 +148,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   for (let [ta, length] of tas_and_lengths) {
     assertEquals(length, ta.length);
     assertEquals(length * ta.BYTES_PER_ELEMENT, ta.byteLength);
+    assertEquals(8, ta.byteOffset);
   }
 
   rab.resize(10);
@@ -155,6 +156,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   for (let [ta, length] of tas_and_lengths) {
     assertEquals(0, ta.length);
     assertEquals(0, ta.byteLength);
+    assertEquals(0, ta.byteOffset);
   }
 
   // Resize the rab so that it just barely covers the needed 8 bytes.
@@ -163,6 +165,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   for (let [ta, length] of tas_and_lengths) {
     assertEquals(length, ta.length);
     assertEquals(length * ta.BYTES_PER_ELEMENT, ta.byteLength);
+    assertEquals(8, ta.byteOffset);
   }
 
   rab.resize(40);
@@ -170,6 +173,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   for (let [ta, length] of tas_and_lengths) {
     assertEquals(length, ta.length);
     assertEquals(length * ta.BYTES_PER_ELEMENT, ta.byteLength);
+    assertEquals(8, ta.byteOffset);
   }
 })();
 
@@ -247,12 +251,14 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   for (let ta of tas) {
     assertEquals((16 - offset) / ta.BYTES_PER_ELEMENT, ta.length);
     assertEquals(16 - offset, ta.byteLength);
+    assertEquals(offset, ta.byteOffset);
   }
 
   rab.resize(40);
   for (let ta of tas) {
     assertEquals((40 - offset) / ta.BYTES_PER_ELEMENT, ta.length);
     assertEquals(40 - offset, ta.byteLength);
+    assertEquals(offset, ta.byteOffset);
   }
 
   // Resize to a number which is not a multiple of all byte_lengths.
@@ -261,6 +267,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
     const expected_length = Math.floor((20 - offset)/ ta.BYTES_PER_ELEMENT);
     assertEquals(expected_length, ta.length);
     assertEquals(expected_length * ta.BYTES_PER_ELEMENT, ta.byteLength);
+    assertEquals(offset, ta.byteOffset);
   }
 
   // Resize so that all TypedArrays go out of bounds (because of the offset).
@@ -269,6 +276,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   for (let ta of tas) {
     assertEquals(0, ta.length);
     assertEquals(0, ta.byteLength);
+    assertEquals(0, ta.byteOffset);
   }
 
   rab.resize(0);
@@ -276,6 +284,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   for (let ta of tas) {
     assertEquals(0, ta.length);
     assertEquals(0, ta.byteLength);
+    assertEquals(0, ta.byteOffset);
   }
 
   rab.resize(8);
@@ -283,6 +292,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   for (let ta of tas) {
     assertEquals(0, ta.length);
     assertEquals(0, ta.byteLength);
+    assertEquals(offset, ta.byteOffset);
   }
 
   // Resize so that the TypedArrays which have element size > 1 go out of bounds
@@ -293,9 +303,11 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
     if (ta.BYTES_PER_ELEMENT == 1) {
       assertEquals(1, ta.length);
       assertEquals(1, ta.byteLength);
+      assertEquals(offset, ta.byteOffset);
     } else {
       assertEquals(0, ta.length);
       assertEquals(0, ta.byteLength);
+      assertEquals(offset, ta.byteOffset);
     }
   }
 
@@ -304,6 +316,7 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   for (let ta of tas) {
     assertEquals((40 - offset) / ta.BYTES_PER_ELEMENT, ta.length);
     assertEquals(40 - offset, ta.byteLength);
+    assertEquals(offset, ta.byteOffset);
   }
 })();
 

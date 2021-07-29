@@ -13926,6 +13926,45 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
   return result.value();
 }
 
+void CodeStubAssembler::IsTypedArrayDetachedOrOutOfBounds(
+    TNode<JSTypedArray> array, Label* detached_or_oob,
+    Label* not_detached_nor_oob) {
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
+
+  GotoIf(IsDetachedBuffer(buffer), detached_or_oob);
+  GotoIfNot(IsVariableLengthTypedArray(array), not_detached_nor_oob);
+  GotoIf(IsSharedArrayBuffer(buffer), not_detached_nor_oob);
+
+  {
+    TNode<UintPtrT> buffer_byte_length = LoadJSArrayBufferByteLength(buffer);
+    TNode<UintPtrT> array_byte_offset = LoadJSArrayBufferViewByteOffset(array);
+
+    Label length_tracking(this), not_length_tracking(this);
+    Branch(IsLengthTrackingTypedArray(array), &length_tracking,
+           &not_length_tracking);
+
+    BIND(&length_tracking);
+    {
+      // The backing RAB might have been shrunk so that the start of the
+      // TypedArray is already out of bounds.
+      Branch(UintPtrLessThanOrEqual(array_byte_offset, buffer_byte_length),
+             not_detached_nor_oob, detached_or_oob);
+    }
+
+    BIND(&not_length_tracking);
+    {
+      // Check if the backing RAB has shrunk so that the buffer is out of
+      // bounds.
+      TNode<UintPtrT> array_byte_length =
+          LoadJSArrayBufferViewByteLength(array);
+      Branch(UintPtrGreaterThanOrEqual(
+                 buffer_byte_length,
+                 UintPtrAdd(array_byte_offset, array_byte_length)),
+             not_detached_nor_oob, detached_or_oob);
+    }
+  }
+}
+
 // ES #sec-integerindexedobjectbytelength
 TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayByteLength(
     TNode<Context> context, TNode<JSTypedArray> array,

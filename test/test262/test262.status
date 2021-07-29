@@ -597,8 +597,6 @@
   'built-ins/DataView/prototype/setUint8/resizable-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-different-type': [FAIL],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-same-type': [FAIL],
-  'built-ins/TypedArray/prototype/byteOffset/resizable-array-buffer-auto': [FAIL],
-  'built-ins/TypedArray/prototype/byteOffset/resizable-array-buffer-fixed': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
   'built-ins/Temporal/Calendar/prototype/fields/long-input': [FAIL],
@@ -693,6 +691,9 @@
   'built-ins/TypedArray/prototype/sort/return-abrupt-from-this-out-of-bounds': [FAIL],
   'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/values/return-abrupt-from-this-out-of-bounds': [FAIL],
+
+  # Pending update after https://github.com/tc39/proposal-resizablearraybuffer/issues/68
+  'built-ins/TypedArray/prototype/byteOffset/resizable-array-buffer-auto': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
