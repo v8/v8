@@ -218,6 +218,37 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
+#if V8_OS_MACOSX
+
+SharedMutex::SharedMutex() { InitializeNativeHandle(&native_handle_); }
+
+SharedMutex::~SharedMutex() { DestroyNativeHandle(&native_handle_); }
+
+void SharedMutex::LockShared() { LockExclusive(); }
+
+void SharedMutex::LockExclusive() {
+  DCHECK(TryHoldSharedMutex(this));
+  LockNativeHandle(&native_handle_);
+}
+
+void SharedMutex::UnlockShared() { UnlockExclusive(); }
+
+void SharedMutex::UnlockExclusive() {
+  DCHECK(TryReleaseSharedMutex(this));
+  UnlockNativeHandle(&native_handle_);
+}
+
+bool SharedMutex::TryLockShared() { return TryLockExclusive(); }
+
+bool SharedMutex::TryLockExclusive() {
+  DCHECK(SharedMutexNotHeld(this));
+  if (!TryLockNativeHandle(&native_handle_)) return false;
+  DCHECK(TryHoldSharedMutex(this));
+  return true;
+}
+
+#else  // !V8_OS_MACOSX
+
 SharedMutex::SharedMutex() { pthread_rwlock_init(&native_handle_, nullptr); }
 
 SharedMutex::~SharedMutex() {
@@ -265,6 +296,8 @@ bool SharedMutex::TryLockExclusive() {
   if (result) DCHECK(TryHoldSharedMutex(this));
   return result;
 }
+
+#endif  // !V8_OS_MACOSX
 
 #elif V8_OS_WIN
 

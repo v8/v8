@@ -265,7 +265,12 @@ class V8_BASE_EXPORT SharedMutex final {
 
  private:
   // The implementation-defined native handle type.
-#if V8_OS_POSIX
+#if V8_OS_MACOSX
+  // pthread_rwlock_t is broken on MacOS when signals are being sent to the
+  // process (see https://crbug.com/v8/11399). Until Apple fixes that in the OS,
+  // we have to fall back to a non-shared mutex.
+  using NativeHandle = pthread_mutex_t;
+#elif V8_OS_POSIX
   using NativeHandle = pthread_rwlock_t;
 #elif V8_OS_WIN
   using NativeHandle = SRWLOCK;
