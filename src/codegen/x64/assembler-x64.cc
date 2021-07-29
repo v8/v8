@@ -537,6 +537,16 @@ bool Assembler::is_optimizable_farjmp(int idx) {
   return !!(bitmap[idx / 32] & (1 << (idx & 31)));
 }
 
+void Assembler::FixOnHeapReferences() {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    WriteUnalignedValue(base + p.first, p.second);
+  }
+  for (auto p : saved_offsets_for_runtime_entries_) {
+    WriteUnalignedValue<uint32_t>(base + p.first, p.second);
+  }
+}
+
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
 
@@ -581,13 +591,7 @@ void Assembler::GrowBuffer() {
 
   // Patch on-heap references to handles.
   if (previously_on_heap && !buffer_->IsOnHeap()) {
-    Address base = reinterpret_cast<Address>(buffer_->start());
-    for (auto p : saved_handles_for_raw_object_ptr_) {
-      WriteUnalignedValue(base + p.first, p.second);
-    }
-    for (auto p : saved_offsets_for_runtime_entries_) {
-      WriteUnalignedValue<uint32_t>(base + p.first, p.second);
-    }
+    FixOnHeapReferences();
   }
 
   DCHECK(!buffer_overflow());

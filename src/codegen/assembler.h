@@ -204,6 +204,9 @@ class AssemblerBuffer {
       V8_WARN_UNUSED_RESULT = 0;
   virtual bool IsOnHeap() const { return false; }
   virtual MaybeHandle<Code> code() const { return MaybeHandle<Code>(); }
+  // Return the GC count when the buffer was allocated (only if the buffer is on
+  // the GC heap).
+  virtual int OnHeapGCCount() const { return 0; }
 };
 
 // Allocate an AssemblerBuffer which uses an existing buffer. This buffer cannot
@@ -282,6 +285,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
 
   bool IsOnHeap() const { return buffer_->IsOnHeap(); }
+
+  int OnHeapGCCount() const { return buffer_->OnHeapGCCount(); }
 
   MaybeHandle<Code> code() const {
     DCHECK(IsOnHeap());

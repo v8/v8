@@ -142,8 +142,8 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
 
 class OnHeapAssemblerBuffer : public AssemblerBuffer {
  public:
-  OnHeapAssemblerBuffer(Handle<Code> code, int size)
-      : code_(code), size_(size) {}
+  OnHeapAssemblerBuffer(Handle<Code> code, int size, int gc_count)
+      : code_(code), size_(size), gc_count_(gc_count) {}
 
   byte* start() const override {
     return reinterpret_cast<byte*>(code_->raw_instruction_start());
@@ -162,11 +162,14 @@ class OnHeapAssemblerBuffer : public AssemblerBuffer {
 
   bool IsOnHeap() const override { return true; }
 
+  int OnHeapGCCount() const override { return gc_count_; }
+
   MaybeHandle<Code> code() const override { return code_; }
 
  private:
   Handle<Code> code_;
   const int size_;
+  const int gc_count_;
 };
 
 static thread_local std::aligned_storage_t<sizeof(ExternalAssemblerBufferImpl),
@@ -211,7 +214,8 @@ std::unique_ptr<AssemblerBuffer> NewOnHeapAssemblerBuffer(Isolate* isolate,
   MaybeHandle<Code> code =
       isolate->factory()->NewEmptyCode(CodeKind::BASELINE, size);
   if (code.is_null()) return {};
-  return std::make_unique<OnHeapAssemblerBuffer>(code.ToHandleChecked(), size);
+  return std::make_unique<OnHeapAssemblerBuffer>(code.ToHandleChecked(), size,
+                                                 isolate->heap()->gc_count());
 }
 
 // -----------------------------------------------------------------------------

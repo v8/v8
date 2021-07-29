@@ -3341,6 +3341,13 @@ void Assembler::emit_vex_prefix(Register vreg, VectorLength l, SIMDPrefix pp,
   emit_vex_prefix(ivreg, l, pp, mm, w);
 }
 
+void Assembler::FixOnHeapReferences() {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    WriteUnalignedValue<uint32_t>(base + p.first, p.second);
+  }
+}
+
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
   DCHECK_EQ(buffer_start_, buffer_->start());
@@ -3396,10 +3403,7 @@ void Assembler::GrowBuffer() {
 
   // Patch on-heap references to handles.
   if (previously_on_heap && !buffer_->IsOnHeap()) {
-    Address base = reinterpret_cast<Address>(buffer_->start());
-    for (auto p : saved_handles_for_raw_object_ptr_) {
-      WriteUnalignedValue<uint32_t>(base + p.first, p.second);
-    }
+    FixOnHeapReferences();
   }
 
   DCHECK(!buffer_overflow());
