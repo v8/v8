@@ -223,7 +223,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
 
   // Returns if baseline code is a candidate for flushing. This method is called
   // from concurrent marking so we should be careful when accessing data fields.
-  inline bool ShouldFlushBaselineCode(CodeFlushMode mode);
+  inline bool ShouldFlushBaselineCode(
+      base::EnumSet<CodeFlushMode> code_flush_mode);
 
   DECL_GETTER(has_prototype_slot, bool)
 

@@ -1244,6 +1244,9 @@ DEFINE_BOOL(always_compact, false, "Perform compaction on every full GC")
 DEFINE_BOOL(never_compact, false,
             "Never perform compaction on full GC - testing only")
 DEFINE_BOOL(compact_code_space, true, "Compact code space on full collections")
+DEFINE_BOOL(flush_baseline_code, false,
+            "flush of baseline code when it has not been executed recently")
+DEFINE_IMPLICATION(flush_baseline_code, flush_bytecode)
 DEFINE_BOOL(flush_bytecode, true,
             "flush of bytecode when it has not been executed recently")
 DEFINE_BOOL(stress_flush_bytecode, false, "stress bytecode flushing")

@@ -86,11 +86,11 @@ class ConcurrentMarkingVisitor final
                            MarkingWorklists::Local* local_marking_worklists,
                            WeakObjects* weak_objects, Heap* heap,
                            unsigned mark_compact_epoch,
-                           CodeFlushMode bytecode_flush_mode,
+                           base::EnumSet<CodeFlushMode> code_flush_mode,
                            bool embedder_tracing_enabled, bool is_forced_gc,
                            MemoryChunkDataMap* memory_chunk_data)
       : MarkingVisitorBase(task_id, local_marking_worklists, weak_objects, heap,
-                           mark_compact_epoch, bytecode_flush_mode,
+                           mark_compact_epoch, code_flush_mode,
                            embedder_tracing_enabled, is_forced_gc),
         marking_state_(memory_chunk_data),
         memory_chunk_data_(memory_chunk_data) {}
@@ -368,10 +368,10 @@ StrongDescriptorArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
 class ConcurrentMarking::JobTask : public v8::JobTask {
  public:
   JobTask(ConcurrentMarking* concurrent_marking, unsigned mark_compact_epoch,
-          CodeFlushMode bytecode_flush_mode, bool is_forced_gc)
+          base::EnumSet<CodeFlushMode> code_flush_mode, bool is_forced_gc)
       : concurrent_marking_(concurrent_marking),
         mark_compact_epoch_(mark_compact_epoch),
-        bytecode_flush_mode_(bytecode_flush_mode),
+        code_flush_mode_(code_flush_mode),
         is_forced_gc_(is_forced_gc) {}
 
   ~JobTask() override = default;
@@ -382,14 +382,14 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
   void Run(JobDelegate* delegate) override {
     if (delegate->IsJoiningThread()) {
       // TRACE_GC is not needed here because the caller opens the right scope.
-      concurrent_marking_->Run(delegate, bytecode_flush_mode_,
-                               mark_compact_epoch_, is_forced_gc_);
+      concurrent_marking_->Run(delegate, code_flush_mode_, mark_compact_epoch_,
+                               is_forced_gc_);
     } else {
       TRACE_GC_EPOCH(concurrent_marking_->heap_->tracer(),
                      GCTracer::Scope::MC_BACKGROUND_MARKING,
                      ThreadKind::kBackground);
-      concurrent_marking_->Run(delegate, bytecode_flush_mode_,
-                               mark_compact_epoch_, is_forced_gc_);
+      concurrent_marking_->Run(delegate, code_flush_mode_, mark_compact_epoch_,
+                               is_forced_gc_);
     }
   }
 
@@ -400,7 +400,7 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
  private:
   ConcurrentMarking* concurrent_marking_;
   const unsigned mark_compact_epoch_;
-  CodeFlushMode bytecode_flush_mode_;
+  base::EnumSet<CodeFlushMode> code_flush_mode_;
   const bool is_forced_gc_;
 };
 
@@ -421,7 +421,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap,
 }
 
 void ConcurrentMarking::Run(JobDelegate* delegate,
-                            CodeFlushMode bytecode_flush_mode,
+                            base::EnumSet<CodeFlushMode> code_flush_mode,
                             unsigned mark_compact_epoch, bool is_forced_gc) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
@@ -430,7 +430,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
   MarkingWorklists::Local local_marking_worklists(marking_worklists_);
   ConcurrentMarkingVisitor visitor(
       task_id, &local_marking_worklists, weak_objects_, heap_,
-      mark_compact_epoch, bytecode_flush_mode,
+      mark_compact_epoch, code_flush_mode,
       heap_->local_embedder_heap_tracer()->InUse(), is_forced_gc,
       &task_state->memory_chunk_data);
   NativeContextInferrer& native_context_inferrer =

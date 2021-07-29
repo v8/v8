@@ -2366,7 +2366,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
                                                         &flushing_candidate)) {
     bool is_bytecode_live = non_atomic_marking_state()->IsBlackOrGrey(
         flushing_candidate.GetBytecodeArray(isolate()));
-    if (flushing_candidate.HasBaselineData()) {
+    if (FLAG_flush_baseline_code && flushing_candidate.HasBaselineData()) {
       BaselineData baseline_data = flushing_candidate.baseline_data();
       if (non_atomic_marking_state()->IsBlackOrGrey(
               baseline_data.baseline_code())) {
@@ -2387,6 +2387,10 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     }
 
     if (!is_bytecode_live) {
+      // If baseline code flushing is disabled we should only flush bytecode
+      // from functions that don't have baseline data.
+      DCHECK(FLAG_flush_baseline_code || !flushing_candidate.HasBaselineData());
+
       // If the BytecodeArray is dead, flush it, which will replace the field
       // with an uncompiled data object.
       FlushBytecodeFromSFI(flushing_candidate);
@@ -2414,7 +2418,7 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
 }
 
 void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
-  DCHECK(FLAG_flush_bytecode ||
+  DCHECK(FLAG_flush_baseline_code ||
          weak_objects_.baseline_flushing_candidates.IsEmpty());
   JSFunction flushed_js_function;
   while (weak_objects_.baseline_flushing_candidates.Pop(kMainThreadTask,

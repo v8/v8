@@ -376,11 +376,11 @@ class MainMarkingVisitor final
                      MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
-                     CodeFlushMode bytecode_flush_mode,
+                     base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool embedder_tracing_enabled, bool is_forced_gc)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
             kMainThreadTask, local_marking_worklists, weak_objects, heap,
-            mark_compact_epoch, bytecode_flush_mode, embedder_tracing_enabled,
+            mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
             is_forced_gc),
         marking_state_(marking_state),
         revisiting_object_(false) {}
@@ -570,7 +570,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   unsigned epoch() const { return epoch_; }
 
-  CodeFlushMode code_flush_mode() const { return code_flush_mode_; }
+  base::EnumSet<CodeFlushMode> code_flush_mode() const {
+    return code_flush_mode_;
+  }
 
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
@@ -798,7 +800,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // that can happen while a GC is happening and we need the
   // code_flush_mode_ to remain the same through out a GC, we record this at
   // the start of each GC.
-  CodeFlushMode code_flush_mode_;
+  base::EnumSet<CodeFlushMode> code_flush_mode_;
 
   friend class FullEvacuator;
   friend class RecordMigratedSlotVisitor;

@@ -293,8 +293,9 @@ bool JSFunction::is_compiled() const {
          shared().is_compiled();
 }
 
-bool JSFunction::ShouldFlushBaselineCode(CodeFlushMode mode) {
-  if (mode == CodeFlushMode::kDoNotFlushCode) return false;
+bool JSFunction::ShouldFlushBaselineCode(
+    base::EnumSet<CodeFlushMode> code_flush_mode) {
+  if (!IsBaselineCodeFlushingEnabled(code_flush_mode)) return false;
   // Do a raw read for shared and code fields here since this function may be
   // called on a concurrent thread. JSFunction itself should be fully
   // initialized here but the SharedFunctionInfo, Code objects may not be
@@ -311,7 +312,7 @@ bool JSFunction::ShouldFlushBaselineCode(CodeFlushMode mode) {
   if (code.kind() != CodeKind::BASELINE) return false;
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
-  return shared.ShouldFlushBytecode(mode);
+  return shared.ShouldFlushBytecode(code_flush_mode);
 }
 
 bool JSFunction::NeedsResetDueToFlushedBytecode() {
@@ -346,6 +347,7 @@ void JSFunction::ResetIfCodeFlushed(
     set_code(*BUILTIN_CODE(GetIsolate(), CompileLazy));
     raw_feedback_cell().reset_feedback_vector(gc_notify_updated_slot);
   } else if (NeedsResetDueToFlushedBaselineCode()) {
+    DCHECK(FLAG_flush_baseline_code);
     // Flush baseline code from the closure if required
     set_code(*BUILTIN_CODE(GetIsolate(), InterpreterEntryTrampoline));
   }

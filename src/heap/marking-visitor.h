@@ -105,14 +105,14 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
                      MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
-                     CodeFlushMode bytecode_flush_mode,
+                     base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool is_embedder_tracing_enabled, bool is_forced_gc)
       : local_marking_worklists_(local_marking_worklists),
         weak_objects_(weak_objects),
         heap_(heap),
         task_id_(task_id),
         mark_compact_epoch_(mark_compact_epoch),
-        bytecode_flush_mode_(bytecode_flush_mode),
+        code_flush_mode_(code_flush_mode),
         is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
         is_forced_gc_(is_forced_gc),
         is_shared_heap_(heap->IsShared()) {}
@@ -206,7 +206,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   Heap* const heap_;
   const int task_id_;
   const unsigned mark_compact_epoch_;
-  const CodeFlushMode bytecode_flush_mode_;
+  const base::EnumSet<CodeFlushMode> code_flush_mode_;
   const bool is_embedder_tracing_enabled_;
   const bool is_forced_gc_;
   const bool is_shared_heap_;

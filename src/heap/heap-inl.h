@@ -84,16 +84,28 @@ Address AllocationResult::ToAddress() {
 }
 
 // static
-CodeFlushMode Heap::GetCodeFlushMode(Isolate* isolate) {
+base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   if (isolate->disable_bytecode_flushing()) {
-    return CodeFlushMode::kDoNotFlushCode;
+    return base::EnumSet<CodeFlushMode>();
   }
+
+  base::EnumSet<CodeFlushMode> code_flush_mode;
+  if (FLAG_flush_bytecode) {
+    code_flush_mode.Add(CodeFlushMode::kFlushBytecode);
+  }
+
+  if (FLAG_flush_baseline_code) {
+    // TODO(mythria): Add support to be able to flush baseline code without
+    // flushing bytecode.
+    DCHECK(FLAG_flush_bytecode);
+    code_flush_mode.Add(CodeFlushMode::kFlushBaselineCode);
+  }
+
   if (FLAG_stress_flush_bytecode) {
-    return CodeFlushMode::kStressFlushCode;
-  } else if (FLAG_flush_bytecode) {
-    return CodeFlushMode::kFlushCode;
+    code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
   }
-  return CodeFlushMode::kDoNotFlushCode;
+
+  return code_flush_mode;
 }
 
 Isolate* Heap::isolate() {

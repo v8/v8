@@ -5,6 +5,7 @@
 // Flags: --expose-gc --stress-flush-bytecode --allow-natives-syntax
 // Flags: --baseline-batch-compilation-threshold=0 --sparkplug
 // Flags: --no-always-sparkplug --lazy-feedback-allocation
+// Flags: --flush-baseline-code
 
 function HasBaselineCode(f) {
   let opt_status = %GetOptimizationStatus(f);
