@@ -1392,6 +1392,15 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 }
 
 Object Isolate::StackOverflow() {
+  // Whoever calls this method should not have overflown the stack limit by too
+  // much. Otherwise we risk actually running out of stack space.
+  // We allow for up to 8kB overflow, because we typically allow up to 4KB
+  // overflow per frame in generated code, but might call through more smaller
+  // frames until we reach this method.
+  // If this DCHECK fails, one of the frames on the stack should be augmented by
+  // an additional stack check.
+  DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 8 * KB);
+
   if (FLAG_correctness_fuzzer_suppressions) {
     FATAL("Aborting on stack overflow");
   }
