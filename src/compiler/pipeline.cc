@@ -1564,11 +1564,11 @@ struct SerializationPhase {
       MakeRef(data->broker(),
               data->specialization_context().FromJust().context);
     }
-    if (FLAG_turbo_concurrent_get_property_access_info) {
-      data->broker()->ClearCachedPropertyAccessInfos();
-      data->dependencies()->ClearForConcurrentGetPropertyAccessInfo();
-    }
     if (FLAG_stress_concurrent_inlining) {
+      if (FLAG_turbo_concurrent_get_property_access_info) {
+        data->broker()->ClearCachedPropertyAccessInfos();
+        data->dependencies()->ClearForConcurrentGetPropertyAccessInfo();
+      }
       // Force re-serialization from the background thread.
       data->broker()->ClearReconstructibleData();
     }
