@@ -788,17 +788,19 @@ static constexpr CTypeInfo kTypeInfoFloat64 =
  * returns true on success. `type_info` will be used for conversions.
  */
 template <const CTypeInfo* type_info, typename T>
-bool V8_EXPORT TryCopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
-                                                 uint32_t max_length);
+bool V8_EXPORT V8_WARN_UNUSED_RESULT TryCopyAndConvertArrayToCppBuffer(
+    Local<Array> src, T* dst, uint32_t max_length);
 
 template <>
-inline bool TryCopyAndConvertArrayToCppBuffer<&kTypeInfoInt32, int32_t>(
+inline bool V8_WARN_UNUSED_RESULT
+TryCopyAndConvertArrayToCppBuffer<&kTypeInfoInt32, int32_t>(
     Local<Array> src, int32_t* dst, uint32_t max_length) {
   return CopyAndConvertArrayToCppBufferInt32(src, dst, max_length);
 }
 
 template <>
-inline bool TryCopyAndConvertArrayToCppBuffer<&kTypeInfoFloat64, double>(
+inline bool V8_WARN_UNUSED_RESULT
+TryCopyAndConvertArrayToCppBuffer<&kTypeInfoFloat64, double>(
     Local<Array> src, double* dst, uint32_t max_length) {
   return CopyAndConvertArrayToCppBufferFloat64(src, dst, max_length);
 }

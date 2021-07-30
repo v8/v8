@@ -1762,10 +1762,6 @@ bool Object::IterationHasObservableEffects() {
   JSArray array = JSArray::cast(*this);
   Isolate* isolate = array.GetIsolate();
 
-#ifdef V8_ENABLE_FORCE_SLOW_PATH
-  if (isolate->force_slow_path()) return true;
-#endif
-
   // Check that we have the original ArrayPrototype.
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Context> context;
