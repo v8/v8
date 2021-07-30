@@ -1141,3 +1141,18 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     assertEquals([15, 19, 19, 20, 16, 16], ReadDataFromBuffer(rab, ctor));
   }
 })();
+
+(function FillParameterConversionResizes() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => { rab.resize(2); return 0;}};
+    assertThrows(() => { FillHelper(fixedLength, evil, 1, 2); }, TypeError);
+    rab.resize(4 * ctor.BYTES_PER_ELEMENT);
+    assertThrows(() => { FillHelper(fixedLength, 3, evil, 2); }, TypeError);
+    rab.resize(4 * ctor.BYTES_PER_ELEMENT);
+    assertThrows(() => { FillHelper(fixedLength, 3, 1, evil); }, TypeError);
+  }
+})();
