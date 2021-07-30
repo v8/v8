@@ -212,7 +212,7 @@ def _reclient_properties(use_rbe, name):
     if reclient.get("compare"):
         reclient.pop("compare")
         rewrapper_env.update({
-            "RBE_compare": True,
+            "RBE_compare": "true",
         })
 
     if rewrapper_env:
