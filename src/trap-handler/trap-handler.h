@@ -25,8 +25,8 @@ namespace trap_handler {
 // Arm64 (non-simulator) on Mac.
 #elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && V8_OS_MACOSX
 #define V8_TRAP_HANDLER_SUPPORTED true
-// Arm64 simulator on x64 on Linux.
-#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
+// Arm64 simulator on x64 on Linux or Mac.
+#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_X64 && (V8_OS_LINUX || V8_OS_MACOSX)
 #define V8_TRAP_HANDLER_VIA_SIMULATOR
 #define V8_TRAP_HANDLER_SUPPORTED true
 // Everything else is unsupported.
