@@ -1131,7 +1131,6 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
   }
 
   DCHECK(!native_module->lazy_compile_frozen());
-  CodeSpaceWriteScope code_space_write_scope(native_module);
 
   TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
 
@@ -1180,8 +1179,12 @@ bool CompileLazy(Isolate* isolate, Handle<WasmModuleObject> module_object,
   }
 
   WasmCodeRefScope code_ref_scope;
-  WasmCode* code = native_module->PublishCode(
-      native_module->AddCompiledCode(std::move(result)));
+  WasmCode* code;
+  {
+    CodeSpaceWriteScope code_space_write_scope(native_module);
+    code = native_module->PublishCode(
+        native_module->AddCompiledCode(std::move(result)));
+  }
   DCHECK_EQ(func_index, code->index());
 
   if (WasmCode::ShouldBeLogged(isolate)) {
