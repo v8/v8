@@ -30,8 +30,6 @@ class InitialMapDependency final : public CompilationDependency {
   InitialMapDependency(JSHeapBroker* broker, const JSFunctionRef& function,
                        const MapRef& initial_map)
       : function_(function), initial_map_(initial_map) {
-    DCHECK(function_.has_initial_map(broker->dependencies()));
-    DCHECK(function_.initial_map(broker->dependencies()).equals(initial_map_));
   }
 
   bool IsValid() const override {
@@ -81,7 +79,7 @@ class PrototypePropertyDependency final : public CompilationDependency {
   void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
     Handle<JSFunction> function = function_.object();
-    DCHECK(function->has_initial_map());
+    CHECK(function->has_initial_map());
     Handle<Map> initial_map(function->initial_map(), function_.isolate());
     DependentCode::InstallDependency(function_.isolate(), code, initial_map,
                                      DependentCode::kInitialMapChangedGroup);
@@ -366,7 +364,7 @@ class ConsistentJSFunctionViewDependency final : public CompilationDependency {
 class TransitionDependency final : public CompilationDependency {
  public:
   explicit TransitionDependency(const MapRef& map) : map_(map) {
-    DCHECK(!map_.is_deprecated());
+    DCHECK(map_.CanBeDeprecated());
   }
 
   bool IsValid() const override { return !map_.object()->is_deprecated(); }
@@ -538,9 +536,7 @@ class GlobalPropertyDependency final : public CompilationDependency {
 
 class ProtectorDependency final : public CompilationDependency {
  public:
-  explicit ProtectorDependency(const PropertyCellRef& cell) : cell_(cell) {
-    DCHECK_EQ(cell_.value().AsSmi(), Protectors::kProtectorValid);
-  }
+  explicit ProtectorDependency(const PropertyCellRef& cell) : cell_(cell) {}
 
   bool IsValid() const override {
     Handle<PropertyCell> cell = cell_.object();
@@ -653,7 +649,6 @@ void CompilationDependencies::RecordDependency(
 
 MapRef CompilationDependencies::DependOnInitialMap(
     const JSFunctionRef& function) {
-  DCHECK(!function.IsNeverSerializedHeapObject());
   MapRef map = function.initial_map(this);
   RecordDependency(zone_->New<InitialMapDependency>(broker_, function, map));
   return map;
@@ -661,7 +656,6 @@ MapRef CompilationDependencies::DependOnInitialMap(
 
 ObjectRef CompilationDependencies::DependOnPrototypeProperty(
     const JSFunctionRef& function) {
-  DCHECK(!function.IsNeverSerializedHeapObject());
   ObjectRef prototype = function.instance_prototype(this);
   RecordDependency(
       zone_->New<PrototypePropertyDependency>(broker_, function, prototype));
@@ -669,7 +663,6 @@ ObjectRef CompilationDependencies::DependOnPrototypeProperty(
 }
 
 void CompilationDependencies::DependOnStableMap(const MapRef& map) {
-  DCHECK(!map.IsNeverSerializedHeapObject());
   if (map.CanTransition()) {
     RecordDependency(zone_->New<StableMapDependency>(map));
   }
@@ -692,9 +685,7 @@ AllocationType CompilationDependencies::DependOnPretenureMode(
 
 PropertyConstness CompilationDependencies::DependOnFieldConstness(
     const MapRef& map, InternalIndex descriptor) {
-  DCHECK(!map.IsNeverSerializedHeapObject());
   MapRef owner = map.FindFieldOwner(descriptor);
-  DCHECK(!owner.IsNeverSerializedHeapObject());
   PropertyConstness constness =
       owner.GetPropertyDetails(descriptor).constness();
   if (constness == PropertyConstness::kMutable) return constness;
@@ -882,8 +873,7 @@ void CompilationDependencies::DependOnStablePrototypeChains(
       // Note: Keep sync'd with AccessInfoFactory::ComputePropertyAccessInfo.
       base::Optional<JSFunctionRef> constructor =
           broker_->target_native_context().GetConstructorFunction(receiver_map);
-      CHECK(constructor.has_value());
-      receiver_map = constructor->initial_map(this);
+      receiver_map = constructor.value().initial_map(this);
     }
     if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
     DependOnStablePrototypeChain(this, receiver_map, last_prototype);
@@ -924,14 +914,13 @@ CompilationDependencies::DependOnInitialMapInstanceSizePrediction(
   // tracking is active.
   RecordDependency(zone_->New<InitialMapInstanceSizePredictionDependency>(
       function, instance_size));
-  DCHECK_LE(instance_size, function.initial_map(this).instance_size());
+  CHECK_LE(instance_size, function.initial_map(this).instance_size());
   return SlackTrackingPrediction(initial_map, instance_size);
 }
 
 CompilationDependency const*
 CompilationDependencies::TransitionDependencyOffTheRecord(
     const MapRef& target_map) const {
-  DCHECK(!target_map.IsNeverSerializedHeapObject());
   if (target_map.CanBeDeprecated()) {
     return zone_->New<TransitionDependency>(target_map);
   } else {

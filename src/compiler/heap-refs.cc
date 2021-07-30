@@ -1962,12 +1962,6 @@ bool JSObjectData::SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
   return true;
 }
 
-#ifdef DEBUG
-bool ObjectRef::IsNeverSerializedHeapObject() const {
-  return data_->kind() == ObjectDataKind::kNeverSerializedHeapObject;
-}
-#endif  // DEBUG
-
 bool ObjectRef::equals(const ObjectRef& other) const {
 #ifdef DEBUG
   if (broker()->mode() == JSHeapBroker::kSerialized &&
