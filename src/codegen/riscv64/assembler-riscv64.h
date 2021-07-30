@@ -354,6 +354,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // ---------------------------------------------------------------------------
   // Code generation.
 
+  // This function is called when on-heap-compilation invariants are
+  // invalidated. For instance, when the assembler buffer grows or a GC happens
+  // between Code object allocation and Code object finalization.
+  void FixOnHeapReferences();
+
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2 (>= 4).

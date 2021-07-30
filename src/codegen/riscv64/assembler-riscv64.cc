@@ -2758,6 +2758,8 @@ void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
   }
 }
 
+void Assembler::FixOnHeapReferences() { UNIMPLEMENTED(); }
+
 void Assembler::GrowBuffer() {
   DEBUG_PRINTF("GrowBuffer: %p -> ", buffer_start_);
   // Compute new buffer size.
