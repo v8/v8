@@ -52,7 +52,7 @@ vars = {
   'gn_version': 'git_revision:c0a2d23c21e87f27f5af3e5dc2a99f2ef3480b9e',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:2c98a90e4f4daa808cb69d51e71eee9289bd5422',
+  'luci_go': 'git_revision:59603935354589d60cd8374e75889932bf84c33f',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -92,7 +92,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'ad56859ef8c85cc09a3d8e95dcedadb5109a0af8',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '82f37a429b9a102bb7c5636bd6092621aed799f8',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8aa210e09b1f2638c84756347dd0bea7160246dd',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '37dc929ecb351687006a61744b116cda601753d7',
   'buildtools/clang_format/script':
@@ -235,7 +235,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'ab74ae5e104f72fa957c1712707a06a781a974a6',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '4ec4cd23f486bf70efcc5d2caa40f24368f752e3',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '2d924d7a971e9667d76ad09727fb2402b4f8a1e3',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '2a822c5626ab1ed40366758e4740b4f0ea40237d',
   'third_party/instrumented_libraries':
@@ -285,7 +285,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'dfbc590f5855bc2765256a743cad0abc56330a30',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '30a89ee609ec8ae9d8ee22db7eb43944f0a4275b',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd0097bccbaab2f439b83ba93c6634ba91ca882fb',
   'tools/clang/dsymutil': {
     'packages': [
       {
