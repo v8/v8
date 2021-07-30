@@ -407,98 +407,107 @@ class PretenureModeDependency final : public CompilationDependency {
 
 class FieldRepresentationDependency final : public CompilationDependency {
  public:
-  FieldRepresentationDependency(const MapRef& owner, InternalIndex descriptor,
+  FieldRepresentationDependency(const MapRef& map, InternalIndex descriptor,
                                 Representation representation)
-      : owner_(owner),
-        descriptor_(descriptor),
-        representation_(representation) {
-    DCHECK_EQ(owner.object()->FindFieldOwner(owner.isolate(), descriptor),
-              *owner.object());
-  }
+      : map_(map), descriptor_(descriptor), representation_(representation) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
-    if (owner_.is_deprecated()) return false;
-    return representation_.Equals(owner_.object()
-                                      ->instance_descriptors(owner_.isolate())
+    if (map_.object()->is_deprecated()) return false;
+    return representation_.Equals(map_.object()
+                                      ->instance_descriptors(map_.isolate())
                                       .GetDetails(descriptor_)
                                       .representation());
   }
 
   void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
+    Isolate* isolate = map_.isolate();
+    Handle<Map> owner(map_.object()->FindFieldOwner(isolate, descriptor_),
+                      isolate);
+    CHECK(!owner->is_deprecated());
+    CHECK(representation_.Equals(owner->instance_descriptors(isolate)
+                                     .GetDetails(descriptor_)
+                                     .representation()));
+    DependentCode::InstallDependency(isolate, code, owner,
                                      DependentCode::kFieldRepresentationGroup);
   }
 
 #ifdef DEBUG
   bool IsFieldRepresentationDependencyOnMap(
       Handle<Map> const& receiver_map) const override {
-    return owner_.object().equals(receiver_map);
+    return map_.object().equals(receiver_map);
   }
 #endif
 
  private:
-  MapRef owner_;
+  MapRef map_;
   InternalIndex descriptor_;
   Representation representation_;
 };
 
 class FieldTypeDependency final : public CompilationDependency {
  public:
-  FieldTypeDependency(const MapRef& owner, InternalIndex descriptor,
+  FieldTypeDependency(const MapRef& map, InternalIndex descriptor,
                       const ObjectRef& type)
-      : owner_(owner), descriptor_(descriptor), type_(type) {
-    DCHECK_EQ(owner.object()->FindFieldOwner(owner.isolate(), descriptor),
-              *owner.object());
-  }
+      : map_(map), descriptor_(descriptor), type_(type) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
-    if (owner_.is_deprecated()) return false;
-    return *type_.object() == owner_.object()
-                                  ->instance_descriptors(owner_.isolate())
+    if (map_.object()->is_deprecated()) return false;
+    return *type_.object() == map_.object()
+                                  ->instance_descriptors(map_.isolate())
                                   .GetFieldType(descriptor_);
   }
 
   void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
+    Isolate* isolate = map_.isolate();
+    Handle<Map> owner(map_.object()->FindFieldOwner(isolate, descriptor_),
+                      isolate);
+    CHECK(!owner->is_deprecated());
+    CHECK_EQ(*type_.object(),
+             owner->instance_descriptors(isolate).GetFieldType(descriptor_));
+    DependentCode::InstallDependency(isolate, code, owner,
                                      DependentCode::kFieldTypeGroup);
   }
 
  private:
-  MapRef owner_;
+  MapRef map_;
   InternalIndex descriptor_;
   ObjectRef type_;
 };
 
 class FieldConstnessDependency final : public CompilationDependency {
  public:
-  FieldConstnessDependency(const MapRef& owner, InternalIndex descriptor)
-      : owner_(owner), descriptor_(descriptor) {
-    DCHECK_EQ(owner.object()->FindFieldOwner(owner.isolate(), descriptor),
-              *owner.object());
-  }
+  FieldConstnessDependency(const MapRef& map, InternalIndex descriptor)
+      : map_(map), descriptor_(descriptor) {}
 
   bool IsValid() const override {
     DisallowGarbageCollection no_heap_allocation;
-    if (owner_.is_deprecated()) return false;
+    if (map_.object()->is_deprecated()) return false;
     return PropertyConstness::kConst ==
-           owner_.object()
-               ->instance_descriptors(owner_.isolate())
+           map_.object()
+               ->instance_descriptors(map_.isolate())
                .GetDetails(descriptor_)
                .constness();
   }
 
   void Install(Handle<Code> code) const override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(owner_.isolate(), code, owner_.object(),
+    Isolate* isolate = map_.isolate();
+    Handle<Map> owner(map_.object()->FindFieldOwner(isolate, descriptor_),
+                      isolate);
+    CHECK(!owner->is_deprecated());
+    CHECK_EQ(PropertyConstness::kConst, owner->instance_descriptors(isolate)
+                                            .GetDetails(descriptor_)
+                                            .constness());
+    DependentCode::InstallDependency(isolate, code, owner,
                                      DependentCode::kFieldConstGroup);
   }
 
  private:
-  MapRef owner_;
+  MapRef map_;
   InternalIndex descriptor_;
 };
 
@@ -685,9 +694,7 @@ AllocationType CompilationDependencies::DependOnPretenureMode(
 
 PropertyConstness CompilationDependencies::DependOnFieldConstness(
     const MapRef& map, InternalIndex descriptor) {
-  MapRef owner = map.FindFieldOwner(descriptor);
-  PropertyConstness constness =
-      owner.GetPropertyDetails(descriptor).constness();
+  PropertyConstness constness = map.GetPropertyDetails(descriptor).constness();
   if (constness == PropertyConstness::kMutable) return constness;
 
   // If the map can have fast elements transitions, then the field can be only
@@ -702,7 +709,7 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   }
 
   DCHECK_EQ(constness, PropertyConstness::kConst);
-  RecordDependency(zone_->New<FieldConstnessDependency>(owner, descriptor));
+  RecordDependency(zone_->New<FieldConstnessDependency>(map, descriptor));
   return PropertyConstness::kConst;
 }
 
@@ -933,15 +940,14 @@ CompilationDependency const*
 CompilationDependencies::FieldRepresentationDependencyOffTheRecord(
     const MapRef& map, InternalIndex descriptor,
     Representation representation) const {
-  return zone_->New<FieldRepresentationDependency>(
-      map.FindFieldOwner(descriptor), descriptor, representation);
+  return zone_->New<FieldRepresentationDependency>(map, descriptor,
+                                                   representation);
 }
 
 CompilationDependency const*
 CompilationDependencies::FieldTypeDependencyOffTheRecord(
     const MapRef& map, InternalIndex descriptor, const ObjectRef& type) const {
-  return zone_->New<FieldTypeDependency>(map.FindFieldOwner(descriptor),
-                                         descriptor, type);
+  return zone_->New<FieldTypeDependency>(map, descriptor, type);
 }
 
 }  // namespace compiler

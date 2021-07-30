@@ -109,9 +109,13 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
     FieldIndex field_index, Representation field_representation,
     Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
     base::Optional<JSObjectRef> holder, base::Optional<MapRef> transition_map) {
-  DCHECK_IMPLIES(field_representation.IsDouble(),
-                 HasFieldRepresentationDependenciesOnMap(
-                     dependencies, field_owner_map.object()));
+  DCHECK_IMPLIES(
+      field_representation.IsDouble(),
+      HasFieldRepresentationDependenciesOnMap(
+          dependencies, transition_map.has_value()
+                            ? transition_map->object()
+                            : holder.has_value() ? holder->map().object()
+                                                 : receiver_map.object()));
   return PropertyAccessInfo(kDataField, holder, transition_map, field_index,
                             field_representation, field_type, field_owner_map,
                             field_map, {{receiver_map}, zone},
