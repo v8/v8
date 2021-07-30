@@ -699,11 +699,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
       ZoneVector<MapRef>* prototype_maps);
 
   // Concerning the underlying instance_descriptors:
-  bool TrySerializeOwnDescriptor(InternalIndex descriptor_index,
-                                 NotConcurrentInliningTag tag);
-  void SerializeOwnDescriptor(InternalIndex descriptor_index,
-                              NotConcurrentInliningTag tag);
-  bool serialized_own_descriptor(InternalIndex descriptor_index) const;
   MapRef FindFieldOwner(InternalIndex descriptor_index) const;
   PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const;
   NameRef GetPropertyKey(InternalIndex descriptor_index) const;

@@ -959,22 +959,6 @@ class MapData : public HeapObjectData {
   }
 
   // Extra information.
-
-  // Serialize a single (or all) own slot(s) of the descriptor array and recurse
-  // on field owner(s).
-  bool TrySerializeOwnDescriptor(JSHeapBroker* broker,
-                                 InternalIndex descriptor_index,
-                                 NotConcurrentInliningTag tag);
-  void SerializeOwnDescriptor(JSHeapBroker* broker,
-                              InternalIndex descriptor_index,
-                              NotConcurrentInliningTag tag) {
-    CHECK(TrySerializeOwnDescriptor(broker, descriptor_index, tag));
-  }
-  void SerializeOwnDescriptors(JSHeapBroker* broker,
-                               NotConcurrentInliningTag tag);
-  ObjectData* GetStrongValue(InternalIndex descriptor_index) const;
-  ObjectData* instance_descriptors() const { return instance_descriptors_; }
-
   void SerializeRootMap(JSHeapBroker* broker, NotConcurrentInliningTag tag);
   ObjectData* FindRootMap() const;
 
@@ -1004,9 +988,9 @@ class MapData : public HeapObjectData {
                                 NotConcurrentInliningTag tag);
 
   bool has_extra_serialized_data() const {
-    return serialized_own_descriptors_ || serialized_constructor_ ||
-           serialized_backpointer_ || serialized_prototype_ ||
-           serialized_root_map_ || serialized_for_element_store_;
+    return serialized_constructor_ || serialized_backpointer_ ||
+           serialized_prototype_ || serialized_root_map_ ||
+           serialized_for_element_store_;
   }
 
  private:
@@ -1033,14 +1017,10 @@ class MapData : public HeapObjectData {
   bool supports_fast_array_iteration_;
   bool supports_fast_array_resize_;
 
-  // These extra fields still have to be serialized (e.g prototype_) even with
-  // concurrent inling, since those classes have fields themselves which are not
-  // being directly read. This means that, for example, even though we can get
-  // the prototype itself with direct reads, some of its fields require
-  // serialization.
-  bool serialized_own_descriptors_ = false;
-  ObjectData* instance_descriptors_ = nullptr;
-
+  // These extra fields still have to be serialized (e.g prototype_), since
+  // those classes have fields themselves which are not being directly read.
+  // This means that, for example, even though we can get the prototype itself
+  // with direct reads, some of its fields require serialization.
   bool serialized_constructor_ = false;
   ObjectData* constructor_ = nullptr;
 
@@ -1415,71 +1395,13 @@ class DescriptorArrayData : public HeapObjectData {
  public:
   DescriptorArrayData(JSHeapBroker* broker, ObjectData** storage,
                       Handle<DescriptorArray> object)
-      : HeapObjectData(broker, storage, object), contents_(broker->zone()) {
-    DCHECK(!broker->is_concurrent_inlining());
-    // TODO(solanes, v8:7790): If Map moves to never serialized, the
-    // DescriptorArray can become never ever serialized. Alternatively, if
-    // bg-serialization is enabled for the default config we can also move
-    // DescriptorArray to never ever serialized.
-    STATIC_ASSERT(ref_traits<Map>::ref_serialization_kind ==
-                  RefSerializationKind::kBackgroundSerialized);
+      : HeapObjectData(broker, storage, object) {
+    // DescriptorArrayData is NeverEverSerialize.
+    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
+    // are NeverEverSerialize.
+    UNREACHABLE();
   }
-
-  // TODO(solanes, v8:7790): If we move FieldOwner and FieldIndex to MapData, we
-  // can make DescriptorArray never ever serialized but at the cost of different
-  // maps with the same descriptor not benefiting from having said same
-  // descriptor.
-  ObjectData* FindFieldOwner(InternalIndex descriptor_index) const {
-    return contents_.at(descriptor_index.as_int()).field_owner;
-  }
-
-  FieldIndex GetFieldIndexFor(InternalIndex descriptor_index) const {
-    return contents_.at(descriptor_index.as_int()).field_index;
-  }
-
-  bool serialized_descriptor(InternalIndex descriptor_index) const {
-    return contents_.find(descriptor_index.as_int()) != contents_.end();
-  }
-
-  void SerializeDescriptor(JSHeapBroker* broker, Handle<Map> map,
-                           InternalIndex descriptor_index,
-                           NotConcurrentInliningTag tag);
-
- private:
-  ZoneMap<int, PropertyDescriptor> contents_;
 };
-
-void DescriptorArrayData::SerializeDescriptor(JSHeapBroker* broker,
-                                              Handle<Map> map,
-                                              InternalIndex descriptor_index,
-                                              NotConcurrentInliningTag tag) {
-  CHECK_LT(descriptor_index.as_int(), map->NumberOfOwnDescriptors());
-  if (contents_.find(descriptor_index.as_int()) != contents_.end()) return;
-
-  Isolate* const isolate = broker->isolate();
-  auto descriptors = Handle<DescriptorArray>::cast(object());
-  CHECK_EQ(*descriptors, map->instance_descriptors(isolate));
-
-  PropertyDescriptor d;
-  const bool is_field =
-      descriptors->GetDetails(descriptor_index).location() == kField;
-  if (is_field) {
-    d.field_index = FieldIndex::ForDescriptor(*map, descriptor_index);
-    d.field_owner =
-        broker->GetOrCreateData(map->FindFieldOwner(isolate, descriptor_index));
-  }
-  contents_[descriptor_index.as_int()] = d;
-
-  if (is_field && !d.field_owner->should_access_heap()) {
-    // Recurse on the owner map.
-    d.field_owner->AsMap()->SerializeOwnDescriptor(broker, descriptor_index,
-                                                   tag);
-  }
-
-  TRACE(broker, "Copied descriptor " << descriptor_index.as_int() << " into "
-                                     << this << " (" << contents_.size()
-                                     << " total)");
-}
 
 class FeedbackCellData : public HeapObjectData {
  public:
@@ -1929,57 +1851,6 @@ bool MapData::TrySerializePrototype(JSHeapBroker* broker,
   return true;
 }
 
-void MapData::SerializeOwnDescriptors(JSHeapBroker* broker,
-                                      NotConcurrentInliningTag tag) {
-  if (serialized_own_descriptors_) return;
-  serialized_own_descriptors_ = true;
-
-  TraceScope tracer(broker, this, "MapData::SerializeOwnDescriptors");
-  Handle<Map> map = Handle<Map>::cast(object());
-
-  for (InternalIndex i : map->IterateOwnDescriptors()) {
-    SerializeOwnDescriptor(broker, i, tag);
-  }
-}
-
-bool MapData::TrySerializeOwnDescriptor(JSHeapBroker* broker,
-                                        InternalIndex descriptor_index,
-                                        NotConcurrentInliningTag tag) {
-  TraceScope tracer(broker, this, "MapData::SerializeOwnDescriptor");
-  Handle<Map> map = Handle<Map>::cast(object());
-  Isolate* isolate = broker->isolate();
-
-  if (instance_descriptors_ == nullptr) {
-    instance_descriptors_ =
-        broker->TryGetOrCreateData(map->instance_descriptors(kAcquireLoad));
-    if (instance_descriptors_ == nullptr) return false;
-  }
-
-  if (instance_descriptors()->should_access_heap()) {
-    // When accessing the fields concurrently, we still have to recurse on the
-    // owner map if it is different than the current map. This is because
-    // {instance_descriptors_} gets set on SerializeOwnDescriptor and otherwise
-    // we risk the field owner having a null {instance_descriptors_}.
-    Handle<DescriptorArray> descriptors = broker->CanonicalPersistentHandle(
-        map->instance_descriptors(kAcquireLoad));
-    if (descriptors->GetDetails(descriptor_index).location() == kField) {
-      Handle<Map> owner = broker->CanonicalPersistentHandle(
-          map->FindFieldOwner(isolate, descriptor_index));
-      if (!owner.equals(map)) {
-        ObjectData* data = broker->TryGetOrCreateData(owner);
-        if (data == nullptr) return false;
-        data->AsMap()->SerializeOwnDescriptor(broker, descriptor_index, tag);
-      }
-    }
-  } else {
-    DescriptorArrayData* descriptors =
-        instance_descriptors()->AsDescriptorArray();
-    descriptors->SerializeDescriptor(broker, map, descriptor_index, tag);
-  }
-
-  return true;
-}
-
 void MapData::SerializeRootMap(JSHeapBroker* broker,
                                NotConcurrentInliningTag tag) {
   if (serialized_root_map_) return;
@@ -2030,10 +1901,6 @@ bool JSObjectData::SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
   if (!boilerplate->HasFastProperties() ||
       boilerplate->property_array().length() != 0) {
     return false;
-  }
-
-  if (!map()->should_access_heap()) {
-    map()->AsMap()->SerializeOwnDescriptors(broker, tag);
   }
 
   // Check the in-object properties.
@@ -2328,6 +2195,7 @@ NEVER_EVER_SERIALIZE(CallHandlerInfo)
 NEVER_EVER_SERIALIZE(Code)
 NEVER_EVER_SERIALIZE(CodeDataContainer)
 NEVER_EVER_SERIALIZE(Context)
+NEVER_EVER_SERIALIZE(DescriptorArray)
 NEVER_EVER_SERIALIZE(FeedbackCell)
 NEVER_EVER_SERIALIZE(FeedbackVector)
 NEVER_EVER_SERIALIZE(FixedDoubleArray)
@@ -2660,14 +2528,7 @@ bool JSObjectRef::IsElementsTenured(const FixedArrayBaseRef& elements) {
 
 FieldIndex MapRef::GetFieldIndexFor(InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    FieldIndex result = FieldIndex::ForDescriptor(*object(), descriptor_index);
-    DCHECK(result.is_inobject());
-    return result;
-  }
-  DescriptorArrayData* descriptors =
-      data()->AsMap()->instance_descriptors()->AsDescriptorArray();
-  FieldIndex result = descriptors->GetFieldIndexFor(descriptor_index);
+  FieldIndex result = FieldIndex::ForDescriptor(*object(), descriptor_index);
   DCHECK(result.is_inobject());
   return result;
 }
@@ -2702,16 +2563,11 @@ bool MapRef::IsPrimitiveMap() const {
 
 MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
   CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // TODO(solanes, v8:7790): Consider caching the result of the field owner on
-    // the descriptor array. It would be useful for same map as well as any
-    // other map sharing that descriptor array.
-    return MapRef(broker(), broker()->GetOrCreateData(object()->FindFieldOwner(
-                                broker()->isolate(), descriptor_index)));
-  }
-  DescriptorArrayData* descriptors =
-      data()->AsMap()->instance_descriptors()->AsDescriptorArray();
-  return MapRef(broker(), descriptors->FindFieldOwner(descriptor_index));
+  // TODO(solanes, v8:7790): Consider caching the result of the field owner on
+  // the descriptor array. It would be useful for same map as well as any
+  // other map sharing that descriptor array.
+  return MapRef(broker(), broker()->GetOrCreateData(object()->FindFieldOwner(
+                              broker()->isolate(), descriptor_index)));
 }
 
 ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
@@ -3105,13 +2961,9 @@ base::Optional<ObjectRef> MapRef::GetStrongValue(
 }
 
 DescriptorArrayRef MapRef::instance_descriptors() const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return MakeRefAssumeMemoryFence(
-        broker(),
-        object()->instance_descriptors(broker()->isolate(), kAcquireLoad));
-  }
-
-  return DescriptorArrayRef(broker(), data()->AsMap()->instance_descriptors());
+  return MakeRefAssumeMemoryFence(
+      broker(),
+      object()->instance_descriptors(broker()->isolate(), kAcquireLoad));
 }
 
 base::Optional<HeapObjectRef> MapRef::prototype() const {
@@ -3857,35 +3709,6 @@ base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
     return TryMakeRef(broker(), Handle<Map>::cast(map_data->object()));
   }
   return MapRef(broker(), map_data->AsMap());
-}
-
-bool MapRef::TrySerializeOwnDescriptor(InternalIndex descriptor_index,
-                                       NotConcurrentInliningTag tag) {
-  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap()) {
-    return true;
-  }
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  return data()->AsMap()->TrySerializeOwnDescriptor(broker(), descriptor_index,
-                                                    tag);
-}
-
-void MapRef::SerializeOwnDescriptor(InternalIndex descriptor_index,
-                                    NotConcurrentInliningTag tag) {
-  CHECK(TrySerializeOwnDescriptor(descriptor_index, tag));
-}
-
-bool MapRef::serialized_own_descriptor(InternalIndex descriptor_index) const {
-  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return true;
-  }
-  ObjectData* maybe_desc_array_data = data()->AsMap()->instance_descriptors();
-  if (!maybe_desc_array_data) return false;
-  if (maybe_desc_array_data->should_access_heap()) return true;
-  DescriptorArrayData* desc_array_data =
-      maybe_desc_array_data->AsDescriptorArray();
-  return desc_array_data->serialized_descriptor(descriptor_index);
 }
 
 void MapRef::SerializeBackPointer(NotConcurrentInliningTag tag) {

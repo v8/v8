@@ -2656,12 +2656,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
         JSFunctionOrBoundFunction::kLengthDescriptorIndex);
     const InternalIndex kNameIndex(
         JSFunctionOrBoundFunction::kNameDescriptorIndex);
-    if (!receiver_map.serialized_own_descriptor(kLengthIndex) ||
-        !receiver_map.serialized_own_descriptor(kNameIndex)) {
-      TRACE_BROKER_MISSING(broker(),
-                           "serialized descriptors on map " << receiver_map);
-      return inference.NoChange();
-    }
     ReadOnlyRoots roots(isolate());
     StringRef length_string = MakeRef(broker(), roots.length_string_handle());
     StringRef name_string = MakeRef(broker(), roots.name_string_handle());

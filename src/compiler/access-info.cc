@@ -442,12 +442,6 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   base::Optional<MapRef> field_map;
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
-  if (!broker()->is_concurrent_inlining()) {
-    if (!map.TrySerializeOwnDescriptor(descriptor,
-                                       NotConcurrentInliningTag{broker()})) {
-      return Invalid();
-    }
-  }
 
   Handle<FieldType> descriptors_field_type =
       broker()->CanonicalPersistentHandle(
@@ -1138,23 +1132,11 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-    if (!broker()->is_concurrent_inlining()) {
-      if (!transition_map.TrySerializeOwnDescriptor(
-              number, NotConcurrentInliningTag{broker()})) {
-        return Invalid();
-      }
-    }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
             transition_map, number, details_representation));
   } else if (details_representation.IsDouble()) {
     field_type = type_cache_->kFloat64;
-    if (!broker()->is_concurrent_inlining()) {
-      if (!transition_map.TrySerializeOwnDescriptor(
-              number, NotConcurrentInliningTag{broker()})) {
-        return Invalid();
-      }
-    }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
             transition_map, number, details_representation));
@@ -1166,12 +1148,6 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     if (descriptors_field_type->IsNone()) {
       // Store is not safe if the field type was cleared.
       return Invalid();
-    }
-    if (!broker()->is_concurrent_inlining()) {
-      if (!transition_map.TrySerializeOwnDescriptor(
-              number, NotConcurrentInliningTag{broker()})) {
-        return Invalid();
-      }
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
