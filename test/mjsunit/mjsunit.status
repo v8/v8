@@ -1272,6 +1272,7 @@
   'wasm/tier-up-testing-flag': [SKIP],
   'wasm/tier-down-to-liftoff': [SKIP],
   'wasm/wasm-dynamic-tiering': [SKIP],
+  'wasm/test-partial-serialization': [SKIP],
 }], # arch not in (x64, ia32, arm64, arm)
 
 ##############################################################################
