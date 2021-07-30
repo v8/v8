@@ -3677,6 +3677,16 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_d_register_from_double(frt, frt_val);
       return;
     }
+    case FCPSGN: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      int fra = instr->RAValue();
+      double frb_val = get_double_from_d_register(frb);
+      double fra_val = get_double_from_d_register(fra);
+      double frt_val = std::copysign(fra_val, frb_val);
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
     case FMR: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();

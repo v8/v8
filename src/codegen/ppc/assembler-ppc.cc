@@ -1620,6 +1620,12 @@ void Assembler::fmul(const DoubleRegister frt, const DoubleRegister fra,
        rc);
 }
 
+void Assembler::fcpsgn(const DoubleRegister frt, const DoubleRegister fra,
+                       const DoubleRegister frc, RCBit rc) {
+  emit(EXT4 | FCPSGN | frt.code() * B21 | fra.code() * B16 | frc.code() * B6 |
+       rc);
+}
+
 void Assembler::fdiv(const DoubleRegister frt, const DoubleRegister fra,
                      const DoubleRegister frb, RCBit rc) {
   a_form(EXT4 | FDIV, frt, fra, frb, rc);

@@ -1055,6 +1055,8 @@ class Assembler : public AssemblerBase {
   void fmsub(const DoubleRegister frt, const DoubleRegister fra,
              const DoubleRegister frc, const DoubleRegister frb,
              RCBit rc = LeaveRC);
+  void fcpsgn(const DoubleRegister frt, const DoubleRegister fra,
+              const DoubleRegister frc, RCBit rc = LeaveRC);
 
   // Vector instructions
   void mfvsrd(const Register ra, const Simd128Register r);

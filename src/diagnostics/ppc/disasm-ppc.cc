@@ -1302,6 +1302,10 @@ void Decoder::DecodeExt4(Instruction* instr) {
       Format(instr, "fneg'.   'Dt, 'Db");
       break;
     }
+    case FCPSGN: {
+      Format(instr, "fcpsgn'.   'Dt, 'Da, 'Db");
+      break;
+    }
     case MCRFS: {
       Format(instr, "mcrfs   ?,?");
       break;
