@@ -67,6 +67,9 @@ class ProcessorImpl : public Processor {
   void ToStringImpl(char* out, int* out_length, Digits X, int radix, bool sign,
                     bool use_fast_algorithm);
 
+  void FromString(RWDigits Z, FromStringAccumulator* accumulator);
+  void FromStringClassic(RWDigits Z, FromStringAccumulator* accumulator);
+
   bool should_terminate() { return status_ == Status::kInterrupted; }
 
   // Each unit is supposed to represent approximately one CPU {mul} instruction.

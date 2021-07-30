@@ -15,6 +15,11 @@
 #include "src/heap/local-heap.h"
 
 namespace v8 {
+
+namespace bigint {
+class Processor;
+}
+
 namespace internal {
 
 class Isolate;
@@ -92,6 +97,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   ThreadId thread_id() const { return thread_id_; }
   Address stack_limit() const { return stack_limit_; }
   RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
+  bigint::Processor* bigint_processor() {
+    if (!bigint_processor_) InitializeBigIntProcessor();
+    return bigint_processor_;
+  }
 
   bool is_main_thread() const { return heap_.is_main_thread(); }
 
@@ -106,6 +115,8 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
  private:
   friend class v8::internal::LocalFactory;
 
+  void InitializeBigIntProcessor();
+
   LocalHeap heap_;
 
   // TODO(leszeks): Extract out the fields of the Isolate we want and store
@@ -117,6 +128,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   Address const stack_limit_;
 
   RuntimeCallStats* runtime_call_stats_;
+  bigint::Processor* bigint_processor_{nullptr};
 };
 
 template <base::MutexSharedType kIsShared>
