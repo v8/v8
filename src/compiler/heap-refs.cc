@@ -32,10 +32,6 @@ namespace compiler {
 #define TRACE(broker, x) TRACE_BROKER(broker, x)
 #define TRACE_MISSING(broker, x) TRACE_BROKER_MISSING(broker, x)
 
-#define FORWARD_DECL(Name, ...) class Name##Data;
-HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
-#undef FORWARD_DECL
-
 // There are several kinds of ObjectData values.
 //
 // kSmi: The underlying V8 object is a Smi and the data is an instance of the
@@ -129,12 +125,12 @@ class ObjectData : public ZoneObject {
                                                 HeapObject::cast(*object)));
   }
 
-#define DECLARE_IS(Name, ...) bool Is##Name() const;
+#define DECLARE_IS(Name) bool Is##Name() const;
   HEAP_BROKER_OBJECT_LIST(DECLARE_IS)
 #undef DECLARE_IS
 
-#define DECLARE_AS(Name, ...) Name##Data* As##Name();
-  HEAP_BROKER_OBJECT_LIST(DECLARE_AS)
+#define DECLARE_AS(Name) Name##Data* As##Name();
+  HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DECLARE_AS)
 #undef DECLARE_AS
 
   Handle<Object> object() const { return object_; }
@@ -201,30 +197,6 @@ class PropertyCellData : public HeapObjectData {
   ObjectData* value_ = nullptr;
 
   bool serialized() const { return value_ != nullptr; }
-};
-
-class FunctionTemplateInfoData : public HeapObjectData {
- public:
-  FunctionTemplateInfoData(JSHeapBroker* broker, ObjectData** storage,
-                           Handle<FunctionTemplateInfo> object)
-      : HeapObjectData(broker, storage, object) {
-    // FunctionTemplateInfoData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class CallHandlerInfoData : public HeapObjectData {
- public:
-  CallHandlerInfoData(JSHeapBroker* broker, ObjectData** storage,
-                      Handle<CallHandlerInfo> object)
-      : HeapObjectData(broker, storage, object) {
-    // CallHandlerInfoData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
 };
 
 namespace {
@@ -638,18 +610,6 @@ void JSTypedArrayData::Serialize(JSHeapBroker* broker,
   }
 }
 
-class ArrayBoilerplateDescriptionData : public HeapObjectData {
- public:
-  ArrayBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
-                                  Handle<ArrayBoilerplateDescription> object)
-      : HeapObjectData(broker, storage, object) {
-    // ArrayBoilerplateDescriptionData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
 class JSDataViewData : public JSObjectData {
  public:
   JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
@@ -790,121 +750,6 @@ class JSFunctionData : public JSObjectData {
   int initial_map_instance_size_with_min_slack_;  // Derives from
                                                   // prototype_or_initial_map_.
   ObjectData* function_data_ = nullptr;
-};
-
-class RegExpBoilerplateDescriptionData : public HeapObjectData {
- public:
-  RegExpBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
-                                   Handle<RegExpBoilerplateDescription> object)
-      : HeapObjectData(broker, storage, object) {
-    // RegExpBoilerplateDescription is NeverEverSerialize.
-    // TODO(jgruber): Remove this class once all kNeverSerialized types are
-    // NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class HeapNumberData : public HeapObjectData {
- public:
-  HeapNumberData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<HeapNumber> object,
-                 ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
-      : HeapObjectData(broker, storage, object, kind) {
-    // TODO(jgruber): Remove this class once all kNeverSerialized types are
-    // NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class ContextData : public HeapObjectData {
- public:
-  ContextData(JSHeapBroker* broker, ObjectData** storage,
-              Handle<Context> object)
-      : HeapObjectData(broker, storage, object) {
-    // TODO(v8:7790): Remove this class once all kNeverSerialized types are
-    // NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class NativeContextData : public ContextData {
- public:
-  NativeContextData(JSHeapBroker* broker, ObjectData** storage,
-                    Handle<NativeContext> object)
-      : ContextData(broker, storage, object) {
-    // TODO(v8:7790): Remove this class once all kNeverSerialized types are
-    // NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class NameData : public HeapObjectData {
- public:
-  NameData(JSHeapBroker* broker, ObjectData** storage, Handle<Name> object)
-      : HeapObjectData(broker, storage, object) {
-    // StringData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class StringData : public NameData {
- public:
-  StringData(JSHeapBroker* broker, ObjectData** storage, Handle<String> object)
-      : NameData(broker, storage, object) {
-    // StringData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class SymbolData : public NameData {
- public:
-  SymbolData(JSHeapBroker* broker, ObjectData** storage, Handle<Symbol> object)
-      : NameData(broker, storage, object) {
-    // StringData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class InternalizedStringData : public StringData {
- public:
-  InternalizedStringData(JSHeapBroker* broker, ObjectData** storage,
-                         Handle<InternalizedString> object)
-      : StringData(broker, storage, object) {
-    // InternalizedStringData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class AccessorInfoData : public HeapObjectData {
- public:
-  AccessorInfoData(JSHeapBroker* broker, ObjectData** storage,
-                   Handle<AccessorInfo> object)
-      : HeapObjectData(broker, storage, object) {
-    // AccessorInfoData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class AllocationSiteData : public HeapObjectData {
- public:
-  AllocationSiteData(JSHeapBroker* broker, ObjectData** storage,
-                     Handle<AllocationSite> object)
-      : HeapObjectData(broker, storage, object) {
-    // AllocationSiteData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
 };
 
 class BigIntData : public HeapObjectData {
@@ -1390,41 +1235,6 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
   }
 }
 
-class DescriptorArrayData : public HeapObjectData {
- public:
-  DescriptorArrayData(JSHeapBroker* broker, ObjectData** storage,
-                      Handle<DescriptorArray> object)
-      : HeapObjectData(broker, storage, object) {
-    // DescriptorArrayData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class FeedbackCellData : public HeapObjectData {
- public:
-  FeedbackCellData(JSHeapBroker* broker, ObjectData** storage,
-                   Handle<FeedbackCell> object)
-      : HeapObjectData(broker, storage, object) {
-    // FeedbackCellData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class FeedbackVectorData : public HeapObjectData {
- public:
-  FeedbackVectorData(JSHeapBroker* broker, ObjectData** storage,
-                     Handle<FeedbackVector> object)
-      : HeapObjectData(broker, storage, object) {
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
 class FixedArrayBaseData : public HeapObjectData {
  public:
   FixedArrayBaseData(JSHeapBroker* broker, ObjectData** storage,
@@ -1443,20 +1253,6 @@ class FixedArrayData : public FixedArrayBaseData {
   FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
                  Handle<FixedArray> object, ObjectDataKind kind)
       : FixedArrayBaseData(broker, storage, object, kind) {}
-};
-
-class ObjectBoilerplateDescriptionData : public FixedArrayData {
- public:
-  ObjectBoilerplateDescriptionData(
-      JSHeapBroker* broker, ObjectData** storage,
-      Handle<ObjectBoilerplateDescription> object,
-      ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject)
-      : FixedArrayData(broker, storage, object, kind) {
-    // ObjectBoilerplateDescriptionData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
 };
 
 // Only used in JSNativeContextSpecialization.
@@ -1516,32 +1312,6 @@ JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
       own_constant_elements_(broker->zone()),
       own_properties_(broker->zone()) {}
 
-class FixedDoubleArrayData : public FixedArrayBaseData {
- public:
-  FixedDoubleArrayData(
-      JSHeapBroker* broker, ObjectData** storage,
-      Handle<FixedDoubleArray> object,
-      ObjectDataKind kind = ObjectDataKind::kNeverSerializedHeapObject)
-      : FixedArrayBaseData(broker, storage, object, kind) {
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class BytecodeArrayData : public FixedArrayBaseData {
- public:
-  BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
-                    Handle<BytecodeArray> object)
-      : FixedArrayBaseData(broker, storage, object,
-                           ObjectDataKind::kNeverSerializedHeapObject) {
-    // BytecodeArrayData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
 class JSArrayData : public JSObjectData {
  public:
   JSArrayData(JSHeapBroker* broker, ObjectData** storage,
@@ -1600,51 +1370,6 @@ ObjectData* JSArrayData::GetOwnElement(JSHeapBroker* broker, uint32_t index,
   own_elements_.push_back({index, result});
   return result;
 }
-
-class ScopeInfoData : public HeapObjectData {
- public:
-  ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
-                Handle<ScopeInfo> object)
-      : HeapObjectData(broker, storage, object) {
-    // TODO(v8:7790): Remove this class once all kNeverSerialized types are
-    // NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class SharedFunctionInfoData : public HeapObjectData {
- public:
-  SharedFunctionInfoData(JSHeapBroker* broker, ObjectData** storage,
-                         Handle<SharedFunctionInfo> object)
-      : HeapObjectData(broker, storage, object) {
-    // TODO(v8:7790): Remove this class once all kNeverSerialized types are
-    // NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class SourceTextModuleData : public HeapObjectData {
- public:
-  SourceTextModuleData(JSHeapBroker* broker, ObjectData** storage,
-                       Handle<SourceTextModule> object)
-      : HeapObjectData(broker, storage, object) {
-    // SourceTextModuleData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class CellData : public HeapObjectData {
- public:
-  CellData(JSHeapBroker* broker, ObjectData** storage, Handle<Cell> object)
-      : HeapObjectData(broker, storage, object) {
-    // CellData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
 
 class JSGlobalObjectData : public JSObjectData {
  public:
@@ -1729,40 +1454,7 @@ ObjectData* JSGlobalObjectData::GetPropertyCell(JSHeapBroker* broker,
   return result;
 }
 
-class TemplateObjectDescriptionData : public HeapObjectData {
- public:
-  TemplateObjectDescriptionData(JSHeapBroker* broker, ObjectData** storage,
-                                Handle<TemplateObjectDescription> object)
-      : HeapObjectData(broker, storage, object) {
-    // TemplateObjectDescriptionData is NeverEverSerialize.
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class CodeData : public HeapObjectData {
- public:
-  CodeData(JSHeapBroker* broker, ObjectData** storage, Handle<Code> object)
-      : HeapObjectData(broker, storage, object) {
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-class CodeDataContainerData : public HeapObjectData {
- public:
-  CodeDataContainerData(JSHeapBroker* broker, ObjectData** storage,
-                        Handle<CodeDataContainer> object)
-      : HeapObjectData(broker, storage, object) {
-    // TODO(solanes, v8:7790): Remove this class once all kNeverSerialized types
-    // are NeverEverSerialize.
-    UNREACHABLE();
-  }
-};
-
-#define DEFINE_IS(Name, ...)                                            \
+#define DEFINE_IS(Name)                                                 \
   bool ObjectData::Is##Name() const {                                   \
     if (should_access_heap()) {                                         \
       return object()->Is##Name();                                      \
@@ -1775,14 +1467,14 @@ class CodeDataContainerData : public HeapObjectData {
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS
 
-#define DEFINE_AS(Name, Kind)                        \
+#define DEFINE_AS(Name)                              \
   Name##Data* ObjectData::As##Name() {               \
     CHECK(Is##Name());                               \
     CHECK(kind_ == kSerializedHeapObject ||          \
           kind_ == kBackgroundSerializedHeapObject); \
     return static_cast<Name##Data*>(this);           \
   }
-HEAP_BROKER_OBJECT_LIST(DEFINE_AS)
+HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
 #undef DEFINE_AS
 
 ObjectData* JSObjectData::GetInobjectField(int property_index) const {
@@ -2143,7 +1835,7 @@ namespace {
 
 template <RefSerializationKind Kind, class DataT, class ObjectT>
 struct CreateDataFunctor {
-  bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
+  void operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
                   RefsMap::Entry** entry_out, ObjectData** object_data_out) {
     USE(broker, refs, object, entry_out, object_data_out);
     UNREACHABLE();
@@ -2153,83 +1845,25 @@ struct CreateDataFunctor {
 template <class DataT, class ObjectT>
 struct CreateDataFunctor<RefSerializationKind::kBackgroundSerialized, DataT,
                          ObjectT> {
-  bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
+  void operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
                   RefsMap::Entry** entry_out, ObjectData** object_data_out) {
     RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
     *object_data_out = broker->zone()->New<DataT>(
         broker, &entry->value, Handle<ObjectT>::cast(object),
         kBackgroundSerializedHeapObject);
     *entry_out = entry;
-    return true;
   }
 };
 
-template <class T>
-bool NeverEverSerialize() {
-  return false;
-}
-
-// This list is to help with the transition of kNeverSerialize types (which are
-// currently still serialized if concurrent inlining is disabled) to actually
-// be never serialized. It should be removed once all types have been migrated
-// here.
-#define NEVER_EVER_SERIALIZE(Type)  \
-  template <>                       \
-  bool NeverEverSerialize<Type>() { \
-    return true;                    \
-  }
-
-NEVER_EVER_SERIALIZE(AccessorInfo)
-NEVER_EVER_SERIALIZE(AllocationSite)
-NEVER_EVER_SERIALIZE(ArrayBoilerplateDescription)
-NEVER_EVER_SERIALIZE(BytecodeArray)
-NEVER_EVER_SERIALIZE(Cell)
-NEVER_EVER_SERIALIZE(CallHandlerInfo)
-NEVER_EVER_SERIALIZE(Code)
-NEVER_EVER_SERIALIZE(CodeDataContainer)
-NEVER_EVER_SERIALIZE(Context)
-NEVER_EVER_SERIALIZE(DescriptorArray)
-NEVER_EVER_SERIALIZE(FeedbackCell)
-NEVER_EVER_SERIALIZE(FeedbackVector)
-NEVER_EVER_SERIALIZE(FixedDoubleArray)
-NEVER_EVER_SERIALIZE(FunctionTemplateInfo)
-NEVER_EVER_SERIALIZE(HeapNumber)
-NEVER_EVER_SERIALIZE(InternalizedString)
-NEVER_EVER_SERIALIZE(Name)
-NEVER_EVER_SERIALIZE(NativeContext)
-NEVER_EVER_SERIALIZE(ObjectBoilerplateDescription)
-NEVER_EVER_SERIALIZE(RegExpBoilerplateDescription)
-NEVER_EVER_SERIALIZE(SharedFunctionInfo)
-NEVER_EVER_SERIALIZE(ScopeInfo)
-NEVER_EVER_SERIALIZE(SourceTextModule)
-NEVER_EVER_SERIALIZE(String)
-NEVER_EVER_SERIALIZE(Symbol)
-NEVER_EVER_SERIALIZE(TemplateObjectDescription)
-
-#undef NEVER_EVER_SERIALIZE
-
-template <class DataT, class ObjectT>
-struct CreateDataFunctor<RefSerializationKind::kNeverSerialized, DataT,
+template <class ObjectT>
+struct CreateDataFunctor<RefSerializationKind::kNeverSerialized, ObjectData,
                          ObjectT> {
-  bool operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
+  void operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
                   RefsMap::Entry** entry_out, ObjectData** object_data_out) {
-    // TODO(solanes, v8:10866): Remove the `(mode() == kSerializing)` case
-    // below when all classes skip serialization. Same for similar spots if we
-    // end up keeping them.
-    if (broker->is_concurrent_inlining() || NeverEverSerialize<ObjectT>()) {
-      RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
-      *object_data_out = broker->zone()->New<ObjectData>(
-          broker, &entry->value, object, kNeverSerializedHeapObject);
-      *entry_out = entry;
-      return true;
-    } else if (broker->mode() == JSHeapBroker::kSerializing) {
-      RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
-      *object_data_out = broker->zone()->New<DataT>(
-          broker, &entry->value, Handle<ObjectT>::cast(object));
-      *entry_out = entry;
-      return true;
-    }
-    return false;
+    RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
+    *object_data_out = broker->zone()->New<ObjectData>(
+        broker, &entry->value, object, kNeverSerializedHeapObject);
+    *entry_out = entry;
   }
 };
 
@@ -2296,14 +1930,13 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
                                    kUnserializedReadOnlyHeapObject);
   }
 
-#define CREATE_DATA(Name, Kind)                                         \
-  if (object->Is##Name()) {                                             \
-    CreateDataFunctor<Kind, Name##Data, Name> f;                        \
-    if (!f(this, refs_, object, &entry, &object_data)) {                \
-      CHECK_WITH_MSG(!crash_on_error, #Name "Ref construction failed"); \
-      return nullptr;                                                   \
-    }                                                                   \
-    /* NOLINTNEXTLINE(readability/braces) */                            \
+#define CREATE_DATA(Name)                                       \
+  if (object->Is##Name()) {                                     \
+    CreateDataFunctor<ref_traits<Name>::ref_serialization_kind, \
+                      ref_traits<Name>::data_type, Name>        \
+        f;                                                      \
+    f(this, refs_, object, &entry, &object_data);               \
+    /* NOLINTNEXTLINE(readability/braces) */                    \
   } else
   HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA
@@ -2316,7 +1949,7 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
   return object_data;
 }
 
-#define DEFINE_IS_AND_AS(Name, ...)                               \
+#define DEFINE_IS_AND_AS(Name)                                    \
   bool ObjectRef::Is##Name() const { return data()->Is##Name(); } \
   Name##Ref ObjectRef::As##Name() const {                         \
     DCHECK(Is##Name());                                           \
@@ -3556,7 +3189,7 @@ Handle<Object> ObjectRef::object() const {
 }
 
 #ifdef DEBUG
-#define DEF_OBJECT_GETTER(T, ...)                                            \
+#define DEF_OBJECT_GETTER(T)                                                 \
   Handle<T> T##Ref::object() const {                                         \
     if (broker()->mode() == JSHeapBroker::kSerialized &&                     \
         data_->used_status == ObjectData::Usage::kUnused) {                  \
@@ -3565,7 +3198,7 @@ Handle<Object> ObjectRef::object() const {
     return Handle<T>(reinterpret_cast<Address*>(data_->object().address())); \
   }
 #else
-#define DEF_OBJECT_GETTER(T, ...)                                            \
+#define DEF_OBJECT_GETTER(T)                                                 \
   Handle<T> T##Ref::object() const {                                         \
     return Handle<T>(reinterpret_cast<Address*>(data_->object().address())); \
   }
