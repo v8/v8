@@ -49,7 +49,7 @@ vars = {
   'reclient_version': 're_client_version:0.33.0.3e223d5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:c0a2d23c21e87f27f5af3e5dc2a99f2ef3480b9e',
+  'gn_version': 'git_revision:eea3906f0e2a8d3622080127d2005ff214d51383',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:db421da12bad8e57f97ee45b24147e34ec882007',
@@ -92,7 +92,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'ad56859ef8c85cc09a3d8e95dcedadb5109a0af8',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fbcc5ace848072701fe89e9798378248403357a0',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3ab54c6c08abe9f12700f59cbdc32355e77534ae',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '37dc929ecb351687006a61744b116cda601753d7',
   'buildtools/clang_format/script':
@@ -155,7 +155,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'lL9eGDPnjhLmu6ErFz6_fnCALFjGkGsl3IgkWQit-ugC'
+              'version': 'pmyID7CW-4NsGYefh7NnE4xj3AbHD5lu9r5GLO3rzMYC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -283,7 +283,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'dfbc590f5855bc2765256a743cad0abc56330a30',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'f7a5fc938f402266a46d529d5b1559a75a18ccbb',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'd0097bccbaab2f439b83ba93c6634ba91ca882fb',
   'tools/clang/dsymutil': {
