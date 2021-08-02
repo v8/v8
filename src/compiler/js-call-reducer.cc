@@ -5949,11 +5949,12 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   Node* etrue = effect;
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   {
-    // We know that the {index} is range of the {length} now.
+    // This extra check exists to refine the type of {index} but also to break
+    // an exploitation technique that abuses typer mismatches.
     index = etrue = graph()->NewNode(
-        common()->TypeGuard(
-            Type::Range(0.0, length_access.type.Max() - 1.0, graph()->zone())),
-        index, etrue, if_true);
+        simplified()->CheckBounds(p.feedback(),
+                                  CheckBoundsFlag::kAbortOnOutOfBounds),
+        index, length, etrue, if_true);
 
     done_true = jsgraph()->FalseConstant();
     if (iteration_kind == IterationKind::kKeys) {
