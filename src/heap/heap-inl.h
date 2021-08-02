@@ -102,7 +102,7 @@ base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
     code_flush_mode.Add(CodeFlushMode::kFlushBaselineCode);
   }
 
-  if (FLAG_stress_flush_bytecode) {
+  if (FLAG_stress_flush_code) {
     code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
   }
 

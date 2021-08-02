@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --opt --no-always-opt
-// Flags: --no-stress-flush-bytecode
+// Flags: --no-stress-flush-code
 // Flags: --block-concurrent-recompilation
 // Flags: --no-turbo-concurrent-get-property-access-info
 //
