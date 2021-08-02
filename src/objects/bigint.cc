@@ -1560,7 +1560,7 @@ MaybeHandle<BigInt> BigInt::Allocate(IsolateT* isolate,
     Terminate(isolate);
     return {};
   }
-  result->set_sign(negative);
+  if (digits > 0) result->set_sign(negative);
   return MutableBigInt::MakeImmutable(result);
 }
 template MaybeHandle<BigInt> BigInt::Allocate(Isolate*,
