@@ -1076,7 +1076,6 @@ int InstanceSizeWithMinSlack(JSHeapBroker* broker, MapRef map) {
 // IMPORTANT: Keep this sync'd with JSFunctionData::IsConsistentWithHeapState.
 void JSFunctionData::Cache(JSHeapBroker* broker) {
   CHECK(!serialized_);
-  CHECK(!broker->ObjectMayBeUninitialized(HeapObject::cast(*object())));
 
   TraceScope tracer(broker, this, "JSFunctionData::Cache");
   Handle<JSFunction> function = Handle<JSFunction>::cast(object());
