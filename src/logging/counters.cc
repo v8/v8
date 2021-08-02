@@ -156,7 +156,7 @@ Counters::Counters(Isolate* isolate)
   } kHistogramTimers[] = {
 #define HT(name, caption, max, res) \
   {&Counters::name##_, #caption, max, HistogramTimerResolution::res},
-      HISTOGRAM_TIMER_LIST(HT)
+      HISTOGRAM_TIMER_LIST(HT) HISTOGRAM_TIMER_LIST_SLOW(HT)
 #undef HT
   };
   for (const auto& timer : kHistogramTimers) {
@@ -298,6 +298,10 @@ void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
 
 #define HT(name, caption, max, res) name##_.Reset();
   HISTOGRAM_TIMER_LIST(HT)
+#undef HT
+
+#define HT(name, caption, max, res) name##_.Reset(FLAG_slow_histograms);
+  HISTOGRAM_TIMER_LIST_SLOW(HT)
 #undef HT
 
 #define HT(name, caption, max, res) name##_.Reset();
