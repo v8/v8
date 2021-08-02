@@ -3000,6 +3000,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
 #endif
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
+      detailed_source_positions_for_profiling_(FLAG_detailed_line_info),
       persistent_handles_list_(new PersistentHandlesList()),
       jitless_(FLAG_jitless),
 #if V8_SFI_HAS_UNIQUE_ID
@@ -3852,6 +3853,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
   }
 
+  initialized_ = true;
+
   return true;
 }
 
@@ -4012,10 +4015,14 @@ bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {
 }
 
 bool Isolate::NeedsSourcePositionsForProfiling() const {
-  return FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
-         FLAG_turbo_profiling || FLAG_perf_prof || is_profiling() ||
-         debug_->is_active() || logger_->is_logging() || FLAG_log_maps ||
-         FLAG_log_ic;
+  return
+      // Static conditions.
+      FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
+      FLAG_turbo_profiling || FLAG_perf_prof || FLAG_log_maps || FLAG_log_ic ||
+      // Dynamic conditions; changing any of these conditions triggers source
+      // position collection for the entire heap
+      // (CollectSourcePositionsForAllBytecodeArrays).
+      is_profiling() || debug_->is_active() || logger_->is_logging();
 }
 
 void Isolate::SetFeedbackVectorsForProfilingTools(Object value) {
@@ -4809,6 +4816,8 @@ void Isolate::SetIdle(bool is_idle) {
 }
 
 void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
+  if (!initialized_) return;
+
   HandleScope scope(this);
   std::vector<Handle<SharedFunctionInfo>> sfis;
   {

@@ -2117,6 +2117,9 @@ FILE* Logger::TearDownAndGetLogFile() {
 
 void Logger::UpdateIsLogging(bool value) {
   base::MutexGuard guard(log_->mutex());
+  if (value) {
+    isolate_->CollectSourcePositionsForAllBytecodeArrays();
+  }
   // Relaxed atomic to avoid locking the mutex for the most common case: when
   // logging is disabled.
   is_logging_.store(value, std::memory_order_relaxed);

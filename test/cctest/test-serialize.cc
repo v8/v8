@@ -1626,7 +1626,7 @@ TEST(CodeSerializerWithProfiler) {
 
   CHECK(!orig->GetBytecodeArray(isolate).HasSourcePositionTable());
 
-  isolate->set_is_profiling(true);
+  isolate->SetIsProfiling(true);
 
   // This does not assert that no compilation can happen as source position
   // collection could trigger it.

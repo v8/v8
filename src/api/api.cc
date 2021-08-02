@@ -9637,7 +9637,7 @@ CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
 
 void CpuProfiler::UseDetailedSourcePositionsForProfiling(Isolate* isolate) {
   reinterpret_cast<i::Isolate*>(isolate)
-      ->set_detailed_source_positions_for_profiling(true);
+      ->SetDetailedSourcePositionsForProfiling(true);
 }
 
 uintptr_t CodeEvent::GetCodeStartAddress() {

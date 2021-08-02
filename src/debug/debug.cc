@@ -2299,6 +2299,7 @@ void Debug::UpdateState() {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
     isolate_->compilation_cache()->DisableScriptAndEval();
+    isolate_->CollectSourcePositionsForAllBytecodeArrays();
     is_active = true;
     feature_tracker()->Track(DebugFeatureTracker::kActive);
   } else {
