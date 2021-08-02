@@ -258,6 +258,7 @@ class Logger : public CodeEventListener {
 
   void SharedLibraryEvent(const std::string& library_path, uintptr_t start,
                           uintptr_t end, intptr_t aslr_slide);
+  void SharedLibraryEnd();
 
   void CurrentTimeEvent();
 

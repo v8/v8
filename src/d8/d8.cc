@@ -2841,19 +2841,8 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
 Local<ObjectTemplate> Shell::CreateOSTemplate(Isolate* isolate) {
   Local<ObjectTemplate> os_template = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_template);
-#if defined(V8_TARGET_OS_LINUX)
-  const char os_name[] = "linux";
-#elif defined(V8_TARGET_OS_WIN)
-  const char os_name[] = "windows";
-#elif defined(V8_TARGET_OS_MACOSX)
-  const char os_name[] = "macos";
-#elif defined(V8_TARGET_OS_ANDROID)
-  const char os_name[] = "android";
-#else
-  const char os_name[] = "unknown";
-#endif
   os_template->Set(isolate, "name",
-                   v8::String::NewFromUtf8Literal(isolate, os_name),
+                   v8::String::NewFromUtf8Literal(isolate, V8_TARGET_OS_STRING),
                    PropertyAttribute::ReadOnly);
   os_template->Set(
       isolate, "d8Path",

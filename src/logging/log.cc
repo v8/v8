@@ -974,6 +974,7 @@ void Profiler::Engage() {
     LOG(isolate_, SharedLibraryEvent(address.library_path, address.start,
                                      address.end, address.aslr_slide));
   }
+  LOG(isolate_, SharedLibraryEnd());
 
   // Start thread processing the profiler buffer.
   base::Relaxed_Store(&running_, 1);
@@ -983,7 +984,7 @@ void Profiler::Engage() {
   Logger* logger = isolate_->logger();
   logger->ticker_->SetProfiler(this);
 
-  logger->ProfilerBeginEvent();
+  LOG(isolate_, ProfilerBeginEvent());
 }
 
 void Profiler::Disengage() {
@@ -1090,6 +1091,13 @@ void Logger::SharedLibraryEvent(const std::string& library_path,
   msg << "shared-library" << kNext << library_path.c_str() << kNext
       << reinterpret_cast<void*>(start) << kNext << reinterpret_cast<void*>(end)
       << kNext << aslr_slide;
+  msg.WriteToLogFile();
+}
+
+void Logger::SharedLibraryEnd() {
+  if (!FLAG_prof_cpp) return;
+  MSG_BUILDER();
+  msg << "shared-library-end";
   msg.WriteToLogFile();
 }
 
