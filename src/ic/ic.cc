@@ -2434,28 +2434,30 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 }
 
 namespace {
-void StoreOwnElement(Isolate* isolate, Handle<JSArray> array,
-                     Handle<Object> index, Handle<Object> value) {
+Maybe<bool> StoreOwnElement(Isolate* isolate, Handle<JSArray> array,
+                            Handle<Object> index, Handle<Object> value) {
   DCHECK(index->IsNumber());
   PropertyKey key(isolate, index);
   LookupIterator it(isolate, array, key, LookupIterator::OWN);
 
-  CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(
-            &it, value, NONE, Just(ShouldThrow::kThrowOnError))
-            .FromJust());
+  MAYBE_RETURN(JSObject::DefineOwnPropertyIgnoreAttributes(
+                   &it, value, NONE, Just(ShouldThrow::kThrowOnError)),
+               Nothing<bool>());
+  return Just(true);
 }
 }  // namespace
 
-void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
-                                  Handle<Object> value) {
+MaybeHandle<Object> StoreInArrayLiteralIC::Store(Handle<JSArray> array,
+                                                 Handle<Object> index,
+                                                 Handle<Object> value) {
   DCHECK(!array->map().IsMapInArrayPrototypeChain(isolate()));
   DCHECK(index->IsNumber());
 
   if (!FLAG_use_ic || state() == NO_FEEDBACK ||
       MigrateDeprecated(isolate(), array)) {
-    StoreOwnElement(isolate(), array, index, value);
+    MAYBE_RETURN_NULL(StoreOwnElement(isolate(), array, index, value));
     TraceIC("StoreInArrayLiteralIC", index);
-    return;
+    return value;
   }
 
   // TODO(neis): Convert HeapNumber to Smi if possible?
@@ -2468,7 +2470,7 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
   }
 
   Handle<Map> old_array_map(array->map(), isolate());
-  StoreOwnElement(isolate(), array, index, value);
+  MAYBE_RETURN_NULL(StoreOwnElement(isolate(), array, index, value));
 
   if (index->IsSmi()) {
     DCHECK(!old_array_map->is_abandoned_prototype_map());
@@ -2482,6 +2484,7 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
     ConfigureVectorState(MEGAMORPHIC, index);
   }
   TraceIC("StoreInArrayLiteralIC", index);
+  return value;
 }
 
 // ----------------------------------------------------------------------------
@@ -2788,8 +2791,8 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
     DCHECK(key->IsNumber());
     StoreInArrayLiteralIC ic(isolate, vector, vector_slot);
     ic.UpdateState(receiver, key);
-    ic.Store(Handle<JSArray>::cast(receiver), key, value);
-    return *value;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, ic.Store(Handle<JSArray>::cast(receiver), key, value));
   }
 }
 
@@ -2811,8 +2814,8 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {
   DCHECK(key->IsNumber());
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
   StoreInArrayLiteralIC ic(isolate, vector, vector_slot);
-  ic.Store(Handle<JSArray>::cast(receiver), key, value);
-  return *value;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, ic.Store(Handle<JSArray>::cast(receiver), key, value));
 }
 
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
