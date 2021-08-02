@@ -86,6 +86,7 @@
   # https://crbug.com/v8/7777
   'cpu-profiler/coverage': [SKIP],
   'cpu-profiler/coverage-block': [SKIP],
+  'regress/regress-crbug-1233401': [SKIP],
 }], # variant == jitless
 
 ##############################################################################
