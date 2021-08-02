@@ -114,7 +114,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
   void AllocatedObjectSizeDecreased(size_t) final;
-  void ResetAllocatedObjectSize(size_t) final;
+  void ResetAllocatedObjectSize(size_t) final {}
 
   MetricRecorderAdapter* GetMetricRecorder() const;
 
