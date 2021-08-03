@@ -46,6 +46,8 @@ from testrunner.outproc import test262
 FEATURE_FLAGS = {
   'Intl.DateTimeFormat-dayPeriod': '--harmony-intl-dateformat-day-period',
   'Intl.Locale-info': '--harmony_intl_locale_info',
+  'Intl.DateTimeFormat-extend-timezonename': '--harmony_intl_more_timezone',
+  'Intl.DisplayNames-v2': '--harmony_intl_displaynames_v2',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
   'WeakRef': '--harmony-weak-refs-with-cleanup-some',
@@ -59,6 +61,7 @@ FEATURE_FLAGS = {
   'Object.hasOwn': '--harmony-object-has-own',
   'class-static-block': '--harmony-class-static-blocks',
   'resizable-arraybuffer': '--harmony-rab-gsab',
+  'array-find-from-last': '--harmony_array_find_last',
 }
 
 SKIPPED_FEATURES = set([])
