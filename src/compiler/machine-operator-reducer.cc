@@ -1697,11 +1697,21 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
 namespace {
 
 // Represents an operation of the form `(source & mask) == masked_value`.
+// where each bit set in masked_value also has to be set in mask.
 struct BitfieldCheck {
-  Node* source;
-  uint32_t mask;
-  uint32_t masked_value;
-  bool truncate_from_64_bit;
+  Node* const source;
+  uint32_t const mask;
+  uint32_t const masked_value;
+  bool const truncate_from_64_bit;
+
+  BitfieldCheck(Node* source, uint32_t mask, uint32_t masked_value,
+                bool truncate_from_64_bit)
+      : source(source),
+        mask(mask),
+        masked_value(masked_value),
+        truncate_from_64_bit(truncate_from_64_bit) {
+    CHECK_EQ(masked_value & ~mask, 0);
+  }
 
   static base::Optional<BitfieldCheck> Detect(Node* node) {
     // There are two patterns to check for here:
@@ -1716,14 +1726,16 @@ struct BitfieldCheck {
       if (eq.left().IsWord32And()) {
         Uint32BinopMatcher mand(eq.left().node());
         if (mand.right().HasResolvedValue() && eq.right().HasResolvedValue()) {
-          BitfieldCheck result{mand.left().node(), mand.right().ResolvedValue(),
-                               eq.right().ResolvedValue(), false};
+          uint32_t mask = mand.right().ResolvedValue();
+          uint32_t masked_value = eq.right().ResolvedValue();
+          if ((masked_value & ~mask) != 0) return {};
           if (mand.left().IsTruncateInt64ToInt32()) {
-            result.truncate_from_64_bit = true;
-            result.source =
-                NodeProperties::GetValueInput(mand.left().node(), 0);
+            return BitfieldCheck(
+                NodeProperties::GetValueInput(mand.left().node(), 0), mask,
+                masked_value, true);
+          } else {
+            return BitfieldCheck(mand.left().node(), mask, masked_value, false);
           }
-          return result;
         }
       }
     } else {
