@@ -1916,15 +1916,18 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
     }
   } else if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(j.rmode())) {
     BlockGrowBufferScope block_growbuffer(this);
+    int offset = pc_offset();
+    Address address = j.immediate();
     saved_handles_for_raw_object_ptr_.push_back(
-        std::make_pair(pc_offset(), j.immediate()));
-    Handle<HeapObject> handle(reinterpret_cast<Address*>(j.immediate()));
-    int64_t immediate = handle->ptr();
+        std::make_pair(offset, address));
+    Handle<HeapObject> object(reinterpret_cast<Address*>(address));
+    int64_t immediate = object->ptr();
     RecordRelocInfo(j.rmode(), immediate);
     lui(rd, (immediate >> 32) & kImm16Mask);
     ori(rd, rd, (immediate >> 16) & kImm16Mask);
     dsll(rd, rd, 16);
     ori(rd, rd, immediate & kImm16Mask);
+    DCHECK(EmbeddedObjectMatches(offset, object));
   } else if (MustUseReg(j.rmode())) {
     int64_t immediate;
     if (j.IsHeapObjectRequest()) {
