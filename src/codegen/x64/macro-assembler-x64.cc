@@ -3012,23 +3012,22 @@ Operand MacroAssembler::StackLimitAsOperand(StackLimitKind kind) {
 }
 
 void MacroAssembler::StackOverflowCheck(
-    Register num_args, Register scratch, Label* stack_overflow,
+    Register num_args, Label* stack_overflow,
     Label::Distance stack_overflow_distance) {
   ASM_CODE_COMMENT(this);
-  DCHECK_NE(num_args, scratch);
+  DCHECK_NE(num_args, kScratchRegister);
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  movq(kScratchRegister, StackLimitAsOperand(StackLimitKind::kRealStackLimit));
-  movq(scratch, rsp);
-  // Make scratch the space we have left. The stack might already be overflowed
-  // here which will cause scratch to become negative.
-  subq(scratch, kScratchRegister);
+  movq(kScratchRegister, rsp);
+  // Make kScratchRegister the space we have left. The stack might already be
+  // overflowed here which will cause kScratchRegister to become negative.
+  subq(kScratchRegister, StackLimitAsOperand(StackLimitKind::kRealStackLimit));
   // TODO(victorgomes): Use ia32 approach with leaq, since it requires less
   // instructions.
-  sarq(scratch, Immediate(kSystemPointerSizeLog2));
+  sarq(kScratchRegister, Immediate(kSystemPointerSizeLog2));
   // Check if the arguments will overflow the stack.
-  cmpq(scratch, num_args);
+  cmpq(kScratchRegister, num_args);
   // Signed comparison.
   // TODO(victorgomes):  Save some bytes in the builtins that use stack checks
   // by jumping to a builtin that throws the exception.
@@ -3055,7 +3054,7 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     j(less_equal, &regular_invoke, Label::kFar);
 
     Label stack_overflow;
-    StackOverflowCheck(expected_parameter_count, rcx, &stack_overflow);
+    StackOverflowCheck(expected_parameter_count, &stack_overflow);
 
     // Underapplication. Move the arguments already in the stack, including the
     // receiver and the return address.

@@ -968,7 +968,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Stack limit utilities
   Operand StackLimitAsOperand(StackLimitKind kind);
   void StackOverflowCheck(
-      Register num_args, Register scratch, Label* stack_overflow,
+      Register num_args, Label* stack_overflow,
       Label::Distance stack_overflow_distance = Label::kFar);
 
   // ---------------------------------------------------------------------------
