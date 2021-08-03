@@ -1201,8 +1201,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     }
   }
 
-  bool formatAccessorsAsProperties =
-      clientFor(context)->formatAccessorsAsProperties(object);
   auto iterator = v8::debug::PropertyIterator::Create(context, object);
   if (!iterator) {
     CHECK(tryCatch.HasCaught());
@@ -1282,8 +1280,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
             setterMirror = ValueMirror::create(context, descriptor.set);
           }
           isAccessorProperty = getterMirror || setterMirror;
-          if (formatAccessorsAsProperties && name != "__proto__" &&
-              !getterFunction.IsEmpty() &&
+          if (name != "__proto__" && !getterFunction.IsEmpty() &&
               getterFunction->ScriptId() == v8::UnboundScript::kNoScriptId) {
             v8::TryCatch tryCatch(isolate);
             v8::Local<v8::Value> value;
