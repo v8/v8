@@ -15,7 +15,7 @@ function assertWasmThrows(instance, runtime_id, values, code) {
       eval(code);
     }
   } catch (e) {
-    assertInstanceof(e, WebAssembly.RuntimeError);
+    assertInstanceof(e, WebAssembly.Exception);
     var e_runtime_id = %GetWasmExceptionTagId(e, instance);
     assertTrue(Number.isInteger(e_runtime_id));
     assertEquals(e_runtime_id, runtime_id);

@@ -21,6 +21,7 @@
 #include "src/heap/factory.h"
 #include "src/init/v8.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/templates.h"
@@ -184,6 +185,7 @@ GET_FIRST_ARGUMENT_AS(Module)
 GET_FIRST_ARGUMENT_AS(Memory)
 GET_FIRST_ARGUMENT_AS(Table)
 GET_FIRST_ARGUMENT_AS(Global)
+GET_FIRST_ARGUMENT_AS(Tag)
 
 #undef GET_FIRST_ARGUMENT_AS
 
@@ -1770,6 +1772,7 @@ constexpr const char* kName_WasmMemoryObject = "WebAssembly.Memory";
 constexpr const char* kName_WasmInstanceObject = "WebAssembly.Instance";
 constexpr const char* kName_WasmTableObject = "WebAssembly.Table";
 constexpr const char* kName_WasmTagObject = "WebAssembly.Tag";
+constexpr const char* kName_WasmExceptionPackage = "WebAssembly.Exception";
 
 #define EXTRACT_THIS(var, WasmType)                                  \
   i::Handle<i::WasmType> var;                                        \
@@ -2020,6 +2023,141 @@ void WebAssemblyTagType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   constexpr bool kForException = true;
   auto type = i::wasm::GetTypeForFunction(i_isolate, &sig, kForException);
   args.GetReturnValue().Set(Utils::ToLocal(type));
+}
+
+void WebAssemblyExceptionGetArg(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Exception.getArg()");
+
+  EXTRACT_THIS(exception, WasmExceptionPackage);
+  if (thrower.error()) return;
+
+  i::MaybeHandle<i::WasmTagObject> maybe_tag =
+      GetFirstArgumentAsTag(args, &thrower);
+  if (thrower.error()) return;
+  auto tag = maybe_tag.ToHandleChecked();
+  Local<Context> context = isolate->GetCurrentContext();
+  uint32_t index;
+  if (!EnforceUint32("Index", args[1], context, &thrower, &index)) {
+    return;
+  }
+  auto maybe_values =
+      i::WasmExceptionPackage::GetExceptionValues(i_isolate, exception);
+  if (maybe_values->IsUndefined()) {
+    thrower.TypeError("Expected a WebAssembly.Exception object");
+    return;
+  }
+  auto values = i::Handle<i::FixedArray>::cast(maybe_values);
+  auto signature = tag->serialized_signature();
+  if (index >= static_cast<uint32_t>(signature.length())) {
+    thrower.RangeError("Index out of range");
+    return;
+  }
+  // First, find the index in the values array.
+  uint32_t decode_index = 0;
+  // Since the bounds check above passed, the cast to int is safe.
+  for (int i = 0; i < static_cast<int>(index); ++i) {
+    switch (signature.get(i).kind()) {
+      case i::wasm::kI32:
+      case i::wasm::kF32:
+        decode_index += 2;
+        break;
+      case i::wasm::kI64:
+      case i::wasm::kF64:
+        decode_index += 4;
+        break;
+      case i::wasm::kRef:
+      case i::wasm::kOptRef:
+        switch (signature.get(i).heap_representation()) {
+          case i::wasm::HeapType::kExtern:
+          case i::wasm::HeapType::kFunc:
+          case i::wasm::HeapType::kAny:
+          case i::wasm::HeapType::kEq:
+          case i::wasm::HeapType::kI31:
+          case i::wasm::HeapType::kData:
+            decode_index++;
+            break;
+          case i::wasm::HeapType::kBottom:
+            UNREACHABLE();
+          default:
+            // TODO(7748): Add support for custom struct/array types.
+            UNIMPLEMENTED();
+        }
+        break;
+      case i::wasm::kRtt:
+      case i::wasm::kRttWithDepth:
+      case i::wasm::kI8:
+      case i::wasm::kI16:
+      case i::wasm::kVoid:
+      case i::wasm::kBottom:
+      case i::wasm::kS128:
+        UNREACHABLE();
+    }
+  }
+  // Decode the value at {decode_index}.
+  Local<Value> result;
+  switch (signature.get(index).kind()) {
+    case i::wasm::kI32: {
+      uint32_t u32_bits = 0;
+      i::DecodeI32ExceptionValue(values, &decode_index, &u32_bits);
+      int32_t i32 = static_cast<int32_t>(u32_bits);
+      result = v8::Integer::New(isolate, i32);
+      break;
+    }
+    case i::wasm::kI64: {
+      uint64_t u64_bits = 0;
+      i::DecodeI64ExceptionValue(values, &decode_index, &u64_bits);
+      int64_t i64 = static_cast<int64_t>(u64_bits);
+      result = v8::BigInt::New(isolate, i64);
+      break;
+    }
+    case i::wasm::kF32: {
+      uint32_t f32_bits = 0;
+      DecodeI32ExceptionValue(values, &decode_index, &f32_bits);
+      float f32 = bit_cast<float>(f32_bits);
+      result = v8::Number::New(isolate, f32);
+      break;
+    }
+    case i::wasm::kF64: {
+      uint64_t f64_bits = 0;
+      DecodeI64ExceptionValue(values, &decode_index, &f64_bits);
+      double f64 = bit_cast<double>(f64_bits);
+      result = v8::Number::New(isolate, f64);
+      break;
+    }
+    case i::wasm::kRef:
+    case i::wasm::kOptRef:
+      switch (signature.get(index).heap_representation()) {
+        case i::wasm::HeapType::kExtern:
+        case i::wasm::HeapType::kFunc:
+        case i::wasm::HeapType::kAny:
+        case i::wasm::HeapType::kEq:
+        case i::wasm::HeapType::kI31:
+        case i::wasm::HeapType::kData: {
+          auto obj = values->get(decode_index);
+          result = Utils::ToLocal(i::Handle<i::Object>(obj, i_isolate));
+          break;
+        }
+        case i::wasm::HeapType::kBottom:
+          UNREACHABLE();
+        default:
+          // TODO(7748): Add support for custom struct/array types.
+          UNIMPLEMENTED();
+      }
+      break;
+    case i::wasm::kRtt:
+    case i::wasm::kRttWithDepth:
+    case i::wasm::kI8:
+    case i::wasm::kI16:
+    case i::wasm::kVoid:
+    case i::wasm::kBottom:
+    case i::wasm::kS128:
+      UNREACHABLE();
+  }
+  args.GetReturnValue().Set(result);
 }
 
 void WebAssemblyGlobalGetValueCommon(
@@ -2476,15 +2614,18 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     Handle<JSFunction> exception_constructor = InstallConstructorFunc(
         isolate, webassembly, "Exception", WebAssemblyException);
     SetDummyInstanceTemplate(isolate, exception_constructor);
-    Handle<Map> initial_map(
-        isolate->native_context()->wasm_runtime_error_function().initial_map(),
+    Handle<Map> exception_map = isolate->factory()->NewMap(
+        i::JS_ERROR_TYPE, WasmExceptionPackage::kHeaderSize);
+    Handle<JSObject> exception_proto(
+        JSObject::cast(isolate->native_context()
+                           ->wasm_exception_error_function()
+                           .instance_prototype()),
         isolate);
-    Handle<HeapObject> instance_prototype(isolate->native_context()
-                                              ->wasm_runtime_error_function()
-                                              .instance_prototype(),
-                                          isolate);
-    JSFunction::SetInitialMap(isolate, exception_constructor, initial_map,
-                              instance_prototype);
+    InstallFunc(isolate, exception_proto, "getArg", WebAssemblyExceptionGetArg,
+                2);
+    context->set_wasm_exception_constructor(*exception_constructor);
+    JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
+                              exception_proto);
   }
 
   // Setup Function

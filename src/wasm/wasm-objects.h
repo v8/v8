@@ -576,6 +576,10 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
       Isolate* isolate, Handle<WasmExceptionTag> exception_tag,
       int encoded_size);
 
+  static Handle<WasmExceptionPackage> New(
+      Isolate* isolate, Handle<WasmExceptionTag> exception_tag,
+      Handle<FixedArray> values);
+
   // The below getters return {undefined} in case the given exception package
   // does not carry the requested values (i.e. is of a different type).
   static Handle<Object> GetExceptionTag(
@@ -595,6 +599,14 @@ void V8_EXPORT_PRIVATE EncodeI32ExceptionValue(
 
 void V8_EXPORT_PRIVATE EncodeI64ExceptionValue(
     Handle<FixedArray> encoded_values, uint32_t* encoded_index, uint64_t value);
+
+void V8_EXPORT_PRIVATE
+DecodeI32ExceptionValue(Handle<FixedArray> encoded_values,
+                        uint32_t* encoded_index, uint32_t* value);
+
+void V8_EXPORT_PRIVATE
+DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
+                        uint32_t* encoded_index, uint64_t* value);
 
 // A Wasm function that is wrapped and exported to JavaScript.
 // Representation of WebAssembly.Function JavaScript-level object.

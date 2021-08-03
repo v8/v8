@@ -1769,14 +1769,20 @@ bool WasmCapiFunction::MatchesSignature(const wasm::FunctionSig* sig) const {
 // static
 Handle<WasmExceptionPackage> WasmExceptionPackage::New(
     Isolate* isolate, Handle<WasmExceptionTag> exception_tag, int size) {
-  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
+  Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
+  return New(isolate, exception_tag, values);
+}
+
+Handle<WasmExceptionPackage> WasmExceptionPackage::New(
+    Isolate* isolate, Handle<WasmExceptionTag> exception_tag,
+    Handle<FixedArray> values) {
+  Handle<JSObject> exception = isolate->factory()->NewWasmExceptionError(
       MessageTemplate::kWasmExceptionError);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_tag_symbol(),
                              exception_tag, StoreOrigin::kMaybeKeyed,
                              Just(ShouldThrow::kThrowOnError))
              .is_null());
-  Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_values_symbol(),
                              values, StoreOrigin::kMaybeKeyed,
@@ -1823,6 +1829,21 @@ void EncodeI64ExceptionValue(Handle<FixedArray> encoded_values,
                           static_cast<uint32_t>(value >> 32));
   EncodeI32ExceptionValue(encoded_values, encoded_index,
                           static_cast<uint32_t>(value));
+}
+
+void DecodeI32ExceptionValue(Handle<FixedArray> encoded_values,
+                             uint32_t* encoded_index, uint32_t* value) {
+  uint32_t msb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
+  uint32_t lsb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
+  *value = (msb << 16) | (lsb & 0xffff);
+}
+
+void DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
+                             uint32_t* encoded_index, uint64_t* value) {
+  uint32_t lsb = 0, msb = 0;
+  DecodeI32ExceptionValue(encoded_values, encoded_index, &msb);
+  DecodeI32ExceptionValue(encoded_values, encoded_index, &lsb);
+  *value = (static_cast<uint64_t>(msb) << 32) | static_cast<uint64_t>(lsb);
 }
 
 #ifdef DEBUG

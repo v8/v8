@@ -292,6 +292,7 @@ enum ContextLookupFlags {
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   V(WASM_EXPORTED_FUNCTION_MAP_INDEX, Map, wasm_exported_function_map)         \
   V(WASM_TAG_CONSTRUCTOR_INDEX, JSFunction, wasm_tag_constructor)              \
+  V(WASM_EXCEPTION_CONSTRUCTOR_INDEX, JSFunction, wasm_exception_constructor)  \
   V(WASM_GLOBAL_CONSTRUCTOR_INDEX, JSFunction, wasm_global_constructor)        \
   V(WASM_INSTANCE_CONSTRUCTOR_INDEX, JSFunction, wasm_instance_constructor)    \
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
@@ -336,6 +337,8 @@ enum ContextLookupFlags {
   V(WASM_LINK_ERROR_FUNCTION_INDEX, JSFunction, wasm_link_error_function)      \
   V(WASM_RUNTIME_ERROR_FUNCTION_INDEX, JSFunction,                             \
     wasm_runtime_error_function)                                               \
+  V(WASM_EXCEPTION_ERROR_FUNCTION_INDEX, JSFunction,                           \
+    wasm_exception_error_function)                                             \
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                                \
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKMAP_DELETE_INDEX, JSFunction, weakmap_delete)                          \

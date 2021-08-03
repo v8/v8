@@ -21,5 +21,5 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var serialized = %SerializeWasmModule(module);
   module = %DeserializeWasmModule(serialized, wire_bytes);
   var instance2 = new WebAssembly.Instance(module);
-  assertThrows(() => instance2.exports.f(), WebAssembly.RuntimeError);
+  assertThrows(() => instance2.exports.f(), WebAssembly.Exception);
 })();

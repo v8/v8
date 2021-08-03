@@ -38,7 +38,7 @@ function NewExportedException() {
   let ex_obj = new Error("my exception");
   let instance = builder.instantiate({ m: { f: function() { throw ex_obj }}});
 
-  assertThrows(() => instance.exports.throw(), WebAssembly.RuntimeError);
+  assertThrows(() => instance.exports.throw(), WebAssembly.Exception);
   assertThrowsEquals(() => instance.exports.catch(), ex_obj);
   try {
     instance.exports.throw();
@@ -71,7 +71,7 @@ function NewExportedException() {
   let instance1 = builder.instantiate({ m: { f: assertUnreachable }});
   let instance2 = builder.instantiate({ m: { f: function() { throw ex_obj }}});
 
-  assertThrows(() => instance1.exports.throw(), WebAssembly.RuntimeError);
+  assertThrows(() => instance1.exports.throw(), WebAssembly.Exception);
   assertThrowsEquals(() => instance2.exports.catch(), ex_obj);
   try {
     instance1.exports.throw();
@@ -108,7 +108,7 @@ function NewExportedException() {
   let instance2 = builder.instantiate({ m: { f: function() { throw ex_obj },
                                              ex1: instance1.exports.ex2 }});
 
-  assertThrows(() => instance1.exports.throw(), WebAssembly.RuntimeError);
+  assertThrows(() => instance1.exports.throw(), WebAssembly.Exception);
   assertThrowsEquals(() => instance2.exports.catch(), ex_obj);
   try {
     instance1.exports.throw();
@@ -146,7 +146,7 @@ function NewExportedException() {
   let instance2 = builder2.instantiate({ m: { f: function() { throw ex_obj },
                                               ex: instance1.exports.ex }});
 
-  assertThrows(() => instance1.exports.throw(), WebAssembly.RuntimeError);
+  assertThrows(() => instance1.exports.throw(), WebAssembly.Exception);
   assertThrowsEquals(() => instance2.exports.catch(), ex_obj);
   try {
     instance1.exports.throw();

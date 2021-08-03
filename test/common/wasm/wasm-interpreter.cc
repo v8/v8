@@ -3186,21 +3186,6 @@ class WasmInterpreterInternals {
     return expected_tag.is_identical_to(caught_tag);
   }
 
-  void DecodeI32ExceptionValue(Handle<FixedArray> encoded_values,
-                               uint32_t* encoded_index, uint32_t* value) {
-    uint32_t msb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
-    uint32_t lsb = Smi::cast(encoded_values->get((*encoded_index)++)).value();
-    *value = (msb << 16) | (lsb & 0xffff);
-  }
-
-  void DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
-                               uint32_t* encoded_index, uint64_t* value) {
-    uint32_t lsb = 0, msb = 0;
-    DecodeI32ExceptionValue(encoded_values, encoded_index, &msb);
-    DecodeI32ExceptionValue(encoded_values, encoded_index, &lsb);
-    *value = (static_cast<uint64_t>(msb) << 32) | static_cast<uint64_t>(lsb);
-  }
-
   // Unpack the values encoded in the given exception. The exception values are
   // pushed onto the operand stack. Callers must perform a tag check to ensure
   // the encoded values match the expected signature of the exception.

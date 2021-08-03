@@ -304,6 +304,7 @@
   V(_, return_string, "return")                                      \
   V(_, revoke_string, "revoke")                                      \
   V(_, RuntimeError_string, "RuntimeError")                          \
+  V(_, WebAssemblyException_string, "WebAssembly.Exception")         \
   V(_, Script_string, "Script")                                      \
   V(_, script_string, "script")                                      \
   V(_, short_string, "short")                                        \

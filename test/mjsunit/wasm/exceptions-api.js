@@ -170,3 +170,52 @@ function TestCatchJS(types_str, types, values) {
               [kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmExternRef],
               [6, 7n, 8, 9, {value: 10}]);
 })();
+
+function TestGetArgHelper(types_str, types, values) {
+  let tag = new WebAssembly.Tag({parameters: types_str});
+  let exception = new WebAssembly.Exception(tag, values);
+  for (i = 0; i < types.length; ++i) {
+    assertEquals(exception.getArg(tag, i), values[i]);
+  }
+
+  let builder = new WasmModuleBuilder();
+  let sig = makeSig(types, []);
+  let tag_index = builder.addImportedTag("m", "t", sig);
+  let body = [];
+  for (i = 0; i < types.length; ++i) {
+    body.push(kExprLocalGet, i);
+  }
+  body.push(kExprThrow, tag_index);
+  builder.addFunction("throw", sig)
+      .addBody(body).exportFunc();
+  let instance = builder.instantiate({'m': {'t': tag}});
+  try {
+    instance.exports.throw(...values);
+  } catch (e) {
+    for (i = 0; i < types.length; ++i) {
+      assertEquals(e.getArg(tag, i), values[i]);
+    }
+  }
+}
+
+(function TestGetArg() {
+  // Check errors.
+  let tag = new WebAssembly.Tag({parameters: ['i32']});
+  let exception = new WebAssembly.Exception(tag, [0]);
+  assertThrows(() => exception.getArg(0, 0), TypeError,
+      /Argument 0 must be a WebAssembly.Tag/);
+  assertThrows(() => exception.getArg({}, 0), TypeError,
+      /Argument 0 must be a WebAssembly.Tag/);
+  assertThrows(() => exception.getArg(tag, undefined), TypeError,
+      /Index must be convertible to a valid number/);
+  assertThrows(() => exception.getArg(tag, 0xFFFFFFFF), RangeError,
+      /Index out of range/);
+
+  // Check decoding.
+  TestGetArgHelper(['i32'], [kWasmI32], [1]);
+  TestGetArgHelper(['i64'], [kWasmI64], [2n]);
+  TestGetArgHelper(['f32'], [kWasmF32], [3]);
+  TestGetArgHelper(['f64'], [kWasmF64], [4]);
+  TestGetArgHelper(['externref'], [kWasmExternRef], [{val: 5}]);
+  TestGetArgHelper(['i32', 'i64', 'f32', 'f64', 'externref'], [kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmExternRef], [5, 6n, 7, 8, {val: 9}]);
+})();

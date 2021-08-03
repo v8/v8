@@ -212,7 +212,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   }
   assertTrue(!!caught, 'should have trapped');
   assertEquals(caught, wrapped_exn);
-  assertInstanceof(caught.__proto__, WebAssembly.RuntimeError);
+  assertInstanceof(caught.__proto__, WebAssembly.Exception);
 })();
 
 (function TestStackOverflowNotCaught() {
@@ -883,7 +883,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
         kExprEnd,
       ]).exportFunc();
   instance = builder.instantiate();
-  assertTraps(WebAssembly.RuntimeError, instance.exports.test);
+  assertThrows(instance.exports.test, WebAssembly.Exception);
 })();
 
 // Check that the exception is merged properly when both scopes can throw.
@@ -925,9 +925,9 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       ]).exportFunc();
   instance = builder.instantiate();
   assertEquals(2, instance.exports.test(1, 0));
-  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test(2, 0));
+  assertThrows(() => instance.exports.test(2, 0), WebAssembly.Exception);
   assertEquals(2, instance.exports.test(0, 1));
-  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test(0, 2));
+  assertThrows(() => instance.exports.test(0, 2), WebAssembly.Exception);
   assertEquals(1, instance.exports.test(0, 0));
 })();
 
@@ -994,7 +994,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
         kExprEnd
       ]).exportFunc();
   instance = builder.instantiate();
-  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test());
+  assertThrows(() => instance.exports.test(), WebAssembly.Exception);
 })();
 
 (function TestThrowBeforeUnreachable() {

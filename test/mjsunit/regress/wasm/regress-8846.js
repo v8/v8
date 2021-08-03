@@ -21,7 +21,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     assertPromiseResult(WebAssembly.instantiate(module), inst => step3(inst));
   }
   function step3(instance) {
-    assertThrows(() => instance.exports.thrw(), WebAssembly.RuntimeError);
+    assertThrows(() => instance.exports.thrw(), WebAssembly.Exception);
   }
   step1(builder.toBuffer());
 })();

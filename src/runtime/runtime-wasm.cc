@@ -168,18 +168,8 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
   // TODO(wasm): Manually box because parameters are not visited yet.
   Handle<WasmExceptionTag> tag(tag_raw, isolate);
   Handle<FixedArray> values(values_raw, isolate);
-
-  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
-      MessageTemplate::kWasmExceptionError);
-  Object::SetProperty(
-      isolate, exception, isolate->factory()->wasm_exception_tag_symbol(), tag,
-      StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
-      .Check();
-  Object::SetProperty(
-      isolate, exception, isolate->factory()->wasm_exception_values_symbol(),
-      values, StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError))
-      .Check();
-
+  Handle<WasmExceptionPackage> exception =
+      WasmExceptionPackage::New(isolate, tag, values);
   wasm::GetWasmEngine()->SampleThrowEvent(isolate);
   return isolate->Throw(*exception);
 }
