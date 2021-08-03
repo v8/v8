@@ -250,36 +250,37 @@ ElementAccessFeedback::transition_groups() const {
 }
 
 ElementAccessFeedback const& ElementAccessFeedback::Refine(
-    ZoneVector<Handle<Map>> const& inferred_maps, Zone* zone) const {
+    JSHeapBroker* broker, ZoneVector<MapRef> const& inferred_maps) const {
   ElementAccessFeedback& refined_feedback =
-      *zone->New<ElementAccessFeedback>(zone, keyed_mode(), slot_kind());
+      *broker->zone()->New<ElementAccessFeedback>(broker->zone(), keyed_mode(),
+                                                  slot_kind());
   if (inferred_maps.empty()) return refined_feedback;
 
-  ZoneUnorderedSet<Handle<Map>, Handle<Map>::hash, Handle<Map>::equal_to>
-      inferred(zone);
+  ZoneRefUnorderedSet<MapRef> inferred(broker->zone());
   inferred.insert(inferred_maps.begin(), inferred_maps.end());
 
   for (auto const& group : transition_groups()) {
     DCHECK(!group.empty());
-    TransitionGroup new_group(zone);
+    TransitionGroup new_group(broker->zone());
     for (size_t i = 1; i < group.size(); ++i) {
-      Handle<Map> source = group[i];
+      MapRef source = MakeRefAssumeMemoryFence(broker, *group[i]);
       if (inferred.find(source) != inferred.end()) {
-        new_group.push_back(source);
+        new_group.push_back(source.object());
       }
     }
 
-    Handle<Map> target = group.front();
+    MapRef target = MakeRefAssumeMemoryFence(broker, *group.front());
     bool const keep_target =
         inferred.find(target) != inferred.end() || new_group.size() > 1;
     if (keep_target) {
-      new_group.push_back(target);
+      new_group.push_back(target.object());
       // The target must be at the front, the order of sources doesn't matter.
       std::swap(new_group[0], new_group[new_group.size() - 1]);
     }
 
     if (!new_group.empty()) {
-      DCHECK(new_group.size() == 1 || new_group.front().equals(target));
+      DCHECK(new_group.size() == 1 ||
+             new_group.front().equals(target.object()));
       refined_feedback.transition_groups_.push_back(std::move(new_group));
     }
   }

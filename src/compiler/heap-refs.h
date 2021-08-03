@@ -250,6 +250,10 @@ class V8_EXPORT_PRIVATE ObjectRef {
   JSHeapBroker* broker_;
 };
 
+template <class T>
+using ZoneRefUnorderedSet =
+    ZoneUnorderedSet<T, ObjectRef::Hash, ObjectRef::Equal>;
+
 // Temporary class that carries information from a Map. We'd like to remove
 // this class and use MapRef instead, but we can't as long as we support the
 // kDisabled broker mode. That's because obtaining the MapRef via

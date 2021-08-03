@@ -153,7 +153,7 @@ class ElementAccessFeedback : public ProcessedFeedback {
   // [e0, e1]                           [e0, e1]
   //
   ElementAccessFeedback const& Refine(
-      ZoneVector<Handle<Map>> const& inferred_maps, Zone* zone) const;
+      JSHeapBroker* broker, ZoneVector<MapRef> const& inferred_maps) const;
 
  private:
   KeyedAccessMode const keyed_mode_;

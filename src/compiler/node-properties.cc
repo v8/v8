@@ -345,10 +345,32 @@ base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
   return base::nullopt;
 }
 
+namespace {
+
+// TODO(jgruber): Remove the intermediate ZoneHandleSet and then this function.
+ZoneRefUnorderedSet<MapRef> ToRefSet(JSHeapBroker* broker,
+                                     const ZoneHandleSet<Map>& handles) {
+  ZoneRefUnorderedSet<MapRef> refs =
+      ZoneRefUnorderedSet<MapRef>(broker->zone());
+  for (Handle<Map> handle : handles) {
+    refs.insert(MakeRefAssumeMemoryFence(broker, *handle));
+  }
+  return refs;
+}
+
+ZoneRefUnorderedSet<MapRef> RefSetOf(JSHeapBroker* broker, const MapRef& ref) {
+  ZoneRefUnorderedSet<MapRef> refs =
+      ZoneRefUnorderedSet<MapRef>(broker->zone());
+  refs.insert(ref);
+  return refs;
+}
+
+}  // namespace
+
 // static
 NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
-    JSHeapBroker* broker, Node* receiver, Node* effect,
-    ZoneHandleSet<Map>* maps_return) {
+    JSHeapBroker* broker, Node* receiver, Effect effect,
+    ZoneRefUnorderedSet<MapRef>* maps_out) {
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue()) {
     HeapObjectRef receiver = m.Ref(broker);
@@ -364,7 +386,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       if (receiver.map().is_stable()) {
         // The {receiver_map} is only reliable when we install a stability
         // code dependency.
-        *maps_return = ZoneHandleSet<Map>(receiver.map().object());
+        *maps_out = RefSetOf(broker, receiver.map());
         return kUnreliableMaps;
       }
     }
@@ -375,7 +397,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       case IrOpcode::kMapGuard: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
-          *maps_return = MapGuardMapsOf(effect->op());
+          *maps_out = ToRefSet(broker, MapGuardMapsOf(effect->op()));
           return result;
         }
         break;
@@ -383,7 +405,8 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       case IrOpcode::kCheckMaps: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
-          *maps_return = CheckMapsParametersOf(effect->op()).maps();
+          *maps_out =
+              ToRefSet(broker, CheckMapsParametersOf(effect->op()).maps());
           return result;
         }
         break;
@@ -392,7 +415,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
         if (IsSame(receiver, effect)) {
           base::Optional<MapRef> initial_map = GetJSCreateMap(broker, receiver);
           if (initial_map.has_value()) {
-            *maps_return = ZoneHandleSet<Map>(initial_map->object());
+            *maps_out = RefSetOf(broker, initial_map.value());
             return result;
           }
           // We reached the allocation of the {receiver}.
@@ -403,11 +426,10 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       }
       case IrOpcode::kJSCreatePromise: {
         if (IsSame(receiver, effect)) {
-          *maps_return =
-              ZoneHandleSet<Map>(broker->target_native_context()
-                                     .promise_function()
-                                     .initial_map(broker->dependencies())
-                                     .object());
+          *maps_out = RefSetOf(
+              broker,
+              broker->target_native_context().promise_function().initial_map(
+                  broker->dependencies()));
           return result;
         }
         break;
@@ -422,7 +444,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
             Node* const value = GetValueInput(effect, 1);
             HeapObjectMatcher m(value);
             if (m.HasResolvedValue()) {
-              *maps_return = ZoneHandleSet<Map>(m.Ref(broker).AsMap().object());
+              *maps_out = RefSetOf(broker, m.Ref(broker).AsMap());
               return result;
             }
           }
@@ -501,7 +523,7 @@ bool NodeProperties::NoObservableSideEffectBetween(Node* effect,
 
 // static
 bool NodeProperties::CanBePrimitive(JSHeapBroker* broker, Node* receiver,
-                                    Node* effect) {
+                                    Effect effect) {
   switch (receiver->opcode()) {
 #define CASE(Opcode) case IrOpcode::k##Opcode:
     JS_CONSTRUCT_OP_LIST(CASE)
@@ -526,7 +548,7 @@ bool NodeProperties::CanBePrimitive(JSHeapBroker* broker, Node* receiver,
 
 // static
 bool NodeProperties::CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
-                                          Node* effect) {
+                                          Effect effect) {
   if (CanBePrimitive(broker, receiver, effect)) {
     switch (receiver->opcode()) {
       case IrOpcode::kCheckInternalizedString:
