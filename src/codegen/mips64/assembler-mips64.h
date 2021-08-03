@@ -167,6 +167,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
+  void FixOnHeapReferences();
+
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 

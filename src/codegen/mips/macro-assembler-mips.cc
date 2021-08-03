@@ -1394,6 +1394,15 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
         ori(rd, rd, (j.immediate() & kImm16Mask));
       }
     }
+  } else if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(j.rmode())) {
+    BlockGrowBufferScope block_growbuffer(this);
+    saved_handles_for_raw_object_ptr_.push_back(
+        std::make_pair(pc_offset(), j.immediate()));
+    Handle<HeapObject> handle(reinterpret_cast<Address*>(j.immediate()));
+    int32_t immediate = handle->ptr();
+    RecordRelocInfo(j.rmode(), immediate);
+    lui(rd, (immediate >> kLuiShift) & kImm16Mask);
+    ori(rd, rd, (immediate & kImm16Mask));
   } else {
     int32_t immediate;
     if (j.IsHeapObjectRequest()) {
