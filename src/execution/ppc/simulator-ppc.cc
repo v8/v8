@@ -4161,6 +4161,21 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VINSERT
+#define VINSERT_IMMEDIATE(type)                   \
+  uint8_t uim = instr->Bits(19, 16);              \
+  int vrt = instr->RTValue();                     \
+  int rb = instr->RBValue();                      \
+  type src = static_cast<type>(get_register(rb)); \
+  set_simd_register_bytes<type>(vrt, uim, src);
+    case VINSD: {
+      VINSERT_IMMEDIATE(int64_t)
+      break;
+    }
+    case VINSW: {
+      VINSERT_IMMEDIATE(int32_t)
+      break;
+    }
+#undef VINSERT_IMMEDIATE
 #define VEXTRACT(type, element)                       \
   uint8_t uim = instr->Bits(19, 16);                  \
   int vrt = instr->RTValue();                         \

@@ -2470,6 +2470,14 @@ using Instr = uint32_t;
   /* Vector Extract Doubleword Mask */  \
   V(vextractdm, VEXTRACTDM, 0x100B0642)
 
+#define PPC_VX_OPCODE_G_FORM_LIST(V)         \
+  /* Vector Insert Word from GPR using       \
+immediate-specified index */                 \
+  V(vinsw, VINSW, 0x100000CF)                \
+  /* Vector Insert Doubleword from GPR using \
+immediate-specified index */                 \
+  V(vinsd, VINSD, 0x100001CF)
+
 #define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
   V(bcdadd, BCDADD, 0xF0000400)                                           \
@@ -2623,6 +2631,7 @@ using Instr = uint32_t;
   PPC_VX_OPCODE_D_FORM_LIST(V) \
   PPC_VX_OPCODE_E_FORM_LIST(V) \
   PPC_VX_OPCODE_F_FORM_LIST(V) \
+  PPC_VX_OPCODE_G_FORM_LIST(V) \
   PPC_VX_OPCODE_UNUSED_LIST(V)
 
 #define PPC_XS_OPCODE_LIST(V)                      \
@@ -2970,6 +2979,7 @@ class Instruction {
       PPC_VX_OPCODE_B_FORM_LIST(OPCODE_CASES)
       PPC_VX_OPCODE_C_FORM_LIST(OPCODE_CASES)
       PPC_VX_OPCODE_E_FORM_LIST(OPCODE_CASES)
+      PPC_VX_OPCODE_G_FORM_LIST(OPCODE_CASES)
       PPC_VX_OPCODE_UNUSED_LIST(OPCODE_CASES)
       PPC_X_OPCODE_EH_S_FORM_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
