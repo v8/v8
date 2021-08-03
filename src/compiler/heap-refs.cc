@@ -1676,7 +1676,9 @@ ContextRef ContextRef::previous(size_t* depth) const {
     current = Context::cast(current.unchecked_previous());
     (*depth)--;
   }
-  return MakeRef(broker(), current);
+  // The `previous` field is immutable after initialization and the
+  // context itself is read through an atomic load.
+  return MakeRefAssumeMemoryFence(broker(), current);
 }
 
 base::Optional<ObjectRef> ContextRef::get(int index) const {
