@@ -2170,8 +2170,9 @@ MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
   // TODO(solanes, v8:7790): Consider caching the result of the field owner on
   // the descriptor array. It would be useful for same map as well as any
   // other map sharing that descriptor array.
-  return MapRef(broker(), broker()->GetOrCreateData(object()->FindFieldOwner(
-                              broker()->isolate(), descriptor_index)));
+  return MakeRefAssumeMemoryFence(
+      broker(),
+      object()->FindFieldOwner(broker()->isolate(), descriptor_index));
 }
 
 ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
