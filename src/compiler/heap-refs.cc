@@ -1660,10 +1660,7 @@ bool ObjectRef::equals(const ObjectRef& other) const {
     data_->used_status = ObjectData::Usage::kOnlyIdentityUsed;
   }
 #endif  // DEBUG
-  // TODO(jgruber): Consider going back to reference-equality on data_ once
-  // ObjectData objects are guaranteed to be canonicalized (see also:
-  // ClearReconstructibleData).
-  return data_->object().is_identical_to(other.data_->object());
+  return data_ == other.data_;
 }
 
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
@@ -1783,11 +1780,11 @@ void JSHeapBroker::InitializeAndStartSerializing() {
 
   CollectArrayAndObjectPrototypes();
 
-  Factory* const f = isolate()->factory();
   SetTargetNativeContextRef(target_native_context().object());
   if (!is_concurrent_inlining()) {
     target_native_context().Serialize(NotConcurrentInliningTag{this});
 
+    Factory* const f = isolate()->factory();
     ObjectData* data;
     data = GetOrCreateData(f->array_buffer_detaching_protector());
     if (!data->should_access_heap()) {
@@ -1825,12 +1822,11 @@ void JSHeapBroker::InitializeAndStartSerializing() {
     if (!data->should_access_heap()) {
       data->AsPropertyCell()->Cache(this);
     }
+    GetOrCreateData(f->many_closures_cell());
+    GetOrCreateData(CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
+                                        ArgvMode::kStack, true));
+    TRACE(this, "Finished serializing standard objects");
   }
-  GetOrCreateData(f->many_closures_cell());
-  GetOrCreateData(CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                                      ArgvMode::kStack, true));
-
-  TRACE(this, "Finished serializing standard objects");
 }
 
 namespace {
@@ -1870,25 +1866,6 @@ struct CreateDataFunctor<RefSerializationKind::kNeverSerialized, ObjectData,
 };
 
 }  // namespace
-
-void JSHeapBroker::ClearReconstructibleData() {
-  RefsMap::Entry* p = refs_->Start();
-  while (p != nullptr) {
-    Address key = p->key;
-    ObjectData* value = p->value;
-    p = refs_->Next(p);
-    if (value->IsMap() &&
-        value->kind() == ObjectDataKind::kBackgroundSerializedHeapObject) {
-      CHECK(!value->AsMap()->has_extra_serialized_data());
-    }
-    if (value->IsJSObject() &&
-        value->kind() == ObjectDataKind::kBackgroundSerializedHeapObject) {
-      CHECK(!value->AsJSObject()->has_extra_serialized_data());
-    }
-    // Can be reconstructed from the background thread.
-    CHECK_NOT_NULL(refs_->Remove(key));
-  }
-}
 
 ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
                                              GetOrCreateDataFlags flags) {
@@ -2078,9 +2055,8 @@ OddballType MapRef::oddball_type() const {
 }
 
 FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
-  // These should all be available because we request the cell for each
-  // CreateClosure bytecode.
-  return MakeRef(broker(), object()->closure_feedback_cell(index));
+  return MakeRefAssumeMemoryFence(broker(),
+                                  object()->closure_feedback_cell(index));
 }
 
 base::Optional<ObjectRef> JSObjectRef::raw_properties_or_hash() const {
@@ -3303,11 +3279,7 @@ ScopeInfoRef SharedFunctionInfoRef::scope_info() const {
 }
 
 void JSObjectRef::SerializeObjectCreateMap(NotConcurrentInliningTag tag) {
-  if (data_->should_access_heap()) {
-    return;
-  }
-  CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
-                broker()->mode() == JSHeapBroker::kSerializing);
+  if (data_->should_access_heap()) return;
   data()->AsJSObject()->SerializeObjectCreateMap(broker(), tag);
 }
 

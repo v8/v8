@@ -7993,10 +7993,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     access_infos.push_back(broker()->GetPropertyAccessInfo(
         MakeRef(broker(), map),
         MakeRef(broker(), isolate()->factory()->exec_string()),
-        AccessMode::kLoad, dependencies(),
-        broker()->is_concurrent_inlining()
-            ? SerializationPolicy::kAssumeSerialized
-            : SerializationPolicy::kSerializeIfNeeded));
+        AccessMode::kLoad, dependencies()));
   }
 
   PropertyAccessInfo ai_exec =

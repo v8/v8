@@ -213,6 +213,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   bool CanTreatHoleAsUndefined(ZoneVector<MapRef> const& receiver_maps);
 
   void RemoveImpossibleMaps(Node* object, ZoneVector<Handle<Map>>* maps) const;
+  void RemoveImpossibleMaps(Node* object, ZoneVector<MapRef>* maps) const;
 
   ElementAccessFeedback const& TryRefineElementAccessFeedback(
       ElementAccessFeedback const& feedback, Node* receiver,

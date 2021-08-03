@@ -518,6 +518,7 @@ class ContextRef : public HeapObjectRef {
   V(JSFunction, symbol_function)                 \
   V(JSGlobalObject, global_object)               \
   V(JSGlobalProxy, global_proxy_object)          \
+  V(JSObject, initial_array_prototype)           \
   V(JSObject, promise_prototype)                 \
   V(Map, async_function_object_map)              \
   V(Map, block_context_map)                      \

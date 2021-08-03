@@ -239,6 +239,7 @@ namespace {
 // some cases - unlike the full builtin, the megamorphic builtin does fewer
 // checks and does not collect feedback.
 bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
+                                     base::Optional<NameRef> name,
                                      JSHeapBroker* broker) {
   if (broker->is_native_context_independent()) {
     // The decision to use the megamorphic load builtin is made based on
@@ -247,7 +248,8 @@ bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
     return false;
   }
 
-  ProcessedFeedback const& feedback = broker->GetFeedback(source);
+  ProcessedFeedback const& feedback =
+      broker->GetFeedbackForPropertyAccess(source, AccessMode::kLoad, name);
 
   if (feedback.kind() == ProcessedFeedback::kElementAccess) {
     return feedback.AsElementAccess().transition_groups().empty();
@@ -263,6 +265,7 @@ bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
   }
   UNREACHABLE();
 }
+
 }  // namespace
 
 void JSGenericLowering::LowerJSHasProperty(Node* node) {
@@ -290,14 +293,14 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
     n->InsertInput(zone(), 2,
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
+        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), {}, broker())
                   ? Builtin::kKeyedLoadICTrampoline_Megamorphic
                   : Builtin::kKeyedLoadICTrampoline);
   } else {
     n->InsertInput(zone(), 2,
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
+        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), {}, broker())
                   ? Builtin::kKeyedLoadIC_Megamorphic
                   : Builtin::kKeyedLoadIC);
   }
@@ -319,7 +322,8 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
+        node, ShouldUseMegamorphicLoadBuiltin(
+                  p.feedback(), MakeRef(broker(), p.name()), broker())
                   ? Builtin::kLoadICTrampoline_Megamorphic
                   : Builtin::kLoadICTrampoline);
   } else {
@@ -327,7 +331,8 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
+        node, ShouldUseMegamorphicLoadBuiltin(
+                  p.feedback(), MakeRef(broker(), p.name()), broker())
                   ? Builtin::kLoadIC_Megamorphic
                   : Builtin::kLoadIC);
   }

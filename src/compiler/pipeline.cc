@@ -69,7 +69,6 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/select-lowering.h"
-#include "src/compiler/serializer-for-background-compilation.h"
 #include "src/compiler/simplified-lowering.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/simplified-operator.h"
@@ -675,8 +674,8 @@ class PipelineImpl final {
   template <typename Phase, typename... Args>
   void Run(Args&&... args);
 
-  // Step A.1. Serialize the data needed for the compilation front-end.
-  void Serialize();
+  // Step A.1. Initialize the heap broker.
+  void InitializeHeapBroker();
 
   // Step A.2. Run the graph creation and initial optimization passes.
   bool CreateGraph();
@@ -1204,10 +1203,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 
   if (compilation_info()->is_osr()) data_.InitializeOsrHelper();
 
-  // Serialize() and CreateGraph() may already use IsPendingAllocation.
+  // InitializeHeapBroker() and CreateGraph() may already use
+  // IsPendingAllocation.
   isolate->heap()->PublishPendingAllocations();
 
-  pipeline_.Serialize();
+  pipeline_.InitializeHeapBroker();
 
   if (!data_.broker()->is_concurrent_inlining()) {
     if (!pipeline_.CreateGraph()) {
@@ -1536,42 +1536,6 @@ struct CopyMetadataForConcurrentCompilePhase {
     NodeVector cached_nodes(temp_zone);
     data->jsgraph()->GetCachedNodes(&cached_nodes);
     for (Node* const node : cached_nodes) graph_reducer.ReduceNode(node);
-  }
-};
-
-struct SerializationPhase {
-  DECL_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS(Serialization)
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    SerializerForBackgroundCompilationFlags flags;
-    if (data->info()->bailout_on_uninitialized()) {
-      flags |= SerializerForBackgroundCompilationFlag::kBailoutOnUninitialized;
-    }
-    if (data->info()->source_positions()) {
-      flags |= SerializerForBackgroundCompilationFlag::kCollectSourcePositions;
-    }
-    if (data->info()->analyze_environment_liveness()) {
-      flags |=
-          SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness;
-    }
-    if (data->info()->inlining()) {
-      flags |= SerializerForBackgroundCompilationFlag::kEnableTurboInlining;
-    }
-    RunSerializerForBackgroundCompilation(
-        data->zone_stats(), data->broker(), data->dependencies(),
-        data->info()->closure(), flags, data->info()->osr_offset());
-    if (data->specialization_context().IsJust()) {
-      MakeRef(data->broker(),
-              data->specialization_context().FromJust().context);
-    }
-    if (FLAG_stress_concurrent_inlining) {
-      if (FLAG_turbo_concurrent_get_property_access_info) {
-        data->broker()->ClearCachedPropertyAccessInfos();
-        data->dependencies()->ClearForConcurrentGetPropertyAccessInfo();
-      }
-      // Force re-serialization from the background thread.
-      data->broker()->ClearReconstructibleData();
-    }
   }
 };
 
@@ -2657,8 +2621,8 @@ void PipelineImpl::RunPrintAndVerify(const char* phase, bool untyped) {
   }
 }
 
-void PipelineImpl::Serialize() {
-  PipelineData* data = this->data_;
+void PipelineImpl::InitializeHeapBroker() {
+  PipelineData* data = data_;
 
   data->BeginPhaseKind("V8.TFBrokerInitAndSerialization");
 
@@ -2682,7 +2646,6 @@ void PipelineImpl::Serialize() {
   data->broker()->SetTargetNativeContextRef(data->native_context());
   if (data->broker()->is_concurrent_inlining()) {
     Run<HeapBrokerInitializationPhase>();
-    Run<SerializationPhase>();
     data->broker()->StopSerializing();
   }
   data->EndPhaseKind();
@@ -3353,7 +3316,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     CompilationHandleScope compilation_scope(isolate, info);
     CanonicalHandleScope canonical(isolate, info);
     info->ReopenHandlesInNewHandleScope(isolate);
-    pipeline.Serialize();
+    pipeline.InitializeHeapBroker();
     // Emulating the proper pipeline, we call CreateGraph on different places
     // (i.e before or after creating a LocalIsolateScope) depending on
     // is_concurrent_inlining.

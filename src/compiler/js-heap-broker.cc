@@ -54,8 +54,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       feedback_(zone()),
       property_access_infos_(zone()),
       minimorphic_property_access_infos_(zone()),
-      typed_array_string_tags_(zone()),
-      serialized_functions_(zone()) {
+      typed_array_string_tags_(zone()) {
   // Note that this initialization of {refs_} with the minimal initial capacity
   // is redundant in the normal use case (concurrent compilation enabled,
   // standard objects to be serialized), as the map is going to be replaced
@@ -168,40 +167,6 @@ StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
     default:
       UNREACHABLE();
   }
-}
-
-bool JSHeapBroker::ShouldBeSerializedForCompilation(
-    const SharedFunctionInfoRef& shared, const FeedbackVectorRef& feedback,
-    const HintsVector& arguments) const {
-  if (serialized_functions_.size() >= kMaxSerializedFunctionsCacheSize) {
-    TRACE_BROKER_MISSING(this,
-                         "opportunity - serialized functions cache is full.");
-    return false;
-  }
-  SerializedFunction function{shared, feedback};
-  auto matching_functions = serialized_functions_.equal_range(function);
-  return std::find_if(matching_functions.first, matching_functions.second,
-                      [&arguments](const auto& entry) {
-                        return entry.second == arguments;
-                      }) == matching_functions.second;
-}
-
-void JSHeapBroker::SetSerializedForCompilation(
-    const SharedFunctionInfoRef& shared, const FeedbackVectorRef& feedback,
-    const HintsVector& arguments) {
-  SerializedFunction function{shared, feedback};
-  serialized_functions_.insert({function, arguments});
-  TRACE(this, "Set function " << shared << " with " << feedback
-                              << " as serialized for compilation");
-}
-
-bool JSHeapBroker::IsSerializedForCompilation(
-    const SharedFunctionInfoRef& shared,
-    const FeedbackVectorRef& feedback) const {
-  if (mode() == kDisabled) return true;
-
-  SerializedFunction function = {shared, feedback};
-  return serialized_functions_.find(function) != serialized_functions_.end();
 }
 
 bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
@@ -468,7 +433,7 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
 
 MinimorphicLoadPropertyAccessFeedback::MinimorphicLoadPropertyAccessFeedback(
     NameRef const& name, FeedbackSlotKind slot_kind, Handle<Object> handler,
-    ZoneVector<Handle<Map>> const& maps, bool has_migration_target_maps)
+    ZoneVector<MapRef> const& maps, bool has_migration_target_maps)
     : ProcessedFeedback(kMinimorphicPropertyAccess, slot_kind),
       name_(name),
       handler_(handler),
@@ -478,7 +443,7 @@ MinimorphicLoadPropertyAccessFeedback::MinimorphicLoadPropertyAccessFeedback(
 }
 
 NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
-                                         ZoneVector<Handle<Map>> const& maps,
+                                         ZoneVector<MapRef> const& maps,
                                          FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kNamedAccess, slot_kind), name_(name), maps_(maps) {
   DCHECK(IsLoadICKind(slot_kind) || IsStoreICKind(slot_kind) ||
@@ -510,46 +475,24 @@ ProcessedFeedback const& JSHeapBroker::GetFeedback(
 
 FeedbackSlotKind JSHeapBroker::GetFeedbackSlotKind(
     FeedbackSource const& source) const {
-  if (is_concurrent_inlining_) {
-    ProcessedFeedback const& processed = GetFeedback(source);
-    return processed.slot_kind();
-  }
+  if (HasFeedback(source)) return GetFeedback(source).slot_kind();
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   return nexus.kind();
 }
 
 bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
-  return is_concurrent_inlining_ ? GetFeedback(source).IsInsufficient()
-                                 : FeedbackNexus(source.vector, source.slot,
-                                                 feedback_nexus_config())
-                                       .IsUninitialized();
+  if (HasFeedback(source)) return GetFeedback(source).IsInsufficient();
+  return FeedbackNexus(source.vector, source.slot, feedback_nexus_config())
+      .IsUninitialized();
 }
 
 namespace {
 
-// Update deprecated maps, drop unupdatable ones and abandoned prototype maps.
-void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
-  auto in = maps->begin();
-  auto out = in;
-  auto end = maps->end();
-
-  for (; in != end; ++in) {
-    Handle<Map> map = *in;
-    if (Map::TryUpdate(isolate, map).ToHandle(&map) &&
-        !map->is_abandoned_prototype_map()) {
-      DCHECK(!map->is_deprecated());
-      *out = map;
-      ++out;
-    }
-  }
-
-  // Remove everything between the last valid map and the end of the vector.
-  maps->erase(out, end);
-}
-
+using MapRefAndHandler = std::pair<MapRef, MaybeObjectHandle>;
 MaybeObjectHandle TryGetMinimorphicHandler(
-    std::vector<MapAndHandler> const& maps_and_handlers, FeedbackSlotKind kind,
-    Handle<NativeContext> native_context, bool is_turboprop) {
+    ZoneVector<MapRefAndHandler> const& maps_and_handlers,
+    FeedbackSlotKind kind, NativeContextRef const& native_context,
+    bool is_turboprop) {
   if (!is_turboprop || !FLAG_turbo_dynamic_map_checks || !IsLoadICKind(kind)) {
     return MaybeObjectHandle();
   }
@@ -560,14 +503,14 @@ MaybeObjectHandle TryGetMinimorphicHandler(
   // polymorphic loads currently we don't inline the builtins even without
   // dynamic map checks.
   if (maps_and_handlers.size() == 1 &&
-      *maps_and_handlers[0].first ==
-          native_context->initial_array_prototype().map()) {
+      maps_and_handlers[0].first.equals(
+          native_context.initial_array_prototype().map())) {
     return MaybeObjectHandle();
   }
 
   MaybeObjectHandle initial_handler;
-  for (MapAndHandler map_and_handler : maps_and_handlers) {
-    auto map = map_and_handler.first;
+  for (const MapRefAndHandler& map_and_handler : maps_and_handlers) {
+    MapRef map = map_and_handler.first;
     MaybeObjectHandle handler = map_and_handler.second;
     if (handler.is_null()) return MaybeObjectHandle();
     DCHECK(!handler->IsCleared());
@@ -577,7 +520,7 @@ MaybeObjectHandle TryGetMinimorphicHandler(
         LoadHandler::Kind::kField) {
       return MaybeObjectHandle();
     }
-    CHECK(!map->IsJSGlobalProxyMap());
+    CHECK(!map.object()->IsJSGlobalProxyMap());
     if (initial_handler.is_null()) {
       initial_handler = handler;
     } else if (!handler.is_identical_to(initial_handler)) {
@@ -587,9 +530,9 @@ MaybeObjectHandle TryGetMinimorphicHandler(
   return initial_handler;
 }
 
-bool HasMigrationTargets(const MapHandles& maps) {
-  for (Handle<Map> map : maps) {
-    if (map->is_migration_target()) return true;
+bool HasMigrationTargets(const ZoneVector<MapRef>& maps) {
+  for (const MapRef& map : maps) {
+    if (map.is_migration_target()) return true;
   }
   return false;
 }
@@ -614,26 +557,34 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   FeedbackSlotKind kind = nexus.kind();
   if (!CanUseFeedback(nexus)) return NewInsufficientFeedback(kind);
 
-  std::vector<MapAndHandler> maps_and_handlers;
-  nexus.ExtractMapsAndFeedback(&maps_and_handlers);
-  MapHandles maps;
-  for (auto const& entry : maps_and_handlers) {
-    maps.push_back(entry.first);
+  ZoneVector<MapRefAndHandler> maps_and_handlers(zone());
+  ZoneVector<MapRef> maps(zone());
+  {
+    std::vector<MapAndHandler> maps_and_handlers_unfiltered;
+    nexus.ExtractMapsAndFeedback(&maps_and_handlers_unfiltered);
+
+    for (const MapAndHandler& map_and_handler : maps_and_handlers_unfiltered) {
+      MapRef map = MakeRefAssumeMemoryFence(this, *map_and_handler.first);
+      // May change concurrently at any time - must be guarded by a dependency
+      // if non-deprecation is important.
+      // TODO(jgruber): Consider replaying transitions on deprecated maps (see
+      // Map::TryUpdate).
+      if (map.is_deprecated()) continue;
+      if (map.is_abandoned_prototype_map()) continue;
+      maps_and_handlers.push_back({map, map_and_handler.second});
+      maps.push_back(map);
+    }
   }
 
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
   MaybeObjectHandle handler = TryGetMinimorphicHandler(
-      maps_and_handlers, kind, target_native_context().object(),
-      is_turboprop());
+      maps_and_handlers, kind, target_native_context(), is_turboprop());
   if (!handler.is_null()) {
     return *zone()->New<MinimorphicLoadPropertyAccessFeedback>(
-        *name, kind, handler.object(),
-        ZoneVector<Handle<Map>>(maps.begin(), maps.end(), zone()),
+        *name, kind, CanonicalPersistentHandle(handler.object()), maps,
         HasMigrationTargets(maps));
   }
-
-  FilterRelevantReceiverMaps(isolate(), &maps);
 
   // If no maps were found for a non-megamorphic access, then our maps died
   // and we should soft-deopt.
@@ -644,8 +595,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   if (name.has_value()) {
     // We rely on this invariant in JSGenericLowering.
     DCHECK_IMPLIES(maps.empty(), nexus.ic_state() == MEGAMORPHIC);
-    return *zone()->New<NamedAccessFeedback>(
-        *name, ZoneVector<Handle<Map>>(maps.begin(), maps.end(), zone()), kind);
+    return *zone()->New<NamedAccessFeedback>(*name, maps, kind);
   } else if (nexus.GetKeyType() == ELEMENT && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);
@@ -661,7 +611,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
     FeedbackSource const& source) {
-  FeedbackNexus nexus(source.vector, source.slot);
+  FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   DCHECK(nexus.kind() == FeedbackSlotKind::kLoadGlobalInsideTypeof ||
          nexus.kind() == FeedbackSlotKind::kLoadGlobalNotInsideTypeof ||
          nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
@@ -671,42 +621,35 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
     return *zone()->New<GlobalAccessFeedback>(nexus.kind());
   }
 
-  Handle<Object> feedback_value(nexus.GetFeedback()->GetHeapObjectOrSmi(),
-                                isolate());
+  Handle<Object> feedback_value =
+      CanonicalPersistentHandle(nexus.GetFeedback()->GetHeapObjectOrSmi());
 
   if (feedback_value->IsSmi()) {
     // The wanted name belongs to a script-scope variable and the feedback
     // tells us where to find its value.
-    int number = feedback_value->Number();
+    int const number = feedback_value->Number();
     int const script_context_index =
         FeedbackNexus::ContextIndexBits::decode(number);
     int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
-    bool const immutable = FeedbackNexus::ImmutabilityBit::decode(number);
-    Handle<Context> context = ScriptContextTable::GetContext(
-        isolate(), target_native_context().script_context_table().object(),
-        script_context_index);
-    {
-      ObjectRef contents =
-          MakeRef(this, handle(context->get(context_slot_index), isolate()));
-      CHECK(!contents.equals(
-          MakeRef<Object>(this, isolate()->factory()->the_hole_value())));
-    }
-    ContextRef context_ref = MakeRef(this, context);
-    if (immutable) {
-      context_ref.get(context_slot_index);
-    }
-    return *zone()->New<GlobalAccessFeedback>(context_ref, context_slot_index,
-                                              immutable, nexus.kind());
+    ContextRef context = MakeRef(
+        this,
+        target_native_context().script_context_table().object()->get_context(
+            script_context_index));
+
+    ObjectRef contents = context.get(context_slot_index).value();
+    CHECK(!contents.equals(
+        MakeRef<Object>(this, isolate()->factory()->the_hole_value())));
+
+    return *zone()->New<GlobalAccessFeedback>(
+        context, context_slot_index,
+        FeedbackNexus::ImmutabilityBit::decode(number), nexus.kind());
   }
 
   CHECK(feedback_value->IsPropertyCell());
   // The wanted name belongs (or did belong) to a property on the global
   // object and the feedback is the cell holding its value.
-  PropertyCellRef cell =
-      MakeRef(this, Handle<PropertyCell>::cast(feedback_value));
-  MakeRef(this,
-          Handle<PropertyCell>::cast(feedback_value)->value(kAcquireLoad));
-  return *zone()->New<GlobalAccessFeedback>(cell, nexus.kind());
+  return *zone()->New<GlobalAccessFeedback>(
+      MakeRef(this, Handle<PropertyCell>::cast(feedback_value)), nexus.kind());
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForBinaryOperation(
@@ -746,7 +689,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForInstanceOf(
     MaybeHandle<JSObject> maybe_constructor = nexus.GetConstructorFeedback();
     Handle<JSObject> constructor;
     if (maybe_constructor.ToHandle(&constructor)) {
-      optional_constructor = MakeRef(this, constructor);
+      optional_constructor = MakeRef(this, *constructor);
     }
   }
   return *zone()->New<InstanceOfFeedback>(optional_constructor, nexus.kind());
@@ -762,7 +705,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  AllocationSiteRef site = MakeRef(this, AllocationSite::cast(object));
+  AllocationSiteRef site =
+      MakeRefAssumeMemoryFence(this, AllocationSite::cast(object));
   if (!is_concurrent_inlining() && site.PointsToLiteral()) {
     site.SerializeRecursive(NotConcurrentInliningTag{this});
   }
@@ -779,8 +723,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  RegExpBoilerplateDescriptionRef boilerplate = MakeRef(
-      this, handle(RegExpBoilerplateDescription::cast(object), isolate()));
+  RegExpBoilerplateDescriptionRef boilerplate = MakeRefAssumeMemoryFence(
+      this, RegExpBoilerplateDescription::cast(object));
   if (!is_concurrent_inlining()) {
     boilerplate.Serialize(NotConcurrentInliningTag{this});
   }
@@ -797,7 +741,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTemplateObject(
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  JSArrayRef array = MakeRef(this, handle(JSArray::cast(object), isolate()));
+  JSArrayRef array = MakeRefAssumeMemoryFence(this, JSArray::cast(object));
   return *zone()->New<TemplateObjectFeedback>(array, nexus.kind());
 }
 
@@ -811,11 +755,10 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
     MaybeObject maybe_target = nexus.GetFeedback();
     HeapObject target_object;
     if (maybe_target->GetHeapObject(&target_object)) {
-      // TryMakeRef is used because the GC predicate may fail if the
-      // JSFunction was allocated too recently to be store-ordered.
-      target_ref = TryMakeRef(this, handle(target_object, isolate()));
+      target_ref = MakeRefAssumeMemoryFence(this, target_object);
     }
   }
+
   float frequency = nexus.ComputeCallFrequency();
   SpeculationMode mode = nexus.GetSpeculationMode();
   CallFeedbackContent content = nexus.GetCallFeedbackContent();
@@ -825,9 +768,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 
 BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
     FeedbackSource const& source) {
-  ProcessedFeedback const& feedback =
-      is_concurrent_inlining_ ? GetFeedback(source)
-                              : ProcessFeedbackForBinaryOperation(source);
+  ProcessedFeedback const& feedback = ProcessFeedbackForBinaryOperation(source);
   return feedback.IsInsufficient() ? BinaryOperationHint::kNone
                                    : feedback.AsBinaryOperation().value();
 }
@@ -835,66 +776,18 @@ BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
 CompareOperationHint JSHeapBroker::GetFeedbackForCompareOperation(
     FeedbackSource const& source) {
   ProcessedFeedback const& feedback =
-      is_concurrent_inlining_ ? GetFeedback(source)
-                              : ProcessFeedbackForCompareOperation(source);
+      ProcessFeedbackForCompareOperation(source);
   return feedback.IsInsufficient() ? CompareOperationHint::kNone
                                    : feedback.AsCompareOperation().value();
 }
 
 ForInHint JSHeapBroker::GetFeedbackForForIn(FeedbackSource const& source) {
-  ProcessedFeedback const& feedback = is_concurrent_inlining_
-                                          ? GetFeedback(source)
-                                          : ProcessFeedbackForForIn(source);
+  ProcessedFeedback const& feedback = ProcessFeedbackForForIn(source);
   return feedback.IsInsufficient() ? ForInHint::kNone
                                    : feedback.AsForIn().value();
 }
 
-ProcessedFeedback const& JSHeapBroker::GetFeedbackForPropertyAccess(
-    FeedbackSource const& source, AccessMode mode,
-    base::Optional<NameRef> static_name) {
-  return is_concurrent_inlining_
-             ? GetFeedback(source)
-             : ProcessFeedbackForPropertyAccess(source, mode, static_name);
-}
-
-ProcessedFeedback const& JSHeapBroker::GetFeedbackForInstanceOf(
-    FeedbackSource const& source) {
-  return is_concurrent_inlining_ ? GetFeedback(source)
-                                 : ProcessFeedbackForInstanceOf(source);
-}
-
-ProcessedFeedback const& JSHeapBroker::GetFeedbackForCall(
-    FeedbackSource const& source) {
-  return is_concurrent_inlining_ ? GetFeedback(source)
-                                 : ProcessFeedbackForCall(source);
-}
-
-ProcessedFeedback const& JSHeapBroker::GetFeedbackForGlobalAccess(
-    FeedbackSource const& source) {
-  return is_concurrent_inlining_ ? GetFeedback(source)
-                                 : ProcessFeedbackForGlobalAccess(source);
-}
-
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForArrayOrObjectLiteral(
-    FeedbackSource const& source) {
-  return is_concurrent_inlining_
-             ? GetFeedback(source)
-             : ProcessFeedbackForArrayOrObjectLiteral(source);
-}
-
-ProcessedFeedback const& JSHeapBroker::GetFeedbackForRegExpLiteral(
-    FeedbackSource const& source) {
-  return is_concurrent_inlining_ ? GetFeedback(source)
-                                 : ProcessFeedbackForRegExpLiteral(source);
-}
-
-ProcessedFeedback const& JSHeapBroker::GetFeedbackForTemplateObject(
-    FeedbackSource const& source) {
-  return is_concurrent_inlining_ ? GetFeedback(source)
-                                 : ProcessFeedbackForTemplateObject(source);
-}
-
-ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForArrayOrObjectLiteral(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback =
@@ -903,7 +796,7 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForArrayOrObjectLiteral(
   return feedback;
 }
 
-ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForRegExpLiteral(
+ProcessedFeedback const& JSHeapBroker::GetFeedbackForRegExpLiteral(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback = ReadFeedbackForRegExpLiteral(source);
@@ -911,7 +804,7 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForRegExpLiteral(
   return feedback;
 }
 
-ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForTemplateObject(
+ProcessedFeedback const& JSHeapBroker::GetFeedbackForTemplateObject(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback = ReadFeedbackForTemplateObject(source);
@@ -943,7 +836,7 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForForIn(
   return feedback;
 }
 
-ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForPropertyAccess(
+ProcessedFeedback const& JSHeapBroker::GetFeedbackForPropertyAccess(
     FeedbackSource const& source, AccessMode mode,
     base::Optional<NameRef> static_name) {
   if (HasFeedback(source)) return GetFeedback(source);
@@ -953,7 +846,7 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForPropertyAccess(
   return feedback;
 }
 
-ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForInstanceOf(
+ProcessedFeedback const& JSHeapBroker::GetFeedbackForInstanceOf(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback = ReadFeedbackForInstanceOf(source);
@@ -961,7 +854,7 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForInstanceOf(
   return feedback;
 }
 
-ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForCall(
+ProcessedFeedback const& JSHeapBroker::GetFeedbackForCall(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback = ReadFeedbackForCall(source);
@@ -969,7 +862,7 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForCall(
   return feedback;
 }
 
-ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForGlobalAccess(
+ProcessedFeedback const& JSHeapBroker::GetFeedbackForGlobalAccess(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback = ReadFeedbackForGlobalAccess(source);
@@ -978,23 +871,22 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForGlobalAccess(
 }
 
 ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
-    MapHandles const& maps, KeyedAccessMode const& keyed_mode,
+    ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
     FeedbackSlotKind slot_kind) {
   DCHECK(!maps.empty());
 
   // Collect possible transition targets.
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
-  for (Handle<Map> map : maps) {
-    MapRef map_ref = MakeRef(this, map);
+  for (MapRef& map : maps) {
     if (!is_concurrent_inlining()) {
-      map_ref.SerializeRootMap(NotConcurrentInliningTag{this});
+      map.SerializeRootMap(NotConcurrentInliningTag{this});
     }
 
-    if (CanInlineElementAccess(map_ref) &&
-        IsFastElementsKind(map->elements_kind()) &&
-        GetInitialFastElementsKind() != map->elements_kind()) {
-      possible_transition_targets.push_back(map);
+    if (CanInlineElementAccess(map) &&
+        IsFastElementsKind(map.elements_kind()) &&
+        GetInitialFastElementsKind() != map.elements_kind()) {
+      possible_transition_targets.push_back(map.object());
     }
   }
 
@@ -1007,22 +899,11 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   ZoneMap<Handle<Map>, TransitionGroup, HandleLess> transition_groups(zone());
 
   // Separate the actual receiver maps and the possible transition sources.
-  for (Handle<Map> map : maps) {
+  for (const MapRef& map : maps) {
     // Don't generate elements kind transitions from stable maps.
-    Map transition_target = map->is_stable()
-                                ? Map()
-                                : map->FindElementsKindTransitionedMap(
-                                      isolate(), possible_transition_targets);
-    if (transition_target.is_null()) {
-      TransitionGroup group(1, map, zone());
-      transition_groups.insert({map, group});
-    } else {
-      Handle<Map> target(transition_target, isolate());
-      TransitionGroup new_group(1, target, zone());
-      TransitionGroup& actual_group =
-          transition_groups.insert({target, new_group}).first->second;
-      actual_group.push_back(map);
-    }
+    // TODO(jgruber): Bring back elements kind transition generation.
+    TransitionGroup group(1, map.object(), zone());
+    transition_groups.insert({map.object(), group});
   }
 
   ElementAccessFeedback* result =
@@ -1058,31 +939,22 @@ base::Optional<NameRef> JSHeapBroker::GetNameFeedback(
     FeedbackNexus const& nexus) {
   Name raw_name = nexus.GetName();
   if (raw_name.is_null()) return base::nullopt;
-  return MakeRef(this, handle(raw_name, isolate()));
+  return MakeRef(this, raw_name);
 }
 
 PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
     MapRef map, NameRef name, AccessMode access_mode,
-    CompilationDependencies* dependencies, SerializationPolicy policy) {
+    CompilationDependencies* dependencies) {
+  DCHECK_NOT_NULL(dependencies);
+
   PropertyAccessTarget target({map, name, access_mode});
   auto it = property_access_infos_.find(target);
   if (it != property_access_infos_.end()) return it->second;
 
-  if (policy == SerializationPolicy::kAssumeSerialized &&
-      !FLAG_turbo_concurrent_get_property_access_info) {
-    TRACE_BROKER_MISSING(this, "PropertyAccessInfo for "
-                                   << access_mode << " of property " << name
-                                   << " on map " << map);
-    return PropertyAccessInfo::Invalid(zone());
-  }
-
-  CHECK_NOT_NULL(dependencies);
   AccessInfoFactory factory(this, dependencies, zone());
   PropertyAccessInfo access_info =
       factory.ComputePropertyAccessInfo(map, name, access_mode);
   if (is_concurrent_inlining_) {
-    CHECK_IMPLIES(!FLAG_turbo_concurrent_get_property_access_info,
-                  mode() == kSerializing);
     TRACE(this, "Storing PropertyAccessInfo for "
                     << access_mode << " of property " << name << " on map "
                     << map);
@@ -1093,16 +965,9 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
 
 MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
     MinimorphicLoadPropertyAccessFeedback const& feedback,
-    FeedbackSource const& source, SerializationPolicy policy) {
+    FeedbackSource const& source) {
   auto it = minimorphic_property_access_infos_.find(source);
   if (it != minimorphic_property_access_infos_.end()) return it->second;
-
-  if (policy == SerializationPolicy::kAssumeSerialized) {
-    TRACE_BROKER_MISSING(this, "MinimorphicLoadPropertyAccessInfo for slot "
-                                   << source.index() << "  "
-                                   << MakeRef<Object>(this, source.vector));
-    return MinimorphicLoadPropertyAccessInfo::Invalid();
-  }
 
   AccessInfoFactory factory(this, nullptr, zone());
   MinimorphicLoadPropertyAccessInfo access_info =

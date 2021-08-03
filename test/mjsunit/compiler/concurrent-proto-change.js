@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax --no-always-opt
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
-// Flags: --no-always-opt --no-turbo-concurrent-get-property-access-info
+// Flags: --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");

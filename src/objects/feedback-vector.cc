@@ -1244,14 +1244,14 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         continue;
       } else {
         Code code = FromCodeT(CodeT::cast(data_handler->smi_handler()));
-        handler = handle(code, vector().GetIsolate());
+        handler = config()->NewHandle(code);
       }
 
     } else if (maybe_code_handler.object()->IsSmi()) {
       // Skip for Proxy Handlers.
-      if (*(maybe_code_handler.object()) ==
-          *StoreHandler::StoreProxy(GetIsolate()))
+      if (*maybe_code_handler.object() == StoreHandler::StoreProxy()) {
         continue;
+      }
       // Decode the KeyedAccessStoreMode information from the Handler.
       mode = StoreHandler::GetKeyedAccessStoreMode(*maybe_code_handler);
       if (mode != STANDARD_STORE) return mode;
@@ -1260,7 +1260,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       // Element store without prototype chain check.
       if (V8_EXTERNAL_CODE_SPACE_BOOL) {
         Code code = FromCodeT(CodeT::cast(*maybe_code_handler.object()));
-        handler = handle(code, vector().GetIsolate());
+        handler = config()->NewHandle(code);
       } else {
         handler = Handle<Code>::cast(maybe_code_handler.object());
       }

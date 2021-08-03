@@ -410,10 +410,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   MapRef receiver_map = receiver_ref.map();
   NameRef name = MakeRef(broker(), isolate()->factory()->has_instance_symbol());
   PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
-      receiver_map, name, AccessMode::kLoad, dependencies(),
-      broker()->is_concurrent_inlining()
-          ? SerializationPolicy::kAssumeSerialized
-          : SerializationPolicy::kSerializeIfNeeded);
+      receiver_map, name, AccessMode::kLoad, dependencies());
 
   // TODO(v8:11457) Support dictionary mode holders here.
   if (access_info.IsInvalid() || access_info.HasDictionaryHolder()) {
@@ -723,10 +720,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
     access_infos.push_back(broker()->GetPropertyAccessInfo(
         MakeRef(broker(), map),
         MakeRef(broker(), isolate()->factory()->then_string()),
-        AccessMode::kLoad, dependencies(),
-        broker()->is_concurrent_inlining()
-            ? SerializationPolicy::kAssumeSerialized
-            : SerializationPolicy::kSerializeIfNeeded));
+        AccessMode::kLoad, dependencies()));
   }
   PropertyAccessInfo access_info =
       access_info_factory.FinalizePropertyAccessInfosAsOne(access_infos,
@@ -1077,11 +1071,7 @@ Reduction JSNativeContextSpecialization::ReduceMinimorphicPropertyAccess(
   }
 
   MinimorphicLoadPropertyAccessInfo access_info =
-      broker()->GetPropertyAccessInfo(
-          feedback, source,
-          broker()->is_concurrent_inlining()
-              ? SerializationPolicy::kAssumeSerialized
-              : SerializationPolicy::kSerializeIfNeeded);
+      broker()->GetPropertyAccessInfo(feedback, source);
   if (access_info.IsInvalid()) return NoChange();
 
   PropertyAccessBuilder access_builder(jsgraph(), broker(), nullptr);
@@ -1091,8 +1081,8 @@ Reduction JSNativeContextSpecialization::ReduceMinimorphicPropertyAccess(
   }
 
   ZoneHandleSet<Map> maps;
-  for (Handle<Map> map : feedback.maps()) {
-    maps.insert(map, graph()->zone());
+  for (const MapRef& map : feedback.maps()) {
+    maps.insert(map.object(), graph()->zone());
   }
 
   effect = graph()->NewNode(
@@ -1148,7 +1138,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // Either infer maps from the graph or use the feedback.
   ZoneVector<Handle<Map>> lookup_start_object_maps(zone());
   if (!InferMaps(lookup_start_object, effect, &lookup_start_object_maps)) {
-    lookup_start_object_maps = feedback.maps();
+    for (const MapRef& map : feedback.maps()) {
+      lookup_start_object_maps.push_back(map.object());
+    }
   }
   RemoveImpossibleMaps(lookup_start_object, &lookup_start_object_maps);
 
@@ -1180,10 +1172,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       MapRef map = MakeRef(broker(), map_handle);
       if (map.is_deprecated()) continue;
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
-          map, feedback.name(), access_mode, dependencies(),
-          broker()->is_concurrent_inlining()
-              ? SerializationPolicy::kAssumeSerialized
-              : SerializationPolicy::kSerializeIfNeeded);
+          map, feedback.name(), access_mode, dependencies());
       access_infos_for_feedback.push_back(access_info);
     }
 
@@ -1636,6 +1625,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccessOnString(
 }
 
 namespace {
+
 base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
                                                       Node* receiver) {
   HeapObjectMatcher m(receiver);
@@ -1646,6 +1636,7 @@ base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
   if (typed_array.is_on_heap()) return base::nullopt;
   return typed_array;
 }
+
 }  // namespace
 
 void JSNativeContextSpecialization::RemoveImpossibleMaps(
@@ -1661,6 +1652,20 @@ void JSNativeContextSpecialization::RemoveImpossibleMaps(
                                  !map_ref.FindRootMap()->equals(*root_map));
                        }),
         maps->end());
+  }
+}
+
+void JSNativeContextSpecialization::RemoveImpossibleMaps(
+    Node* object, ZoneVector<MapRef>* maps) const {
+  base::Optional<MapRef> root_map = InferRootMap(object);
+  if (root_map.has_value() && !root_map->is_abandoned_prototype_map()) {
+    maps->erase(std::remove_if(maps->begin(), maps->end(),
+                               [root_map](const MapRef& map) {
+                                 return map.is_abandoned_prototype_map() ||
+                                        (map.FindRootMap().has_value() &&
+                                         !map.FindRootMap()->equals(*root_map));
+                               }),
+                maps->end());
   }
 }
 

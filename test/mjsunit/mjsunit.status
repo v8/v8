@@ -208,6 +208,23 @@
   # dispatcher *without* aborting existing jobs.
   'interrupt-budget-override': [PASS,FAIL],
   'never-optimize': [PASS,FAIL],
+
+  # TODO(v8:12041): Reimplement an %UnblockConcurrentRecompilation pattern that
+  # works with concurrent compilation (i.e. without main-thread serialization).
+  'compiler/concurrent-invalidate-transition-map': [SKIP],
+  'compiler/concurrent-proto-change': [SKIP],
+  'compiler/regress-905555': [SKIP],
+  'compiler/regress-905555-2': [SKIP],
+  'concurrent-initial-prototype-change-1': [SKIP],
+  'const-dict-tracking': [SKIP],
+
+  # TODO(v8:12031): Reimplement elements kinds transitions when concurrent
+  # inlining.
+  'compiler/call-with-arraylike-or-spread-4': [SKIP],
+  'elements-kind': [SKIP],
+  'elements-transition-hoisting': [SKIP],
+  'regress/regress-7254': [SKIP],
+  'regress/regress-7510': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

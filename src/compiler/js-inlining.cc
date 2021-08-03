@@ -530,12 +530,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // Determine the target's feedback vector and its context.
   Node* context;
   FeedbackCellRef feedback_cell = DetermineCallContext(node, &context);
-  if (!broker()->IsSerializedForCompilation(*shared_info,
-                                            *feedback_cell.value())) {
-    TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
-                          << " because it wasn't serialized for compilation.");
-    return NoChange();
-  }
 
   TRACE("Inlining " << *shared_info << " into " << outer_shared_info
                     << ((exception_target != nullptr) ? " (inside try-block)"
