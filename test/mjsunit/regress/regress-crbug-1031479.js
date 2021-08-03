@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --interrupt-budget=200 --stack-size=200 --budget-for-feedback-vector-allocation=100 --expose-gc --stress-flush-code
+// Flags: --interrupt-budget=200 --stack-size=200
+// Flags: --budget-for-feedback-vector-allocation=100 --expose-gc
+// Flags: --stress-flush-code --flus-bytecode
 
 var i = 0;
 function main() {

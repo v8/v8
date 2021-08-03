@@ -96,13 +96,11 @@ base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   }
 
   if (FLAG_flush_baseline_code) {
-    // TODO(mythria): Add support to be able to flush baseline code without
-    // flushing bytecode.
-    DCHECK(FLAG_flush_bytecode);
     code_flush_mode.Add(CodeFlushMode::kFlushBaselineCode);
   }
 
   if (FLAG_stress_flush_code) {
+    DCHECK(FLAG_flush_baseline_code || FLAG_flush_bytecode);
     code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
   }
 

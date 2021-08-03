@@ -2222,7 +2222,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());
   DCHECK(weak_objects_.js_weak_refs.IsEmpty());
   DCHECK(weak_objects_.weak_cells.IsEmpty());
-  DCHECK(weak_objects_.bytecode_flushing_candidates.IsEmpty());
+  DCHECK(weak_objects_.code_flushing_candidates.IsEmpty());
   DCHECK(weak_objects_.baseline_flushing_candidates.IsEmpty());
   DCHECK(weak_objects_.flushed_js_functions.IsEmpty());
 }
@@ -2359,11 +2359,11 @@ void MarkCompactCollector::MarkBaselineDataAsLive(BaselineData baseline_data) {
 }
 
 void MarkCompactCollector::ProcessOldCodeCandidates() {
-  DCHECK(FLAG_flush_bytecode ||
-         weak_objects_.bytecode_flushing_candidates.IsEmpty());
+  DCHECK(FLAG_flush_bytecode || FLAG_flush_baseline_code ||
+         weak_objects_.code_flushing_candidates.IsEmpty());
   SharedFunctionInfo flushing_candidate;
-  while (weak_objects_.bytecode_flushing_candidates.Pop(kMainThreadTask,
-                                                        &flushing_candidate)) {
+  while (weak_objects_.code_flushing_candidates.Pop(kMainThreadTask,
+                                                    &flushing_candidate)) {
     bool is_bytecode_live = non_atomic_marking_state()->IsBlackOrGrey(
         flushing_candidate.GetBytecodeArray(isolate()));
     if (FLAG_flush_baseline_code && flushing_candidate.HasBaselineData()) {
@@ -2748,7 +2748,7 @@ void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.weak_objects_in_code.Clear();
   weak_objects_.js_weak_refs.Clear();
   weak_objects_.weak_cells.Clear();
-  weak_objects_.bytecode_flushing_candidates.Clear();
+  weak_objects_.code_flushing_candidates.Clear();
   weak_objects_.baseline_flushing_candidates.Clear();
   weak_objects_.flushed_js_functions.Clear();
 }

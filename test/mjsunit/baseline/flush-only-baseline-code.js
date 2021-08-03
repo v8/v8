@@ -5,7 +5,7 @@
 // Flags: --expose-gc --stress-flush-code --allow-natives-syntax
 // Flags: --baseline-batch-compilation-threshold=0 --sparkplug
 // Flags: --no-always-sparkplug --lazy-feedback-allocation
-// Flags: --flush-baseline-code --flush-bytecode
+// Flags: --flush-baseline-code --no-flush-bytecode
 
 function HasBaselineCode(f) {
   let opt_status = %GetOptimizationStatus(f);
@@ -26,42 +26,16 @@ function f() {
 f();
 assertTrue(HasByteCode(f));
 gc();
-assertFalse(HasByteCode(f));
+assertTrue(HasByteCode(f));
 
-// Test baseline code and bytecode gets flushed
+// Test baseline code gets flushed but not bytecode.
 for (i = 1; i < 50; i++) {
   f();
 }
 assertTrue(HasBaselineCode(f));
 gc();
 assertFalse(HasBaselineCode(f));
-assertFalse(HasByteCode(f));
-
-// Check bytecode isn't flushed if it's held strongly from somewhere but
-// baseline code is flushed.
-function f1(should_recurse) {
-  if (should_recurse) {
-    assertTrue(HasByteCode(f1));
-    for (i = 1; i < 50; i++) {
-      f1(false);
-    }
-    assertTrue(HasBaselineCode(f1));
-    gc();
-    assertFalse(HasBaselineCode(f1));
-    assertTrue(HasByteCode(f1));
-  }
-  return x.b + 10;
-}
-
-f1(false);
-// Recurse first time so we have bytecode array on the stack that keeps
-// bytecode alive.
-f1(true);
-
-// Flush bytecode
-gc();
-assertFalse(HasBaselineCode(f1));
-assertFalse(HasByteCode(f1));
+assertTrue(HasByteCode(f));
 
 // Check baseline code and bytecode aren't flushed if baseline code is on
 // stack.

@@ -424,6 +424,7 @@ TEST(SFIDeduplicationClasses) {
 
 TEST(SFIDeduplicationAfterBytecodeFlushing) {
   FLAG_stress_flush_code = true;
+  FLAG_flush_bytecode = true;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
 
@@ -509,6 +510,7 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
 
 TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
   FLAG_stress_flush_code = true;
+  FLAG_flush_bytecode = true;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
 

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --opt --noalways-opt --stress-flush-code
-// Flags: --expose-gc
+// Flags: --expose-gc --flush-bytecode
 
 Debug = debug.Debug
 

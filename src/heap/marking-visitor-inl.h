@@ -159,7 +159,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSFunction(
     // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
     // also include cases where there is old bytecode even when there is no
     // baseline code and remove this check here.
-    if (!IsFlushingDisabled(code_flush_mode_) &&
+    if (IsByteCodeFlushingEnabled(code_flush_mode_) &&
         js_function.NeedsResetDueToFlushedBytecode()) {
       weak_objects_->flushed_js_functions.Push(task_id_, js_function);
     }
@@ -176,13 +176,25 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
   this->VisitMapPointer(shared_info);
   SharedFunctionInfo::BodyDescriptor::IterateBody(map, shared_info, size, this);
 
-  // If the SharedFunctionInfo has old bytecode, mark it as flushable,
-  // otherwise visit the function data field strongly.
-  if (shared_info.ShouldFlushBytecode(code_flush_mode_)) {
-    weak_objects_->bytecode_flushing_candidates.Push(task_id_, shared_info);
-  } else {
+  if (!shared_info.ShouldFlushCode(code_flush_mode_)) {
+    // If the SharedFunctionInfo doesn't have old bytecode visit the function
+    // data strongly.
     VisitPointer(shared_info,
                  shared_info.RawField(SharedFunctionInfo::kFunctionDataOffset));
+  } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
+    // If bytecode flushing is disabled but baseline code flushing is enabled
+    // then we have to visit the bytecode but not the baseline code.
+    DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
+    BaselineData baseline_data =
+        BaselineData::cast(shared_info.function_data(kAcquireLoad));
+    // Visit the bytecode hanging off baseline data.
+    VisitPointer(baseline_data,
+                 baseline_data.RawField(BaselineData::kDataOffset));
+    weak_objects_->code_flushing_candidates.Push(task_id_, shared_info);
+  } else {
+    // In other cases, record as a flushing candidate since we have old
+    // bytecode.
+    weak_objects_->code_flushing_candidates.Push(task_id_, shared_info);
   }
   return size;
 }

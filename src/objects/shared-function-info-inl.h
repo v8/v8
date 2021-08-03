@@ -583,7 +583,7 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
   set_function_data(bytecode, kReleaseStore);
 }
 
-bool SharedFunctionInfo::ShouldFlushBytecode(
+bool SharedFunctionInfo::ShouldFlushCode(
     base::EnumSet<CodeFlushMode> code_flush_mode) {
   if (IsFlushingDisabled(code_flush_mode)) return false;
 
@@ -597,9 +597,15 @@ bool SharedFunctionInfo::ShouldFlushBytecode(
   // called by the concurrent marker.
   Object data = function_data(kAcquireLoad);
   if (data.IsBaselineData()) {
+    // If baseline code flushing isn't enabled and we have baseline data on SFI
+    // we cannot flush baseline / bytecode.
     if (!IsBaselineCodeFlushingEnabled(code_flush_mode)) return false;
     data =
         ACQUIRE_READ_FIELD(BaselineData::cast(data), BaselineData::kDataOffset);
+  } else if (!IsByteCodeFlushingEnabled(code_flush_mode)) {
+    // If bytecode flushing isn't enabled and there is no baseline code there is
+    // nothing to flush.
+    return false;
   }
   if (!data.IsBytecodeArray()) return false;
 

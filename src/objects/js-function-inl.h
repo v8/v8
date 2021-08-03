@@ -312,7 +312,7 @@ bool JSFunction::ShouldFlushBaselineCode(
   if (code.kind() != CodeKind::BASELINE) return false;
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
-  return shared.ShouldFlushBytecode(code_flush_mode);
+  return shared.ShouldFlushCode(code_flush_mode);
 }
 
 bool JSFunction::NeedsResetDueToFlushedBytecode() {
@@ -339,14 +339,20 @@ void JSFunction::ResetIfCodeFlushed(
     base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
                                       HeapObject target)>>
         gc_notify_updated_slot) {
-  if (!FLAG_flush_bytecode) return;
+  if (!FLAG_flush_bytecode && !FLAG_flush_baseline_code) return;
 
-  if (NeedsResetDueToFlushedBytecode()) {
+  DCHECK_IMPLIES(NeedsResetDueToFlushedBytecode(), FLAG_flush_bytecode);
+  if (FLAG_flush_bytecode && NeedsResetDueToFlushedBytecode()) {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
     set_code(*BUILTIN_CODE(GetIsolate(), CompileLazy));
     raw_feedback_cell().reset_feedback_vector(gc_notify_updated_slot);
-  } else if (NeedsResetDueToFlushedBaselineCode()) {
+    return;
+  }
+
+  DCHECK_IMPLIES(NeedsResetDueToFlushedBaselineCode(),
+                 FLAG_flush_baseline_code);
+  if (FLAG_flush_baseline_code && NeedsResetDueToFlushedBaselineCode()) {
     DCHECK(FLAG_flush_baseline_code);
     // Flush baseline code from the closure if required
     set_code(*BUILTIN_CODE(GetIsolate(), InterpreterEntryTrampoline));

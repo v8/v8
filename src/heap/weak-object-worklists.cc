@@ -133,9 +133,9 @@ void WeakObjects::UpdateWeakCells(WeakObjectWorklist<WeakCell>& weak_cells) {
   DCHECK(!ContainsYoungObjects(weak_cells));
 }
 
-void WeakObjects::UpdateBytecodeFlushingCandidates(
-    WeakObjectWorklist<SharedFunctionInfo>& bytecode_flushing_candidates) {
-  DCHECK(!ContainsYoungObjects(bytecode_flushing_candidates));
+void WeakObjects::UpdateCodeFlushingCandidates(
+    WeakObjectWorklist<SharedFunctionInfo>& code_flushing_candidates) {
+  DCHECK(!ContainsYoungObjects(code_flushing_candidates));
 }
 
 void WeakObjects::UpdateFlushedJSFunctions(
