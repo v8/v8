@@ -3582,27 +3582,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     InitMerge(&c->end_merge, imm.out_arity(), [pc, &imm](uint32_t i) {
       return Value{pc, imm.out_type(i)};
     });
-    InitMerge(&c->start_merge, imm.in_arity(),
-#ifdef DEBUG
-              [this, pc, &imm, args](uint32_t i) {
-#else
-              [pc, &imm, args](uint32_t i) {
-#endif
-                // The merge needs to be instantiated with Values of the correct
-                // type even in the presence of bottom values (i.e. in
-                // unreachable code). Since bottom Values will never be used for
-                // code generation, we can safely instantiate new ones in that
-                // case.
-                DCHECK_IMPLIES(current_code_reachable_and_ok_,
-                               args[i].type != kWasmBottom);
-                // Warning: Do not use a ternary operator here, as gcc bugs out
-                // (as of version 10.2.1).
-                if (args[i].type != kWasmBottom) {
-                  return args[i];
-                } else {
-                  return Value{pc, imm.in_type(i)};
-                }
-              });
+    InitMerge(&c->start_merge, imm.in_arity(), [&imm, args](uint32_t i) {
+      // The merge needs to be instantiated with Values of the correct
+      // type, even if the actual Value is bottom/unreachable or has
+      // a subtype of the static type.
+      // So we copy-construct a new Value, and update its type.
+      Value value = args[i];
+      value.type = imm.in_type(i);
+      return value;
+    });
   }
 
   // In reachable code, check if there are at least {count} values on the stack.
