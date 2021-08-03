@@ -2160,6 +2160,30 @@ void WebAssemblyExceptionGetArg(
   args.GetReturnValue().Set(result);
 }
 
+void WebAssemblyExceptionIs(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Exception.is()");
+
+  EXTRACT_THIS(exception, WasmExceptionPackage);
+  if (thrower.error()) return;
+
+  auto tag = i::WasmExceptionPackage::GetExceptionTag(i_isolate, exception);
+  if (tag->IsUndefined()) {
+    thrower.TypeError("Expected a WebAssembly.Exception object");
+    return;
+  }
+  DCHECK(tag->IsWasmExceptionTag());
+
+  auto maybe_tag = GetFirstArgumentAsTag(args, &thrower);
+  if (thrower.error()) {
+    return;
+  }
+  auto tag_arg = maybe_tag.ToHandleChecked();
+  args.GetReturnValue().Set(tag_arg->tag() == *tag);
+}
+
 void WebAssemblyGlobalGetValueCommon(
     const v8::FunctionCallbackInfo<v8::Value>& args, const char* name) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -2623,6 +2647,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
         isolate);
     InstallFunc(isolate, exception_proto, "getArg", WebAssemblyExceptionGetArg,
                 2);
+    InstallFunc(isolate, exception_proto, "is", WebAssemblyExceptionIs, 1);
     context->set_wasm_exception_constructor(*exception_constructor);
     JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
                               exception_proto);

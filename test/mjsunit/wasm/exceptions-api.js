@@ -219,3 +219,18 @@ function TestGetArgHelper(types_str, types, values) {
   TestGetArgHelper(['externref'], [kWasmExternRef], [{val: 5}]);
   TestGetArgHelper(['i32', 'i64', 'f32', 'f64', 'externref'], [kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmExternRef], [5, 6n, 7, 8, {val: 9}]);
 })();
+
+(function TestExceptionIs() {
+  print(arguments.callee.name);
+  let tag1 = new WebAssembly.Tag({parameters: []});
+  let tag2 = new WebAssembly.Tag({parameters: []});
+  assertThrows(() => new WebAssembly.Exception({}, []), TypeError,
+      /Argument 0 must be a WebAssembly tag/);
+
+  let exception = new WebAssembly.Exception(tag1, []);
+  assertTrue(exception.is(tag1));
+  assertFalse(exception.is(tag2));
+
+  assertThrows(() => exception.is.apply({}, tag1), TypeError,
+      /Expected a WebAssembly.Exception object/);
+})();
