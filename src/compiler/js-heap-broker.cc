@@ -565,10 +565,16 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
     for (const MapAndHandler& map_and_handler : maps_and_handlers_unfiltered) {
       MapRef map = MakeRefAssumeMemoryFence(this, *map_and_handler.first);
+      if (!is_concurrent_inlining()) {
+        // TODO(jgruber): Consider replaying transitions on deprecated maps
+        // when concurrent inlining (see Map::TryUpdate).
+        Handle<Map> map_handle;
+        if (!Map::TryUpdate(isolate(), map.object()).ToHandle(&map_handle))
+          continue;
+        map = MakeRefAssumeMemoryFence(this, *map_handle);
+      }
       // May change concurrently at any time - must be guarded by a dependency
       // if non-deprecation is important.
-      // TODO(jgruber): Consider replaying transitions on deprecated maps (see
-      // Map::TryUpdate).
       if (map.is_deprecated()) continue;
       if (map.is_abandoned_prototype_map()) continue;
       maps_and_handlers.push_back({map, map_and_handler.second});
@@ -903,9 +909,29 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   // Separate the actual receiver maps and the possible transition sources.
   for (const MapRef& map : maps) {
     // Don't generate elements kind transitions from stable maps.
-    // TODO(jgruber): Bring back elements kind transition generation.
-    TransitionGroup group(1, map.object(), zone());
-    transition_groups.insert({map.object(), group});
+    if (is_concurrent_inlining()) {
+      // TODO(jgruber): Bring back elements kind transition generation when
+      // concurrent inlining (see FindElementsKindTransitionedMap).
+      TransitionGroup group(1, map.object(), zone());
+      transition_groups.insert({map.object(), group});
+    } else {
+      Map transition_target;
+      if (!map.is_stable()) {
+        transition_target = map.object()->FindElementsKindTransitionedMap(
+            isolate(), possible_transition_targets);
+      }
+
+      if (transition_target.is_null()) {
+        TransitionGroup group(1, map.object(), zone());
+        transition_groups.insert({map.object(), group});
+      } else {
+        Handle<Map> target(transition_target, isolate());
+        TransitionGroup new_group(1, target, zone());
+        TransitionGroup& actual_group =
+            transition_groups.insert({target, new_group}).first->second;
+        actual_group.push_back(map.object());
+      }
+    }
   }
 
   ElementAccessFeedback* result =
