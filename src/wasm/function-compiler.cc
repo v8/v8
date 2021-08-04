@@ -107,18 +107,20 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       if (V8_LIKELY(FLAG_wasm_tier_mask_for_testing == 0) ||
           func_index_ >= 32 ||
           ((FLAG_wasm_tier_mask_for_testing & (1 << func_index_)) == 0)) {
-        if (V8_LIKELY(func_index_ >= 32 || (FLAG_wasm_debug_mask_for_testing &
-                                            (1 << func_index_)) == 0)) {
-          result = ExecuteLiftoffCompilation(
-              env, func_body, func_index_, for_debugging_, counters, detected);
-        } else {
-          // We don't use the debug side table, we only pass it to cover
-          // different code paths in Liftoff for testing.
-          std::unique_ptr<DebugSideTable> debug_sidetable;
-          result = ExecuteLiftoffCompilation(env, func_body, func_index_,
-                                             kForDebugging, counters, detected,
-                                             {}, &debug_sidetable);
+        // We do not use the debug side table, we only (optionally) pass it to
+        // cover different code paths in Liftoff for testing.
+        std::unique_ptr<DebugSideTable> unused_debug_sidetable;
+        std::unique_ptr<DebugSideTable>* debug_sidetable_ptr = nullptr;
+        if (V8_UNLIKELY(func_index_ < 32 && (FLAG_wasm_debug_mask_for_testing &
+                                             (1 << func_index_)) != 0)) {
+          debug_sidetable_ptr = &unused_debug_sidetable;
         }
+        result = ExecuteLiftoffCompilation(
+            env, func_body, func_index_, for_debugging_,
+            LiftoffOptions{}
+                .set_counters(counters)
+                .set_detected_features(detected)
+                .set_debug_sidetable(debug_sidetable_ptr));
         if (result.succeeded()) break;
       }
 

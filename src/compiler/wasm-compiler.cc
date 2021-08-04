@@ -7915,6 +7915,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
 
   std::vector<WasmLoopInfo> loop_infos;
 
+  wasm::WasmFeatures unused_detected_features;
+  if (!detected) detected = &unused_detected_features;
   if (!BuildGraphForWasmFunction(env, func_body, func_index, detected, mcgraph,
                                  &loop_infos, node_origins, source_positions)) {
     return wasm::WasmCompilationResult{};

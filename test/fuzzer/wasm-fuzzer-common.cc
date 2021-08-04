@@ -59,12 +59,12 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
        ++i) {
     auto& func = module->functions[i];
     base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
-    WasmFeatures unused_detected_features;
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
                            func_code.end());
     auto result = ExecuteLiftoffCompilation(
-        &env, func_body, func.func_index, kForDebugging, isolate->counters(),
-        &unused_detected_features, {}, nullptr, 0, max_steps, nondeterminism);
+        &env, func_body, func.func_index, kForDebugging,
+        LiftoffOptions{}.set_max_steps(max_steps).set_nondeterminism(
+            nondeterminism));
     native_module->PublishCode(
         native_module->AddCompiledCode(std::move(result)));
   }

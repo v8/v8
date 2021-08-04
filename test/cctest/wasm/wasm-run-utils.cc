@@ -549,21 +549,20 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   ForDebugging for_debugging =
       native_module->IsTieredDown() ? kForDebugging : kNoDebugging;
 
-  WasmFeatures unused_detected_features;
-
   base::Optional<WasmCompilationResult> result;
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
     result.emplace(ExecuteLiftoffCompilation(
         &env, func_body, function_->func_index, kForDebugging,
-        isolate()->counters(), &unused_detected_features, {}, nullptr, 0,
-        builder_->max_steps_ptr(), builder_->non_determinism_ptr()));
+        LiftoffOptions{}
+            .set_max_steps(builder_->max_steps_ptr())
+            .set_nondeterminism(builder_->non_determinism_ptr())));
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
                              for_debugging);
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-        isolate()->counters(), &unused_detected_features));
+        nullptr, nullptr));
   }
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(*result)));

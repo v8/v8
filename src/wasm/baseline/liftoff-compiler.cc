@@ -6275,10 +6275,7 @@ constexpr base::EnumSet<ValueKind> LiftoffCompiler::kUnconditionallySupported;
 
 WasmCompilationResult ExecuteLiftoffCompilation(
     CompilationEnv* env, const FunctionBody& func_body, int func_index,
-    ForDebugging for_debugging, Counters* counters, WasmFeatures* detected,
-    base::Vector<const int> breakpoints,
-    std::unique_ptr<DebugSideTable>* debug_sidetable, int dead_breakpoint,
-    int32_t* max_steps, int32_t* nondeterminism) {
+    ForDebugging for_debugging, const LiftoffOptions& compiler_options) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileBaseline", "funcIndex", func_index, "bodySize",
@@ -6294,20 +6291,25 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   // have to grow more often.
   int initial_buffer_size = static_cast<int>(128 + code_size_estimate * 4 / 3);
   std::unique_ptr<DebugSideTableBuilder> debug_sidetable_builder;
-  if (debug_sidetable) {
+  if (compiler_options.debug_sidetable) {
     debug_sidetable_builder = std::make_unique<DebugSideTableBuilder>();
   }
-  DCHECK_IMPLIES(max_steps, for_debugging == kForDebugging);
+  DCHECK_IMPLIES(compiler_options.max_steps, for_debugging == kForDebugging);
+  WasmFeatures unused_detected_features;
   WasmFullDecoder<Decoder::kBooleanValidation, LiftoffCompiler> decoder(
-      &zone, env->module, env->enabled_features, detected, func_body,
-      call_descriptor, env, &zone, NewAssemblerBuffer(initial_buffer_size),
-      debug_sidetable_builder.get(), for_debugging, func_index, breakpoints,
-      dead_breakpoint, max_steps, nondeterminism);
+      &zone, env->module, env->enabled_features,
+      compiler_options.detected_features ? compiler_options.detected_features
+                                         : &unused_detected_features,
+      func_body, call_descriptor, env, &zone,
+      NewAssemblerBuffer(initial_buffer_size), debug_sidetable_builder.get(),
+      for_debugging, func_index, compiler_options.breakpoints,
+      compiler_options.dead_breakpoint, compiler_options.max_steps,
+      compiler_options.nondeterminism);
   decoder.Decode();
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) compiler->OnFirstError(&decoder);
 
-  if (counters) {
+  if (auto* counters = compiler_options.counters) {
     // Check that the histogram for the bailout reasons has the correct size.
     DCHECK_EQ(0, counters->liftoff_bailout_reasons()->min());
     DCHECK_EQ(kNumBailoutReasons - 1,
@@ -6331,7 +6333,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.func_index = func_index;
   result.result_tier = ExecutionTier::kLiftoff;
   result.for_debugging = for_debugging;
-  if (debug_sidetable) {
+  if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }
 
