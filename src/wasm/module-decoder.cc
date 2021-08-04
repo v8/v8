@@ -562,6 +562,21 @@ class ModuleDecoderImpl : public Decoder {
           module_->add_signature(s);
           break;
         }
+        case kWasmFunctionExtendingTypeCode: {
+          if (!enabled_features_.has_gc_experiments()) {
+            errorf(pc(),
+                   "nominal types need --experimental-wasm-gc-experiments");
+            break;
+          }
+          const FunctionSig* s = consume_sig(module_->signature_zone.get());
+          module_->add_signature(s);
+          uint32_t super_index = consume_u32v("supertype");
+          if (!module_->has_signature(super_index)) {
+            errorf(pc(), "invalid function supertype index: %d", super_index);
+            break;
+          }
+          break;
+        }
         case kWasmStructTypeCode: {
           if (!enabled_features_.has_gc()) {
             errorf(pc(),
@@ -575,6 +590,21 @@ class ModuleDecoderImpl : public Decoder {
           // {signature_map} does for function signatures?
           break;
         }
+        case kWasmStructExtendingTypeCode: {
+          if (!enabled_features_.has_gc_experiments()) {
+            errorf(pc(),
+                   "nominal types need --experimental-wasm-gc-experiments");
+            break;
+          }
+          const StructType* s = consume_struct(module_->signature_zone.get());
+          module_->add_struct_type(s);
+          uint32_t super_index = consume_u32v("supertype");
+          if (!module_->has_struct(super_index)) {
+            errorf(pc(), "invalid struct supertype: %d", super_index);
+            break;
+          }
+          break;
+        }
         case kWasmArrayTypeCode: {
           if (!enabled_features_.has_gc()) {
             errorf(pc(),
@@ -584,6 +614,21 @@ class ModuleDecoderImpl : public Decoder {
           }
           const ArrayType* type = consume_array(module_->signature_zone.get());
           module_->add_array_type(type);
+          break;
+        }
+        case kWasmArrayExtendingTypeCode: {
+          if (!enabled_features_.has_gc_experiments()) {
+            errorf(pc(),
+                   "nominal types need --experimental-wasm-gc-experiments");
+            break;
+          }
+          const ArrayType* type = consume_array(module_->signature_zone.get());
+          module_->add_array_type(type);
+          uint32_t super_index = consume_u32v("supertype");
+          if (!module_->has_array(super_index)) {
+            errorf(pc(), "invalid array supertype: %d", super_index);
+            break;
+          }
           break;
         }
         default:

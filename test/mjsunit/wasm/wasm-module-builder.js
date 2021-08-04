@@ -77,6 +77,9 @@ let kLocalNamesCode = 2;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
+let kWasmFunctionExtendingTypeForm = 0x5d;
+let kWasmStructExtendingTypeForm = 0x5c;
+let kWasmArrayExtendingTypeForm = 0x5b;
 
 let kLimitsNoMaximum = 0x00;
 let kLimitsWithMaximum = 0x01;
@@ -1223,6 +1226,15 @@ class WasmStruct {
       throw new Error('struct fields must be an array');
     }
     this.fields = fields;
+    this.type_form = kWasmStructTypeForm;
+  }
+}
+
+class WasmStructExtending extends WasmStruct {
+  constructor(fields, supertype_idx) {
+    super(fields);
+    this.supertype = supertype_idx;
+    this.type_form = kWasmStructExtendingTypeForm;
   }
 }
 
@@ -1231,9 +1243,17 @@ class WasmArray {
     this.type = type;
     if (!mutability) throw new Error("Immutable arrays are not supported yet");
     this.mutability = mutability;
+    this.type_form = kWasmArrayTypeForm;
   }
 }
 
+class WasmArrayExtending extends WasmArray {
+  constructor(type, mutability, supertype_idx) {
+    super(type, mutability);
+    this.supertype = supertype_idx;
+    this.type_form = kWasmArrayExtendingTypeForm;
+  }
+}
 class WasmElemSegment {
   constructor(table, offset, type, elements, is_decl) {
     this.table = table;
@@ -1356,8 +1376,18 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
+  addStructExtending(fields, supertype_idx) {
+    this.types.push(new WasmStructExtending(fields, supertype_idx));
+    return this.types.length - 1;
+  }
+
   addArray(type, mutability) {
     this.types.push(new WasmArray(type, mutability));
+    return this.types.length - 1;
+  }
+
+  addArrayExtending(type, mutability, supertype_idx) {
+    this.types.push(new WasmArrayExtending(type, mutability, supertype_idx));
     return this.types.length - 1;
   }
 
@@ -1589,16 +1619,22 @@ class WasmModuleBuilder {
         section.emit_u32v(wasm.types.length);
         for (let type of wasm.types) {
           if (type instanceof WasmStruct) {
-            section.emit_u8(kWasmStructTypeForm);
+            section.emit_u8(type.type_form);
             section.emit_u32v(type.fields.length);
             for (let field of type.fields) {
               section.emit_type(field.type);
               section.emit_u8(field.mutability ? 1 : 0);
             }
+            if (type instanceof WasmStructExtending) {
+              section.emit_u32v(type.supertype);
+            }
           } else if (type instanceof WasmArray) {
-            section.emit_u8(kWasmArrayTypeForm);
+            section.emit_u8(type.type_form);
             section.emit_type(type.type);
             section.emit_u8(type.mutability ? 1 : 0);
+            if (type instanceof WasmArrayExtending) {
+              section.emit_u32v(type.supertype);
+            }
           } else {
             section.emit_u8(kWasmFunctionTypeForm);
             section.emit_u32v(type.params.length);

@@ -50,6 +50,9 @@ enum ValueTypeCode : uint8_t {
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
+constexpr uint8_t kWasmFunctionExtendingTypeCode = 0x5d;
+constexpr uint8_t kWasmStructExtendingTypeCode = 0x5c;
+constexpr uint8_t kWasmArrayExtendingTypeCode = 0x5b;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
