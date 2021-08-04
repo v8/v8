@@ -623,11 +623,6 @@ Running test: testMap
             description : Map(0)
             overflow : false
             properties : [
-                [0] : {
-                    name : size
-                    type : number
-                    value : 0
-                }
             ]
             subtype : map
             type : object
@@ -664,11 +659,6 @@ Running test: testMap
             ]
             overflow : false
             properties : [
-                [0] : {
-                    name : size
-                    type : number
-                    value : 1
-                }
             ]
             subtype : map
             type : object
@@ -691,11 +681,6 @@ Running test: testMap
                         description : Map(1)
                         overflow : true
                         properties : [
-                            [0] : {
-                                name : size
-                                type : number
-                                value : 1
-                            }
                         ]
                         subtype : map
                         type : object
@@ -704,11 +689,6 @@ Running test: testMap
                         description : Map(1)
                         overflow : true
                         properties : [
-                            [0] : {
-                                name : size
-                                type : number
-                                value : 1
-                            }
                         ]
                         subtype : map
                         type : object
@@ -717,11 +697,6 @@ Running test: testMap
             ]
             overflow : false
             properties : [
-                [0] : {
-                    name : size
-                    type : number
-                    value : 1
-                }
             ]
             subtype : map
             type : object
@@ -801,11 +776,6 @@ Running test: testMap
                     name : d
                     type : number
                     value : 42
-                }
-                [1] : {
-                    name : size
-                    type : number
-                    value : 1
                 }
             ]
             subtype : map
@@ -996,11 +966,6 @@ Running test: testSet
             ]
             overflow : false
             properties : [
-                [0] : {
-                    name : size
-                    type : number
-                    value : 1
-                }
             ]
             subtype : set
             type : object
@@ -1074,11 +1039,6 @@ Running test: testSet
             ]
             overflow : true
             properties : [
-                [0] : {
-                    name : size
-                    type : number
-                    value : 7
-                }
             ]
             subtype : set
             type : object
@@ -1768,27 +1728,6 @@ Running test: testTypedArray
                     type : number
                     value : 2
                 }
-                [3] : {
-                    name : buffer
-                    subtype : arraybuffer
-                    type : object
-                    value : ArrayBuffer(2)
-                }
-                [4] : {
-                    name : byteLength
-                    type : number
-                    value : 2
-                }
-                [5] : {
-                    name : byteOffset
-                    type : number
-                    value : 0
-                }
-                [6] : {
-                    name : length
-                    type : number
-                    value : 2
-                }
             ]
             subtype : typedarray
             type : object
@@ -2327,11 +2266,6 @@ Running test: testArrayBuffer
             description : ArrayBuffer(0)
             overflow : false
             properties : [
-                [0] : {
-                    name : byteLength
-                    type : number
-                    value : 0
-                }
             ]
             subtype : arraybuffer
             type : object
@@ -2350,11 +2284,6 @@ Running test: testArrayBuffer
             description : ArrayBuffer(400)
             overflow : false
             properties : [
-                [0] : {
-                    name : byteLength
-                    type : number
-                    value : 400
-                }
             ]
             subtype : arraybuffer
             type : object
@@ -2375,22 +2304,6 @@ Running test: testDataView
             description : DataView(16)
             overflow : false
             properties : [
-                [0] : {
-                    name : buffer
-                    subtype : arraybuffer
-                    type : object
-                    value : ArrayBuffer(16)
-                }
-                [1] : {
-                    name : byteLength
-                    type : number
-                    value : 16
-                }
-                [2] : {
-                    name : byteOffset
-                    type : number
-                    value : 0
-                }
             ]
             subtype : dataview
             type : object
@@ -2409,22 +2322,6 @@ Running test: testDataView
             description : DataView(4)
             overflow : false
             properties : [
-                [0] : {
-                    name : buffer
-                    subtype : arraybuffer
-                    type : object
-                    value : ArrayBuffer(16)
-                }
-                [1] : {
-                    name : byteLength
-                    type : number
-                    value : 4
-                }
-                [2] : {
-                    name : byteOffset
-                    type : number
-                    value : 12
-                }
             ]
             subtype : dataview
             type : object
