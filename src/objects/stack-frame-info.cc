@@ -68,7 +68,11 @@ int StackFrameInfo::GetLineNumber(Handle<StackFrameInfo> info) {
   Handle<Script> script;
   if (GetScript(isolate, info).ToHandle(&script)) {
     int position = GetSourcePosition(info);
-    return Script::GetLineNumber(script, position) + 1;
+    int line_number = Script::GetLineNumber(script, position) + 1;
+    if (script->HasSourceURLComment()) {
+      line_number -= script->line_offset();
+    }
+    return line_number;
   }
   return Message::kNoLineNumberInfo;
 }
@@ -84,7 +88,13 @@ int StackFrameInfo::GetColumnNumber(Handle<StackFrameInfo> info) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   Handle<Script> script;
   if (GetScript(isolate, info).ToHandle(&script)) {
-    return Script::GetColumnNumber(script, position) + 1;
+    int column_number = Script::GetColumnNumber(script, position) + 1;
+    if (script->HasSourceURLComment()) {
+      if (Script::GetLineNumber(script, position) == script->line_offset()) {
+        column_number -= script->column_offset();
+      }
+    }
+    return column_number;
   }
   return Message::kNoColumnInfo;
 }

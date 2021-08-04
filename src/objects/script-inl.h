@@ -175,6 +175,10 @@ bool Script::HasValidSource() {
   return true;
 }
 
+bool Script::HasSourceURLComment() const {
+  return source_url().IsString() && String::cast(source_url()).length() != 0;
+}
+
 }  // namespace internal
 }  // namespace v8
 

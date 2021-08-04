@@ -142,6 +142,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // resource is accessible. Otherwise, always return true.
   inline bool HasValidSource();
 
+  // If the script has a non-empty sourceURL comment.
+  inline bool HasSourceURLComment() const;
+
   Object GetNameOrSourceURL();
 
   // Retrieve source position from where eval was called.
