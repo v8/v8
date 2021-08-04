@@ -121,11 +121,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // Leave construct frame.
   }
   // Remove caller arguments from the stack and return.
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-
-  __ SmiToPtrArrayOffset(scratch, scratch);
-  __ AddS64(sp, sp, scratch);
-  __ AddS64(sp, sp, Operand(kSystemPointerSize));
+  __ DropArguments(scratch, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
   __ Ret();
 
   __ bind(&stack_overflow);
@@ -278,11 +275,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
 
   // Remove caller arguments from the stack and return.
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-
-  __ SmiToPtrArrayOffset(r3, r3);
-  __ AddS64(sp, sp, r3);
-  __ AddS64(sp, sp, Operand(kSystemPointerSize));
+  __ DropArguments(r3, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
   __ Ret();
 
   __ bind(&check_receiver);
@@ -892,7 +886,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   // Leave the frame (also dropping the register file).
   __ LeaveFrame(StackFrame::INTERPRETED);
 
-  __ AddS64(sp, sp, params_size);
+  __ DropArguments(params_size, TurboAssembler::kCountIsBytes,
+                   TurboAssembler::kCountIncludesReceiver);
 }
 
 // Tail-call |function_id| if |actual_marker| == |expected_marker|
@@ -1730,9 +1725,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ LoadU64(r4, MemOperand(sp, 2 * kSystemPointerSize));  // argArray
 
     __ bind(&done);
-    __ ShiftLeftU64(r1, r2, Operand(kSystemPointerSizeLog2));
-    __ lay(sp, MemOperand(sp, r1));
-    __ StoreU64(r7, MemOperand(sp));
+    __ DropArgumentsAndPushNewReceiver(r2, r7, TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1816,9 +1810,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ LoadU64(r4, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
 
     __ bind(&done);
-    __ ShiftLeftU64(r1, r2, Operand(kSystemPointerSizeLog2));
-    __ lay(sp, MemOperand(sp, r1));
-    __ StoreU64(r7, MemOperand(sp));
+    __ DropArgumentsAndPushNewReceiver(r2, r7, TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1867,9 +1860,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ blt(&done);
     __ LoadU64(r5, MemOperand(sp, 3 * kSystemPointerSize));  // argArray
     __ bind(&done);
-    __ ShiftLeftU64(r1, r2, Operand(kSystemPointerSizeLog2));
-    __ lay(sp, MemOperand(sp, r1));
-    __ StoreU64(r6, MemOperand(sp));
+    __ DropArgumentsAndPushNewReceiver(r2, r6, TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------

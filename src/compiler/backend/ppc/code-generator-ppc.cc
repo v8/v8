@@ -4226,17 +4226,20 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   // Constant pool is unavailable since the frame has been destructed
   ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
   if (drop_jsargs) {
-    // We must pop all arguments from the stack (including the receiver). This
-    // number of arguments is given by max(1 + argc_reg, parameter_slots).
-    __ addi(argc_reg, argc_reg, Operand(1));  // Also pop the receiver.
+    // We must pop all arguments from the stack (including the receiver).
+    // The number of arguments without the receiver is
+    // max(argc_reg, parameter_slots-1), and the receiver is added in
+    // DropArguments().
     if (parameter_slots > 1) {
+      const int parameter_slots_without_receiver = parameter_slots - 1;
       Label skip;
-      __ CmpS64(argc_reg, Operand(parameter_slots), r0);
+      __ CmpS64(argc_reg, Operand(parameter_slots_without_receiver), r0);
       __ bgt(&skip);
-      __ mov(argc_reg, Operand(parameter_slots));
+      __ mov(argc_reg, Operand(parameter_slots_without_receiver));
       __ bind(&skip);
     }
-    __ Drop(argc_reg);
+    __ DropArguments(argc_reg, TurboAssembler::kCountIsInteger,
+                     TurboAssembler::kCountExcludesReceiver);
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);

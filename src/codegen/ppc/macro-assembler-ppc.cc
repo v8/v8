@@ -1198,6 +1198,47 @@ void TurboAssembler::Prologue() {
   }
 }
 
+void TurboAssembler::DropArguments(Register count, ArgumentsCountType type,
+                                   ArgumentsCountMode mode) {
+  int receiver_bytes =
+      (mode == kCountExcludesReceiver) ? kSystemPointerSize : 0;
+  switch (type) {
+    case kCountIsInteger: {
+      ShiftLeftU64(ip, count, Operand(kSystemPointerSizeLog2));
+      add(sp, sp, ip);
+      break;
+    }
+    case kCountIsSmi: {
+      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      SmiToPtrArrayOffset(count, count);
+      add(sp, sp, count);
+      break;
+    }
+    case kCountIsBytes: {
+      add(sp, sp, count);
+      break;
+    }
+  }
+  if (receiver_bytes != 0) {
+    addi(sp, sp, Operand(receiver_bytes));
+  }
+}
+
+void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Register receiver,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(argc, receiver));
+  if (mode == kCountExcludesReceiver) {
+    // Drop arguments without receiver and override old receiver.
+    DropArguments(argc, type, kCountIncludesReceiver);
+    StoreU64(receiver, MemOperand(sp));
+  } else {
+    DropArguments(argc, type, mode);
+    push(receiver);
+  }
+}
+
 void TurboAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   if (FLAG_enable_embedded_constant_pool && load_constant_pool_pointer_reg) {

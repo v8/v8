@@ -735,6 +735,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                     int prologue_offset = 0);
   void Prologue(Register base, int prologue_offset = 0);
 
+  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
+  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
+  void DropArguments(Register count, ArgumentsCountType type,
+                     ArgumentsCountMode mode);
+  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
+                                       ArgumentsCountType type,
+                                       ArgumentsCountMode mode);
+
   // Get the actual activation frame alignment for target environment.
   static int ActivationFrameAlignment();
   // ----------------------------------------------------------------
@@ -1097,6 +1105,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // ---------------------------------------------------------------------------
   // Pointer compression Support
 
+  void SmiToPtrArrayOffset(Register dst, Register src) {
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+    STATIC_ASSERT(kSmiTag == 0 && kSmiShift < kSystemPointerSizeLog2);
+    ShiftLeftU64(dst, src, Operand(kSystemPointerSizeLog2 - kSmiShift));
+#else
+    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > kSystemPointerSizeLog2);
+    ShiftRightS64(dst, src, Operand(kSmiShift - kSystemPointerSizeLog2));
+#endif
+  }
+
   // Loads a field containing a HeapObject and decompresses it if pointer
   // compression is enabled.
   void LoadTaggedPointerField(const Register& destination,
@@ -1348,16 +1366,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void SmiTag(Register reg) { SmiTag(reg, reg); }
   void SmiTag(Register dst, Register src) {
     ShiftLeftU64(dst, src, Operand(kSmiShift));
-  }
-
-  void SmiToPtrArrayOffset(Register dst, Register src) {
-#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift < kSystemPointerSizeLog2);
-    ShiftLeftU64(dst, src, Operand(kSystemPointerSizeLog2 - kSmiShift));
-#else
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > kSystemPointerSizeLog2);
-    ShiftRightS64(dst, src, Operand(kSmiShift - kSystemPointerSizeLog2));
-#endif
   }
 
   // Jump if either of the registers contain a non-smi.
