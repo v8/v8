@@ -3945,7 +3945,6 @@ namespace {
 void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
                                          bool next_bytecode,
                                          bool is_osr = false) {
-  __ Push(kInterpreterAccumulatorRegister);
   Label start;
   __ bind(&start);
 
@@ -3968,7 +3967,6 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ Branch(&start_with_baseline, eq, t6, Operand(BASELINE_DATA_TYPE));
 
     // Start with bytecode as there is no baseline code.
-    __ Pop(kInterpreterAccumulatorRegister);
     Builtin builtin_id = next_bytecode
                              ? Builtin::kInterpreterEnterAtNextBytecode
                              : Builtin::kInterpreterEnterAtBytecode;
@@ -4040,6 +4038,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // Get bytecode array from the stack frame.
   __ Lw(kInterpreterBytecodeArrayRegister,
         MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  // Save the accumulator register, since it's clobbered by the below call.
+  __ Push(kInterpreterAccumulatorRegister);
   {
     Register arg_reg_1 = a0;
     Register arg_reg_2 = a1;
@@ -4085,8 +4085,10 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ bind(&install_baseline_code);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(kInterpreterAccumulatorRegister);
     __ Push(closure);
     __ CallRuntime(Runtime::kInstallBaselineCode, 1);
+    __ Pop(kInterpreterAccumulatorRegister);
   }
   // Retry from the start after installing baseline code.
   __ Branch(&start);
