@@ -20,9 +20,6 @@
   # loop instead of properly reporting a RangeError for a stack overflow.
   'regress/regress-crbug-1080638': [SKIP],
 
-  # https://crbug.com/v8/11338
-  'runtime-call-stats/enable-disable': [SKIP],
-
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
@@ -169,7 +166,6 @@
   'debugger/set-breakpoint-at-last-line': [SKIP],
   'debugger/set-breakpoint-breaks-on-first-breakable-location': [SKIP],
   'heap-profiler/collect-garbage' : [SKIP],
-  'runtime-call-stats/collection': [SKIP],
   'runtime/context-destroyed-on-context-collected': [SKIP],
   'runtime/evaluate-async': [SKIP],
   'runtime/internal-properties-entries': [SKIP],
@@ -192,7 +188,6 @@
   'cpu-profiler/coverage': [SKIP],
   'cpu-profiler/coverage-block': [SKIP],
   'runtime/internal-properties-entries': [SKIP],
-  'runtime-call-stats/collection': [SKIP],
 
   # Skip tests that might fail with concurrent allocation
   'debugger/pause-on-oom-wide': [SKIP],
@@ -222,8 +217,6 @@
   'regress/regress-crbug-1199919': [SKIP],
   'console/destroy-context-during-log': [SKIP],
   'console/scoped-variables': [SKIP],
-  'counters/collection': [SKIP],
-  'counters/enable-disable': [SKIP],
   'cpu-profiler/console-profile': [SKIP],
   'cpu-profiler/console-profile-asm-js': [SKIP],
   'cpu-profiler/console-profile-end-parameterless-crash': [SKIP],
@@ -429,8 +422,6 @@
   'print-method-not-found': [SKIP],
   'regress/regress-crbug-1147552': [SKIP],
   'regress/regress-crbug-1183664': [SKIP],
-  'runtime-call-stats/collection': [SKIP],
-  'runtime-call-stats/enable-disable': [SKIP],
   'runtime/add-binding': [SKIP],
   'runtime/await-promise': [SKIP],
   'runtime/call-function-on-async': [SKIP],

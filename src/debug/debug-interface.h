@@ -9,7 +9,6 @@
 
 #include "include/v8-util.h"
 #include "include/v8.h"
-#include "src/base/platform/time.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -514,11 +513,6 @@ enum class NativeAccessorType {
 };
 
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
-
-using RuntimeCallCounterCallback =
-    std::function<void(const char* name, int64_t count, base::TimeDelta time)>;
-void EnumerateRuntimeCallCounters(v8::Isolate* isolate,
-                                  RuntimeCallCounterCallback callback);
 
 MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  Local<Function> function, Local<Value> recv,

@@ -597,9 +597,6 @@ class RuntimeCallStats final {
   V8_EXPORT_PRIVATE void Print();
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
-  V8_EXPORT_PRIVATE void EnumerateCounters(
-      debug::RuntimeCallCounterCallback callback);
-
   ThreadId thread_id() const { return thread_id_; }
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
