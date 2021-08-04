@@ -167,7 +167,7 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
 
   static V8_INLINE bool TryGetCagedHeap(const void* slot, const void* value,
                                         WriteBarrier::Params& params) {
-#if defined(V8_OS_WIN)
+#if V8_OS_WIN || V8_OS_FUCHSIA
     // This method assumes that the stack is allocated in high
     // addresses. That is not guaranteed on Windows. Having a low-address
     // (below api_constants::kCagedHeapReservationSize) on-stack slot with a
@@ -177,7 +177,7 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
     // OSes where the stack resides in higher adderesses, and to keep the write
     // barrier as cheap as possible.
     if (!value) return false;
-#endif  // V8_OS_WIN
+#endif  // V8_OS_WIN || V8_OS_FUCHSIA
     params.start = reinterpret_cast<uintptr_t>(value) &
                    ~(api_constants::kCagedHeapReservationAlignment - 1);
     const uintptr_t slot_offset =
