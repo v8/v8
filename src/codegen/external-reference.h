@@ -175,6 +175,7 @@ class StatsCounter;
   V(libc_memmove_function, "libc_memmove")                                     \
   V(libc_memset_function, "libc_memset")                                       \
   V(relaxed_memcpy_function, "relaxed_memcpy")                                 \
+  V(relaxed_memmove_function, "relaxed_memmove")                               \
   V(mod_two_doubles_operation, "mod_two_doubles")                              \
   V(mutable_big_int_absolute_add_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteAddAndCanonicalize")                                \

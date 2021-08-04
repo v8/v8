@@ -813,6 +813,13 @@ void relaxed_memcpy(volatile base::Atomic8* dest,
 
 FUNCTION_REFERENCE(relaxed_memcpy_function, relaxed_memcpy)
 
+void relaxed_memmove(volatile base::Atomic8* dest,
+                     volatile const base::Atomic8* src, size_t n) {
+  base::Relaxed_Memmove(dest, src, n);
+}
+
+FUNCTION_REFERENCE(relaxed_memmove_function, relaxed_memmove)
+
 ExternalReference ExternalReference::printf_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));
 }
