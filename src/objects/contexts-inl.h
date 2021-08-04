@@ -56,6 +56,8 @@ NEVER_READ_ONLY_SPACE_IMPL(Context)
 
 CAST_ACCESSOR(NativeContext)
 
+RELAXED_SMI_ACCESSORS(Context, length, kLengthOffset)
+
 Object Context::get(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return get(cage_base, index);
@@ -63,14 +65,14 @@ Object Context::get(int index) const {
 
 Object Context::get(PtrComprCageBase cage_base, int index) const {
   DCHECK_LT(static_cast<unsigned int>(index),
-            static_cast<unsigned int>(length()));
+            static_cast<unsigned int>(length(kRelaxedLoad)));
   return TaggedField<Object>::Relaxed_Load(cage_base, *this,
                                            OffsetOfElementAt(index));
 }
 
 void Context::set(int index, Object value, WriteBarrierMode mode) {
   DCHECK_LT(static_cast<unsigned int>(index),
-            static_cast<unsigned int>(length()));
+            static_cast<unsigned int>(length(kRelaxedLoad)));
   const int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
@@ -84,14 +86,14 @@ Object Context::get(int index, AcquireLoadTag tag) const {
 Object Context::get(PtrComprCageBase cage_base, int index,
                     AcquireLoadTag) const {
   DCHECK_LT(static_cast<unsigned int>(index),
-            static_cast<unsigned int>(length()));
+            static_cast<unsigned int>(length(kRelaxedLoad)));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
 }
 
 void Context::set(int index, Object value, WriteBarrierMode mode,
                   ReleaseStoreTag) {
   DCHECK_LT(static_cast<unsigned int>(index),
-            static_cast<unsigned int>(length()));
+            static_cast<unsigned int>(length(kRelaxedLoad)));
   const int offset = OffsetOfElementAt(index);
   RELEASE_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);

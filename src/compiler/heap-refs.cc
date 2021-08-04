@@ -1680,7 +1680,8 @@ ContextRef ContextRef::previous(size_t* depth) const {
 
 base::Optional<ObjectRef> ContextRef::get(int index) const {
   CHECK_LE(0, index);
-  if (index >= object()->length()) return {};
+  // Length is immutable after initialization.
+  if (index >= object()->length(kRelaxedLoad)) return {};
   return TryMakeRef(broker(), object()->get(index));
 }
 

@@ -436,6 +436,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
 
+  using TorqueGeneratedContext::length;      // Non-atomic.
+  using TorqueGeneratedContext::set_length;  // Non-atomic.
+  DECL_RELAXED_SMI_ACCESSORS(length)
+
   // Setter and getter for elements.
   // Note the plain accessors use relaxed semantics.
   // TODO(jgruber): Make that explicit through tags.
