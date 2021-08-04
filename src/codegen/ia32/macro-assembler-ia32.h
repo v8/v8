@@ -231,6 +231,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void StubPrologue(StackFrame::Type type);
   void Prologue();
 
+  // Helpers for argument handling
+  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
+  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
+  void DropArguments(Register count, Register scratch, ArgumentsCountType type,
+                     ArgumentsCountMode mode);
+  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
+                                       Register scratch,
+                                       ArgumentsCountType type,
+                                       ArgumentsCountMode mode);
+  void DropArgumentsAndPushNewReceiver(Register argc, Operand receiver,
+                                       Register scratch,
+                                       ArgumentsCountType type,
+                                       ArgumentsCountMode mode);
+
   void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
   void Lzcnt(Register dst, Operand src);
 
@@ -256,6 +270,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
 
   void InitializeRootRegister();
 
+  Operand RootAsOperand(RootIndex index);
   void LoadRoot(Register destination, RootIndex index) final;
 
   // Indirect root-relative loads.
@@ -477,6 +492,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void ExceptionHandler() {}
   // Define an exception handler and bind a label.
   void BindExceptionHandler(Label* label) { bind(label); }
+
+ protected:
+  // Drops arguments assuming that the return address was already popped.
+  void DropArguments(Register count, ArgumentsCountType type = kCountIsInteger,
+                     ArgumentsCountMode mode = kCountExcludesReceiver);
 };
 
 // MacroAssembler implements a collection of frequently used macros.

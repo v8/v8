@@ -513,17 +513,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // Helpers for argument handling
   enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
   enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
-  void DropArguments(Register count, Register scratch,
-                     ArgumentsCountType type = kCountIsInteger,
-                     ArgumentsCountMode mode = kCountExcludesReceiver);
-  void DropArgumentsAndPushNewReceiver(
-      Register argc, Register receiver, Register scratch,
-      ArgumentsCountType type = kCountIsInteger,
-      ArgumentsCountMode mode = kCountExcludesReceiver);
-  void DropArgumentsAndPushNewReceiver(
-      Register argc, Operand receiver, Register scratch,
-      ArgumentsCountType type = kCountIsInteger,
-      ArgumentsCountMode mode = kCountExcludesReceiver);
+  void DropArguments(Register count, Register scratch, ArgumentsCountType type,
+                     ArgumentsCountMode mode);
+  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
+                                       Register scratch,
+                                       ArgumentsCountType type,
+                                       ArgumentsCountMode mode);
+  void DropArgumentsAndPushNewReceiver(Register argc, Operand receiver,
+                                       Register scratch,
+                                       ArgumentsCountType type,
+                                       ArgumentsCountMode mode);
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.

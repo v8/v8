@@ -129,11 +129,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ PopReturnAddressTo(ecx);
-  __ lea(esp, Operand(esp, edx, times_half_system_pointer_size,
-                      1 * kSystemPointerSize));  // 1 ~ receiver
-  __ PushReturnAddressFrom(ecx);
+  __ DropArguments(edx, ecx, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
   __ ret(0);
 
   __ bind(&stack_overflow);
@@ -284,11 +281,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
 
   // Remove caller arguments from the stack and return.
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ pop(ecx);
-  __ lea(esp, Operand(esp, edx, times_half_system_pointer_size,
-                      1 * kSystemPointerSize));  // 1 ~ receiver
-  __ push(ecx);
+  __ DropArguments(edx, ecx, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
   __ ret(0);
 
   // Otherwise we do a smi check and fall through to check if the return value
@@ -777,10 +771,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ leave();
 
   // Drop receiver + arguments.
-  Register return_pc = scratch2;
-  __ PopReturnAddressTo(return_pc);
-  __ add(esp, params_size);
-  __ PushReturnAddressFrom(return_pc);
+  __ DropArguments(params_size, scratch2, TurboAssembler::kCountIsBytes,
+                   TurboAssembler::kCountIncludesReceiver);
 }
 
 // Tail-call |function_id| if |actual_marker| == |expected_marker|
@@ -1916,11 +1908,9 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
-    __ PopReturnAddressTo(ecx);
-    __ lea(esp,
-           Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
-    __ Push(edi);
-    __ PushReturnAddressFrom(ecx);
+    __ DropArgumentsAndPushNewReceiver(eax, edi, ecx,
+                                       TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
 
     // Restore receiver to edi.
     __ movd(edi, xmm0);
@@ -2027,11 +2017,9 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     // Spill argumentsList to use edx as a scratch register.
     __ movd(xmm0, edx);
 
-    __ PopReturnAddressTo(edx);
-    __ lea(esp,
-           Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
-    __ Push(ecx);
-    __ PushReturnAddressFrom(edx);
+    __ DropArgumentsAndPushNewReceiver(eax, ecx, edx,
+                                       TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
 
     // Restore argumentsList.
     __ movd(edx, xmm0);
@@ -2087,11 +2075,10 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     // Spill argumentsList to use ecx as a scratch register.
     __ movd(xmm0, ecx);
 
-    __ PopReturnAddressTo(ecx);
-    __ lea(esp,
-           Operand(esp, eax, times_system_pointer_size, kSystemPointerSize));
-    __ PushRoot(RootIndex::kUndefinedValue);
-    __ PushReturnAddressFrom(ecx);
+    __ DropArgumentsAndPushNewReceiver(
+        eax, masm->RootAsOperand(RootIndex::kUndefinedValue), ecx,
+        TurboAssembler::kCountIsInteger,
+        TurboAssembler::kCountExcludesReceiver);
 
     // Restore argumentsList.
     __ movd(ecx, xmm0);

@@ -129,9 +129,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   }
 
   // Remove caller arguments from the stack and return.
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ add(sp, sp, Operand(scratch, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ add(sp, sp, Operand(kPointerSize));
+  __ DropArguments(scratch, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
   __ Jump(lr);
 
   __ bind(&stack_overflow);
@@ -276,9 +275,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
 
   // Remove caller arguments from the stack and return.
-  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ add(sp, sp, Operand(kPointerSize));
+  __ DropArguments(r1, TurboAssembler::kCountIsSmi,
+                   TurboAssembler::kCountExcludesReceiver);
   __ Jump(lr);
 
   __ bind(&check_receiver);
@@ -828,7 +826,8 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
-  __ add(sp, sp, params_size, LeaveCC);
+  __ DropArguments(params_size, TurboAssembler::kCountIsBytes,
+                   TurboAssembler::kCountIncludesReceiver);
 }
 
 // Tail-call |function_id| if |actual_marker| == |expected_marker|
@@ -1862,8 +1861,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     __ ldr(r5, MemOperand(sp, kSystemPointerSize), ge);  // thisArg
     __ cmp(r0, Operand(2), ge);
     __ ldr(r2, MemOperand(sp, 2 * kSystemPointerSize), ge);  // argArray
-    __ add(sp, sp, Operand(r0, LSL, kSystemPointerSizeLog2));
-    __ str(r5, MemOperand(sp, 0));
+    __ DropArgumentsAndPushNewReceiver(r0, r5, TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1939,8 +1938,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ ldr(r5, MemOperand(sp, 2 * kSystemPointerSize), ge);  // thisArgument
     __ cmp(r0, Operand(3), ge);
     __ ldr(r2, MemOperand(sp, 3 * kSystemPointerSize), ge);  // argumentsList
-    __ add(sp, sp, Operand(r0, LSL, kSystemPointerSizeLog2));
-    __ str(r5, MemOperand(sp, 0));
+    __ DropArgumentsAndPushNewReceiver(r0, r5, TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -1982,8 +1981,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ ldr(r2, MemOperand(sp, 2 * kSystemPointerSize), ge);  // argumentsList
     __ cmp(r0, Operand(3), ge);
     __ ldr(r3, MemOperand(sp, 3 * kSystemPointerSize), ge);  // new.target
-    __ add(sp, sp, Operand(r0, LSL, kSystemPointerSizeLog2));
-    __ str(r4, MemOperand(sp, 0));  // set undefined to the receiver
+    __ DropArgumentsAndPushNewReceiver(r0, r4, TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountExcludesReceiver);
   }
 
   // ----------- S t a t e -------------

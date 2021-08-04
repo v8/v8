@@ -81,11 +81,15 @@ void TurboAssembler::InitializeRootRegister() {
   Move(kRootRegister, Immediate(isolate_root));
 }
 
+Operand TurboAssembler::RootAsOperand(RootIndex index) {
+  DCHECK(root_array_available());
+  return Operand(kRootRegister, RootRegisterOffsetForRootIndex(index));
+}
+
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   ASM_CODE_COMMENT(this);
   if (root_array_available()) {
-    mov(destination,
-        Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    mov(destination, RootAsOperand(index));
     return;
   }
 
@@ -123,7 +127,7 @@ void TurboAssembler::CompareRoot(Register with, Register scratch,
 void TurboAssembler::CompareRoot(Register with, RootIndex index) {
   ASM_CODE_COMMENT(this);
   if (root_array_available()) {
-    cmp(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    cmp(with, RootAsOperand(index));
     return;
   }
 
@@ -140,7 +144,7 @@ void MacroAssembler::PushRoot(RootIndex index) {
   ASM_CODE_COMMENT(this);
   if (root_array_available()) {
     DCHECK(RootsTable::IsImmortalImmovable(index));
-    push(Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    push(RootAsOperand(index));
     return;
   }
 
@@ -234,7 +238,7 @@ Operand TurboAssembler::HeapObjectAsOperand(Handle<HeapObject> object) {
   Builtin builtin;
   RootIndex root_index;
   if (isolate()->roots_table().IsRootHandle(object, &root_index)) {
-    return Operand(kRootRegister, RootRegisterOffsetForRootIndex(root_index));
+    return RootAsOperand(root_index);
   } else if (isolate()->builtins()->IsBuiltinHandle(object, &builtin)) {
     return Operand(kRootRegister, RootRegisterOffsetForBuiltin(builtin));
   } else if (object.is_identical_to(code_object_) &&
@@ -1155,6 +1159,70 @@ void TurboAssembler::Prologue() {
   push(kContextRegister);                 // Callee's context.
   push(kJSFunctionRegister);              // Callee's JS function.
   push(kJavaScriptCallArgCountRegister);  // Actual argument count.
+}
+
+void TurboAssembler::DropArguments(Register count, ArgumentsCountType type,
+                                   ArgumentsCountMode mode) {
+  int receiver_bytes =
+      (mode == kCountExcludesReceiver) ? kSystemPointerSize : 0;
+  switch (type) {
+    case kCountIsInteger: {
+      lea(esp, Operand(esp, count, times_system_pointer_size, receiver_bytes));
+      break;
+    }
+    case kCountIsSmi: {
+      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      // SMIs are stored shifted left by 1 byte with the tag being 0.
+      // This is equivalent to multiplying by 2. To convert SMIs to bytes we
+      // can therefore just multiply the stored value by half the system pointer
+      // size.
+      lea(esp,
+          Operand(esp, count, times_half_system_pointer_size, receiver_bytes));
+      break;
+    }
+    case kCountIsBytes: {
+      if (receiver_bytes == 0) {
+        add(esp, count);
+      } else {
+        lea(esp, Operand(esp, count, times_1, receiver_bytes));
+      }
+      break;
+    }
+  }
+}
+
+void TurboAssembler::DropArguments(Register count, Register scratch,
+                                   ArgumentsCountType type,
+                                   ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(count, scratch));
+  PopReturnAddressTo(scratch);
+  DropArguments(count, type, mode);
+  PushReturnAddressFrom(scratch);
+}
+
+void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Register receiver,
+                                                     Register scratch,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(argc, receiver, scratch));
+  PopReturnAddressTo(scratch);
+  DropArguments(argc, type, mode);
+  Push(receiver);
+  PushReturnAddressFrom(scratch);
+}
+
+void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Operand receiver,
+                                                     Register scratch,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(argc, scratch));
+  DCHECK(!receiver.is_reg(scratch));
+  PopReturnAddressTo(scratch);
+  DropArguments(argc, type, mode);
+  Push(receiver);
+  PushReturnAddressFrom(scratch);
 }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type) {

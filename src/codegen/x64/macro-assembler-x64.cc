@@ -157,6 +157,7 @@ void MacroAssembler::PushAddress(ExternalReference source) {
 }
 
 Operand TurboAssembler::RootAsOperand(RootIndex index) {
+  DCHECK(root_array_available());
   return Operand(kRootRegister, RootRegisterOffsetForRootIndex(index));
 }
 
@@ -1690,6 +1691,7 @@ void TurboAssembler::DropArguments(Register count, ArgumentsCountType type,
       } else {
         leaq(rsp, Operand(rsp, count, times_1, receiver_bytes));
       }
+      break;
     }
   }
 }

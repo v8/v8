@@ -1359,6 +1359,44 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
 
 void TurboAssembler::Prologue() { PushStandardFrame(r1); }
 
+void TurboAssembler::DropArguments(Register count, ArgumentsCountType type,
+                                   ArgumentsCountMode mode) {
+  int receiver_bytes = (mode == kCountExcludesReceiver) ? kPointerSize : 0;
+  switch (type) {
+    case kCountIsInteger: {
+      add(sp, sp, Operand(count, LSL, kPointerSizeLog2), LeaveCC);
+      break;
+    }
+    case kCountIsSmi: {
+      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      add(sp, sp, Operand(count, LSL, kPointerSizeLog2 - kSmiTagSize), LeaveCC);
+      break;
+    }
+    case kCountIsBytes: {
+      add(sp, sp, count, LeaveCC);
+      break;
+    }
+  }
+  if (receiver_bytes != 0) {
+    add(sp, sp, Operand(receiver_bytes), LeaveCC);
+  }
+}
+
+void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Register receiver,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode) {
+  DCHECK(!AreAliased(argc, receiver));
+  if (mode == kCountExcludesReceiver) {
+    // Drop arguments without receiver and override old receiver.
+    DropArguments(argc, type, kCountIncludesReceiver);
+    str(receiver, MemOperand(sp, 0));
+  } else {
+    DropArguments(argc, type, mode);
+    push(receiver);
+  }
+}
+
 void TurboAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   ASM_CODE_COMMENT(this);

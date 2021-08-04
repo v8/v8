@@ -4654,11 +4654,11 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   }
 
   if (drop_jsargs) {
-    // We must pop all arguments from the stack (including the receiver). This
-    // number of arguments is given by max(1 + argc_reg, parameter_slots).
-    int parameter_slots_without_receiver =
-        parameter_slots - 1;  // Exclude the receiver to simplify the
-                              // computation. We'll account for it at the end.
+    // We must pop all arguments from the stack (including the receiver).
+    // The number of arguments without the receiver is
+    // max(argc_reg, parameter_slots-1), and the receiver is added in
+    // DropArguments().
+    int parameter_slots_without_receiver = parameter_slots - 1;
     Label mismatch_return;
     Register scratch_reg = edx;
     DCHECK_NE(argc_reg, scratch_reg);
@@ -4668,11 +4668,9 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     __ j(greater, &mismatch_return, Label::kNear);
     __ Ret(parameter_slots * kSystemPointerSize, scratch_reg);
     __ bind(&mismatch_return);
-    __ PopReturnAddressTo(scratch_reg);
-    __ lea(esp, Operand(esp, argc_reg, times_system_pointer_size,
-                        kSystemPointerSize));  // Also pop the receiver.
+    __ DropArguments(argc_reg, scratch_reg, TurboAssembler::kCountIsInteger,
+                     TurboAssembler::kCountExcludesReceiver);
     // We use a return instead of a jump for better return address prediction.
-    __ PushReturnAddressFrom(scratch_reg);
     __ Ret();
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
