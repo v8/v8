@@ -12,6 +12,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/execution/isolate.h"
 #include "src/logging/code-events.h"
 #include "src/objects/objects.h"
 
@@ -273,8 +274,15 @@ class Logger : public CodeEventListener {
 
   static void DefaultEventLoggerSentinel(const char* name, int event) {}
 
-  V8_INLINE static void CallEventLogger(Isolate* isolate, const char* name,
-                                        StartEnd se, bool expose_to_api);
+  static void CallEventLogger(Isolate* isolate, const char* name, StartEnd se,
+                              bool expose_to_api) {
+    if (!isolate->event_logger()) return;
+    if (isolate->event_logger() == DefaultEventLoggerSentinel) {
+      LOG(isolate, TimerEvent(se, name));
+    } else if (expose_to_api) {
+      isolate->event_logger()(name, se);
+    }
+  }
 
   V8_EXPORT_PRIVATE bool is_logging();
 

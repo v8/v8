@@ -194,7 +194,7 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
 
   counters->incremental_marking_reason()->AddSample(
       static_cast<int>(gc_reason));
-  HistogramTimerScope incremental_marking_scope(
+  NestedTimedHistogramScope incremental_marking_scope(
       counters->gc_incremental_marking_start());
   TRACE_EVENT1("v8", "V8.GCIncrementalMarkingStart", "epoch",
                heap_->epoch_full());
@@ -784,7 +784,7 @@ StepResult CombineStepResults(StepResult a, StepResult b) {
 StepResult IncrementalMarking::AdvanceWithDeadline(
     double deadline_in_ms, CompletionAction completion_action,
     StepOrigin step_origin) {
-  HistogramTimerScope incremental_marking_scope(
+  NestedTimedHistogramScope incremental_marking_scope(
       heap_->isolate()->counters()->gc_incremental_marking());
   TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch", heap_->epoch_full());
   TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
@@ -889,7 +889,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
       state_ != MARKING || heap_->always_allocate()) {
     return;
   }
-  HistogramTimerScope incremental_marking_scope(
+  NestedTimedHistogramScope incremental_marking_scope(
       heap_->isolate()->counters()->gc_incremental_marking());
   TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
   TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,

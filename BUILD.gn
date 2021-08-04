@@ -2829,6 +2829,7 @@ v8_header_set("v8_internal_headers") {
     "src/libsampler/sampler.h",
     "src/logging/code-events.h",
     "src/logging/counters-definitions.h",
+    "src/logging/counters-scopes.h",
     "src/logging/counters.h",
     "src/logging/local-logger.h",
     "src/logging/log-inl.h",

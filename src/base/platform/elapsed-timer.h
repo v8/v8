@@ -14,15 +14,20 @@ namespace base {
 class ElapsedTimer final {
  public:
 #ifdef DEBUG
-  ElapsedTimer() : started_(false) {}
+  ElapsedTimer() : start_ticks_(), started_(false) {}
+#else
+  ElapsedTimer() : start_ticks_() {}
 #endif
 
   // Starts this timer. Once started a timer can be checked with
   // |Elapsed()| or |HasExpired()|, and may be restarted using |Restart()|.
   // This method must not be called on an already started timer.
-  void Start() {
+  void Start() { Start(Now()); }
+
+  void Start(TimeTicks now) {
+    DCHECK(!now.IsNull());
     DCHECK(!IsStarted());
-    start_ticks_ = Now();
+    set_start_ticks(now);
 #ifdef DEBUG
     started_ = true;
 #endif
@@ -33,7 +38,7 @@ class ElapsedTimer final {
   // started before.
   void Stop() {
     DCHECK(IsStarted());
-    start_ticks_ = TimeTicks();
+    set_start_ticks(TimeTicks());
 #ifdef DEBUG
     started_ = false;
 #endif
@@ -52,21 +57,51 @@ class ElapsedTimer final {
   // and then starting the timer again, but does so in one single operation,
   // avoiding the need to obtain the clock value twice. It may only be called
   // on a previously started timer.
-  TimeDelta Restart() {
+  TimeDelta Restart() { return Restart(Now()); }
+
+  TimeDelta Restart(TimeTicks now) {
+    DCHECK(!now.IsNull());
     DCHECK(IsStarted());
-    TimeTicks ticks = Now();
-    TimeDelta elapsed = ticks - start_ticks_;
+    TimeDelta elapsed = now - start_ticks_;
     DCHECK_GE(elapsed.InMicroseconds(), 0);
-    start_ticks_ = ticks;
+    set_start_ticks(now);
     DCHECK(IsStarted());
     return elapsed;
   }
 
+  void Pause() { Pause(Now()); }
+
+  void Pause(TimeTicks now) {
+    TimeDelta elapsed = Elapsed(now);
+    DCHECK(IsStarted());
+    DCHECK(!is_paused_);
+#ifdef DEBUG
+    is_paused_ = true;
+#endif
+    set_paused_elapsed(elapsed);
+  }
+
+  void Resume() { Resume(Now()); }
+
+  void Resume(TimeTicks now) {
+    DCHECK(!now.IsNull());
+    DCHECK(IsStarted());
+    TimeDelta elapsed = paused_elapsed();
+#ifdef DEBUG
+    is_paused_ = false;
+#endif
+    set_start_ticks(now - elapsed);
+    DCHECK(IsStarted());
+  }
+
   // Returns the time elapsed since the previous start. This method may only
   // be called on a previously started timer.
-  TimeDelta Elapsed() const {
+  TimeDelta Elapsed() const { return Elapsed(Now()); }
+
+  TimeDelta Elapsed(TimeTicks now) const {
+    DCHECK(!now.IsNull());
     DCHECK(IsStarted());
-    TimeDelta elapsed = Now() - start_ticks_;
+    TimeDelta elapsed = now - start_ticks();
     DCHECK_GE(elapsed.InMicroseconds(), 0);
     return elapsed;
   }
@@ -86,9 +121,34 @@ class ElapsedTimer final {
     return now;
   }
 
-  TimeTicks start_ticks_;
+  TimeDelta paused_elapsed() {
+    DCHECK(IsStarted());
+    DCHECK(is_paused_);
+    return paused_elapsed_;
+  }
+
+  void set_paused_elapsed(TimeDelta delta) {
+    DCHECK(IsStarted());
+    DCHECK(is_paused_);
+    paused_elapsed_ = delta;
+  }
+
+  TimeTicks start_ticks() const {
+    DCHECK(!is_paused_);
+    return start_ticks_;
+  }
+  void set_start_ticks(TimeTicks start_ticks) {
+    DCHECK(!is_paused_);
+    start_ticks_ = start_ticks;
+  }
+
+  union {
+    TimeTicks start_ticks_;
+    TimeDelta paused_elapsed_;
+  };
 #ifdef DEBUG
   bool started_;
+  bool is_paused_ = false;
 #endif
 };
 
