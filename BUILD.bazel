@@ -1024,6 +1024,7 @@ filegroup(
         "src/codegen/reloc-info.h",
         "src/codegen/safepoint-table.cc",
         "src/codegen/safepoint-table.h",
+        "src/codegen/script-details.h",
         "src/codegen/signature.h",
         "src/codegen/source-position-table.cc",
         "src/codegen/source-position-table.h",

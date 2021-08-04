@@ -2474,6 +2474,7 @@ v8_header_set("v8_internal_headers") {
     "src/codegen/reglist.h",
     "src/codegen/reloc-info.h",
     "src/codegen/safepoint-table.h",
+    "src/codegen/script-details.h",
     "src/codegen/signature.h",
     "src/codegen/source-position-table.h",
     "src/codegen/source-position.h",

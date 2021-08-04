@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/codegen/script-details.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-property-iterator.h"
@@ -760,7 +761,7 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
     i::ScriptData* script_data = nullptr;
     i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
         i::Compiler::GetSharedFunctionInfoForScript(
-            isolate, str, i::Compiler::ScriptDetails(), nullptr, script_data,
+            isolate, str, i::ScriptDetails(), nullptr, script_data,
             ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseInspector,
             i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE

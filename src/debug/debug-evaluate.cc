@@ -7,6 +7,7 @@
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/script-details.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
@@ -29,8 +30,8 @@ namespace {
 static MaybeHandle<SharedFunctionInfo> GetFunctionInfo(Isolate* isolate,
                                                        Handle<String> source,
                                                        REPLMode repl_mode) {
-  Compiler::ScriptDetails script_details(isolate->factory()->empty_string(),
-                                         ScriptOriginOptions(false, true));
+  ScriptDetails script_details(isolate->factory()->empty_string(),
+                               ScriptOriginOptions(false, true));
   script_details.repl_mode = repl_mode;
   return Compiler::GetSharedFunctionInfoForScript(
       isolate, source, script_details, nullptr, nullptr,

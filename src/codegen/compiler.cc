@@ -19,6 +19,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/pending-optimization-table.h"
+#include "src/codegen/script-details.h"
 #include "src/codegen/unoptimized-compilation-info.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -2600,7 +2601,7 @@ struct ScriptCompileTimerScope {
 };
 
 void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
-                                Compiler::ScriptDetails script_details,
+                                ScriptDetails script_details,
                                 DisallowGarbageCollection* no_gc) {
   Handle<Object> script_name;
   if (script_details.name_obj.ToHandle(&script_name)) {
@@ -2625,7 +2626,7 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
 
 Handle<Script> NewScript(
     Isolate* isolate, ParseInfo* parse_info, Handle<String> source,
-    Compiler::ScriptDetails script_details, NativesFlag natives,
+    ScriptDetails script_details, NativesFlag natives,
     MaybeHandle<FixedArray> maybe_wrapped_arguments = kNullMaybeHandle) {
   // Create a script object describing the script to be compiled.
   Handle<Script> script =
@@ -2639,7 +2640,7 @@ Handle<Script> NewScript(
 
 MaybeHandle<SharedFunctionInfo> CompileScriptOnMainThread(
     const UnoptimizedCompileFlags flags, Handle<String> source,
-    const Compiler::ScriptDetails& script_details, NativesFlag natives,
+    const ScriptDetails& script_details, NativesFlag natives,
     v8::Extension* extension, Isolate* isolate,
     IsCompiledScope* is_compiled_scope) {
   UnoptimizedCompileState compile_state(isolate);
@@ -2703,7 +2704,7 @@ class StressBackgroundCompileThread : public base::Thread {
   v8::ScriptCompiler::StreamedSource streamed_source_;
 };
 
-bool CanBackgroundCompile(const Compiler::ScriptDetails& script_details,
+bool CanBackgroundCompile(const ScriptDetails& script_details,
                           v8::Extension* extension,
                           ScriptCompiler::CompileOptions compile_options,
                           NativesFlag natives) {
@@ -2726,7 +2727,7 @@ bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
 }
 
 MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
-    Handle<String> source, const Compiler::ScriptDetails& script_details,
+    Handle<String> source, const ScriptDetails& script_details,
     Isolate* isolate, IsCompiledScope* is_compiled_scope) {
   // Start a background thread compiling the script.
   StressBackgroundCompileThread background_compile_thread(
@@ -2796,7 +2797,7 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
 // static
 MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Isolate* isolate, Handle<String> source,
-    const Compiler::ScriptDetails& script_details, v8::Extension* extension,
+    const ScriptDetails& script_details, v8::Extension* extension,
     ScriptData* cached_data, ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
@@ -2830,10 +2831,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
 
     // First check per-isolate compilation cache.
-    maybe_result = compilation_cache->LookupScript(
-        source, script_details.name_obj, script_details.line_offset,
-        script_details.column_offset, script_details.origin_options,
-        language_mode);
+    maybe_result =
+        compilation_cache->LookupScript(source, script_details, language_mode);
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     } else if (can_consume_code_cache) {
@@ -2901,7 +2900,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 // static
 MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     Handle<String> source, Handle<FixedArray> arguments,
-    Handle<Context> context, const Compiler::ScriptDetails& script_details,
+    Handle<Context> context, const ScriptDetails& script_details,
     ScriptData* cached_data, v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
   Isolate* isolate = context->GetIsolate();
@@ -3016,9 +3015,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.StreamingFinalization.CheckCache");
-    maybe_result = compilation_cache->LookupScript(
-        source, script_details.name_obj, script_details.line_offset,
-        script_details.column_offset, origin_options, task->language_mode());
+    maybe_result = compilation_cache->LookupScript(source, script_details,
+                                                   task->language_mode());
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     }

@@ -57,6 +57,7 @@
 #include "src/objects/js-segmenter.h"
 #include "src/objects/js-segments.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/codegen/script-details.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-cell.h"
@@ -4129,8 +4130,8 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
         factory->NewStringFromUtf8(name).ToHandleChecked();
     MaybeHandle<SharedFunctionInfo> maybe_function_info =
         Compiler::GetSharedFunctionInfoForScript(
-            isolate, source, Compiler::ScriptDetails(script_name), extension,
-            nullptr, ScriptCompiler::kNoCompileOptions,
+            isolate, source, ScriptDetails(script_name), extension, nullptr,
+            ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseV8Extension, EXTENSION_CODE);
     if (!maybe_function_info.ToHandle(&function_info)) return false;
     cache->Add(isolate, name, function_info);

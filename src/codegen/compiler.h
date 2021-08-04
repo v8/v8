@@ -36,11 +36,12 @@ class ParseInfo;
 class Parser;
 class RuntimeCallStats;
 class ScriptData;
-struct ScriptStreamingData;
 class TimedHistogram;
 class UnoptimizedCompilationInfo;
 class UnoptimizedCompilationJob;
 class WorkerThreadRuntimeCallStats;
+struct ScriptDetails;
+struct ScriptStreamingData;
 
 using UnoptimizedCompilationJobList =
     std::forward_list<std::unique_ptr<UnoptimizedCompilationJob>>;
@@ -129,27 +130,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Handle<Context> context, LanguageMode language_mode,
       ParseRestriction restriction, int parameters_end_pos,
       int eval_scope_position, int eval_position);
-
-  struct ScriptDetails {
-    ScriptDetails()
-        : line_offset(0), column_offset(0), repl_mode(REPLMode::kNo) {}
-    explicit ScriptDetails(
-        Handle<Object> script_name,
-        ScriptOriginOptions origin_options = v8::ScriptOriginOptions())
-        : line_offset(0),
-          column_offset(0),
-          name_obj(script_name),
-          repl_mode(REPLMode::kNo),
-          origin_options(origin_options) {}
-
-    int line_offset;
-    int column_offset;
-    i::MaybeHandle<i::Object> name_obj;
-    i::MaybeHandle<i::Object> source_map_url;
-    i::MaybeHandle<i::FixedArray> host_defined_options;
-    REPLMode repl_mode;
-    const ScriptOriginOptions origin_options;
-  };
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.

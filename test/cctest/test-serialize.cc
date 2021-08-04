@@ -33,6 +33,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/script-details.h"
 #include "src/common/assert-scope.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
@@ -1573,9 +1574,8 @@ static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
     ScriptData* cached_data, v8::ScriptCompiler::CompileOptions options) {
   return Compiler::GetSharedFunctionInfoForScript(
-             isolate, source, Compiler::ScriptDetails(name), nullptr,
-             cached_data, options, ScriptCompiler::kNoCacheNoReason,
-             NOT_NATIVES_CODE)
+             isolate, source, ScriptDetails(name), nullptr, cached_data,
+             options, ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
       .ToHandleChecked();
 }
 
@@ -1584,8 +1584,8 @@ static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
     ScriptData** script_data, v8::ScriptCompiler::CompileOptions options) {
   Handle<SharedFunctionInfo> sfi =
       Compiler::GetSharedFunctionInfoForScript(
-          isolate, source, Compiler::ScriptDetails(name), nullptr, nullptr,
-          options, ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
+          isolate, source, ScriptDetails(name), nullptr, nullptr, options,
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
   std::unique_ptr<ScriptCompiler::CachedData> cached_data(
       ScriptCompiler::CreateCodeCache(ToApiHandle<UnboundScript>(sfi)));
@@ -1730,9 +1730,10 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   Handle<SharedFunctionInfo> copy = CompileScript(
       isolate, src, src, cache, v8::ScriptCompiler::kConsumeCodeCache);
 
+  ScriptDetails script_details(src);
   MaybeHandle<SharedFunctionInfo> shared =
-      isolate->compilation_cache()->LookupScript(
-          src, src, 0, 0, v8::ScriptOriginOptions(), LanguageMode::kSloppy);
+      isolate->compilation_cache()->LookupScript(src, script_details,
+                                                 LanguageMode::kSloppy);
 
   CHECK(*shared.ToHandleChecked() == *copy);
 
