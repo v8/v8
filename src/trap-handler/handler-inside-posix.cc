@@ -39,6 +39,10 @@
 #include "src/trap-handler/trap-handler-internal.h"
 #include "src/trap-handler/trap-handler.h"
 
+#ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
+#include "src/trap-handler/trap-handler-simulator.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace trap_handler {
@@ -83,9 +87,8 @@ class UnmaskOobSignalScope {
 };
 
 #ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
-// These are addresses inside the "ProbeMemory" function, defined in
-// "handler-outside-simulators.cc".
-extern "C" char v8_probe_memory_address[];
+// This is the address where we continue on a failed "ProbeMemory". It's defined
+// in "handler-outside-simulators.cc".
 extern "C" char v8_probe_memory_continuation[];
 #endif  // V8_TRAP_HANDLER_VIA_SIMULATOR
 
@@ -132,7 +135,7 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
 
 #ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
     // Only handle signals triggered by the load in {ProbeMemory}.
-    if (fault_addr != reinterpret_cast<uintptr_t>(&v8_probe_memory_address)) {
+    if (fault_addr != reinterpret_cast<uintptr_t>(&ProbeMemory)) {
       return false;
     }
 

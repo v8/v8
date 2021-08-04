@@ -14,16 +14,15 @@
 // Define the ProbeMemory function declared in trap-handler-simulators.h.
 asm(
     ".globl " SYMBOL(ProbeMemory) "                 \n"
-    ".globl " SYMBOL(v8_probe_memory_address) "     \n"
-    ".globl " SYMBOL(v8_probe_memory_continuation) "\n"
     SYMBOL(ProbeMemory) ":                          \n"
     // First parameter (address) passed in %rdi.
     // The second parameter (pc) is unused here. It is read by the trap handler
     // instead.
-    SYMBOL(v8_probe_memory_address) ":              \n"
     "  movb (%rdi), %al                             \n"
     // Return 0 on success.
     "  xorl %eax, %eax                              \n"
+    "  ret                                          \n"
+    ".globl " SYMBOL(v8_probe_memory_continuation) "\n"
     SYMBOL(v8_probe_memory_continuation) ":         \n"
     // If the trap handler continues here, it wrote the landing pad in %rax.
     "  ret                                          \n");
