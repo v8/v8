@@ -1988,11 +1988,11 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
   constexpr int32_t kMaxOffsetForSimpleAdjustment =
       2 * kMinOffsetForSimpleAdjustment;
   if (0 <= src->offset() && src->offset() <= kMaxOffsetForSimpleAdjustment) {
-    addiu(at, src->rm(), kMinOffsetForSimpleAdjustment);
+    addiu(scratch, src->rm(), kMinOffsetForSimpleAdjustment);
     src->offset_ -= kMinOffsetForSimpleAdjustment;
   } else if (-kMaxOffsetForSimpleAdjustment <= src->offset() &&
              src->offset() < 0) {
-    addiu(at, src->rm(), -kMinOffsetForSimpleAdjustment);
+    addiu(scratch, src->rm(), -kMinOffsetForSimpleAdjustment);
     src->offset_ += kMinOffsetForSimpleAdjustment;
   } else if (IsMipsArchVariant(kMips32r6)) {
     // On r6 take advantage of the aui instruction, e.g.:
