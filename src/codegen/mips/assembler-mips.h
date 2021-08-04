@@ -169,6 +169,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void FixOnHeapReferences();
 
+  void FixOnHeapReferencesToHandles();
+
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 

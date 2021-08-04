@@ -1937,6 +1937,12 @@ void Assembler::FixOnHeapReferences() {
   UNREACHABLE();
 }
 
+void Assembler::FixOnHeapReferencesToHandles() {
+  // TODO(v8:11872) This function should never be called if Sparkplug on heap
+  // compilation is not supported.
+  UNREACHABLE();
+}
+
 void Assembler::GrowBuffer(int needed) {
   DCHECK_EQ(buffer_start_, buffer_->start());
 

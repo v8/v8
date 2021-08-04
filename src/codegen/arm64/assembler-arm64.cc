@@ -4278,6 +4278,21 @@ bool Assembler::IsImmFP64(double imm) {
 void Assembler::FixOnHeapReferences() {
   Address base = reinterpret_cast<Address>(buffer_->start());
   for (auto p : saved_handles_for_raw_object_ptr_) {
+    Handle<HeapObject> object = GetEmbeddedObject(p.second);
+    WriteUnalignedValue(base + p.first, object->ptr());
+  }
+  for (auto p : saved_offsets_for_runtime_entries_) {
+    Instruction* instr = reinterpret_cast<Instruction*>(base + p.first);
+    Address target = p.second * kInstrSize + options().code_range_start;
+    DCHECK(is_int26(p.second));
+    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
+    instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
+  }
+}
+
+void Assembler::FixOnHeapReferencesToHandles() {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  for (auto p : saved_handles_for_raw_object_ptr_) {
     WriteUnalignedValue(base + p.first, p.second);
   }
   for (auto p : saved_offsets_for_runtime_entries_) {
@@ -4333,9 +4348,13 @@ void Assembler::GrowBuffer() {
     WriteUnalignedValue<intptr_t>(address, internal_ref);
   }
 
-  // Patch on-heap references to handles.
-  if (previously_on_heap && !buffer_->IsOnHeap()) {
-    FixOnHeapReferences();
+  // Fix on-heap references.
+  if (previously_on_heap) {
+    if (buffer_->IsOnHeap()) {
+      FixOnHeapReferences();
+    } else {
+      FixOnHeapReferencesToHandles();
+    }
   }
 
   // Pending relocation entries are also relative, no need to relocate.

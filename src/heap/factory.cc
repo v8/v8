@@ -299,13 +299,8 @@ void Factory::CodeBuilder::FinalizeOnHeapCode(Handle<Code> code,
 
   if (code_desc_.origin->OnHeapGCCount() != heap->gc_count()) {
     // If a GC happens between Code object allocation and now, we might have
-    // invalid embedded object references. We need to fix them back to handles,
-    // then unbox and relocate them.
-    // TODO(victorgomes): FixOnHeapReferences could already do the full
-    // relocation, to avoid having to call RelocateFromDesc. Additionally, we
-    // could used it to make grown buffers on-heap.
+    // invalid embedded object references.
     code_desc_.origin->FixOnHeapReferences();
-    code->RelocateFromDesc(reloc_info, heap, code_desc_);
   }
 
 #ifdef VERIFY_HEAP

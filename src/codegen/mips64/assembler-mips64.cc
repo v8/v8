@@ -3739,6 +3739,14 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
 void Assembler::FixOnHeapReferences() {
   for (auto p : saved_handles_for_raw_object_ptr_) {
     Address base = reinterpret_cast<Address>(buffer_->start() + p.first);
+    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
+    set_target_value_at(base, *object);
+  }
+}
+
+void Assembler::FixOnHeapReferencesToHandles() {
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    Address base = reinterpret_cast<Address>(buffer_->start() + p.first);
     set_target_value_at(base, p.second);
   }
 }

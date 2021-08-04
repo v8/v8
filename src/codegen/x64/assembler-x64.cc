@@ -540,6 +540,19 @@ bool Assembler::is_optimizable_farjmp(int idx) {
 void Assembler::FixOnHeapReferences() {
   Address base = reinterpret_cast<Address>(buffer_->start());
   for (auto p : saved_handles_for_raw_object_ptr_) {
+    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
+    WriteUnalignedValue(base + p.first, *object);
+  }
+  for (auto p : saved_offsets_for_runtime_entries_) {
+    Address pc = base + p.first;
+    Address target = p.second + options().code_range_start;
+    WriteUnalignedValue<uint32_t>(pc, relative_target_offset(target, pc));
+  }
+}
+
+void Assembler::FixOnHeapReferencesToHandles() {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  for (auto p : saved_handles_for_raw_object_ptr_) {
     WriteUnalignedValue(base + p.first, p.second);
   }
   for (auto p : saved_offsets_for_runtime_entries_) {
@@ -589,9 +602,13 @@ void Assembler::GrowBuffer() {
     WriteUnalignedValue(p, ReadUnalignedValue<intptr_t>(p) + pc_delta);
   }
 
-  // Patch on-heap references to handles.
-  if (previously_on_heap && !buffer_->IsOnHeap()) {
-    FixOnHeapReferences();
+  // Fix on-heap references.
+  if (previously_on_heap) {
+    if (buffer_->IsOnHeap()) {
+      FixOnHeapReferences();
+    } else {
+      FixOnHeapReferencesToHandles();
+    }
   }
 
   DCHECK(!buffer_overflow());

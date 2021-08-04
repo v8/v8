@@ -426,6 +426,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // between Code object allocation and Code object finalization.
   void FixOnHeapReferences();
 
+  // This function is called when we fallback from on-heap to off-heap
+  // compilation and patch on-heap references to handles.
+  void FixOnHeapReferencesToHandles();
+
   void FinalizeJumpOptimizationInfo();
 
   // Unused on this architecture.

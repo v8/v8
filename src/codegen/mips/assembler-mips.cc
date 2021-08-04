@@ -3540,6 +3540,14 @@ void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
 void Assembler::FixOnHeapReferences() {
   for (auto p : saved_handles_for_raw_object_ptr_) {
     Address base = reinterpret_cast<Address>(buffer_->start() + p.first);
+    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
+    set_target_value_at(base, *object);
+  }
+}
+
+void Assembler::FixOnHeapReferencesToHandles() {
+  for (auto p : saved_handles_for_raw_object_ptr_) {
+    Address base = reinterpret_cast<Address>(buffer_->start() + p.first);
     set_target_value_at(base, p.second);
   }
 }
@@ -3589,8 +3597,16 @@ void Assembler::GrowBuffer() {
       RelocateInternalReference(rmode, it.rinfo()->pc(), pc_delta);
     }
   }
-  // Patch on-heap references to handles.
-  if (previously_on_heap && !buffer_->IsOnHeap()) FixOnHeapReferences();
+
+  // Fix on-heap references.
+  if (previously_on_heap) {
+    if (buffer_->IsOnHeap()) {
+      FixOnHeapReferences();
+    } else {
+      FixOnHeapReferencesToHandles();
+    }
+  }
+
   DCHECK(!overflow());
 }
 

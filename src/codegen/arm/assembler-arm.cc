@@ -5175,6 +5175,14 @@ void Assembler::RecordConstPool(int size) {
 void Assembler::FixOnHeapReferences() {
   Address base = reinterpret_cast<Address>(buffer_->start());
   for (auto p : saved_handles_for_raw_object_ptr_) {
+    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
+    WriteUnalignedValue(base + p.first, *object);
+  }
+}
+
+void Assembler::FixOnHeapReferencesToHandles() {
+  Address base = reinterpret_cast<Address>(buffer_->start());
+  for (auto p : saved_handles_for_raw_object_ptr_) {
     WriteUnalignedValue(base + p.first, p.second);
   }
 }
@@ -5216,9 +5224,13 @@ void Assembler::GrowBuffer() {
       reinterpret_cast<Address>(reloc_info_writer.last_pc()) + pc_delta);
   reloc_info_writer.Reposition(new_reloc_start, new_last_pc);
 
-  // Patch on-heap references to handles.
-  if (previously_on_heap && !buffer_->IsOnHeap()) {
-    FixOnHeapReferences();
+  // Fix on-heap references.
+  if (previously_on_heap) {
+    if (buffer_->IsOnHeap()) {
+      FixOnHeapReferences();
+    } else {
+      FixOnHeapReferencesToHandles();
+    }
   }
 
   // None of our relocation types are pc relative pointing outside the code
