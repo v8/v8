@@ -30,6 +30,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertThrows(
       () => builder.instantiate({ m: { ex: js_except_v }}), WebAssembly.LinkError,
       /imported tag does not match the expected type/);
+  assertTrue(js_except_i32.toString() == "[object WebAssembly.Tag]");
 })();
 
 (function TestExport() {
