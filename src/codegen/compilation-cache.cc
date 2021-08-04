@@ -130,6 +130,17 @@ bool HasOrigin(Isolate* isolate, Handle<SharedFunctionInfo> function_info,
       script->origin_options().Flags()) {
     return false;
   }
+
+  Handle<FixedArray> host_defined_options;
+  if (script_details.host_defined_options.ToHandle(&host_defined_options)) {
+    if (*host_defined_options != script->host_defined_options()) return false;
+  }
+  // script_details.host_defined_options is not provided, the default is an
+  // empty fixed array.
+  if (script->host_defined_options() !=
+      ReadOnlyRoots(isolate).empty_fixed_array()) {
+    return false;
+  }
   // Compare the two name strings for equality.
   return String::Equals(isolate, Handle<String>::cast(name),
                         Handle<String>(String::cast(script->name()), isolate));

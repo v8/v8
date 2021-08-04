@@ -1718,9 +1718,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
 
   const char* source = "1 + 1";
 
-  Handle<String> src = isolate->factory()
-                           ->NewStringFromUtf8(base::CStrVector(source))
-                           .ToHandleChecked();
+  Handle<String> src = isolate->factory()->NewStringFromAsciiChecked(source);
   ScriptData* cache = nullptr;
 
   CompileScriptAndProduceCache(isolate, src, src, &cache,
@@ -1730,12 +1728,83 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   Handle<SharedFunctionInfo> copy = CompileScript(
       isolate, src, src, cache, v8::ScriptCompiler::kConsumeCodeCache);
 
-  ScriptDetails script_details(src);
-  MaybeHandle<SharedFunctionInfo> shared =
-      isolate->compilation_cache()->LookupScript(src, script_details,
-                                                 LanguageMode::kSloppy);
+  {
+    ScriptDetails script_details(src);
+    MaybeHandle<SharedFunctionInfo> shared =
+        isolate->compilation_cache()->LookupScript(src, script_details,
+                                                   LanguageMode::kSloppy);
+    CHECK_EQ(*shared.ToHandleChecked(), *copy);
+  }
 
-  CHECK(*shared.ToHandleChecked() == *copy);
+  {
+    // Lookup with different string with same contents should succeed:
+    ScriptDetails script_details(
+        isolate->factory()->NewStringFromAsciiChecked(source));
+    MaybeHandle<SharedFunctionInfo> shared =
+        isolate->compilation_cache()->LookupScript(src, script_details,
+                                                   LanguageMode::kSloppy);
+    CHECK_EQ(*shared.ToHandleChecked(), *copy);
+  }
+
+  {
+    // Lookup with different string should fail:
+    ScriptDetails script_details(
+        isolate->factory()->NewStringFromAsciiChecked("other"));
+    MaybeHandle<SharedFunctionInfo> shared =
+        isolate->compilation_cache()->LookupScript(src, script_details,
+                                                   LanguageMode::kSloppy);
+    CHECK(shared.is_null());
+  }
+
+  {
+    // Lookup with different position should fail:
+    ScriptDetails script_details(src);
+    script_details.line_offset = 0xFF;
+    MaybeHandle<SharedFunctionInfo> shared =
+        isolate->compilation_cache()->LookupScript(src, script_details,
+                                                   LanguageMode::kSloppy);
+    CHECK(shared.is_null());
+  }
+
+  {
+    // Lookup with different position should fail:
+    ScriptDetails script_details(src);
+    script_details.column_offset = 0xFF;
+    MaybeHandle<SharedFunctionInfo> shared =
+        isolate->compilation_cache()->LookupScript(src, script_details,
+                                                   LanguageMode::kSloppy);
+    CHECK(shared.is_null());
+  }
+
+  {
+    // Lookup with different language mode should fail:
+    ScriptDetails script_details(src);
+    MaybeHandle<SharedFunctionInfo> shared =
+        isolate->compilation_cache()->LookupScript(src, script_details,
+                                                   LanguageMode::kStrict);
+    CHECK(shared.is_null());
+  }
+
+  {
+    // Lookup with different script_options should fail
+    ScriptOriginOptions origin_options(false, true);
+    CHECK_NE(ScriptOriginOptions().Flags(), origin_options.Flags());
+    ScriptDetails script_details(src, origin_options);
+    MaybeHandle<SharedFunctionInfo> shared =
+        isolate->compilation_cache()->LookupScript(src, script_details,
+                                                   LanguageMode::kSloppy);
+    CHECK(shared.is_null());
+  }
+
+  {
+    // Lookup with different host_defined_options should fail:
+    ScriptDetails script_details(src);
+    script_details.host_defined_options = isolate->factory()->NewFixedArray(5);
+    MaybeHandle<SharedFunctionInfo> shared =
+        isolate->compilation_cache()->LookupScript(src, script_details,
+                                                   LanguageMode::kSloppy);
+    CHECK(shared.is_null());
+  }
 
   delete cache;
 }
