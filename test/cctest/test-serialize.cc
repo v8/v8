@@ -1573,9 +1573,9 @@ static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
     ScriptData* cached_data, v8::ScriptCompiler::CompileOptions options) {
   return Compiler::GetSharedFunctionInfoForScript(
-             isolate, source, Compiler::ScriptDetails(name),
-             v8::ScriptOriginOptions(), nullptr, cached_data, options,
-             ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
+             isolate, source, Compiler::ScriptDetails(name), nullptr,
+             cached_data, options, ScriptCompiler::kNoCacheNoReason,
+             NOT_NATIVES_CODE)
       .ToHandleChecked();
 }
 
@@ -1584,9 +1584,8 @@ static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
     ScriptData** script_data, v8::ScriptCompiler::CompileOptions options) {
   Handle<SharedFunctionInfo> sfi =
       Compiler::GetSharedFunctionInfoForScript(
-          isolate, source, Compiler::ScriptDetails(name),
-          v8::ScriptOriginOptions(), nullptr, nullptr, options,
-          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
+          isolate, source, Compiler::ScriptDetails(name), nullptr, nullptr,
+          options, ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
   std::unique_ptr<ScriptCompiler::CachedData> cached_data(
       ScriptCompiler::CreateCodeCache(ToApiHandle<UnboundScript>(sfi)));

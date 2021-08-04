@@ -4129,9 +4129,8 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
         factory->NewStringFromUtf8(name).ToHandleChecked();
     MaybeHandle<SharedFunctionInfo> maybe_function_info =
         Compiler::GetSharedFunctionInfoForScript(
-            isolate, source, Compiler::ScriptDetails(script_name),
-            ScriptOriginOptions(), extension, nullptr,
-            ScriptCompiler::kNoCompileOptions,
+            isolate, source, Compiler::ScriptDetails(script_name), extension,
+            nullptr, ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseV8Extension, EXTENSION_CODE);
     if (!maybe_function_info.ToHandle(&function_info)) return false;
     cache->Add(isolate, name, function_info);

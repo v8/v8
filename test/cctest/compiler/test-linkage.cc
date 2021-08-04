@@ -34,8 +34,7 @@ static Handle<JSFunction> Compile(const char* source) {
                                    .ToHandleChecked();
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForScript(
-          isolate, source_code, Compiler::ScriptDetails(),
-          v8::ScriptOriginOptions(), nullptr, nullptr,
+          isolate, source_code, Compiler::ScriptDetails(), nullptr, nullptr,
           v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();

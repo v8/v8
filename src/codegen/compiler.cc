@@ -2625,12 +2625,12 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
 
 Handle<Script> NewScript(
     Isolate* isolate, ParseInfo* parse_info, Handle<String> source,
-    Compiler::ScriptDetails script_details, ScriptOriginOptions origin_options,
-    NativesFlag natives,
+    Compiler::ScriptDetails script_details, NativesFlag natives,
     MaybeHandle<FixedArray> maybe_wrapped_arguments = kNullMaybeHandle) {
   // Create a script object describing the script to be compiled.
-  Handle<Script> script = parse_info->CreateScript(
-      isolate, source, maybe_wrapped_arguments, origin_options, natives);
+  Handle<Script> script =
+      parse_info->CreateScript(isolate, source, maybe_wrapped_arguments,
+                               script_details.origin_options, natives);
   DisallowGarbageCollection no_gc;
   SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
   LOG(isolate, ScriptDetails(*script));
@@ -2639,16 +2639,15 @@ Handle<Script> NewScript(
 
 MaybeHandle<SharedFunctionInfo> CompileScriptOnMainThread(
     const UnoptimizedCompileFlags flags, Handle<String> source,
-    const Compiler::ScriptDetails& script_details,
-    ScriptOriginOptions origin_options, NativesFlag natives,
+    const Compiler::ScriptDetails& script_details, NativesFlag natives,
     v8::Extension* extension, Isolate* isolate,
     IsCompiledScope* is_compiled_scope) {
   UnoptimizedCompileState compile_state(isolate);
   ParseInfo parse_info(isolate, flags, &compile_state);
   parse_info.set_extension(extension);
 
-  Handle<Script> script = NewScript(isolate, &parse_info, source,
-                                    script_details, origin_options, natives);
+  Handle<Script> script =
+      NewScript(isolate, &parse_info, source, script_details, natives);
   DCHECK_IMPLIES(parse_info.flags().collect_type_profile(),
                  script->IsUserJavaScript());
   DCHECK_EQ(parse_info.flags().is_repl_mode(), script->is_repl_mode());
@@ -2705,13 +2704,12 @@ class StressBackgroundCompileThread : public base::Thread {
 };
 
 bool CanBackgroundCompile(const Compiler::ScriptDetails& script_details,
-                          ScriptOriginOptions origin_options,
                           v8::Extension* extension,
                           ScriptCompiler::CompileOptions compile_options,
                           NativesFlag natives) {
   // TODO(leszeks): Remove the module check once background compilation of
   // modules is supported.
-  return !origin_options.IsModule() && !extension &&
+  return !script_details.origin_options.IsModule() && !extension &&
          script_details.repl_mode == REPLMode::kNo &&
          compile_options == ScriptCompiler::kNoCompileOptions &&
          natives == NOT_NATIVES_CODE;
@@ -2729,12 +2727,12 @@ bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
 
 MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
     Handle<String> source, const Compiler::ScriptDetails& script_details,
-    ScriptOriginOptions origin_options, Isolate* isolate,
-    IsCompiledScope* is_compiled_scope) {
+    Isolate* isolate, IsCompiledScope* is_compiled_scope) {
   // Start a background thread compiling the script.
   StressBackgroundCompileThread background_compile_thread(
       isolate, source,
-      origin_options.IsModule() ? ScriptType::kModule : ScriptType::kClassic);
+      script_details.origin_options.IsModule() ? ScriptType::kModule
+                                               : ScriptType::kClassic);
 
   UnoptimizedCompileFlags flags_copy =
       background_compile_thread.data()->task->flags();
@@ -2752,8 +2750,8 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
     TryCatch ignore_try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     flags_copy.set_script_id(Script::kTemporaryScriptId);
     main_thread_maybe_result = CompileScriptOnMainThread(
-        flags_copy, source, script_details, origin_options, NOT_NATIVES_CODE,
-        nullptr, isolate, &inner_is_compiled_scope);
+        flags_copy, source, script_details, NOT_NATIVES_CODE, nullptr, isolate,
+        &inner_is_compiled_scope);
     if (main_thread_maybe_result.is_null()) {
       // Assume all range errors are stack overflows.
       main_thread_had_stack_overflow = CompilationExceptionIsRangeError(
@@ -2770,8 +2768,7 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
 
   MaybeHandle<SharedFunctionInfo> maybe_result =
       Compiler::GetSharedFunctionInfoForStreamedScript(
-          isolate, source, script_details, origin_options,
-          background_compile_thread.data());
+          isolate, source, script_details, background_compile_thread.data());
 
   // Either both compiles should succeed, or both should fail. The one exception
   // to this is that the main-thread compilation might stack overflow while the
@@ -2799,8 +2796,7 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
 // static
 MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Isolate* isolate, Handle<String> source,
-    const Compiler::ScriptDetails& script_details,
-    ScriptOriginOptions origin_options, v8::Extension* extension,
+    const Compiler::ScriptDetails& script_details, v8::Extension* extension,
     ScriptData* cached_data, ScriptCompiler::CompileOptions compile_options,
     ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
@@ -2836,7 +2832,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     // First check per-isolate compilation cache.
     maybe_result = compilation_cache->LookupScript(
         source, script_details.name_obj, script_details.line_offset,
-        script_details.column_offset, origin_options, language_mode);
+        script_details.column_offset, script_details.origin_options,
+        language_mode);
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     } else if (can_consume_code_cache) {
@@ -2848,7 +2845,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
                    "V8.CompileDeserialize");
       Handle<SharedFunctionInfo> inner_result;
       if (CodeSerializer::Deserialize(isolate, cached_data, source,
-                                      origin_options)
+                                      script_details.origin_options)
               .ToHandle(&inner_result) &&
           inner_result->is_compiled()) {
         // Promote to per-isolate compilation cache.
@@ -2866,26 +2863,26 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   if (maybe_result.is_null()) {
     // No cache entry found compile the script.
     if (FLAG_stress_background_compile &&
-        CanBackgroundCompile(script_details, origin_options, extension,
-                             compile_options, natives)) {
+        CanBackgroundCompile(script_details, extension, compile_options,
+                             natives)) {
       // If the --stress-background-compile flag is set, do the actual
       // compilation on a background thread, and wait for its result.
       maybe_result = CompileScriptOnBothBackgroundAndMainThread(
-          source, script_details, origin_options, isolate, &is_compiled_scope);
+          source, script_details, isolate, &is_compiled_scope);
     } else {
       UnoptimizedCompileFlags flags =
           UnoptimizedCompileFlags::ForToplevelCompile(
               isolate, natives == NOT_NATIVES_CODE, language_mode,
               script_details.repl_mode,
-              origin_options.IsModule() ? ScriptType::kModule
-                                        : ScriptType::kClassic,
+              script_details.origin_options.IsModule() ? ScriptType::kModule
+                                                       : ScriptType::kClassic,
               FLAG_lazy);
 
       flags.set_is_eager(compile_options == ScriptCompiler::kEagerCompile);
 
-      maybe_result = CompileScriptOnMainThread(
-          flags, source, script_details, origin_options, natives, extension,
-          isolate, &is_compiled_scope);
+      maybe_result =
+          CompileScriptOnMainThread(flags, source, script_details, natives,
+                                    extension, isolate, &is_compiled_scope);
     }
 
     // Add the result to the isolate cache.
@@ -2905,8 +2902,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     Handle<String> source, Handle<FixedArray> arguments,
     Handle<Context> context, const Compiler::ScriptDetails& script_details,
-    ScriptOriginOptions origin_options, ScriptData* cached_data,
-    v8::ScriptCompiler::CompileOptions compile_options,
+    ScriptData* cached_data, v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
   Isolate* isolate = context->GetIsolate();
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
@@ -2935,7 +2931,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.CompileDeserialize");
     maybe_result = CodeSerializer::Deserialize(isolate, cached_data, source,
-                                               origin_options);
+                                               script_details.origin_options);
     if (maybe_result.is_null()) {
       // Deserializer failed. Fall through to compile.
       compile_timer.set_consuming_code_cache_failed();
@@ -2966,7 +2962,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     }
 
     script = NewScript(isolate, &parse_info, source, script_details,
-                       origin_options, NOT_NATIVES_CODE, arguments);
+                       NOT_NATIVES_CODE, arguments);
 
     Handle<SharedFunctionInfo> top_level;
     maybe_result = v8::internal::CompileToplevel(&parse_info, script,
@@ -2999,8 +2995,8 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
 MaybeHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
     Isolate* isolate, Handle<String> source,
-    const ScriptDetails& script_details, ScriptOriginOptions origin_options,
-    ScriptStreamingData* streaming_data) {
+    const ScriptDetails& script_details, ScriptStreamingData* streaming_data) {
+  ScriptOriginOptions origin_options = script_details.origin_options;
   DCHECK(!origin_options.IsWasm());
 
   ScriptCompileTimerScope compile_timer(
