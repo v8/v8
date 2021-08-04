@@ -2638,8 +2638,10 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     Handle<JSFunction> exception_constructor = InstallConstructorFunc(
         isolate, webassembly, "Exception", WebAssemblyException);
     SetDummyInstanceTemplate(isolate, exception_constructor);
-    Handle<Map> exception_map = isolate->factory()->NewMap(
-        i::JS_ERROR_TYPE, WasmExceptionPackage::kHeaderSize);
+    Handle<Map> exception_map(isolate->native_context()
+                                  ->wasm_exception_error_function()
+                                  .initial_map(),
+                              isolate);
     Handle<JSObject> exception_proto(
         JSObject::cast(isolate->native_context()
                            ->wasm_exception_error_function()
