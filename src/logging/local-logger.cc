@@ -24,8 +24,10 @@ void LocalLogger::ScriptEvent(Logger::ScriptEventType type, int script_id) {
   logger_->ScriptEvent(type, script_id);
 }
 void LocalLogger::CodeLinePosInfoRecordEvent(Address code_start,
-                                             ByteArray source_position_table) {
-  logger_->CodeLinePosInfoRecordEvent(code_start, source_position_table);
+                                             ByteArray source_position_table,
+                                             JitCodeEvent::CodeType code_type) {
+  logger_->CodeLinePosInfoRecordEvent(code_start, source_position_table,
+                                      code_type);
 }
 
 void LocalLogger::MapCreate(Map map) { logger_->MapCreate(map); }

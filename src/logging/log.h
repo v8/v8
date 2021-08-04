@@ -240,7 +240,8 @@ class Logger : public CodeEventListener {
 
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(Address code_start,
-                                  ByteArray source_position_table);
+                                  ByteArray source_position_table,
+                                  JitCodeEvent::CodeType code_type);
   void CodeLinePosInfoRecordEvent(
       Address code_start, base::Vector<const byte> source_position_table);
 

@@ -681,10 +681,12 @@ class JitLogger : public CodeEventLogger {
                            Handle<SharedFunctionInfo> shared) override {}
   void AddCodeLinePosInfoEvent(void* jit_handler_data, int pc_offset,
                                int position,
-                               JitCodeEvent::PositionType position_type);
+                               JitCodeEvent::PositionType position_type,
+                               JitCodeEvent::CodeType code_type);
 
-  void* StartCodePosInfoEvent();
-  void EndCodePosInfoEvent(Address start_address, void* jit_handler_data);
+  void* StartCodePosInfoEvent(JitCodeEvent::CodeType code_type);
+  void EndCodePosInfoEvent(Address start_address, void* jit_handler_data,
+                           JitCodeEvent::CodeType code_type);
 
  private:
   void LogRecordedBuffer(Handle<AbstractCode> code,
@@ -705,8 +707,7 @@ JitLogger::JitLogger(Isolate* isolate, JitCodeEventHandler code_event_handler)
 void JitLogger::LogRecordedBuffer(Handle<AbstractCode> code,
                                   MaybeHandle<SharedFunctionInfo> maybe_shared,
                                   const char* name, int length) {
-  JitCodeEvent event;
-  memset(static_cast<void*>(&event), 0, sizeof(event));
+  JitCodeEvent event = {};
   event.type = JitCodeEvent::CODE_ADDED;
   event.code_start = reinterpret_cast<void*>(code->InstructionStart());
   event.code_type =
@@ -727,8 +728,7 @@ void JitLogger::LogRecordedBuffer(Handle<AbstractCode> code,
 #if V8_ENABLE_WEBASSEMBLY
 void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                   int length) {
-  JitCodeEvent event;
-  memset(static_cast<void*>(&event), 0, sizeof(event));
+  JitCodeEvent event = {};
   event.type = JitCodeEvent::CODE_ADDED;
   event.code_type = JitCodeEvent::JIT_CODE;
   event.code_start = code->instructions().begin();
@@ -793,10 +793,11 @@ void JitLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
 
 void JitLogger::AddCodeLinePosInfoEvent(
     void* jit_handler_data, int pc_offset, int position,
-    JitCodeEvent::PositionType position_type) {
-  JitCodeEvent event;
-  memset(static_cast<void*>(&event), 0, sizeof(event));
+    JitCodeEvent::PositionType position_type,
+    JitCodeEvent::CodeType code_type) {
+  JitCodeEvent event = {};
   event.type = JitCodeEvent::CODE_ADD_LINE_POS_INFO;
+  event.code_type = code_type;
   event.user_data = jit_handler_data;
   event.line_info.offset = pc_offset;
   event.line_info.pos = position;
@@ -806,10 +807,10 @@ void JitLogger::AddCodeLinePosInfoEvent(
   code_event_handler_(&event);
 }
 
-void* JitLogger::StartCodePosInfoEvent() {
-  JitCodeEvent event;
-  memset(static_cast<void*>(&event), 0, sizeof(event));
+void* JitLogger::StartCodePosInfoEvent(JitCodeEvent::CodeType code_type) {
+  JitCodeEvent event = {};
   event.type = JitCodeEvent::CODE_START_LINE_INFO_RECORDING;
+  event.code_type = code_type;
   event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
 
   code_event_handler_(&event);
@@ -817,10 +818,11 @@ void* JitLogger::StartCodePosInfoEvent() {
 }
 
 void JitLogger::EndCodePosInfoEvent(Address start_address,
-                                    void* jit_handler_data) {
-  JitCodeEvent event;
-  memset(static_cast<void*>(&event), 0, sizeof(event));
+                                    void* jit_handler_data,
+                                    JitCodeEvent::CodeType code_type) {
+  JitCodeEvent event = {};
   event.type = JitCodeEvent::CODE_END_LINE_INFO_RECORDING;
+  event.code_type = code_type;
   event.code_start = reinterpret_cast<void*>(start_address);
   event.user_data = jit_handler_data;
   event.isolate = reinterpret_cast<v8::Isolate*>(isolate_);
@@ -1529,35 +1531,38 @@ void Logger::CodeDependencyChangeEvent(Handle<Code> code,
 namespace {
 
 void CodeLinePosEvent(JitLogger& jit_logger, Address code_start,
-                      SourcePositionTableIterator& iter) {
-  void* jit_handler_data = jit_logger.StartCodePosInfoEvent();
+                      SourcePositionTableIterator& iter,
+                      JitCodeEvent::CodeType code_type) {
+  void* jit_handler_data = jit_logger.StartCodePosInfoEvent(code_type);
   for (; !iter.done(); iter.Advance()) {
     if (iter.is_statement()) {
       jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
                                          iter.source_position().ScriptOffset(),
-                                         JitCodeEvent::STATEMENT_POSITION);
+                                         JitCodeEvent::STATEMENT_POSITION,
+                                         code_type);
     }
     jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
                                        iter.source_position().ScriptOffset(),
-                                       JitCodeEvent::POSITION);
+                                       JitCodeEvent::POSITION, code_type);
   }
-  jit_logger.EndCodePosInfoEvent(code_start, jit_handler_data);
+  jit_logger.EndCodePosInfoEvent(code_start, jit_handler_data, code_type);
 }
 
 }  // namespace
 
 void Logger::CodeLinePosInfoRecordEvent(Address code_start,
-                                        ByteArray source_position_table) {
+                                        ByteArray source_position_table,
+                                        JitCodeEvent::CodeType code_type) {
   if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(*jit_logger_, code_start, iter);
+  CodeLinePosEvent(*jit_logger_, code_start, iter, code_type);
 }
 
 void Logger::CodeLinePosInfoRecordEvent(
     Address code_start, base::Vector<const byte> source_position_table) {
   if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(*jit_logger_, code_start, iter);
+  CodeLinePosEvent(*jit_logger_, code_start, iter, JitCodeEvent::JIT_CODE);
 }
 
 void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
