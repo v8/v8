@@ -4220,9 +4220,10 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   if (feedback.IsInsufficient()) return NoChange();
 
   AllocationSiteRef site = feedback.AsLiteral().value();
-  base::Optional<JSArrayRef> boilerplate_array =
-      site.boilerplate()->AsJSArray();
-  int const array_length = boilerplate_array->GetBoilerplateLength().AsSmi();
+  if (!site.boilerplate().has_value()) return NoChange();
+
+  JSArrayRef boilerplate_array = site.boilerplate()->AsJSArray();
+  int const array_length = boilerplate_array.GetBoilerplateLength().AsSmi();
 
   // We'll replace the arguments_list input with {array_length} element loads.
   new_argument_count = argument_count - 1 + array_length;
@@ -4235,7 +4236,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   }
 
   // Determine the array's map.
-  MapRef array_map = boilerplate_array->map();
+  MapRef array_map = boilerplate_array.map();
   if (!array_map.supports_fast_array_iteration()) {
     return NoChange();
   }

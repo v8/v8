@@ -691,7 +691,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForInstanceOf(
     MaybeHandle<JSObject> maybe_constructor = nexus.GetConstructorFeedback();
     Handle<JSObject> constructor;
     if (maybe_constructor.ToHandle(&constructor)) {
-      optional_constructor = MakeRef(this, *constructor);
+      optional_constructor = MakeRefAssumeMemoryFence(this, *constructor);
     }
   }
   return *zone()->New<InstanceOfFeedback>(optional_constructor, nexus.kind());
@@ -941,7 +941,7 @@ base::Optional<NameRef> JSHeapBroker::GetNameFeedback(
     FeedbackNexus const& nexus) {
   Name raw_name = nexus.GetName();
   if (raw_name.is_null()) return base::nullopt;
-  return MakeRef(this, raw_name);
+  return MakeRefAssumeMemoryFence(this, raw_name);
 }
 
 PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
