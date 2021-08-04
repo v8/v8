@@ -219,7 +219,7 @@ bool OptimizingCompileDispatcher::HasJobs() {
   // Note: This relies on {output_queue_} being mutated by a background thread
   // only when {ref_count_} is not zero. Also, {ref_count_} is never incremented
   // by a background thread.
-  return !(ref_count_ == 0 && output_queue_.empty());
+  return ref_count_ != 0 || !output_queue_.empty() || blocked_jobs_ != 0;
 }
 
 void OptimizingCompileDispatcher::QueueForOptimization(
