@@ -3738,16 +3738,16 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
 
 void Assembler::FixOnHeapReferences() {
   for (auto p : saved_handles_for_raw_object_ptr_) {
-    Address base = reinterpret_cast<Address>(buffer_->start() + p.first);
+    Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
     Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
-    set_target_value_at(base, *object);
+    set_target_value_at(address, object->ptr());
   }
 }
 
 void Assembler::FixOnHeapReferencesToHandles() {
   for (auto p : saved_handles_for_raw_object_ptr_) {
-    Address base = reinterpret_cast<Address>(buffer_->start() + p.first);
-    set_target_value_at(base, p.second);
+    Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
+    set_target_value_at(address, p.second);
   }
 }
 
@@ -3795,9 +3795,14 @@ void Assembler::GrowBuffer() {
       RelocateInternalReference(rmode, it.rinfo()->pc(), pc_delta);
     }
   }
-  // Patch on-heap references to handles.
-  if (previously_on_heap && !buffer_->IsOnHeap()) FixOnHeapReferences();
-  DCHECK(!overflow());
+  // Fix on-heap references.
+  if (previously_on_heap) {
+    if (buffer_->IsOnHeap()) {
+      FixOnHeapReferences();
+    } else {
+      FixOnHeapReferencesToHandles();
+    }
+  }
 }
 
 void Assembler::db(uint8_t data) {
