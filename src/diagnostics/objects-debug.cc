@@ -1507,7 +1507,7 @@ void Module::ModuleVerify(Isolate* isolate) {
   CHECK(module_namespace().IsUndefined(isolate) ||
         module_namespace().IsJSModuleNamespace());
   if (module_namespace().IsJSModuleNamespace()) {
-    CHECK_LE(Module::kInstantiating, status());
+    CHECK_LE(Module::kLinking, status());
     CHECK_EQ(JSModuleNamespace::cast(module_namespace()).module(), *this);
   }
 
@@ -1540,13 +1540,13 @@ void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
   } else if (status() == kEvaluating || status() == kEvaluated) {
     CHECK(code().IsJSGeneratorObject());
   } else {
-    if (status() == kInstantiated) {
+    if (status() == kLinked) {
       CHECK(code().IsJSGeneratorObject());
-    } else if (status() == kInstantiating) {
+    } else if (status() == kLinking) {
       CHECK(code().IsJSFunction());
-    } else if (status() == kPreInstantiating) {
+    } else if (status() == kPreLinking) {
       CHECK(code().IsSharedFunctionInfo());
-    } else if (status() == kUninstantiated) {
+    } else if (status() == kUnlinked) {
       CHECK(code().IsSharedFunctionInfo());
     }
     CHECK(!AsyncParentModuleCount());

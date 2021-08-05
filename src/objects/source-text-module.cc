@@ -89,13 +89,14 @@ struct SourceTextModule::AsyncEvaluatingOrdinalCompare {
 SharedFunctionInfo SourceTextModule::GetSharedFunctionInfo() const {
   DisallowGarbageCollection no_gc;
   switch (status()) {
-    case kUninstantiated:
-    case kPreInstantiating:
+    case kUnlinked:
+    case kPreLinking:
       return SharedFunctionInfo::cast(code());
-    case kInstantiating:
+    case kLinking:
       return JSFunction::cast(code()).shared();
-    case kInstantiated:
+    case kLinked:
     case kEvaluating:
+    case kEvaluatingAsync:
     case kEvaluated:
       return JSGeneratorObject::cast(code()).function().shared();
     case kErrored:
@@ -390,13 +391,13 @@ bool SourceTextModule::PrepareInstantiate(
                          entry);
   }
 
-  DCHECK_EQ(module->status(), kPreInstantiating);
+  DCHECK_EQ(module->status(), kPreLinking);
   return true;
 }
 
 bool SourceTextModule::RunInitializationCode(Isolate* isolate,
                                              Handle<SourceTextModule> module) {
-  DCHECK_EQ(module->status(), kInstantiating);
+  DCHECK_EQ(module->status(), kLinking);
   Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
   DCHECK_EQ(MODULE_SCOPE, function->shared().scope_info().scope_type());
   Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -421,7 +422,7 @@ bool SourceTextModule::RunInitializationCode(Isolate* isolate,
 bool SourceTextModule::MaybeTransitionComponent(
     Isolate* isolate, Handle<SourceTextModule> module,
     ZoneForwardList<Handle<SourceTextModule>>* stack, Status new_status) {
-  DCHECK(new_status == kInstantiated || new_status == kEvaluated);
+  DCHECK(new_status == kLinked || new_status == kEvaluated);
   SLOW_DCHECK(
       // {module} is on the {stack}.
       std::count_if(stack->begin(), stack->end(),
@@ -435,8 +436,8 @@ bool SourceTextModule::MaybeTransitionComponent(
       ancestor = stack->front();
       stack->pop_front();
       DCHECK_EQ(ancestor->status(),
-                new_status == kInstantiated ? kInstantiating : kEvaluating);
-      if (new_status == kInstantiated) {
+                new_status == kLinked ? kLinking : kEvaluating);
+      if (new_status == kLinked) {
         if (!SourceTextModule::RunInitializationCode(isolate, ancestor))
           return false;
       } else if (new_status == kEvaluated) {
@@ -461,7 +462,7 @@ bool SourceTextModule::FinishInstantiate(
       Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
           .Build();
   module->set_code(*function);
-  module->SetStatus(kInstantiating);
+  module->SetStatus(kLinking);
   module->set_dfs_index(*dfs_index);
   module->set_dfs_ancestor_index(*dfs_index);
   stack->push_front(module);
@@ -478,16 +479,16 @@ bool SourceTextModule::FinishInstantiate(
     }
 
     DCHECK_NE(requested_module->status(), kEvaluating);
-    DCHECK_GE(requested_module->status(), kInstantiating);
+    DCHECK_GE(requested_module->status(), kLinking);
     SLOW_DCHECK(
         // {requested_module} is instantiating iff it's on the {stack}.
-        (requested_module->status() == kInstantiating) ==
+        (requested_module->status() == kLinking) ==
         std::count_if(stack->begin(), stack->end(), [&](Handle<Module> m) {
           return *m == *requested_module;
         }));
 
-    if (requested_module->status() == kInstantiating) {
-      // SyntheticModules go straight to kInstantiated so this must be a
+    if (requested_module->status() == kLinking) {
+      // SyntheticModules go straight to kLinked so this must be a
       // SourceTextModule
       module->set_dfs_ancestor_index(std::min(
           module->dfs_ancestor_index(),
@@ -531,14 +532,14 @@ bool SourceTextModule::FinishInstantiate(
     }
   }
 
-  return MaybeTransitionComponent(isolate, module, stack, kInstantiated);
+  return MaybeTransitionComponent(isolate, module, stack, kLinked);
 }
 
 void SourceTextModule::FetchStarExports(Isolate* isolate,
                                         Handle<SourceTextModule> module,
                                         Zone* zone,
                                         UnorderedModuleSet* visited) {
-  DCHECK_GE(module->status(), Module::kInstantiating);
+  DCHECK_GE(module->status(), Module::kLinking);
 
   if (module->module_namespace().IsJSModuleNamespace()) return;  // Shortcut.
 
@@ -729,7 +730,7 @@ MaybeHandle<Object> SourceTextModule::EvaluateMaybeAsync(
 MaybeHandle<Object> SourceTextModule::Evaluate(
     Isolate* isolate, Handle<SourceTextModule> module) {
   // Evaluate () Concrete Method continued from EvaluateMaybeAsync.
-  CHECK(module->status() == kInstantiated || module->status() == kEvaluated);
+  CHECK(module->status() == kLinked || module->status() == kEvaluated);
 
   // 5. Let stack be a new empty List.
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -1040,7 +1041,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
   }
 
   // 4. Assert: module.[[Status]] is "linked".
-  CHECK_EQ(module->status(), kInstantiated);
+  CHECK_EQ(module->status(), kLinked);
 
   // 5. Set module.[[Status]] to "evaluating".
   module->SetStatus(kEvaluating);
@@ -1189,7 +1190,7 @@ void SourceTextModule::Reset(Isolate* isolate,
   Handle<FixedArray> requested_modules =
       factory->NewFixedArray(module->requested_modules().length());
 
-  if (module->status() == kInstantiating) {
+  if (module->status() == kLinking) {
     module->set_code(JSFunction::cast(module->code()).shared());
   }
   module->set_regular_exports(*regular_exports);
