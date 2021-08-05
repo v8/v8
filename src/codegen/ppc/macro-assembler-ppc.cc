@@ -2383,8 +2383,9 @@ void TurboAssembler::CheckPageFlag(
     Register scratch,  // scratch may be same register as object
     int mask, Condition cc, Label* condition_met) {
   DCHECK(cc == ne || cc == eq);
+  DCHECK(scratch != r0);
   ClearRightImm(scratch, object, Operand(kPageSizeBits));
-  LoadU64(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
+  LoadU64(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset), r0);
 
   mov(r0, Operand(mask));
   and_(r0, scratch, r0, SetRC);
@@ -2752,7 +2753,7 @@ void TurboAssembler::MulS32(Register dst, Register src, Register value, OEBit s,
 
 void TurboAssembler::AndU64(Register dst, Register src, const Operand& value,
                             Register scratch, RCBit r) {
-  if (is_int16(value.immediate()) && r == SetRC) {
+  if (is_uint16(value.immediate()) && r == SetRC) {
     andi(dst, src, value);
   } else {
     mov(scratch, value);
