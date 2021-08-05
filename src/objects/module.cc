@@ -37,11 +37,11 @@ void PrintModuleName(Module module, std::ostream& os) {
 #endif  // OBJECT_PRINT
 }
 
-void PrintStatusTransition(Module module, Module::Status new_status) {
+void PrintStatusTransition(Module module, Module::Status old_status) {
   if (!FLAG_trace_module_status) return;
   StdoutStream os;
-  os << "Changing module status from " << module.status() << " to "
-     << new_status << " for ";
+  os << "Changing module status from " << old_status << " to "
+     << module.status() << " for ";
   PrintModuleName(module, os);
 }
 
@@ -56,9 +56,12 @@ void PrintStatusMessage(Module module, const char* message) {
 void SetStatusInternal(Module module, Module::Status new_status) {
   DisallowGarbageCollection no_gc;
 #ifdef DEBUG
-  PrintStatusTransition(module, new_status);
-#endif  // DEBUG
+  Module::Status old_status = static_cast<Module::Status>(module.status());
   module.set_status(new_status);
+  PrintStatusTransition(module, old_status);
+#else
+  module.set_status(new_status);
+#endif  // DEBUG
 }
 
 }  // end namespace
