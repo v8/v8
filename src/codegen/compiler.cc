@@ -1711,6 +1711,13 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
     return false;
   }
 
+  // Unfinalized scripts don't yet have the proper source string attached and
+  // thus can't be reparsed.
+  if (Script::cast(shared_info->script()).IsMaybeUnfinalized(isolate)) {
+    bytecode->SetSourcePositionsFailedToCollect();
+    return false;
+  }
+
   DCHECK(AllowCompilation::IsAllowed(isolate));
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DCHECK(!isolate->has_pending_exception());
