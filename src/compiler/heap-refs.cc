@@ -39,12 +39,10 @@ namespace compiler {
 //   object is a Smi, it's safe to access the handle in order to extract the
 //   number value, and AsSmi() does exactly that.
 //
-// kSerializedHeapObject: The underlying V8 object is a HeapObject and the
-//   data is an instance of the corresponding (most-specific) subclass, e.g.
-//   JSFunctionData, which provides serialized information about the object.
-//
-// kBackgroundSerializedHeapObject: Like kSerializedHeapObject, but
-//   allows serialization from the background thread.
+// kBackgroundSerializedHeapObject: The underlying V8 object is a HeapObject
+//   and the data is an instance of the corresponding (most-specific) subclass,
+//   e.g.  JSFunctionData, which provides serialized information about the
+//   object. Allows serialization from the background thread.
 //
 // kUnserializedHeapObject: The underlying V8 object is a HeapObject and the
 //   data is an instance of the base class (ObjectData), i.e. it basically
@@ -62,7 +60,6 @@ namespace compiler {
 //   these objects need not be serialized.
 enum ObjectDataKind {
   kSmi,
-  kSerializedHeapObject,
   kBackgroundSerializedHeapObject,
   kUnserializedHeapObject,
   kNeverSerializedHeapObject,
@@ -161,8 +158,7 @@ class ObjectData : public ZoneObject {
 class HeapObjectData : public ObjectData {
  public:
   HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<HeapObject> object,
-                 ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject);
+                 Handle<HeapObject> object, ObjectDataKind kind);
 
   base::Optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;
   ObjectData* map() const { return map_; }
@@ -177,8 +173,7 @@ class HeapObjectData : public ObjectData {
 class PropertyCellData : public HeapObjectData {
  public:
   PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
-                   Handle<PropertyCell> object,
-                   ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject);
+                   Handle<PropertyCell> object, ObjectDataKind kind);
 
   bool Cache(JSHeapBroker* broker);
 
@@ -299,8 +294,7 @@ class JSReceiverData : public HeapObjectData {
 class JSObjectData : public JSReceiverData {
  public:
   JSObjectData(JSHeapBroker* broker, ObjectData** storage,
-               Handle<JSObject> object,
-               ObjectDataKind kind = kSerializedHeapObject);
+               Handle<JSObject> object, ObjectDataKind kind);
 
   // Recursive serialization of all reachable JSObjects.
   bool SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
@@ -613,19 +607,15 @@ void JSTypedArrayData::Serialize(JSHeapBroker* broker,
 class JSDataViewData : public JSObjectData {
  public:
   JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<JSDataView> object,
-                 ObjectDataKind kind = kSerializedHeapObject)
+                 Handle<JSDataView> object, ObjectDataKind kind)
       : JSObjectData(broker, storage, object, kind) {
-    if (kind == kSerializedHeapObject) {
-      DCHECK(!broker->is_concurrent_inlining());
+    DCHECK_EQ(kind, kBackgroundSerializedHeapObject);
+    if (!broker->is_concurrent_inlining()) {
       byte_length_ = object->byte_length();
-    } else {
-      DCHECK_EQ(kind, kBackgroundSerializedHeapObject);
     }
   }
 
   size_t byte_length() const {
-    DCHECK_EQ(kind(), kSerializedHeapObject);
     return byte_length_;
   }
 
@@ -636,8 +626,7 @@ class JSDataViewData : public JSObjectData {
 class JSBoundFunctionData : public JSObjectData {
  public:
   JSBoundFunctionData(JSHeapBroker* broker, ObjectData** storage,
-                      Handle<JSBoundFunction> object,
-                      ObjectDataKind kind = kSerializedHeapObject)
+                      Handle<JSBoundFunction> object, ObjectDataKind kind)
       : JSObjectData(broker, storage, object, kind) {}
 
   bool Serialize(JSHeapBroker* broker, NotConcurrentInliningTag tag);
@@ -666,8 +655,7 @@ class JSBoundFunctionData : public JSObjectData {
 class JSFunctionData : public JSObjectData {
  public:
   JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
-                 Handle<JSFunction> object,
-                 ObjectDataKind kind = kSerializedHeapObject)
+                 Handle<JSFunction> object, ObjectDataKind kind)
       : JSObjectData(broker, storage, object, kind) {
     Cache(broker);
   }
@@ -773,7 +761,7 @@ struct PropertyDescriptor {
 class MapData : public HeapObjectData {
  public:
   MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object,
-          ObjectDataKind kind = ObjectDataKind::kSerializedHeapObject);
+          ObjectDataKind kind);
 
   InstanceType instance_type() const { return instance_type_; }
   int instance_size() const { return instance_size_; }
@@ -1102,8 +1090,6 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
     : ObjectData(broker, storage, object, kind),
       map_(broker->GetOrCreateData(object->map(kAcquireLoad),
                                    kAssumeMemoryFence)) {
-  CHECK_IMPLIES(kind == kSerializedHeapObject,
-                broker->mode() == JSHeapBroker::kSerializing);
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
                 kind == kBackgroundSerializedHeapObject);
 }
@@ -1315,8 +1301,7 @@ JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
 class JSArrayData : public JSObjectData {
  public:
   JSArrayData(JSHeapBroker* broker, ObjectData** storage,
-              Handle<JSArray> object,
-              ObjectDataKind kind = kSerializedHeapObject)
+              Handle<JSArray> object, ObjectDataKind kind)
       : JSObjectData(broker, storage, object, kind),
         own_elements_(broker->zone()) {}
 
@@ -1374,8 +1359,7 @@ ObjectData* JSArrayData::GetOwnElement(JSHeapBroker* broker, uint32_t index,
 class JSGlobalObjectData : public JSObjectData {
  public:
   JSGlobalObjectData(JSHeapBroker* broker, ObjectData** storage,
-                     Handle<JSGlobalObject> object,
-                     ObjectDataKind kind = kSerializedHeapObject)
+                     Handle<JSGlobalObject> object, ObjectDataKind kind)
       : JSObjectData(broker, storage, object, kind),
         properties_(broker->zone()) {
     if (!broker->is_concurrent_inlining()) {
@@ -1384,7 +1368,6 @@ class JSGlobalObjectData : public JSObjectData {
   }
 
   bool IsDetached() const {
-    DCHECK_EQ(kind(), kSerializedHeapObject);
     return is_detached_;
   }
 
@@ -1394,7 +1377,6 @@ class JSGlobalObjectData : public JSObjectData {
 
  private:
   // Only valid if not concurrent inlining.
-
   bool is_detached_ = false;
 
   // Properties that either
@@ -1407,8 +1389,7 @@ class JSGlobalObjectData : public JSObjectData {
 class JSGlobalProxyData : public JSObjectData {
  public:
   JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
-                    Handle<JSGlobalProxy> object,
-                    ObjectDataKind kind = kSerializedHeapObject)
+                    Handle<JSGlobalProxy> object, ObjectDataKind kind)
       : JSObjectData(broker, storage, object, kind) {}
 };
 
@@ -1429,8 +1410,6 @@ base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
 ObjectData* JSGlobalObjectData::GetPropertyCell(JSHeapBroker* broker,
                                                 ObjectData* name,
                                                 SerializationPolicy policy) {
-  DCHECK_EQ(kind(), kSerializedHeapObject);
-
   CHECK_NOT_NULL(name);
   for (auto const& p : properties_) {
     if (p.first == name) return p.second;
@@ -1470,8 +1449,7 @@ HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #define DEFINE_AS(Name)                              \
   Name##Data* ObjectData::As##Name() {               \
     CHECK(Is##Name());                               \
-    CHECK(kind_ == kSerializedHeapObject ||          \
-          kind_ == kBackgroundSerializedHeapObject); \
+    CHECK(kind_ == kBackgroundSerializedHeapObject); \
     return static_cast<Name##Data*>(this);           \
   }
 HEAP_BROKER_BACKGROUND_SERIALIZED_OBJECT_LIST(DEFINE_AS)
@@ -1832,39 +1810,15 @@ void JSHeapBroker::InitializeAndStartSerializing() {
 
 namespace {
 
-template <RefSerializationKind Kind, class DataT, class ObjectT>
-struct CreateDataFunctor {
-  void operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
-                  RefsMap::Entry** entry_out, ObjectData** object_data_out) {
-    USE(broker, refs, object, entry_out, object_data_out);
-    UNREACHABLE();
+constexpr ObjectDataKind ObjectDataKindFor(RefSerializationKind kind) {
+  switch (kind) {
+    case RefSerializationKind::kBackgroundSerialized:
+      return kBackgroundSerializedHeapObject;
+    case RefSerializationKind::kNeverSerialized:
+      return kNeverSerializedHeapObject;
   }
-};
-
-template <class DataT, class ObjectT>
-struct CreateDataFunctor<RefSerializationKind::kBackgroundSerialized, DataT,
-                         ObjectT> {
-  void operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
-                  RefsMap::Entry** entry_out, ObjectData** object_data_out) {
-    RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
-    *object_data_out = broker->zone()->New<DataT>(
-        broker, &entry->value, Handle<ObjectT>::cast(object),
-        kBackgroundSerializedHeapObject);
-    *entry_out = entry;
-  }
-};
-
-template <class ObjectT>
-struct CreateDataFunctor<RefSerializationKind::kNeverSerialized, ObjectData,
-                         ObjectT> {
-  void operator()(JSHeapBroker* broker, RefsMap* refs, Handle<Object> object,
-                  RefsMap::Entry** entry_out, ObjectData** object_data_out) {
-    RefsMap::Entry* entry = refs->LookupOrInsert(object.address());
-    *object_data_out = broker->zone()->New<ObjectData>(
-        broker, &entry->value, object, kNeverSerializedHeapObject);
-    *entry_out = entry;
-  }
-};
+  UNREACHABLE();
+}
 
 }  // namespace
 
@@ -1910,13 +1864,13 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
                                    kUnserializedReadOnlyHeapObject);
   }
 
-#define CREATE_DATA(Name)                                       \
-  if (object->Is##Name()) {                                     \
-    CreateDataFunctor<ref_traits<Name>::ref_serialization_kind, \
-                      ref_traits<Name>::data_type, Name>        \
-        f;                                                      \
-    f(this, refs_, object, &entry, &object_data);               \
-    /* NOLINTNEXTLINE(readability/braces) */                    \
+#define CREATE_DATA(Name)                                             \
+  if (object->Is##Name()) {                                           \
+    RefsMap::Entry* entry = refs_->LookupOrInsert(object.address());  \
+    object_data = zone()->New<ref_traits<Name>::data_type>(           \
+        this, &entry->value, Handle<Name>::cast(object),              \
+        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind)); \
+    /* NOLINTNEXTLINE(readability/braces) */                          \
   } else
   HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA
@@ -3192,7 +3146,6 @@ JSHeapBroker* ObjectRef::broker() const { return broker_; }
 ObjectData* ObjectRef::data() const {
   switch (broker()->mode()) {
     case JSHeapBroker::kDisabled:
-      CHECK_NE(data_->kind(), kSerializedHeapObject);
       return data_;
     case JSHeapBroker::kSerializing:
       CHECK_NE(data_->kind(), kUnserializedHeapObject);
