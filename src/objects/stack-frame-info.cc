@@ -718,12 +718,6 @@ void SerializeJSStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-bool IsAnonymousWasmScript(Isolate* isolate, Handle<Object> url) {
-  Handle<String> prefix =
-      isolate->factory()->NewStringFromStaticChars("wasm://wasm/");
-  return StringIndexOf(isolate, Handle<String>::cast(url), prefix) == 0;
-}
-
 void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
                              IncrementalStringBuilder* builder) {
   Handle<Object> module_name = StackFrameInfo::GetWasmModuleName(frame);
@@ -743,7 +737,7 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<StackFrameInfo> frame,
   }
 
   Handle<Object> url(frame->GetScriptNameOrSourceURL(), isolate);
-  if (IsNonEmptyString(url) && !IsAnonymousWasmScript(isolate, url)) {
+  if (IsNonEmptyString(url)) {
     builder->AppendString(Handle<String>::cast(url));
   } else {
     builder->AppendCString("<anonymous>");
