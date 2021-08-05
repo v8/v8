@@ -598,10 +598,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
   'built-ins/Temporal/*': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12043
-  'intl402/DisplayNames/prototype/of/type-datetimefield-invalid': [FAIL],
-  'intl402/DisplayNames/prototype/of/type-calendar-invalid': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12044
   'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
 

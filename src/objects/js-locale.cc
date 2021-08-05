@@ -178,12 +178,18 @@ int32_t weekdayFromEDaysOfWeek(icu::Calendar::EDaysOfWeek eDaysOfWeek) {
 }  // namespace
 
 bool JSLocale::Is38AlphaNumList(const std::string& value) {
-  std::size_t found = value.find("-");
-  if (found == std::string::npos) {
+  std::size_t found_dash = value.find("-");
+  std::size_t found_underscore = value.find("_");
+  if (found_dash == std::string::npos &&
+      found_underscore == std::string::npos) {
     return IsAlphanum(value, 3, 8);
   }
-  return IsAlphanum(value.substr(0, found), 3, 8) &&
-         JSLocale::Is38AlphaNumList(value.substr(found + 1));
+  if (found_underscore == std::string::npos || found_dash < found_underscore) {
+    return IsAlphanum(value.substr(0, found_dash), 3, 8) &&
+           JSLocale::Is38AlphaNumList(value.substr(found_dash + 1));
+  }
+  return IsAlphanum(value.substr(0, found_underscore), 3, 8) &&
+         JSLocale::Is38AlphaNumList(value.substr(found_underscore + 1));
 }
 
 bool JSLocale::Is3Alpha(const std::string& value) {
