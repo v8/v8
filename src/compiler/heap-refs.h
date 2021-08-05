@@ -187,6 +187,31 @@ struct ref_traits<Object> {
       RefSerializationKind::kNeverSerialized;
 };
 
+// A ref without the broker_ field, used when storage size is important.
+template <class T>
+class TinyRef {
+ private:
+  using RefType = typename ref_traits<T>::ref_type;
+
+ public:
+  explicit TinyRef(const RefType& ref) : TinyRef(ref.data_) {}
+  RefType AsRef(JSHeapBroker* broker) const;
+  static base::Optional<RefType> AsOptionalRef(JSHeapBroker* broker,
+                                               base::Optional<TinyRef<T>> ref) {
+    if (!ref.has_value()) return {};
+    return ref->AsRef(broker);
+  }
+  Handle<T> object() const;
+
+ private:
+  explicit TinyRef(ObjectData* data) : data_(data) { DCHECK_NOT_NULL(data); }
+  ObjectData* const data_;
+};
+
+#define V(Name) using Name##TinyRef = TinyRef<Name>;
+HEAP_BROKER_OBJECT_LIST(V)
+#undef V
+
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
   ObjectRef(JSHeapBroker* broker, ObjectData* data, bool check_type = true)
@@ -244,6 +269,8 @@ class V8_EXPORT_PRIVATE ObjectRef {
   friend class JSHeapBroker;
   friend class JSObjectData;
   friend class StringData;
+  template <class T>
+  friend class TinyRef;
 
   friend std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
 

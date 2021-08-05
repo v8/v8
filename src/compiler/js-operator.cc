@@ -391,11 +391,20 @@ CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op) {
   return OpParameter<CreateArgumentsType>(op);
 }
 
+namespace {
+
+template <class T>
+Address AddressOrNull(base::Optional<T> ref) {
+  if (!ref.has_value()) return kNullAddress;
+  return ref->object().address();
+}
+
+}  // namespace
 
 bool operator==(CreateArrayParameters const& lhs,
                 CreateArrayParameters const& rhs) {
   return lhs.arity() == rhs.arity() &&
-         lhs.site().address() == rhs.site().address();
+         AddressOrNull(lhs.site_) == AddressOrNull(rhs.site_);
 }
 
 
@@ -406,14 +415,15 @@ bool operator!=(CreateArrayParameters const& lhs,
 
 
 size_t hash_value(CreateArrayParameters const& p) {
-  return base::hash_combine(p.arity(), p.site().address());
+  return base::hash_combine(p.arity(), AddressOrNull(p.site_));
 }
 
 
 std::ostream& operator<<(std::ostream& os, CreateArrayParameters const& p) {
   os << p.arity();
-  Handle<AllocationSite> site;
-  if (p.site().ToHandle(&site)) os << ", " << Brief(*site);
+  if (p.site_.has_value()) {
+    os << ", " << Brief(*p.site_->object());
+  }
   return os;
 }
 
@@ -1235,7 +1245,7 @@ const Operator* JSOperatorBuilder::CreateArguments(CreateArgumentsType type) {
 }
 
 const Operator* JSOperatorBuilder::CreateArray(
-    size_t arity, MaybeHandle<AllocationSite> site) {
+    size_t arity, base::Optional<AllocationSiteRef> site) {
   // constructor, new_target, arg1, ..., argN
   int const value_input_count = static_cast<int>(arity) + 2;
   CreateArrayParameters parameters(arity, site);

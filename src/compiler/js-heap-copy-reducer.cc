@@ -36,9 +36,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateArray: {
-      CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
-      Handle<AllocationSite> site;
-      if (p.site().ToHandle(&site)) MakeRef(broker(), site);
+      CreateArrayParametersOf(node->op()).site(broker());
       break;
     }
     case IrOpcode::kJSCreateArguments: {

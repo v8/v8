@@ -3160,6 +3160,29 @@ ObjectData* ObjectRef::data() const {
   }
 }
 
+template <class T>
+typename TinyRef<T>::RefType TinyRef<T>::AsRef(JSHeapBroker* broker) const {
+  if (data_->kind() == kUnserializedHeapObject &&
+      broker->mode() != JSHeapBroker::kDisabled) {
+    // Gotta reconstruct to avoid returning a stale unserialized ref.
+    return MakeRefAssumeMemoryFence<T>(broker,
+                                       Handle<T>::cast(data_->object()));
+  }
+  return TryMakeRef<T>(broker, data_).value();
+}
+
+template <class T>
+Handle<T> TinyRef<T>::object() const {
+  return Handle<T>::cast(data_->object());
+}
+
+#define V(Name)                                  \
+  template class TinyRef<Name>;                  \
+  /* TinyRef should contain only one pointer. */ \
+  STATIC_ASSERT(sizeof(TinyRef<Name>) == kSystemPointerSize);
+HEAP_BROKER_OBJECT_LIST(V)
+#undef V
+
 Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
                                        const char* function, int line) {
   TRACE_MISSING(broker, "data in function " << function << " at line " << line);

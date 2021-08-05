@@ -555,23 +555,25 @@ CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op);
 // used as parameter by JSCreateArray operators.
 class CreateArrayParameters final {
  public:
-  explicit CreateArrayParameters(size_t arity, MaybeHandle<AllocationSite> site)
+  CreateArrayParameters(size_t arity, base::Optional<AllocationSiteRef> site)
       : arity_(arity), site_(site) {}
 
   size_t arity() const { return arity_; }
-  MaybeHandle<AllocationSite> site() const { return site_; }
+  base::Optional<AllocationSiteRef> site(JSHeapBroker* broker) const {
+    return AllocationSiteTinyRef::AsOptionalRef(broker, site_);
+  }
 
  private:
   size_t const arity_;
-  MaybeHandle<AllocationSite> const site_;
+  base::Optional<AllocationSiteTinyRef> const site_;
+
+  friend bool operator==(CreateArrayParameters const&,
+                         CreateArrayParameters const&);
+  friend bool operator!=(CreateArrayParameters const&,
+                         CreateArrayParameters const&);
+  friend size_t hash_value(CreateArrayParameters const&);
+  friend std::ostream& operator<<(std::ostream&, CreateArrayParameters const&);
 };
-
-bool operator==(CreateArrayParameters const&, CreateArrayParameters const&);
-bool operator!=(CreateArrayParameters const&, CreateArrayParameters const&);
-
-size_t hash_value(CreateArrayParameters const&);
-
-std::ostream& operator<<(std::ostream&, CreateArrayParameters const&);
 
 const CreateArrayParameters& CreateArrayParametersOf(const Operator* op);
 
@@ -904,7 +906,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
-  const Operator* CreateArray(size_t arity, MaybeHandle<AllocationSite> site);
+  const Operator* CreateArray(size_t arity,
+                              base::Optional<AllocationSiteRef> site);
   const Operator* CreateArrayIterator(IterationKind);
   const Operator* CreateAsyncFunctionObject(int register_count);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);

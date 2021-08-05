@@ -596,12 +596,10 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   DCHECK_EQ(interface_descriptor.GetStackParameterCount(), 0);
   Node* stub_code = jsgraph()->ArrayConstructorStubConstant();
   Node* stub_arity = jsgraph()->Int32Constant(arity);
-  MaybeHandle<AllocationSite> const maybe_site = p.site();
-  Handle<AllocationSite> site;
-  DCHECK_IMPLIES(broker()->is_native_context_independent(),
-                 maybe_site.is_null());
-  Node* type_info = maybe_site.ToHandle(&site) ? jsgraph()->HeapConstant(site)
-                                               : jsgraph()->UndefinedConstant();
+  base::Optional<AllocationSiteRef> const site = p.site(broker());
+  DCHECK_IMPLIES(broker()->is_native_context_independent(), !site.has_value());
+  Node* type_info = site.has_value() ? jsgraph()->Constant(site.value())
+                                     : jsgraph()->UndefinedConstant();
   Node* receiver = jsgraph()->UndefinedConstant();
   node->InsertInput(zone(), 0, stub_code);
   node->InsertInput(zone(), 3, stub_arity);

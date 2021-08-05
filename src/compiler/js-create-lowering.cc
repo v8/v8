@@ -618,13 +618,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  base::Optional<AllocationSiteRef> site_ref;
-  {
-    Handle<AllocationSite> site;
-    if (p.site().ToHandle(&site)) {
-      site_ref = MakeRef(broker(), site);
-    }
-  }
+  base::Optional<AllocationSiteRef> site_ref = p.site(broker());
   AllocationType allocation = AllocationType::kYoung;
 
   base::Optional<MapRef> initial_map =

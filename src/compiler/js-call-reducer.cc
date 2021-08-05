@@ -1120,9 +1120,9 @@ TNode<Object> JSCallReducerAssembler::CopyNode() {
 
 TNode<JSArray> JSCallReducerAssembler::CreateArrayNoThrow(
     TNode<Object> ctor, TNode<Number> size, FrameState frame_state) {
-  return AddNode<JSArray>(graph()->NewNode(
-      javascript()->CreateArray(1, MaybeHandle<AllocationSite>()), ctor, ctor,
-      size, ContextInput(), frame_state, effect(), control()));
+  return AddNode<JSArray>(
+      graph()->NewNode(javascript()->CreateArray(1, base::nullopt), ctor, ctor,
+                       size, ContextInput(), frame_state, effect(), control()));
 }
 TNode<JSArray> JSCallReducerAssembler::AllocateEmptyJSArray(
     ElementsKind kind, const NativeContextRef& native_context) {
@@ -2421,8 +2421,8 @@ Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
   node->RemoveInput(n.FeedbackVectorIndex());
   NodeProperties::ReplaceValueInput(node, target, 0);
   NodeProperties::ReplaceValueInput(node, target, 1);
-  NodeProperties::ChangeOp(
-      node, javascript()->CreateArray(arity, MaybeHandle<AllocationSite>()));
+  NodeProperties::ChangeOp(node,
+                           javascript()->CreateArray(arity, base::nullopt));
   return Changed(node);
 }
 
@@ -4977,8 +4977,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       node->ReplaceInput(n.NewTargetIndex(), array_function);
       node->RemoveInput(n.FeedbackVectorIndex());
       NodeProperties::ChangeOp(
-          node, javascript()->CreateArray(
-                    arity, feedback_target->AsAllocationSite().object()));
+          node, javascript()->CreateArray(arity,
+                                          feedback_target->AsAllocationSite()));
       return Changed(node);
     } else if (feedback_target.has_value() &&
                !HeapObjectMatcher(new_target).HasResolvedValue() &&
@@ -5044,7 +5044,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           node->ReplaceInput(n.NewTargetIndex(), new_target);
           node->RemoveInput(n.FeedbackVectorIndex());
           NodeProperties::ChangeOp(
-              node, javascript()->CreateArray(arity, Handle<AllocationSite>()));
+              node, javascript()->CreateArray(arity, base::nullopt));
           return Changed(node);
         }
         case Builtin::kObjectConstructor: {
