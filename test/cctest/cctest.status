@@ -136,10 +136,6 @@
   'test-strings/Traverse': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
-
-  # TODO(v8:12030): Fix lazy source positions in combination with concurrent
-  # inlining.
-  'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
