@@ -215,6 +215,8 @@ class SharedFunctionInfo
 
   static const int kNotFound = -1;
 
+  DECL_ACQUIRE_GETTER(scope_info, ScopeInfo)
+  // Deprecated, use the ACQUIRE version instead.
   DECL_GETTER(scope_info, ScopeInfo)
 
   // Set scope_info without moving the existing name onto the ScopeInfo.

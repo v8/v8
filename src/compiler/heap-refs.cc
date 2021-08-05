@@ -3277,7 +3277,7 @@ int SharedFunctionInfoRef::context_header_size() const {
 }
 
 ScopeInfoRef SharedFunctionInfoRef::scope_info() const {
-  return MakeRef(broker(), object()->scope_info());
+  return MakeRefAssumeMemoryFence(broker(), object()->scope_info(kAcquireLoad));
 }
 
 void JSObjectRef::SerializeObjectCreateMap(NotConcurrentInliningTag tag) {

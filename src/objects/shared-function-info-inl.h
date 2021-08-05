@@ -164,13 +164,13 @@ void SharedFunctionInfo::SetName(String name) {
 }
 
 bool SharedFunctionInfo::is_script() const {
-  return scope_info().is_script_scope() &&
+  return scope_info(kAcquireLoad).is_script_scope() &&
          Script::cast(script()).compilation_type() ==
              Script::COMPILATION_TYPE_HOST;
 }
 
 bool SharedFunctionInfo::needs_script_context() const {
-  return is_script() && scope_info().ContextLocalCount() > 0;
+  return is_script() && scope_info(kAcquireLoad).ContextLocalCount() > 0;
 }
 
 template <typename IsolateT>
@@ -375,12 +375,16 @@ void SharedFunctionInfo::DontAdaptArguments() {
 
 bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
 
-ScopeInfo SharedFunctionInfo::scope_info() const {
-  Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
+ScopeInfo SharedFunctionInfo::scope_info(AcquireLoadTag tag) const {
+  Object maybe_scope_info = name_or_scope_info(tag);
   if (maybe_scope_info.IsScopeInfo()) {
     return ScopeInfo::cast(maybe_scope_info);
   }
   return GetReadOnlyRoots().empty_scope_info();
+}
+
+ScopeInfo SharedFunctionInfo::scope_info() const {
+  return scope_info(kAcquireLoad);
 }
 
 void SharedFunctionInfo::SetScopeInfo(ScopeInfo scope_info,
@@ -417,8 +421,9 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
     if (!outer_scope_info().IsScopeInfo()) return false;
     outer_info = ScopeInfo::cast(outer_scope_info());
   } else {
-    if (!scope_info().HasOuterScopeInfo()) return false;
-    outer_info = scope_info().OuterScopeInfo();
+    ScopeInfo info = scope_info(kAcquireLoad);
+    if (!info.HasOuterScopeInfo()) return false;
+    outer_info = info.OuterScopeInfo();
   }
   return !outer_info.IsEmpty();
 }
@@ -426,7 +431,7 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
 ScopeInfo SharedFunctionInfo::GetOuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
   if (!is_compiled()) return ScopeInfo::cast(outer_scope_info());
-  return scope_info().OuterScopeInfo();
+  return scope_info(kAcquireLoad).OuterScopeInfo();
 }
 
 void SharedFunctionInfo::set_outer_scope_info(HeapObject value,
@@ -494,7 +499,7 @@ IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
 }
 
 bool SharedFunctionInfo::has_simple_parameters() {
-  return scope_info().HasSimpleParameters();
+  return scope_info(kAcquireLoad).HasSimpleParameters();
 }
 
 bool SharedFunctionInfo::IsApiFunction() const {
