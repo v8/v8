@@ -100,7 +100,10 @@ base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   }
 
   if (FLAG_stress_flush_code) {
-    DCHECK(FLAG_flush_baseline_code || FLAG_flush_bytecode);
+    // This is to check tests accidentally don't miss out on adding either flush
+    // bytecode or flush code along with stress flush code. stress_flush_code
+    // doesn't do anything if either one of them isn't enabled.
+    DCHECK(FLAG_fuzzing || FLAG_flush_baseline_code || FLAG_flush_bytecode);
     code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
   }
 
