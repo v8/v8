@@ -27,6 +27,10 @@
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
 
+#if V8_OS_WIN
+#include <windows.h>
+#endif
+
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler-simulator.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
