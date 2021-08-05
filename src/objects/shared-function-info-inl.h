@@ -502,6 +502,11 @@ bool SharedFunctionInfo::has_simple_parameters() {
   return scope_info(kAcquireLoad).HasSimpleParameters();
 }
 
+bool SharedFunctionInfo::CanCollectSourcePosition(Isolate* isolate) {
+  return FLAG_enable_lazy_source_positions && HasBytecodeArray() &&
+         !GetBytecodeArray(isolate).HasSourcePositionTable();
+}
+
 bool SharedFunctionInfo::IsApiFunction() const {
   return function_data(kAcquireLoad).IsFunctionTemplateInfo();
 }

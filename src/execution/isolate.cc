@@ -4816,12 +4816,10 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
     HeapObjectIterator iterator(heap());
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
-      if (obj.IsSharedFunctionInfo()) {
-        SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
-        if (sfi.HasBytecodeArray()) {
-          sfis.push_back(Handle<SharedFunctionInfo>(sfi, this));
-        }
-      }
+      if (!obj.IsSharedFunctionInfo()) continue;
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
+      if (!sfi.CanCollectSourcePosition(this)) continue;
+      sfis.push_back(Handle<SharedFunctionInfo>(sfi, this));
     }
   }
   for (auto sfi : sfis) {

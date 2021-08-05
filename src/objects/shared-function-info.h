@@ -572,6 +572,7 @@ class SharedFunctionInfo
   void SetFunctionTokenPosition(int function_token_position,
                                 int start_position);
 
+  inline bool CanCollectSourcePosition(Isolate* isolate);
   static void EnsureSourcePositionsAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
 
