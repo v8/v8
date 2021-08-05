@@ -537,11 +537,13 @@ bool Assembler::is_optimizable_farjmp(int idx) {
   return !!(bitmap[idx / 32] & (1 << (idx & 31)));
 }
 
-void Assembler::FixOnHeapReferences() {
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
   Address base = reinterpret_cast<Address>(buffer_->start());
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
-    WriteUnalignedValue(base + p.first, *object);
+  if (update_embedded_objects) {
+    for (auto p : saved_handles_for_raw_object_ptr_) {
+      Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
+      WriteUnalignedValue(base + p.first, *object);
+    }
   }
   for (auto p : saved_offsets_for_runtime_entries_) {
     Address pc = base + p.first;
@@ -555,15 +557,18 @@ void Assembler::FixOnHeapReferencesToHandles() {
   for (auto p : saved_handles_for_raw_object_ptr_) {
     WriteUnalignedValue(base + p.first, p.second);
   }
+  saved_handles_for_raw_object_ptr_.clear();
   for (auto p : saved_offsets_for_runtime_entries_) {
     WriteUnalignedValue<uint32_t>(base + p.first, p.second);
   }
+  saved_offsets_for_runtime_entries_.clear();
 }
 
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
 
   bool previously_on_heap = buffer_->IsOnHeap();
+  int previous_on_heap_gc_count = OnHeapGCCount();
 
   // Compute new buffer size.
   DCHECK_EQ(buffer_start_, buffer_->start());
@@ -605,7 +610,7 @@ void Assembler::GrowBuffer() {
   // Fix on-heap references.
   if (previously_on_heap) {
     if (buffer_->IsOnHeap()) {
-      FixOnHeapReferences();
+      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
     } else {
       FixOnHeapReferencesToHandles();
     }

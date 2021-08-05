@@ -5172,7 +5172,8 @@ void Assembler::RecordConstPool(int size) {
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
 }
 
-void Assembler::FixOnHeapReferences() {
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
+  if (!update_embedded_objects) return;
   Address base = reinterpret_cast<Address>(buffer_->start());
   for (auto p : saved_handles_for_raw_object_ptr_) {
     Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
@@ -5185,12 +5186,14 @@ void Assembler::FixOnHeapReferencesToHandles() {
   for (auto p : saved_handles_for_raw_object_ptr_) {
     WriteUnalignedValue(base + p.first, p.second);
   }
+  saved_handles_for_raw_object_ptr_.clear();
 }
 
 void Assembler::GrowBuffer() {
   DCHECK_EQ(buffer_start_, buffer_->start());
 
   bool previously_on_heap = buffer_->IsOnHeap();
+  int previous_on_heap_gc_count = OnHeapGCCount();
 
   // Compute new buffer size.
   int old_size = buffer_->size();
@@ -5227,7 +5230,7 @@ void Assembler::GrowBuffer() {
   // Fix on-heap references.
   if (previously_on_heap) {
     if (buffer_->IsOnHeap()) {
-      FixOnHeapReferences();
+      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
     } else {
       FixOnHeapReferencesToHandles();
     }

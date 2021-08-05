@@ -199,7 +199,7 @@ class Assembler : public AssemblerBase {
   // This function is called when on-heap-compilation invariants are
   // invalidated. For instance, when the assembler buffer grows or a GC happens
   // between Code object allocation and Code object finalization.
-  void FixOnHeapReferences();
+  void FixOnHeapReferences(bool update_embedded_objects = true);
 
   // This function is called when we fallback from on-heap to off-heap
   // compilation and patch on-heap references to handles.

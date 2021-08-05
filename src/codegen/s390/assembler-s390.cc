@@ -750,7 +750,7 @@ void Assembler::dumy(int r1, int x2, int b2, int d2) {
 #endif
 }
 
-void Assembler::FixOnHeapReferences() {
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
   // TODO(v8:11872) This function should never be called if Sparkplug on heap
   // compilation is not supported.
   UNREACHABLE();

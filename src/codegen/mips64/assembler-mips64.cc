@@ -3736,7 +3736,8 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
   }
 }
 
-void Assembler::FixOnHeapReferences() {
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
+  if (!update_embedded_objects) return;
   for (auto p : saved_handles_for_raw_object_ptr_) {
     Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
     Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
@@ -3749,10 +3750,12 @@ void Assembler::FixOnHeapReferencesToHandles() {
     Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
     set_target_value_at(address, p.second);
   }
+  saved_handles_for_raw_object_ptr_.clear();
 }
 
 void Assembler::GrowBuffer() {
   bool previously_on_heap = buffer_->IsOnHeap();
+  int previous_on_heap_gc_count = OnHeapGCCount();
 
   // Compute new buffer size.
   int old_size = buffer_->size();
@@ -3795,14 +3798,17 @@ void Assembler::GrowBuffer() {
       RelocateInternalReference(rmode, it.rinfo()->pc(), pc_delta);
     }
   }
+
   // Fix on-heap references.
   if (previously_on_heap) {
     if (buffer_->IsOnHeap()) {
-      FixOnHeapReferences();
+      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
     } else {
       FixOnHeapReferencesToHandles();
     }
   }
+
+  DCHECK(!overflow());
 }
 
 void Assembler::db(uint8_t data) {

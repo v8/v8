@@ -1931,7 +1931,7 @@ bool Assembler::IsNop(Instr instr, int type) {
   return instr == (ORI | reg * B21 | reg * B16);
 }
 
-void Assembler::FixOnHeapReferences() {
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
   // TODO(v8:11872) This function should never be called if Sparkplug on heap
   // compilation is not supported.
   UNREACHABLE();

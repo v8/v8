@@ -2758,7 +2758,9 @@ void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
   }
 }
 
-void Assembler::FixOnHeapReferences() { UNIMPLEMENTED(); }
+void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
+  UNIMPLEMENTED();
+}
 
 void Assembler::FixOnHeapReferencesToHandles() { UNIMPLEMENTED(); }
 
