@@ -43,7 +43,20 @@ luci.notifier(
 luci.notifier(
     name = "NumFuzz maintainer",
     on_occurrence = ["FAILURE"],
-    failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
+    failed_step_regexp_exclude = [
+        "bot_update",
+        "isolate tests",
+        "package build",
+        "extract build",
+        "cleanup_temp",
+        "gsutil upload",
+        "taskkill",
+        "Failure reason",
+        "steps",
+        ".* \\(retry shards with patch\\)",
+        ".* \\(with patch\\)",
+        ".* \\(without patch\\)",
+    ],
     notify_emails = [
         "almuthanna@chromium.org",
     ],
