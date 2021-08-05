@@ -241,8 +241,10 @@ namespace {
 // than pre-allocating a large enough buffer.
 #ifdef V8_TARGET_ARCH_IA32
 const int kAverageBytecodeToInstructionRatio = 5;
+const int kMinimumEstimatedInstructionSize = 200;
 #else
 const int kAverageBytecodeToInstructionRatio = 7;
+const int kMinimumEstimatedInstructionSize = 300;
 #endif
 std::unique_ptr<AssemblerBuffer> AllocateBuffer(
     Isolate* isolate, Handle<BytecodeArray> bytecodes,
@@ -258,9 +260,6 @@ std::unique_ptr<AssemblerBuffer> AllocateBuffer(
   if (code_location == BaselineCompiler::kOnHeap &&
       Code::SizeFor(estimated_size) <
           heap->MaxRegularHeapObjectSize(AllocationType::kCode)) {
-    // TODO(victorgomes): We're currently underestimating the size of the
-    // buffer, since we don't know how big the reloc info will be. We could
-    // use a separate zone vector for the RelocInfo.
     return NewOnHeapAssemblerBuffer(isolate, estimated_size);
   }
   return NewAssemblerBuffer(RoundUp(estimated_size, 4 * KB));
@@ -328,7 +327,8 @@ MaybeHandle<Code> BaselineCompiler::Build(Isolate* isolate) {
 }
 
 int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {
-  return bytecode.length() * kAverageBytecodeToInstructionRatio;
+  return bytecode.length() * kAverageBytecodeToInstructionRatio +
+         kMinimumEstimatedInstructionSize;
 }
 
 interpreter::Register BaselineCompiler::RegisterOperand(int operand_index) {
