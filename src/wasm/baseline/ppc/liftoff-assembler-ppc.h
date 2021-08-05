@@ -691,40 +691,40 @@ void LiftoffAssembler::FillI64Half(Register, int offset, RegPairHalf) {
 
 void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   DCHECK_LT(0, size);
-  DCHECK_EQ(0, size % 4);
+  DCHECK_EQ(0, size % 8);
   RecordUsedSpillOffset(start + size);
 
   // We need a zero reg. Always use r0 for that, and push it before to restore
   // its value afterwards.
-  push(r0);
-  mov(r0, Operand(0));
 
   if (size <= 36) {
     // Special straight-line code for up to nine words. Generates one
     // instruction per word.
-    for (int offset = 4; offset <= size; offset += 4) {
-      StoreU64(r0, liftoff::GetHalfStackSlot(start + offset, kLowWord));
+    mov(ip, Operand::Zero());
+    uint32_t remainder = size;
+    for (; remainder >= kStackSlotSize; remainder -= kStackSlotSize) {
+      StoreU64(ip, liftoff::GetStackSlot(start + remainder), r0);
+    }
+    DCHECK(remainder == 4 || remainder == 0);
+    if (remainder) {
+      StoreU32(ip, liftoff::GetStackSlot(start + remainder), r0);
     }
   } else {
-    // General case for bigger counts (9 instructions).
-    // Use r4 for start address (inclusive), r5 for end address (exclusive).
-    push(r4);
-    push(r5);
-    SubS64(r4, fp, Operand(start + size), r0);
-    SubS64(r5, fp, Operand(start), r0);
-
     Label loop;
+    push(r4);
+
+    mov(r4, Operand(size / kSystemPointerSize));
+    mtctr(r4);
+
+    SubS64(r4, fp, Operand(start + size + kSystemPointerSize), r0);
+    mov(r0, Operand::Zero());
+
     bind(&loop);
-    StoreU64(r0, MemOperand(r0));
-    addi(r0, r0, Operand(kSystemPointerSize));
-    CmpS64(r4, r5);
-    bne(&loop);
+    StoreU64WithUpdate(r0, MemOperand(r4, kSystemPointerSize));
+    bdnz(&loop);
 
     pop(r4);
-    pop(r5);
   }
-
-  pop(r0);
 }
 
 #define SIGN_EXT(r) extsw(r, r)
