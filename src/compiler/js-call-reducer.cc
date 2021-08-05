@@ -834,7 +834,7 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
                                        int slot_count) {
     return AddNode<Context>(graph()->NewNode(
         javascript()->CreateFunctionContext(
-            native_context.scope_info().object(),
+            native_context.scope_info(),
             slot_count - Context::MIN_CONTEXT_SLOTS, FUNCTION_SCOPE),
         outer_context, effect(), control()));
   }
@@ -851,11 +851,10 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
         isolate()->factory()->many_closures_cell();
     Callable const callable =
         Builtins::CallableFor(isolate(), shared.builtin_id());
-    Handle<CodeT> code =
-        broker_->CanonicalPersistentHandle(ToCodeT(*callable.code()));
+    CodeTRef code = MakeRef(broker_, ToCodeT(*callable.code()));
     return AddNode<JSFunction>(graph()->NewNode(
-        javascript()->CreateClosure(shared.object(), code),
-        HeapConstant(feedback_cell), context, effect(), control()));
+        javascript()->CreateClosure(shared, code), HeapConstant(feedback_cell),
+        context, effect(), control()));
   }
 
   void CallPromiseExecutor(TNode<Object> executor, TNode<JSFunction> resolve,
@@ -2715,7 +2714,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   DCHECK_EQ(cursor, input_count);
   Node* value = effect =
       graph()->NewNode(javascript()->CreateBoundFunction(
-                           arity_with_bound_this - kBoundThis, map.object()),
+                           arity_with_bound_this - kBoundThis, map),
                        input_count, inputs);
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
@@ -4395,7 +4394,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   // Same if the {target} is the result of a CheckClosure operation.
   if (target->opcode() == IrOpcode::kJSCreateClosure) {
     CreateClosureParameters const& p = JSCreateClosureNode{target}.Parameters();
-    return ReduceJSCall(node, MakeRef(broker(), p.shared_info()));
+    return ReduceJSCall(node, p.shared_info(broker()));
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
     if (cell.shared_function_info().has_value()) {
@@ -6830,9 +6829,8 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
       isolate()->factory()->many_closures_cell();
   Callable const callable =
       Builtins::CallableFor(isolate(), shared.builtin_id());
-  Handle<CodeT> code =
-      broker()->CanonicalPersistentHandle(ToCodeT(*callable.code()));
-  return graph()->NewNode(javascript()->CreateClosure(shared.object(), code),
+  CodeTRef code = MakeRef(broker(), ToCodeT(*callable.code()));
+  return graph()->NewNode(javascript()->CreateClosure(shared, code),
                           jsgraph()->HeapConstant(feedback_cell), context,
                           effect, control);
 }
@@ -6884,7 +6882,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
     // Allocate shared context for the closures below.
     context = etrue =
         graph()->NewNode(javascript()->CreateFunctionContext(
-                             native_context().scope_info().object(),
+                             native_context().scope_info(),
                              PromiseBuiltins::kPromiseFinallyContextLength -
                                  Context::MIN_CONTEXT_SLOTS,
                              FUNCTION_SCOPE),

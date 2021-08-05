@@ -400,7 +400,7 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
 
 
 TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
-  Handle<Name> name = factory()->length_string();
+  NameRef name = MakeRef(broker(), factory()->length_string());
   Node* const receiver = Parameter(Type::String(), 0);
   Node* const feedback = UndefinedConstant();
   Node* const context = UndefinedConstant();

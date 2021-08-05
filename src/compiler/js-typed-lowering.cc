@@ -1173,7 +1173,7 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   JSLoadNamedNode n(node);
   Node* receiver = n.object();
   Type receiver_type = NodeProperties::GetType(receiver);
-  NameRef name = MakeRef(broker(), NamedAccessOf(node->op()).name());
+  NameRef name = NamedAccessOf(node->op()).name(broker());
   NameRef length_str = MakeRef(broker(), factory()->length_string());
   // Optimize "length" property of strings.
   if (name.equals(length_str) && receiver_type.Is(Type::String())) {
@@ -1705,7 +1705,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   } else if (target->opcode() == IrOpcode::kJSCreateClosure) {
     CreateClosureParameters const& ccp =
         JSCreateClosureNode{target}.Parameters();
-    shared = MakeRef(broker(), ccp.shared_info());
+    shared = ccp.shared_info(broker());
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
     base::Optional<FeedbackVectorRef> feedback_vector = cell.value();

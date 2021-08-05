@@ -212,6 +212,14 @@ class TinyRef {
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+using CodeTRef = CodeDataContainerRef;
+using CodeTTinyRef = CodeDataContainerTinyRef;
+#else
+using CodeTRef = CodeRef;
+using CodeTTinyRef = CodeTinyRef;
+#endif
+
 class V8_EXPORT_PRIVATE ObjectRef {
  public:
   ObjectRef(JSHeapBroker* broker, ObjectData* data, bool check_type = true)

@@ -46,23 +46,23 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateBlockContext: {
-      MakeRef(broker(), ScopeInfoOf(node->op()));
+      USE(ScopeInfoOf(broker(), node->op()));
       break;
     }
     case IrOpcode::kJSCreateBoundFunction: {
       CreateBoundFunctionParameters const& p =
           CreateBoundFunctionParametersOf(node->op());
-      MakeRef(broker(), p.map());
+      p.map(broker());
       break;
     }
     case IrOpcode::kJSCreateCatchContext: {
-      MakeRef(broker(), ScopeInfoOf(node->op()));
+      USE(ScopeInfoOf(broker(), node->op()));
       break;
     }
     case IrOpcode::kJSCreateClosure: {
       CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
-      MakeRef(broker(), p.shared_info());
-      MakeRef(broker(), p.code());
+      p.shared_info(broker());
+      p.code(broker());
       break;
     }
     case IrOpcode::kJSCreateEmptyLiteralArray: {
@@ -119,7 +119,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSCreateFunctionContext: {
       CreateFunctionContextParameters const& p =
           CreateFunctionContextParametersOf(node->op());
-      MakeRef(broker(), p.scope_info());
+      p.scope_info(broker());
       break;
     }
     case IrOpcode::kJSCreateLiteralArray:
@@ -140,18 +140,18 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSGetTemplateObject: {
       GetTemplateObjectParameters const& p =
           GetTemplateObjectParametersOf(node->op());
-      MakeRef(broker(), p.shared());
-      MakeRef(broker(), p.description());
+      p.shared(broker());
+      p.description(broker());
       broker()->GetFeedbackForTemplateObject(p.feedback());
       break;
     }
     case IrOpcode::kJSCreateWithContext: {
-      MakeRef(broker(), ScopeInfoOf(node->op()));
+      USE(ScopeInfoOf(broker(), node->op()));
       break;
     }
     case IrOpcode::kJSLoadNamed: {
       NamedAccess const& p = NamedAccessOf(node->op());
-      NameRef name = MakeRef(broker(), p.name());
+      NameRef name = p.name(broker());
       if (p.feedback().IsValid()) {
         broker()->GetFeedbackForPropertyAccess(p.feedback(), AccessMode::kLoad,
                                                name);
@@ -160,7 +160,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     }
     case IrOpcode::kJSLoadNamedFromSuper: {
       NamedAccess const& p = NamedAccessOf(node->op());
-      NameRef name = MakeRef(broker(), p.name());
+      NameRef name = p.name(broker());
       if (p.feedback().IsValid()) {
         broker()->GetFeedbackForPropertyAccess(p.feedback(), AccessMode::kLoad,
                                                name);
@@ -169,7 +169,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     }
     case IrOpcode::kJSStoreNamed: {
       NamedAccess const& p = NamedAccessOf(node->op());
-      MakeRef(broker(), p.name());
+      p.name(broker());
       break;
     }
     case IrOpcode::kStoreField:

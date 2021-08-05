@@ -1002,9 +1002,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   } else if (feedback.IsPropertyCell()) {
-    return ReduceGlobalAccess(node, nullptr, nullptr, nullptr,
-                              MakeRef(broker(), p.name()), AccessMode::kLoad,
-                              nullptr, feedback.property_cell());
+    return ReduceGlobalAccess(node, nullptr, nullptr, nullptr, p.name(broker()),
+                              AccessMode::kLoad, nullptr,
+                              feedback.property_cell());
   } else {
     DCHECK(feedback.IsMegamorphic());
     return NoChange();
@@ -1033,9 +1033,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   } else if (feedback.IsPropertyCell()) {
-    return ReduceGlobalAccess(node, nullptr, nullptr, value,
-                              MakeRef(broker(), p.name()), AccessMode::kStore,
-                              nullptr, feedback.property_cell());
+    return ReduceGlobalAccess(node, nullptr, nullptr, value, p.name(broker()),
+                              AccessMode::kStore, nullptr,
+                              feedback.property_cell());
   } else {
     DCHECK(feedback.IsMegamorphic());
     return NoChange();
@@ -1441,7 +1441,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   JSLoadNamedNode n(node);
   NamedAccess const& p = n.Parameters();
   Node* const receiver = n.object();
-  NameRef name = MakeRef(broker(), p.name());
+  NameRef name = p.name(broker());
 
   // Check if we have a constant receiver.
   HeapObjectMatcher m(receiver);
@@ -1481,7 +1481,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamedFromSuper(
     Node* node) {
   JSLoadNamedFromSuperNode n(node);
   NamedAccess const& p = n.Parameters();
-  NameRef name = MakeRef(broker(), p.name());
+  NameRef name = p.name(broker());
 
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, nullptr, name, jsgraph()->Dead(),
@@ -1499,7 +1499,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   Control control = n.control();
 
   // Load iterator property operator
-  Handle<Name> iterator_symbol = factory()->iterator_symbol();
+  NameRef iterator_symbol = MakeRef(broker(), factory()->iterator_symbol());
   const Operator* load_op =
       javascript()->LoadNamed(iterator_symbol, p.loadFeedback());
 
@@ -1576,17 +1576,16 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   JSStoreNamedNode n(node);
   NamedAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, nullptr, MakeRef(broker(), p.name()),
-                              n.value(), FeedbackSource(p.feedback()),
-                              AccessMode::kStore);
+  return ReducePropertyAccess(node, nullptr, p.name(broker()), n.value(),
+                              FeedbackSource(p.feedback()), AccessMode::kStore);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
   JSStoreNamedOwnNode n(node);
   StoreNamedOwnParameters const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
-  return ReducePropertyAccess(node, nullptr, MakeRef(broker(), p.name()),
-                              n.value(), FeedbackSource(p.feedback()),
+  return ReducePropertyAccess(node, nullptr, p.name(broker()), n.value(),
+                              FeedbackSource(p.feedback()),
                               AccessMode::kStoreInLiteral);
 }
 

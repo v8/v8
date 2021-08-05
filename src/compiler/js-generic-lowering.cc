@@ -314,27 +314,25 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   STATIC_ASSERT(n.FeedbackVectorIndex() == 1);
   if (!p.feedback().IsValid()) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     ReplaceWithBuiltinCall(node, Builtin::kGetProperty);
   } else if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(
-                  p.feedback(), MakeRef(broker(), p.name()), broker())
-                  ? Builtin::kLoadICTrampoline_Megamorphic
-                  : Builtin::kLoadICTrampoline);
+    ReplaceWithBuiltinCall(node, ShouldUseMegamorphicLoadBuiltin(
+                                     p.feedback(), p.name(broker()), broker())
+                                     ? Builtin::kLoadICTrampoline_Megamorphic
+                                     : Builtin::kLoadICTrampoline);
   } else {
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(
-                  p.feedback(), MakeRef(broker(), p.name()), broker())
-                  ? Builtin::kLoadIC_Megamorphic
-                  : Builtin::kLoadIC);
+    ReplaceWithBuiltinCall(node, ShouldUseMegamorphicLoadBuiltin(
+                                     p.feedback(), p.name(broker()), broker())
+                                     ? Builtin::kLoadIC_Megamorphic
+                                     : Builtin::kLoadIC);
   }
 }
 
@@ -359,7 +357,7 @@ void JSGenericLowering::LowerJSLoadNamedFromSuper(Node* node) {
   // be double-checked that the FeedbackVector parameter will be the
   // UndefinedConstant.
   DCHECK(p.feedback().IsValid());
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.name()));
+  node->InsertInput(zone(), 2, jsgraph()->Constant(p.name(broker())));
   node->InsertInput(zone(), 3,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
   ReplaceWithBuiltinCall(node, Builtin::kLoadSuperIC);
@@ -374,13 +372,13 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   STATIC_ASSERT(n.FeedbackVectorIndex() == 0);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 0, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 1,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     Callable callable = CodeFactory::LoadGlobalIC(isolate(), p.typeof_mode());
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 0, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 1,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     Callable callable =
@@ -439,16 +437,16 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
   if (!p.feedback().IsValid()) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     ReplaceWithRuntimeCall(node, Runtime::kSetNamedProperty);
   } else if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(node, Builtin::kStoreICTrampoline);
   } else {
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(node, Builtin::kStoreIC);
@@ -464,13 +462,13 @@ void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
   STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     Callable callable = CodeFactory::StoreOwnIC(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     Callable callable = CodeFactory::StoreOwnICInOptimizedCode(isolate());
@@ -486,12 +484,12 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
   STATIC_ASSERT(n.FeedbackVectorIndex() == 1);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 0, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(node, Builtin::kStoreGlobalICTrampoline);
   } else {
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 0, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(node, Builtin::kStoreGlobalIC);
@@ -643,9 +641,9 @@ void JSGenericLowering::LowerJSRegExpTest(Node* node) {
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   JSCreateClosureNode n(node);
   CreateClosureParameters const& p = n.Parameters();
-  Handle<SharedFunctionInfo> const shared_info = p.shared_info();
+  SharedFunctionInfoRef shared_info = p.shared_info(broker());
   STATIC_ASSERT(n.FeedbackCellIndex() == 0);
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(shared_info));
+  node->InsertInput(zone(), 0, jsgraph()->Constant(shared_info));
   node->RemoveInput(4);  // control
 
   // Use the FastNewClosure builtin only for functions allocated in new space.
@@ -659,7 +657,7 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
 void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   const CreateFunctionContextParameters& parameters =
       CreateFunctionContextParametersOf(node->op());
-  Handle<ScopeInfo> scope_info = parameters.scope_info();
+  ScopeInfoRef scope_info = parameters.scope_info(broker());
   int slot_count = parameters.slot_count();
   ScopeType scope_type = parameters.scope_type();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
@@ -667,11 +665,11 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
     Callable callable =
         CodeFactory::FastNewFunctionContext(isolate(), scope_type);
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
+    node->InsertInput(zone(), 0, jsgraph()->Constant(scope_info));
     node->InsertInput(zone(), 1, jsgraph()->Int32Constant(slot_count));
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
+    node->InsertInput(zone(), 0, jsgraph()->Constant(scope_info));
     ReplaceWithRuntimeCall(node, Runtime::kNewFunctionContext);
   }
 }
@@ -707,7 +705,7 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   STATIC_ASSERT(n.FeedbackVectorIndex() == 0);
   node->InsertInput(zone(), 1,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
+  node->InsertInput(zone(), 2, jsgraph()->Constant(p.constant(broker())));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
 
   // Use the CreateShallowArrayLiteral builtin only for shallow boilerplates
@@ -723,8 +721,8 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 void JSGenericLowering::LowerJSGetTemplateObject(Node* node) {
   JSGetTemplateObjectNode n(node);
   GetTemplateObjectParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared = MakeRef(broker(), p.shared());
-  TemplateObjectDescriptionRef description = MakeRef(broker(), p.description());
+  SharedFunctionInfoRef shared = p.shared(broker());
+  TemplateObjectDescriptionRef description = p.description(broker());
 
   DCHECK_EQ(node->op()->ControlInputCount(), 1);
   node->RemoveInput(NodeProperties::FirstControlIndex(node));
@@ -758,7 +756,7 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   STATIC_ASSERT(n.FeedbackVectorIndex() == 0);
   node->InsertInput(zone(), 1,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
+  node->InsertInput(zone(), 2, jsgraph()->Constant(p.constant(broker())));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
 
   // Use the CreateShallowObjectLiteratal builtin only for shallow boilerplates
@@ -792,27 +790,27 @@ void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
   STATIC_ASSERT(n.FeedbackVectorIndex() == 0);
   node->InsertInput(zone(), 1,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
+  node->InsertInput(zone(), 2, jsgraph()->Constant(p.constant(broker())));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
   ReplaceWithBuiltinCall(node, Builtin::kCreateRegExpLiteral);
 }
 
 
 void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
-  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(scope_info));
+  ScopeInfoRef scope_info = ScopeInfoOf(broker(), node->op());
+  node->InsertInput(zone(), 1, jsgraph()->Constant(scope_info));
   ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
 }
 
 void JSGenericLowering::LowerJSCreateWithContext(Node* node) {
-  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(scope_info));
+  ScopeInfoRef scope_info = ScopeInfoOf(broker(), node->op());
+  node->InsertInput(zone(), 1, jsgraph()->Constant(scope_info));
   ReplaceWithRuntimeCall(node, Runtime::kPushWithContext);
 }
 
 void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {
-  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
+  ScopeInfoRef scope_info = ScopeInfoOf(broker(), node->op());
+  node->InsertInput(zone(), 0, jsgraph()->Constant(scope_info));
   ReplaceWithRuntimeCall(node, Runtime::kPushBlockContext);
 }
 
