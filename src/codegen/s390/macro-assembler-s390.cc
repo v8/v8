@@ -5083,6 +5083,8 @@ void TurboAssembler::AtomicExchangeU16(Register addr, Register value,
 }
 
 // Simd Support.
+#define kScratchDoubleReg d13
+
 void TurboAssembler::F64x2Splat(Simd128Register dst, Simd128Register src) {
   vrep(dst, src, Operand(0), Condition(3));
 }
@@ -5205,39 +5207,64 @@ void TurboAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
   vlvg(dst, src2, MemOperand(r0, 15 - imm_lane_idx), Condition(0));
 }
 
-#define SIMD_BINOP_LIST(V)    \
-  V(F64x2Add, vfa, 0, 0, 3)   \
-  V(F64x2Sub, vfs, 0, 0, 3)   \
-  V(F64x2Mul, vfm, 0, 0, 3)   \
-  V(F64x2Div, vfd, 0, 0, 3)   \
-  V(F64x2Min, vfmin, 1, 0, 3) \
-  V(F64x2Max, vfmax, 1, 0, 3) \
-  V(F32x4Add, vfa, 0, 0, 2)   \
-  V(F32x4Sub, vfs, 0, 0, 2)   \
-  V(F32x4Mul, vfm, 0, 0, 2)   \
-  V(F32x4Div, vfd, 0, 0, 2)   \
-  V(F32x4Min, vfmin, 1, 0, 2) \
-  V(F32x4Max, vfmax, 1, 0, 2) \
-  V(I64x2Add, va, 0, 0, 3)    \
-  V(I64x2Sub, vs, 0, 0, 3)    \
-  V(I32x4Add, va, 0, 0, 2)    \
-  V(I32x4Sub, vs, 0, 0, 2)    \
-  V(I32x4Mul, vml, 0, 0, 2)   \
-  V(I16x8Add, va, 0, 0, 1)    \
-  V(I16x8Sub, vs, 0, 0, 1)    \
-  V(I16x8Mul, vml, 0, 0, 1)   \
-  V(I8x16Add, va, 0, 0, 0)    \
+#define SIMD_BINOP_LIST_VRR_B(V) \
+  V(I64x2Eq, vceq, 0, 3)         \
+  V(I64x2GtS, vch, 0, 3)         \
+  V(I32x4Eq, vceq, 0, 2)         \
+  V(I32x4GtS, vch, 0, 2)         \
+  V(I32x4GtU, vchl, 0, 2)        \
+  V(I16x8Eq, vceq, 0, 1)         \
+  V(I16x8GtS, vch, 0, 1)         \
+  V(I16x8GtU, vchl, 0, 1)        \
+  V(I8x16Eq, vceq, 0, 0)         \
+  V(I8x16GtS, vch, 0, 0)         \
+  V(I8x16GtU, vchl, 0, 0)
+
+#define EMIT_SIMD_BINOP_VRR_B(name, op, c1, c2)                        \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
+                            Simd128Register src2) {                    \
+    op(dst, src1, src2, Condition(c1), Condition(c2));                 \
+  }
+SIMD_BINOP_LIST_VRR_B(EMIT_SIMD_BINOP_VRR_B)
+#undef EMIT_SIMD_BINOP_VRR_B
+#undef SIMD_BINOP_LIST_VRR_B
+
+#define SIMD_BINOP_LIST_VRR_C(V) \
+  V(F64x2Add, vfa, 0, 0, 3)      \
+  V(F64x2Sub, vfs, 0, 0, 3)      \
+  V(F64x2Mul, vfm, 0, 0, 3)      \
+  V(F64x2Div, vfd, 0, 0, 3)      \
+  V(F64x2Min, vfmin, 1, 0, 3)    \
+  V(F64x2Max, vfmax, 1, 0, 3)    \
+  V(F64x2Eq, vfce, 0, 0, 3)      \
+  V(F32x4Add, vfa, 0, 0, 2)      \
+  V(F32x4Sub, vfs, 0, 0, 2)      \
+  V(F32x4Mul, vfm, 0, 0, 2)      \
+  V(F32x4Div, vfd, 0, 0, 2)      \
+  V(F32x4Min, vfmin, 1, 0, 2)    \
+  V(F32x4Max, vfmax, 1, 0, 2)    \
+  V(F32x4Eq, vfce, 0, 0, 2)      \
+  V(I64x2Add, va, 0, 0, 3)       \
+  V(I64x2Sub, vs, 0, 0, 3)       \
+  V(I32x4Add, va, 0, 0, 2)       \
+  V(I32x4Sub, vs, 0, 0, 2)       \
+  V(I32x4Mul, vml, 0, 0, 2)      \
+  V(I16x8Add, va, 0, 0, 1)       \
+  V(I16x8Sub, vs, 0, 0, 1)       \
+  V(I16x8Mul, vml, 0, 0, 1)      \
+  V(I8x16Add, va, 0, 0, 0)       \
   V(I8x16Sub, vs, 0, 0, 0)
 
-#define EMIT_SIMD_BINOP(name, op, c1, c2, c3)                          \
+#define EMIT_SIMD_BINOP_VRR_C(name, op, c1, c2, c3)                    \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
                             Simd128Register src2) {                    \
     op(dst, src1, src2, Condition(c1), Condition(c2), Condition(c3));  \
   }
-SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
-#undef EMIT_SIMD_BINOP
-#undef SIMD_BINOP_LIST
+SIMD_BINOP_LIST_VRR_C(EMIT_SIMD_BINOP_VRR_C)
+#undef EMIT_SIMD_BINOP_VRR_C
+#undef SIMD_BINOP_LIST_VRR_C
 
+// Opcodes without a 1-1 match.
 void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2) {
   Register scratch_1 = r0;
@@ -5251,6 +5278,113 @@ void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
   }
   vlvgp(dst, r0, r1);
 }
+
+void TurboAssembler::F64x2Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vfce(dst, src1, src2, Condition(0), Condition(0), Condition(3));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(3));
+}
+
+void TurboAssembler::F64x2Lt(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vfch(dst, src2, src1, Condition(0), Condition(0), Condition(3));
+}
+
+void TurboAssembler::F64x2Le(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vfche(dst, src2, src1, Condition(0), Condition(0), Condition(3));
+}
+
+void TurboAssembler::F32x4Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vfce(dst, src1, src2, Condition(0), Condition(0), Condition(2));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(2));
+}
+
+void TurboAssembler::F32x4Lt(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vfch(dst, src2, src1, Condition(0), Condition(0), Condition(2));
+}
+
+void TurboAssembler::F32x4Le(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vfche(dst, src2, src1, Condition(0), Condition(0), Condition(2));
+}
+
+void TurboAssembler::I64x2Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vceq(dst, src1, src2, Condition(0), Condition(3));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(3));
+}
+
+void TurboAssembler::I64x2GeS(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  // Compute !(B > A) which is equal to A >= B.
+  vch(dst, src2, src1, Condition(0), Condition(3));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(3));
+}
+
+void TurboAssembler::I32x4Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vceq(dst, src1, src2, Condition(0), Condition(2));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(2));
+}
+
+void TurboAssembler::I32x4GeS(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  // Compute !(B > A) which is equal to A >= B.
+  vch(dst, src2, src1, Condition(0), Condition(2));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(2));
+}
+
+void TurboAssembler::I32x4GeU(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  vceq(kScratchDoubleReg, src1, src2, Condition(0), Condition(2));
+  vchl(dst, src1, src2, Condition(0), Condition(2));
+  vo(dst, dst, kScratchDoubleReg, Condition(0), Condition(0), Condition(2));
+}
+
+void TurboAssembler::I16x8Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vceq(dst, src1, src2, Condition(0), Condition(1));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(1));
+}
+
+void TurboAssembler::I16x8GeS(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  // Compute !(B > A) which is equal to A >= B.
+  vch(dst, src2, src1, Condition(0), Condition(1));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(1));
+}
+
+void TurboAssembler::I16x8GeU(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  vceq(kScratchDoubleReg, src1, src2, Condition(0), Condition(1));
+  vchl(dst, src1, src2, Condition(0), Condition(1));
+  vo(dst, dst, kScratchDoubleReg, Condition(0), Condition(0), Condition(1));
+}
+
+void TurboAssembler::I8x16Ne(Simd128Register dst, Simd128Register src1,
+                             Simd128Register src2) {
+  vceq(dst, src1, src2, Condition(0), Condition(0));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+}
+
+void TurboAssembler::I8x16GeS(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  // Compute !(B > A) which is equal to A >= B.
+  vch(dst, src2, src1, Condition(0), Condition(0));
+  vno(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+}
+
+void TurboAssembler::I8x16GeU(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  vceq(kScratchDoubleReg, src1, src2, Condition(0), Condition(0));
+  vchl(dst, src1, src2, Condition(0), Condition(0));
+  vo(dst, dst, kScratchDoubleReg, Condition(0), Condition(0), Condition(0));
+}
+
+#undef kScratchDoubleReg
 
 }  // namespace internal
 }  // namespace v8
