@@ -54,7 +54,7 @@ void CodeSpaceWriteScope::SetWritable() const {
     DCHECK(FLAG_wasm_memory_protection_keys);
     code_manager->SetThreadWritable(true);
   } else if (FLAG_wasm_write_protect_code_memory) {
-    CHECK(native_module_->SetWritable(true));
+    native_module_->AddWriter();
   }
 }
 
@@ -64,7 +64,7 @@ void CodeSpaceWriteScope::SetExecutable() const {
     DCHECK(FLAG_wasm_memory_protection_keys);
     code_manager->SetThreadWritable(false);
   } else if (FLAG_wasm_write_protect_code_memory) {
-    CHECK(native_module_->SetWritable(false));
+    native_module_->RemoveWriter();
   }
 }
 

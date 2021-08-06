@@ -650,6 +650,7 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 
   std::vector<DeserializationUnit> batch;
   const byte* batch_start = reader->current_location();
+  CodeSpaceWriteScope code_space_write_scope(native_module_);
   for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
     DeserializationUnit unit = ReadCode(i, reader);
     if (!unit.code) continue;
