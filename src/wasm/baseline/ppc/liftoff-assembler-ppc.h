@@ -99,8 +99,9 @@ inline constexpr bool UseSignedOp(LiftoffCondition liftoff_cond) {
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
-  bailout(kUnsupportedArchitecture, "PrepareStackFrame");
-  return 0;
+  int offset = pc_offset();
+  addi(sp, sp, Operand::Zero());
+  return offset;
 }
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
@@ -112,7 +113,26 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               SafepointTableBuilder*) {
-  bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
+  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+
+#ifdef USE_SIMULATOR
+  // When using the simulator, deal with Liftoff which allocates the stack
+  // before checking it.
+  // TODO(arm): Remove this when the stack check mechanism will be updated.
+  if (frame_size > KB / 2) {
+    bailout(kOtherReason,
+            "Stack limited to 512 bytes to avoid a bug in StackCheck");
+    return;
+  }
+#endif
+  if (!is_int16(-frame_size)) {
+    bailout(kOtherReason, "PPC subi overflow");
+    return;
+  }
+  Assembler patching_assembler(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(buffer_start_ + offset, kInstrSize + kGap));
+  patching_assembler.addi(sp, sp, Operand(-frame_size));
 }
 
 void LiftoffAssembler::FinishCode() { EmitConstantPool(); }
