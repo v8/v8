@@ -82,6 +82,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
       std::unique_ptr<PersistentHandles> persistent_handles);
   std::unique_ptr<PersistentHandles> DetachPersistentHandles();
 #ifdef DEBUG
+  bool HasPersistentHandles() { return !!persistent_handles_; }
   bool ContainsPersistentHandle(Address* location);
   bool ContainsLocalHandle(Address* location);
   bool IsHandleDereferenceAllowed();

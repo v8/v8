@@ -128,6 +128,7 @@ template<typename T> class PropertyCallbackInfo;
 template<typename T> class ReturnValue;
 
 namespace internal {
+class BackgroundDeserializeTask;
 class BasicTracedReferenceExtractor;
 class ExternalString;
 class FunctionCallbackArguments;
@@ -1814,6 +1815,8 @@ enum class ScriptType { kClassic, kModule };
  */
 class V8_EXPORT ScriptCompiler {
  public:
+  class ConsumeCodeCacheTask;
+
   /**
    * Compilation data that the embedder can cache and pass back to speed up
    * future compilations. The data is produced if the CompilerOptions passed to
@@ -1857,12 +1860,15 @@ class V8_EXPORT ScriptCompiler {
    */
   class Source {
    public:
-    // Source takes ownership of CachedData.
+    // Source takes ownership of both CachedData and CodeCacheConsumeTask.
     V8_INLINE Source(Local<String> source_string, const ScriptOrigin& origin,
-                     CachedData* cached_data = nullptr);
-    V8_INLINE explicit Source(Local<String> source_string,
-                              CachedData* cached_data = nullptr);
-    V8_INLINE ~Source();
+                     CachedData* cached_data = nullptr,
+                     ConsumeCodeCacheTask* consume_cache_task = nullptr);
+    // Source takes ownership of both CachedData and CodeCacheConsumeTask.
+    V8_INLINE explicit Source(
+        Local<String> source_string, CachedData* cached_data = nullptr,
+        ConsumeCodeCacheTask* consume_cache_task = nullptr);
+    V8_INLINE ~Source() = default;
 
     // Ownership of the CachedData or its buffers is *not* transferred to the
     // caller. The CachedData object is alive as long as the Source object is
@@ -1870,10 +1876,6 @@ class V8_EXPORT ScriptCompiler {
     V8_INLINE const CachedData* GetCachedData() const;
 
     V8_INLINE const ScriptOriginOptions& GetResourceOptions() const;
-
-    // Prevent copying.
-    Source(const Source&) = delete;
-    Source& operator=(const Source&) = delete;
 
    private:
     friend class ScriptCompiler;
@@ -1891,7 +1893,8 @@ class V8_EXPORT ScriptCompiler {
     // Cached data from previous compilation (if a kConsume*Cache flag is
     // set), or hold newly generated cache data (kProduce*Cache flags) are
     // set when calling a compile method.
-    CachedData* cached_data;
+    std::unique_ptr<CachedData> cached_data;
+    std::unique_ptr<ConsumeCodeCacheTask> consume_cache_task;
   };
 
   /**
@@ -1988,6 +1991,26 @@ class V8_EXPORT ScriptCompiler {
     internal::ScriptStreamingData* data_;
   };
 
+  /**
+   * A task which the embedder must run on a background thread to
+   * consume a V8 code cache. Returned by
+   * ScriptCompiler::StarConsumingCodeCache.
+   */
+  class V8_EXPORT ConsumeCodeCacheTask final {
+   public:
+    ~ConsumeCodeCacheTask();
+
+    void Run();
+
+   private:
+    friend class ScriptCompiler;
+
+    explicit ConsumeCodeCacheTask(
+        std::unique_ptr<internal::BackgroundDeserializeTask> impl);
+
+    std::unique_ptr<internal::BackgroundDeserializeTask> impl_;
+  };
+
   enum CompileOptions {
     kNoCompileOptions = 0,
     kConsumeCodeCache,
@@ -2068,6 +2091,9 @@ class V8_EXPORT ScriptCompiler {
   static ScriptStreamingTask* StartStreaming(
       Isolate* isolate, StreamedSource* source,
       ScriptType type = ScriptType::kClassic);
+
+  static ConsumeCodeCacheTask* StartConsumingCodeCache(
+      Isolate* isolate, std::unique_ptr<CachedData> source);
 
   /**
    * Compiles a streamed script (bound to current context).
@@ -11585,7 +11611,8 @@ int ScriptOrigin::ScriptId() const { return script_id_; }
 Local<Value> ScriptOrigin::SourceMapUrl() const { return source_map_url_; }
 
 ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
-                               CachedData* data)
+                               CachedData* data,
+                               ConsumeCodeCacheTask* consume_cache_task)
     : source_string(string),
       resource_name(origin.ResourceName()),
       resource_line_offset(origin.LineOffset()),
@@ -11593,21 +11620,18 @@ ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
       resource_options(origin.Options()),
       source_map_url(origin.SourceMapUrl()),
       host_defined_options(origin.HostDefinedOptions()),
-      cached_data(data) {}
+      cached_data(data),
+      consume_cache_task(consume_cache_task) {}
 
-ScriptCompiler::Source::Source(Local<String> string,
-                               CachedData* data)
-    : source_string(string), cached_data(data) {}
-
-
-ScriptCompiler::Source::~Source() {
-  delete cached_data;
-}
-
+ScriptCompiler::Source::Source(Local<String> string, CachedData* data,
+                               ConsumeCodeCacheTask* consume_cache_task)
+    : source_string(string),
+      cached_data(data),
+      consume_cache_task(consume_cache_task) {}
 
 const ScriptCompiler::CachedData* ScriptCompiler::Source::GetCachedData()
     const {
-  return cached_data;
+  return cached_data.get();
 }
 
 const ScriptOriginOptions& ScriptCompiler::Source::GetResourceOptions() const {

@@ -1386,6 +1386,8 @@ DEFINE_BOOL(stress_background_compile, false,
 DEFINE_BOOL(
     finalize_streaming_on_background, true,
     "perform the script streaming finalization on the background thread")
+DEFINE_BOOL(concurrent_cache_deserialization, true,
+            "enable deserializing code caches on background")
 // TODO(leszeks): Parallel compile tasks currently don't support off-thread
 // finalization.
 DEFINE_NEG_IMPLICATION(parallel_compile_tasks, finalize_streaming_on_background)
