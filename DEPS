@@ -90,9 +90,9 @@ vars = {
 
 deps = {
   'base/trace_event/common':
-    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '1169114f57e5045401e2d3793b7f10f3655b46ea',
+    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '3da1e2fcf66acd5c7194497b4285ac163f32e239',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e360729c132be1e63412960efcc225a1ca78678a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1ed6f53660cec856b97c7f385c9428360aecb9b6',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '37dc929ecb351687006a61744b116cda601753d7',
   'buildtools/clang_format/script':
@@ -218,7 +218,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'cb61e19efb1fd3d20f77eb8170211c25e61f7ba3',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '2e0d77d800352170afb8014309a45fcfc3fc67cd',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0a4dd4181ae2d3f2b77bb9f4ea4451d9209c8159',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'bbf05997abfe41830bac8c9ef8350ddd85ff1fef',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -285,7 +285,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '563140dd9c24f84bf40919196e9e7666d351cc0d',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'dd02422d012e13533d684953a97ebcdc491b5770',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '6a8e571efd68de48d226950d1e10cb8982e71496',
   'tools/clang/dsymutil': {
     'packages': [
       {
