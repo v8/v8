@@ -3,24 +3,34 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+lucicfg.check_version("1.27.0", "Please update depot_tools")
+
 load(
     "//lib/lib.star",
     "waterfall_acls",
 )
 
+# Enable LUCI Realms support.
+lucicfg.enable_experiment("crbug.com/1085650")
+
+# Launch 100% of Swarming tasks for builds in "realms-aware mode"
+luci.builder.defaults.experiments.set({"luci.use_realms": 100})
+
 lucicfg.config(
     config_dir = "generated",
     tracked_files = [
         "cr-buildbucket-dev.cfg",
-        "luci-milo-dev.cfg",
         "luci-logdog-dev.cfg",
+        "luci-milo-dev.cfg",
         "luci-scheduler-dev.cfg",
+        "realms-dev.cfg",
     ],
     fail_on_warnings = True,
 )
 
 luci.project(
     name = "v8",
+    dev = True,
     buildbucket = "cr-buildbucket-dev.appspot.com",
     logdog = "luci-logdog-dev.appspot.com",
     milo = "luci-milo-dev.appspot.com",
