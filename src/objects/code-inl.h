@@ -1004,6 +1004,9 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(LazyDeoptCount, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
+#ifdef DEBUG
+DEFINE_DEOPT_ENTRY_ACCESSORS(NodeId, Smi)
+#endif  // DEBUG
 
 BytecodeOffset DeoptimizationData::GetBytecodeOffset(int i) {
   return BytecodeOffset(BytecodeOffsetRaw(i).value());

@@ -221,8 +221,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
         &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
   }
   if (info()->source_positions()) {
-    tasm()->RecordDeoptReason(deoptimization_reason, exit->pos(),
-                              deoptimization_id);
+    tasm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
+                              exit->pos(), deoptimization_id);
   }
 
   if (deopt_kind == DeoptimizeKind::kLazy) {
@@ -1059,6 +1059,9 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     data->SetTranslationIndex(
         i, Smi::FromInt(deoptimization_exit->translation_id()));
     data->SetPc(i, Smi::FromInt(deoptimization_exit->pc_offset()));
+#ifdef DEBUG
+    data->SetNodeId(i, Smi::FromInt(deoptimization_exit->node_id()));
+#endif  // DEBUG
   }
 
   return data;
@@ -1246,8 +1249,12 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
 
   DeoptimizationExit* const exit = zone()->New<DeoptimizationExit>(
       current_source_position_, descriptor->bailout_id(), translation_index,
-      pc_offset, entry.kind(), entry.reason());
-
+      pc_offset, entry.kind(), entry.reason(),
+#ifdef DEBUG
+      entry.node_id());
+#else   // DEBUG
+      0);
+#endif  // DEBUG
   if (!Deoptimizer::kSupportsFixedDeoptExitSizes) {
     exit->set_deoptimization_id(next_deoptimization_id_++);
   }

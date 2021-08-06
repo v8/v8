@@ -224,6 +224,13 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
         << "'";
   } else if (rmode == RelocInfo::DEOPT_ID) {
     out << "    ;; debug: deopt index " << static_cast<int>(relocinfo->data());
+  } else if (rmode == RelocInfo::DEOPT_NODE_ID) {
+#ifdef DEBUG
+    out << "    ;; debug: deopt node id "
+        << static_cast<uint32_t>(relocinfo->data());
+#else   // DEBUG
+    UNREACHABLE();
+#endif  // DEBUG
   } else if (RelocInfo::IsEmbeddedObjectMode(rmode)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);

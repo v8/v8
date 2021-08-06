@@ -4373,9 +4373,11 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
       (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) ||
       (rmode == RelocInfo::DEOPT_INLINING_ID) ||
       (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID) ||
-      (rmode == RelocInfo::LITERAL_CONSTANT)) {
+      (rmode == RelocInfo::LITERAL_CONSTANT) ||
+      (rmode == RelocInfo::DEOPT_NODE_ID)) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
+           RelocInfo::IsDeoptNodeId(rmode) ||
            RelocInfo::IsDeoptPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsDataEmbeddedObject(rmode) ||

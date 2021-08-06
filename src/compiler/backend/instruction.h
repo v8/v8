@@ -1449,24 +1449,35 @@ class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
 // frame state descriptor that we have to go back to.
 class DeoptimizationEntry final {
  public:
-  DeoptimizationEntry() = default;
   DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
-                      DeoptimizeReason reason, FeedbackSource const& feedback)
+                      DeoptimizeReason reason, NodeId node_id,
+                      FeedbackSource const& feedback)
       : descriptor_(descriptor),
         kind_(kind),
         reason_(reason),
-        feedback_(feedback) {}
+#ifdef DEBUG
+        node_id_(node_id),
+#endif  // DEBUG
+        feedback_(feedback) {
+    USE(node_id);
+  }
 
   FrameStateDescriptor* descriptor() const { return descriptor_; }
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
+#ifdef DEBUG
+  NodeId node_id() const { return node_id_; }
+#endif  // DEBUG
   FeedbackSource const& feedback() const { return feedback_; }
 
  private:
-  FrameStateDescriptor* descriptor_ = nullptr;
-  DeoptimizeKind kind_ = DeoptimizeKind::kEager;
-  DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
-  FeedbackSource feedback_ = FeedbackSource();
+  FrameStateDescriptor* const descriptor_;
+  const DeoptimizeKind kind_;
+  const DeoptimizeReason reason_;
+#ifdef DEBUG
+  const NodeId node_id_;
+#endif  // DEBUG
+  const FeedbackSource feedback_;
 };
 
 using DeoptimizationVector = ZoneVector<DeoptimizationEntry>;
@@ -1775,7 +1786,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,
                              DeoptimizeKind kind, DeoptimizeReason reason,
-                             FeedbackSource const& feedback);
+                             NodeId node_id, FeedbackSource const& feedback);
   DeoptimizationEntry const& GetDeoptimizationEntry(int deoptimization_id);
   int GetDeoptimizationEntryCount() const {
     return static_cast<int>(deoptimization_entries_.size());

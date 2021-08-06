@@ -966,7 +966,12 @@ class DeoptimizationData : public FixedArray {
   static const int kBytecodeOffsetRawOffset = 0;
   static const int kTranslationIndexOffset = 1;
   static const int kPcOffset = 2;
+#ifdef DEBUG
+  static const int kNodeIdOffset = 3;
+  static const int kDeoptEntrySize = 4;
+#else   // DEBUG
   static const int kDeoptEntrySize = 3;
+#endif  // DEBUG
 
 // Simple element accessors.
 #define DECL_ELEMENT_ACCESSORS(name, type) \
@@ -995,6 +1000,9 @@ class DeoptimizationData : public FixedArray {
   DECL_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
   DECL_ENTRY_ACCESSORS(TranslationIndex, Smi)
   DECL_ENTRY_ACCESSORS(Pc, Smi)
+#ifdef DEBUG
+  DECL_ENTRY_ACCESSORS(NodeId, Smi)
+#endif  // DEBUG
 
 #undef DECL_ENTRY_ACCESSORS
 

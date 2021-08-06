@@ -953,10 +953,10 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
 
 int InstructionSequence::AddDeoptimizationEntry(
     FrameStateDescriptor* descriptor, DeoptimizeKind kind,
-    DeoptimizeReason reason, FeedbackSource const& feedback) {
+    DeoptimizeReason reason, NodeId node_id, FeedbackSource const& feedback) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
   deoptimization_entries_.push_back(
-      DeoptimizationEntry(descriptor, kind, reason, feedback));
+      DeoptimizationEntry(descriptor, kind, reason, node_id, feedback));
   return deoptimization_id;
 }
 

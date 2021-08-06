@@ -88,6 +88,8 @@ class RelocInfo {
     DEOPT_INLINING_ID,  // Deoptimization source position.
     DEOPT_REASON,       // Deoptimization reason index.
     DEOPT_ID,           // Deoptimization inlining id.
+    DEOPT_NODE_ID,      // Id of the node that caused deoptimization. This
+                        // information is only recorded in debug builds.
 
     LITERAL_CONSTANT,  // An constant embedded in the instruction stream.
 
@@ -173,6 +175,9 @@ class RelocInfo {
   static constexpr bool IsDeoptId(Mode mode) { return mode == DEOPT_ID; }
   static constexpr bool IsLiteralConstant(Mode mode) {
     return mode == LITERAL_CONSTANT;
+  }
+  static constexpr bool IsDeoptNodeId(Mode mode) {
+    return mode == DEOPT_NODE_ID;
   }
   static constexpr bool IsExternalReference(Mode mode) {
     return mode == EXTERNAL_REFERENCE;
