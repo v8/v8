@@ -171,6 +171,8 @@ class ToStringFormatter {
   void BasePowerOfTwo();
 
   void Fast();
+  char* FillWithZeros(RecursionLevel* level, char* prev_cursor, char* out,
+                      bool is_last_on_level);
   char* ProcessLevel(RecursionLevel* level, Digits chunk, char* out,
                      bool is_last_on_level);
 
@@ -422,31 +424,43 @@ void ToStringFormatter::Fast() {
   out_ = ProcessLevel(recursion_levels.get(), digits_, out_, true);
 }
 
+// Writes '0' characters right-to-left, starting at {out}-1, until the distance
+// from {right_boundary} to {out} equals the number of characters that {level}
+// is supposed to produce.
+char* ToStringFormatter::FillWithZeros(RecursionLevel* level,
+                                       char* right_boundary, char* out,
+                                       bool is_last_on_level) {
+  // Fill up with zeros up to the character count expected to be generated
+  // on this level; unless this is the left edge of the result.
+  if (is_last_on_level) return out;
+  int chunk_chars = level == nullptr ? chunk_chars_ : level->char_count_ * 2;
+  char* end = right_boundary - chunk_chars;
+  DCHECK(out >= end);
+  while (out > end) {
+    *(--out) = '0';
+  }
+  return out;
+}
+
 char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
                                       char* out, bool is_last_on_level) {
   // Step 0: if only one digit is left, bail out to the base case.
   Digits normalized = chunk;
   normalized.Normalize();
   if (normalized.len() <= 1) {
-    char* prev_cursor = out;
+    char* right_boundary = out;
     if (normalized.len() == 1) {
       out = BasecaseLast(normalized[0], out);
     }
-    // Fill up with zeros up to the character count expected to be generated
-    // on this level; unless this is the left edge of the result.
-    if (is_last_on_level) return out;
-    int chunk_chars = level == nullptr ? chunk_chars_ : level->char_count_ * 2;
-    char* end = prev_cursor - chunk_chars;
-    while (out != end) {
-      *(--out) = '0';
-    }
-    return out;
+    return FillWithZeros(level, right_boundary, out, is_last_on_level);
   }
 
   // Step 1: If the chunk is guaranteed to remain smaller than the divisor
   // even after left-shifting, fall through to the next level immediately.
   if (normalized.len() < level->divisor_.len()) {
-    return ProcessLevel(level->next_, chunk, out, is_last_on_level);
+    char* right_boundary = out;
+    out = ProcessLevel(level->next_, chunk, out, is_last_on_level);
+    return FillWithZeros(level, right_boundary, out, is_last_on_level);
   }
   // Step 2: Prepare the chunk.
   bool allow_inplace_modification = chunk.digits() != digits_.digits();
@@ -456,12 +470,30 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
   chunk = chunk_shifted;
   chunk.Normalize();
   // Check (now precisely) if the chunk is smaller than the divisor.
-  if (Compare(chunk, level->divisor_) <= 0) {
-    // In case we shifted {chunk} in-place, we must undo that before the call...
-    chunk_shifted.Reset();
-    // ...and otherwise undo the {chunk = chunk_shifted} assignment above.
-    chunk = original_chunk;
-    return ProcessLevel(level->next_, chunk, out, is_last_on_level);
+  int comparison = Compare(chunk, level->divisor_);
+  if (comparison <= 0) {
+    char* right_boundary = out;
+    if (comparison < 0) {
+      // If the chunk is strictly smaller than the divisor, we can process
+      // it directly on the next level as the right half, and know that the
+      // left half is all '0'.
+      // In case we shifted {chunk} in-place, we must undo that
+      // before the call...
+      chunk_shifted.Reset();
+      // ...and otherwise undo the {chunk = chunk_shifted} assignment above.
+      chunk = original_chunk;
+      out = ProcessLevel(level->next_, chunk, out, is_last_on_level);
+    } else {
+      DCHECK(comparison == 0);  // NOLINT(readability/check)
+      // If the chunk is equal to the divisor, we know that the right half
+      // is all '0', and the left half is '...0001'.
+      // Handling this case specially is an optimization; we could also
+      // fall through to the generic "chunk > divisor" path below.
+      out = FillWithZeros(level->next_, right_boundary, out, false);
+      *(--out) = '1';
+    }
+    // In both cases, make sure the left half is fully written.
+    return FillWithZeros(level, right_boundary, out, is_last_on_level);
   }
   // Step 3: Allocate space for the results.
   // Allocate one extra digit so the next level can left-shift in-place.
@@ -497,8 +529,14 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
 #endif
 
   // Step 5: Recurse.
-  ProcessLevel(level->next_, right, out, false);
+  char* end_of_right_part = ProcessLevel(level->next_, right, out, false);
+  // The recursive calls are required and hence designed to write exactly as
+  // many characters as their level is responsible for.
+  DCHECK(end_of_right_part == out - level->char_count_);
+  USE(end_of_right_part);
   if (processor_->should_terminate()) return out;
+  // We intentionally don't use {end_of_right_part} here to be prepared for
+  // potential future multi-threaded execution.
   return ProcessLevel(level->next_, left, out - level->char_count_,
                       is_last_on_level);
 }
