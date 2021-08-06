@@ -28,6 +28,16 @@ CodeEventListener::LogEventsAndTags Logger::ToNativeByScript(
   }
 }
 
+void Logger::CallEventLogger(Isolate* isolate, const char* name, StartEnd se,
+                             bool expose_to_api) {
+  if (isolate->event_logger()) {
+    if (isolate->event_logger() == DefaultEventLoggerSentinel) {
+      LOG(isolate, TimerEvent(se, name));
+    } else if (expose_to_api) {
+      isolate->event_logger()(name, se);
+    }
+  }
+}
 
 template <class TimerEvent>
 void TimerEventScope<TimerEvent>::LogTimerEvent(Logger::StartEnd se) {

@@ -14,7 +14,6 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
-#include "src/logging/counters-scopes.h"
 
 namespace v8 {
 namespace internal {

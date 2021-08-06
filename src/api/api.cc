@@ -58,7 +58,7 @@
 #include "src/init/v8.h"
 #include "src/json/json-parser.h"
 #include "src/json/json-stringifier.h"
-#include "src/logging/counters-scopes.h"
+#include "src/logging/counters.h"
 #include "src/logging/metrics.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/logging/tracing-flags.h"
@@ -1967,11 +1967,10 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   ENTER_V8(isolate, context, Script, Run, MaybeLocal<Value>(),
            InternalEscapableScope);
-  i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
-  i::NestedTimedHistogramScope execute_timer(
-      isolate->counters()->execute_precise());
+  i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
   i::AggregatingHistogramTimerScope histogram_timer(
       isolate->counters()->compile_lazy());
+  i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
 
   // TODO(crbug.com/1193459): remove once ablation study is completed
@@ -2294,10 +2293,9 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   ENTER_V8(isolate, context, Module, Evaluate, MaybeLocal<Value>(),
            InternalEscapableScope);
-  i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
-  i::NestedTimedHistogramScope execute_timer(
-      isolate->counters()->execute_precise());
+  i::HistogramTimerScope execute_timer(isolate->counters()->execute(), true);
   i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
+  i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
 
   i::Handle<i::Module> self = Utils::OpenHandle(this);
   Utils::ApiCheck(self->status() >= i::Module::kInstantiated,
@@ -4952,8 +4950,6 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   ENTER_V8(isolate, context, Object, CallAsFunction, MaybeLocal<Value>(),
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
-  i::NestedTimedHistogramScope execute_timer(
-      isolate->counters()->execute_precise());
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
@@ -4972,8 +4968,6 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   ENTER_V8(isolate, context, Object, CallAsConstructor, MaybeLocal<Value>(),
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
-  i::NestedTimedHistogramScope execute_timer(
-      isolate->counters()->execute_precise());
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -5011,8 +5005,6 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   ENTER_V8(isolate, context, Function, NewInstance, MaybeLocal<Object>(),
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
-  i::NestedTimedHistogramScope execute_timer(
-      isolate->counters()->execute_precise());
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
   bool should_set_has_no_side_effect =
@@ -5062,8 +5054,6 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
   ENTER_V8(isolate, context, Function, Call, MaybeLocal<Value>(),
            InternalEscapableScope);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
-  i::NestedTimedHistogramScope execute_timer(
-      isolate->counters()->execute_precise());
   auto self = Utils::OpenHandle(this);
   Utils::ApiCheck(!self.is_null(), "v8::Function::Call",
                   "Function to be called is a null pointer");
@@ -8894,7 +8884,7 @@ bool Isolate::IdleNotificationDeadline(double deadline_in_seconds) {
 void Isolate::LowMemoryNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   {
-    i::NestedTimedHistogramScope idle_notification_scope(
+    i::HistogramTimerScope idle_notification_scope(
         isolate->counters()->gc_low_memory_notification());
     TRACE_EVENT0("v8", "V8.GCLowMemoryNotification");
     isolate->heap()->CollectAllAvailableGarbage(
@@ -10240,6 +10230,7 @@ void InvokeAccessorGetterCallback(
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kAccessorGetterCallback);
   Address getter_address = reinterpret_cast<Address>(getter);
+  VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, getter_address);
   getter(property, info);
 }
@@ -10249,6 +10240,7 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   Address callback_address = reinterpret_cast<Address>(callback);
+  VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, callback_address);
   callback(info);
 }

@@ -11,7 +11,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/diagnostics/code-tracer.h"
-#include "src/logging/counters-scopes.h"
+#include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"

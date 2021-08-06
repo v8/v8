@@ -3767,7 +3767,7 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
   DevToolsTraceEventScope devtools_trace_event_scope(
       this, "MajorGC", "incremental finalization step");
 
-  NestedTimedHistogramScope incremental_marking_scope(
+  HistogramTimerScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking_finalize());
   TRACE_EVENT1("v8", "V8.GCIncrementalMarkingFinalize", "epoch", epoch_full());
   TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
@@ -4001,7 +4001,7 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   double deadline_in_ms =
       deadline_in_seconds *
       static_cast<double>(base::Time::kMillisecondsPerSecond);
-  NestedTimedHistogramScope idle_notification_scope(
+  HistogramTimerScope idle_notification_scope(
       isolate_->counters()->gc_idle_notification());
   TRACE_EVENT0("v8", "V8.GCIdleNotification");
   double start_ms = MonotonicallyIncreasingTimeInMs();

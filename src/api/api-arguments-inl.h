@@ -76,6 +76,7 @@ inline JSReceiver FunctionCallbackArguments::holder() {
           CALLBACK_INFO, RECEIVER, Debug::k##ACCESSOR_KIND)) {           \
     return RETURN_VALUE();                                               \
   }                                                                      \
+  VMState<EXTERNAL> state(ISOLATE);                                      \
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));           \
   PropertyCallbackInfo<API_RETURN_TYPE> callback_info(values_);
 
@@ -84,6 +85,7 @@ inline JSReceiver FunctionCallbackArguments::holder() {
   if (ISOLATE->debug_execution_mode() == DebugInfo::kSideEffects) {            \
     return RETURN_VALUE();                                                     \
   }                                                                            \
+  VMState<EXTERNAL> state(ISOLATE);                                            \
   ExternalCallbackScope call_scope(ISOLATE, FUNCTION_ADDR(F));                 \
   PropertyCallbackInfo<API_RETURN_TYPE> callback_info(values_);
 
@@ -147,6 +149,7 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
           Debug::kNotAccessor)) {
     return Handle<Object>();
   }
+  VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   FunctionCallbackInfo<v8::Value> info(values_, argv_, argc_);
   f(info);
