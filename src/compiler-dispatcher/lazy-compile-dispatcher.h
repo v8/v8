@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_DISPATCHER_COMPILER_DISPATCHER_H_
-#define V8_COMPILER_DISPATCHER_COMPILER_DISPATCHER_H_
+#ifndef V8_COMPILER_DISPATCHER_LAZY_COMPILE_DISPATCHER_H_
+#define V8_COMPILER_DISPATCHER_LAZY_COMPILE_DISPATCHER_H_
 
 #include <cstdint>
 #include <map>
@@ -34,7 +34,6 @@ class AstValueFactory;
 class BackgroundCompileTask;
 class CancelableTaskManager;
 class UnoptimizedCompileJob;
-class CompilerDispatcherTracer;
 class FunctionLiteral;
 class Isolate;
 class ParseInfo;
@@ -46,8 +45,8 @@ class Zone;
 template <typename T>
 class Handle;
 
-// The CompilerDispatcher uses a combination of idle tasks and background tasks
-// to parse and compile lazily parsed functions.
+// The LazyCompileDispatcher uses a combination of idle tasks and background
+// tasks to parse and compile lazily parsed functions.
 //
 // As both parsing and compilation currently requires a preparation and
 // finalization step that happens on the main thread, every task has to be
@@ -55,32 +54,32 @@ class Handle;
 // can then be parsed or compiled on either background threads, or during idle
 // time. Last, it has to be finalized during idle time again.
 //
-// CompilerDispatcher::jobs_ maintains the list of all CompilerDispatcherJobs
-// the CompilerDispatcher knows about.
+// LazyCompileDispatcher::jobs_ maintains the list of all
+// LazyCompilerDispatcherJobs the LazyCompileDispatcher knows about.
 //
-// CompilerDispatcher::pending_background_jobs_ contains the set of
-// CompilerDispatcherJobs that can be processed on a background thread.
+// LazyCompileDispatcher::pending_background_jobs_ contains the set of
+// LazyCompilerDispatcherJobs that can be processed on a background thread.
 //
-// CompilerDispatcher::running_background_jobs_ contains the set of
-// CompilerDispatcherJobs that are currently being processed on a background
+// LazyCompileDispatcher::running_background_jobs_ contains the set of
+// LazyCompilerDispatcherJobs that are currently being processed on a background
 // thread.
 //
-// CompilerDispatcher::DoIdleWork tries to advance as many jobs out of jobs_ as
-// possible during idle time. If a job can't be advanced, but is suitable for
+// LazyCompileDispatcher::DoIdleWork tries to advance as many jobs out of jobs_
+// as possible during idle time. If a job can't be advanced, but is suitable for
 // background processing, it fires off background threads.
 //
-// CompilerDispatcher::DoBackgroundWork advances one of the pending jobs, and
-// then spins of another idle task to potentially do the final step on the main
-// thread.
-class V8_EXPORT_PRIVATE CompilerDispatcher {
+// LazyCompileDispatcher::DoBackgroundWork advances one of the pending jobs,
+// and then spins of another idle task to potentially do the final step on the
+// main thread.
+class V8_EXPORT_PRIVATE LazyCompileDispatcher {
  public:
   using JobId = uintptr_t;
 
-  CompilerDispatcher(Isolate* isolate, Platform* platform,
-                     size_t max_stack_size);
-  CompilerDispatcher(const CompilerDispatcher&) = delete;
-  CompilerDispatcher& operator=(const CompilerDispatcher&) = delete;
-  ~CompilerDispatcher();
+  LazyCompileDispatcher(Isolate* isolate, Platform* platform,
+                        size_t max_stack_size);
+  LazyCompileDispatcher(const LazyCompileDispatcher&) = delete;
+  LazyCompileDispatcher& operator=(const LazyCompileDispatcher&) = delete;
+  ~LazyCompileDispatcher();
 
   // Returns true if the compiler dispatcher is enabled.
   bool IsEnabled() const;
@@ -109,14 +108,14 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   void AbortAll();
 
  private:
-  FRIEND_TEST(CompilerDispatcherTest, IdleTaskNoIdleTime);
-  FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
-  FRIEND_TEST(CompilerDispatcherTest, FinishNowWithWorkerTask);
-  FRIEND_TEST(CompilerDispatcherTest, AbortJobNotStarted);
-  FRIEND_TEST(CompilerDispatcherTest, AbortJobAlreadyStarted);
-  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingWorkerTask);
-  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
-  FRIEND_TEST(CompilerDispatcherTest, CompileMultipleOnBackgroundThread);
+  FRIEND_TEST(LazyCompilerDispatcherTest, IdleTaskNoIdleTime);
+  FRIEND_TEST(LazyCompilerDispatcherTest, IdleTaskSmallIdleTime);
+  FRIEND_TEST(LazyCompilerDispatcherTest, FinishNowWithWorkerTask);
+  FRIEND_TEST(LazyCompilerDispatcherTest, AbortJobNotStarted);
+  FRIEND_TEST(LazyCompilerDispatcherTest, AbortJobAlreadyStarted);
+  FRIEND_TEST(LazyCompilerDispatcherTest, AsyncAbortAllPendingWorkerTask);
+  FRIEND_TEST(LazyCompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
+  FRIEND_TEST(LazyCompilerDispatcherTest, CompileMultipleOnBackgroundThread);
 
   struct Job {
     explicit Job(BackgroundCompileTask* task_arg);
@@ -202,4 +201,4 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_DISPATCHER_COMPILER_DISPATCHER_H_
+#endif  // V8_COMPILER_DISPATCHER_LAZY_COMPILE_DISPATCHER_H_

@@ -32,7 +32,7 @@
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/common/assert-scope.h"
 #include "src/common/ptr-compr.h"
-#include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/date/date.h"
 #include "src/debug/debug-frames.h"
@@ -3633,8 +3633,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   string_table_.reset(new StringTable(this));
   bigint_processor_ = bigint::Processor::New(new BigIntPlatform(this));
 
-  compiler_dispatcher_ =
-      new CompilerDispatcher(this, V8::GetCurrentPlatform(), FLAG_stack_size);
+  compiler_dispatcher_ = new LazyCompileDispatcher(
+      this, V8::GetCurrentPlatform(), FLAG_stack_size);
   baseline_batch_compiler_ = new baseline::BaselineBatchCompiler(this);
 
   // Enable logging before setting up the heap

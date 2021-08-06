@@ -34,7 +34,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/external-pointer.h"
 #include "src/common/globals.h"
-#include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/date/date.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"

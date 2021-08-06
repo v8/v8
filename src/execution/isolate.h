@@ -82,7 +82,6 @@ class CodeTracer;
 class CommonFrame;
 class CompilationCache;
 class CompilationStatistics;
-class CompilerDispatcher;
 class Counters;
 class Debug;
 class Deoptimizer;
@@ -93,6 +92,7 @@ class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
 class HeapProfiler;
 class InnerPointerToCodeCache;
+class LazyCompileDispatcher;
 class LocalIsolate;
 class Logger;
 class MaterializedObjectStore;
@@ -1628,7 +1628,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   AccountingAllocator* allocator() { return allocator_; }
 
-  CompilerDispatcher* compiler_dispatcher() const {
+  LazyCompileDispatcher* lazy_compile_dispatcher() const {
     return compiler_dispatcher_;
   }
 
@@ -2098,7 +2098,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // through all compilations (and thus all JSHeapBroker instances).
   Zone* compiler_zone_ = nullptr;
 
-  CompilerDispatcher* compiler_dispatcher_ = nullptr;
+  LazyCompileDispatcher* compiler_dispatcher_ = nullptr;
   baseline::BaselineBatchCompiler* baseline_batch_compiler_ = nullptr;
 
   using InterruptEntry = std::pair<InterruptCallback, void*>;

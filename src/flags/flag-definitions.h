@@ -1475,10 +1475,10 @@ DEFINE_BOOL(compilation_cache, true, "enable compilation cache")
 
 DEFINE_BOOL(cache_prototype_transitions, true, "cache prototype transitions")
 
-// compiler-dispatcher.cc
+// lazy-compile-dispatcher.cc
 DEFINE_BOOL(parallel_compile_tasks, false, "enable parallel compile tasks")
-DEFINE_BOOL(compiler_dispatcher, false, "enable compiler dispatcher")
-DEFINE_IMPLICATION(parallel_compile_tasks, compiler_dispatcher)
+DEFINE_BOOL(lazy_compile_dispatcher, false, "enable compiler dispatcher")
+DEFINE_IMPLICATION(parallel_compile_tasks, lazy_compile_dispatcher)
 DEFINE_BOOL(trace_compiler_dispatcher, false,
             "trace compiler dispatcher activity")
 
@@ -2069,7 +2069,7 @@ DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
 // before. Audit them, and remove any unneeded implications.
 DEFINE_IMPLICATION(predictable, single_threaded_gc)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(predictable, compiler_dispatcher)
+DEFINE_NEG_IMPLICATION(predictable, lazy_compile_dispatcher)
 DEFINE_NEG_IMPLICATION(predictable, stress_concurrent_inlining)
 
 DEFINE_BOOL(predictable_gc_schedule, false,
@@ -2087,7 +2087,7 @@ DEFINE_NEG_IMPLICATION(predictable_gc_schedule, memory_reducer)
 DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
 DEFINE_IMPLICATION(single_threaded, single_threaded_gc)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(single_threaded, compiler_dispatcher)
+DEFINE_NEG_IMPLICATION(single_threaded, lazy_compile_dispatcher)
 DEFINE_NEG_IMPLICATION(single_threaded, stress_concurrent_inlining)
 
 //

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 
 #include "src/ast/ast.h"
 #include "src/base/platform/time.h"
@@ -21,13 +21,14 @@
 namespace v8 {
 namespace internal {
 
-CompilerDispatcher::Job::Job(BackgroundCompileTask* task_arg)
+LazyCompileDispatcher::Job::Job(BackgroundCompileTask* task_arg)
     : task(task_arg), has_run(false), aborted(false) {}
 
-CompilerDispatcher::Job::~Job() = default;
+LazyCompileDispatcher::Job::~Job() = default;
 
-CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
-                                       size_t max_stack_size)
+LazyCompileDispatcher::LazyCompileDispatcher(Isolate* isolate,
+                                             Platform* platform,
+                                             size_t max_stack_size)
     : isolate_(isolate),
       worker_thread_runtime_call_stats_(
           isolate->counters()->worker_thread_runtime_call_stats()),
@@ -47,20 +48,20 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
       block_for_testing_(false),
       semaphore_for_testing_(0) {
   if (trace_compiler_dispatcher_ && !IsEnabled()) {
-    PrintF("CompilerDispatcher: dispatcher is disabled\n");
+    PrintF("LazyCompileDispatcher: dispatcher is disabled\n");
   }
 }
 
-CompilerDispatcher::~CompilerDispatcher() {
-  // AbortAll must be called before CompilerDispatcher is destroyed.
+LazyCompileDispatcher::~LazyCompileDispatcher() {
+  // AbortAll must be called before LazyCompileDispatcher is destroyed.
   CHECK(task_manager_->canceled());
 }
 
-base::Optional<CompilerDispatcher::JobId> CompilerDispatcher::Enqueue(
+base::Optional<LazyCompileDispatcher::JobId> LazyCompileDispatcher::Enqueue(
     const ParseInfo* outer_parse_info, const AstRawString* function_name,
     const FunctionLiteral* function_literal) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompilerDispatcherEnqueue");
+               "V8.LazyCompilerDispatcherEnqueue");
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
 
   if (!IsEnabled()) return base::nullopt;
@@ -72,8 +73,9 @@ base::Optional<CompilerDispatcher::JobId> CompilerDispatcher::Enqueue(
   JobMap::const_iterator it = InsertJob(std::move(job));
   JobId id = it->first;
   if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: enqueued job %zu for function literal id %d\n",
-           id, function_literal->function_literal_id());
+    PrintF(
+        "LazyCompileDispatcher: enqueued job %zu for function literal id %d\n",
+        id, function_literal->function_literal_id());
   }
 
   // Post a a background worker task to perform the compilation on the worker
@@ -86,23 +88,26 @@ base::Optional<CompilerDispatcher::JobId> CompilerDispatcher::Enqueue(
   return base::make_optional(id);
 }
 
-bool CompilerDispatcher::IsEnabled() const { return FLAG_compiler_dispatcher; }
+bool LazyCompileDispatcher::IsEnabled() const {
+  return FLAG_lazy_compile_dispatcher;
+}
 
-bool CompilerDispatcher::IsEnqueued(Handle<SharedFunctionInfo> function) const {
+bool LazyCompileDispatcher::IsEnqueued(
+    Handle<SharedFunctionInfo> function) const {
   if (jobs_.empty()) return false;
   return GetJobFor(function) != jobs_.end();
 }
 
-bool CompilerDispatcher::IsEnqueued(JobId job_id) const {
+bool LazyCompileDispatcher::IsEnqueued(JobId job_id) const {
   return jobs_.find(job_id) != jobs_.end();
 }
 
-void CompilerDispatcher::RegisterSharedFunctionInfo(
+void LazyCompileDispatcher::RegisterSharedFunctionInfo(
     JobId job_id, SharedFunctionInfo function) {
   DCHECK_NE(jobs_.find(job_id), jobs_.end());
 
   if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: registering ");
+    PrintF("LazyCompileDispatcher: registering ");
     function.ShortPrint();
     PrintF(" with job id %zu\n", job_id);
   }
@@ -127,9 +132,9 @@ void CompilerDispatcher::RegisterSharedFunctionInfo(
   }
 }
 
-void CompilerDispatcher::WaitForJobIfRunningOnBackground(Job* job) {
+void LazyCompileDispatcher::WaitForJobIfRunningOnBackground(Job* job) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompilerDispatcherWaitForBackgroundJob");
+               "V8.LazyCompilerDispatcherWaitForBackgroundJob");
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileWaitForDispatcher);
 
   base::MutexGuard lock(&mutex_);
@@ -146,12 +151,12 @@ void CompilerDispatcher::WaitForJobIfRunningOnBackground(Job* job) {
   DCHECK(running_background_jobs_.find(job) == running_background_jobs_.end());
 }
 
-bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
+bool LazyCompileDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompilerDispatcherFinishNow");
+               "V8.LazyCompilerDispatcherFinishNow");
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileFinishNowOnDispatcher);
   if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: finishing ");
+    PrintF("LazyCompileDispatcher: finishing ");
     function->ShortPrint();
     PrintF(" now\n");
   }
@@ -176,9 +181,9 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   return success;
 }
 
-void CompilerDispatcher::AbortJob(JobId job_id) {
+void LazyCompileDispatcher::AbortJob(JobId job_id) {
   if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: aborted job %zu\n", job_id);
+    PrintF("LazyCompileDispatcher: aborted job %zu\n", job_id);
   }
   JobMap::const_iterator job_it = jobs_.find(job_id);
   Job* job = job_it->second.get();
@@ -194,13 +199,13 @@ void CompilerDispatcher::AbortJob(JobId job_id) {
   }
 }
 
-void CompilerDispatcher::AbortAll() {
+void LazyCompileDispatcher::AbortAll() {
   task_manager_->TryAbortAll();
 
   for (auto& it : jobs_) {
     WaitForJobIfRunningOnBackground(it.second.get());
     if (trace_compiler_dispatcher_) {
-      PrintF("CompilerDispatcher: aborted job %zu\n", it.first);
+      PrintF("LazyCompileDispatcher: aborted job %zu\n", it.first);
     }
   }
   jobs_.clear();
@@ -214,7 +219,7 @@ void CompilerDispatcher::AbortAll() {
   task_manager_->CancelAndWait();
 }
 
-CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
+LazyCompileDispatcher::JobMap::const_iterator LazyCompileDispatcher::GetJobFor(
     Handle<SharedFunctionInfo> shared) const {
   JobId* job_id_ptr = shared_to_unoptimized_job_id_.Find(shared);
   JobMap::const_iterator job = jobs_.end();
@@ -224,7 +229,7 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
   return job;
 }
 
-void CompilerDispatcher::ScheduleIdleTaskFromAnyThread(
+void LazyCompileDispatcher::ScheduleIdleTaskFromAnyThread(
     const base::MutexGuard&) {
   if (!taskrunner_->IdleTasksEnabled()) return;
   if (idle_task_scheduled_) return;
@@ -235,9 +240,9 @@ void CompilerDispatcher::ScheduleIdleTaskFromAnyThread(
       [this](double deadline_in_seconds) { DoIdleWork(deadline_in_seconds); }));
 }
 
-void CompilerDispatcher::ScheduleMoreWorkerTasksIfNeeded() {
+void LazyCompileDispatcher::ScheduleMoreWorkerTasksIfNeeded() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompilerDispatcherScheduleMoreWorkerTasksIfNeeded");
+               "V8.LazyCompilerDispatcherScheduleMoreWorkerTasksIfNeeded");
   {
     base::MutexGuard lock(&mutex_);
     if (pending_background_jobs_.empty()) return;
@@ -250,9 +255,9 @@ void CompilerDispatcher::ScheduleMoreWorkerTasksIfNeeded() {
       MakeCancelableTask(task_manager_.get(), [this] { DoBackgroundWork(); }));
 }
 
-void CompilerDispatcher::DoBackgroundWork() {
+void LazyCompileDispatcher::DoBackgroundWork() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompilerDispatcherDoBackgroundWork");
+               "V8.LazyCompilerDispatcherDoBackgroundWork");
   for (;;) {
     Job* job = nullptr;
     {
@@ -272,7 +277,7 @@ void CompilerDispatcher::DoBackgroundWork() {
     }
 
     if (trace_compiler_dispatcher_) {
-      PrintF("CompilerDispatcher: doing background work\n");
+      PrintF("LazyCompileDispatcher: doing background work\n");
     }
 
     job->task->Run();
@@ -303,22 +308,22 @@ void CompilerDispatcher::DoBackgroundWork() {
   // deleted.
 }
 
-void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
+void LazyCompileDispatcher::DoIdleWork(double deadline_in_seconds) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompilerDispatcherDoIdleWork");
+               "V8.LazyCompilerDispatcherDoIdleWork");
   {
     base::MutexGuard lock(&mutex_);
     idle_task_scheduled_ = false;
   }
 
   if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: received %0.1lfms of idle time\n",
+    PrintF("LazyCompileDispatcher: received %0.1lfms of idle time\n",
            (deadline_in_seconds - platform_->MonotonicallyIncreasingTime()) *
                static_cast<double>(base::Time::kMillisecondsPerSecond));
   }
   while (deadline_in_seconds > platform_->MonotonicallyIncreasingTime()) {
     // Find a job which is pending finalization and has a shared function info
-    CompilerDispatcher::JobMap::const_iterator it;
+    LazyCompileDispatcher::JobMap::const_iterator it;
     {
       base::MutexGuard lock(&mutex_);
       for (it = jobs_.cbegin(); it != jobs_.cend(); ++it) {
@@ -351,7 +356,7 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
   }
 }
 
-CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::InsertJob(
+LazyCompileDispatcher::JobMap::const_iterator LazyCompileDispatcher::InsertJob(
     std::unique_ptr<Job> job) {
   bool added;
   JobMap::const_iterator it;
@@ -361,8 +366,8 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::InsertJob(
   return it;
 }
 
-CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::RemoveJob(
-    CompilerDispatcher::JobMap::const_iterator it) {
+LazyCompileDispatcher::JobMap::const_iterator LazyCompileDispatcher::RemoveJob(
+    LazyCompileDispatcher::JobMap::const_iterator it) {
   Job* job = it->second.get();
 
   DCHECK_EQ(running_background_jobs_.find(job), running_background_jobs_.end());

@@ -24,7 +24,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
-#include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
@@ -1285,10 +1285,10 @@ void FinalizeUnoptimizedScriptCompilation(
   UnoptimizedCompileState::ParallelTasks* parallel_tasks =
       compile_state->parallel_tasks();
   if (parallel_tasks) {
-    CompilerDispatcher* dispatcher = parallel_tasks->dispatcher();
+    LazyCompileDispatcher* dispatcher = parallel_tasks->dispatcher();
     for (auto& it : *parallel_tasks) {
       FunctionLiteral* literal = it.first;
-      CompilerDispatcher::JobId job_id = it.second;
+      LazyCompileDispatcher::JobId job_id = it.second;
       MaybeHandle<SharedFunctionInfo> maybe_shared_for_task =
           Script::FindSharedFunctionInfo(script, isolate, literal);
       Handle<SharedFunctionInfo> shared_for_task;
@@ -1812,7 +1812,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
   ParseInfo parse_info(isolate, flags, &compile_state);
 
   // Check if the compiler dispatcher has shared_info enqueued for compile.
-  CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
+  LazyCompileDispatcher* dispatcher = isolate->lazy_compile_dispatcher();
   if (dispatcher->IsEnqueued(shared_info)) {
     if (!dispatcher->FinishNow(shared_info)) {
       return FailWithPendingException(isolate, script, &parse_info, flag);
