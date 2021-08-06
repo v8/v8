@@ -14,16 +14,16 @@ namespace wasm {
 thread_local int CodeSpaceWriteScope::code_space_write_nesting_level_ = 0;
 // The thread-local counter (above) is only valid if a single thread only works
 // on one module at a time. This second thread-local checks that.
-#if defined(DEBUG) && (!defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64))
+#if defined(DEBUG) && !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 thread_local NativeModule* CodeSpaceWriteScope::current_native_module_ =
     nullptr;
 #endif
 
 // TODO(jkummerow): Background threads could permanently stay in
 // writable mode; only the main thread has to switch back and forth.
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule*) {
-#else  // !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
+#else  // !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
     : native_module_(native_module) {
 #ifdef DEBUG
@@ -32,7 +32,7 @@ CodeSpaceWriteScope::CodeSpaceWriteScope(NativeModule* native_module)
   }
   DCHECK_EQ(native_module, current_native_module_);
 #endif  // DEBUG
-#endif  // !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
+#endif  // !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
   if (code_space_write_nesting_level_ == 0) {
     SetWritable();
   }
@@ -44,7 +44,7 @@ CodeSpaceWriteScope::~CodeSpaceWriteScope() {
   if (code_space_write_nesting_level_ == 0) SetExecutable();
 }
 
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
 // Ignoring this warning is considered better than relying on
 // __builtin_available.
@@ -59,7 +59,7 @@ void CodeSpaceWriteScope::SetExecutable() const {
 }
 #pragma clang diagnostic pop
 
-#else  // !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
+#else  // !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
 void CodeSpaceWriteScope::SetWritable() const {
   DCHECK_NOT_NULL(native_module_);
@@ -82,7 +82,7 @@ void CodeSpaceWriteScope::SetExecutable() const {
   }
 }
 
-#endif  // !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
+#endif  // !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
 }  // namespace wasm
 }  // namespace internal

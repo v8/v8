@@ -55,7 +55,7 @@ class V8_NODISCARD CodeSpaceWriteScope final {
 
  private:
   static thread_local int code_space_write_nesting_level_;
-#if defined(DEBUG) && (!defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64))
+#if defined(DEBUG) && !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
   static thread_local NativeModule* current_native_module_;
 #endif
 
@@ -66,7 +66,7 @@ class V8_NODISCARD CodeSpaceWriteScope final {
   // allocation which region to switch permissions for. On non-M1 hardware
   // without memory protection key support, we need the code space from the
   // {native_module_}.
-#if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
+#if !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
   NativeModule* const native_module_;
 #endif
 };
