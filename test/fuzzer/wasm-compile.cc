@@ -1703,6 +1703,28 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     DataRange range(data);
     std::vector<uint32_t> function_signatures;
+
+    // Add struct and array types first so that we get a chance to generate
+    // these types in function signatures
+    if (liftoff_as_reference) {
+      uint32_t count = 4;
+      StructType::Builder struct_builder(zone, count);
+      struct_builder.AddField(kWasmI32, false);
+      struct_builder.AddField(kWasmI64, false);
+      struct_builder.AddField(kWasmF32, false);
+      struct_builder.AddField(kWasmF64, false);
+      StructType* struct_fuz = struct_builder.Build();
+      builder.AddStructType(struct_fuz);
+      ArrayType* array_fuzI32 = zone->New<ArrayType>(kWasmI32, true);
+      ArrayType* array_fuzI64 = zone->New<ArrayType>(kWasmI64, true);
+      ArrayType* array_fuzF32 = zone->New<ArrayType>(kWasmF32, true);
+      ArrayType* array_fuzF64 = zone->New<ArrayType>(kWasmF64, true);
+      builder.AddArrayType(array_fuzI32);
+      builder.AddArrayType(array_fuzI64);
+      builder.AddArrayType(array_fuzF32);
+      builder.AddArrayType(array_fuzF64);
+    }
+
     function_signatures.push_back(builder.AddSignature(sigs.i_iii()));
 
     static_assert(kMaxFunctions >= 1, "need min. 1 function");
@@ -1726,25 +1748,6 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       FunctionSig* sig = GenerateSig(zone, &range, kExceptionSig,
                                      builder.NumTypes(), liftoff_as_reference);
       builder.AddException(sig);
-    }
-
-    if (liftoff_as_reference) {
-      uint32_t count = 4;
-      StructType::Builder struct_builder(zone, count);
-      struct_builder.AddField(kWasmI32, false);
-      struct_builder.AddField(kWasmI64, false);
-      struct_builder.AddField(kWasmF32, false);
-      struct_builder.AddField(kWasmF64, false);
-      StructType* struct_fuz = struct_builder.Build();
-      builder.AddStructType(struct_fuz);
-      ArrayType* array_fuzI32 = zone->New<ArrayType>(kWasmI32, true);
-      ArrayType* array_fuzI64 = zone->New<ArrayType>(kWasmI64, true);
-      ArrayType* array_fuzF32 = zone->New<ArrayType>(kWasmF32, true);
-      ArrayType* array_fuzF64 = zone->New<ArrayType>(kWasmF64, true);
-      builder.AddArrayType(array_fuzI32);
-      builder.AddArrayType(array_fuzI64);
-      builder.AddArrayType(array_fuzF32);
-      builder.AddArrayType(array_fuzF64);
     }
 
     for (int i = 0; i < num_globals; ++i) {
