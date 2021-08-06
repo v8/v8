@@ -1399,7 +1399,13 @@ Object Isolate::StackOverflow() {
   // frames until we reach this method.
   // If this DCHECK fails, one of the frames on the stack should be augmented by
   // an additional stack check.
+#if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER)
+  // Allow for a bit more overflow in sanitizer builds, because C++ frames take
+  // significantly more space there.
+  DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 32 * KB);
+#else
   DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 8 * KB);
+#endif
 
   if (FLAG_correctness_fuzzer_suppressions) {
     FATAL("Aborting on stack overflow");
