@@ -2292,15 +2292,13 @@ int BytecodeArrayRef::handler_table_size() const {
     return BitField::decode(ObjectRef::data()->As##holder()->field()); \
   }
 
-#define HEAP_ACCESSOR(holder, result, name)                   \
-  result##Ref holder##Ref::name() const {                     \
-    return MakeRef(broker(), result::cast(object()->name())); \
-  }
-
 #define HEAP_ACCESSOR_C(holder, result, name) \
   result holder##Ref::name() const { return object()->name(); }
 
-HEAP_ACCESSOR(AllocationSite, Object, nested_site)
+ObjectRef AllocationSiteRef::nested_site() const {
+  return MakeRefAssumeMemoryFence(broker(), object()->nested_site());
+}
+
 HEAP_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
 HEAP_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
 HEAP_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
@@ -2473,12 +2471,17 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
                             prototype->AsJSObject());
 }
 
-HEAP_ACCESSOR(CallHandlerInfo, Object, data)
+ObjectRef CallHandlerInfoRef::data() const {
+  return MakeRefAssumeMemoryFence(broker(), object()->data());
+}
 
 HEAP_ACCESSOR_C(ScopeInfo, int, ContextLength)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
-HEAP_ACCESSOR(ScopeInfo, ScopeInfo, OuterScopeInfo)
+
+ScopeInfoRef ScopeInfoRef::OuterScopeInfo() const {
+  return MakeRefAssumeMemoryFence(broker(), object()->OuterScopeInfo());
+}
 
 HEAP_ACCESSOR_C(SharedFunctionInfo, Builtin, builtin_id)
 
@@ -3388,7 +3391,6 @@ unsigned CodeRef::GetInlinedBytecodeSize() const {
 #undef BIMODAL_ACCESSOR_WITH_FLAG
 #undef BIMODAL_ACCESSOR_WITH_FLAG_B
 #undef BIMODAL_ACCESSOR_WITH_FLAG_C
-#undef HEAP_ACCESSOR
 #undef HEAP_ACCESSOR_C
 #undef IF_ACCESS_FROM_HEAP
 #undef IF_ACCESS_FROM_HEAP_C
