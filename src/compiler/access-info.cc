@@ -428,6 +428,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     MapRef receiver_map, MapRef map, base::Optional<JSObjectRef> holder,
     InternalIndex descriptor, AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
+  // TODO(jgruber,v8:7790): Use DescriptorArrayRef instead.
   Handle<DescriptorArray> descriptors = map.instance_descriptors().object();
   PropertyDetails const details = descriptors->GetDetails(descriptor);
   int index = descriptors->GetFieldIndex(descriptor);
@@ -450,6 +451,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   Handle<FieldType> descriptors_field_type =
       broker()->CanonicalPersistentHandle(
           descriptors->GetFieldType(descriptor));
+  base::Optional<ObjectRef> descriptors_field_type_ref =
+      TryMakeRef<Object>(broker(), descriptors_field_type);
+  if (!descriptors_field_type_ref.has_value()) return Invalid();
 
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
@@ -489,7 +493,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   // of the access info.
   unrecorded_dependencies.push_back(
       dependencies()->FieldTypeDependencyOffTheRecord(
-          map, descriptor, MakeRef<Object>(broker(), descriptors_field_type)));
+          map, descriptor, descriptors_field_type_ref.value()));
 
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
@@ -1147,8 +1151,13 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its
     // representation is TaggedPointer to reflect the heap object case).
+    // TODO(jgruber,v8:7790): Use DescriptorArrayRef instead.
     Handle<FieldType> descriptors_field_type =
         broker()->CanonicalPersistentHandle(descriptors->GetFieldType(number));
+    base::Optional<ObjectRef> descriptors_field_type_ref =
+        TryMakeRef<Object>(broker(), descriptors_field_type);
+    if (!descriptors_field_type_ref.has_value()) return Invalid();
+
     if (descriptors_field_type->IsNone()) {
       // Store is not safe if the field type was cleared.
       return Invalid();
