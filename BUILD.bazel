@@ -6,6 +6,7 @@ load("@bazel_skylib//lib:selects.bzl", "selects")
 load(
     "@v8//:bazel/defs.bzl",
     "v8_binary",
+    "v8_build_config",
     "v8_config",
     "v8_custom_config",
     "v8_raw_flag",
@@ -3057,4 +3058,43 @@ v8_binary(
         "src/d8/d8-test.cc",
     ],
     deps = [ ":v8" ],
+)
+
+# =================================================
+# Tests
+# =================================================
+
+v8_build_config(
+    name = "v8_build_config",
+)
+
+# Runs mjunit with d8.
+py_test(
+    name = "mjsunit",
+    size = "medium",
+    srcs = [
+        "test/mjsunit/testcfg.py",
+        "tools/predictable_wrapper.py",
+        "tools/run-tests.py",
+    ] + glob(["tools/testrunner/**/*.py"]),
+    args = [
+        "--no-sorting",
+        "--nopresubmit",
+        # TODO(victorgomes): Create a flag to pass the variant in the cmdline.
+        "--variant=default",
+        "--outdir bazel-bin",
+        "mjsunit",
+    ],
+    data = [
+        ":v8_build_config",
+        ":d8",
+        "test",
+    ] + glob(["test/**"]) + glob(["tools/**/*.js"]) + glob(["tools/**/*.mjs"]),
+    main = "tools/run-tests.py",
+    # TODO(victorgomes): Move this to PY3.
+    python_version = "PY2",
+    tags = [
+        # Disable sanitizers, as they don't work in general in V8.
+        "nosan",
+    ],
 )
