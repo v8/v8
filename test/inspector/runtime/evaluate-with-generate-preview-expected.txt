@@ -845,20 +845,6 @@ Running test: testMixedSetPropertiesPreview
     type : object
 }
 
-Running test: testObjInheritsGetterProperty
-{
-    description : Object
-    overflow : false
-    properties : [
-        [0] : {
-            name : propNotNamedProto
-            type : number
-            value : NaN
-        }
-    ]
-    type : object
-}
-
 Running test: testObjWithArrayAsProto
 {
     description : Array
