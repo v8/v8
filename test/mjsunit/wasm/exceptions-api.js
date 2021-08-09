@@ -211,6 +211,9 @@ function TestGetArgHelper(types_str, types, values) {
       /Index must be convertible to a valid number/);
   assertThrows(() => exception.getArg(tag, 0xFFFFFFFF), RangeError,
       /Index out of range/);
+  let wrong_tag = new WebAssembly.Tag({parameters: ['i32']});
+  assertThrows(() => exception.getArg(wrong_tag, 0), TypeError,
+      /First argument does not match the exception tag/);
 
   // Check decoding.
   TestGetArgHelper(['i32'], [kWasmI32], [1]);

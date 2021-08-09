@@ -2046,10 +2046,20 @@ void WebAssemblyExceptionGetArg(
   }
   auto maybe_values =
       i::WasmExceptionPackage::GetExceptionValues(i_isolate, exception);
-  if (maybe_values->IsUndefined()) {
+
+  auto this_tag =
+      i::WasmExceptionPackage::GetExceptionTag(i_isolate, exception);
+  if (this_tag->IsUndefined()) {
     thrower.TypeError("Expected a WebAssembly.Exception object");
     return;
   }
+  DCHECK(this_tag->IsWasmExceptionTag());
+  if (tag->tag() != *this_tag) {
+    thrower.TypeError("First argument does not match the exception tag");
+    return;
+  }
+
+  DCHECK(!maybe_values->IsUndefined());
   auto values = i::Handle<i::FixedArray>::cast(maybe_values);
   auto signature = tag->serialized_signature();
   if (index >= static_cast<uint32_t>(signature.length())) {
