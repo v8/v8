@@ -96,10 +96,6 @@ struct ManuallyImportedJSFunction {
   Handle<JSFunction> js_function;
 };
 
-// Helper Functions.
-bool IsSameNan(float expected, float actual);
-bool IsSameNan(double expected, double actual);
-
 // A  Wasm module builder. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
 // objects, i.e. {WasmInstanceObject}, {WasmModuleObject} and, if necessary,
