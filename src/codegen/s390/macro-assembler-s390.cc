@@ -5249,11 +5249,23 @@ SIMD_BINOP_LIST_VRR_B(EMIT_SIMD_BINOP_VRR_B)
   V(I32x4Add, va, 0, 0, 2)       \
   V(I32x4Sub, vs, 0, 0, 2)       \
   V(I32x4Mul, vml, 0, 0, 2)      \
+  V(I32x4MinS, vmn, 0, 0, 2)     \
+  V(I32x4MinU, vmnl, 0, 0, 2)    \
+  V(I32x4MaxS, vmx, 0, 0, 2)     \
+  V(I32x4MaxU, vmxl, 0, 0, 2)    \
   V(I16x8Add, va, 0, 0, 1)       \
   V(I16x8Sub, vs, 0, 0, 1)       \
   V(I16x8Mul, vml, 0, 0, 1)      \
+  V(I16x8MinS, vmn, 0, 0, 1)     \
+  V(I16x8MinU, vmnl, 0, 0, 1)    \
+  V(I16x8MaxS, vmx, 0, 0, 1)     \
+  V(I16x8MaxU, vmxl, 0, 0, 1)    \
   V(I8x16Add, va, 0, 0, 0)       \
-  V(I8x16Sub, vs, 0, 0, 0)
+  V(I8x16Sub, vs, 0, 0, 0)       \
+  V(I8x16MinS, vmn, 0, 0, 0)     \
+  V(I8x16MinU, vmnl, 0, 0, 0)    \
+  V(I8x16MaxS, vmx, 0, 0, 0)     \
+  V(I8x16MaxU, vmxl, 0, 0, 0)
 
 #define EMIT_SIMD_BINOP_VRR_C(name, op, c1, c2, c3)                    \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
