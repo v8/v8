@@ -2949,7 +2949,7 @@ uint8_t CompilationStateImpl::AddCompilationUnitInternal(
   ExecutionTier reached_tier =
       CompilationStateImpl::ReachedTierField::decode(function_progress);
 
-  if (FLAG_experimental_wasm_gc) {
+  /*if (FLAG_experimental_wasm_gc) {
     // The Turbofan optimizations we enable for WasmGC code can (for now)
     // take a very long time, so skip Turbofan compilation for super-large
     // functions.
@@ -2968,7 +2968,7 @@ uint8_t CompilationStateImpl::AddCompilationUnitInternal(
         outstanding_top_tier_functions_--;
       }
     }
-  }
+  }*/
 
   if (reached_tier < required_baseline_tier) {
     builder->AddBaselineUnit(function_index, required_baseline_tier);

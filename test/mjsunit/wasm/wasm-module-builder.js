@@ -111,29 +111,46 @@ let kWasmF64 = 0x7c;
 let kWasmS128 = 0x7b;
 let kWasmI8 = 0x7a;
 let kWasmI16 = 0x79;
-let kWasmFuncRef = 0x70;
+
+// These are defined as negative integers to distinguish them from positive type
+// indices.
+let kWasmFuncRef = -0x10;
 let kWasmAnyFunc = kWasmFuncRef;  // Alias named as in the JS API spec
-let kWasmExternRef = 0x6f;
-let kWasmAnyRef = 0x6e;
-let kWasmEqRef = 0x6d;
+let kWasmExternRef = -0x11;
+let kWasmAnyRef = -0x12;
+let kWasmEqRef = -0x13;
+let kWasmI31Ref = -0x16;
+let kWasmDataRef = -0x19;
+
+// Use the positive-byte versions inside function bodies.
+let kLeb128Mask = 0x7f;
+let kFuncRefCode = kWasmFuncRef & kLeb128Mask;
+let kAnyFuncCode = kFuncRefCode;  // Alias named as in the JS API spec
+let kExternRefCode = kWasmExternRef & kLeb128Mask;
+let kAnyRefCode = kWasmAnyRef & kLeb128Mask;
+let kEqRefCode = kWasmEqRef & kLeb128Mask;
+let kI31RefCode = kWasmI31Ref  & kLeb128Mask;
+let kDataRefCode = kWasmDataRef  & kLeb128Mask;
+
 let kWasmOptRef = 0x6c;
 let kWasmRef = 0x6b;
-function wasmOptRefType(index) {
-  return {opcode: kWasmOptRef, index: index};
+function wasmOptRefType(heap_type) {
+  return {opcode: kWasmOptRef, heap_type: heap_type};
 }
-function wasmRefType(index) {
-  return {opcode: kWasmRef, index: index};
+function wasmRefType(heap_type) {
+  return {opcode: kWasmRef, heap_type: heap_type};
 }
-let kWasmI31Ref = 0x6a;
+
 let kWasmRttWithDepth = 0x69;
 function wasmRtt(index, depth) {
+  if (index < 0) throw new Error("Expecting non-negative type index");
   return {opcode: kWasmRttWithDepth, index: index, depth: depth};
 }
 let kWasmRtt = 0x68;
 function wasmRttNoDepth(index) {
+  if (index < 0) throw new Error("Expecting non-negative type index");
   return {opcode: kWasmRtt, index: index};
 }
-let kWasmDataRef = 0x67;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -943,15 +960,20 @@ class Binary {
     }
   }
 
+  emit_heap_type(heap_type) {
+    this.emit_bytes(wasmSignedLeb(heap_type, kMaxVarInt32Size));
+  }
+
   emit_type(type) {
     if ((typeof type) == 'number') {
-      this.emit_u8(type);
+      this.emit_u8(type >= 0 ? type : type & kLeb128Mask);
     } else {
       this.emit_u8(type.opcode);
       if ('depth' in type) this.emit_u8(type.depth);
-      this.emit_u32v(type.index);
+      this.emit_heap_type(type.heap_type);
     }
   }
+
 
   emit_init_expr_recursive(expr) {
     switch (expr.kind) {
@@ -980,7 +1002,7 @@ class Binary {
         break;
       case kExprRefNull:
         this.emit_u8(kExprRefNull);
-        this.emit_u32v(expr.value);
+        this.emit_heap_type(expr.value);
         break;
       case kExprStructNewWithRtt:
         for (let operand of expr.operands) {
@@ -1177,14 +1199,14 @@ class WasmInitExpr {
         if ((typeof type) != 'number' && type.opcode != kWasmOptRef) {
           throw new Error("Non-defaultable type");
         }
-        let heap_type = (typeof type) == 'number' ? type : type.index;
+        let heap_type = (typeof type) == 'number' ? type : type.heap_type;
         return this.RefNull(heap_type);
     }
   }
 }
 
 class WasmGlobalBuilder {
-  // {init} a pair {type, immediate}. Construct it with WasmInitExpr.
+  // {init} should be constructed with WasmInitExpr.
   constructor(module, type, mutable, init) {
     this.module = module;
     this.type = type;

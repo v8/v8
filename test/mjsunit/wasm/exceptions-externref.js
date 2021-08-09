@@ -14,7 +14,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_null", kSig_v_v)
       .addBody([
-        kExprRefNull, kWasmExternRef,
+        kExprRefNull, kExternRefCode,
         kExprThrow, except,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -33,7 +33,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
           kExprLocalGet, 0,
           kExprI32Eqz,
           kExprIf, kWasmI32,
-            kExprRefNull, kWasmExternRef,
+            kExprRefNull, kExternRefCode,
             kExprThrow, except,
           kExprElse,
             kExprI32Const, 42,
@@ -79,7 +79,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   let except = builder.addTag(kSig_v_r);
   builder.addFunction("throw_catch_param", kSig_r_r)
       .addBody([
-        kExprTry, kWasmExternRef,
+        kExprTry, kExternRefCode,
           kExprLocalGet, 0,
           kExprThrow, except,
         kExprCatch, except,
