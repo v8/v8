@@ -768,21 +768,25 @@ MaybeHandle<Object> SourceTextModule::Evaluate(
 
 void SourceTextModule::AsyncModuleExecutionFulfilled(
     Isolate* isolate, Handle<SourceTextModule> module) {
-  // 1. Assert: module.[[AsyncEvaluating]] is true.
+  // 1. If module.[[Status]] is evaluated, then
+  if (module->status() == kErrored) {
+    // a. Assert: module.[[EvaluationError]] is not empty.
+    DCHECK(!module->exception().IsTheHole(isolate));
+    // b. Return.
+    return;
+  }
+  // 3. Assert: module.[[AsyncEvaluating]] is true.
   DCHECK(module->IsAsyncEvaluating());
-
-  // 2. Assert: module.[[EvaluationError]] is undefined.
+  // 4. Assert: module.[[EvaluationError]] is empty.
   CHECK_EQ(module->status(), kEvaluated);
-
-  // 3. Set module.[[AsyncEvaluating]] to false.
+  // 5. Set module.[[AsyncEvaluating]] to false.
   isolate->DidFinishModuleAsyncEvaluation(module->async_evaluating_ordinal());
   module->set_async_evaluating_ordinal(kAsyncEvaluateDidFinish);
-
-  // 4. If module.[[TopLevelCapability]] is not empty, then
+  // TODO(cbruni): update to match spec.
+  // 7. If module.[[TopLevelCapability]] is not empty, then
   if (!module->top_level_capability().IsUndefined(isolate)) {
     //  a. Assert: module.[[CycleRoot]] is equal to module.
     DCHECK_EQ(*module->GetCycleRoot(isolate), *module);
-
     //   i. Perform ! Call(module.[[TopLevelCapability]].[[Resolve]], undefined,
     //                     «undefined»).
     Handle<JSPromise> capability(
@@ -791,21 +795,21 @@ void SourceTextModule::AsyncModuleExecutionFulfilled(
         .ToHandleChecked();
   }
 
-  // 5. Let execList be a new empty List.
+  // 8. Let execList be a new empty List.
   Zone zone(isolate->allocator(), ZONE_NAME);
   AsyncParentCompletionSet exec_list(&zone);
 
-  // 6. Perform ! GatherAsyncParentCompletions(module, execList).
+  // 9. Perform ! GatherAsyncParentCompletions(module, execList).
   GatherAsyncParentCompletions(isolate, &zone, module, &exec_list);
 
-  // 7. Let sortedExecList be a List of elements that are the elements of
+  // 10. Let sortedExecList be a List of elements that are the elements of
   //    execList, in the order in which they had their [[AsyncEvaluating]]
   //    fields set to true in InnerModuleEvaluation.
   //
   // This step is implemented by AsyncParentCompletionSet, which is a set
   // ordered on async_evaluating_ordinal.
 
-  // 8. Assert: All elements of sortedExecList have their [[AsyncEvaluating]]
+  // 11. Assert: All elements of sortedExecList have their [[AsyncEvaluating]]
   //    field set to true, [[PendingAsyncDependencies]] field set to 0 and
   //    [[EvaluationError]] field set to undefined.
 #ifdef DEBUG
@@ -816,7 +820,7 @@ void SourceTextModule::AsyncModuleExecutionFulfilled(
   }
 #endif
 
-  // 9. For each Module m of sortedExecList, do
+  // 12. For each Module m of sortedExecList, do
   for (Handle<SourceTextModule> m : exec_list) {
     //  i. If m.[[AsyncEvaluating]] is false, then
     if (!m->IsAsyncEvaluating()) {
@@ -864,31 +868,37 @@ void SourceTextModule::AsyncModuleExecutionFulfilled(
 void SourceTextModule::AsyncModuleExecutionRejected(
     Isolate* isolate, Handle<SourceTextModule> module,
     Handle<Object> exception) {
-  DCHECK(isolate->is_catchable_by_javascript(*exception));
+  // 1. If module.[[Status]] is evaluated, then
+  if (module->status() == kErrored) {
+    // a. Assert: module.[[EvaluationError]] is not empty.
+    DCHECK(!module->exception().IsTheHole(isolate));
+    // b. Return.
+    return;
+  }
 
+  // TODO(cbruni): update to match spec.
+  DCHECK(isolate->is_catchable_by_javascript(*exception));
   // 1. Assert: module.[[Status]] is "evaluated".
   CHECK(module->status() == kEvaluated || module->status() == kErrored);
-
   // 2. If module.[[AsyncEvaluating]] is false,
   if (!module->IsAsyncEvaluating()) {
-    //  a. Assert: module.[[EvaluationError]] is not undefined.
+    //  a. Assert: module.[[EvaluationError]] is not empty.
     CHECK_EQ(module->status(), kErrored);
-
     //  b. Return undefined.
     return;
   }
 
-  // 4. Set module.[[EvaluationError]] to ThrowCompletion(error).
+  // 5. Set module.[[EvaluationError]] to ThrowCompletion(error).
   Module::RecordError(isolate, module, exception);
 
-  // 5. Set module.[[AsyncEvaluating]] to false.
+  // 6. Set module.[[AsyncEvaluating]] to false.
   isolate->DidFinishModuleAsyncEvaluation(module->async_evaluating_ordinal());
   module->set_async_evaluating_ordinal(kAsyncEvaluateDidFinish);
 
-  // 6. For each Module m of module.[[AsyncParentModules]], do
+  // 7. For each Module m of module.[[AsyncParentModules]], do
   for (int i = 0; i < module->AsyncParentModuleCount(); i++) {
     Handle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
-
+    // TODO(cbruni): update to match spec.
     //  a. If module.[[DFSIndex]] is not equal to module.[[DFSAncestorIndex]],
     //     then
     if (module->dfs_index() != module->dfs_ancestor_index()) {
@@ -900,19 +910,16 @@ void SourceTextModule::AsyncModuleExecutionRejected(
     AsyncModuleExecutionRejected(isolate, m, exception);
   }
 
-  // 7. If module.[[TopLevelCapability]] is not undefined, then
+  // 8. If module.[[TopLevelCapability]] is not empty, then
   if (!module->top_level_capability().IsUndefined(isolate)) {
     //  a. Assert: module.[[CycleRoot]] is equal to module.
     DCHECK_EQ(*module->GetCycleRoot(isolate), *module);
-
     //  b. Perform ! Call(module.[[TopLevelCapability]].[[Reject]],
     //                    undefined, «error»).
     Handle<JSPromise> capability(
         JSPromise::cast(module->top_level_capability()), isolate);
     JSPromise::Reject(capability, exception);
   }
-
-  // 8. Return undefined.
 }
 
 void SourceTextModule::ExecuteAsyncModule(Isolate* isolate,
