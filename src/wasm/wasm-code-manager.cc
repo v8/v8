@@ -822,13 +822,6 @@ void WasmCodeAllocator::FreeCode(base::Vector<WasmCode* const> codes) {
   DisjointAllocationPool freed_regions;
   size_t code_size = 0;
   for (WasmCode* code : codes) {
-    // TODO(clemensb): If zapping is worth it, we need to unprotect the code
-    // memory first.
-    if (!protect_code_memory_) {
-      ZapCode(code->instruction_start(), code->instructions().size());
-      FlushInstructionCache(code->instruction_start(),
-                            code->instructions().size());
-    }
     code_size += code->instructions().size();
     freed_regions.Merge(base::AddressRegion{code->instruction_start(),
                                             code->instructions().size()});
@@ -2356,10 +2349,6 @@ std::vector<int> NativeModule::FindFunctionsToRecompile(
 
 void NativeModule::FreeCode(base::Vector<WasmCode* const> codes) {
   base::RecursiveMutexGuard guard(&allocation_mutex_);
-  // Get writable permission already here (and not inside the loop in
-  // {WasmCodeAllocator::FreeCode}), to avoid switching for each {code}
-  // individually.
-  CodeSpaceWriteScope code_space_write_scope(this);
   // Free the code space.
   code_allocator_.FreeCode(codes);
 
