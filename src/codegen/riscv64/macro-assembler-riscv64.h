@@ -209,8 +209,21 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
 
-  inline void GenPCRelativeJump(Register rd, int64_t imm32);
-  inline void GenPCRelativeJumpAndLink(Register rd, int64_t imm32);
+  inline void GenPCRelativeJump(Register rd, int64_t imm32) {
+    DCHECK(is_int32(imm32));
+    int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
+    int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
+    auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
+    jr(rd, Lo12);     // jump PC + Hi20 + Lo12
+  }
+
+  inline void GenPCRelativeJumpAndLink(Register rd, int64_t imm32) {
+    DCHECK(is_int32(imm32));
+    int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
+    int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
+    auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
+    jalr(rd, Lo12);   // jump PC + Hi20 + Lo12
+  }
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
 #define COND_ARGS                              \
   Condition cond = al, Register rs = zero_reg, \

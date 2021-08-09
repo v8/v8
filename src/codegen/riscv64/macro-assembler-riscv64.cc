@@ -3396,21 +3396,6 @@ void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
   }
 }
 
-void TurboAssembler::GenPCRelativeJump(Register rd, int64_t imm32) {
-  DCHECK(is_int32(imm32));
-  int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
-  auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
-  jr(rd, Lo12);     // jump PC + Hi20 + Lo12
-}
-
-void TurboAssembler::GenPCRelativeJumpAndLink(Register rd, int64_t imm32) {
-  DCHECK(is_int32(imm32));
-  int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
-  int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
-  auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
-  jalr(rd, Lo12);   // jump PC + Hi20 + Lo12
-}
 
 void TurboAssembler::BranchLong(Label* L) {
   // Generate position independent long branch.
@@ -4146,6 +4131,9 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     li(scratch, Operand(StackFrame::TypeToMarker(type)));
     Push(scratch);
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
