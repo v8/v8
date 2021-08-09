@@ -62,7 +62,7 @@ void ConsoleCall(
 }
 
 void LogTimerEvent(Isolate* isolate, BuiltinArguments args,
-                   Logger::StartEnd se) {
+                   v8::LogEventStatus se) {
   if (!isolate->logger()->is_logging()) return;
   HandleScope scope(isolate);
   std::unique_ptr<char[]> name;
@@ -86,21 +86,21 @@ CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_IMPLEMENTATION)
 #undef CONSOLE_BUILTIN_IMPLEMENTATION
 
 BUILTIN(ConsoleTime) {
-  LogTimerEvent(isolate, args, Logger::START);
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kStart);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::Time);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(ConsoleTimeEnd) {
-  LogTimerEvent(isolate, args, Logger::END);
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kEnd);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeEnd);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(ConsoleTimeStamp) {
-  LogTimerEvent(isolate, args, Logger::STAMP);
+  LogTimerEvent(isolate, args, v8::LogEventStatus::kStamp);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeStamp);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return ReadOnlyRoots(isolate).undefined_value();

@@ -1412,6 +1412,7 @@ filegroup(
         "src/logging/counters-definitions.h",
         "src/logging/counters.cc",
         "src/logging/counters.h",
+        "src/logging/counters-scopes.h",
         "src/logging/local-logger.cc",
         "src/logging/local-logger.h",
         "src/logging/log-inl.h",

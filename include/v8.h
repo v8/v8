@@ -7266,7 +7266,9 @@ using MessageCallback = void (*)(Local<Message> message, Local<Value> data);
 
 // --- Tracing ---
 
-using LogEventCallback = void (*)(const char* name, int event);
+enum LogEventStatus : int { kStart = 0, kEnd = 1, kStamp = 2 };
+using LogEventCallback = void (*)(const char* name,
+                                  int /* LogEventStatus */ status);
 
 /**
  * Create new error objects by calling the corresponding error object

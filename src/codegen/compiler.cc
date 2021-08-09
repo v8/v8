@@ -44,7 +44,7 @@
 #include "src/heap/parked-scope.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/interpreter.h"
-#include "src/logging/counters.h"
+#include "src/logging/counters-scopes.h"
 #include "src/logging/log-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/feedback-cell-inl.h"
@@ -1354,10 +1354,10 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
-  HistogramTimer* rate = parse_info->flags().is_eval()
-                             ? isolate->counters()->compile_eval()
-                             : isolate->counters()->compile();
-  HistogramTimerScope timer(rate);
+  NestedTimedHistogram* rate = parse_info->flags().is_eval()
+                                   ? isolate->counters()->compile_eval()
+                                   : isolate->counters()->compile();
+  NestedTimedHistogramScope timer(rate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                parse_info->flags().is_eval() ? "V8.CompileEval" : "V8.Compile");
 
@@ -1757,7 +1757,8 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileCollectSourcePositions);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CollectSourcePositions");
-  HistogramTimerScope timer(isolate->counters()->collect_source_positions());
+  NestedTimedHistogramScope timer(
+      isolate->counters()->collect_source_positions());
 
   // Set up parse info.
   UnoptimizedCompileFlags flags =
@@ -2279,14 +2280,14 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 // (via v8::Isolate::SetAllowCodeGenerationFromStringsCallback)
 bool CodeGenerationFromStringsAllowed(Isolate* isolate, Handle<Context> context,
                                       Handle<String> source) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   DCHECK(context->allow_code_gen_from_strings().IsFalse(isolate));
   DCHECK(isolate->allow_code_gen_callback());
-
-  // Callback set. Let it decide if code generation is allowed.
-  VMState<EXTERNAL> state(isolate);
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   AllowCodeGenerationFromStringsCallback callback =
       isolate->allow_code_gen_callback();
+  ExternalCallbackScope external_callback(isolate,
+                                          reinterpret_cast<Address>(callback));
+  // Callback set. Let it decide if code generation is allowed.
   return callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(source));
 }
 
@@ -2470,8 +2471,7 @@ struct ScriptCompileTimerScope {
   explicit ScriptCompileTimerScope(
       Isolate* isolate, ScriptCompiler::NoCacheReason no_cache_reason)
       : isolate_(isolate),
-        all_scripts_histogram_scope_(isolate->counters()->compile_script(),
-                                     true),
+        all_scripts_histogram_scope_(isolate->counters()->compile_script()),
         no_cache_reason_(no_cache_reason),
         hit_isolate_cache_(false),
         producing_code_cache_(false),
@@ -2510,7 +2510,7 @@ struct ScriptCompileTimerScope {
   LazyTimedHistogramScope histogram_scope_;
   // TODO(leszeks): This timer is the sum of the other times, consider removing
   // it to save space.
-  HistogramTimerScope all_scripts_histogram_scope_;
+  NestedTimedHistogramScope all_scripts_histogram_scope_;
   ScriptCompiler::NoCacheReason no_cache_reason_;
   bool hit_isolate_cache_;
   bool producing_code_cache_;
@@ -2877,7 +2877,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     } else if (can_consume_code_cache) {
       compile_timer.set_consuming_code_cache();
       // Then check cached code provided by embedder.
-      HistogramTimerScope timer(isolate->counters()->compile_deserialize());
+      NestedTimedHistogramScope timer(
+          isolate->counters()->compile_deserialize());
       RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.CompileDeserialize");
@@ -2965,7 +2966,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   if (can_consume_code_cache) {
     compile_timer.set_consuming_code_cache();
     // Then check cached code provided by embedder.
-    HistogramTimerScope timer(isolate->counters()->compile_deserialize());
+    NestedTimedHistogramScope timer(isolate->counters()->compile_deserialize());
     RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.CompileDeserialize");

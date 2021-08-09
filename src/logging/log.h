@@ -12,6 +12,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/execution/isolate.h"
 #include "src/logging/code-events.h"
 #include "src/objects/objects.h"
 
@@ -103,8 +104,6 @@ enum class LogSeparator;
 
 class Logger : public CodeEventListener {
  public:
-  enum StartEnd { START = 0, END = 1, STAMP = 2 };
-
   enum class ScriptEventType {
     kReserveId,
     kCreate,
@@ -263,7 +262,7 @@ class Logger : public CodeEventListener {
 
   void CurrentTimeEvent();
 
-  V8_EXPORT_PRIVATE void TimerEvent(StartEnd se, const char* name);
+  V8_EXPORT_PRIVATE void TimerEvent(v8::LogEventStatus se, const char* name);
 
   void BasicBlockCounterEvent(const char* name, int block_id, uint32_t count);
 
@@ -274,8 +273,15 @@ class Logger : public CodeEventListener {
 
   static void DefaultEventLoggerSentinel(const char* name, int event) {}
 
-  V8_INLINE static void CallEventLogger(Isolate* isolate, const char* name,
-                                        StartEnd se, bool expose_to_api);
+  static void CallEventLogger(Isolate* isolate, const char* name,
+                              v8::LogEventStatus se, bool expose_to_api) {
+    if (!isolate->event_logger()) return;
+    if (isolate->event_logger() == DefaultEventLoggerSentinel) {
+      LOG(isolate, TimerEvent(se, name));
+    } else if (expose_to_api) {
+      isolate->event_logger()(name, static_cast<v8::LogEventStatus>(se));
+    }
+  }
 
   V8_EXPORT_PRIVATE bool is_logging();
 
@@ -399,13 +405,13 @@ template <class TimerEvent>
 class V8_NODISCARD TimerEventScope {
  public:
   explicit TimerEventScope(Isolate* isolate) : isolate_(isolate) {
-    LogTimerEvent(Logger::START);
+    LogTimerEvent(v8::LogEventStatus::kStart);
   }
 
-  ~TimerEventScope() { LogTimerEvent(Logger::END); }
+  ~TimerEventScope() { LogTimerEvent(v8::LogEventStatus::kEnd); }
 
  private:
-  void LogTimerEvent(Logger::StartEnd se);
+  void LogTimerEvent(v8::LogEventStatus se);
   Isolate* isolate_;
 };
 

@@ -17,7 +17,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/parked-scope.h"
-#include "src/logging/counters.h"
+#include "src/logging/counters-scopes.h"
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/objects-inl.h"
@@ -52,7 +52,8 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
     Handle<SharedFunctionInfo> info) {
   Isolate* isolate = info->GetIsolate();
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
-  HistogramTimerScope histogram_timer(isolate->counters()->compile_serialize());
+  NestedTimedHistogramScope histogram_timer(
+      isolate->counters()->compile_serialize());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileSerialize);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileSerialize");
 

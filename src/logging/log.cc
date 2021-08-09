@@ -1110,16 +1110,16 @@ void Logger::CurrentTimeEvent() {
   msg.WriteToLogFile();
 }
 
-void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
+void Logger::TimerEvent(v8::LogEventStatus se, const char* name) {
   MSG_BUILDER();
   switch (se) {
-    case START:
+    case kStart:
       msg << "timer-event-start";
       break;
-    case END:
+    case kEnd:
       msg << "timer-event-end";
       break;
-    case STAMP:
+    case kStamp:
       msg << "timer-event";
   }
   msg << kNext << name << kNext << Time();
@@ -1152,7 +1152,7 @@ bool Logger::is_logging() {
 // Instantiate template methods.
 #define V(TimerName, expose)                                           \
   template void TimerEventScope<TimerEvent##TimerName>::LogTimerEvent( \
-      Logger::StartEnd se);
+      v8::LogEventStatus se);
 TIMER_EVENTS_LIST(V)
 #undef V
 
