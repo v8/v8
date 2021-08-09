@@ -643,9 +643,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
         target_native_context().script_context_table().object()->get_context(
             script_context_index));
 
-    ObjectRef contents = context.get(context_slot_index).value();
-    CHECK(!contents.equals(
-        MakeRef<Object>(this, isolate()->factory()->the_hole_value())));
+    base::Optional<ObjectRef> contents = context.get(context_slot_index);
+    if (contents.has_value()) CHECK(!contents->IsTheHole());
 
     return *zone()->New<GlobalAccessFeedback>(
         context, context_slot_index,
