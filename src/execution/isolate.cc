@@ -3138,12 +3138,6 @@ void Isolate::Deinit() {
   // All client isolates should already be detached.
   DCHECK_NULL(client_isolate_head_);
 
-  // Help sweeper threads complete sweeping to stop faster.
-  heap_.mark_compact_collector()->DrainSweepingWorklists();
-  heap_.mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
-
-  heap_.memory_allocator()->unmapper()->EnsureUnmappingCompleted();
-
   DumpAndResetStats();
 
   if (FLAG_print_deopt_stress) {

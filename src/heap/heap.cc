@@ -5866,6 +5866,12 @@ void Heap::RegisterExternallyReferencedObject(Address* location) {
 }
 
 void Heap::StartTearDown() {
+  // Finish any ongoing sweeping to avoid stray background tasks still accessing
+  // the heap during teardown.
+  CompleteSweepingFull();
+
+  memory_allocator()->unmapper()->EnsureUnmappingCompleted();
+
   SetGCState(TEAR_DOWN);
 
   // Background threads may allocate and block until GC is performed. However
