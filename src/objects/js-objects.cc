@@ -303,6 +303,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
           descriptors.PatchValue(map->instance_descriptors(isolate));
         }
       } else {
+        // No element indexes should get here or the exclusion check may
+        // yield false negatives for type mismatch.
         if (excluded_properties != nullptr &&
             HasExcludedProperty(excluded_properties, next_key)) {
           continue;
@@ -381,6 +383,11 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
   // 4. Repeat for each element nextKey of keys in List order,
   for (int i = 0; i < keys->length(); ++i) {
     Handle<Object> next_key(keys->get(i), isolate);
+    if (excluded_properties != nullptr &&
+        HasExcludedProperty(excluded_properties, next_key)) {
+      continue;
+    }
+
     // 4a i. Let desc be ? from.[[GetOwnProperty]](nextKey).
     PropertyDescriptor desc;
     Maybe<bool> found =
@@ -404,11 +411,6 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
                                        Just(ShouldThrow::kThrowOnError)),
             Nothing<bool>());
       } else {
-        if (excluded_properties != nullptr &&
-            HasExcludedProperty(excluded_properties, next_key)) {
-          continue;
-        }
-
         // 4a ii 2. Perform ! CreateDataProperty(target, nextKey, propValue).
         PropertyKey key(isolate, next_key);
         LookupIterator it(isolate, target, key, LookupIterator::OWN);

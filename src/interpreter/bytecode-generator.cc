@@ -4197,7 +4197,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
 // var rest_runtime_callargs = new Array(3);
 // rest_runtime_callargs[0] = value;
 //
-// rest_runtime_callargs[1] = value;
+// rest_runtime_callargs[1] = "y";
 // y = value.y;
 //
 // var temp1 = %ToName(x++);

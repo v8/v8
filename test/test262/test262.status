@@ -546,9 +546,6 @@
   # http://crbug/v8/11531
   'built-ins/RegExp/prototype/flags/get-order': [FAIL],
 
-  # http://crbug/v8/11532
-  'language/expressions/object/dstr/object-rest-proxy-gopd-not-called-on-excluded-keys': [FAIL],
-
   # http://crbug/v8/11533
   'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
 
