@@ -1848,17 +1848,20 @@ Reduction MachineOperatorReducer::ReduceWord64And(Node* node) {
 }
 
 Reduction MachineOperatorReducer::TryMatchWord32Ror(Node* node) {
+  // Recognize rotation, we are matching and transforming as follows:
+  //   x << y         |  x >>> (32 - y)    =>  x ror (32 - y)
+  //   x << (32 - y)  |  x >>> y           =>  x ror y
+  //   x << y         ^  x >>> (32 - y)    =>  x ror (32 - y)   if y & 31 != 0
+  //   x << (32 - y)  ^  x >>> y           =>  x ror y          if y & 31 != 0
+  // (As well as the commuted forms.)
+  // Note the side condition for XOR: the optimization doesn't hold for
+  // multiples of 32.
+
   DCHECK(IrOpcode::kWord32Or == node->opcode() ||
          IrOpcode::kWord32Xor == node->opcode());
   Int32BinopMatcher m(node);
   Node* shl = nullptr;
   Node* shr = nullptr;
-  // Recognize rotation, we are matching:
-  //  * x << y | x >>> (32 - y) => x ror (32 - y), i.e  x rol y
-  //  * x << (32 - y) | x >>> y => x ror y
-  //  * x << y ^ x >>> (32 - y) => x ror (32 - y), i.e. x rol y
-  //  * x << (32 - y) ^ x >>> y => x ror y
-  // as well as their commuted form.
   if (m.left().IsWord32Shl() && m.right().IsWord32Shr()) {
     shl = m.left().node();
     shr = m.right().node();
@@ -1875,8 +1878,13 @@ Reduction MachineOperatorReducer::TryMatchWord32Ror(Node* node) {
 
   if (mshl.right().HasResolvedValue() && mshr.right().HasResolvedValue()) {
     // Case where y is a constant.
-    if (mshl.right().ResolvedValue() + mshr.right().ResolvedValue() != 32)
+    if (mshl.right().ResolvedValue() + mshr.right().ResolvedValue() != 32) {
       return NoChange();
+    }
+    if (node->opcode() == IrOpcode::kWord32Xor &&
+        (mshl.right().ResolvedValue() & 31) == 0) {
+      return NoChange();
+    }
   } else {
     Node* sub = nullptr;
     Node* y = nullptr;
@@ -1892,6 +1900,9 @@ Reduction MachineOperatorReducer::TryMatchWord32Ror(Node* node) {
 
     Int32BinopMatcher msub(sub);
     if (!msub.left().Is(32) || msub.right().node() != y) return NoChange();
+    if (node->opcode() == IrOpcode::kWord32Xor) {
+      return NoChange();  // Can't guarantee y & 31 != 0.
+    }
   }
 
   node->ReplaceInput(0, mshl.left().node());
