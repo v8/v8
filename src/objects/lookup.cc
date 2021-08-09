@@ -1534,7 +1534,7 @@ base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
     base::Optional<Name> maybe_cached_property_name =
         FunctionTemplateInfo::TryGetCachedPropertyName(
             isolate, AccessorPair::cast(maybe_accessor_pair)
-                         .getter(isolate, kRelaxedLoad));
+                         .getter(isolate, kAcquireLoad));
     if (!maybe_cached_property_name.has_value()) return {};
 
     cell = dict.TryFindPropertyCellForConcurrentLookupIterator(

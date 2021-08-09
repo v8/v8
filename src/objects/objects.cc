@@ -4472,7 +4472,7 @@ Handle<Object> AccessorPair::GetComponent(Isolate* isolate,
                         isolate, native_context,
                         Handle<FunctionTemplateInfo>::cast(accessor))
                         .ToHandleChecked();
-    accessor_pair->set(component, *function);
+    accessor_pair->set(component, *function, kReleaseStore);
     return function;
   }
   if (accessor->IsNull(isolate)) {

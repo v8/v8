@@ -567,8 +567,8 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   }
   Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(maybe_accessors);
   Handle<Object> accessor = broker->CanonicalPersistentHandle(
-      access_mode == AccessMode::kLoad ? accessors->getter()
-                                       : accessors->setter());
+      access_mode == AccessMode::kLoad ? accessors->getter(kAcquireLoad)
+                                       : accessors->setter(kAcquireLoad));
 
   base::Optional<ObjectRef> accessor_ref = TryMakeRef(broker, accessor);
   if (!accessor_ref.has_value()) return PropertyAccessInfo::Invalid(zone);
