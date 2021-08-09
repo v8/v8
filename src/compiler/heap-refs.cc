@@ -141,9 +141,6 @@ class ObjectData : public ZoneObject {
   bool IsNull() const { return object_->IsNull(); }
 
 #ifdef DEBUG
-  enum class Usage{kUnused, kOnlyIdentityUsed, kDataUsed};
-  mutable Usage used_status = Usage::kUnused;
-
   JSHeapBroker* broker() const { return broker_; }
 #endif  // DEBUG
 
@@ -1632,12 +1629,6 @@ bool JSObjectData::SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
 }
 
 bool ObjectRef::equals(const ObjectRef& other) const {
-#ifdef DEBUG
-  if (broker()->mode() == JSHeapBroker::kSerialized &&
-      data_->used_status == ObjectData::Usage::kUnused) {
-    data_->used_status = ObjectData::Usage::kOnlyIdentityUsed;
-  }
-#endif  // DEBUG
   return data_ == other.data_;
 }
 
@@ -1662,88 +1653,6 @@ base::Optional<ObjectRef> ContextRef::get(int index) const {
   if (index >= object()->length(kRelaxedLoad)) return {};
   return TryMakeRef(broker(), object()->get(index));
 }
-
-#ifdef DEBUG
-void JSHeapBroker::PrintRefsAnalysis() const {
-  // Usage counts
-  size_t used_total = 0, unused_total = 0, identity_used_total = 0;
-  for (RefsMap::Entry* ref = refs_->Start(); ref != nullptr;
-       ref = refs_->Next(ref)) {
-    switch (ref->value->used_status) {
-      case ObjectData::Usage::kUnused:
-        ++unused_total;
-        break;
-      case ObjectData::Usage::kOnlyIdentityUsed:
-        ++identity_used_total;
-        break;
-      case ObjectData::Usage::kDataUsed:
-        ++used_total;
-        break;
-    }
-  }
-
-  // Ref types analysis
-  TRACE_BROKER_MEMORY(
-      this, "Refs: " << refs_->occupancy() << "; data used: " << used_total
-                     << "; only identity used: " << identity_used_total
-                     << "; unused: " << unused_total);
-  size_t used_smis = 0, unused_smis = 0, identity_used_smis = 0;
-  size_t used[LAST_TYPE + 1] = {0};
-  size_t unused[LAST_TYPE + 1] = {0};
-  size_t identity_used[LAST_TYPE + 1] = {0};
-  for (RefsMap::Entry* ref = refs_->Start(); ref != nullptr;
-       ref = refs_->Next(ref)) {
-    if (ref->value->is_smi()) {
-      switch (ref->value->used_status) {
-        case ObjectData::Usage::kUnused:
-          ++unused_smis;
-          break;
-        case ObjectData::Usage::kOnlyIdentityUsed:
-          ++identity_used_smis;
-          break;
-        case ObjectData::Usage::kDataUsed:
-          ++used_smis;
-          break;
-      }
-    } else {
-      InstanceType instance_type;
-      if (ref->value->should_access_heap()) {
-        instance_type = Handle<HeapObject>::cast(ref->value->object())
-                            ->map()
-                            .instance_type();
-      } else {
-        instance_type = ref->value->AsHeapObject()->GetMapInstanceType();
-      }
-      CHECK_LE(FIRST_TYPE, instance_type);
-      CHECK_LE(instance_type, LAST_TYPE);
-      switch (ref->value->used_status) {
-        case ObjectData::Usage::kUnused:
-          ++unused[instance_type];
-          break;
-        case ObjectData::Usage::kOnlyIdentityUsed:
-          ++identity_used[instance_type];
-          break;
-        case ObjectData::Usage::kDataUsed:
-          ++used[instance_type];
-          break;
-      }
-    }
-  }
-
-  TRACE_BROKER_MEMORY(
-      this, "Smis: " << used_smis + identity_used_smis + unused_smis
-                     << "; data used: " << used_smis << "; only identity used: "
-                     << identity_used_smis << "; unused: " << unused_smis);
-  for (uint16_t i = FIRST_TYPE; i <= LAST_TYPE; ++i) {
-    size_t total = used[i] + identity_used[i] + unused[i];
-    if (total == 0) continue;
-    TRACE_BROKER_MEMORY(
-        this, InstanceType(i) << ": " << total << "; data used: " << used[i]
-                              << "; only identity used: " << identity_used[i]
-                              << "; unused: " << unused[i]);
-  }
-}
-#endif  // DEBUG
 
 void JSHeapBroker::InitializeAndStartSerializing() {
   TraceScope tracer(this, "JSHeapBroker::InitializeAndStartSerializing");
@@ -3115,22 +3024,12 @@ void RegExpBoilerplateDescriptionRef::Serialize(NotConcurrentInliningTag) {
 }
 
 Handle<Object> ObjectRef::object() const {
-#ifdef DEBUG
-  if (broker()->mode() == JSHeapBroker::kSerialized &&
-      data_->used_status == ObjectData::Usage::kUnused) {
-    data_->used_status = ObjectData::Usage::kOnlyIdentityUsed;
-  }
-#endif  // DEBUG
   return data_->object();
 }
 
 #ifdef DEBUG
 #define DEF_OBJECT_GETTER(T)                                                 \
   Handle<T> T##Ref::object() const {                                         \
-    if (broker()->mode() == JSHeapBroker::kSerialized &&                     \
-        data_->used_status == ObjectData::Usage::kUnused) {                  \
-      data_->used_status = ObjectData::Usage::kOnlyIdentityUsed;             \
-    }                                                                        \
     return Handle<T>(reinterpret_cast<Address*>(data_->object().address())); \
   }
 #else
@@ -3154,9 +3053,6 @@ ObjectData* ObjectRef::data() const {
       return data_;
     case JSHeapBroker::kSerialized:
     case JSHeapBroker::kRetired:
-#ifdef DEBUG
-      data_->used_status = ObjectData::Usage::kDataUsed;
-#endif  // DEBUG
       CHECK_NE(data_->kind(), kUnserializedHeapObject);
       return data_;
   }

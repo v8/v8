@@ -123,10 +123,6 @@ void JSHeapBroker::Retire() {
   CHECK_EQ(mode_, kSerialized);
   TRACE(this, "Retiring");
   mode_ = kRetired;
-
-#ifdef DEBUG
-  PrintRefsAnalysis();
-#endif  // DEBUG
 }
 
 void JSHeapBroker::SetTargetNativeContextRef(
