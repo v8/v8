@@ -1817,7 +1817,6 @@ constexpr ObjectDataKind ObjectDataKindFor(RefSerializationKind kind) {
     case RefSerializationKind::kNeverSerialized:
       return kNeverSerializedHeapObject;
   }
-  UNREACHABLE();
 }
 
 }  // namespace
