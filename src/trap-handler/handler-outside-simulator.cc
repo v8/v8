@@ -21,6 +21,11 @@ asm(
     "  movb (%rdi), %al                             \n"
     // Return 0 on success.
     "  xorl %eax, %eax                              \n"
+    // Place an additional "ret" here instead of falling through to the one
+    // below, because (some) toolchain(s) on Mac set ".subsections_via_symbols",
+    // which can cause the "ret" below to be placed elsewhere. An alternative
+    // prevention would be to add ".alt_entry" (see
+    // https://reviews.llvm.org/D79926), but just adding a "ret" is simpler.
     "  ret                                          \n"
     ".globl " SYMBOL(v8_probe_memory_continuation) "\n"
     SYMBOL(v8_probe_memory_continuation) ":         \n"
