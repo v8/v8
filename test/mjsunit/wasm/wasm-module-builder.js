@@ -202,6 +202,10 @@ function makeSig_v_x(x) {
   return makeSig([x], []);
 }
 
+function makeSig_x_v(x) {
+  return makeSig([], [x]);
+}
+
 function makeSig_v_xx(x) {
   return makeSig([x, x], []);
 }
