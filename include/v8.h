@@ -6544,9 +6544,9 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
-      const CFunction* c_function = nullptr, uint8_t instance_type = 0,
-      uint8_t allowed_receiver_range_start = 0,
-      uint8_t allowed_receiver_range_end = 0);
+      const CFunction* c_function = nullptr, uint16_t instance_type = 0,
+      uint16_t allowed_receiver_instance_type_range_start = 0,
+      uint16_t allowed_receiver_instance_type_range_end = 0);
 
   /** Creates a function template for multiple overloaded fast API calls.*/
   static Local<FunctionTemplate> NewWithCFunctionOverloads(
@@ -11684,10 +11684,8 @@ Local<Value> Object::GetInternalField(int index) {
   A obj = *reinterpret_cast<A*>(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
-  auto instance_type = I::GetInstanceType(obj);
-  if (instance_type == I::kJSObjectType ||
-      instance_type == I::kJSApiObjectType ||
-      instance_type == I::kJSSpecialApiObjectType) {
+  int instance_type = I::GetInstanceType(obj);
+  if (v8::internal::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
     A value = I::ReadRawField<A>(obj, offset);
 #ifdef V8_COMPRESS_POINTERS
@@ -11713,9 +11711,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);
-  if (V8_LIKELY(instance_type == I::kJSObjectType ||
-                instance_type == I::kJSApiObjectType ||
-                instance_type == I::kJSSpecialApiObjectType)) {
+  if (v8::internal::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
 #ifdef V8_HEAP_SANDBOX
     offset += I::kEmbedderDataSlotRawPayloadOffset;

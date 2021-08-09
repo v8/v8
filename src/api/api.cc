@@ -1226,8 +1226,9 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
     const MemorySpan<const CFunction>& c_function_overloads = {},
-    uint8_t instance_type = 0, uint8_t allowed_receiver_range_start = 0,
-    uint8_t allowed_receiver_range_end = 0) {
+    uint8_t instance_type = 0,
+    uint8_t allowed_receiver_instance_type_range_start = 0,
+    uint8_t allowed_receiver_instance_type_range_end = 0) {
   i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
       i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
@@ -1250,8 +1251,10 @@ static Local<FunctionTemplate> FunctionTemplateNew(
             : *Utils::OpenHandle(*cached_property_name));
     if (behavior == ConstructorBehavior::kThrow) raw.set_remove_prototype(true);
     raw.SetInstanceType(instance_type);
-    raw.set_allowed_receiver_range_start(allowed_receiver_range_start);
-    raw.set_allowed_receiver_range_end(allowed_receiver_range_end);
+    raw.set_allowed_receiver_instance_type_range_start(
+        allowed_receiver_instance_type_range_start);
+    raw.set_allowed_receiver_instance_type_range_end(
+        allowed_receiver_instance_type_range_end);
   }
   if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type,
@@ -1264,8 +1267,8 @@ Local<FunctionTemplate> FunctionTemplate::New(
     Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
     SideEffectType side_effect_type, const CFunction* c_function,
-    uint8_t instance_type, uint8_t allowed_receiver_range_start,
-    uint8_t allowed_receiver_range_end) {
+    uint16_t instance_type, uint16_t allowed_receiver_instance_type_range_start,
+    uint16_t allowed_receiver_instance_type_range_end) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
@@ -1276,7 +1279,8 @@ Local<FunctionTemplate> FunctionTemplate::New(
       Local<Private>(), side_effect_type,
       c_function ? MemorySpan<const CFunction>{c_function, 1}
                  : MemorySpan<const CFunction>{},
-      instance_type, allowed_receiver_range_start, allowed_receiver_range_end);
+      instance_type, allowed_receiver_instance_type_range_start,
+      allowed_receiver_instance_type_range_end);
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
@@ -3710,6 +3714,13 @@ i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
 bool i::ShouldThrowOnError(i::Isolate* isolate) {
   return i::GetShouldThrow(isolate, Nothing<i::ShouldThrow>()) ==
          i::ShouldThrow::kThrowOnError;
+}
+
+bool i::CanHaveInternalField(int instance_type) {
+  return instance_type == i::Internals::kJSObjectType ||
+         instance_type == i::Internals::kJSSpecialApiObjectType ||
+         v8::internal::InstanceTypeChecker::IsJSApiObject(
+             static_cast<v8::internal::InstanceType>(instance_type));
 }
 
 void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {

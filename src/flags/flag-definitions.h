@@ -1394,6 +1394,9 @@ DEFINE_NEG_IMPLICATION(parallel_compile_tasks, finalize_streaming_on_background)
 DEFINE_BOOL(disable_old_api_accessors, false,
             "Disable old-style API accessors whose setters trigger through the "
             "prototype chain")
+DEFINE_BOOL(
+    embedder_instance_types, false,
+    "enable type checks based on instance types provided by the embedder")
 
 // bootstrapper.cc
 DEFINE_BOOL(expose_gc, false, "expose gc extension")
