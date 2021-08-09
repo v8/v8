@@ -5618,6 +5618,9 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
       gasm_->CallBuiltin(stub, Operator::kEliminatable, rtt, length,
                          Int32Constant(element_type.element_size_bytes()));
   if (initial_value != nullptr) {
+    // TODO(manoskouk): If the loop is ever removed here, we have to update
+    // ArrayNewWithRtt() in graph-builder-interface.cc to not mark the current
+    // loop as non-innermost.
     auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
     auto done = gasm_->MakeLabel();
     Node* start_offset =

@@ -948,6 +948,9 @@ class WasmGraphBuildingInterface {
     result->node = builder_->ArrayNewWithRtt(imm.index, imm.array_type,
                                              length.node, initial_value.node,
                                              rtt.node, decoder->position());
+    // array.new_with_rtt introduces a loop. Therefore, we have to mark the
+    // immediately nesting loop (if any) as non-innermost.
+    if (!loop_infos_.empty()) loop_infos_.back().is_innermost = false;
   }
 
   void ArrayNewDefault(FullDecoder* decoder,
