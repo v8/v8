@@ -11,8 +11,10 @@
 #include "src/heap/cppgc/caged-heap.h"
 
 #include "include/cppgc/internal/caged-heap-local-data.h"
+#include "include/cppgc/platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 #include "src/heap/cppgc/globals.h"
 
 namespace cppgc {
@@ -71,6 +73,11 @@ class CppgcBoundedPageAllocator final : public v8::base::BoundedPageAllocator {
 CagedHeap::CagedHeap(HeapBase* heap_base, PageAllocator* platform_allocator)
     : reserved_area_(ReserveCagedHeap(platform_allocator)) {
   using CagedAddress = CagedHeap::AllocatorType::Address;
+
+  if (Platform::StackAddressesSmallerThanHeapAddresses()) {
+    // Write barrier assumes that caged heap is allocated below the stack.
+    CHECK_LT(reserved_area_.address(), v8::base::Stack::GetStackStart());
+  }
 
   DCHECK_NOT_NULL(heap_base);
 
