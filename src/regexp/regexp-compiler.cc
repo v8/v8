@@ -280,6 +280,9 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     if (!node->label()->is_bound()) node->Emit(this, &new_trace);
   }
   if (reg_exp_too_big_) {
+    if (FLAG_correctness_fuzzer_suppressions) {
+      FATAL("Aborting on excess zone allocation");
+    }
     macro_assembler_->AbortedCodeGeneration();
     return CompilationResult::RegExpTooBig();
   }
