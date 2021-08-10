@@ -153,11 +153,11 @@ V8_EXPORT void Abort();
 
 // static
 constexpr bool Platform::StackAddressesSmallerThanHeapAddresses() {
-#if V8_OS_WIN || V8_OS_FUCHSIA
+#if V8_OS_WIN || V8_OS_FUCHSIA || V8_OS_MACOSX
   return false;
 #else
   return true;
-#endif  // V8_OS_WIN || V8_OS_FUCHSIA
+#endif  // V8_OS_WIN || V8_OS_FUCHSIA || V8_OS_MACOSX
 }
 
 }  // namespace cppgc
