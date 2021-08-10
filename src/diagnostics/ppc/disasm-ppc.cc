@@ -1367,13 +1367,20 @@ void Decoder::DecodeExt6(Instruction* instr) {
     }
   }
   switch (EXT6 | (instr->BitField(10, 3))) {
-#define DECODE_XX3_INSTRUCTIONS(name, opcode_name, opcode_value) \
-  case opcode_name: {                                            \
-    Format(instr, #name " 'Xt, 'Xa, 'Xb");                       \
-    return;                                                      \
+#define DECODE_XX3_VECTOR_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Xt, 'Xa, 'Xb");                              \
+    return;                                                             \
   }
-    PPC_XX3_OPCODE_LIST(DECODE_XX3_INSTRUCTIONS)
-#undef DECODE_XX3_INSTRUCTIONS
+    PPC_XX3_OPCODE_VECTOR_LIST(DECODE_XX3_VECTOR_INSTRUCTIONS)
+#undef DECODE_XX3_VECTOR_INSTRUCTIONS
+#define DECODE_XX3_SCALAR_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                   \
+    Format(instr, #name " 'Dt, 'Da, 'Db");                              \
+    return;                                                             \
+  }
+    PPC_XX3_OPCODE_SCALAR_LIST(DECODE_XX3_SCALAR_INSTRUCTIONS)
+#undef DECODE_XX3_SCALAR_INSTRUCTIONS
   }
   // Some encodings have integers hard coded in the middle, handle those first.
   switch (EXT6 | (instr->BitField(20, 16)) | (instr->BitField(10, 2))) {

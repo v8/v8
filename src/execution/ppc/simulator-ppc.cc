@@ -4408,6 +4408,20 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     type b_val = get_simd_register_by_lane<type>(b, i);                    \
     set_simd_register_by_lane<type>(t, i, a_val op b_val ? a_val : b_val); \
   }
+    case XSMINDP: {
+      DECODE_VX_INSTRUCTION(t, a, b, T)
+      double a_val = get_double_from_d_register(a);
+      double b_val = get_double_from_d_register(b);
+      set_d_register_from_double(t, VSXFPMin<double>(a_val, b_val));
+      break;
+    }
+    case XSMAXDP: {
+      DECODE_VX_INSTRUCTION(t, a, b, T)
+      double a_val = get_double_from_d_register(a);
+      double b_val = get_double_from_d_register(b);
+      set_d_register_from_double(t, VSXFPMax<double>(a_val, b_val));
+      break;
+    }
     case XVMINDP: {
       DECODE_VX_INSTRUCTION(t, a, b, T)
       FOR_EACH_LANE(i, double) {

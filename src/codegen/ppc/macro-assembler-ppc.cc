@@ -1809,6 +1809,10 @@ void TurboAssembler::MinF64(DoubleRegister dst, DoubleRegister lhs,
   Label check_zero, return_left, return_right, return_nan, done;
   fcmpu(lhs, rhs);
   bunordered(&return_nan);
+  if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
+    xsmindp(dst, lhs, rhs);
+    b(&done);
+  }
   beq(&check_zero);
   ble(&return_left);
   b(&return_right);
@@ -1853,6 +1857,10 @@ void TurboAssembler::MaxF64(DoubleRegister dst, DoubleRegister lhs,
   Label check_zero, return_left, return_right, return_nan, done;
   fcmpu(lhs, rhs);
   bunordered(&return_nan);
+  if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
+    xsmaxdp(dst, lhs, rhs);
+    b(&done);
+  }
   beq(&check_zero);
   bge(&return_left);
   b(&return_right);
