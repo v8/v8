@@ -159,7 +159,7 @@ class BaselineCompiler {
 
   const interpreter::BytecodeArrayIterator& iterator() { return iterator_; }
 
-  Isolate* isolate_;
+  LocalIsolate* local_isolate_;
   RuntimeCallStats* stats_;
   Handle<SharedFunctionInfo> shared_function_info_;
   Handle<BytecodeArray> bytecode_;

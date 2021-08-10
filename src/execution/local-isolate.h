@@ -112,6 +112,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   }
   LocalIsolate* AsLocalIsolate() { return this; }
 
+  Object* pending_message_address() {
+    return isolate_->pending_message_address();
+  }
+
  private:
   friend class v8::internal::LocalFactory;
 

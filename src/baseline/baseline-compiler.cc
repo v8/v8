@@ -269,7 +269,7 @@ std::unique_ptr<AssemblerBuffer> AllocateBuffer(
 BaselineCompiler::BaselineCompiler(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_function_info,
     Handle<BytecodeArray> bytecode, CodeLocation code_location)
-    : isolate_(isolate),
+    : local_isolate_(isolate->AsLocalIsolate()),
       stats_(isolate->counters()->runtime_call_stats()),
       shared_function_info_(shared_function_info),
       bytecode_(bytecode),
@@ -353,7 +353,7 @@ void BaselineCompiler::StoreRegisterPair(int operand_index, Register val0,
 template <typename Type>
 Handle<Type> BaselineCompiler::Constant(int operand_index) {
   return Handle<Type>::cast(
-      iterator().GetConstantForIndexOperand(operand_index, isolate_));
+      iterator().GetConstantForIndexOperand(operand_index, local_isolate_));
 }
 Smi BaselineCompiler::ConstantSmi(int operand_index) {
   return iterator().GetConstantAtIndexAsSmi(operand_index);
@@ -2053,7 +2053,7 @@ void BaselineCompiler::VisitSetPendingMessage() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register pending_message = scratch_scope.AcquireScratch();
   __ Move(pending_message,
-          ExternalReference::address_of_pending_message(isolate_));
+          ExternalReference::address_of_pending_message(local_isolate_));
   Register tmp = scratch_scope.AcquireScratch();
   __ Move(tmp, kInterpreterAccumulatorRegister);
   __ Move(kInterpreterAccumulatorRegister, MemOperand(pending_message, 0));

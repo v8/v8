@@ -359,6 +359,9 @@ class ExternalReference {
       EXTERNAL_REFERENCE_LIST_WITH_ISOLATE(COUNT_EXTERNAL_REFERENCE);
 #undef COUNT_EXTERNAL_REFERENCE
 
+  static V8_EXPORT_PRIVATE ExternalReference
+  address_of_pending_message(LocalIsolate* local_isolate);
+
   ExternalReference() : address_(kNullAddress) {}
   static ExternalReference Create(const SCTableReference& table_ref);
   static ExternalReference Create(StatsCounter* counter);

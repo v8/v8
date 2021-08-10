@@ -497,6 +497,11 @@ ExternalReference ExternalReference::address_of_pending_message(
   return ExternalReference(isolate->pending_message_address());
 }
 
+ExternalReference ExternalReference::address_of_pending_message(
+    LocalIsolate* local_isolate) {
+  return ExternalReference(local_isolate->pending_message_address());
+}
+
 FUNCTION_REFERENCE(abort_with_reason, i::abort_with_reason)
 
 ExternalReference ExternalReference::address_of_min_int() {
