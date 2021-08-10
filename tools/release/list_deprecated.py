@@ -22,6 +22,8 @@ RE_VERSION_MINOR = re.compile(r".*V8_MINOR_VERSION ([0-9]+)")
 def extract_version(hash):
   if hash in VERSION_CACHE:
     return VERSION_CACHE[hash]
+  if hash == '0000000000000000000000000000000000000000':
+    return 'HEAD'
   result = subprocess.check_output(
       ['git', 'show', f"{hash}:include/v8-version.h"], encoding='UTF-8')
   major = RE_VERSION_MAJOR.search(result).group(1)
