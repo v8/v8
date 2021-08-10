@@ -794,6 +794,33 @@ class WasmGenerator {
     ref_null(type, data);
   }
 
+  template <ValueKind wanted_kind>
+  void struct_get(DataRange* data) {
+    WasmModuleBuilder* builder = builder_->builder();
+    int num_types = builder->NumTypes();
+    ZoneVector<uint32_t> field_index(builder->zone());
+    ZoneVector<uint32_t> struct_index(builder->zone());
+    for (int i = 0; i < num_types; i++) {
+      if (builder->IsStructType(i)) {
+        int field_count = builder->GetStructType(i)->field_count();
+        for (int index = 0; index < field_count; index++) {
+          if (builder->GetStructType(i)->field(index).kind() == wanted_kind) {
+            field_index.push_back(index);
+            struct_index.push_back(i);
+          }
+        }
+      }
+    }
+    if (field_index.empty()) {
+      Generate<wanted_kind>(data);
+      return;
+    }
+    int index = data->get<uint8_t>() % static_cast<int>(field_index.size());
+    GenerateOptRef(HeapType(struct_index[index]), data);
+    builder_->EmitWithPrefix(kExprStructGet);
+    builder_->EmitU32V(struct_index[index]);
+    builder_->EmitU32V(field_index[index]);
+  }
   using GenerateFn = void (WasmGenerator::*const)(DataRange*);
   using GenerateFnWithHeap = void (WasmGenerator::*const)(HeapType, DataRange*);
 
@@ -1101,7 +1128,9 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
 
       &WasmGenerator::call<kI32>,
       &WasmGenerator::call_indirect<kI32>,
-      &WasmGenerator::try_block<kI32>};
+      &WasmGenerator::try_block<kI32>,
+
+      &WasmGenerator::struct_get<kI32>};
 
   GenerateOneOf(alternatives, data);
 }
@@ -1215,7 +1244,9 @@ void WasmGenerator::Generate<kI64>(DataRange* data) {
 
       &WasmGenerator::call<kI64>,
       &WasmGenerator::call_indirect<kI64>,
-      &WasmGenerator::try_block<kI64>};
+      &WasmGenerator::try_block<kI64>,
+
+      &WasmGenerator::struct_get<kI64>};
 
   GenerateOneOf(alternatives, data);
 }
@@ -1272,7 +1303,9 @@ void WasmGenerator::Generate<kF32>(DataRange* data) {
 
       &WasmGenerator::call<kF32>,
       &WasmGenerator::call_indirect<kF32>,
-      &WasmGenerator::try_block<kF32>};
+      &WasmGenerator::try_block<kF32>,
+
+      &WasmGenerator::struct_get<kF32>};
 
   GenerateOneOf(alternatives, data);
 }
@@ -1329,7 +1362,9 @@ void WasmGenerator::Generate<kF64>(DataRange* data) {
 
       &WasmGenerator::call<kF64>,
       &WasmGenerator::call_indirect<kF64>,
-      &WasmGenerator::try_block<kF64>};
+      &WasmGenerator::try_block<kF64>,
+
+      &WasmGenerator::struct_get<kF64>};
 
   GenerateOneOf(alternatives, data);
 }
