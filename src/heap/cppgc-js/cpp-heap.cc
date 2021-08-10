@@ -401,8 +401,7 @@ bool ShouldReduceMemory(CppHeap::TraceFlags flags) {
 }  // namespace
 
 void CppHeap::TracePrologue(TraceFlags flags) {
-  // Finish sweeping in case it is still running.
-  sweeper_.FinishIfRunning();
+  CHECK(!sweeper_.IsSweepingInProgress());
 
   current_flags_ = flags;
   const UnifiedHeapMarker::MarkingConfig marking_config{
@@ -687,6 +686,8 @@ CppHeap::MetricRecorderAdapter* CppHeap::GetMetricRecorder() const {
   return static_cast<MetricRecorderAdapter*>(
       stats_collector_->GetMetricRecorder());
 }
+
+void CppHeap::FinishSweepingIfRunning() { sweeper_.FinishIfRunning(); }
 
 }  // namespace internal
 }  // namespace v8

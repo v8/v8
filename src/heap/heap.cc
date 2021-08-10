@@ -1909,6 +1909,9 @@ void Heap::StartIncrementalMarking(int gc_flags,
   // Sweeping needs to be completed such that markbits are all cleared before
   // starting marking again.
   CompleteSweepingFull();
+  if (cpp_heap()) {
+    CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
+  }
 
   SafepointScope safepoint(this);
 
@@ -2174,6 +2177,9 @@ size_t Heap::PerformGarbageCollection(
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull();
+    if (cpp_heap()) {
+      CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
+    }
   }
 
   // The last GC cycle is done after completing sweeping. Start the next GC
