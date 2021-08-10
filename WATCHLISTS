@@ -33,9 +33,6 @@
 
 {
   'WATCHLIST_DEFINITIONS': {
-    'api': {
-      'filepath': 'include/'
-    }
     'snapshot': {
       'filepath': 'src/snapshot/',
     },
@@ -69,6 +66,9 @@
     'csa': {
       'filepath': 'src/codegen/code-stub-assembler\.(cc|h)$' \
                   '|src/builtins/.*-gen.(cc|h)$',
+    },
+    'ia32': {
+      'filepath': '/ia32/',
     },
     'merges': {
       'filepath': '.',
@@ -153,7 +153,6 @@
       'alph+watch@chromium.org',
       'lpy+v8tracing@chromium.org',
       'fmeawad@chromium.org',
-      'cbruni+watch@chromium.org'
     ],
     'ieee754': [
       'rtoy+watch@chromium.org',
@@ -163,11 +162,8 @@
       'jgruber+watch@chromium.org',
       'pthier+watch@chromium.org'
     ],
-    'bazel': [
+    'bazel' : [
       'victorgomes+watch@chromium.org'
-    ],
-    'api': [
-      'cbruni+watch@chromium.org'
     ],
   },
 }
