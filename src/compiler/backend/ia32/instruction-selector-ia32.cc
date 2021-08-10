@@ -2417,16 +2417,16 @@ void InstructionSelector::VisitI64x2Neg(Node* node) {
 
 void InstructionSelector::VisitI64x2ShrS(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempSimd128Register()};
-  if (IsSupported(AVX)) {
-    Emit(kIA32I64x2ShrS, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
-         arraysize(temps), temps);
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+
+  if (g.CanBeImmediate(node->InputAt(1))) {
+    Emit(kIA32I64x2ShrS, dst, g.UseRegister(node->InputAt(0)),
+         g.UseImmediate(node->InputAt(1)));
   } else {
-    Emit(kIA32I64x2ShrS, g.DefineSameAsFirst(node),
-         g.UseUniqueRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
-         arraysize(temps), temps);
+    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
+    Emit(kIA32I64x2ShrS, dst, g.UseUniqueRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
   }
 }
 

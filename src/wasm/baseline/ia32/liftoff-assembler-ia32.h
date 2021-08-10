@@ -9,6 +9,7 @@
 #include "src/codegen/assembler.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
+#include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/simd-shuffle.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-objects.h"
@@ -3903,47 +3904,19 @@ void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  XMMRegister shift = liftoff::kScratchDoubleReg;
   XMMRegister tmp =
       GetUnusedRegister(RegClass::kFpReg, LiftoffRegList::ForRegs(dst, lhs))
           .fp();
+  Register scratch =
+      GetUnusedRegister(RegClass::kGpReg, LiftoffRegList::ForRegs(rhs)).gp();
 
-  // Take shift value modulo 64.
-  and_(rhs.gp(), Immediate(63));
-  Movd(shift, rhs.gp());
-
-  // Set up a mask [0x80000000,0,0x80000000,0].
-  Pcmpeqb(tmp, tmp);
-  Psllq(tmp, tmp, byte{63});
-
-  Psrlq(tmp, tmp, shift);
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsrlq(dst.fp(), lhs.fp(), shift);
-  } else {
-    if (dst != lhs) {
-      movaps(dst.fp(), lhs.fp());
-    }
-    psrlq(dst.fp(), shift);
-  }
-  Pxor(dst.fp(), tmp);
-  Psubq(dst.fp(), tmp);
+  I64x2ShrS(dst.fp(), lhs.fp(), rhs.gp(), liftoff::kScratchDoubleReg, tmp,
+            scratch);
 }
 
 void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  XMMRegister tmp = liftoff::kScratchDoubleReg;
-  byte shift = rhs & 63;
-
-  // Set up a mask [0x80000000,0,0x80000000,0].
-  Pcmpeqb(tmp, tmp);
-  Psllq(tmp, tmp, byte{63});
-
-  Psrlq(tmp, tmp, shift);
-  liftoff::EmitSimdShiftOpImm<&Assembler::vpsrlq, &Assembler::psrlq, 6>(
-      this, dst, lhs, rhs);
-  Pxor(dst.fp(), tmp);
-  Psubq(dst.fp(), tmp);
+  I64x2ShrS(dst.fp(), lhs.fp(), rhs & 0x3F, liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,

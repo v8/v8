@@ -2358,38 +2358,6 @@ void EmitI8x16Shr(LiftoffAssembler* assm, LiftoffRegister dst,
   }
 }
 
-// Can be used by both the immediate and register version of the shifts. psraq
-// is only available in AVX512, so we can't use it yet.
-template <typename ShiftOperand>
-void EmitI64x2ShrS(LiftoffAssembler* assm, LiftoffRegister dst,
-                   LiftoffRegister lhs, ShiftOperand rhs,
-                   bool shift_is_rcx = false) {
-  bool restore_rcx = false;
-  Register backup = kScratchRegister2;
-  if (!shift_is_rcx) {
-    if (assm->cache_state()->is_used(LiftoffRegister(rcx))) {
-      restore_rcx = true;
-      assm->movq(backup, rcx);
-    }
-    assm->movl(rcx, rhs);
-  }
-
-  Register tmp = kScratchRegister;
-
-  assm->Pextrq(tmp, lhs.fp(), int8_t{0x0});
-  assm->sarq_cl(tmp);
-  assm->Pinsrq(dst.fp(), tmp, uint8_t{0x0});
-
-  assm->Pextrq(tmp, lhs.fp(), int8_t{0x1});
-  assm->sarq_cl(tmp);
-  assm->Pinsrq(dst.fp(), tmp, uint8_t{0x1});
-
-  // restore rcx.
-  if (restore_rcx) {
-    assm->movq(rcx, backup);
-  }
-}
-
 inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister src) {
   assm->xorq(dst.gp(), dst.gp());
@@ -3495,13 +3463,13 @@ void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  liftoff::EmitI64x2ShrS(this, dst, lhs, rhs.gp(),
-                         /*shift_is_rcx=*/rhs.gp() == rcx);
+  I64x2ShrS(dst.fp(), lhs.fp(), rhs.gp(), kScratchDoubleReg,
+            liftoff::kScratchDoubleReg2, kScratchRegister);
 }
 
 void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
                                          LiftoffRegister lhs, int32_t rhs) {
-  liftoff::EmitI64x2ShrS(this, dst, lhs, Immediate(rhs));
+  I64x2ShrS(dst.fp(), lhs.fp(), rhs & 0x3F, kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,

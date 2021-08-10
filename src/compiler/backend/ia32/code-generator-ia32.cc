@@ -2083,22 +2083,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I64x2ShrS: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      XMMRegister tmp2 = i.TempSimd128Register(1);
-      Operand shift = i.InputOperand(1);
-
-      // Take shift value modulo 64.
-      __ and_(shift, Immediate(63));
-      __ Movd(tmp, shift);
-
-      // Set up a mask [0x80000000,0,0x80000000,0].
-      __ Pcmpeqb(tmp2, tmp2);
-      __ Psllq(tmp2, tmp2, byte{63});
-
-      __ Psrlq(tmp2, tmp2, tmp);
-      __ Psrlq(dst, src, tmp);
-      __ Pxor(dst, tmp2);
-      __ Psubq(dst, tmp2);
+      if (HasImmediateInput(instr, 1)) {
+        __ I64x2ShrS(dst, src, i.InputInt6(1), kScratchDoubleReg);
+      } else {
+        __ I64x2ShrS(dst, src, i.InputRegister(1), kScratchDoubleReg,
+                     i.TempSimd128Register(0), i.TempRegister(1));
+      }
       break;
     }
     case kIA32I64x2Add: {
