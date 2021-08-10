@@ -757,14 +757,16 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
   }
   if (from_kind != to_kind) {
     // Try to follow existing elements kind transitions.
-    root_map = root_map.LookupElementsTransitionMap(isolate, to_kind);
+    root_map = root_map.LookupElementsTransitionMap(
+        isolate, to_kind, ConcurrencyMode::kNotConcurrent);
     if (root_map.is_null()) return Map();
     // From here on, use the map with correct elements kind as root map.
   }
 
   // Replay the transitions as they were before the integrity level transition.
   Map result = root_map.TryReplayPropertyTransitions(
-      isolate, info.integrity_level_source_map);
+      isolate, info.integrity_level_source_map,
+      ConcurrencyMode::kNotConcurrent);
   if (result.is_null()) return Map();
 
   if (info.has_integrity_level_transition) {
@@ -780,25 +782,29 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
   return result;
 }
 
-Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map) {
+Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
+                                      ConcurrencyMode cmode) {
   DisallowGarbageCollection no_gc;
-  DisallowDeoptimization no_deoptimization(isolate);
 
+  const bool is_concurrent = cmode == ConcurrencyMode::kConcurrent;
   int root_nof = NumberOfOwnDescriptors();
-
   int old_nof = old_map.NumberOfOwnDescriptors();
-  DescriptorArray old_descriptors = old_map.instance_descriptors(isolate);
+  DescriptorArray old_descriptors =
+      is_concurrent ? old_map.instance_descriptors(isolate, kAcquireLoad)
+                    : old_map.instance_descriptors(isolate);
 
   Map new_map = *this;
   for (InternalIndex i : InternalIndex::Range(root_nof, old_nof)) {
     PropertyDetails old_details = old_descriptors.GetDetails(i);
     Map transition =
-        TransitionsAccessor(isolate, new_map, &no_gc)
+        TransitionsAccessor(isolate, new_map, &no_gc, is_concurrent)
             .SearchTransition(old_descriptors.GetKey(i), old_details.kind(),
                               old_details.attributes());
     if (transition.is_null()) return Map();
     new_map = transition;
-    DescriptorArray new_descriptors = new_map.instance_descriptors(isolate);
+    DescriptorArray new_descriptors =
+        is_concurrent ? new_map.instance_descriptors(isolate, kAcquireLoad)
+                      : new_map.instance_descriptors(isolate);
 
     PropertyDetails new_details = new_descriptors.GetDetails(i);
     DCHECK_EQ(old_details.kind(), new_details.kind());
@@ -957,39 +963,42 @@ static bool HasElementsKind(MapHandles const& maps,
 }
 
 Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
-                                         MapHandles const& candidates) {
+                                         MapHandles const& candidates,
+                                         ConcurrencyMode cmode) {
   DisallowGarbageCollection no_gc;
-  DisallowDeoptimization no_deoptimization(isolate);
 
   if (IsDetached(isolate)) return Map();
 
   ElementsKind kind = elements_kind();
-  bool packed = IsFastPackedElementsKind(kind);
+  bool is_packed = IsFastPackedElementsKind(kind);
 
   Map transition;
   if (IsTransitionableFastElementsKind(kind)) {
     // Check the state of the root map.
     Map root_map = FindRootMap(isolate);
     if (!EquivalentToForElementsKindTransition(root_map)) return Map();
-    root_map = root_map.LookupElementsTransitionMap(isolate, kind);
+    root_map = root_map.LookupElementsTransitionMap(isolate, kind, cmode);
     DCHECK(!root_map.is_null());
     // Starting from the next existing elements kind transition try to
     // replay the property transitions that does not involve instance rewriting
     // (ElementsTransitionAndStoreStub does not support that).
-    for (root_map = root_map.ElementsTransitionMap(isolate);
+    for (root_map = root_map.ElementsTransitionMap(isolate, cmode);
          !root_map.is_null() && root_map.has_fast_elements();
-         root_map = root_map.ElementsTransitionMap(isolate)) {
+         root_map = root_map.ElementsTransitionMap(isolate, cmode)) {
       // If root_map's elements kind doesn't match any of the elements kind in
       // the candidates there is no need to do any additional work.
       if (!HasElementsKind(candidates, root_map.elements_kind())) continue;
-      Map current = root_map.TryReplayPropertyTransitions(isolate, *this);
+      Map current =
+          root_map.TryReplayPropertyTransitions(isolate, *this, cmode);
       if (current.is_null()) continue;
       if (InstancesNeedRewriting(current)) continue;
 
+      const bool current_is_packed =
+          IsFastPackedElementsKind(current.elements_kind());
       if (ContainsMap(candidates, current) &&
-          (packed || !IsFastPackedElementsKind(current.elements_kind()))) {
+          (is_packed || !current_is_packed)) {
         transition = current;
-        packed = packed && IsFastPackedElementsKind(current.elements_kind());
+        is_packed = is_packed && current_is_packed;
       }
     }
   }
@@ -997,7 +1006,8 @@ Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
 }
 
 static Map FindClosestElementsTransition(Isolate* isolate, Map map,
-                                         ElementsKind to_kind) {
+                                         ElementsKind to_kind,
+                                         ConcurrencyMode cmode) {
   // Ensure we are requested to search elements kind transition "near the root".
   DCHECK_EQ(map.FindRootMap(isolate).NumberOfOwnDescriptors(),
             map.NumberOfOwnDescriptors());
@@ -1005,7 +1015,7 @@ static Map FindClosestElementsTransition(Isolate* isolate, Map map,
 
   ElementsKind kind = map.elements_kind();
   while (kind != to_kind) {
-    Map next_map = current_map.ElementsTransitionMap(isolate);
+    Map next_map = current_map.ElementsTransitionMap(isolate, cmode);
     if (next_map.is_null()) return current_map;
     kind = next_map.elements_kind();
     current_map = next_map;
@@ -1015,8 +1025,9 @@ static Map FindClosestElementsTransition(Isolate* isolate, Map map,
   return current_map;
 }
 
-Map Map::LookupElementsTransitionMap(Isolate* isolate, ElementsKind to_kind) {
-  Map to_map = FindClosestElementsTransition(isolate, *this, to_kind);
+Map Map::LookupElementsTransitionMap(Isolate* isolate, ElementsKind to_kind,
+                                     ConcurrencyMode cmode) {
+  Map to_map = FindClosestElementsTransition(isolate, *this, to_kind, cmode);
   if (to_map.elements_kind() == to_kind) return to_map;
   return Map();
 }
@@ -1119,8 +1130,10 @@ static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
 // static
 Handle<Map> Map::AsElementsKind(Isolate* isolate, Handle<Map> map,
                                 ElementsKind kind) {
-  Handle<Map> closest_map(FindClosestElementsTransition(isolate, *map, kind),
-                          isolate);
+  Handle<Map> closest_map(
+      FindClosestElementsTransition(isolate, *map, kind,
+                                    ConcurrencyMode::kNotConcurrent),
+      isolate);
 
   if (closest_map->elements_kind() == kind) {
     return closest_map;
@@ -1591,7 +1604,8 @@ Handle<Map> Map::CopyAsElementsKind(Isolate* isolate, Handle<Map> map,
     DCHECK_EQ(map->FindRootMap(isolate).NumberOfOwnDescriptors(),
               map->NumberOfOwnDescriptors());
 
-    maybe_elements_transition_map = map->ElementsTransitionMap(isolate);
+    maybe_elements_transition_map =
+        map->ElementsTransitionMap(isolate, ConcurrencyMode::kNotConcurrent);
     DCHECK(
         maybe_elements_transition_map.is_null() ||
         (maybe_elements_transition_map.elements_kind() == DICTIONARY_ELEMENTS &&

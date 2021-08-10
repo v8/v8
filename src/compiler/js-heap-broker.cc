@@ -904,29 +904,23 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
 
   // Separate the actual receiver maps and the possible transition sources.
   for (const MapRef& map : maps) {
+    Map transition_target;
+
     // Don't generate elements kind transitions from stable maps.
-    if (is_concurrent_inlining()) {
-      // TODO(jgruber): Bring back elements kind transition generation when
-      // concurrent inlining (see FindElementsKindTransitionedMap).
+    if (!map.is_stable()) {
+      transition_target = map.object()->FindElementsKindTransitionedMap(
+          isolate(), possible_transition_targets, ConcurrencyMode::kConcurrent);
+    }
+
+    if (transition_target.is_null()) {
       TransitionGroup group(1, map.object(), zone());
       transition_groups.insert({map.object(), group});
     } else {
-      Map transition_target;
-      if (!map.is_stable()) {
-        transition_target = map.object()->FindElementsKindTransitionedMap(
-            isolate(), possible_transition_targets);
-      }
-
-      if (transition_target.is_null()) {
-        TransitionGroup group(1, map.object(), zone());
-        transition_groups.insert({map.object(), group});
-      } else {
-        Handle<Map> target(transition_target, isolate());
-        TransitionGroup new_group(1, target, zone());
-        TransitionGroup& actual_group =
-            transition_groups.insert({target, new_group}).first->second;
-        actual_group.push_back(map.object());
-      }
+      Handle<Map> target = CanonicalPersistentHandle(transition_target);
+      TransitionGroup new_group(1, target, zone());
+      TransitionGroup& actual_group =
+          transition_groups.insert({target, new_group}).first->second;
+      actual_group.push_back(map.object());
     }
   }
 

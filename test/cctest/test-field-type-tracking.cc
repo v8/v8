@@ -1831,8 +1831,8 @@ static void TestReconfigureElementsKind_GeneralizeFieldInPlace(
   {
     MapHandles map_list;
     map_list.push_back(updated_map);
-    Map transitioned_map =
-        map2->FindElementsKindTransitionedMap(isolate, map_list);
+    Map transitioned_map = map2->FindElementsKindTransitionedMap(
+        isolate, map_list, ConcurrencyMode::kNotConcurrent);
     CHECK_EQ(*updated_map, transitioned_map);
   }
 }
