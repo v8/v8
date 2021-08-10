@@ -1085,18 +1085,6 @@
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
 
-  # Rely on (blocking) concurrent compilation.
-  'compiler/concurrent-invalidate-transition-map': [SKIP],
-  'compiler/concurrent-proto-change': [SKIP],
-  'compiler/manual-concurrent-recompile': [SKIP],
-  'compiler/regress-905555-2': [SKIP],
-  'compiler/regress-905555': [SKIP],
-  'compiler/regress-9945-1': [SKIP],
-  'concurrent-initial-prototype-change-1': [SKIP],
-  'concurrent-initial-prototype-change-2': [SKIP],
-  'regress/regress-356053': [SKIP],
-  'regress/regress-embedded-cons-string': [SKIP],
-
   # Intentionally non-deterministic using shared arraybuffers between workers.
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
@@ -1512,7 +1500,6 @@
   'compiler/regress-9945-1': [SKIP],
   'concurrent-initial-prototype-change-1': [SKIP],
   'concurrent-initial-prototype-change-2': [SKIP],
-  'regress/regress-356053': [SKIP],
   'regress/regress-embedded-cons-string': [SKIP],
   # Requires a second isolate
   'regress/regress-1212404': [SKIP],

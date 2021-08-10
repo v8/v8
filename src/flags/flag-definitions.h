@@ -703,8 +703,6 @@ DEFINE_INT(concurrent_recompilation_queue_length, 8,
            "the length of the concurrent compilation queue")
 DEFINE_INT(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
-DEFINE_BOOL(block_concurrent_recompilation, false,
-            "block queued jobs until released")
 DEFINE_BOOL(concurrent_inlining, false,
             "run optimizing compiler's inlining phase on a separate thread")
 DEFINE_BOOL(stress_concurrent_inlining, false,

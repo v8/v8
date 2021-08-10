@@ -391,8 +391,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   /* Test */                                  \
   V(GetOptimizationStatus)                    \
   V(OptimizeFunctionOnNextCall)               \
-  V(OptimizeOsr)                              \
-  V(UnblockConcurrentRecompilation)
+  V(OptimizeOsr)
 
 // Intrinsics with inline versions have to be allowlisted here a second time.
 #define INLINE_INTRINSIC_ALLOWLIST(V) \

@@ -569,7 +569,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
 
 RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1 || args.length() == 2);
+  DCHECK_EQ(args.length(), 1);
   int status = 0;
   if (FLAG_lite_mode || FLAG_jitless) {
     // Both jitless and lite modes cannot optimize. Unit tests should handle
@@ -590,31 +590,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (function_object->IsUndefined()) return Smi::FromInt(status);
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-
   status |= static_cast<int>(OptimizationStatus::kIsFunction);
-
-  bool sync_with_compiler_thread = true;
-  if (args.length() == 2) {
-    CONVERT_ARG_HANDLE_CHECKED(Object, sync_object, 1);
-    if (!sync_object->IsString()) return CrashUnlessFuzzing(isolate);
-    Handle<String> sync = Handle<String>::cast(sync_object);
-    if (sync->IsOneByteEqualTo(base::StaticCharVector("no sync"))) {
-      sync_with_compiler_thread = false;
-    } else if (sync->IsOneByteEqualTo(base::StaticCharVector("sync")) ||
-               sync->length() == 0) {
-      DCHECK(sync_with_compiler_thread);
-    } else {
-      return CrashUnlessFuzzing(isolate);
-    }
-  }
-
-  if (isolate->concurrent_recompilation_enabled() &&
-      sync_with_compiler_thread) {
-    while (function->IsInOptimizationQueue()) {
-      isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(50));
-    }
-  }
 
   if (function->IsMarkedForOptimization()) {
     status |= static_cast<int>(OptimizationStatus::kMarkedForOptimization);
@@ -670,17 +646,8 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   return Smi::FromInt(status);
 }
 
-RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
-  DCHECK_EQ(0, args.length());
-  CHECK(FLAG_block_concurrent_recompilation);
-  CHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->Unblock();
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
   DCHECK_EQ(0, args.length());
-  DCHECK(!FLAG_block_concurrent_recompilation);
   CHECK(isolate->concurrent_recompilation_enabled());
   isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
   isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
@@ -690,7 +657,6 @@ RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
 
 RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
   DCHECK_EQ(0, args.length());
-  DCHECK(!FLAG_block_concurrent_recompilation);
   CHECK(isolate->concurrent_recompilation_enabled());
   isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
   return ReadOnlyRoots(isolate).undefined_value();
@@ -698,7 +664,6 @@ RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
 
 RUNTIME_FUNCTION(Runtime_FinalizeOptimization) {
   DCHECK_EQ(0, args.length());
-  DCHECK(!FLAG_block_concurrent_recompilation);
   CHECK(isolate->concurrent_recompilation_enabled());
   isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
   isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
