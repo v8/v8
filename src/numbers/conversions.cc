@@ -960,7 +960,7 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
       case State::kZero:
         return BigInt::Zero(this->isolate(), allocation_type());
       case State::kDone:
-        return BigInt::Allocate(this->isolate(), accumulator_.get(),
+        return BigInt::Allocate(this->isolate(), &accumulator_,
                                 this->negative(), allocation_type());
       case State::kEmpty:
       case State::kRunning:
@@ -972,26 +972,15 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
  private:
   template <class Char>
   void ParseInternal(Char start) {
-    accumulator_.reset(
-        new bigint::FromStringAccumulator(this->radix(), BigInt::kMaxLength));
-
+    using Result = bigint::FromStringAccumulator::Result;
     Char current = start + this->cursor();
     Char end = start + this->length();
+    current = accumulator_.Parse(current, end, this->radix());
 
-    do {
-      using Result = bigint::FromStringAccumulator::Result;
-      Result result = accumulator_->ConsumeChar(*current);
-      if (result != Result::kOk) {
-        if (result == Result::kMaxSizeExceeded) {
-          this->set_state(State::kError);
-        } else {
-          DCHECK(result == Result::kInvalidChar);
-        }
-        break;
-      }
-      ++current;
-    } while (current < end);
-
+    Result result = accumulator_.result();
+    if (result == Result::kMaxSizeExceeded) {
+      return this->set_state(State::kError);
+    }
     if (!this->allow_trailing_junk() && AdvanceToNonspace(&current, end)) {
       return this->set_state(State::kJunk);
     }
@@ -1005,7 +994,7 @@ class StringToBigIntHelper : public StringToIntHelper<IsolateT> {
                                            : AllocationType::kYoung;
   }
 
-  std::unique_ptr<bigint::FromStringAccumulator> accumulator_;
+  bigint::FromStringAccumulator accumulator_{BigInt::kMaxLength};
   Behavior behavior_;
 };
 

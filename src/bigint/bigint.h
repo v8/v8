@@ -306,6 +306,76 @@ constexpr char kStringZapValue = '?';
 
 class ProcessorImpl;
 
+#if !defined(DEBUG) && (defined(__GNUC__) || defined(__clang__))
+// Clang supports this since 3.9, GCC since 4.x.
+#define ALWAYS_INLINE inline __attribute__((always_inline))
+#elif !defined(DEBUG) && defined(_MSC_VER)
+#define ALWAYS_INLINE __forceinline
+#else
+#define ALWAYS_INLINE inline
+#endif
+
+static constexpr int kStackParts = 8;
+
+// A container object for all metadata required for parsing a BigInt from
+// a string.
+// Aggressively optimized not to waste instructions for small cases, while
+// also scaling transparently to huge cases.
+// Defined here in the header so that it can be inlined.
+class FromStringAccumulator {
+ public:
+  enum class Result { kOk, kMaxSizeExceeded };
+
+  // Step 1: Create a FromStringAccumulator instance. For best performance,
+  // stack allocation is recommended.
+  // {max_digits} is only used for refusing to grow beyond a given size
+  // (see "Step 2" below). It does not cause pre-allocation, so feel free to
+  // specify a large maximum.
+  // TODO(jkummerow): The limit applies to the number of intermediate chunks,
+  // whereas the final result will be slightly smaller (depending on {radix}).
+  // So for sufficiently large N, setting max_digits=N here will not actually
+  // allow parsing BigInts with N digits. We can fix that if/when anyone cares.
+  explicit FromStringAccumulator(int max_digits)
+      : max_digits_(std::max(max_digits - kStackParts, kStackParts)) {}
+
+  // Step 2: Call this method to read all characters.
+  // {Char} should be a character type, such as uint8_t or uint16_t.
+  // {end} should be one past the last character (i.e. {start == end} would
+  // indicate an empty string).
+  // Returns the current position when an invalid character is encountered.
+  template <class Char>
+  ALWAYS_INLINE const Char* Parse(const Char* start, const Char* end,
+                                  digit_t radix);
+
+  // Step 3: Check if a result is available, and determine its required
+  // allocation size.
+  Result result() { return result_; }
+  int ResultLength() {
+    return std::max(stack_parts_used_, static_cast<int>(heap_parts_.size()));
+  }
+
+  // Step 4: Use BigIntProcessor::FromString() to retrieve the result into an
+  // {RWDigits} struct allocated for the size returned by step 2.
+
+ private:
+  friend class ProcessorImpl;
+
+  ALWAYS_INLINE bool AddPart(digit_t multiplier, digit_t part,
+                             bool is_last = false);
+
+  digit_t stack_parts_[kStackParts];
+  std::vector<digit_t> heap_parts_;
+  digit_t max_multiplier_{0};
+  digit_t last_multiplier_;
+  const int max_digits_;
+  Result result_{Result::kOk};
+  int stack_parts_used_{0};
+  bool inline_everything_{false};
+};
+
+// The rest of this file is the inlineable implementation of
+// FromStringAccumulator methods.
+
 #if defined(__GNUC__) || defined(__clang__)
 // Clang supports this since 3.9, GCC since 5.x.
 #define HAVE_BUILTIN_MUL_OVERFLOW 1
@@ -313,118 +383,125 @@ class ProcessorImpl;
 #define HAVE_BUILTIN_MUL_OVERFLOW 0
 #endif
 
-// A container object for all metadata required for parsing a BigInt from
-// a string.
-// Aggressively optimized not to waste instructions for small cases, while
-// also scaling transparently to huge cases.
-// Defined here in the header so that {ConsumeChar} can be inlined.
-class FromStringAccumulator {
- public:
-  // {max_digits} is only used for refusing to grow beyond a given size
-  // (see "Step 1" below). Does not cause pre-allocation, so feel free to
-  // specify a large maximum.
-  // TODO(jkummerow): The limit applies to the number of intermediate chunks,
-  // whereas the final result will be slightly smaller (depending on {radix}).
-  // So setting max_digits=N here will, for sufficiently large N, not actually
-  // allow parsing BigInts with N digits. We can fix that if/when anyone cares.
-  FromStringAccumulator(int radix, int max_digits)
-      : radix_(radix),
+// Numerical value of the first 127 ASCII characters, using 255 as sentinel
+// for "invalid".
+static constexpr uint8_t kCharValue[] = {
+    255, 255, 255, 255, 255, 255, 255, 255,  // 0..7
+    255, 255, 255, 255, 255, 255, 255, 255,  // 8..15
+    255, 255, 255, 255, 255, 255, 255, 255,  // 16..23
+    255, 255, 255, 255, 255, 255, 255, 255,  // 24..31
+    255, 255, 255, 255, 255, 255, 255, 255,  // 32..39
+    255, 255, 255, 255, 255, 255, 255, 255,  // 40..47
+    0,   1,   2,   3,   4,   5,   6,   7,    // 48..55    '0' == 48
+    8,   9,   255, 255, 255, 255, 255, 255,  // 56..63    '9' == 57
+    255, 10,  11,  12,  13,  14,  15,  16,   // 64..71    'A' == 65
+    17,  18,  19,  20,  21,  22,  23,  24,   // 72..79
+    25,  26,  27,  28,  29,  30,  31,  32,   // 80..87
+    33,  34,  35,  255, 255, 255, 255, 255,  // 88..95    'Z' == 90
+    255, 10,  11,  12,  13,  14,  15,  16,   // 96..103   'a' == 97
+    17,  18,  19,  20,  21,  22,  23,  24,   // 104..111
+    25,  26,  27,  28,  29,  30,  31,  32,   // 112..119
+    33,  34,  35,  255, 255, 255, 255, 255,  // 120..127  'z' == 122
+};
+template <class Char>
+const Char* FromStringAccumulator::Parse(const Char* start, const Char* end,
+                                         digit_t radix) {
+  BIGINT_H_DCHECK(2 <= radix && radix <= 36);
+  const Char* current = start;
 #if !HAVE_BUILTIN_MUL_OVERFLOW
-        max_multiplier_((~digit_t{0}) / radix),
+  const digit_t kMaxMultiplier = (~digit_t{0}) / radix;
 #endif
-        max_digits_(max_digits),
-        limit_digit_(radix < 10 ? radix : 10),
-        limit_alpha_(radix > 10 ? radix - 10 : 0) {
-  }
+#if HAVE_TWODIGIT_T  // The inlined path requires twodigit_t availability.
+  // The max supported radix is 36, and Math.log2(36) == 5.169..., so we
+  // need at most 5.17 bits per char.
+  static constexpr int kInlineThreshold = kStackParts * kDigitBits * 100 / 517;
+  inline_everything_ = (end - start) <= kInlineThreshold;
+#endif
+  bool done = false;
+  do {
+    digit_t multiplier = 1;
+    digit_t part = 0;
+    while (true) {
+      digit_t d;
+      uint32_t c = *current;
+      if (c > 127 || (d = bigint::kCharValue[c]) >= radix) {
+        done = true;
+        break;
+      }
 
-  ~FromStringAccumulator() {
-    delete parts_;
-    delete multipliers_;
-  }
-
-  // Step 1: Call this method repeatedly to read all characters.
-  // This method will return quickly; it does not perform heavy processing.
-  enum class Result { kOk, kInvalidChar, kMaxSizeExceeded };
-  Result ConsumeChar(uint32_t c) {
-    digit_t d;
-    if (c - '0' < limit_digit_) {
-      d = c - '0';
-    } else if ((c | 32u) - 'a' < limit_alpha_) {
-      d = (c | 32u) - 'a' + 10;
-    } else {
-      return Result::kInvalidChar;
-    }
 #if HAVE_BUILTIN_MUL_OVERFLOW
-    digit_t m;
-    if (!__builtin_mul_overflow(multiplier_, radix_, &m)) {
-      multiplier_ = m;
-      part_ = part_ * radix_ + d;
-    }
+      digit_t new_multiplier;
+      if (__builtin_mul_overflow(multiplier, radix, &new_multiplier)) break;
+      multiplier = new_multiplier;
 #else
-    if (multiplier_ <= max_multiplier_) {
-      multiplier_ *= radix_;
-      part_ = part_ * radix_ + d;
-    }
+      if (multiplier > kMaxMultiplier) break;
+      multiplier *= radix;
 #endif
-    else {  // NOLINT(readability/braces)
-      if (!AddPart(multiplier_, part_)) return Result::kMaxSizeExceeded;
-      multiplier_ = radix_;
-      part_ = d;
+      part = part * radix + d;
+
+      ++current;
+      if (current == end) {
+        done = true;
+        break;
+      }
     }
-    return Result::kOk;
-  }
+    if (!AddPart(multiplier, part, done)) return current;
+  } while (!done);
+  return current;
+}
 
-  // Step 2: Call this method to determine the required size for the result.
-  int ResultLength() {
-    if (!parts_) return part_ > 0 ? 1 : 0;
-    if (multiplier_ > 1) {
-      multipliers_->push_back(multiplier_);
-      parts_->push_back(part_);
-      // {ResultLength} should be idempotent.
-      multiplier_ = 1;
-      part_ = 0;
+bool FromStringAccumulator::AddPart(digit_t multiplier, digit_t part,
+                                    bool is_last) {
+#if HAVE_TWODIGIT_T
+  if (inline_everything_) {
+    // Inlined version of {MultiplySingle}.
+    digit_t carry = part;
+    digit_t high = 0;
+    for (int i = 0; i < stack_parts_used_; i++) {
+      twodigit_t result = twodigit_t{stack_parts_[i]} * multiplier;
+      digit_t new_high = result >> bigint::kDigitBits;
+      digit_t low = static_cast<digit_t>(result);
+      result = twodigit_t{low} + high + carry;
+      carry = result >> bigint::kDigitBits;
+      stack_parts_[i] = static_cast<digit_t>(result);
+      high = new_high;
     }
-    return parts_size();
-  }
-
-  // Step 3: Use BigIntProcessor::FromString() to retrieve the result into an
-  // {RWDigits} struct allocated for the size returned by step 2.
-
- private:
-  friend class ProcessorImpl;
-  int parts_size() { return static_cast<int>(parts_->size()); }
-
-  bool AddPart(digit_t multiplier, digit_t part) {
-    if (!parts_) {
-      parts_ = new std::vector<digit_t>;
-      multipliers_ = new std::vector<digit_t>;
-    } else if (parts_size() == max_digits_) {
-      return false;
-    }
-    multipliers_->push_back(multiplier);
-    parts_->push_back(part);
+    stack_parts_[stack_parts_used_++] = carry + high;
     return true;
   }
-
-  const digit_t radix_;
-#if !HAVE_BUILTIN_MUL_OVERFLOW
-  const digit_t max_multiplier_;
+#else
+  BIGINT_H_DCHECK(!inline_everything_);
 #endif
-  // The next part to be added to {parts_}, or the only part when sufficient.
-  digit_t part_{0};
-  digit_t multiplier_{1};
-  const int max_digits_;
-  const uint32_t limit_digit_;
-  const uint32_t limit_alpha_;
-  // Avoid allocating these unless we actually need them.
-  std::vector<digit_t>* parts_{nullptr};
-  std::vector<digit_t>* multipliers_{nullptr};
-};
+  if (is_last) {
+    last_multiplier_ = multiplier;
+  } else {
+    BIGINT_H_DCHECK(max_multiplier_ == 0 || max_multiplier_ == multiplier);
+    max_multiplier_ = multiplier;
+  }
+  if (stack_parts_used_ < kStackParts) {
+    stack_parts_[stack_parts_used_++] = part;
+    return true;
+  }
+  if (heap_parts_.size() == 0) {
+    // Initialize heap storage. Copy the stack part to make things easier later.
+    heap_parts_.reserve(kStackParts * 2);
+    for (int i = 0; i < kStackParts; i++) {
+      heap_parts_.push_back(stack_parts_[i]);
+    }
+  }
+  if (static_cast<int>(heap_parts_.size()) >= max_digits_ && !is_last) {
+    result_ = Result::kMaxSizeExceeded;
+    return false;
+  }
+  heap_parts_.push_back(part);
+  return true;
+}
 
 }  // namespace bigint
 }  // namespace v8
 
 #undef BIGINT_H_DCHECK
+#undef ALWAYS_INLINE
 #undef HAVE_BUILTIN_MUL_OVERFLOW
 
 #endif  // V8_BIGINT_BIGINT_H_

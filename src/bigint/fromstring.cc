@@ -12,21 +12,51 @@ namespace bigint {
 // the appropriate multiplier, and add the part. O(n²) overall.
 void ProcessorImpl::FromStringClassic(RWDigits Z,
                                       FromStringAccumulator* accumulator) {
-  Z[0] = (*accumulator->parts_)[0];
+  // We always have at least one part to process.
+  DCHECK(accumulator->stack_parts_used_ > 0);  // NOLINT(readability/check)
+  Z[0] = accumulator->stack_parts_[0];
   RWDigits already_set(Z, 0, 1);
   for (int i = 1; i < Z.len(); i++) Z[i] = 0;
-  for (int i = 1; i < accumulator->parts_size(); i++) {
-    MultiplySingle(Z, already_set, (*accumulator->multipliers_)[i]);
+
+  // The {FromStringAccumulator} uses stack-allocated storage for the first
+  // few parts; if heap storage is used at all then all parts are copied there.
+  int num_stack_parts = accumulator->stack_parts_used_;
+  if (num_stack_parts == 1) return;
+  const std::vector<digit_t>& heap_parts = accumulator->heap_parts_;
+  int num_heap_parts = static_cast<int>(heap_parts.size());
+  // All multipliers are the same, except possibly for the last.
+  const digit_t max_multiplier = accumulator->max_multiplier_;
+
+  if (num_heap_parts == 0) {
+    for (int i = 1; i < num_stack_parts - 1; i++) {
+      MultiplySingle(Z, already_set, max_multiplier);
+      Add(Z, accumulator->stack_parts_[i]);
+      already_set.set_len(already_set.len() + 1);
+    }
+    MultiplySingle(Z, already_set, accumulator->last_multiplier_);
+    Add(Z, accumulator->stack_parts_[num_stack_parts - 1]);
+    return;
+  }
+  // Parts are stored on the heap.
+  for (int i = 1; i < num_heap_parts - 1; i++) {
+    MultiplySingle(Z, already_set, max_multiplier);
     if (should_terminate()) return;
-    Add(Z, (*accumulator->parts_)[i]);
+    Add(Z, accumulator->heap_parts_[i]);
     already_set.set_len(already_set.len() + 1);
   }
+  MultiplySingle(Z, already_set, accumulator->last_multiplier_);
+  Add(Z, accumulator->heap_parts_.back());
 }
 
 void ProcessorImpl::FromString(RWDigits Z, FromStringAccumulator* accumulator) {
-  if (!accumulator->parts_) {
-    if (Z.len() > 0) Z[0] = accumulator->part_;
-    for (int i = 1; i < Z.len(); i++) Z[i] = 0;
+  if (accumulator->inline_everything_) {
+    int i = 0;
+    for (; i < accumulator->stack_parts_used_; i++) {
+      Z[i] = accumulator->stack_parts_[i];
+    }
+    for (; i < Z.len(); i++) Z[i] = 0;
+  } else if (accumulator->stack_parts_used_ == 0) {
+    for (int i = 0; i < Z.len(); i++) Z[i] = 0;
   } else {
     FromStringClassic(Z, accumulator);
   }
