@@ -213,9 +213,33 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_mac_arm64_compile_dbg",
+    bucket = "try",
+    cq_properties = {"cancel_stale": False},
+    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_builder(
     name = "v8_mac_arm64_compile_rel",
     bucket = "try",
-    cq_properties = {"cancel_stale": False, "includable_only": "true"},
+    cq_properties = {"cancel_stale": False},
+    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_builder(
+    name = "v8_mac_arm64_sim_compile_dbg",
+    bucket = "try",
+    cq_properties = {"cancel_stale": False},
+    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_builder(
+    name = "v8_mac_arm64_sim_compile_rel",
+    bucket = "try",
+    cq_properties = {"cancel_stale": False},
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
