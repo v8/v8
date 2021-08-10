@@ -241,7 +241,7 @@ TEST(TerminateBigIntToString) {
 
 TEST(TerminateBigIntFromString) {
   TestTerminatingSlowOperation(
-      "var a = '12344567890'.repeat(10000);\n"
+      "var a = '12344567890'.repeat(100000);\n"
       "terminate();\n"
       "BigInt(a);\n"
       "fail();\n");

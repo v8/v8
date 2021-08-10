@@ -262,6 +262,8 @@ class Processor {
   // upon return will be set to the actual length of the result string.
   Status ToString(char* out, int* out_length, Digits X, int radix, bool sign);
 
+  // Z := the contents of {accumulator}.
+  // Assume that this leaves {accumulator} in unusable state.
   Status FromString(RWDigits Z, FromStringAccumulator* accumulator);
 };
 

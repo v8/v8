@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cmath>
 #include <memory>
 #include <string>
 
@@ -28,12 +29,13 @@ int PrintHelp(char** argv) {
   return 1;
 }
 
-#define TESTS(V)             \
-  V(kBarrett, "barrett")     \
-  V(kBurnikel, "burnikel")   \
-  V(kFFT, "fft")             \
-  V(kKaratsuba, "karatsuba") \
-  V(kToom, "toom")           \
+#define TESTS(V)               \
+  V(kBarrett, "barrett")       \
+  V(kBurnikel, "burnikel")     \
+  V(kFFT, "fft")               \
+  V(kFromString, "fromstring") \
+  V(kKaratsuba, "karatsuba")   \
+  V(kToom, "toom")             \
   V(kToString, "tostring")
 
 enum Operation { kNoOp, kList, kTest };
@@ -86,7 +88,7 @@ class RNG {
 
 static constexpr int kCharsPerDigit = kDigitBits / 4;
 
-static const char kConversionChars[] = "0123456789abcdef";
+static const char kConversionChars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 std::string FormatHex(Digits X) {
   X.Normalize();
@@ -173,6 +175,16 @@ class Runner {
     error_ = true;
   }
 
+  void AssertEquals(const char* input, int input_length, int radix,
+                    Digits expected, Digits actual) {
+    if (Compare(expected, actual) == 0) return;
+    std::cerr << "Input:    " << std::string(input, input_length) << "\n";
+    std::cerr << "Radix:    " << radix << "\n";
+    std::cerr << "Expected: " << FormatHex(expected) << "\n";
+    std::cerr << "Actual:   " << FormatHex(actual) << "\n";
+    error_ = true;
+  }
+
   int RunTest() {
     int count = 0;
     if (test_ == kBarrett) {
@@ -198,6 +210,10 @@ class Runner {
     } else if (test_ == kToString) {
       for (int i = 0; i < runs_; i++) {
         TestToString(&count);
+      }
+    } else if (test_ == kFromString) {
+      for (int i = 0; i < runs_; i++) {
+        TestFromString(&count);
       }
     } else {
       DCHECK(false);  // Unreachable.
@@ -391,6 +407,33 @@ class Runner {
     }
   }
 
+  void TestFromString(int* count) {
+    constexpr int kMaxDigits = 1 << 20;  // Any large-enough value will do.
+    constexpr int kMin = kFromStringLargeThreshold / 2;
+    constexpr int kMax = kFromStringLargeThreshold * 2;
+    for (int size = kMin; size < kMax; size++) {
+      // To keep test execution times low, test one random radix every time.
+      // Valid range is 2 <= radix <= 36 (inclusive).
+      int radix = 2 + (rng_.NextUint64() % 35);
+      int num_chars = std::round(size * kDigitBits / std::log2(radix));
+      std::unique_ptr<char[]> chars(new char[num_chars]);
+      GenerateRandomString(chars.get(), num_chars, radix);
+      FromStringAccumulator accumulator(kMaxDigits);
+      FromStringAccumulator ref_accumulator(kMaxDigits);
+      const char* start = chars.get();
+      const char* end = chars.get() + num_chars;
+      accumulator.Parse(start, end, radix);
+      ref_accumulator.Parse(start, end, radix);
+      ScratchDigits result(accumulator.ResultLength());
+      ScratchDigits reference(ref_accumulator.ResultLength());
+      processor()->FromStringLarge(result, &accumulator);
+      processor()->FromStringClassic(reference, &ref_accumulator);
+      AssertEquals(start, num_chars, radix, result, reference);
+      if (error_) return;
+      (*count)++;
+    }
+  }
+
   int ParseOptions(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
       if (strcmp(argv[i], "--list") == 0) {
@@ -444,6 +487,30 @@ class Runner {
     // Special case: we don't want the MSD to be zero.
     while (Z.msd() == 0) {
       Z[Z.len() - 1] = static_cast<digit_t>(rng_.NextUint64());
+    }
+  }
+
+  void GenerateRandomString(char* str, int len, int radix) {
+    DCHECK(2 <= radix && radix <= 36);
+    if (len == 0) return;
+    uint64_t random;
+    int available_bits = 0;
+    const int char_bits = BitLength(radix - 1);
+    const uint64_t char_mask = (1u << char_bits) - 1u;
+    for (int i = 0; i < len; i++) {
+      while (true) {
+        if (available_bits < char_bits) {
+          random = rng_.NextUint64();
+          available_bits = 64;
+        }
+        int next_char = static_cast<int>(random & char_mask);
+        random = random >> char_bits;
+        available_bits -= char_bits;
+        if (next_char >= radix) continue;
+        *str = kConversionChars[next_char];
+        str++;
+        break;
+      };
     }
   }
 
