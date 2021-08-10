@@ -35,10 +35,6 @@ declare_args() {
   # as an argument to profiler's method `takeHeapSnapshot`.
   v8_enable_raw_heap_snapshots = false
 
-  # Deprecated flag that no longer does anything.
-  # TODO(rmcilroy): Remove this gn arg once it's no longer used by the bots.
-  v8_use_multi_snapshots = false
-
   # Use external files for startup data blobs:
   # the JS builtins sources and the start snapshot.
   v8_use_external_startup_data = ""
