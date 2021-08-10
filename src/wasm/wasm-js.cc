@@ -1578,7 +1578,6 @@ void EncodeExceptionValues(v8::Isolate* isolate,
       case i::wasm::kBottom:
       case i::wasm::kS128:
         UNREACHABLE();
-        break;
     }
   }
 }
