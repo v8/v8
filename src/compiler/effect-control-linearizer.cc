@@ -5083,10 +5083,10 @@ Node* EffectControlLinearizer::AdaptFastCallTypedArrayArgument(
 
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
-           stack_slot, 0, data_ptr);
+           stack_slot, 0, length_in_bytes);
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
-           stack_slot, sizeof(uintptr_t), length_in_bytes);
+           stack_slot, sizeof(size_t), data_ptr);
   static_assert(sizeof(uintptr_t) == sizeof(size_t),
                 "The buffer length can't "
                 "fit the PointerRepresentation used to store it.");

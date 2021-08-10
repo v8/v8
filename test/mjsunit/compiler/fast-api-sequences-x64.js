@@ -41,7 +41,7 @@ const max_safe_as_bigint = BigInt(Number.MAX_SAFE_INTEGER);
       typed_array);
   }
   const expected = Number(BigInt.asIntN(64, -42n + 1n + max_safe_as_bigint));
-  ExpectSlowCall(int64_test, expected);
+  ExpectFastCall(int64_test, expected);
 })();
 
 (function () {
@@ -51,5 +51,5 @@ const max_safe_as_bigint = BigInt(Number.MAX_SAFE_INTEGER);
       typed_array);
   }
   const expected = Number(BigInt.asUintN(64, max_safe_as_bigint + 1n + 2n));
-  ExpectSlowCall(uint64_test, expected);
+  ExpectFastCall(uint64_test, expected);
 })();

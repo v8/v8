@@ -206,14 +206,9 @@ class FastCApiObject {
       return 0;
     }
 
-    if (!typed_array_arg.data) {
-      options.fallback = 1;
-      return 0;
-    }
-
     T sum = 0;
-    for (unsigned i = 0; i < typed_array_arg.length; ++i) {
-      sum += typed_array_arg.data[i];
+    for (unsigned i = 0; i < typed_array_arg.length(); ++i) {
+      sum += typed_array_arg.get(i);
     }
     return static_cast<Type>(sum);
   }

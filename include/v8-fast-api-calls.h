@@ -299,10 +299,42 @@ class CTypeInfo {
   Flags flags_;
 };
 
+struct FastApiTypedArrayBase {
+ public:
+  // Returns the length in number of elements.
+  size_t V8_EXPORT length() const { return length_; }
+  // Checks whether the given index is within the bounds of the collection.
+  void V8_EXPORT ValidateIndex(size_t index) const;
+
+ protected:
+  size_t length_ = 0;
+};
+
 template <typename T>
-struct FastApiTypedArray {
-  T* data;        // should include the typed array offset applied
-  size_t length;  // length in number of elements
+struct FastApiTypedArray : public FastApiTypedArrayBase {
+ public:
+  V8_INLINE T get(size_t index) const {
+#ifdef DEBUG
+    ValidateIndex(index);
+#endif  // DEBUG
+    static_assert(offsetof(FastApiTypedArray<T>, length_) <
+                      offsetof(FastApiTypedArray<T>, data_),
+                  "length_ should be "
+                  "stored in memory before data_, initializing the "
+                  "FastApiTypedArray struct will fail.");
+
+    T tmp;
+    memcpy(&tmp, reinterpret_cast<T*>(data_) + index, sizeof(T));
+    return tmp;
+  }
+
+ private:
+  // This pointer should include the typed array offset applied.
+  // It's not guaranteed that it's aligned to sizeof(T), it's only
+  // guaranteed that it's 4-byte aligned, so for 8-byte types we need to
+  // provide a special implementation for reading from it, which hides
+  // the possibly unaligned read in the `get` method.
+  void* data_;
 };
 
 // Any TypedArray. It uses kTypedArrayBit with base type void
