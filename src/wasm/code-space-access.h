@@ -55,9 +55,6 @@ class V8_NODISCARD CodeSpaceWriteScope final {
 
  private:
   static thread_local int code_space_write_nesting_level_;
-#if defined(DEBUG) && (!defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64))
-  static thread_local NativeModule* current_native_module_;
-#endif
 
   void SetWritable() const;
   void SetExecutable() const;
