@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-// Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --concurrent-recompilation
 // Flags: --nostress-opt --no-always-opt
 // Flags: --no-turboprop
 
@@ -52,20 +52,20 @@ assertEquals(0.5, f1(arr, 0));
 assertEquals(0.5, f1(arr, 0));
 
 // Optimized code of f1 depends on initial object and array maps.
+%DisableOptimizationFinalization();
 %OptimizeFunctionOnNextCall(f1, "concurrent");
 // Kick off recompilation. Note that the NoElements protector is read by the
 // compiler in the main-thread phase of compilation, i.e., before the store to
 // Object.prototype below.
 assertEquals(0.5, f1(arr, 0));
 // Invalidate current initial object map after compile graph has been created.
+%WaitForBackgroundOptimization();
 Object.prototype[1] = 1.5;
 assertEquals(2, f1(arr, 1));
-// Not yet optimized since concurrent recompilation is blocked.
 assertUnoptimized(f1, "no sync");
-// Let concurrent recompilation proceed.
-%UnblockConcurrentRecompilation();
 // Sync with background thread to conclude optimization, which bails out
 // due to map dependency.
+%FinalizeOptimization();
 assertUnoptimized(f1, "sync");
 // Clear type info for stress runs.
 %ClearFunctionFeedback(f1);

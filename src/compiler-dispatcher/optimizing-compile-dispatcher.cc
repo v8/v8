@@ -131,7 +131,7 @@ void OptimizingCompileDispatcher::CompileNext(OptimizedCompilationJob* job,
     output_queue_.push(job);
   }
 
-  isolate_->stack_guard()->RequestInstallCode();
+  if (finalize()) isolate_->stack_guard()->RequestInstallCode();
 }
 
 void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
@@ -157,6 +157,18 @@ void OptimizingCompileDispatcher::FlushInputQueue() {
     input_queue_length_--;
     DisposeCompilationJob(job, true);
   }
+}
+
+void OptimizingCompileDispatcher::AwaitCompileTasks() {
+  {
+    base::MutexGuard lock_guard(&ref_count_mutex_);
+    while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
+  }
+
+#ifdef DEBUG
+  base::MutexGuard access_input_queue(&input_queue_mutex_);
+  CHECK_EQ(input_queue_length_, 0);
+#endif  // DEBUG
 }
 
 void OptimizingCompileDispatcher::FlushQueues(

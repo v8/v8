@@ -463,8 +463,9 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_TEST(F, I)         \
   F(Abort, 1, 1)                              \
-  F(AbortJS, 1, 1)                            \
   F(AbortCSAAssert, 1, 1)                     \
+  F(AbortJS, 1, 1)                            \
+  F(ArrayIteratorProtector, 0, 1)             \
   F(ArraySpeciesProtector, 0, 1)              \
   F(BaselineOsr, -1, 1)                       \
   F(ClearFunctionFeedback, 1, 1)              \
@@ -481,11 +482,10 @@ namespace internal {
   F(DisallowCodegenFromStrings, 1, 1)         \
   F(DisassembleFunction, 1, 1)                \
   F(DynamicCheckMapsEnabled, 0, 1)            \
-  F(IsTopTierTurboprop, 0, 1)                 \
-  F(IsMidTierTurboprop, 0, 1)                 \
-  F(IsAtomicsWaitAllowed, 0, 1)               \
   F(EnableCodeLoggingForTesting, 0, 1)        \
   F(EnsureFeedbackVectorForFunction, 1, 1)    \
+  F(DisableOptimizationFinalization, 0, 1)    \
+  F(FinalizeOptimization, 0, 1)               \
   F(GetCallable, 0, 1)                        \
   F(GetInitializerFunction, 1, 1)             \
   F(GetOptimizationStatus, -1, 1)             \
@@ -496,7 +496,6 @@ namespace internal {
   F(HasElementsInALargeObjectSpace, 1, 1)     \
   F(HasFastElements, 1, 1)                    \
   F(HasFastProperties, 1, 1)                  \
-  F(HasOwnConstDataProperty, 2, 1)            \
   F(HasFixedBigInt64Elements, 1, 1)           \
   F(HasFixedBigUint64Elements, 1, 1)          \
   F(HasFixedFloat32Elements, 1, 1)            \
@@ -510,6 +509,7 @@ namespace internal {
   F(HasFixedUint8Elements, 1, 1)              \
   F(HasHoleyElements, 1, 1)                   \
   F(HasObjectElements, 1, 1)                  \
+  F(HasOwnConstDataProperty, 2, 1)            \
   F(HasPackedElements, 1, 1)                  \
   F(HasSloppyArgumentsElements, 1, 1)         \
   F(HasSmiElements, 1, 1)                     \
@@ -519,45 +519,48 @@ namespace internal {
   F(ICsAreEnabled, 0, 1)                      \
   F(InLargeObjectSpace, 1, 1)                 \
   F(InYoungGeneration, 1, 1)                  \
+  F(Is64Bit, 0, 1)                            \
+  F(IsAtomicsWaitAllowed, 0, 1)               \
   F(IsBeingInterpreted, 0, 1)                 \
+  F(IsConcatSpreadableProtector, 0, 1)        \
   F(IsConcurrentRecompilationSupported, 0, 1) \
   F(IsDictPropertyConstTrackingEnabled, 0, 1) \
-  F(RegexpHasBytecode, 2, 1)                  \
-  F(RegexpHasNativeCode, 2, 1)                \
-  F(RegexpTypeTag, 1, 1)                      \
-  F(RegexpIsUnmodified, 1, 1)                 \
+  F(IsMidTierTurboprop, 0, 1)                 \
+  F(IsTopTierTurboprop, 0, 1)                 \
   F(MapIteratorProtector, 0, 1)               \
-  F(ArrayIteratorProtector, 0, 1)             \
   F(NeverOptimizeFunction, 1, 1)              \
-  F(NotifyContextDisposed, 0, 1)              \
-  F(OptimizeFunctionOnNextCall, -1, 1)        \
-  F(TierupFunctionOnNextCall, -1, 1)          \
-  F(OptimizeFunctionForTopTier, 1, 1)         \
-  F(OptimizeOsr, -1, 1)                       \
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
+  F(NotifyContextDisposed, 0, 1)              \
+  F(OptimizeFunctionForTopTier, 1, 1)         \
+  F(OptimizeFunctionOnNextCall, -1, 1)        \
+  F(OptimizeOsr, -1, 1)                       \
   F(PrepareFunctionForOptimization, -1, 1)    \
   F(PretenureAllocationSite, 1, 1)            \
   F(PrintWithNameForAssert, 2, 1)             \
+  F(PromiseSpeciesProtector, 0, 1)            \
+  F(RegexpHasBytecode, 2, 1)                  \
+  F(RegexpHasNativeCode, 2, 1)                \
+  F(RegexpIsUnmodified, 1, 1)                 \
+  F(RegExpSpeciesProtector, 0, 1)             \
+  F(RegexpTypeTag, 1, 1)                      \
   F(RunningInSimulator, 0, 1)                 \
   F(RuntimeEvaluateREPL, 1, 1)                \
+  F(ScheduleGCInStackCheck, 0, 1)             \
   F(SerializeDeserializeNow, 0, 1)            \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
   F(SetForceSlowPath, 1, 1)                   \
   F(SetIteratorProtector, 0, 1)               \
   F(SimulateNewspaceFull, 0, 1)               \
-  F(ScheduleGCInStackCheck, 0, 1)             \
   F(StringIteratorProtector, 0, 1)            \
   F(SystemBreak, 0, 1)                        \
+  F(TierupFunctionOnNextCall, -1, 1)          \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
   F(TurbofanStaticAssert, 1, 1)               \
   F(TypedArraySpeciesProtector, 0, 1)         \
   F(UnblockConcurrentRecompilation, 0, 1)     \
-  I(DeoptimizeNow, 0, 1)                      \
-  F(PromiseSpeciesProtector, 0, 1)            \
-  F(IsConcatSpreadableProtector, 0, 1)        \
-  F(RegExpSpeciesProtector, 0, 1)             \
-  F(Is64Bit, 0, 1)
+  F(WaitForBackgroundOptimization, 0, 1)      \
+  I(DeoptimizeNow, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F, I)    \
   F(ArrayBufferDetach, 1, 1)                   \

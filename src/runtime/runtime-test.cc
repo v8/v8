@@ -678,6 +678,34 @@ RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
+  DCHECK_EQ(0, args.length());
+  DCHECK(!FLAG_block_concurrent_recompilation);
+  CHECK(isolate->concurrent_recompilation_enabled());
+  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+  isolate->optimizing_compile_dispatcher()->set_finalize(false);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
+  DCHECK_EQ(0, args.length());
+  DCHECK(!FLAG_block_concurrent_recompilation);
+  CHECK(isolate->concurrent_recompilation_enabled());
+  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_FinalizeOptimization) {
+  DCHECK_EQ(0, args.length());
+  DCHECK(!FLAG_block_concurrent_recompilation);
+  CHECK(isolate->concurrent_recompilation_enabled());
+  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+  isolate->optimizing_compile_dispatcher()->set_finalize(true);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 static void ReturnNull(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().SetNull();
 }
