@@ -1768,13 +1768,6 @@ class V8_EXPORT Module : public Data {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetSyntheticModuleExport(
       Isolate* isolate, Local<String> export_name, Local<Value> export_value);
-  V8_DEPRECATED(
-      "Use the preceding SetSyntheticModuleExport with an Isolate parameter, "
-      "instead of the one that follows.  The former will throw a runtime "
-      "error if called for an export that doesn't exist (as per spec); "
-      "the latter will crash with a failed CHECK().")
-  void SetSyntheticModuleExport(Local<String> export_name,
-                                Local<Value> export_value);
 
   V8_INLINE static Module* Cast(Data* data);
 
@@ -1956,10 +1949,6 @@ class V8_EXPORT ScriptCompiler {
    public:
     enum Encoding { ONE_BYTE, TWO_BYTE, UTF8, WINDOWS_1252 };
 
-    V8_DEPRECATED(
-        "This class takes ownership of source_stream, so use the constructor "
-        "taking a unique_ptr to make these semantics clearer")
-    StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     StreamedSource(std::unique_ptr<ExternalSourceStream> source_stream,
                    Encoding encoding);
     ~StreamedSource();
@@ -2084,10 +2073,6 @@ class V8_EXPORT ScriptCompiler {
    * This API allows to start the streaming with as little data as possible, and
    * the remaining data (for example, the ScriptOrigin) is passed to Compile.
    */
-  V8_DEPRECATED("Use ScriptCompiler::StartStreaming instead.")
-  static ScriptStreamingTask* StartStreamingScript(
-      Isolate* isolate, StreamedSource* source,
-      CompileOptions options = kNoCompileOptions);
   static ScriptStreamingTask* StartStreaming(
       Isolate* isolate, StreamedSource* source,
       ScriptType type = ScriptType::kClassic);
@@ -8392,11 +8377,6 @@ class V8_EXPORT Isolate {
      */
     int embedder_wrapper_type_index = -1;
     int embedder_wrapper_object_index = -1;
-
-    V8_DEPRECATED(
-        "Setting this has no effect. Embedders should ignore import assertions "
-        "that they do not use.")
-    std::vector<std::string> supported_import_assertions;
   };
 
   /**
@@ -8907,10 +8887,6 @@ class V8_EXPORT Isolate {
   bool MeasureMemory(
       std::unique_ptr<MeasureMemoryDelegate> delegate,
       MeasureMemoryExecution execution = MeasureMemoryExecution::kDefault);
-
-  V8_DEPRECATED("Use the version with a delegate")
-  MaybeLocal<Promise> MeasureMemory(Local<Context> context,
-                                    MeasureMemoryMode mode);
 
   /**
    * Get a call stack sample from the isolate.
@@ -9589,13 +9565,6 @@ class V8_EXPORT Isolate {
    * Set the callback to invoke to check if code generation from
    * strings should be allowed.
    */
-  V8_DEPRECATED(
-      "Use Isolate::SetModifyCodeGenerationFromStringsCallback with "
-      "ModifyCodeGenerationFromStringsCallback2 instead. See "
-      "http://crbug.com/1096017 and TC39 Dynamic Code Brand Checks proposal "
-      "at https://github.com/tc39/proposal-dynamic-code-brand-checks.")
-  void SetModifyCodeGenerationFromStringsCallback(
-      ModifyCodeGenerationFromStringsCallback callback);
   void SetModifyCodeGenerationFromStringsCallback(
       ModifyCodeGenerationFromStringsCallback2 callback);
 
@@ -9943,30 +9912,6 @@ class V8_EXPORT V8 {
    */
   static void ShutdownPlatform();
 
-#if V8_OS_POSIX
-  /**
-   * Give the V8 signal handler a chance to handle a fault.
-   *
-   * This function determines whether a memory access violation can be recovered
-   * by V8. If so, it will return true and modify context to return to a code
-   * fragment that can recover from the fault. Otherwise, TryHandleSignal will
-   * return false.
-   *
-   * The parameters to this function correspond to those passed to a Linux
-   * signal handler.
-   *
-   * \param signal_number The signal number.
-   *
-   * \param info A pointer to the siginfo_t structure provided to the signal
-   * handler.
-   *
-   * \param context The third argument passed to the Linux signal handler, which
-   * points to a ucontext_t structure.
-   */
-  V8_DEPRECATED("Use TryHandleWebAssemblyTrapPosix")
-  static bool TryHandleSignal(int signal_number, void* info, void* context);
-#endif  // V8_OS_POSIX
-
   /**
    * Activate trap-based bounds checking for WebAssembly.
    *
@@ -9993,15 +9938,6 @@ class V8_EXPORT V8 {
    * Get statistics about the shared memory usage.
    */
   static void GetSharedMemoryStatistics(SharedMemoryStatistics* statistics);
-
-  /**
-   * Notifies V8 that the process is cross-origin-isolated, which enables
-   * defining the SharedArrayBuffer function on the global object of Contexts.
-   */
-  V8_DEPRECATED(
-      "Use the command line argument --enable-sharedarraybuffer-per-context "
-      "together with SetSharedArrayBufferConstructorEnabledCallback")
-  static void SetIsCrossOriginIsolated();
 
  private:
   V8();
