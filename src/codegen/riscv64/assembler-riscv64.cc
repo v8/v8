@@ -2113,9 +2113,9 @@ void Assembler::c_lui(Register rd, int8_t imm6) {
   GenInstrCI(0b011, C1, rd, imm6);
 }
 
-void Assembler::c_slli(Register rd, uint8_t uimm6) {
-  DCHECK(rd != zero_reg && uimm6 != 0);
-  GenInstrCIU(0b000, C2, rd, uimm6);
+void Assembler::c_slli(Register rd, uint8_t shamt6) {
+  DCHECK(rd != zero_reg && shamt6 != 0);
+  GenInstrCIU(0b000, C2, rd, shamt6);
 }
 
 void Assembler::c_fldsp(FPURegister rd, uint16_t uimm9) {
@@ -2297,14 +2297,14 @@ void Assembler::c_beqz(Register rs1, int16_t imm9) {
   GenInstrCB(0b110, C1, rs1, uimm8);
 }
 
-void Assembler::c_srli(Register rs1, int8_t imm6) {
-  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(imm6));
-  GenInstrCBA(0b100, 0b00, C1, rs1, imm6);
+void Assembler::c_srli(Register rs1, int8_t shamt6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(shamt6));
+  GenInstrCBA(0b100, 0b00, C1, rs1, shamt6);
 }
 
-void Assembler::c_srai(Register rs1, int8_t imm6) {
-  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(imm6));
-  GenInstrCBA(0b100, 0b01, C1, rs1, imm6);
+void Assembler::c_srai(Register rs1, int8_t shamt6) {
+  DCHECK(((rs1.code() & 0b11000) == 0b01000) && is_int6(shamt6));
+  GenInstrCBA(0b100, 0b01, C1, rs1, shamt6);
 }
 
 void Assembler::c_andi(Register rs1, int8_t imm6) {

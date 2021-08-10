@@ -630,7 +630,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void c_addi4spn(Register rd, int16_t uimm10);
   void c_li(Register rd, int8_t imm6);
   void c_lui(Register rd, int8_t imm6);
-  void c_slli(Register rd, uint8_t uimm6);
+  void c_slli(Register rd, uint8_t shamt6);
   void c_fldsp(FPURegister rd, uint16_t uimm9);
   void c_lwsp(Register rd, uint16_t uimm8);
   void c_ldsp(Register rd, uint16_t uimm9);
@@ -660,8 +660,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void c_bnez(Register rs1, Label* L) { c_bnez(rs1, branch_offset(L)); }
   void c_beqz(Register rs1, int16_t imm9);
   inline void c_beqz(Register rs1, Label* L) { c_beqz(rs1, branch_offset(L)); }
-  void c_srli(Register rs1, int8_t imm6);
-  void c_srai(Register rs1, int8_t imm6);
+  void c_srli(Register rs1, int8_t shamt6);
+  void c_srai(Register rs1, int8_t shamt6);
   void c_andi(Register rs1, int8_t imm6);
   void NOP();
   void EBREAK();
