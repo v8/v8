@@ -4,6 +4,7 @@
 
 #include "src/objects/transitions.h"
 
+#include "src/base/small-vector.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/utils/utils.h"
@@ -512,45 +513,59 @@ void TransitionsAccessor::EnsureHasFullTransitionArray() {
 }
 
 void TransitionsAccessor::TraverseTransitionTreeInternal(
-    TraverseCallback callback, DisallowGarbageCollection* no_gc) {
-  switch (encoding()) {
-    case kPrototypeInfo:
-    case kUninitialized:
-    case kMigrationTarget:
-      break;
-    case kWeakRef: {
-      Map simple_target =
-          Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
-      TransitionsAccessor(isolate_, simple_target, no_gc, concurrent_access_)
-          .TraverseTransitionTreeInternal(callback, no_gc);
-      break;
-    }
-    case kFullTransitionArray: {
-      if (transitions().HasPrototypeTransitions()) {
-        WeakFixedArray proto_trans = transitions().GetPrototypeTransitions();
-        int length = TransitionArray::NumberOfPrototypeTransitions(proto_trans);
-        for (int i = 0; i < length; ++i) {
-          int index = TransitionArray::kProtoTransitionHeaderSize + i;
-          MaybeObject target = proto_trans.Get(index);
-          HeapObject heap_object;
-          if (target->GetHeapObjectIfWeak(&heap_object)) {
-            TransitionsAccessor(isolate_, Map::cast(heap_object), no_gc,
-                                concurrent_access_)
-                .TraverseTransitionTreeInternal(callback, no_gc);
-          } else {
-            DCHECK(target->IsCleared());
+    const TraverseCallback& callback, DisallowGarbageCollection* no_gc) {
+  // Mostly arbitrary but more than enough to run the test suite in static
+  // memory.
+  static constexpr int kStaticStackSize = 16;
+  base::SmallVector<Map, kStaticStackSize> stack;
+  stack.emplace_back(map_);
+
+  // Pre-order iterative depth-first-search.
+  while (!stack.empty()) {
+    Map current_map = stack.back();
+    stack.pop_back();
+
+    callback(current_map);
+
+    MaybeObject raw_transitions =
+        current_map.raw_transitions(isolate_, kAcquireLoad);
+    Encoding encoding = GetEncoding(isolate_, raw_transitions);
+
+    switch (encoding) {
+      case kPrototypeInfo:
+      case kUninitialized:
+      case kMigrationTarget:
+        break;
+      case kWeakRef: {
+        stack.emplace_back(
+            Map::cast(raw_transitions->GetHeapObjectAssumeWeak()));
+        break;
+      }
+      case kFullTransitionArray: {
+        TransitionArray transitions =
+            TransitionArray::cast(raw_transitions->GetHeapObjectAssumeStrong());
+        if (transitions.HasPrototypeTransitions()) {
+          WeakFixedArray proto_trans = transitions.GetPrototypeTransitions();
+          int length =
+              TransitionArray::NumberOfPrototypeTransitions(proto_trans);
+          for (int i = 0; i < length; ++i) {
+            int index = TransitionArray::kProtoTransitionHeaderSize + i;
+            MaybeObject target = proto_trans.Get(index);
+            HeapObject heap_object;
+            if (target->GetHeapObjectIfWeak(&heap_object)) {
+              stack.emplace_back(Map::cast(heap_object));
+            } else {
+              DCHECK(target->IsCleared());
+            }
           }
         }
+        for (int i = 0; i < transitions.number_of_transitions(); ++i) {
+          stack.emplace_back(transitions.GetTarget(i));
+        }
+        break;
       }
-      for (int i = 0; i < transitions().number_of_transitions(); ++i) {
-        TransitionsAccessor(isolate_, transitions().GetTarget(i), no_gc,
-                            concurrent_access_)
-            .TraverseTransitionTreeInternal(callback, no_gc);
-      }
-      break;
     }
   }
-  callback(map_);
 }
 
 #ifdef DEBUG

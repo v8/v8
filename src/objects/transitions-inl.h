@@ -215,26 +215,32 @@ void TransitionsAccessor::Reload() {
 
 int TransitionsAccessor::Capacity() { return transitions().Capacity(); }
 
-void TransitionsAccessor::Initialize() {
-  raw_transitions_ = map_.raw_transitions(isolate_, kAcquireLoad);
+// static
+TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
+    Isolate* isolate, MaybeObject raw_transitions) {
   HeapObject heap_object;
-  if (raw_transitions_->IsSmi() || raw_transitions_->IsCleared()) {
-    encoding_ = kUninitialized;
-  } else if (raw_transitions_->IsWeak()) {
-    encoding_ = kWeakRef;
-  } else if (raw_transitions_->GetHeapObjectIfStrong(isolate_, &heap_object)) {
+  if (raw_transitions->IsSmi() || raw_transitions->IsCleared()) {
+    return kUninitialized;
+  } else if (raw_transitions->IsWeak()) {
+    return kWeakRef;
+  } else if (raw_transitions->GetHeapObjectIfStrong(isolate, &heap_object)) {
     if (heap_object.IsTransitionArray()) {
-      encoding_ = kFullTransitionArray;
+      return kFullTransitionArray;
     } else if (heap_object.IsPrototypeInfo()) {
-      encoding_ = kPrototypeInfo;
+      return kPrototypeInfo;
     } else {
-      DCHECK(map_.is_deprecated());
       DCHECK(heap_object.IsMap());
-      encoding_ = kMigrationTarget;
+      return kMigrationTarget;
     }
   } else {
     UNREACHABLE();
   }
+}
+
+void TransitionsAccessor::Initialize() {
+  raw_transitions_ = map_.raw_transitions(isolate_, kAcquireLoad);
+  encoding_ = GetEncoding(isolate_, raw_transitions_);
+  DCHECK_IMPLIES(encoding_ == kMigrationTarget, map_.is_deprecated());
 #if DEBUG
   needs_reload_ = false;
 #endif

@@ -107,8 +107,8 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   // ===== ITERATION =====
   using TraverseCallback = std::function<void(Map)>;
 
-  // Traverse the transition tree in postorder.
-  void TraverseTransitionTree(TraverseCallback callback) {
+  // Traverse the transition tree in preorder.
+  void TraverseTransitionTree(const TraverseCallback& callback) {
     // Make sure that we do not allocate in the callback.
     DisallowGarbageCollection no_gc;
     base::SharedMutexGuardIf<base::kShared> scope(
@@ -175,6 +175,9 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   friend class third_party_heap::Impl;
   friend class TransitionArray;
 
+  static inline Encoding GetEncoding(Isolate* isolate,
+                                     MaybeObject raw_transitions);
+
   inline PropertyDetails GetSimpleTargetDetails(Map transition);
 
   static inline Name GetSimpleTransitionKey(Map transition);
@@ -200,7 +203,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   void SetPrototypeTransitions(Handle<WeakFixedArray> proto_transitions);
   WeakFixedArray GetPrototypeTransitions();
 
-  void TraverseTransitionTreeInternal(TraverseCallback callback,
+  void TraverseTransitionTreeInternal(const TraverseCallback& callback,
                                       DisallowGarbageCollection* no_gc);
 
   Isolate* isolate_;
