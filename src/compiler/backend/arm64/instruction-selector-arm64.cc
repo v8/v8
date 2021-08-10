@@ -1433,6 +1433,8 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
 #define RR_OP_LIST(V)                                         \
   V(Word64Clz, kArm64Clz)                                     \
   V(Word32Clz, kArm64Clz32)                                   \
+  V(Word32Popcnt, kArm64Cnt32)                                \
+  V(Word64Popcnt, kArm64Cnt64)                                \
   V(Word32ReverseBits, kArm64Rbit32)                          \
   V(Word64ReverseBits, kArm64Rbit)                            \
   V(Word32ReverseBytes, kArm64Rev32)                          \
@@ -1522,10 +1524,6 @@ RRR_OP_LIST(RRR_VISITOR)
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord64Ctz(Node* node) { UNREACHABLE(); }
-
-void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
-
-void InstructionSelector::VisitWord64Popcnt(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   Arm64OperandGenerator g(this);
@@ -4102,6 +4100,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTiesAway |
          MachineOperatorBuilder::kFloat32RoundTiesEven |
          MachineOperatorBuilder::kFloat64RoundTiesEven |
+         MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kWord64Popcnt |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |

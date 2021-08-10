@@ -1551,6 +1551,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Cmn32:
       __ Cmn(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
+    case kArm64Cnt32: {
+      __ PopcntHelper(i.OutputRegister32(), i.InputRegister32(0));
+      break;
+    }
+    case kArm64Cnt64: {
+      __ PopcntHelper(i.OutputRegister64(), i.InputRegister64(0));
+      break;
+    }
     case kArm64Cnt: {
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       __ Cnt(i.OutputSimd128Register().Format(f),

@@ -3575,6 +3575,16 @@ void TurboAssembler::StoreReturnAddressInWasmExitFrame(Label* return_location) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+void TurboAssembler::PopcntHelper(Register dst, Register src) {
+  UseScratchRegisterScope temps(this);
+  VRegister scratch = temps.AcquireV(kFormat8B);
+  VRegister tmp = src.Is32Bits() ? scratch.S() : scratch.D();
+  Fmov(tmp, src);
+  Cnt(scratch, scratch);
+  Addv(scratch.B(), scratch);
+  Fmov(dst, tmp);
+}
+
 void TurboAssembler::I64x2BitMask(Register dst, VRegister src) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope scope(this);

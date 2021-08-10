@@ -1173,12 +1173,7 @@ void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
-  UseScratchRegisterScope temps(this);
-  VRegister scratch = temps.AcquireV(kFormat8B);
-  Fmov(scratch.S(), src.W());
-  Cnt(scratch, scratch);
-  Addv(scratch.B(), scratch);
-  Fmov(dst.W(), scratch.S());
+  PopcntHelper(dst.W(), src.W());
   return true;
 }
 
@@ -1193,12 +1188,7 @@ void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
 
 bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  UseScratchRegisterScope temps(this);
-  VRegister scratch = temps.AcquireV(kFormat8B);
-  Fmov(scratch.D(), src.gp().X());
-  Cnt(scratch, scratch);
-  Addv(scratch.B(), scratch);
-  Fmov(dst.gp().X(), scratch.D());
+  PopcntHelper(dst.gp().X(), src.gp().X());
   return true;
 }
 
