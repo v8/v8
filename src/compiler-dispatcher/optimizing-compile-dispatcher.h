@@ -61,7 +61,6 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
   // requested using %FinalizeOptimization).
   bool finalize() const { return finalize_; }
   void set_finalize(bool finalize) {
-    DCHECK_IMPLIES(!finalize, FLAG_testing_d8_test_runner);
     CHECK(!HasJobs());
     finalize_ = finalize;
   }
