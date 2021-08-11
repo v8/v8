@@ -1020,7 +1020,7 @@ CallFeedbackContent FeedbackNexus::GetCallFeedbackContent() {
 float FeedbackNexus::ComputeCallFrequency() {
   DCHECK(IsCallICKind(kind()));
 
-  double const invocation_count = vector().invocation_count();
+  double const invocation_count = vector().invocation_count(kRelaxedLoad);
   double const call_count = GetCallCount();
   if (invocation_count == 0.0) {  // Prevent division by 0.
     return 0.0f;

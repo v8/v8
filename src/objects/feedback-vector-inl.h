@@ -112,7 +112,12 @@ FeedbackMetadata FeedbackVector::metadata() const {
   return shared_function_info().feedback_metadata();
 }
 
-void FeedbackVector::clear_invocation_count() { set_invocation_count(0); }
+RELAXED_INT32_ACCESSORS(FeedbackVector, invocation_count,
+                        kInvocationCountOffset)
+
+void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
+  set_invocation_count(0, tag);
+}
 
 Code FeedbackVector::optimized_code() const {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);

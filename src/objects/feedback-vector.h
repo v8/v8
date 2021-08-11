@@ -219,7 +219,11 @@ class FeedbackVector
   // Increment profiler ticks, saturating at the maximal value.
   void SaturatingIncrementProfilerTicks();
 
-  inline void clear_invocation_count();
+  // Forward declare the non-atomic accessors.
+  using TorqueGeneratedFeedbackVector::invocation_count;
+  using TorqueGeneratedFeedbackVector::set_invocation_count;
+  DECL_RELAXED_INT32_ACCESSORS(invocation_count)
+  inline void clear_invocation_count(RelaxedStoreTag tag);
 
   inline Code optimized_code() const;
   inline bool has_optimized_code() const;

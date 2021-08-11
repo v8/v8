@@ -343,7 +343,7 @@ void BytecodeBudgetInterruptFromBytecode(Isolate* isolate,
     // Also initialize the invocation count here. This is only really needed for
     // OSR. When we OSR functions with lazy feedback allocation we want to have
     // a non zero invocation count so we can inline functions.
-    function->feedback_vector().set_invocation_count(1);
+    function->feedback_vector().set_invocation_count(1, kRelaxedStore);
   }
   if (CanCompileWithBaseline(isolate, function->shared()) &&
       !function->ActiveTierIsBaseline()) {

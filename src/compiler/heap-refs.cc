@@ -2237,8 +2237,6 @@ BytecodeArrayRef::incoming_new_target_or_generator_register() const {
   return object()->incoming_new_target_or_generator_register();
 }
 
-HEAP_ACCESSOR_C(FeedbackVector, double, invocation_count)
-
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 
 HEAP_ACCESSOR_C(HeapNumber, double, value)

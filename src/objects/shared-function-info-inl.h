@@ -128,7 +128,7 @@ RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo,
 RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                                function_token_offset)
 
-RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
+IMPLICIT_TAG_RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
 
 bool SharedFunctionInfo::HasSharedName() const {
