@@ -982,28 +982,68 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
-  bailout(kUnsupportedArchitecture, "i64_divs");
+  constexpr int64_t kMinInt64 = static_cast<int64_t>(1) << 63;
+  Label cont;
+  // Check for division by zero.
+  CmpS64(rhs.gp(), Operand::Zero(), r0);
+  beq(trap_div_by_zero);
+
+  // Check for kMinInt / -1. This is unrepresentable.
+  CmpS64(rhs.gp(), Operand(-1), r0);
+  bne(&cont);
+  CmpS64(lhs.gp(), Operand(kMinInt64), r0);
+  beq(trap_div_unrepresentable);
+
+  bind(&cont);
+  DivS64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_divu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i64_divu");
+  CmpS64(rhs.gp(), Operand::Zero(), r0);
+  beq(trap_div_by_zero);
+  // Do div.
+  DivU64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_rems(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i64_rems");
+  constexpr int64_t kMinInt64 = static_cast<int64_t>(1) << 63;
+
+  Label trap_div_unrepresentable;
+  Label done;
+  Label cont;
+
+  // Check for division by zero.
+  CmpS64(rhs.gp(), Operand::Zero(), r0);
+  beq(trap_div_by_zero);
+
+  // Check for kMinInt / -1. This is unrepresentable.
+  CmpS64(rhs.gp(), Operand(-1), r0);
+  bne(&cont);
+  CmpS64(lhs.gp(), Operand(kMinInt64), r0);
+  beq(&trap_div_unrepresentable);
+
+  bind(&cont);
+  ModS64(dst.gp(), lhs.gp(), rhs.gp());
+  bne(&done);
+
+  bind(&trap_div_unrepresentable);
+  mov(dst.gp(), Operand(0));
+  bind(&done);
   return true;
 }
 
 bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i64_remu");
+  CmpS64(rhs.gp(), Operand::Zero(), r0);
+  beq(trap_div_by_zero);
+  ModU64(dst.gp(), lhs.gp(), rhs.gp());
   return true;
 }
 
