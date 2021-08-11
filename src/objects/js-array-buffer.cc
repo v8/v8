@@ -227,11 +227,12 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
   // 2. Assert: O is an Object that has a [[ViewedArrayBuffer]] internal slot.
   // 3. If Type(P) is String, then
   PropertyKey lookup_key(isolate, key);
-  if (lookup_key.is_element() || key->IsString()) {
+  if (lookup_key.is_element() || key->IsSmi() || key->IsString()) {
     // 3a. Let numericIndex be ! CanonicalNumericIndexString(P)
     // 3b. If numericIndex is not undefined, then
-    bool is_minus_zero;
-    if (CanonicalNumericIndexString(isolate, lookup_key, &is_minus_zero)) {
+    bool is_minus_zero = false;
+    if (key->IsSmi() ||  // Smi keys are definitely canonical
+        CanonicalNumericIndexString(isolate, lookup_key, &is_minus_zero)) {
       // 3b i. If IsInteger(numericIndex) is false, return false.
       // 3b ii. If numericIndex = -0, return false.
       // 3b iii. If numericIndex < 0, return false.
