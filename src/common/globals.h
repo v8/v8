@@ -62,6 +62,9 @@ constexpr int GB = MB * 1024;
 #if (V8_TARGET_ARCH_RISCV64 && !V8_HOST_ARCH_RISCV64)
 #define USE_SIMULATOR 1
 #endif
+#if (V8_TARGET_ARCH_LOONG64 && !V8_HOST_ARCH_LOONG64)
+#define USE_SIMULATOR 1
+#endif
 #endif
 
 // Determine whether the architecture uses an embedded constant pool

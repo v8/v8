@@ -70,15 +70,10 @@
 }],
 
 ################################################################################
-['arch == mips64el or arch == mipsel', {
+['arch == mips64el or arch == mipsel or arch == riscv64 or arch == loong64', {
   # Tests that require Simd enabled.
   'wasm-trace-memory': [SKIP],
-}], # arch == mips64el or arch == mipsel
-
-['arch == riscv64', {
-  # Tests that require Simd enabled.
-  'wasm-trace-memory': [SKIP],
-}],
+}], # arch == mips64el or arch == mipsel or arch == riscv64 or arch == loong64
 
 ##############################################################################
 ['no_simd_hardware == True', {

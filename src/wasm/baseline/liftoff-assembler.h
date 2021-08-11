@@ -1711,6 +1711,8 @@ bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b);
 #include "src/wasm/baseline/mips/liftoff-assembler-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/wasm/baseline/mips64/liftoff-assembler-mips64.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/wasm/baseline/loong64/liftoff-assembler-loong64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/wasm/baseline/s390/liftoff-assembler-s390.h"
 #elif V8_TARGET_ARCH_RISCV64

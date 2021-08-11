@@ -1080,6 +1080,8 @@ class DebugInfoSection : public DebugSection {
       UNIMPLEMENTED();
 #elif V8_TARGET_ARCH_MIPS64
       UNIMPLEMENTED();
+#elif V8_TARGET_ARCH_LOONG64
+      UNIMPLEMENTED();
 #elif V8_TARGET_ARCH_PPC64 && V8_OS_LINUX
       w->Write<uint8_t>(DW_OP_reg31);  // The frame pointer is here on PPC64.
 #elif V8_TARGET_ARCH_S390

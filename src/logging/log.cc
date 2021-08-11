@@ -614,6 +614,8 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "ppc64";
 #elif V8_TARGET_ARCH_MIPS
   const char arch[] = "mips";
+#elif V8_TARGET_ARCH_LOONG64
+  const char arch[] = "loong64";
 #elif V8_TARGET_ARCH_ARM64
   const char arch[] = "arm64";
 #elif V8_TARGET_ARCH_S390

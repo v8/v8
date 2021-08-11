@@ -688,6 +688,8 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 #define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
 #elif V8_TARGET_ARCH_MIPS64
 #define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
+#elif V8_TARGET_ARCH_LOONG64
+#define re_stack_check_func RegExpMacroAssemblerLOONG64::CheckStackGuardState
 #elif V8_TARGET_ARCH_S390
 #define re_stack_check_func RegExpMacroAssemblerS390::CheckStackGuardState
 #elif V8_TARGET_ARCH_RISCV64

@@ -17,6 +17,8 @@
 #include "src/compiler/backend/mips/instruction-codes-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/compiler/backend/mips64/instruction-codes-mips64.h"
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/compiler/backend/loong64/instruction-codes-loong64.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/compiler/backend/x64/instruction-codes-x64.h"
 #elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64

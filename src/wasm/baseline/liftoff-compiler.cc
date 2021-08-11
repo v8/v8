@@ -306,7 +306,7 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
 
   // Some externally maintained architectures don't fully implement Liftoff yet.
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_LOONG64
   return;
 #endif
 

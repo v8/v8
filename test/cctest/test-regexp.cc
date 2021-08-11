@@ -614,6 +614,8 @@ using ArchRegExpMacroAssembler = RegExpMacroAssemblerPPC;
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
 #elif V8_TARGET_ARCH_MIPS64
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
+#elif V8_TARGET_ARCH_LOONG64
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerLOONG64;
 #elif V8_TARGET_ARCH_X87
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerX87;
 #elif V8_TARGET_ARCH_RISCV64

@@ -482,6 +482,11 @@ v8_source_set("unittests_sources") {
       "assembler/turbo-assembler-s390-unittest.cc",
       "compiler/s390/instruction-selector-s390-unittest.cc",
     ]
+  } else if (v8_current_cpu == "loong64") {
+    sources += [
+      "assembler/turbo-assembler-loong64-unittest.cc",
+      "compiler/loong64/instruction-selector-loong64-unittest.cc",
+    ]
   }
 
   if (is_posix && v8_enable_webassembly) {

@@ -39,8 +39,8 @@ constexpr uint64_t kFullGuardSize = uint64_t{10} * GB;
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if V8_TARGET_ARCH_MIPS64
-// MIPS64 has a user space of 2^40 bytes on most processors,
+#if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
+// MIPS64 and LOONG64 has a user space of 2^40 bytes on most processors,
 // address space limits needs to be smaller.
 constexpr size_t kAddressSpaceLimit = 0x8000000000L;  // 512 GiB
 #elif V8_TARGET_ARCH_RISCV64

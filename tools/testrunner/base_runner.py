@@ -113,7 +113,8 @@ SLOW_ARCHS = [
   "mips64el",
   "s390",
   "s390x",
-  "riscv64"
+  "riscv64",
+  "loong64"
 ]
 
 
@@ -662,6 +663,9 @@ class BaseTestRunner(object):
     if self.build_config.arch == 'mips64el' or \
        self.build_config.arch == 'mipsel':
        no_simd_hardware = not simd_mips
+
+    if self.build_config.arch == 'loong64':
+       no_simd_hardware = True
 
     # S390 hosts without VEF1 do not support Simd.
     if self.build_config.arch == 's390x' and \
