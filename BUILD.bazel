@@ -163,6 +163,7 @@ config_setting(
 # v8_verify_torque_generation_invariance
 # v8_enable_snapshot_compression
 # v8_control_flow_integrity
+# v8_enable_virtual_memory_cage
 # cppgc_enable_object_names
 # cppgc_enable_caged_heap
 # cppgc_enable_verify_live_bytes
@@ -1357,6 +1358,8 @@ filegroup(
         "src/init/startup-data-util.h",
         "src/init/v8.cc",
         "src/init/v8.h",
+        "src/init/vm-cage.cc",
+        "src/init/vm-cage.h",
         "src/interpreter/block-coverage-builder.h",
         "src/interpreter/bytecode-array-builder.cc",
         "src/interpreter/bytecode-array-builder.h",
