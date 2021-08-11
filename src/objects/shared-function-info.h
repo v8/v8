@@ -10,6 +10,7 @@
 #include "src/base/bit-field.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/common/globals.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
@@ -411,7 +412,7 @@ class SharedFunctionInfo
   inline bool HasSharedName() const;
 
   // [flags] Bit field containing various flags about the function.
-  DECL_INT32_ACCESSORS(flags)
+  DECL_RELAXED_INT32_ACCESSORS(flags)
   DECL_UINT8_ACCESSORS(flags2)
 
   // True if the outer class scope contains a private brand for
@@ -669,6 +670,10 @@ class SharedFunctionInfo
   inline void set_kind(FunctionKind kind);
 
   inline uint16_t get_property_estimate_from_literal(FunctionLiteral* literal);
+
+  // For ease of use of the BITFIELD macro.
+  inline int32_t relaxed_flags() const;
+  inline void set_relaxed_flags(int32_t flags);
 
   template <typename Impl>
   friend class FactoryBase;

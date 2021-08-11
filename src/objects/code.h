@@ -43,7 +43,7 @@ class CodeDataContainer : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(next_code_link, Object)
-  DECL_INT_ACCESSORS(kind_specific_flags)
+  DECL_RELAXED_INT32_ACCESSORS(kind_specific_flags)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.

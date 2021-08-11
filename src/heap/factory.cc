@@ -100,14 +100,15 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         kind_specific_flags_ == 0
             ? roots.trampoline_trivial_code_data_container_handle()
             : roots.trampoline_promise_rejection_code_data_container_handle());
-    DCHECK_EQ(canonical_code_data_container->kind_specific_flags(),
+    DCHECK_EQ(canonical_code_data_container->kind_specific_flags(kRelaxedLoad),
               kind_specific_flags_);
     data_container = canonical_code_data_container;
   } else {
     data_container = factory->NewCodeDataContainer(
         0, read_only_data_container_ ? AllocationType::kReadOnly
                                      : AllocationType::kOld);
-    data_container->set_kind_specific_flags(kind_specific_flags_);
+    data_container->set_kind_specific_flags(kind_specific_flags_,
+                                            kRelaxedStore);
   }
 
   // Basic block profiling data for builtins is stored in the JS heap rather
@@ -2178,7 +2179,7 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(
       CodeDataContainer::cast(New(code_data_container_map(), allocation));
   DisallowGarbageCollection no_gc;
   data_container.set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
-  data_container.set_kind_specific_flags(flags);
+  data_container.set_kind_specific_flags(flags, kRelaxedStore);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     data_container.AllocateExternalPointerEntries(isolate());
     data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
@@ -2198,7 +2199,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
       Builtins::CodeObjectIsExecutable(code->builtin_id());
   Handle<Code> result = Builtins::GenerateOffHeapTrampolineFor(
       isolate(), off_heap_entry,
-      code->code_data_container(kAcquireLoad).kind_specific_flags(),
+      code->code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad),
       generate_jump_to_instruction_stream);
 
   // Trampolines may not contain any metadata since all metadata offsets,
@@ -2256,7 +2257,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
 
 Handle<Code> Factory::CopyCode(Handle<Code> code) {
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(
-      code->code_data_container(kAcquireLoad).kind_specific_flags(),
+      code->code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad),
       AllocationType::kOld);
 
   Heap* heap = isolate()->heap();

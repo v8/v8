@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/debug-objects-inl.h"
@@ -128,7 +129,14 @@ RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo,
 RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                                function_token_offset)
 
-IMPLICIT_TAG_RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
+RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
+int32_t SharedFunctionInfo::relaxed_flags() const {
+  return flags(kRelaxedLoad);
+}
+void SharedFunctionInfo::set_relaxed_flags(int32_t flags) {
+  return set_flags(flags, kRelaxedStore);
+}
+
 UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
 
 bool SharedFunctionInfo::HasSharedName() const {
@@ -245,34 +253,36 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, syntax_kind,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, allows_lazy_compilation,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, allows_lazy_compilation,
                     SharedFunctionInfo::AllowLazyCompilationBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, has_duplicate_parameters,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, has_duplicate_parameters,
                     SharedFunctionInfo::HasDuplicateParametersBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, native,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, native,
                     SharedFunctionInfo::IsNativeBit)
 #if V8_ENABLE_WEBASSEMBLY
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_asm_wasm_broken,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
 #endif  // V8_ENABLE_WEBASSEMBLY
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     requires_instance_members_initializer,
                     SharedFunctionInfo::RequiresInstanceMembersInitializerBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, name_should_print_as_anonymous,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
+                    name_should_print_as_anonymous,
                     SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, has_reported_binary_coverage,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
+                    has_reported_binary_coverage,
                     SharedFunctionInfo::HasReportedBinaryCoverageBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_toplevel,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, is_toplevel,
                     SharedFunctionInfo::IsTopLevelBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, properties_are_final,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, properties_are_final,
                     SharedFunctionInfo::PropertiesAreFinalBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     private_name_lookup_skips_outer_class,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 
@@ -281,12 +291,12 @@ bool SharedFunctionInfo::optimization_disabled() const {
 }
 
 BailoutReason SharedFunctionInfo::disable_optimization_reason() const {
-  return DisabledOptimizationReasonBits::decode(flags());
+  return DisabledOptimizationReasonBits::decode(flags(kRelaxedLoad));
 }
 
 LanguageMode SharedFunctionInfo::language_mode() const {
   STATIC_ASSERT(LanguageModeSize == 2);
-  return construct_language_mode(IsStrictBit::decode(flags()));
+  return construct_language_mode(IsStrictBit::decode(flags(kRelaxedLoad)));
 }
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
@@ -294,22 +304,22 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   // We only allow language mode transitions that set the same language mode
   // again or go up in the chain:
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
-  int hints = flags();
+  int hints = flags(kRelaxedLoad);
   hints = IsStrictBit::update(hints, is_strict(language_mode));
-  set_flags(hints);
+  set_flags(hints, kRelaxedStore);
   UpdateFunctionMapIndex();
 }
 
 FunctionKind SharedFunctionInfo::kind() const {
   STATIC_ASSERT(FunctionKindBits::kSize == kFunctionKindBitSize);
-  return FunctionKindBits::decode(flags());
+  return FunctionKindBits::decode(flags(kRelaxedLoad));
 }
 
 void SharedFunctionInfo::set_kind(FunctionKind kind) {
-  int hints = flags();
+  int hints = flags(kRelaxedLoad);
   hints = FunctionKindBits::update(hints, kind);
   hints = IsClassConstructorBit::update(hints, IsClassConstructor(kind));
-  set_flags(hints);
+  set_flags(hints, kRelaxedStore);
   UpdateFunctionMapIndex();
 }
 
@@ -318,7 +328,7 @@ bool SharedFunctionInfo::is_wrapped() const {
 }
 
 bool SharedFunctionInfo::construct_as_builtin() const {
-  return ConstructAsBuiltinBit::decode(flags());
+  return ConstructAsBuiltinBit::decode(flags(kRelaxedLoad));
 }
 
 void SharedFunctionInfo::CalculateConstructAsBuiltin() {
@@ -332,15 +342,15 @@ void SharedFunctionInfo::CalculateConstructAsBuiltin() {
     uses_builtins_construct_stub = true;
   }
 
-  int f = flags();
+  int f = flags(kRelaxedLoad);
   f = ConstructAsBuiltinBit::update(f, uses_builtins_construct_stub);
-  set_flags(f);
+  set_flags(f, kRelaxedStore);
 }
 
 int SharedFunctionInfo::function_map_index() const {
   // Note: Must be kept in sync with the FastNewClosure builtin.
-  int index =
-      Context::FIRST_FUNCTION_MAP_INDEX + FunctionMapIndexBits::decode(flags());
+  int index = Context::FIRST_FUNCTION_MAP_INDEX +
+              FunctionMapIndexBits::decode(flags(kRelaxedLoad));
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   return index;
 }
@@ -351,7 +361,8 @@ void SharedFunctionInfo::set_function_map_index(int index) {
   DCHECK_LE(Context::FIRST_FUNCTION_MAP_INDEX, index);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   index -= Context::FIRST_FUNCTION_MAP_INDEX;
-  set_flags(FunctionMapIndexBits::update(flags(), index));
+  set_flags(FunctionMapIndexBits::update(flags(kRelaxedLoad), index),
+            kRelaxedStore);
 }
 
 void SharedFunctionInfo::clear_padding() {
@@ -890,7 +901,7 @@ bool SharedFunctionInfo::CanDiscardCompiled() const {
 }
 
 bool SharedFunctionInfo::is_class_constructor() const {
-  return IsClassConstructorBit::decode(flags());
+  return IsClassConstructorBit::decode(flags(kRelaxedLoad));
 }
 
 void SharedFunctionInfo::set_are_properties_final(bool value) {

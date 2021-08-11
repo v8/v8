@@ -8,6 +8,7 @@
 #include "src/ast/scopes.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
@@ -58,7 +59,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
 
   // All flags default to false or 0, except ConstructAsBuiltinBit just because
   // we're using the kIllegal builtin.
-  set_flags(ConstructAsBuiltinBit::encode(true));
+  set_flags(ConstructAsBuiltinBit::encode(true), kRelaxedStore);
   set_flags2(0);
 
   UpdateFunctionMapIndex();
@@ -435,7 +436,8 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
 
-  set_flags(DisabledOptimizationReasonBits::update(flags(), reason));
+  set_flags(DisabledOptimizationReasonBits::update(flags(kRelaxedLoad), reason),
+            kRelaxedStore);
   // Code should be the lazy compilation stub or else interpreted.
   Isolate* isolate = GetIsolate();
   DCHECK(abstract_code(isolate).kind() == CodeKind::INTERPRETED_FUNCTION ||
