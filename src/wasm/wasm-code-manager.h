@@ -560,6 +560,9 @@ class WasmCodeAllocator {
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
+  // {protect_code_memory_} is true if traditional memory permission switching
+  // is used to protect code space. It is false if {MAP_JIT} on Mac or PKU is
+  // being used, or protection is completely disabled.
   const bool protect_code_memory_;
   std::atomic<size_t> committed_code_space_{0};
   std::atomic<size_t> generated_code_size_{0};

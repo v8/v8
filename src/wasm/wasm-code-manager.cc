@@ -515,6 +515,7 @@ constexpr size_t WasmCodeAllocator::kMaxCodeSpaceSize;
 
 WasmCodeAllocator::WasmCodeAllocator(std::shared_ptr<Counters> async_counters)
     : protect_code_memory_(
+          !V8_HAS_PTHREAD_JIT_WRITE_PROTECT &&
           FLAG_wasm_write_protect_code_memory &&
           !GetWasmCodeManager()->HasMemoryProtectionKeySupport()),
       async_counters_(std::move(async_counters)) {
