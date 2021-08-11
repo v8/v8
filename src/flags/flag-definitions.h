@@ -494,7 +494,6 @@ DEFINE_WEAK_IMPLICATION(future, sparkplug)
 #if V8_SHORT_BUILTIN_CALLS
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #endif
-DEFINE_WEAK_IMPLICATION(future, turboprop)
 
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,

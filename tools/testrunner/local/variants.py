@@ -58,8 +58,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "nooptimization": ["--always-opt"],
   "slow_path": ["--no-force-slow-path"],
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
-  "stress_concurrent_inlining": ["--single-threaded", "--predictable", "--future", "--turboprop"],
-  "future": ["--stress_concurrent_inlining"],
+  "stress_concurrent_inlining": ["--single-threaded", "--predictable", "--turboprop"],
   "turboprop": ["--stress_concurrent_inlining"],
   # The fast API tests initialize an embedder object that never needs to be
   # serialized to the snapshot, so we don't have a
@@ -108,7 +107,6 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
         INCOMPATIBLE_FLAGS_PER_VARIANT["stress_concurrent_allocation"],
   "--stress-concurrent-inlining":
         INCOMPATIBLE_FLAGS_PER_VARIANT["stress_concurrent_inlining"],
-  "--future": INCOMPATIBLE_FLAGS_PER_VARIANT["future"],
 }
 
 SLOW_VARIANTS = set([
