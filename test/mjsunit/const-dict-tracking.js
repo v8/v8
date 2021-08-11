@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --opt --no-always-opt
-// Flags: --no-stress-flush-code
+// Flags: --no-stress-flush-code --concurrent-recompilation
 //
 // Tests tracking of constness of properties stored in dictionary
 // mode prototypes.
