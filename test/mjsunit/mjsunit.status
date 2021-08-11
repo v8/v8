@@ -878,6 +878,7 @@
   'regress/wasm/regress-1161954': [SKIP],
   'regress/wasm/regress-1187831': [SKIP],
   'regress/wasm/regress-1199662': [SKIP],
+  'regress/wasm/regress-1231950': [SKIP],
   'regress/regress-1172797': [SKIP],
   'regress/wasm/regress-1179025': [SKIP],
   'wasm/multi-value-simd': [SKIP],
