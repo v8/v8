@@ -209,6 +209,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
               RCBit r = LeaveRC);
   void DivU32(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
+  void ModS64(Register dst, Register src, Register value);
+  void ModU64(Register dst, Register src, Register value);
+  void ModS32(Register dst, Register src, Register value);
+  void ModU32(Register dst, Register src, Register value);
 
   void AndU64(Register dst, Register src, const Operand& value,
               Register scratch = r0, RCBit r = SetRC);

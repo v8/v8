@@ -949,12 +949,33 @@ void LiftoffAssembler::emit_i32_divu(Register dst, Register lhs, Register rhs,
 
 void LiftoffAssembler::emit_i32_rems(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i32_rems");
+  Label cont, done, trap_div_unrepresentable;
+  // Check for division by zero.
+  CmpS32(rhs, Operand::Zero(), r0);
+  beq(trap_div_by_zero);
+
+  // Check kMinInt/-1 case.
+  CmpS32(rhs, Operand(-1), r0);
+  bne(&cont);
+  CmpS32(lhs, Operand(kMinInt), r0);
+  beq(&trap_div_unrepresentable);
+
+  // Continue noraml calculation.
+  bind(&cont);
+  ModS32(dst, lhs, rhs);
+  bne(&done);
+
+  // trap by kMinInt/-1 case.
+  bind(&trap_div_unrepresentable);
+  mov(dst, Operand(0));
+  bind(&done);
 }
 
 void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero) {
-  bailout(kUnsupportedArchitecture, "i32_remu");
+  CmpS32(rhs, Operand::Zero(), r0);
+  beq(trap_div_by_zero);
+  ModU32(dst, lhs, rhs);
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,

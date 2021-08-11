@@ -2780,6 +2780,23 @@ void TurboAssembler::DivU32(Register dst, Register src, Register value, OEBit s,
   ZeroExtWord32(dst, dst);
 }
 
+void TurboAssembler::ModS64(Register dst, Register src, Register value) {
+  modsd(dst, src, value);
+}
+
+void TurboAssembler::ModU64(Register dst, Register src, Register value) {
+  modud(dst, src, value);
+}
+
+void TurboAssembler::ModS32(Register dst, Register src, Register value) {
+  modsw(dst, src, value);
+  extsw(dst, dst);
+}
+void TurboAssembler::ModU32(Register dst, Register src, Register value) {
+  moduw(dst, src, value);
+  ZeroExtWord32(dst, dst);
+}
+
 void TurboAssembler::AndU64(Register dst, Register src, const Operand& value,
                             Register scratch, RCBit r) {
   if (is_uint16(value.immediate()) && r == SetRC) {
