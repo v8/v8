@@ -90,7 +90,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
   if (FLAG_untrusted_code_mitigations) set_untrusted_code_mitigations();
   if (FLAG_turbo_inline_js_wasm_calls) set_inline_js_wasm_calls();
 
-  if (!is_osr() && (IsTurboprop() || FLAG_concurrent_inlining)) {
+  if (IsTurboprop() || FLAG_concurrent_inlining) {
     set_concurrent_inlining();
   }
 
@@ -123,8 +123,15 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::WASM_TO_CAPI_FUNCTION:
       set_switch_jump_table();
       break;
-    default:
+    case CodeKind::C_WASM_ENTRY:
+    case CodeKind::JS_TO_JS_FUNCTION:
+    case CodeKind::JS_TO_WASM_FUNCTION:
+    case CodeKind::WASM_TO_JS_FUNCTION:
       break;
+    case CodeKind::BASELINE:
+    case CodeKind::INTERPRETED_FUNCTION:
+    case CodeKind::REGEXP:
+      UNREACHABLE();
   }
 }
 
