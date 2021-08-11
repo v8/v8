@@ -59,6 +59,8 @@ namespace internal {
      51)                                                                       \
   HR(wasm_compile_function_peak_memory_bytes,                                  \
      V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)                         \
+  HR(wasm_compile_huge_function_peak_memory_bytes,                             \
+     V8.WasmCompileHugeFunctionPeakMemoryBytes, 1, GB, 51)                     \
   HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
   HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 20,   \
      21)                                                                       \
@@ -201,6 +203,8 @@ namespace internal {
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
      1000000, MICROSECOND)                                                     \
+  HT(wasm_compile_huge_function_time, V8.WasmCompileHugeFunctionMilliSeconds,  \
+     100000, MILLISECOND)                                                      \
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \

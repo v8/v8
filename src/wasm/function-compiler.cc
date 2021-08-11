@@ -77,12 +77,15 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
                                code.end()};
 
   base::Optional<TimedHistogramScope> wasm_compile_function_time_scope;
+  base::Optional<TimedHistogramScope> wasm_compile_huge_function_time_scope;
   if (counters) {
-    if ((func_body.end - func_body.start) >= 100 * KB) {
+    if (func_body.end - func_body.start >= 100 * KB) {
       auto huge_size_histogram = SELECT_WASM_COUNTER(
           counters, env->module->origin, wasm, huge_function_size_bytes);
       huge_size_histogram->AddSample(
           static_cast<int>(func_body.end - func_body.start));
+      wasm_compile_huge_function_time_scope.emplace(
+          counters->wasm_compile_huge_function_time());
     }
     auto timed_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
                                                wasm_compile, function_time);
