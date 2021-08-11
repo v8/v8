@@ -70,6 +70,7 @@ class NumberObject;
 class Object;
 class ObjectOperationDescriptor;
 class ObjectTemplate;
+class PageAllocator;
 class Platform;
 class Primitive;
 class PrimitiveArray;
@@ -5424,7 +5425,10 @@ class V8_EXPORT ArrayBuffer : public Object {
     enum class AllocationMode { kNormal, kReservation };
 
     /**
-     * malloc/free based convenience allocator.
+     * Convenience allocator.
+     *
+     * When the virtual memory cage is enabled, this allocator will allocate its
+     * backing memory inside the cage. Otherwise, it will rely on malloc/free.
      *
      * Caller takes ownership, i.e. the returned object needs to be freed using
      * |delete allocator| once it is no longer in use.
@@ -9832,7 +9836,8 @@ class V8_EXPORT V8 {
     const int kBuildConfiguration =
         (internal::PointerCompressionIsEnabled() ? kPointerCompression : 0) |
         (internal::SmiValuesAre31Bits() ? k31BitSmis : 0) |
-        (internal::HeapSandboxIsEnabled() ? kHeapSandbox : 0);
+        (internal::HeapSandboxIsEnabled() ? kHeapSandbox : 0) |
+        (internal::VirtualMemoryCageIsEnabled() ? kVirtualMemoryCage : 0);
     return Initialize(kBuildConfiguration);
   }
 
@@ -9914,6 +9919,37 @@ class V8_EXPORT V8 {
    */
   static void ShutdownPlatform();
 
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  //
+  // Virtual Memory Cage related API.
+  //
+  // This API is not yet stable and subject to changes in the future.
+  //
+
+  /**
+   * Initializes the virtual memory cage for V8.
+   *
+   * This must be invoked after the platform was initialized but before V8 is
+   * initialized. The virtual memory cage is torn down during platform shutdown.
+   * Returns true on success, false otherwise.
+   */
+  static bool InitializeVirtualMemoryCage();
+
+  /**
+   * Provides access to the data page allocator for the virtual memory cage.
+   *
+   * This allocator allocates pages inside the data cage part of the virtual
+   * memory cage in which data buffers such as ArrayBuffer backing stores must
+   * be allocated. Objects in this region should generally consists purely of
+   * data and not contain any pointers. It should be assumed that an attacker
+   * can corrupt data inside the cage, and so in particular the contents of
+   * pages returned by this allocator, arbitrarily and concurrently.
+   *
+   * The virtual memory cage must have been initialized before.
+   */
+  static PageAllocator* GetVirtualMemoryCageDataPageAllocator();
+#endif
+
   /**
    * Activate trap-based bounds checking for WebAssembly.
    *
@@ -9948,6 +9984,7 @@ class V8_EXPORT V8 {
     kPointerCompression = 1 << 0,
     k31BitSmis = 1 << 1,
     kHeapSandbox = 1 << 2,
+    kVirtualMemoryCage = 1 << 3,
   };
 
   /**

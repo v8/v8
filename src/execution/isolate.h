@@ -33,6 +33,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
 #include "src/init/isolate-allocator.h"
+#include "src/init/vm-cage.h"
 #include "src/objects/code.h"
 #include "src/objects/contexts.h"
 #include "src/objects/debug-objects.h"
@@ -1079,6 +1080,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
   const VirtualMemoryCage* GetPtrComprCage() const {
     return isolate_allocator_->GetPtrComprCage();
+  }
+
+  bool IsValidBackingStorePointer(void* ptr) {
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+    Address addr = reinterpret_cast<Address>(ptr);
+    return kAllowBackingStoresOutsideDataCage || addr == kNullAddress ||
+           GetProcessWideVirtualMemoryCage()->Contains(addr);
+#else
+    return true;
+#endif
   }
 
   // Generated code can embed this address to get access to the isolate-specific

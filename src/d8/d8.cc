@@ -166,7 +166,11 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
   void* AllocateVM(size_t length) {
     DCHECK_LE(kVMThreshold, length);
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+    v8::PageAllocator* page_allocator = i::GetPlatformDataCagePageAllocator();
+#else
     v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
+#endif
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
@@ -174,7 +178,11 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 
   void FreeVM(void* data, size_t length) {
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+    v8::PageAllocator* page_allocator = i::GetPlatformDataCagePageAllocator();
+#else
     v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
+#endif
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     CHECK(i::FreePages(page_allocator, data, allocated));
@@ -5037,6 +5045,11 @@ int Shell::Main(int argc, char* argv[]) {
     V8::SetFlagsFromString("--redirect-code-traces-to=code.asm");
   }
   v8::V8::InitializePlatform(g_platform.get());
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  if (!v8::V8::InitializeVirtualMemoryCage()) {
+    FATAL("Could not initialize the virtual memory cage");
+  }
+#endif
   v8::V8::Initialize();
   if (options.snapshot_blob) {
     v8::V8::InitializeExternalStartupDataFromFile(options.snapshot_blob);
@@ -5064,6 +5077,11 @@ int Shell::Main(int argc, char* argv[]) {
     }
 #if V8_OS_LINUX
   } else if (options.multi_mapped_mock_allocator) {
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+    CHECK_WITH_MSG(internal::kAllowBackingStoresOutsideDataCage,
+                   "The multi-mapped arraybuffer allocator is currently "
+                   "incompatible with v8_enable_virtual_memory_cage");
+#endif
     Shell::array_buffer_allocator = &multi_mapped_mock_allocator;
 #endif  // V8_OS_LINUX
   } else {

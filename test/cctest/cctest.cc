@@ -336,6 +336,9 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  CHECK(v8::V8::InitializeVirtualMemoryCage());
+#endif
   cppgc::InitializeProcess(platform->GetPageAllocator());
   using HelpOptions = v8::internal::FlagList::HelpOptions;
   v8::internal::FlagList::SetFlagsFromCommandLine(

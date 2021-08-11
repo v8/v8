@@ -56,6 +56,7 @@
 #include "src/init/icu_util.h"
 #include "src/init/startup-data-util.h"
 #include "src/init/v8.h"
+#include "src/init/vm-cage.h"
 #include "src/json/json-parser.h"
 #include "src/json/json-stringifier.h"
 #include "src/logging/counters-scopes.h"
@@ -331,6 +332,37 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 
 namespace {
 
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+// ArrayBufferAllocator to use when the virtual memory cage is enabled, in which
+// case all ArrayBuffer backing stores need to be allocated inside the data
+// cage. Note, the current implementation is extremely inefficient as it uses
+// the BoundedPageAllocator. In the future, we'll need a proper allocator
+// implementation.
+class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  ArrayBufferAllocator() { CHECK(page_allocator_); }
+
+  void* Allocate(size_t length) override {
+    return page_allocator_->AllocatePages(nullptr, RoundUp(length, page_size_),
+                                          page_size_,
+                                          PageAllocator::kReadWrite);
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    return Allocate(length);
+  }
+
+  void Free(void* data, size_t length) override {
+    page_allocator_->FreePages(data, RoundUp(length, page_size_));
+  }
+
+ private:
+  PageAllocator* page_allocator_ = internal::GetPlatformDataCagePageAllocator();
+  const size_t page_size_ = page_allocator_->AllocatePageSize();
+};
+
+#else
+
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   void* Allocate(size_t length) override {
@@ -372,6 +404,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     return new_data;
   }
 };
+#endif  // V8_VIRTUAL_MEMORY_CAGE
 
 struct SnapshotCreatorData {
   explicit SnapshotCreatorData(Isolate* isolate)
@@ -5852,6 +5885,12 @@ void v8::V8::InitializePlatform(Platform* platform) {
   i::V8::InitializePlatform(platform);
 }
 
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+bool v8::V8::InitializeVirtualMemoryCage() {
+  return i::V8::InitializeVirtualMemoryCage();
+}
+#endif
+
 void v8::V8::ShutdownPlatform() { i::V8::ShutdownPlatform(); }
 
 bool v8::V8::Initialize(const int build_config) {
@@ -5880,6 +5919,16 @@ bool v8::V8::Initialize(const int build_config) {
         "heap sandbox is %s while on V8 side it's %s.",
         kEmbedderHeapSandbox ? "ENABLED" : "DISABLED",
         V8_HEAP_SANDBOX_BOOL ? "ENABLED" : "DISABLED");
+  }
+
+  const bool kEmbedderVirtualMemoryCage =
+      (build_config & kVirtualMemoryCage) != 0;
+  if (kEmbedderVirtualMemoryCage != V8_VIRTUAL_MEMORY_CAGE_BOOL) {
+    FATAL(
+        "Embedder-vs-V8 build configuration mismatch. On embedder side "
+        "virtual memory cage is %s while on V8 side it's %s.",
+        kEmbedderVirtualMemoryCage ? "ENABLED" : "DISABLED",
+        V8_VIRTUAL_MEMORY_CAGE_BOOL ? "ENABLED" : "DISABLED");
   }
 
   i::V8::Initialize();
@@ -5997,6 +6046,13 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 }
 
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
+
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+PageAllocator* GetVirtualMemoryCageDataPageAllocator() {
+  CHECK(i::GetProcessWideVirtualMemoryCage()->is_initialized());
+  return i::GetProcessWideVirtualMemoryCage()->GetDataCagePageAllocator();
+}
+#endif
 
 void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
   i::ReadOnlyHeap::PopulateReadOnlySpaceStatistics(statistics);

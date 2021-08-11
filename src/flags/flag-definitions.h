@@ -175,6 +175,12 @@ struct MaybeBoolFlag {
 #define V8_HEAP_SANDBOX_BOOL false
 #endif
 
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+#define V8_VIRTUAL_MEMORY_CAGE_BOOL true
+#else
+#define V8_VIRTUAL_MEMORY_CAGE_BOOL false
+#endif
+
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL true
 #else
