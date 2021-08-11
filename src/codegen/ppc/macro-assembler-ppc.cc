@@ -2759,6 +2759,27 @@ void TurboAssembler::MulS32(Register dst, Register src, Register value, OEBit s,
   extsw(dst, dst, r);
 }
 
+void TurboAssembler::DivS64(Register dst, Register src, Register value, OEBit s,
+                            RCBit r) {
+  divd(dst, src, value, s, r);
+}
+
+void TurboAssembler::DivU64(Register dst, Register src, Register value, OEBit s,
+                            RCBit r) {
+  divdu(dst, src, value, s, r);
+}
+
+void TurboAssembler::DivS32(Register dst, Register src, Register value, OEBit s,
+                            RCBit r) {
+  divw(dst, src, value, s, r);
+  extsw(dst, dst);
+}
+void TurboAssembler::DivU32(Register dst, Register src, Register value, OEBit s,
+                            RCBit r) {
+  divwu(dst, src, value, s, r);
+  ZeroExtWord32(dst, dst);
+}
+
 void TurboAssembler::AndU64(Register dst, Register src, const Operand& value,
                             Register scratch, RCBit r) {
   if (is_uint16(value.immediate()) && r == SetRC) {
