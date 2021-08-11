@@ -1816,17 +1816,29 @@ INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
 base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
-  // TODO(jgruber): Consider supporting transitions other than for JSArray
-  // initial maps (e.g. by walking transitions concurrently and finding an
-  // existing map that fits).
-
   const ElementsKind current_kind = elements_kind();
   if (kind == current_kind) return *this;
 
-  NativeContextRef native_context = broker()->target_native_context();
-  if (!equals(native_context.GetInitialJSArrayMap(current_kind))) return {};
+  base::Optional<Map> maybe_result = Map::TryAsElementsKind(
+      broker()->isolate(), object(), kind, ConcurrencyMode::kConcurrent);
 
-  return native_context.GetInitialJSArrayMap(kind);
+#ifdef DEBUG
+  // If starting from an initial JSArray map, TryAsElementsKind must succeed
+  // and return the expected transitioned JSArray map.
+  NativeContextRef native_context = broker()->target_native_context();
+  if (equals(native_context.GetInitialJSArrayMap(current_kind))) {
+    CHECK_EQ(Map::TryAsElementsKind(broker()->isolate(), object(), kind,
+                                    ConcurrencyMode::kConcurrent)
+                 .value(),
+             *native_context.GetInitialJSArrayMap(kind).object());
+  }
+#endif  // DEBUG
+
+  if (!maybe_result.has_value()) {
+    TRACE_BROKER_MISSING(broker(), "MapRef::AsElementsKind " << *this);
+    return {};
+  }
+  return MakeRefAssumeMemoryFence(broker(), maybe_result.value());
 }
 
 void MapRef::SerializeForElementStore(NotConcurrentInliningTag tag) {

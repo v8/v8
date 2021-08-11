@@ -1128,6 +1128,15 @@ static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
 }
 
 // static
+base::Optional<Map> Map::TryAsElementsKind(Isolate* isolate, Handle<Map> map,
+                                           ElementsKind kind,
+                                           ConcurrencyMode cmode) {
+  Map closest_map = FindClosestElementsTransition(isolate, *map, kind, cmode);
+  if (closest_map.elements_kind() != kind) return {};
+  return closest_map;
+}
+
+// static
 Handle<Map> Map::AsElementsKind(Isolate* isolate, Handle<Map> map,
                                 ElementsKind kind) {
   Handle<Map> closest_map(

@@ -701,6 +701,10 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> TransitionElementsTo(Isolate* isolate, Handle<Map> map,
                                           ElementsKind to_kind);
 
+  static base::Optional<Map> TryAsElementsKind(Isolate* isolate,
+                                               Handle<Map> map,
+                                               ElementsKind kind,
+                                               ConcurrencyMode cmode);
   V8_EXPORT_PRIVATE static Handle<Map> AsElementsKind(Isolate* isolate,
                                                       Handle<Map> map,
                                                       ElementsKind kind);
