@@ -177,19 +177,24 @@ int32_t weekdayFromEDaysOfWeek(icu::Calendar::EDaysOfWeek eDaysOfWeek) {
 
 }  // namespace
 
-bool JSLocale::Is38AlphaNumList(const std::string& value) {
-  std::size_t found_dash = value.find("-");
-  std::size_t found_underscore = value.find("_");
-  if (found_dash == std::string::npos &&
-      found_underscore == std::string::npos) {
-    return IsAlphanum(value, 3, 8);
+bool JSLocale::Is38AlphaNumList(const std::string& in) {
+  std::string value = in;
+  while (true) {
+    std::size_t found_dash = value.find("-");
+    std::size_t found_underscore = value.find("_");
+    if (found_dash == std::string::npos &&
+        found_underscore == std::string::npos) {
+      return IsAlphanum(value, 3, 8);
+    }
+    if (found_underscore == std::string::npos ||
+        found_dash < found_underscore) {
+      if (!IsAlphanum(value.substr(0, found_dash), 3, 8)) return false;
+      value = value.substr(found_dash + 1);
+    } else {
+      if (!IsAlphanum(value.substr(0, found_underscore), 3, 8)) return false;
+      value = value.substr(found_underscore + 1);
+    }
   }
-  if (found_underscore == std::string::npos || found_dash < found_underscore) {
-    return IsAlphanum(value.substr(0, found_dash), 3, 8) &&
-           JSLocale::Is38AlphaNumList(value.substr(found_dash + 1));
-  }
-  return IsAlphanum(value.substr(0, found_underscore), 3, 8) &&
-         JSLocale::Is38AlphaNumList(value.substr(found_underscore + 1));
 }
 
 bool JSLocale::Is3Alpha(const std::string& value) {
