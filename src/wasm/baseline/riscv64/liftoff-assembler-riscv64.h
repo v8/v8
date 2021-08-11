@@ -2730,9 +2730,9 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
   bailout(kSimd, "emit_f64x2_replace_lane");
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, DoubleRegister src,
+void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
                                             Register tmp_gp,
-                                            DoubleRegister tmp_fp,
+                                            LiftoffRegister tmp_s128,
                                             ValueKind lane_kind) {
   bailout(kSimd, "emit_s128_set_if_nan");
 }

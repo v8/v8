@@ -4357,19 +4357,19 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
   bind(&ret);
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, DoubleRegister src,
+void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
                                             Register tmp_gp,
-                                            DoubleRegister tmp_fp,
+                                            LiftoffRegister tmp_s128,
                                             ValueKind lane_kind) {
   if (lane_kind == kF32) {
-    movaps(tmp_fp, src);
-    cmpunordps(tmp_fp, tmp_fp);
+    movaps(tmp_s128.fp(), src.fp());
+    cmpunordps(tmp_s128.fp(), tmp_s128.fp());
   } else {
     DCHECK_EQ(lane_kind, kF64);
-    movapd(tmp_fp, src);
-    cmpunordpd(tmp_fp, tmp_fp);
+    movapd(tmp_s128.fp(), src.fp());
+    cmpunordpd(tmp_s128.fp(), tmp_s128.fp());
   }
-  pmovmskb(tmp_gp, tmp_fp);
+  pmovmskb(tmp_gp, tmp_s128.fp());
   orl(Operand(dst, 0), tmp_gp);
 }
 

@@ -1460,8 +1460,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_set_if_nan(Register dst, DoubleRegister src, ValueKind kind);
 
   // Set the i32 at address dst to a non-zero value if src contains a NaN.
-  inline void emit_s128_set_if_nan(Register dst, DoubleRegister src,
-                                   Register tmp_gp, DoubleRegister tmp_fp,
+  inline void emit_s128_set_if_nan(Register dst, LiftoffRegister src,
+                                   Register tmp_gp, LiftoffRegister tmp_s128,
                                    ValueKind lane_kind);
 
   ////////////////////////////////////

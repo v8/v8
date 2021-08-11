@@ -6151,14 +6151,14 @@ class LiftoffCompiler {
                     ValueKind lane_kind) {
     RegClass rc = reg_class_for(kS128);
     LiftoffRegister tmp_gp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister tmp_fp = pinned.set(__ GetUnusedRegister(rc, pinned));
+    LiftoffRegister tmp_s128 = pinned.set(__ GetUnusedRegister(rc, pinned));
     LiftoffRegister nondeterminism_addr =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     __ LoadConstant(
         nondeterminism_addr,
         WasmValue::ForUintPtr(reinterpret_cast<uintptr_t>(nondeterminism_)));
-    __ emit_s128_set_if_nan(nondeterminism_addr.gp(), dst.fp(), tmp_gp.gp(),
-                            tmp_fp.fp(), lane_kind);
+    __ emit_s128_set_if_nan(nondeterminism_addr.gp(), dst, tmp_gp.gp(),
+                            tmp_s128, lane_kind);
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
