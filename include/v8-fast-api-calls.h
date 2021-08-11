@@ -317,12 +317,6 @@ struct FastApiTypedArray : public FastApiTypedArrayBase {
 #ifdef DEBUG
     ValidateIndex(index);
 #endif  // DEBUG
-    static_assert(offsetof(FastApiTypedArray<T>, length_) <
-                      offsetof(FastApiTypedArray<T>, data_),
-                  "length_ should be "
-                  "stored in memory before data_, initializing the "
-                  "FastApiTypedArray struct will fail.");
-
     T tmp;
     memcpy(&tmp, reinterpret_cast<T*>(data_) + index, sizeof(T));
     return tmp;
