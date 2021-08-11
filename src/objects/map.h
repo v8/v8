@@ -653,6 +653,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   DECL_BOOLEAN_ACCESSORS(is_deprecated)
   inline bool CanBeDeprecated() const;
+
   // Returns a non-deprecated version of the input. If the input was not
   // deprecated, it is directly returned. Otherwise, the non-deprecated version
   // is found by re-transitioning from the root of the transition tree using the
@@ -660,8 +661,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // is found.
   V8_EXPORT_PRIVATE static MaybeHandle<Map> TryUpdate(
       Isolate* isolate, Handle<Map> map) V8_WARN_UNUSED_RESULT;
-  V8_EXPORT_PRIVATE static Map TryUpdateSlow(Isolate* isolate,
-                                             Map map) V8_WARN_UNUSED_RESULT;
 
   // Returns a non-deprecated version of the input. This method may deprecate
   // existing maps along the way if encodings conflict. Not for use while

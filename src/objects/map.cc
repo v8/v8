@@ -609,7 +609,6 @@ namespace {
 
 Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
   DisallowGarbageCollection no_gc;
-  DisallowDeoptimization no_deoptimization(isolate);
 
   Map target = old_map;
   do {
@@ -636,12 +635,12 @@ Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
     }
   }
 
-  SLOW_DCHECK(Map::TryUpdateSlow(isolate, old_map) == target);
+  SLOW_DCHECK(MapUpdater::TryUpdateNoLock(
+                  isolate, old_map, ConcurrencyMode::kNotConcurrent) == target);
   return target;
 }
 }  // namespace
 
-// TODO(ishell): Move TryUpdate() and friends to MapUpdater
 // static
 MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
   DisallowGarbageCollection no_gc;
@@ -656,130 +655,14 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
     }
   }
 
-  Map new_map = TryUpdateSlow(isolate, *old_map);
-  if (new_map.is_null()) return MaybeHandle<Map>();
+  base::Optional<Map> new_map = MapUpdater::TryUpdateNoLock(
+      isolate, *old_map, ConcurrencyMode::kNotConcurrent);
+  if (!new_map.has_value()) return MaybeHandle<Map>();
   if (FLAG_fast_map_update) {
-    TransitionsAccessor(isolate, *old_map, &no_gc).SetMigrationTarget(new_map);
+    TransitionsAccessor(isolate, *old_map, &no_gc)
+        .SetMigrationTarget(new_map.value());
   }
-  return handle(new_map, isolate);
-}
-
-namespace {
-
-struct IntegrityLevelTransitionInfo {
-  explicit IntegrityLevelTransitionInfo(Map map)
-      : integrity_level_source_map(map) {}
-
-  bool has_integrity_level_transition = false;
-  PropertyAttributes integrity_level = NONE;
-  Map integrity_level_source_map;
-  Symbol integrity_level_symbol;
-};
-
-IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
-    Map map, Isolate* isolate, DisallowGarbageCollection* no_gc) {
-  IntegrityLevelTransitionInfo info(map);
-
-  // Figure out the most restrictive integrity level transition (it should
-  // be the last one in the transition tree).
-  DCHECK(!map.is_extensible());
-  Map previous = Map::cast(map.GetBackPointer(isolate));
-  TransitionsAccessor last_transitions(isolate, previous, no_gc);
-  if (!last_transitions.HasIntegrityLevelTransitionTo(
-          map, &(info.integrity_level_symbol), &(info.integrity_level))) {
-    // The last transition was not integrity level transition - just bail out.
-    // This can happen in the following cases:
-    // - there are private symbol transitions following the integrity level
-    //   transitions (see crbug.com/v8/8854).
-    // - there is a getter added in addition to an existing setter (or a setter
-    //   in addition to an existing getter).
-    return info;
-  }
-
-  Map source_map = previous;
-  // Now walk up the back pointer chain and skip all integrity level
-  // transitions. If we encounter any non-integrity level transition interleaved
-  // with integrity level transitions, just bail out.
-  while (!source_map.is_extensible()) {
-    previous = Map::cast(source_map.GetBackPointer(isolate));
-    TransitionsAccessor transitions(isolate, previous, no_gc);
-    if (!transitions.HasIntegrityLevelTransitionTo(source_map)) {
-      return info;
-    }
-    source_map = previous;
-  }
-
-  // Integrity-level transitions never change number of descriptors.
-  CHECK_EQ(map.NumberOfOwnDescriptors(), source_map.NumberOfOwnDescriptors());
-
-  info.has_integrity_level_transition = true;
-  info.integrity_level_source_map = source_map;
-  return info;
-}
-
-}  // namespace
-
-Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
-  DisallowGarbageCollection no_gc;
-  DisallowDeoptimization no_deoptimization(isolate);
-
-  // Check the state of the root map.
-  Map root_map = old_map.FindRootMap(isolate);
-  if (root_map.is_deprecated()) {
-    JSFunction constructor = JSFunction::cast(root_map.GetConstructor());
-    DCHECK(constructor.has_initial_map());
-    DCHECK(constructor.initial_map().is_dictionary_map());
-    if (constructor.initial_map().elements_kind() != old_map.elements_kind()) {
-      return Map();
-    }
-    return constructor.initial_map();
-  }
-  if (!old_map.EquivalentToForTransition(root_map)) return Map();
-
-  ElementsKind from_kind = root_map.elements_kind();
-  ElementsKind to_kind = old_map.elements_kind();
-
-  IntegrityLevelTransitionInfo info(old_map);
-  if (root_map.is_extensible() != old_map.is_extensible()) {
-    DCHECK(!old_map.is_extensible());
-    DCHECK(root_map.is_extensible());
-    info = DetectIntegrityLevelTransitions(old_map, isolate, &no_gc);
-    // Bail out if there were some private symbol transitions mixed up
-    // with the integrity level transitions.
-    if (!info.has_integrity_level_transition) return Map();
-    // Make sure to replay the original elements kind transitions, before
-    // the integrity level transition sets the elements to dictionary mode.
-    DCHECK(to_kind == DICTIONARY_ELEMENTS ||
-           to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
-           IsTypedArrayElementsKind(to_kind) ||
-           IsAnyHoleyNonextensibleElementsKind(to_kind));
-    to_kind = info.integrity_level_source_map.elements_kind();
-  }
-  if (from_kind != to_kind) {
-    // Try to follow existing elements kind transitions.
-    root_map = root_map.LookupElementsTransitionMap(
-        isolate, to_kind, ConcurrencyMode::kNotConcurrent);
-    if (root_map.is_null()) return Map();
-    // From here on, use the map with correct elements kind as root map.
-  }
-
-  // Replay the transitions as they were before the integrity level transition.
-  Map result = root_map.TryReplayPropertyTransitions(
-      isolate, info.integrity_level_source_map,
-      ConcurrencyMode::kNotConcurrent);
-  if (result.is_null()) return Map();
-
-  if (info.has_integrity_level_transition) {
-    // Now replay the integrity level transition.
-    result = TransitionsAccessor(isolate, result, &no_gc)
-                 .SearchSpecial(info.integrity_level_symbol);
-  }
-
-  DCHECK_IMPLIES(!result.is_null(),
-                 old_map.elements_kind() == result.elements_kind());
-  DCHECK_IMPLIES(!result.is_null(),
-                 old_map.instance_type() == result.instance_type());
-  return result;
+  return handle(new_map.value(), isolate);
 }
 
 Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,

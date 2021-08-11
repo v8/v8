@@ -19,6 +19,7 @@
 #include "src/objects/feedback-cell.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"
@@ -562,17 +563,19 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
     for (const MapAndHandler& map_and_handler : maps_and_handlers_unfiltered) {
       MapRef map = MakeRefAssumeMemoryFence(this, *map_and_handler.first);
-      if (!is_concurrent_inlining()) {
-        // TODO(jgruber): Consider replaying transitions on deprecated maps
-        // when concurrent inlining (see Map::TryUpdate).
-        Handle<Map> map_handle;
-        if (!Map::TryUpdate(isolate(), map.object()).ToHandle(&map_handle))
-          continue;
-        map = MakeRefAssumeMemoryFence(this, *map_handle);
-      }
       // May change concurrently at any time - must be guarded by a dependency
       // if non-deprecation is important.
-      if (map.is_deprecated()) continue;
+      if (map.is_deprecated()) {
+        // TODO(ishell): support fast map updating if we enable it.
+        CHECK(!FLAG_fast_map_update);
+        base::Optional<Map> maybe_map = MapUpdater::TryUpdateNoLock(
+            isolate(), *map.object(), ConcurrencyMode::kConcurrent);
+        if (maybe_map.has_value()) {
+          map = MakeRefAssumeMemoryFence(this, maybe_map.value());
+        } else {
+          continue;  // Couldn't update the deprecated map.
+        }
+      }
       if (map.is_abandoned_prototype_map()) continue;
       maps_and_handlers.push_back({map, map_and_handler.second});
       maps.push_back(map);

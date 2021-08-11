@@ -70,7 +70,9 @@ static void CheckMigrationTarget(Isolate* isolate, Map old_map, Map new_map) {
                    .GetMigrationTarget();
   if (target.is_null()) return;
   CHECK_EQ(new_map, target);
-  CHECK_EQ(Map::TryUpdateSlow(isolate, old_map), target);
+  CHECK_EQ(MapUpdater::TryUpdateNoLock(isolate, old_map,
+                                       ConcurrencyMode::kNotConcurrent),
+           target);
 }
 
 class Expectations {
