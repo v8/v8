@@ -466,9 +466,10 @@ Reduction JSCreateLowering::ReduceNewArray(
 
   // Constructing an Array via new Array(N) where N is an unsigned
   // integer, always creates a holey backing store.
-  ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(
-      initial_map,
-      initial_map.AsElementsKind(GetHoleyElementsKind(elements_kind)));
+  base::Optional<MapRef> maybe_initial_map =
+      initial_map.AsElementsKind(GetHoleyElementsKind(elements_kind));
+  if (!maybe_initial_map.has_value()) return NoChange();
+  initial_map = maybe_initial_map.value();
 
   // Because CheckBounds performs implicit conversion from string to number, an
   // additional CheckNumber is required to behave correctly for calls with a
@@ -525,8 +526,12 @@ Reduction JSCreateLowering::ReduceNewArray(
   if (NodeProperties::GetType(length).Max() > 0.0) {
     elements_kind = GetHoleyElementsKind(elements_kind);
   }
-  ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(
-      initial_map, initial_map.AsElementsKind(elements_kind));
+
+  base::Optional<MapRef> maybe_initial_map =
+      initial_map.AsElementsKind(elements_kind);
+  if (!maybe_initial_map.has_value()) return NoChange();
+  initial_map = maybe_initial_map.value();
+
   DCHECK(IsFastElementsKind(elements_kind));
 
   // Setup elements and properties.
@@ -566,8 +571,11 @@ Reduction JSCreateLowering::ReduceNewArray(
 
   // Determine the appropriate elements kind.
   DCHECK(IsFastElementsKind(elements_kind));
-  ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(
-      initial_map, initial_map.AsElementsKind(elements_kind));
+
+  base::Optional<MapRef> maybe_initial_map =
+      initial_map.AsElementsKind(elements_kind);
+  if (!maybe_initial_map.has_value()) return NoChange();
+  initial_map = maybe_initial_map.value();
 
   // Check {values} based on the {elements_kind}. These checks are guarded
   // by the {elements_kind} feedback on the {site}, so it's safe to just

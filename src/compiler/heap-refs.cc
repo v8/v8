@@ -14,7 +14,6 @@
 #include "src/base/platform/platform.h"
 #include "src/codegen/code-factory.h"
 #include "src/compiler/compilation-dependencies.h"
-#include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/protectors-inl.h"
 #include "src/objects/allocation-site-inl.h"
@@ -1815,6 +1814,19 @@ int ObjectRef::AsSmi() const {
 INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
+bool MapRef::CanInlineElementAccess() const {
+  if (!IsJSObjectMap()) return false;
+  if (is_access_check_needed()) return false;
+  if (has_indexed_interceptor()) return false;
+  ElementsKind kind = elements_kind();
+  if (IsFastElementsKind(kind)) return true;
+  if (IsTypedArrayElementsKind(kind) && kind != BIGUINT64_ELEMENTS &&
+      kind != BIGINT64_ELEMENTS) {
+    return true;
+  }
+  return false;
+}
+
 base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
   const ElementsKind current_kind = elements_kind();
   if (kind == current_kind) return *this;
@@ -3090,12 +3102,6 @@ Handle<T> TinyRef<T>::object() const {
   STATIC_ASSERT(sizeof(TinyRef<Name>) == kSystemPointerSize);
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
-
-Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
-                                       const char* function, int line) {
-  TRACE_MISSING(broker, "data in function " << function << " at line " << line);
-  return AdvancedReducer::NoChange();
-}
 
 bool JSBoundFunctionRef::Serialize(NotConcurrentInliningTag tag) {
   if (data_->should_access_heap()) {

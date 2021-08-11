@@ -733,6 +733,8 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   OddballType oddball_type() const;
 
+  bool CanInlineElementAccess() const;
+
   // Note: Only returns a value if the requested elements kind matches the
   // current kind, or if the current map is an unmodified JSArray initial map.
   base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;

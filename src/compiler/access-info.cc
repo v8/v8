@@ -384,7 +384,7 @@ AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
 
 base::Optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
     MapRef map, AccessMode access_mode) const {
-  if (!CanInlineElementAccess(map)) return {};
+  if (!map.CanInlineElementAccess()) return {};
   return ElementAccessInfo({{map}, zone()}, map.elements_kind(), zone());
 }
 
@@ -1050,7 +1050,7 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
       base::Optional<MapRef> map = TryMakeRef(broker(), map_handle);
       if (!map.has_value()) return {};
       if (map->instance_type() != instance_type ||
-          !CanInlineElementAccess(*map)) {
+          !map->CanInlineElementAccess()) {
         return {};
       }
       if (!GeneralizeElementsKind(elements_kind, map->elements_kind())
