@@ -1092,7 +1092,7 @@ class DebugInfoSection : public DebugSection {
       int params = scope.ParameterCount();
       int context_slots = scope.ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
-      int internal_slots = Context::MIN_CONTEXT_SLOTS;
+      int internal_slots = scope.ContextHeaderLength();
       int current_abbreviation = 4;
 
       for (int param = 0; param < params; ++param) {
@@ -1109,7 +1109,7 @@ class DebugInfoSection : public DebugSection {
       }
 
       // See contexts.h for more information.
-      DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, 3);
+      DCHECK(internal_slots == 2 || internal_slots == 3);
       DCHECK_EQ(Context::SCOPE_INFO_INDEX, 0);
       DCHECK_EQ(Context::PREVIOUS_INDEX, 1);
       DCHECK_EQ(Context::EXTENSION_INDEX, 2);
@@ -1117,8 +1117,10 @@ class DebugInfoSection : public DebugSection {
       w->WriteString(".scope_info");
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".previous");
-      w->WriteULEB128(current_abbreviation++);
-      w->WriteString(".extension");
+      if (internal_slots == 3) {
+        w->WriteULEB128(current_abbreviation++);
+        w->WriteString(".extension");
+      }
 
       for (int context_slot = 0; context_slot < context_slots; ++context_slot) {
         w->WriteULEB128(current_abbreviation++);
