@@ -118,16 +118,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool tracing_enabled() const { return tracing_enabled_; }
   bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
   bool is_isolate_bootstrapping() const { return is_isolate_bootstrapping_; }
-  bool is_native_context_independent() const {
-    // TODO(jgruber,v8:8888): Remove dependent code.
-    return false;
-  }
-  bool generate_full_feedback_collection() const {
-    // NCI code currently collects full feedback.
-    DCHECK_IMPLIES(is_native_context_independent(),
-                   CollectFeedbackInGenericLowering());
-    return is_native_context_independent();
-  }
   bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
 
   NexusConfig feedback_nexus_config() const {
@@ -372,7 +362,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   friend class PropertyCellData;
 
   ProcessedFeedback const& GetFeedback(FeedbackSource const& source) const;
-  bool CanUseFeedback(const FeedbackNexus& nexus) const;
   const ProcessedFeedback& NewInsufficientFeedback(FeedbackSlotKind kind) const;
 
   // Bottleneck FeedbackNexus access here, for storage in the broker

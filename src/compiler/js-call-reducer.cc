@@ -4055,10 +4055,6 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
     }
   }
 
-  // TODO(jgruber,v8:8888): Attempt to remove this restriction. The reason it
-  // currently exists is because we cannot create code dependencies in NCI code.
-  if (broker()->is_native_context_independent()) return NoChange();
-
   // For call/construct with spread, we need to also install a code
   // dependency on the array iterator lookup protector cell to ensure
   // that no one messed with the %ArrayIteratorPrototype%.next method.
@@ -6599,10 +6595,6 @@ Reduction JSCallReducer::ReduceStringFromCodePoint(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceStringPrototypeIterator(Node* node) {
-  // TODO(jgruber): We could reduce here when generating native context
-  // independent code, if LowerJSCreateStringIterator were implemented in
-  // generic lowering.
-  if (broker()->is_native_context_independent()) return NoChange();
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -6727,11 +6719,6 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(Node* node) {
 }
 
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
-  // TODO(jgruber): We could reduce here when generating native context
-  // independent code, if LowerJSCreatePromise were implemented in generic
-  // lowering.
-  if (broker()->is_native_context_independent()) return NoChange();
-
   PromiseBuiltinReducerAssembler a(this, node, broker());
 
   // We only inline when we have the executor.

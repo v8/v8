@@ -241,13 +241,6 @@ namespace {
 bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
                                      base::Optional<NameRef> name,
                                      JSHeapBroker* broker) {
-  if (broker->is_native_context_independent()) {
-    // The decision to use the megamorphic load builtin is made based on
-    // current feedback, and is thus context-dependent. It cannot be used when
-    // generating NCI code.
-    return false;
-  }
-
   ProcessedFeedback const& feedback =
       broker->GetFeedbackForPropertyAccess(source, AccessMode::kLoad, name);
 
@@ -595,7 +588,6 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   Node* stub_code = jsgraph()->ArrayConstructorStubConstant();
   Node* stub_arity = jsgraph()->Int32Constant(arity);
   base::Optional<AllocationSiteRef> const site = p.site(broker());
-  DCHECK_IMPLIES(broker()->is_native_context_independent(), !site.has_value());
   Node* type_info = site.has_value() ? jsgraph()->Constant(site.value())
                                      : jsgraph()->UndefinedConstant();
   Node* receiver = jsgraph()->UndefinedConstant();
@@ -814,23 +806,6 @@ void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kPushBlockContext);
 }
 
-namespace {
-
-bool CollectCallAndConstructFeedback(JSHeapBroker* broker) {
-  // Call and construct feedback is a special case. Besides shape feedback, we
-  // also increment the call count, which is later used to make inlining
-  // decisions.  The call count is only comparable/reliable if it is incremented
-  // for all calls inside a function. This is not the case in default turbofan
-  // mode, in which many calls may be inlined and will thus never reach generic
-  // lowering (where we insert the feedback-collecting builtin call).
-  // Therefore it should only be collected in native context independent code,
-  // where we 1. know every call will reach generic lowering, and 2. we must
-  // collect full feedback to properly tier up later.
-  return broker->is_native_context_independent();
-}
-
-}  // namespace
-
 // TODO(jgruber,v8:8888): Should this collect feedback?
 void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
   ConstructForwardVarargsParameters p =
@@ -862,57 +837,22 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
   static constexpr int kReceiver = 1;
-  static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count =
-        arg_count + kReceiver + kMaybeFeedbackVector;
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtin::kConstruct_WithFeedback);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
-              kMaybeFeedbackVector);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
-    Node* receiver = jsgraph()->UndefinedConstant();
-    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-    // Register argument inputs are followed by stack argument inputs (such as
-    // feedback_vector). Both are listed in ascending order. Note that
-    // the receiver is implicitly placed on the stack and is thus inserted
-    // between explicitly-specified register and stack arguments.
-    // TODO(jgruber): Implement a simpler way to specify these mutations.
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, stub_arity);
-    node->InsertInput(zone(), 4, slot);
-    node->InsertInput(zone(), 5, feedback_vector);
-    node->InsertInput(zone(), 6, receiver);
-    // After: {code, target, new_target, arity, slot, vector, receiver,
-    // ...args}.
+  const int stack_argument_count = arg_count + kReceiver;
+  Callable callable = Builtins::CallableFor(isolate(), Builtin::kConstruct);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  Node* receiver = jsgraph()->UndefinedConstant();
+  node->RemoveInput(n.FeedbackVectorIndex());
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 3, stub_arity);
+  node->InsertInput(zone(), 4, receiver);
 
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count + kReceiver;
-    Callable callable = Builtins::CallableFor(isolate(), Builtin::kConstruct);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* receiver = jsgraph()->UndefinedConstant();
-    node->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, stub_arity);
-    node->InsertInput(zone(), 4, receiver);
+  // After: {code, target, new_target, arity, receiver, ...args}.
 
-    // After: {code, target, new_target, arity, receiver, ...args}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
@@ -924,58 +864,25 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
 
   static constexpr int kReceiver = 1;
   static constexpr int kArgumentList = 1;
-  static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count =
-        arg_count - kArgumentList + kReceiver + kMaybeFeedbackVector;
-    Callable callable = Builtins::CallableFor(
-        isolate(), Builtin::kConstructWithArrayLike_WithFeedback);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
-              kMaybeFeedbackVector);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* receiver = jsgraph()->UndefinedConstant();
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
-    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-    // Register argument inputs are followed by stack argument inputs (such as
-    // feedback_vector). Both are listed in ascending order. Note that
-    // the receiver is implicitly placed on the stack and is thus inserted
-    // between explicitly-specified register and stack arguments.
-    // TODO(jgruber): Implement a simpler way to specify these mutations.
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 4, slot);
-    node->InsertInput(zone(), 5, feedback_vector);
-    node->InsertInput(zone(), 6, receiver);
-    // After: {code, target, new_target, arguments_list, slot, vector,
-    // receiver}.
+  const int stack_argument_count = arg_count - kArgumentList + kReceiver;
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtin::kConstructWithArrayLike);
+  // If this fails, we might need to update the parameter reordering code
+  // to ensure that the additional arguments passed via stack are pushed
+  // between top of stack and JS arguments.
+  DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* receiver = jsgraph()->UndefinedConstant();
+  node->RemoveInput(n.FeedbackVectorIndex());
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 4, receiver);
 
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count - kArgumentList + kReceiver;
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtin::kConstructWithArrayLike);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* receiver = jsgraph()->UndefinedConstant();
-    node->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 4, receiver);
+  // After: {code, target, new_target, arguments_list, receiver}.
 
-    // After: {code, target, new_target, arguments_list, receiver}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
@@ -987,80 +894,34 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
 
   static constexpr int kReceiver = 1;
   static constexpr int kTheSpread = 1;  // Included in `arg_count`.
-  static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count =
-        arg_count + kReceiver + kMaybeFeedbackVector;
-    Callable callable = Builtins::CallableFor(
-        isolate(), Builtin::kConstructWithSpread_WithFeedback);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
-              kTheSpread + kMaybeFeedbackVector);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
+  const int stack_argument_count = arg_count + kReceiver - kTheSpread;
+  Callable callable = CodeFactory::ConstructWithSpread(isolate());
+  // If this fails, we might need to update the parameter reordering code
+  // to ensure that the additional arguments passed via stack are pushed
+  // between top of stack and JS arguments.
+  DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
 
-    // The single available register is needed for `slot`, thus `spread` remains
-    // on the stack here.
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
-    Node* receiver = jsgraph()->UndefinedConstant();
-    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-    Node* spread = node->RemoveInput(n.LastArgumentIndex());
+  // We pass the spread in a register, not on the stack.
+  Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
+  Node* receiver = jsgraph()->UndefinedConstant();
+  DCHECK(n.FeedbackVectorIndex() > n.LastArgumentIndex());
+  node->RemoveInput(n.FeedbackVectorIndex());
+  Node* spread = node->RemoveInput(n.LastArgumentIndex());
 
-    // Register argument inputs are followed by stack argument inputs (such as
-    // feedback_vector). Both are listed in ascending order. Note that
-    // the receiver is implicitly placed on the stack and is thus inserted
-    // between explicitly-specified register and stack arguments.
-    // TODO(jgruber): Implement a simpler way to specify these mutations.
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, stub_arity);
-    node->InsertInput(zone(), 4, slot);
-    // Arguments in the stack should be inserted in reversed order, ie, the last
-    // arguments defined in the interface descriptor should be inserted first.
-    DCHECK_EQ(callable.descriptor().GetStackArgumentOrder(),
-              StackArgumentOrder::kJS);
-    node->InsertInput(zone(), 5, feedback_vector);
-    node->InsertInput(zone(), 6, spread);
-    node->InsertInput(zone(), 7, receiver);
-    // After: {code, target, new_target, arity, slot, vector, spread, receiver,
-    // ...args}.
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 3, stub_arity);
+  node->InsertInput(zone(), 4, spread);
+  node->InsertInput(zone(), 5, receiver);
 
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count + kReceiver - kTheSpread;
-    Callable callable = CodeFactory::ConstructWithSpread(isolate());
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  // After: {code, target, new_target, arity, spread, receiver, ...args}.
 
-    // We pass the spread in a register, not on the stack.
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
-    Node* receiver = jsgraph()->UndefinedConstant();
-    DCHECK(n.FeedbackVectorIndex() > n.LastArgumentIndex());
-    node->RemoveInput(n.FeedbackVectorIndex());
-    Node* spread = node->RemoveInput(n.LastArgumentIndex());
-
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, stub_arity);
-    node->InsertInput(zone(), 4, spread);
-    node->InsertInput(zone(), 5, receiver);
-
-    // After: {code, target, new_target, arity, spread, receiver, ...args}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
-// TODO(jgruber,v8:8888): Should this collect feedback?
 void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
   CallForwardVarargsParameters p = CallForwardVarargsParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
@@ -1083,34 +944,17 @@ void JSGenericLowering::LowerJSCall(Node* node) {
   int const arg_count = p.arity_without_implicit_args();
   ConvertReceiverMode const mode = p.convert_mode();
 
-  Node* feedback_vector = n.feedback_vector();
   node->RemoveInput(n.FeedbackVectorIndex());
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    Callable callable = CodeFactory::Call_WithFeedback(isolate(), mode);
-    CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), arg_count + 1, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, stub_arity);
-    node->InsertInput(zone(), 3, slot);
-    node->InsertInput(zone(), 4, feedback_vector);
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    Callable callable = CodeFactory::Call(isolate(), mode);
-    CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), arg_count + 1, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, stub_arity);
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  Callable callable = CodeFactory::Call(isolate(), mode);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), arg_count + 1, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 2, stub_arity);
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
@@ -1123,55 +967,25 @@ void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
   static constexpr int kArgumentsList = 1;
   static constexpr int kReceiver = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count = arg_count - kArgumentsList + kReceiver;
-    Callable callable = Builtins::CallableFor(
-        isolate(), Builtin::kCallWithArrayLike_WithFeedback);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* receiver = n.receiver();
-    Node* arguments_list = n.Argument(0);
-    Node* feedback_vector = n.feedback_vector();
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
+  const int stack_argument_count = arg_count - kArgumentsList + kReceiver;
+  Callable callable = CodeFactory::CallWithArrayLike(isolate());
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* receiver = n.receiver();
+  Node* arguments_list = n.Argument(0);
 
-    // Shuffling inputs.
-    // Before: {target, receiver, arguments_list, vector}.
+  // Shuffling inputs.
+  // Before: {target, receiver, arguments_list, vector}.
 
-    node->ReplaceInput(1, arguments_list);
-    node->ReplaceInput(2, feedback_vector);
-    node->ReplaceInput(3, receiver);
+  node->RemoveInput(n.FeedbackVectorIndex());
+  node->InsertInput(zone(), 0, stub_code);
+  node->ReplaceInput(2, arguments_list);
+  node->ReplaceInput(3, receiver);
 
-    // Now: {target, arguments_list, vector, receiver}.
+  // After: {code, target, arguments_list, receiver}.
 
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, slot);
-
-    // After: {code, target, arguments_list, slot, vector, receiver}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count - kArgumentsList + kReceiver;
-    Callable callable = CodeFactory::CallWithArrayLike(isolate());
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* receiver = n.receiver();
-    Node* arguments_list = n.Argument(0);
-
-    // Shuffling inputs.
-    // Before: {target, receiver, arguments_list, vector}.
-
-    node->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, stub_code);
-    node->ReplaceInput(2, arguments_list);
-    node->ReplaceInput(3, receiver);
-
-    // After: {code, target, arguments_list, receiver}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
@@ -1183,73 +997,33 @@ void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
 
   static constexpr int kReceiver = 1;
   static constexpr int kTheSpread = 1;
-  static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count =
-        arg_count - kTheSpread + kReceiver + kMaybeFeedbackVector;
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtin::kCallWithSpread_WithFeedback);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
-              kMaybeFeedbackVector);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().index());
+  const int stack_argument_count = arg_count - kTheSpread + kReceiver;
+  Callable callable = CodeFactory::CallWithSpread(isolate());
+  // If this fails, we might need to update the parameter reordering code
+  // to ensure that the additional arguments passed via stack are pushed
+  // between top of stack and JS arguments.
+  DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
 
-    // We pass the spread in a register, not on the stack.
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
+  // We pass the spread in a register, not on the stack.
+  Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
 
-    // Register argument inputs are followed by stack argument inputs (such as
-    // feedback_vector). Both are listed in ascending order. Note that
-    // the receiver is implicitly placed on the stack and is thus inserted
-    // between explicitly-specified register and stack arguments.
-    // TODO(jgruber): Implement a simpler way to specify these mutations.
+  // Shuffling inputs.
+  // Before: {target, receiver, ...args, spread, vector}.
 
-    // Shuffling inputs.
-    // Before: {target, receiver, ...args, spread, vector}.
-    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-    Node* spread = node->RemoveInput(n.LastArgumentIndex());
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, stub_arity);
-    node->InsertInput(zone(), 3, spread);
-    node->InsertInput(zone(), 4, slot);
-    node->InsertInput(zone(), 5, feedback_vector);
-    // After: {code, target, arity, spread, slot, vector, receiver, ...args}.
+  node->RemoveInput(n.FeedbackVectorIndex());
+  Node* spread = node->RemoveInput(n.LastArgumentIndex());
 
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count - kTheSpread + kReceiver;
-    Callable callable = CodeFactory::CallWithSpread(isolate());
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 2, stub_arity);
+  node->InsertInput(zone(), 3, spread);
 
-    // We pass the spread in a register, not on the stack.
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
+  // After: {code, target, arity, spread, receiver, ...args}.
 
-    // Shuffling inputs.
-    // Before: {target, receiver, ...args, spread, vector}.
-
-    node->RemoveInput(n.FeedbackVectorIndex());
-    Node* spread = node->RemoveInput(n.LastArgumentIndex());
-
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, stub_arity);
-    node->InsertInput(zone(), 3, spread);
-
-    // After: {code, target, arity, spread, receiver, ...args}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSCallRuntime(Node* node) {

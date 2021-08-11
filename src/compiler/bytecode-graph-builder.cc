@@ -77,28 +77,6 @@ class BytecodeGraphBuilder {
   Node* GetParameter(int index, const char* debug_name_hint = nullptr);
 
   CodeKind code_kind() const { return code_kind_; }
-  bool native_context_independent() const {
-    // TODO(jgruber,v8:8888): Remove dependent code.
-    return false;
-  }
-  bool is_turboprop() const { return code_kind_ == CodeKind::TURBOPROP; }
-  bool generate_full_feedback_collection() const {
-    // NCI code currently collects full feedback.
-    DCHECK_IMPLIES(native_context_independent(),
-                   CollectFeedbackInGenericLowering());
-    return native_context_independent();
-  }
-
-  static JSTypeHintLowering::LoweringResult NoChange() {
-    return JSTypeHintLowering::LoweringResult::NoChange();
-  }
-  bool CanApplyTypeHintLowering(IrOpcode::Value opcode) const {
-    return !generate_full_feedback_collection() ||
-           !IrOpcode::IsFeedbackCollectingOpcode(opcode);
-  }
-  bool CanApplyTypeHintLowering(const Operator* op) const {
-    return CanApplyTypeHintLowering(static_cast<IrOpcode::Value>(op->opcode()));
-  }
 
   // The node representing the current feedback vector is generated once prior
   // to visiting bytecodes, and is later passed as input to other nodes that
@@ -107,22 +85,20 @@ class BytecodeGraphBuilder {
   // to feedback_vector() once all uses of the direct heap object reference
   // have been replaced with a Node* reference.
   void CreateFeedbackVectorNode();
-  Node* BuildLoadFeedbackVector();
   Node* feedback_vector_node() const {
     DCHECK_NOT_NULL(feedback_vector_node_);
     return feedback_vector_node_;
   }
 
   void CreateFeedbackCellNode();
-  Node* BuildLoadFeedbackCell();
   Node* feedback_cell_node() const {
+    DCHECK(CodeKindCanTierUp(code_kind()));
     DCHECK_NOT_NULL(feedback_cell_node_);
     return feedback_cell_node_;
   }
 
   // Same as above for the feedback vector node.
   void CreateNativeContextNode();
-  Node* BuildLoadNativeContext();
   Node* native_context_node() const {
     DCHECK_NOT_NULL(native_context_node_);
     return native_context_node_;
@@ -134,13 +110,6 @@ class BytecodeGraphBuilder {
   // installs the finished code object.
   // Only relevant for specific code kinds (see CodeKindCanTierUp).
   void MaybeBuildTierUpCheck();
-
-  // Like bytecode, NCI code must collect call feedback to preserve proper
-  // behavior of inlining heuristics when tiering up to Turbofan in the future.
-  // The invocation count (how often a particular JSFunction has been called)
-  // is tracked by the callee. For bytecode, this happens in the
-  // InterpreterEntryTrampoline, for NCI code it happens here in the prologue.
-  void MaybeBuildIncrementInvocationCount();
 
   // Builder for loading the a native context field.
   Node* BuildLoadNativeContextField(int index);
@@ -1156,70 +1125,24 @@ Node* BytecodeGraphBuilder::GetParameter(int parameter_index,
 
 void BytecodeGraphBuilder::CreateFeedbackCellNode() {
   DCHECK_NULL(feedback_cell_node_);
-  if (native_context_independent()) {
-    feedback_cell_node_ = BuildLoadFeedbackCell();
-  } else if (is_turboprop()) {
-    feedback_cell_node_ = jsgraph()->Constant(feedback_cell_);
-  }
-}
-
-Node* BytecodeGraphBuilder::BuildLoadFeedbackCell() {
-  DCHECK(native_context_independent());
-  DCHECK_NULL(feedback_cell_node_);
-  return NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSFunctionFeedbackCell()),
-      GetFunctionClosure());
+  // Only used by tier-up logic; for code that doesn't tier-up, we can skip
+  // this.
+  if (!CodeKindCanTierUp(code_kind())) return;
+  feedback_cell_node_ = jsgraph()->Constant(feedback_cell_);
 }
 
 void BytecodeGraphBuilder::CreateFeedbackVectorNode() {
   DCHECK_NULL(feedback_vector_node_);
-  feedback_vector_node_ = native_context_independent()
-                              ? BuildLoadFeedbackVector()
-                              : jsgraph()->Constant(feedback_vector());
-}
-
-Node* BytecodeGraphBuilder::BuildLoadFeedbackVector() {
-  DCHECK(native_context_independent());
-  DCHECK_NULL(feedback_vector_node_);
-
-  // The feedback vector must exist and remain live while the generated code
-  // lives. Specifically that means it must be created when NCI code is
-  // installed, and must not be flushed.
-  return NewNode(simplified()->LoadField(AccessBuilder::ForFeedbackCellValue()),
-                 feedback_cell_node());
+  feedback_vector_node_ = jsgraph()->Constant(feedback_vector());
 }
 
 Node* BytecodeGraphBuilder::BuildLoadFeedbackCell(int index) {
-  if (native_context_independent()) {
-    // TODO(jgruber,v8:8888): Assumes that the feedback vector has been
-    // allocated.
-    Node* closure_feedback_cell_array =
-        NewNode(simplified()->LoadField(
-                    AccessBuilder::ForFeedbackVectorClosureFeedbackCellArray()),
-                feedback_vector_node());
-
-    return NewNode(
-        simplified()->LoadField(AccessBuilder::ForFixedArraySlot(index)),
-        closure_feedback_cell_array);
-  } else {
-    return jsgraph()->Constant(feedback_vector().GetClosureFeedbackCell(index));
-  }
+  return jsgraph()->Constant(feedback_vector().GetClosureFeedbackCell(index));
 }
 
 void BytecodeGraphBuilder::CreateNativeContextNode() {
   DCHECK_NULL(native_context_node_);
-  native_context_node_ = native_context_independent()
-                             ? BuildLoadNativeContext()
-                             : jsgraph()->Constant(native_context());
-}
-
-Node* BytecodeGraphBuilder::BuildLoadNativeContext() {
-  DCHECK(native_context_independent());
-  DCHECK_NULL(native_context_node_);
-  Node* context_map = NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                              environment()->Context());
-  return NewNode(simplified()->LoadField(AccessBuilder::ForMapNativeContext()),
-                 context_map);
+  native_context_node_ = jsgraph()->Constant(native_context());
 }
 
 void BytecodeGraphBuilder::MaybeBuildTierUpCheck() {
@@ -1239,21 +1162,6 @@ void BytecodeGraphBuilder::MaybeBuildTierUpCheck() {
 
   NewNode(simplified()->TierUpCheck(), feedback_vector_node(), target,
           new_target, argc, context);
-}
-
-void BytecodeGraphBuilder::MaybeBuildIncrementInvocationCount() {
-  if (!generate_full_feedback_collection()) return;
-
-  Node* current_invocation_count =
-      NewNode(simplified()->LoadField(
-                  AccessBuilder::ForFeedbackVectorInvocationCount()),
-              feedback_vector_node());
-  Node* next_invocation_count =
-      NewNode(simplified()->NumberAdd(), current_invocation_count,
-              jsgraph()->SmiConstant(1));
-  NewNode(simplified()->StoreField(
-              AccessBuilder::ForFeedbackVectorInvocationCount()),
-          feedback_vector_node(), next_invocation_count);
 }
 
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
@@ -1289,7 +1197,6 @@ void BytecodeGraphBuilder::CreateGraph() {
   CreateFeedbackCellNode();
   CreateFeedbackVectorNode();
   MaybeBuildTierUpCheck();
-  MaybeBuildIncrementInvocationCount();
   CreateNativeContextNode();
 
   VisitBytecodes();
@@ -4158,7 +4065,6 @@ JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedUnaryOp(const Operator* op,
                                                 Node* operand,
                                                 FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(op)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4172,7 +4078,6 @@ JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedBinaryOp(const Operator* op, Node* left,
                                                  Node* right,
                                                  FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(op)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4187,7 +4092,6 @@ BytecodeGraphBuilder::TryBuildSimplifiedForInNext(Node* receiver,
                                                   Node* cache_array,
                                                   Node* cache_type, Node* index,
                                                   FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(IrOpcode::kJSForInNext)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4200,7 +4104,6 @@ BytecodeGraphBuilder::TryBuildSimplifiedForInNext(Node* receiver,
 JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedForInPrepare(Node* enumerator,
                                                      FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(IrOpcode::kJSForInPrepare)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4213,7 +4116,6 @@ BytecodeGraphBuilder::TryBuildSimplifiedForInPrepare(Node* enumerator,
 JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedToNumber(Node* value,
                                                  FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(IrOpcode::kJSToNumber)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4225,7 +4127,6 @@ BytecodeGraphBuilder::TryBuildSimplifiedToNumber(Node* value,
 
 JSTypeHintLowering::LoweringResult BytecodeGraphBuilder::TryBuildSimplifiedCall(
     const Operator* op, Node* const* args, int arg_count, FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(op)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4240,7 +4141,6 @@ BytecodeGraphBuilder::TryBuildSimplifiedConstruct(const Operator* op,
                                                   Node* const* args,
                                                   int arg_count,
                                                   FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(op)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4255,7 +4155,6 @@ BytecodeGraphBuilder::TryBuildSimplifiedGetIterator(const Operator* op,
                                                     Node* receiver,
                                                     FeedbackSlot load_slot,
                                                     FeedbackSlot call_slot) {
-  if (!CanApplyTypeHintLowering(op)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult early_reduction =
@@ -4268,7 +4167,6 @@ BytecodeGraphBuilder::TryBuildSimplifiedGetIterator(const Operator* op,
 JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedLoadNamed(const Operator* op,
                                                   FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(op)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult early_reduction =
@@ -4281,7 +4179,6 @@ JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedLoadKeyed(const Operator* op,
                                                   Node* receiver, Node* key,
                                                   FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(op)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4295,7 +4192,6 @@ JSTypeHintLowering::LoweringResult
 BytecodeGraphBuilder::TryBuildSimplifiedStoreNamed(const Operator* op,
                                                    Node* receiver, Node* value,
                                                    FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(op)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
@@ -4310,7 +4206,6 @@ BytecodeGraphBuilder::TryBuildSimplifiedStoreKeyed(const Operator* op,
                                                    Node* receiver, Node* key,
                                                    Node* value,
                                                    FeedbackSlot slot) {
-  if (!CanApplyTypeHintLowering(op)) return NoChange();
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
