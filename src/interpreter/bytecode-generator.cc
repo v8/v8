@@ -2525,7 +2525,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     const AstRawString* class_name =
         expr->scope()->class_variable() != nullptr
             ? expr->scope()->class_variable()->raw_name()
-            : ast_string_constants()->empty_string();
+            : ast_string_constants()->anonymous_string();
     builder()
         ->LoadLiteral(class_name)
         .StoreAccumulatorInRegister(brand)
