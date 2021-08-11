@@ -4728,6 +4728,36 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
+    case XSCVSPDPN: {
+      int t = instr->RTValue();
+      int b = instr->RBValue();
+      uint64_t double_bits = get_d_register(b);
+      // Value is at the high 32 bits of the register.
+      float f =
+          bit_cast<float, uint32_t>(static_cast<uint32_t>(double_bits >> 32));
+      double_bits = bit_cast<uint64_t, double>(static_cast<double>(f));
+      // Preserve snan.
+      if (issignaling(f)) {
+        double_bits &= 0xFFF7FFFFFFFFFFFFU;  // Clear bit 51.
+      }
+      set_d_register(t, double_bits);
+      break;
+    }
+    case XSCVDPSPN: {
+      int t = instr->RTValue();
+      int b = instr->RBValue();
+      double b_val = get_double_from_d_register(b);
+      uint64_t float_bits = static_cast<uint64_t>(
+          bit_cast<uint32_t, float>(static_cast<float>(b_val)));
+      // Preserve snan.
+      if (issignaling(b_val)) {
+        float_bits &= 0xFFBFFFFFU;  // Clear bit 22.
+      }
+      // fp result is placed in both 32bit halfs of the dst.
+      float_bits = (float_bits << 32) | float_bits;
+      set_d_register(t, float_bits);
+      break;
+    }
 #define VECTOR_UNPACK(S, D, if_high_side)                           \
   int t = instr->RTValue();                                         \
   int b = instr->RBValue();                                         \

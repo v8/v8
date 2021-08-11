@@ -1953,10 +1953,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     case kPPC_BitcastFloat32ToInt32:
-      __ MovFloatToInt(i.OutputRegister(), i.InputDoubleRegister(0));
+      __ MovFloatToInt(i.OutputRegister(), i.InputDoubleRegister(0),
+                       kScratchDoubleReg);
       break;
     case kPPC_BitcastInt32ToFloat32:
-      __ MovIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0));
+      __ MovIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0), ip);
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_BitcastDoubleToInt64:
@@ -2186,7 +2187,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_F32x4Splat: {
       Simd128Register dst = i.OutputSimd128Register();
-      __ MovFloatToInt(kScratchReg, i.InputDoubleRegister(0));
+      __ MovFloatToInt(kScratchReg, i.InputDoubleRegister(0),
+                       kScratchDoubleReg);
       __ mtvsrd(dst, kScratchReg);
       __ vspltw(dst, dst, Operand(1));
       break;
@@ -2229,7 +2231,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vextractuw(kScratchSimd128Reg, i.InputSimd128Register(0),
                     Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
       __ mfvsrd(kScratchReg, kScratchSimd128Reg);
-      __ MovIntToFloat(i.OutputDoubleRegister(), kScratchReg);
+      __ MovIntToFloat(i.OutputDoubleRegister(), kScratchReg, ip);
       break;
     }
     case kPPC_I64x2ExtractLane: {
@@ -2292,7 +2294,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       constexpr int lane_width_in_bytes = 4;
       Simd128Register dst = i.OutputSimd128Register();
-      __ MovFloatToInt(r0, i.InputDoubleRegister(2));
+      __ MovFloatToInt(r0, i.InputDoubleRegister(2), kScratchDoubleReg);
       if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
         __ vinsw(dst, r0, Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
       } else {

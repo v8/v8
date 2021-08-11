@@ -573,8 +573,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       Register dst_hi,
 #endif
       Register dst, DoubleRegister src);
-  void MovIntToFloat(DoubleRegister dst, Register src);
-  void MovFloatToInt(Register dst, DoubleRegister src);
+  void MovIntToFloat(DoubleRegister dst, Register src, Register scratch);
+  void MovFloatToInt(Register dst, DoubleRegister src, DoubleRegister scratch);
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<HeapObject> value,

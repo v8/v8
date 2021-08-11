@@ -445,23 +445,36 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM
 
-#define DECLARE_PPC_XX2_INSTRUCTIONS(name, instr_name, instr_value)      \
-  inline void name(const Simd128Register rt, const Simd128Register rb) { \
-    xx2_form(instr_name, rt, rb);                                        \
+#define DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS(name, instr_name, instr_value) \
+  inline void name(const Simd128Register rt, const Simd128Register rb) {   \
+    xx2_form(instr_name, rt, rb);                                          \
+  }
+#define DECLARE_PPC_XX2_SCALAR_INSTRUCTIONS(name, instr_name, instr_value) \
+  inline void name(const DoubleRegister rt, const DoubleRegister rb) {     \
+    xx2_form(instr_name, rt, rb);                                          \
   }
 
-  inline void xx2_form(Instr instr, Simd128Register t, Simd128Register b) {
-    // Using VR (high VSR) registers.
-    int BX = 1;
-    int TX = 1;
+  template <typename T>
+  inline void xx2_form(Instr instr, T t, T b) {
+    static_assert(std::is_same<T, Simd128Register>::value ||
+                      std::is_same<T, DoubleRegister>::value,
+                  "VSX only uses FP or Vector registers.");
+    // Using FP (low VSR) registers.
+    int BX = 0, TX = 0;
+    // Using VR (high VSR) registers when Simd registers are used.
+    if (std::is_same<T, Simd128Register>::value) {
+      BX = TX = 1;
+    }
 
     emit(instr | (t.code() & 0x1F) * B21 | (b.code() & 0x1F) * B11 | BX * B1 |
          TX);
   }
 
-  PPC_XX2_OPCODE_A_FORM_LIST(DECLARE_PPC_XX2_INSTRUCTIONS)
-  PPC_XX2_OPCODE_B_FORM_LIST(DECLARE_PPC_XX2_INSTRUCTIONS)
-#undef DECLARE_PPC_XX2_INSTRUCTIONS
+  PPC_XX2_OPCODE_VECTOR_A_FORM_LIST(DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS)
+  PPC_XX2_OPCODE_SCALAR_A_FORM_LIST(DECLARE_PPC_XX2_SCALAR_INSTRUCTIONS)
+  PPC_XX2_OPCODE_B_FORM_LIST(DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS)
+#undef DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS
+#undef DECLARE_PPC_XX2_SCALAR_INSTRUCTIONS
 
 #define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS(name, instr_name, instr_value) \
   inline void name(const Simd128Register rt, const Simd128Register ra,     \

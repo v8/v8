@@ -2662,7 +2662,14 @@ void TurboAssembler::MovDoubleToInt64(
   addi(sp, sp, Operand(kDoubleSize));
 }
 
-void TurboAssembler::MovIntToFloat(DoubleRegister dst, Register src) {
+void TurboAssembler::MovIntToFloat(DoubleRegister dst, Register src,
+                                   Register scratch) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
+    ShiftLeftU64(scratch, src, Operand(32));
+    mtfprd(dst, scratch);
+    xscvspdpn(dst, dst);
+    return;
+  }
   subi(sp, sp, Operand(kFloatSize));
   stw(src, MemOperand(sp, 0));
   nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
@@ -2670,7 +2677,13 @@ void TurboAssembler::MovIntToFloat(DoubleRegister dst, Register src) {
   addi(sp, sp, Operand(kFloatSize));
 }
 
-void TurboAssembler::MovFloatToInt(Register dst, DoubleRegister src) {
+void TurboAssembler::MovFloatToInt(Register dst, DoubleRegister src,
+                                   DoubleRegister scratch) {
+  if (CpuFeatures::IsSupported(PPC_8_PLUS)) {
+    xscvdpspn(scratch, src);
+    mffprwz(dst, scratch);
+    return;
+  }
   subi(sp, sp, Operand(kFloatSize));
   stfs(src, MemOperand(sp, 0));
   nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
