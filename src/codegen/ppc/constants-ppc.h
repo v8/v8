@@ -1270,6 +1270,14 @@ using Instr = uint32_t;
   /* Compare Logical */             \
   V(cmpl, CMPL, 0x7C000040)
 
+#define PPC_X_OPCODE_G_FORM_LIST(V) \
+  /* Byte-Reverse Halfword */       \
+  V(brh, BRH, 0x7C0001B6)           \
+  /* Byte-Reverse Word */           \
+  V(brw, BRW, 0x7C000136)           \
+  /* Byte-Reverse Doubleword */     \
+  V(brd, BRD, 0x7C000176)
+
 #define PPC_X_OPCODE_EH_S_FORM_LIST(V)                    \
   /* Store Byte Conditional Indexed */                    \
   V(stbcx, STBCX, 0x7C00056D)                             \
@@ -1740,6 +1748,7 @@ using Instr = uint32_t;
   PPC_X_OPCODE_D_FORM_LIST(V)    \
   PPC_X_OPCODE_E_FORM_LIST(V)    \
   PPC_X_OPCODE_F_FORM_LIST(V)    \
+  PPC_X_OPCODE_G_FORM_LIST(V)    \
   PPC_X_OPCODE_EH_L_FORM_LIST(V) \
   PPC_X_OPCODE_UNUSED_LIST(V)
 

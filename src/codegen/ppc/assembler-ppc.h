@@ -373,6 +373,11 @@ class Assembler : public AssemblerBase {
     x_form(instr_name, cr.code() * B2, src1.code(), src2.code(), LeaveRC);  \
   }
 
+#define DECLARE_PPC_X_INSTRUCTIONS_G_FORM(name, instr_name, instr_value) \
+  inline void name(const Register dst, const Register src) {             \
+    x_form(instr_name, src, dst, r0, LeaveRC);                           \
+  }
+
 #define DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM(name, instr_name, instr_value) \
   inline void name(const Register dst, const MemOperand& src) {             \
     x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
@@ -411,6 +416,7 @@ class Assembler : public AssemblerBase {
   PPC_X_OPCODE_D_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_D_FORM)
   PPC_X_OPCODE_E_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_E_FORM)
   PPC_X_OPCODE_F_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_F_FORM)
+  PPC_X_OPCODE_G_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_G_FORM)
   PPC_X_OPCODE_EH_S_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM)
   PPC_X_OPCODE_EH_L_FORM_LIST(DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM)
 
@@ -442,6 +448,7 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_X_INSTRUCTIONS_D_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_E_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_F_FORM
+#undef DECLARE_PPC_X_INSTRUCTIONS_G_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_EH_S_FORM
 #undef DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM
 

@@ -2095,6 +2095,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register input = i.InputRegister(0);
       Register output = i.OutputRegister();
       Register temp1 = r0;
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+        __ brw(output, input);
+        break;
+      }
       __ rotlwi(temp1, input, 8);
       __ rlwimi(temp1, input, 24, 0, 7);
       __ rlwimi(temp1, input, 24, 16, 23);
@@ -2115,6 +2119,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register temp1 = r0;
       Register temp2 = kScratchReg;
       Register temp3 = i.TempRegister(0);
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+        __ brd(output, input);
+        break;
+      }
       __ rldicl(temp1, input, 32, 32);
       __ rotlwi(temp2, input, 8);
       __ rlwimi(temp2, input, 24, 0, 7);

@@ -917,6 +917,18 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "cnttzd'. 'ra, 'rs");
       return;
     }
+    case BRH: {
+      Format(instr, "brh     'ra, 'rs");
+      return;
+    }
+    case BRW: {
+      Format(instr, "brw     'ra, 'rs");
+      return;
+    }
+    case BRD: {
+      Format(instr, "brd     'ra, 'rs");
+      return;
+    }
     case ANDX: {
       Format(instr, "and'.    'ra, 'rs, 'rb");
       return;

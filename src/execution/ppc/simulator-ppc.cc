@@ -3282,7 +3282,25 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       }
       break;
     }
-
+    case BRW: {
+      constexpr int kBitsPerWord = 32;
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uint64_t rs_val = get_register(rs);
+      uint32_t rs_high = rs_val >> kBitsPerWord;
+      uint32_t rs_low = (rs_val << kBitsPerWord) >> kBitsPerWord;
+      uint64_t result = __builtin_bswap32(rs_high);
+      result = (result << kBitsPerWord) | __builtin_bswap32(rs_low);
+      set_register(ra, result);
+      break;
+    }
+    case BRD: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uint64_t rs_val = get_register(rs);
+      set_register(ra, __builtin_bswap64(rs_val));
+      break;
+    }
     case FCFIDS: {
       // fcfids
       int frt = instr->RTValue();
