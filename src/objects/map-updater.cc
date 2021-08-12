@@ -355,7 +355,7 @@ base::Optional<Map> MapUpdater::TryUpdateNoLock(Isolate* isolate, Map old_map,
     }
     return constructor.initial_map();
   }
-  if (!old_map.EquivalentToForTransition(root_map)) return {};
+  if (!old_map.EquivalentToForTransition(root_map, cmode)) return {};
 
   ElementsKind from_kind = root_map.elements_kind();
   ElementsKind to_kind = old_map.elements_kind();
@@ -542,7 +542,8 @@ MapUpdater::State MapUpdater::FindRootMap() {
     return state_;
   }
 
-  if (!old_map_->EquivalentToForTransition(*root_map_)) {
+  if (!old_map_->EquivalentToForTransition(*root_map_,
+                                           ConcurrencyMode::kNotConcurrent)) {
     return Normalize("Normalize_NotEquivalent");
   } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
     DCHECK(!old_map_->is_extensible());

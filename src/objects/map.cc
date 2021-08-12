@@ -447,28 +447,33 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, Handle<Map> map,
                        PropertyConstness::kConst, representation, flag);
 }
 
-bool Map::InstancesNeedRewriting(Map target) const {
-  int target_number_of_fields = target.NumberOfFields();
+bool Map::InstancesNeedRewriting(Map target, ConcurrencyMode cmode) const {
+  int target_number_of_fields = target.NumberOfFields(cmode);
   int target_inobject = target.GetInObjectProperties();
   int target_unused = target.UnusedPropertyFields();
   int old_number_of_fields;
 
   return InstancesNeedRewriting(target, target_number_of_fields,
                                 target_inobject, target_unused,
-                                &old_number_of_fields);
+                                &old_number_of_fields, cmode);
 }
 
 bool Map::InstancesNeedRewriting(Map target, int target_number_of_fields,
                                  int target_inobject, int target_unused,
-                                 int* old_number_of_fields) const {
+                                 int* old_number_of_fields,
+                                 ConcurrencyMode cmode) const {
   // If fields were added (or removed), rewrite the instance.
-  *old_number_of_fields = NumberOfFields();
+  *old_number_of_fields = NumberOfFields(cmode);
   DCHECK(target_number_of_fields >= *old_number_of_fields);
   if (target_number_of_fields != *old_number_of_fields) return true;
 
   // If smi descriptors were replaced by double descriptors, rewrite.
-  DescriptorArray old_desc = instance_descriptors();
-  DescriptorArray new_desc = target.instance_descriptors();
+  DescriptorArray old_desc = cmode == ConcurrencyMode::kConcurrent
+                                 ? instance_descriptors(kAcquireLoad)
+                                 : instance_descriptors();
+  DescriptorArray new_desc = cmode == ConcurrencyMode::kConcurrent
+                                 ? target.instance_descriptors(kAcquireLoad)
+                                 : target.instance_descriptors();
   for (InternalIndex i : IterateOwnDescriptors()) {
     if (new_desc.GetDetails(i).representation().IsDouble() !=
         old_desc.GetDetails(i).representation().IsDouble()) {
@@ -491,8 +496,10 @@ bool Map::InstancesNeedRewriting(Map target, int target_number_of_fields,
   return true;
 }
 
-int Map::NumberOfFields() const {
-  DescriptorArray descriptors = instance_descriptors();
+int Map::NumberOfFields(ConcurrencyMode cmode) const {
+  DescriptorArray descriptors = cmode == ConcurrencyMode::kConcurrent
+                                    ? instance_descriptors(kAcquireLoad)
+                                    : instance_descriptors();
   int result = 0;
   for (InternalIndex i : IterateOwnDescriptors()) {
     if (descriptors.GetDetails(i).location() == kField) result++;
@@ -521,7 +528,8 @@ Map::FieldCounts Map::GetFieldCounts() const {
 }
 
 bool Map::HasOutOfObjectProperties() const {
-  return GetInObjectProperties() < NumberOfFields();
+  return GetInObjectProperties() <
+         NumberOfFields(ConcurrencyMode::kNotConcurrent);
 }
 
 void Map::DeprecateTransitionTree(Isolate* isolate) {
@@ -670,11 +678,13 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
   DisallowGarbageCollection no_gc;
 
   const bool is_concurrent = cmode == ConcurrencyMode::kConcurrent;
-  int root_nof = NumberOfOwnDescriptors();
-  int old_nof = old_map.NumberOfOwnDescriptors();
+  const int root_nof = NumberOfOwnDescriptors();
+  const int old_nof = old_map.NumberOfOwnDescriptors();
+  // TODO(jgruber,chromium:1239009): The main thread should use non-atomic
+  // reads, but this currently leads to odd behavior (see the linked bug).
+  // Investigate and fix this properly. Also below and in called functions.
   DescriptorArray old_descriptors =
-      is_concurrent ? old_map.instance_descriptors(isolate, kAcquireLoad)
-                    : old_map.instance_descriptors(isolate);
+      old_map.instance_descriptors(isolate, kAcquireLoad);
 
   Map new_map = *this;
   for (InternalIndex i : InternalIndex::Range(root_nof, old_nof)) {
@@ -686,8 +696,7 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
     if (transition.is_null()) return Map();
     new_map = transition;
     DescriptorArray new_descriptors =
-        is_concurrent ? new_map.instance_descriptors(isolate, kAcquireLoad)
-                      : new_map.instance_descriptors(isolate);
+        new_map.instance_descriptors(isolate, kAcquireLoad);
 
     PropertyDetails new_details = new_descriptors.GetDetails(i);
     DCHECK_EQ(old_details.kind(), new_details.kind());
@@ -859,7 +868,7 @@ Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
   if (IsTransitionableFastElementsKind(kind)) {
     // Check the state of the root map.
     Map root_map = FindRootMap(isolate);
-    if (!EquivalentToForElementsKindTransition(root_map)) return Map();
+    if (!EquivalentToForElementsKindTransition(root_map, cmode)) return Map();
     root_map = root_map.LookupElementsTransitionMap(isolate, kind, cmode);
     DCHECK(!root_map.is_null());
     // Starting from the next existing elements kind transition try to
@@ -874,7 +883,7 @@ Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
       Map current =
           root_map.TryReplayPropertyTransitions(isolate, *this, cmode);
       if (current.is_null()) continue;
-      if (InstancesNeedRewriting(current)) continue;
+      if (InstancesNeedRewriting(current, cmode)) continue;
 
       const bool current_is_packed =
           IsFastPackedElementsKind(current.elements_kind());
@@ -1287,7 +1296,7 @@ Handle<Map> Map::CopyInitialMap(Isolate* isolate, Handle<Map> map,
     result->set_owns_descriptors(false);
     result->UpdateDescriptors(isolate, descriptors, number_of_own_descriptors);
 
-    DCHECK_EQ(result->NumberOfFields(),
+    DCHECK_EQ(result->NumberOfFields(ConcurrencyMode::kNotConcurrent),
               result->GetInObjectProperties() - result->UnusedPropertyFields());
   }
 
@@ -2043,7 +2052,8 @@ bool CheckEquivalent(const Map first, const Map second) {
 
 }  // namespace
 
-bool Map::EquivalentToForTransition(const Map other) const {
+bool Map::EquivalentToForTransition(const Map other,
+                                    ConcurrencyMode cmode) const {
   CHECK_EQ(GetConstructor(), other.GetConstructor());
   CHECK_EQ(instance_type(), other.instance_type());
 
@@ -2055,19 +2065,28 @@ bool Map::EquivalentToForTransition(const Map other) const {
     // not equivalent to strict function.
     int nof =
         std::min(NumberOfOwnDescriptors(), other.NumberOfOwnDescriptors());
-    return instance_descriptors().IsEqualUpTo(other.instance_descriptors(),
-                                              nof);
+    DescriptorArray this_descriptors = cmode == ConcurrencyMode::kConcurrent
+                                           ? instance_descriptors(kAcquireLoad)
+                                           : instance_descriptors();
+    DescriptorArray that_descriptors =
+        cmode == ConcurrencyMode::kConcurrent
+            ? other.instance_descriptors(kAcquireLoad)
+            : other.instance_descriptors();
+    return this_descriptors.IsEqualUpTo(that_descriptors, nof);
   }
   return true;
 }
 
-bool Map::EquivalentToForElementsKindTransition(const Map other) const {
-  if (!EquivalentToForTransition(other)) return false;
+bool Map::EquivalentToForElementsKindTransition(const Map other,
+                                                ConcurrencyMode cmode) const {
+  if (!EquivalentToForTransition(other, cmode)) return false;
 #ifdef DEBUG
   // Ensure that we don't try to generate elements kind transitions from maps
   // with fields that may be generalized in-place. This must already be handled
   // during addition of a new field.
-  DescriptorArray descriptors = instance_descriptors();
+  DescriptorArray descriptors = cmode == ConcurrencyMode::kConcurrent
+                                    ? instance_descriptors(kAcquireLoad)
+                                    : instance_descriptors();
   for (InternalIndex i : IterateOwnDescriptors()) {
     PropertyDetails details = descriptors.GetDetails(i);
     if (details.location() == kField) {
