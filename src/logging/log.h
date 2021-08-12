@@ -241,10 +241,8 @@ class Logger : public CodeEventListener {
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray source_position_table,
                                   JitCodeEvent::CodeType code_type);
-#if V8_ENABLE_WEBASSEMBLY
-  void WasmCodeLinePosInfoRecordEvent(
+  void CodeLinePosInfoRecordEvent(
       Address code_start, base::Vector<const byte> source_position_table);
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
