@@ -2904,47 +2904,13 @@ void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  static constexpr RegClass tmp_simd_rc = reg_class_for(kS128);
-  LiftoffRegister tmp_simd =
-      GetUnusedRegister(tmp_simd_rc, LiftoffRegList::ForRegs(dst, lhs));
-  // Mask off the unwanted bits before word-shifting.
-  Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-  movq(kScratchRegister, rhs.gp());
-  andq(kScratchRegister, Immediate(7));
-  addq(kScratchRegister, Immediate(8));
-  Movq(tmp_simd.fp(), kScratchRegister);
-  Psrlw(kScratchDoubleReg, tmp_simd.fp());
-  Packuswb(kScratchDoubleReg, kScratchDoubleReg);
-
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpand(dst.fp(), lhs.fp(), kScratchDoubleReg);
-  } else {
-    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
-    andps(dst.fp(), kScratchDoubleReg);
-  }
-  subq(kScratchRegister, Immediate(8));
-  Movq(tmp_simd.fp(), kScratchRegister);
-  Psllw(dst.fp(), tmp_simd.fp());
+  I8x16Shl(dst.fp(), lhs.fp(), rhs.gp(), kScratchRegister, kScratchDoubleReg,
+           liftoff::kScratchDoubleReg2);
 }
 
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  byte shift = static_cast<byte>(rhs & 0x7);
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpsllw(dst.fp(), lhs.fp(), shift);
-  } else {
-    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
-    psllw(dst.fp(), shift);
-  }
-
-  uint8_t bmask = static_cast<uint8_t>(0xff << shift);
-  uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
-  movl(kScratchRegister, Immediate(mask));
-  Movd(kScratchDoubleReg, kScratchRegister);
-  Pshufd(kScratchDoubleReg, kScratchDoubleReg, uint8_t{0});
-  Pand(dst.fp(), kScratchDoubleReg);
+  I8x16Shl(dst.fp(), lhs.fp(), rhs, kScratchRegister, kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i8x16_shr_s(LiftoffRegister dst,

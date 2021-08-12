@@ -3492,37 +3492,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16Shl: {
       XMMRegister dst = i.OutputSimd128Register();
+      // TODO(zhin): remove this restriction from instruction-selector.
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // Temp registers for shift mask and additional moves to XMM registers.
-      Register tmp = i.ToRegister(instr->TempAt(0));
+      Register tmp = i.TempRegister(0);
       XMMRegister tmp_simd = i.TempSimd128Register(1);
       if (HasImmediateInput(instr, 1)) {
-        // Perform 16-bit shift, then mask away low bits.
-        uint8_t shift = i.InputInt3(1);
-        __ Psllw(dst, byte{shift});
-
-        uint8_t bmask = static_cast<uint8_t>(0xff << shift);
-        uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
-        __ movl(tmp, Immediate(mask));
-        __ Movd(tmp_simd, tmp);
-        __ Pshufd(tmp_simd, tmp_simd, uint8_t{0});
-        __ Pand(dst, tmp_simd);
+        __ I8x16Shl(dst, i.InputSimd128Register(0), i.InputInt3(1), tmp,
+                    kScratchDoubleReg);
       } else {
-        // Mask off the unwanted bits before word-shifting.
-        __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-        // Take shift value modulo 8.
-        __ movq(tmp, i.InputRegister(1));
-        __ andq(tmp, Immediate(7));
-        __ addq(tmp, Immediate(8));
-        __ Movq(tmp_simd, tmp);
-        __ Psrlw(kScratchDoubleReg, tmp_simd);
-        __ Packuswb(kScratchDoubleReg, kScratchDoubleReg);
-        __ Pand(dst, kScratchDoubleReg);
-        // TODO(zhin): subq here to avoid asking for another temporary register,
-        // examine codegen for other i8x16 shifts, they use less instructions.
-        __ subq(tmp, Immediate(8));
-        __ Movq(tmp_simd, tmp);
-        __ Psllw(dst, tmp_simd);
+        __ I8x16Shl(dst, i.InputSimd128Register(0), i.InputRegister(1), tmp,
+                    kScratchDoubleReg, tmp_simd);
       }
       break;
     }

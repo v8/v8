@@ -254,17 +254,64 @@ void SharedTurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
   }
 }
 
-void SharedTurboAssembler::I8x16ShrS(XMMRegister dst, XMMRegister src1,
-                                     uint8_t src2, XMMRegister tmp2) {
-  // Unpack bytes into words, do word (16-bit) shifts, and repack.
+void SharedTurboAssembler::I8x16Shl(XMMRegister dst, XMMRegister src1,
+                                    uint8_t src2, Register tmp1,
+                                    XMMRegister tmp2) {
   DCHECK_NE(dst, tmp2);
+  // Perform 16-bit shift, then mask away low bits.
+  if (!CpuFeatures::IsSupported(AVX) && (dst != src1)) {
+    movaps(dst, src1);
+    src1 = dst;
+  }
+
+  uint8_t shift = truncate_to_int3(src2);
+  Psllw(dst, src1, byte{shift});
+
+  uint8_t bmask = static_cast<uint8_t>(0xff << shift);
+  uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
+  Move(tmp1, mask);
+  Movd(tmp2, tmp1);
+  Pshufd(tmp2, tmp2, uint8_t{0});
+  Pand(dst, tmp2);
+}
+
+void SharedTurboAssembler::I8x16Shl(XMMRegister dst, XMMRegister src1,
+                                    Register src2, Register tmp1,
+                                    XMMRegister tmp2, XMMRegister tmp3) {
+  DCHECK(!AreAliased(dst, tmp2, tmp3));
+  DCHECK(!AreAliased(src1, tmp2, tmp3));
+
+  // Take shift value modulo 8.
+  Move(tmp1, src2);
+  And(tmp1, Immediate(7));
+  Add(tmp1, Immediate(8));
+  // Create a mask to unset high bits.
+  Movd(tmp3, tmp1);
+  Pcmpeqd(tmp2, tmp2);
+  Psrlw(tmp2, tmp2, tmp3);
+  Packuswb(tmp2, tmp2);
+  if (!CpuFeatures::IsSupported(AVX) && (dst != src1)) {
+    movaps(dst, src1);
+    src1 = dst;
+  }
+  // Mask off the unwanted bits before word-shifting.
+  Pand(dst, src1, tmp2);
+  Add(tmp1, Immediate(-8));
+  Movd(tmp3, tmp1);
+  Psllw(dst, dst, tmp3);
+}
+
+void SharedTurboAssembler::I8x16ShrS(XMMRegister dst, XMMRegister src1,
+                                     uint8_t src2, XMMRegister tmp) {
+  // Unpack bytes into words, do word (16-bit) shifts, and repack.
+  DCHECK_NE(dst, tmp);
   uint8_t shift = truncate_to_int3(src2) + 8;
 
-  Punpckhbw(tmp2, src1);
+  Punpckhbw(tmp, src1);
   Punpcklbw(dst, src1);
-  Psraw(tmp2, shift);
+  Psraw(tmp, shift);
   Psraw(dst, shift);
-  Packsswb(dst, tmp2);
+  Packsswb(dst, tmp);
 }
 
 void SharedTurboAssembler::I8x16ShrS(XMMRegister dst, XMMRegister src1,
