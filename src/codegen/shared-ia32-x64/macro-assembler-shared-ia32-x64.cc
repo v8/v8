@@ -6,6 +6,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
+#include "src/codegen/register-arch.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/codegen/ia32/register-ia32.h"
@@ -18,6 +19,17 @@
 namespace v8 {
 namespace internal {
 
+void SharedTurboAssembler::Move(Register dst, uint32_t src) {
+  // Helper to paper over the different assembler function names.
+#if V8_TARGET_ARCH_IA32
+  mov(dst, Immediate(src));
+#elif V8_TARGET_ARCH_X64
+  movl(dst, Immediate(src));
+#else
+#error Unsupported target architecture.
+#endif
+}
+
 void SharedTurboAssembler::Move(Register dst, Register src) {
   // Helper to paper over the different assembler function names.
   if (dst != src) {
@@ -29,6 +41,17 @@ void SharedTurboAssembler::Move(Register dst, Register src) {
 #error Unsupported target architecture.
 #endif
   }
+}
+
+void SharedTurboAssembler::Add(Register dst, Immediate src) {
+  // Helper to paper over the different assembler function names.
+#if V8_TARGET_ARCH_IA32
+  add(dst, src);
+#elif V8_TARGET_ARCH_X64
+  addq(dst, src);
+#else
+#error Unsupported target architecture.
+#endif
 }
 
 void SharedTurboAssembler::And(Register dst, Immediate src) {
@@ -229,6 +252,80 @@ void SharedTurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
     DCHECK_GE(3, laneidx);
     Extractps(dst, src, laneidx);
   }
+}
+
+void SharedTurboAssembler::I8x16ShrS(XMMRegister dst, XMMRegister src1,
+                                     uint8_t src2, XMMRegister tmp2) {
+  // Unpack bytes into words, do word (16-bit) shifts, and repack.
+  DCHECK_NE(dst, tmp2);
+  uint8_t shift = truncate_to_int3(src2) + 8;
+
+  Punpckhbw(tmp2, src1);
+  Punpcklbw(dst, src1);
+  Psraw(tmp2, shift);
+  Psraw(dst, shift);
+  Packsswb(dst, tmp2);
+}
+
+void SharedTurboAssembler::I8x16ShrS(XMMRegister dst, XMMRegister src1,
+                                     Register src2, Register tmp1,
+                                     XMMRegister tmp2, XMMRegister tmp3) {
+  DCHECK(!AreAliased(dst, tmp2, tmp3));
+  DCHECK_NE(src1, tmp2);
+
+  // Unpack the bytes into words, do arithmetic shifts, and repack.
+  Punpckhbw(tmp2, src1);
+  Punpcklbw(dst, src1);
+  // Prepare shift value
+  Move(tmp1, src2);
+  // Take shift value modulo 8.
+  And(tmp1, Immediate(7));
+  Add(tmp1, Immediate(8));
+  Movd(tmp3, tmp1);
+  Psraw(tmp2, tmp3);
+  Psraw(dst, tmp3);
+  Packsswb(dst, tmp2);
+}
+
+void SharedTurboAssembler::I8x16ShrU(XMMRegister dst, XMMRegister src1,
+                                     uint8_t src2, Register tmp1,
+                                     XMMRegister tmp2) {
+  DCHECK_NE(dst, tmp2);
+  if (!CpuFeatures::IsSupported(AVX) && (dst != src1)) {
+    movaps(dst, src1);
+    src1 = dst;
+  }
+
+  // Perform 16-bit shift, then mask away high bits.
+  uint8_t shift = truncate_to_int3(src2);
+  Psrlw(dst, src1, shift);
+
+  uint8_t bmask = 0xff >> shift;
+  uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
+  Move(tmp1, mask);
+  Movd(tmp2, tmp1);
+  Pshufd(tmp2, tmp2, byte{0});
+  Pand(dst, tmp2);
+}
+
+void SharedTurboAssembler::I8x16ShrU(XMMRegister dst, XMMRegister src1,
+                                     Register src2, Register tmp1,
+                                     XMMRegister tmp2, XMMRegister tmp3) {
+  DCHECK(!AreAliased(dst, tmp2, tmp3));
+  DCHECK_NE(src1, tmp2);
+
+  // Unpack the bytes into words, do logical shifts, and repack.
+  Punpckhbw(tmp2, src1);
+  Punpcklbw(dst, src1);
+  // Prepare shift value.
+  Move(tmp1, src2);
+  // Take shift value modulo 8.
+  And(tmp1, Immediate(7));
+  Add(tmp1, Immediate(8));
+  Movd(tmp3, tmp1);
+  Psrlw(tmp2, tmp3);
+  Psrlw(dst, tmp3);
+  Packuswb(dst, tmp2);
 }
 
 void SharedTurboAssembler::I16x8ExtMulLow(XMMRegister dst, XMMRegister src1,

@@ -3147,28 +3147,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I8x16ShrS: {
       XMMRegister dst = i.OutputSimd128Register();
+      // TODO(zhin): remove this restriction from instruction-selector.
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       if (HasImmediateInput(instr, 1)) {
-        __ Punpckhbw(kScratchDoubleReg, dst);
-        __ Punpcklbw(dst, dst);
-        uint8_t shift = i.InputInt3(1) + 8;
-        __ Psraw(kScratchDoubleReg, shift);
-        __ Psraw(dst, shift);
-        __ Packsswb(dst, kScratchDoubleReg);
+        __ I8x16ShrS(dst, i.InputSimd128Register(0), i.InputInt3(1),
+                     kScratchDoubleReg);
       } else {
-        Register tmp = i.ToRegister(instr->TempAt(0));
-        XMMRegister tmp_simd = i.TempSimd128Register(1);
-        // Unpack the bytes into words, do arithmetic shifts, and repack.
-        __ Punpckhbw(kScratchDoubleReg, dst);
-        __ Punpcklbw(dst, dst);
-        __ mov(tmp, i.InputRegister(1));
-        // Take shift value modulo 8.
-        __ and_(tmp, 7);
-        __ add(tmp, Immediate(8));
-        __ Movd(tmp_simd, tmp);
-        __ Psraw(kScratchDoubleReg, kScratchDoubleReg, tmp_simd);
-        __ Psraw(dst, dst, tmp_simd);
-        __ Packsswb(dst, kScratchDoubleReg);
+        __ I8x16ShrS(dst, i.InputSimd128Register(0), i.InputRegister(1),
+                     i.TempRegister(0), kScratchDoubleReg,
+                     i.TempSimd128Register(1));
       }
       break;
     }
@@ -3271,34 +3258,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I8x16ShrU: {
       XMMRegister dst = i.OutputSimd128Register();
+      // TODO(zhin): remove this restriction from instruction-selector.
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       Register tmp = i.ToRegister(instr->TempAt(0));
-      XMMRegister tmp_simd = i.TempSimd128Register(1);
 
       if (HasImmediateInput(instr, 1)) {
-        // Perform 16-bit shift, then mask away high bits.
-        uint8_t shift = i.InputInt3(1);
-        __ Psrlw(dst, dst, byte{shift});
-
-        uint8_t bmask = 0xff >> shift;
-        uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
-        __ mov(tmp, mask);
-        __ Movd(tmp_simd, tmp);
-        __ Pshufd(tmp_simd, tmp_simd, uint8_t{0});
-        __ Pand(dst, tmp_simd);
+        __ I8x16ShrU(dst, i.InputSimd128Register(0), i.InputInt3(1), tmp,
+                     kScratchDoubleReg);
       } else {
-        // Unpack the bytes into words, do logical shifts, and repack.
-        __ Punpckhbw(kScratchDoubleReg, dst);
-        __ Punpcklbw(dst, dst);
-        __ mov(tmp, i.InputRegister(1));
-        // Take shift value modulo 8.
-        __ and_(tmp, 7);
-        __ add(tmp, Immediate(8));
-        __ Movd(tmp_simd, tmp);
-        __ Psrlw(kScratchDoubleReg, kScratchDoubleReg, tmp_simd);
-        __ Psrlw(dst, dst, tmp_simd);
-        __ Packuswb(dst, kScratchDoubleReg);
+        __ I8x16ShrU(dst, i.InputSimd128Register(0), i.InputRegister(1), tmp,
+                     kScratchDoubleReg, i.TempSimd128Register(1));
       }
+
       break;
     }
     case kIA32I8x16MinU: {

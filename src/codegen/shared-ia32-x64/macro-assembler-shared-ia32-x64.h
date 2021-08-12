@@ -33,8 +33,10 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
 
+  void Move(Register dst, uint32_t src);
   // Move if registers are not identical.
   void Move(Register dst, Register src);
+  void Add(Register dst, Immediate src);
   void And(Register dst, Immediate src);
 
   void Movapd(XMMRegister dst, XMMRegister src);
@@ -298,6 +300,14 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void F32x4Splat(XMMRegister dst, DoubleRegister src);
   void F32x4ExtractLane(FloatRegister dst, XMMRegister src, uint8_t lane);
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
+  void I8x16ShrS(XMMRegister dst, XMMRegister src1, uint8_t src2,
+                 XMMRegister tmp2);
+  void I8x16ShrS(XMMRegister dst, XMMRegister src1, Register src2,
+                 Register tmp1, XMMRegister tmp2, XMMRegister tmp3);
+  void I8x16ShrU(XMMRegister dst, XMMRegister src1, uint8_t src2, Register tmp1,
+                 XMMRegister tmp2);
+  void I8x16ShrU(XMMRegister dst, XMMRegister src1, Register src2,
+                 Register tmp1, XMMRegister tmp2, XMMRegister tmp3);
   void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                       XMMRegister scrat, bool is_signed);
   void I16x8ExtMulHighS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
