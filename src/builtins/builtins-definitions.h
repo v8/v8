@@ -1053,6 +1053,8 @@ namespace internal {
   CPP(DisplayNamesSupportedLocalesOf)                                  \
   /* ecma402 #sec-intl.getcanonicallocales */                          \
   CPP(IntlGetCanonicalLocales)                                         \
+  /* ecma402 #sec-intl.supportedvaluesof */                            \
+  CPP(IntlSupportedValuesOf)                                           \
   /* ecma402 #sec-intl-listformat-constructor */                       \
   CPP(ListFormatConstructor)                                           \
   /* ecma402 #sec-intl-list-format.prototype.format */                 \

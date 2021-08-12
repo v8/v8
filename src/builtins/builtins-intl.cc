@@ -576,6 +576,13 @@ BUILTIN(IntlGetCanonicalLocales) {
                            Intl::GetCanonicalLocales(isolate, locales));
 }
 
+BUILTIN(IntlSupportedValuesOf) {
+  HandleScope scope(isolate);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+
+  RETURN_RESULT_OR_FAILURE(isolate, Intl::SupportedValuesOf(isolate, locales));
+}
+
 BUILTIN(ListFormatConstructor) {
   HandleScope scope(isolate);
 
