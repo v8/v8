@@ -3321,7 +3321,8 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
 
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64I32x4SConvertF32x4, g.DefineSameAsFirst(node),
+  Emit(kX64I32x4SConvertF32x4,
+       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)));
 }
 

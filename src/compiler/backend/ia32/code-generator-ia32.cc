@@ -2445,20 +2445,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I32x4SConvertF32x4: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      // NAN->0
-      __ Cmpeqps(kScratchDoubleReg, src, src);
-      __ Pand(dst, src, kScratchDoubleReg);
-      // Set top bit if >= 0 (but not -0.0!)
-      __ Pxor(kScratchDoubleReg, dst);
-      // Convert
-      __ Cvttps2dq(dst, dst);
-      // Set top bit if >=0 is now < 0
-      __ Pand(kScratchDoubleReg, dst);
-      __ Psrad(kScratchDoubleReg, kScratchDoubleReg, byte{31});
-      // Set positive overflow lanes to 0x7FFFFFFF
-      __ Pxor(dst, kScratchDoubleReg);
+      __ I32x4SConvertF32x4(i.OutputSimd128Register(),
+                            i.InputSimd128Register(0), kScratchDoubleReg);
       break;
     }
     case kIA32I32x4SConvertI16x8Low: {

@@ -4300,26 +4300,7 @@ void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  // NAN->0
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vcmpeqps(liftoff::kScratchDoubleReg, src.fp(), src.fp());
-    vpand(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    movaps(liftoff::kScratchDoubleReg, src.fp());
-    cmpeqps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    if (dst.fp() != src.fp()) movaps(dst.fp(), src.fp());
-    andps(dst.fp(), liftoff::kScratchDoubleReg);
-  }
-  // Set top bit if >= 0 (but not -0.0!).
-  Pxor(liftoff::kScratchDoubleReg, dst.fp());
-  // Convert to int.
-  Cvttps2dq(dst.fp(), dst.fp());
-  // Set top bit if >=0 is now < 0.
-  Pand(liftoff::kScratchDoubleReg, dst.fp());
-  Psrad(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{31});
-  // Set positive overflow lanes to 0x7FFFFFFF.
-  Pxor(dst.fp(), liftoff::kScratchDoubleReg);
+  I32x4SConvertF32x4(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,

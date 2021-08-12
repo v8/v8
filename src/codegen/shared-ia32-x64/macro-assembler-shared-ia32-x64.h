@@ -310,6 +310,9 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   // Requires that dst == src1 if AVX is not supported.
   void I32x4ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                    XMMRegister scratch, bool low, bool is_signed);
+  // Requires dst == src if AVX is not supported.
+  void I32x4SConvertF32x4(XMMRegister dst, XMMRegister src,
+                          XMMRegister scratch);
   void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);
   void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
