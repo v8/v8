@@ -3111,30 +3111,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I8x16Shl: {
       XMMRegister dst = i.OutputSimd128Register();
-      // TODO(zhin): remove this restriction from instruction-selector.
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      XMMRegister src = i.InputSimd128Register(0);
+      DCHECK_IMPLIES(!CpuFeatures::IsSupported(AVX), dst == src);
       Register tmp = i.TempRegister(0);
-      XMMRegister tmp_simd = i.TempSimd128Register(1);
+
       if (HasImmediateInput(instr, 1)) {
-        __ I8x16Shl(dst, i.InputSimd128Register(0), i.InputInt3(1), tmp,
-                    kScratchDoubleReg);
+        __ I8x16Shl(dst, src, i.InputInt3(1), tmp, kScratchDoubleReg);
       } else {
-        __ I8x16Shl(dst, i.InputSimd128Register(0), i.InputRegister(1), tmp,
-                    kScratchDoubleReg, tmp_simd);
+        XMMRegister tmp_simd = i.TempSimd128Register(1);
+        __ I8x16Shl(dst, src, i.InputRegister(1), tmp, kScratchDoubleReg,
+                    tmp_simd);
       }
       break;
     }
     case kIA32I8x16ShrS: {
       XMMRegister dst = i.OutputSimd128Register();
-      // TODO(zhin): remove this restriction from instruction-selector.
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      XMMRegister src = i.InputSimd128Register(0);
+      DCHECK_IMPLIES(!CpuFeatures::IsSupported(AVX), dst == src);
+
       if (HasImmediateInput(instr, 1)) {
-        __ I8x16ShrS(dst, i.InputSimd128Register(0), i.InputInt3(1),
-                     kScratchDoubleReg);
+        __ I8x16ShrS(dst, src, i.InputInt3(1), kScratchDoubleReg);
       } else {
-        __ I8x16ShrS(dst, i.InputSimd128Register(0), i.InputRegister(1),
-                     i.TempRegister(0), kScratchDoubleReg,
-                     i.TempSimd128Register(1));
+        __ I8x16ShrS(dst, src, i.InputRegister(1), i.TempRegister(0),
+                     kScratchDoubleReg, i.TempSimd128Register(1));
       }
       break;
     }
@@ -3237,16 +3236,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I8x16ShrU: {
       XMMRegister dst = i.OutputSimd128Register();
-      // TODO(zhin): remove this restriction from instruction-selector.
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      Register tmp = i.ToRegister(instr->TempAt(0));
+      XMMRegister src = i.InputSimd128Register(0);
+      DCHECK_IMPLIES(!CpuFeatures::IsSupported(AVX), dst == src);
+      Register tmp = i.TempRegister(0);
 
       if (HasImmediateInput(instr, 1)) {
-        __ I8x16ShrU(dst, i.InputSimd128Register(0), i.InputInt3(1), tmp,
-                     kScratchDoubleReg);
+        __ I8x16ShrU(dst, src, i.InputInt3(1), tmp, kScratchDoubleReg);
       } else {
-        __ I8x16ShrU(dst, i.InputSimd128Register(0), i.InputRegister(1), tmp,
-                     kScratchDoubleReg, i.TempSimd128Register(1));
+        __ I8x16ShrU(dst, src, i.InputRegister(1), tmp, kScratchDoubleReg,
+                     i.TempSimd128Register(1));
       }
 
       break;
