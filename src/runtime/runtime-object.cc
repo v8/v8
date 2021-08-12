@@ -1102,7 +1102,10 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs,
                                                     Just(kDontThrow))
             .IsJust());
-  return *object;
+
+  // Return the value so that BaselineCompiler::VisitStaDataPropertyInLiteral
+  // doesn't have to save the accumulator.
+  return *value;
 }
 
 RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
