@@ -112,7 +112,7 @@ void SharedTurboAssembler::F64x2ReplaceLane(XMMRegister dst, XMMRegister src,
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     if (lane == 0) {
-      vpblendw(dst, src, rep, 0b00001111);
+      vmovsd(dst, src, rep);
     } else {
       vmovlhps(dst, src, rep);
     }
@@ -123,7 +123,7 @@ void SharedTurboAssembler::F64x2ReplaceLane(XMMRegister dst, XMMRegister src,
       movaps(dst, src);
     }
     if (lane == 0) {
-      pblendw(dst, rep, 0b00001111);
+      movsd(dst, rep);
     } else {
       movlhps(dst, rep);
     }
