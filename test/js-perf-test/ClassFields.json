@@ -1,0 +1,63 @@
+{
+  "owners": ["caitp@igalia.com", "joyee@igalia.com"],
+  "name": "ClassFields",
+  "run_count": 3,
+  "run_count_arm": 1,
+  "run_count_arm64": 1,
+  "timeout": 120,
+  "timeout_arm64": 240,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "ClassFields",
+      "path": ["ClassFields"],
+      "flags": ["--allow-natives-syntax"],
+      "resources": [ "define-public-field.js" ],
+      "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "define-public-field-single-opt",
+          "main": "run.js",
+          "test_flags": [ "define-public-field", "single", "opt" ]
+        },
+        {
+          "name": "define-public-field-single-noopt",
+          "main": "run.js",
+          "test_flags": [ "define-public-field", "single", "noopt" ]
+        },
+        {
+          "name": "define-public-field-multiple-opt",
+          "main": "run.js",
+          "test_flags": [ "define-public-field", "multiple", "opt" ]
+        },
+        {
+          "name": "define-public-field-multiple-noopt",
+          "main": "run.js",
+          "test_flags": [ "define-public-field", "multiple", "noopt" ]
+        },
+        {
+          "name": "define-private-field-single-opt",
+          "main": "run.js",
+          "test_flags": [ "define-private-field", "single", "opt" ]
+        },
+        {
+          "name": "define-private-field-single-noopt",
+          "main": "run.js",
+          "test_flags": [ "define-private-field", "single", "noopt" ]
+        },
+        {
+          "name": "define-private-field-multiple-opt",
+          "main": "run.js",
+          "test_flags": [ "define-private-field", "multiple", "opt" ]
+        },
+        {
+          "name": "define-private-field-multiple-noopt",
+          "main": "run.js",
+          "test_flags": [ "define-private-field", "multiple", "noopt" ]
+        }
+      ]
+    }
+  ]
+}
