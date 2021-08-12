@@ -595,9 +595,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
   'built-ins/Temporal/*': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12044
-  'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=11989
   'built-ins/Realm/constructor': [FAIL],
   'built-ins/Realm/descriptor': [FAIL],
@@ -638,6 +635,17 @@
   'built-ins/Realm/prototype/importValue/validates-realm-object': [FAIL],
   'built-ins/Realm/prototype/proto': [FAIL],
   'built-ins/Realm/prototype/Symbol.toStringTag': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12086
+  'language/expressions/in/private-field-invalid-assignment-reference': [FAIL],
+  'language/expressions/in/private-field-in-nested': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12085
+  'language/statements/class/subclass/derived-class-return-override-catch-finally': [FAIL],
+  'language/statements/class/subclass/derived-class-return-override-catch-finally-arrow': [FAIL],
+  'language/statements/class/subclass/derived-class-return-override-finally-super': [FAIL],
+  'language/statements/class/subclass/derived-class-return-override-finally-super-arrow': [FAIL],
+  'language/statements/class/subclass/derived-class-return-override-for-of-arrow': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
