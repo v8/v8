@@ -2784,6 +2784,7 @@ v8_header_set("v8_internal_headers") {
     "src/init/setup-isolate.h",
     "src/init/startup-data-util.h",
     "src/init/v8.h",
+    "src/init/vm-cage.h",
     "src/interpreter/block-coverage-builder.h",
     "src/interpreter/bytecode-array-builder.h",
     "src/interpreter/bytecode-array-iterator.h",
