@@ -1721,7 +1721,6 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
                           Type::Any(),
                           MachineType::AnyTagged(),
                           kFullWriteBarrier,
-                          LoadSensitivity::kUnsafe,
                           const_field_info};
 
     // Note: the use of RawInobjectPropertyAt (vs. the higher-level

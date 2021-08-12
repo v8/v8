@@ -2453,7 +2453,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
         field_type,
         MachineType::TypeForRepresentation(field_representation),
         kFullWriteBarrier,
-        LoadSensitivity::kUnsafe,
         access_info.GetConstFieldInfo(),
         access_mode == AccessMode::kStoreInLiteral};
 
@@ -2487,7 +2486,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
               Type::OtherInternal(),
               MachineType::TaggedPointer(),
               kPointerWriteBarrier,
-              LoadSensitivity::kUnsafe,
               access_info.GetConstFieldInfo(),
               access_mode == AccessMode::kStoreInLiteral};
           storage = effect =
@@ -2793,10 +2791,8 @@ JSNativeContextSpecialization::BuildElementAccess(
         if (situation == kHandleOOB_SmiCheckDone) {
           Node* check =
               graph()->NewNode(simplified()->NumberLessThan(), index, length);
-          Node* branch = graph()->NewNode(
-              common()->Branch(BranchHint::kTrue,
-                               IsSafetyCheck::kCriticalSafetyCheck),
-              check, control);
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                          check, control);
 
           Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
           Node* etrue = effect;
@@ -2984,10 +2980,9 @@ JSNativeContextSpecialization::BuildElementAccess(
       element_type = Type::SignedSmall();
       element_machine_type = MachineType::TaggedSigned();
     }
-    ElementAccess element_access = {
-        kTaggedBase,       FixedArray::kHeaderSize,
-        element_type,      element_machine_type,
-        kFullWriteBarrier, LoadSensitivity::kCritical};
+    ElementAccess element_access = {kTaggedBase, FixedArray::kHeaderSize,
+                                    element_type, element_machine_type,
+                                    kFullWriteBarrier};
 
     // Access the actual element.
     if (keyed_mode.access_mode() == AccessMode::kLoad) {
@@ -3007,10 +3002,8 @@ JSNativeContextSpecialization::BuildElementAccess(
           CanTreatHoleAsUndefined(receiver_maps)) {
         Node* check =
             graph()->NewNode(simplified()->NumberLessThan(), index, length);
-        Node* branch = graph()->NewNode(
-            common()->Branch(BranchHint::kTrue,
-                             IsSafetyCheck::kCriticalSafetyCheck),
-            check, control);
+        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check, control);
 
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
         Node* etrue = effect;
@@ -3293,9 +3286,7 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
     Node* check =
         graph()->NewNode(simplified()->NumberLessThan(), index, length);
     Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue,
-                                          IsSafetyCheck::kCriticalSafetyCheck),
-                         check, *control);
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, *control);
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     // Do a real bounds check against {length}. This is in order to protect
@@ -3306,10 +3297,8 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
                                   CheckBoundsFlag::kConvertStringAndMinusZero |
                                       CheckBoundsFlag::kAbortOnOutOfBounds),
         index, length, *effect, if_true);
-    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
-    Node* vtrue = etrue =
-        graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                         masked_index, etrue, if_true);
+    Node* vtrue = etrue = graph()->NewNode(simplified()->StringCharCodeAt(),
+                                           receiver, index, etrue, if_true);
     vtrue = graph()->NewNode(simplified()->StringFromSingleCharCode(), vtrue);
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -3327,12 +3316,9 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
                                   CheckBoundsFlag::kConvertStringAndMinusZero),
         index, length, *effect, *control);
 
-    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
-
     // Return the character from the {receiver} as single character string.
-    Node* value = *effect =
-        graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                         masked_index, *effect, *control);
+    Node* value = *effect = graph()->NewNode(
+        simplified()->StringCharCodeAt(), receiver, index, *effect, *control);
     value = graph()->NewNode(simplified()->StringFromSingleCharCode(), value);
     return value;
   }

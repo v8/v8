@@ -4303,11 +4303,7 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
     popq(kScratchRegister);
     target = kScratchRegister;
   }
-  if (FLAG_untrusted_code_mitigations) {
-    RetpolineCall(target);
-  } else {
-    call(target);
-  }
+  call(target);
 }
 
 void LiftoffAssembler::TailCallIndirect(Register target) {
@@ -4315,11 +4311,7 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
     popq(kScratchRegister);
     target = kScratchRegister;
   }
-  if (FLAG_untrusted_code_mitigations) {
-    RetpolineJump(target);
-  } else {
-    jmp(target);
-  }
+  jmp(target);
 }
 
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
