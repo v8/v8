@@ -267,14 +267,17 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
                  "wasm-function[%d]", index()));
     name = base::VectorOf(name_buffer);
   }
+
+  // Record source positions before adding code, otherwise when code is added,
+  // there are no source positions to associate with the added code.
+  if (!source_positions().empty()) {
+    LOG_CODE_EVENT(isolate, WasmCodeLinePosInfoRecordEvent(instruction_start(),
+                                                           source_positions()));
+  }
+
   int code_offset = module->functions[index_].code.offset();
   PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name,
                                    source_url, code_offset, script_id));
-
-  if (!source_positions().empty()) {
-    LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),
-                                                       source_positions()));
-  }
 }
 
 void WasmCode::Validate() const {

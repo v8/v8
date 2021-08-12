@@ -76,6 +76,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -13738,16 +13739,14 @@ static v8::base::HashMap* jitcode_line_info = nullptr;
 static int saw_bar = 0;
 static int move_events = 0;
 
-
 static bool FunctionNameIs(const char* expected,
                            const v8::JitCodeEvent* event) {
   // Log lines for functions are of the general form:
   // "LazyCompile:<type><function_name>" or Function:<type><function_name>,
   // where the type is one of "*", "~" or "".
-  static const char* kPreamble;
-  if (!i::FLAG_lazy) {
-    kPreamble = "Function:";
-  } else {
+  static const char* kPreamble = "Function:";
+  if (i::FLAG_lazy &&
+      event->code_type != v8::JitCodeEvent::CodeType::WASM_CODE) {
     kPreamble = "LazyCompile:";
   }
   static size_t kPreambleLen = strlen(kPreamble);
@@ -13779,7 +13778,6 @@ static bool FunctionNameIs(const char* expected,
 
   return strncmp(tail, expected, expected_len) == 0;
 }
-
 
 static void event_handler(const v8::JitCodeEvent* event) {
   CHECK_NOT_NULL(event);
@@ -13872,7 +13870,6 @@ static void event_handler(const v8::JitCodeEvent* event) {
       UNREACHABLE();
   }
 }
-
 
 UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::FLAG_stress_compaction = true;
@@ -13997,6 +13994,77 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   isolate->Exit();
   isolate->Dispose();
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+static bool saw_wasm_main = false;
+static void wasm_event_handler(const v8::JitCodeEvent* event) {
+  switch (event->type) {
+    case v8::JitCodeEvent::CODE_ADDED: {
+      if (FunctionNameIs("main-0-turbofan", event)) {
+        saw_wasm_main = true;
+        // Make sure main function has line info.
+        auto* entry = jitcode_line_info->Lookup(
+            event->code_start, i::ComputePointerHash(event->code_start));
+        CHECK_NOT_NULL(entry);
+      }
+      break;
+    }
+    case v8::JitCodeEvent::CODE_END_LINE_INFO_RECORDING: {
+      jitcode_line_info->LookupOrInsert(
+          event->code_start, i::ComputePointerHash(event->code_start));
+      break;
+    }
+    case v8::JitCodeEvent::CODE_ADD_LINE_POS_INFO: {
+      break;
+    }
+    default: {
+      // Ignore all other events;
+    }
+  }
+}
+
+namespace v8 {
+namespace internal {
+namespace wasm {
+TEST(WasmSetJitCodeEventHandler) {
+  v8::base::HashMap code;
+  code_map = &code;
+
+  v8::base::HashMap lineinfo;
+  jitcode_line_info = &lineinfo;
+
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  i::Isolate* isolate = r.main_isolate();
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8_isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+                                     wasm_event_handler);
+
+  TestSignatures sigs;
+  auto& f = r.NewFunction(sigs.i_i(), "f");
+  BUILD(f, WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(0)));
+
+  LocalContext env;
+
+  BUILD(r,
+        WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_CALL_FUNCTION(f.function_index(),
+                                                           WASM_LOCAL_GET(1))));
+
+  Handle<JSFunction> func = r.builder().WrapCode(0);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("func"), v8::Utils::ToLocal(func))
+            .FromJust());
+  const char* script = R"(
+    func(1, 2);
+  )";
+  CompileRun(script);
+  CHECK(saw_wasm_main);
+  saw_wasm_main = false;
+}
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST(ExternalAllocatedMemory) {
   v8::Isolate* isolate = CcTest::isolate();

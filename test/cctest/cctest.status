@@ -580,6 +580,7 @@
   'test-api/TurboAsmDisablesDetach': [SKIP],
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
+  'test-api/WasmSetJitCodeEventHandler': [SKIP],
   'test-api-wasm/WasmStreaming*': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],

@@ -730,7 +730,7 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                   int length) {
   JitCodeEvent event = {};
   event.type = JitCodeEvent::CODE_ADDED;
-  event.code_type = JitCodeEvent::JIT_CODE;
+  event.code_type = JitCodeEvent::WASM_CODE;
   event.code_start = code->instructions().begin();
   event.code_len = code->instructions().length();
   event.name.str = name;
@@ -1558,12 +1558,14 @@ void Logger::CodeLinePosInfoRecordEvent(Address code_start,
   CodeLinePosEvent(*jit_logger_, code_start, iter, code_type);
 }
 
-void Logger::CodeLinePosInfoRecordEvent(
+#if V8_ENABLE_WEBASSEMBLY
+void Logger::WasmCodeLinePosInfoRecordEvent(
     Address code_start, base::Vector<const byte> source_position_table) {
   if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(*jit_logger_, code_start, iter, JitCodeEvent::JIT_CODE);
+  CodeLinePosEvent(*jit_logger_, code_start, iter, JitCodeEvent::WASM_CODE);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
   if (code_name == nullptr) return;  // Not a code object.

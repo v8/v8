@@ -7848,13 +7848,13 @@ struct JitCodeEvent {
   // statement, and is used to indicate possible break locations.
   enum PositionType { POSITION, STATEMENT_POSITION };
 
-  // There are two different kinds of JitCodeEvents, one for JIT code generated
-  // by the optimizing compiler, and one for byte code generated for the
-  // interpreter.  For JIT_CODE events, the |code_start| member of the event
-  // points to the beginning of jitted assembly code, while for BYTE_CODE
-  // events, |code_start| points to the first bytecode of the interpreted
-  // function.
-  enum CodeType { BYTE_CODE, JIT_CODE };
+  // There are three different kinds of CodeType, one for JIT code generated
+  // by the optimizing compiler, one for byte code generated for the
+  // interpreter, and one for code generated from Wasm. For JIT_CODE and
+  // WASM_CODE, |code_start| points to the beginning of jitted assembly code,
+  // while for BYTE_CODE events, |code_start| points to the first bytecode of
+  // the interpreted function.
+  enum CodeType { BYTE_CODE, JIT_CODE, WASM_CODE };
 
   // Type of event.
   EventType type;
