@@ -797,17 +797,15 @@ class WasmGenerator {
   template <ValueKind wanted_kind>
   void struct_get(DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
-    int num_types = builder->NumTypes();
     ZoneVector<uint32_t> field_index(builder->zone());
     ZoneVector<uint32_t> struct_index(builder->zone());
-    for (int i = 0; i < num_types; i++) {
-      if (builder->IsStructType(i)) {
-        int field_count = builder->GetStructType(i)->field_count();
-        for (int index = 0; index < field_count; index++) {
-          if (builder->GetStructType(i)->field(index).kind() == wanted_kind) {
-            field_index.push_back(index);
-            struct_index.push_back(i);
-          }
+    for (uint32_t i = 0; i < num_structs_; i++) {
+      DCHECK(builder->IsStructType(i));
+      int field_count = builder->GetStructType(i)->field_count();
+      for (int index = 0; index < field_count; index++) {
+        if (builder->GetStructType(i)->field(index).kind() == wanted_kind) {
+          field_index.push_back(index);
+          struct_index.push_back(i);
         }
       }
     }
@@ -821,6 +819,24 @@ class WasmGenerator {
     builder_->EmitU32V(struct_index[index]);
     builder_->EmitU32V(field_index[index]);
   }
+  void struct_set(DataRange* data) {
+    WasmModuleBuilder* builder = builder_->builder();
+    if (num_structs_ > 0) {
+      int struct_index = data->get<uint8_t>() % num_structs_;
+      DCHECK(builder->IsStructType(struct_index));
+      int field_count = builder->GetStructType(struct_index)->field_count();
+      if (field_count == 0) {
+        return;
+      }
+      int field_index = data->get<uint8_t>() % field_count;
+      GenerateOptRef(HeapType(struct_index), data);
+      Generate(builder->GetStructType(struct_index)->field(field_index), data);
+      builder_->EmitWithPrefix(kExprStructSet);
+      builder_->EmitU32V(struct_index);
+      builder_->EmitU32V(field_index);
+    }
+  }
+
   using GenerateFn = void (WasmGenerator::*const)(DataRange*);
   using GenerateFnWithHeap = void (WasmGenerator::*const)(HeapType, DataRange*);
 
@@ -860,12 +876,15 @@ class WasmGenerator {
  public:
   WasmGenerator(WasmFunctionBuilder* fn, const std::vector<uint32_t>& functions,
                 const std::vector<ValueType>& globals,
-                const std::vector<uint8_t>& mutable_globals, DataRange* data,
+                const std::vector<uint8_t>& mutable_globals,
+                uint32_t num_structs, uint32_t num_arrays, DataRange* data,
                 bool liftoff_as_reference)
       : builder_(fn),
         functions_(functions),
         globals_(globals),
         mutable_globals_(mutable_globals),
+        num_structs_(num_structs),
+        num_arrays_(num_arrays),
         liftoff_as_reference_(liftoff_as_reference) {
     FunctionSig* sig = fn->signature();
     blocks_.emplace_back();
@@ -915,6 +934,8 @@ class WasmGenerator {
   std::vector<int> try_blocks_;
   std::vector<int> catch_blocks_;
   bool has_simd_;
+  uint32_t num_structs_;
+  uint32_t num_arrays_;
   bool liftoff_as_reference_;
   static constexpr uint32_t kMaxRecursionDepth = 64;
 
@@ -980,7 +1001,9 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
       &WasmGenerator::set_local,
       &WasmGenerator::set_global,
       &WasmGenerator::throw_or_rethrow,
-      &WasmGenerator::try_block<kVoid>};
+      &WasmGenerator::try_block<kVoid>,
+
+      &WasmGenerator::struct_set};
 
   GenerateOneOf(alternatives, data);
 }
@@ -1740,14 +1763,19 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     std::vector<uint32_t> function_signatures;
 
     // Add struct and array types first so that we get a chance to generate
-    // these types in function signatures
+    // these types in function signatures.
+    // Currently, WasmGenerator assumes this order for struct/array/signature
+    // definitions.
+    uint32_t num_structs = 0, num_arrays = 0;
     if (liftoff_as_reference) {
+      num_structs = 1;
+      num_arrays = 4;
       uint32_t count = 4;
       StructType::Builder struct_builder(zone, count);
-      struct_builder.AddField(kWasmI32, false);
-      struct_builder.AddField(kWasmI64, false);
-      struct_builder.AddField(kWasmF32, false);
-      struct_builder.AddField(kWasmF64, false);
+      struct_builder.AddField(kWasmI32, true);
+      struct_builder.AddField(kWasmI64, true);
+      struct_builder.AddField(kWasmF32, true);
+      struct_builder.AddField(kWasmF64, true);
       StructType* struct_fuz = struct_builder.Build();
       builder.AddStructType(struct_fuz);
       ArrayType* array_fuzI32 = zone->New<ArrayType>(kWasmI32, true);
@@ -1759,7 +1787,6 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       builder.AddArrayType(array_fuzF32);
       builder.AddArrayType(array_fuzF64);
     }
-
     function_signatures.push_back(builder.AddSignature(sigs.i_iii()));
 
     static_assert(kMaxFunctions >= 1, "need min. 1 function");
@@ -1803,7 +1830,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       WasmFunctionBuilder* f = builder.AddFunction(sig);
 
       WasmGenerator gen(f, function_signatures, globals, mutable_globals,
-                        &function_range, liftoff_as_reference);
+                        num_structs, num_arrays, &function_range,
+                        liftoff_as_reference);
       base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                  sig->return_count());
       gen.Generate(return_types, &function_range);
