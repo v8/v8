@@ -430,50 +430,6 @@ WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_tier, kExprF32x4Le, LessEqual);
 }
 
-template <typename ScalarType>
-void RunShiftAddTestSequence(TestExecutionTier execution_tier,
-                             WasmOpcode shiftr_opcode, WasmOpcode add_opcode,
-                             WasmOpcode splat_opcode, int32_t imm,
-                             ScalarType (*shift_fn)(ScalarType, int32_t)) {
-  WasmRunner<int32_t, ScalarType, ScalarType> r(execution_tier);
-  // globals to store results for left and right cases
-  ScalarType* g1 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
-  ScalarType* g2 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
-  byte value1 = 0, value2 = 1;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  auto expected_fn = [shift_fn](ScalarType x, ScalarType y, uint32_t imm) {
-    return base::AddWithWraparound(x, shift_fn(y, imm));
-  };
-  BUILD(
-      r,
-      WASM_LOCAL_SET(temp1,
-                     WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(value1))),
-      WASM_LOCAL_SET(temp2,
-                     WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(value2))),
-      WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(add_opcode,
-                                         WASM_SIMD_BINOP(shiftr_opcode,
-                                                         WASM_LOCAL_GET(temp2),
-                                                         WASM_I32V(imm)),
-                                         WASM_LOCAL_GET(temp1))),
-      WASM_GLOBAL_SET(1, WASM_SIMD_BINOP(add_opcode, WASM_LOCAL_GET(temp1),
-                                         WASM_SIMD_BINOP(shiftr_opcode,
-                                                         WASM_LOCAL_GET(temp2),
-                                                         WASM_I32V(imm)))),
-
-      WASM_ONE);
-  for (ScalarType x : compiler::ValueHelper::GetVector<ScalarType>()) {
-    for (ScalarType y : compiler::ValueHelper::GetVector<ScalarType>()) {
-      r.Call(x, y);
-      ScalarType expected = expected_fn(x, y, imm);
-      for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
-        CHECK_EQ(expected, LANE(g1, i));
-        CHECK_EQ(expected, LANE(g2, i));
-      }
-    }
-  }
-}
-
 WASM_SIMD_TEST(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier);
   // Set up a global to hold output vector.
@@ -542,17 +498,6 @@ WASM_SIMD_TEST(I64x2ShrS) {
 
 WASM_SIMD_TEST(I64x2ShrU) {
   RunI64x2ShiftOpTest(execution_tier, kExprI64x2ShrU, LogicalShiftRight);
-}
-
-WASM_SIMD_TEST(I64x2ShiftAdd) {
-  for (int imm = 0; imm <= 64; imm++) {
-    RunShiftAddTestSequence<int64_t>(execution_tier, kExprI64x2ShrU,
-                                     kExprI64x2Add, kExprI64x2Splat, imm,
-                                     LogicalShiftRight);
-    RunShiftAddTestSequence<int64_t>(execution_tier, kExprI64x2ShrS,
-                                     kExprI64x2Add, kExprI64x2Splat, imm,
-                                     ArithmeticShiftRight);
-  }
 }
 
 WASM_SIMD_TEST(I64x2Add) {
@@ -1405,17 +1350,6 @@ WASM_SIMD_TEST(I32x4ShrU) {
   RunI32x4ShiftOpTest(execution_tier, kExprI32x4ShrU, LogicalShiftRight);
 }
 
-WASM_SIMD_TEST(I32x4ShiftAdd) {
-  for (int imm = 0; imm <= 32; imm++) {
-    RunShiftAddTestSequence<int32_t>(execution_tier, kExprI32x4ShrU,
-                                     kExprI32x4Add, kExprI32x4Splat, imm,
-                                     LogicalShiftRight);
-    RunShiftAddTestSequence<int32_t>(execution_tier, kExprI32x4ShrS,
-                                     kExprI32x4Add, kExprI32x4Splat, imm,
-                                     ArithmeticShiftRight);
-  }
-}
-
 // Tests both signed and unsigned conversion from I8x16 (unpacking).
 WASM_SIMD_TEST(I16x8ConvertI8x16) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
@@ -1726,17 +1660,6 @@ WASM_SIMD_TEST(I16x8ShrU) {
   RunI16x8ShiftOpTest(execution_tier, kExprI16x8ShrU, LogicalShiftRight);
 }
 
-WASM_SIMD_TEST(I16x8ShiftAdd) {
-  for (int imm = 0; imm <= 16; imm++) {
-    RunShiftAddTestSequence<int16_t>(execution_tier, kExprI16x8ShrU,
-                                     kExprI16x8Add, kExprI16x8Splat, imm,
-                                     LogicalShiftRight);
-    RunShiftAddTestSequence<int16_t>(execution_tier, kExprI16x8ShrS,
-                                     kExprI16x8Add, kExprI16x8Splat, imm,
-                                     ArithmeticShiftRight);
-  }
-}
-
 WASM_SIMD_TEST(I8x16Neg) {
   RunI8x16UnOpTest(execution_tier, kExprI8x16Neg, base::NegateWithWraparound);
 }
@@ -1892,17 +1815,6 @@ WASM_SIMD_TEST(I8x16ShrS) {
 
 WASM_SIMD_TEST(I8x16ShrU) {
   RunI8x16ShiftOpTest(execution_tier, kExprI8x16ShrU, LogicalShiftRight);
-}
-
-WASM_SIMD_TEST(I8x16ShiftAdd) {
-  for (int imm = 0; imm <= 8; imm++) {
-    RunShiftAddTestSequence<int8_t>(execution_tier, kExprI8x16ShrU,
-                                    kExprI8x16Add, kExprI8x16Splat, imm,
-                                    LogicalShiftRight);
-    RunShiftAddTestSequence<int8_t>(execution_tier, kExprI8x16ShrS,
-                                    kExprI8x16Add, kExprI8x16Splat, imm,
-                                    ArithmeticShiftRight);
-  }
 }
 
 // Test Select by making a mask where the 0th and 3rd lanes are true and the

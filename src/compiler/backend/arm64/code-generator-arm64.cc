@@ -2644,24 +2644,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64S128Select, Bsl, 16B);
       SIMD_BINOP_CASE(kArm64S128AndNot, Bic, 16B);
-    case kArm64Ssra: {
-      int8_t laneSize = LaneSizeField::decode(opcode);
-      VectorFormat f = VectorFormatFillQ(laneSize);
-      int8_t mask = laneSize - 1;
-      VRegister dst = i.OutputSimd128Register().Format(f);
-      DCHECK_EQ(dst, i.InputSimd128Register(0).Format(f));
-      __ Ssra(dst, i.InputSimd128Register(1).Format(f), i.InputInt8(2) & mask);
-      break;
-    }
-    case kArm64Usra: {
-      int8_t laneSize = LaneSizeField::decode(opcode);
-      VectorFormat f = VectorFormatFillQ(laneSize);
-      int8_t mask = laneSize - 1;
-      VRegister dst = i.OutputSimd128Register().Format(f);
-      DCHECK_EQ(dst, i.InputSimd128Register(0).Format(f));
-      __ Usra(dst, i.InputSimd128Register(1).Format(f), i.InputUint8(2) & mask);
-      break;
-    }
     case kArm64S32x4Shuffle: {
       Simd128Register dst = i.OutputSimd128Register().V4S(),
                       src0 = i.InputSimd128Register(0).V4S(),

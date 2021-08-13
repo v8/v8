@@ -351,8 +351,6 @@ namespace compiler {
   V(Arm64S128Not)                           \
   V(Arm64S128Select)                        \
   V(Arm64S128AndNot)                        \
-  V(Arm64Ssra)                              \
-  V(Arm64Usra)                              \
   V(Arm64S32x4ZipLeft)                      \
   V(Arm64S32x4ZipRight)                     \
   V(Arm64S32x4UnzipLeft)                    \

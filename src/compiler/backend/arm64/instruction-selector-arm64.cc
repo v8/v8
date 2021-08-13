@@ -3483,6 +3483,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Ne, kArm64F32x4Ne)                             \
   V(F32x4Lt, kArm64F32x4Lt)                             \
   V(F32x4Le, kArm64F32x4Le)                             \
+  V(I64x2Add, kArm64I64x2Add)                           \
   V(I64x2Sub, kArm64I64x2Sub)                           \
   V(I64x2Eq, kArm64I64x2Eq)                             \
   V(I64x2Ne, kArm64I64x2Ne)                             \
@@ -3519,6 +3520,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8GeU, kArm64I16x8GeU)                           \
   V(I16x8RoundingAverageU, kArm64I16x8RoundingAverageU) \
   V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)           \
+  V(I8x16Add, kArm64I8x16Add)                           \
   V(I8x16Sub, kArm64I8x16Sub)                           \
   V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8)       \
   V(I8x16AddSatS, kArm64I8x16AddSatS)                   \
@@ -3705,113 +3707,61 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
        arraysize(temps), temps);
 }
 
-namespace {
-
-bool ShraHelper(InstructionSelector* selector, Node* node, int lane_size,
-                InstructionCode shra_code, InstructionCode add_code,
-                IrOpcode::Value shift_op) {
-  Arm64OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (right->opcode() == shift_op) {
-    std::swap(left, right);
-  } else if (left->opcode() != shift_op) {
-    return false;
-  }
-  if (!selector->CanCover(node, left) || !g.IsIntegerConstant(left->InputAt(1)))
-    return false;
-  // If shifting by zero, just do the addition
-  if (g.GetIntegerConstantValue(left->InputAt(1)) % lane_size == 0) {
-    selector->Emit(add_code, g.DefineAsRegister(node),
-                   g.UseRegister(left->InputAt(0)), g.UseRegister(right));
-  } else {
-    selector->Emit(shra_code | LaneSizeField::encode(lane_size),
-                   g.DefineSameAsFirst(node), g.UseRegister(right),
-                   g.UseRegister(left->InputAt(0)),
-                   g.UseImmediate(left->InputAt(1)));
-  }
-  return true;
-}
-
-bool AdalpHelper(InstructionSelector* selector, Node* node, int lane_size,
-                 InstructionCode adalp_code, IrOpcode::Value ext_op) {
-  Arm64OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (right->opcode() == ext_op) {
-    std::swap(left, right);
-  } else if (left->opcode() != ext_op) {
-    return false;
-  }
-  if (selector->CanCover(node, left)) {
-    selector->Emit(adalp_code | LaneSizeField::encode(lane_size),
-                   g.DefineSameAsFirst(node), g.UseRegister(right),
-                   g.UseRegister(left->InputAt(0)));
-    return true;
-  }
-  return false;
-}
-
-bool MlaHelper(InstructionSelector* selector, Node* node,
-               InstructionCode mla_code, IrOpcode::Value mul_op) {
-  Arm64OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (right->opcode() == mul_op) {
-    std::swap(left, right);
-  } else if (left->opcode() != mul_op) {
-    return false;
-  }
-  if (selector->CanCover(node, left)) {
-    selector->Emit(mla_code, g.DefineSameAsFirst(node), g.UseRegister(right),
-                   g.UseRegister(left->InputAt(0)),
-                   g.UseRegister(left->InputAt(1)));
-    return true;
-  }
-  return false;
-}
-
-}  // namespace
-
-void InstructionSelector::VisitI64x2Add(Node* node) {
-  if (!ShraHelper(this, node, 64, kArm64Ssra, kArm64I64x2Add,
-                  IrOpcode::kI64x2ShrS) &&
-      !ShraHelper(this, node, 64, kArm64Usra, kArm64I64x2Add,
-                  IrOpcode::kI64x2ShrU)) {
-    VisitRRR(this, kArm64I64x2Add, node);
-  }
-}
-
-void InstructionSelector::VisitI8x16Add(Node* node) {
-  if (!ShraHelper(this, node, 8, kArm64Ssra, kArm64I8x16Add,
-                  IrOpcode::kI8x16ShrS) &&
-      !ShraHelper(this, node, 8, kArm64Usra, kArm64I8x16Add,
-                  IrOpcode::kI8x16ShrU)) {
-    VisitRRR(this, kArm64I8x16Add, node);
-  }
-}
-
-#define VISIT_SIMD_ADD(Type, PairwiseType, LaneSize)                        \
-  void InstructionSelector::Visit##Type##Add(Node* node) {                  \
-    /* Select Mla(z, x, y) for Add(x, Mul(y, z)). */                        \
-    if (MlaHelper(this, node, kArm64##Type##Mla, IrOpcode::k##Type##Mul)) { \
-      return;                                                               \
-    }                                                                       \
-    /* Select S/Uadalp(x, y) for Add(x, ExtAddPairwise(y)). */              \
-    if (AdalpHelper(this, node, LaneSize, kArm64Sadalp,                     \
-                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S) ||  \
-        AdalpHelper(this, node, LaneSize, kArm64Uadalp,                     \
-                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U)) {  \
-      return;                                                               \
-    }                                                                       \
-    /* Select S/Usra(x, y) for Add(x, ShiftRight(y, imm)). */               \
-    if (ShraHelper(this, node, LaneSize, kArm64Ssra, kArm64##Type##Add,     \
-                   IrOpcode::k##Type##ShrS) ||                              \
-        ShraHelper(this, node, LaneSize, kArm64Usra, kArm64##Type##Add,     \
-                   IrOpcode::k##Type##ShrU)) {                              \
-      return;                                                               \
-    }                                                                       \
-    VisitRRR(this, kArm64##Type##Add, node);                                \
+#define VISIT_SIMD_ADD(Type, PairwiseType, LaneSize)                           \
+  void InstructionSelector::Visit##Type##Add(Node* node) {                     \
+    Arm64OperandGenerator g(this);                                             \
+    Node* left = node->InputAt(0);                                             \
+    Node* right = node->InputAt(1);                                            \
+    /* Select Mla(z, x, y) for Add(Mul(x, y), z). */                           \
+    if (left->opcode() == IrOpcode::k##Type##Mul && CanCover(node, left)) {    \
+      Emit(kArm64##Type##Mla, g.DefineSameAsFirst(node), g.UseRegister(right), \
+           g.UseRegister(left->InputAt(0)), g.UseRegister(left->InputAt(1)));  \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Mla(z, x, y) for Add(z, Mul(x, y)). */                           \
+    if (right->opcode() == IrOpcode::k##Type##Mul && CanCover(node, right)) {  \
+      Emit(kArm64##Type##Mla, g.DefineSameAsFirst(node), g.UseRegister(left),  \
+           g.UseRegister(right->InputAt(0)),                                   \
+           g.UseRegister(right->InputAt(1)));                                  \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Sadalp(x, y) for Add(x, ExtAddPairwiseS(y)). */                  \
+    if (right->opcode() ==                                                     \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S &&              \
+        CanCover(node, right)) {                                               \
+      Emit(kArm64Sadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(left),                     \
+           g.UseRegister(right->InputAt(0)));                                  \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Sadalp(y, x) for Add(ExtAddPairwiseS(x), y). */                  \
+    if (left->opcode() ==                                                      \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S &&              \
+        CanCover(node, left)) {                                                \
+      Emit(kArm64Sadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(right),                    \
+           g.UseRegister(left->InputAt(0)));                                   \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Uadalp(x, y) for Add(x, ExtAddPairwiseU(y)). */                  \
+    if (right->opcode() ==                                                     \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U &&              \
+        CanCover(node, right)) {                                               \
+      Emit(kArm64Uadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(left),                     \
+           g.UseRegister(right->InputAt(0)));                                  \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Uadalp(y, x) for Add(ExtAddPairwiseU(x), y). */                  \
+    if (left->opcode() ==                                                      \
+            IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U &&              \
+        CanCover(node, left)) {                                                \
+      Emit(kArm64Uadalp | LaneSizeField::encode(LaneSize),                     \
+           g.DefineSameAsFirst(node), g.UseRegister(right),                    \
+           g.UseRegister(left->InputAt(0)));                                   \
+      return;                                                                  \
+    }                                                                          \
+    VisitRRR(this, kArm64##Type##Add, node);                                   \
   }
 
 VISIT_SIMD_ADD(I32x4, I16x8, 32)
