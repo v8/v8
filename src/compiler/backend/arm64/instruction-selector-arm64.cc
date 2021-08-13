@@ -795,7 +795,11 @@ void InstructionSelector::VisitLoad(Node* node) {
       immediate_mode = kLoadStoreImm8;
       break;
     case MachineRepresentation::kWord16:
-      opcode = load_rep.IsSigned() ? kArm64Ldrsh : kArm64Ldrh;
+      opcode = load_rep.IsUnsigned()
+                   ? kArm64Ldrh
+                   : load_rep.semantic() == MachineSemantic::kInt32
+                         ? kArm64LdrshW
+                         : kArm64Ldrsh;
       immediate_mode = kLoadStoreImm16;
       break;
     case MachineRepresentation::kWord32:
