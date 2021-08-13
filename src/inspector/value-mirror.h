@@ -38,6 +38,7 @@ struct PropertyMirror {
   bool enumerable;
   bool isOwn;
   bool isIndex;
+  bool isSynthetic;
   std::unique_ptr<ValueMirror> value;
   std::unique_ptr<ValueMirror> getter;
   std::unique_ptr<ValueMirror> setter;

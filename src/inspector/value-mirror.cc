@@ -786,7 +786,7 @@ class PreviewPropertyAccumulator : public ValueMirror::PropertyAccumulator {
         !mirror.value) {
       return true;
     }
-    if (!mirror.isOwn) return true;
+    if (!mirror.isOwn && !mirror.isSynthetic) return true;
     if (std::find(m_blocklist.begin(), m_blocklist.end(), mirror.name) !=
         m_blocklist.end()) {
       return true;
@@ -1288,7 +1288,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                                           nullptr, true)
                     .ToLocal(&value)) {
               valueMirror = ValueMirror::create(context, value);
-              isOwn = true;
               setterMirror = nullptr;
               getterMirror = nullptr;
             }
@@ -1303,6 +1302,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                                  enumerable,
                                  isOwn,
                                  iterator->is_array_index(),
+                                 isAccessorProperty && valueMirror,
                                  std::move(valueMirror),
                                  std::move(getterMirror),
                                  std::move(setterMirror),
