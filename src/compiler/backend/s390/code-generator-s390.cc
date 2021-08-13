@@ -2284,40 +2284,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ lay(i.OutputRegister(), mem);
       break;
     }
-    case kS390_Word64AtomicExchangeUint8:
-    case kWord32AtomicExchangeInt8:
-    case kWord32AtomicExchangeUint8: {
+    case kAtomicExchangeInt8:
+    case kAtomicExchangeUint8: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
       __ la(r1, MemOperand(base, index));
       __ AtomicExchangeU8(r1, value, output, r0);
-      if (opcode == kWord32AtomicExchangeInt8) {
+      if (opcode == kAtomicExchangeInt8) {
         __ LoadS8(output, output);
       } else {
         __ LoadU8(output, output);
       }
       break;
     }
-    case kS390_Word64AtomicExchangeUint16:
-    case kWord32AtomicExchangeInt16:
-    case kWord32AtomicExchangeUint16: {
+    case kAtomicExchangeInt16:
+    case kAtomicExchangeUint16: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
       __ la(r1, MemOperand(base, index));
       __ AtomicExchangeU16(r1, value, output, r0);
-      if (opcode == kWord32AtomicExchangeInt16) {
+      if (opcode == kAtomicExchangeInt16) {
         __ lghr(output, output);
       } else {
         __ llghr(output, output);
       }
       break;
     }
-    case kS390_Word64AtomicExchangeUint32:
-    case kWord32AtomicExchangeWord32: {
+    case kAtomicExchangeWord32: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
@@ -2330,34 +2327,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bne(&do_cs, Label::kNear);
       break;
     }
-    case kWord32AtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadS8);
       break;
-    case kS390_Word64AtomicCompareExchangeUint8:
-    case kWord32AtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(LoadU8);
       break;
-    case kWord32AtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadS16);
       break;
-    case kS390_Word64AtomicCompareExchangeUint16:
-    case kWord32AtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(LoadU16);
       break;
-    case kS390_Word64AtomicCompareExchangeUint32:
-    case kWord32AtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD();
       break;
 #define ATOMIC_BINOP_CASE(op, inst)                                          \
-  case kWord32Atomic##op##Int8:                                              \
+  case kAtomic##op##Int8:                                                    \
     ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                                 \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
-      __ LoadS8(result, result);                                              \
+      __ LoadS8(result, result);                                             \
     });                                                                      \
     break;                                                                   \
-  case kS390_Word64Atomic##op##Uint8:                                        \
-  case kWord32Atomic##op##Uint8:                                             \
+  case kAtomic##op##Uint8:                                                   \
     ASSEMBLE_ATOMIC_BINOP_BYTE(inst, [&]() {                                 \
       int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;           \
       __ RotateInsertSelectBits(result, prev, Operand(56), Operand(63),      \
@@ -2365,15 +2358,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                 true);                                       \
     });                                                                      \
     break;                                                                   \
-  case kWord32Atomic##op##Int16:                                             \
+  case kAtomic##op##Int16:                                                   \
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
-      __ LoadS16(result, result);                                      \
+      __ LoadS16(result, result);                                            \
     });                                                                      \
     break;                                                                   \
-  case kS390_Word64Atomic##op##Uint16:                                       \
-  case kWord32Atomic##op##Uint16:                                            \
+  case kAtomic##op##Uint16:                                                  \
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       int rotate_left = shift_amount == 0 ? 0 : 64 - shift_amount;           \
       __ RotateInsertSelectBits(result, prev, Operand(48), Operand(63),      \
@@ -2387,24 +2379,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
-    case kS390_Word64AtomicAddUint32:
-    case kWord32AtomicAddWord32:
+    case kAtomicAddWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(laa);
       break;
-    case kS390_Word64AtomicSubUint32:
-    case kWord32AtomicSubWord32:
+    case kAtomicSubWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(LoadAndSub32);
       break;
-    case kS390_Word64AtomicAndUint32:
-    case kWord32AtomicAndWord32:
+    case kAtomicAndWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lan);
       break;
-    case kS390_Word64AtomicOrUint32:
-    case kWord32AtomicOrWord32:
+    case kAtomicOrWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lao);
       break;
-    case kS390_Word64AtomicXorUint32:
-    case kWord32AtomicXorWord32:
+    case kAtomicXorWord32:
       ASSEMBLE_ATOMIC_BINOP_WORD(lax);
       break;
     case kS390_Word64AtomicAddUint64:

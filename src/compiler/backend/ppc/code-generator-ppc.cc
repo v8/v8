@@ -2011,9 +2011,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
-    case kWord32AtomicLoadInt8:
+    case kAtomicLoadInt8:
     case kPPC_AtomicLoadUint8:
-    case kWord32AtomicLoadInt16:
+    case kAtomicLoadInt16:
     case kPPC_AtomicLoadUint16:
     case kPPC_AtomicLoadWord32:
     case kPPC_AtomicLoadWord64:
@@ -2022,14 +2022,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_AtomicStoreWord32:
     case kPPC_AtomicStoreWord64:
       UNREACHABLE();
-    case kWord32AtomicExchangeInt8:
+    case kAtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
       __ extsb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kPPC_AtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
       break;
-    case kWord32AtomicExchangeInt16:
+    case kAtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
       __ extsh(i.OutputRegister(0), i.OutputRegister(0));
       break;
@@ -2042,13 +2042,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kPPC_AtomicExchangeWord64:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldarx, stdcx);
       break;
-    case kWord32AtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(CmpS64, lbarx, stbcx, extsb);
       break;
     case kPPC_AtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(CmpS64, lbarx, stbcx, ZeroExtByte);
       break;
-    case kWord32AtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(CmpS64, lharx, sthcx, extsh);
       break;
     case kPPC_AtomicCompareExchangeUint16:

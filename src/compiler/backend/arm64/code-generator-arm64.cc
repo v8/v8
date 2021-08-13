@@ -1850,113 +1850,100 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Dsb(FullSystem, BarrierAll);
       __ Isb();
       break;
-    case kWord32AtomicLoadInt8:
+    case kAtomicLoadInt8:
+      DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb, Register32);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicLoadUint8:
-    case kArm64Word64AtomicLoadUint8:
+    case kAtomicLoadUint8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb, Register32);
       break;
-    case kWord32AtomicLoadInt16:
+    case kAtomicLoadInt16:
+      DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarh, Register32);
       __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicLoadUint16:
-    case kArm64Word64AtomicLoadUint16:
+    case kAtomicLoadUint16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarh, Register32);
       break;
-    case kWord32AtomicLoadWord32:
-    case kArm64Word64AtomicLoadUint32:
+    case kAtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldar, Register32);
       break;
     case kArm64Word64AtomicLoadUint64:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldar, Register);
       break;
-    case kWord32AtomicStoreWord8:
-    case kArm64Word64AtomicStoreWord8:
+    case kAtomicStoreWord8:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Stlrb, Register32);
       break;
-    case kWord32AtomicStoreWord16:
-    case kArm64Word64AtomicStoreWord16:
+    case kAtomicStoreWord16:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Stlrh, Register32);
       break;
-    case kWord32AtomicStoreWord32:
-    case kArm64Word64AtomicStoreWord32:
+    case kAtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Stlr, Register32);
       break;
     case kArm64Word64AtomicStoreWord64:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Stlr, Register);
       break;
-    case kWord32AtomicExchangeInt8:
+    case kAtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrb, stlxrb, Register32);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicExchangeUint8:
-    case kArm64Word64AtomicExchangeUint8:
+    case kAtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrb, stlxrb, Register32);
       break;
-    case kWord32AtomicExchangeInt16:
+    case kAtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrh, stlxrh, Register32);
       __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicExchangeUint16:
-    case kArm64Word64AtomicExchangeUint16:
+    case kAtomicExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrh, stlxrh, Register32);
       break;
-    case kWord32AtomicExchangeWord32:
-    case kArm64Word64AtomicExchangeUint32:
+    case kAtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxr, stlxr, Register32);
       break;
     case kArm64Word64AtomicExchangeUint64:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxr, stlxr, Register);
       break;
-    case kWord32AtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb, UXTB,
                                                Register32);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicCompareExchangeUint8:
-    case kArm64Word64AtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb, UXTB,
                                                Register32);
       break;
-    case kWord32AtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh, UXTH,
                                                Register32);
       __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
-    case kWord32AtomicCompareExchangeUint16:
-    case kArm64Word64AtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh, UXTH,
                                                Register32);
       break;
-    case kWord32AtomicCompareExchangeWord32:
-    case kArm64Word64AtomicCompareExchangeUint32:
+    case kAtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxr, stlxr, UXTW, Register32);
       break;
     case kArm64Word64AtomicCompareExchangeUint64:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxr, stlxr, UXTX, Register);
       break;
 #define ATOMIC_BINOP_CASE(op, inst)                          \
-  case kWord32Atomic##op##Int8:                              \
+  case kAtomic##op##Int8:                                    \
     ASSEMBLE_ATOMIC_BINOP(ldaxrb, stlxrb, inst, Register32); \
     __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));       \
     break;                                                   \
-  case kWord32Atomic##op##Uint8:                             \
-  case kArm64Word64Atomic##op##Uint8:                        \
+  case kAtomic##op##Uint8:                                   \
     ASSEMBLE_ATOMIC_BINOP(ldaxrb, stlxrb, inst, Register32); \
     break;                                                   \
-  case kWord32Atomic##op##Int16:                             \
+  case kAtomic##op##Int16:                                   \
     ASSEMBLE_ATOMIC_BINOP(ldaxrh, stlxrh, inst, Register32); \
     __ Sxth(i.OutputRegister(0), i.OutputRegister(0));       \
     break;                                                   \
-  case kWord32Atomic##op##Uint16:                            \
-  case kArm64Word64Atomic##op##Uint16:                       \
+  case kAtomic##op##Uint16:                                  \
     ASSEMBLE_ATOMIC_BINOP(ldaxrh, stlxrh, inst, Register32); \
     break;                                                   \
-  case kWord32Atomic##op##Word32:                            \
-  case kArm64Word64Atomic##op##Uint32:                       \
+  case kAtomic##op##Word32:                                  \
     ASSEMBLE_ATOMIC_BINOP(ldaxr, stlxr, inst, Register32);   \
     break;                                                   \
   case kArm64Word64Atomic##op##Uint64:                       \

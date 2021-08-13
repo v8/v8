@@ -391,33 +391,12 @@ namespace compiler {
   V(X64I32x4AllTrue)                      \
   V(X64I16x8AllTrue)                      \
   V(X64I8x16AllTrue)                      \
-  V(X64Word64AtomicAddUint8)              \
-  V(X64Word64AtomicAddUint16)             \
-  V(X64Word64AtomicAddUint32)             \
   V(X64Word64AtomicAddUint64)             \
-  V(X64Word64AtomicSubUint8)              \
-  V(X64Word64AtomicSubUint16)             \
-  V(X64Word64AtomicSubUint32)             \
   V(X64Word64AtomicSubUint64)             \
-  V(X64Word64AtomicAndUint8)              \
-  V(X64Word64AtomicAndUint16)             \
-  V(X64Word64AtomicAndUint32)             \
   V(X64Word64AtomicAndUint64)             \
-  V(X64Word64AtomicOrUint8)               \
-  V(X64Word64AtomicOrUint16)              \
-  V(X64Word64AtomicOrUint32)              \
   V(X64Word64AtomicOrUint64)              \
-  V(X64Word64AtomicXorUint8)              \
-  V(X64Word64AtomicXorUint16)             \
-  V(X64Word64AtomicXorUint32)             \
   V(X64Word64AtomicXorUint64)             \
-  V(X64Word64AtomicExchangeUint8)         \
-  V(X64Word64AtomicExchangeUint16)        \
-  V(X64Word64AtomicExchangeUint32)        \
   V(X64Word64AtomicExchangeUint64)        \
-  V(X64Word64AtomicCompareExchangeUint8)  \
-  V(X64Word64AtomicCompareExchangeUint16) \
-  V(X64Word64AtomicCompareExchangeUint32) \
   V(X64Word64AtomicCompareExchangeUint64)
 
 // Addressing modes represent the "shape" of inputs to an instruction.

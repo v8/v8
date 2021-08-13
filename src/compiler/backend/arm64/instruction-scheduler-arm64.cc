@@ -402,43 +402,16 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64StoreLane:
       return kHasSideEffect;
 
-    case kArm64Word64AtomicLoadUint8:
-    case kArm64Word64AtomicLoadUint16:
-    case kArm64Word64AtomicLoadUint32:
     case kArm64Word64AtomicLoadUint64:
       return kIsLoadOperation;
 
-    case kArm64Word64AtomicStoreWord8:
-    case kArm64Word64AtomicStoreWord16:
-    case kArm64Word64AtomicStoreWord32:
     case kArm64Word64AtomicStoreWord64:
-    case kArm64Word64AtomicAddUint8:
-    case kArm64Word64AtomicAddUint16:
-    case kArm64Word64AtomicAddUint32:
     case kArm64Word64AtomicAddUint64:
-    case kArm64Word64AtomicSubUint8:
-    case kArm64Word64AtomicSubUint16:
-    case kArm64Word64AtomicSubUint32:
     case kArm64Word64AtomicSubUint64:
-    case kArm64Word64AtomicAndUint8:
-    case kArm64Word64AtomicAndUint16:
-    case kArm64Word64AtomicAndUint32:
     case kArm64Word64AtomicAndUint64:
-    case kArm64Word64AtomicOrUint8:
-    case kArm64Word64AtomicOrUint16:
-    case kArm64Word64AtomicOrUint32:
     case kArm64Word64AtomicOrUint64:
-    case kArm64Word64AtomicXorUint8:
-    case kArm64Word64AtomicXorUint16:
-    case kArm64Word64AtomicXorUint32:
     case kArm64Word64AtomicXorUint64:
-    case kArm64Word64AtomicExchangeUint8:
-    case kArm64Word64AtomicExchangeUint16:
-    case kArm64Word64AtomicExchangeUint32:
     case kArm64Word64AtomicExchangeUint64:
-    case kArm64Word64AtomicCompareExchangeUint8:
-    case kArm64Word64AtomicCompareExchangeUint16:
-    case kArm64Word64AtomicCompareExchangeUint32:
     case kArm64Word64AtomicCompareExchangeUint64:
       return kHasSideEffect;
 

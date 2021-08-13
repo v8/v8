@@ -389,41 +389,14 @@ namespace compiler {
   V(Mips64I16x8UConvertI8x16High)            \
   V(Mips64I8x16SConvertI16x8)                \
   V(Mips64I8x16UConvertI16x8)                \
-  V(Mips64Word64AtomicLoadUint8)             \
-  V(Mips64Word64AtomicLoadUint16)            \
-  V(Mips64Word64AtomicLoadUint32)            \
   V(Mips64Word64AtomicLoadUint64)            \
-  V(Mips64Word64AtomicStoreWord8)            \
-  V(Mips64Word64AtomicStoreWord16)           \
-  V(Mips64Word64AtomicStoreWord32)           \
   V(Mips64Word64AtomicStoreWord64)           \
-  V(Mips64Word64AtomicAddUint8)              \
-  V(Mips64Word64AtomicAddUint16)             \
-  V(Mips64Word64AtomicAddUint32)             \
   V(Mips64Word64AtomicAddUint64)             \
-  V(Mips64Word64AtomicSubUint8)              \
-  V(Mips64Word64AtomicSubUint16)             \
-  V(Mips64Word64AtomicSubUint32)             \
   V(Mips64Word64AtomicSubUint64)             \
-  V(Mips64Word64AtomicAndUint8)              \
-  V(Mips64Word64AtomicAndUint16)             \
-  V(Mips64Word64AtomicAndUint32)             \
   V(Mips64Word64AtomicAndUint64)             \
-  V(Mips64Word64AtomicOrUint8)               \
-  V(Mips64Word64AtomicOrUint16)              \
-  V(Mips64Word64AtomicOrUint32)              \
   V(Mips64Word64AtomicOrUint64)              \
-  V(Mips64Word64AtomicXorUint8)              \
-  V(Mips64Word64AtomicXorUint16)             \
-  V(Mips64Word64AtomicXorUint32)             \
   V(Mips64Word64AtomicXorUint64)             \
-  V(Mips64Word64AtomicExchangeUint8)         \
-  V(Mips64Word64AtomicExchangeUint16)        \
-  V(Mips64Word64AtomicExchangeUint32)        \
   V(Mips64Word64AtomicExchangeUint64)        \
-  V(Mips64Word64AtomicCompareExchangeUint8)  \
-  V(Mips64Word64AtomicCompareExchangeUint16) \
-  V(Mips64Word64AtomicCompareExchangeUint32) \
   V(Mips64Word64AtomicCompareExchangeUint64)
 
 // Addressing modes represent the "shape" of inputs to an instruction.

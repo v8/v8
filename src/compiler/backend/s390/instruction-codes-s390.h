@@ -164,33 +164,12 @@ namespace compiler {
   V(S390_CompressSigned)                    \
   V(S390_CompressPointer)                   \
   V(S390_CompressAny)                       \
-  V(S390_Word64AtomicExchangeUint8)         \
-  V(S390_Word64AtomicExchangeUint16)        \
-  V(S390_Word64AtomicExchangeUint32)        \
   V(S390_Word64AtomicExchangeUint64)        \
-  V(S390_Word64AtomicCompareExchangeUint8)  \
-  V(S390_Word64AtomicCompareExchangeUint16) \
-  V(S390_Word64AtomicCompareExchangeUint32) \
   V(S390_Word64AtomicCompareExchangeUint64) \
-  V(S390_Word64AtomicAddUint8)              \
-  V(S390_Word64AtomicAddUint16)             \
-  V(S390_Word64AtomicAddUint32)             \
   V(S390_Word64AtomicAddUint64)             \
-  V(S390_Word64AtomicSubUint8)              \
-  V(S390_Word64AtomicSubUint16)             \
-  V(S390_Word64AtomicSubUint32)             \
   V(S390_Word64AtomicSubUint64)             \
-  V(S390_Word64AtomicAndUint8)              \
-  V(S390_Word64AtomicAndUint16)             \
-  V(S390_Word64AtomicAndUint32)             \
   V(S390_Word64AtomicAndUint64)             \
-  V(S390_Word64AtomicOrUint8)               \
-  V(S390_Word64AtomicOrUint16)              \
-  V(S390_Word64AtomicOrUint32)              \
   V(S390_Word64AtomicOrUint64)              \
-  V(S390_Word64AtomicXorUint8)              \
-  V(S390_Word64AtomicXorUint16)             \
-  V(S390_Word64AtomicXorUint32)             \
   V(S390_Word64AtomicXorUint64)             \
   V(S390_F64x2Splat)                        \
   V(S390_F64x2ReplaceLane)                  \

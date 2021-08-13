@@ -1776,74 +1776,74 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ilvr_w(dst, kSimd128RegZero, dst);
       break;
     }
-    case kWord32AtomicLoadInt8:
+    case kAtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lb);
       break;
-    case kWord32AtomicLoadUint8:
+    case kAtomicLoadUint8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lbu);
       break;
-    case kWord32AtomicLoadInt16:
+    case kAtomicLoadInt16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lh);
       break;
-    case kWord32AtomicLoadUint16:
+    case kAtomicLoadUint16:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lhu);
       break;
-    case kWord32AtomicLoadWord32:
+    case kAtomicLoadWord32:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lw);
       break;
-    case kWord32AtomicStoreWord8:
+    case kAtomicStoreWord8:
       ASSEMBLE_ATOMIC_STORE_INTEGER(sb);
       break;
-    case kWord32AtomicStoreWord16:
+    case kAtomicStoreWord16:
       ASSEMBLE_ATOMIC_STORE_INTEGER(sh);
       break;
-    case kWord32AtomicStoreWord32:
+    case kAtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(sw);
       break;
-    case kWord32AtomicExchangeInt8:
+    case kAtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 8);
       break;
-    case kWord32AtomicExchangeUint8:
+    case kAtomicExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 8);
       break;
-    case kWord32AtomicExchangeInt16:
+    case kAtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 16);
       break;
-    case kWord32AtomicExchangeUint16:
+    case kAtomicExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 16);
       break;
-    case kWord32AtomicExchangeWord32:
+    case kAtomicExchangeWord32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER();
       break;
-    case kWord32AtomicCompareExchangeInt8:
+    case kAtomicCompareExchangeInt8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 8);
       break;
-    case kWord32AtomicCompareExchangeUint8:
+    case kAtomicCompareExchangeUint8:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 8);
       break;
-    case kWord32AtomicCompareExchangeInt16:
+    case kAtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 16);
       break;
-    case kWord32AtomicCompareExchangeUint16:
+    case kAtomicCompareExchangeUint16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 16);
       break;
-    case kWord32AtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWord32:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER();
       break;
 #define ATOMIC_BINOP_CASE(op, inst)             \
-  case kWord32Atomic##op##Int8:                 \
+  case kAtomic##op##Int8:                       \
     ASSEMBLE_ATOMIC_BINOP_EXT(true, 8, inst);   \
     break;                                      \
-  case kWord32Atomic##op##Uint8:                \
+  case kAtomic##op##Uint8:                      \
     ASSEMBLE_ATOMIC_BINOP_EXT(false, 8, inst);  \
     break;                                      \
-  case kWord32Atomic##op##Int16:                \
+  case kAtomic##op##Int16:                      \
     ASSEMBLE_ATOMIC_BINOP_EXT(true, 16, inst);  \
     break;                                      \
-  case kWord32Atomic##op##Uint16:               \
+  case kAtomic##op##Uint16:                     \
     ASSEMBLE_ATOMIC_BINOP_EXT(false, 16, inst); \
     break;                                      \
-  case kWord32Atomic##op##Word32:               \
+  case kAtomic##op##Word32:                     \
     ASSEMBLE_ATOMIC_BINOP(inst);                \
     break;
       ATOMIC_BINOP_CASE(Add, Addu)
