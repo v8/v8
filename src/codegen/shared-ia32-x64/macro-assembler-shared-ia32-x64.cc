@@ -254,6 +254,42 @@ void SharedTurboAssembler::S128Store32Lane(Operand dst, XMMRegister src,
   }
 }
 
+template <typename Op>
+void SharedTurboAssembler::I8x16SplatPreAvx2(XMMRegister dst, Op src,
+                                             XMMRegister scratch) {
+  DCHECK(!CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope ssse3_scope(this, SSSE3);
+  Movd(dst, src);
+  Xorps(scratch, scratch);
+  Pshufb(dst, scratch);
+}
+
+void SharedTurboAssembler::I8x16Splat(XMMRegister dst, Register src,
+                                      XMMRegister scratch) {
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    Movd(scratch, src);
+    vpbroadcastb(dst, scratch);
+  } else {
+    I8x16SplatPreAvx2(dst, src, scratch);
+  }
+}
+
+void SharedTurboAssembler::I8x16Splat(XMMRegister dst, Operand src,
+                                      XMMRegister scratch) {
+#if V8_TARGET_ARCH_IA32
+  // Operand on IA32 can be a wrapper for a single register, in which case they
+  // should call I8x16Splat |src| being Register.
+  DCHECK(!src.is_reg_only());
+#endif
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpbroadcastb(dst, src);
+  } else {
+    I8x16SplatPreAvx2(dst, src, scratch);
+  }
+}
+
 void SharedTurboAssembler::I8x16Shl(XMMRegister dst, XMMRegister src1,
                                     uint8_t src2, Register tmp1,
                                     XMMRegister tmp2) {

@@ -865,6 +865,18 @@ TEST(DisasmIa320) {
     }
   }
 
+  // AVX2 instructions.
+  {
+    if (CpuFeatures::IsSupported(AVX2)) {
+      CpuFeatureScope scope(&assm, AVX2);
+#define EMIT_AVX2_BROADCAST(instruction, notUsed1, notUsed2, notUsed3, \
+                            notUsed4)                                  \
+  __ instruction(xmm0, xmm1);                                          \
+  __ instruction(xmm0, Operand(ebx, ecx, times_4, 10000));
+      AVX2_BROADCAST_LIST(EMIT_AVX2_BROADCAST)
+    }
+  }
+
   // FMA3 instruction
   {
     if (CpuFeatures::IsSupported(FMA3)) {

@@ -869,13 +869,6 @@ TEST(DisasmX64) {
     if (CpuFeatures::IsSupported(AVX2)) {
       CpuFeatureScope scope(&assm, AVX2);
       __ vbroadcastss(xmm1, xmm2);
-    }
-  }
-
-  // AVX2 instructions.
-  {
-    if (CpuFeatures::IsSupported(AVX2)) {
-      CpuFeatureScope scope(&assm, AVX2);
 #define EMIT_AVX2_BROADCAST(instruction, notUsed1, notUsed2, notUsed3, \
                             notUsed4)                                  \
   __ instruction(xmm0, xmm1);                                          \
