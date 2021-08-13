@@ -365,6 +365,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64LdrQ:
     case kArm64Ldrb:
     case kArm64Ldrsb:
+    case kArm64LdrsbW:
     case kArm64Ldrh:
     case kArm64Ldrsh:
     case kArm64Ldrsw:

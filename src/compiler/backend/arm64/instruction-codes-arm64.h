@@ -164,6 +164,7 @@ namespace compiler {
   V(Arm64StrQ)                              \
   V(Arm64Ldrb)                              \
   V(Arm64Ldrsb)                             \
+  V(Arm64LdrsbW)                            \
   V(Arm64Strb)                              \
   V(Arm64Ldrh)                              \
   V(Arm64Ldrsh)                             \
