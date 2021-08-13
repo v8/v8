@@ -2115,6 +2115,7 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)
 
 DEFINE_BOOL(verify_predictable, false,
             "this mode is used for checking that V8 behaves predictably")
+DEFINE_IMPLICATION(verify_predictable, predictable)
 DEFINE_INT(dump_allocations_digest_at_alloc, -1,
            "dump allocations digest each n-th allocation")
 
