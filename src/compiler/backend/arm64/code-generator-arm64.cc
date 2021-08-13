@@ -1839,6 +1839,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
+    case kArm64LdrshW:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ Ldrsh(i.OutputRegister32(), i.MemoryOperand());
+      break;
     case kArm64Strh:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Strh(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
