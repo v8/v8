@@ -10,8 +10,10 @@
 
 #include "include/v8.h"
 #include "src/api/api-inl.h"
+#include "src/base/address-region.h"
 #include "src/base/bits.h"
 #include "src/base/hashmap.h"
+#include "src/base/memory.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
@@ -63,7 +65,9 @@ class Writer {
 
     T* operator->() { return w_->RawSlotAt<T>(offset_); }
 
-    void set(const T& value) { *w_->RawSlotAt<T>(offset_) = value; }
+    void set(const T& value) {
+      base::WriteUnalignedValue(w_->AddressAt<T>(offset_), value);
+    }
 
     Slot<T> at(int i) { return Slot<T>(w_, offset_ + sizeof(T) * i); }
 
@@ -75,7 +79,7 @@ class Writer {
   template <typename T>
   void Write(const T& val) {
     Ensure(position_ + sizeof(T));
-    *RawSlotAt<T>(position_) = val;
+    base::WriteUnalignedValue(AddressAt<T>(position_), val);
     position_ += sizeof(T);
   }
 
@@ -152,6 +156,12 @@ class Writer {
  private:
   template <typename T>
   friend class Slot;
+
+  template <typename T>
+  Address AddressAt(uintptr_t offset) {
+    DCHECK(offset < capacity_ && offset + sizeof(T) <= capacity_);
+    return reinterpret_cast<Address>(&buffer_[offset]);
+  }
 
   template <typename T>
   T* RawSlotAt(uintptr_t offset) {
@@ -896,17 +906,20 @@ class CodeDescription {
   };
 #endif
 
-  CodeDescription(const char* name, Code code, SharedFunctionInfo shared,
-                  LineInfo* lineinfo)
-      : name_(name), code_(code), shared_info_(shared), lineinfo_(lineinfo) {}
+  CodeDescription(const char* name, base::AddressRegion region,
+                  SharedFunctionInfo shared, LineInfo* lineinfo,
+                  bool is_function)
+      : name_(name),
+        shared_info_(shared),
+        lineinfo_(lineinfo),
+        is_function_(is_function),
+        code_region_(region) {}
 
   const char* name() const { return name_; }
 
   LineInfo* lineinfo() const { return lineinfo_; }
 
-  bool is_function() const {
-    return CodeKindIsOptimizedJSFunction(code_.kind());
-  }
+  bool is_function() const { return is_function_; }
 
   bool has_scope_info() const { return !shared_info_.is_null(); }
 
@@ -915,15 +928,11 @@ class CodeDescription {
     return shared_info_.scope_info();
   }
 
-  uintptr_t CodeStart() const {
-    return static_cast<uintptr_t>(code_.InstructionStart());
-  }
+  uintptr_t CodeStart() const { return code_region_.begin(); }
 
-  uintptr_t CodeEnd() const {
-    return static_cast<uintptr_t>(code_.InstructionEnd());
-  }
+  uintptr_t CodeEnd() const { return code_region_.end(); }
 
-  uintptr_t CodeSize() const { return CodeEnd() - CodeStart(); }
+  uintptr_t CodeSize() const { return code_region_.size(); }
 
   bool has_script() {
     return !shared_info_.is_null() && shared_info_.script().IsScript();
@@ -932,6 +941,8 @@ class CodeDescription {
   Script script() { return Script::cast(shared_info_.script()); }
 
   bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
+
+  base::AddressRegion region() { return code_region_; }
 
 #if V8_TARGET_ARCH_X64
   uintptr_t GetStackStateStartAddress(StackState state) const {
@@ -965,9 +976,10 @@ class CodeDescription {
 
  private:
   const char* name_;
-  Code code_;
   SharedFunctionInfo shared_info_;
   LineInfo* lineinfo_;
+  bool is_function_;
+  base::AddressRegion code_region_;
 #if V8_TARGET_ARCH_X64
   uintptr_t stack_state_start_addresses_[STACK_STATE_MAX];
 #endif
@@ -1818,26 +1830,17 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
   return CreateCodeEntry(reinterpret_cast<Address>(w.buffer()), w.position());
 }
 
-struct AddressRange {
-  Address start;
-  Address end;
-};
-
-struct AddressRangeLess {
-  bool operator()(const AddressRange& a, const AddressRange& b) const {
-    if (a.start == b.start) return a.end < b.end;
-    return a.start < b.start;
+// Like base::AddressRegion::StartAddressLess but also compares |end| when
+// |begin| is equal.
+struct AddressRegionLess {
+  bool operator()(const base::AddressRegion& a,
+                  const base::AddressRegion& b) const {
+    if (a.begin() == b.begin()) return a.end() < b.end();
+    return a.begin() < b.begin();
   }
 };
 
-struct CodeMapConfig {
-  using Key = AddressRange;
-  using Value = JITCodeEntry*;
-  using Less = AddressRangeLess;
-};
-
-using CodeMap =
-    std::map<CodeMapConfig::Key, CodeMapConfig::Value, CodeMapConfig::Less>;
+using CodeMap = std::map<base::AddressRegion, JITCodeEntry*, AddressRegionLess>;
 
 static CodeMap* GetCodeMap() {
   // TODO(jgruber): Don't leak.
@@ -1911,36 +1914,37 @@ static void AddUnwindInfo(CodeDescription* desc) {
 
 static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
 
-// Remove entries from the map that intersect the given address range,
+// Remove entries from the map that intersect the given address region,
 // and deregister them from GDB.
-static void RemoveJITCodeEntries(CodeMap* map, const AddressRange& range) {
-  DCHECK(range.start < range.end);
+static void RemoveJITCodeEntries(CodeMap* map,
+                                 const base::AddressRegion region) {
+  DCHECK_LT(region.begin(), region.end());
 
   if (map->empty()) return;
 
   // Find the first overlapping entry.
 
-  // If successful, points to the first element not less than `range`. The
+  // If successful, points to the first element not less than `region`. The
   // returned iterator has the key in `first` and the value in `second`.
-  auto it = map->lower_bound(range);
+  auto it = map->lower_bound(region);
   auto start_it = it;
 
   if (it == map->end()) {
     start_it = map->begin();
   } else if (it != map->begin()) {
     for (--it; it != map->begin(); --it) {
-      if ((*it).first.end <= range.start) break;
+      if ((*it).first.end() <= region.begin()) break;
       start_it = it;
     }
   }
 
-  DCHECK(start_it != map->end());
+  DCHECK_NE(start_it, map->end());
 
-  // Find the first non-overlapping entry after `range`.
+  // Find the first non-overlapping entry after `region`.
 
-  const auto end_it = map->lower_bound({range.end, 0});
+  const auto end_it = map->lower_bound({region.end(), 0});
 
-  // Evict intersecting ranges.
+  // Evict intersecting regions.
 
   if (std::distance(start_it, end_it) < 1) return;  // No overlapping entries.
 
@@ -1954,7 +1958,7 @@ static void RemoveJITCodeEntries(CodeMap* map, const AddressRange& range) {
 }
 
 // Insert the entry into the map and register it with GDB.
-static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
+static void AddJITCodeEntry(CodeMap* map, const base::AddressRegion region,
                             JITCodeEntry* entry, bool dump_if_enabled,
                             const char* name_hint) {
 #if defined(DEBUG) && !V8_OS_WIN
@@ -1971,24 +1975,21 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
   }
 #endif
 
-  auto result = map->emplace(range, entry);
+  auto result = map->emplace(region, entry);
   DCHECK(result.second);  // Insertion happened.
   USE(result);
 
   RegisterCodeEntry(entry);
 }
 
-static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
-                    LineInfo* lineinfo) {
+static void AddCode(const char* name, base::AddressRegion region,
+                    SharedFunctionInfo shared, LineInfo* lineinfo,
+                    Isolate* isolate, bool is_function) {
   DisallowGarbageCollection no_gc;
+  CodeDescription code_desc(name, region, shared, lineinfo, is_function);
 
   CodeMap* code_map = GetCodeMap();
-  AddressRange range;
-  range.start = code.address();
-  range.end = code.address() + code.CodeSize();
-  RemoveJITCodeEntries(code_map, range);
-
-  CodeDescription code_desc(name, code, shared, lineinfo);
+  RemoveJITCodeEntries(code_map, region);
 
   if (!FLAG_gdbjit_full && !code_desc.IsLineInfoAvailable()) {
     delete lineinfo;
@@ -1996,7 +1997,6 @@ static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
   }
 
   AddUnwindInfo(&code_desc);
-  Isolate* isolate = code.GetIsolate();
   JITCodeEntry* entry = CreateELFObject(&code_desc, isolate);
 
   delete lineinfo;
@@ -2012,25 +2012,40 @@ static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
       should_dump = (name_hint != nullptr);
     }
   }
-  AddJITCodeEntry(code_map, range, entry, should_dump, name_hint);
+  AddJITCodeEntry(code_map, region, entry, should_dump, name_hint);
 }
 
 void EventHandler(const v8::JitCodeEvent* event) {
   if (!FLAG_gdbjit) return;
-  if (event->code_type != v8::JitCodeEvent::JIT_CODE) return;
+  if ((event->code_type != v8::JitCodeEvent::JIT_CODE) &&
+      (event->code_type != v8::JitCodeEvent::WASM_CODE)) {
+    return;
+  }
   base::MutexGuard lock_guard(mutex.Pointer());
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
       Address addr = reinterpret_cast<Address>(event->code_start);
-      Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
-      Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
       LineInfo* lineinfo = GetLineInfo(addr);
       std::string event_name(event->name.str, event->name.len);
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
       SharedFunctionInfo shared = event->script.IsEmpty()
                                       ? SharedFunctionInfo()
                                       : *Utils::OpenHandle(*event->script);
-      AddCode(event_name.c_str(), code, shared, lineinfo);
+      Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
+      bool is_function = false;
+      // TODO(zhin): See if we can use event->code_type to determine
+      // is_function, the difference currently is that JIT_CODE is SparkPlug,
+      // TurboProp, TurboFan, whereas CodeKindIsOptimizedJSFunction is only
+      // TurboProp and TurboFan. is_function is used for AddUnwindInfo, and the
+      // prologue that SP generates probably matches that of TP/TF, so we can
+      // use event->code_type here instead of finding the Code.
+      // TODO(zhin): Rename is_function to be more accurate.
+      if (event->code_type == v8::JitCodeEvent::JIT_CODE) {
+        Code code = isolate->heap()->GcSafeFindCodeForInnerPointer(addr);
+        is_function = CodeKindIsOptimizedJSFunction(code.kind());
+      }
+      AddCode(event_name.c_str(), {addr, event->code_len}, shared, lineinfo,
+              isolate, is_function);
       break;
     }
     case v8::JitCodeEvent::CODE_MOVED:
