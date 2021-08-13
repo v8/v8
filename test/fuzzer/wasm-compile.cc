@@ -35,6 +35,8 @@ constexpr int kMaxGlobals = 64;
 constexpr int kMaxParameters = 15;
 constexpr int kMaxReturns = 15;
 constexpr int kMaxExceptions = 4;
+constexpr int kMaxTableSize = 32;
+constexpr int kMaxTables = 4;
 
 class DataRange {
   base::Vector<const uint8_t> data_;
@@ -1823,9 +1825,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     for (int i = 0; i < num_functions; ++i) {
-      DataRange function_range =
-          i == num_functions - 1 ? std::move(range) : range.split();
-
+      DataRange function_range = range.split();
       FunctionSig* sig = builder.GetSignature(function_signatures[i]);
       WasmFunctionBuilder* f = builder.AddFunction(sig);
 
@@ -1843,6 +1843,24 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     builder.AllocateIndirectFunctions(num_functions);
     for (int i = 0; i < num_functions; ++i) {
       builder.SetIndirectFunction(i, i);
+    }
+
+    int num_tables = range.get<uint8_t>() % (kMaxTables + 1);
+
+    for (int i = 0; i < num_tables; i++) {
+      uint32_t min_size = range.get<uint8_t>() % kMaxTableSize;
+      uint32_t max_size =
+          range.get<uint8_t>() % (kMaxTableSize - min_size) + min_size;
+      int which_ref = range.get<uint8_t>() % 3;
+      ValueType type =
+          which_ref == 0
+              ? kWasmExternRef
+              : which_ref == 1
+                    ? kWasmFuncRef
+                    : ValueType::Ref(function_signatures[range.get<uint8_t>() %
+                                                         num_functions],
+                                     kNullable);
+      builder.AddTable(type, min_size, max_size);
     }
     builder.SetMaxMemorySize(32);
     // We enable shared memory to be able to test atomics.

@@ -443,10 +443,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
 
-  // There currently cannot be more than one table.
-  // TODO(manoskouk): Add support for more tables.
   // TODO(9495): Add support for talbes with explicit initializers.
-  DCHECK_GE(1, module->tables.size());
   for (const WasmTable& table : module->tables) {
     os << "builder.setTableBounds(" << table.initial_size << ", ";
     if (table.has_maximum_size) {
