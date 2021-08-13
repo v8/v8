@@ -4426,6 +4426,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
             CALL_INTERFACE(RefTest, obj, rtt, &value);
           } else {
+            CALL_INTERFACE(Drop);
+            CALL_INTERFACE(Drop);
             // Unrelated types. Will always fail.
             CALL_INTERFACE(I32Const, &value, 0);
           }
