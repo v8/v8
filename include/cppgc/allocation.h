@@ -207,7 +207,7 @@ struct PostConstructionCallbackTrait {
  * \returns an instance of type T.
  */
 template <typename T, typename... Args>
-T* MakeGarbageCollected(AllocationHandle& handle, Args&&... args) {
+V8_INLINE T* MakeGarbageCollected(AllocationHandle& handle, Args&&... args) {
   T* object =
       MakeGarbageCollectedTrait<T>::Call(handle, std::forward<Args>(args)...);
   PostConstructionCallbackTrait<T>::Call(object);
@@ -225,8 +225,9 @@ T* MakeGarbageCollected(AllocationHandle& handle, Args&&... args) {
  * \returns an instance of type T.
  */
 template <typename T, typename... Args>
-T* MakeGarbageCollected(AllocationHandle& handle,
-                        AdditionalBytes additional_bytes, Args&&... args) {
+V8_INLINE T* MakeGarbageCollected(AllocationHandle& handle,
+                                  AdditionalBytes additional_bytes,
+                                  Args&&... args) {
   T* object = MakeGarbageCollectedTrait<T>::Call(handle, additional_bytes,
                                                  std::forward<Args>(args)...);
   PostConstructionCallbackTrait<T>::Call(object);
