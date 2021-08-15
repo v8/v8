@@ -415,13 +415,11 @@ int DisassemblerIA32::PrintRightOperandHelper(
           UnimplementedInstruction();
           return 1;
         }
-      } else {
-        AppendToBuffer("[%s]", (this->*register_name)(rm));
-        return 1;
       }
-      break;
+      AppendToBuffer("[%s]", (this->*register_name)(rm));
+      return 1;
     case 1:  // fall through
-    case 2:
+    case 2: {
       if (rm == esp) {
         byte sib = *(modrmp + 1);
         int scale, index, base;
@@ -436,14 +434,13 @@ int DisassemblerIA32::PrintRightOperandHelper(
                          disp < 0 ? "-" : "+", disp < 0 ? -disp : disp);
         }
         return mod == 2 ? 6 : 3;
-      } else {
-        // No sib.
-        int disp = mod == 2 ? Imm32(modrmp + 1) : Imm8(modrmp + 1);
-        AppendToBuffer("[%s%s0x%x]", (this->*register_name)(rm),
-                       disp < 0 ? "-" : "+", disp < 0 ? -disp : disp);
-        return mod == 2 ? 5 : 2;
       }
-      break;
+      // No sib.
+      int disp = mod == 2 ? Imm32(modrmp + 1) : Imm8(modrmp + 1);
+      AppendToBuffer("[%s%s0x%x]", (this->*register_name)(rm),
+                     disp < 0 ? "-" : "+", disp < 0 ? -disp : disp);
+      return mod == 2 ? 5 : 2;
+    }
     case 3:
       AppendToBuffer("%s", (this->*register_name)(rm));
       return 1;

@@ -44,11 +44,9 @@ Node* BuildConstant(InstructionSelectorTest::StreamBuilder* m, MachineType type,
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m->Int32Constant(static_cast<int32_t>(value));
-      break;
 
     case MachineRepresentation::kWord64:
       return m->Int64Constant(value);
-      break;
 
     default:
       UNIMPLEMENTED();

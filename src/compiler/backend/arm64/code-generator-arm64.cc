@@ -235,7 +235,6 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
             constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(dcarney): RPO immediates on arm64.
-        break;
     }
     UNREACHABLE();
   }
@@ -2633,7 +2632,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           break;
         default:
           UNREACHABLE();
-          break;
       }
       break;
     }
