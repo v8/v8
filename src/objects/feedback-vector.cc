@@ -4,6 +4,7 @@
 
 #include "src/objects/feedback-vector.h"
 
+#include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
@@ -205,6 +206,12 @@ bool FeedbackMetadata::HasTypeProfileSlot() const {
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
   DCHECK(!is_empty());
   return metadata().GetKind(slot);
+}
+
+FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
+                                         AcquireLoadTag tag) const {
+  DCHECK(!is_empty());
+  return metadata(tag).GetKind(slot);
 }
 
 FeedbackSlot FeedbackVector::GetTypeProfileSlot() const {
@@ -562,7 +569,7 @@ FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot,
                              const NexusConfig& config)
     : vector_handle_(vector),
       slot_(slot),
-      kind_(vector->GetKind(slot)),
+      kind_(vector->GetKind(slot, kAcquireLoad)),
       config_(config) {}
 
 Handle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {

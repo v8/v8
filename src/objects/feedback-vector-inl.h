@@ -112,6 +112,10 @@ FeedbackMetadata FeedbackVector::metadata() const {
   return shared_function_info().feedback_metadata();
 }
 
+FeedbackMetadata FeedbackVector::metadata(AcquireLoadTag tag) const {
+  return shared_function_info().feedback_metadata(tag);
+}
+
 RELAXED_INT32_ACCESSORS(FeedbackVector, invocation_count,
                         kInvocationCountOffset)
 
