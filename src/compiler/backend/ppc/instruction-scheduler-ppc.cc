@@ -332,10 +332,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_LoadFloat32:
     case kPPC_LoadDouble:
     case kPPC_LoadSimd128:
-    case kPPC_AtomicLoadUint8:
-    case kPPC_AtomicLoadUint16:
-    case kPPC_AtomicLoadWord32:
-    case kPPC_AtomicLoadWord64:
     case kPPC_Peek:
     case kPPC_LoadDecompressTaggedSigned:
     case kPPC_LoadDecompressTaggedPointer:
@@ -378,10 +374,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_S128Store64Lane:
       return kHasSideEffect;
 
-    case kPPC_AtomicStoreUint8:
-    case kPPC_AtomicStoreUint16:
-    case kPPC_AtomicStoreWord32:
-    case kPPC_AtomicStoreWord64:
     case kPPC_AtomicExchangeUint8:
     case kPPC_AtomicExchangeUint16:
     case kPPC_AtomicExchangeWord32:
