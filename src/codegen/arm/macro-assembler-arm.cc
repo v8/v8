@@ -343,29 +343,32 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     DCHECK(root_array_available());
     Label if_code_is_off_heap, out;
 
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
+    {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
 
-    DCHECK(!AreAliased(destination, scratch));
-    DCHECK(!AreAliased(code_object, scratch));
+      DCHECK(!AreAliased(destination, scratch));
+      DCHECK(!AreAliased(code_object, scratch));
 
-    // Check whether the Code object is an off-heap trampoline. If so, call its
-    // (off-heap) entry point directly without going through the (on-heap)
-    // trampoline.  Otherwise, just call the Code object as always.
-    ldr(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
-    tst(scratch, Operand(Code::IsOffHeapTrampoline::kMask));
-    b(ne, &if_code_is_off_heap);
+      // Check whether the Code object is an off-heap trampoline. If so, call
+      // its (off-heap) entry point directly without going through the (on-heap)
+      // trampoline.  Otherwise, just call the Code object as always.
+      ldr(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
+      tst(scratch, Operand(Code::IsOffHeapTrampoline::kMask));
+      b(ne, &if_code_is_off_heap);
 
-    // Not an off-heap trampoline, the entry point is at
-    // Code::raw_instruction_start().
-    add(destination, code_object, Operand(Code::kHeaderSize - kHeapObjectTag));
-    jmp(&out);
+      // Not an off-heap trampoline, the entry point is at
+      // Code::raw_instruction_start().
+      add(destination, code_object,
+          Operand(Code::kHeaderSize - kHeapObjectTag));
+      jmp(&out);
 
-    // An off-heap trampoline, the entry point is loaded from the builtin entry
-    // table.
-    bind(&if_code_is_off_heap);
-    ldr(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
-    lsl(destination, scratch, Operand(kSystemPointerSizeLog2));
+      // An off-heap trampoline, the entry point is loaded from the builtin
+      // entry table.
+      bind(&if_code_is_off_heap);
+      ldr(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
+      lsl(destination, scratch, Operand(kSystemPointerSizeLog2));
+    }
     add(destination, destination, kRootRegister);
     ldr(destination,
         MemOperand(destination, IsolateData::builtin_entry_table_offset()));
