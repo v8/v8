@@ -926,6 +926,9 @@ void BaselineCompiler::VisitStaInArrayLiteral() {
 }
 
 void BaselineCompiler::VisitStaDataPropertyInLiteral() {
+  // Here we should save the accumulator, since StaDataPropertyInLiteral doesn't
+  // write the accumulator, but Runtime::kDefineDataPropertyInLiteral returns
+  // the value that we got from the accumulator so this still works.
   CallRuntime(Runtime::kDefineDataPropertyInLiteral,
               RegisterOperand(0),               // object
               RegisterOperand(1),               // name
