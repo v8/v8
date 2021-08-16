@@ -1883,7 +1883,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lhu);
       break;
     case kAtomicLoadWord32:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
+      if (AtomicWidthField::decode(opcode) == AtomicWidth::kWord32)
+        ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
+      else
+        ASSEMBLE_ATOMIC_LOAD_INTEGER(Lwu);
       break;
     case kMips64Word64AtomicLoadUint64:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ld);
