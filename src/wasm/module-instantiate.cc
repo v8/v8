@@ -65,6 +65,7 @@ class CompileImportWrapperJob final : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
+    CodeSpaceWriteScope code_space_write_scope(native_module_);
     while (base::Optional<WasmImportWrapperCache::CacheKey> key =
                queue_->pop()) {
       CompileImportWrapper(native_module_, counters_, key->kind, key->signature,
@@ -385,7 +386,7 @@ class InstanceBuilder {
 
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
-  // functions.
+  // functions, or {-1} on error.
   int ProcessImports(Handle<WasmInstanceObject> instance);
 
   template <typename T>
@@ -638,14 +639,14 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     instance->set_indirect_function_tables(*tables);
   }
 
-  CodeSpaceWriteScope native_modification_scope(native_module);
-
   //--------------------------------------------------------------------------
   // Process the imports for the module.
   //--------------------------------------------------------------------------
-  int num_imported_functions = ProcessImports(instance);
-  if (num_imported_functions < 0) return {};
-  wasm_module_instantiated.imported_function_count = num_imported_functions;
+  if (!module_->import_table.empty()) {
+    int num_imported_functions = ProcessImports(instance);
+    if (num_imported_functions < 0) return {};
+    wasm_module_instantiated.imported_function_count = num_imported_functions;
+  }
 
   //--------------------------------------------------------------------------
   // Create maps for managed objects (GC proposal).
