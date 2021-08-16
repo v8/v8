@@ -177,6 +177,8 @@ int32_t weekdayFromEDaysOfWeek(icu::Calendar::EDaysOfWeek eDaysOfWeek) {
 
 }  // namespace
 
+// Implemented as iteration instead of recursion to avoid stack overflow for
+// very long input strings.
 bool JSLocale::Is38AlphaNumList(const std::string& in) {
   std::string value = in;
   while (true) {

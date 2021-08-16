@@ -31,11 +31,6 @@
   'overrides/caching': [PASS, FAIL],
 }],  # ALWAYS
 
-['asan == True or msan == True or tsan == True', {
-  # Take too long to run
-  'regress-12059': [SKIP],
-}],
-
 ['gc_stress', {
   # Push limit of stack, too flaky with machine with more memory.
   'regress-1130489': [SKIP],
