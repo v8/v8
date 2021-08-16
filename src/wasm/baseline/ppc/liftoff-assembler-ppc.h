@@ -1166,10 +1166,10 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
 void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
                                          Register dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  fcmpu(lhs, rhs);
+  fcmpu(lhs, rhs, cr7);
   Label done;
   mov(dst, Operand(1));
-  b(liftoff::ToCondition(liftoff_cond), &done);
+  b(liftoff::ToCondition(liftoff_cond), &done, cr7);
   mov(dst, Operand::Zero());
   bind(&done);
 }
