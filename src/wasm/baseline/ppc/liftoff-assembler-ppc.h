@@ -169,14 +169,14 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
     case kF32: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      mov(scratch, Operand(value.to_f32_boxed().get_scalar()));
+      mov(scratch, Operand(value.to_f32_boxed().get_bits()));
       MovIntToFloat(reg.fp(), scratch, ip);
       break;
     }
     case kF64: {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      mov(scratch, Operand(value.to_f64_boxed().get_scalar()));
+      mov(scratch, Operand(value.to_f64_boxed().get_bits()));
       MovInt64ToDouble(reg.fp(), scratch);
       break;
     }
