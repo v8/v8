@@ -854,16 +854,21 @@ std::string NormalizePath(const std::string& path,
   std::string segment;
   while (std::getline(segment_stream, segment, '/')) {
     if (segment == "..") {
-      segments.pop_back();
+      if (!segments.empty()) segments.pop_back();
     } else if (segment != ".") {
       segments.push_back(segment);
     }
   }
   // Join path segments.
   std::ostringstream os;
-  std::copy(segments.begin(), segments.end() - 1,
-            std::ostream_iterator<std::string>(os, "/"));
-  os << *segments.rbegin();
+  if (segments.size() > 1) {
+    std::copy(segments.begin(), segments.end() - 1,
+              std::ostream_iterator<std::string>(os, "/"));
+    os << *segments.rbegin();
+  } else {
+    os << "/";
+    if (!segments.empty()) os << segments[0];
+  }
   return os.str();
 }
 
