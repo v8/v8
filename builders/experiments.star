@@ -328,42 +328,12 @@ experiment_builder(
 )
 
 experiment_builder(
-    name = "V8 Mac - arm64 - release builder",
-    bucket = "ci",
-    triggered_by = ["v8-trigger"],
-    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8"},
-    use_goma = GOMA.DEFAULT,
-    # TODO consider moving tree closer builder out of the experimental file
-    close_tree = True,
-    to_notify = [
-        "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
-    ],
-)
-
-experiment_builder(
     name = "V8 Mac - arm64 - release",
     parent_builder = "V8 Mac - arm64 - release builder",
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
-    to_notify = [
-        "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
-    ],
-)
-
-experiment_builder(
-    name = "V8 Mac - arm64 - debug builder",
-    bucket = "ci",
-    triggered_by = ["v8-trigger"],
-    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8"},
-    use_goma = GOMA.DEFAULT,
-    # TODO consider moving tree closer builder out of the experimental file
-    close_tree = True,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
         "mtv-sf-v8-sheriff@grotations.appspotmail.com",
@@ -384,42 +354,12 @@ experiment_builder(
 )
 
 experiment_builder(
-    name = "V8 Mac - arm64 - sim - release builder",
-    bucket = "ci",
-    triggered_by = ["v8-trigger"],
-    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8"},
-    use_goma = GOMA.DEFAULT,
-    # TODO consider moving tree closer builder out of the experimental file
-    close_tree = True,
-    to_notify = [
-        "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
-    ],
-)
-
-experiment_builder(
     name = "V8 Mac - arm64 - sim - release",
     parent_builder = "V8 Mac - arm64 - sim - release builder",
     bucket = "ci",
     dimensions = {"host_class": "multibot"},
     execution_timeout = 19800,
     properties = {"builder_group": "client.v8"},
-    to_notify = [
-        "v8-waterfall-sheriff@grotations.appspotmail.com",
-        "mtv-sf-v8-sheriff@grotations.appspotmail.com",
-    ],
-)
-
-experiment_builder(
-    name = "V8 Mac - arm64 - sim - debug builder",
-    bucket = "ci",
-    triggered_by = ["v8-trigger"],
-    dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    properties = {"builder_group": "client.v8"},
-    use_goma = GOMA.DEFAULT,
-    # TODO consider moving tree closer builder out of the experimental file
-    close_tree = True,
     to_notify = [
         "v8-waterfall-sheriff@grotations.appspotmail.com",
         "mtv-sf-v8-sheriff@grotations.appspotmail.com",

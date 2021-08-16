@@ -249,6 +249,29 @@ in_category(
         name = "V8 Mac64 - debug",
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+    ),
+    main_multibranch_builder(
+        name = "V8 Mac - arm64 - release builder",
+        triggered_by_gitiles = True,
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8"},
+    ),
+    main_multibranch_builder(
+        name = "V8 Mac - arm64 - debug builder",
+        triggered_by_gitiles = True,
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8"},
+    ),
+    main_multibranch_builder(
+        name = "V8 Mac - arm64 - sim - release builder",
+        triggered_by_gitiles = True,
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8"},
+    ),
+    main_multibranch_builder(
+        name = "V8 Mac - arm64 - sim - debug builder",
+        triggered_by_gitiles = True,
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
     ),
 )
