@@ -5545,7 +5545,7 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                                         wasm::WasmCodePosition position) {
   TrapIfFalse(wasm::kTrapArrayTooLarge,
               gasm_->Uint32LessThanOrEqual(
-                  length, gasm_->Uint32Constant(wasm::kV8MaxWasmArrayLength)),
+                  length, gasm_->Uint32Constant(WasmArray::MaxLength(type))),
               position);
   wasm::ValueType element_type = type->element_type();
   Builtin stub = ChooseArrayAllocationBuiltin(element_type, initial_value);

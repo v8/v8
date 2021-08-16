@@ -5018,7 +5018,7 @@ class LiftoffCompiler {
       Label* trap_label =
           AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayTooLarge);
       __ emit_i32_cond_jumpi(kUnsignedGreaterThan, trap_label, length.gp(),
-                             static_cast<int>(wasm::kV8MaxWasmArrayLength));
+                             WasmArray::MaxLength(imm.array_type));
     }
     ValueKind elem_kind = imm.array_type->element_type().kind();
     int elem_size = element_size_bytes(elem_kind);

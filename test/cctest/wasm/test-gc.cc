@@ -786,7 +786,8 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
                               WASM_RTT_CANON(type_index)),
        kExprEnd});
 
-  const uint32_t kTooLong = kV8MaxWasmArrayLength + 1;
+  ArrayType array_type(kWasmI32, true);
+  const uint32_t kTooLong = WasmArray::MaxLength(&array_type) + 1;
   const byte kAllocateTooLarge = tester.DefineFunction(
       &sig_q_v, {},
       {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(kTooLong),

@@ -947,6 +947,14 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   // Returns the Address of the element at {index}.
   Address ElementAddress(uint32_t index);
 
+  static int MaxLength(const wasm::ArrayType* type) {
+    // The total object size must fit into a Smi, for filler objects. To make
+    // the behavior of Wasm programs independent from the Smi configuration,
+    // we hard-code the smaller of the two supported ranges.
+    int element_shift = type->element_type().element_size_log2();
+    return (SmiTagging<4>::kSmiMaxValue - kHeaderSize) >> element_shift;
+  }
+
   DECL_PRINTER(WasmArray)
 
   class BodyDescriptor;
