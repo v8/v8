@@ -1621,8 +1621,8 @@ void Assembler::fmul(const DoubleRegister frt, const DoubleRegister fra,
 }
 
 void Assembler::fcpsgn(const DoubleRegister frt, const DoubleRegister fra,
-                       const DoubleRegister frc, RCBit rc) {
-  emit(EXT4 | FCPSGN | frt.code() * B21 | fra.code() * B16 | frc.code() * B6 |
+                       const DoubleRegister frb, RCBit rc) {
+  emit(EXT4 | FCPSGN | frt.code() * B21 | fra.code() * B16 | frb.code() * B11 |
        rc);
 }
 
