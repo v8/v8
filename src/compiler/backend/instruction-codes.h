@@ -279,6 +279,9 @@ using ArchOpcodeField = base::BitField<ArchOpcode, 0, 9>;
 static_assert(ArchOpcodeField::is_valid(kLastArchOpcode),
               "All opcodes must fit in the 9-bit ArchOpcodeField.");
 using AddressingModeField = base::BitField<AddressingMode, 9, 5>;
+static_assert(
+    AddressingModeField::is_valid(kLastAddressingMode),
+    "All addressing modes must fit in the 5-bit AddressingModeField.");
 using FlagsModeField = base::BitField<FlagsMode, 14, 3>;
 using FlagsConditionField = base::BitField<FlagsCondition, 17, 5>;
 using DeoptImmedArgsCountField = base::BitField<int, 22, 2>;
@@ -292,6 +295,17 @@ using AccessModeField = base::BitField<MemoryAccessMode, 30, 2>;
 // architectures are assumed to be 32bit wide.
 using AtomicWidthField = base::BitField<AtomicWidth, 22, 2>;
 using MiscField = base::BitField<int, 22, 10>;
+
+// This static assertion serves as an early warning if we are about to exhaust
+// the available opcode space. If we are about to exhaust it, we should start
+// looking into options to compress some opcodes (see
+// https://crbug.com/v8/12093) before we fully run out of available opcodes.
+// Otherwise we risk being unable to land an important security fix or merge
+// back fixes that add new opcodes.
+// It is OK to temporarily reduce the required slack if we have a tracking bug
+// to reduce the number of used opcodes again.
+static_assert(ArchOpcodeField::kMax - kLastArchOpcode >= 16,
+              "We are running close to the number of available opcodes.");
 
 }  // namespace compiler
 }  // namespace internal
