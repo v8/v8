@@ -76,7 +76,7 @@ struct FinalizerTrait {
   }
 
  public:
-  static constexpr bool HasFinalizer() { return kCallback; }
+  static constexpr bool HasFinalizer() { return kNonTrivialFinalizer; }
 
   // The callback used to finalize an object of type T.
   static constexpr FinalizationCallback kCallback =
