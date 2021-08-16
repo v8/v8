@@ -648,26 +648,29 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
 
 RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
   DCHECK_EQ(0, args.length());
-  CHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
-  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-  isolate->optimizing_compile_dispatcher()->set_finalize(false);
+  if (isolate->concurrent_recompilation_enabled()) {
+    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+    isolate->optimizing_compile_dispatcher()->set_finalize(false);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
   DCHECK_EQ(0, args.length());
-  CHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  if (isolate->concurrent_recompilation_enabled()) {
+    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_FinalizeOptimization) {
   DCHECK_EQ(0, args.length());
-  CHECK(isolate->concurrent_recompilation_enabled());
-  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
-  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-  isolate->optimizing_compile_dispatcher()->set_finalize(true);
+  if (isolate->concurrent_recompilation_enabled()) {
+    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+    isolate->optimizing_compile_dispatcher()->set_finalize(true);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
