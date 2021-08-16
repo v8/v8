@@ -750,9 +750,16 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 #define SIGN_EXT(r) extsw(r, r)
 #define ROUND_F64_TO_F32(fpr) frsp(fpr, fpr)
 #define INT32_AND_WITH_1F(x) Operand(x & 0x1f)
+#define INT32_AND_WITH_3F(x) Operand(x & 0x3f)
 #define REGISTER_AND_WITH_1F    \
   ([&](Register rhs) {          \
     andi(r0, rhs, Operand(31)); \
+    return r0;                  \
+  })
+
+#define REGISTER_AND_WITH_3F    \
+  ([&](Register rhs) {          \
+    andi(r0, rhs, Operand(63)); \
     return r0;                  \
   })
 
@@ -873,17 +880,17 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
   V(i32_shr, ShiftRightU32, Register, Register, Register, , ,                 \
     REGISTER_AND_WITH_1F, USE, , void)                                        \
   V(i64_shl, ShiftLeftU64, LiftoffRegister, LiftoffRegister, Register,        \
-    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                    \
+    LFR_TO_REG, LFR_TO_REG, REGISTER_AND_WITH_3F, USE, , void)                \
   V(i64_sar, ShiftRightS64, LiftoffRegister, LiftoffRegister, Register,       \
-    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                    \
+    LFR_TO_REG, LFR_TO_REG, REGISTER_AND_WITH_3F, USE, , void)                \
   V(i64_shr, ShiftRightU64, LiftoffRegister, LiftoffRegister, Register,       \
-    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                    \
+    LFR_TO_REG, LFR_TO_REG, REGISTER_AND_WITH_3F, USE, , void)                \
   V(i64_shli, ShiftLeftU64, LiftoffRegister, LiftoffRegister, int32_t,        \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                             \
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                   \
   V(i64_sari, ShiftRightS64, LiftoffRegister, LiftoffRegister, int32_t,       \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                             \
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                   \
   V(i64_shri, ShiftRightU64, LiftoffRegister, LiftoffRegister, int32_t,       \
-    LFR_TO_REG, LFR_TO_REG, Operand, USE, , void)                             \
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                   \
   V(f64_add, AddF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
     USE, , void)                                                              \
   V(f64_sub, SubF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,    \
