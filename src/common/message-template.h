@@ -380,6 +380,7 @@ namespace internal {
   T(TypedArrayTooLargeToSort,                                                  \
     "Custom comparefn not supported for huge TypedArrays")                     \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
+  T(CollectionGrowFailed, "% maximum size exceeded")                           \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
     "The requested module '%' contains conflicting star exports for name '%'") \
