@@ -1436,7 +1436,7 @@
 
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to other architectures.
-['arch not in (x64, arm64, ia32, arm, mips64el, mipsel, loong64)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, mipsel, riscv64, loong64)', {
   'baseline/*': [SKIP],
 }],
 
