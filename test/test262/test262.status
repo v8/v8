@@ -549,9 +549,6 @@
   # http://crbug/v8/11533
   'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11689
-  'built-ins/BigInt/wrapper-object-ordinary-toprimitive': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=11690
   'language/module-code/export-expname-binding-index': [FAIL],
 
