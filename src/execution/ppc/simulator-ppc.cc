@@ -2552,7 +2552,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rs = instr->RSValue();
       int ra = instr->RAValue();
       uint32_t rs_val = static_cast<uint32_t>(get_register(rs));
-      uintptr_t count = __builtin_ctz(rs_val);
+      uintptr_t count = rs_val == 0 ? 32 : __builtin_ctz(rs_val);
       set_register(ra, count);
       if (instr->Bit(0)) {  // RC Bit set
         int bf = 0;
@@ -2570,7 +2570,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rs = instr->RSValue();
       int ra = instr->RAValue();
       uint64_t rs_val = get_register(rs);
-      uintptr_t count = __builtin_ctz(rs_val);
+      uintptr_t count = rs_val == 0 ? 64 : __builtin_ctzl(rs_val);
       set_register(ra, count);
       if (instr->Bit(0)) {  // RC Bit set
         int bf = 0;
