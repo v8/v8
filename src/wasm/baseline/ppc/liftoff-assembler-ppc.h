@@ -779,16 +779,12 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     true, bool)                                                              \
   V(f32_trunc, friz, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,   \
     true, bool)                                                              \
-  V(f32_nearest_int, frin, DoubleRegister, DoubleRegister, , ,               \
-    ROUND_F64_TO_F32, true, bool)                                            \
   V(f64_abs, fabs, DoubleRegister, DoubleRegister, , , USE, , void)          \
   V(f64_neg, fneg, DoubleRegister, DoubleRegister, , , USE, , void)          \
   V(f64_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , USE, , void)        \
   V(f64_floor, frim, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
   V(f64_ceil, frip, DoubleRegister, DoubleRegister, , , USE, true, bool)     \
   V(f64_trunc, friz, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
-  V(f64_nearest_int, frin, DoubleRegister, DoubleRegister, , , USE, true,    \
-    bool)                                                                    \
   V(i32_clz, CountLeadingZerosU32, Register, Register, , , USE, , void)      \
   V(i32_ctz, CountTrailingZerosU32, Register, Register, , , USE, , void)     \
   V(i64_clz, CountLeadingZerosU64, LiftoffRegister, LiftoffRegister,         \
@@ -927,6 +923,16 @@ BINOP_LIST(EMIT_BINOP_FUNCTION)
 #undef INT32_AND_WITH_1F
 #undef REGISTER_AND_WITH_1F
 #undef LFR_TO_REG
+
+bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  return false;
+}
+
+bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
+                                            DoubleRegister src) {
+  return false;
+}
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
