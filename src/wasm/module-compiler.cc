@@ -3658,13 +3658,17 @@ WasmCode* CompileImportWrapper(
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
       &env, kind, sig, source_positions, expected_arity);
-  std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
-      result.func_index, result.code_desc, result.frame_slot_count,
-      result.tagged_parameter_slots,
-      result.protected_instructions_data.as_vector(),
-      result.source_positions.as_vector(), GetCodeKind(result),
-      ExecutionTier::kNone, kNoDebugging);
-  WasmCode* published_code = native_module->PublishCode(std::move(wasm_code));
+  WasmCode* published_code;
+  {
+    CodeSpaceWriteScope code_space_write_scope(native_module);
+    std::unique_ptr<WasmCode> wasm_code = native_module->AddCode(
+        result.func_index, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), GetCodeKind(result),
+        ExecutionTier::kNone, kNoDebugging);
+    published_code = native_module->PublishCode(std::move(wasm_code));
+  }
   (*cache_scope)[key] = published_code;
   published_code->IncRef();
   counters->wasm_generated_code_size()->Increment(

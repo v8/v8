@@ -65,9 +65,10 @@ class CompileImportWrapperJob final : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
-    CodeSpaceWriteScope code_space_write_scope(native_module_);
     while (base::Optional<WasmImportWrapperCache::CacheKey> key =
                queue_->pop()) {
+      // TODO(wasm): Batch code publishing, to avoid repeated locking and
+      // permission switching.
       CompileImportWrapper(native_module_, counters_, key->kind, key->signature,
                            key->expected_arity, cache_scope_);
       if (delegate->ShouldYield()) return;
