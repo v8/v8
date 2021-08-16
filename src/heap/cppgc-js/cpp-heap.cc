@@ -484,12 +484,11 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   // any pending allocated bytes updates should be discarded.
   buffered_allocated_bytes_ = 0;
   ExecutePreFinalizers();
-  // TODO(chromium:1056170): replace build flag with dedicated flag.
-#if DEBUG
+#if CPPGC_VERIFY_HEAP
   UnifiedHeapMarkingVerifier verifier(*this);
   verifier.Run(stack_state_of_prev_gc(), stack_end_of_current_gc(),
                stats_collector()->marked_bytes());
-#endif
+#endif  // CPPGC_VERIFY_HEAP
 
   {
     cppgc::subtle::NoGarbageCollectionScope no_gc(*this);

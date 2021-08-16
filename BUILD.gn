@@ -290,9 +290,8 @@ declare_args() {
       v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
       v8_current_cpu == "loong64"
 
-  # Enable verification of live bytes in the marking verifier.
-  # TODO(v8:11785): Enable by default when running with the verifier.
-  cppgc_enable_verify_live_bytes = false
+  # Enables additional heap verification phases and checks.
+  cppgc_enable_verify_heap = ""
 
   # Enable assignment checks for Members/Persistents during prefinalizer invocations.
   # TODO(v8:11749): Enable by default after fixing any existing issues in Blink.
@@ -347,6 +346,9 @@ declare_args() {
 }
 
 # Derived defaults.
+if (cppgc_enable_verify_heap == "") {
+  cppgc_enable_verify_heap = v8_enable_debugging_features || dcheck_always_on
+}
 if (v8_enable_verify_heap == "") {
   v8_enable_verify_heap = v8_enable_debugging_features
 }
@@ -771,8 +773,8 @@ config("features") {
     ":cppgc_header_features",
   ]
 
-  if (cppgc_enable_verify_live_bytes) {
-    defines += [ "CPPGC_VERIFY_LIVE_BYTES" ]
+  if (cppgc_enable_verify_heap) {
+    defines += [ "CPPGC_VERIFY_HEAP" ]
   }
 
   if (cppgc_enable_check_assignments_in_prefinalizers) {

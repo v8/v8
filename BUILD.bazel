@@ -164,10 +164,10 @@ config_setting(
 # v8_enable_snapshot_compression
 # v8_control_flow_integrity
 # v8_enable_virtual_memory_cage
-# cppgc_enable_object_names
 # cppgc_enable_caged_heap
-# cppgc_enable_verify_live_bytes
 # cppgc_enable_check_assignments_in_prefinalizers
+# cppgc_enable_object_names
+# cppgc_enable_verify_heap
 # cppgc_enable_young_generation
 # v8_enable_zone_compression
 # v8_enable_heap_sandbox
