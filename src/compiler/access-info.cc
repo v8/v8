@@ -109,6 +109,7 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
     FieldIndex field_index, Representation field_representation,
     Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
     base::Optional<JSObjectRef> holder, base::Optional<MapRef> transition_map) {
+  DCHECK(!field_representation.IsNone());
   DCHECK_IMPLIES(
       field_representation.IsDouble(),
       HasFieldRepresentationDependenciesOnMap(
@@ -129,6 +130,7 @@ PropertyAccessInfo PropertyAccessInfo::FastDataConstant(
     FieldIndex field_index, Representation field_representation,
     Type field_type, MapRef field_owner_map, base::Optional<MapRef> field_map,
     base::Optional<JSObjectRef> holder, base::Optional<MapRef> transition_map) {
+  DCHECK(!field_representation.IsNone());
   return PropertyAccessInfo(kFastDataConstant, holder, transition_map,
                             field_index, field_representation, field_type,
                             field_owner_map, field_map, {{receiver_map}, zone},
@@ -1132,6 +1134,8 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
 
   int const index = details.field_index();
   Representation details_representation = details.representation();
+  if (details_representation.IsNone()) return Invalid();
+
   FieldIndex field_index = FieldIndex::ForPropertyIndex(
       *transition_map.object(), index, details_representation);
   Type field_type = Type::NonInternal();
