@@ -138,9 +138,6 @@ namespace compiler {
   V(PPC_StoreSimd128)                \
   V(PPC_ByteRev32)                   \
   V(PPC_ByteRev64)                   \
-  V(PPC_CompressSigned)              \
-  V(PPC_CompressPointer)             \
-  V(PPC_CompressAny)                 \
   V(PPC_AtomicExchangeUint8)         \
   V(PPC_AtomicExchangeUint16)        \
   V(PPC_AtomicExchangeWord32)        \

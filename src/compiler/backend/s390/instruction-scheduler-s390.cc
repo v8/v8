@@ -135,9 +135,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_LoadAndTestWord64:
     case kS390_LoadAndTestFloat32:
     case kS390_LoadAndTestFloat64:
-    case kS390_CompressSigned:
-    case kS390_CompressPointer:
-    case kS390_CompressAny:
     case kS390_F64x2Splat:
     case kS390_F64x2ReplaceLane:
     case kS390_F64x2Abs:
