@@ -10389,20 +10389,11 @@ class V8_EXPORT TryCatch {
    */
   void SetCaptureMessage(bool value);
 
-  /**
-   * There are cases when the raw address of C++ TryCatch object cannot be
-   * used for comparisons with addresses into the JS stack. The cases are:
-   * 1) ARM, ARM64 and MIPS simulators which have separate JS stack.
-   * 2) Address sanitizer allocates local C++ object in the heap when
-   *    UseAfterReturn mode is enabled.
-   * This method returns address that can be used for comparisons with
-   * addresses into the JS stack. When neither simulator nor ASAN's
-   * UseAfterReturn is enabled, then the address returned will be the address
-   * of the C++ try catch handler itself.
-   */
+  V8_DEPRECATE_SOON(
+      "This is private information that should not be exposed by the API")
   static void* JSStackComparableAddress(TryCatch* handler) {
     if (handler == nullptr) return nullptr;
-    return handler->js_stack_comparable_address_;
+    return reinterpret_cast<void*>(handler->JSStackComparableAddressPrivate());
   }
 
   TryCatch(const TryCatch&) = delete;
@@ -10416,13 +10407,28 @@ class V8_EXPORT TryCatch {
   void operator delete(void*, size_t);
   void operator delete[](void*, size_t);
 
+  /**
+   * There are cases when the raw address of C++ TryCatch object cannot be
+   * used for comparisons with addresses into the JS stack. The cases are:
+   * 1) ARM, ARM64 and MIPS simulators which have separate JS stack.
+   * 2) Address sanitizer allocates local C++ object in the heap when
+   *    UseAfterReturn mode is enabled.
+   * This method returns address that can be used for comparisons with
+   * addresses into the JS stack. When neither simulator nor ASAN's
+   * UseAfterReturn is enabled, then the address returned will be the address
+   * of the C++ try catch handler itself.
+   */
+  internal::Address JSStackComparableAddressPrivate() {
+    return js_stack_comparable_address_;
+  }
+
   void ResetInternal();
 
   internal::Isolate* isolate_;
   TryCatch* next_;
   void* exception_;
   void* message_obj_;
-  void* js_stack_comparable_address_;
+  internal::Address js_stack_comparable_address_;
   bool is_verbose_ : 1;
   bool can_continue_ : 1;
   bool capture_message_ : 1;
@@ -10430,6 +10436,7 @@ class V8_EXPORT TryCatch {
   bool has_terminated_ : 1;
 
   friend class internal::Isolate;
+  friend class internal::ThreadLocalTop;
 };
 
 
@@ -10732,14 +10739,20 @@ class V8_EXPORT Context : public Data {
     /**
      * Returns address that is comparable with JS stack address.  Note that JS
      * stack may be allocated separately from the native stack.  See also
-     * |TryCatch::JSStackComparableAddress| for details.
+     * |TryCatch::JSStackComparableAddressPrivate| for details.
      */
+    V8_DEPRECATE_SOON(
+        "This is private V8 information that should not be exposed in the API.")
     uintptr_t JSStackComparableAddress() const {
-      return js_stack_comparable_address_;
+      return JSStackComparableAddressPrivate();
     }
 
    private:
     friend class internal::Isolate;
+
+    uintptr_t JSStackComparableAddressPrivate() const {
+      return js_stack_comparable_address_;
+    }
 
     Local<Context> backup_incumbent_context_;
     uintptr_t js_stack_comparable_address_ = 0;
