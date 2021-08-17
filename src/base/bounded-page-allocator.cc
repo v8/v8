@@ -45,9 +45,15 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
   if (address == RegionAllocator::kAllocationFailure) {
     return nullptr;
   }
-  CHECK(page_allocator_->SetPermissions(reinterpret_cast<void*>(address), size,
-                                        access));
-  return reinterpret_cast<void*>(address);
+
+  void* ptr = reinterpret_cast<void*>(address);
+  if (!page_allocator_->SetPermissions(ptr, size, access)) {
+    // This most likely means that we ran out of memory.
+    CHECK_EQ(region_allocator_.FreeRegion(address), size);
+    return nullptr;
+  }
+
+  return ptr;
 }
 
 bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
@@ -64,8 +70,13 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
     }
   }
 
-  CHECK(page_allocator_->SetPermissions(reinterpret_cast<void*>(address), size,
-                                        access));
+  void* ptr = reinterpret_cast<void*>(address);
+  if (!page_allocator_->SetPermissions(ptr, size, access)) {
+    // This most likely means that we ran out of memory.
+    CHECK_EQ(region_allocator_.FreeRegion(address), size);
+    return false;
+  }
+
   return true;
 }
 
