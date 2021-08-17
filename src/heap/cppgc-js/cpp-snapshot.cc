@@ -45,6 +45,9 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
   size_t SizeInBytes() final { return name_.name_was_hidden ? 0 : size_; }
 
   void SetWrapperNode(v8::EmbedderGraph::Node* wrapper_node) {
+    // An embedder node may only be merged with a single wrapper node, as
+    // consumers of the graph may merge a node and its wrapper node.
+    DCHECK_NULL(wrapper_node_);
     wrapper_node_ = wrapper_node;
   }
   Node* WrapperNode() final { return wrapper_node_; }
@@ -119,6 +122,7 @@ class StateBase {
 
   void set_node(EmbedderNode* node) {
     CHECK_EQ(Visibility::kVisible, GetVisibility());
+    DCHECK_NULL(node_);
     node_ = node;
   }
 
@@ -423,6 +427,12 @@ class CppGraphBuilderImpl final {
     }
     if (!current.get_node()) {
       current.set_node(AddNode(header));
+
+      const auto& it = pending_back_states_.find(&current);
+      if (it != pending_back_states_.end()) {
+        CreateMergedNode(current, it->second);
+        pending_back_states_.erase(it);
+      }
     }
 
     if (!edge_name.empty()) {
@@ -452,23 +462,16 @@ class CppGraphBuilderImpl final {
           reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
           v8_value);
       if (back_reference_object) {
-        // Generally the back reference will point to `parent.header()`. In the
-        // case of global proxy set up the backreference will point to a
-        // different object. Merge the nodes nevertheless as Window objects need
-        // to be able to query their detachedness state.
-        //
-        // TODO(chromium:1218404): See bug description on how to fix this
-        // inconsistency and only merge states when the backref points back
-        // to the same object.
         auto& back_state = states_.GetExistingState(
             HeapObjectHeader::FromObject(back_reference_object));
-        back_state.get_node()->SetWrapperNode(v8_node);
-
-        auto* profiler =
-            reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
-        if (profiler->HasGetDetachednessCallback()) {
-          back_state.get_node()->SetDetachedness(
-              profiler->GetDetachedness(v8_value, ref.WrapperClassId()));
+        DCHECK_EQ(pending_back_states_.end(),
+                  pending_back_states_.find(&back_state));
+        const MergedNodeItem back_ref_item{v8_node, v8_value,
+                                           ref.WrapperClassId()};
+        if (!back_state.get_node()) {
+          pending_back_states_.emplace(&back_state, back_ref_item);
+        } else {
+          CreateMergedNode(back_state, back_ref_item);
         }
       }
     }
@@ -497,10 +500,36 @@ class CppGraphBuilderImpl final {
   class VisitationItem;
   class VisitationDoneItem;
 
+  struct MergedNodeItem {
+    EmbedderGraph::Node* node_;
+    v8::Local<v8::Value> value_;
+    uint16_t wrapper_class_id_;
+  };
+
+  void CreateMergedNode(State& back_state, const MergedNodeItem& item) {
+    // Generally the back reference will point to `parent.header()`. In the
+    // case of global proxy set up the backreference will point to a
+    // different object. Merge the nodes nevertheless as Window objects need
+    // to be able to query their detachedness state.
+    //
+    // TODO(chromium:1218404): See bug description on how to fix this
+    // inconsistency and only merge states when the backref points back
+    // to the same object.
+    back_state.get_node()->SetWrapperNode(item.node_);
+
+    auto* profiler =
+        reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
+    if (profiler->HasGetDetachednessCallback()) {
+      back_state.get_node()->SetDetachedness(
+          profiler->GetDetachedness(item.value_, item.wrapper_class_id_));
+    }
+  }
+
   CppHeap& cpp_heap_;
   v8::EmbedderGraph& graph_;
   StateStorage states_;
   std::vector<std::unique_ptr<WorkstackItemBase>> workstack_;
+  std::unordered_map<State*, const MergedNodeItem> pending_back_states_;
 };
 
 // Iterating live objects to mark them as visible if needed.
@@ -733,7 +762,7 @@ void CppGraphBuilderImpl::VisitForVisibility(State* parent,
   } else {
     // No need to mark/unmark pending as the node is immediately processed.
     current.MarkVisible();
-    // In case the names are visible, the graph is no traversed in this phase.
+    // In case the names are visible, the graph is not traversed in this phase.
     // Explicitly trace one level to handle weak containers.
     WeakVisitor weak_visitor(*this);
     header.Trace(&weak_visitor);
@@ -813,6 +842,7 @@ void CppGraphBuilderImpl::Run() {
     cppgc::internal::PersistentRegionLock guard;
     cpp_heap_.GetStrongCrossThreadPersistentRegion().Trace(&object_visitor);
   }
+  CHECK(pending_back_states_.empty());
 }
 
 // static
