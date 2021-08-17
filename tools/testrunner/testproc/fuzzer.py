@@ -265,6 +265,10 @@ class CompactionFuzzer(Fuzzer):
     while True:
       yield ['--stress-compaction-random']
 
+class StackSizeFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      yield ['--stack-size=%d' % rng.randint(50, 983)]
 
 class TaskDelayFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
@@ -322,6 +326,7 @@ FUZZERS = {
   'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
   'marking': (MarkingAnalyzer, MarkingFuzzer),
   'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
+  'stack': (None, StackSizeFuzzer),
   'threads': (None, ThreadPoolSizeFuzzer),
 }
 
