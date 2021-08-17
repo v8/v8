@@ -223,6 +223,17 @@ experiment_builder_pair(
     ],
 )
 
+experiment_builder_pair(
+    name = "V8 Linux64 - python3",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.DEFAULT,
+    experiments = {"luci.recipes.use_python3": 100},
+    to_notify = ["machenbach@chromium.org"],
+)
+
 experiment_builder(
     name = "V8 Linux64 - builder (reclient)",
     bucket = "ci",
