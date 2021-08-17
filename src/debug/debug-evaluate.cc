@@ -34,9 +34,8 @@ static MaybeHandle<SharedFunctionInfo> GetFunctionInfo(Isolate* isolate,
                                ScriptOriginOptions(false, true));
   script_details.repl_mode = repl_mode;
   return Compiler::GetSharedFunctionInfoForScript(
-      isolate, source, script_details, nullptr, nullptr,
-      ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
-      NOT_NATIVES_CODE);
+      isolate, source, script_details, ScriptCompiler::kNoCompileOptions,
+      ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE);
 }
 }  // namespace
 

@@ -2420,42 +2420,45 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
 
   i::Handle<i::String> str = Utils::OpenHandle(*(source->source_string));
 
-  std::unique_ptr<i::AlignedCachedData> cached_data;
-  if (options == kConsumeCodeCache) {
-    if (source->consume_cache_task) {
-      // If there's a cache consume task, finish it
-      i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
-          source->consume_cache_task->impl_->Finish(isolate, str,
-                                                    source->resource_options);
-      i::Handle<i::SharedFunctionInfo> result;
-      if (maybe_function_info.ToHandle(&result)) {
-        RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
-      }
-      // If the above failed, then we must have rejected the cache. Continue
-      // with normal compilation, disabling the code cache consumption.
-      source->cached_data->rejected = true;
-      options = kNoCompileOptions;
-    } else {
-      DCHECK(source->cached_data);
-      // AlignedCachedData takes care of pointer-aligning the data.
-      cached_data.reset(new i::AlignedCachedData(source->cached_data->data,
-                                                 source->cached_data->length));
-    }
-  }
-
   i::Handle<i::SharedFunctionInfo> result;
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileScript");
   i::ScriptDetails script_details = GetScriptDetails(
       isolate, source->resource_name, source->resource_line_offset,
       source->resource_column_offset, source->source_map_url,
       source->host_defined_options, source->resource_options);
-  i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
-      i::Compiler::GetSharedFunctionInfoForScript(
-          isolate, str, script_details, nullptr, cached_data.get(), options,
-          no_cache_reason, i::NOT_NATIVES_CODE);
+
+  i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info;
   if (options == kConsumeCodeCache) {
-    source->cached_data->rejected = cached_data->rejected();
+    DCHECK_EQ(no_cache_reason, NoCacheReason::kNoCacheNoReason);
+    if (source->consume_cache_task) {
+      // Take ownership of the internal deserialization task and clear it off
+      // the consume task on the source.
+      DCHECK_NOT_NULL(source->consume_cache_task->impl_);
+      std::unique_ptr<i::BackgroundDeserializeTask> deserialize_task =
+          std::move(source->consume_cache_task->impl_);
+      maybe_function_info =
+          i::Compiler::GetSharedFunctionInfoForScriptWithDeserializeTask(
+              isolate, str, script_details, deserialize_task.get(), options,
+              no_cache_reason, i::NOT_NATIVES_CODE);
+      source->cached_data->rejected = deserialize_task->rejected();
+    } else {
+      DCHECK(source->cached_data);
+      // AlignedCachedData takes care of pointer-aligning the data.
+      auto cached_data = std::make_unique<i::AlignedCachedData>(
+          source->cached_data->data, source->cached_data->length);
+      maybe_function_info =
+          i::Compiler::GetSharedFunctionInfoForScriptWithCachedData(
+              isolate, str, script_details, cached_data.get(), options,
+              no_cache_reason, i::NOT_NATIVES_CODE);
+      source->cached_data->rejected = cached_data->rejected();
+    }
+  } else {
+    // Compile without any cache.
+    maybe_function_info = i::Compiler::GetSharedFunctionInfoForScript(
+        isolate, str, script_details, options, no_cache_reason,
+        i::NOT_NATIVES_CODE);
   }
+
   has_pending_exception = !maybe_function_info.ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(UnboundScript);
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));

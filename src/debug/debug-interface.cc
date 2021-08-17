@@ -760,8 +760,8 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
   {
     i::AlignedCachedData* cached_data = nullptr;
     i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
-        i::Compiler::GetSharedFunctionInfoForScript(
-            isolate, str, i::ScriptDetails(), nullptr, cached_data,
+        i::Compiler::GetSharedFunctionInfoForScriptWithCachedData(
+            isolate, str, i::ScriptDetails(), cached_data,
             ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseInspector,
             i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
