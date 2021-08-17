@@ -217,7 +217,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 2700,
+    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -226,7 +226,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False},
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 2700,
+    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -235,7 +235,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 2700,
+    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -244,7 +244,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 2700,
+    execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
 )
 
