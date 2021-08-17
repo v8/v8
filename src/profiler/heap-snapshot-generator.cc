@@ -774,8 +774,13 @@ class IndexedReferencesExtractor : public ObjectVisitor {
       generator_->visited_fields_[field_index] = false;
     } else {
       HeapObject heap_object;
-      if (slot.load(cage_base).GetHeapObject(&heap_object)) {
+      auto loaded_value = slot.load(cage_base);
+      if (loaded_value.GetHeapObjectIfStrong(&heap_object)) {
         VisitHeapObjectImpl(heap_object, field_index);
+      } else if (loaded_value.GetHeapObjectIfWeak(&heap_object)) {
+        generator_->SetWeakReference(parent_, next_index_++, heap_object,
+                                     field_index * kTaggedSize);
+        generator_->visited_fields_[field_index] = false;
       }
     }
   }
