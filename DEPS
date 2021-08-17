@@ -92,9 +92,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '3da1e2fcf66acd5c7194497b4285ac163f32e239',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a0d51919febe3ff89d4508b355289305d5084e85',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '536c8823fdd4d9be7d6fbe65e903c7bb9951d32d',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6810b870e0dc60ed108969a7ade77308f689b469',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6f9b470988050ed0868a0bd6280e8ac4fa2b34f6',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '99803d74e35962f63a775f29477882afd4d57d94',
   'buildtools/linux64': {
@@ -155,7 +155,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'kjigTwWNxlU1rn_26vpSH5hoVlSnC4w1rFJHyivz5PQC'
+              'version': 'JV2fBSeIQc_xaqKsVDvLIvDmvx2ejeL-Y75N37PloLMC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -218,7 +218,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '126f6a8996c232101feb381b184dded12a5e5c15',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '77a708929920f307d7f27299354f23d343f7f79a',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0c42eff6d19a79d0c8af825ece86d63d5f58e98b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c4e2b36ce5c3f2df323562348370b4446a9b2081',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
