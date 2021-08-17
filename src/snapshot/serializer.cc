@@ -521,10 +521,6 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   ArrayBufferExtension* extension = buffer->extension();
 
   // The embedder-allocated backing store only exists for the off-heap case.
-#ifdef V8_HEAP_SANDBOX
-  uint32_t external_pointer_entry =
-      buffer->GetBackingStoreRefForDeserialization();
-#endif
   if (backing_store != nullptr) {
     uint32_t ref = SerializeBackingStore(backing_store, byte_length);
     buffer->SetBackingStoreRefForSerialization(ref);
@@ -538,11 +534,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
 
   SerializeObject();
 
-#ifdef V8_HEAP_SANDBOX
-  buffer->SetBackingStoreRefForSerialization(external_pointer_entry);
-#else
   buffer->set_backing_store(isolate(), backing_store);
-#endif
   buffer->set_extension(extension);
 }
 

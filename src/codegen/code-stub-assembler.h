@@ -1107,15 +1107,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
       TNode<JSTypedArray> holder) {
-    return LoadExternalPointerFromObject(holder,
-                                         JSTypedArray::kExternalPointerOffset,
-                                         kTypedArrayExternalPointerTag);
+    return LoadObjectField<RawPtrT>(holder,
+                                    JSTypedArray::kExternalPointerOffset);
   }
 
   void StoreJSTypedArrayExternalPointerPtr(TNode<JSTypedArray> holder,
                                            TNode<RawPtrT> value) {
-    StoreExternalPointerToObject(holder, JSTypedArray::kExternalPointerOffset,
-                                 value, kTypedArrayExternalPointerTag);
+    StoreObjectFieldNoWriteBarrier<RawPtrT>(
+        holder, JSTypedArray::kExternalPointerOffset, value);
   }
 
   // Load value from current parent frame by given offset in bytes.

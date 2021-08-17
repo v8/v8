@@ -2873,7 +2873,6 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
           map, empty_byte_array(), buffer, byte_offset, byte_length));
   JSTypedArray raw = *typed_array;
   DisallowGarbageCollection no_gc;
-  raw.AllocateExternalPointerEntries(isolate());
   raw.set_length(length);
   raw.SetOffHeapDataPtr(isolate(), buffer->backing_store(), byte_offset);
   raw.set_is_length_tracking(false);
@@ -2888,7 +2887,6 @@ Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
                   isolate());
   Handle<JSDataView> obj = Handle<JSDataView>::cast(NewJSArrayBufferView(
       map, empty_fixed_array(), buffer, byte_offset, byte_length));
-  obj->AllocateExternalPointerEntries(isolate());
   obj->set_data_pointer(
       isolate(), static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   return obj;

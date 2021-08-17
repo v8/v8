@@ -141,15 +141,12 @@ using ExternalPointer_t = Address;
 // the same time.
 enum ExternalPointerTag : uint64_t {
   kExternalPointerNullTag = 0x0000000000000000,
-  kArrayBufferBackingStoreTag = 0x00ff000000000000,      // 0b000000011111111
-  kTypedArrayExternalPointerTag = 0x017f000000000000,    // 0b000000101111111
-  kDataViewDataPointerTag = 0x01bf000000000000,          // 0b000000110111111
-  kExternalStringResourceTag = 0x01df000000000000,       // 0b000000111011111
-  kExternalStringResourceDataTag = 0x01ef000000000000,   // 0b000000111101111
-  kForeignForeignAddressTag = 0x01f7000000000000,        // 0b000000111110111
-  kNativeContextMicrotaskQueueTag = 0x01fb000000000000,  // 0b000000111111011
-  kEmbedderDataSlotPayloadTag = 0x01fd000000000000,      // 0b000000111111101
-  kCodeEntryPointTag = 0x01fe000000000000,               // 0b000000111111110
+  kExternalStringResourceTag = 0x00ff000000000000,       // 0b000000011111111
+  kExternalStringResourceDataTag = 0x017f000000000000,   // 0b000000101111111
+  kForeignForeignAddressTag = 0x01bf000000000000,        // 0b000000110111111
+  kNativeContextMicrotaskQueueTag = 0x01df000000000000,  // 0b000000111011111
+  kEmbedderDataSlotPayloadTag = 0x01ef000000000000,      // 0b000000111101111
+  kCodeEntryPointTag = 0x01f7000000000000,               // 0b000000111110111
 };
 
 constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;

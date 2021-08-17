@@ -416,19 +416,16 @@ FieldAccess AccessBuilder::ForJSTypedArrayBasePointer() {
 
 // static
 FieldAccess AccessBuilder::ForJSTypedArrayExternalPointer() {
-  FieldAccess access = {kTaggedBase,
-                        JSTypedArray::kExternalPointerOffset,
-                        MaybeHandle<Name>(),
-                        MaybeHandle<Map>(),
-                        V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer()
-                                             : Type::ExternalPointer(),
-                        MachineType::Pointer(),
-                        kNoWriteBarrier,
-                        ConstFieldInfo::None(),
-                        false,
-#ifdef V8_HEAP_SANDBOX
-                        kTypedArrayExternalPointerTag
-#endif
+  FieldAccess access = {
+      kTaggedBase,
+      JSTypedArray::kExternalPointerOffset,
+      MaybeHandle<Name>(),
+      MaybeHandle<Map>(),
+      Type::ExternalPointer(),
+      MachineType::Pointer(),
+      kNoWriteBarrier,
+      ConstFieldInfo::None(),
+      false,
   };
   return access;
 }
@@ -440,15 +437,11 @@ FieldAccess AccessBuilder::ForJSDataViewDataPointer() {
       JSDataView::kDataPointerOffset,
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
-      V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer()
-                           : Type::ExternalPointer(),
+      Type::ExternalPointer(),
       MachineType::Pointer(),
       kNoWriteBarrier,
       ConstFieldInfo::None(),
       false,
-#ifdef V8_HEAP_SANDBOX
-      kDataViewDataPointerTag,
-#endif
   };
   return access;
 }

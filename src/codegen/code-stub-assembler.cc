@@ -13797,9 +13797,8 @@ void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
 
 TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStorePtr(
     TNode<JSArrayBuffer> array_buffer) {
-  return LoadExternalPointerFromObject(array_buffer,
-                                       JSArrayBuffer::kBackingStoreOffset,
-                                       kArrayBufferBackingStoreTag);
+  return LoadObjectField<RawPtrT>(array_buffer,
+                                  JSArrayBuffer::kBackingStoreOffset);
 }
 
 TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(
