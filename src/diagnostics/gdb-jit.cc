@@ -957,7 +957,7 @@ class CodeDescription {
 #endif
 
   std::unique_ptr<char[]> GetFilename() {
-    if (!shared_info_.is_null()) {
+    if (!shared_info_.is_null() && script().name().IsString()) {
       return String::cast(script().name()).ToCString();
     } else {
       std::unique_ptr<char[]> result(new char[1]);
