@@ -315,6 +315,8 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
                  XMMRegister tmp2);
   void I8x16ShrU(XMMRegister dst, XMMRegister src1, Register src2,
                  Register tmp1, XMMRegister tmp2, XMMRegister tmp3);
+  void I16x8Splat(XMMRegister dst, Register src);
+  void I16x8Splat(XMMRegister dst, Operand src);
   void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                       XMMRegister scrat, bool is_signed);
   void I16x8ExtMulHighS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
@@ -357,6 +359,8 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
  private:
   template <typename Op>
   void I8x16SplatPreAvx2(XMMRegister dst, Op src, XMMRegister scratch);
+  template <typename Op>
+  void I16x8SplatPreAvx2(XMMRegister dst, Op src);
 };
 }  // namespace internal
 }  // namespace v8

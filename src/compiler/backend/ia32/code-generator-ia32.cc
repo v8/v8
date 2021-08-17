@@ -2697,10 +2697,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I16x8Splat: {
-      XMMRegister dst = i.OutputSimd128Register();
-      __ Movd(dst, i.InputOperand(0));
-      __ Pshuflw(dst, dst, uint8_t{0x0});
-      __ Pshufd(dst, dst, uint8_t{0x0});
+      if (instr->InputAt(0)->IsRegister()) {
+        __ I16x8Splat(i.OutputSimd128Register(), i.InputRegister(0));
+      } else {
+        __ I16x8Splat(i.OutputSimd128Register(), i.InputOperand(0));
+      }
       break;
     }
     case kIA32I16x8ExtractLaneS: {

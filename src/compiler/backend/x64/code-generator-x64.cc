@@ -3199,12 +3199,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I16x8Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {
-        __ Movd(dst, i.InputRegister(0));
+        __ I16x8Splat(dst, i.InputRegister(0));
       } else {
-        __ Movd(dst, i.InputOperand(0));
+        __ I16x8Splat(dst, i.InputOperand(0));
       }
-      __ Pshuflw(dst, dst, uint8_t{0x0});
-      __ Pshufd(dst, dst, uint8_t{0x0});
       break;
     }
     case kX64I16x8ExtractLaneS: {

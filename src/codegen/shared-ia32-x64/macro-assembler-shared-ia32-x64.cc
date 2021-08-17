@@ -16,6 +16,14 @@
 #error Unsupported target architecture.
 #endif
 
+// Operand on IA32 can be a wrapper for a single register, in which case they
+// should call I8x16Splat |src| being Register.
+#if V8_TARGET_ARCH_IA32
+#define DCHECK_OPERAND_IS_NOT_REG(op) DCHECK(!op.is_reg_only());
+#else
+#define DCHECK_OPERAND_IS_NOT_REG(op)
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -277,11 +285,7 @@ void SharedTurboAssembler::I8x16Splat(XMMRegister dst, Register src,
 
 void SharedTurboAssembler::I8x16Splat(XMMRegister dst, Operand src,
                                       XMMRegister scratch) {
-#if V8_TARGET_ARCH_IA32
-  // Operand on IA32 can be a wrapper for a single register, in which case they
-  // should call I8x16Splat |src| being Register.
-  DCHECK(!src.is_reg_only());
-#endif
+  DCHECK_OPERAND_IS_NOT_REG(src);
   if (CpuFeatures::IsSupported(AVX2)) {
     CpuFeatureScope avx2_scope(this, AVX2);
     vpbroadcastb(dst, src);
@@ -409,6 +413,34 @@ void SharedTurboAssembler::I8x16ShrU(XMMRegister dst, XMMRegister src1,
   Psrlw(tmp2, tmp3);
   Psrlw(dst, tmp3);
   Packuswb(dst, tmp2);
+}
+
+template <typename Op>
+void SharedTurboAssembler::I16x8SplatPreAvx2(XMMRegister dst, Op src) {
+  DCHECK(!CpuFeatures::IsSupported(AVX2));
+  Movd(dst, src);
+  Pshuflw(dst, dst, uint8_t{0x0});
+  Punpcklqdq(dst, dst);
+}
+
+void SharedTurboAssembler::I16x8Splat(XMMRegister dst, Register src) {
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    Movd(dst, src);
+    vpbroadcastw(dst, dst);
+  } else {
+    I16x8SplatPreAvx2(dst, src);
+  }
+}
+
+void SharedTurboAssembler::I16x8Splat(XMMRegister dst, Operand src) {
+  DCHECK_OPERAND_IS_NOT_REG(src);
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpbroadcastw(dst, src);
+  } else {
+    I16x8SplatPreAvx2(dst, src);
+  }
 }
 
 void SharedTurboAssembler::I16x8ExtMulLow(XMMRegister dst, XMMRegister src1,
@@ -886,3 +918,5 @@ void SharedTurboAssembler::S128Select(XMMRegister dst, XMMRegister mask,
 
 }  // namespace internal
 }  // namespace v8
+
+#undef DCHECK_OPERAND_IS_NOT_REG
