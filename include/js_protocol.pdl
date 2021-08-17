@@ -1427,6 +1427,8 @@ domain Runtime
       experimental optional boolean accessorPropertiesOnly
       # Whether preview should be generated for the results.
       experimental optional boolean generatePreview
+      # If true, returns non-indexed properties only.
+      experimental optional boolean nonIndexedPropertiesOnly
     returns
       # Object properties.
       array of PropertyDescriptor result

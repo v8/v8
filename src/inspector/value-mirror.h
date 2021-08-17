@@ -75,6 +75,7 @@ class ValueMirror {
   static bool getProperties(v8::Local<v8::Context> context,
                             v8::Local<v8::Object> object, bool ownProperties,
                             bool accessorPropertiesOnly,
+                            bool nonIndexedPropertiesOnly,
                             PropertyAccumulator* accumulator);
   static void getInternalProperties(
       v8::Local<v8::Context> context, v8::Local<v8::Object> object,

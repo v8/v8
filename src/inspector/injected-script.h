@@ -76,7 +76,8 @@ class InjectedScript final {
 
   Response getProperties(
       v8::Local<v8::Object>, const String16& groupName, bool ownProperties,
-      bool accessorPropertiesOnly, WrapMode wrapMode,
+      bool accessorPropertiesOnly, bool nonIndexedPropertiesOnly,
+      WrapMode wrapMode,
       std::unique_ptr<protocol::Array<protocol::Runtime::PropertyDescriptor>>*
           result,
       Maybe<protocol::Runtime::ExceptionDetails>*);

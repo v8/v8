@@ -354,8 +354,8 @@ class PropertyAccumulator : public ValueMirror::PropertyAccumulator {
 
 Response InjectedScript::getProperties(
     v8::Local<v8::Object> object, const String16& groupName, bool ownProperties,
-    bool accessorPropertiesOnly, WrapMode wrapMode,
-    std::unique_ptr<Array<PropertyDescriptor>>* properties,
+    bool accessorPropertiesOnly, bool nonIndexedPropertiesOnly,
+    WrapMode wrapMode, std::unique_ptr<Array<PropertyDescriptor>>* properties,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   v8::HandleScope handles(m_context->isolate());
   v8::Local<v8::Context> context = m_context->context();
@@ -367,7 +367,8 @@ Response InjectedScript::getProperties(
   std::vector<PropertyMirror> mirrors;
   PropertyAccumulator accumulator(&mirrors);
   if (!ValueMirror::getProperties(context, object, ownProperties,
-                                  accessorPropertiesOnly, &accumulator)) {
+                                  accessorPropertiesOnly,
+                                  nonIndexedPropertiesOnly, &accumulator)) {
     return createExceptionDetails(tryCatch, groupName, exceptionDetails);
   }
   for (const PropertyMirror& mirror : mirrors) {

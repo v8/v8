@@ -106,6 +106,14 @@ InspectorTest.runAsyncTestSuite([
 
   async function testObjectWithProtoProperty() {
     await logExpressionProperties('Object.defineProperty({}, "__proto__", {enumerable: true, value: {b:"aaa"}})');
+  },
+
+  function testArrayNonIndexedPropertiesOnly() {
+    return logExpressionProperties('[1, 2]', {nonIndexedPropertiesOnly: true, ownProperties: true});
+  },
+
+  function testTypedArrayNonIndexedPropertiesOnly() {
+    return logExpressionProperties('new Int8Array(1)', {nonIndexedPropertiesOnly: true, ownProperties: true});
   }
 ]);
 

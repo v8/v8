@@ -185,3 +185,12 @@ Running test: testObjectWithProtoProperty
   __proto__ own object undefined
 Internal properties
   [[Prototype]] object undefined
+
+Running test: testArrayNonIndexedPropertiesOnly
+  length own number 2
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testTypedArrayNonIndexedPropertiesOnly
+Internal properties
+  [[Prototype]] object undefined

@@ -418,6 +418,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
 Response V8RuntimeAgentImpl::getProperties(
     const String16& objectId, Maybe<bool> ownProperties,
     Maybe<bool> accessorPropertiesOnly, Maybe<bool> generatePreview,
+    Maybe<bool> nonIndexedPropertiesOnly,
     std::unique_ptr<protocol::Array<protocol::Runtime::PropertyDescriptor>>*
         result,
     Maybe<protocol::Array<protocol::Runtime::InternalPropertyDescriptor>>*
@@ -442,6 +443,7 @@ Response V8RuntimeAgentImpl::getProperties(
   response = scope.injectedScript()->getProperties(
       object, scope.objectGroupName(), ownProperties.fromMaybe(false),
       accessorPropertiesOnly.fromMaybe(false),
+      nonIndexedPropertiesOnly.fromMaybe(false),
       generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
                                        : WrapMode::kNoPreview,
       result, exceptionDetails);
