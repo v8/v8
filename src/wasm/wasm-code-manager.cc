@@ -1035,12 +1035,9 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 
   // Log all owned code, not just the current entries in the code table. This
   // will also include import wrappers.
-  base::RecursiveMutexGuard lock(&allocation_mutex_);
-  for (auto& owned_entry : owned_code_) {
-    owned_entry.second->LogCode(isolate, source_url.get(), script.id());
-  }
-  for (auto& owned_entry : new_owned_code_) {
-    owned_entry->LogCode(isolate, source_url.get(), script.id());
+  WasmCodeRefScope code_ref_scope;
+  for (auto& code : SnapshotAllOwnedCode()) {
+    code->LogCode(isolate, source_url.get(), script.id());
   }
 }
 
@@ -1429,6 +1426,17 @@ std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
     if (code) WasmCodeRefScope::AddRef(code);
   }
   return std::vector<WasmCode*>{start, end};
+}
+
+std::vector<WasmCode*> NativeModule::SnapshotAllOwnedCode() const {
+  base::RecursiveMutexGuard lock(&allocation_mutex_);
+  if (!new_owned_code_.empty()) TransferNewOwnedCodeLocked();
+
+  std::vector<WasmCode*> all_code(owned_code_.size());
+  std::transform(owned_code_.begin(), owned_code_.end(), all_code.begin(),
+                 [](auto& entry) { return entry.second.get(); });
+  std::for_each(all_code.begin(), all_code.end(), WasmCodeRefScope::AddRef);
+  return all_code;
 }
 
 WasmCode* NativeModule::GetCode(uint32_t index) const {

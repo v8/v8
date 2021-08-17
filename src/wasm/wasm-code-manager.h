@@ -637,6 +637,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Creates a snapshot of the current state of the code table. This is useful
   // to get a consistent view of the table (e.g. used by the serializer).
   std::vector<WasmCode*> SnapshotCodeTable() const;
+  // Creates a snapshot of all {owned_code_}, will transfer new code (if any) to
+  // {owned_code_}.
+  std::vector<WasmCode*> SnapshotAllOwnedCode() const;
 
   WasmCode* GetCode(uint32_t index) const;
   bool HasCode(uint32_t index) const;
