@@ -29,8 +29,6 @@ using TracingController = v8::TracingController;
  */
 class V8_EXPORT Platform {
  public:
-  static constexpr bool StackAddressesSmallerThanHeapAddresses();
-
   virtual ~Platform() = default;
 
   /**
@@ -150,15 +148,6 @@ namespace internal {
 V8_EXPORT void Abort();
 
 }  // namespace internal
-
-// static
-constexpr bool Platform::StackAddressesSmallerThanHeapAddresses() {
-#if V8_OS_WIN || V8_OS_FUCHSIA || V8_OS_MACOSX
-  return false;
-#else
-  return true;
-#endif  // V8_OS_WIN || V8_OS_FUCHSIA || V8_OS_MACOSX
-}
 
 }  // namespace cppgc
 

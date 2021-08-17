@@ -74,11 +74,6 @@ CagedHeap::CagedHeap(HeapBase* heap_base, PageAllocator* platform_allocator)
     : reserved_area_(ReserveCagedHeap(platform_allocator)) {
   using CagedAddress = CagedHeap::AllocatorType::Address;
 
-  if (Platform::StackAddressesSmallerThanHeapAddresses()) {
-    // Write barrier assumes that caged heap is allocated below the stack.
-    CHECK_LT(reserved_area_.address(), v8::base::Stack::GetStackStart());
-  }
-
   DCHECK_NOT_NULL(heap_base);
 
   CHECK(platform_allocator->SetPermissions(
