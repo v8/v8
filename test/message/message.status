@@ -94,4 +94,18 @@
   'fail/set-grow-failed': [SKIP],
 }],  # 'msan == True'
 
+##############################################################################
+['simulator_run', {
+  # Too slow on simulators
+  'fail/map-grow-failed': [SKIP],
+  'fail/set-grow-failed': [SKIP],
+}],  # simulator_run
+
+##############################################################################
+['is_full_debug', {
+  # Too slow in non-optimized debug mode
+  'fail/map-grow-failed': [SKIP],
+  'fail/set-grow-failed': [SKIP],
+}],  # is_full_debug
+
 ]
