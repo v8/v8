@@ -5272,7 +5272,37 @@ SIMD_BINOP_LIST_VRR_C(EMIT_SIMD_BINOP_VRR_C)
 #undef EMIT_SIMD_BINOP_VRR_C
 #undef SIMD_BINOP_LIST_VRR_C
 
-// Opcodes without a 1-1 match.
+#define SIMD_SHIFT_LIST(V) \
+  V(I64x2Shl, veslv, 3)    \
+  V(I64x2ShrS, vesrav, 3)  \
+  V(I64x2ShrU, vesrlv, 3)  \
+  V(I32x4Shl, veslv, 2)    \
+  V(I32x4ShrS, vesrav, 2)  \
+  V(I32x4ShrU, vesrlv, 2)  \
+  V(I16x8Shl, veslv, 1)    \
+  V(I16x8ShrS, vesrav, 1)  \
+  V(I16x8ShrU, vesrlv, 1)  \
+  V(I8x16Shl, veslv, 0)    \
+  V(I8x16ShrS, vesrav, 0)  \
+  V(I8x16ShrU, vesrlv, 0)
+
+#define EMIT_SIMD_SHIFT(name, op, c1)                                      \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1,     \
+                            Register src2) {                               \
+    vlvg(kScratchDoubleReg, src2, MemOperand(r0, 0), Condition(c1));       \
+    vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(c1)); \
+    op(dst, src1, kScratchDoubleReg, Condition(0), Condition(0),           \
+       Condition(c1));                                                     \
+  }                                                                        \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1,     \
+                            const Operand& src2) {                         \
+    mov(ip, src2);                                                         \
+    name(dst, src1, ip);                                                   \
+  }
+SIMD_SHIFT_LIST(EMIT_SIMD_SHIFT)
+#undef EMIT_SIMD_SHIFT
+#undef SIMD_SHIFT_LIST
+
 void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2) {
   Register scratch_1 = r0;
