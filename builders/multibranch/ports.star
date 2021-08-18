@@ -234,3 +234,25 @@ in_category(
         first_branch_version = "8.9",
     ),
 )
+
+in_category(
+    "LOONG64-V",
+    multibranch_builder(
+        name = "V8 Linux - loong64 - sim - builder",
+        triggered_by_gitiles = True,
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8.ports"},
+        use_goma = GOMA.DEFAULT,
+        close_tree = False,
+        first_branch_version = "9.5",
+    ),
+    multibranch_builder(
+        name = "V8 Linux - loong64 - sim",
+        parent_builder = "V8 Linux - loong64 - sim - builder",
+        dimensions = {"host_class": "multibot"},
+        execution_timeout = 19800,
+        properties = {"builder_group": "client.v8.ports"},
+        close_tree = False,
+        first_branch_version = "9.5",
+    ),
+)
