@@ -38,7 +38,6 @@ int EhFrameWriter::RegisterToDwarfCode(Register name) {
       return kX0DwarfCode;
     default:
       UNIMPLEMENTED();
-      return -1;
   }
 }
 
