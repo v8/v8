@@ -92,7 +92,8 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
 
   CompilationResult result;
   result.bytecode = VectorToByteArray(isolate, bytecode.ToVector());
-  result.capture_name_map = parse_result.capture_name_map;
+  result.capture_name_map =
+      RegExp::CreateCaptureNameMap(isolate, parse_result.named_captures);
   return result;
 }
 

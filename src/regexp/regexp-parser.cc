@@ -25,7 +25,8 @@ namespace v8 {
 namespace internal {
 
 RegExpParser::RegExpParser(FlatStringReader* in, JSRegExp::Flags flags,
-                           Isolate* isolate, Zone* zone)
+                           Isolate* isolate, Zone* zone,
+                           const DisallowGarbageCollection& no_gc)
     : isolate_(isolate),
       zone_(zone),
       captures_(nullptr),
@@ -914,52 +915,13 @@ RegExpCapture* RegExpParser::GetCapture(int index) {
   return captures_->at(index - 1);
 }
 
-namespace {
-
-struct RegExpCaptureIndexLess {
-  bool operator()(const RegExpCapture* lhs, const RegExpCapture* rhs) const {
-    DCHECK_NOT_NULL(lhs);
-    DCHECK_NOT_NULL(rhs);
-    return lhs->index() < rhs->index();
-  }
-};
-
-}  // namespace
-
-Handle<FixedArray> RegExpParser::CreateCaptureNameMap() {
+ZoneVector<RegExpCapture*>* RegExpParser::GetNamedCaptures() const {
   if (named_captures_ == nullptr || named_captures_->empty()) {
-    return Handle<FixedArray>();
+    return nullptr;
   }
 
-  // Named captures are sorted by name (because the set is used to ensure
-  // name uniqueness). But the capture name map must to be sorted by index.
-
-  ZoneVector<RegExpCapture*> sorted_named_captures(
+  return zone()->template New<ZoneVector<RegExpCapture*>>(
       named_captures_->begin(), named_captures_->end(), zone());
-  std::sort(sorted_named_captures.begin(), sorted_named_captures.end(),
-            RegExpCaptureIndexLess{});
-  DCHECK_EQ(sorted_named_captures.size(), named_captures_->size());
-
-  Factory* factory = isolate()->factory();
-
-  int len = static_cast<int>(sorted_named_captures.size()) * 2;
-  Handle<FixedArray> array = factory->NewFixedArray(len);
-
-  int i = 0;
-  for (const auto& capture : sorted_named_captures) {
-    base::Vector<const base::uc16> capture_name(capture->name()->data(),
-                                                capture->name()->size());
-    // CSA code in ConstructNewResultFromMatchInfo requires these strings to be
-    // internalized so they can be used as property names in the 'exec' results.
-    Handle<String> name = factory->InternalizeString(capture_name);
-    array->set(i * 2, *name);
-    array->set(i * 2 + 1, Smi::FromInt(capture->index()));
-
-    i++;
-  }
-  DCHECK_EQ(i * 2, len);
-
-  return array;
 }
 
 bool RegExpParser::HasNamedCaptures() {
@@ -1720,8 +1682,7 @@ RegExpTree* RegExpParser::ParseCharacterClass(const RegExpBuilder* builder) {
 
 #undef CHECK_FAILED
 
-bool RegExpParser::Parse(RegExpCompileData* result,
-                         const DisallowGarbageCollection&) {
+bool RegExpParser::Parse(RegExpCompileData* result) {
   DCHECK(result != nullptr);
   RegExpTree* tree = ParsePattern();
   if (failed()) {
@@ -1742,6 +1703,7 @@ bool RegExpParser::Parse(RegExpCompileData* result,
     result->simple = tree->IsAtom() && simple() && capture_count == 0;
     result->contains_anchor = contains_anchor();
     result->capture_count = capture_count;
+    result->named_captures = GetNamedCaptures();
   }
   return !failed();
 }
@@ -1749,16 +1711,8 @@ bool RegExpParser::Parse(RegExpCompileData* result,
 bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
                                FlatStringReader* input, JSRegExp::Flags flags,
                                RegExpCompileData* result) {
-  RegExpParser parser(input, flags, isolate, zone);
-  bool success;
-  {
-    DisallowGarbageCollection no_gc;
-    success = parser.Parse(result, no_gc);
-  }
-  if (success) {
-    result->capture_name_map = parser.CreateCaptureNameMap();
-  }
-  return success;
+  DisallowGarbageCollection no_gc;
+  return RegExpParser{input, flags, isolate, zone, no_gc}.Parse(result);
 }
 
 bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
@@ -1766,8 +1720,7 @@ bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
                                       JSRegExp::Flags flags,
                                       RegExpCompileData* result,
                                       const DisallowGarbageCollection& no_gc) {
-  RegExpParser parser(input, flags, isolate, zone);
-  return parser.Parse(result, no_gc);
+  return RegExpParser{input, flags, isolate, zone, no_gc}.Parse(result);
 }
 
 RegExpBuilder::RegExpBuilder(Zone* zone, JSRegExp::Flags flags)

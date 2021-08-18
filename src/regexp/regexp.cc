@@ -420,9 +420,9 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   return CompileIrregexp(isolate, re, sample_subject, is_one_byte);
 }
 
-#ifdef DEBUG
 namespace {
 
+#ifdef DEBUG
 bool RegExpCodeIsValidForPreCompilation(Handle<JSRegExp> re, bool is_one_byte) {
   Object entry = re->Code(is_one_byte);
   Object bytecode = re->Bytecode(is_one_byte);
@@ -448,9 +448,50 @@ bool RegExpCodeIsValidForPreCompilation(Handle<JSRegExp> re, bool is_one_byte) {
 
   return true;
 }
+#endif
+
+struct RegExpCaptureIndexLess {
+  bool operator()(const RegExpCapture* lhs, const RegExpCapture* rhs) const {
+    DCHECK_NOT_NULL(lhs);
+    DCHECK_NOT_NULL(rhs);
+    return lhs->index() < rhs->index();
+  }
+};
 
 }  // namespace
-#endif
+
+// static
+Handle<FixedArray> RegExp::CreateCaptureNameMap(
+    Isolate* isolate, ZoneVector<RegExpCapture*>* named_captures) {
+  if (named_captures == nullptr) return Handle<FixedArray>();
+
+  DCHECK(!named_captures->empty());
+
+  // Named captures are sorted by name (because the set is used to ensure
+  // name uniqueness). But the capture name map must to be sorted by index.
+
+  std::sort(named_captures->begin(), named_captures->end(),
+            RegExpCaptureIndexLess{});
+
+  int len = static_cast<int>(named_captures->size()) * 2;
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(len);
+
+  int i = 0;
+  for (const RegExpCapture* capture : *named_captures) {
+    base::Vector<const base::uc16> capture_name(capture->name()->data(),
+                                                capture->name()->size());
+    // CSA code in ConstructNewResultFromMatchInfo requires these strings to be
+    // internalized so they can be used as property names in the 'exec' results.
+    Handle<String> name = isolate->factory()->InternalizeString(capture_name);
+    array->set(i * 2, *name);
+    array->set(i * 2 + 1, Smi::FromInt(capture->index()));
+
+    i++;
+  }
+  DCHECK_EQ(i * 2, len);
+
+  return array;
+}
 
 bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                                  Handle<String> sample_subject,
@@ -513,7 +554,9 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
         BUILTIN_CODE(isolate, RegExpInterpreterTrampoline);
     data->set(JSRegExp::code_index(is_one_byte), ToCodeT(*trampoline));
   }
-  re->SetCaptureNameMap(compile_data.capture_name_map);
+  Handle<FixedArray> capture_name_map =
+      RegExp::CreateCaptureNameMap(isolate, compile_data.named_captures);
+  re->SetCaptureNameMap(capture_name_map);
   int register_max = IrregexpMaxRegisterCount(*data);
   if (compile_data.register_count > register_max) {
     SetIrregexpMaxRegisterCount(*data, compile_data.register_count);

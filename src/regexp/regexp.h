@@ -7,10 +7,12 @@
 
 #include "src/objects/js-regexp.h"
 #include "src/regexp/regexp-error.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
+class RegExpCapture;
 class RegExpNode;
 class RegExpTree;
 
@@ -37,9 +39,9 @@ struct RegExpCompileData {
   // True, iff the pattern is anchored at the start of the string with '^'.
   bool contains_anchor = false;
 
-  // Only use if the pattern contains named captures. If so, this contains a
-  // mapping of capture names to capture indices.
-  Handle<FixedArray> capture_name_map;
+  // Only set if the pattern contains named captures.
+  // Note: the lifetime equals that of the parse/compile zone.
+  ZoneVector<RegExpCapture*>* named_captures = nullptr;
 
   // The error message. Only used if an error occurred during parsing or
   // compilation.
@@ -152,6 +154,9 @@ class RegExp final : public AllStatic {
                                    RegExpError error_text);
 
   static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<JSRegExp> regexp);
+
+  static Handle<FixedArray> CreateCaptureNameMap(
+      Isolate* isolate, ZoneVector<RegExpCapture*>* named_captures);
 };
 
 // Uses a special global mode of irregexp-generated code to perform a global

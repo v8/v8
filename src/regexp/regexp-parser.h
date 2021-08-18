@@ -155,9 +155,6 @@ class RegExpBuilder : public ZoneObject {
 
 class V8_EXPORT_PRIVATE RegExpParser {
  public:
-  RegExpParser(FlatStringReader* in, JSRegExp::Flags flags, Isolate* isolate,
-               Zone* zone);
-
   static bool ParseRegExp(Isolate* isolate, Zone* zone, FlatStringReader* input,
                           JSRegExp::Flags flags, RegExpCompileData* result);
 
@@ -165,10 +162,13 @@ class V8_EXPORT_PRIVATE RegExpParser {
   static bool VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
                                  FlatStringReader* input, JSRegExp::Flags flags,
                                  RegExpCompileData* result,
-                                 const DisallowGarbageCollection& nogc);
+                                 const DisallowGarbageCollection& no_gc);
 
  private:
-  bool Parse(RegExpCompileData* result, const DisallowGarbageCollection&);
+  RegExpParser(FlatStringReader* in, JSRegExp::Flags flags, Isolate* isolate,
+               Zone* zone, const DisallowGarbageCollection& no_gc);
+
+  bool Parse(RegExpCompileData* result);
 
   RegExpTree* ParsePattern();
   RegExpTree* ParseDisjunction();
@@ -318,7 +318,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
   // to avoid complicating cases in which references comes before the capture.
   void PatchNamedBackReferences();
 
-  Handle<FixedArray> CreateCaptureNameMap();
+  ZoneVector<RegExpCapture*>* GetNamedCaptures() const;
 
   // Returns true iff the pattern contains named captures. May call
   // ScanForCaptures to look ahead at the remaining pattern.
@@ -344,8 +344,9 @@ class V8_EXPORT_PRIVATE RegExpParser {
     }
   };
 
-  Isolate* isolate_;
-  Zone* zone_;
+  const DisallowGarbageCollection no_gc_;
+  Isolate* const isolate_;
+  Zone* const zone_;
   RegExpError error_ = RegExpError::kNone;
   int error_pos_ = 0;
   ZoneList<RegExpCapture*>* captures_;
@@ -356,7 +357,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
   // These are the flags specified outside the regexp syntax ie after the
   // terminating '/' or in the second argument to the constructor.  The current
   // flags are stored on the RegExpBuilder.
-  JSRegExp::Flags top_level_flags_;
+  const JSRegExp::Flags top_level_flags_;
   int next_pos_;
   int captures_started_;
   int capture_count_;  // Only valid after we have scanned for captures.
