@@ -5549,9 +5549,12 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
               position);
   wasm::ValueType element_type = type->element_type();
   Builtin stub = ChooseArrayAllocationBuiltin(element_type, initial_value);
-  Node* a =
-      gasm_->CallBuiltin(stub, Operator::kEliminatable, rtt, length,
-                         Int32Constant(element_type.element_size_bytes()));
+  // Do NOT mark this as Operator::kEliminatable, because that would cause the
+  // Call node to have no control inputs, which means it could get scheduled
+  // before the check/trap above.
+  Node* a = gasm_->CallBuiltin(
+      stub, Operator::kNoDeopt | Operator::kNoThrow, rtt, length,
+      Int32Constant(element_type.element_size_bytes()));
   if (initial_value != nullptr) {
     // TODO(manoskouk): If the loop is ever removed here, we have to update
     // ArrayNewWithRtt() in graph-builder-interface.cc to not mark the current
