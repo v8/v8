@@ -123,8 +123,6 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
   v8::Isolate* isolate = promise->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  if (i::StackLimitCheck{i_isolate}.HasOverflowed()) return;
-
   AsyncHooks* hooks = PerIsolateData::Get(isolate)->GetAsyncHooks();
   HandleScope handle_scope(isolate);
   // Temporarily clear any scheduled_exception to allow evaluating JS that can
@@ -180,11 +178,13 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
     } else if (type == PromiseHookType::kAfter) {
       hooks->asyncContexts.pop();
     }
-    for (AsyncHooksWrap* wrap : hooks->async_wraps_) {
-      PromiseHookDispatch(type, promise, parent, wrap, hooks);
-      if (try_catch.HasCaught()) break;
+    if (!i::StackLimitCheck{i_isolate}.HasOverflowed()) {
+      for (AsyncHooksWrap* wrap : hooks->async_wraps_) {
+        PromiseHookDispatch(type, promise, parent, wrap, hooks);
+        if (try_catch.HasCaught()) break;
+      }
+      if (try_catch.HasCaught()) Shell::ReportException(isolate, &try_catch);
     }
-    if (try_catch.HasCaught()) Shell::ReportException(isolate, &try_catch);
   }
   if (!scheduled_exception.is_null()) {
     i_isolate->set_scheduled_exception(*scheduled_exception);

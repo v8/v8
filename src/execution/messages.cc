@@ -301,6 +301,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   Handle<FixedArray> elems = Handle<FixedArray>::cast(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
+  const bool has_overflowed = i::StackLimitCheck{isolate}.HasOverflowed();
   Handle<Context> error_context;
   if (!in_recursion && error->GetCreationContext().ToHandle(&error_context)) {
     DCHECK(error_context->IsNativeContext());
@@ -318,7 +319,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
           isolate->RunPrepareStackTraceCallback(error_context, error, sites),
           Object);
       return result;
-    } else {
+    } else if (!has_overflowed) {
       Handle<JSFunction> global_error =
           handle(error_context->error_function(), isolate);
 
@@ -359,7 +360,6 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   }
 
   // Otherwise, run our internal formatting logic.
-
   IncrementalStringBuilder builder(isolate);
 
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder),
