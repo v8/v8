@@ -1783,7 +1783,8 @@ DEFINE_BOOL_READONLY(minor_mc, false,
 
 DEFINE_BOOL(help, false, "Print usage message, including flags, on console")
 DEFINE_BOOL(dump_counters, false, "Dump counters on exit")
-DEFINE_BOOL(slow_histograms, true, "Enable slow histograms with more overhead.")
+DEFINE_BOOL(slow_histograms, false,
+            "Enable slow histograms with more overhead.")
 DEFINE_IMPLICATION(dump_counters, slow_histograms)
 
 DEFINE_BOOL(dump_counters_nvp, false,
