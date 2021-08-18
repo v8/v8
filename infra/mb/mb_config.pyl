@@ -194,6 +194,8 @@
       'V8 Linux - s390x - sim': 'release_simulate_s390x',
       # RISC-V
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
+      # LOONG-V
+      'V8 Linux - loong64 - sim - builder': 'release_simulate_loong64',
     },
     'tryserver.v8': {
       'v8_android_arm_compile_rel': 'release_android_arm',
@@ -237,6 +239,7 @@
       'v8_linux64_asan_rel_ng': 'release_x64_asan_minimal_symbols',
       'v8_linux64_cfi_rel_ng': 'release_x64_cfi',
       'v8_linux64_fuzzilli_ng': 'release_x64_fuzzilli',
+      'v8_linux64_loong64_rel_ng': 'release_simulate_loong64',
       'v8_linux64_msan_rel_ng': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_riscv64_rel_ng': 'release_simulate_riscv64',
       'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
@@ -413,6 +416,8 @@
       'release_bot', 'simulate_arm64', 'msan_no_origins'],
     'release_simulate_arm64_trybot': [
       'release_trybot', 'simulate_arm64'],
+    'release_simulate_loong64': [
+      'release_bot', 'simulate_loong64'],
     'release_simulate_mipsel': [
       'release_bot', 'simulate_mipsel'],
     'release_simulate_mips64el': [
@@ -821,6 +826,10 @@
 
     'simulate_arm64': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="arm64"',
+    },
+
+    'simulate_loong64': {
+      'gn_args': 'target_cpu="x64" v8_target_cpu="loong64"',
     },
 
     'simulate_mipsel': {
