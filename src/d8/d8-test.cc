@@ -94,10 +94,10 @@ class FastCApiObject {
 
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   typedef double Type;
-  static constexpr CTypeInfo type_info = CTypeInfo(CTypeInfo::Type::kFloat64);
+#define type_info kTypeInfoFloat64
 #else
   typedef int32_t Type;
-  static constexpr CTypeInfo type_info = CTypeInfo(CTypeInfo::Type::kInt32);
+#define type_info kTypeInfoInt32
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   static Type AddAllSequenceFastCallback(Local<Object> receiver,
                                          bool should_fallback,

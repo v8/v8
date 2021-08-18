@@ -10394,6 +10394,18 @@ bool ConvertDouble(double d) {
 
 }  // namespace internal
 
+bool CopyAndConvertArrayToCppBufferInt32(Local<Array> src, int32_t* dst,
+                                         uint32_t max_length) {
+  return CopyAndConvertArrayToCppBuffer<&v8::kTypeInfoInt32, int32_t>(
+      src, dst, max_length);
+}
+
+bool CopyAndConvertArrayToCppBufferFloat64(Local<Array> src, double* dst,
+                                           uint32_t max_length) {
+  return CopyAndConvertArrayToCppBuffer<&v8::kTypeInfoFloat64, double>(
+      src, dst, max_length);
+}
+
 }  // namespace v8
 
 #undef TRACE_BS
