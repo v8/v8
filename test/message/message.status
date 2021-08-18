@@ -87,4 +87,11 @@
   'weakref-finalizationregistry-error': [SKIP],
 }], # third_party_heap
 
+##############################################################################
+['msan == True', {
+  # Large allocations
+  'fail/map-grow-failed': [SKIP],
+  'fail/set-grow-failed': [SKIP],
+}],  # 'msan == True'
+
 ]
