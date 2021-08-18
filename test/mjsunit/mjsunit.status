@@ -1061,6 +1061,11 @@
 
   # BUG(v8:11656) Skipped until we make progress on NumFuzz.
   'baseline/test-osr': [SKIP],
+
+  # BUG(v8:11826) Skipped until we remove flakes on NumFuzz.
+  'baseline/flush-only-baseline-code': [SKIP],
+  'baseline/flush-baseline-code': [SKIP],
+  'regress/wasm/regress-1231950': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
