@@ -397,7 +397,7 @@ if (v8_enable_heap_sandbox == "") {
   v8_enable_heap_sandbox = false
 }
 if (v8_enable_virtual_memory_cage == "") {
-  v8_enable_virtual_memory_cage = false
+  v8_enable_virtual_memory_cage = v8_enable_heap_sandbox
 }
 if (v8_enable_short_builtin_calls == "") {
   v8_enable_short_builtin_calls =
@@ -489,6 +489,9 @@ assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
 
 assert(!v8_enable_heap_sandbox || !v8_enable_external_code_space,
        "V8 Heap Sandbox is not compatible with external code space YET")
+
+assert(!v8_enable_heap_sandbox || v8_enable_virtual_memory_cage,
+       "The Heap Sandbox requires the virtual memory cage")
 
 assert(
     !v8_enable_virtual_memory_cage || v8_enable_pointer_compression_shared_cage,
