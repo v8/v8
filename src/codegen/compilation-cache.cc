@@ -135,24 +135,7 @@ bool HasOrigin(Isolate* isolate, Handle<SharedFunctionInfo> function_info,
                       Handle<String>(String::cast(script->name()), isolate))) {
     return false;
   }
-
-  Handle<FixedArray> host_defined_options;
-  if (!script_details.host_defined_options.ToHandle(&host_defined_options)) {
-    host_defined_options = isolate->factory()->empty_fixed_array();
-  }
-
-  Handle<FixedArray> script_options(script->host_defined_options(), isolate);
-  int length = host_defined_options->length();
-  if (length != script_options->length()) return false;
-
-  for (int i = 0; i < length; i++) {
-    // host-defined options is a v8::PrimitiveArray.
-    DCHECK(host_defined_options->get(i).IsPrimitive());
-    DCHECK(script_options->get(i).IsPrimitive());
-    if (!host_defined_options->get(i).StrictEquals(script_options->get(i))) {
-      return false;
-    }
-  }
+  // TODO(10284): Enable host-defined options check again
   return true;
 }
 }  // namespace
