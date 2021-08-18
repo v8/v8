@@ -180,10 +180,9 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
 
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
-  FlatStringReader reader(isolate, pattern);
   DCHECK(!isolate->has_pending_exception());
-  if (!RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
-                                 &parse_result)) {
+  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
+                                               &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     return RegExp::ThrowRegExpException(isolate, re, pattern,
                                         parse_result.error);
@@ -507,9 +506,8 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   Handle<String> pattern(re->Pattern(), isolate);
   pattern = String::Flatten(isolate, pattern);
   RegExpCompileData compile_data;
-  FlatStringReader reader(isolate, pattern);
-  if (!RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
-                                 &compile_data)) {
+  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
+                                               &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
     USE(RegExp::ThrowRegExpException(isolate, re, pattern, compile_data.error));

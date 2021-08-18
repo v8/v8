@@ -73,11 +73,10 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
 
   // Parse and compile the regexp source.
   RegExpCompileData parse_result;
-  FlatStringReader reader(isolate, source);
   DCHECK(!isolate->has_pending_exception());
 
-  bool parse_success =
-      RegExpParser::ParseRegExp(isolate, &zone, &reader, flags, &parse_result);
+  bool parse_success = RegExpParser::ParseRegExpFromHeapString(
+      isolate, &zone, source, flags, &parse_result);
   if (!parse_success) {
     // The pattern was already parsed successfully during initialization, so
     // the only way parsing can fail now is because of stack overflow.

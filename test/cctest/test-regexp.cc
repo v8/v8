@@ -63,9 +63,8 @@ static bool CheckParse(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
-  return v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader,
+  return RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str,
                                                  JSRegExp::kNone, &result);
 }
 
@@ -76,11 +75,10 @@ static void CheckParseEq(const char* input, const char* expected,
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
   JSRegExp::Flags flags = JSRegExp::kNone;
   if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, flags,
                                                 &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
@@ -98,9 +96,8 @@ static bool CheckSimple(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader,
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str,
                                                 JSRegExp::kNone, &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
@@ -118,9 +115,8 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader,
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str,
                                                 JSRegExp::kNone, &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
@@ -433,11 +429,10 @@ static void ExpectError(const char* input, const char* expected,
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData result;
   JSRegExp::Flags flags = JSRegExp::kNone;
   if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(!v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
+  CHECK(!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, flags,
                                                  &result));
   CHECK_NULL(result.tree);
   CHECK(result.error != RegExpError::kNone);
@@ -536,15 +531,15 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
                            bool is_one_byte, Zone* zone) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
-  FlatStringReader reader(isolate, str);
   RegExpCompileData compile_data;
   compile_data.compilation_target = RegExpCompilationTarget::kNative;
   JSRegExp::Flags flags = JSRegExp::kNone;
   if (multiline) flags = JSRegExp::kMultiline;
   if (unicode) flags = JSRegExp::kUnicode;
-  if (!v8::internal::RegExpParser::ParseRegExp(isolate, zone, &reader, flags,
-                                               &compile_data))
+  if (!RegExpParser::ParseRegExpFromHeapString(isolate, zone, str, flags,
+                                               &compile_data)) {
     return nullptr;
+  }
   Handle<String> pattern = isolate->factory()
                                ->NewStringFromUtf8(base::CStrVector(input))
                                .ToHandleChecked();
