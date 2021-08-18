@@ -586,25 +586,29 @@ class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
                                                  FileMode mode) {
   const char* fopen_mode = (mode == FileMode::kReadOnly) ? "r" : "r+";
-  if (FILE* file = fopen(name, fopen_mode)) {
-    if (fseek(file, 0, SEEK_END) == 0) {
-      long size = ftell(file);  // NOLINT(runtime/int)
-      if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
-      if (size > 0) {
-        int prot = PROT_READ;
-        int flags = MAP_PRIVATE;
-        if (mode == FileMode::kReadWrite) {
-          prot |= PROT_WRITE;
-          flags = MAP_SHARED;
-        }
-        void* const memory =
-            mmap(OS::GetRandomMmapAddr(), size, prot, flags, fileno(file), 0);
-        if (memory != MAP_FAILED) {
-          return new PosixMemoryMappedFile(file, memory, size);
+  struct stat statbuf;
+  // Make sure path exists and is not a directory.
+  if (stat(name, &statbuf) == 0 && !S_ISDIR(statbuf.st_mode)) {
+    if (FILE* file = fopen(name, fopen_mode)) {
+      if (fseek(file, 0, SEEK_END) == 0) {
+        long size = ftell(file);  // NOLINT(runtime/int)
+        if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
+        if (size > 0) {
+          int prot = PROT_READ;
+          int flags = MAP_PRIVATE;
+          if (mode == FileMode::kReadWrite) {
+            prot |= PROT_WRITE;
+            flags = MAP_SHARED;
+          }
+          void* const memory =
+              mmap(OS::GetRandomMmapAddr(), size, prot, flags, fileno(file), 0);
+          if (memory != MAP_FAILED) {
+            return new PosixMemoryMappedFile(file, memory, size);
+          }
         }
       }
+      fclose(file);
     }
-    fclose(file);
   }
   return nullptr;
 }
