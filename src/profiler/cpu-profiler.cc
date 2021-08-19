@@ -361,6 +361,16 @@ void ProfilerCodeObserver::CodeEventHandler(
   CodeEventHandlerInternal(evt_rec);
 }
 
+size_t ProfilerCodeObserver::GetEstimatedMemoryUsage() const {
+  // To avoid race condition in codemap,
+  // for now limit computation in kEagerLogging mode
+  if (!processor_) {
+    return sizeof(*this) + code_map_.GetEstimatedMemoryUsage() +
+           code_entries_.strings().GetStringSize();
+  }
+  return 0;
+}
+
 void ProfilerCodeObserver::CodeEventHandlerInternal(
     const CodeEventsContainer& evt_rec) {
   CodeEventsContainer record = evt_rec;
