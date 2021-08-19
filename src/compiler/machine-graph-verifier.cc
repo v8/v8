@@ -121,11 +121,6 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kWord32AtomicLoad:
           case IrOpcode::kWord64AtomicLoad:
-            representation_vector_[node->id()] =
-                PromoteRepresentation(AtomicLoadParametersOf(node->op())
-                                          .representation()
-                                          .representation());
-            break;
           case IrOpcode::kLoad:
           case IrOpcode::kLoadImmutable:
           case IrOpcode::kProtectedLoad:
@@ -158,8 +153,8 @@ class MachineRepresentationInferrer {
           }
           case IrOpcode::kWord32AtomicStore:
           case IrOpcode::kWord64AtomicStore:
-            representation_vector_[node->id()] = PromoteRepresentation(
-                AtomicStoreParametersOf(node->op()).representation());
+            representation_vector_[node->id()] =
+                PromoteRepresentation(AtomicStoreRepresentationOf(node->op()));
             break;
           case IrOpcode::kWord32AtomicPairLoad:
           case IrOpcode::kWord32AtomicPairStore:
@@ -590,12 +585,9 @@ class MachineRepresentationChecker {
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
                 if (COMPRESS_POINTERS_BOOL &&
-                    ((node->opcode() == IrOpcode::kStore &&
-                      IsAnyTagged(StoreRepresentationOf(node->op())
-                                      .representation())) ||
-                     (node->opcode() == IrOpcode::kWord32AtomicStore &&
-                      IsAnyTagged(AtomicStoreParametersOf(node->op())
-                                      .representation())))) {
+                    node->opcode() == IrOpcode::kStore &&
+                    IsAnyTagged(
+                        StoreRepresentationOf(node->op()).representation())) {
                   CheckValueInputIsCompressedOrTagged(node, 2);
                 } else {
                   CheckValueInputIsTagged(node, 2);

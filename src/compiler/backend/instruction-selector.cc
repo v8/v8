@@ -1869,14 +1869,12 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kMemoryBarrier:
       return VisitMemoryBarrier(node);
     case IrOpcode::kWord32AtomicLoad: {
-      AtomicLoadParameters params = AtomicLoadParametersOf(node->op());
-      LoadRepresentation type = params.representation();
+      LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
       return VisitWord32AtomicLoad(node);
     }
     case IrOpcode::kWord64AtomicLoad: {
-      AtomicLoadParameters params = AtomicLoadParametersOf(node->op());
-      LoadRepresentation type = params.representation();
+      LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
       return VisitWord64AtomicLoad(node);
     }
