@@ -391,7 +391,9 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   source = String::Flatten(isolate, source);
 
   RETURN_ON_EXCEPTION(
-      isolate, RegExp::Compile(isolate, regexp, source, flags, backtrack_limit),
+      isolate,
+      RegExp::Compile(isolate, regexp, source, JSRegExp::AsRegExpFlags(flags),
+                      backtrack_limit),
       JSRegExp);
 
   Handle<String> escaped_source;

@@ -37,7 +37,7 @@ class RegExpImpl final : public AllStatic {
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Isolate* isolate, Handle<JSRegExp> re,
-                                 Handle<String> pattern, JSRegExp::Flags flags,
+                                 Handle<String> pattern, RegExpFlags flags,
                                  int capture_count, uint32_t backtrack_limit);
 
   // Prepare a RegExp for being executed one or more times (using
@@ -51,7 +51,7 @@ class RegExpImpl final : public AllStatic {
                              Handle<String> subject);
 
   static void AtomCompile(Isolate* isolate, Handle<JSRegExp> re,
-                          Handle<String> pattern, JSRegExp::Flags flags,
+                          Handle<String> pattern, RegExpFlags flags,
                           Handle<String> match_pattern);
 
   static int AtomExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
@@ -90,7 +90,7 @@ class RegExpImpl final : public AllStatic {
 
   // Returns true on success, false on failure.
   static bool Compile(Isolate* isolate, Zone* zone, RegExpCompileData* input,
-                      JSRegExp::Flags flags, Handle<String> pattern,
+                      RegExpFlags flags, Handle<String> pattern,
                       Handle<String> sample_subject, bool is_one_byte,
                       uint32_t& backtrack_limit);
 
@@ -101,6 +101,11 @@ class RegExpImpl final : public AllStatic {
   static ByteArray IrregexpByteCode(FixedArray re, bool is_one_byte);
   static Code IrregexpNativeCode(FixedArray re, bool is_one_byte);
 };
+
+// static
+bool RegExp::CanGenerateBytecode() {
+  return FLAG_regexp_interpret_all || FLAG_regexp_tier_up;
+}
 
 MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
                                                  Handle<JSRegExp> re,
@@ -154,8 +159,7 @@ static bool HasFewDifferentCharacters(Handle<String> pattern) {
 
 // static
 MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
-                                    Handle<String> pattern,
-                                    JSRegExp::Flags flags,
+                                    Handle<String> pattern, RegExpFlags flags,
                                     uint32_t backtrack_limit) {
   DCHECK(pattern->IsFlat());
 
@@ -169,8 +173,8 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   CompilationCache* compilation_cache = nullptr;
   if (is_compilation_cache_enabled) {
     compilation_cache = isolate->compilation_cache();
-    MaybeHandle<FixedArray> maybe_cached =
-        compilation_cache->LookupRegExp(pattern, flags);
+    MaybeHandle<FixedArray> maybe_cached = compilation_cache->LookupRegExp(
+        pattern, JSRegExp::AsJSRegExpFlags(flags));
     Handle<FixedArray> cached;
     if (maybe_cached.ToHandle(&cached)) {
       re->set_data(*cached);
@@ -181,8 +185,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   DCHECK(!isolate->has_pending_exception());
-  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern,
-                                               JSRegExp::AsRegExpFlags(flags),
+  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
                                                &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     return RegExp::ThrowRegExpException(isolate, re, pattern,
@@ -239,7 +242,8 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   // and we can store it in the cache.
   Handle<FixedArray> data(FixedArray::cast(re->data()), isolate);
   if (is_compilation_cache_enabled) {
-    compilation_cache->PutRegExp(pattern, flags, data);
+    compilation_cache->PutRegExp(pattern, JSRegExp::AsJSRegExpFlags(flags),
+                                 data);
   }
 
   return re;
@@ -301,9 +305,10 @@ MaybeHandle<Object> RegExp::Exec(Isolate* isolate, Handle<JSRegExp> regexp,
 // RegExp Atom implementation: Simple string search using indexOf.
 
 void RegExpImpl::AtomCompile(Isolate* isolate, Handle<JSRegExp> re,
-                             Handle<String> pattern, JSRegExp::Flags flags,
+                             Handle<String> pattern, RegExpFlags flags,
                              Handle<String> match_pattern) {
-  isolate->factory()->SetRegExpAtomData(re, pattern, flags, match_pattern);
+  isolate->factory()->SetRegExpAtomData(
+      re, pattern, JSRegExp::AsJSRegExpFlags(flags), match_pattern);
 }
 
 static void SetAtomLastCapture(Isolate* isolate,
@@ -502,13 +507,12 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
 
   DCHECK(RegExpCodeIsValidForPreCompilation(re, is_one_byte));
 
-  JSRegExp::Flags flags = re->GetFlags();
+  RegExpFlags flags = JSRegExp::AsRegExpFlags(re->GetFlags());
 
   Handle<String> pattern(re->Pattern(), isolate);
   pattern = String::Flatten(isolate, pattern);
   RegExpCompileData compile_data;
-  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern,
-                                               JSRegExp::AsRegExpFlags(flags),
+  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
                                                &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
@@ -596,12 +600,13 @@ Code RegExpImpl::IrregexpNativeCode(FixedArray re, bool is_one_byte) {
 }
 
 void RegExpImpl::IrregexpInitialize(Isolate* isolate, Handle<JSRegExp> re,
-                                    Handle<String> pattern,
-                                    JSRegExp::Flags flags, int capture_count,
+                                    Handle<String> pattern, RegExpFlags flags,
+                                    int capture_count,
                                     uint32_t backtrack_limit) {
   // Initialize compiled code entries to null.
-  isolate->factory()->SetRegExpIrregexpData(re, pattern, flags, capture_count,
-                                            backtrack_limit);
+  isolate->factory()->SetRegExpIrregexpData(re, pattern,
+                                            JSRegExp::AsJSRegExpFlags(flags),
+                                            capture_count, backtrack_limit);
 }
 
 // static
@@ -826,7 +831,7 @@ bool TooMuchRegExpCode(Isolate* isolate, Handle<String> pattern) {
 
 // static
 bool RegExp::CompileForTesting(Isolate* isolate, Zone* zone,
-                               RegExpCompileData* data, JSRegExp::Flags flags,
+                               RegExpCompileData* data, RegExpFlags flags,
                                Handle<String> pattern,
                                Handle<String> sample_subject,
                                bool is_one_byte) {
@@ -836,7 +841,7 @@ bool RegExp::CompileForTesting(Isolate* isolate, Zone* zone,
 }
 
 bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
-                         JSRegExp::Flags flags, Handle<String> pattern,
+                         RegExpFlags flags, Handle<String> pattern,
                          Handle<String> sample_subject, bool is_one_byte,
                          uint32_t& backtrack_limit) {
   if (JSRegExp::RegistersForCaptureCount(data->capture_count) >
@@ -1016,7 +1021,7 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
       regexp_(regexp),
       subject_(subject),
       isolate_(isolate) {
-  DCHECK(IsGlobal(regexp->GetFlags()));
+  DCHECK(IsGlobal(JSRegExp::AsRegExpFlags(regexp->GetFlags())));
 
   switch (regexp_->TypeTag()) {
     case JSRegExp::NOT_COMPILED:
@@ -1091,7 +1096,8 @@ RegExpGlobalCache::~RegExpGlobalCache() {
 }
 
 int RegExpGlobalCache::AdvanceZeroLength(int last_index) {
-  if (IsUnicode(regexp_->GetFlags()) && last_index + 1 < subject_->length() &&
+  if (IsUnicode(JSRegExp::AsRegExpFlags(regexp_->GetFlags())) &&
+      last_index + 1 < subject_->length() &&
       unibrow::Utf16::IsLeadSurrogate(subject_->Get(last_index)) &&
       unibrow::Utf16::IsTrailSurrogate(subject_->Get(last_index + 1))) {
     // Advance over the surrogate pair.

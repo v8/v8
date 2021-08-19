@@ -6,15 +6,13 @@
 
 #include "src/base/safe_conversions.h"
 #include "src/execution/isolate.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/regexp/special-case.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/strings/unicode-inl.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
+#include "src/regexp/special-case.h"
 #include "unicode/locid.h"
 #include "unicode/uniset.h"
 #include "unicode/utypes.h"
@@ -240,7 +238,7 @@ class RecursionCheck {
 // Attempts to compile the regexp using an Irregexp code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
 RegExpCompiler::RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
-                               JSRegExp::Flags flags, bool one_byte)
+                               RegExpFlags flags, bool one_byte)
     : next_register_(JSRegExp::RegistersForCaptureCount(capture_count)),
       unicode_lookaround_stack_register_(kNoRegister),
       unicode_lookaround_position_register_(kNoRegister),
@@ -1819,7 +1817,7 @@ class IterationDecrementer {
   LoopChoiceNode* node_;
 };
 
-RegExpNode* SeqRegExpNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
+RegExpNode* SeqRegExpNode::FilterOneByte(int depth, RegExpFlags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   DCHECK(!info()->visited);
@@ -1827,7 +1825,7 @@ RegExpNode* SeqRegExpNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
   return FilterSuccessor(depth - 1, flags);
 }
 
-RegExpNode* SeqRegExpNode::FilterSuccessor(int depth, JSRegExp::Flags flags) {
+RegExpNode* SeqRegExpNode::FilterSuccessor(int depth, RegExpFlags flags) {
   RegExpNode* next = on_success_->FilterOneByte(depth - 1, flags);
   if (next == nullptr) return set_replacement(nullptr);
   on_success_ = next;
@@ -1849,7 +1847,7 @@ static bool RangesContainLatin1Equivalents(ZoneList<CharacterRange>* ranges) {
   return false;
 }
 
-RegExpNode* TextNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
+RegExpNode* TextNode::FilterOneByte(int depth, RegExpFlags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   DCHECK(!info()->visited);
@@ -1900,7 +1898,7 @@ RegExpNode* TextNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
   return FilterSuccessor(depth - 1, flags);
 }
 
-RegExpNode* LoopChoiceNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
+RegExpNode* LoopChoiceNode::FilterOneByte(int depth, RegExpFlags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   if (info()->visited) return this;
@@ -1917,7 +1915,7 @@ RegExpNode* LoopChoiceNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
   return ChoiceNode::FilterOneByte(depth - 1, flags);
 }
 
-RegExpNode* ChoiceNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
+RegExpNode* ChoiceNode::FilterOneByte(int depth, RegExpFlags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   if (info()->visited) return this;
@@ -1969,7 +1967,7 @@ RegExpNode* ChoiceNode::FilterOneByte(int depth, JSRegExp::Flags flags) {
 }
 
 RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(int depth,
-                                                        JSRegExp::Flags flags) {
+                                                        RegExpFlags flags) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   if (info()->visited) return this;
@@ -2491,7 +2489,7 @@ void Trace::AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler) {
 }
 
 void TextNode::MakeCaseIndependent(Isolate* isolate, bool is_one_byte,
-                                   JSRegExp::Flags flags) {
+                                   RegExpFlags flags) {
   if (!IsIgnoreCase(flags)) return;
 #ifdef V8_INTL_SUPPORT
   if (NeedsUnicodeCaseEquivalents(flags)) return;
@@ -3634,7 +3632,7 @@ class EatsAtLeastPropagator : public AllStatic {
 template <typename... Propagators>
 class Analysis : public NodeVisitor {
  public:
-  Analysis(Isolate* isolate, bool is_one_byte, JSRegExp::Flags flags)
+  Analysis(Isolate* isolate, bool is_one_byte, RegExpFlags flags)
       : isolate_(isolate),
         is_one_byte_(is_one_byte),
         flags_(flags),
@@ -3746,14 +3744,14 @@ class Analysis : public NodeVisitor {
  private:
   Isolate* isolate_;
   const bool is_one_byte_;
-  const JSRegExp::Flags flags_;
+  const RegExpFlags flags_;
   RegExpError error_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
 };
 
-RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte,
-                          JSRegExp::Flags flags, RegExpNode* node) {
+RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte, RegExpFlags flags,
+                          RegExpNode* node) {
   Analysis<AssertionPropagator, EatsAtLeastPropagator> analysis(
       isolate, is_one_byte, flags);
   DCHECK_EQ(node->info()->been_analyzed, false);
@@ -3874,7 +3872,7 @@ RegExpNode* RegExpCompiler::OptionallyStepBackToLeadSurrogate(
 }
 
 RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
-                                             JSRegExp::Flags flags,
+                                             RegExpFlags flags,
                                              bool is_one_byte) {
   // Wrap the body of the regexp in capture #0.
   RegExpNode* captured_body =

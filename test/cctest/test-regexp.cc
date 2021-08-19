@@ -546,8 +546,7 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
   Handle<String> sample_subject = isolate->factory()
                                       ->NewStringFromUtf8(base::CStrVector(""))
                                       .ToHandleChecked();
-  RegExp::CompileForTesting(isolate, zone, &compile_data,
-                            JSRegExp::AsJSRegExpFlags(flags), pattern,
+  RegExp::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
                             sample_subject, is_one_byte);
   return compile_data.node;
 }

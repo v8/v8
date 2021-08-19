@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags,
+bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree, RegExpFlags flags,
                                       int capture_count) {
   DCHECK(FLAG_enable_experimental_regexp_engine ||
          FLAG_enable_experimental_regexp_engine_on_excessive_backtracks);
@@ -22,16 +22,16 @@ bool ExperimentalRegExp::CanBeHandled(RegExpTree* tree, JSRegExp::Flags flags,
 }
 
 void ExperimentalRegExp::Initialize(Isolate* isolate, Handle<JSRegExp> re,
-                                    Handle<String> source,
-                                    JSRegExp::Flags flags, int capture_count) {
+                                    Handle<String> source, RegExpFlags flags,
+                                    int capture_count) {
   DCHECK(FLAG_enable_experimental_regexp_engine);
   if (FLAG_trace_experimental_regexp_engine) {
     StdoutStream{} << "Initializing experimental regexp " << *source
                    << std::endl;
   }
 
-  isolate->factory()->SetRegExpExperimentalData(re, source, flags,
-                                                capture_count);
+  isolate->factory()->SetRegExpExperimentalData(
+      re, source, JSRegExp::AsJSRegExpFlags(flags), capture_count);
 }
 
 bool ExperimentalRegExp::IsCompiled(Handle<JSRegExp> re, Isolate* isolate) {
@@ -87,7 +87,7 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
   }
 
   ZoneList<RegExpInstruction> bytecode = ExperimentalRegExpCompiler::Compile(
-      parse_result.tree, regexp->GetFlags(), &zone);
+      parse_result.tree, JSRegExp::AsRegExpFlags(regexp->GetFlags()), &zone);
 
   CompilationResult result;
   result.bytecode = VectorToByteArray(isolate, bytecode.ToVector());
