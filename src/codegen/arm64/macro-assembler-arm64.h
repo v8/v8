@@ -1371,6 +1371,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreTaggedField(const Register& value,
                         const MemOperand& dst_field_operand);
 
+  void AtomicStoreTaggedField(const Register& value, const Register& dst_base,
+                              const Register& dst_index, const Register& temp);
+
   void DecompressTaggedSigned(const Register& destination,
                               const MemOperand& field_operand);
   void DecompressTaggedPointer(const Register& destination,
@@ -1379,6 +1382,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                const Register& source);
   void DecompressAnyTagged(const Register& destination,
                            const MemOperand& field_operand);
+
+  void AtomicDecompressTaggedSigned(const Register& destination,
+                                    const Register& base, const Register& index,
+                                    const Register& temp);
+  void AtomicDecompressTaggedPointer(const Register& destination,
+                                     const Register& base,
+                                     const Register& index,
+                                     const Register& temp);
+  void AtomicDecompressAnyTagged(const Register& destination,
+                                 const Register& base, const Register& index,
+                                 const Register& temp);
 
   // Restore FP and LR from the values stored in the current frame. This will
   // authenticate the LR when pointer authentication is enabled.

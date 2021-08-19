@@ -239,20 +239,20 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Atomic memory operations.
-  Node* AtomicLoad(MachineType type, Node* base, Node* index) {
-    DCHECK_NE(type.representation(), MachineRepresentation::kWord64);
-    return AddNode(machine()->Word32AtomicLoad(type), base, index);
+  Node* AtomicLoad(AtomicLoadParameters rep, Node* base, Node* index) {
+    DCHECK_NE(rep.representation().representation(),
+              MachineRepresentation::kWord64);
+    return AddNode(machine()->Word32AtomicLoad(rep), base, index);
   }
 
-  Node* AtomicLoad64(Node* base, Node* index) {
+  Node* AtomicLoad64(AtomicLoadParameters rep, Node* base, Node* index) {
     if (machine()->Is64()) {
       // This uses Uint64() intentionally: AtomicLoad is not implemented for
       // Int64(), which is fine because the machine instruction only cares
       // about words.
-      return AddNode(machine()->Word64AtomicLoad(MachineType::Uint64()), base,
-                     index);
+      return AddNode(machine()->Word64AtomicLoad(rep), base, index);
     } else {
-      return AddNode(machine()->Word32AtomicPairLoad(), base, index);
+      return AddNode(machine()->Word32AtomicPairLoad(rep.order()), base, index);
     }
   }
 
@@ -262,22 +262,24 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 #define VALUE_HALVES value, value_high
 #endif
 
-  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
+  Node* AtomicStore(AtomicStoreParameters params, Node* base, Node* index,
                     Node* value) {
     DCHECK(!IsMapOffsetConstantMinusTag(index));
-    DCHECK_NE(rep, MachineRepresentation::kWord64);
-    return AddNode(machine()->Word32AtomicStore(rep), base, index, value);
+    DCHECK_NE(params.representation(), MachineRepresentation::kWord64);
+    return AddNode(machine()->Word32AtomicStore(params), base, index, value);
   }
 
-  Node* AtomicStore64(Node* base, Node* index, Node* value, Node* value_high) {
+  Node* AtomicStore64(AtomicStoreParameters params, Node* base, Node* index,
+                      Node* value, Node* value_high) {
     if (machine()->Is64()) {
       DCHECK_NULL(value_high);
-      return AddNode(
-          machine()->Word64AtomicStore(MachineRepresentation::kWord64), base,
-          index, value);
+      return AddNode(machine()->Word64AtomicStore(params), base, index, value);
     } else {
-      return AddNode(machine()->Word32AtomicPairStore(), base, index,
-                     VALUE_HALVES);
+      DCHECK(params.representation() != MachineRepresentation::kTaggedPointer &&
+             params.representation() != MachineRepresentation::kTaggedSigned &&
+             params.representation() != MachineRepresentation::kTagged);
+      return AddNode(machine()->Word32AtomicPairStore(params.order()), base,
+                     index, VALUE_HALVES);
     }
   }
 

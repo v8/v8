@@ -32,6 +32,7 @@
 #define TARGET_ADDRESSING_MODE_LIST(V)
 #endif
 #include "src/base/bit-field.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/compiler/write-barrier-kind.h"
 
 namespace v8 {
@@ -101,6 +102,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchParentFramePointer)                                                \
   V(ArchTruncateDoubleToI)                                                 \
   V(ArchStoreWithWriteBarrier)                                             \
+  V(ArchAtomicStoreWithWriteBarrier)                                       \
   V(ArchStackSlot)                                                         \
   V(ArchStackPointerGreaterThan)                                           \
   V(ArchStackCheckOffset)                                                  \
@@ -265,6 +267,16 @@ enum MemoryAccessMode {
 
 enum class AtomicWidth { kWord32, kWord64 };
 
+inline size_t AtomicWidthSize(AtomicWidth width) {
+  switch (width) {
+    case AtomicWidth::kWord32:
+      return 4;
+    case AtomicWidth::kWord64:
+      return 8;
+  }
+  UNREACHABLE();
+}
+
 // The InstructionCode is an opaque, target-specific integer that encodes
 // what code to emit for an instruction in the code generator. It is not
 // interesting to the register allocator, as the inputs and flags on the
@@ -290,10 +302,16 @@ using DeoptFrameStateOffsetField = base::BitField<int, 24, 8>;
 // size, an access mode, or both inside the overlapping MiscField.
 using LaneSizeField = base::BitField<int, 22, 8>;
 using AccessModeField = base::BitField<MemoryAccessMode, 30, 2>;
-// AtomicOperandWidth overlaps with MiscField and is used for the various Atomic
+// AtomicWidthField overlaps with MiscField and is used for the various Atomic
 // opcodes. Only used on 64bit architectures. All atomic instructions on 32bit
 // architectures are assumed to be 32bit wide.
 using AtomicWidthField = base::BitField<AtomicWidth, 22, 2>;
+// AtomicMemoryOrderField overlaps with MiscField and is used for the various
+// Atomic opcodes. This field is not used on all architectures. It is used on
+// architectures where the codegen for kSeqCst and kAcqRel differ only by
+// emitting fences.
+using AtomicMemoryOrderField = base::BitField<AtomicMemoryOrder, 24, 2>;
+using AtomicStoreRecordWriteModeField = base::BitField<RecordWriteMode, 26, 4>;
 using MiscField = base::BitField<int, 22, 10>;
 
 // This static assertion serves as an early warning if we are about to exhaust

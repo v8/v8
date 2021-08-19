@@ -144,21 +144,6 @@ class Arm64OperandGenerator final : public OperandGenerator {
 
 namespace {
 
-ArchOpcode GetAtomicStoreOpcode(MachineRepresentation rep) {
-  switch (rep) {
-    case MachineRepresentation::kWord8:
-      return kAtomicStoreWord8;
-    case MachineRepresentation::kWord16:
-      return kAtomicStoreWord16;
-    case MachineRepresentation::kWord32:
-      return kAtomicStoreWord32;
-    case MachineRepresentation::kWord64:
-      return kArm64Word64AtomicStoreWord64;
-    default:
-      UNREACHABLE();
-  }
-}
-
 void VisitRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   Arm64OperandGenerator g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
@@ -2618,30 +2603,135 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, Node* node,
 }
 
 void VisitAtomicLoad(InstructionSelector* selector, Node* node,
-                     ArchOpcode opcode, AtomicWidth width) {
+                     AtomicWidth width) {
   Arm64OperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index)};
   InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand temps[] = {g.TempRegister()};
-  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
-                         AtomicWidthField::encode(width);
+
+  // The memory order is ignored as both acquire and sequentially consistent
+  // loads can emit LDAR.
+  // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
+  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
+  LoadRepresentation load_rep = atomic_load_params.representation();
+  InstructionCode code;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kWord8:
+      DCHECK_IMPLIES(load_rep.IsSigned(), width == AtomicWidth::kWord32);
+      code = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
+      break;
+    case MachineRepresentation::kWord16:
+      DCHECK_IMPLIES(load_rep.IsSigned(), width == AtomicWidth::kWord32);
+      code = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
+      break;
+    case MachineRepresentation::kWord32:
+      code = kAtomicLoadWord32;
+      break;
+    case MachineRepresentation::kWord64:
+      code = kArm64Word64AtomicLoadUint64;
+      break;
+#ifdef V8_COMPRESS_POINTERS
+    case MachineRepresentation::kTaggedSigned:
+      code = kArm64LdarDecompressTaggedSigned;
+      break;
+    case MachineRepresentation::kTaggedPointer:
+      code = kArm64LdarDecompressTaggedPointer;
+      break;
+    case MachineRepresentation::kTagged:
+      code = kArm64LdarDecompressAnyTagged;
+      break;
+#else
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:
+      if (kTaggedSize == 8) {
+        code = kArm64Word64AtomicLoadUint64;
+      } else {
+        code = kAtomicLoadWord32;
+      }
+      break;
+#endif
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+      DCHECK(COMPRESS_POINTERS_BOOL);
+      code = kAtomicLoadWord32;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  code |=
+      AddressingModeField::encode(kMode_MRR) | AtomicWidthField::encode(width);
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
                  arraysize(temps), temps);
 }
 
 void VisitAtomicStore(InstructionSelector* selector, Node* node,
-                      ArchOpcode opcode, AtomicWidth width) {
+                      AtomicWidth width) {
   Arm64OperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
+
+  // The memory order is ignored as both release and sequentially consistent
+  // stores can emit STLR.
+  // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
+  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+  WriteBarrierKind write_barrier_kind = store_params.write_barrier_kind();
+  MachineRepresentation rep = store_params.representation();
+
+  if (FLAG_enable_unconditional_write_barriers &&
+      CanBeTaggedOrCompressedPointer(rep)) {
+    write_barrier_kind = kFullWriteBarrier;
+  }
+
   InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
                                  g.UseUniqueRegister(value)};
   InstructionOperand temps[] = {g.TempRegister()};
-  InstructionCode code = opcode | AddressingModeField::encode(kMode_MRR) |
-                         AtomicWidthField::encode(width);
+  InstructionCode code;
+
+  if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
+    DCHECK(CanBeTaggedOrCompressedPointer(rep));
+    DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
+
+    RecordWriteMode record_write_mode =
+        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
+    code = kArchAtomicStoreWithWriteBarrier;
+    code |= MiscField::encode(static_cast<int>(record_write_mode));
+  } else {
+    switch (rep) {
+      case MachineRepresentation::kWord8:
+        code = kAtomicStoreWord8;
+        break;
+      case MachineRepresentation::kWord16:
+        code = kAtomicStoreWord16;
+        break;
+      case MachineRepresentation::kWord32:
+        code = kAtomicStoreWord32;
+        break;
+      case MachineRepresentation::kWord64:
+        DCHECK_EQ(width, AtomicWidth::kWord64);
+        code = kArm64Word64AtomicStoreWord64;
+        break;
+      case MachineRepresentation::kTaggedSigned:   // Fall through.
+      case MachineRepresentation::kTaggedPointer:  // Fall through.
+      case MachineRepresentation::kTagged:
+        DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
+        V8_FALLTHROUGH;
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:
+        CHECK(COMPRESS_POINTERS_BOOL);
+        DCHECK_EQ(width, AtomicWidth::kWord32);
+        code = kArm64StlrCompressTagged;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    code |= AtomicWidthField::encode(width);
+  }
+
+  code |= AddressingModeField::encode(kMode_MRR);
   selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps),
                  temps);
 }
@@ -3202,55 +3292,19 @@ void InstructionSelector::VisitMemoryBarrier(Node* node) {
 }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  ArchOpcode opcode;
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kWord8:
-      opcode = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kAtomicLoadWord32;
-      break;
-    default:
-      UNREACHABLE();
-  }
-  VisitAtomicLoad(this, node, opcode, AtomicWidth::kWord32);
+  VisitAtomicLoad(this, node, AtomicWidth::kWord32);
 }
 
 void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  ArchOpcode opcode;
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kWord8:
-      opcode = kAtomicLoadUint8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = kAtomicLoadUint16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kAtomicLoadWord32;
-      break;
-    case MachineRepresentation::kWord64:
-      opcode = kArm64Word64AtomicLoadUint64;
-      break;
-    default:
-      UNREACHABLE();
-  }
-  VisitAtomicLoad(this, node, opcode, AtomicWidth::kWord64);
+  VisitAtomicLoad(this, node, AtomicWidth::kWord64);
 }
 
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
-  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
-  DCHECK_NE(rep, MachineRepresentation::kWord64);
-  VisitAtomicStore(this, node, GetAtomicStoreOpcode(rep), AtomicWidth::kWord32);
+  VisitAtomicStore(this, node, AtomicWidth::kWord32);
 }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
-  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
-  VisitAtomicStore(this, node, GetAtomicStoreOpcode(rep), AtomicWidth::kWord64);
+  VisitAtomicStore(this, node, AtomicWidth::kWord64);
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
