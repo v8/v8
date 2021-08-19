@@ -6050,7 +6050,7 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE
-PageAllocator* GetVirtualMemoryCageDataPageAllocator() {
+PageAllocator* v8::V8::GetVirtualMemoryCageDataPageAllocator() {
   CHECK(i::GetProcessWideVirtualMemoryCage()->is_initialized());
   return i::GetProcessWideVirtualMemoryCage()->GetDataCagePageAllocator();
 }
