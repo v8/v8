@@ -4,6 +4,7 @@
 
 #include "src/diagnostics/gdb-jit.h"
 
+#include <iterator>
 #include <map>
 #include <memory>
 #include <vector>
@@ -1914,13 +1915,11 @@ static void AddUnwindInfo(CodeDescription* desc) {
 
 static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
 
-// Remove entries from the map that intersect the given address region,
-// and deregister them from GDB.
-static void RemoveJITCodeEntries(CodeMap* map,
-                                 const base::AddressRegion region) {
+static base::Optional<std::pair<CodeMap::iterator, CodeMap::iterator>>
+GetOverlappingRegions(CodeMap* map, const base::AddressRegion region) {
   DCHECK_LT(region.begin(), region.end());
 
-  if (map->empty()) return;
+  if (map->empty()) return {};
 
   // Find the first overlapping entry.
 
@@ -1931,30 +1930,53 @@ static void RemoveJITCodeEntries(CodeMap* map,
 
   if (it == map->end()) {
     start_it = map->begin();
+    // Find the first overlapping entry.
+    for (; start_it != map->end(); ++start_it) {
+      if (start_it->first.end() > region.begin()) {
+        break;
+      }
+    }
   } else if (it != map->begin()) {
     for (--it; it != map->begin(); --it) {
       if ((*it).first.end() <= region.begin()) break;
       start_it = it;
     }
+    if (it == map->begin() && it->first.end() > region.begin()) {
+      start_it = it;
+    }
   }
 
-  DCHECK_NE(start_it, map->end());
+  if (start_it == map->end()) {
+    return {};
+  }
 
   // Find the first non-overlapping entry after `region`.
 
   const auto end_it = map->lower_bound({region.end(), 0});
 
-  // Evict intersecting regions.
+  // Return a range containing intersecting regions.
 
-  if (std::distance(start_it, end_it) < 1) return;  // No overlapping entries.
+  if (std::distance(start_it, end_it) < 1)
+    return {};  // No overlapping entries.
 
-  for (auto it = start_it; it != end_it; it++) {
-    JITCodeEntry* old_entry = (*it).second;
-    UnregisterCodeEntry(old_entry);
-    DestroyCodeEntry(old_entry);
+  return {{start_it, end_it}};
+}
+
+// Remove entries from the map that intersect the given address region,
+// and deregister them from GDB.
+static void RemoveJITCodeEntries(CodeMap* map,
+                                 const base::AddressRegion region) {
+  if (auto overlap = GetOverlappingRegions(map, region)) {
+    auto start_it = overlap->first;
+    auto end_it = overlap->second;
+    for (auto it = start_it; it != end_it; it++) {
+      JITCodeEntry* old_entry = (*it).second;
+      UnregisterCodeEntry(old_entry);
+      DestroyCodeEntry(old_entry);
+    }
+
+    map->erase(start_it, end_it);
   }
-
-  map->erase(start_it, end_it);
 }
 
 // Insert the entry into the map and register it with GDB.
@@ -2075,6 +2097,23 @@ void EventHandler(const v8::JitCodeEvent* event) {
     }
   }
 }
+
+void AddRegionForTesting(const base::AddressRegion region) {
+  // For testing purposes we don't care about JITCodeEntry, pass nullptr.
+  auto result = GetCodeMap()->emplace(region, nullptr);
+  DCHECK(result.second);  // Insertion happened.
+  USE(result);
+}
+
+void ClearCodeMapForTesting() { GetCodeMap()->clear(); }
+
+size_t NumOverlapEntriesForTesting(const base::AddressRegion region) {
+  if (auto overlaps = GetOverlappingRegions(GetCodeMap(), region)) {
+    return std::distance(overlaps->first, overlaps->second);
+  }
+  return 0;
+}
+
 #endif
 }  // namespace GDBJITInterface
 }  // namespace internal

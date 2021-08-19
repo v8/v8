@@ -305,6 +305,7 @@ v8_source_set("unittests_sources") {
     "debug/debug-property-iterator-unittest.cc",
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
+    "diagnostics/gdb-jit-unittest.cc",
     "execution/microtask-queue-unittest.cc",
     "heap/allocation-observer-unittest.cc",
     "heap/barrier-unittest.cc",
