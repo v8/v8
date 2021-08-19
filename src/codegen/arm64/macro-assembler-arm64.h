@@ -1192,6 +1192,29 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   LSPAIR_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
 
+  void St1(const VRegister& vt, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions());
+    st1(vt, dst);
+  }
+  void St1(const VRegister& vt, const VRegister& vt2, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions());
+    st1(vt, vt2, dst);
+  }
+  void St1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const MemOperand& dst) {
+    DCHECK(allow_macro_instructions());
+    st1(vt, vt2, vt3, dst);
+  }
+  void St1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions());
+    st1(vt, vt2, vt3, vt4, dst);
+  }
+  void St1(const VRegister& vt, int lane, const MemOperand& dst) {
+    DCHECK(allow_macro_instructions());
+    st1(vt, lane, dst);
+  }
+
 #define NEON_2VREG_SHIFT_MACRO_LIST(V) \
   V(rshrn, Rshrn)                      \
   V(rshrn2, Rshrn2)                    \
@@ -1657,28 +1680,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
             const VRegister& vt4, const MemOperand& src) {
     DCHECK(allow_macro_instructions());
     ld4r(vt, vt2, vt3, vt4, src);
-  }
-  void St1(const VRegister& vt, const MemOperand& dst) {
-    DCHECK(allow_macro_instructions());
-    st1(vt, dst);
-  }
-  void St1(const VRegister& vt, const VRegister& vt2, const MemOperand& dst) {
-    DCHECK(allow_macro_instructions());
-    st1(vt, vt2, dst);
-  }
-  void St1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
-           const MemOperand& dst) {
-    DCHECK(allow_macro_instructions());
-    st1(vt, vt2, vt3, dst);
-  }
-  void St1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
-           const VRegister& vt4, const MemOperand& dst) {
-    DCHECK(allow_macro_instructions());
-    st1(vt, vt2, vt3, vt4, dst);
-  }
-  void St1(const VRegister& vt, int lane, const MemOperand& dst) {
-    DCHECK(allow_macro_instructions());
-    st1(vt, lane, dst);
   }
   void St2(const VRegister& vt, const VRegister& vt2, const MemOperand& dst) {
     DCHECK(allow_macro_instructions());
