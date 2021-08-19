@@ -513,8 +513,7 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(
   if (!allocation.To(&result)) return MaybeHandle<FixedArray>();
   if ((size > heap->MaxRegularHeapObjectSize(allocation_type)) &&
       FLAG_use_marking_progress_bar) {
-    BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(result);
-    chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
+    LargePage::FromHeapObject(result)->ProgressBar().Enable();
   }
   DisallowGarbageCollection no_gc;
   result.set_map_after_allocation(*fixed_array_map(), SKIP_WRITE_BARRIER);

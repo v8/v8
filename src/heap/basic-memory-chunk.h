@@ -44,12 +44,6 @@ class BasicMemoryChunk {
     EVACUATION_CANDIDATE = 1u << 6,
     NEVER_EVACUATE = 1u << 7,
 
-    // Large objects can have a progress bar in their page header. These object
-    // are scanned in increments and will be kept black while being scanned.
-    // Even if the mutator writes to them they will be kept black and a white
-    // to grey transition is performed in the value.
-    HAS_PROGRESS_BAR = 1u << 8,
-
     // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
     // from new to old space during evacuation.
     PAGE_NEW_OLD_PROMOTION = 1u << 9,

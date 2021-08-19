@@ -1707,9 +1707,8 @@ void MarkCompactCollector::VisitObject(HeapObject obj) {
 
 void MarkCompactCollector::RevisitObject(HeapObject obj) {
   DCHECK(marking_state()->IsBlack(obj));
-  DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->IsFlagSet(
-                     MemoryChunk::HAS_PROGRESS_BAR),
-                 0u == MemoryChunk::FromHeapObject(obj)->ProgressBar());
+  DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->ProgressBar().IsEnabled(),
+                 0u == MemoryChunk::FromHeapObject(obj)->ProgressBar().Value());
   MarkingVisitor::RevisitScope revisit(marking_visitor_.get());
   marking_visitor_->Visit(obj.map(), obj);
 }
