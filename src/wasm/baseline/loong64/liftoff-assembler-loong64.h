@@ -388,9 +388,22 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned,
                                           SkipWriteBarrier skip_write_barrier) {
-  STATIC_ASSERT(kTaggedSize == kInt64Size);
-  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
-  St_d(src.gp(), dst_op);
+  UseScratchRegisterScope temps(this);
+  Operand offset_op =
+      offset_reg.is_valid() ? Operand(offset_reg) : Operand(offset_imm);
+  // For the write barrier (below), we cannot have both an offset register and
+  // an immediate offset. Add them to a 32-bit offset initially, but in a 64-bit
+  // register, because that's needed in the MemOperand below.
+  if (offset_reg.is_valid() && offset_imm) {
+    Register effective_offset = temps.Acquire();
+    Add_d(effective_offset, offset_reg, Operand(offset_imm));
+    offset_op = Operand(effective_offset);
+  }
+  if (offset_op.is_reg()) {
+    St_d(src.gp(), MemOperand(dst_addr, offset_op.rm()));
+  } else {
+    St_d(src.gp(), MemOperand(dst_addr, offset_imm));
+  }
 
   if (skip_write_barrier || FLAG_disable_write_barriers) return;
 
@@ -404,9 +417,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   CheckPageFlag(src.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
                 &exit);
   CallRecordWriteStubSaveRegisters(
-      dst_addr,
-      dst_op.hasIndexReg() ? Operand(dst_op.index()) : Operand(dst_op.offset()),
-      RememberedSetAction::kEmit, SaveFPRegsMode::kSave,
+      dst_addr, offset_op, RememberedSetAction::kEmit, SaveFPRegsMode::kSave,
       StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
