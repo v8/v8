@@ -119,9 +119,6 @@
     'devtools': [
       'devtools-reviews+v8@chromium.org',
     ],
-    'interpreter': [
-      'rmcilroy@chromium.org',
-    ],
     'baseline': [
       'leszeks+watch@chromium.org',
       'verwaest+watch@chromium.org',
