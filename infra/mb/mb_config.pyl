@@ -194,7 +194,7 @@
       'V8 Linux - s390x - sim': 'release_simulate_s390x',
       # RISC-V
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
-      # LOONG-V
+      # Loongson
       'V8 Linux - loong64 - sim - builder': 'release_simulate_loong64',
     },
     'tryserver.v8': {

@@ -613,7 +613,7 @@
     ],
   },
   ##############################################################################
-  # Linux64 with LOONG-V simulators
+  # Linux64 with Loongson simulators
   'v8_linux64_loong64_rel_ng_triggered': {
     'swarming_dimensions': {
       'os': 'Ubuntu-18.04',
