@@ -973,6 +973,16 @@ void SharedTurboAssembler::S128Load32Splat(XMMRegister dst, Operand src) {
   }
 }
 
+void SharedTurboAssembler::S128Store64Lane(Operand dst, XMMRegister src,
+                                           uint8_t laneidx) {
+  if (laneidx == 0) {
+    Movlps(dst, src);
+  } else {
+    DCHECK_EQ(1, laneidx);
+    Movhps(dst, src);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

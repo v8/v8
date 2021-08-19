@@ -2837,12 +2837,7 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
     S128Store32Lane(dst_op, src.fp(), lane);
   } else {
     DCHECK_EQ(MachineRepresentation::kWord64, rep);
-    if (lane == 0) {
-      Movlps(dst_op, src.fp());
-    } else {
-      DCHECK_EQ(1, lane);
-      Movhps(dst_op, src.fp());
-    }
+    S128Store64Lane(dst_op, src.fp(), lane);
   }
 }
 

@@ -360,6 +360,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void S128Load8Splat(XMMRegister dst, Operand src, XMMRegister scratch);
   void S128Load16Splat(XMMRegister dst, Operand src, XMMRegister scratch);
   void S128Load32Splat(XMMRegister dst, Operand src);
+  void S128Store64Lane(Operand dst, XMMRegister src, uint8_t laneidx);
 
  private:
   template <typename Op>
