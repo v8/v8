@@ -763,7 +763,12 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VisitHeapObjectImpl(rinfo->target_object(), -1);
+    HeapObject object = rinfo->target_object();
+    if (host.IsWeakObject(object)) {
+      generator_->SetWeakReference(parent_, next_index_++, object, {});
+    } else {
+      VisitHeapObjectImpl(rinfo->target_object(), -1);
+    }
   }
 
  private:
@@ -778,9 +783,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
       if (loaded_value.GetHeapObjectIfStrong(&heap_object)) {
         VisitHeapObjectImpl(heap_object, field_index);
       } else if (loaded_value.GetHeapObjectIfWeak(&heap_object)) {
-        generator_->SetWeakReference(parent_, next_index_++, heap_object,
-                                     field_index * kTaggedSize);
-        generator_->visited_fields_[field_index] = false;
+        generator_->SetWeakReference(parent_, next_index_++, heap_object, {});
       }
     }
   }
@@ -1786,7 +1789,8 @@ void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry,
 }
 
 void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
-                                      Object child_obj, int field_offset) {
+                                      Object child_obj,
+                                      base::Optional<int> field_offset) {
   if (!IsEssentialObject(child_obj)) {
     return;
   }
@@ -1794,7 +1798,9 @@ void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
   DCHECK_NOT_NULL(child_entry);
   parent_entry->SetNamedReference(
       HeapGraphEdge::kWeak, names_->GetFormatted("%d", index), child_entry);
-  MarkVisitedField(field_offset);
+  if (field_offset.has_value()) {
+    MarkVisitedField(*field_offset);
+  }
 }
 
 void V8HeapExplorer::SetDataOrAccessorPropertyReference(
