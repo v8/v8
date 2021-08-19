@@ -2156,8 +2156,8 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
 }
 
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
-  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
-  VisitGeneralStore(this, node, rep);
+  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+  VisitGeneralStore(this, node, store_params.representation());
 }
 
 void VisitAtomicExchange(InstructionSelector* selector, Node* node,
@@ -2395,8 +2395,8 @@ void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
 }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
-  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
-  VisitGeneralStore(this, node, rep);
+  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+  VisitGeneralStore(this, node, store_params.representation());
 }
 
 #define SIMD_TYPES(V) \
