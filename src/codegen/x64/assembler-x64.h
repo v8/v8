@@ -1256,14 +1256,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void pmovmskb(Register dst, XMMRegister src);
 
+  void pinsrw(XMMRegister dst, Register src, uint8_t imm8);
+  void pinsrw(XMMRegister dst, Operand src, uint8_t imm8);
+
   // SSE 4.1 instruction
   void insertps(XMMRegister dst, XMMRegister src, byte imm8);
   void insertps(XMMRegister dst, Operand src, byte imm8);
   void pextrq(Register dst, XMMRegister src, int8_t imm8);
   void pinsrb(XMMRegister dst, Register src, uint8_t imm8);
   void pinsrb(XMMRegister dst, Operand src, uint8_t imm8);
-  void pinsrw(XMMRegister dst, Register src, uint8_t imm8);
-  void pinsrw(XMMRegister dst, Operand src, uint8_t imm8);
   void pinsrd(XMMRegister dst, Register src, uint8_t imm8);
   void pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
   void pinsrq(XMMRegister dst, Register src, uint8_t imm8);

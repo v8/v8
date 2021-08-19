@@ -2391,21 +2391,11 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
   } else {
     DCHECK_EQ(LoadTransformationKind::kSplat, transform);
     if (memtype == MachineType::Int8()) {
-      Pinsrb(dst.fp(), dst.fp(), src_op, 0);
-      Pxor(kScratchDoubleReg, kScratchDoubleReg);
-      Pshufb(dst.fp(), kScratchDoubleReg);
+      S128Load8Splat(dst.fp(), src_op, kScratchDoubleReg);
     } else if (memtype == MachineType::Int16()) {
-      Pinsrw(dst.fp(), dst.fp(), src_op, 0);
-      Pshuflw(dst.fp(), dst.fp(), uint8_t{0});
-      Punpcklqdq(dst.fp(), dst.fp());
+      S128Load16Splat(dst.fp(), src_op, kScratchDoubleReg);
     } else if (memtype == MachineType::Int32()) {
-      if (CpuFeatures::IsSupported(AVX)) {
-        CpuFeatureScope avx_scope(this, AVX);
-        vbroadcastss(dst.fp(), src_op);
-      } else {
-        movss(dst.fp(), src_op);
-        shufps(dst.fp(), dst.fp(), byte{0});
-      }
+      S128Load32Splat(dst.fp(), src_op);
     } else if (memtype == MachineType::Int64()) {
       Movddup(dst.fp(), src_op);
     }

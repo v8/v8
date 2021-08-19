@@ -916,6 +916,63 @@ void SharedTurboAssembler::S128Select(XMMRegister dst, XMMRegister mask,
   }
 }
 
+void SharedTurboAssembler::S128Load8Splat(XMMRegister dst, Operand src,
+                                          XMMRegister scratch) {
+  // The trap handler uses the current pc to creating a landing, so that it can
+  // determine if a trap occured in Wasm code due to a OOB load. Make sure the
+  // first instruction in each case below is the one that loads.
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpbroadcastb(dst, src);
+  } else if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // Avoid dependency on previous value of dst.
+    vpinsrb(dst, scratch, src, uint8_t{0});
+    vpxor(scratch, scratch, scratch);
+    vpshufb(dst, dst, scratch);
+  } else {
+    CpuFeatureScope ssse4_scope(this, SSE4_1);
+    CpuFeatureScope ssse3_scope(this, SSSE3);
+    pinsrb(dst, src, uint8_t{0});
+    xorps(scratch, scratch);
+    pshufb(dst, scratch);
+  }
+}
+
+void SharedTurboAssembler::S128Load16Splat(XMMRegister dst, Operand src,
+                                           XMMRegister scratch) {
+  // The trap handler uses the current pc to creating a landing, so that it can
+  // determine if a trap occured in Wasm code due to a OOB load. Make sure the
+  // first instruction in each case below is the one that loads.
+  if (CpuFeatures::IsSupported(AVX2)) {
+    CpuFeatureScope avx2_scope(this, AVX2);
+    vpbroadcastw(dst, src);
+  } else if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // Avoid dependency on previous value of dst.
+    vpinsrw(dst, scratch, src, uint8_t{0});
+    vpshuflw(dst, dst, uint8_t{0});
+    vpunpcklqdq(dst, dst, dst);
+  } else {
+    pinsrw(dst, src, uint8_t{0});
+    pshuflw(dst, dst, uint8_t{0});
+    movlhps(dst, dst);
+  }
+}
+
+void SharedTurboAssembler::S128Load32Splat(XMMRegister dst, Operand src) {
+  // The trap handler uses the current pc to creating a landing, so that it can
+  // determine if a trap occured in Wasm code due to a OOB load. Make sure the
+  // first instruction in each case below is the one that loads.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vbroadcastss(dst, src);
+  } else {
+    movss(dst, src);
+    shufps(dst, dst, byte{0});
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -217,6 +217,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pavgw, pavgw)
   AVX_OP(Pcmpgtb, pcmpgtb)
   AVX_OP(Pcmpeqd, pcmpeqd)
+  AVX_OP(Pinsrw, pinsrw)
   AVX_OP(Pmaxub, pmaxub)
   AVX_OP(Pminub, pminub)
   AVX_OP(Pmovmskb, pmovmskb)
@@ -278,6 +279,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Pblendw, pblendw)
   AVX_OP_SSE4_1(Pextrb, pextrb)
   AVX_OP_SSE4_1(Pextrw, pextrw)
+  AVX_OP_SSE4_1(Pinsrb, pinsrb)
   AVX_OP_SSE4_1(Pmaxsb, pmaxsb)
   AVX_OP_SSE4_1(Pmaxsd, pmaxsd)
   AVX_OP_SSE4_1(Pminsb, pminsb)
@@ -355,6 +357,9 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   // Requires dst == mask when AVX is not supported.
   void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
                   XMMRegister src2, XMMRegister scratch);
+  void S128Load8Splat(XMMRegister dst, Operand src, XMMRegister scratch);
+  void S128Load16Splat(XMMRegister dst, Operand src, XMMRegister scratch);
+  void S128Load32Splat(XMMRegister dst, Operand src);
 
  private:
   template <typename Op>
