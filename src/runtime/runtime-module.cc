@@ -12,6 +12,18 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+MaybeHandle<Script> GetEvalOrigin(Isolate* isolate, Script origin_script) {
+  DisallowGarbageCollection no_gc;
+  while (origin_script.has_eval_from_shared()) {
+    HeapObject maybe_script = origin_script.eval_from_shared().script();
+    if (V8_UNLIKELY(!maybe_script.IsScript())) return kNullMaybeHandle;
+    origin_script = Script::cast(maybe_script);
+  }
+  return handle(origin_script, isolate);
+}
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   HandleScope scope(isolate);
   DCHECK_LE(2, args.length());
@@ -25,15 +37,12 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
     import_assertions = args.at<Object>(2);
   }
 
-  Handle<Script> script(Script::cast(function->shared().script()), isolate);
-
-  while (script->has_eval_from_shared()) {
-    script = handle(Script::cast(script->eval_from_shared().script()), isolate);
-  }
+  MaybeHandle<Script> referrer_script =
+      GetEvalOrigin(isolate, Script::cast(function->shared().script()));
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->RunHostImportModuleDynamicallyCallback(
-                               script, specifier, import_assertions));
+                               referrer_script, specifier, import_assertions));
 }
 
 RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {

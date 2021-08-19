@@ -4256,17 +4256,18 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 }  // namespace
 
 MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
-    Handle<Script> referrer, Handle<Object> specifier,
+    MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
     MaybeHandle<Object> maybe_import_assertions_argument) {
   v8::Local<v8::Context> api_context =
       v8::Utils::ToLocal(Handle<Context>(native_context()));
   DCHECK(host_import_module_dynamically_callback_ == nullptr ||
          host_import_module_dynamically_with_import_assertions_callback_ ==
              nullptr);
-
-  if (host_import_module_dynamically_callback_ == nullptr &&
-      host_import_module_dynamically_with_import_assertions_callback_ ==
-          nullptr) {
+  Handle<Script> referrer;
+  if (!maybe_referrer.ToHandle(&referrer) ||
+      (host_import_module_dynamically_callback_ == nullptr &&
+       host_import_module_dynamically_with_import_assertions_callback_ ==
+           nullptr)) {
     Handle<Object> exception =
         factory()->NewError(error_function(), MessageTemplate::kUnsupported);
     return NewRejectedPromise(this, api_context, exception);
@@ -4277,7 +4278,6 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   if (!maybe_specifier.ToHandle(&specifier_str)) {
     Handle<Object> exception(pending_exception(), this);
     clear_pending_exception();
-
     return NewRejectedPromise(this, api_context, exception);
   }
   DCHECK(!has_pending_exception());
@@ -4299,7 +4299,6 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     } else {
       Handle<Object> exception(pending_exception(), this);
       clear_pending_exception();
-
       return NewRejectedPromise(this, api_context, exception);
     }
 

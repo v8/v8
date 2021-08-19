@@ -1666,7 +1666,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyWithImportAssertionsCallback callback);
   MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
-      Handle<Script> referrer, Handle<Object> specifier,
+      MaybeHandle<Script> referrer, Handle<Object> specifier,
       MaybeHandle<Object> maybe_import_assertions_argument);
 
   void SetHostInitializeImportMetaObjectCallback(
