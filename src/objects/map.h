@@ -850,6 +850,12 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       InstanceType instance_type);
   inline bool CanHaveFastTransitionableElementsKind() const;
 
+  // Maps for Wasm objects can use certain fields for other purposes.
+  inline uint8_t WasmByte1() const;
+  inline uint8_t WasmByte2() const;
+  inline void SetWasmByte1(uint8_t value);
+  inline void SetWasmByte2(uint8_t value);
+
  private:
   // This byte encodes either the instance size without the in-object slack or
   // the slack size in properties backing store.

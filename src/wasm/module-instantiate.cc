@@ -163,6 +163,7 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   map->SetInstanceDescriptors(isolate, *descriptors,
                               descriptors->number_of_descriptors());
   map->set_is_extensible(false);
+  WasmStruct::EncodeInstanceSizeInMap(real_instance_size, *map);
   return map;
 }
 
@@ -188,6 +189,8 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   map->SetInstanceDescriptors(isolate, *descriptors,
                               descriptors->number_of_descriptors());
   map->set_is_extensible(false);
+  WasmArray::EncodeElementSizeInMap(type->element_type().element_size_bytes(),
+                                    *map);
   return map;
 }
 

@@ -727,7 +727,7 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return WasmArray::GcSafeSizeFor(map, WasmArray::cast(object).length());
+    return WasmArray::SizeFor(map, WasmArray::cast(object).length());
   }
 };
 
