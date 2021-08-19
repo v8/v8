@@ -1390,10 +1390,8 @@ RUNTIME_FUNCTION(Runtime_NewRegExpWithBacktrackLimit) {
   CONVERT_ARG_HANDLE_CHECKED(String, flags_string, 1);
   CONVERT_UINT32_ARG_CHECKED(backtrack_limit, 2);
 
-  bool success = false;
   JSRegExp::Flags flags =
-      JSRegExp::FlagsFromString(isolate, flags_string, &success);
-  CHECK(success);
+      JSRegExp::FlagsFromString(isolate, flags_string).value();
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSRegExp::New(isolate, pattern, flags, backtrack_limit));

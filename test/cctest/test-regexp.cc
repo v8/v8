@@ -64,8 +64,8 @@ static bool CheckParse(const char* input) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData result;
-  return RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str,
-                                                 JSRegExp::kNone, &result);
+  return RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, {},
+                                                 &result);
 }
 
 static void CheckParseEq(const char* input, const char* expected,
@@ -76,8 +76,8 @@ static void CheckParseEq(const char* input, const char* expected,
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData result;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (unicode) flags |= JSRegExp::kUnicode;
+  RegExpFlags flags;
+  if (unicode) flags |= RegExpFlag::kUnicode;
   CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, flags,
                                                 &result));
   CHECK_NOT_NULL(result.tree);
@@ -97,8 +97,8 @@ static bool CheckSimple(const char* input) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData result;
-  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str,
-                                                JSRegExp::kNone, &result));
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, {},
+                                                &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
   return result.simple;
@@ -116,8 +116,8 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData result;
-  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str,
-                                                JSRegExp::kNone, &result));
+  CHECK(RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, {},
+                                                &result));
   CHECK_NOT_NULL(result.tree);
   CHECK(result.error == RegExpError::kNone);
   int min_match = result.tree->min_match();
@@ -430,8 +430,8 @@ static void ExpectError(const char* input, const char* expected,
   Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData result;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (unicode) flags |= JSRegExp::kUnicode;
+  RegExpFlags flags;
+  if (unicode) flags |= RegExpFlag::kUnicode;
   CHECK(!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, str, flags,
                                                  &result));
   CHECK_NULL(result.tree);
@@ -533,9 +533,9 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(input);
   RegExpCompileData compile_data;
   compile_data.compilation_target = RegExpCompilationTarget::kNative;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (multiline) flags = JSRegExp::kMultiline;
-  if (unicode) flags = JSRegExp::kUnicode;
+  RegExpFlags flags;
+  if (multiline) flags |= RegExpFlag::kMultiline;
+  if (unicode) flags |= RegExpFlag::kUnicode;
   if (!RegExpParser::ParseRegExpFromHeapString(isolate, zone, str, flags,
                                                &compile_data)) {
     return nullptr;
@@ -546,7 +546,8 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
   Handle<String> sample_subject = isolate->factory()
                                       ->NewStringFromUtf8(base::CStrVector(""))
                                       .ToHandleChecked();
-  RegExp::CompileForTesting(isolate, zone, &compile_data, flags, pattern,
+  RegExp::CompileForTesting(isolate, zone, &compile_data,
+                            JSRegExp::AsJSRegExpFlags(flags), pattern,
                             sample_subject, is_one_byte);
   return compile_data.node;
 }
@@ -638,7 +639,7 @@ static Handle<JSRegExp> CreateJSRegExp(Handle<String> source, Handle<Code> code,
   Handle<JSRegExp> regexp =
       Handle<JSRegExp>::cast(factory->NewJSObject(constructor));
 
-  factory->SetRegExpIrregexpData(regexp, source, JSRegExp::kNone, 0,
+  factory->SetRegExpIrregexpData(regexp, source, {}, 0,
                                  JSRegExp::kNoBacktrackLimit);
   regexp->SetDataAt(is_unicode ? JSRegExp::kIrregexpUC16CodeIndex
                                : JSRegExp::kIrregexpLatin1CodeIndex,

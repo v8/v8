@@ -7,6 +7,7 @@
 
 #include "src/objects/contexts.h"
 #include "src/objects/js-array.h"
+#include "src/regexp/regexp-flags.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -43,32 +44,39 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   enum Type { NOT_COMPILED, ATOM, IRREGEXP, EXPERIMENTAL };
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
 
+  static constexpr Flag AsJSRegExpFlag(RegExpFlag f) {
+    return static_cast<Flag>(f);
+  }
+  static constexpr base::Optional<Flag> AsOptionalJSRegExpFlag(
+      base::Optional<RegExpFlag> f) {
+    return f.has_value() ? base::Optional<Flag>{AsJSRegExpFlag(f.value())}
+                         : base::Optional<Flag>{};
+  }
+  static constexpr Flags AsJSRegExpFlags(RegExpFlags f) {
+    return Flags{static_cast<int>(f)};
+  }
+  static constexpr RegExpFlags AsRegExpFlags(Flags f) {
+    return RegExpFlags{static_cast<int>(f)};
+  }
+
   static base::Optional<Flag> FlagFromChar(char c) {
-    STATIC_ASSERT(kFlagCount == 8);
-    // clang-format off
-    return c == 'g' ? base::Optional<Flag>(kGlobal)
-         : c == 'i' ? base::Optional<Flag>(kIgnoreCase)
-         : c == 'm' ? base::Optional<Flag>(kMultiline)
-         : c == 'y' ? base::Optional<Flag>(kSticky)
-         : c == 'u' ? base::Optional<Flag>(kUnicode)
-         : c == 's' ? base::Optional<Flag>(kDotAll)
-         : c == 'd' ? base::Optional<Flag>(kHasIndices)
-         : (FLAG_enable_experimental_regexp_engine && c == 'l')
-           ? base::Optional<Flag>(kLinear)
-         : base::Optional<Flag>();
-    // clang-format on
+    base::Optional<Flag> f = AsOptionalJSRegExpFlag(TryRegExpFlagFromChar(c));
+    if (!f.has_value()) return f;
+    if (f.value() == kLinear && !FLAG_enable_experimental_regexp_engine) {
+      return {};
+    }
+    return f;
   }
 
   STATIC_ASSERT(static_cast<int>(kNone) == v8::RegExp::kNone);
-  STATIC_ASSERT(static_cast<int>(kGlobal) == v8::RegExp::kGlobal);
-  STATIC_ASSERT(static_cast<int>(kIgnoreCase) == v8::RegExp::kIgnoreCase);
-  STATIC_ASSERT(static_cast<int>(kMultiline) == v8::RegExp::kMultiline);
-  STATIC_ASSERT(static_cast<int>(kSticky) == v8::RegExp::kSticky);
-  STATIC_ASSERT(static_cast<int>(kUnicode) == v8::RegExp::kUnicode);
-  STATIC_ASSERT(static_cast<int>(kDotAll) == v8::RegExp::kDotAll);
-  STATIC_ASSERT(static_cast<int>(kLinear) == v8::RegExp::kLinear);
-  STATIC_ASSERT(static_cast<int>(kHasIndices) == v8::RegExp::kHasIndices);
+#define V(_, Camel, ...)                                             \
+  STATIC_ASSERT(static_cast<int>(k##Camel) == v8::RegExp::k##Camel); \
+  STATIC_ASSERT(static_cast<int>(k##Camel) ==                        \
+                static_cast<int>(RegExpFlag::k##Camel));
+  REGEXP_FLAG_LIST(V)
+#undef V
   STATIC_ASSERT(kFlagCount == v8::RegExp::kFlagCount);
+  STATIC_ASSERT(kFlagCount == kRegExpFlagCount);
 
   DECL_ACCESSORS(last_index, Object)
 
@@ -86,8 +94,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
                                           Handle<String> source,
                                           Handle<String> flags_string);
 
-  static Flags FlagsFromString(Isolate* isolate, Handle<String> flags,
-                               bool* success);
+  static base::Optional<Flags> FlagsFromString(Isolate* isolate,
+                                               Handle<String> flags);
 
   V8_EXPORT_PRIVATE static Handle<String> StringFromFlags(Isolate* isolate,
                                                           Flags flags);
@@ -112,7 +120,7 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static int RegistersForCaptureCount(int count) { return (count + 1) * 2; }
 
   inline int MaxRegisterCount() const;
-  inline Flags GetFlags();
+  inline Flags GetFlags() const;
   inline String Pattern();
   inline String EscapedPattern();
   inline Object CaptureNameMap();

@@ -181,7 +181,8 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   DCHECK(!isolate->has_pending_exception());
-  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
+  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern,
+                                               JSRegExp::AsRegExpFlags(flags),
                                                &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     return RegExp::ThrowRegExpException(isolate, re, pattern,
@@ -209,7 +210,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     ExperimentalRegExp::Initialize(isolate, re, pattern, flags,
                                    parse_result.capture_count);
     has_been_compiled = true;
-  } else if (parse_result.simple && !IgnoreCase(flags) && !IsSticky(flags) &&
+  } else if (parse_result.simple && !IsIgnoreCase(flags) && !IsSticky(flags) &&
              !HasFewDifferentCharacters(pattern)) {
     // Parse-tree is a single atom that is equal to the pattern.
     RegExpImpl::AtomCompile(isolate, re, pattern, flags, pattern);
@@ -224,7 +225,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, atom_string,
         isolate->factory()->NewStringFromTwoByte(atom_pattern), Object);
-    if (!IgnoreCase(flags) && !HasFewDifferentCharacters(atom_string)) {
+    if (!IsIgnoreCase(flags) && !HasFewDifferentCharacters(atom_string)) {
       RegExpImpl::AtomCompile(isolate, re, pattern, flags, atom_string);
       has_been_compiled = true;
     }
@@ -506,7 +507,8 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   Handle<String> pattern(re->Pattern(), isolate);
   pattern = String::Flatten(isolate, pattern);
   RegExpCompileData compile_data;
-  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern, flags,
+  if (!RegExpParser::ParseRegExpFromHeapString(isolate, &zone, pattern,
+                                               JSRegExp::AsRegExpFlags(flags),
                                                &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.

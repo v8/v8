@@ -3088,6 +3088,7 @@ v8_header_set("v8_internal_headers") {
     "src/regexp/regexp-compiler.h",
     "src/regexp/regexp-dotprinter.h",
     "src/regexp/regexp-error.h",
+    "src/regexp/regexp-flags.h",
     "src/regexp/regexp-interpreter.h",
     "src/regexp/regexp-macro-assembler-arch.h",
     "src/regexp/regexp-macro-assembler-tracer.h",

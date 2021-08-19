@@ -2462,7 +2462,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kRegExpPrototypeFlagsGetter, true);
       SimpleInstallGetter(isolate_, prototype, factory->global_string(),
                           Builtin::kRegExpPrototypeGlobalGetter, true);
-      SimpleInstallGetter(isolate(), prototype, factory->has_indices_string(),
+      SimpleInstallGetter(isolate(), prototype, factory->hasIndices_string(),
                           Builtin::kRegExpPrototypeHasIndicesGetter, true);
       SimpleInstallGetter(isolate_, prototype, factory->ignoreCase_string(),
                           Builtin::kRegExpPrototypeIgnoreCaseGetter, true);

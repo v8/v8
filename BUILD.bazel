@@ -1754,6 +1754,7 @@ filegroup(
         "src/regexp/regexp-dotprinter.h",
         "src/regexp/regexp-error.cc",
         "src/regexp/regexp-error.h",
+        "src/regexp/regexp-flags.h",
         "src/regexp/regexp-interpreter.cc",
         "src/regexp/regexp-interpreter.h",
         "src/regexp/regexp-macro-assembler-arch.h",

@@ -1513,15 +1513,14 @@ void WebSnapshotDeserializer::ReadValue(
     case ValueType::REGEXP: {
       Handle<String> pattern = ReadString(false);
       Handle<String> flags_string = ReadString(false);
-      bool success = false;
-      JSRegExp::Flags flags =
-          JSRegExp::FlagsFromString(isolate_, flags_string, &success);
-      if (!success) {
+      base::Optional<JSRegExp::Flags> flags =
+          JSRegExp::FlagsFromString(isolate_, flags_string);
+      if (!flags.has_value()) {
         Throw("Web snapshot: Malformed flags in regular expression");
         return;
       }
       MaybeHandle<JSRegExp> maybe_regexp =
-          JSRegExp::New(isolate_, pattern, flags);
+          JSRegExp::New(isolate_, pattern, flags.value());
       if (!maybe_regexp.ToHandle(&value)) {
         Throw("Web snapshot: Malformed RegExp");
         return;

@@ -69,14 +69,14 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
   Zone zone(isolate->allocator(), ZONE_NAME);
 
   Handle<String> source(regexp->Pattern(), isolate);
-  JSRegExp::Flags flags = regexp->GetFlags();
 
   // Parse and compile the regexp source.
   RegExpCompileData parse_result;
   DCHECK(!isolate->has_pending_exception());
 
   bool parse_success = RegExpParser::ParseRegExpFromHeapString(
-      isolate, &zone, source, flags, &parse_result);
+      isolate, &zone, source, JSRegExp::AsRegExpFlags(regexp->GetFlags()),
+      &parse_result);
   if (!parse_success) {
     // The pattern was already parsed successfully during initialization, so
     // the only way parsing can fail now is because of stack overflow.
@@ -86,8 +86,8 @@ base::Optional<CompilationResult> CompileImpl(Isolate* isolate,
     return base::nullopt;
   }
 
-  ZoneList<RegExpInstruction> bytecode =
-      ExperimentalRegExpCompiler::Compile(parse_result.tree, flags, &zone);
+  ZoneList<RegExpInstruction> bytecode = ExperimentalRegExpCompiler::Compile(
+      parse_result.tree, regexp->GetFlags(), &zone);
 
   CompilationResult result;
   result.bytecode = VectorToByteArray(isolate, bytecode.ToVector());

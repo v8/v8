@@ -227,7 +227,7 @@
   V(_, groups_string, "groups")                                      \
   V(_, growable_string, "growable")                                  \
   V(_, has_string, "has")                                            \
-  V(_, has_indices_string, "hasIndices")                             \
+  V(_, hasIndices_string, "hasIndices")                              \
   V(_, ignoreCase_string, "ignoreCase")                              \
   V(_, illegal_access_string, "illegal access")                      \
   V(_, illegal_argument_string, "illegal argument")                  \

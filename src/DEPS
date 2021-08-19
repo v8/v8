@@ -52,6 +52,7 @@ include_rules = [
   "+src/interpreter/setup-interpreter.h",
   "-src/regexp",
   "+src/regexp/regexp.h",
+  "+src/regexp/regexp-flags.h",
   "+src/regexp/regexp-stack.h",
   "+src/regexp/regexp-utils.h",
   "-src/trap-handler",

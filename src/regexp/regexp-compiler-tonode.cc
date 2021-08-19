@@ -518,7 +518,7 @@ bool RegExpDisjunction::SortConsecutiveAtoms(RegExpCompiler* compiler) {
     DCHECK_LT(first_atom, alternatives->length());
     DCHECK_LE(i, alternatives->length());
     DCHECK_LE(first_atom, i);
-    if (IgnoreCase(compiler->flags())) {
+    if (IsIgnoreCase(compiler->flags())) {
 #ifdef V8_INTL_SUPPORT
       alternatives->StableSort(CompareFirstCharCaseInsensitve, first_atom,
                                i - first_atom);
@@ -570,14 +570,14 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
 #ifdef V8_INTL_SUPPORT
       icu::UnicodeString new_prefix(atom->data().at(0));
       if (new_prefix != common_prefix) {
-        if (!IgnoreCase(compiler->flags())) break;
+        if (!IsIgnoreCase(compiler->flags())) break;
         if (common_prefix.caseCompare(new_prefix, U_FOLD_CASE_DEFAULT) != 0)
           break;
       }
 #else
       unibrow::uchar new_prefix = atom->data().at(0);
       if (new_prefix != common_prefix) {
-        if (!IgnoreCase(compiler->flags())) break;
+        if (!IsIgnoreCase(compiler->flags())) break;
         unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
             compiler->isolate()->regexp_macro_assembler_canonicalize();
         new_prefix = Canonical(canonicalize, new_prefix);

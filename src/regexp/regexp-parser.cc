@@ -106,7 +106,7 @@ class BufferedZoneList {
 // Accumulates RegExp atoms and assertions into lists of terms and alternatives.
 class RegExpBuilder : public ZoneObject {
  public:
-  RegExpBuilder(Zone* zone, JSRegExp::Flags flags);
+  RegExpBuilder(Zone* zone, RegExpFlags flags);
   void AddCharacter(base::uc16 character);
   void AddUnicodeCharacter(base::uc32 character);
   void AddEscapedUnicodeCharacter(base::uc32 character);
@@ -123,12 +123,11 @@ class RegExpBuilder : public ZoneObject {
                            RegExpQuantifier::QuantifierType type);
   void FlushText();
   RegExpTree* ToRegExp();
-  JSRegExp::Flags flags() const { return flags_; }
-  void set_flags(JSRegExp::Flags flags) { flags_ = flags; }
+  RegExpFlags flags() const { return flags_; }
 
-  bool ignore_case() const { return (flags_ & JSRegExp::kIgnoreCase) != 0; }
-  bool multiline() const { return (flags_ & JSRegExp::kMultiline) != 0; }
-  bool dotall() const { return (flags_ & JSRegExp::kDotAll) != 0; }
+  bool ignore_case() const { return IsIgnoreCase(flags_); }
+  bool multiline() const { return IsMultiline(flags_); }
+  bool dotall() const { return IsDotAll(flags_); }
 
  private:
   static const base::uc16 kNoPendingSurrogate = 0;
@@ -142,9 +141,9 @@ class RegExpBuilder : public ZoneObject {
   Zone* zone() const { return zone_; }
   bool unicode() const { return (flags_ & JSRegExp::kUnicode) != 0; }
 
-  Zone* zone_;
+  Zone* const zone_;
   bool pending_empty_;
-  JSRegExp::Flags flags_;
+  const RegExpFlags flags_;
   ZoneList<base::uc16>* characters_;
   base::uc16 pending_surrogate_;
   BufferedZoneList<RegExpTree, 2> terms_;
@@ -174,7 +173,7 @@ class RegExpParserState : public ZoneObject {
                     RegExpLookaround::Type lookaround_type,
                     int disjunction_capture_index,
                     const ZoneVector<base::uc16>* capture_name,
-                    JSRegExp::Flags flags, Zone* zone)
+                    RegExpFlags flags, Zone* zone)
       : previous_state_(previous_state),
         builder_(zone->New<RegExpBuilder>(zone, flags)),
         group_type_(group_type),
@@ -242,7 +241,7 @@ class RegExpParserState : public ZoneObject {
 template <class CharT>
 class RegExpParserImpl final {
  private:
-  RegExpParserImpl(const CharT* input, int input_length, JSRegExp::Flags flags,
+  RegExpParserImpl(const CharT* input, int input_length, RegExpFlags flags,
                    Isolate* isolate, Zone* zone,
                    const DisallowGarbageCollection& no_gc);
 
@@ -378,7 +377,7 @@ class RegExpParserImpl final {
   // These are the flags specified outside the regexp syntax ie after the
   // terminating '/' or in the second argument to the constructor.  The current
   // flags are stored on the RegExpBuilder.
-  const JSRegExp::Flags top_level_flags_;
+  const RegExpFlags top_level_flags_;
   int next_pos_;
   int captures_started_;
   int capture_count_;  // Only valid after we have scanned for captures.
@@ -391,14 +390,14 @@ class RegExpParserImpl final {
 
   friend bool RegExpParser::ParseRegExpFromHeapString(Isolate*, Zone*,
                                                       Handle<String>,
-                                                      JSRegExp::Flags,
+                                                      RegExpFlags,
                                                       RegExpCompileData*);
 };
 
 template <class CharT>
 RegExpParserImpl<CharT>::RegExpParserImpl(
-    const CharT* input, int input_length, JSRegExp::Flags flags,
-    Isolate* isolate, Zone* zone, const DisallowGarbageCollection& no_gc)
+    const CharT* input, int input_length, RegExpFlags flags, Isolate* isolate,
+    Zone* zone, const DisallowGarbageCollection& no_gc)
     : isolate_(isolate),
       zone_(zone),
       captures_(nullptr),
@@ -778,7 +777,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
               } else {
                 RegExpCapture* capture = GetCapture(index);
                 RegExpTree* atom = zone()->template New<RegExpBackReference>(
-                    capture, builder->flags());
+                    capture, JSRegExp::AsJSRegExpFlags(builder->flags()));
                 builder->AddAtom(atom);
               }
               break;
@@ -976,8 +975,6 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
     RegExpParserState* state) {
   RegExpLookaround::Type lookaround_type = state->lookaround_type();
   bool is_named_capture = false;
-  JSRegExp::Flags switch_on = JSRegExp::kNone;
-  JSRegExp::Flags switch_off = JSRegExp::kNone;
   const ZoneVector<base::uc16>* capture_name = nullptr;
   SubexpressionType subexpr_type = CAPTURE;
   Advance();
@@ -1030,11 +1027,10 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
       capture_name = ParseCaptureGroupName(CHECK_FAILED);
     }
   }
-  JSRegExp::Flags flags = (state->builder()->flags() | switch_on) & ~switch_off;
   // Store current state and begin new disjunction parsing.
   return zone()->template New<RegExpParserState>(
       state, subexpr_type, lookaround_type, captures_started_, capture_name,
-      flags, zone());
+      state->builder()->flags(), zone());
 }
 
 #ifdef DEBUG
@@ -1256,8 +1252,8 @@ bool RegExpParserImpl<CharT>::ParseNamedBackReference(
   if (state->IsInsideCaptureGroup(name)) {
     builder->AddEmpty();
   } else {
-    RegExpBackReference* atom =
-        zone()->template New<RegExpBackReference>(builder->flags());
+    RegExpBackReference* atom = zone()->template New<RegExpBackReference>(
+        JSRegExp::AsJSRegExpFlags(builder->flags()));
     atom->set_name(name);
 
     builder->AddAtom(atom);
@@ -1753,7 +1749,7 @@ RegExpTree* RegExpParserImpl<CharT>::GetPropertySequence(
   if (!FLAG_harmony_regexp_sequence) return nullptr;
   const char* name = name_1.data();
   const base::uc32* sequence_list = nullptr;
-  JSRegExp::Flags flags = JSRegExp::kUnicode;
+  RegExpFlags flags = RegExpFlag::kUnicode;
   if (NameEquals(name, "Emoji_Flag_Sequence")) {
     sequence_list = UnicodePropertySequences::kEmojiFlagSequences;
   } else if (NameEquals(name, "Emoji_Tag_Sequence")) {
@@ -2114,7 +2110,7 @@ bool RegExpParserImpl<CharT>::Parse(RegExpCompileData* result) {
   return !failed();
 }
 
-RegExpBuilder::RegExpBuilder(Zone* zone, JSRegExp::Flags flags)
+RegExpBuilder::RegExpBuilder(Zone* zone, RegExpFlags flags)
     : zone_(zone),
       pending_empty_(false),
       flags_(flags),
@@ -2406,7 +2402,7 @@ template class RegExpParserImpl<base::uc16>;
 // static
 bool RegExpParser::ParseRegExpFromHeapString(Isolate* isolate, Zone* zone,
                                              Handle<String> input,
-                                             JSRegExp::Flags flags,
+                                             RegExpFlags flags,
                                              RegExpCompileData* result) {
   DisallowGarbageCollection no_gc;
   String::FlatContent content = input->GetFlatContent(no_gc);
@@ -2425,8 +2421,7 @@ bool RegExpParser::ParseRegExpFromHeapString(Isolate* isolate, Zone* zone,
 
 // static
 bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
-                                      Handle<String> input,
-                                      JSRegExp::Flags flags,
+                                      Handle<String> input, RegExpFlags flags,
                                       RegExpCompileData* result,
                                       const DisallowGarbageCollection&) {
   return ParseRegExpFromHeapString(isolate, zone, input, flags, result);

@@ -9,6 +9,7 @@
 
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/regexp/regexp-flags.h"
 #include "src/regexp/regexp-nodes.h"
 
 namespace v8 {
@@ -49,34 +50,17 @@ constexpr int kPatternTooShortForBoyerMoore = 2;
 
 }  // namespace regexp_compiler_constants
 
-inline bool IgnoreCase(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kIgnoreCase) != 0;
-}
-
-inline bool IsUnicode(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kUnicode) != 0;
-}
-
-inline bool IsSticky(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kSticky) != 0;
-}
-
-inline bool IsGlobal(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kGlobal) != 0;
-}
-
-inline bool DotAll(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kDotAll) != 0;
-}
-
-inline bool Multiline(JSRegExp::Flags flags) {
-  return (flags & JSRegExp::kMultiline) != 0;
-}
+#define V(Lower, Camel, LowerCamel, Char, Bit)        \
+  inline bool Is##Camel(JSRegExp::Flags flags) {      \
+    return Is##Camel(JSRegExp::AsRegExpFlags(flags)); \
+  }
+REGEXP_FLAG_LIST(V)
+#undef V
 
 inline bool NeedsUnicodeCaseEquivalents(JSRegExp::Flags flags) {
   // Both unicode and ignore_case flags are set. We need to use ICU to find
   // the closure over case equivalents.
-  return IsUnicode(flags) && IgnoreCase(flags);
+  return IsUnicode(flags) && IsIgnoreCase(flags);
 }
 
 // Details of a quick mask-compare check that can look ahead in the

@@ -7,7 +7,7 @@
 
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
-#include "src/objects/js-regexp.h"  // Move the Flags definition elsewhere.
+#include "src/regexp/regexp-flags.h"
 
 namespace v8 {
 namespace internal {
@@ -20,13 +20,12 @@ struct RegExpCompileData;
 class V8_EXPORT_PRIVATE RegExpParser : public AllStatic {
  public:
   static bool ParseRegExpFromHeapString(Isolate* isolate, Zone* zone,
-                                        Handle<String> input,
-                                        JSRegExp::Flags flags,
+                                        Handle<String> input, RegExpFlags flags,
                                         RegExpCompileData* result);
 
   // Used by the SpiderMonkey embedding of irregexp.
   static bool VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
-                                 Handle<String> input, JSRegExp::Flags flags,
+                                 Handle<String> input, RegExpFlags flags,
                                  RegExpCompileData* result,
                                  const DisallowGarbageCollection& no_gc);
 };

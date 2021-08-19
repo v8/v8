@@ -59,7 +59,7 @@ int JSRegExp::MaxRegisterCount() const {
   return Smi::ToInt(DataAt(kIrregexpMaxRegisterCountIndex));
 }
 
-JSRegExp::Flags JSRegExp::GetFlags() {
+JSRegExp::Flags JSRegExp::GetFlags() const {
   DCHECK(this->data().IsFixedArray());
   Object data = this->data();
   Smi smi = Smi::cast(FixedArray::cast(data).get(kFlagsIndex));
