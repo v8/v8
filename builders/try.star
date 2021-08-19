@@ -217,16 +217,16 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 3600,
+    execution_timeout = 7200,
     use_goma = GOMA.DEFAULT,
 )
 
 try_builder(
     name = "v8_mac_arm64_compile_dbg",
     bucket = "try",
-    cq_properties = {"cancel_stale": False},
+    cq_properties = {"experiment_percentage": 50, "cancel_stale": False},
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 3600,
+    execution_timeout = 7200,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -235,7 +235,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 3600,
+    execution_timeout = 7200,
     use_goma = GOMA.DEFAULT,
 )
 
@@ -244,7 +244,7 @@ try_builder(
     bucket = "try",
     cq_properties = {"cancel_stale": False, "includable_only": "true"},
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
-    execution_timeout = 3600,
+    execution_timeout = 7200,
     use_goma = GOMA.DEFAULT,
 )
 
