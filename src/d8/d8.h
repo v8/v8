@@ -385,6 +385,7 @@ class ShellOptions {
   DisallowReassignment<bool> interactive_shell = {"shell", false};
   bool test_shell = false;
   DisallowReassignment<bool> expected_to_throw = {"throws", false};
+  DisallowReassignment<bool> no_fail = {"no-fail", false};
   DisallowReassignment<bool> ignore_unhandled_promises = {
       "ignore-unhandled-promises", false};
   DisallowReassignment<bool> mock_arraybuffer_allocator = {

@@ -4265,6 +4265,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--throws") == 0) {
       options.expected_to_throw = true;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--no-fail") == 0) {
+      options.no_fail = true;
+      argv[i] = nullptr;
     } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
       options.icu_data_file = argv[i] + 16;
       argv[i] = nullptr;
@@ -4514,7 +4517,8 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
     Shell::unhandled_promise_rejections_.store(0);
   }
   // In order to finish successfully, success must be != expected_to_throw.
-  return success == Shell::options.expected_to_throw ? 1 : 0;
+  if (Shell::options.no_fail) return 0;
+  return (success == Shell::options.expected_to_throw ? 1 : 0);
 }
 
 void Shell::CollectGarbage(Isolate* isolate) {
