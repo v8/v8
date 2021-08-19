@@ -236,7 +236,7 @@ in_category(
 )
 
 in_category(
-    "LOONG64-V",
+    "Loongson",
     multibranch_builder(
         name = "V8 Linux - loong64 - sim - builder",
         triggered_by_gitiles = True,
