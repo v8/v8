@@ -1054,12 +1054,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvPopcnt32: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      __ Popcnt32(dst, src);
+      __ Popcnt32(dst, src, kScratchReg);
     } break;
     case kRiscvPopcnt64: {
       Register src = i.InputRegister(0);
       Register dst = i.OutputRegister();
-      __ Popcnt64(dst, src);
+      __ Popcnt64(dst, src, kScratchReg);
     } break;
     case kRiscvShl32:
       if (instr->InputAt(1)->IsRegister()) {
@@ -1573,7 +1573,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvULoadFloat: {
-      __ ULoadFloat(i.OutputSingleRegister(), i.MemoryOperand());
+      __ ULoadFloat(i.OutputSingleRegister(), i.MemoryOperand(), kScratchReg);
       break;
     }
     case kRiscvStoreFloat: {
@@ -1593,14 +1593,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (ft == kDoubleRegZero && !__ IsSingleZeroRegSet()) {
         __ LoadFPRImmediate(kDoubleRegZero, 0.0f);
       }
-      __ UStoreFloat(ft, operand);
+      __ UStoreFloat(ft, operand, kScratchReg);
       break;
     }
     case kRiscvLoadDouble:
       __ LoadDouble(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kRiscvULoadDouble:
-      __ ULoadDouble(i.OutputDoubleRegister(), i.MemoryOperand());
+      __ ULoadDouble(i.OutputDoubleRegister(), i.MemoryOperand(), kScratchReg);
       break;
     case kRiscvStoreDouble: {
       FPURegister ft = i.InputOrZeroDoubleRegister(2);
@@ -1615,7 +1615,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ LoadFPRImmediate(kDoubleRegZero, 0.0);
       }
-      __ UStoreDouble(ft, i.MemoryOperand());
+      __ UStoreDouble(ft, i.MemoryOperand(), kScratchReg);
       break;
     }
     case kRiscvSync: {
@@ -1671,11 +1671,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvByteSwap64: {
-      __ ByteSwap(i.OutputRegister(0), i.InputRegister(0), 8);
+      __ ByteSwap(i.OutputRegister(0), i.InputRegister(0), 8, kScratchReg);
       break;
     }
     case kRiscvByteSwap32: {
-      __ ByteSwap(i.OutputRegister(0), i.InputRegister(0), 4);
+      __ ByteSwap(i.OutputRegister(0), i.InputRegister(0), 4, kScratchReg);
       break;
     }
     case kAtomicLoadInt8:

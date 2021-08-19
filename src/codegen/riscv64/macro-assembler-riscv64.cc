@@ -1057,7 +1057,10 @@ void TurboAssembler::CalcScaledAddress(Register rd, Register rt, Register rs,
 
 // ------------Pseudo-instructions-------------
 // Change endianness
-void TurboAssembler::ByteSwap(Register rd, Register rs, int operand_size) {
+void TurboAssembler::ByteSwap(Register rd, Register rs, int operand_size,
+                              Register scratch) {
+  DCHECK_NE(scratch, rs);
+  DCHECK_NE(scratch, rd);
   DCHECK(operand_size == 4 || operand_size == 8);
   if (operand_size == 4) {
     // Uint32_t x1 = 0x00FF00FF;
@@ -1068,7 +1071,7 @@ void TurboAssembler::ByteSwap(Register rd, Register rs, int operand_size) {
     DCHECK((rd != t6) && (rs != t6));
     Register x0 = temps.Acquire();
     Register x1 = temps.Acquire();
-    Register x2 = temps.Acquire();
+    Register x2 = scratch;
     li(x1, 0x00FF00FF);
     slliw(x0, rs, 16);
     srliw(rd, rs, 16);
@@ -1090,7 +1093,7 @@ void TurboAssembler::ByteSwap(Register rd, Register rs, int operand_size) {
     DCHECK((rd != t6) && (rs != t6));
     Register x0 = temps.Acquire();
     Register x1 = temps.Acquire();
-    Register x2 = temps.Acquire();
+    Register x2 = scratch;
     li(x1, 0x0000FFFF0000FFFFl);
     slli(x0, rs, 32);
     srli(rd, rs, 32);
@@ -1193,20 +1196,19 @@ void TurboAssembler::UnalignedLoadHelper(Register rd, const MemOperand& rs) {
 }
 
 template <int NBYTES>
-void TurboAssembler::UnalignedFLoadHelper(FPURegister frd,
-                                          const MemOperand& rs) {
+void TurboAssembler::UnalignedFLoadHelper(FPURegister frd, const MemOperand& rs,
+                                          Register scratch_base) {
   DCHECK(NBYTES == 4 || NBYTES == 8);
-
+  DCHECK_NE(scratch_base, rs.rm());
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand source = rs;
-  UseScratchRegisterScope temps(this);
-  Register scratch_base = temps.Acquire();
   if (NeedAdjustBaseAndOffset(rs, OffsetAccessType::TWO_ACCESSES, NBYTES - 1)) {
     // Adjust offset for two accesses and check if offset + 3 fits into int12.
     DCHECK(scratch_base != rs.rm());
     AdjustBaseAndOffset(&source, scratch_base, OffsetAccessType::TWO_ACCESSES,
                         NBYTES - 1);
   }
+  UseScratchRegisterScope temps(this);
   Register scratch_other = temps.Acquire();
   Register scratch = temps.Acquire();
   DCHECK(scratch != rs.rm() && scratch_other != scratch &&
@@ -1258,10 +1260,10 @@ void TurboAssembler::UnalignedStoreHelper(Register rd, const MemOperand& rs,
 
 template <int NBYTES>
 void TurboAssembler::UnalignedFStoreHelper(FPURegister frd,
-                                           const MemOperand& rs) {
+                                           const MemOperand& rs,
+                                           Register scratch) {
   DCHECK(NBYTES == 8 || NBYTES == 4);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
+  DCHECK_NE(scratch, rs.rm());
   if (NBYTES == 4) {
     fmv_x_w(scratch, frd);
   } else {
@@ -1354,20 +1356,28 @@ void MacroAssembler::StoreWordPair(Register rd, const MemOperand& rs) {
   Sw(scratch, MemOperand(rs.rm(), rs.offset() + kSystemPointerSize / 2));
 }
 
-void TurboAssembler::ULoadFloat(FPURegister fd, const MemOperand& rs) {
-  UnalignedFLoadHelper<4>(fd, rs);
+void TurboAssembler::ULoadFloat(FPURegister fd, const MemOperand& rs,
+                                Register scratch) {
+  DCHECK_NE(scratch, rs.rm());
+  UnalignedFLoadHelper<4>(fd, rs, scratch);
 }
 
-void TurboAssembler::UStoreFloat(FPURegister fd, const MemOperand& rs) {
-  UnalignedFStoreHelper<4>(fd, rs);
+void TurboAssembler::UStoreFloat(FPURegister fd, const MemOperand& rs,
+                                 Register scratch) {
+  DCHECK_NE(scratch, rs.rm());
+  UnalignedFStoreHelper<4>(fd, rs, scratch);
 }
 
-void TurboAssembler::ULoadDouble(FPURegister fd, const MemOperand& rs) {
-  UnalignedFLoadHelper<8>(fd, rs);
+void TurboAssembler::ULoadDouble(FPURegister fd, const MemOperand& rs,
+                                 Register scratch) {
+  DCHECK_NE(scratch, rs.rm());
+  UnalignedFLoadHelper<8>(fd, rs, scratch);
 }
 
-void TurboAssembler::UStoreDouble(FPURegister fd, const MemOperand& rs) {
-  UnalignedFStoreHelper<8>(fd, rs);
+void TurboAssembler::UStoreDouble(FPURegister fd, const MemOperand& rs,
+                                  Register scratch) {
+  DCHECK_NE(scratch, rs.rm());
+  UnalignedFStoreHelper<8>(fd, rs, scratch);
 }
 
 void TurboAssembler::Lb(Register rd, const MemOperand& rs) {
@@ -2620,7 +2630,9 @@ void TurboAssembler::Ctz64(Register rd, Register rs) {
   }
 }
 
-void TurboAssembler::Popcnt32(Register rd, Register rs) {
+void TurboAssembler::Popcnt32(Register rd, Register rs, Register scratch) {
+  DCHECK_NE(scratch, rs);
+  DCHECK_NE(scratch, rd);
   // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
   //
   // A generalization of the best bit counting method to integers of
@@ -2644,7 +2656,6 @@ void TurboAssembler::Popcnt32(Register rd, Register rs) {
   uint32_t shift = 24;
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = temps.Acquire();
   Register scratch2 = temps.Acquire();
   Register value = temps.Acquire();
   DCHECK((rd != value) && (rs != value));
@@ -2669,7 +2680,9 @@ void TurboAssembler::Popcnt32(Register rd, Register rs) {
   Srl32(rd, rd, shift);
 }
 
-void TurboAssembler::Popcnt64(Register rd, Register rs) {
+void TurboAssembler::Popcnt64(Register rd, Register rs, Register scratch) {
+  DCHECK_NE(scratch, rs);
+  DCHECK_NE(scratch, rd);
   // uint64_t B0 = 0x5555555555555555l;     // (T)~(T)0/3
   // uint64_t B1 = 0x3333333333333333l;     // (T)~(T)0/15*3
   // uint64_t B2 = 0x0F0F0F0F0F0F0F0Fl;     // (T)~(T)0/255*15
@@ -2679,7 +2692,6 @@ void TurboAssembler::Popcnt64(Register rd, Register rs) {
   uint64_t shift = 24;
   UseScratchRegisterScope temps(this);
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Register scratch = temps.Acquire();
   Register scratch2 = temps.Acquire();
   Register value = temps.Acquire();
   DCHECK((rd != value) && (rs != value));
@@ -3549,9 +3561,9 @@ void MacroAssembler::PushStackHandler() {
   // Link the current handler as the next handler.
   UseScratchRegisterScope temps(this);
   Register handler_address = temps.Acquire();
-  Register handler = temps.Acquire();
   li(handler_address,
      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
+  Register handler = temps.Acquire();
   Ld(handler, MemOperand(handler_address));
   push(handler);
 
@@ -3813,18 +3825,19 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   // Contract with called JS functions requires that function is passed in a1.
   DCHECK_EQ(function, a1);
   Register expected_parameter_count = a2;
-  UseScratchRegisterScope temps(this);
-  Register temp_reg = temps.Acquire();
-  LoadTaggedPointerField(
-      temp_reg,
-      FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  LoadTaggedPointerField(cp,
-                         FieldMemOperand(function, JSFunction::kContextOffset));
-  // The argument count is stored as uint16_t
-  Lhu(expected_parameter_count,
-      FieldMemOperand(temp_reg,
-                      SharedFunctionInfo::kFormalParameterCountOffset));
-
+  {
+    UseScratchRegisterScope temps(this);
+    Register temp_reg = temps.Acquire();
+    LoadTaggedPointerField(
+        temp_reg,
+        FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    LoadTaggedPointerField(
+        cp, FieldMemOperand(function, JSFunction::kContextOffset));
+    // The argument count is stored as uint16_t
+    Lhu(expected_parameter_count,
+        FieldMemOperand(temp_reg,
+                        SharedFunctionInfo::kFormalParameterCountOffset));
+  }
   InvokeFunctionCode(function, new_target, expected_parameter_count,
                      actual_parameter_count, type);
 }

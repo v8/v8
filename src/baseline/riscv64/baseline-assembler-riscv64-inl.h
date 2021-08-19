@@ -429,7 +429,6 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
 
   // Mostly copied from code-generator-riscv64.cc
   ScratchRegisterScope scope(this);
-  Register temp = scope.AcquireScratch();
   Label table;
   __ Branch(&fallthrough, AsMasmCondition(Condition::kUnsignedGreaterThanEqual),
             reg, Operand(int64_t(num_labels)));
@@ -438,12 +437,12 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   DCHECK(is_int32(imm64));
   int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
   int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
-  __ auipc(temp, Hi20);  // Read PC + Hi20 into t6
-  __ addi(temp, temp, Lo12);  // jump PC + Hi20 + Lo12
+  __ auipc(t6, Hi20);  // Read PC + Hi20 into t6
+  __ addi(t6, t6, Lo12);  // jump PC + Hi20 + Lo12
 
   int entry_size_log2 = 3;
-  __ CalcScaledAddress(temp, temp, reg, entry_size_log2);
-  __ Jump(temp);
+  __ CalcScaledAddress(t6, t6, reg, entry_size_log2);
+  __ Jump(t6);
   {
     TurboAssembler::BlockTrampolinePoolScope(masm());
     __ BlockTrampolinePoolFor(num_labels * kInstrSize * 2);

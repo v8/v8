@@ -79,16 +79,16 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
   if (is_uint31(offset_imm)) {
     int32_t offset_imm32 = static_cast<int32_t>(offset_imm);
     if (offset == no_reg) return MemOperand(addr, offset_imm32);
-    assm->Add64(kScratchReg, addr, offset);
-    return MemOperand(kScratchReg, offset_imm32);
+    assm->Add64(kScratchReg2, addr, offset);
+    return MemOperand(kScratchReg2, offset_imm32);
   }
   // Offset immediate does not fit in 31 bits.
-  assm->li(kScratchReg, offset_imm);
-  assm->Add64(kScratchReg, kScratchReg, addr);
+  assm->li(kScratchReg2, offset_imm);
+  assm->Add64(kScratchReg2, kScratchReg2, addr);
   if (offset != no_reg) {
-    assm->Add64(kScratchReg, kScratchReg, offset);
+    assm->Add64(kScratchReg2, kScratchReg2, offset);
   }
-  return MemOperand(kScratchReg, 0);
+  return MemOperand(kScratchReg2, 0);
 }
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
@@ -128,10 +128,10 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
       assm->Usd(src.gp(), dst);
       break;
     case kF32:
-      assm->UStoreFloat(src.fp(), dst);
+      assm->UStoreFloat(src.fp(), dst, kScratchReg);
       break;
     case kF64:
-      assm->UStoreDouble(src.fp(), dst);
+      assm->UStoreDouble(src.fp(), dst, kScratchReg);
       break;
     default:
       UNREACHABLE();
@@ -552,10 +552,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       TurboAssembler::Uld(dst.gp(), src_op);
       break;
     case LoadType::kF32Load:
-      TurboAssembler::ULoadFloat(dst.fp(), src_op);
+      TurboAssembler::ULoadFloat(dst.fp(), src_op, kScratchReg);
       break;
     case LoadType::kF64Load:
-      TurboAssembler::ULoadDouble(dst.fp(), src_op);
+      TurboAssembler::ULoadDouble(dst.fp(), src_op, kScratchReg);
       break;
     default:
       UNREACHABLE();
@@ -607,10 +607,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       TurboAssembler::Usd(src.gp(), dst_op);
       break;
     case StoreType::kF32Store:
-      TurboAssembler::UStoreFloat(src.fp(), dst_op);
+      TurboAssembler::UStoreFloat(src.fp(), dst_op, kScratchReg);
       break;
     case StoreType::kF64Store:
-      TurboAssembler::UStoreDouble(src.fp(), dst_op);
+      TurboAssembler::UStoreDouble(src.fp(), dst_op, kScratchReg);
       break;
     default:
       UNREACHABLE();
@@ -1072,7 +1072,7 @@ void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
 
 bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
                                        LiftoffRegister src) {
-  TurboAssembler::Popcnt64(dst.gp(), src.gp());
+  TurboAssembler::Popcnt64(dst.gp(), src.gp(), kScratchReg);
   return true;
 }
 
@@ -1154,7 +1154,7 @@ void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
-  TurboAssembler::Popcnt32(dst, src);
+  TurboAssembler::Popcnt32(dst, src, kScratchReg);
   return true;
 }
 

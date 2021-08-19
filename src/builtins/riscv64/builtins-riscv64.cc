@@ -401,17 +401,15 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
   __ Lhu(a3,
          FieldMemOperand(a3, SharedFunctionInfo::kFormalParameterCountOffset));
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
   __ LoadTaggedPointerField(
-      scratch,
+      t1,
       FieldMemOperand(a1, JSGeneratorObject::kParametersAndRegistersOffset));
   {
     Label done_loop, loop;
     __ bind(&loop);
     __ Sub64(a3, a3, Operand(1));
     __ Branch(&done_loop, lt, a3, Operand(zero_reg), Label::Distance::kNear);
-    __ CalcScaledAddress(kScratchReg, scratch, a3, kTaggedSizeLog2);
+    __ CalcScaledAddress(kScratchReg, t1, a3, kTaggedSizeLog2);
     __ LoadAnyTaggedField(
         kScratchReg, FieldMemOperand(kScratchReg, FixedArray::kHeaderSize));
     __ Push(kScratchReg);
