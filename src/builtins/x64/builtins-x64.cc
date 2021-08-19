@@ -83,6 +83,31 @@ static void GenerateTailCallToReturnedCode(
 
 namespace {
 
+enum class ArgumentsElementType {
+  kRaw,    // Push arguments as they are.
+  kHandle  // Dereference arguments before pushing.
+};
+
+void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
+                            Register scratch,
+                            ArgumentsElementType element_type) {
+  DCHECK(!AreAliased(array, argc, scratch, kScratchRegister));
+  Register counter = scratch;
+  Label loop, entry;
+  __ movq(counter, argc);
+  __ jmp(&entry);
+  __ bind(&loop);
+  Operand value(array, counter, times_system_pointer_size, 0);
+  if (element_type == ArgumentsElementType::kHandle) {
+    __ movq(kScratchRegister, value);
+    value = Operand(kScratchRegister, 0);
+  }
+  __ Push(value);
+  __ bind(&entry);
+  __ decq(counter);
+  __ j(greater_equal, &loop, Label::kNear);
+}
+
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
@@ -112,7 +137,9 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ leaq(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
                                   kSystemPointerSize));
     // Copy arguments to the expression stack.
-    __ PushArray(rbx, rax, rcx);
+    // rbx: Pointer to start of arguments.
+    // rax: Number of arguments.
+    Generate_PushArguments(masm, rbx, rax, rcx, ArgumentsElementType::kRaw);
     // The receiver for the builtin/api call.
     __ PushRoot(RootIndex::kTheHoleValue);
 
@@ -236,7 +263,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // InvokeFunction.
 
   // Copy arguments to the expression stack.
-  __ PushArray(rbx, rax, rcx);
+  // rbx: Pointer to start of arguments.
+  // rax: Number of arguments.
+  Generate_PushArguments(masm, rbx, rax, rcx, ArgumentsElementType::kRaw);
 
   // Push implicit receiver.
   __ Push(r8);
@@ -607,18 +636,12 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     __ bind(&enough_stack_space);
 
-    // Copy arguments to the stack in a loop.
+    // Copy arguments to the stack.
     // Register rbx points to array of pointers to handle locations.
     // Push the values of these handles.
-    Label loop, entry;
-    __ movq(rcx, rax);
-    __ jmp(&entry, Label::kNear);
-    __ bind(&loop);
-    __ movq(kScratchRegister, Operand(rbx, rcx, times_system_pointer_size, 0));
-    __ Push(Operand(kScratchRegister, 0));  // dereference handle
-    __ bind(&entry);
-    __ decq(rcx);
-    __ j(greater_equal, &loop, Label::kNear);
+    // rbx: Pointer to start of arguments.
+    // rax: Number of arguments.
+    Generate_PushArguments(masm, rbx, rax, rcx, ArgumentsElementType::kHandle);
 
     // Push the receiver.
     __ Push(r9);
@@ -2076,6 +2099,58 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
+namespace {
+
+// Allocate new stack space for |count| arguments and shift all existing
+// arguments already on the stack. |pointer_to_new_space_out| points to the
+// first free slot on the stack to copy additional arguments to and
+// |argc_in_out| is updated to include |count|.
+void Generate_AllocateSpaceAndShiftExistingArguments(
+    MacroAssembler* masm, Register count, Register argc_in_out,
+    Register pointer_to_new_space_out, Register scratch1, Register scratch2) {
+  DCHECK(!AreAliased(count, argc_in_out, pointer_to_new_space_out, scratch1,
+                     scratch2, kScratchRegister));
+  // Use pointer_to_new_space_out as scratch until we set it to the correct
+  // value at the end.
+  Register old_rsp = pointer_to_new_space_out;
+  Register new_space = kScratchRegister;
+  __ movq(old_rsp, rsp);
+
+  __ leaq(new_space, Operand(count, times_system_pointer_size, 0));
+  __ AllocateStackSpace(new_space);
+
+  Register copy_count = scratch1;
+  // We have a spare register, so use it instead of clobbering argc.
+  // lea + add (to add the count to argc in the end) uses 1 less byte than
+  // inc + lea (with base, index and disp), at the cost of 1 extra register.
+  __ leaq(copy_count, Operand(argc_in_out, 1));  // Include the receiver.
+  Register current = scratch2;
+  Register value = kScratchRegister;
+
+  Label loop, entry;
+  __ Move(current, 0);
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ movq(value, Operand(old_rsp, current, times_system_pointer_size, 0));
+  __ movq(Operand(rsp, current, times_system_pointer_size, 0), value);
+  __ incq(current);
+  __ bind(&entry);
+  __ cmpq(current, copy_count);
+  __ j(less_equal, &loop, Label::kNear);
+
+  // Point to the next free slot above the shifted arguments (copy_count + 1
+  // slot for the return address).
+  __ leaq(
+      pointer_to_new_space_out,
+      Operand(rsp, copy_count, times_system_pointer_size, kSystemPointerSize));
+  // We use addl instead of addq here because we can omit REX.W, saving 1 byte.
+  // We are especially constrained here because we are close to reaching the
+  // limit for a near jump to the stackoverflow label, so every byte counts.
+  __ addl(argc_in_out, count);  // Update total number of arguments.
+}
+
+}  // namespace
+
 // static
 // TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
@@ -2114,28 +2189,10 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // Push additional arguments onto the stack.
   // Move the arguments already in the stack,
   // including the receiver and the return address.
-  {
-    Label copy, check;
-    Register src = r8, dest = rsp, num = r9, current = r12;
-    __ movq(src, rsp);
-    __ leaq(kScratchRegister, Operand(rcx, times_system_pointer_size, 0));
-    __ AllocateStackSpace(kScratchRegister);
-    __ leaq(num, Operand(rax, 2));  // Number of words to copy.
-                                    // +2 for receiver and return address.
-    __ Move(current, 0);
-    __ jmp(&check);
-    __ bind(&copy);
-    __ movq(kScratchRegister,
-            Operand(src, current, times_system_pointer_size, 0));
-    __ movq(Operand(dest, current, times_system_pointer_size, 0),
-            kScratchRegister);
-    __ incq(current);
-    __ bind(&check);
-    __ cmpq(current, num);
-    __ j(less, &copy);
-    __ leaq(r8, Operand(rsp, num, times_system_pointer_size, 0));
-  }
-
+  // rcx: Number of arguments to make room for.
+  // rax: Number of arguments already on the stack.
+  // r8: Points to first free slot on the stack after arguments were shifted.
+  Generate_AllocateSpaceAndShiftExistingArguments(masm, rcx, rax, r8, r9, r12);
   // Copy the additional arguments onto the stack.
   {
     Register value = r12;
@@ -2156,7 +2213,6 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ incl(current);
     __ jmp(&loop);
     __ bind(&done);
-    __ addq(rax, current);
   }
 
   // Tail-call to the actual Call or Construct builtin.
@@ -2216,29 +2272,11 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     // Forward the arguments from the caller frame.
     // Move the arguments already in the stack,
     // including the receiver and the return address.
-    {
-      Label copy, check;
-      Register src = r9, dest = rsp, num = r12, current = r15;
-      __ movq(src, rsp);
-      __ leaq(kScratchRegister, Operand(r8, times_system_pointer_size, 0));
-      __ AllocateStackSpace(kScratchRegister);
-      __ leaq(num, Operand(rax, 2));  // Number of words to copy.
-                                      // +2 for receiver and return address.
-      __ Move(current, 0);
-      __ jmp(&check);
-      __ bind(&copy);
-      __ movq(kScratchRegister,
-              Operand(src, current, times_system_pointer_size, 0));
-      __ movq(Operand(dest, current, times_system_pointer_size, 0),
-              kScratchRegister);
-      __ incq(current);
-      __ bind(&check);
-      __ cmpq(current, num);
-      __ j(less, &copy);
-      __ leaq(r9, Operand(rsp, num, times_system_pointer_size, 0));
-    }
-
-    __ addl(rax, r8);  // Update total number of arguments.
+    // r8: Number of arguments to make room for.
+    // rax: Number of arguments already on the stack.
+    // r9: Points to first free slot on the stack after arguments were shifted.
+    Generate_AllocateSpaceAndShiftExistingArguments(masm, r8, rax, r9, r12,
+                                                    r15);
 
     // Point to the first argument to copy (skipping receiver).
     __ leaq(rcx, Operand(rcx, times_system_pointer_size,

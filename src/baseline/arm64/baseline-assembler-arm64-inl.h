@@ -583,8 +583,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->Add(params_size, params_size, 1);  // Include the receiver.
-  __ masm()->DropArguments(params_size);
+  __ masm()->DropArguments(params_size, TurboAssembler::kCountExcludesReceiver);
   __ masm()->Ret();
 }
 

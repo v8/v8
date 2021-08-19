@@ -78,6 +78,32 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 
 namespace {
 
+enum class ArgumentsElementType {
+  kRaw,    // Push arguments as they are.
+  kHandle  // Dereference arguments before pushing.
+};
+
+void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
+                            Register scratch1, Register scratch2,
+                            ArgumentsElementType element_type) {
+  DCHECK(!AreAliased(array, argc, scratch1, scratch2));
+  Register counter = scratch1;
+  Label loop, entry;
+  __ mov(counter, argc);
+  __ jmp(&entry);
+  __ bind(&loop);
+  Operand value(array, counter, times_system_pointer_size, 0);
+  if (element_type == ArgumentsElementType::kHandle) {
+    DCHECK(scratch2 != no_reg);
+    __ mov(scratch2, value);
+    value = Operand(scratch2, 0);
+  }
+  __ Push(value);
+  __ bind(&entry);
+  __ dec(counter);
+  __ j(greater_equal, &loop, Label::kNear);
+}
+
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
@@ -109,7 +135,10 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ lea(esi, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
                                  kSystemPointerSize));
     // Copy arguments to the expression stack.
-    __ PushArray(esi, eax, ecx);
+    // esi: Pointer to start of arguments.
+    // eax: Number of arguments.
+    Generate_PushArguments(masm, esi, eax, ecx, no_reg,
+                           ArgumentsElementType::kRaw);
     // The receiver for the builtin/api call.
     __ PushRoot(RootIndex::kTheHoleValue);
 
@@ -237,7 +266,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // InvokeFunction.
 
   // Copy arguments to the expression stack.
-  __ PushArray(edi, eax, ecx);
+  // edi: Pointer to start of arguments.
+  // eax: Number of arguments.
+  Generate_PushArguments(masm, edi, eax, ecx, no_reg,
+                         ArgumentsElementType::kRaw);
 
   // Push implicit receiver.
   __ movd(ecx, xmm0);
@@ -497,17 +529,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     __ bind(&enough_stack_space);
 
-    // Copy arguments to the stack in a loop.
-    Label loop, entry;
-    __ Move(ecx, eax);
-    __ jmp(&entry, Label::kNear);
-    __ bind(&loop);
-    // Push the parameter from argv.
-    __ mov(scratch2, Operand(scratch1, ecx, times_system_pointer_size, 0));
-    __ push(Operand(scratch2, 0));  // dereference handle
-    __ bind(&entry);
-    __ dec(ecx);
-    __ j(greater_equal, &loop);
+    // Copy arguments to the stack.
+    // scratch1 (edx): Pointer to start of arguments.
+    // eax: Number of arguments.
+    Generate_PushArguments(masm, scratch1, eax, ecx, scratch2,
+                           ArgumentsElementType::kHandle);
 
     // Load the previous frame pointer to access C arguments
     __ mov(scratch2, Operand(ebp, 0));
@@ -2105,6 +2131,52 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
+namespace {
+
+// Allocate new stack space for |count| arguments and shift all existing
+// arguments already on the stack. |pointer_to_new_space_out| points to the
+// first free slot on the stack to copy additional arguments to and
+// |argc_in_out| is updated to include |count|.
+void Generate_AllocateSpaceAndShiftExistingArguments(
+    MacroAssembler* masm, Register count, Register argc_in_out,
+    Register pointer_to_new_space_out, Register scratch1, Register scratch2) {
+  DCHECK(!AreAliased(count, argc_in_out, pointer_to_new_space_out, scratch1,
+                     scratch2));
+  // Use pointer_to_new_space_out as scratch until we set it to the correct
+  // value at the end.
+  Register old_esp = pointer_to_new_space_out;
+  Register new_space = scratch1;
+  __ mov(old_esp, esp);
+
+  __ lea(new_space, Operand(count, times_system_pointer_size, 0));
+  __ AllocateStackSpace(new_space);
+
+  __ inc(argc_in_out);  // Include the receiver.
+  Register current = scratch1;
+  Register value = scratch2;
+
+  Label loop, entry;
+  __ mov(current, 0);
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ mov(value, Operand(old_esp, current, times_system_pointer_size, 0));
+  __ mov(Operand(esp, current, times_system_pointer_size, 0), value);
+  __ inc(current);
+  __ bind(&entry);
+  __ cmp(current, argc_in_out);
+  __ j(less_equal, &loop, Label::kNear);
+
+  // Point to the next free slot above the shifted arguments (argc + 1 slot for
+  // the return address).
+  __ lea(
+      pointer_to_new_space_out,
+      Operand(esp, argc_in_out, times_system_pointer_size, kSystemPointerSize));
+  // Update the total number of arguments, subtracting the receiver again.
+  __ lea(argc_in_out, Operand(argc_in_out, count, times_1, -1));
+}
+
+}  // namespace
+
 // static
 // TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
@@ -2114,15 +2186,13 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- esi    : context for the Call / Construct builtin
   //  -- eax    : number of parameters on the stack (not including the receiver)
   //  -- ecx    : len (number of elements to from args)
-  //  -- ecx    : new.target (checked to be constructor or undefined)
+  //  -- edx    : new.target (checked to be constructor or undefined)
   //  -- esp[4] : arguments list (a FixedArray)
   //  -- esp[0] : return address.
   // -----------------------------------
 
-  // We need to preserve eax, edi, esi and ebx.
-  __ movd(xmm0, edx);
-  __ movd(xmm1, edi);
-  __ movd(xmm2, eax);
+  __ movd(xmm0, edx);  // Spill new.target.
+  __ movd(xmm1, edi);  // Spill target.
   __ movd(xmm3, esi);  // Spill the context.
 
   const Register kArgumentsList = esi;
@@ -2157,32 +2227,15 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ StackOverflowCheck(kArgumentsLength, edx, &stack_overflow);
 
   __ movd(xmm4, kArgumentsList);  // Spill the arguments list.
-
   // Move the arguments already in the stack,
   // including the receiver and the return address.
-  {
-    Label copy, check;
-    Register src = edx, current = edi, tmp = esi;
-    // Update stack pointer.
-    __ mov(src, esp);
-    __ lea(tmp, Operand(kArgumentsLength, times_system_pointer_size, 0));
-    __ AllocateStackSpace(tmp);
-    // Include return address and receiver.
-    __ add(eax, Immediate(2));
-    __ mov(current, Immediate(0));
-    __ jmp(&check);
-    // Loop.
-    __ bind(&copy);
-    __ mov(tmp, Operand(src, current, times_system_pointer_size, 0));
-    __ mov(Operand(esp, current, times_system_pointer_size, 0), tmp);
-    __ inc(current);
-    __ bind(&check);
-    __ cmp(current, eax);
-    __ j(less, &copy);
-    __ lea(edx, Operand(esp, eax, times_system_pointer_size, 0));
-  }
-
+  // kArgumentsLength (ecx): Number of arguments to make room for.
+  // eax: Number of arguments already on the stack.
+  // edx: Points to first free slot on the stack after arguments were shifted.
+  Generate_AllocateSpaceAndShiftExistingArguments(masm, kArgumentsLength, eax,
+                                                  edx, edi, esi);
   __ movd(kArgumentsList, xmm4);  // Recover arguments list.
+  __ movd(xmm2, eax);             // Spill argument count.
 
   // Push additional arguments onto the stack.
   {
@@ -2207,12 +2260,9 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 
   // Restore eax, edi and edx.
   __ movd(esi, xmm3);  // Restore the context.
-  __ movd(eax, xmm2);
-  __ movd(edi, xmm1);
-  __ movd(edx, xmm0);
-
-  // Compute the actual parameter count.
-  __ add(eax, kArgumentsLength);
+  __ movd(eax, xmm2);  // Restore argument count.
+  __ movd(edi, xmm1);  // Restore target.
+  __ movd(edx, xmm0);  // Restore new.target.
 
   // Tail-call to the actual Call or Construct builtin.
   __ Jump(code, RelocInfo::CODE_TARGET);
@@ -2284,31 +2334,11 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
     // Move the arguments already in the stack,
     // including the receiver and the return address.
-    {
-      Label copy, check;
-      Register src = esi, current = edi;
-      // Update stack pointer.
-      __ mov(src, esp);
-      __ lea(scratch, Operand(edx, times_system_pointer_size, 0));
-      __ AllocateStackSpace(scratch);
-      // Include return address and receiver.
-      __ add(eax, Immediate(2));
-      __ Move(current, 0);
-      __ jmp(&check);
-      // Loop.
-      __ bind(&copy);
-      __ mov(scratch, Operand(src, current, times_system_pointer_size, 0));
-      __ mov(Operand(esp, current, times_system_pointer_size, 0), scratch);
-      __ inc(current);
-      __ bind(&check);
-      __ cmp(current, eax);
-      __ j(less, &copy);
-      __ lea(esi, Operand(esp, eax, times_system_pointer_size, 0));
-    }
-
-    // Update total number of arguments.
-    __ sub(eax, Immediate(2));
-    __ add(eax, edx);
+    // edx: Number of arguments to make room for.
+    // eax: Number of arguments already on the stack.
+    // esi: Points to first free slot on the stack after arguments were shifted.
+    Generate_AllocateSpaceAndShiftExistingArguments(masm, edx, eax, esi, ebx,
+                                                    edi);
 
     // Point to the first argument to copy (skipping receiver).
     __ lea(ecx, Operand(ecx, times_system_pointer_size,

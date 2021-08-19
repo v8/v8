@@ -468,11 +468,9 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  Register return_pc = scratch;
-  __ masm()->PopReturnAddressTo(return_pc);
-  __ masm()->leaq(rsp, MemOperand(rsp, params_size, times_system_pointer_size,
-                                  kSystemPointerSize));
-  __ masm()->PushReturnAddressFrom(return_pc);
+  __ masm()->DropArguments(params_size, scratch,
+                           TurboAssembler::kCountIsInteger,
+                           TurboAssembler::kCountExcludesReceiver);
   __ masm()->Ret();
 }
 
