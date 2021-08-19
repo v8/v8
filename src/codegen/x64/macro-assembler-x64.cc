@@ -294,6 +294,17 @@ void TurboAssembler::StoreTaggedSignedField(Operand dst_field_operand,
   }
 }
 
+void TurboAssembler::AtomicStoreTaggedField(Operand dst_field_operand,
+                                            Register value) {
+  if (COMPRESS_POINTERS_BOOL) {
+    movl(kScratchRegister, value);
+    xchgl(kScratchRegister, dst_field_operand);
+  } else {
+    movq(kScratchRegister, value);
+    xchgq(kScratchRegister, dst_field_operand);
+  }
+}
+
 void TurboAssembler::DecompressTaggedSigned(Register destination,
                                             Operand field_operand) {
   ASM_CODE_COMMENT(this);

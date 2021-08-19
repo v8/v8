@@ -2919,6 +2919,18 @@ void TurboAssembler::StoreTaggedField(const Register& value,
   }
 }
 
+void TurboAssembler::AtomicStoreTaggedField(const Register& value,
+                                            const Register& dst_base,
+                                            const Register& dst_index,
+                                            const Register& temp) {
+  Add(temp, dst_base, dst_index);
+  if (COMPRESS_POINTERS_BOOL) {
+    Stlr(value.W(), temp);
+  } else {
+    Stlr(value, temp);
+  }
+}
+
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
@@ -2947,6 +2959,40 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
   Ldr(destination.W(), field_operand);
+  Add(destination, kPtrComprCageBaseRegister, destination);
+}
+
+void TurboAssembler::AtomicDecompressTaggedSigned(const Register& destination,
+                                                  const Register& base,
+                                                  const Register& index,
+                                                  const Register& temp) {
+  ASM_CODE_COMMENT(this);
+  Add(temp, base, index);
+  Ldar(destination.W(), temp);
+  if (FLAG_debug_code) {
+    // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
+    Add(destination, destination,
+        ((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32);
+  }
+}
+
+void TurboAssembler::AtomicDecompressTaggedPointer(const Register& destination,
+                                                   const Register& base,
+                                                   const Register& index,
+                                                   const Register& temp) {
+  ASM_CODE_COMMENT(this);
+  Add(temp, base, index);
+  Ldar(destination.W(), temp);
+  Add(destination, kPtrComprCageBaseRegister, destination);
+}
+
+void TurboAssembler::AtomicDecompressAnyTagged(const Register& destination,
+                                               const Register& base,
+                                               const Register& index,
+                                               const Register& temp) {
+  ASM_CODE_COMMENT(this);
+  Add(temp, base, index);
+  Ldar(destination.W(), temp);
   Add(destination, kPtrComprCageBaseRegister, destination);
 }
 

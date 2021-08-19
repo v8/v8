@@ -329,12 +329,11 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ dmb(ISH);                                                      \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)                      \
-  do {                                                                \
-    __ dmb(ISH);                                                      \
-    __ asm_instr(i.InputRegister(2),                                  \
-                 MemOperand(i.InputRegister(0), i.InputRegister(1))); \
-    __ dmb(ISH);                                                      \
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, order)   \
+  do {                                                    \
+    __ dmb(ISH);                                          \
+    __ asm_instr(i.InputRegister(0), i.InputOffset(1));   \
+    if (order == AtomicMemoryOrder::kSeqCst) __ dmb(ISH); \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)             \
@@ -927,15 +926,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                            i.InputDoubleRegister(0), DetermineStubCallMode());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArchStoreWithWriteBarrier: {
-      RecordWriteMode mode =
-          static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
+    case kArchStoreWithWriteBarrier:  // Fall through.
+    case kArchAtomicStoreWithWriteBarrier: {
+      RecordWriteMode mode;
+      if (arch_opcode == kArchStoreWithWriteBarrier) {
+        mode = static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
+      } else {
+        mode = AtomicStoreRecordWriteModeField::decode(instr->opcode());
+      }
       Register object = i.InputRegister(0);
       Register value = i.InputRegister(2);
 
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
       Operand offset(0);
+
+      if (arch_opcode == kArchAtomicStoreWithWriteBarrier) {
+        __ dmb(ISH);
+      }
       if (addressing_mode == kMode_Offset_RI) {
         int32_t immediate = i.InputInt32(1);
         offset = Operand(immediate);
@@ -946,6 +954,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         offset = Operand(reg);
         __ str(value, MemOperand(object, reg));
       }
+      if (arch_opcode == kArchAtomicStoreWithWriteBarrier &&
+          AtomicMemoryOrderField::decode(instr->opcode()) ==
+              AtomicMemoryOrder::kSeqCst) {
+        __ dmb(ISH);
+      }
+
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode(),
           &unwinding_info_writer_);
@@ -3314,13 +3328,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_LOAD_INTEGER(ldr);
       break;
     case kAtomicStoreWord8:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(strb);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(strb,
+                                    AtomicMemoryOrderField::decode(opcode));
       break;
     case kAtomicStoreWord16:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(strh);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(strh,
+                                    AtomicMemoryOrderField::decode(opcode));
       break;
     case kAtomicStoreWord32:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(str);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(str,
+                                    AtomicMemoryOrderField::decode(opcode));
       break;
     case kAtomicExchangeInt8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexb, strexb);

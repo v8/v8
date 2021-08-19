@@ -969,6 +969,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Bind(ool->exit());
       break;
     }
+    case kArchAtomicStoreWithWriteBarrier: {
+      DCHECK_EQ(AddressingModeField::decode(instr->opcode()), kMode_MRR);
+      RecordWriteMode mode =
+          static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
+      Register object = i.InputRegister(0);
+      Register offset = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, offset, value, mode, DetermineStubCallMode(),
+          &unwinding_info_writer_);
+      __ AtomicStoreTaggedField(value, object, offset, i.TempRegister(0));
+      if (mode > RecordWriteMode::kValueIsPointer) {
+        __ JumpIfSmi(value, ool->exit());
+      }
+      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
+                       eq, ool->entry());
+      __ Bind(ool->exit());
+      break;
+    }
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
@@ -1811,12 +1830,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64LdrDecompressAnyTagged:
       __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand());
       break;
+    case kArm64LdarDecompressTaggedSigned:
+      __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.InputRegister(0),
+                                      i.InputRegister(1), i.TempRegister(0));
+      break;
+    case kArm64LdarDecompressTaggedPointer:
+      __ AtomicDecompressTaggedPointer(i.OutputRegister(), i.InputRegister(0),
+                                       i.InputRegister(1), i.TempRegister(0));
+      break;
+    case kArm64LdarDecompressAnyTagged:
+      __ AtomicDecompressAnyTagged(i.OutputRegister(), i.InputRegister(0),
+                                   i.InputRegister(1), i.TempRegister(0));
+      break;
     case kArm64Str:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64StrCompressTagged:
       __ StoreTaggedField(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
+      break;
+    case kArm64StlrCompressTagged:
+      // To be consistent with other STLR instructions, the value is stored at
+      // the 3rd input register instead of the 1st.
+      __ AtomicStoreTaggedField(i.InputRegister(2), i.InputRegister(0),
+                                i.InputRegister(1), i.TempRegister(0));
       break;
     case kArm64LdrS:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());

@@ -679,22 +679,25 @@ TNode<Object> CodeAssembler::LoadFullTagged(Node* base, TNode<IntPtrT> offset) {
   return BitcastWordToTagged(Load<RawPtrT>(base, offset));
 }
 
-Node* CodeAssembler::AtomicLoad(MachineType type, TNode<RawPtrT> base,
-                                TNode<WordT> offset) {
+Node* CodeAssembler::AtomicLoad(MachineType type, AtomicMemoryOrder order,
+                                TNode<RawPtrT> base, TNode<WordT> offset) {
   DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
-  return raw_assembler()->AtomicLoad(type, base, offset);
+  return raw_assembler()->AtomicLoad(AtomicLoadParameters(type, order), base,
+                                     offset);
 }
 
 template <class Type>
-TNode<Type> CodeAssembler::AtomicLoad64(TNode<RawPtrT> base,
+TNode<Type> CodeAssembler::AtomicLoad64(AtomicMemoryOrder order,
+                                        TNode<RawPtrT> base,
                                         TNode<WordT> offset) {
-  return UncheckedCast<Type>(raw_assembler()->AtomicLoad64(base, offset));
+  return UncheckedCast<Type>(raw_assembler()->AtomicLoad64(
+      AtomicLoadParameters(MachineType::Uint64(), order), base, offset));
 }
 
 template TNode<AtomicInt64> CodeAssembler::AtomicLoad64<AtomicInt64>(
-    TNode<RawPtrT> base, TNode<WordT> offset);
+    AtomicMemoryOrder order, TNode<RawPtrT> base, TNode<WordT> offset);
 template TNode<AtomicUint64> CodeAssembler::AtomicLoad64<AtomicUint64>(
-    TNode<RawPtrT> base, TNode<WordT> offset);
+    AtomicMemoryOrder order, TNode<RawPtrT> base, TNode<WordT> offset);
 
 Node* CodeAssembler::LoadFromObject(MachineType type, TNode<Object> object,
                                     TNode<IntPtrT> offset) {
@@ -859,16 +862,22 @@ void CodeAssembler::StoreFullTaggedNoWriteBarrier(TNode<RawPtrT> base,
                       BitcastTaggedToWord(tagged_value));
 }
 
-void CodeAssembler::AtomicStore(MachineRepresentation rep, TNode<RawPtrT> base,
+void CodeAssembler::AtomicStore(MachineRepresentation rep,
+                                AtomicMemoryOrder order, TNode<RawPtrT> base,
                                 TNode<WordT> offset, TNode<Word32T> value) {
   DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
-  raw_assembler()->AtomicStore(rep, base, offset, value);
+  raw_assembler()->AtomicStore(
+      AtomicStoreParameters(rep, WriteBarrierKind::kNoWriteBarrier, order),
+      base, offset, value);
 }
 
-void CodeAssembler::AtomicStore64(TNode<RawPtrT> base, TNode<WordT> offset,
-                                  TNode<UintPtrT> value,
+void CodeAssembler::AtomicStore64(AtomicMemoryOrder order, TNode<RawPtrT> base,
+                                  TNode<WordT> offset, TNode<UintPtrT> value,
                                   TNode<UintPtrT> value_high) {
-  raw_assembler()->AtomicStore64(base, offset, value, value_high);
+  raw_assembler()->AtomicStore64(
+      AtomicStoreParameters(MachineRepresentation::kWord64,
+                            WriteBarrierKind::kNoWriteBarrier, order),
+      base, offset, value, value_high);
 }
 
 #define ATOMIC_FUNCTION(name)                                                 \

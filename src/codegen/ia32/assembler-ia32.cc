@@ -688,6 +688,14 @@ void Assembler::movq(XMMRegister dst, Operand src) {
   emit_operand(dst, src);
 }
 
+void Assembler::movq(Operand dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xD6);
+  emit_operand(src, dst);
+}
+
 void Assembler::cmov(Condition cc, Register dst, Operand src) {
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.

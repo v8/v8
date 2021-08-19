@@ -535,6 +535,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movzx_w(Register dst, Operand src);
 
   void movq(XMMRegister dst, Operand src);
+  void movq(Operand dst, XMMRegister src);
 
   // Conditional moves
   void cmov(Condition cc, Register dst, Register src) {

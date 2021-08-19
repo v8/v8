@@ -246,6 +246,41 @@ class IA32OperandGenerator final : public OperandGenerator {
 
 namespace {
 
+ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
+  ArchOpcode opcode;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat32:
+      opcode = kIA32Movss;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kIA32Movsd;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsSigned() ? kIA32Movsxbl : kIA32Movzxbl;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsSigned() ? kIA32Movsxwl : kIA32Movzxwl;
+      break;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:         // Fall through.
+    case MachineRepresentation::kWord32:
+      opcode = kIA32Movl;
+      break;
+    case MachineRepresentation::kSimd128:
+      opcode = kIA32Movdqu;
+      break;
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kWord64:             // Fall through.
+    case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
+  }
+  return opcode;
+}
+
 void VisitRO(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   Node* input = node->InputAt(0);
@@ -535,41 +570,8 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   Emit(code, 1, outputs, input_count, inputs);
 }
 
-void InstructionSelector::VisitLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-
-  ArchOpcode opcode;
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kFloat32:
-      opcode = kIA32Movss;
-      break;
-    case MachineRepresentation::kFloat64:
-      opcode = kIA32Movsd;
-      break;
-    case MachineRepresentation::kBit:  // Fall through.
-    case MachineRepresentation::kWord8:
-      opcode = load_rep.IsSigned() ? kIA32Movsxbl : kIA32Movzxbl;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = load_rep.IsSigned() ? kIA32Movsxwl : kIA32Movzxwl;
-      break;
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
-    case MachineRepresentation::kWord32:
-      opcode = kIA32Movl;
-      break;
-    case MachineRepresentation::kSimd128:
-      opcode = kIA32Movdqu;
-      break;
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kWord64:             // Fall through.
-    case MachineRepresentation::kNone:
-    case MachineRepresentation::kMapWord:
-      UNREACHABLE();
-  }
-
+void InstructionSelector::VisitLoad(Node* node, Node* value,
+                                    InstructionCode opcode) {
   IA32OperandGenerator g(this);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
@@ -581,20 +583,97 @@ void InstructionSelector::VisitLoad(Node* node) {
   Emit(code, 1, outputs, input_count, inputs);
 }
 
+void InstructionSelector::VisitLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  DCHECK(!load_rep.IsMapWord());
+  VisitLoad(node, node, GetLoadOpcode(load_rep));
+}
+
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitStore(Node* node) {
-  IA32OperandGenerator g(this);
+namespace {
+
+ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      return kIA32Movss;
+    case MachineRepresentation::kFloat64:
+      return kIA32Movsd;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      return kIA32Movb;
+    case MachineRepresentation::kWord16:
+      return kIA32Movw;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:         // Fall through.
+    case MachineRepresentation::kWord32:
+      return kIA32Movl;
+    case MachineRepresentation::kSimd128:
+      return kIA32Movdqu;
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kWord64:             // Fall through.
+    case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
+  }
+}
+
+ArchOpcode GetSeqCstStoreOpcode(MachineRepresentation rep) {
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      return kAtomicExchangeInt8;
+    case MachineRepresentation::kWord16:
+      return kAtomicExchangeInt16;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:         // Fall through.
+    case MachineRepresentation::kWord32:
+      return kAtomicExchangeWord32;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void VisitAtomicExchange(InstructionSelector* selector, Node* node,
+                         ArchOpcode opcode, MachineRepresentation rep) {
+  IA32OperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
 
-  StoreRepresentation store_rep = StoreRepresentationOf(node->op());
+  AddressingMode addressing_mode;
+  InstructionOperand value_operand = (rep == MachineRepresentation::kWord8)
+                                         ? g.UseFixed(value, edx)
+                                         : g.UseUniqueRegister(value);
+  InstructionOperand inputs[] = {
+      value_operand, g.UseUniqueRegister(base),
+      g.GetEffectiveIndexOperand(index, &addressing_mode)};
+  InstructionOperand outputs[] = {
+      (rep == MachineRepresentation::kWord8)
+          // Using DefineSameAsFirst requires the register to be unallocated.
+          ? g.DefineAsFixed(node, edx)
+          : g.DefineSameAsFirst(node)};
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  selector->Emit(code, 1, outputs, arraysize(inputs), inputs);
+}
+
+void VisitStoreCommon(InstructionSelector* selector, Node* node,
+                      StoreRepresentation store_rep,
+                      base::Optional<AtomicMemoryOrder> atomic_order) {
+  IA32OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
+  const bool is_seqcst =
+      atomic_order && *atomic_order == AtomicMemoryOrder::kSeqCst;
 
   if (FLAG_enable_unconditional_write_barriers && CanBeTaggedPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
@@ -611,48 +690,23 @@ void InstructionSelector::VisitStore(Node* node) {
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
-    InstructionCode code = kArchStoreWithWriteBarrier;
+    InstructionCode code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
+                                     : kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
-    Emit(code, 0, nullptr, arraysize(inputs), inputs, temp_count, temps);
+    selector->Emit(code, 0, nullptr, arraysize(inputs), inputs, temp_count,
+                   temps);
+  } else if (is_seqcst) {
+    VisitAtomicExchange(selector, node, GetSeqCstStoreOpcode(rep), rep);
   } else {
-    ArchOpcode opcode;
-    switch (rep) {
-      case MachineRepresentation::kFloat32:
-        opcode = kIA32Movss;
-        break;
-      case MachineRepresentation::kFloat64:
-        opcode = kIA32Movsd;
-        break;
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = kIA32Movb;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = kIA32Movw;
-        break;
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:         // Fall through.
-      case MachineRepresentation::kWord32:
-        opcode = kIA32Movl;
-        break;
-      case MachineRepresentation::kSimd128:
-        opcode = kIA32Movdqu;
-        break;
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:         // Fall through.
-      case MachineRepresentation::kWord64:             // Fall through.
-      case MachineRepresentation::kMapWord:            // Fall through.
-      case MachineRepresentation::kNone:
-        UNREACHABLE();
-    }
+    // Release and non-atomic stores emit MOV.
+    // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
 
     InstructionOperand val;
     if (g.CanBeImmediate(value)) {
       val = g.UseImmediate(value);
-    } else if (rep == MachineRepresentation::kWord8 ||
-               rep == MachineRepresentation::kBit) {
+    } else if (!atomic_order && (rep == MachineRepresentation::kWord8 ||
+                                 rep == MachineRepresentation::kBit)) {
       val = g.UseByteRegister(value);
     } else {
       val = g.UseRegister(value);
@@ -663,11 +717,18 @@ void InstructionSelector::VisitStore(Node* node) {
     AddressingMode addressing_mode =
         g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
     InstructionCode code =
-        opcode | AddressingModeField::encode(addressing_mode);
+        GetStoreOpcode(rep) | AddressingModeField::encode(addressing_mode);
     inputs[input_count++] = val;
-    Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count,
-         inputs);
+    selector->Emit(code, 0, static_cast<InstructionOperand*>(nullptr),
+                   input_count, inputs);
   }
+}
+
+}  // namespace
+
+void InstructionSelector::VisitStore(Node* node) {
+  VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
+                   base::nullopt);
 }
 
 void InstructionSelector::VisitProtectedStore(Node* node) {
@@ -1625,29 +1686,6 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   VisitWordCompare(selector, node, kIA32Cmp, cont);
 }
 
-void VisitAtomicExchange(InstructionSelector* selector, Node* node,
-                         ArchOpcode opcode, MachineRepresentation rep) {
-  IA32OperandGenerator g(selector);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-
-  AddressingMode addressing_mode;
-  InstructionOperand value_operand = (rep == MachineRepresentation::kWord8)
-                                         ? g.UseFixed(value, edx)
-                                         : g.UseUniqueRegister(value);
-  InstructionOperand inputs[] = {
-      value_operand, g.UseUniqueRegister(base),
-      g.GetEffectiveIndexOperand(index, &addressing_mode)};
-  InstructionOperand outputs[] = {
-      (rep == MachineRepresentation::kWord8)
-          // Using DefineSameAsFirst requires the register to be unallocated.
-          ? g.DefineAsFixed(node, edx)
-          : g.DefineSameAsFirst(node)};
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  selector->Emit(code, 1, outputs, arraysize(inputs), inputs);
-}
-
 void VisitAtomicBinOp(InstructionSelector* selector, Node* node,
                       ArchOpcode opcode, MachineRepresentation rep) {
   AddressingMode addressing_mode;
@@ -1957,32 +1995,25 @@ void InstructionSelector::VisitMemoryBarrier(Node* node) {
 }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
+  LoadRepresentation load_rep = atomic_load_params.representation();
   DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||
          load_rep.representation() == MachineRepresentation::kWord16 ||
-         load_rep.representation() == MachineRepresentation::kWord32);
+         load_rep.representation() == MachineRepresentation::kWord32 ||
+         load_rep.representation() == MachineRepresentation::kTaggedSigned ||
+         load_rep.representation() == MachineRepresentation::kTaggedPointer ||
+         load_rep.representation() == MachineRepresentation::kTagged);
   USE(load_rep);
-  VisitLoad(node);
+  // The memory order is ignored as both acquire and sequentially consistent
+  // loads can emit MOV.
+  // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
+  VisitLoad(node, node, GetLoadOpcode(load_rep));
 }
 
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
-  IA32OperandGenerator g(this);
-  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
-  ArchOpcode opcode;
-  switch (rep) {
-    case MachineRepresentation::kWord8:
-      opcode = kAtomicExchangeInt8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = kAtomicExchangeInt16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kAtomicExchangeWord32;
-      break;
-    default:
-      UNREACHABLE();
-  }
-  VisitAtomicExchange(this, node, opcode, rep);
+  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+  VisitStoreCommon(this, node, store_params.store_representation(),
+                   store_params.order());
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
@@ -2075,6 +2106,8 @@ VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
 void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
+  // Both acquire and sequentially consistent loads can emit MOV.
+  // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
   IA32OperandGenerator g(this);
   AddressingMode mode;
   Node* base = node->InputAt(0);
@@ -2086,10 +2119,9 @@ void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
                                    g.GetEffectiveIndexOperand(index, &mode)};
     InstructionCode code =
         kIA32Word32AtomicPairLoad | AddressingModeField::encode(mode);
-    InstructionOperand temps[] = {g.TempDoubleRegister()};
     InstructionOperand outputs[] = {g.DefineAsRegister(projection0),
                                     g.DefineAsRegister(projection1)};
-    Emit(code, 2, outputs, 2, inputs, 1, temps);
+    Emit(code, 2, outputs, 2, inputs);
   } else if (projection0 || projection1) {
     // Only one word is needed, so it's enough to load just that.
     ArchOpcode opcode = kIA32Movl;
@@ -2110,25 +2142,45 @@ void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
 }
 
 void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
+  // Release pair stores emit a MOVQ via a double register, and sequentially
+  // consistent stores emit CMPXCHG8B.
+  // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
+
   IA32OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   Node* value_high = node->InputAt(3);
 
-  AddressingMode addressing_mode;
-  InstructionOperand inputs[] = {
-      g.UseUniqueRegisterOrSlotOrConstant(value), g.UseFixed(value_high, ecx),
-      g.UseUniqueRegister(base),
-      g.GetEffectiveIndexOperand(index, &addressing_mode)};
-  // Allocating temp registers here as stores are performed using an atomic
-  // exchange, the output of which is stored in edx:eax, which should be saved
-  // and restored at the end of the instruction.
-  InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
-  const int num_temps = arraysize(temps);
-  InstructionCode code =
-      kIA32Word32AtomicPairStore | AddressingModeField::encode(addressing_mode);
-  Emit(code, 0, nullptr, arraysize(inputs), inputs, num_temps, temps);
+  AtomicMemoryOrder order = OpParameter<AtomicMemoryOrder>(node->op());
+  if (order == AtomicMemoryOrder::kAcqRel) {
+    AddressingMode addressing_mode;
+    InstructionOperand inputs[] = {
+        g.UseUniqueRegisterOrSlotOrConstant(value),
+        g.UseUniqueRegisterOrSlotOrConstant(value_high),
+        g.UseUniqueRegister(base),
+        g.GetEffectiveIndexOperand(index, &addressing_mode),
+    };
+    InstructionCode code = kIA32Word32ReleasePairStore |
+                           AddressingModeField::encode(addressing_mode);
+    Emit(code, 0, nullptr, arraysize(inputs), inputs);
+  } else {
+    DCHECK_EQ(order, AtomicMemoryOrder::kSeqCst);
+
+    AddressingMode addressing_mode;
+    InstructionOperand inputs[] = {
+        g.UseUniqueRegisterOrSlotOrConstant(value), g.UseFixed(value_high, ecx),
+        g.UseUniqueRegister(base),
+        g.GetEffectiveIndexOperand(index, &addressing_mode)};
+    // Allocating temp registers here as stores are performed using an atomic
+    // exchange, the output of which is stored in edx:eax, which should be saved
+    // and restored at the end of the instruction.
+    InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
+    const int num_temps = arraysize(temps);
+    InstructionCode code = kIA32Word32SeqCstPairStore |
+                           AddressingModeField::encode(addressing_mode);
+    Emit(code, 0, nullptr, arraysize(inputs), inputs, num_temps, temps);
+  }
 }
 
 void InstructionSelector::VisitWord32AtomicPairAdd(Node* node) {

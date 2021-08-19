@@ -623,6 +623,7 @@
   'codegen-tester/*': [SKIP],
   'test-accessor-assembler/*': [SKIP],
   'test-assembler-*': [SKIP],
+  'test-atomic-load-store-codegen/*': [SKIP],
   'test-basic-block-profiler/*': [SKIP],
   'test-branch-combine/*': [SKIP],
   'test-calls-with-arraylike-or-spread/*': [SKIP],

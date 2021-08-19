@@ -17,6 +17,7 @@
 #include "src/base/optional.h"
 #include "src/base/type-traits.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/source-position.h"
@@ -743,12 +744,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<Type>(Load(MachineTypeOf<Type>::value, base, offset));
   }
   template <class Type>
-  TNode<Type> AtomicLoad(TNode<RawPtrT> base, TNode<WordT> offset) {
+  TNode<Type> AtomicLoad(AtomicMemoryOrder order, TNode<RawPtrT> base,
+                         TNode<WordT> offset) {
     return UncheckedCast<Type>(
-        AtomicLoad(MachineTypeOf<Type>::value, base, offset));
+        AtomicLoad(MachineTypeOf<Type>::value, order, base, offset));
   }
   template <class Type>
-  TNode<Type> AtomicLoad64(TNode<RawPtrT> base, TNode<WordT> offset);
+  TNode<Type> AtomicLoad64(AtomicMemoryOrder order, TNode<RawPtrT> base,
+                           TNode<WordT> offset);
   // Load uncompressed tagged value from (most likely off JS heap) memory
   // location.
   TNode<Object> LoadFullTagged(Node* base);
@@ -809,12 +812,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                                TNode<HeapObject> object,
                                                int offset, Node* value);
   void OptimizedStoreMap(TNode<HeapObject> object, TNode<Map>);
-  void AtomicStore(MachineRepresentation rep, TNode<RawPtrT> base,
-                   TNode<WordT> offset, TNode<Word32T> value);
+  void AtomicStore(MachineRepresentation rep, AtomicMemoryOrder order,
+                   TNode<RawPtrT> base, TNode<WordT> offset,
+                   TNode<Word32T> value);
   // {value_high} is used for 64-bit stores on 32-bit platforms, must be
   // nullptr in other cases.
-  void AtomicStore64(TNode<RawPtrT> base, TNode<WordT> offset,
-                     TNode<UintPtrT> value, TNode<UintPtrT> value_high);
+  void AtomicStore64(AtomicMemoryOrder order, TNode<RawPtrT> base,
+                     TNode<WordT> offset, TNode<UintPtrT> value,
+                     TNode<UintPtrT> value_high);
 
   TNode<Word32T> AtomicAdd(MachineType type, TNode<RawPtrT> base,
                            TNode<UintPtrT> offset, TNode<Word32T> value);
@@ -1353,7 +1358,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                   const CallInterfaceDescriptor& descriptor, int input_count,
                   Node* const* inputs);
 
-  Node* AtomicLoad(MachineType type, TNode<RawPtrT> base, TNode<WordT> offset);
+  Node* AtomicLoad(MachineType type, AtomicMemoryOrder order,
+                   TNode<RawPtrT> base, TNode<WordT> offset);
 
   Node* UnalignedLoad(MachineType type, TNode<RawPtrT> base,
                       TNode<WordT> offset);

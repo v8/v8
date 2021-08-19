@@ -667,6 +667,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void StoreTaggedField(Operand dst_field_operand, Immediate immediate);
   void StoreTaggedField(Operand dst_field_operand, Register value);
   void StoreTaggedSignedField(Operand dst_field_operand, Smi value);
+  void AtomicStoreTaggedField(Operand dst_field_operand, Register value);
 
   // The following macros work even when pointer compression is not enabled.
   void DecompressTaggedSigned(Register destination, Operand field_operand);

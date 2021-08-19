@@ -1292,7 +1292,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movl(result, result);
       break;
     }
-    case kArchStoreWithWriteBarrier: {
+    case kArchStoreWithWriteBarrier:  // Fall through.
+    case kArchAtomicStoreWithWriteBarrier: {
       RecordWriteMode mode =
           static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
       Register object = i.InputRegister(0);
@@ -1304,7 +1305,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
                                                    scratch0, scratch1, mode,
                                                    DetermineStubCallMode());
-      __ StoreTaggedField(operand, value);
+      if (arch_opcode == kArchStoreWithWriteBarrier) {
+        __ StoreTaggedField(operand, value);
+      } else {
+        DCHECK_EQ(kArchAtomicStoreWithWriteBarrier, arch_opcode);
+        __ AtomicStoreTaggedField(operand, value);
+      }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
@@ -1312,6 +1318,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
       __ bind(ool->exit());
+      // TODO(syg): Support non-relaxed memory orders in TSAN.
       EmitTSANStoreOOLIfNeeded(zone(), this, tasm(), operand, value, i,
                                DetermineStubCallMode(), kTaggedSize);
       break;

@@ -5175,16 +5175,26 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
         const Operator* (MachineOperatorBuilder::*)(MachineType);
     using OperatorByRep =
         const Operator* (MachineOperatorBuilder::*)(MachineRepresentation);
+    using OperatorByAtomicLoadRep =
+        const Operator* (MachineOperatorBuilder::*)(AtomicLoadParameters);
+    using OperatorByAtomicStoreRep =
+        const Operator* (MachineOperatorBuilder::*)(AtomicStoreParameters);
 
     const Type type;
     const MachineType machine_type;
     const OperatorByType operator_by_type = nullptr;
     const OperatorByRep operator_by_rep = nullptr;
+    const OperatorByAtomicLoadRep operator_by_atomic_load_params = nullptr;
+    const OperatorByAtomicStoreRep operator_by_atomic_store_rep = nullptr;
 
     constexpr AtomicOpInfo(Type t, MachineType m, OperatorByType o)
         : type(t), machine_type(m), operator_by_type(o) {}
     constexpr AtomicOpInfo(Type t, MachineType m, OperatorByRep o)
         : type(t), machine_type(m), operator_by_rep(o) {}
+    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicLoadRep o)
+        : type(t), machine_type(m), operator_by_atomic_load_params(o) {}
+    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicStoreRep o)
+        : type(t), machine_type(m), operator_by_atomic_store_rep(o) {}
 
     // Constexpr, hence just a table lookup in most compilers.
     static constexpr AtomicOpInfo Get(wasm::WasmOpcode opcode) {
@@ -5293,11 +5303,21 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
   uintptr_t capped_offset = static_cast<uintptr_t>(offset);
   if (info.type != AtomicOpInfo::kSpecial) {
-    const Operator* op =
-        info.operator_by_type
-            ? (mcgraph()->machine()->*info.operator_by_type)(info.machine_type)
-            : (mcgraph()->machine()->*info.operator_by_rep)(
-                  info.machine_type.representation());
+    const Operator* op;
+    if (info.operator_by_type) {
+      op = (mcgraph()->machine()->*info.operator_by_type)(info.machine_type);
+    } else if (info.operator_by_rep) {
+      op = (mcgraph()->machine()->*info.operator_by_rep)(
+          info.machine_type.representation());
+    } else if (info.operator_by_atomic_load_params) {
+      op = (mcgraph()->machine()->*info.operator_by_atomic_load_params)(
+          AtomicLoadParameters(info.machine_type, AtomicMemoryOrder::kSeqCst));
+    } else {
+      op = (mcgraph()->machine()->*info.operator_by_atomic_store_rep)(
+          AtomicStoreParameters(info.machine_type.representation(),
+                                WriteBarrierKind::kNoWriteBarrier,
+                                AtomicMemoryOrder::kSeqCst));
+    }
 
     Node* input_nodes[6] = {MemBuffer(capped_offset), index};
     int num_actual_inputs = info.type;
