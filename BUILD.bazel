@@ -1306,6 +1306,7 @@ filegroup(
         "src/heap/paged-spaces.h",
         "src/heap/parallel-work-item.h",
         "src/heap/parked-scope.h",
+        "src/heap/progress-bar.h",
         "src/heap/read-only-heap-inl.h",
         "src/heap/read-only-heap.cc",
         "src/heap/read-only-heap.h",
