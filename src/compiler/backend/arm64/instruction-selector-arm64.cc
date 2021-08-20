@@ -190,7 +190,8 @@ void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
   }
 }
 
-void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+void VisitRRI(InstructionSelector* selector, InstructionCode opcode,
+              Node* node) {
   Arm64OperandGenerator g(selector);
   int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
@@ -205,7 +206,8 @@ void VisitRRO(InstructionSelector* selector, ArchOpcode opcode, Node* node,
                  g.UseOperand(node->InputAt(1), operand_mode));
 }
 
-void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+void VisitRRIR(InstructionSelector* selector, InstructionCode opcode,
+               Node* node) {
   Arm64OperandGenerator g(selector);
   int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
@@ -3454,44 +3456,22 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
 
-#define SIMD_TYPE_LIST(V) \
-  V(F64x2)                \
-  V(F32x4)                \
-  V(I64x2)                \
-  V(I32x4)                \
-  V(I16x8)                \
-  V(I8x16)
-
 #define SIMD_UNOP_LIST(V)                                   \
-  V(F64x2Abs, kArm64F64x2Abs)                               \
-  V(F64x2Neg, kArm64F64x2Neg)                               \
-  V(F64x2Sqrt, kArm64F64x2Sqrt)                             \
   V(F64x2ConvertLowI32x4S, kArm64F64x2ConvertLowI32x4S)     \
   V(F64x2ConvertLowI32x4U, kArm64F64x2ConvertLowI32x4U)     \
   V(F64x2PromoteLowF32x4, kArm64F64x2PromoteLowF32x4)       \
   V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)           \
   V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)           \
-  V(F32x4Abs, kArm64F32x4Abs)                               \
-  V(F32x4Neg, kArm64F32x4Neg)                               \
-  V(F32x4Sqrt, kArm64F32x4Sqrt)                             \
   V(F32x4RecipApprox, kArm64F32x4RecipApprox)               \
   V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox)       \
   V(F32x4DemoteF64x2Zero, kArm64F32x4DemoteF64x2Zero)       \
-  V(I64x2Abs, kArm64I64x2Abs)                               \
-  V(I64x2Neg, kArm64I64x2Neg)                               \
   V(I64x2BitMask, kArm64I64x2BitMask)                       \
   V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)           \
-  V(I32x4Neg, kArm64I32x4Neg)                               \
   V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)           \
-  V(I32x4Abs, kArm64I32x4Abs)                               \
   V(I32x4BitMask, kArm64I32x4BitMask)                       \
   V(I32x4TruncSatF64x2SZero, kArm64I32x4TruncSatF64x2SZero) \
   V(I32x4TruncSatF64x2UZero, kArm64I32x4TruncSatF64x2UZero) \
-  V(I16x8Neg, kArm64I16x8Neg)                               \
-  V(I16x8Abs, kArm64I16x8Abs)                               \
   V(I16x8BitMask, kArm64I16x8BitMask)                       \
-  V(I8x16Neg, kArm64I8x16Neg)                               \
-  V(I8x16Abs, kArm64I8x16Abs)                               \
   V(I8x16BitMask, kArm64I8x16BitMask)                       \
   V(S128Not, kArm64S128Not)                                 \
   V(V128AnyTrue, kArm64V128AnyTrue)                         \
@@ -3499,6 +3479,28 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4AllTrue, kArm64I32x4AllTrue)                       \
   V(I16x8AllTrue, kArm64I16x8AllTrue)                       \
   V(I8x16AllTrue, kArm64I8x16AllTrue)
+
+#define SIMD_UNOP_LANE_SIZE_LIST(V) \
+  V(F64x2Splat, kArm64FSplat, 64)   \
+  V(F64x2Abs, kArm64FAbs, 64)       \
+  V(F64x2Sqrt, kArm64FSqrt, 64)     \
+  V(F64x2Neg, kArm64FNeg, 64)       \
+  V(F32x4Splat, kArm64FSplat, 32)   \
+  V(F32x4Abs, kArm64FAbs, 32)       \
+  V(F32x4Sqrt, kArm64FSqrt, 32)     \
+  V(F32x4Neg, kArm64FNeg, 32)       \
+  V(I64x2Splat, kArm64ISplat, 64)   \
+  V(I64x2Abs, kArm64IAbs, 64)       \
+  V(I64x2Neg, kArm64INeg, 64)       \
+  V(I32x4Splat, kArm64ISplat, 32)   \
+  V(I32x4Abs, kArm64IAbs, 32)       \
+  V(I32x4Neg, kArm64INeg, 32)       \
+  V(I16x8Splat, kArm64ISplat, 16)   \
+  V(I16x8Abs, kArm64IAbs, 16)       \
+  V(I16x8Neg, kArm64INeg, 16)       \
+  V(I8x16Splat, kArm64ISplat, 8)    \
+  V(I8x16Abs, kArm64IAbs, 8)        \
+  V(I8x16Neg, kArm64INeg, 8)
 
 #define SIMD_SHIFT_OP_LIST(V) \
   V(I64x2Shl, 64)             \
@@ -3515,82 +3517,84 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16ShrU, 8)
 
 #define SIMD_BINOP_LIST(V)                              \
-  V(F64x2Add, kArm64F64x2Add)                           \
-  V(F64x2Sub, kArm64F64x2Sub)                           \
-  V(F64x2Div, kArm64F64x2Div)                           \
-  V(F64x2Min, kArm64F64x2Min)                           \
-  V(F64x2Max, kArm64F64x2Max)                           \
-  V(F64x2Eq, kArm64F64x2Eq)                             \
-  V(F64x2Ne, kArm64F64x2Ne)                             \
-  V(F64x2Lt, kArm64F64x2Lt)                             \
-  V(F64x2Le, kArm64F64x2Le)                             \
-  V(F32x4Add, kArm64F32x4Add)                           \
-  V(F32x4Sub, kArm64F32x4Sub)                           \
-  V(F32x4Div, kArm64F32x4Div)                           \
-  V(F32x4Min, kArm64F32x4Min)                           \
-  V(F32x4Max, kArm64F32x4Max)                           \
-  V(F32x4Eq, kArm64F32x4Eq)                             \
-  V(F32x4Ne, kArm64F32x4Ne)                             \
-  V(F32x4Lt, kArm64F32x4Lt)                             \
-  V(F32x4Le, kArm64F32x4Le)                             \
-  V(I64x2Sub, kArm64I64x2Sub)                           \
-  V(I64x2Eq, kArm64I64x2Eq)                             \
-  V(I64x2Ne, kArm64I64x2Ne)                             \
-  V(I64x2GtS, kArm64I64x2GtS)                           \
-  V(I64x2GeS, kArm64I64x2GeS)                           \
   V(I32x4Mul, kArm64I32x4Mul)                           \
-  V(I32x4MinS, kArm64I32x4MinS)                         \
-  V(I32x4MaxS, kArm64I32x4MaxS)                         \
-  V(I32x4Eq, kArm64I32x4Eq)                             \
-  V(I32x4Ne, kArm64I32x4Ne)                             \
-  V(I32x4GtS, kArm64I32x4GtS)                           \
-  V(I32x4GeS, kArm64I32x4GeS)                           \
-  V(I32x4MinU, kArm64I32x4MinU)                         \
-  V(I32x4MaxU, kArm64I32x4MaxU)                         \
-  V(I32x4GtU, kArm64I32x4GtU)                           \
-  V(I32x4GeU, kArm64I32x4GeU)                           \
   V(I32x4DotI16x8S, kArm64I32x4DotI16x8S)               \
   V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)       \
-  V(I16x8AddSatS, kArm64I16x8AddSatS)                   \
-  V(I16x8SubSatS, kArm64I16x8SubSatS)                   \
   V(I16x8Mul, kArm64I16x8Mul)                           \
-  V(I16x8MinS, kArm64I16x8MinS)                         \
-  V(I16x8MaxS, kArm64I16x8MaxS)                         \
-  V(I16x8Eq, kArm64I16x8Eq)                             \
-  V(I16x8Ne, kArm64I16x8Ne)                             \
-  V(I16x8GtS, kArm64I16x8GtS)                           \
-  V(I16x8GeS, kArm64I16x8GeS)                           \
   V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4)       \
-  V(I16x8AddSatU, kArm64I16x8AddSatU)                   \
-  V(I16x8SubSatU, kArm64I16x8SubSatU)                   \
-  V(I16x8MinU, kArm64I16x8MinU)                         \
-  V(I16x8MaxU, kArm64I16x8MaxU)                         \
-  V(I16x8GtU, kArm64I16x8GtU)                           \
-  V(I16x8GeU, kArm64I16x8GeU)                           \
-  V(I16x8RoundingAverageU, kArm64I16x8RoundingAverageU) \
   V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)           \
-  V(I8x16Sub, kArm64I8x16Sub)                           \
   V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8)       \
-  V(I8x16AddSatS, kArm64I8x16AddSatS)                   \
-  V(I8x16SubSatS, kArm64I8x16SubSatS)                   \
-  V(I8x16MinS, kArm64I8x16MinS)                         \
-  V(I8x16MaxS, kArm64I8x16MaxS)                         \
-  V(I8x16Eq, kArm64I8x16Eq)                             \
-  V(I8x16Ne, kArm64I8x16Ne)                             \
-  V(I8x16GtS, kArm64I8x16GtS)                           \
-  V(I8x16GeS, kArm64I8x16GeS)                           \
   V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8)       \
-  V(I8x16AddSatU, kArm64I8x16AddSatU)                   \
-  V(I8x16SubSatU, kArm64I8x16SubSatU)                   \
-  V(I8x16MinU, kArm64I8x16MinU)                         \
-  V(I8x16MaxU, kArm64I8x16MaxU)                         \
-  V(I8x16GtU, kArm64I8x16GtU)                           \
-  V(I8x16GeU, kArm64I8x16GeU)                           \
-  V(I8x16RoundingAverageU, kArm64I8x16RoundingAverageU) \
   V(S128And, kArm64S128And)                             \
   V(S128Or, kArm64S128Or)                               \
   V(S128Xor, kArm64S128Xor)                             \
   V(S128AndNot, kArm64S128AndNot)
+
+#define SIMD_BINOP_LANE_SIZE_LIST(V)                   \
+  V(F64x2Min, kArm64FMin, 64)                          \
+  V(F64x2Max, kArm64FMax, 64)                          \
+  V(F64x2Add, kArm64FAdd, 64)                          \
+  V(F64x2Sub, kArm64FSub, 64)                          \
+  V(F64x2Div, kArm64FDiv, 64)                          \
+  V(F64x2Eq, kArm64FEq, 64)                            \
+  V(F64x2Ne, kArm64FNe, 64)                            \
+  V(F64x2Lt, kArm64FLt, 64)                            \
+  V(F64x2Le, kArm64FLe, 64)                            \
+  V(F32x4Min, kArm64FMin, 32)                          \
+  V(F32x4Max, kArm64FMax, 32)                          \
+  V(F32x4Add, kArm64FAdd, 32)                          \
+  V(F32x4Sub, kArm64FSub, 32)                          \
+  V(F32x4Div, kArm64FDiv, 32)                          \
+  V(F32x4Eq, kArm64FEq, 32)                            \
+  V(F32x4Ne, kArm64FNe, 32)                            \
+  V(F32x4Lt, kArm64FLt, 32)                            \
+  V(F32x4Le, kArm64FLe, 32)                            \
+  V(I64x2Sub, kArm64ISub, 64)                          \
+  V(I64x2Eq, kArm64IEq, 64)                            \
+  V(I64x2Ne, kArm64INe, 64)                            \
+  V(I64x2GtS, kArm64IGtS, 64)                          \
+  V(I64x2GeS, kArm64IGeS, 64)                          \
+  V(I32x4Eq, kArm64IEq, 32)                            \
+  V(I32x4Ne, kArm64INe, 32)                            \
+  V(I32x4GtS, kArm64IGtS, 32)                          \
+  V(I32x4GeS, kArm64IGeS, 32)                          \
+  V(I32x4GtU, kArm64IGtU, 32)                          \
+  V(I32x4GeU, kArm64IGeU, 32)                          \
+  V(I32x4MinS, kArm64IMinS, 32)                        \
+  V(I32x4MaxS, kArm64IMaxS, 32)                        \
+  V(I32x4MinU, kArm64IMinU, 32)                        \
+  V(I32x4MaxU, kArm64IMaxU, 32)                        \
+  V(I16x8AddSatS, kArm64IAddSatS, 16)                  \
+  V(I16x8SubSatS, kArm64ISubSatS, 16)                  \
+  V(I16x8AddSatU, kArm64IAddSatU, 16)                  \
+  V(I16x8SubSatU, kArm64ISubSatU, 16)                  \
+  V(I16x8Eq, kArm64IEq, 16)                            \
+  V(I16x8Ne, kArm64INe, 16)                            \
+  V(I16x8GtS, kArm64IGtS, 16)                          \
+  V(I16x8GeS, kArm64IGeS, 16)                          \
+  V(I16x8GtU, kArm64IGtU, 16)                          \
+  V(I16x8GeU, kArm64IGeU, 16)                          \
+  V(I16x8RoundingAverageU, kArm64RoundingAverageU, 16) \
+  V(I8x16RoundingAverageU, kArm64RoundingAverageU, 8)  \
+  V(I16x8MinS, kArm64IMinS, 16)                        \
+  V(I16x8MaxS, kArm64IMaxS, 16)                        \
+  V(I16x8MinU, kArm64IMinU, 16)                        \
+  V(I16x8MaxU, kArm64IMaxU, 16)                        \
+  V(I8x16Sub, kArm64ISub, 8)                           \
+  V(I8x16AddSatS, kArm64IAddSatS, 8)                   \
+  V(I8x16SubSatS, kArm64ISubSatS, 8)                   \
+  V(I8x16AddSatU, kArm64IAddSatU, 8)                   \
+  V(I8x16SubSatU, kArm64ISubSatU, 8)                   \
+  V(I8x16Eq, kArm64IEq, 8)                             \
+  V(I8x16Ne, kArm64INe, 8)                             \
+  V(I8x16GtS, kArm64IGtS, 8)                           \
+  V(I8x16GeS, kArm64IGeS, 8)                           \
+  V(I8x16GtU, kArm64IGtU, 8)                           \
+  V(I8x16GeU, kArm64IGeU, 8)                           \
+  V(I8x16MinS, kArm64IMinS, 8)                         \
+  V(I8x16MaxS, kArm64IMaxS, 8)                         \
+  V(I8x16MinU, kArm64IMinU, 8)                         \
+  V(I8x16MaxU, kArm64IMaxU, 8)
 
 void InstructionSelector::VisitS128Const(Node* node) {
   Arm64OperandGenerator g(this);
@@ -3615,34 +3619,34 @@ void InstructionSelector::VisitS128Zero(Node* node) {
   Emit(kArm64S128Zero, g.DefineAsRegister(node));
 }
 
-#define SIMD_VISIT_SPLAT(Type)                               \
-  void InstructionSelector::Visit##Type##Splat(Node* node) { \
-    VisitRR(this, kArm64##Type##Splat, node);                \
+#define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                     \
+  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) {     \
+    VisitRRI(this,                                                           \
+             kArm64##T##ExtractLane##Sign | LaneSizeField::encode(LaneSize), \
+             node);                                                          \
   }
-SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
-#undef SIMD_VISIT_SPLAT
-
-#define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                              \
-  void InstructionSelector::Visit##Type##ExtractLane##Sign(Node* node) { \
-    VisitRRI(this, kArm64##Type##ExtractLane##Sign, node);               \
-  }
-SIMD_VISIT_EXTRACT_LANE(F64x2, )
-SIMD_VISIT_EXTRACT_LANE(F32x4, )
-SIMD_VISIT_EXTRACT_LANE(I64x2, )
-SIMD_VISIT_EXTRACT_LANE(I32x4, )
-SIMD_VISIT_EXTRACT_LANE(I16x8, U)
-SIMD_VISIT_EXTRACT_LANE(I16x8, S)
-SIMD_VISIT_EXTRACT_LANE(I8x16, U)
-SIMD_VISIT_EXTRACT_LANE(I8x16, S)
+SIMD_VISIT_EXTRACT_LANE(F64x2, F, , 64)
+SIMD_VISIT_EXTRACT_LANE(F32x4, F, , 32)
+SIMD_VISIT_EXTRACT_LANE(I64x2, I, , 64)
+SIMD_VISIT_EXTRACT_LANE(I32x4, I, , 32)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, U, 16)
+SIMD_VISIT_EXTRACT_LANE(I16x8, I, S, 16)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, 8)
+SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define SIMD_VISIT_REPLACE_LANE(Type)                              \
-  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) { \
-    VisitRRIR(this, kArm64##Type##ReplaceLane, node);              \
+#define SIMD_VISIT_REPLACE_LANE(Type, T, LaneSize)                            \
+  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {            \
+    VisitRRIR(this, kArm64##T##ReplaceLane | LaneSizeField::encode(LaneSize), \
+              node);                                                          \
   }
-SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
+SIMD_VISIT_REPLACE_LANE(F64x2, F, 64)
+SIMD_VISIT_REPLACE_LANE(F32x4, F, 32)
+SIMD_VISIT_REPLACE_LANE(I64x2, I, 64)
+SIMD_VISIT_REPLACE_LANE(I32x4, I, 32)
+SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
+SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
 #undef SIMD_VISIT_REPLACE_LANE
-#undef SIMD_TYPE_LIST
 
 #define SIMD_VISIT_UNOP(Name, instruction)            \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -3667,6 +3671,22 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
+
+#define SIMD_VISIT_BINOP_LANE_SIZE(Name, instruction, LaneSize)          \
+  void InstructionSelector::Visit##Name(Node* node) {                    \
+    VisitRRR(this, instruction | LaneSizeField::encode(LaneSize), node); \
+  }
+SIMD_BINOP_LANE_SIZE_LIST(SIMD_VISIT_BINOP_LANE_SIZE)
+#undef SIMD_VISIT_BINOP_LANE_SIZE
+#undef SIMD_BINOP_LANE_SIZE_LIST
+
+#define SIMD_VISIT_UNOP_LANE_SIZE(Name, instruction, LaneSize)          \
+  void InstructionSelector::Visit##Name(Node* node) {                   \
+    VisitRR(this, instruction | LaneSizeField::encode(LaneSize), node); \
+  }
+SIMD_UNOP_LANE_SIZE_LIST(SIMD_VISIT_UNOP_LANE_SIZE)
+#undef SIMD_VISIT_UNOP_LANE_SIZE
+#undef SIMD_UNOP_LANE_SIZE_LIST
 
 using ShuffleMatcher =
     ValueMatcher<S128ImmediateParameter, IrOpcode::kI8x16Shuffle>;
@@ -3728,22 +3748,22 @@ MulWithDupResult TryMatchMulWithDup(Node* node) {
 void InstructionSelector::VisitF32x4Mul(Node* node) {
   if (MulWithDupResult result = TryMatchMulWithDup<4>(node)) {
     Arm64OperandGenerator g(this);
-    Emit(kArm64F32x4MulElement, g.DefineAsRegister(node),
-         g.UseRegister(result.input), g.UseRegister(result.dup_node),
-         g.UseImmediate(result.index));
+    Emit(kArm64FMulElement | LaneSizeField::encode(32),
+         g.DefineAsRegister(node), g.UseRegister(result.input),
+         g.UseRegister(result.dup_node), g.UseImmediate(result.index));
   } else {
-    return VisitRRR(this, kArm64F32x4Mul, node);
+    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(32), node);
   }
 }
 
 void InstructionSelector::VisitF64x2Mul(Node* node) {
   if (MulWithDupResult result = TryMatchMulWithDup<2>(node)) {
     Arm64OperandGenerator g(this);
-    Emit(kArm64F64x2MulElement, g.DefineAsRegister(node),
-         g.UseRegister(result.input), g.UseRegister(result.dup_node),
-         g.UseImmediate(result.index));
+    Emit(kArm64FMulElement | LaneSizeField::encode(64),
+         g.DefineAsRegister(node), g.UseRegister(result.input),
+         g.UseRegister(result.dup_node), g.UseImmediate(result.index));
   } else {
-    return VisitRRR(this, kArm64F64x2Mul, node);
+    return VisitRRR(this, kArm64FMul | LaneSizeField::encode(64), node);
   }
 }
 
@@ -3824,67 +3844,75 @@ bool MlaHelper(InstructionSelector* selector, Node* node,
 }  // namespace
 
 void InstructionSelector::VisitI64x2Add(Node* node) {
-  if (!ShraHelper(this, node, 64, kArm64Ssra, kArm64I64x2Add,
+  if (!ShraHelper(this, node, 64, kArm64Ssra,
+                  kArm64IAdd | LaneSizeField::encode(64),
                   IrOpcode::kI64x2ShrS) &&
-      !ShraHelper(this, node, 64, kArm64Usra, kArm64I64x2Add,
+      !ShraHelper(this, node, 64, kArm64Usra,
+                  kArm64IAdd | LaneSizeField::encode(64),
                   IrOpcode::kI64x2ShrU)) {
-    VisitRRR(this, kArm64I64x2Add, node);
+    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(64), node);
   }
 }
 
 void InstructionSelector::VisitI8x16Add(Node* node) {
-  if (!ShraHelper(this, node, 8, kArm64Ssra, kArm64I8x16Add,
+  if (!ShraHelper(this, node, 8, kArm64Ssra,
+                  kArm64IAdd | LaneSizeField::encode(8),
                   IrOpcode::kI8x16ShrS) &&
-      !ShraHelper(this, node, 8, kArm64Usra, kArm64I8x16Add,
+      !ShraHelper(this, node, 8, kArm64Usra,
+                  kArm64IAdd | LaneSizeField::encode(8),
                   IrOpcode::kI8x16ShrU)) {
-    VisitRRR(this, kArm64I8x16Add, node);
+    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(8), node);
   }
 }
 
-#define VISIT_SIMD_ADD(Type, PairwiseType, LaneSize)                        \
-  void InstructionSelector::Visit##Type##Add(Node* node) {                  \
-    /* Select Mla(z, x, y) for Add(x, Mul(y, z)). */                        \
-    if (MlaHelper(this, node, kArm64##Type##Mla, IrOpcode::k##Type##Mul)) { \
-      return;                                                               \
-    }                                                                       \
-    /* Select S/Uadalp(x, y) for Add(x, ExtAddPairwise(y)). */              \
-    if (AdalpHelper(this, node, LaneSize, kArm64Sadalp,                     \
-                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S) ||  \
-        AdalpHelper(this, node, LaneSize, kArm64Uadalp,                     \
-                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U)) {  \
-      return;                                                               \
-    }                                                                       \
-    /* Select S/Usra(x, y) for Add(x, ShiftRight(y, imm)). */               \
-    if (ShraHelper(this, node, LaneSize, kArm64Ssra, kArm64##Type##Add,     \
-                   IrOpcode::k##Type##ShrS) ||                              \
-        ShraHelper(this, node, LaneSize, kArm64Usra, kArm64##Type##Add,     \
-                   IrOpcode::k##Type##ShrU)) {                              \
-      return;                                                               \
-    }                                                                       \
-    VisitRRR(this, kArm64##Type##Add, node);                                \
+#define VISIT_SIMD_ADD(Type, PairwiseType, LaneSize)                       \
+  void InstructionSelector::Visit##Type##Add(Node* node) {                 \
+    /* Select Mla(z, x, y) for Add(x, Mul(y, z)). */                       \
+    if (MlaHelper(this, node, kArm64Mla | LaneSizeField::encode(LaneSize), \
+                  IrOpcode::k##Type##Mul)) {                               \
+      return;                                                              \
+    }                                                                      \
+    /* Select S/Uadalp(x, y) for Add(x, ExtAddPairwise(y)). */             \
+    if (AdalpHelper(this, node, LaneSize, kArm64Sadalp,                    \
+                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##S) || \
+        AdalpHelper(this, node, LaneSize, kArm64Uadalp,                    \
+                    IrOpcode::k##Type##ExtAddPairwise##PairwiseType##U)) { \
+      return;                                                              \
+    }                                                                      \
+    /* Select S/Usra(x, y) for Add(x, ShiftRight(y, imm)). */              \
+    if (ShraHelper(this, node, LaneSize, kArm64Ssra,                       \
+                   kArm64IAdd | LaneSizeField::encode(LaneSize),           \
+                   IrOpcode::k##Type##ShrS) ||                             \
+        ShraHelper(this, node, LaneSize, kArm64Usra,                       \
+                   kArm64IAdd | LaneSizeField::encode(LaneSize),           \
+                   IrOpcode::k##Type##ShrU)) {                             \
+      return;                                                              \
+    }                                                                      \
+    VisitRRR(this, kArm64IAdd | LaneSizeField::encode(LaneSize), node);    \
   }
 
 VISIT_SIMD_ADD(I32x4, I16x8, 32)
 VISIT_SIMD_ADD(I16x8, I8x16, 16)
 #undef VISIT_SIMD_ADD
 
-#define VISIT_SIMD_SUB(Type)                                                  \
+#define VISIT_SIMD_SUB(Type, LaneSize)                                        \
   void InstructionSelector::Visit##Type##Sub(Node* node) {                    \
     Arm64OperandGenerator g(this);                                            \
     Node* left = node->InputAt(0);                                            \
     Node* right = node->InputAt(1);                                           \
     /* Select Mls(z, x, y) for Sub(z, Mul(x, y)). */                          \
     if (right->opcode() == IrOpcode::k##Type##Mul && CanCover(node, right)) { \
-      Emit(kArm64##Type##Mls, g.DefineSameAsFirst(node), g.UseRegister(left), \
+      Emit(kArm64Mls | LaneSizeField::encode(LaneSize),                       \
+           g.DefineSameAsFirst(node), g.UseRegister(left),                    \
            g.UseRegister(right->InputAt(0)),                                  \
            g.UseRegister(right->InputAt(1)));                                 \
       return;                                                                 \
     }                                                                         \
-    VisitRRR(this, kArm64##Type##Sub, node);                                  \
+    VisitRRR(this, kArm64ISub | LaneSizeField::encode(LaneSize), node);       \
   }
 
-VISIT_SIMD_SUB(I32x4)
-VISIT_SIMD_SUB(I16x8)
+VISIT_SIMD_SUB(I32x4, 32)
+VISIT_SIMD_SUB(I16x8, 16)
 #undef VISIT_SIMD_SUB
 
 void InstructionSelector::VisitS128Select(Node* node) {

@@ -2163,6 +2163,7 @@ struct SIMDMulDPInst {
   ArchOpcode multiply_add_arch_opcode;
   ArchOpcode multiply_sub_arch_opcode;
   MachineType machine_type;
+  const int lane_size;
 };
 
 std::ostream& operator<<(std::ostream& os, const SIMDMulDPInst& inst) {
@@ -2174,10 +2175,10 @@ std::ostream& operator<<(std::ostream& os, const SIMDMulDPInst& inst) {
 static const SIMDMulDPInst kSIMDMulDPInstructions[] = {
     {"I32x4Mul", &MachineOperatorBuilder::I32x4Mul,
      &MachineOperatorBuilder::I32x4Add, &MachineOperatorBuilder::I32x4Sub,
-     kArm64I32x4Mla, kArm64I32x4Mls, MachineType::Simd128()},
+     kArm64Mla, kArm64Mls, MachineType::Simd128(), 32},
     {"I16x8Mul", &MachineOperatorBuilder::I16x8Mul,
      &MachineOperatorBuilder::I16x8Add, &MachineOperatorBuilder::I16x8Sub,
-     kArm64I16x8Mla, kArm64I16x8Mls, MachineType::Simd128()}};
+     kArm64Mla, kArm64Mls, MachineType::Simd128(), 16}};
 
 using InstructionSelectorSIMDDPWithSIMDMulTest =
     InstructionSelectorTestWithParam<SIMDMulDPInst>;
@@ -2193,6 +2194,7 @@ TEST_P(InstructionSelectorSIMDDPWithSIMDMulTest, AddWithMul) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.lane_size, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2204,6 +2206,7 @@ TEST_P(InstructionSelectorSIMDDPWithSIMDMulTest, AddWithMul) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.lane_size, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2220,6 +2223,7 @@ TEST_P(InstructionSelectorSIMDDPWithSIMDMulTest, SubWithMul) {
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(mdpi.multiply_sub_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.lane_size, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2386,7 +2390,8 @@ TEST_P(InstructionSelectorSimdF32x4MulWithDupTest, MulWithDup) {
     m.Return(m.AddNode(m.machine()->F32x4Mul(), m.Parameter(2), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64F32x4MulElement, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64FMulElement, s[0]->arch_opcode());
+    EXPECT_EQ(32, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(param.lane, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -2402,7 +2407,8 @@ TEST_P(InstructionSelectorSimdF32x4MulWithDupTest, MulWithDup) {
     m.Return(m.AddNode(m.machine()->F32x4Mul(), shuffle, m.Parameter(2)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64F32x4MulElement, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64FMulElement, s[0]->arch_opcode());
+    EXPECT_EQ(32, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(param.lane, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -2429,7 +2435,8 @@ TEST_F(InstructionSelectorTest, SimdF32x4MulWithDupNegativeTest) {
     // The shuffle is a i8x16.dup of lane 0.
     EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
     EXPECT_EQ(3U, s[0]->InputCount());
-    EXPECT_EQ(kArm64F32x4Mul, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64FMul, s[1]->arch_opcode());
+    EXPECT_EQ(32, LaneSizeField::decode(s[1]->opcode()));
     EXPECT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
@@ -2472,7 +2479,8 @@ TEST_P(InstructionSelectorSimdF64x2MulWithDupTest, MulWithDup) {
     m.Return(m.AddNode(m.machine()->F64x2Mul(), m.Parameter(2), shuffle));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64F64x2MulElement, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64FMulElement, s[0]->arch_opcode());
+    EXPECT_EQ(64, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(param.lane, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -2488,7 +2496,8 @@ TEST_P(InstructionSelectorSimdF64x2MulWithDupTest, MulWithDup) {
     m.Return(m.AddNode(m.machine()->F64x2Mul(), shuffle, m.Parameter(2)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64F64x2MulElement, s[0]->arch_opcode());
+    EXPECT_EQ(kArm64FMulElement, s[0]->arch_opcode());
+    EXPECT_EQ(64, LaneSizeField::decode(s[0]->opcode()));
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(param.lane, s.ToInt32(s[0]->InputAt(2)));
     EXPECT_EQ(1U, s[0]->OutputCount());
@@ -2515,7 +2524,8 @@ TEST_F(InstructionSelectorTest, SimdF64x2MulWithDupNegativeTest) {
     // The shuffle is a i8x16.dup of lane 0.
     EXPECT_EQ(kArm64S128Dup, s[0]->arch_opcode());
     EXPECT_EQ(3U, s[0]->InputCount());
-    EXPECT_EQ(kArm64F64x2Mul, s[1]->arch_opcode());
+    EXPECT_EQ(kArm64FMul, s[1]->arch_opcode());
+    EXPECT_EQ(64, LaneSizeField::decode(s[1]->opcode()));
     EXPECT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());

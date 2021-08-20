@@ -189,23 +189,23 @@ namespace compiler {
   V(Arm64Sxtl2)                       \
   V(Arm64Uxtl)                        \
   V(Arm64Uxtl2)                       \
-  V(Arm64F64x2Splat)                  \
-  V(Arm64F64x2ExtractLane)            \
-  V(Arm64F64x2ReplaceLane)            \
-  V(Arm64F64x2Abs)                    \
-  V(Arm64F64x2Neg)                    \
-  V(Arm64F64x2Sqrt)                   \
-  V(Arm64F64x2Add)                    \
-  V(Arm64F64x2Sub)                    \
-  V(Arm64F64x2Mul)                    \
-  V(Arm64F64x2MulElement)             \
-  V(Arm64F64x2Div)                    \
-  V(Arm64F64x2Min)                    \
-  V(Arm64F64x2Max)                    \
-  V(Arm64F64x2Eq)                     \
-  V(Arm64F64x2Ne)                     \
-  V(Arm64F64x2Lt)                     \
-  V(Arm64F64x2Le)                     \
+  V(Arm64FSplat)                      \
+  V(Arm64FAbs)                        \
+  V(Arm64FSqrt)                       \
+  V(Arm64FNeg)                        \
+  V(Arm64FExtractLane)                \
+  V(Arm64FReplaceLane)                \
+  V(Arm64FAdd)                        \
+  V(Arm64FSub)                        \
+  V(Arm64FMul)                        \
+  V(Arm64FMulElement)                 \
+  V(Arm64FDiv)                        \
+  V(Arm64FMin)                        \
+  V(Arm64FMax)                        \
+  V(Arm64FEq)                         \
+  V(Arm64FNe)                         \
+  V(Arm64FLt)                         \
+  V(Arm64FLe)                         \
   V(Arm64F64x2Qfma)                   \
   V(Arm64F64x2Qfms)                   \
   V(Arm64F64x2Pmin)                   \
@@ -213,140 +213,69 @@ namespace compiler {
   V(Arm64F64x2ConvertLowI32x4S)       \
   V(Arm64F64x2ConvertLowI32x4U)       \
   V(Arm64F64x2PromoteLowF32x4)        \
-  V(Arm64F32x4Splat)                  \
-  V(Arm64F32x4ExtractLane)            \
-  V(Arm64F32x4ReplaceLane)            \
   V(Arm64F32x4SConvertI32x4)          \
   V(Arm64F32x4UConvertI32x4)          \
-  V(Arm64F32x4Abs)                    \
-  V(Arm64F32x4Neg)                    \
-  V(Arm64F32x4Sqrt)                   \
   V(Arm64F32x4RecipApprox)            \
   V(Arm64F32x4RecipSqrtApprox)        \
-  V(Arm64F32x4Add)                    \
-  V(Arm64F32x4Sub)                    \
-  V(Arm64F32x4Mul)                    \
-  V(Arm64F32x4MulElement)             \
-  V(Arm64F32x4Div)                    \
-  V(Arm64F32x4Min)                    \
-  V(Arm64F32x4Max)                    \
-  V(Arm64F32x4Eq)                     \
-  V(Arm64F32x4Ne)                     \
-  V(Arm64F32x4Lt)                     \
-  V(Arm64F32x4Le)                     \
   V(Arm64F32x4Qfma)                   \
   V(Arm64F32x4Qfms)                   \
   V(Arm64F32x4Pmin)                   \
   V(Arm64F32x4Pmax)                   \
   V(Arm64F32x4DemoteF64x2Zero)        \
-  V(Arm64I64x2Splat)                  \
-  V(Arm64I64x2ExtractLane)            \
-  V(Arm64I64x2ReplaceLane)            \
-  V(Arm64I64x2Abs)                    \
-  V(Arm64I64x2Neg)                    \
+  V(Arm64ISplat)                      \
+  V(Arm64IAbs)                        \
+  V(Arm64INeg)                        \
+  V(Arm64IExtractLane)                \
+  V(Arm64IReplaceLane)                \
   V(Arm64I64x2Shl)                    \
   V(Arm64I64x2ShrS)                   \
-  V(Arm64I64x2Add)                    \
-  V(Arm64I64x2Sub)                    \
+  V(Arm64IAdd)                        \
+  V(Arm64ISub)                        \
   V(Arm64I64x2Mul)                    \
-  V(Arm64I64x2Eq)                     \
-  V(Arm64I64x2Ne)                     \
-  V(Arm64I64x2GtS)                    \
-  V(Arm64I64x2GeS)                    \
+  V(Arm64IEq)                         \
+  V(Arm64INe)                         \
+  V(Arm64IGtS)                        \
+  V(Arm64IGeS)                        \
   V(Arm64I64x2ShrU)                   \
   V(Arm64I64x2BitMask)                \
-  V(Arm64I32x4Splat)                  \
-  V(Arm64I32x4ExtractLane)            \
-  V(Arm64I32x4ReplaceLane)            \
   V(Arm64I32x4SConvertF32x4)          \
-  V(Arm64I32x4Neg)                    \
   V(Arm64I32x4Shl)                    \
   V(Arm64I32x4ShrS)                   \
-  V(Arm64I32x4Add)                    \
-  V(Arm64I32x4Sub)                    \
   V(Arm64I32x4Mul)                    \
-  V(Arm64I32x4Mla)                    \
-  V(Arm64I32x4Mls)                    \
-  V(Arm64I32x4MinS)                   \
-  V(Arm64I32x4MaxS)                   \
-  V(Arm64I32x4Eq)                     \
-  V(Arm64I32x4Ne)                     \
-  V(Arm64I32x4GtS)                    \
-  V(Arm64I32x4GeS)                    \
+  V(Arm64Mla)                         \
+  V(Arm64Mls)                         \
+  V(Arm64IMinS)                       \
+  V(Arm64IMaxS)                       \
   V(Arm64I32x4UConvertF32x4)          \
   V(Arm64I32x4ShrU)                   \
-  V(Arm64I32x4MinU)                   \
-  V(Arm64I32x4MaxU)                   \
-  V(Arm64I32x4GtU)                    \
-  V(Arm64I32x4GeU)                    \
-  V(Arm64I32x4Abs)                    \
+  V(Arm64IMinU)                       \
+  V(Arm64IMaxU)                       \
+  V(Arm64IGtU)                        \
+  V(Arm64IGeU)                        \
   V(Arm64I32x4BitMask)                \
   V(Arm64I32x4DotI16x8S)              \
   V(Arm64I32x4TruncSatF64x2SZero)     \
   V(Arm64I32x4TruncSatF64x2UZero)     \
-  V(Arm64I16x8Splat)                  \
-  V(Arm64I16x8ExtractLaneU)           \
-  V(Arm64I16x8ExtractLaneS)           \
-  V(Arm64I16x8ReplaceLane)            \
-  V(Arm64I16x8Neg)                    \
+  V(Arm64IExtractLaneU)               \
+  V(Arm64IExtractLaneS)               \
   V(Arm64I16x8Shl)                    \
   V(Arm64I16x8ShrS)                   \
   V(Arm64I16x8SConvertI32x4)          \
-  V(Arm64I16x8Add)                    \
-  V(Arm64I16x8AddSatS)                \
-  V(Arm64I16x8Sub)                    \
-  V(Arm64I16x8SubSatS)                \
+  V(Arm64IAddSatS)                    \
+  V(Arm64ISubSatS)                    \
   V(Arm64I16x8Mul)                    \
-  V(Arm64I16x8Mla)                    \
-  V(Arm64I16x8Mls)                    \
-  V(Arm64I16x8MinS)                   \
-  V(Arm64I16x8MaxS)                   \
-  V(Arm64I16x8Eq)                     \
-  V(Arm64I16x8Ne)                     \
-  V(Arm64I16x8GtS)                    \
-  V(Arm64I16x8GeS)                    \
   V(Arm64I16x8ShrU)                   \
   V(Arm64I16x8UConvertI32x4)          \
-  V(Arm64I16x8AddSatU)                \
-  V(Arm64I16x8SubSatU)                \
-  V(Arm64I16x8MinU)                   \
-  V(Arm64I16x8MaxU)                   \
-  V(Arm64I16x8GtU)                    \
-  V(Arm64I16x8GeU)                    \
-  V(Arm64I16x8RoundingAverageU)       \
+  V(Arm64IAddSatU)                    \
+  V(Arm64ISubSatU)                    \
+  V(Arm64RoundingAverageU)            \
   V(Arm64I16x8Q15MulRSatS)            \
-  V(Arm64I16x8Abs)                    \
   V(Arm64I16x8BitMask)                \
-  V(Arm64I8x16Splat)                  \
-  V(Arm64I8x16ExtractLaneU)           \
-  V(Arm64I8x16ExtractLaneS)           \
-  V(Arm64I8x16ReplaceLane)            \
-  V(Arm64I8x16Neg)                    \
   V(Arm64I8x16Shl)                    \
   V(Arm64I8x16ShrS)                   \
   V(Arm64I8x16SConvertI16x8)          \
-  V(Arm64I8x16Add)                    \
-  V(Arm64I8x16AddSatS)                \
-  V(Arm64I8x16Sub)                    \
-  V(Arm64I8x16SubSatS)                \
-  V(Arm64I8x16Mla)                    \
-  V(Arm64I8x16Mls)                    \
-  V(Arm64I8x16MinS)                   \
-  V(Arm64I8x16MaxS)                   \
-  V(Arm64I8x16Eq)                     \
-  V(Arm64I8x16Ne)                     \
-  V(Arm64I8x16GtS)                    \
-  V(Arm64I8x16GeS)                    \
   V(Arm64I8x16ShrU)                   \
   V(Arm64I8x16UConvertI16x8)          \
-  V(Arm64I8x16AddSatU)                \
-  V(Arm64I8x16SubSatU)                \
-  V(Arm64I8x16MinU)                   \
-  V(Arm64I8x16MaxU)                   \
-  V(Arm64I8x16GtU)                    \
-  V(Arm64I8x16GeU)                    \
-  V(Arm64I8x16RoundingAverageU)       \
-  V(Arm64I8x16Abs)                    \
   V(Arm64I8x16BitMask)                \
   V(Arm64S128Const)                   \
   V(Arm64S128Zero)                    \
