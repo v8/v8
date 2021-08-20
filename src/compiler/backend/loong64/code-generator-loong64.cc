@@ -807,7 +807,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());
       break;
-    case kArchStoreWithWriteBarrier: {
+    case kArchStoreWithWriteBarrier:  // Fall through.
+    case kArchAtomicStoreWithWriteBarrier: {
       RecordWriteMode mode =
           static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
       AddressingMode addressing_mode =
@@ -824,11 +825,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode());
-      if (addressing_mode == kMode_MRI) {
-        __ St_d(value, MemOperand(object, i.InputInt64(1)));
+      if (arch_opcode == kArchStoreWithWriteBarrier) {
+        if (addressing_mode == kMode_MRI) {
+          __ St_d(value, MemOperand(object, i.InputInt64(1)));
+        } else {
+          DCHECK_EQ(addressing_mode, kMode_MRR);
+          __ St_d(value, MemOperand(object, i.InputRegister(1)));
+        }
       } else {
-        DCHECK_EQ(addressing_mode, kMode_MRR);
-        __ St_d(value, MemOperand(object, i.InputRegister(1)));
+        DCHECK_EQ(kArchAtomicStoreWithWriteBarrier, arch_opcode);
+        DCHECK_EQ(addressing_mode, kMode_MRI);
+        UseScratchRegisterScope temps(tasm());
+        Register scratch = temps.Acquire();
+        __ Add_d(scratch, object, Operand(i.InputInt64(1)));
+        __ amswap_db_d(zero_reg, value, scratch);
       }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
@@ -1604,6 +1614,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(St_w);
       break;
+    case kLoong64StoreCompressTagged:
     case kLoong64Word64AtomicStoreWord64:
       ASSEMBLE_ATOMIC_STORE_INTEGER(St_d);
       break;

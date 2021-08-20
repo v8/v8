@@ -360,6 +360,7 @@ namespace compiler {
   V(Loong64I16x8UConvertI8x16High)     \
   V(Loong64I8x16SConvertI16x8)         \
   V(Loong64I8x16UConvertI16x8)         \
+  V(Loong64StoreCompressTagged)        \
   V(Loong64Word64AtomicLoadUint32)     \
   V(Loong64Word64AtomicLoadUint64)     \
   V(Loong64Word64AtomicStoreWord64)    \
