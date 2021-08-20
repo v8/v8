@@ -3183,13 +3183,15 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
   Local<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
 
-  Local<Object> dispatch_counters = reinterpret_cast<i::Isolate*>(isolate)
-                                        ->interpreter()
-                                        ->GetDispatchCountersObject();
+  i::Handle<i::JSObject> dispatch_counters =
+      reinterpret_cast<i::Isolate*>(isolate)
+          ->interpreter()
+          ->GetDispatchCountersObject();
   std::ofstream dispatch_counters_stream(
       i::FLAG_trace_ignition_dispatches_output_file);
   dispatch_counters_stream << *String::Utf8Value(
-      isolate, JSON::Stringify(context, dispatch_counters).ToLocalChecked());
+      isolate, JSON::Stringify(context, Utils::ToLocal(dispatch_counters))
+                   .ToLocalChecked());
 }
 
 namespace {

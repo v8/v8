@@ -10,16 +10,12 @@
 // Clients of this interface shouldn't depend on lots of interpreter internals.
 // Do not include anything from src/interpreter other than
 // src/interpreter/bytecodes.h here!
-#include "include/v8-local-handle.h"
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
-
-class Object;
-
 namespace internal {
 
 class BytecodeArray;
@@ -76,9 +72,7 @@ class Interpreter {
   // Disassembler support.
   V8_EXPORT_PRIVATE const char* LookupNameOfBytecodeHandler(const Code code);
 
-  // TODO(leszeks): Convert to Handle/raw object to avoid v8-local-handle.h
-  // include and separate this from external interface.
-  V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
+  V8_EXPORT_PRIVATE Handle<JSObject> GetDispatchCountersObject();
 
   void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
 
