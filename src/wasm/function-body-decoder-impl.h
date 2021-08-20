@@ -2224,6 +2224,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     int non_defaultable = 0;
     for (uint32_t index = params_count; index < this->num_locals(); index++) {
       if (!VALIDATE(this->enabled_.has_nn_locals() ||
+                    this->enabled_.has_unsafe_nn_locals() ||
                     this->local_type(index).is_defaultable())) {
         this->DecodeError(
             "Cannot define function-level local of non-defaultable type %s",

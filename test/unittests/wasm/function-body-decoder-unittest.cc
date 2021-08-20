@@ -3706,6 +3706,38 @@ TEST_F(FunctionBodyDecoderTest, AllowingNonDefaultableLocals) {
                 kAppendEnd, "uninitialized non-defaultable local: 2");
 }
 
+TEST_F(FunctionBodyDecoderTest, UnsafeNonDefaultableLocals) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(reftypes);
+  WASM_FEATURE_SCOPE(unsafe_nn_locals);
+  byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
+  ValueType rep = ref(struct_type_index);
+  FunctionSig sig(0, 1, &rep);
+  AddLocals(rep, 2);
+  // Declaring non-defaultable locals is fine.
+  ExpectValidates(&sig, {});
+  // Loading from an uninitialized non-defaultable local validates (but crashes
+  // when executed).
+  ExpectValidates(&sig, {WASM_LOCAL_GET(1), WASM_DROP});
+  // Loading from an initialized local is fine.
+  ExpectValidates(&sig, {WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+                         WASM_LOCAL_GET(1), WASM_DROP});
+  ExpectValidates(&sig, {WASM_LOCAL_TEE(1, WASM_LOCAL_GET(0)),
+                         WASM_LOCAL_GET(1), WASM_DROP, WASM_DROP});
+  // Non-nullable locals must be initialized with non-null values.
+  ExpectFailure(&sig, {WASM_LOCAL_SET(1, WASM_REF_NULL(struct_type_index))},
+                kAppendEnd,
+                "expected type (ref 0), found ref.null of type (ref null 0)");
+  // Block structure doesn't matter, everything validates.
+  ExpectValidates(&sig, {WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+                         WASM_BLOCK(WASM_LOCAL_GET(1), WASM_DROP),
+                         WASM_LOCAL_GET(1), WASM_DROP});
+  ExpectValidates(&sig,
+                  {WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+                   WASM_BLOCK(WASM_LOCAL_SET(2, WASM_LOCAL_GET(0))),
+                   WASM_LOCAL_GET(1), WASM_DROP, WASM_LOCAL_GET(2), WASM_DROP});
+}
+
 TEST_F(FunctionBodyDecoderTest, RefEq) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(eh);
