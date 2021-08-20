@@ -34,7 +34,34 @@ class CrossThreadPersistentBase : public PersistentBase {
   V8_CLANG_NO_SANITIZE("address")
   void ClearFromGC() const {
     raw_ = nullptr;
-    node_ = nullptr;
+    SetNodeSafe(nullptr);
+  }
+
+  // GetNodeSafe() can be used for a thread-safe IsValid() check.
+  PersistentNode* GetNodeSafe() const {
+    return reinterpret_cast<std::atomic<PersistentNode*>*>(&node_)->load(
+        std::memory_order_relaxed);
+  }
+
+  // The GC writes using SetNodeSafe() while holding the lock.
+  V8_CLANG_NO_SANITIZE("address")
+  void SetNodeSafe(PersistentNode* value) const {
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define V8_IS_ASAN 1
+#endif
+#endif
+
+#ifdef V8_IS_ASAN
+    __atomic_store(&node_, &value, __ATOMIC_RELAXED);
+#else   // !V8_IS_ASAN
+    // Non-ASAN builds can use atomics. This also covers MSVC which does not
+    // have the __atomic_store intrinsic.
+    reinterpret_cast<std::atomic<PersistentNode*>*>(&node_)->store(
+        value, std::memory_order_relaxed);
+#endif  // !V8_IS_ASAN
+
+#undef V8_IS_ASAN
   }
 };
 
@@ -210,11 +237,10 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
    */
   void Clear() {
     // Simplified version of `Assign()` to allow calling without a complete type
-    // `T`.
-    const void* old_value = GetValue();
-    if (IsValid(old_value)) {
+    // `T`. Also performs a thread-safe check for a handle that is not valid.
+    if (GetNodeSafe()) {
       PersistentRegionLock guard;
-      old_value = GetValue();
+      const void* old_value = GetValue();
       // The fast path check (IsValid()) does not acquire the lock. Reload
       // the value to ensure the reference has not been cleared.
       if (IsValid(old_value)) {
