@@ -54,7 +54,6 @@ const char* EhFrameDisassembler::DwarfRegisterCodeToString(int code) {
       return "sp";  // This could be zr as well
     default:
       UNIMPLEMENTED();
-      return nullptr;
   }
 }
 
