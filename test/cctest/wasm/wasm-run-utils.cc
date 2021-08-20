@@ -9,7 +9,6 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
-#include "src/wasm/code-space-access.h"
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
@@ -70,6 +69,7 @@ TestingModuleBuilder::TestingModuleBuilder(
 
   if (maybe_import) {
     // Manually compile an import wrapper and insert it into the instance.
+    CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
     auto resolved = compiler::ResolveWasmImportCall(
         maybe_import->js_function, maybe_import->sig,
         instance_object_->module(), enabled_features_);
@@ -82,7 +82,6 @@ TestingModuleBuilder::TestingModuleBuilder(
         static_cast<int>(maybe_import->sig->parameter_count()));
     auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
-      CodeSpaceWriteScope write_scope(native_module_);
       import_wrapper = CompileImportWrapper(
           native_module_, isolate_->counters(), kind, maybe_import->sig,
           static_cast<int>(maybe_import->sig->parameter_count()), &cache_scope);
