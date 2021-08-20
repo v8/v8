@@ -84,6 +84,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/init/bootstrapper.h"
+#include "src/logging/code-events.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/shared-function-info.h"
@@ -2588,6 +2589,9 @@ CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
                         tracing_scope.stream(), isolate);
     }
 #endif
+    PROFILE(isolate, CodeCreateEvent(CodeEventListener::STUB_TAG,
+                                     Handle<AbstractCode>::cast(code),
+                                     compilation_info()->GetDebugName().get()));
     return SUCCEEDED;
   }
   return FAILED;
