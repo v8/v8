@@ -124,7 +124,10 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _runner_flags(self):
     """Extra default flags specific to the test runner implementation."""
-    return ['--no-abort-on-contradictory-flags']
+    flags = ['--no-abort-on-contradictory-flags']
+    if self.infra_staging:
+      flags.append('--no-fail')
+    return flags
 
   def _get_statusfile_variables(self, options):
     variables = (

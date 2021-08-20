@@ -268,6 +268,7 @@ class BaseTestRunner(object):
     self.build_config = None
     self.mode_options = None
     self.target_os = None
+    self.infra_staging = False
 
   @property
   def framework_name(self):
@@ -280,6 +281,7 @@ class BaseTestRunner(object):
     try:
       parser = self._create_parser()
       options, args = self._parse_args(parser, sys_args)
+      self.infra_staging = options.infra_staging
       if options.swarming:
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
@@ -349,6 +351,13 @@ class BaseTestRunner(object):
                       help="How long should fuzzer run")
     parser.add_option("--swarming", default=False, action="store_true",
                       help="Indicates running test driver on swarming.")
+    parser.add_option('--infra-staging', help='Use new test runner features',
+                      dest='infra_staging', default=None,
+                      action='store_true')
+    parser.add_option('--no-infra-staging',
+                      help='Opt out of new test runner features',
+                      dest='infra_staging', default=None,
+                      action='store_false')
 
     parser.add_option("-j", help="The number of parallel tasks to run",
                       default=0, type=int)
