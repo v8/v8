@@ -661,7 +661,6 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
       return kArmStr;
     case MachineRepresentation::kSimd128:
       return kArmVst1S128;
-      break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
