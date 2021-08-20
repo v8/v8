@@ -199,7 +199,11 @@ void TurboAssembler::PushArray(Register array, Register size, Register scratch,
 
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
-  // TODO(jgruber): Add support for enable_root_relative_access.
+  if (root_array_available() && options().enable_root_relative_access) {
+    intptr_t delta =
+        RootRegisterOffsetForExternalReference(isolate(), reference);
+    return Operand(kRootRegister, delta);
+  }
   if (root_array_available() && options().isolate_independent_code) {
     if (IsAddressableThroughRootRegister(isolate(), reference)) {
       // Some external references can be efficiently loaded as an offset from
