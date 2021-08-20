@@ -1929,14 +1929,7 @@ void Heap::StartIncrementalMarking(int gc_flags,
 }
 
 void Heap::CompleteSweepingFull() {
-  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
-                 ThreadKind::kMain);
-
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
-    array_buffer_sweeper()->EnsureFinished();
-  }
-
+  array_buffer_sweeper()->EnsureFinished();
   mark_compact_collector()->EnsureSweepingCompleted();
   DCHECK(!mark_compact_collector()->sweeping_in_progress());
 }

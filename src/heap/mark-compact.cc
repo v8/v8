@@ -646,6 +646,9 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 void MarkCompactCollector::EnsureSweepingCompleted() {
   if (!sweeper()->sweeping_in_progress()) return;
 
+  TRACE_GC_EPOCH(heap()->tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
+                 ThreadKind::kMain);
+
   sweeper()->EnsureCompleted();
   heap()->old_space()->RefillFreeList();
   heap()->code_space()->RefillFreeList();
