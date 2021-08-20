@@ -1066,6 +1066,9 @@
   'baseline/flush-only-baseline-code': [SKIP],
   'baseline/flush-baseline-code': [SKIP],
   'regress/wasm/regress-1231950': [SKIP],
+
+  # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
+  'compiler/concurrent-inlining-1': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
