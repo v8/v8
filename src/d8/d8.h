@@ -14,6 +14,9 @@
 #include <unordered_set>
 #include <vector>
 
+#include "include/v8-array-buffer.h"
+#include "include/v8-isolate.h"
+#include "include/v8-script.h"
 #include "src/base/once.h"
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
@@ -24,7 +27,11 @@
 
 namespace v8 {
 
+class BackingStore;
+class CompiledWasmModule;
 class D8Console;
+class Message;
+class TryCatch;
 
 enum class ModuleType { kJavaScript, kJSON, kInvalid };
 

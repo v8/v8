@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_PROPERTY_DETAILS_H_
 #define V8_OBJECTS_PROPERTY_DETAILS_H_
 
-#include "include/v8.h"
+#include "include/v8-object.h"
 #include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"

@@ -5,6 +5,9 @@
 #ifndef V8_EXECUTION_THREAD_LOCAL_TOP_H_
 #define V8_EXECUTION_THREAD_LOCAL_TOP_H_
 
+#include "include/v8-callbacks.h"
+#include "include/v8-exception.h"
+#include "include/v8-unwinder.h"
 #include "src/common/globals.h"
 #include "src/execution/thread-id.h"
 #include "src/objects/contexts.h"

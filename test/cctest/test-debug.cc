@@ -27,6 +27,10 @@
 
 #include <stdlib.h>
 
+#include "include/v8-extension.h"
+#include "include/v8-function.h"
+#include "include/v8-json.h"
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"

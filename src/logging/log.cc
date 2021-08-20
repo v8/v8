@@ -9,6 +9,7 @@
 #include <memory>
 #include <sstream>
 
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
+#include "include/v8-typed-array.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
 #include "torque-generated/bit-fields.h"

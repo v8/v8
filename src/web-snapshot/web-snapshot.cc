@@ -6,7 +6,11 @@
 
 #include <limits>
 
-#include "include/v8.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-object.h"
+#include "include/v8-primitive.h"
+#include "include/v8-script.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
