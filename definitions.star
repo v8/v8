@@ -5,5 +5,5 @@
 versions = {
     "beta": "9.4",
     "stable": "9.3",
-    "extended": "9.0",
+    "extended": "9.2",
 }
