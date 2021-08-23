@@ -168,8 +168,6 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 
   if (cond != al) b(NegateCondition(cond), &skip, cr);
 
-  DCHECK(rmode == RelocInfo::CODE_TARGET || rmode == RelocInfo::RUNTIME_ENTRY);
-
   mov(ip, Operand(target, rmode));
   mtctr(ip);
   bctr();
@@ -1252,6 +1250,9 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
     mov(ip, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(ip);
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
