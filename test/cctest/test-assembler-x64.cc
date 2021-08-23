@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 
 #include "src/base/numbers/double.h"
@@ -2518,6 +2519,34 @@ TEST(AssemblerX64vmovups) {
 
   auto f = GeneratedCode<F9>::FromCode(*code);
   CHECK_EQ(-1.5, f.Call(1.5, -1.5));
+}
+
+TEST(AssemblerX64Regmove256bit) {
+  if (!CpuFeatures::IsSupported(AVX)) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = CcTest::i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX);
+
+  __ vmovdqa(ymm0, ymm1);
+  __ vmovdqu(ymm10, ymm11);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+
+  byte expected[] = {// VMOVDQA
+                     0xC5, 0xFD, 0x6F, 0xC1,
+                     // VMOVDQU
+                     0xC4, 0x41, 0x7E, 0x7F, 0xDA};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
 TEST(CpuFeatures_ProbeImpl) {
