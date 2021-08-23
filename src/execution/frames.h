@@ -1273,9 +1273,14 @@ class V8_EXPORT_PRIVATE StackTraceFrameIterator {
 #endif  // V8_ENABLE_WEBASSEMBLY
   inline JavaScriptFrame* javascript_frame() const;
 
+  // Use this instead of FrameSummary::GetTop(javascript_frame) to keep
+  // filtering behavior consistent with the rest of StackTraceFrameIterator.
+  FrameSummary GetTopValidFrame() const;
+
  private:
   StackFrameIterator iterator_;
-  bool IsValidFrame(StackFrame* frame) const;
+  static bool IsValidFrame(StackFrame* frame);
+  static bool IsValidJSFunction(JSFunction f);
 };
 
 class SafeStackFrameIterator : public StackFrameIteratorBase {

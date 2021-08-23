@@ -2210,7 +2210,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       // position, but store it as negative value for lazy translation.
       StackTraceFrameIterator it(isolate);
       if (!it.done() && it.is_javascript()) {
-        FrameSummary summary = FrameSummary::GetTop(it.javascript_frame());
+        FrameSummary summary = it.GetTopValidFrame();
         script->set_eval_from_shared(
             summary.AsJavaScript().function()->shared());
         script->set_origin_options(OriginOptionsForEval(*summary.script()));

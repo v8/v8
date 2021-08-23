@@ -2148,20 +2148,16 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
 bool Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
   if (it.done()) return false;
-  CommonFrame* frame = it.frame();
   // Compute the location from the function and the relocation info of the
   // baseline code. For optimized code this will use the deoptimization
   // information to get canonical location information.
-  std::vector<FrameSummary> frames;
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeRefScope code_ref_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
-  frame->Summarize(&frames);
-  FrameSummary& summary = frames.back();
+  FrameSummary summary = it.GetTopValidFrame();
   Handle<SharedFunctionInfo> shared;
   Handle<Object> script = summary.script();
-  if (!script->IsScript() ||
-      (Script::cast(*script).source().IsUndefined(this))) {
+  if (!script->IsScript() || Script::cast(*script).source().IsUndefined(this)) {
     return false;
   }
 

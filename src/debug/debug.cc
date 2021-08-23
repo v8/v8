@@ -2183,8 +2183,7 @@ bool Debug::ShouldBeSkipped() {
   DisableBreak no_recursive_break(this);
 
   StackTraceFrameIterator iterator(isolate_);
-  CommonFrame* frame = iterator.frame();
-  FrameSummary summary = FrameSummary::GetTop(frame);
+  FrameSummary summary = iterator.GetTopValidFrame();
   Handle<Object> script_obj = summary.script();
   if (!script_obj->IsScript()) return false;
 
