@@ -2391,7 +2391,87 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
                              const LiftoffRegister* rets,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
-  bailout(kUnsupportedArchitecture, "CallC");
+  int total_size = RoundUp(stack_bytes, kSystemPointerSize);
+
+  int size = total_size;
+  constexpr int kStackPageSize = 4 * KB;
+
+  // Reserve space in the stack.
+  while (size > kStackPageSize) {
+    SubS64(sp, sp, Operand(kStackPageSize), r0);
+    StoreU64(r0, MemOperand(sp));
+    size -= kStackPageSize;
+  }
+
+  SubS64(sp, sp, Operand(size), r0);
+
+  int arg_bytes = 0;
+  for (ValueKind param_kind : sig->parameters()) {
+    switch (param_kind) {
+      case kI32:
+        StoreU32(args->gp(), MemOperand(sp, arg_bytes), r0);
+        break;
+      case kI64:
+        StoreU64(args->gp(), MemOperand(sp, arg_bytes), r0);
+        break;
+      case kF32:
+        StoreF32(args->fp(), MemOperand(sp, arg_bytes), r0);
+        break;
+      case kF64:
+        StoreF64(args->fp(), MemOperand(sp, arg_bytes), r0);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    args++;
+    arg_bytes += element_size_bytes(param_kind);
+  }
+
+  DCHECK_LE(arg_bytes, stack_bytes);
+
+  // Pass a pointer to the buffer with the arguments to the C function.
+  mr(r3, sp);
+
+  // Now call the C function.
+  constexpr int kNumCCallArgs = 1;
+  PrepareCallCFunction(kNumCCallArgs, r0);
+  CallCFunction(ext_ref, kNumCCallArgs);
+
+  // Move return value to the right register.
+  const LiftoffRegister* result_reg = rets;
+  if (sig->return_count() > 0) {
+    DCHECK_EQ(1, sig->return_count());
+    constexpr Register kReturnReg = r3;
+    if (kReturnReg != rets->gp()) {
+      Move(*rets, LiftoffRegister(kReturnReg), sig->GetReturn(0));
+    }
+    result_reg++;
+  }
+
+  // Load potential output value from the buffer on the stack.
+  if (out_argument_kind != kVoid) {
+    switch (out_argument_kind) {
+      case kI32:
+        LoadS32(result_reg->gp(), MemOperand(sp));
+        break;
+      case kI64:
+      case kOptRef:
+      case kRef:
+      case kRtt:
+      case kRttWithDepth:
+        LoadU64(result_reg->gp(), MemOperand(sp));
+        break;
+      case kF32:
+        LoadF32(result_reg->fp(), MemOperand(sp));
+        break;
+      case kF64:
+        LoadF64(result_reg->fp(), MemOperand(sp));
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  AddS64(sp, sp, Operand(total_size), r0);
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
