@@ -272,8 +272,7 @@ bool S390OpcodeOnlySupport12BitDisp(InstructionCode op) {
   (S390OpcodeOnlySupport12BitDisp(op) ? OperandMode::kUint12Imm \
                                       : OperandMode::kInt20Imm)
 
-ArchOpcode SelectLoadOpcode(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+ArchOpcode SelectLoadOpcode(LoadRepresentation load_rep) {
   ArchOpcode opcode;
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
@@ -466,7 +465,8 @@ void GenerateRightOperands(InstructionSelector* selector, Node* node,
   } else if (*operand_mode & OperandMode::kAllowMemoryOperand) {
     NodeMatcher mright(right);
     if (mright.IsLoad() && selector->CanCover(node, right) &&
-        canCombineWithLoad(SelectLoadOpcode(right))) {
+        canCombineWithLoad(
+            SelectLoadOpcode(LoadRepresentationOf(right->op())))) {
       AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
           right, inputs, input_count, OpcodeImmMode(*opcode));
       *opcode |= AddressingModeField::encode(mode);
@@ -695,16 +695,22 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r3));
 }
 
-void InstructionSelector::VisitLoad(Node* node) {
+void InstructionSelector::VisitLoad(Node* node, Node* value,
+                                    InstructionCode opcode) {
   S390OperandGenerator g(this);
-  InstructionCode opcode = SelectLoadOpcode(node);
   InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand inputs[3];
   size_t input_count = 0;
   AddressingMode mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+      g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count);
   opcode |= AddressingModeField::encode(mode);
   Emit(opcode, 1, outputs, input_count, inputs);
+}
+
+void InstructionSelector::VisitLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  InstructionCode opcode = SelectLoadOpcode(load_rep);
+  VisitLoad(node, node, opcode);
 }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
@@ -2147,12 +2153,9 @@ void InstructionSelector::VisitMemoryBarrier(Node* node) {
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||
-         load_rep.representation() == MachineRepresentation::kWord16 ||
-         load_rep.representation() == MachineRepresentation::kWord32);
-  USE(load_rep);
-  VisitLoad(node);
+  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
+  LoadRepresentation load_rep = atomic_load_params.representation();
+  VisitLoad(node, node, SelectLoadOpcode(load_rep));
 }
 
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
@@ -2389,9 +2392,9 @@ VISIT_ATOMIC64_BINOP(Xor)
 #undef VISIT_ATOMIC64_BINOP
 
 void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  USE(load_rep);
-  VisitLoad(node);
+  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
+  LoadRepresentation load_rep = atomic_load_params.representation();
+  VisitLoad(node, node, SelectLoadOpcode(load_rep));
 }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {

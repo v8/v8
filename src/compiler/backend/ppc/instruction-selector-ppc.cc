@@ -167,9 +167,9 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r4));
 }
 
-void InstructionSelector::VisitLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  PPCOperandGenerator g(this);
+static void VisitLoadCommon(InstructionSelector* selector, Node* node,
+                            LoadRepresentation load_rep) {
+  PPCOperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* offset = node->InputAt(1);
   InstructionCode opcode = kArchNop;
@@ -233,18 +233,23 @@ void InstructionSelector::VisitLoad(Node* node) {
                     node->opcode() == IrOpcode::kWord64AtomicLoad);
 
   if (g.CanBeImmediate(offset, mode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(offset),
-         g.UseImmediate(is_atomic));
+    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                   g.DefineAsRegister(node), g.UseRegister(base),
+                   g.UseImmediate(offset), g.UseImmediate(is_atomic));
   } else if (g.CanBeImmediate(base, mode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(offset), g.UseImmediate(base),
-         g.UseImmediate(is_atomic));
+    selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
+                   g.DefineAsRegister(node), g.UseRegister(offset),
+                   g.UseImmediate(base), g.UseImmediate(is_atomic));
   } else {
-    Emit(opcode | AddressingModeField::encode(kMode_MRR),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(offset),
-         g.UseImmediate(is_atomic));
+    selector->Emit(opcode | AddressingModeField::encode(kMode_MRR),
+                   g.DefineAsRegister(node), g.UseRegister(base),
+                   g.UseRegister(offset), g.UseImmediate(is_atomic));
   }
+}
+
+void InstructionSelector::VisitLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  VisitLoadCommon(this, node, load_rep);
 }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
@@ -1953,9 +1958,17 @@ void InstructionSelector::VisitMemoryBarrier(Node* node) {
   Emit(kPPC_Sync, g.NoOutput());
 }
 
-void InstructionSelector::VisitWord32AtomicLoad(Node* node) { VisitLoad(node); }
+void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
+  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
+  LoadRepresentation load_rep = atomic_load_params.representation();
+  VisitLoadCommon(this, node, load_rep);
+}
 
-void InstructionSelector::VisitWord64AtomicLoad(Node* node) { VisitLoad(node); }
+void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
+  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
+  LoadRepresentation load_rep = atomic_load_params.representation();
+  VisitLoadCommon(this, node, load_rep);
+}
 
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
