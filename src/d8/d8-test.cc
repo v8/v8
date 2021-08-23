@@ -631,16 +631,19 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect, &is_valid_api_object_c_func));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "fast_call_count",
-        FunctionTemplate::New(isolate, FastCApiObject::FastCallCount,
-                              Local<Value>(), signature));
+        FunctionTemplate::New(
+            isolate, FastCApiObject::FastCallCount, Local<Value>(), signature,
+            1, ConstructorBehavior::kThrow, SideEffectType::kHasNoSideEffect));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "slow_call_count",
-        FunctionTemplate::New(isolate, FastCApiObject::SlowCallCount,
-                              Local<Value>(), signature));
+        FunctionTemplate::New(
+            isolate, FastCApiObject::SlowCallCount, Local<Value>(), signature,
+            1, ConstructorBehavior::kThrow, SideEffectType::kHasNoSideEffect));
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "reset_counts",
         FunctionTemplate::New(isolate, FastCApiObject::ResetCounts,
-                              Local<Value>(), signature));
+                              Local<Value>(), signature, 1,
+                              ConstructorBehavior::kThrow));
   }
   api_obj_ctor->InstanceTemplate()->SetInternalFieldCount(
       FastCApiObject::kV8WrapperObjectIndex + 1);
