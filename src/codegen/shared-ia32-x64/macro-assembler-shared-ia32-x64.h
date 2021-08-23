@@ -29,6 +29,12 @@ constexpr int kStackSavedSavedFPSize = 2 * kDoubleSize;
 constexpr int kStackSavedSavedFPSize = kDoubleSize;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+// Base class for SharedTurboAssemblerBase. This class contains macro-assembler
+// functions that can be shared across ia32 and x64 without any template
+// machinery, i.e. does not require the CRTP pattern that
+// SharedTurboAssemblerBase exposes. This allows us to keep the bulk of
+// definition inside a separate source file, rather than putting everything
+// inside this header.
 class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
@@ -376,6 +382,27 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   template <typename Op>
   void I16x8SplatPreAvx2(XMMRegister dst, Op src);
 };
+
+// Common base class template shared by ia32 and x64 TurboAssembler. This uses
+// the Curiously Recurring Template Pattern (CRTP), where Impl is the actual
+// class (subclass of SharedTurboAssemblerBase instantiated with the actual
+// class). This allows static polymorphism, where member functions can be move
+// into SharedTurboAssembler, and we can also call into member functions
+// defined in ia32 or x64 specific TurboAssembler from within this template
+// class, via Impl.
+//
+// Note: all member functions must be defined in this header file so that the
+// compiler can generate code for the function definitions. See
+// https://isocpp.org/wiki/faq/templates#templates-defn-vs-decl for rationale.
+// If a function does not need polymorphism, move it into SharedTurboAssembler,
+// and define it outside of this header.
+template <typename Impl>
+class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
+  using SharedTurboAssembler::SharedTurboAssembler;
+  // TODO(zhin): intentionally empty for now, will move polymorphic functions
+  // here in future changes.
+};
+
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_CODEGEN_SHARED_IA32_X64_MACRO_ASSEMBLER_SHARED_IA32_X64_H_
