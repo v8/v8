@@ -2475,11 +2475,11 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
-  bailout(kUnsupportedArchitecture, "CallNativeWasmCode");
+  Call(addr, RelocInfo::WASM_CALL);
 }
 
 void LiftoffAssembler::TailCallNativeWasmCode(Address addr) {
-  bailout(kUnsupportedArchitecture, "TailCallNativeWasmCode");
+  Jump(addr, RelocInfo::WASM_CALL);
 }
 
 void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
