@@ -104,7 +104,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   Register OutputRegister64() { return OutputRegister(); }
 
-  Register OutputRegister32() { return ToRegister(instr_->Output()).W(); }
+  Register OutputRegister32() { return OutputRegister().W(); }
 
   Register TempRegister32(size_t index) {
     return ToRegister(instr_->TempAt(index)).W();
@@ -1805,6 +1805,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ldrsb(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
+    case kArm64LdrsbW:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ Ldrsb(i.OutputRegister32(), i.MemoryOperand());
+      break;
     case kArm64Strb:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Strb(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
@@ -1818,6 +1822,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
+      break;
+    case kArm64LdrshW:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ Ldrsh(i.OutputRegister32(), i.MemoryOperand());
       break;
     case kArm64Strh:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());

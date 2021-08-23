@@ -3014,7 +3014,7 @@ std::ostream& operator<<(std::ostream& os, const MemoryAccess& memacc) {
 
 static const MemoryAccess kMemoryAccesses[] = {
     {MachineType::Int8(),
-     kArm64Ldrsb,
+     kArm64LdrsbW,
      kArm64Strb,
      {-256, -255, -3, -2, -1, 0, 1, 2, 3, 255, 256, 257, 258, 1000, 1001, 2121,
       2442, 4093, 4094, 4095}},
@@ -3024,7 +3024,7 @@ static const MemoryAccess kMemoryAccesses[] = {
      {-256, -255, -3, -2, -1, 0, 1, 2, 3, 255, 256, 257, 258, 1000, 1001, 2121,
       2442, 4093, 4094, 4095}},
     {MachineType::Int16(),
-     kArm64Ldrsh,
+     kArm64LdrshW,
      kArm64Strh,
      {-256, -255, -3, -2, -1, 0, 1, 2, 3, 255, 256, 258, 260, 4096, 4098, 4100,
       4242, 6786, 8188, 8190}},
