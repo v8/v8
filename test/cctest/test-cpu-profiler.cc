@@ -32,6 +32,8 @@
 
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-fast-api-calls.h"
+#include "include/v8-function.h"
+#include "include/v8-locker.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"

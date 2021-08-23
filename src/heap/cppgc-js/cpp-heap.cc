@@ -10,8 +10,8 @@
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
+#include "include/v8-local-handle.h"
 #include "include/v8-platform.h"
-#include "include/v8.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"

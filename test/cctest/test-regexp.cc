@@ -29,7 +29,10 @@
 #include <memory>
 #include <sstream>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-initialization.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/strings.h"

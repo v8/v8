@@ -7,7 +7,15 @@
 #include <algorithm>
 #include <string>
 
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-date.h"
+#include "include/v8-function.h"
+#include "include/v8-json.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive-object.h"
+#include "include/v8-template.h"
+#include "include/v8-value-serializer.h"
+#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/build_config.h"
 #include "src/objects/backing-store.h"

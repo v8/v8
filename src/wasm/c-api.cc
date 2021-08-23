@@ -26,6 +26,7 @@
 #include <iostream>
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-initialization.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/wrappers.h"
 #include "src/builtins/builtins.h"

@@ -5,6 +5,7 @@
 #include "src/d8/d8.h"
 
 #include "include/v8-fast-api-calls.h"
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
 
 // This file exposes a d8.test.fast_c_api object, which adds testing facility

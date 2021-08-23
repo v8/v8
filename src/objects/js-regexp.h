@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_JS_REGEXP_H_
 #define V8_OBJECTS_JS_REGEXP_H_
 
+#include "include/v8-regexp.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-array.h"
 #include "src/regexp/regexp-flags.h"

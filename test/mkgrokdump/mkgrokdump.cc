@@ -5,7 +5,8 @@
 #include <stdio.h>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "include/v8-array-buffer.h"
+#include "include/v8-initialization.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"

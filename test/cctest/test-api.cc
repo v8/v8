@@ -37,7 +37,15 @@
 #include <unistd.h>
 #endif
 
+#include "include/v8-date.h"
+#include "include/v8-extension.h"
 #include "include/v8-fast-api-calls.h"
+#include "include/v8-function.h"
+#include "include/v8-initialization.h"
+#include "include/v8-json.h"
+#include "include/v8-locker.h"
+#include "include/v8-primitive-object.h"
+#include "include/v8-regexp.h"
 #include "include/v8-util.h"
 #include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"

@@ -4,6 +4,10 @@
 
 #include "test/inspector/isolate-data.h"
 
+#include "include/v8-context.h"
+#include "include/v8-exception.h"
+#include "include/v8-microtask-queue.h"
+#include "include/v8-template.h"
 #include "src/base/vector.h"
 #include "src/inspector/test-interface.h"
 #include "test/inspector/task-runner.h"

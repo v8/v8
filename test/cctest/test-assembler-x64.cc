@@ -29,6 +29,7 @@
 #include <cstring>
 #include <iostream>
 
+#include "include/v8-function.h"
 #include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"

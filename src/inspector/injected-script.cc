@@ -34,7 +34,11 @@
 #include <unordered_set>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
 #include "include/v8-inspector.h"
+#include "include/v8-microtask-queue.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/custom-preview.h"
 #include "src/inspector/inspected-context.h"

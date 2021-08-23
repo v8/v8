@@ -9,7 +9,7 @@
 #include <memory>
 #include <vector>
 
-#include "include/v8.h"
+#include "include/v8-callbacks.h"
 #include "src/api/api-inl.h"
 #include "src/base/address-region.h"
 #include "src/base/bits.h"
