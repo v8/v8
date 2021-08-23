@@ -1667,6 +1667,55 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
 }
 
 void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
+  switch (type.representation()) {
+    // For abstract types, generate one of their subtypes, or fall back to the
+    // default case.
+    case HeapType::kAny: {
+      // Weighed according to the types in the module.
+      // TODO(manoskouk): Generate i31ref.
+      uint32_t num_types = builder_->builder()->NumTypes();
+      uint8_t random = data->get<uint8_t>() % (num_types + 2);
+      if (random < num_structs_ + num_arrays_) {
+        GenerateOptRef(HeapType(HeapType::kData), data);
+        return;
+      } else if (random < num_types) {
+        GenerateOptRef(HeapType(HeapType::kFunc), data);
+        return;
+      } else if (random == num_types) {
+        GenerateOptRef(HeapType(HeapType::kExtern), data);
+        return;
+      }
+      // Else fall back to the default case outside the switch.
+      break;
+    }
+    case HeapType::kData:
+    case HeapType::kEq: {
+      uint8_t random = data->get<uint8_t>() % (num_structs_ + num_arrays_ + 1);
+      if (random > 0) {
+        GenerateOptRef(HeapType(random - 1), data);
+        return;
+      }
+      // Else fall back to the default case outside the switch.
+      break;
+    }
+    case HeapType::kFunc: {
+      uint32_t num_signatures =
+          builder_->builder()->NumTypes() - num_structs_ - num_arrays_;
+      uint32_t random = data->get<uint32_t>() % (num_signatures + 1);
+      if (random > 0) {
+        uint32_t signature_index = random + num_arrays_ + num_structs_ - 1;
+        DCHECK(builder_->builder()->IsSignature(signature_index));
+        GenerateOptRef(HeapType(signature_index), data);
+        return;
+      }
+      // Else fall back to the default case outside the switch.
+      break;
+    }
+    // TODO(manoskouk): Add i31ref case.
+    default:
+      break;
+  }
+
   constexpr GenerateFnWithHeap alternatives[] = {
       &WasmGenerator::ref_null, &WasmGenerator::get_local_opt_ref,
       &WasmGenerator::new_object};

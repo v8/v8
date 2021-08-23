@@ -443,14 +443,13 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
 
-  // TODO(9495): Add support for talbes with explicit initializers.
+  // TODO(9495): Add support for tables with explicit initializers.
   for (const WasmTable& table : module->tables) {
-    os << "builder.setTableBounds(" << table.initial_size << ", ";
-    if (table.has_maximum_size) {
-      os << table.maximum_size << ");\n";
-    } else {
-      os << "undefined);\n";
-    }
+    os << "builder.addTable(" << ValueTypeToConstantName(table.type) << ", "
+       << table.initial_size << ", "
+       << (table.has_maximum_size ? std::to_string(table.maximum_size)
+                                  : "undefined")
+       << ", undefined)\n";
   }
   for (const WasmElemSegment& elem_segment : module->elem_segments) {
     const char* status_str =

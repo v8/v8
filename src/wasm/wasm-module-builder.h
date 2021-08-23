@@ -288,6 +288,10 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   Zone* zone() { return zone_; }
 
+  bool IsSignature(uint32_t index) {
+    return types_[index].kind == Type::kFunctionSig;
+  }
+
   FunctionSig* GetSignature(uint32_t index) {
     DCHECK(types_[index].kind == Type::kFunctionSig);
     return types_[index].sig;
