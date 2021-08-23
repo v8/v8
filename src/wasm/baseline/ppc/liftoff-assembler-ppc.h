@@ -2417,11 +2417,12 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  bailout(kUnsupportedArchitecture, "AllocateStackSlot");
+  SubS64(sp, sp, Operand(size), r0);
+  mr(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  bailout(kUnsupportedArchitecture, "DeallocateStackSlot");
+  AddS64(sp, sp, Operand(size));
 }
 
 void LiftoffAssembler::MaybeOSR() {}
