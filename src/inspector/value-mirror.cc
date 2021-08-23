@@ -1296,9 +1296,14 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
             if (v8::debug::CallFunctionOn(context, getterFunction, object, 0,
                                           nullptr, true)
                     .ToLocal(&value)) {
-              valueMirror = ValueMirror::create(context, value);
-              setterMirror = nullptr;
-              getterMirror = nullptr;
+              if (value->IsPromise() &&
+                  value.As<v8::Promise>()->State() == v8::Promise::kRejected) {
+                value.As<v8::Promise>()->MarkAsHandled();
+              } else {
+                valueMirror = ValueMirror::create(context, value);
+                setterMirror = nullptr;
+                getterMirror = nullptr;
+              }
             }
           }
         }
