@@ -110,6 +110,22 @@ ValueType GetValueType(uint32_t num_types, DataRange* data,
   return types[data->get<uint8_t>() % arraysize(types)];
 }
 
+ValueType GetRefType(uint32_t num_types, DataRange* data,
+                     bool liftoff_as_reference) {
+  constexpr ValueType types[] = {
+      kWasmExternRef, kWasmFuncRef, kWasmEqRef, kWasmAnyRef,
+      ValueType::Ref(HeapType(HeapType::kData), kNullable)};
+
+  if (liftoff_as_reference) {
+    uint32_t id = data->get<uint8_t>() % (arraysize(types) + num_types);
+    if (id >= arraysize(types)) {
+      return ValueType::Ref(id - arraysize(types), kNullable);
+    }
+    return types[id];
+  }
+  return types[data->get<uint8_t>() % arraysize(types)];
+}
+
 class WasmGenerator {
   template <WasmOpcode Op, ValueKind... Args>
   void op(DataRange* data) {
@@ -791,6 +807,18 @@ class WasmGenerator {
           builder_->EmitU32V(index);
         }
         return;
+      } else {
+        DCHECK(builder_->builder()->IsSignature(index));
+        int func_size = builder_->builder()->NumFunctions();
+        for (int i = 0; i < func_size; i++) {
+          WasmFunctionBuilder* func = builder_->builder()->GetFunction(i);
+          // TODO(11954): Choose a random function from among those matching the
+          // signature (consider function subtyping?).
+          if (func->sig_index() == index) {
+            builder_->EmitWithU32V(kExprRefFunc, func->func_index());
+            return;
+          }
+        }
       }
     }
     ref_null(type, data);
@@ -837,6 +865,14 @@ class WasmGenerator {
       builder_->EmitU32V(struct_index);
       builder_->EmitU32V(field_index);
     }
+  }
+
+  template <ValueKind wanted_kind>
+  void ref_is_null(DataRange* data) {
+    ValueType val = GetRefType(builder_->builder()->NumTypes(), data,
+                               liftoff_as_reference_);
+    GenerateOptRef(val.heap_type(), data);
+    builder_->EmitU32V(kExprRefIsNull);
   }
 
   using GenerateFn = void (WasmGenerator::*const)(DataRange*);
@@ -1155,7 +1191,9 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
       &WasmGenerator::call_indirect<kI32>,
       &WasmGenerator::try_block<kI32>,
 
-      &WasmGenerator::struct_get<kI32>};
+      &WasmGenerator::struct_get<kI32>,
+
+      &WasmGenerator::ref_is_null<kI32>};
 
   GenerateOneOf(alternatives, data);
 }
@@ -1872,12 +1910,10 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       globals.push_back(type);
       if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
     }
-
     for (int i = 0; i < num_functions; ++i) {
       DataRange function_range = range.split();
       FunctionSig* sig = builder.GetSignature(function_signatures[i]);
       WasmFunctionBuilder* f = builder.AddFunction(sig);
-
       WasmGenerator gen(f, function_signatures, globals, mutable_globals,
                         num_structs, num_arrays, &function_range,
                         liftoff_as_reference);
