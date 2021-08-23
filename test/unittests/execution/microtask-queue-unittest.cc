@@ -9,7 +9,6 @@
 #include <memory>
 #include <vector>
 
-#include "include/v8-function.h"
 #include "src/heap/factory.h"
 #include "src/objects/foreign.h"
 #include "src/objects/js-array-inl.h"

@@ -5,13 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/v8-context.h"
-#include "include/v8-function.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-object.h"
-#include "include/v8-persistent-handle.h"
-#include "include/v8-template.h"
-#include "include/v8-traced-handle.h"
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"

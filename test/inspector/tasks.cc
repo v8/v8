@@ -6,8 +6,8 @@
 
 #include <vector>
 
-#include "include/v8-isolate.h"
-#include "include/v8-script.h"
+#include "include/v8-inspector.h"
+#include "include/v8.h"
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/utils.h"
 

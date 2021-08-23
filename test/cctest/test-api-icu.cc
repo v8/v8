@@ -6,8 +6,7 @@
 
 #include <stdlib.h>
 
-#include "include/v8-isolate.h"
-#include "include/v8-local-handle.h"
+#include "include/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "unicode/locid.h"

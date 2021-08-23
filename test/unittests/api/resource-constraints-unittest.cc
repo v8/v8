@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8-isolate.h"
-#include "src/heap/heap.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#include "include/v8-platform.h"
+#include "include/v8.h"
+#include "src/heap/heap.h"
 
 namespace v8 {
 

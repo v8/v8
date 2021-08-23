@@ -9,8 +9,7 @@
 #ifndef V8_WASM_C_API_H_
 #define V8_WASM_C_API_H_
 
-#include "include/v8-isolate.h"
-#include "include/v8-local-handle.h"
+#include "include/v8.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "third_party/wasm-api/wasm.hh"

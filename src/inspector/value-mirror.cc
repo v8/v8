@@ -7,15 +7,6 @@
 #include <algorithm>
 #include <cmath>
 
-#include "include/v8-container.h"
-#include "include/v8-date.h"
-#include "include/v8-function.h"
-#include "include/v8-microtask-queue.h"
-#include "include/v8-primitive-object.h"
-#include "include/v8-proxy.h"
-#include "include/v8-regexp.h"
-#include "include/v8-typed-array.h"
-#include "include/v8-wasm.h"
 #include "src/base/optional.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/v8-debugger.h"

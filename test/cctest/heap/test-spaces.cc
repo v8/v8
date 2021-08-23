@@ -27,7 +27,6 @@
 
 #include <stdlib.h>
 
-#include "include/v8-initialization.h"
 #include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/macros.h"

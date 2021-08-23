@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "include/v8-inspector.h"
-#include "include/v8-primitive.h"
+#include "include/v8.h"
 
 namespace v8 {
 namespace internal {

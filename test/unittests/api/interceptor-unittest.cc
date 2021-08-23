@@ -2,11 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8-exception.h"
-#include "include/v8-function.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-object.h"
-#include "include/v8-template.h"
+#include "include/v8.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

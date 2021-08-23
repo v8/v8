@@ -7,11 +7,8 @@
 
 #include <vector>
 
-#include "include/v8-context.h"
-#include "include/v8-function.h"
 #include "include/v8-inspector.h"
-#include "include/v8-microtask-queue.h"
-#include "include/v8-primitive.h"
+#include "include/v8.h"
 #include "src/base/platform/semaphore.h"
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"

@@ -7,11 +7,6 @@
 
 #include <memory>
 
-#include "include/v8-container.h"
-#include "include/v8-external.h"
-#include "include/v8-proxy.h"
-#include "include/v8-typed-array.h"
-#include "include/v8-wasm.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/bigint.h"
@@ -23,15 +18,11 @@
 #include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/source-text-module.h"
-#include "src/objects/templates.h"
 #include "src/utils/detachable-vector.h"
 
-namespace v8 {
+#include "src/objects/templates.h"
 
-class AccessorSignature;
-class Extension;
-class Signature;
-class Template;
+namespace v8 {
 
 namespace internal {
 class JSArrayBufferView;

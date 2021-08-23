@@ -12,9 +12,7 @@
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8-initialization.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-snapshot.h"
+#include "include/v8.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"

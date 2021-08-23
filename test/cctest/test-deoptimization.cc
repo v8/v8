@@ -27,7 +27,6 @@
 
 #include <stdlib.h>
 
-#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"

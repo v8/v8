@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "include/v8.h"
 #include "src/base/functional.h"
 #include "src/base/macros.h"
 #include "src/common/checks.h"
@@ -14,9 +15,6 @@
 #include "src/zone/zone.h"
 
 namespace v8 {
-
-class HandleScope;
-
 namespace internal {
 
 // Forward declarations.

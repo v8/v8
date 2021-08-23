@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/heap-number-inl.h"

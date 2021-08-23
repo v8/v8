@@ -12,11 +12,7 @@
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8-isolate.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-object.h"
-#include "include/v8-primitive.h"
-#include "include/v8-template.h"
+#include "include/v8.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"

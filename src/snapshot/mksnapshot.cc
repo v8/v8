@@ -9,7 +9,6 @@
 #include <iomanip>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8-initialization.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/sanitizer/msan.h"

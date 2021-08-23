@@ -4,7 +4,6 @@
 
 #include "src/logging/runtime-call-stats.h"
 
-#include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/time.h"

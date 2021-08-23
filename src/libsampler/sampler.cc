@@ -4,9 +4,6 @@
 
 #include "src/libsampler/sampler.h"
 
-#include "include/v8-isolate.h"
-#include "include/v8-unwinder.h"
-
 #ifdef USE_SIGNALS
 
 #include <errno.h>

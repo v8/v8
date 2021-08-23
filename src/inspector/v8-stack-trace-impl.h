@@ -9,15 +9,10 @@
 #include <vector>
 
 #include "include/v8-inspector.h"
-#include "include/v8-local-handle.h"
+#include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/string-16.h"
-
-namespace v8 {
-class StackFrame;
-class StackTrace;
-}  // namespace v8
 
 namespace v8_inspector {
 

@@ -14,7 +14,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"

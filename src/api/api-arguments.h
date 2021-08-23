@@ -5,7 +5,6 @@
 #ifndef V8_API_API_ARGUMENTS_H_
 #define V8_API_API_ARGUMENTS_H_
 
-#include "include/v8-template.h"
 #include "src/api/api.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"

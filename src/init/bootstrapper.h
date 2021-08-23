@@ -5,9 +5,6 @@
 #ifndef V8_INIT_BOOTSTRAPPER_H_
 #define V8_INIT_BOOTSTRAPPER_H_
 
-#include "include/v8-context.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-snapshot.h"
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/shared-function-info.h"

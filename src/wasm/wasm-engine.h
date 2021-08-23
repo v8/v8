@@ -45,7 +45,6 @@ class GdbServer;
 class AsyncCompileJob;
 class ErrorThrower;
 struct ModuleWireBytes;
-class StreamingDecoder;
 class WasmFeatures;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {

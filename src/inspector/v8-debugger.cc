@@ -4,11 +4,6 @@
 
 #include "src/inspector/v8-debugger.h"
 
-#include "include/v8-container.h"
-#include "include/v8-context.h"
-#include "include/v8-function.h"
-#include "include/v8-microtask-queue.h"
-#include "include/v8-util.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
@@ -18,6 +13,8 @@
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
+
+#include "include/v8-util.h"
 
 namespace v8_inspector {
 

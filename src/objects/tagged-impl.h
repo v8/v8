@@ -6,6 +6,7 @@
 #define V8_OBJECTS_TAGGED_IMPL_H_
 
 #include "include/v8-internal.h"
+#include "include/v8.h"
 #include "src/common/globals.h"
 
 namespace v8 {

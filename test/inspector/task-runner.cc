@@ -5,9 +5,6 @@
 #include "test/inspector/task-runner.h"
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8-exception.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-primitive.h"
 #include "src/flags/flags.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)

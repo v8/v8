@@ -11,9 +11,7 @@
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/HeapProfiler.h"
 
-namespace v8 {
-class Isolate;
-}
+#include "include/v8.h"
 
 namespace v8_inspector {
 

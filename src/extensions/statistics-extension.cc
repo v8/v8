@@ -4,7 +4,6 @@
 
 #include "src/extensions/statistics-extension.h"
 
-#include "include/v8-template.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499

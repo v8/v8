@@ -4,11 +4,7 @@
 
 #include "src/extensions/gc-extension.h"
 
-#include "include/v8-isolate.h"
-#include "include/v8-object.h"
-#include "include/v8-persistent-handle.h"
-#include "include/v8-primitive.h"
-#include "include/v8-template.h"
+#include "include/v8.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap.h"

@@ -6,7 +6,6 @@
 
 #include "include/cppgc/platform.h"
 #include "include/v8-cppgc.h"
-#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/heap.h"

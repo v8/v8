@@ -8,7 +8,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "include/v8-extension.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
