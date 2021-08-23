@@ -2572,6 +2572,7 @@ filegroup(
     name = "cppgc_base_files",
     srcs = [
         "src/heap/cppgc/allocation.cc",
+        "src/heap/cppgc/caged-heap.h",
         "src/heap/cppgc/compaction-worklists.cc",
         "src/heap/cppgc/compaction-worklists.h",
         "src/heap/cppgc/compactor.cc",
