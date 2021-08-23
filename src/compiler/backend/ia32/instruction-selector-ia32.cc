@@ -315,14 +315,14 @@ void VisitRR(InstructionSelector* selector, Node* node,
 }
 
 void VisitRROFloat(InstructionSelector* selector, Node* node,
-                   ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
+                   ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 = g.Use(node->InputAt(1));
   if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0, operand1);
+    selector->Emit(opcode, g.DefineAsRegister(node), operand0, operand1);
   } else {
-    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0, operand1);
+    selector->Emit(opcode, g.DefineSameAsFirst(node), operand0, operand1);
   }
 }
 
@@ -1175,23 +1175,23 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(F64x2Trunc, kIA32F64x2Round | MiscField::encode(kRoundToZero))            \
   V(F64x2NearestInt, kIA32F64x2Round | MiscField::encode(kRoundToNearest))
 
-#define RRO_FLOAT_OP_LIST(V)                    \
-  V(Float32Add, kAVXFloat32Add, kSSEFloat32Add) \
-  V(Float64Add, kAVXFloat64Add, kSSEFloat64Add) \
-  V(Float32Sub, kAVXFloat32Sub, kSSEFloat32Sub) \
-  V(Float64Sub, kAVXFloat64Sub, kSSEFloat64Sub) \
-  V(Float32Mul, kAVXFloat32Mul, kSSEFloat32Mul) \
-  V(Float64Mul, kAVXFloat64Mul, kSSEFloat64Mul) \
-  V(Float32Div, kAVXFloat32Div, kSSEFloat32Div) \
-  V(Float64Div, kAVXFloat64Div, kSSEFloat64Div) \
-  V(F64x2Add, kIA32F64x2Add, kIA32F64x2Add)     \
-  V(F64x2Sub, kIA32F64x2Sub, kIA32F64x2Sub)     \
-  V(F64x2Mul, kIA32F64x2Mul, kIA32F64x2Mul)     \
-  V(F64x2Div, kIA32F64x2Div, kIA32F64x2Div)     \
-  V(F64x2Eq, kIA32F64x2Eq, kIA32F64x2Eq)        \
-  V(F64x2Ne, kIA32F64x2Ne, kIA32F64x2Ne)        \
-  V(F64x2Lt, kIA32F64x2Lt, kIA32F64x2Lt)        \
-  V(F64x2Le, kIA32F64x2Le, kIA32F64x2Le)
+#define RRO_FLOAT_OP_LIST(V) \
+  V(Float32Add, kFloat32Add) \
+  V(Float64Add, kFloat64Add) \
+  V(Float32Sub, kFloat32Sub) \
+  V(Float64Sub, kFloat64Sub) \
+  V(Float32Mul, kFloat32Mul) \
+  V(Float64Mul, kFloat64Mul) \
+  V(Float32Div, kFloat32Div) \
+  V(Float64Div, kFloat64Div) \
+  V(F64x2Add, kIA32F64x2Add) \
+  V(F64x2Sub, kIA32F64x2Sub) \
+  V(F64x2Mul, kIA32F64x2Mul) \
+  V(F64x2Div, kIA32F64x2Div) \
+  V(F64x2Eq, kIA32F64x2Eq)   \
+  V(F64x2Ne, kIA32F64x2Ne)   \
+  V(F64x2Lt, kIA32F64x2Lt)   \
+  V(F64x2Le, kIA32F64x2Le)
 
 #define FLOAT_UNOP_LIST(V)                      \
   V(Float32Abs, kAVXFloat32Abs, kSSEFloat32Abs) \
@@ -1233,9 +1233,9 @@ RR_OP_LIST(RR_VISITOR)
 #undef RR_VISITOR
 #undef RR_OP_LIST
 
-#define RRO_FLOAT_VISITOR(Name, avx, sse)             \
+#define RRO_FLOAT_VISITOR(Name, opcode)               \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRROFloat(this, node, avx, sse);              \
+    VisitRROFloat(this, node, opcode);                \
   }
 RRO_FLOAT_OP_LIST(RRO_FLOAT_VISITOR)
 #undef RRO_FLOAT_VISITOR

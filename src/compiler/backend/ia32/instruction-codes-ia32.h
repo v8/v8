@@ -48,19 +48,11 @@ namespace compiler {
   V(IA32MFence)                    \
   V(IA32LFence)                    \
   V(SSEFloat32Cmp)                 \
-  V(SSEFloat32Add)                 \
-  V(SSEFloat32Sub)                 \
-  V(SSEFloat32Mul)                 \
-  V(SSEFloat32Div)                 \
   V(SSEFloat32Abs)                 \
   V(SSEFloat32Neg)                 \
   V(SSEFloat32Sqrt)                \
   V(SSEFloat32Round)               \
   V(SSEFloat64Cmp)                 \
-  V(SSEFloat64Add)                 \
-  V(SSEFloat64Sub)                 \
-  V(SSEFloat64Mul)                 \
-  V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
   V(SSEFloat32Max)                 \
   V(SSEFloat64Max)                 \
@@ -86,14 +78,14 @@ namespace compiler {
   V(SSEFloat64InsertHighWord32)    \
   V(SSEFloat64LoadLowWord32)       \
   V(SSEFloat64SilenceNaN)          \
-  V(AVXFloat32Add)                 \
-  V(AVXFloat32Sub)                 \
-  V(AVXFloat32Mul)                 \
-  V(AVXFloat32Div)                 \
-  V(AVXFloat64Add)                 \
-  V(AVXFloat64Sub)                 \
-  V(AVXFloat64Mul)                 \
-  V(AVXFloat64Div)                 \
+  V(Float32Add)                    \
+  V(Float32Sub)                    \
+  V(Float64Add)                    \
+  V(Float64Sub)                    \
+  V(Float32Mul)                    \
+  V(Float32Div)                    \
+  V(Float64Mul)                    \
+  V(Float64Div)                    \
   V(AVXFloat64Abs)                 \
   V(AVXFloat64Neg)                 \
   V(AVXFloat32Abs)                 \

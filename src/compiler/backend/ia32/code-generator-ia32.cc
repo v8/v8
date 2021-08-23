@@ -1257,21 +1257,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEFloat32Cmp:
       __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
-    case kSSEFloat32Add:
-      __ addss(i.InputDoubleRegister(0), i.InputOperand(1));
-      break;
-    case kSSEFloat32Sub:
-      __ subss(i.InputDoubleRegister(0), i.InputOperand(1));
-      break;
-    case kSSEFloat32Mul:
-      __ mulss(i.InputDoubleRegister(0), i.InputOperand(1));
-      break;
-    case kSSEFloat32Div:
-      __ divss(i.InputDoubleRegister(0), i.InputOperand(1));
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a (v)mulss depending on the result.
-      __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
-      break;
     case kSSEFloat32Sqrt:
       __ sqrtss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
@@ -1300,21 +1285,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kSSEFloat64Cmp:
       __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
-      break;
-    case kSSEFloat64Add:
-      __ addsd(i.InputDoubleRegister(0), i.InputOperand(1));
-      break;
-    case kSSEFloat64Sub:
-      __ subsd(i.InputDoubleRegister(0), i.InputOperand(1));
-      break;
-    case kSSEFloat64Mul:
-      __ mulsd(i.InputDoubleRegister(0), i.InputOperand(1));
-      break;
-    case kSSEFloat64Div:
-      __ divsd(i.InputDoubleRegister(0), i.InputOperand(1));
-      // Don't delete this mov. It may improve performance on some CPUs,
-      // when there is a (v)mulsd depending on the result.
-      __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     case kSSEFloat32Max: {
       Label compare_swap, done_compare;
@@ -1538,55 +1508,47 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEFloat64LoadLowWord32:
       __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
-    case kAVXFloat32Add: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vaddss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputOperand(1));
+    case kFloat32Add: {
+      __ Addss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
       break;
     }
-    case kAVXFloat32Sub: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vsubss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputOperand(1));
+    case kFloat32Sub: {
+      __ Subss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
       break;
     }
-    case kAVXFloat32Mul: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vmulss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputOperand(1));
+    case kFloat32Mul: {
+      __ Mulss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
       break;
     }
-    case kAVXFloat32Div: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vdivss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputOperand(1));
+    case kFloat32Div: {
+      __ Divss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
       // Don't delete this mov. It may improve performance on some CPUs,
       // when there is a (v)mulss depending on the result.
       __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     }
-    case kAVXFloat64Add: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vaddsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputOperand(1));
+    case kFloat64Add: {
+      __ Addsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
       break;
     }
-    case kAVXFloat64Sub: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vsubsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputOperand(1));
+    case kFloat64Sub: {
+      __ Subsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
       break;
     }
-    case kAVXFloat64Mul: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vmulsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputOperand(1));
+    case kFloat64Mul: {
+      __ Mulsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
       break;
     }
-    case kAVXFloat64Div: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vdivsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputOperand(1));
+    case kFloat64Div: {
+      __ Divsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
       // Don't delete this mov. It may improve performance on some CPUs,
       // when there is a (v)mulsd depending on the result.
       __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());

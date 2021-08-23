@@ -49,19 +49,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Bswap:
     case kIA32Lea:
     case kSSEFloat32Cmp:
-    case kSSEFloat32Add:
-    case kSSEFloat32Sub:
-    case kSSEFloat32Mul:
-    case kSSEFloat32Div:
     case kSSEFloat32Abs:
     case kSSEFloat32Neg:
     case kSSEFloat32Sqrt:
     case kSSEFloat32Round:
     case kSSEFloat64Cmp:
-    case kSSEFloat64Add:
-    case kSSEFloat64Sub:
-    case kSSEFloat64Mul:
-    case kSSEFloat64Div:
     case kSSEFloat64Mod:
     case kSSEFloat32Max:
     case kSSEFloat64Max:
@@ -87,14 +79,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat64InsertHighWord32:
     case kSSEFloat64LoadLowWord32:
     case kSSEFloat64SilenceNaN:
-    case kAVXFloat32Add:
-    case kAVXFloat32Sub:
-    case kAVXFloat32Mul:
-    case kAVXFloat32Div:
-    case kAVXFloat64Add:
-    case kAVXFloat64Sub:
-    case kAVXFloat64Mul:
-    case kAVXFloat64Div:
+    case kFloat32Add:
+    case kFloat32Sub:
+    case kFloat64Add:
+    case kFloat64Sub:
+    case kFloat32Mul:
+    case kFloat32Div:
+    case kFloat64Mul:
+    case kFloat64Div:
     case kAVXFloat64Abs:
     case kAVXFloat64Neg:
     case kAVXFloat32Abs:
@@ -448,7 +440,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
   // Basic latency modeling for ia32 instructions. They have been determined
   // in an empirical way.
   switch (instr->arch_opcode()) {
-    case kSSEFloat64Mul:
+    case kFloat64Mul:
       return 5;
     case kIA32Imul:
     case kIA32ImulHigh:
@@ -456,18 +448,18 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kSSEFloat32Cmp:
     case kSSEFloat64Cmp:
       return 9;
-    case kSSEFloat32Add:
-    case kSSEFloat32Sub:
+    case kFloat32Add:
+    case kFloat32Sub:
+    case kFloat64Add:
+    case kFloat64Sub:
     case kSSEFloat32Abs:
     case kSSEFloat32Neg:
-    case kSSEFloat64Add:
-    case kSSEFloat64Sub:
     case kSSEFloat64Max:
     case kSSEFloat64Min:
     case kSSEFloat64Abs:
     case kSSEFloat64Neg:
       return 5;
-    case kSSEFloat32Mul:
+    case kFloat32Mul:
       return 4;
     case kSSEFloat32ToFloat64:
     case kSSEFloat64ToFloat32:
@@ -485,9 +477,9 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return 33;
     case kIA32Udiv:
       return 26;
-    case kSSEFloat32Div:
+    case kFloat32Div:
       return 35;
-    case kSSEFloat64Div:
+    case kFloat64Div:
       return 63;
     case kSSEFloat32Sqrt:
     case kSSEFloat64Sqrt:
