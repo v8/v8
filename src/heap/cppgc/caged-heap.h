@@ -37,9 +37,19 @@ class CagedHeap final {
     return *static_cast<CagedHeapLocalData*>(reserved_area_.address());
   }
 
-  static uintptr_t OffsetFromAddress(void* address) {
+  static uintptr_t OffsetFromAddress(const void* address) {
     return reinterpret_cast<uintptr_t>(address) &
            (kCagedHeapReservationAlignment - 1);
+  }
+
+  static uintptr_t BaseFromAddress(const void* address) {
+    return reinterpret_cast<uintptr_t>(address) &
+           ~(kCagedHeapReservationAlignment - 1);
+  }
+
+  bool IsOnHeap(const void* address) const {
+    return reinterpret_cast<void*>(BaseFromAddress(address)) ==
+           reserved_area_.address();
   }
 
  private:

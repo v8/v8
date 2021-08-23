@@ -133,6 +133,7 @@ void Stack::IteratePointers(StackVisitor* visitor) const {
   PushAllRegistersAndIterateStack(this, visitor, &IteratePointersImpl);
   // No need to deal with callee-saved registers as they will be kept alive by
   // the regular conservative stack iteration.
+  // TODO(chromium:1056170): Add support for SIMD and/or filtering.
   IterateSafeStackIfNecessary(visitor);
 }
 
