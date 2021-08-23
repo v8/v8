@@ -1926,11 +1926,10 @@ TEST(jump_tables3) {
       __ j(&done);
     }
 
-    __ Align(8);
     __ bind(&dispatch);
     {
       __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
-
+      __ Align(8);
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
       __ add(t3, t3, ra);
