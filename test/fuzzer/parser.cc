@@ -9,10 +9,7 @@
 #include <cctype>
 #include <list>
 
-#include "include/v8-context.h"
-#include "include/v8-exception.h"
-#include "include/v8-isolate.h"
-#include "include/v8-local-handle.h"
+#include "include/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"

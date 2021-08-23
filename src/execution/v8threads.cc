@@ -4,7 +4,6 @@
 
 #include "src/execution/v8threads.h"
 
-#include "include/v8-locker.h"
 #include "src/api/api.h"
 #include "src/debug/debug.h"
 #include "src/execution/execution.h"

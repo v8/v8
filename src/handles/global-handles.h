@@ -10,9 +10,8 @@
 #include <utility>
 #include <vector>
 
-#include "include/v8-callbacks.h"
-#include "include/v8-persistent-handle.h"
 #include "include/v8-profiler.h"
+#include "include/v8.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap.h"
 #include "src/objects/objects.h"

@@ -7,7 +7,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "include/v8-locker.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/template-utils.h"
 #include "src/debug/debug.h"

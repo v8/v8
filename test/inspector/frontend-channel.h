@@ -7,12 +7,8 @@
 
 #include <vector>
 
-#include "include/v8-context.h"
-#include "include/v8-exception.h"
-#include "include/v8-function.h"
 #include "include/v8-inspector.h"
-#include "include/v8-microtask-queue.h"
-#include "include/v8-persistent-handle.h"
+#include "include/v8.h"
 #include "test/inspector/task-runner.h"
 #include "test/inspector/utils.h"
 

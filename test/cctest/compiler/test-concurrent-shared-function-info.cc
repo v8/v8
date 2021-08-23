@@ -4,7 +4,6 @@
 
 #include <limits>
 
-#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"

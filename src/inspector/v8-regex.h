@@ -5,13 +5,10 @@
 #ifndef V8_INSPECTOR_V8_REGEX_H_
 #define V8_INSPECTOR_V8_REGEX_H_
 
-#include "include/v8-persistent-handle.h"
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
 
-namespace v8 {
-class RegExp;
-}
+#include "include/v8.h"
 
 namespace v8_inspector {
 

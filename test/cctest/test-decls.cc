@@ -27,10 +27,8 @@
 
 #include <stdlib.h>
 
-#include "include/v8-external.h"
-#include "include/v8-initialization.h"
-#include "include/v8-template.h"
 #include "src/init/v8.h"
+
 #include "test/cctest/cctest.h"
 
 namespace v8 {

@@ -12,19 +12,11 @@
 #include <vector>
 
 #include "include/cppgc/custom-space.h"
-#include "include/v8-callbacks.h"
 #include "include/v8-cppgc.h"
-#include "include/v8-date.h"
-#include "include/v8-extension.h"
 #include "include/v8-fast-api-calls.h"
-#include "include/v8-function.h"
-#include "include/v8-json.h"
-#include "include/v8-locker.h"
-#include "include/v8-primitive-object.h"
 #include "include/v8-profiler.h"
 #include "include/v8-unwinder-state.h"
 #include "include/v8-util.h"
-#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/functional.h"
@@ -184,49 +176,6 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
       Utils::ToLocal(source_map_url), options.IsOpaque(), is_wasm,
       options.IsModule(), Utils::PrimitiveArrayToLocal(host_defined_options));
   return origin;
-}
-
-ScriptOrigin::ScriptOrigin(
-    Local<Value> resource_name, Local<Integer> line_offset,
-    Local<Integer> column_offset, Local<Boolean> is_shared_cross_origin,
-    Local<Integer> script_id, Local<Value> source_map_url,
-    Local<Boolean> is_opaque, Local<Boolean> is_wasm, Local<Boolean> is_module,
-    Local<PrimitiveArray> host_defined_options)
-    : ScriptOrigin(
-          Isolate::GetCurrent(), resource_name,
-          line_offset.IsEmpty() ? 0 : static_cast<int>(line_offset->Value()),
-          column_offset.IsEmpty() ? 0
-                                  : static_cast<int>(column_offset->Value()),
-          !is_shared_cross_origin.IsEmpty() && is_shared_cross_origin->IsTrue(),
-          static_cast<int>(script_id.IsEmpty() ? -1 : script_id->Value()),
-          source_map_url, !is_opaque.IsEmpty() && is_opaque->IsTrue(),
-          !is_wasm.IsEmpty() && is_wasm->IsTrue(),
-          !is_module.IsEmpty() && is_module->IsTrue(), host_defined_options) {}
-
-ScriptOrigin::ScriptOrigin(Local<Value> resource_name, int line_offset,
-                           int column_offset, bool is_shared_cross_origin,
-                           int script_id, Local<Value> source_map_url,
-                           bool is_opaque, bool is_wasm, bool is_module,
-                           Local<PrimitiveArray> host_defined_options)
-    : isolate_(Isolate::GetCurrent()),
-      resource_name_(resource_name),
-      resource_line_offset_(line_offset),
-      resource_column_offset_(column_offset),
-      options_(is_shared_cross_origin, is_opaque, is_wasm, is_module),
-      script_id_(script_id),
-      source_map_url_(source_map_url),
-      host_defined_options_(host_defined_options) {}
-
-Local<Integer> ScriptOrigin::ResourceLineOffset() const {
-  return v8::Integer::New(isolate_, resource_line_offset_);
-}
-
-Local<Integer> ScriptOrigin::ResourceColumnOffset() const {
-  return v8::Integer::New(isolate_, resource_column_offset_);
-}
-
-Local<Integer> ScriptOrigin::ScriptID() const {
-  return v8::Integer::New(isolate_, script_id_);
 }
 
 // --- E x c e p t i o n   B e h a v i o r ---
@@ -830,10 +779,20 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   }
 }
 
-namespace api_internal {
-i::Address* GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
-                                     internal::Address* slot,
-                                     bool has_destructor) {
+i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
+  LOG_API(isolate, Persistent, New);
+  i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
+#ifdef VERIFY_HEAP
+  if (i::FLAG_verify_heap) {
+    i::Object(*obj).ObjectVerify(isolate);
+  }
+#endif  // VERIFY_HEAP
+  return result.location();
+}
+
+i::Address* V8::GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
+                                         internal::Address* slot,
+                                         bool has_destructor) {
   LOG_API(isolate, TracedGlobal, New);
 #ifdef DEBUG
   Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
@@ -849,49 +808,59 @@ i::Address* GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
   return result.location();
 }
 
-i::Address* GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
-  LOG_API(isolate, Persistent, New);
-  i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
-#ifdef VERIFY_HEAP
-  if (i::FLAG_verify_heap) {
-    i::Object(*obj).ObjectVerify(isolate);
-  }
-#endif  // VERIFY_HEAP
-  return result.location();
-}
-
-i::Address* CopyGlobalReference(i::Address* from) {
+i::Address* V8::CopyGlobalReference(i::Address* from) {
   i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(from);
   return result.location();
 }
 
-void MoveGlobalReference(internal::Address** from, internal::Address** to) {
+void V8::MoveGlobalReference(internal::Address** from, internal::Address** to) {
   i::GlobalHandles::MoveGlobal(from, to);
 }
 
-void MakeWeak(i::Address* location, void* parameter,
-              WeakCallbackInfo<void>::Callback weak_callback,
-              WeakCallbackType type) {
+void V8::MoveTracedGlobalReference(internal::Address** from,
+                                   internal::Address** to) {
+  i::GlobalHandles::MoveTracedGlobal(from, to);
+}
+
+void V8::CopyTracedGlobalReference(const internal::Address* const* from,
+                                   internal::Address** to) {
+  i::GlobalHandles::CopyTracedGlobal(from, to);
+}
+
+void V8::MakeWeak(i::Address* location, void* parameter,
+                  WeakCallbackInfo<void>::Callback weak_callback,
+                  WeakCallbackType type) {
   i::GlobalHandles::MakeWeak(location, parameter, weak_callback, type);
 }
 
-void MakeWeak(i::Address** location_addr) {
+void V8::MakeWeak(i::Address** location_addr) {
   i::GlobalHandles::MakeWeak(location_addr);
 }
 
-void* ClearWeak(i::Address* location) {
+void* V8::ClearWeak(i::Address* location) {
   return i::GlobalHandles::ClearWeakness(location);
 }
 
-void AnnotateStrongRetainer(i::Address* location, const char* label) {
+void V8::AnnotateStrongRetainer(i::Address* location, const char* label) {
   i::GlobalHandles::AnnotateStrongRetainer(location, label);
 }
 
-void DisposeGlobal(i::Address* location) {
+void V8::DisposeGlobal(i::Address* location) {
   i::GlobalHandles::Destroy(location);
 }
 
-Value* Eternalize(Isolate* v8_isolate, Value* value) {
+void V8::DisposeTracedGlobal(internal::Address* location) {
+  i::GlobalHandles::DestroyTraced(location);
+}
+
+void V8::SetFinalizationCallbackTraced(
+    internal::Address* location, void* parameter,
+    WeakCallbackInfo<void>::Callback callback) {
+  i::GlobalHandles::SetFinalizationCallbackForTraced(location, parameter,
+                                                     callback);
+}
+
+Value* V8::Eternalize(Isolate* v8_isolate, Value* value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::Object object = *Utils::OpenHandle(value);
   int index = -1;
@@ -900,41 +869,19 @@ Value* Eternalize(Isolate* v8_isolate, Value* value) {
       isolate->eternal_handles()->Get(index).location());
 }
 
-void MoveTracedGlobalReference(internal::Address** from,
-                               internal::Address** to) {
-  i::GlobalHandles::MoveTracedGlobal(from, to);
-}
-
-void CopyTracedGlobalReference(const internal::Address* const* from,
-                               internal::Address** to) {
-  i::GlobalHandles::CopyTracedGlobal(from, to);
-}
-
-void DisposeTracedGlobal(internal::Address* location) {
-  i::GlobalHandles::DestroyTraced(location);
-}
-
-void SetFinalizationCallbackTraced(internal::Address* location, void* parameter,
-                                   WeakCallbackInfo<void>::Callback callback) {
-  i::GlobalHandles::SetFinalizationCallbackForTraced(location, parameter,
-                                                     callback);
-}
-
-void FromJustIsNothing() {
+void V8::FromJustIsNothing() {
   Utils::ApiCheck(false, "v8::FromJust", "Maybe value is Nothing.");
 }
 
-void ToLocalEmpty() {
+void V8::ToLocalEmpty() {
   Utils::ApiCheck(false, "v8::ToLocalChecked", "Empty MaybeLocal.");
 }
 
-void InternalFieldOutOfBounds(int index) {
+void V8::InternalFieldOutOfBounds(int index) {
   Utils::ApiCheck(0 <= index && index < kInternalFieldsInWeakCallback,
                   "WeakCallbackInfo::GetInternalField",
                   "Internal field out of bounds.");
 }
-
-}  // namespace api_internal
 
 // --- H a n d l e s ---
 

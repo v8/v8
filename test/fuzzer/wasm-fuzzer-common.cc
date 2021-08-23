@@ -6,11 +6,7 @@
 
 #include <ctime>
 
-#include "include/v8-context.h"
-#include "include/v8-exception.h"
-#include "include/v8-isolate.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-metrics.h"
+#include "include/v8.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"

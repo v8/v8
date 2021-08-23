@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_JS_UNIFIED_HEAP_MARKING_STATE_H_
 
 #include "include/v8-cppgc.h"
+#include "include/v8.h"
 #include "src/base/logging.h"
 #include "src/heap/heap.h"
 

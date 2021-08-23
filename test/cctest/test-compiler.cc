@@ -30,10 +30,8 @@
 
 #include <memory>
 
-#include "include/v8-function.h"
-#include "include/v8-local-handle.h"
 #include "include/v8-profiler.h"
-#include "include/v8-script.h"
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"

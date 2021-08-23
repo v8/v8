@@ -6,10 +6,8 @@
 
 #include <type_traits>
 
-#include "include/v8-maybe.h"
 #include "include/v8-value-serializer-version.h"
-#include "include/v8-value-serializer.h"
-#include "include/v8-wasm.h"
+#include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/base/platform/wrappers.h"

@@ -4,7 +4,6 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"

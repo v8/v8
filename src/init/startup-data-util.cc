@@ -7,8 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "include/v8-initialization.h"
-#include "include/v8-snapshot.h"
 #include "src/base/file-utils.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"

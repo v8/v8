@@ -27,7 +27,6 @@
 //
 // Tests of profiles generator and utilities.
 
-#include "include/v8-function.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"

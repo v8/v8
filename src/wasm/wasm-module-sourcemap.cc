@@ -6,18 +6,11 @@
 
 #include <algorithm>
 
-#include "include/v8-context.h"
-#include "include/v8-json.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-object.h"
-#include "include/v8-primitive.h"
+#include "include/v8.h"
 #include "src/api/api.h"
 #include "src/base/vlq-base64.h"
 
 namespace v8 {
-
-class String;
-
 namespace internal {
 namespace wasm {
 

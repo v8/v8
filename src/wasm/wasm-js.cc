@@ -7,8 +7,6 @@
 #include <cinttypes>
 #include <cstring>
 
-#include "include/v8-function.h"
-#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/ast/ast.h"

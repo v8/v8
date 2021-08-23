@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <memory>
-
 #include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
-#include "include/v8-initialization.h"
+#include "include/v8.h"
 #include "src/base/compiler-specific.h"
 #include "testing/gmock/include/gmock/gmock.h"
 

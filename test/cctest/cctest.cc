@@ -29,12 +29,7 @@
 
 #include "include/cppgc/platform.h"
 #include "include/libplatform/libplatform.h"
-#include "include/v8-array-buffer.h"
-#include "include/v8-context.h"
-#include "include/v8-function.h"
-#include "include/v8-isolate.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-locker.h"
+#include "include/v8.h"
 #include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"

@@ -35,15 +35,10 @@
 #include <set>
 #include <unordered_map>
 
-#include "include/v8-persistent-handle.h"
-// #include "include/v8-function-callback.h"
+#include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
-
-namespace v8 {
-class Script;
-}  // namespace v8
 
 namespace v8_inspector {
 

@@ -3,11 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/d8/async-hooks-wrapper.h"
-
-#include "include/v8-function.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-primitive.h"
-#include "include/v8-template.h"
 #include "src/d8/d8.h"
 #include "src/execution/isolate-inl.h"
 

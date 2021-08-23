@@ -9,8 +9,6 @@
 #include <string.h>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8-context.h"
-#include "include/v8-initialization.h"
 #include "src/flags/flags.h"
 #include "src/trap-handler/trap-handler.h"
 

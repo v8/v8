@@ -5,8 +5,7 @@
 #include <memory>
 
 #include "include/v8-inspector.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-primitive.h"
+#include "include/v8.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/string-util.h"
 #include "test/cctest/cctest.h"

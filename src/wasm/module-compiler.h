@@ -44,7 +44,6 @@ class CompilationResultResolver;
 class ErrorThrower;
 class ModuleCompiler;
 class NativeModule;
-class StreamingDecoder;
 class WasmCode;
 struct WasmModule;
 

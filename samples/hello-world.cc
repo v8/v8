@@ -7,12 +7,7 @@
 #include <string.h>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8-context.h"
-#include "include/v8-initialization.h"
-#include "include/v8-isolate.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-primitive.h"
-#include "include/v8-script.h"
+#include "include/v8.h"
 
 int main(int argc, char* argv[]) {
   // Initialize V8.

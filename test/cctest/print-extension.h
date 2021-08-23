@@ -28,13 +28,9 @@
 #ifndef V8_TEST_CCTEST_PRINT_EXTENSION_H_
 #define V8_TEST_CCTEST_PRINT_EXTENSION_H_
 
-#include "include/v8-extension.h"
+#include "include/v8.h"
 
 namespace v8 {
-
-template <typename T>
-class FunctionCallbackInfo;
-
 namespace internal {
 
 class PrintExtension : public v8::Extension {

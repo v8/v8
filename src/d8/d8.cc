@@ -24,12 +24,8 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/libplatform/v8-tracing.h"
-#include "include/v8-function.h"
-#include "include/v8-initialization.h"
 #include "include/v8-inspector.h"
-#include "include/v8-json.h"
 #include "include/v8-profiler.h"
-#include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/cpu.h"
 #include "src/base/logging.h"

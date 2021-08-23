@@ -4,7 +4,6 @@
 
 #include "src/debug/debug-interface.h"
 
-#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/script-details.h"

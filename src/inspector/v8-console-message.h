@@ -10,8 +10,7 @@
 #include <memory>
 #include <set>
 
-#include "include/v8-local-handle.h"
-#include "include/v8-persistent-handle.h"
+#include "include/v8.h"
 #include "src/inspector/protocol/Console.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"

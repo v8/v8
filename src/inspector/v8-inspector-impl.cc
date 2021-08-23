@@ -32,9 +32,6 @@
 
 #include <vector>
 
-#include "include/v8-context.h"
-#include "include/v8-local-handle.h"
-#include "include/v8-microtask-queue.h"
 #include "include/v8-platform.h"
 #include "src/base/platform/mutex.h"
 #include "src/debug/debug-interface.h"

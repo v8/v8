@@ -5,7 +5,6 @@
 #ifndef V8_OBJECTS_CONTEXTS_H_
 #define V8_OBJECTS_CONTEXTS_H_
 
-#include "include/v8-promise.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"

@@ -4,8 +4,7 @@
 
 #include <windows.h>
 
-#include "include/v8-initialization.h"
-#include "include/v8-platform.h"
+#include "include/v8.h"
 #include "src/base/page-allocator.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/allocation.h"
