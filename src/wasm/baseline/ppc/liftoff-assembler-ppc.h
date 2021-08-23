@@ -41,7 +41,7 @@ namespace liftoff {
 //
 //
 
-constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
+constexpr int32_t kInstanceOffset = 3 * kSystemPointerSize;
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
@@ -2368,7 +2368,18 @@ void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
                                                LiftoffRegList all_spills,
                                                LiftoffRegList ref_spills,
                                                int spill_offset) {
-  bailout(kRefTypes, "RecordSpillsInSafepoint");
+  int spill_space_size = 0;
+  while (!all_spills.is_empty()) {
+    LiftoffRegister reg = all_spills.GetLastRegSet();
+    if (ref_spills.has(reg)) {
+      safepoint.DefinePointerSlot(spill_offset);
+    }
+    all_spills.clear(reg);
+    ++spill_offset;
+    spill_space_size += kSystemPointerSize;
+  }
+  // Record the number of additional spill slots.
+  RecordOolSpillSpaceSize(spill_space_size);
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
