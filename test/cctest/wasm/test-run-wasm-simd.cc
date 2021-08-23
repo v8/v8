@@ -435,11 +435,11 @@ void RunShiftAddTestSequence(TestExecutionTier execution_tier,
                              WasmOpcode shiftr_opcode, WasmOpcode add_opcode,
                              WasmOpcode splat_opcode, int32_t imm,
                              ScalarType (*shift_fn)(ScalarType, int32_t)) {
-  WasmRunner<int32_t, ScalarType, ScalarType> r(execution_tier);
+  WasmRunner<int32_t, ScalarType> r(execution_tier);
   // globals to store results for left and right cases
   ScalarType* g1 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
   ScalarType* g2 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
-  byte value1 = 0, value2 = 1;
+  byte param = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
   auto expected_fn = [shift_fn](ScalarType x, ScalarType y, uint32_t imm) {
@@ -447,10 +447,8 @@ void RunShiftAddTestSequence(TestExecutionTier execution_tier,
   };
   BUILD(
       r,
-      WASM_LOCAL_SET(temp1,
-                     WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(value1))),
-      WASM_LOCAL_SET(temp2,
-                     WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(value2))),
+      WASM_LOCAL_SET(temp1, WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(param))),
+      WASM_LOCAL_SET(temp2, WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(param))),
       WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(add_opcode,
                                          WASM_SIMD_BINOP(shiftr_opcode,
                                                          WASM_LOCAL_GET(temp2),
@@ -463,13 +461,11 @@ void RunShiftAddTestSequence(TestExecutionTier execution_tier,
 
       WASM_ONE);
   for (ScalarType x : compiler::ValueHelper::GetVector<ScalarType>()) {
-    for (ScalarType y : compiler::ValueHelper::GetVector<ScalarType>()) {
-      r.Call(x, y);
-      ScalarType expected = expected_fn(x, y, imm);
-      for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
-        CHECK_EQ(expected, LANE(g1, i));
-        CHECK_EQ(expected, LANE(g2, i));
-      }
+    r.Call(x);
+    ScalarType expected = expected_fn(x, x, imm);
+    for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
+      CHECK_EQ(expected, LANE(g1, i));
+      CHECK_EQ(expected, LANE(g2, i));
     }
   }
 }
