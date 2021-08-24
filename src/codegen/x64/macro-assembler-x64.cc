@@ -2302,22 +2302,6 @@ void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
   }
 }
 
-void TurboAssembler::F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src) {
-  // dst = [ src_low, 0x43300000, src_high, 0x4330000 ];
-  // 0x43300000'00000000 is a special double where the significand bits
-  // precisely represents all uint32 numbers.
-  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
-    movaps(dst, src);
-    src = dst;
-  }
-  Unpcklps(dst, src,
-           ExternalReferenceAsOperand(
-               ExternalReference::
-                   address_of_wasm_f64x2_convert_low_i32x4_u_int_mask()));
-  Subpd(dst, ExternalReferenceAsOperand(
-                 ExternalReference::address_of_wasm_double_2_power_52()));
-}
-
 void TurboAssembler::I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);

@@ -418,8 +418,36 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
 template <typename Impl>
 class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
   using SharedTurboAssembler::SharedTurboAssembler;
-  // TODO(zhin): intentionally empty for now, will move polymorphic functions
-  // here in future changes.
+
+ public:
+  void F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src,
+                             Register scratch) {
+    ASM_CODE_COMMENT(this);
+    // dst = [ src_low, 0x43300000, src_high, 0x4330000 ];
+    // 0x43300000'00000000 is a special double where the significand bits
+    // precisely represents all uint32 numbers.
+    if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+      movaps(dst, src);
+      src = dst;
+    }
+    Unpcklps(dst, src,
+             ExternalReferenceAsOperand(
+                 ExternalReference::
+                     address_of_wasm_f64x2_convert_low_i32x4_u_int_mask(),
+                 scratch));
+    Subpd(dst,
+          ExternalReferenceAsOperand(
+              ExternalReference::address_of_wasm_double_2_power_52(), scratch));
+  }
+
+ private:
+  // All implementation-specific methods must be called through this.
+  Impl* impl() { return static_cast<Impl*>(this); }
+
+  Operand ExternalReferenceAsOperand(ExternalReference reference,
+                                     Register scratch) {
+    return impl()->ExternalReferenceAsOperand(reference, scratch);
+  }
 };
 
 }  // namespace internal

@@ -397,7 +397,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // Defined here to allow usage on both TurboFan and Liftoff.
   void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
                    XMMRegister tmp2, Register scratch);
-  void F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src, Register tmp);
   void I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src,
                                XMMRegister scratch, Register tmp);
   void I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src,

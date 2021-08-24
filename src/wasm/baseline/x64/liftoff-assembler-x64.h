@@ -3753,7 +3753,7 @@ void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  F64x2ConvertLowI32x4U(dst.fp(), src.fp());
+  F64x2ConvertLowI32x4U(dst.fp(), src.fp(), kScratchRegister);
 }
 
 void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,

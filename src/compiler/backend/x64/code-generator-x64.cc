@@ -2622,7 +2622,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F64x2ConvertLowI32x4U: {
       __ F64x2ConvertLowI32x4U(i.OutputSimd128Register(),
-                               i.InputSimd128Register(0));
+                               i.InputSimd128Register(0), kScratchRegister);
       break;
     }
     case kX64F64x2PromoteLowF32x4: {
