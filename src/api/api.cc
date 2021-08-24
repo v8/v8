@@ -11,7 +11,6 @@
 #include <utility>  // For move
 #include <vector>
 
-#include "include/cppgc/custom-space.h"
 #include "include/v8-callbacks.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-date.h"
