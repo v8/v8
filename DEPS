@@ -314,8 +314,6 @@ deps = {
       'condition': 'host_cpu != "s390" and host_os != "aix"',
       'dep_type': 'cipd',
   },
-  'tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + 'a32a1607f6093d338f756c7e7c7b4333b0c50c9c',
 }
 
 include_rules = [
