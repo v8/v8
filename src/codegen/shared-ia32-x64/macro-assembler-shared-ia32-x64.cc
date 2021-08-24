@@ -805,8 +805,8 @@ void SharedTurboAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src,
 
   // Shift modulo 64.
   Move(tmp_shift, shift);
-  And(shift, Immediate(0x3F));
-  Movd(xmm_shift, shift);
+  And(tmp_shift, Immediate(0x3F));
+  Movd(xmm_shift, tmp_shift);
 
   if (!CpuFeatures::IsSupported(AVX) && (dst != src)) {
     Movapd(dst, src);
