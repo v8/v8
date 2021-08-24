@@ -75,11 +75,13 @@ class BasicMemoryChunkValidator {
   STATIC_ASSERT(BasicMemoryChunk::kSizeOffset ==
                 offsetof(BasicMemoryChunk, size_));
   STATIC_ASSERT(BasicMemoryChunk::kFlagsOffset ==
-                offsetof(BasicMemoryChunk, main_thread_flags_));
+                offsetof(BasicMemoryChunk, flags_));
   STATIC_ASSERT(BasicMemoryChunk::kHeapOffset ==
                 offsetof(BasicMemoryChunk, heap_));
   STATIC_ASSERT(offsetof(BasicMemoryChunk, size_) ==
                 MemoryChunkLayout::kSizeOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, flags_) ==
+                MemoryChunkLayout::kFlagsOffset);
   STATIC_ASSERT(offsetof(BasicMemoryChunk, heap_) ==
                 MemoryChunkLayout::kHeapOffset);
   STATIC_ASSERT(offsetof(BasicMemoryChunk, area_start_) ==
