@@ -71,6 +71,18 @@ V8_WARN_UNUSED_RESULT Object ReturnFuzzSafe(Object value, Isolate* isolate) {
   if (!args[index].IsBoolean()) return CrashUnlessFuzzing(isolate); \
   bool name = args[index].IsTrue(isolate);
 
+bool IsAsmWasmFunction(Isolate* isolate, JSFunction function) {
+  DisallowGarbageCollection no_gc;
+#if V8_ENABLE_WEBASSEMBLY
+  // For simplicity we include invalid asm.js functions whose code hasn't yet
+  // been updated to CompileLazy but is still the InstantiateAsmJs builtin.
+  return function.shared().HasAsmWasmData() ||
+         function.code().builtin_id() == Builtin::kInstantiateAsmJs;
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_ClearMegamorphicStubCache) {
@@ -243,11 +255,9 @@ bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (function->shared().HasAsmWasmData()) {
+  if (IsAsmWasmFunction(isolate, *function)) {
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   if (FLAG_testing_d8_test_runner) {
     PendingOptimizationTable::MarkedForOptimization(isolate, function);
@@ -425,9 +435,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
     return CrashUnlessFuzzing(isolate);
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (function->shared().HasAsmWasmData()) return CrashUnlessFuzzing(isolate);
-#endif  // V8_ENABLE_WEBASSEMBLY
+  if (IsAsmWasmFunction(isolate, *function)) return CrashUnlessFuzzing(isolate);
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.

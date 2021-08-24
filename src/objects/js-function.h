@@ -106,7 +106,8 @@ class JSFunction : public JSFunctionOrBoundFunction {
   //   indirect means such as the feedback vector's optimized code cache.
   // - Active: the single code kind that would be executed if this function
   //   were called in its current state. Note that there may not be an active
-  //   code kind if the function is not compiled.
+  //   code kind if the function is not compiled. Also, asm/wasm functions are
+  //   currently not supported.
   //
   // Note: code objects that are marked_for_deoptimization are not part of the
   // attached/available/active sets. This is because the JSFunction might have
@@ -120,11 +121,10 @@ class JSFunction : public JSFunctionOrBoundFunction {
   bool HasAttachedCodeKind(CodeKind kind) const;
   bool HasAvailableCodeKind(CodeKind kind) const;
 
-  CodeKind GetActiveTier() const;
+  base::Optional<CodeKind> GetActiveTier() const;
   V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
   bool ActiveTierIsTurbofan() const;
   bool ActiveTierIsBaseline() const;
-  bool ActiveTierIsIgnitionOrBaseline() const;
   bool ActiveTierIsMidtierTurboprop() const;
   bool ActiveTierIsToptierTurboprop() const;
 

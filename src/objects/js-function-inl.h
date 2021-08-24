@@ -55,7 +55,7 @@ void JSFunction::ClearOptimizationMarker() {
 }
 
 bool JSFunction::ChecksOptimizationMarker() {
-  return code(kAcquireLoad).checks_optimization_marker();
+  return code().checks_optimization_marker();
 }
 
 bool JSFunction::IsMarkedForOptimization() {

@@ -250,7 +250,7 @@ void RuntimeProfiler::MarkCandidatesForOptimization(JavaScriptFrame* frame) {
   MarkCandidatesForOptimizationScope scope(this);
 
   JSFunction function = frame->function();
-  CodeKind code_kind = function.GetActiveTier();
+  CodeKind code_kind = function.GetActiveTier().value();
 
   DCHECK(function.shared().is_compiled());
   DCHECK(function.shared().IsInterpreted());
