@@ -2793,8 +2793,25 @@ void InstructionSelector::VisitLoadLane(Node* node) {
 }
 
 void InstructionSelector::VisitLoadTransform(Node* node) {
-  // We should never reach here, see http://crrev.com/c/2050811
-  UNREACHABLE();
+  LoadTransformParameters params = LoadTransformParametersOf(node->op());
+  ArchOpcode opcode;
+  switch (params.transformation) {
+    case LoadTransformation::kS128Load8Splat:
+      opcode = kS390_S128Load8Splat;
+      break;
+    case LoadTransformation::kS128Load16Splat:
+      opcode = kS390_S128Load16Splat;
+      break;
+    case LoadTransformation::kS128Load32Splat:
+      opcode = kS390_S128Load32Splat;
+      break;
+    case LoadTransformation::kS128Load64Splat:
+      opcode = kS390_S128Load64Splat;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  VisitLoad(node, node, opcode);
 }
 
 void InstructionSelector::VisitStoreLane(Node* node) {

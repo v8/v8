@@ -1559,8 +1559,10 @@ using SixByteInstr = uint64_t;
   V(vstef, VSTEF, 0xE70B) /* type = VRX   VECTOR STORE ELEMENT (32)  */       \
   V(vst, VST, 0xE70E)     /* type = VRX   VECTOR STORE  */                    \
   V(vlbr, VLBR, 0xE606) /* type = VRX   VECTOR LOAD BYTE REVERSED ELEMENTS */ \
-  V(vstbr, VSTBR, 0xE60E) /* type = VRX   VECTOR STORE BYTE REVERSED ELEMENTS \
-                           */
+  V(vstbr, VSTBR,                                                             \
+    0xE60E) /* type = VRX   VECTOR STORE BYTE REVERSED ELEMENTS */            \
+  V(vlbrrep, VLBRREP,                                                         \
+    0xE605) /* type = VRX VECTOR LOAD BYTE REVERSED ELEMENT AND REPLICATE */
 
 #define S390_RIE_G_OPCODE_LIST(V)                                             \
   V(lochi, LOCHI,                                                             \

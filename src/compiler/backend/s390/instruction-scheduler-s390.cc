@@ -359,6 +359,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_LoadDecompressTaggedSigned:
     case kS390_LoadDecompressTaggedPointer:
     case kS390_LoadDecompressAnyTagged:
+    case kS390_S128Load8Splat:
+    case kS390_S128Load16Splat:
+    case kS390_S128Load32Splat:
+    case kS390_S128Load64Splat:
       return kIsLoadOperation;
 
     case kS390_StoreWord8:

@@ -3924,6 +3924,31 @@ void TurboAssembler::StoreV128LE(Simd128Register src, const MemOperand& mem,
   }
 }
 
+void TurboAssembler::LoadAndSplat8x16LE(Simd128Register dst,
+                                        const MemOperand& mem) {
+  vlrep(dst, mem, Condition(0));
+}
+#define LOAD_SPLAT_LIST(V) \
+  V(64x2, LoadU64LE, 3)    \
+  V(32x4, LoadU32LE, 2)    \
+  V(16x8, LoadU16LE, 1)
+
+#define LOAD_SPLAT(name, scalar_instr, condition)                      \
+  void TurboAssembler::LoadAndSplat##name##LE(Simd128Register dst,     \
+                                              const MemOperand& mem) { \
+    if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&         \
+        is_uint12(mem.offset())) {                                     \
+      vlbrrep(dst, mem, Condition(condition));                         \
+      return;                                                          \
+    }                                                                  \
+    scalar_instr(r1, mem);                                             \
+    vlvg(dst, r1, MemOperand(r0, 0), Condition(condition));            \
+    vrep(dst, dst, Operand(0), Condition(condition));                  \
+  }
+LOAD_SPLAT_LIST(LOAD_SPLAT)
+#undef LOAD_SPLAT
+#undef LOAD_SPLAT_LIST
+
 #else
 void TurboAssembler::LoadU64LE(Register dst, const MemOperand& mem,
                                Register scratch) {
@@ -3995,6 +4020,21 @@ void TurboAssembler::StoreV128LE(Simd128Register src, const MemOperand& mem,
                                  Register scratch1, Register scratch2) {
   StoreV128(src, mem, scratch1);
 }
+
+#define LOAD_SPLAT_LIST(V) \
+  V(64x2, 3)               \
+  V(32x4, 2)               \
+  V(16x8, 1)               \
+  V(8x16, 0)
+
+#define LOAD_SPLAT(name, condition)                                    \
+  void TurboAssembler::LoadAndSplat##name##LE(Simd128Register dst,     \
+                                              const MemOperand& mem) { \
+    vlrep(dst, mem, Condition(condition));                             \
+  }
+LOAD_SPLAT_LIST(LOAD_SPLAT)
+#undef LOAD_SPLAT
+#undef LOAD_SPLAT_LIST
 
 #endif
 
