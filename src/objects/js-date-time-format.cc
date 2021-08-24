@@ -144,14 +144,16 @@ static std::vector<PatternItem> BuildPatternItems() {
                               kNarrowLongShort2DigitNumeric));
   items.push_back(PatternItem("day", {{"dd", "2-digit"}, {"d", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem("dayPeriod",
-                              {{"BBBBB", "narrow"},
-                               {"bbbbb", "narrow"},
-                               {"BBBB", "long"},
-                               {"bbbb", "long"},
-                               {"B", "short"},
-                               {"b", "short"}},
-                              kNarrowLongShort));
+  if (FLAG_harmony_intl_dateformat_day_period) {
+    items.push_back(PatternItem("dayPeriod",
+                                {{"BBBBB", "narrow"},
+                                 {"bbbbb", "narrow"},
+                                 {"BBBB", "long"},
+                                 {"bbbb", "long"},
+                                 {"B", "short"},
+                                 {"b", "short"}},
+                                kNarrowLongShort));
+  }
   items.push_back(PatternItem("hour",
                               {{"HH", "2-digit"},
                                {"H", "numeric"},
@@ -921,7 +923,9 @@ MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
     // a. For each of the property names "dayPeriod", "hour", "minute",
     // "second", "fractionalSecondDigits", do
     std::vector<Handle<String>> list;
-    list.push_back(factory->dayPeriod_string());
+    if (FLAG_harmony_intl_dateformat_day_period) {
+      list.push_back(factory->dayPeriod_string());
+    }
     list.push_back(factory->hour_string());
     list.push_back(factory->minute_string());
     list.push_back(factory->second_string());
