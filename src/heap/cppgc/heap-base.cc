@@ -62,9 +62,9 @@ HeapBase::HeapBase(
 #endif  // LEAK_SANITIZER
 #if defined(CPPGC_CAGED_HEAP)
       caged_heap_(this, page_allocator()),
-      page_backend_(std::make_unique<PageBackend>(&caged_heap_.allocator())),
+      page_backend_(std::make_unique<PageBackend>(caged_heap_.allocator())),
 #else   // !CPPGC_CAGED_HEAP
-      page_backend_(std::make_unique<PageBackend>(page_allocator())),
+      page_backend_(std::make_unique<PageBackend>(*page_allocator())),
 #endif  // !CPPGC_CAGED_HEAP
       stats_collector_(std::make_unique<StatsCollector>(platform_.get())),
       stack_(std::make_unique<heap::base::Stack>(

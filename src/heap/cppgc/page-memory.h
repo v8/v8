@@ -79,9 +79,9 @@ class V8_EXPORT_PRIVATE PageMemoryRegion {
   virtual void UnprotectForTesting() = 0;
 
  protected:
-  PageMemoryRegion(PageAllocator*, MemoryRegion, bool);
+  PageMemoryRegion(PageAllocator&, MemoryRegion, bool);
 
-  PageAllocator* const allocator_;
+  PageAllocator& allocator_;
   const MemoryRegion reserved_region_;
   const bool is_large_;
 };
@@ -91,7 +91,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryRegion final : public PageMemoryRegion {
  public:
   static constexpr size_t kNumPageRegions = 10;
 
-  explicit NormalPageMemoryRegion(PageAllocator*);
+  explicit NormalPageMemoryRegion(PageAllocator&);
   ~NormalPageMemoryRegion() override;
 
   const PageMemory GetPageMemory(size_t index) const {
@@ -133,7 +133,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryRegion final : public PageMemoryRegion {
 // LargePageMemoryRegion serves a single large PageMemory object.
 class V8_EXPORT_PRIVATE LargePageMemoryRegion final : public PageMemoryRegion {
  public:
-  LargePageMemoryRegion(PageAllocator*, size_t);
+  LargePageMemoryRegion(PageAllocator&, size_t);
   ~LargePageMemoryRegion() override;
 
   const PageMemory GetPageMemory() const {
@@ -193,7 +193,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
 // regions alive.
 class V8_EXPORT_PRIVATE PageBackend final {
  public:
-  explicit PageBackend(PageAllocator*);
+  explicit PageBackend(PageAllocator&);
   ~PageBackend();
 
   // Allocates a normal page from the backend.
@@ -223,7 +223,7 @@ class V8_EXPORT_PRIVATE PageBackend final {
   PageBackend& operator=(const PageBackend&) = delete;
 
  private:
-  PageAllocator* allocator_;
+  PageAllocator& allocator_;
   NormalPageMemoryPool page_pool_;
   PageMemoryRegionTree page_memory_region_tree_;
   std::vector<std::unique_ptr<PageMemoryRegion>> normal_page_memory_regions_;
@@ -233,8 +233,8 @@ class V8_EXPORT_PRIVATE PageBackend final {
 
 // Returns true if the provided allocator supports committing at the required
 // granularity.
-inline bool SupportsCommittingGuardPages(PageAllocator* allocator) {
-  return kGuardPageSize % allocator->CommitPageSize() == 0;
+inline bool SupportsCommittingGuardPages(PageAllocator& allocator) {
+  return kGuardPageSize % allocator.CommitPageSize() == 0;
 }
 
 Address NormalPageMemoryRegion::Lookup(ConstAddress address) const {
