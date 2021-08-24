@@ -105,41 +105,6 @@ void CompilationSubCache::Remove(Handle<SharedFunctionInfo> function_info) {
 CompilationCacheScript::CompilationCacheScript(Isolate* isolate)
     : CompilationSubCache(isolate, 1) {}
 
-namespace {
-
-// We only re-use a cached function for some script source code if the
-// script originates from the same place. This is to avoid issues
-// when reporting errors, etc.
-bool HasOrigin(Isolate* isolate, Handle<SharedFunctionInfo> function_info,
-               const ScriptDetails& script_details) {
-  Handle<Script> script =
-      Handle<Script>(Script::cast(function_info->script()), isolate);
-  // If the script name isn't set, the boilerplate script should have
-  // an undefined name to have the same origin.
-  Handle<Object> name;
-  if (!script_details.name_obj.ToHandle(&name)) {
-    return script->name().IsUndefined(isolate);
-  }
-  // Do the fast bailout checks first.
-  if (script_details.line_offset != script->line_offset()) return false;
-  if (script_details.column_offset != script->column_offset()) return false;
-  // Check that both names are strings. If not, no match.
-  if (!name->IsString() || !script->name().IsString()) return false;
-  // Are the origin_options same?
-  if (script_details.origin_options.Flags() !=
-      script->origin_options().Flags()) {
-    return false;
-  }
-  // Compare the two name strings for equality.
-  if (!String::Equals(isolate, Handle<String>::cast(name),
-                      Handle<String>(String::cast(script->name()), isolate))) {
-    return false;
-  }
-  // TODO(10284): Enable host-defined options check again
-  return true;
-}
-}  // namespace
-
 // TODO(245): Need to allow identical code from different contexts to
 // be cached in the same script generation. Currently the first use
 // will be cached, but subsequent code from different source / line
@@ -162,7 +127,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     if (probe.ToHandle(&function_info)) {
       // Break when we've found a suitable shared function info that
       // matches the origin.
-      if (HasOrigin(isolate(), function_info, script_details)) {
+      if (function_info->HasMatchingOrigin(isolate(), script_details)) {
         result = scope.CloseAndEscape(function_info);
       }
     }
@@ -173,9 +138,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
   // handle created in the caller's handle scope.
   Handle<SharedFunctionInfo> function_info;
   if (result.ToHandle(&function_info)) {
-    // Since HasOrigin can allocate, we need to protect the SharedFunctionInfo
-    // with handles during the call.
-    DCHECK(HasOrigin(isolate(), function_info, script_details));
+    DCHECK(function_info->HasMatchingOrigin(isolate(), script_details));
     isolate()->counters()->compilation_cache_hits()->Increment();
     LOG(isolate(), CompilationCacheEvent("hit", "script", *function_info));
   } else {

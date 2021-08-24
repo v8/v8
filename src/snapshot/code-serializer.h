@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 class PersistentHandles;
+struct ScriptDetails;
 
 class V8_EXPORT_PRIVATE AlignedCachedData {
  public:
@@ -68,7 +69,7 @@ class CodeSerializer : public Serializer {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-      ScriptOriginOptions origin_options);
+      const ScriptDetails& script_details);
 
   V8_WARN_UNUSED_RESULT static OffThreadDeserializeData
   StartDeserializeOffThread(LocalIsolate* isolate,
@@ -78,7 +79,7 @@ class CodeSerializer : public Serializer {
   FinishOffThreadDeserialize(Isolate* isolate, OffThreadDeserializeData&& data,
                              AlignedCachedData* cached_data,
                              Handle<String> source,
-                             ScriptOriginOptions origin_options);
+                             const ScriptDetails& script_details);
 
   uint32_t source_hash() const { return source_hash_; }
 
@@ -91,8 +92,11 @@ class CodeSerializer : public Serializer {
 
  private:
   void SerializeObjectImpl(Handle<HeapObject> o) override;
-
   bool SerializeReadOnlyObject(Handle<HeapObject> obj);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> DeserializeMain(
+      Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
+      const ScriptDetails& script_details);
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
   uint32_t source_hash_;
@@ -145,7 +149,7 @@ class SerializedCodeData : public SerializedData {
   base::Vector<const byte> Payload() const;
 
   static uint32_t SourceHash(Handle<String> source,
-                             ScriptOriginOptions origin_options);
+                             const ScriptDetails& script_details);
 
  private:
   explicit SerializedCodeData(AlignedCachedData* data);

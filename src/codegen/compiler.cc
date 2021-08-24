@@ -1706,10 +1706,10 @@ void BackgroundDeserializeTask::Run() {
 
 MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
     Isolate* isolate, Handle<String> source,
-    ScriptOriginOptions origin_options) {
+    const ScriptDetails& script_details) {
   return CodeSerializer::FinishOffThreadDeserialize(
       isolate, std::move(off_thread_data_), &cached_data_, source,
-      origin_options);
+      script_details);
 }
 
 // ----------------------------------------------------------------------------
@@ -2884,11 +2884,11 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
                    "V8.CompileDeserialize");
       if (deserialize_task) {
         // If there's a cache consume task, finish it.
-        maybe_result = deserialize_task->Finish(isolate, source,
-                                                script_details.origin_options);
+        maybe_result =
+            deserialize_task->Finish(isolate, source, script_details);
       } else {
-        maybe_result = CodeSerializer::Deserialize(
-            isolate, cached_data, source, script_details.origin_options);
+        maybe_result = CodeSerializer::Deserialize(isolate, cached_data, source,
+                                                   script_details);
       }
 
       bool consuming_code_cache_succeeded = false;
@@ -2905,6 +2905,11 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
         // Deserializer failed. Fall through to compile.
         compile_timer.set_consuming_code_cache_failed();
       }
+    }
+    if (!maybe_result.is_null()) {
+      // Assert we end up with compatible SFIs.
+      DCHECK(maybe_result.ToHandleChecked()->HasMatchingOrigin(isolate,
+                                                               script_details));
     }
   }
 
@@ -3025,7 +3030,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.CompileDeserialize");
     maybe_result = CodeSerializer::Deserialize(isolate, cached_data, source,
-                                               script_details.origin_options);
+                                               script_details);
     if (maybe_result.is_null()) {
       // Deserializer failed. Fall through to compile.
       compile_timer.set_consuming_code_cache_failed();

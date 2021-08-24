@@ -10,6 +10,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/script-details.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/handles/maybe-handles.h"
@@ -74,8 +75,10 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   // Serialize code object.
   Handle<String> source(String::cast(script->source()), isolate);
   HandleScope scope(isolate);
-  CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
-                                 source, script->origin_options()));
+  ScriptDetails script_details(handle(script->name(), isolate),
+                               script->origin_options());
+  CodeSerializer cs(isolate,
+                    SerializedCodeData::SourceHash(source, script_details));
   DisallowGarbageCollection no_gc;
   cs.reference_map()->AddAttachedReference(*source);
   AlignedCachedData* cached_data = cs.SerializeSharedFunctionInfo(info);
@@ -291,12 +294,12 @@ class StressOffThreadDeserializeThread final : public base::Thread {
         CodeSerializer::StartDeserializeOffThread(&local_isolate, cached_data_);
   }
 
-  MaybeHandle<SharedFunctionInfo> Finalize(Isolate* isolate,
-                                           Handle<String> source,
-                                           ScriptOriginOptions origin_options) {
+  MaybeHandle<SharedFunctionInfo> Finalize(
+      Isolate* isolate, Handle<String> source,
+      const ScriptDetails& script_details) {
     return CodeSerializer::FinishOffThreadDeserialize(
         isolate, std::move(off_thread_data_), cached_data_, source,
-        origin_options);
+        script_details);
   }
 
  private:
@@ -369,19 +372,72 @@ void FinalizeDeserialization(Isolate* isolate,
   }
 }
 
+void CompareSFIs(Handle<SharedFunctionInfo> main_thread,
+                 Handle<SharedFunctionInfo> off_thread) {
+  DisallowGarbageCollection no_gc;
+  DCHECK_EQ(main_thread->flags(kRelaxedLoad), off_thread->flags(kRelaxedLoad));
+  DCHECK_EQ(main_thread->flags2(), off_thread->flags2());
+  DCHECK_EQ(main_thread->raw_function_token_offset(),
+            off_thread->raw_function_token_offset());
+  DCHECK_EQ(main_thread->internal_formal_parameter_count(),
+            off_thread->internal_formal_parameter_count());
+  DCHECK(main_thread->Name().Equals(off_thread->Name()));
+  if (!main_thread->script().IsScript()) {
+    DCHECK(!off_thread->script().IsScript());
+    return;
+  }
+  Script main_thread_script = Script::cast(main_thread->script());
+#ifdef DEBUG
+  Script off_thread_script = Script::cast(off_thread->script());
+#endif
+  DCHECK_EQ(main_thread_script.flags(), off_thread_script.flags());
+  DCHECK_EQ(main_thread_script.script_type(), off_thread_script.script_type());
+  if (main_thread_script.source().IsString()) {
+    DCHECK(String::cast(main_thread_script.source())
+               .Equals(String::cast(off_thread_script.source())));
+  } else {
+    DCHECK(!off_thread_script.source().IsString());
+  }
+  if (main_thread_script.source_url().IsString()) {
+    DCHECK(String::cast(main_thread_script.source())
+               .Equals(String::cast(off_thread_script.source())));
+  } else {
+    DCHECK(!off_thread_script.source_url().IsString());
+  }
+  if (main_thread_script.name().IsString()) {
+    DCHECK(String::cast(main_thread_script.name())
+               .Equals(String::cast(off_thread_script.name())));
+  } else {
+    DCHECK(!off_thread_script.name().IsString());
+  }
+}
+
 }  // namespace
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-    ScriptOriginOptions origin_options) {
+    const ScriptDetails& script_details) {
   if (FLAG_stress_background_compile) {
     StressOffThreadDeserializeThread thread(isolate, cached_data);
     CHECK(thread.Start());
     thread.Join();
-    return thread.Finalize(isolate, source, origin_options);
-    // TODO(leszeks): Compare off-thread deserialized data to on-thread.
+    MaybeHandle<SharedFunctionInfo> off_thread_result =
+        thread.Finalize(isolate, source, script_details);
+    MaybeHandle<SharedFunctionInfo> main_thread_result =
+        DeserializeMain(isolate, cached_data, source, script_details);
+    DCHECK_EQ(off_thread_result.is_null(), main_thread_result.is_null());
+    if (!main_thread_result.is_null()) {
+      CompareSFIs(main_thread_result.ToHandleChecked(),
+                  off_thread_result.ToHandleChecked());
+    }
+    return off_thread_result;
   }
+  return DeserializeMain(isolate, cached_data, source, script_details);
+}
 
+MaybeHandle<SharedFunctionInfo> CodeSerializer::DeserializeMain(
+    Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
+    const ScriptDetails& script_details) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization || FLAG_log_function_events) timer.Start();
 
@@ -390,7 +446,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   SerializedCodeData::SanityCheckResult sanity_check_result =
       SerializedCodeData::CHECK_SUCCESS;
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
-      cached_data, SerializedCodeData::SourceHash(source, origin_options),
+      cached_data, SerializedCodeData::SourceHash(source, script_details),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
     if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
@@ -410,7 +466,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
     return MaybeHandle<SharedFunctionInfo>();
   }
-
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int length = cached_data->length();
@@ -444,7 +499,6 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
   MaybeHandle<SharedFunctionInfo> local_maybe_result =
       OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
           local_isolate, &scd, &result.scripts);
-
   result.maybe_result =
       local_isolate->heap()->NewPersistentMaybeHandle(local_maybe_result);
   result.persistent_handles = local_isolate->heap()->DetachPersistentHandles();
@@ -455,7 +509,7 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
 MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     Isolate* isolate, OffThreadDeserializeData&& data,
     AlignedCachedData* cached_data, Handle<String> source,
-    ScriptOriginOptions origin_options) {
+    const ScriptDetails& script_details) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization || FLAG_log_function_events) timer.Start();
 
@@ -465,7 +519,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
   SerializedCodeData::SanityCheckResult sanity_check_result =
       SerializedCodeData::CHECK_SUCCESS;
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
-      cached_data, SerializedCodeData::SourceHash(source, origin_options),
+      cached_data, SerializedCodeData::SourceHash(source, script_details),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
     // The only case where the deserialization result could exist despite a
@@ -581,11 +635,12 @@ SerializedCodeData::SanityCheckWithoutSource() const {
 }
 
 uint32_t SerializedCodeData::SourceHash(Handle<String> source,
-                                        ScriptOriginOptions origin_options) {
+                                        const ScriptDetails& script_details) {
   const uint32_t source_length = source->length();
 
   static constexpr uint32_t kModuleFlagMask = (1 << 31);
-  const uint32_t is_module = origin_options.IsModule() ? kModuleFlagMask : 0;
+  const uint32_t is_module =
+      script_details.origin_options.IsModule() ? kModuleFlagMask : 0;
   DCHECK_EQ(0, source_length & kModuleFlagMask);
 
   return source_length | is_module;

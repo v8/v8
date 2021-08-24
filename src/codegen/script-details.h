@@ -15,6 +15,8 @@ namespace internal {
 struct ScriptDetails {
   ScriptDetails()
       : line_offset(0), column_offset(0), repl_mode(REPLMode::kNo) {}
+  explicit ScriptDetails(ScriptOriginOptions origin_options)
+      : ScriptDetails(Handle<Object>(), origin_options) {}
   explicit ScriptDetails(
       Handle<Object> script_name,
       ScriptOriginOptions origin_options = v8::ScriptOriginOptions())

@@ -38,6 +38,7 @@ class DebugInfo;
 class IsCompiledScope;
 template <typename>
 class Signature;
+struct ScriptDetails;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
@@ -207,6 +208,9 @@ class SharedFunctionInfo
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data = true);
 
+  bool HasMatchingOrigin(Isolate* isolate,
+                         const ScriptDetails& script_details) const;
+
   // Layout description of the optimized code map.
   static const int kEntriesStart = 0;
   static const int kContextOffset = 0;
@@ -240,8 +244,9 @@ class SharedFunctionInfo
   // Updates the scope info if available.
   V8_EXPORT_PRIVATE void SetPosition(int start_position, int end_position);
 
-  // [outer scope info | feedback metadata] Shared storage for outer scope info
-  // (on uncompiled functions) and feedback metadata (on compiled functions).
+  // [outer scope info | feedback metadata] Shared storage for outer scope
+  // info (on uncompiled functions) and feedback metadata (on compiled
+  // functions).
   DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata, HeapObject)
   DECL_ACQUIRE_GETTER(raw_outer_scope_info_or_feedback_metadata, HeapObject)
  private:
@@ -255,8 +260,8 @@ class SharedFunctionInfo
   inline bool HasOuterScopeInfo() const;
   inline ScopeInfo GetOuterScopeInfo() const;
 
-  // [feedback metadata] Metadata template for feedback vectors of instances of
-  // this function.
+  // [feedback metadata] Metadata template for feedback vectors of instances
+  // of this function.
   inline bool HasFeedbackMetadata() const;
   inline bool HasFeedbackMetadata(AcquireLoadTag tag) const;
   inline FeedbackMetadata feedback_metadata() const;
@@ -268,9 +273,9 @@ class SharedFunctionInfo
   // for some period of time, use IsCompiledScope instead.
   inline bool is_compiled() const;
 
-  // Returns an IsCompiledScope which reports whether the function is compiled,
-  // and if compiled, will avoid the function becoming uncompiled while it is
-  // held.
+  // Returns an IsCompiledScope which reports whether the function is
+  // compiled, and if compiled, will avoid the function becoming uncompiled
+  // while it is held.
   template <typename IsolateT>
   inline IsCompiledScope is_compiled_scope(IsolateT* isolate) const;
 
