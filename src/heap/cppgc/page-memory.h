@@ -18,6 +18,8 @@
 namespace cppgc {
 namespace internal {
 
+class FatalOutOfMemoryHandler;
+
 class V8_EXPORT_PRIVATE MemoryRegion final {
  public:
   MemoryRegion() = default;
@@ -79,9 +81,11 @@ class V8_EXPORT_PRIVATE PageMemoryRegion {
   virtual void UnprotectForTesting() = 0;
 
  protected:
-  PageMemoryRegion(PageAllocator&, MemoryRegion, bool);
+  PageMemoryRegion(PageAllocator&, FatalOutOfMemoryHandler&, MemoryRegion,
+                   bool);
 
   PageAllocator& allocator_;
+  FatalOutOfMemoryHandler& oom_handler_;
   const MemoryRegion reserved_region_;
   const bool is_large_;
 };
@@ -91,7 +95,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryRegion final : public PageMemoryRegion {
  public:
   static constexpr size_t kNumPageRegions = 10;
 
-  explicit NormalPageMemoryRegion(PageAllocator&);
+  NormalPageMemoryRegion(PageAllocator&, FatalOutOfMemoryHandler&);
   ~NormalPageMemoryRegion() override;
 
   const PageMemory GetPageMemory(size_t index) const {
@@ -133,7 +137,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryRegion final : public PageMemoryRegion {
 // LargePageMemoryRegion serves a single large PageMemory object.
 class V8_EXPORT_PRIVATE LargePageMemoryRegion final : public PageMemoryRegion {
  public:
-  LargePageMemoryRegion(PageAllocator&, size_t);
+  LargePageMemoryRegion(PageAllocator&, FatalOutOfMemoryHandler&, size_t);
   ~LargePageMemoryRegion() override;
 
   const PageMemory GetPageMemory() const {
@@ -193,7 +197,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
 // regions alive.
 class V8_EXPORT_PRIVATE PageBackend final {
  public:
-  explicit PageBackend(PageAllocator&);
+  PageBackend(PageAllocator&, FatalOutOfMemoryHandler&);
   ~PageBackend();
 
   // Allocates a normal page from the backend.
@@ -224,6 +228,7 @@ class V8_EXPORT_PRIVATE PageBackend final {
 
  private:
   PageAllocator& allocator_;
+  FatalOutOfMemoryHandler& oom_handler_;
   NormalPageMemoryPool page_pool_;
   PageMemoryRegionTree page_memory_region_tree_;
   std::vector<std::unique_ptr<PageMemoryRegion>> normal_page_memory_regions_;

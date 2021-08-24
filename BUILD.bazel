@@ -2676,6 +2676,7 @@ filegroup(
         "src/heap/cppgc/page-memory.h",
         "src/heap/cppgc/persistent-node.cc",
         "src/heap/cppgc/platform.cc",
+        "src/heap/cppgc/platform.h",
         "src/heap/cppgc/pointer-policies.cc",
         "src/heap/cppgc/prefinalizer-handler.cc",
         "src/heap/cppgc/prefinalizer-handler.h",

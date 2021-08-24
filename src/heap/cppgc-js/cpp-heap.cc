@@ -217,6 +217,14 @@ void UnifiedHeapMarker::AddObject(void* object) {
       cppgc::internal::HeapObjectHeader::FromObject(object));
 }
 
+void FatalOutOfMemoryHandlerImpl(const std::string& reason,
+                                 const SourceLocation&, HeapBase* heap) {
+  FatalProcessOutOfMemory(
+      reinterpret_cast<v8::internal::Isolate*>(
+          static_cast<v8::internal::CppHeap*>(heap)->isolate()),
+      reason.c_str());
+}
+
 }  // namespace
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
@@ -355,6 +363,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
       wrapper_descriptor_);
   SetMetricRecorder(std::make_unique<MetricRecorderAdapter>(*this));
   SetStackStart(base::Stack::GetStackStart());
+  oom_handler().SetCustomHandler(&FatalOutOfMemoryHandlerImpl);
   no_gc_scope_--;
 }
 
@@ -376,6 +385,7 @@ void CppHeap::DetachIsolate() {
   isolate_ = nullptr;
   // Any future garbage collections will ignore the V8->C++ references.
   isolate()->SetEmbedderHeapTracer(nullptr);
+  oom_handler().SetCustomHandler(nullptr);
   // Enter no GC scope.
   no_gc_scope_++;
 }
