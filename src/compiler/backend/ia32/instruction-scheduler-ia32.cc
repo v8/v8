@@ -180,10 +180,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4UConvertI16x8Low:
     case kIA32I32x4UConvertI16x8High:
     case kIA32I32x4ShrU:
-    case kSSEI32x4MinU:
-    case kAVXI32x4MinU:
-    case kSSEI32x4MaxU:
-    case kAVXI32x4MaxU:
+    case kIA32I32x4MinU:
+    case kIA32I32x4MaxU:
     case kSSEI32x4GtU:
     case kAVXI32x4GtU:
     case kSSEI32x4GeU:
@@ -206,22 +204,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8Neg:
     case kIA32I16x8Shl:
     case kIA32I16x8ShrS:
-    case kSSEI16x8SConvertI32x4:
-    case kAVXI16x8SConvertI32x4:
-    case kSSEI16x8Add:
-    case kAVXI16x8Add:
-    case kSSEI16x8AddSatS:
-    case kAVXI16x8AddSatS:
-    case kSSEI16x8Sub:
-    case kAVXI16x8Sub:
-    case kSSEI16x8SubSatS:
-    case kAVXI16x8SubSatS:
-    case kSSEI16x8Mul:
-    case kAVXI16x8Mul:
-    case kSSEI16x8MinS:
-    case kAVXI16x8MinS:
-    case kSSEI16x8MaxS:
-    case kAVXI16x8MaxS:
+    case kIA32I16x8SConvertI32x4:
+    case kIA32I16x8Add:
+    case kIA32I16x8AddSatS:
+    case kIA32I16x8Sub:
+    case kIA32I16x8SubSatS:
+    case kIA32I16x8Mul:
+    case kIA32I16x8MinS:
+    case kIA32I16x8MaxS:
     case kSSEI16x8Eq:
     case kAVXI16x8Eq:
     case kSSEI16x8Ne:
@@ -235,14 +225,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8ShrU:
     case kSSEI16x8UConvertI32x4:
     case kAVXI16x8UConvertI32x4:
-    case kSSEI16x8AddSatU:
-    case kAVXI16x8AddSatU:
-    case kSSEI16x8SubSatU:
-    case kAVXI16x8SubSatU:
-    case kSSEI16x8MinU:
-    case kAVXI16x8MinU:
-    case kSSEI16x8MaxU:
-    case kAVXI16x8MaxU:
+    case kIA32I16x8AddSatU:
+    case kIA32I16x8SubSatU:
+    case kIA32I16x8MinU:
+    case kIA32I16x8MaxU:
     case kSSEI16x8GtU:
     case kAVXI16x8GtU:
     case kSSEI16x8GeU:
@@ -265,8 +251,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Pextrb:
     case kIA32Pextrw:
     case kIA32S128Store32Lane:
-    case kSSEI8x16SConvertI16x8:
-    case kAVXI8x16SConvertI16x8:
+    case kIA32I8x16SConvertI16x8:
     case kIA32I8x16Neg:
     case kIA32I8x16Shl:
     case kIA32I8x16ShrS:

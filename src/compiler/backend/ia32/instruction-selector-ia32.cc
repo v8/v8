@@ -2249,29 +2249,14 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 #define SIMD_BINOP_LIST(V) \
   V(F32x4Min)              \
   V(F32x4Max)              \
-  V(I32x4MinU)             \
-  V(I32x4MaxU)             \
   V(I32x4GtU)              \
   V(I32x4GeU)              \
-  V(I16x8SConvertI32x4)    \
-  V(I16x8Add)              \
-  V(I16x8AddSatS)          \
-  V(I16x8Sub)              \
-  V(I16x8SubSatS)          \
-  V(I16x8Mul)              \
-  V(I16x8MinS)             \
-  V(I16x8MaxS)             \
   V(I16x8Eq)               \
   V(I16x8Ne)               \
   V(I16x8GtS)              \
   V(I16x8GeS)              \
-  V(I16x8AddSatU)          \
-  V(I16x8SubSatU)          \
-  V(I16x8MinU)             \
-  V(I16x8MaxU)             \
   V(I16x8GtU)              \
   V(I16x8GeU)              \
-  V(I8x16SConvertI16x8)    \
   V(I8x16Ne)               \
   V(I8x16GeS)              \
   V(I8x16GtU)              \
@@ -2302,7 +2287,21 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I32x4Ne)                               \
   V(I32x4GtS)                              \
   V(I32x4GeS)                              \
+  V(I32x4MinU)                             \
+  V(I32x4MaxU)                             \
   V(I32x4DotI16x8S)                        \
+  V(I16x8Add)                              \
+  V(I16x8AddSatS)                          \
+  V(I16x8Sub)                              \
+  V(I16x8SubSatS)                          \
+  V(I16x8Mul)                              \
+  V(I16x8MinS)                             \
+  V(I16x8MaxS)                             \
+  V(I16x8AddSatU)                          \
+  V(I16x8SubSatU)                          \
+  V(I16x8MinU)                             \
+  V(I16x8MaxU)                             \
+  V(I16x8SConvertI32x4)                    \
   V(I16x8RoundingAverageU)                 \
   V(I8x16Add)                              \
   V(I8x16AddSatS)                          \
@@ -2316,6 +2315,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16SubSatU)                          \
   V(I8x16MinU)                             \
   V(I8x16MaxU)                             \
+  V(I8x16SConvertI16x8)                    \
   V(I8x16RoundingAverageU)
 
 // These opcodes require all inputs to be registers because the codegen is
