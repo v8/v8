@@ -180,14 +180,16 @@ Map TransitionArray::SearchAndGetTargetForTesting(
   return SearchAndGetTarget(kind, name, attributes);
 }
 
-int TransitionArray::SearchSpecial(Symbol symbol, int* out_insertion_index) {
-  return SearchName(symbol, out_insertion_index);
+int TransitionArray::SearchSpecial(Symbol symbol, bool concurrent_search,
+                                   int* out_insertion_index) {
+  return SearchName(symbol, concurrent_search, out_insertion_index);
 }
 
-int TransitionArray::SearchName(Name name, int* out_insertion_index) {
+int TransitionArray::SearchName(Name name, bool concurrent_search,
+                                int* out_insertion_index) {
   DCHECK(name.IsUniqueName());
   return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
-                                       out_insertion_index);
+                                       out_insertion_index, concurrent_search);
 }
 
 TransitionsAccessor::TransitionsAccessor(Isolate* isolate, Map map,

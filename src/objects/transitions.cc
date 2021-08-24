@@ -95,7 +95,8 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     int insertion_index;
     int index;
     if (flag == SPECIAL_TRANSITION) {
-      index = result->SearchSpecial(Symbol::cast(*name), &insertion_index);
+      index =
+          result->SearchSpecial(Symbol::cast(*name), false, &insertion_index);
     } else {
       PropertyDetails details = GetTargetDetails(*name, *target);
       index = result->Search(details.kind(), *name, details.attributes(),
@@ -139,10 +140,11 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     TransitionArray array = transitions();
     number_of_transitions = array.number_of_transitions();
 
-    int index = is_special_transition
-                    ? array.SearchSpecial(Symbol::cast(*name), &insertion_index)
-                    : array.Search(details.kind(), *name, details.attributes(),
-                                   &insertion_index);
+    int index =
+        is_special_transition
+            ? array.SearchSpecial(Symbol::cast(*name), false, &insertion_index)
+            : array.Search(details.kind(), *name, details.attributes(),
+                           &insertion_index);
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
       base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
@@ -186,10 +188,11 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
   if (array.number_of_transitions() != number_of_transitions) {
     DCHECK_LT(array.number_of_transitions(), number_of_transitions);
 
-    int index = is_special_transition
-                    ? array.SearchSpecial(Symbol::cast(*name), &insertion_index)
-                    : array.Search(details.kind(), *name, details.attributes(),
-                                   &insertion_index);
+    int index =
+        is_special_transition
+            ? array.SearchSpecial(Symbol::cast(*name), false, &insertion_index)
+            : array.Search(details.kind(), *name, details.attributes(),
+                           &insertion_index);
     CHECK_EQ(index, kNotFound);
     USE(index);
     DCHECK_GE(insertion_index, 0);
@@ -241,7 +244,9 @@ Map TransitionsAccessor::SearchTransition(Name name, PropertyKind kind,
 
 Map TransitionsAccessor::SearchSpecial(Symbol name) {
   if (encoding() != kFullTransitionArray) return Map();
-  int transition = transitions().SearchSpecial(name);
+  base::SharedMutexGuardIf<base::kShared> scope(
+      isolate_->full_transition_array_access(), concurrent_access_);
+  int transition = transitions().SearchSpecial(name, concurrent_access_);
   if (transition == kNotFound) return Map();
   return transitions().GetTarget(transition);
 }
@@ -646,14 +651,14 @@ Map TransitionArray::SearchDetailsAndGetTarget(int transition,
 int TransitionArray::Search(PropertyKind kind, Name name,
                             PropertyAttributes attributes,
                             int* out_insertion_index) {
-  int transition = SearchName(name, out_insertion_index);
+  int transition = SearchName(name, false, out_insertion_index);
   if (transition == kNotFound) return kNotFound;
   return SearchDetails(transition, kind, attributes, out_insertion_index);
 }
 
 Map TransitionArray::SearchAndGetTarget(PropertyKind kind, Name name,
                                         PropertyAttributes attributes) {
-  int transition = SearchName(name, nullptr);
+  int transition = SearchName(name);
   if (transition == kNotFound) {
     return Map();
   }
@@ -662,7 +667,7 @@ Map TransitionArray::SearchAndGetTarget(PropertyKind kind, Name name,
 
 void TransitionArray::ForEachTransitionTo(
     Name name, const ForEachTransitionCallback& callback) {
-  int transition = SearchName(name, nullptr);
+  int transition = SearchName(name);
   if (transition == kNotFound) return;
 
   int nof_transitions = number_of_transitions();
