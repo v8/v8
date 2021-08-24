@@ -49,8 +49,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Bswap:
     case kIA32Lea:
     case kSSEFloat32Cmp:
-    case kSSEFloat32Abs:
-    case kSSEFloat32Neg:
     case kSSEFloat32Sqrt:
     case kSSEFloat32Round:
     case kSSEFloat64Cmp:
@@ -59,8 +57,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat64Max:
     case kSSEFloat32Min:
     case kSSEFloat64Min:
-    case kSSEFloat64Abs:
-    case kSSEFloat64Neg:
     case kSSEFloat64Sqrt:
     case kSSEFloat64Round:
     case kSSEFloat32ToFloat64:
@@ -87,10 +83,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kFloat32Div:
     case kFloat64Mul:
     case kFloat64Div:
-    case kAVXFloat64Abs:
-    case kAVXFloat64Neg:
-    case kAVXFloat32Abs:
-    case kAVXFloat32Neg:
+    case kFloat64Abs:
+    case kFloat64Neg:
+    case kFloat32Abs:
+    case kFloat32Neg:
     case kIA32BitcastFI:
     case kIA32BitcastIF:
     case kIA32F64x2Splat:
@@ -452,12 +448,12 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kFloat32Sub:
     case kFloat64Add:
     case kFloat64Sub:
-    case kSSEFloat32Abs:
-    case kSSEFloat32Neg:
+    case kFloat32Abs:
+    case kFloat32Neg:
     case kSSEFloat64Max:
     case kSSEFloat64Min:
-    case kSSEFloat64Abs:
-    case kSSEFloat64Neg:
+    case kFloat64Abs:
+    case kFloat64Neg:
       return 5;
     case kFloat32Mul:
       return 4;

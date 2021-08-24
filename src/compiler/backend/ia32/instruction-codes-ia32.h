@@ -48,8 +48,6 @@ namespace compiler {
   V(IA32MFence)                    \
   V(IA32LFence)                    \
   V(SSEFloat32Cmp)                 \
-  V(SSEFloat32Abs)                 \
-  V(SSEFloat32Neg)                 \
   V(SSEFloat32Sqrt)                \
   V(SSEFloat32Round)               \
   V(SSEFloat64Cmp)                 \
@@ -58,8 +56,6 @@ namespace compiler {
   V(SSEFloat64Max)                 \
   V(SSEFloat32Min)                 \
   V(SSEFloat64Min)                 \
-  V(SSEFloat64Abs)                 \
-  V(SSEFloat64Neg)                 \
   V(SSEFloat64Sqrt)                \
   V(SSEFloat64Round)               \
   V(SSEFloat32ToFloat64)           \
@@ -86,10 +82,10 @@ namespace compiler {
   V(Float32Div)                    \
   V(Float64Mul)                    \
   V(Float64Div)                    \
-  V(AVXFloat64Abs)                 \
-  V(AVXFloat64Neg)                 \
-  V(AVXFloat32Abs)                 \
-  V(AVXFloat32Neg)                 \
+  V(Float64Abs)                    \
+  V(Float64Neg)                    \
+  V(Float32Abs)                    \
+  V(Float32Neg)                    \
   V(IA32Movsxbl)                   \
   V(IA32Movzxbl)                   \
   V(IA32Movb)                      \

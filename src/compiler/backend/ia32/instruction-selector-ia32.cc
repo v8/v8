@@ -327,15 +327,12 @@ void VisitRROFloat(InstructionSelector* selector, Node* node,
 }
 
 void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
-                    ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
+                    ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
   if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineAsRegister(node), g.UseUnique(input),
-                   arraysize(temps), temps);
+    selector->Emit(opcode, g.DefineAsRegister(node), g.Use(input));
   } else {
-    selector->Emit(sse_opcode, g.DefineSameAsFirst(node),
-                   g.UseUniqueRegister(input), arraysize(temps), temps);
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(input));
   }
 }
 
@@ -1193,13 +1190,13 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(F64x2Lt, kIA32F64x2Lt)   \
   V(F64x2Le, kIA32F64x2Le)
 
-#define FLOAT_UNOP_LIST(V)                      \
-  V(Float32Abs, kAVXFloat32Abs, kSSEFloat32Abs) \
-  V(Float64Abs, kAVXFloat64Abs, kSSEFloat64Abs) \
-  V(Float32Neg, kAVXFloat32Neg, kSSEFloat32Neg) \
-  V(Float64Neg, kAVXFloat64Neg, kSSEFloat64Neg) \
-  V(F64x2Abs, kAVXFloat64Abs, kSSEFloat64Abs)   \
-  V(F64x2Neg, kAVXFloat64Neg, kSSEFloat64Neg)
+#define FLOAT_UNOP_LIST(V)   \
+  V(Float32Abs, kFloat32Abs) \
+  V(Float64Abs, kFloat64Abs) \
+  V(Float32Neg, kFloat32Neg) \
+  V(Float64Neg, kFloat64Neg) \
+  V(F64x2Abs, kFloat64Abs)   \
+  V(F64x2Neg, kFloat64Neg)
 
 #define RO_VISITOR(Name, opcode)                      \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -1241,9 +1238,9 @@ RRO_FLOAT_OP_LIST(RRO_FLOAT_VISITOR)
 #undef RRO_FLOAT_VISITOR
 #undef RRO_FLOAT_OP_LIST
 
-#define FLOAT_UNOP_VISITOR(Name, avx, sse)                  \
-  void InstructionSelector::Visit##Name(Node* node) {       \
-    VisitFloatUnop(this, node, node->InputAt(0), avx, sse); \
+#define FLOAT_UNOP_VISITOR(Name, opcode)                  \
+  void InstructionSelector::Visit##Name(Node* node) {     \
+    VisitFloatUnop(this, node, node->InputAt(0), opcode); \
   }
 FLOAT_UNOP_LIST(FLOAT_UNOP_VISITOR)
 #undef FLOAT_UNOP_VISITOR
