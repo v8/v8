@@ -150,14 +150,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXF32x4Min:
     case kSSEF32x4Max:
     case kAVXF32x4Max:
-    case kSSEF32x4Eq:
-    case kAVXF32x4Eq:
-    case kSSEF32x4Ne:
-    case kAVXF32x4Ne:
-    case kSSEF32x4Lt:
-    case kAVXF32x4Lt:
-    case kSSEF32x4Le:
-    case kAVXF32x4Le:
+    case kIA32F32x4Eq:
+    case kIA32F32x4Ne:
+    case kIA32F32x4Lt:
+    case kIA32F32x4Le:
     case kIA32F32x4Pmin:
     case kIA32F32x4Pmax:
     case kIA32F32x4Round:
@@ -170,24 +166,15 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I32x4Neg:
     case kIA32I32x4Shl:
     case kIA32I32x4ShrS:
-    case kSSEI32x4Add:
-    case kAVXI32x4Add:
-    case kSSEI32x4Sub:
-    case kAVXI32x4Sub:
-    case kSSEI32x4Mul:
-    case kAVXI32x4Mul:
-    case kSSEI32x4MinS:
-    case kAVXI32x4MinS:
-    case kSSEI32x4MaxS:
-    case kAVXI32x4MaxS:
-    case kSSEI32x4Eq:
-    case kAVXI32x4Eq:
-    case kSSEI32x4Ne:
-    case kAVXI32x4Ne:
-    case kSSEI32x4GtS:
-    case kAVXI32x4GtS:
-    case kSSEI32x4GeS:
-    case kAVXI32x4GeS:
+    case kIA32I32x4Add:
+    case kIA32I32x4Sub:
+    case kIA32I32x4Mul:
+    case kIA32I32x4MinS:
+    case kIA32I32x4MaxS:
+    case kIA32I32x4Eq:
+    case kIA32I32x4Ne:
+    case kIA32I32x4GtS:
+    case kIA32I32x4GeS:
     case kSSEI32x4UConvertF32x4:
     case kAVXI32x4UConvertF32x4:
     case kIA32I32x4UConvertI16x8Low:

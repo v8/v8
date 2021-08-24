@@ -361,7 +361,7 @@ void VisitRROSimd(InstructionSelector* selector, Node* node,
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   if (selector->IsSupported(AVX)) {
     selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0,
-                   g.Use(node->InputAt(1)));
+                   g.UseRegister(node->InputAt(1)));
   } else {
     selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0,
                    g.UseRegister(node->InputAt(1)));
@@ -2249,19 +2249,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 #define SIMD_BINOP_LIST(V) \
   V(F32x4Min)              \
   V(F32x4Max)              \
-  V(F32x4Eq)               \
-  V(F32x4Ne)               \
-  V(F32x4Lt)               \
-  V(F32x4Le)               \
-  V(I32x4Add)              \
-  V(I32x4Sub)              \
-  V(I32x4Mul)              \
-  V(I32x4MinS)             \
-  V(I32x4MaxS)             \
-  V(I32x4Eq)               \
-  V(I32x4Ne)               \
-  V(I32x4GtS)              \
-  V(I32x4GeS)              \
   V(I32x4MinU)             \
   V(I32x4MaxU)             \
   V(I32x4GtU)              \
@@ -2298,10 +2285,23 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4Sub)                              \
   V(F32x4Mul)                              \
   V(F32x4Div)                              \
+  V(F32x4Eq)                               \
+  V(F32x4Ne)                               \
+  V(F32x4Lt)                               \
+  V(F32x4Le)                               \
   V(I64x2Add)                              \
   V(I64x2Sub)                              \
   V(I64x2Eq)                               \
   V(I64x2Ne)                               \
+  V(I32x4Add)                              \
+  V(I32x4Sub)                              \
+  V(I32x4Mul)                              \
+  V(I32x4MinS)                             \
+  V(I32x4MaxS)                             \
+  V(I32x4Eq)                               \
+  V(I32x4Ne)                               \
+  V(I32x4GtS)                              \
+  V(I32x4GeS)                              \
   V(I32x4DotI16x8S)                        \
   V(I16x8RoundingAverageU)                 \
   V(I8x16Add)                              \

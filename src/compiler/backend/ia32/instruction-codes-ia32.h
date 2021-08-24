@@ -165,14 +165,10 @@ namespace compiler {
   V(AVXF32x4Min)                   \
   V(SSEF32x4Max)                   \
   V(AVXF32x4Max)                   \
-  V(SSEF32x4Eq)                    \
-  V(AVXF32x4Eq)                    \
-  V(SSEF32x4Ne)                    \
-  V(AVXF32x4Ne)                    \
-  V(SSEF32x4Lt)                    \
-  V(AVXF32x4Lt)                    \
-  V(SSEF32x4Le)                    \
-  V(AVXF32x4Le)                    \
+  V(IA32F32x4Eq)                   \
+  V(IA32F32x4Ne)                   \
+  V(IA32F32x4Lt)                   \
+  V(IA32F32x4Le)                   \
   V(IA32F32x4Pmin)                 \
   V(IA32F32x4Pmax)                 \
   V(IA32F32x4Round)                \
@@ -185,24 +181,15 @@ namespace compiler {
   V(IA32I32x4Neg)                  \
   V(IA32I32x4Shl)                  \
   V(IA32I32x4ShrS)                 \
-  V(SSEI32x4Add)                   \
-  V(AVXI32x4Add)                   \
-  V(SSEI32x4Sub)                   \
-  V(AVXI32x4Sub)                   \
-  V(SSEI32x4Mul)                   \
-  V(AVXI32x4Mul)                   \
-  V(SSEI32x4MinS)                  \
-  V(AVXI32x4MinS)                  \
-  V(SSEI32x4MaxS)                  \
-  V(AVXI32x4MaxS)                  \
-  V(SSEI32x4Eq)                    \
-  V(AVXI32x4Eq)                    \
-  V(SSEI32x4Ne)                    \
-  V(AVXI32x4Ne)                    \
-  V(SSEI32x4GtS)                   \
-  V(AVXI32x4GtS)                   \
-  V(SSEI32x4GeS)                   \
-  V(AVXI32x4GeS)                   \
+  V(IA32I32x4Add)                  \
+  V(IA32I32x4Sub)                  \
+  V(IA32I32x4Mul)                  \
+  V(IA32I32x4MinS)                 \
+  V(IA32I32x4MaxS)                 \
+  V(IA32I32x4Eq)                   \
+  V(IA32I32x4Ne)                   \
+  V(IA32I32x4GtS)                  \
+  V(IA32I32x4GeS)                  \
   V(SSEI32x4UConvertF32x4)         \
   V(AVXI32x4UConvertF32x4)         \
   V(IA32I32x4UConvertI16x8Low)     \

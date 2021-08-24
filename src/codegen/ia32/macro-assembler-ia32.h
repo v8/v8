@@ -323,6 +323,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
     }                                                           \
   }
   AVX_OP3_WITH_MOVE(Cmpeqps, cmpeqps, XMMRegister, XMMRegister)
+  AVX_OP3_WITH_MOVE(Cmpeqps, cmpeqps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Pmaddwd, pmaddwd, XMMRegister, Operand)

@@ -2292,48 +2292,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vandnps(dst, dst, kScratchDoubleReg);
       break;
     }
-    case kSSEF32x4Eq: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpeqps(i.OutputSimd128Register(), i.InputOperand(1));
+    case kIA32F32x4Eq: {
+      __ Cmpeqps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
       break;
     }
-    case kAVXF32x4Eq: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vcmpeqps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+    case kIA32F32x4Ne: {
+      __ Cmpneqps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputOperand(1));
       break;
     }
-    case kSSEF32x4Ne: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpneqps(i.OutputSimd128Register(), i.InputOperand(1));
+    case kIA32F32x4Lt: {
+      __ Cmpltps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
       break;
     }
-    case kAVXF32x4Ne: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vcmpneqps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputOperand(1));
-      break;
-    }
-    case kSSEF32x4Lt: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpltps(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXF32x4Lt: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vcmpltps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputOperand(1));
-      break;
-    }
-    case kSSEF32x4Le: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpleps(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXF32x4Le: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vcmpleps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputOperand(1));
+    case kIA32F32x4Le: {
+      __ Cmpleps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
       break;
     }
     case kIA32F32x4Pmin: {
@@ -2396,117 +2372,63 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_SHIFT(Psrad, 5);
       break;
     }
-    case kSSEI32x4Add: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ paddd(i.OutputSimd128Register(), i.InputOperand(1));
+    case kIA32I32x4Add: {
+      __ Paddd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
       break;
     }
-    case kAVXI32x4Add: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpaddd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+    case kIA32I32x4Sub: {
+      __ Psubd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
+      break;
+    }
+    case kIA32I32x4Mul: {
+      __ Pmulld(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
       break;
     }
-    case kSSEI32x4Sub: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ psubd(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXI32x4Sub: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpsubd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+    case kIA32I32x4MinS: {
+      __ Pminsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
       break;
     }
-    case kSSEI32x4Mul: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmulld(i.OutputSimd128Register(), i.InputOperand(1));
+    case kIA32I32x4MaxS: {
+      __ Pmaxsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
       break;
     }
-    case kAVXI32x4Mul: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpmulld(i.OutputSimd128Register(), i.InputSimd128Register(0),
+    case kIA32I32x4Eq: {
+      __ Pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(1));
       break;
     }
-    case kSSEI32x4MinS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pminsd(i.OutputSimd128Register(), i.InputOperand(1));
+    case kIA32I32x4Ne: {
+      __ Pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
+      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ Pxor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+              kScratchDoubleReg);
       break;
     }
-    case kAVXI32x4MinS: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpminsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+    case kIA32I32x4GtS: {
+      __ Pcmpgtd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(1));
       break;
     }
-    case kSSEI32x4MaxS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmaxsd(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXI32x4MaxS: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpmaxsd(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputOperand(1));
-      break;
-    }
-    case kSSEI32x4Eq: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pcmpeqd(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXI32x4Eq: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputOperand(1));
-      break;
-    }
-    case kSSEI32x4Ne: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pcmpeqd(i.OutputSimd128Register(), i.InputOperand(1));
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ xorps(i.OutputSimd128Register(), kScratchDoubleReg);
-      break;
-    }
-    case kAVXI32x4Ne: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputOperand(1));
-      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpxor(i.OutputSimd128Register(), i.OutputSimd128Register(),
-               kScratchDoubleReg);
-      break;
-    }
-    case kSSEI32x4GtS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pcmpgtd(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXI32x4GtS: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpgtd(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputOperand(1));
-      break;
-    }
-    case kSSEI32x4GeS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+    case kIA32I32x4GeS: {
       XMMRegister dst = i.OutputSimd128Register();
-      Operand src = i.InputOperand(1);
-      __ pminsd(dst, src);
-      __ pcmpeqd(dst, src);
-      break;
-    }
-    case kAVXI32x4GeS: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister src1 = i.InputSimd128Register(0);
-      Operand src2 = i.InputOperand(1);
-      __ vpminsd(kScratchDoubleReg, src1, src2);
-      __ vpcmpeqd(i.OutputSimd128Register(), kScratchDoubleReg, src2);
+      XMMRegister src2 = i.InputSimd128Register(1);
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        __ vpminsd(kScratchDoubleReg, src1, src2);
+        __ vpcmpeqd(dst, kScratchDoubleReg, src2);
+      } else {
+        DCHECK_EQ(dst, src1);
+        CpuFeatureScope sse_scope(tasm(), SSE4_1);
+        __ pminsd(dst, src2);
+        __ pcmpeqd(dst, src2);
+      }
       break;
     }
     case kSSEI32x4UConvertF32x4: {
