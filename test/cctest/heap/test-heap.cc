@@ -1490,7 +1490,8 @@ TEST(CompilationCacheCachingBehavior) {
   // The script should be in the cache now.
   {
     v8::HandleScope scope(CcTest::isolate());
-    ScriptDetails script_details(v8::ScriptOriginOptions(true, false));
+    ScriptDetails script_details(Handle<Object>(),
+                                 v8::ScriptOriginOptions(true, false));
     MaybeHandle<SharedFunctionInfo> cached_script =
         compilation_cache->LookupScript(source, script_details, language_mode);
     CHECK(!cached_script.is_null());
@@ -1500,7 +1501,8 @@ TEST(CompilationCacheCachingBehavior) {
   {
     CcTest::CollectAllGarbage();
     v8::HandleScope scope(CcTest::isolate());
-    ScriptDetails script_details(v8::ScriptOriginOptions(true, false));
+    ScriptDetails script_details(Handle<Object>(),
+                                 v8::ScriptOriginOptions(true, false));
     MaybeHandle<SharedFunctionInfo> cached_script =
         compilation_cache->LookupScript(source, script_details, language_mode);
     CHECK(!cached_script.is_null());
@@ -1519,7 +1521,8 @@ TEST(CompilationCacheCachingBehavior) {
   {
     v8::HandleScope scope(CcTest::isolate());
     // Ensure code aging cleared the entry from the cache.
-    ScriptDetails script_details(v8::ScriptOriginOptions(true, false));
+    ScriptDetails script_details(Handle<Object>(),
+                                 v8::ScriptOriginOptions(true, false));
     MaybeHandle<SharedFunctionInfo> cached_script =
         compilation_cache->LookupScript(source, script_details, language_mode);
     CHECK(cached_script.is_null());

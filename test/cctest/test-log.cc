@@ -707,7 +707,6 @@ UNINITIALIZED_TEST(ExternalCodeEventListener) {
 UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
-  i::FLAG_stress_background_compile = false;
 
   v8::ScriptCompiler::CachedData* cache;
   static const char* source_cstring =

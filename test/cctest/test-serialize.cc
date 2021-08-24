@@ -4129,9 +4129,7 @@ TEST(WeakArraySerializationInCodeCache) {
                            .ToHandleChecked();
   AlignedCachedData* cache = nullptr;
 
-  // TODO(leszeks): Fix off-thread deserialization.
-  ScriptDetails script_details(
-      isolate->factory()->NewStringFromAsciiChecked(source));
+  ScriptDetails script_details(src);
   CompileScriptAndProduceCache(isolate, src, script_details, &cache,
                                v8::ScriptCompiler::kNoCompileOptions);
 

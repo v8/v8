@@ -8,7 +8,6 @@
 #include "src/ast/scopes.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
-#include "src/codegen/script-details.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -712,63 +711,6 @@ void SharedFunctionInfo::UninstallDebugBytecode(SharedFunctionInfo shared,
       ReadOnlyRoots(isolate).undefined_value(), kReleaseStore);
   debug_info.set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value(),
                                       kReleaseStore);
-}
-
-// static
-
-// We only re-use a cached function for some script source code if the
-// script originates from the same place. This is to avoid issues
-// when reporting errors, etc.
-bool SharedFunctionInfo::HasMatchingOrigin(
-    Isolate* isolate, const ScriptDetails& script_details) const {
-  DisallowGarbageCollection no_gc;
-  Script script = Script::cast(this->script());
-  // If the script name isn't set, the boilerplate script should have
-  // an undefined name to have the same origin.
-  Object name_obj;
-  {
-    Handle<Object> tmp_handle;
-    if (script_details.name_obj.ToHandle(&tmp_handle)) {
-      name_obj = *tmp_handle;
-    } else {
-      return script.name().IsUndefined(isolate);
-    }
-  }
-  // Do the fast bailout checks first.
-  if (script_details.line_offset != script.line_offset()) return false;
-  if (script_details.column_offset != script.column_offset()) return false;
-  // Check that both names are strings. If not, no match.
-  if (!name_obj.IsString() || !script.name().IsString()) return false;
-  // Are the origin_options same?
-  if (script_details.origin_options.Flags() !=
-      script.origin_options().Flags()) {
-    return false;
-  }
-  if (!String::cast(name_obj).Equals(String::cast(script.name()))) return false;
-
-  // TODO(10284): Enable strict checks again.
-  // FixedArray host_defined_options;
-  // {
-  //   Handle<FixedArray> tmp_handle;
-  //   if (script_details.host_defined_options.ToHandle(&tmp_handle)) {
-  //     host_defined_options = *tmp_handle;
-  //   } else {
-  //     host_defined_options = ReadOnlyRoots(isolate).empty_fixed_array();
-  //   }
-  // }
-  // FixedArray script_options = script.host_defined_options();
-  // if (host_defined_options == script_options) return true;
-  // int length = host_defined_options.length();
-  // if (length != script_options.length()) return false;
-  // for (int i = 0; i < length; i++) {
-  //   // host-defined options is a v8::PrimitiveArray.
-  //   DCHECK(host_defined_options.get(i).IsPrimitive());
-  //   DCHECK(script_options.get(i).IsPrimitive());
-  //   if (!host_defined_options.get(i).StrictEquals(script_options.get(i))) {
-  //     return false;
-  //   }
-  // }
-  return true;
 }
 
 }  // namespace internal
