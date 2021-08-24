@@ -232,6 +232,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pcmpgtb, pcmpgtb)
   AVX_OP(Pcmpgtd, pcmpgtd)
   AVX_OP(Pcmpeqd, pcmpeqd)
+  AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pinsrw, pinsrw)
   AVX_OP(Pmaxub, pmaxub)
   AVX_OP(Pminub, pminub)
@@ -288,6 +289,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSSE3(Pabsd, pabsd)
   AVX_OP_SSSE3(Pabsw, pabsw)
   AVX_OP_SSSE3(Palignr, palignr)
+  AVX_OP_SSSE3(Pmulhrsw, pmulhrsw)
   AVX_OP_SSSE3(Psignb, psignb)
   AVX_OP_SSSE3(Psignd, psignd)
   AVX_OP_SSSE3(Psignw, psignw)
@@ -347,6 +349,9 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src);
   void I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
+  // Will move src1 to dst if AVX is not supported.
+  void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                        XMMRegister scratch);
   // Requires that dst == src1 if AVX is not supported.
   void I32x4ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                    XMMRegister scratch, bool low, bool is_signed);

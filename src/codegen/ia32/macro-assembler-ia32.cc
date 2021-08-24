@@ -631,32 +631,6 @@ void TurboAssembler::Cvttsd2ui(Register dst, Operand src, XMMRegister tmp) {
   add(dst, Immediate(0x80000000));
 }
 
-void TurboAssembler::Pmulhrsw(XMMRegister dst, XMMRegister src1,
-                              XMMRegister src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpmulhrsw(dst, src1, src2);
-  } else {
-    if (dst != src1) {
-      movaps(dst, src1);
-    }
-    CpuFeatureScope sse_scope(this, SSSE3);
-    pmulhrsw(dst, src2);
-  }
-}
-
-void TurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
-                                      XMMRegister src2, XMMRegister scratch) {
-  ASM_CODE_COMMENT(this);
-  // k = i16x8.splat(0x8000)
-  Pcmpeqd(scratch, scratch);
-  Psllw(scratch, scratch, byte{15});
-
-  Pmulhrsw(dst, src1, src2);
-  Pcmpeqw(scratch, dst);
-  Pxor(dst, scratch);
-}
-
 void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
                                  XMMRegister tmp1, XMMRegister tmp2,
                                  Register scratch) {

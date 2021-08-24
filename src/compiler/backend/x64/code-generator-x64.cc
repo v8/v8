@@ -3405,7 +3405,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8Q15MulRSatS: {
       __ I16x8Q15MulRSatS(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                          i.InputSimd128Register(1));
+                          i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kX64I8x16Splat: {

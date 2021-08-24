@@ -570,6 +570,24 @@ void SharedTurboAssembler::I16x8UConvertI8x16High(XMMRegister dst,
   }
 }
 
+void SharedTurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
+                                            XMMRegister src2,
+                                            XMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  // k = i16x8.splat(0x8000)
+  Pcmpeqd(scratch, scratch);
+  Psllw(scratch, scratch, byte{15});
+
+  if (!CpuFeatures::IsSupported(AVX) && (dst != src1)) {
+    movaps(dst, src1);
+    src1 = dst;
+  }
+
+  Pmulhrsw(dst, src1, src2);
+  Pcmpeqw(scratch, dst);
+  Pxor(dst, scratch);
+}
+
 // 1. Multiply low word into scratch.
 // 2. Multiply high word (can be signed or unsigned) into dst.
 // 3. Unpack and interleave scratch and dst into dst.

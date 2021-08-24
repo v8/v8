@@ -2243,31 +2243,6 @@ void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src,
   }
 }
 
-void TurboAssembler::Pmulhrsw(XMMRegister dst, XMMRegister src1,
-                              XMMRegister src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpmulhrsw(dst, src1, src2);
-  } else {
-    if (dst != src1) {
-      Movdqa(dst, src1);
-    }
-    CpuFeatureScope sse_scope(this, SSSE3);
-    pmulhrsw(dst, src2);
-  }
-}
-
-void TurboAssembler::I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1,
-                                      XMMRegister src2) {
-  // k = i16x8.splat(0x8000)
-  Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-  Psllw(kScratchDoubleReg, byte{15});
-
-  Pmulhrsw(dst, src1, src2);
-  Pcmpeqw(kScratchDoubleReg, dst);
-  Pxor(dst, kScratchDoubleReg);
-}
-
 void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
                                  XMMRegister tmp) {
   DCHECK_NE(dst, tmp);

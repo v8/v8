@@ -392,14 +392,9 @@ class V8_EXPORT_PRIVATE TurboAssembler
   }
   void Cvttsd2ui(Register dst, Operand src, XMMRegister tmp);
 
-  // Handles SSE and AVX. On SSE, moves src to dst if they are not equal.
-  void Pmulhrsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-
   // These Wasm SIMD ops do not have direct lowerings on IA32. These
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
-  void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                        XMMRegister scratch);
   void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
                    XMMRegister tmp2, Register scratch);
   void F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src, Register tmp);
