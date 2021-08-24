@@ -5892,8 +5892,8 @@ if (want_v8_shell) {
   }
 }
 
-v8_executable("cppgc_sample") {
-  sources = [ "samples/cppgc/cppgc-sample.cc" ]
+v8_executable("cppgc_hello_world") {
+  sources = [ "samples/cppgc/hello-world.cc" ]
 
   if (v8_current_cpu == "riscv64") {
     libs = [ "atomic" ]

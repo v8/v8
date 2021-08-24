@@ -409,7 +409,7 @@ else{else_cond}
                    deps=['Threads::Threads'],
                    desc='Main library'),
             'sample':
-            Target(name='cppgc_sample',
+            Target(name='cppgc_hello_world',
                    cmake='add_executable',
                    deps=['cppgc'],
                    desc='Example'),
