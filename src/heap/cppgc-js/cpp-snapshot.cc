@@ -47,7 +47,13 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
   void SetWrapperNode(v8::EmbedderGraph::Node* wrapper_node) {
     // An embedder node may only be merged with a single wrapper node, as
     // consumers of the graph may merge a node and its wrapper node.
-    DCHECK_NULL(wrapper_node_);
+    //
+    // TODO(chromium:1218404): Add a DCHECK() to avoid overriding an already
+    // set `wrapper_node_`. This can currently happen with global proxies that
+    // are rewired (and still kept alive) after reloading a page, see
+    // `CreateMergedNode`. We accept overriding the wrapper node in such cases,
+    // leading to a random merged node and separated nodes for all other
+    // proxies.
     wrapper_node_ = wrapper_node;
   }
   Node* WrapperNode() final { return wrapper_node_; }
