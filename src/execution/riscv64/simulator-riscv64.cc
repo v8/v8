@@ -2376,7 +2376,8 @@ void Simulator::DecodeRVRFPType() {
           break;
         }
         case 0b00001: {  // RO_FCVT_WU_S
-          set_rd(RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode()));
+          set_rd(sext32(
+              RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode())));
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
@@ -2651,7 +2652,8 @@ void Simulator::DecodeRVRFPType() {
           break;
         }
         case 0b00001: {  // RO_FCVT_WU_D
-          set_rd(RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode()));
+          set_rd(sext32(
+              RoundF2IHelper<uint32_t>(original_val, instr_.RoundMode())));
           break;
         }
 #ifdef V8_TARGET_ARCH_64_BIT
