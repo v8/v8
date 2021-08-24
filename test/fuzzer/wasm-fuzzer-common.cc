@@ -386,7 +386,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "\n"
         "// Flags: --wasm-staging --experimental-wasm-gc\n"
         "\n"
-        "load('test/mjsunit/wasm/wasm-module-builder.js');\n"
+        "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
         "const builder = new WasmModuleBuilder();\n";
 
