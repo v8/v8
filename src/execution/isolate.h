@@ -1085,16 +1085,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_allocator_->GetPtrComprCage();
   }
 
-  bool IsValidBackingStorePointer(void* ptr) {
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    Address addr = reinterpret_cast<Address>(ptr);
-    return kAllowBackingStoresOutsideDataCage || addr == kNullAddress ||
-           GetProcessWideVirtualMemoryCage()->Contains(addr);
-#else
-    return true;
-#endif
-  }
-
   // Generated code can embed this address to get access to the isolate-specific
   // data (for example, roots, external references, builtins, etc.).
   // The kRootRegister is set to this value.

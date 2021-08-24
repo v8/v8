@@ -524,8 +524,15 @@ constexpr size_t kVirtualMemoryCageMinimumSize =
     2 * kVirtualMemoryCagePointerCageSize;
 
 // For now, even if the virtual memory cage is enabled, we still allow backing
-// stores to be allocated outside of it as fallback.
+// stores to be allocated outside of it as fallback. This will simplify the
+// initial rollout. However, if the heap sandbox is also enabled, we already use
+// the "enforcing mode" of the virtual memory cage. This is useful for testing.
+#ifdef V8_HEAP_SANDBOX
+constexpr bool kAllowBackingStoresOutsideDataCage = false;
+#else
 constexpr bool kAllowBackingStoresOutsideDataCage = true;
+#endif  // V8_HEAP_SANDBOX
+
 #endif  // V8_VIRTUAL_MEMORY_CAGE
 
 // Only perform cast check for types derived from v8::Data since

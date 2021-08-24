@@ -1281,8 +1281,9 @@
 }], # arch not in (x64, ia32, arm64, arm)
 
 ##############################################################################
-['system != linux', {
-  # Multi-mapped mock allocator is only available on Linux.
+['system != linux or virtual_memory_cage == True', {
+  # Multi-mapped mock allocator is only available on Linux, and only if the
+  # virtual memory cage is not enabled.
   'regress/regress-crbug-1041232': [SKIP],
   'regress/regress-crbug-1104608': [SKIP],
 }],

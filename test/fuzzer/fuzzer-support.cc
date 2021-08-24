@@ -23,6 +23,11 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   v8::V8::InitializeExternalStartupData((*argv)[0]);
   platform_ = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform_.get());
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  if (!v8::V8::InitializeVirtualMemoryCage()) {
+    FATAL("Could not initialize the virtual memory cage");
+  }
+#endif
   v8::V8::Initialize();
 
   allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();

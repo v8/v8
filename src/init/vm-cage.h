@@ -114,6 +114,16 @@ V8VirtualMemoryCage* GetProcessWideVirtualMemoryCage();
 
 #endif  // V8_VIRTUAL_MEMORY_CAGE
 
+V8_INLINE bool IsValidBackingStorePointer(void* ptr) {
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  Address addr = reinterpret_cast<Address>(ptr);
+  return kAllowBackingStoresOutsideDataCage || addr == kNullAddress ||
+         GetProcessWideVirtualMemoryCage()->Contains(addr);
+#else
+  return true;
+#endif
+}
+
 }  // namespace internal
 }  // namespace v8
 

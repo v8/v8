@@ -43,7 +43,7 @@ DEF_GETTER(JSArrayBuffer, backing_store, void*) {
 }
 
 void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
-  DCHECK(isolate->IsValidBackingStorePointer(value));
+  DCHECK(IsValidBackingStorePointer(value));
   WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
 }
 
@@ -251,7 +251,7 @@ DEF_GETTER(JSTypedArray, external_pointer_raw, Address) {
 }
 
 void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
-  DCHECK(isolate->IsValidBackingStorePointer(reinterpret_cast<void*>(value)));
+  DCHECK(IsValidBackingStorePointer(reinterpret_cast<void*>(value)));
   WriteField<Address>(kExternalPointerOffset, value);
 }
 
@@ -376,7 +376,7 @@ DEF_GETTER(JSDataView, data_pointer, void*) {
 }
 
 void JSDataView::set_data_pointer(Isolate* isolate, void* value) {
-  DCHECK(isolate->IsValidBackingStorePointer(value));
+  DCHECK(IsValidBackingStorePointer(value));
   WriteField<Address>(kDataPointerOffset, reinterpret_cast<Address>(value));
 }
 

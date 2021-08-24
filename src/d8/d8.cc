@@ -248,7 +248,7 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
   std::atomic<size_t> space_left_;
 };
 
-#ifdef V8_OS_LINUX
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
 
 // This is a mock allocator variant that provides a huge virtual allocation
 // backed by a small real allocation that is repeatedly mapped. If you create an
@@ -341,7 +341,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
   base::Mutex regions_mutex_;
 };
 
-#endif  // V8_OS_LINUX
+#endif  // MULTI_MAPPED_ALLOCATOR_AVAILABLE
 
 v8::Platform* g_default_platform;
 std::unique_ptr<v8::Platform> g_platform;
@@ -3510,15 +3510,9 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     isolate->ThrowError("Error reading file");
     return;
   }
-  std::unique_ptr<v8::BackingStore> backing_store =
-      ArrayBuffer::NewBackingStore(
-          data, length,
-          [](void* data, size_t length, void*) {
-            delete[] reinterpret_cast<uint8_t*>(data);
-          },
-          nullptr);
-  Local<v8::ArrayBuffer> buffer =
-      ArrayBuffer::New(isolate, std::move(backing_store));
+  Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, length);
+  memcpy(buffer->GetBackingStore()->Data(), data, length);
+  delete[] data;
 
   args.GetReturnValue().Set(buffer);
 }
@@ -4426,7 +4420,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   options.mock_arraybuffer_allocator = i::FLAG_mock_arraybuffer_allocator;
   options.mock_arraybuffer_allocator_limit =
       i::FLAG_mock_arraybuffer_allocator_limit;
-#if V8_OS_LINUX
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   options.multi_mapped_mock_allocator = i::FLAG_multi_mapped_mock_allocator;
 #endif
 
@@ -5081,24 +5075,19 @@ int Shell::Main(int argc, char* argv[]) {
       memory_limit >= options.mock_arraybuffer_allocator_limit
           ? memory_limit
           : std::numeric_limits<size_t>::max());
-#if V8_OS_LINUX
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   MultiMappedAllocator multi_mapped_mock_allocator;
-#endif  // V8_OS_LINUX
+#endif
   if (options.mock_arraybuffer_allocator) {
     if (memory_limit) {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator_with_limit;
     } else {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator;
     }
-#if V8_OS_LINUX
+#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   } else if (options.multi_mapped_mock_allocator) {
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    CHECK_WITH_MSG(internal::kAllowBackingStoresOutsideDataCage,
-                   "The multi-mapped arraybuffer allocator is currently "
-                   "incompatible with v8_enable_virtual_memory_cage");
-#endif
     Shell::array_buffer_allocator = &multi_mapped_mock_allocator;
-#endif  // V8_OS_LINUX
+#endif
   } else {
     Shell::array_buffer_allocator = &shell_array_buffer_allocator;
   }

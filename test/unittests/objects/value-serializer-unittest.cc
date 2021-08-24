@@ -268,12 +268,9 @@ class ValueSerializerTest : public TestWithIsolate {
   }
 
   Local<Object> NewDummyUint8Array() {
-    static uint8_t data[] = {4, 5, 6};
-    std::unique_ptr<v8::BackingStore> backing_store =
-        ArrayBuffer::NewBackingStore(
-            data, sizeof(data), [](void*, size_t, void*) {}, nullptr);
-    Local<ArrayBuffer> ab =
-        ArrayBuffer::New(isolate(), std::move(backing_store));
+    const uint8_t data[] = {4, 5, 6};
+    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate(), sizeof(data));
+    memcpy(ab->GetBackingStore()->Data(), data, sizeof(data));
     return Uint8Array::New(ab, 0, sizeof(data));
   }
 
@@ -2066,15 +2063,9 @@ class ValueSerializerTestWithSharedArrayBufferClone
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     CHECK(!is_wasm_memory);
-    std::unique_ptr<v8::BackingStore> backing_store =
-        SharedArrayBuffer::NewBackingStore(
-            data, byte_length,
-            [](void*, size_t, void*) {
-              // Leak the buffer as it has the
-              // lifetime of the test.
-            },
-            nullptr);
-    return SharedArrayBuffer::New(isolate(), std::move(backing_store));
+    auto sab = SharedArrayBuffer::New(isolate(), byte_length);
+    memcpy(sab->GetBackingStore()->Data(), data, byte_length);
+    return sab;
   }
 
   static void SetUpTestCase() {
