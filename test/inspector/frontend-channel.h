@@ -55,7 +55,7 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
     bool is_priority_task() final { return false; }
 
    private:
-    void Run(IsolateData* data) override {
+    void Run(InspectorIsolateData* data) override {
       v8::MicrotasksScope microtasks_scope(data->isolate(),
                                            v8::MicrotasksScope::kRunMicrotasks);
       v8::HandleScope handle_scope(data->isolate());
