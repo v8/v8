@@ -2132,7 +2132,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     kFixedArrays = 1,
     kFixedDoubleArrays = 2,
     kDontCopyCOW = 4,
-    kNewSpaceAllocationOnly = 8,
     kAllFixedArrays = kFixedArrays | kFixedDoubleArrays,
     kAllFixedArraysDontCopyCOW = kAllFixedArrays | kDontCopyCOW
   };

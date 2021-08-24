@@ -4341,17 +4341,11 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
   {
     bool handle_old_space = !FLAG_young_generation_large_objects;
     if (handle_old_space) {
-      if (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly) {
-        handle_old_space = false;
-        CSA_ASSERT(this, Word32BinaryNot(FixedArraySizeDoesntFitInNewSpace(
-                             count, FixedArray::kHeaderSize)));
-      } else {
-        int constant_count;
-        handle_old_space =
-            !TryGetIntPtrOrSmiConstantValue(count, &constant_count) ||
-            (constant_count >
-             FixedArray::GetMaxLengthForNewSpaceAllocation(PACKED_ELEMENTS));
-      }
+      int constant_count;
+      handle_old_space =
+          !TryGetIntPtrOrSmiConstantValue(count, &constant_count) ||
+          (constant_count >
+           FixedArray::GetMaxLengthForNewSpaceAllocation(PACKED_ELEMENTS));
     }
 
     Label old_space(this, Label::kDeferred);
@@ -4554,10 +4548,7 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
       var_holes_converted != nullptr ? HoleConversionMode::kConvertToUndefined
                                      : HoleConversionMode::kDontConvert;
   TVARIABLE(FixedArrayBase, var_result);
-  const AllocationFlags allocation_flags =
-      (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly)
-          ? CodeStubAssembler::kNone
-          : CodeStubAssembler::kAllowLargeObjectAllocation;
+  auto allocation_flags = CodeStubAssembler::kAllowLargeObjectAllocation;
   if (!first) {
     first = IntPtrOrSmiConstant<TIndex>(0);
   }
