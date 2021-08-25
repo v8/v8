@@ -505,6 +505,7 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, sparkplug)
+DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #endif
 #if V8_SHORT_BUILTIN_CALLS
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
