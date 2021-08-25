@@ -1838,13 +1838,12 @@ TEST(CodeSerializerPromotedToCompilationCache) {
 
   {
     // Lookup with different host_defined_options should fail:
-    // TODO(10284): Enable host-defined options check again
     ScriptDetails script_details(src);
     script_details.host_defined_options = isolate->factory()->NewFixedArray(5);
     MaybeHandle<SharedFunctionInfo> shared =
         isolate->compilation_cache()->LookupScript(src, script_details,
                                                    LanguageMode::kSloppy);
-    CHECK_EQ(*shared.ToHandleChecked(), *copy);
+    CHECK(shared.is_null());
   }
 
   delete cache;
