@@ -3949,6 +3949,31 @@ LOAD_SPLAT_LIST(LOAD_SPLAT)
 #undef LOAD_SPLAT
 #undef LOAD_SPLAT_LIST
 
+#define LOAD_EXTEND_LIST(V) \
+  V(32x2U, vuplh, 2)        \
+  V(32x2S, vuph, 2)         \
+  V(16x4U, vuplh, 1)        \
+  V(16x4S, vuph, 1)         \
+  V(8x8U, vuplh, 0)         \
+  V(8x8S, vuph, 0)
+
+#define LOAD_EXTEND(name, unpack_instr, condition)                      \
+  void TurboAssembler::LoadAndExtend##name##LE(Simd128Register dst,     \
+                                               const MemOperand& mem) { \
+    if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&          \
+        is_uint12(mem.offset())) {                                      \
+      vlebrg(kScratchDoubleReg, mem, Condition(0));                     \
+    } else {                                                            \
+      LoadU64LE(r1, mem);                                               \
+      vlvg(kScratchDoubleReg, r1, MemOperand(r0, 0), Condition(3));     \
+    }                                                                   \
+    unpack_instr(dst, kScratchDoubleReg, Condition(0), Condition(0),    \
+                 Condition(condition));                                 \
+  }
+LOAD_EXTEND_LIST(LOAD_EXTEND)
+#undef LOAD_EXTEND
+#undef LOAD_EXTEND
+
 #else
 void TurboAssembler::LoadU64LE(Register dst, const MemOperand& mem,
                                Register scratch) {
@@ -4035,6 +4060,25 @@ void TurboAssembler::StoreV128LE(Simd128Register src, const MemOperand& mem,
 LOAD_SPLAT_LIST(LOAD_SPLAT)
 #undef LOAD_SPLAT
 #undef LOAD_SPLAT_LIST
+
+#define LOAD_EXTEND_LIST(V) \
+  V(32x2U, vuplh, 2)        \
+  V(32x2S, vuph, 2)         \
+  V(16x4U, vuplh, 1)        \
+  V(16x4S, vuph, 1)         \
+  V(8x8U, vuplh, 0)         \
+  V(8x8S, vuph, 0)
+
+#define LOAD_EXTEND(name, unpack_instr, condition)                      \
+  void TurboAssembler::LoadAndExtend##name##LE(Simd128Register dst,     \
+                                               const MemOperand& mem) { \
+    vleg(kScratchDoubleReg, mem, Condition(0));                         \
+    unpack_instr(dst, kScratchDoubleReg, Condition(0), Condition(0),    \
+                 Condition(condition));                                 \
+  }
+LOAD_EXTEND_LIST(LOAD_EXTEND)
+#undef LOAD_EXTEND
+#undef LOAD_EXTEND
 
 #endif
 

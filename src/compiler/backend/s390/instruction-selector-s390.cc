@@ -2808,6 +2808,24 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
     case LoadTransformation::kS128Load64Splat:
       opcode = kS390_S128Load64Splat;
       break;
+    case LoadTransformation::kS128Load8x8S:
+      opcode = kS390_S128Load8x8S;
+      break;
+    case LoadTransformation::kS128Load8x8U:
+      opcode = kS390_S128Load8x8U;
+      break;
+    case LoadTransformation::kS128Load16x4S:
+      opcode = kS390_S128Load16x4S;
+      break;
+    case LoadTransformation::kS128Load16x4U:
+      opcode = kS390_S128Load16x4U;
+      break;
+    case LoadTransformation::kS128Load32x2S:
+      opcode = kS390_S128Load32x2S;
+      break;
+    case LoadTransformation::kS128Load32x2U:
+      opcode = kS390_S128Load32x2U;
+      break;
     default:
       UNREACHABLE();
   }

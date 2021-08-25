@@ -396,6 +396,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadAndSplat32x4LE(Simd128Register dst, const MemOperand& mem);
   void LoadAndSplat16x8LE(Simd128Register dst, const MemOperand& mem);
   void LoadAndSplat8x16LE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndExtend8x8ULE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndExtend8x8SLE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndExtend16x4ULE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndExtend16x4SLE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndExtend32x2ULE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndExtend32x2SLE(Simd128Register dst, const MemOperand& mem);
 
   // Load And Test
   void LoadAndTest32(Register dst, Register src);

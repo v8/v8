@@ -376,6 +376,12 @@ namespace compiler {
   V(S390_S128Load16Splat)                   \
   V(S390_S128Load32Splat)                   \
   V(S390_S128Load64Splat)                   \
+  V(S390_S128Load8x8S)                      \
+  V(S390_S128Load8x8U)                      \
+  V(S390_S128Load16x4S)                     \
+  V(S390_S128Load16x4U)                     \
+  V(S390_S128Load32x2S)                     \
+  V(S390_S128Load32x2U)                     \
   V(S390_StoreSimd128)                      \
   V(S390_LoadSimd128)                       \
   V(S390_StoreCompressTagged)               \

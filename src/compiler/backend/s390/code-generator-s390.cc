@@ -2218,28 +2218,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vl(i.OutputSimd128Register(), operand, Condition(0));
       break;
     }
-#define LOAD_SPLAT(type)                           \
-  AddressingMode mode = kMode_None;                \
-  MemOperand operand = i.MemoryOperand(&mode);     \
-  Simd128Register dst = i.OutputSimd128Register(); \
-  __ LoadAndSplat##type##LE(dst, operand);
-    case kS390_S128Load8Splat: {
-      LOAD_SPLAT(8x16);
-      break;
-    }
-    case kS390_S128Load16Splat: {
-      LOAD_SPLAT(16x8);
-      break;
-    }
-    case kS390_S128Load32Splat: {
-      LOAD_SPLAT(32x4);
-      break;
-    }
-    case kS390_S128Load64Splat: {
-      LOAD_SPLAT(64x2);
-      break;
-    }
-#undef LOAD_SPLAT
     case kS390_StoreWord8:
       ASSEMBLE_STORE_INTEGER(StoreU8);
       break;
@@ -3409,6 +3387,58 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpkls(dst, dst, kScratchDoubleReg, Condition(0), Condition(3));
       break;
     }
+#define LOAD_SPLAT(type)                           \
+  AddressingMode mode = kMode_None;                \
+  MemOperand operand = i.MemoryOperand(&mode);     \
+  Simd128Register dst = i.OutputSimd128Register(); \
+  __ LoadAndSplat##type##LE(dst, operand);
+    case kS390_S128Load64Splat: {
+      LOAD_SPLAT(64x2);
+      break;
+    }
+    case kS390_S128Load32Splat: {
+      LOAD_SPLAT(32x4);
+      break;
+    }
+    case kS390_S128Load16Splat: {
+      LOAD_SPLAT(16x8);
+      break;
+    }
+    case kS390_S128Load8Splat: {
+      LOAD_SPLAT(8x16);
+      break;
+    }
+#undef LOAD_SPLAT
+#define LOAD_EXTEND(type)                          \
+  AddressingMode mode = kMode_None;                \
+  MemOperand operand = i.MemoryOperand(&mode);     \
+  Simd128Register dst = i.OutputSimd128Register(); \
+  __ LoadAndExtend##type##LE(dst, operand);
+    case kS390_S128Load32x2U: {
+      LOAD_EXTEND(32x2U);
+      break;
+    }
+    case kS390_S128Load32x2S: {
+      LOAD_EXTEND(32x2S);
+      break;
+    }
+    case kS390_S128Load16x4U: {
+      LOAD_EXTEND(16x4U);
+      break;
+    }
+    case kS390_S128Load16x4S: {
+      LOAD_EXTEND(16x4S);
+      break;
+    }
+    case kS390_S128Load8x8U: {
+      LOAD_EXTEND(8x8U);
+      break;
+    }
+    case kS390_S128Load8x8S: {
+      LOAD_EXTEND(8x8S);
+      break;
+    }
+#undef LOAD_EXTEND
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;

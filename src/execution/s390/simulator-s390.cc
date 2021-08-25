@@ -760,6 +760,7 @@ void Simulator::EvalTableInit() {
   V(vlr, VLR, 0xE756)     /* type = VRR_A VECTOR LOAD  */                      \
   V(vstef, VSTEF, 0xE70B) /* type = VRX   VECTOR STORE ELEMENT (32)  */        \
   V(vlef, VLEF, 0xE703)   /* type = VRX   VECTOR LOAD ELEMENT (32)  */         \
+  V(vleg, VLEG, 0xE702)   /* type = VRX   VECTOR LOAD ELEMENT (64)  */         \
   V(vavgl, VAVGL, 0xE7F0) /* type = VRR_C VECTOR AVERAGE LOGICAL  */           \
   V(va, VA, 0xE7F3)       /* type = VRR_C VECTOR ADD  */                       \
   V(vs, VS, 0xE7F7)       /* type = VRR_C VECTOR SUBTRACT  */                  \
@@ -3202,6 +3203,15 @@ EVALUATE(VLEF) {
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
   int32_t value = ReadW(addr, instr);
   set_simd_register_by_lane<int32_t>(r1, m3, value);
+  return length;
+}
+
+EVALUATE(VLEG) {
+  DCHECK_OPCODE(VLEG);
+  DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  uint64_t value = ReadDW(addr);
+  set_simd_register_by_lane<uint64_t>(r1, m3, value);
   return length;
 }
 
