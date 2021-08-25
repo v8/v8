@@ -235,6 +235,7 @@ class V8_EXPORT_PRIVATE Operand {
   }
 
   Operand(const Operand&) V8_NOEXCEPT = default;
+  Operand& operator=(const Operand&) V8_NOEXCEPT = default;
 
   const Data& data() const { return data_; }
 
