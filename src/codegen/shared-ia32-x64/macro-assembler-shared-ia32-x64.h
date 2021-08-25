@@ -440,6 +440,81 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
               ExternalReference::address_of_wasm_double_2_power_52(), scratch));
   }
 
+  void I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src,
+                               XMMRegister scratch, Register tmp) {
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      XMMRegister original_dst = dst;
+      // Make sure we don't overwrite src.
+      if (dst == src) {
+        DCHECK_NE(src, scratch);
+        dst = scratch;
+      }
+      // dst = 0 if src == NaN, else all ones.
+      vcmpeqpd(dst, src, src);
+      // dst = 0 if src == NaN, else INT32_MAX as double.
+      vandpd(
+          dst, dst,
+          ExternalReferenceAsOperand(
+              ExternalReference::address_of_wasm_int32_max_as_double(), tmp));
+      // dst = 0 if src == NaN, src is saturated to INT32_MAX as double.
+      vminpd(dst, src, dst);
+      // Values > INT32_MAX already saturated, values < INT32_MIN raises an
+      // exception, which is masked and returns 0x80000000.
+      vcvttpd2dq(original_dst, dst);
+    } else {
+      if (dst != src) {
+        movaps(dst, src);
+      }
+      movaps(scratch, dst);
+      cmpeqpd(scratch, dst);
+      andps(scratch,
+            ExternalReferenceAsOperand(
+                ExternalReference::address_of_wasm_int32_max_as_double(), tmp));
+      minpd(dst, scratch);
+      cvttpd2dq(dst, dst);
+    }
+  }
+
+  void I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src,
+                               XMMRegister scratch, Register tmp) {
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      vxorpd(scratch, scratch, scratch);
+      // Saturate to 0.
+      vmaxpd(dst, src, scratch);
+      // Saturate to UINT32_MAX.
+      vminpd(
+          dst, dst,
+          ExternalReferenceAsOperand(
+              ExternalReference::address_of_wasm_uint32_max_as_double(), tmp));
+      // Truncate.
+      vroundpd(dst, dst, kRoundToZero);
+      // Add to special double where significant bits == uint32.
+      vaddpd(dst, dst,
+             ExternalReferenceAsOperand(
+                 ExternalReference::address_of_wasm_double_2_power_52(), tmp));
+      // Extract low 32 bits of each double's significand, zero top lanes.
+      // dst = [dst[0], dst[2], 0, 0]
+      vshufps(dst, dst, scratch, 0x88);
+    } else {
+      CpuFeatureScope scope(this, SSE4_1);
+      if (dst != src) {
+        movaps(dst, src);
+      }
+      xorps(scratch, scratch);
+      maxpd(dst, scratch);
+      minpd(dst, ExternalReferenceAsOperand(
+                     ExternalReference::address_of_wasm_uint32_max_as_double(),
+                     tmp));
+      roundpd(dst, dst, kRoundToZero);
+      addpd(dst,
+            ExternalReferenceAsOperand(
+                ExternalReference::address_of_wasm_double_2_power_52(), tmp));
+      shufps(dst, scratch, 0x88);
+    }
+  }
+
  private:
   // All implementation-specific methods must be called through this.
   Impl* impl() { return static_cast<Impl*>(this); }

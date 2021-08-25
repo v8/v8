@@ -825,6 +825,7 @@ TEST(DisasmIa320) {
       __ vmovshdup(xmm1, xmm2);
       __ vbroadcastss(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vmovdqa(xmm0, xmm7);
       __ vmovdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vmovdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
       __ vmovd(xmm0, edi);

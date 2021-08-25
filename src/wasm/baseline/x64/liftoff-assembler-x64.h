@@ -3904,12 +3904,14 @@ void LiftoffAssembler::emit_i32x4_uconvert_i16x8_high(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
-  I32x4TruncSatF64x2SZero(dst.fp(), src.fp());
+  I32x4TruncSatF64x2SZero(dst.fp(), src.fp(), kScratchDoubleReg,
+                          kScratchRegister);
 }
 
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
-  I32x4TruncSatF64x2UZero(dst.fp(), src.fp());
+  I32x4TruncSatF64x2UZero(dst.fp(), src.fp(), kScratchDoubleReg,
+                          kScratchRegister);
 }
 
 void LiftoffAssembler::emit_s128_and_not(LiftoffRegister dst,

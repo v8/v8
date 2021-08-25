@@ -2635,12 +2635,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4TruncSatF64x2SZero: {
       __ I32x4TruncSatF64x2SZero(i.OutputSimd128Register(),
-                                 i.InputSimd128Register(0));
+                                 i.InputSimd128Register(0), kScratchDoubleReg,
+                                 kScratchRegister);
       break;
     }
     case kX64I32x4TruncSatF64x2UZero: {
       __ I32x4TruncSatF64x2UZero(i.OutputSimd128Register(),
-                                 i.InputSimd128Register(0));
+                                 i.InputSimd128Register(0), kScratchDoubleReg,
+                                 kScratchRegister);
       break;
     }
     case kX64F32x4Splat: {
