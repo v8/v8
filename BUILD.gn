@@ -5174,6 +5174,7 @@ v8_header_set("cppgc_headers") {
   sources = [
     "include/cppgc/allocation.h",
     "include/cppgc/common.h",
+    "include/cppgc/cross-thread-persistent.h",
     "include/cppgc/custom-space.h",
     "include/cppgc/default-platform.h",
     "include/cppgc/ephemeron-pair.h",
