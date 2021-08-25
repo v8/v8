@@ -326,7 +326,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   AVX_OP3_WITH_MOVE(Cmpeqps, cmpeqps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
-  AVX_OP3_WITH_MOVE(Pmaddwd, pmaddwd, XMMRegister, Operand)
 #undef AVX_OP3_WITH_MOVE
 
   // TODO(zhin): Remove after moving more definitions into SharedTurboAssembler.
@@ -397,14 +396,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // Defined here to allow usage on both TurboFan and Liftoff.
   void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
                    XMMRegister tmp2, Register scratch);
-  void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src,
-                                 XMMRegister tmp, Register scratch);
-  void I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
-                                 Register scratch);
-  void I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
-                                 Register scratch);
-  void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
-                                 XMMRegister tmp);
   void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask,
                     XMMRegister scratch, Register tmp, bool omit_add = false);
 

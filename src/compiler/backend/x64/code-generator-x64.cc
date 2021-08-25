@@ -3167,21 +3167,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4ExtAddPairwiseI16x8S: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src1 = i.InputSimd128Register(0);
-      // pmaddwd multiplies signed words in src1 and src2, producing signed
-      // doublewords, then adds pairwise.
-      // src1 = |a|b|c|d|e|f|g|h|
-      // src2 = |1|1|1|1|1|1|1|1|
-      // dst = | a*1 + b*1 | c*1 + d*1 | e*1 + f*1 | g*1 + h*1 |
-      Operand src2 = __ ExternalReferenceAsOperand(
-          ExternalReference::address_of_wasm_i16x8_splat_0x0001());
-      __ Pmaddwd(dst, src1, src2);
+      __ I32x4ExtAddPairwiseI16x8S(i.OutputSimd128Register(),
+                                   i.InputSimd128Register(0), kScratchRegister);
       break;
     }
     case kX64I32x4ExtAddPairwiseI16x8U: {
       __ I32x4ExtAddPairwiseI16x8U(i.OutputSimd128Register(),
-                                   i.InputSimd128Register(0));
+                                   i.InputSimd128Register(0),
+                                   kScratchDoubleReg);
       break;
     }
     case kX64S128Const: {
@@ -3394,15 +3387,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8ExtAddPairwiseI8x16S: {
       __ I16x8ExtAddPairwiseI8x16S(i.OutputSimd128Register(),
-                                   i.InputSimd128Register(0));
+                                   i.InputSimd128Register(0), kScratchDoubleReg,
+                                   kScratchRegister);
       break;
     }
     case kX64I16x8ExtAddPairwiseI8x16U: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src1 = i.InputSimd128Register(0);
-      Operand src2 = __ ExternalReferenceAsOperand(
-          ExternalReference::address_of_wasm_i8x16_splat_0x01());
-      __ Pmaddubsw(dst, src1, src2);
+      __ I16x8ExtAddPairwiseI8x16U(i.OutputSimd128Register(),
+                                   i.InputSimd128Register(0), kScratchRegister);
       break;
     }
     case kX64I16x8Q15MulRSatS: {

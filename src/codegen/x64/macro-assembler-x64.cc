@@ -2004,31 +2004,6 @@ void TurboAssembler::JumpCodeTObject(Register code, JumpMode jump_mode) {
   }
 }
 
-void TurboAssembler::Pmaddwd(XMMRegister dst, XMMRegister src1, Operand src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpmaddwd(dst, src1, src2);
-  } else {
-    if (dst != src1) {
-      movaps(dst, src1);
-    }
-    pmaddwd(dst, src2);
-  }
-}
-
-void TurboAssembler::Pmaddwd(XMMRegister dst, XMMRegister src1,
-                             XMMRegister src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpmaddwd(dst, src1, src2);
-  } else {
-    if (dst != src1) {
-      movaps(dst, src1);
-    }
-    pmaddwd(dst, src2);
-  }
-}
-
 void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
                                Operand src2) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -2299,68 +2274,6 @@ void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
     movaps(tmp, mask);
     pshufb(tmp, kScratchDoubleReg);
     paddb(dst, tmp);
-  }
-}
-
-void TurboAssembler::I16x8ExtAddPairwiseI8x16S(XMMRegister dst,
-                                               XMMRegister src) {
-  // pmaddubsw treats the first operand as unsigned, so the external reference
-  // to be passed to it as the first operand.
-  Operand op = ExternalReferenceAsOperand(
-      ExternalReference::address_of_wasm_i8x16_splat_0x01());
-  if (dst == src) {
-    if (CpuFeatures::IsSupported(AVX)) {
-      CpuFeatureScope avx_scope(this, AVX);
-      vmovdqa(kScratchDoubleReg, op);
-      vpmaddubsw(dst, kScratchDoubleReg, src);
-    } else {
-      CpuFeatureScope sse_scope(this, SSSE3);
-      movaps(kScratchDoubleReg, op);
-      pmaddubsw(kScratchDoubleReg, src);
-      movaps(dst, kScratchDoubleReg);
-    }
-  } else {
-    Movdqa(dst, op);
-    Pmaddubsw(dst, dst, src);
-  }
-}
-
-void TurboAssembler::I32x4ExtAddPairwiseI16x8U(XMMRegister dst,
-                                               XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    // src = |a|b|c|d|e|f|g|h| (low)
-    // scratch = |0|a|0|c|0|e|0|g|
-    vpsrld(kScratchDoubleReg, src, 16);
-    // dst = |0|b|0|d|0|f|0|h|
-    vpblendw(dst, src, kScratchDoubleReg, 0xAA);
-    // dst = |a+b|c+d|e+f|g+h|
-    vpaddd(dst, kScratchDoubleReg, dst);
-  } else if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    // There is a potentially better lowering if we get rip-relative constants,
-    // see https://github.com/WebAssembly/simd/pull/380.
-    movaps(kScratchDoubleReg, src);
-    psrld(kScratchDoubleReg, 16);
-    if (dst != src) {
-      movaps(dst, src);
-    }
-    pblendw(dst, kScratchDoubleReg, 0xAA);
-    paddd(dst, kScratchDoubleReg);
-  } else {
-    // src = |a|b|c|d|e|f|g|h|
-    // kScratchDoubleReg = i32x4.splat(0x0000FFFF)
-    pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-    psrld(kScratchDoubleReg, byte{16});
-    // kScratchDoubleReg =|0|b|0|d|0|f|0|h|
-    andps(kScratchDoubleReg, src);
-    // dst = |0|a|0|c|0|e|0|g|
-    if (dst != src) {
-      movaps(dst, src);
-    }
-    psrld(dst, byte{16});
-    // dst = |a+b|c+d|e+f|g+h|
-    paddd(dst, kScratchDoubleReg);
   }
 }
 

@@ -3131,14 +3131,13 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  I16x8ExtAddPairwiseI8x16S(dst.fp(), src.fp());
+  I16x8ExtAddPairwiseI8x16S(dst.fp(), src.fp(), kScratchDoubleReg,
+                            kScratchRegister);
 }
 
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  Operand op = ExternalReferenceAsOperand(
-      ExternalReference::address_of_wasm_i8x16_splat_0x01());
-  Pmaddubsw(dst.fp(), src.fp(), op);
+  I16x8ExtAddPairwiseI8x16U(dst.fp(), src.fp(), kScratchRegister);
 }
 
 void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
@@ -3287,14 +3286,12 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  Operand op = ExternalReferenceAsOperand(
-      ExternalReference::address_of_wasm_i16x8_splat_0x0001());
-  Pmaddwd(dst.fp(), src.fp(), op);
+  I32x4ExtAddPairwiseI16x8S(dst.fp(), src.fp(), kScratchRegister);
 }
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
-  I32x4ExtAddPairwiseI16x8U(dst.fp(), src.fp());
+  I32x4ExtAddPairwiseI16x8U(dst.fp(), src.fp(), kScratchDoubleReg);
 }
 
 namespace liftoff {

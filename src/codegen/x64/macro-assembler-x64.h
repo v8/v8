@@ -447,8 +447,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void DebugBreak();
 
   // Will move src1 to dst if dst != src1.
-  void Pmaddwd(XMMRegister dst, XMMRegister src1, Operand src2);
-  void Pmaddwd(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, Operand src2);
   void Pmaddubsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
 
@@ -480,9 +478,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
   void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp);
-
-  void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src);
-  void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src);
 
   void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask,
                     bool omit_add = false);

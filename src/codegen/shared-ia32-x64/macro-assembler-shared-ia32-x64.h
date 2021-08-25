@@ -235,6 +235,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pcmpeqd, pcmpeqd)
   AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pinsrw, pinsrw)
+  AVX_OP(Pmaddwd, pmaddwd)
   AVX_OP(Pmaxsw, pmaxsw)
   AVX_OP(Pmaxub, pmaxub)
   AVX_OP(Pminsw, pminsw)
@@ -361,6 +362,8 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   // Will move src1 to dst if AVX is not supported.
   void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                         XMMRegister scratch);
+  void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
+                                 XMMRegister tmp);
   // Requires that dst == src1 if AVX is not supported.
   void I32x4ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                    XMMRegister scratch, bool low, bool is_signed);
@@ -512,6 +515,63 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
             ExternalReferenceAsOperand(
                 ExternalReference::address_of_wasm_double_2_power_52(), tmp));
       shufps(dst, scratch, 0x88);
+    }
+  }
+
+  void I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
+                                 Register scratch) {
+    Operand op = ExternalReferenceAsOperand(
+        ExternalReference::address_of_wasm_i16x8_splat_0x0001(), scratch);
+    // pmaddwd multiplies signed words in src and op, producing
+    // signed doublewords, then adds pairwise.
+    // src = |a|b|c|d|e|f|g|h|
+    // dst = | a*1 + b*1 | c*1 + d*1 | e*1 + f*1 | g*1 + h*1 |
+    if (!CpuFeatures::IsSupported(AVX) && (dst != src)) {
+      movaps(dst, src);
+      src = dst;
+    }
+
+    Pmaddwd(dst, src, op);
+  }
+
+  void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src,
+                                 XMMRegister scratch, Register tmp) {
+    ASM_CODE_COMMENT(this);
+    // pmaddubsw treats the first operand as unsigned, so pass the external
+    // reference to it as the first operand.
+    Operand op = ExternalReferenceAsOperand(
+        ExternalReference::address_of_wasm_i8x16_splat_0x01(), tmp);
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      vmovdqa(scratch, op);
+      vpmaddubsw(dst, scratch, src);
+    } else {
+      CpuFeatureScope sse_scope(this, SSSE3);
+      if (dst == src) {
+        movaps(scratch, op);
+        pmaddubsw(scratch, src);
+        movaps(dst, scratch);
+      } else {
+        movaps(dst, op);
+        pmaddubsw(dst, src);
+      }
+    }
+  }
+
+  void I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
+                                 Register scratch) {
+    ASM_CODE_COMMENT(this);
+    Operand op = ExternalReferenceAsOperand(
+        ExternalReference::address_of_wasm_i8x16_splat_0x01(), scratch);
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      vpmaddubsw(dst, src, op);
+    } else {
+      CpuFeatureScope sse_scope(this, SSSE3);
+      if (dst != src) {
+        movaps(dst, src);
+      }
+      pmaddubsw(dst, op);
     }
   }
 
