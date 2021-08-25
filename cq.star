@@ -59,7 +59,11 @@ luci.cq_group(
         ),
         luci.cq_tryjob_verifier(
             "chromium:try/linux-blink-rel",
-            location_regexp = [".+/[+]/src/inspector/.+", ".+/[+]/test/inspector/.+"],
+            location_regexp = [
+                ".+/[+]/include/cppgc/.+",
+                ".+/[+]/src/inspector/.+",
+                ".+/[+]/test/inspector/.+",
+            ],
         ),
         luci.cq_tryjob_verifier(
             "chromium:try/linux-rel",
