@@ -590,14 +590,9 @@ constexpr intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 constexpr intptr_t kDoubleAlignment = 8;
 constexpr intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 
-// Desired alignment for generated code is 64 bytes on x64 (to allow 64-bytes
-// loop header alignment) and 32 bytes (to improve cache line utilization) on
-// other architectures.
-#if V8_TARGET_ARCH_X64
-constexpr int kCodeAlignmentBits = 6;
-#else
+// Desired alignment for generated code is 32 bytes (to improve cache line
+// utilization).
 constexpr int kCodeAlignmentBits = 5;
-#endif
 constexpr intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 constexpr intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 

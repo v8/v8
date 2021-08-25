@@ -74,14 +74,8 @@ void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
-#if V8_TARGET_ARCH_X64
-  // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
-  STATIC_ASSERT(64 >= kCodeAlignment);
-  fprintf(fp_, ".balign 64\n");
-#else
   STATIC_ASSERT(32 >= kCodeAlignment);
   fprintf(fp_, ".balign 32\n");
-#endif
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToDataAlignment() {
