@@ -89,6 +89,10 @@ static const char* const conditional_move_mnem[] = {
     /*8*/ "cmovs",  "cmovns", "cmovpe", "cmovpo",
     /*12*/ "cmovl", "cmovnl", "cmovng", "cmovg"};
 
+static const char* const cmp_pseudo_op[16] = {
+    "eq",    "lt",  "le",  "unord", "neq",    "nlt", "nle", "ord",
+    "eq_uq", "nge", "ngt", "false", "neq_oq", "ge",  "gt",  "true"};
+
 enum InstructionType {
   NO_INSTR,
   ZERO_OPERANDS_INSTR,
@@ -1249,12 +1253,10 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         break;
       case 0xC2: {
-        const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
-                                         "neq", "nlt", "nle", "ord"};
         AppendToBuffer("vcmpps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(", (%s)", pseudo_op[*current]);
+        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
         current++;
         break;
       }
@@ -1377,11 +1379,10 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
       case 0xC2: {
-        const char* const pseudo_op[] = {"eq", "lt", "le", "unord", "neq"};
         AppendToBuffer("vcmppd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(", (%s)", pseudo_op[*current]);
+        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
         current++;
         break;
       }
@@ -2005,11 +2006,9 @@ int DisassemblerIA32::InstructionDecode(v8::base::Vector<char> out_buffer,
           data += PrintOperands("xadd", OPER_REG_OP_ORDER, data);
         } else if (f0byte == 0xC2) {
           data += 2;
-          const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",
-                                           "neq", "nlt", "nle", "ord"};
           AppendToBuffer("cmpps %s, ", NameOfXMMRegister(regop));
           data += PrintRightXMMOperand(data);
-          AppendToBuffer(", (%s)", pseudo_op[*data]);
+          AppendToBuffer(", (%s)", cmp_pseudo_op[*data]);
           data++;
         } else if (f0byte == 0xC6) {
           // shufps xmm, xmm/m128, imm8
@@ -2491,10 +2490,9 @@ int DisassemblerIA32::InstructionDecode(v8::base::Vector<char> out_buffer,
             data++;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
-            const char* const pseudo_op[] = {"eq", "lt", "le", "unord", "neq"};
             AppendToBuffer("cmppd %s, ", NameOfXMMRegister(regop));
             data += PrintRightXMMOperand(data);
-            AppendToBuffer(", (%s)", pseudo_op[*data]);
+            AppendToBuffer(", (%s)", cmp_pseudo_op[*data]);
             data++;
           } else if (*data == 0xC4) {
             data++;
@@ -2700,10 +2698,7 @@ int DisassemblerIA32::InstructionDecode(v8::base::Vector<char> out_buffer,
               data += PrintRightXMMOperand(data);
             } else if (b2 == 0xC2) {
               // Intel manual 2A, Table 3-18.
-              const char* const pseudo_op[] = {
-                  "cmpeqsd",  "cmpltsd",  "cmplesd",  "cmpunordsd",
-                  "cmpneqsd", "cmpnltsd", "cmpnlesd", "cmpordsd"};
-              AppendToBuffer("%s %s,%s", pseudo_op[data[1]],
+              AppendToBuffer("cmp%ssd %s,%s", cmp_pseudo_op[data[1]],
                              NameOfXMMRegister(regop), NameOfXMMRegister(rm));
               data += 2;
             } else {
@@ -2841,10 +2836,7 @@ int DisassemblerIA32::InstructionDecode(v8::base::Vector<char> out_buffer,
               data += PrintRightXMMOperand(data);
             } else if (b2 == 0xC2) {
               // Intel manual 2A, Table 3-18.
-              const char* const pseudo_op[] = {
-                  "cmpeqss",  "cmpltss",  "cmpless",  "cmpunordss",
-                  "cmpneqss", "cmpnltss", "cmpnless", "cmpordss"};
-              AppendToBuffer("%s %s,%s", pseudo_op[data[1]],
+              AppendToBuffer("cmp%sss %s,%s", cmp_pseudo_op[data[1]],
                              NameOfXMMRegister(regop), NameOfXMMRegister(rm));
               data += 2;
             } else {

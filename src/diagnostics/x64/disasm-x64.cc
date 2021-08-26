@@ -244,8 +244,9 @@ static const InstructionDesc cmov_instructions[16] = {
     {"cmovle", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
     {"cmovg", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false}};
 
-static const char* const cmp_pseudo_op[8] = {"eq",  "lt",  "le",  "unord",
-                                             "neq", "nlt", "nle", "ord"};
+static const char* const cmp_pseudo_op[16] = {
+    "eq",    "lt",  "le",  "unord", "neq",    "nlt", "nle", "ord",
+    "eq_uq", "nge", "ngt", "false", "neq_oq", "ge",  "gt",  "true"};
 
 namespace {
 int8_t Imm8(const uint8_t* data) {
