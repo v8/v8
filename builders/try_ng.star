@@ -448,6 +448,28 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
+
+try_ng_pair(
+    name = "v8_numfuzz",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_ng_pair(
+    name = "v8_numfuzz_dbg",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_ng_pair(
+    name = "v8_numfuzz_tsan",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
 try_ng_pair(
     name = "v8_odroid_arm_rel",
     cq_properties = CQ.OPTIONAL,
