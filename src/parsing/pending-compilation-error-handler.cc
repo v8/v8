@@ -19,28 +19,28 @@ namespace internal {
 
 void PendingCompilationErrorHandler::MessageDetails::SetString(
     Handle<String> string, Isolate* isolate) {
-  DCHECK_NE(type_, kMainThreadHandle);
-  type_ = kMainThreadHandle;
-  arg_handle_ = string;
+  DCHECK_NE(arg0_type_, kMainThreadHandle);
+  arg0_type_ = kMainThreadHandle;
+  arg0_handle_ = string;
 }
 
 void PendingCompilationErrorHandler::MessageDetails::SetString(
     Handle<String> string, LocalIsolate* isolate) {
-  DCHECK_NE(type_, kMainThreadHandle);
-  type_ = kMainThreadHandle;
-  arg_handle_ = isolate->heap()->NewPersistentHandle(string);
+  DCHECK_NE(arg0_type_, kMainThreadHandle);
+  arg0_type_ = kMainThreadHandle;
+  arg0_handle_ = isolate->heap()->NewPersistentHandle(string);
 }
 
 template <typename IsolateT>
 void PendingCompilationErrorHandler::MessageDetails::Prepare(
     IsolateT* isolate) {
-  switch (type_) {
+  switch (arg0_type_) {
     case kAstRawString:
-      return SetString(arg_->string(), isolate);
+      return SetString(arg0_->string(), isolate);
 
     case kNone:
     case kConstCharString:
-      // We can delay allocation until ArgumentString(isolate).
+      // We can delay allocation until Arg0String(isolate).
       // TODO(leszeks): We don't actually have to transfer this string, since
       // it's a root.
       return;
@@ -52,20 +52,29 @@ void PendingCompilationErrorHandler::MessageDetails::Prepare(
   }
 }
 
-Handle<String> PendingCompilationErrorHandler::MessageDetails::ArgumentString(
+Handle<String> PendingCompilationErrorHandler::MessageDetails::Arg0String(
     Isolate* isolate) const {
-  switch (type_) {
+  switch (arg0_type_) {
     case kMainThreadHandle:
-      return arg_handle_;
+      return arg0_handle_;
     case kNone:
       return isolate->factory()->undefined_string();
     case kConstCharString:
       return isolate->factory()
-          ->NewStringFromUtf8(base::CStrVector(char_arg_), AllocationType::kOld)
+          ->NewStringFromUtf8(base::CStrVector(char_arg0_),
+                              AllocationType::kOld)
           .ToHandleChecked();
     case kAstRawString:
       UNREACHABLE();
   }
+}
+
+Handle<String> PendingCompilationErrorHandler::MessageDetails::Arg1String(
+    Isolate* isolate) const {
+  if (arg1_ == nullptr) return Handle<String>::null();
+  return isolate->factory()
+      ->NewStringFromUtf8(base::CStrVector(arg1_), AllocationType::kOld)
+      .ToHandleChecked();
 }
 
 MessageLocation PendingCompilationErrorHandler::MessageDetails::GetLocation(
@@ -91,6 +100,17 @@ void PendingCompilationErrorHandler::ReportMessageAt(int start_position,
   has_pending_error_ = true;
 
   error_details_ = MessageDetails(start_position, end_position, message, arg);
+}
+
+void PendingCompilationErrorHandler::ReportMessageAt(int start_position,
+                                                     int end_position,
+                                                     MessageTemplate message,
+                                                     const AstRawString* arg0,
+                                                     const char* arg1) {
+  if (has_pending_error_) return;
+  has_pending_error_ = true;
+  error_details_ =
+      MessageDetails(start_position, end_position, message, arg0, arg1);
 }
 
 void PendingCompilationErrorHandler::ReportWarningAt(int start_position,
@@ -119,7 +139,8 @@ void PendingCompilationErrorHandler::ReportWarnings(
 
   for (const MessageDetails& warning : warning_messages_) {
     MessageLocation location = warning.GetLocation(script);
-    Handle<String> argument = warning.ArgumentString(isolate);
+    Handle<String> argument = warning.Arg0String(isolate);
+    DCHECK(warning.Arg1String(isolate).is_null());  // Only used for errors.
     Handle<JSMessageObject> message =
         MessageHandler::MakeMessageObject(isolate, warning.message(), &location,
                                           argument, Handle<FixedArray>::null());
@@ -160,12 +181,13 @@ void PendingCompilationErrorHandler::ThrowPendingError(
   if (!has_pending_error_) return;
 
   MessageLocation location = error_details_.GetLocation(script);
-  Handle<String> argument = error_details_.ArgumentString(isolate);
+  Handle<String> arg0 = error_details_.Arg0String(isolate);
+  Handle<String> arg1 = error_details_.Arg1String(isolate);
   isolate->debug()->OnCompileError(script);
 
   Factory* factory = isolate->factory();
   Handle<JSObject> error =
-      factory->NewSyntaxError(error_details_.message(), argument);
+      factory->NewSyntaxError(error_details_.message(), arg0, arg1);
   isolate->ThrowAt(error, &location);
 }
 
@@ -173,7 +195,8 @@ Handle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(
     Isolate* isolate) {
   error_details_.Prepare(isolate);
   return MessageFormatter::Format(isolate, error_details_.message(),
-                                  error_details_.ArgumentString(isolate));
+                                  error_details_.Arg0String(isolate),
+                                  error_details_.Arg1String(isolate));
 }
 
 }  // namespace internal

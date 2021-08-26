@@ -23,6 +23,12 @@ class V8_EXPORT_PRIVATE RegExpParser : public AllStatic {
                                         Handle<String> input, RegExpFlags flags,
                                         RegExpCompileData* result);
 
+  template <class CharT>
+  static bool VerifyRegExpSyntax(Zone* zone, uintptr_t stack_limit,
+                                 const CharT* input, int input_length,
+                                 RegExpFlags flags, RegExpCompileData* result,
+                                 const DisallowGarbageCollection& no_gc);
+
   // Used by the SpiderMonkey embedding of irregexp.
   static bool VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
                                  Handle<String> input, RegExpFlags flags,

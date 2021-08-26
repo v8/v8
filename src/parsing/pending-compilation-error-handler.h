@@ -39,6 +39,10 @@ class PendingCompilationErrorHandler {
   void ReportMessageAt(int start_position, int end_position,
                        MessageTemplate message, const AstRawString* arg);
 
+  void ReportMessageAt(int start_position, int end_position,
+                       MessageTemplate message, const AstRawString* arg0,
+                       const char* arg1);
+
   void ReportWarningAt(int start_position, int end_position,
                        MessageTemplate message, const char* arg = nullptr);
 
@@ -86,23 +90,39 @@ class PendingCompilationErrorHandler {
         : start_position_(-1),
           end_position_(-1),
           message_(MessageTemplate::kNone),
-          type_(kNone) {}
+          arg1_(nullptr),
+          arg0_type_(kNone) {}
     MessageDetails(int start_position, int end_position,
                    MessageTemplate message, const AstRawString* arg)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          arg_(arg),
-          type_(arg ? kAstRawString : kNone) {}
+          arg0_(arg),
+          arg1_(nullptr),
+          arg0_type_(arg ? kAstRawString : kNone) {}
+    MessageDetails(int start_position, int end_position,
+                   MessageTemplate message, const AstRawString* arg0,
+                   const char* arg1)
+        : start_position_(start_position),
+          end_position_(end_position),
+          message_(message),
+          arg0_(arg0),
+          arg1_(arg1),
+          arg0_type_(kAstRawString) {
+      DCHECK_NOT_NULL(arg0);
+      DCHECK_NOT_NULL(arg1);
+    }
     MessageDetails(int start_position, int end_position,
                    MessageTemplate message, const char* char_arg)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          char_arg_(char_arg),
-          type_(char_arg_ ? kConstCharString : kNone) {}
+          char_arg0_(char_arg),
+          arg1_(nullptr),
+          arg0_type_(char_arg0_ ? kConstCharString : kNone) {}
 
-    Handle<String> ArgumentString(Isolate* isolate) const;
+    Handle<String> Arg0String(Isolate* isolate) const;
+    Handle<String> Arg1String(Isolate* isolate) const;
     MessageLocation GetLocation(Handle<Script> script) const;
     MessageTemplate message() const { return message_; }
 
@@ -119,11 +139,14 @@ class PendingCompilationErrorHandler {
     int end_position_;
     MessageTemplate message_;
     union {
-      const AstRawString* arg_;
-      const char* char_arg_;
-      Handle<String> arg_handle_;
+      const AstRawString* arg0_;
+      const char* char_arg0_;
+      Handle<String> arg0_handle_;
     };
-    Type type_;
+    // TODO(jgruber): If we ever extend functionality of arg1, refactor it to
+    // be more consistent with arg0.
+    const char* arg1_;
+    Type arg0_type_;
   };
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script) const;

@@ -27,11 +27,14 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
+#include "src/regexp/regexp.h"
 #include "src/utils/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
+
+class PreParserIdentifier;
 
 enum FunctionNameValidity {
   kFunctionNameIsStrictReserved,
@@ -1074,22 +1077,24 @@ class ParserBase {
   }
 
   // Report syntax errors.
-  V8_NOINLINE void ReportMessage(MessageTemplate message) {
-    Scanner::Location source_location = scanner()->location();
-    impl()->ReportMessageAt(source_location, message,
-                            static_cast<const char*>(nullptr));
+  template <typename... Ts>
+  V8_NOINLINE void ReportMessage(MessageTemplate message, const Ts&... args) {
+    ReportMessageAt(scanner()->location(), message, args...);
   }
 
-  template <typename T>
-  V8_NOINLINE void ReportMessage(MessageTemplate message, T arg) {
-    Scanner::Location source_location = scanner()->location();
-    impl()->ReportMessageAt(source_location, message, arg);
+  template <typename... Ts>
+  V8_NOINLINE void ReportMessageAt(Scanner::Location source_location,
+                                   MessageTemplate message, const Ts&... args) {
+    impl()->pending_error_handler()->ReportMessageAt(
+        source_location.beg_pos, source_location.end_pos, message, args...);
+    scanner()->set_parser_error();
   }
 
-  V8_NOINLINE void ReportMessageAt(Scanner::Location location,
-                                   MessageTemplate message) {
-    impl()->ReportMessageAt(location, message,
-                            static_cast<const char*>(nullptr));
+  V8_NOINLINE void ReportMessageAt(Scanner::Location source_location,
+                                   MessageTemplate message,
+                                   const PreParserIdentifier& arg0) {
+    ReportMessageAt(source_location, message,
+                    impl()->PreParserIdentifierToAstRawString(arg0));
   }
 
   V8_NOINLINE void ReportUnexpectedToken(Token::Value token);
@@ -1140,6 +1145,11 @@ class ParserBase {
 
   ExpressionT ParsePropertyOrPrivatePropertyName();
 
+  const AstRawString* GetNextSymbolForRegExpLiteral() const {
+    return scanner()->NextSymbol(ast_value_factory());
+  }
+  bool ValidateRegExpLiteral(const AstRawString* pattern, RegExpFlags flags,
+                             const char** error_message);
   ExpressionT ParseRegExpLiteral();
 
   ExpressionT ParseBindingPattern();
@@ -1746,6 +1756,25 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
 }
 
 template <typename Impl>
+bool ParserBase<Impl>::ValidateRegExpLiteral(const AstRawString* pattern,
+                                             RegExpFlags flags,
+                                             const char** error_message) {
+  // TODO(jgruber): If already validated in the preparser, skip validation in
+  // the parser.
+  DisallowGarbageCollection no_gc;
+  const unsigned char* d = pattern->raw_data();
+  if (pattern->is_one_byte()) {
+    return RegExp::VerifySyntax(zone(), stack_limit(),
+                                static_cast<const uint8_t*>(d),
+                                pattern->length(), flags, error_message, no_gc);
+  } else {
+    return RegExp::VerifySyntax(zone(), stack_limit(),
+                                reinterpret_cast<const uint16_t*>(d),
+                                pattern->length(), flags, error_message, no_gc);
+  }
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
   int pos = peek_position();
   if (!scanner()->ScanRegExpPattern()) {
@@ -1754,15 +1783,20 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
     return impl()->FailureExpression();
   }
 
-  IdentifierT js_pattern = impl()->GetNextSymbol();
-  Maybe<int> flags = scanner()->ScanRegExpFlags();
-  if (flags.IsNothing()) {
+  const AstRawString* js_pattern = GetNextSymbolForRegExpLiteral();
+  base::Optional<RegExpFlags> flags = scanner()->ScanRegExpFlags();
+  if (!flags.has_value()) {
     Next();
     ReportMessage(MessageTemplate::kMalformedRegExpFlags);
     return impl()->FailureExpression();
   }
   Next();
-  return factory()->NewRegExpLiteral(js_pattern, flags.FromJust(), pos);
+  const char* error_message;
+  if (!ValidateRegExpLiteral(js_pattern, flags.value(), &error_message)) {
+    ReportMessage(MessageTemplate::kMalformedRegExp, js_pattern, error_message);
+    return impl()->FailureExpression();
+  }
+  return factory()->NewRegExpLiteral(js_pattern, flags.value(), pos);
 }
 
 template <typename Impl>

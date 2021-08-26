@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_H_
 #define V8_REGEXP_REGEXP_H_
 
+#include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/regexp/regexp-error.h"
 #include "src/regexp/regexp-flags.h"
@@ -68,6 +69,14 @@ class RegExp final : public AllStatic {
  public:
   // Whether the irregexp engine generates interpreter bytecode.
   static bool CanGenerateBytecode();
+
+  // Verify the given pattern, i.e. check that parsing succeeds. If
+  // verification fails, `error_message_out` is set.
+  template <class CharT>
+  static bool VerifySyntax(Zone* zone, uintptr_t stack_limit,
+                           const CharT* input, int input_length,
+                           RegExpFlags flags, const char** error_message_out,
+                           const DisallowGarbageCollection& no_gc);
 
   // Parses the RegExp pattern and prepares the JSRegExp object with
   // generic data and choice of implementation - as well as what

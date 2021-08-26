@@ -118,17 +118,17 @@ base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
   // A longer flags string cannot be valid.
   if (length > JSRegExp::kFlagCount) return {};
 
-  JSRegExp::Flags value;
+  RegExpFlags value;
   FlatStringReader reader(isolate, String::Flatten(isolate, flags));
 
   for (int i = 0; i < length; i++) {
-    base::Optional<JSRegExp::Flag> flag = JSRegExp::FlagFromChar(reader.Get(i));
+    base::Optional<RegExpFlag> flag = JSRegExp::FlagFromChar(reader.Get(i));
     if (!flag.has_value()) return {};
     if (value & flag.value()) return {};  // Duplicate.
     value |= flag.value();
   }
 
-  return value;
+  return JSRegExp::AsJSRegExpFlags(value);
 }
 
 // static

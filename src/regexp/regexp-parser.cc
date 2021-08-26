@@ -242,7 +242,7 @@ template <class CharT>
 class RegExpParserImpl final {
  private:
   RegExpParserImpl(const CharT* input, int input_length, RegExpFlags flags,
-                   Isolate* isolate, Zone* zone,
+                   uintptr_t stack_limit, Zone* zone,
                    const DisallowGarbageCollection& no_gc);
 
   bool Parse(RegExpCompileData* result);
@@ -337,7 +337,6 @@ class RegExpParserImpl final {
   // ScanForCaptures to look ahead at the remaining pattern.
   bool HasNamedCaptures();
 
-  Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
 
   base::uc32 current() { return current_; }
@@ -362,7 +361,6 @@ class RegExpParserImpl final {
   };
 
   const DisallowGarbageCollection no_gc_;
-  Isolate* const isolate_;
   Zone* const zone_;
   RegExpError error_ = RegExpError::kNone;
   int error_pos_ = 0;
@@ -382,19 +380,22 @@ class RegExpParserImpl final {
   bool is_scanned_for_captures_;
   bool has_named_captures_;  // Only valid after we have scanned for captures.
   bool failed_;
+  const uintptr_t stack_limit_;
 
   friend bool RegExpParser::ParseRegExpFromHeapString(Isolate*, Zone*,
                                                       Handle<String>,
                                                       RegExpFlags,
                                                       RegExpCompileData*);
+  friend bool RegExpParser::VerifyRegExpSyntax<CharT>(
+      Zone*, uintptr_t, const CharT*, int, RegExpFlags, RegExpCompileData*,
+      const DisallowGarbageCollection&);
 };
 
 template <class CharT>
 RegExpParserImpl<CharT>::RegExpParserImpl(
-    const CharT* input, int input_length, RegExpFlags flags, Isolate* isolate,
-    Zone* zone, const DisallowGarbageCollection& no_gc)
-    : isolate_(isolate),
-      zone_(zone),
+    const CharT* input, int input_length, RegExpFlags flags,
+    uintptr_t stack_limit, Zone* zone, const DisallowGarbageCollection& no_gc)
+    : zone_(zone),
       captures_(nullptr),
       named_captures_(nullptr),
       named_back_references_(nullptr),
@@ -410,7 +411,8 @@ RegExpParserImpl<CharT>::RegExpParserImpl(
       contains_anchor_(false),
       is_scanned_for_captures_(false),
       has_named_captures_(false),
-      failed_(false) {
+      failed_(false),
+      stack_limit_(stack_limit) {
   Advance();
 }
 
@@ -457,8 +459,7 @@ base::uc32 RegExpParserImpl<CharT>::Next() {
 template <class CharT>
 void RegExpParserImpl<CharT>::Advance() {
   if (has_next()) {
-    StackLimitCheck check(isolate());
-    if (check.HasOverflowed()) {
+    if (GetCurrentStackPosition() < stack_limit_) {
       if (FLAG_correctness_fuzzer_suppressions) {
         FATAL("Aborting on stack overflow");
       }
@@ -2400,19 +2401,39 @@ bool RegExpParser::ParseRegExpFromHeapString(Isolate* isolate, Zone* zone,
                                              RegExpFlags flags,
                                              RegExpCompileData* result) {
   DisallowGarbageCollection no_gc;
+  uintptr_t stack_limit = isolate->stack_guard()->real_climit();
   String::FlatContent content = input->GetFlatContent(no_gc);
   if (content.IsOneByte()) {
     base::Vector<const uint8_t> v = content.ToOneByteVector();
-    return RegExpParserImpl<uint8_t>{v.begin(), v.length(), flags,
-                                     isolate,   zone,       no_gc}
+    return RegExpParserImpl<uint8_t>{v.begin(),   v.length(), flags,
+                                     stack_limit, zone,       no_gc}
         .Parse(result);
   } else {
     base::Vector<const base::uc16> v = content.ToUC16Vector();
-    return RegExpParserImpl<base::uc16>{v.begin(), v.length(), flags,
-                                        isolate,   zone,       no_gc}
+    return RegExpParserImpl<base::uc16>{v.begin(),   v.length(), flags,
+                                        stack_limit, zone,       no_gc}
         .Parse(result);
   }
 }
+
+// static
+template <class CharT>
+bool RegExpParser::VerifyRegExpSyntax(Zone* zone, uintptr_t stack_limit,
+                                      const CharT* input, int input_length,
+                                      RegExpFlags flags,
+                                      RegExpCompileData* result,
+                                      const DisallowGarbageCollection& no_gc) {
+  return RegExpParserImpl<CharT>{input,       input_length, flags,
+                                 stack_limit, zone,         no_gc}
+      .Parse(result);
+}
+
+template bool RegExpParser::VerifyRegExpSyntax<uint8_t>(
+    Zone*, uintptr_t, const uint8_t*, int, RegExpFlags, RegExpCompileData*,
+    const DisallowGarbageCollection&);
+template bool RegExpParser::VerifyRegExpSyntax<base::uc16>(
+    Zone*, uintptr_t, const base::uc16*, int, RegExpFlags, RegExpCompileData*,
+    const DisallowGarbageCollection&);
 
 // static
 bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,

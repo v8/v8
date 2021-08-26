@@ -48,11 +48,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static constexpr Flag AsJSRegExpFlag(RegExpFlag f) {
     return static_cast<Flag>(f);
   }
-  static constexpr base::Optional<Flag> AsOptionalJSRegExpFlag(
-      base::Optional<RegExpFlag> f) {
-    return f.has_value() ? base::Optional<Flag>{AsJSRegExpFlag(f.value())}
-                         : base::Optional<Flag>{};
-  }
   static constexpr Flags AsJSRegExpFlags(RegExpFlags f) {
     return Flags{static_cast<int>(f)};
   }
@@ -60,10 +55,11 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
     return RegExpFlags{static_cast<int>(f)};
   }
 
-  static base::Optional<Flag> FlagFromChar(char c) {
-    base::Optional<Flag> f = AsOptionalJSRegExpFlag(TryRegExpFlagFromChar(c));
+  static base::Optional<RegExpFlag> FlagFromChar(char c) {
+    base::Optional<RegExpFlag> f = TryRegExpFlagFromChar(c);
     if (!f.has_value()) return f;
-    if (f.value() == kLinear && !FLAG_enable_experimental_regexp_engine) {
+    if (f.value() == RegExpFlag::kLinear &&
+        !FLAG_enable_experimental_regexp_engine) {
       return {};
     }
     return f;

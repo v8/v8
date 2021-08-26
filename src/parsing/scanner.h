@@ -17,6 +17,7 @@
 #include "src/parsing/literal-buffer.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
+#include "src/regexp/regexp-flags.h"
 #include "src/strings/char-predicates.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
@@ -398,7 +399,7 @@ class V8_EXPORT_PRIVATE Scanner {
   // Returns true if a pattern is scanned.
   bool ScanRegExpPattern();
   // Scans the input as regular expression flags. Returns the flags on success.
-  Maybe<int> ScanRegExpFlags();
+  base::Optional<RegExpFlags> ScanRegExpFlags();
 
   // Scans the input as a template literal
   Token::Value ScanTemplateContinuation() {

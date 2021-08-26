@@ -107,6 +107,27 @@ bool RegExp::CanGenerateBytecode() {
   return FLAG_regexp_interpret_all || FLAG_regexp_tier_up;
 }
 
+// static
+template <class CharT>
+bool RegExp::VerifySyntax(Zone* zone, uintptr_t stack_limit, const CharT* input,
+                          int input_length, RegExpFlags flags,
+                          const char** error_message_out,
+                          const DisallowGarbageCollection& no_gc) {
+  RegExpCompileData data;
+  bool pattern_is_valid = RegExpParser::VerifyRegExpSyntax(
+      zone, stack_limit, input, input_length, flags, &data, no_gc);
+  if (!pattern_is_valid) *error_message_out = RegExpErrorString(data.error);
+  return pattern_is_valid;
+}
+
+template bool RegExp::VerifySyntax<uint8_t>(Zone*, uintptr_t, const uint8_t*,
+                                            int, RegExpFlags,
+                                            const char** error_message_out,
+                                            const DisallowGarbageCollection&);
+template bool RegExp::VerifySyntax<base::uc16>(
+    Zone*, uintptr_t, const base::uc16*, int, RegExpFlags,
+    const char** error_message_out, const DisallowGarbageCollection&);
+
 MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
                                                  Handle<JSRegExp> re,
                                                  Handle<String> pattern,
