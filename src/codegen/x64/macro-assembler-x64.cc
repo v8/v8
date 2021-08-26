@@ -2202,22 +2202,6 @@ void TurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src,
-                            XMMRegister mask) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpshufb(dst, src, mask);
-  } else {
-    // Make sure these are different so that we won't overwrite mask.
-    DCHECK_NE(dst, mask);
-    if (dst != src) {
-      movaps(dst, src);
-    }
-    CpuFeatureScope sse_scope(this, SSSE3);
-    pshufb(dst, mask);
-  }
-}
-
 void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
                                  XMMRegister tmp) {
   DCHECK_NE(dst, tmp);
@@ -2274,34 +2258,6 @@ void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
     movaps(tmp, mask);
     pshufb(tmp, kScratchDoubleReg);
     paddb(dst, tmp);
-  }
-}
-
-void TurboAssembler::I8x16Swizzle(XMMRegister dst, XMMRegister src,
-                                  XMMRegister mask, bool omit_add) {
-  if (omit_add) {
-    // We have determined that the indices are immediates, and they are either
-    // within bounds, or the top bit is set, so we can omit the add.
-    Pshufb(dst, src, mask);
-    return;
-  }
-
-  // Out-of-range indices should return 0, add 112 so that any value > 15
-  // saturates to 128 (top bit set), so pshufb will zero that lane.
-  Operand op = ExternalReferenceAsOperand(
-      ExternalReference::address_of_wasm_i8x16_swizzle_mask());
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpaddusb(kScratchDoubleReg, mask, op);
-    vpshufb(dst, src, kScratchDoubleReg);
-  } else {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    movaps(kScratchDoubleReg, op);
-    if (dst != src) {
-      movaps(dst, src);
-    }
-    paddusb(kScratchDoubleReg, mask);
-    pshufb(dst, kScratchDoubleReg);
   }
 }
 

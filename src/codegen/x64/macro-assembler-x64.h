@@ -90,7 +90,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   AVX_OP(Movlhps, movlhps)
   AVX_OP_SSSE3(Phaddd, phaddd)
   AVX_OP_SSSE3(Phaddw, phaddw)
-  AVX_OP_SSSE3(Pshufb, pshufb)
   AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
   AVX_OP_SSE4_1(Packusdw, packusdw)
   AVX_OP_SSE4_1(Pminsd, pminsd)
@@ -471,16 +470,10 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Blendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 XMMRegister mask);
 
-  // Supports both SSE and AVX. Move src1 to dst if they are not equal on SSE.
-  void Pshufb(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-
   // These Wasm SIMD ops do not have direct lowerings on x64. These
   // helpers are optimized to produce the fastest and smallest codegen.
   // Defined here to allow usage on both TurboFan and Liftoff.
   void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp);
-
-  void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask,
-                    bool omit_add = false);
 
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);

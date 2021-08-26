@@ -59,6 +59,28 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
     }
   }
 
+  // Supports both SSE and AVX. Move src1 to dst if they are not equal on SSE.
+  template <typename Op>
+  void Pshufb(XMMRegister dst, XMMRegister src, Op mask) {
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      vpshufb(dst, src, mask);
+    } else {
+      // Make sure these are different so that we won't overwrite mask.
+      DCHECK_NE(mask, dst);
+      if (dst != src) {
+        movaps(dst, src);
+      }
+      CpuFeatureScope sse_scope(this, SSSE3);
+      pshufb(dst, mask);
+    }
+  }
+
+  template <typename Op>
+  void Pshufb(XMMRegister dst, Op mask) {
+    Pshufb(dst, dst, mask);
+  }
+
   // Shufps that will mov src1 into dst if AVX is not supported.
   void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
               uint8_t imm8);
@@ -244,7 +266,6 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pmullw, pmullw)
   AVX_OP(Pmuludq, pmuludq)
   AVX_OP(Por, por)
-  AVX_OP(Pshufb, pshufb)
   AVX_OP(Pshufd, pshufd)
   AVX_OP(Pshufhw, pshufhw)
   AVX_OP(Pshuflw, pshuflw)
@@ -572,6 +593,36 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
         movaps(dst, src);
       }
       pmaddubsw(dst, op);
+    }
+  }
+
+  void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask,
+                    XMMRegister scratch, Register tmp, bool omit_add = false) {
+    ASM_CODE_COMMENT(this);
+    if (omit_add) {
+      // We have determined that the indices are immediates, and they are either
+      // within bounds, or the top bit is set, so we can omit the add.
+      Pshufb(dst, src, mask);
+      return;
+    }
+
+    // Out-of-range indices should return 0, add 112 so that any value > 15
+    // saturates to 128 (top bit set), so pshufb will zero that lane.
+    Operand op = ExternalReferenceAsOperand(
+        ExternalReference::address_of_wasm_i8x16_swizzle_mask(), tmp);
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      vpaddusb(scratch, mask, op);
+      vpshufb(dst, src, scratch);
+    } else {
+      CpuFeatureScope sse_scope(this, SSSE3);
+      movaps(scratch, op);
+      if (dst != src) {
+        DCHECK_NE(dst, mask);
+        movaps(dst, src);
+      }
+      paddusb(scratch, mask);
+      pshufb(dst, scratch);
     }
   }
 

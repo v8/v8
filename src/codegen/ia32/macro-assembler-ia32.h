@@ -336,14 +336,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
     SharedTurboAssembler::Movhps(dst, src);
   }
 
-  void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, dst, src); }
-  void Pshufb(XMMRegister dst, Operand src) { Pshufb(dst, dst, src); }
-  // Handles SSE and AVX. On SSE, moves src to dst if they are not equal.
-  void Pshufb(XMMRegister dst, XMMRegister src, XMMRegister mask) {
-    Pshufb(dst, src, Operand(mask));
-  }
-  void Pshufb(XMMRegister dst, XMMRegister src, Operand mask);
-
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
   void Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
     Pinsrb(dst, Operand(src), imm8);
@@ -396,8 +388,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // Defined here to allow usage on both TurboFan and Liftoff.
   void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
                    XMMRegister tmp2, Register scratch);
-  void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask,
-                    XMMRegister scratch, Register tmp, bool omit_add = false);
 
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }

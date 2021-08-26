@@ -306,6 +306,8 @@ ASSERT_TRIVIALLY_COPYABLE(Operand);
 static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
               "Operand must be small enough to pass it by value");
 
+bool operator!=(Operand op, XMMRegister r);
+
 // -----------------------------------------------------------------------------
 // A Displacement describes the 32bit immediate field of an instruction which
 // may be used together with a Label in order to refer to a yet unknown code

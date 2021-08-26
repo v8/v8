@@ -3664,9 +3664,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16Swizzle: {
-      bool omit_add = MiscField::decode(instr->opcode());
       __ I8x16Swizzle(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                      i.InputSimd128Register(1), omit_add);
+                      i.InputSimd128Register(1), kScratchDoubleReg,
+                      kScratchRegister, MiscField::decode(instr->opcode()));
       break;
     }
     case kX64I8x16Shuffle: {

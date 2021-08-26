@@ -291,6 +291,8 @@ Register Operand::reg() const {
   return Register::from_code(buf_[0] & 0x07);
 }
 
+bool operator!=(Operand op, XMMRegister r) { return !op.is_reg(r); }
+
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {

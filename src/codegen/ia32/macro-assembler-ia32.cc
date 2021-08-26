@@ -701,33 +701,6 @@ void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
   }
 }
 
-void TurboAssembler::I8x16Swizzle(XMMRegister dst, XMMRegister src,
-                                  XMMRegister mask, XMMRegister scratch,
-                                  Register tmp, bool omit_add) {
-  if (omit_add) {
-    Pshufb(dst, src, mask);
-    return;
-  }
-
-  // Out-of-range indices should return 0, add 112 so that any value > 15
-  // saturates to 128 (top bit set), so pshufb will zero that lane.
-  Operand op = ExternalReferenceAsOperand(
-      ExternalReference::address_of_wasm_i8x16_swizzle_mask(), tmp);
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpaddusb(scratch, mask, op);
-    vpshufb(dst, src, scratch);
-  } else {
-    CpuFeatureScope sse_scope(this, SSSE3);
-    movaps(scratch, op);
-    if (dst != src) {
-      movaps(dst, src);
-    }
-    paddusb(scratch, mask);
-    pshufb(dst, scratch);
-  }
-}
-
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {
   DCHECK_GE(63, shift);
   if (shift >= 32) {
@@ -1677,22 +1650,6 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
       add(esp, Immediate(kDoubleSize));
     }
   }
-}
-
-void TurboAssembler::Pshufb(XMMRegister dst, XMMRegister src, Operand mask) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpshufb(dst, src, mask);
-    return;
-  }
-
-  // Make sure these are different so that we won't overwrite mask.
-  DCHECK(!mask.is_reg(dst));
-  CpuFeatureScope sse_scope(this, SSSE3);
-  if (dst != src) {
-    movaps(dst, src);
-  }
-  pshufb(dst, mask);
 }
 
 void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
