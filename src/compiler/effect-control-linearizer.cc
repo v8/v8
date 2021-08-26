@@ -4246,12 +4246,10 @@ Node* EffectControlLinearizer::LowerStringToUpperCaseIntl(Node* node) {
 
 Node* EffectControlLinearizer::LowerStringToLowerCaseIntl(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 Node* EffectControlLinearizer::LowerStringToUpperCaseIntl(Node* node) {
   UNREACHABLE();
-  return nullptr;
 }
 
 #endif  // V8_INTL_SUPPORT
