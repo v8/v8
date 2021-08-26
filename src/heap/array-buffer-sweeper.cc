@@ -113,9 +113,10 @@ void ArrayBufferSweeper::MergeBackExtensionsWhenSwept() {
     if (job_->state_ == SweepingState::kDone) {
       Merge();
       sweeping_in_progress_ = false;
-    } else {
-      UpdateCountersForConcurrentlySweptExtensions();
     }
+    // Update freed counters either way. It is necessary to update the counter
+    // in case sweeping is done to avoid counter overflows.
+    UpdateCountersForConcurrentlySweptExtensions();
   }
 }
 
