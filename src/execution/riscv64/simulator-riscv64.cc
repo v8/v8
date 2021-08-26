@@ -3522,8 +3522,6 @@ void Simulator::CallInternal(Address entry) {
   set_register(ra, end_sim_pc);
 
   // Remember the values of callee-saved registers.
-  // The code below assumes that r9 is not used as sb (static base) in
-  // simulator code and therefore is regarded as a callee-saved register.
   int64_t s0_val = get_register(s0);
   int64_t s1_val = get_register(s1);
   int64_t s2_val = get_register(s2);
@@ -3532,9 +3530,12 @@ void Simulator::CallInternal(Address entry) {
   int64_t s5_val = get_register(s5);
   int64_t s6_val = get_register(s6);
   int64_t s7_val = get_register(s7);
+  int64_t s8_val = get_register(s8);
+  int64_t s9_val = get_register(s9);
+  int64_t s10_val = get_register(s10);
+  int64_t s11_val = get_register(s11);
   int64_t gp_val = get_register(gp);
   int64_t sp_val = get_register(sp);
-  int64_t fp_val = get_register(fp);
 
   // Set up the callee-saved registers with a known value. To be able to check
   // that they are preserved properly across JS execution.
@@ -3547,8 +3548,11 @@ void Simulator::CallInternal(Address entry) {
   set_register(s5, callee_saved_value);
   set_register(s6, callee_saved_value);
   set_register(s7, callee_saved_value);
+  set_register(s8, callee_saved_value);
+  set_register(s9, callee_saved_value);
+  set_register(s10, callee_saved_value);
+  set_register(s11, callee_saved_value);
   set_register(gp, callee_saved_value);
-  set_register(fp, callee_saved_value);
 
   // Start the simulation.
   Execute();
@@ -3562,8 +3566,11 @@ void Simulator::CallInternal(Address entry) {
   CHECK_EQ(callee_saved_value, get_register(s5));
   CHECK_EQ(callee_saved_value, get_register(s6));
   CHECK_EQ(callee_saved_value, get_register(s7));
+  CHECK_EQ(callee_saved_value, get_register(s8));
+  CHECK_EQ(callee_saved_value, get_register(s9));
+  CHECK_EQ(callee_saved_value, get_register(s10));
+  CHECK_EQ(callee_saved_value, get_register(s11));
   CHECK_EQ(callee_saved_value, get_register(gp));
-  CHECK_EQ(callee_saved_value, get_register(fp));
 
   // Restore callee-saved registers with the original value.
   set_register(s0, s0_val);
@@ -3574,9 +3581,12 @@ void Simulator::CallInternal(Address entry) {
   set_register(s5, s5_val);
   set_register(s6, s6_val);
   set_register(s7, s7_val);
+  set_register(s8, s8_val);
+  set_register(s9, s9_val);
+  set_register(s10, s10_val);
+  set_register(s11, s11_val);
   set_register(gp, gp_val);
   set_register(sp, sp_val);
-  set_register(fp, fp_val);
 }
 
 intptr_t Simulator::CallImpl(Address entry, int argument_count,
@@ -3584,15 +3594,12 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   constexpr int kRegisterPassedArguments = 8;
   // Set up arguments.
 
-  // First four arguments passed in registers in both ABI's.
+  // RISC-V 64G ISA has a0-a7 for passing arguments
   int reg_arg_count = std::min(kRegisterPassedArguments, argument_count);
   if (reg_arg_count > 0) set_register(a0, arguments[0]);
   if (reg_arg_count > 1) set_register(a1, arguments[1]);
   if (reg_arg_count > 2) set_register(a2, arguments[2]);
   if (reg_arg_count > 3) set_register(a3, arguments[3]);
-
-  // Up to eight arguments passed in registers in N64 ABI.
-  // TODO(plind): N64 ABI calls these regs a4 - a7. Clarify this.
   if (reg_arg_count > 4) set_register(a4, arguments[4]);
   if (reg_arg_count > 5) set_register(a5, arguments[5]);
   if (reg_arg_count > 6) set_register(a6, arguments[6]);
@@ -3600,12 +3607,13 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
 
   if (::v8::internal::FLAG_trace_sim) {
     std::cout << "CallImpl: reg_arg_count = " << reg_arg_count << std::hex
-              << " entry-pc (JSEntry) = 0x" << entry << " a0 (Isolate) = 0x"
-              << get_register(a0) << " a1 (orig_func/new_target) = 0x"
-              << get_register(a1) << " a2 (func/target) = 0x"
-              << get_register(a2) << " a3 (receiver) = 0x" << get_register(a3)
-              << " a4 (argc) = 0x" << get_register(a4) << " a5 (argv) = 0x"
-              << get_register(a5) << std::endl;
+              << " entry-pc (JSEntry) = 0x" << entry
+              << " a0 (Isolate-root) = 0x" << get_register(a0)
+              << " a1 (orig_func/new_target) = 0x" << get_register(a1)
+              << " a2 (func/target) = 0x" << get_register(a2)
+              << " a3 (receiver) = 0x" << get_register(a3) << " a4 (argc) = 0x"
+              << get_register(a4) << " a5 (argv) = 0x" << get_register(a5)
+              << std::endl;
   }
 
   // Remaining arguments passed on stack.

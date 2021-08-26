@@ -335,7 +335,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // space if we first allocate the frame and then do the stack check (we will
   // need some remaining stack space for throwing the exception). That's why we
   // check the available stack space before we allocate the frame. To do this we
-  // replace the {__ Daddu(sp, sp, -frame_size)} with a jump to OOL code that
+  // replace the {__ Add64(sp, sp, -frame_size)} with a jump to OOL code that
   // does this "extended stack check".
   //
   // The OOL code can simply be generated here with the normal assembler,
@@ -376,7 +376,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   Add64(sp, sp, Operand(-frame_size));
 
   // Jump back to the start of the function, from {pc_offset()} to
-  // right after the reserved space for the {__ Daddu(sp, sp, -framesize)}
+  // right after the reserved space for the {__ Add64(sp, sp, -framesize)}
   // (which is a Branch now).
   int func_start_offset = offset + 2 * kInstrSize;
   imm32 = func_start_offset - pc_offset();
