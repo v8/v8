@@ -848,10 +848,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_trap: {
 #if V8_ENABLE_WEBASSEMBLY
       AssembleArchTrap(instr, condition);
+      break;
 #else
       UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
-      break;
     }
     case kFlags_none: {
       break;
