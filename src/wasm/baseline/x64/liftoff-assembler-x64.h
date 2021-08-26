@@ -2488,7 +2488,8 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
                                          LiftoffRegister src) {
-  I8x16Popcnt(dst.fp(), src.fp(), liftoff::kScratchDoubleReg2);
+  I8x16Popcnt(dst.fp(), src.fp(), kScratchDoubleReg,
+              liftoff::kScratchDoubleReg2, kScratchRegister);
 }
 
 void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,

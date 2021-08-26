@@ -383,12 +383,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   }
   void Cvttsd2ui(Register dst, Operand src, XMMRegister tmp);
 
-  // These Wasm SIMD ops do not have direct lowerings on IA32. These
-  // helpers are optimized to produce the fastest and smallest codegen.
-  // Defined here to allow usage on both TurboFan and Liftoff.
-  void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
-                   XMMRegister tmp2, Register scratch);
-
   void Push(Register src) { push(src); }
   void Push(Operand src) { push(src); }
   void Push(Immediate value);

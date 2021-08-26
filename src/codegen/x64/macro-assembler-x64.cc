@@ -2202,65 +2202,6 @@ void TurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void TurboAssembler::I8x16Popcnt(XMMRegister dst, XMMRegister src,
-                                 XMMRegister tmp) {
-  DCHECK_NE(dst, tmp);
-  DCHECK_NE(src, tmp);
-  DCHECK_NE(kScratchDoubleReg, tmp);
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vmovdqa(tmp, ExternalReferenceAsOperand(
-                     ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
-    vpandn(kScratchDoubleReg, tmp, src);
-    vpand(dst, tmp, src);
-    vmovdqa(tmp, ExternalReferenceAsOperand(
-                     ExternalReference::address_of_wasm_i8x16_popcnt_mask()));
-    vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 4);
-    vpshufb(dst, tmp, dst);
-    vpshufb(kScratchDoubleReg, tmp, kScratchDoubleReg);
-    vpaddb(dst, dst, kScratchDoubleReg);
-  } else if (CpuFeatures::IsSupported(ATOM)) {
-    // Pre-Goldmont low-power Intel microarchitectures have very slow
-    // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
-    // algorithm on these processors. ATOM CPU feature captures exactly
-    // the right set of processors.
-    movaps(tmp, src);
-    psrlw(tmp, 1);
-    if (dst != src) {
-      movaps(dst, src);
-    }
-    andps(tmp, ExternalReferenceAsOperand(
-                   ExternalReference::address_of_wasm_i8x16_splat_0x55()));
-    psubb(dst, tmp);
-    Operand splat_0x33 = ExternalReferenceAsOperand(
-        ExternalReference::address_of_wasm_i8x16_splat_0x33());
-    movaps(tmp, dst);
-    andps(dst, splat_0x33);
-    psrlw(tmp, 2);
-    andps(tmp, splat_0x33);
-    paddb(dst, tmp);
-    movaps(tmp, dst);
-    psrlw(dst, 4);
-    paddb(dst, tmp);
-    andps(dst, ExternalReferenceAsOperand(
-                   ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
-  } else {
-    movaps(tmp, ExternalReferenceAsOperand(
-                    ExternalReference::address_of_wasm_i8x16_splat_0x0f()));
-    Operand mask = ExternalReferenceAsOperand(
-        ExternalReference::address_of_wasm_i8x16_popcnt_mask());
-    Move(kScratchDoubleReg, tmp);
-    andps(tmp, src);
-    andnps(kScratchDoubleReg, src);
-    psrlw(kScratchDoubleReg, 4);
-    movaps(dst, mask);
-    pshufb(dst, tmp);
-    movaps(tmp, mask);
-    pshufb(tmp, kScratchDoubleReg);
-    paddb(dst, tmp);
-  }
-}
-
 void TurboAssembler::Abspd(XMMRegister dst) {
   Andps(dst, ExternalReferenceAsOperand(
                  ExternalReference::address_of_double_abs_constant()));

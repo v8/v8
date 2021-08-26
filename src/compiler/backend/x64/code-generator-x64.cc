@@ -3718,7 +3718,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16Popcnt: {
       __ I8x16Popcnt(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                     i.TempSimd128Register(0));
+                     i.TempSimd128Register(0), kScratchDoubleReg,
+                     kScratchRegister);
       break;
     }
     case kX64S128Load8Splat: {

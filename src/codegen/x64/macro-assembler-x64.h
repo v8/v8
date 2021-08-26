@@ -470,11 +470,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Blendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 XMMRegister mask);
 
-  // These Wasm SIMD ops do not have direct lowerings on x64. These
-  // helpers are optimized to produce the fastest and smallest codegen.
-  // Defined here to allow usage on both TurboFan and Liftoff.
-  void I8x16Popcnt(XMMRegister dst, XMMRegister src, XMMRegister tmp);
-
   void Abspd(XMMRegister dst);
   void Negpd(XMMRegister dst);
 
