@@ -6,8 +6,11 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/gc-info-table.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/platform.h"
 
 namespace cppgc {
@@ -45,6 +48,17 @@ TracingController* Platform::GetTracingController() {
 }
 
 void InitializeProcess(PageAllocator* page_allocator) {
+#if defined(V8_USE_ADDRESS_SANITIZER) && defined(V8_TARGET_ARCH_64_BIT)
+  // Retrieve asan's internal shadow memory granularity and check that Oilpan's
+  // object alignment/sizes are multiple of this granularity. This is needed to
+  // perform poisoness checks.
+  size_t shadow_scale;
+  __asan_get_shadow_mapping(&shadow_scale, nullptr);
+  DCHECK(shadow_scale);
+  const size_t poisoning_granularity = 1 << shadow_scale;
+  CHECK_EQ(0u, internal::kAllocationGranularity % poisoning_granularity);
+#endif
+
   CHECK(!g_page_allocator);
   internal::GlobalGCInfoTable::Initialize(page_allocator);
   g_page_allocator = page_allocator;
