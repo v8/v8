@@ -443,6 +443,7 @@ class ShellOptions {
 #if V8_ENABLE_WEBASSEMBLY
   DisallowReassignment<bool> wasm_trap_handler = {"wasm-trap-handler", true};
 #endif  // V8_ENABLE_WEBASSEMBLY
+  DisallowReassignment<bool> expose_fast_api = {"expose-fast-api", false};
 };
 
 class Shell : public i::AllStatic {

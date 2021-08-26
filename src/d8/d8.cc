@@ -3007,7 +3007,7 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     // Correctness fuzzing will attempt to compare results of tests with and
     // without turbo_fast_api_calls, so we don't expose the fast_c_api
     // constructor when --correctness_fuzzer_suppressions is on.
-    if (i::FLAG_turbo_fast_api_calls &&
+    if (options.expose_fast_api && i::FLAG_turbo_fast_api_calls &&
         !i::FLAG_correctness_fuzzer_suppressions) {
       test_template->Set(isolate, "FastCAPI",
                          Shell::CreateTestFastCApiTemplate(isolate));
@@ -4397,6 +4397,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.wasm_trap_handler = false;
       argv[i] = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
+    } else if (strcmp(argv[i], "--expose-fast-api") == 0) {
+      options.expose_fast_api = true;
+      argv[i] = nullptr;
     }
   }
 
@@ -4423,6 +4426,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #if MULTI_MAPPED_ALLOCATOR_AVAILABLE
   options.multi_mapped_mock_allocator = i::FLAG_multi_mapped_mock_allocator;
 #endif
+
+  if (i::FLAG_stress_snapshot && options.expose_fast_api &&
+      check_d8_flag_contradictions) {
+    FATAL("Flag --expose-fast-api is incompatible with --stress-snapshot.");
+  }
 
   // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];

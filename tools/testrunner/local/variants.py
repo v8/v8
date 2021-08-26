@@ -64,7 +64,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   # serialized to the snapshot, so we don't have a
   # SerializeInternalFieldsCallback for it, so they are incompatible with
   # stress_snapshot.
-  "stress_snapshot": ["--turbo-fast-api-calls"],
+  "stress_snapshot": ["--expose-fast-api"],
   "stress": ["--always-opt", "--no-always-opt",
              "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",
