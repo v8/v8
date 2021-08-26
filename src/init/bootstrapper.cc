@@ -1548,9 +1548,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, object_function, "seal",
                           Builtin::kObjectSeal, 1, false);
 
-    Handle<JSFunction> object_create = SimpleInstallFunction(
-        isolate_, object_function, "create", Builtin::kObjectCreate, 2, false);
-    native_context()->set_object_create(*object_create);
+    SimpleInstallFunction(isolate_, object_function, "create",
+                          Builtin::kObjectCreate, 2, false);
 
     SimpleInstallFunction(isolate_, object_function, "defineProperties",
                           Builtin::kObjectDefineProperties, 2, true);
@@ -2746,9 +2745,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, math, "cos", Builtin::kMathCos, 1, true);
     SimpleInstallFunction(isolate_, math, "cosh", Builtin::kMathCosh, 1, true);
     SimpleInstallFunction(isolate_, math, "exp", Builtin::kMathExp, 1, true);
-    Handle<JSFunction> math_floor = SimpleInstallFunction(
-        isolate_, math, "floor", Builtin::kMathFloor, 1, true);
-    native_context()->set_math_floor(*math_floor);
+    SimpleInstallFunction(isolate_, math, "floor", Builtin::kMathFloor, 1,
+                          true);
     SimpleInstallFunction(isolate_, math, "fround", Builtin::kMathFround, 1,
                           true);
     SimpleInstallFunction(isolate_, math, "hypot", Builtin::kMathHypot, 2,
@@ -2762,9 +2760,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           true);
     SimpleInstallFunction(isolate_, math, "max", Builtin::kMathMax, 2, false);
     SimpleInstallFunction(isolate_, math, "min", Builtin::kMathMin, 2, false);
-    Handle<JSFunction> math_pow = SimpleInstallFunction(
-        isolate_, math, "pow", Builtin::kMathPow, 2, true);
-    native_context()->set_math_pow(*math_pow);
+    SimpleInstallFunction(isolate_, math, "pow", Builtin::kMathPow, 2, true);
     SimpleInstallFunction(isolate_, math, "random", Builtin::kMathRandom, 0,
                           true);
     SimpleInstallFunction(isolate_, math, "round", Builtin::kMathRound, 1,
