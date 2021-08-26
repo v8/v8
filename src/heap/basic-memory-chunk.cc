@@ -25,26 +25,6 @@ STATIC_ASSERT(BasicMemoryChunk::kFlagsOffset ==
 STATIC_ASSERT(BasicMemoryChunk::kHeapOffset ==
               heap_internals::MemoryChunk::kHeapOffset);
 
-// static
-constexpr BasicMemoryChunk::MainThreadFlags BasicMemoryChunk::kAllFlagsMask;
-// static
-constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kPointersToHereAreInterestingMask;
-// static
-constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kPointersFromHereAreInterestingMask;
-// static
-constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kEvacuationCandidateMask;
-// static
-constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kIsInYoungGenerationMask;
-// static
-constexpr BasicMemoryChunk::MainThreadFlags BasicMemoryChunk::kIsLargePageMask;
-// static
-constexpr BasicMemoryChunk::MainThreadFlags
-    BasicMemoryChunk::kSkipEvacuationSlotsRecordingMask;
-
 BasicMemoryChunk::BasicMemoryChunk(size_t size, Address area_start,
                                    Address area_end) {
   size_ = size;
@@ -95,11 +75,13 @@ class BasicMemoryChunkValidator {
   STATIC_ASSERT(BasicMemoryChunk::kSizeOffset ==
                 offsetof(BasicMemoryChunk, size_));
   STATIC_ASSERT(BasicMemoryChunk::kFlagsOffset ==
-                offsetof(BasicMemoryChunk, main_thread_flags_));
+                offsetof(BasicMemoryChunk, flags_));
   STATIC_ASSERT(BasicMemoryChunk::kHeapOffset ==
                 offsetof(BasicMemoryChunk, heap_));
   STATIC_ASSERT(offsetof(BasicMemoryChunk, size_) ==
                 MemoryChunkLayout::kSizeOffset);
+  STATIC_ASSERT(offsetof(BasicMemoryChunk, flags_) ==
+                MemoryChunkLayout::kFlagsOffset);
   STATIC_ASSERT(offsetof(BasicMemoryChunk, heap_) ==
                 MemoryChunkLayout::kHeapOffset);
   STATIC_ASSERT(offsetof(BasicMemoryChunk, area_start_) ==
