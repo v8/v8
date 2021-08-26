@@ -835,7 +835,7 @@ void SharedTurboAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src,
   Psllq(xmm_tmp, byte{63});
 
   if (!CpuFeatures::IsSupported(AVX) && (dst != src)) {
-    Movapd(dst, src);
+    movaps(dst, src);
     src = dst;
   }
   // Add a bias of 2^63 to convert signed to unsigned.
@@ -868,7 +868,7 @@ void SharedTurboAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src,
   Movd(xmm_shift, tmp_shift);
 
   if (!CpuFeatures::IsSupported(AVX) && (dst != src)) {
-    Movapd(dst, src);
+    movaps(dst, src);
     src = dst;
   }
   Pxor(dst, src, xmm_tmp);
