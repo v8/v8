@@ -1222,7 +1222,9 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
 
 void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
                                       SmiCheckMode mode) {
-  bailout(kUnsupportedArchitecture, "emit_smi_check");
+  TestIfSmi(obj, r0);
+  Condition condition = mode == kJumpOnSmi ? eq : ne;
+  b(condition, target, cr0);  // branch if SMI
 }
 
 void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
