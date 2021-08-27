@@ -285,6 +285,9 @@
       'v8_linux_arm64_gc_stress_dbg_ng': 'debug_simulate_arm64',
       'v8_linux_mipsel_compile_rel': 'release_simulate_mipsel',
       'v8_linux_mips64el_compile_rel': 'release_simulate_mips64el',
+      'v8_numfuzz_ng': 'release_x64',
+      'v8_numfuzz_dbg_ng': 'debug_x64',
+      'v8_numfuzz_tsan_ng': 'release_x64_tsan',
     },
   },
 
