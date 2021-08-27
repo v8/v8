@@ -43,7 +43,11 @@
   ##############################################################################
   # Temporal tests to be implemented
   # https://crbug.com/v8/11544
-  'temporal/*': [FAIL],
+  'temporal/plain*': [FAIL],
+  'temporal/duration*': [FAIL],
+  'temporal/calendar*': [FAIL],
+  'temporal/zoned*': [FAIL],
+  'temporal/instant*': [FAIL],
 
   ##############################################################################
   # Open bugs.
