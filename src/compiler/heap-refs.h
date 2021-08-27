@@ -1012,9 +1012,7 @@ class JSGlobalObjectRef : public JSObjectRef {
   bool IsDetachedFrom(JSGlobalProxyRef const& proxy) const;
 
   // Can be called even when there is no property cell for the given name.
-  base::Optional<PropertyCellRef> GetPropertyCell(
-      NameRef const& name, SerializationPolicy policy =
-                               SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<PropertyCellRef> GetPropertyCell(NameRef const& name) const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {

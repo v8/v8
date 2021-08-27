@@ -1163,30 +1163,7 @@ class JSGlobalObjectData : public JSObjectData {
  public:
   JSGlobalObjectData(JSHeapBroker* broker, ObjectData** storage,
                      Handle<JSGlobalObject> object, ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind),
-        properties_(broker->zone()) {
-    if (!broker->is_concurrent_inlining()) {
-      is_detached_ = object->IsDetached();
-    }
-  }
-
-  bool IsDetached() const {
-    return is_detached_;
-  }
-
-  ObjectData* GetPropertyCell(
-      JSHeapBroker* broker, ObjectData* name,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-
- private:
-  // Only valid if not concurrent inlining.
-  bool is_detached_ = false;
-
-  // Properties that either
-  // (1) are known to exist as property cells on the global object, or
-  // (2) are known not to (possibly they don't exist at all).
-  // In case (2), the second pair component is nullptr.
-  ZoneVector<std::pair<ObjectData*, ObjectData*>> properties_;
+      : JSObjectData(broker, storage, object, kind) {}
 };
 
 class JSGlobalProxyData : public JSObjectData {
@@ -1195,46 +1172,6 @@ class JSGlobalProxyData : public JSObjectData {
                     Handle<JSGlobalProxy> object, ObjectDataKind kind)
       : JSObjectData(broker, storage, object, kind) {}
 };
-
-namespace {
-
-base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
-                                                        Handle<Name> name) {
-  base::Optional<PropertyCell> maybe_cell =
-      ConcurrentLookupIterator::TryGetPropertyCell(
-          broker->isolate(), broker->local_isolate_or_isolate(),
-          broker->target_native_context().global_object().object(), name);
-  if (!maybe_cell.has_value()) return {};
-  return TryMakeRef(broker, *maybe_cell);
-}
-
-}  // namespace
-
-ObjectData* JSGlobalObjectData::GetPropertyCell(JSHeapBroker* broker,
-                                                ObjectData* name,
-                                                SerializationPolicy policy) {
-  CHECK_NOT_NULL(name);
-  for (auto const& p : properties_) {
-    if (p.first == name) return p.second;
-  }
-
-  if (policy == SerializationPolicy::kAssumeSerialized) {
-    TRACE_MISSING(broker, "knowledge about global property " << name);
-    return nullptr;
-  }
-
-  ObjectData* result = nullptr;
-  base::Optional<PropertyCellRef> cell =
-      GetPropertyCellFromHeap(broker, Handle<Name>::cast(name->object()));
-  if (cell.has_value()) {
-    result = cell->data();
-    if (!result->should_access_heap()) {
-      result->AsPropertyCell()->Cache(broker);
-    }
-  }
-  properties_.push_back({name, result});
-  return result;
-}
 
 #define DEFINE_IS(Name)                                                 \
   bool ObjectData::Is##Name() const {                                   \
@@ -2936,14 +2873,15 @@ bool NativeContextRef::GlobalIsDetached() const {
 }
 
 base::Optional<PropertyCellRef> JSGlobalObjectRef::GetPropertyCell(
-    NameRef const& name, SerializationPolicy policy) const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return GetPropertyCellFromHeap(broker(), name.object());
-  }
-
-  ObjectData* property_cell_data = data()->AsJSGlobalObject()->GetPropertyCell(
-      broker(), name.data(), policy);
-  return TryMakeRef<PropertyCell>(broker(), property_cell_data);
+    NameRef const& name) const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  base::Optional<PropertyCell> maybe_cell =
+      ConcurrentLookupIterator::TryGetPropertyCell(
+          broker()->isolate(), broker()->local_isolate_or_isolate(),
+          broker()->target_native_context().global_object().object(),
+          name.object());
+  if (!maybe_cell.has_value()) return {};
+  return TryMakeRef(broker(), *maybe_cell);
 }
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
