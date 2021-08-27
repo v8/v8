@@ -1584,8 +1584,6 @@ void JSHeapBroker::InitializeAndStartSerializing() {
 
   SetTargetNativeContextRef(target_native_context().object());
   if (!is_concurrent_inlining()) {
-    target_native_context().Serialize(NotConcurrentInliningTag{this});
-
     Factory* const f = isolate()->factory();
     ObjectData* data;
     data = GetOrCreateData(f->array_buffer_detaching_protector());
@@ -2501,32 +2499,6 @@ ZoneVector<const CFunctionInfo*> FunctionTemplateInfoRef::c_signatures() const {
 }
 
 bool StringRef::IsSeqString() const { return object()->IsSeqString(); }
-
-void NativeContextRef::Serialize(NotConcurrentInliningTag tag) {
-  // TODO(jgruber): Disable visitation if should_access_heap() once all
-  // NativeContext element refs can be created on background threads. Until
-  // then, we *must* iterate them and create refs at serialization-time (even
-  // though NativeContextRef itself is never-serialized).
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-#define SERIALIZE_MEMBER(type, name)                                          \
-  {                                                                           \
-    ObjectData* member_data = broker()->GetOrCreateData(object()->name());    \
-    if (member_data->IsMap() && !InstanceTypeChecker::IsContext(              \
-                                    member_data->AsMap()->instance_type())) { \
-      member_data->AsMap()->SerializeConstructor(broker(), tag);              \
-    }                                                                         \
-  }
-  BROKER_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
-#undef SERIALIZE_MEMBER
-
-  for (int i = Context::FIRST_FUNCTION_MAP_INDEX;
-       i <= Context::LAST_FUNCTION_MAP_INDEX; i++) {
-    MapData* member_data = broker()->GetOrCreateData(object()->get(i))->AsMap();
-    if (!InstanceTypeChecker::IsContext(member_data->instance_type())) {
-      member_data->SerializeConstructor(broker(), tag);
-    }
-  }
-}
 
 ScopeInfoRef NativeContextRef::scope_info() const {
   // The scope_info is immutable after initialization.

@@ -535,9 +535,6 @@ class ContextRef : public HeapObjectRef {
   base::Optional<ObjectRef> get(int index) const;
 };
 
-// TODO(jgruber): Don't serialize NativeContext fields once all refs can be
-// created concurrently.
-
 #define BROKER_NATIVE_CONTEXT_FIELDS(V)          \
   V(JSFunction, array_function)                  \
   V(JSFunction, bigint_function)                 \
