@@ -454,8 +454,9 @@ void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
 void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 
 namespace {
-void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
-                                ValueType type) {
+void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
+                                       const WasmInitExpr& init,
+                                       ValueType type) {
   switch (init.kind()) {
     case WasmInitExpr::kI32Const:
       buffer->write_u8(kExprI32Const);
@@ -534,7 +535,7 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kStructNewWithRtt:
       STATIC_ASSERT((kExprStructNewWithRtt >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : init.operands()) {
-        WriteInitializerExpression(buffer, operand, kWasmBottom);
+        WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprStructNewWithRtt));
@@ -543,7 +544,7 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kArrayInit:
       STATIC_ASSERT((kExprArrayInit >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : init.operands()) {
-        WriteInitializerExpression(buffer, operand, kWasmBottom);
+        WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprArrayInit));
@@ -559,7 +560,8 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
     case WasmInitExpr::kRttSub:
     case WasmInitExpr::kRttFreshSub:
       // The operand to rtt.sub must be emitted first.
-      WriteInitializerExpression(buffer, init.operands()[0], kWasmBottom);
+      WriteInitializerExpressionWithEnd(buffer, init.operands()[0],
+                                        kWasmBottom);
       STATIC_ASSERT((kExprRttSub >> 8) == kGCPrefix);
       STATIC_ASSERT((kExprRttFreshSub >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);
@@ -571,6 +573,11 @@ void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
   }
 }
 
+void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
+                                ValueType type) {
+  WriteInitializerExpressionWithEnd(buffer, init, type);
+  buffer->write_u8(kExprEnd);
+}
 }  // namespace
 
 void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
@@ -705,7 +712,6 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
       WriteInitializerExpression(buffer, global.init, global.type);
-      buffer->write_u8(kExprEnd);
     }
     FixupSection(buffer, start);
   }
