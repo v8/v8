@@ -172,7 +172,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                    ProcessedFeedback const* feedback);
   FeedbackSlotKind GetFeedbackSlotKind(FeedbackSource const& source) const;
 
-  // TODO(neis): Move these into serializer when we're always in the background.
   ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
       ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
       FeedbackSlotKind slot_kind);

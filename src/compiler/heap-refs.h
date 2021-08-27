@@ -451,12 +451,8 @@ class JSBoundFunctionRef : public JSObjectRef {
 
   Handle<JSBoundFunction> object() const;
 
-  bool Serialize(NotConcurrentInliningTag tag);
-
-  // TODO(neis): Make return types non-optional once JSFunction is no longer
-  // fg-serialized.
-  base::Optional<JSReceiverRef> bound_target_function() const;
-  base::Optional<ObjectRef> bound_this() const;
+  JSReceiverRef bound_target_function() const;
+  ObjectRef bound_this() const;
   FixedArrayRef bound_arguments() const;
 };
 

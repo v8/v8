@@ -624,28 +624,6 @@ class JSBoundFunctionData : public JSObjectData {
   JSBoundFunctionData(JSHeapBroker* broker, ObjectData** storage,
                       Handle<JSBoundFunction> object, ObjectDataKind kind)
       : JSObjectData(broker, storage, object, kind) {}
-
-  bool Serialize(JSHeapBroker* broker, NotConcurrentInliningTag tag);
-
-  ObjectData* bound_target_function() const {
-    DCHECK(!broker()->is_concurrent_inlining());
-    return bound_target_function_;
-  }
-  ObjectData* bound_this() const {
-    DCHECK(!broker()->is_concurrent_inlining());
-    return bound_this_;
-  }
-  ObjectData* bound_arguments() const {
-    DCHECK(!broker()->is_concurrent_inlining());
-    return bound_arguments_;
-  }
-
- private:
-  bool serialized_ = false;
-
-  ObjectData* bound_target_function_ = nullptr;
-  ObjectData* bound_this_ = nullptr;
-  ObjectData* bound_arguments_ = nullptr;
 };
 
 class JSFunctionData : public JSObjectData {
@@ -1244,48 +1222,6 @@ class ScriptContextTableData : public FixedArrayData {
                          Handle<ScriptContextTable> object, ObjectDataKind kind)
       : FixedArrayData(broker, storage, object, kind) {}
 };
-
-bool JSBoundFunctionData::Serialize(JSHeapBroker* broker,
-                                    NotConcurrentInliningTag tag) {
-  DCHECK(!broker->is_concurrent_inlining());
-
-  if (serialized_) return true;
-  if (broker->StackHasOverflowed()) return false;
-
-  TraceScope tracer(broker, this, "JSBoundFunctionData::Serialize");
-  Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(object());
-
-  // We don't immediately set {serialized_} in order to correctly handle the
-  // case where a recursive call to this method reaches the stack limit.
-
-  DCHECK_NULL(bound_target_function_);
-  bound_target_function_ =
-      broker->GetOrCreateData(function->bound_target_function());
-  bool serialized_nested = true;
-  if (!bound_target_function_->should_access_heap()) {
-    if (bound_target_function_->IsJSBoundFunction()) {
-      serialized_nested =
-          bound_target_function_->AsJSBoundFunction()->Serialize(broker, tag);
-    }
-  }
-  if (!serialized_nested) {
-    // We couldn't serialize all nested bound functions due to stack
-    // overflow. Give up.
-    DCHECK(!serialized_);
-    bound_target_function_ = nullptr;  // Reset to sync with serialized_.
-    return false;
-  }
-
-  serialized_ = true;
-
-  DCHECK_NULL(bound_arguments_);
-  bound_arguments_ = broker->GetOrCreateData(function->bound_arguments());
-
-  DCHECK_NULL(bound_this_);
-  bound_this_ = broker->GetOrCreateData(function->bound_this());
-
-  return true;
-}
 
 JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
                            Handle<JSObject> object, ObjectDataKind kind)
@@ -2270,31 +2206,22 @@ uint64_t HeapNumberRef::value_as_bits() const {
   return object()->value_as_bits(kRelaxedLoad);
 }
 
-base::Optional<JSReceiverRef> JSBoundFunctionRef::bound_target_function()
-    const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Immutable after initialization.
-    return TryMakeRef(broker(), object()->bound_target_function(),
-                      kAssumeMemoryFence);
-  }
-  return TryMakeRef<JSReceiver>(
-      broker(), data()->AsJSBoundFunction()->bound_target_function());
+JSReceiverRef JSBoundFunctionRef::bound_target_function() const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  // Immutable after initialization.
+  return MakeRefAssumeMemoryFence(broker(), object()->bound_target_function());
 }
-base::Optional<ObjectRef> JSBoundFunctionRef::bound_this() const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Immutable after initialization.
-    return TryMakeRef(broker(), object()->bound_this(), kAssumeMemoryFence);
-  }
-  return TryMakeRef<Object>(broker(),
-                            data()->AsJSBoundFunction()->bound_this());
+
+ObjectRef JSBoundFunctionRef::bound_this() const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  // Immutable after initialization.
+  return MakeRefAssumeMemoryFence(broker(), object()->bound_this());
 }
+
 FixedArrayRef JSBoundFunctionRef::bound_arguments() const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Immutable after initialization.
-    return MakeRefAssumeMemoryFence(broker(), object()->bound_arguments());
-  }
-  return FixedArrayRef(broker(),
-                       data()->AsJSBoundFunction()->bound_arguments());
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  // Immutable after initialization.
+  return MakeRefAssumeMemoryFence(broker(), object()->bound_arguments());
 }
 
 // Immutable after initialization.
@@ -3115,14 +3042,6 @@ Handle<T> TinyRef<T>::object() const {
   STATIC_ASSERT(sizeof(TinyRef<Name>) == kSystemPointerSize);
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
-
-bool JSBoundFunctionRef::Serialize(NotConcurrentInliningTag tag) {
-  if (data_->should_access_heap()) {
-    return true;
-  }
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  return data()->AsJSBoundFunction()->Serialize(broker(), tag);
-}
 
 void JSFunctionRef::RecordDependencyIfNeeded(
     CompilationDependencies* dependencies) const {
