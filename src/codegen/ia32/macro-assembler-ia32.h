@@ -322,8 +322,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
       name(dst, src2);                                          \
     }                                                           \
   }
-  AVX_OP3_WITH_MOVE(Cmpeqps, cmpeqps, XMMRegister, XMMRegister)
-  AVX_OP3_WITH_MOVE(Cmpeqps, cmpeqps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
   AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
 #undef AVX_OP3_WITH_MOVE
@@ -355,7 +353,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Pinsrw(XMMRegister dst, Operand src, int8_t imm8);
   // Moves src1 to dst if AVX is not supported.
   void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, int8_t imm8);
-  void Vbroadcastss(XMMRegister dst, Operand src);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which

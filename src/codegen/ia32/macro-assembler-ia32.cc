@@ -1686,16 +1686,6 @@ void TurboAssembler::Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2,
   }
 }
 
-void TurboAssembler::Vbroadcastss(XMMRegister dst, Operand src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vbroadcastss(dst, src);
-    return;
-  }
-  movss(dst, src);
-  shufps(dst, dst, static_cast<byte>(0));
-}
-
 void TurboAssembler::Lzcnt(Register dst, Operand src) {
   if (CpuFeatures::IsSupported(LZCNT)) {
     CpuFeatureScope scope(this, LZCNT);
