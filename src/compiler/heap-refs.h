@@ -395,9 +395,7 @@ class JSObjectRef : public JSReceiverRef {
   // against inconsistency due to weak memory concurrency.
   base::Optional<ObjectRef> GetOwnConstantElement(
       const FixedArrayBaseRef& elements_ref, uint32_t index,
-      CompilationDependencies* dependencies,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+      CompilationDependencies* dependencies) const;
   // The direct-read implementation of the above, extracted into a helper since
   // it's also called from compilation-dependency validation. This helper is
   // guaranteed to not create new Ref instances.
@@ -412,16 +410,12 @@ class JSObjectRef : public JSReceiverRef {
   // property at code finalization time.
   base::Optional<ObjectRef> GetOwnFastDataProperty(
       Representation field_representation, FieldIndex index,
-      CompilationDependencies* dependencies,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+      CompilationDependencies* dependencies) const;
 
   // Return the value of the dictionary property at {index} in the dictionary
   // if {index} is known to be an own data property of the object.
   base::Optional<ObjectRef> GetOwnDictionaryProperty(
-      InternalIndex index, CompilationDependencies* dependencies,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+      InternalIndex index, CompilationDependencies* dependencies) const;
 
   // When concurrent inlining is enabled, reads the elements through a direct
   // relaxed read. This is to ease the transition to unserialized (or
@@ -872,10 +866,8 @@ class JSArrayRef : public JSObjectRef {
   // storage and {index} is known to be an own data property.
   // Note the value returned by this function is only valid if we ensure at
   // runtime that the backing store has not changed.
-  base::Optional<ObjectRef> GetOwnCowElement(
-      FixedArrayBaseRef elements_ref, uint32_t index,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> GetOwnCowElement(FixedArrayBaseRef elements_ref,
+                                             uint32_t index) const;
 
   // The `JSArray::length` property; not safe to use in general, but can be
   // used in some special cases that guarantee a valid `length` value despite

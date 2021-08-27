@@ -316,17 +316,6 @@ class JSObjectData : public JSReceiverData {
     return object_create_map_;
   }
 
-  ObjectData* GetOwnConstantElement(
-      JSHeapBroker* broker, uint32_t index,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-  ObjectData* GetOwnFastDataProperty(
-      JSHeapBroker* broker, Representation representation,
-      FieldIndex field_index,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-  ObjectData* GetOwnDictionaryProperty(JSHeapBroker* broker,
-                                       InternalIndex dict_index,
-                                       SerializationPolicy policy);
-
   // This method is only used to assert our invariants.
   bool cow_or_empty_elements_tenured() const;
 
@@ -348,21 +337,6 @@ class JSObjectData : public JSReceiverData {
 
   bool serialized_object_create_map_ = false;
   ObjectData* object_create_map_ = nullptr;
-
-  // Elements (indexed properties) that either
-  // (1) are known to exist directly on the object as non-writable and
-  // non-configurable, or (2) are known not to (possibly they don't exist at
-  // all). In case (2), the second pair component is nullptr.
-  ZoneVector<std::pair<uint32_t, ObjectData*>> own_constant_elements_;
-  // Properties that either:
-  // (1) are known to exist directly on the object, or
-  // (2) are known not to (possibly they don't exist at all).
-  // In case (2), the second pair component is nullptr.
-  // For simplicity, this may in theory overlap with inobject_fields_.
-  // For fast mode objects, the keys of the map are the property_index() values
-  // of the respective property FieldIndex'es. For slow mode objects, the keys
-  // are the dictionary indicies.
-  ZoneUnorderedMap<int, ObjectData*> own_properties_;
 };
 
 void JSObjectData::SerializeObjectCreateMap(JSHeapBroker* broker,
@@ -494,70 +468,6 @@ base::Optional<ObjectRef> GetOwnDictionaryPropertyFromHeap(
 }
 
 }  // namespace
-
-ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
-                                                uint32_t index,
-                                                SerializationPolicy policy) {
-  for (auto const& p : own_constant_elements_) {
-    if (p.first == index) return p.second;
-  }
-
-  if (policy == SerializationPolicy::kAssumeSerialized) {
-    TRACE_MISSING(broker, "knowledge about index " << index << " on " << this);
-    return nullptr;
-  }
-
-  base::Optional<ObjectRef> element =
-      GetOwnElementFromHeap(broker, object(), index, true);
-  ObjectData* result = element.has_value() ? element->data() : nullptr;
-  own_constant_elements_.push_back({index, result});
-  return result;
-}
-
-ObjectData* JSObjectData::GetOwnFastDataProperty(JSHeapBroker* broker,
-                                                 Representation representation,
-                                                 FieldIndex field_index,
-                                                 SerializationPolicy policy) {
-  auto p = own_properties_.find(field_index.property_index());
-  if (p != own_properties_.end()) return p->second;
-
-  if (policy == SerializationPolicy::kAssumeSerialized) {
-    TRACE_MISSING(broker, "knowledge about fast property with index "
-                              << field_index.property_index() << " on "
-                              << this);
-    return nullptr;
-  }
-
-  // This call will always succeed on the main thread.
-  CHECK(broker->IsMainThread());
-  JSObjectRef object_ref = MakeRef(broker, Handle<JSObject>::cast(object()));
-  ObjectRef property = GetOwnFastDataPropertyFromHeap(
-                           broker, object_ref, representation, field_index)
-                           .value();
-  ObjectData* result(property.data());
-  own_properties_.insert(std::make_pair(field_index.property_index(), result));
-  return result;
-}
-
-ObjectData* JSObjectData::GetOwnDictionaryProperty(JSHeapBroker* broker,
-                                                   InternalIndex dict_index,
-                                                   SerializationPolicy policy) {
-  auto p = own_properties_.find(dict_index.as_int());
-  if (p != own_properties_.end()) return p->second;
-
-  if (policy == SerializationPolicy::kAssumeSerialized) {
-    TRACE_MISSING(broker, "knowledge about dictionary property with index "
-                              << dict_index.as_int() << " on " << this);
-    return nullptr;
-  }
-
-  ObjectRef property = GetOwnDictionaryPropertyFromHeap(
-                           broker, Handle<JSObject>::cast(object()), dict_index)
-                           .value();
-  ObjectData* result(property.data());
-  own_properties_.insert(std::make_pair(dict_index.as_int(), result));
-  return result;
-}
 
 class JSTypedArrayData : public JSObjectData {
  public:
@@ -1218,16 +1128,13 @@ class ScriptContextTableData : public FixedArrayData {
 JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
                            Handle<JSObject> object, ObjectDataKind kind)
     : JSReceiverData(broker, storage, object, kind),
-      inobject_fields_(broker->zone()),
-      own_constant_elements_(broker->zone()),
-      own_properties_(broker->zone()) {}
+      inobject_fields_(broker->zone()) {}
 
 class JSArrayData : public JSObjectData {
  public:
   JSArrayData(JSHeapBroker* broker, ObjectData** storage,
               Handle<JSArray> object, ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind),
-        own_elements_(broker->zone()) {}
+      : JSObjectData(broker, storage, object, kind) {}
 
   void Serialize(JSHeapBroker* broker, NotConcurrentInliningTag tag);
   ObjectData* length() const {
@@ -1235,19 +1142,9 @@ class JSArrayData : public JSObjectData {
     return length_;
   }
 
-  ObjectData* GetOwnElement(
-      JSHeapBroker* broker, uint32_t index,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-
  private:
   bool serialized_ = false;
   ObjectData* length_ = nullptr;
-
-  // Elements (indexed properties) that either
-  // (1) are known to exist directly on the object, or
-  // (2) are known not to (possibly they don't exist at all).
-  // In case (2), the second pair component is nullptr.
-  ZoneVector<std::pair<uint32_t, ObjectData*>> own_elements_;
 };
 
 void JSArrayData::Serialize(JSHeapBroker* broker,
@@ -1260,24 +1157,6 @@ void JSArrayData::Serialize(JSHeapBroker* broker,
 
   DCHECK_NULL(length_);
   length_ = broker->GetOrCreateData(jsarray->length());
-}
-
-ObjectData* JSArrayData::GetOwnElement(JSHeapBroker* broker, uint32_t index,
-                                       SerializationPolicy policy) {
-  for (auto const& p : own_elements_) {
-    if (p.first == index) return p.second;
-  }
-
-  if (policy == SerializationPolicy::kAssumeSerialized) {
-    TRACE_MISSING(broker, "knowledge about index " << index << " on " << this);
-    return nullptr;
-  }
-
-  base::Optional<ObjectRef> element =
-      GetOwnElementFromHeap(broker, object(), index, false);
-  ObjectData* result = element.has_value() ? element->data() : nullptr;
-  own_elements_.push_back({index, result});
-  return result;
 }
 
 class JSGlobalObjectData : public JSObjectData {
@@ -2586,25 +2465,18 @@ bool ObjectRef::should_access_heap() const {
 
 base::Optional<ObjectRef> JSObjectRef::GetOwnConstantElement(
     const FixedArrayBaseRef& elements_ref, uint32_t index,
-    CompilationDependencies* dependencies, SerializationPolicy policy) const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    base::Optional<Object> maybe_element = GetOwnConstantElementFromHeap(
-        *elements_ref.object(), map().elements_kind(), index);
+    CompilationDependencies* dependencies) const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  base::Optional<Object> maybe_element = GetOwnConstantElementFromHeap(
+      *elements_ref.object(), map().elements_kind(), index);
+  if (!maybe_element.has_value()) return {};
 
-    if (!maybe_element.has_value()) return {};
-
-    base::Optional<ObjectRef> result =
-        TryMakeRef(broker(), maybe_element.value());
-    if (policy == SerializationPolicy::kAssumeSerialized &&
-        result.has_value()) {
-      dependencies->DependOnOwnConstantElement(*this, index, *result);
-    }
-    return result;
-  } else {
-    ObjectData* element =
-        data()->AsJSObject()->GetOwnConstantElement(broker(), index, policy);
-    return TryMakeRef<Object>(broker(), element);
+  base::Optional<ObjectRef> result =
+      TryMakeRef(broker(), maybe_element.value());
+  if (result.has_value()) {
+    dependencies->DependOnOwnConstantElement(*this, index, *result);
   }
+  return result;
 }
 
 base::Optional<Object> JSObjectRef::GetOwnConstantElementFromHeap(
@@ -2653,40 +2525,27 @@ base::Optional<Object> JSObjectRef::GetOwnConstantElementFromHeap(
 
 base::Optional<ObjectRef> JSObjectRef::GetOwnFastDataProperty(
     Representation field_representation, FieldIndex index,
-    CompilationDependencies* dependencies, SerializationPolicy policy) const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    base::Optional<ObjectRef> result = GetOwnFastDataPropertyFromHeap(
-        broker(), *this, field_representation, index);
-    if (policy == SerializationPolicy::kAssumeSerialized &&
-        result.has_value()) {
-      dependencies->DependOnOwnConstantDataProperty(
-          *this, map(), field_representation, index, *result);
-    }
-    return result;
+    CompilationDependencies* dependencies) const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  base::Optional<ObjectRef> result = GetOwnFastDataPropertyFromHeap(
+      broker(), *this, field_representation, index);
+  if (result.has_value()) {
+    dependencies->DependOnOwnConstantDataProperty(
+        *this, map(), field_representation, index, *result);
   }
-  ObjectData* property = data()->AsJSObject()->GetOwnFastDataProperty(
-      broker(), field_representation, index, policy);
-  return TryMakeRef<Object>(broker(), property);
+  return result;
 }
 
 base::Optional<ObjectRef> JSObjectRef::GetOwnDictionaryProperty(
-    InternalIndex index, CompilationDependencies* dependencies,
-    SerializationPolicy policy) const {
+    InternalIndex index, CompilationDependencies* dependencies) const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
   CHECK(index.is_found());
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    base::Optional<ObjectRef> result =
-        GetOwnDictionaryPropertyFromHeap(broker(), object(), index);
-    if (policy == SerializationPolicy::kAssumeSerialized &&
-        result.has_value()) {
-      dependencies->DependOnOwnConstantDictionaryProperty(*this, index,
-                                                          *result);
-    }
-    return result;
+  base::Optional<ObjectRef> result =
+      GetOwnDictionaryPropertyFromHeap(broker(), object(), index);
+  if (result.has_value()) {
+    dependencies->DependOnOwnConstantDictionaryProperty(*this, index, *result);
   }
-  ObjectData* property =
-      data()->AsJSObject()->GetOwnDictionaryProperty(broker(), index, policy);
-  CHECK_NE(property, nullptr);
-  return ObjectRef(broker(), property);
+  return result;
 }
 
 ObjectRef JSArrayRef::GetBoilerplateLength() const {
@@ -2706,56 +2565,39 @@ ObjectRef JSArrayRef::length_unsafe() const {
 }
 
 base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
-    FixedArrayBaseRef elements_ref, uint32_t index,
-    SerializationPolicy policy) const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Note: we'd like to check `elements_ref == elements()` here, but due to
-    // concurrency this may not hold. The code below must be able to deal with
-    // concurrent `elements` modifications.
+    FixedArrayBaseRef elements_ref, uint32_t index) const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  // Note: we'd like to check `elements_ref == elements()` here, but due to
+  // concurrency this may not hold. The code below must be able to deal with
+  // concurrent `elements` modifications.
 
-    // Due to concurrency, the kind read here may not be consistent with
-    // `elements_ref`. The caller has to guarantee consistency at runtime by
-    // other means (e.g. through a runtime equality check or a compilation
-    // dependency).
-    ElementsKind elements_kind = map().elements_kind();
+  // Due to concurrency, the kind read here may not be consistent with
+  // `elements_ref`. The caller has to guarantee consistency at runtime by
+  // other means (e.g. through a runtime equality check or a compilation
+  // dependency).
+  ElementsKind elements_kind = map().elements_kind();
 
-    // We only inspect fixed COW arrays, which may only occur for fast
-    // smi/objects elements kinds.
-    if (!IsSmiOrObjectElementsKind(elements_kind)) return {};
-    DCHECK(IsFastElementsKind(elements_kind));
-    if (!elements_ref.map().IsFixedCowArrayMap()) return {};
+  // We only inspect fixed COW arrays, which may only occur for fast
+  // smi/objects elements kinds.
+  if (!IsSmiOrObjectElementsKind(elements_kind)) return {};
+  DCHECK(IsFastElementsKind(elements_kind));
+  if (!elements_ref.map().IsFixedCowArrayMap()) return {};
 
-    // As the name says, the `length` read here is unsafe and may not match
-    // `elements`. We rely on the invariant that any `length` change will
-    // also result in an `elements` change to make this safe. The `elements`
-    // consistency check in the caller thus also guards the value of `length`.
-    ObjectRef length_ref = length_unsafe();
+  // As the name says, the `length` read here is unsafe and may not match
+  // `elements`. We rely on the invariant that any `length` change will
+  // also result in an `elements` change to make this safe. The `elements`
+  // consistency check in the caller thus also guards the value of `length`.
+  ObjectRef length_ref = length_unsafe();
 
-    // Likewise we only deal with smi lengths.
-    if (!length_ref.IsSmi()) return {};
+  // Likewise we only deal with smi lengths.
+  if (!length_ref.IsSmi()) return {};
 
-    base::Optional<Object> result =
-        ConcurrentLookupIterator::TryGetOwnCowElement(
-            broker()->isolate(), *elements_ref.AsFixedArray().object(),
-            elements_kind, length_ref.AsSmi(), index);
-    if (!result.has_value()) return {};
+  base::Optional<Object> result = ConcurrentLookupIterator::TryGetOwnCowElement(
+      broker()->isolate(), *elements_ref.AsFixedArray().object(), elements_kind,
+      length_ref.AsSmi(), index);
+  if (!result.has_value()) return {};
 
-    return TryMakeRef(broker(), result.value());
-  } else {
-    DCHECK(!data_->should_access_heap());
-    DCHECK(!broker()->is_concurrent_inlining());
-
-    // Just to clarify that `elements_ref` is not used on this path.
-    // GetOwnElement accesses the serialized `elements` field on its own.
-    USE(elements_ref);
-
-    if (!elements(kRelaxedLoad).value().map().IsFixedCowArrayMap()) return {};
-
-    ObjectData* element =
-        data()->AsJSArray()->GetOwnElement(broker(), index, policy);
-    if (element == nullptr) return base::nullopt;
-    return ObjectRef(broker(), element);
-  }
+  return TryMakeRef(broker(), result.value());
 }
 
 base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
