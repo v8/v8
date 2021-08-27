@@ -2225,8 +2225,8 @@
         'test_args': ['--total-timeout-sec=900', '--stress-deopt=1']
       },
       {
-        'name': 'numfuzz - staging',
-        'suffix': 'deopt',
+        'name': 'numfuzz',
+        'suffix': 'deopt-staging',
         'test_args': ['--infra-staging', '--total-timeout-sec=900', '--stress-deopt=1']
       },
     ],
@@ -2271,8 +2271,8 @@
         ],
       },
       {
-        'name': 'numfuzz - staging',
-        'suffix': 'combined',
+        'name': 'numfuzz',
+        'suffix': 'combined-staging',
         'test_args': [
           '--infra-staging',
           '--total-timeout-sec=900',
@@ -2333,8 +2333,8 @@
         ],
       },
       {
-        'name': 'numfuzz - staging',
-        'suffix': 'combined',
+        'name': 'numfuzz',
+        'suffix': 'combined-staging',
         'test_args': [
           '--infra-staging',
           '--total-timeout-sec=900',
