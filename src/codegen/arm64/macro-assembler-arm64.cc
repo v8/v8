@@ -1846,8 +1846,7 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
   int64_t offset = CalculateTargetOffset(target, rmode, pc_);
   if (RelocInfo::IsRuntimeEntry(rmode) && IsOnHeap()) {
-    saved_offsets_for_runtime_entries_.push_back(
-        std::make_pair(pc_offset(), offset));
+    saved_offsets_for_runtime_entries_.emplace_back(pc_offset(), offset);
     offset = CalculateTargetOffset(target, RelocInfo::NONE, pc_);
   }
   JumpHelper(offset, rmode, cond);
@@ -1895,8 +1894,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
   if (CanUseNearCallOrJump(rmode)) {
     int64_t offset = CalculateTargetOffset(target, rmode, pc_);
     if (IsOnHeap() && RelocInfo::IsRuntimeEntry(rmode)) {
-      saved_offsets_for_runtime_entries_.push_back(
-          std::make_pair(pc_offset(), offset));
+      saved_offsets_for_runtime_entries_.emplace_back(pc_offset(), offset);
       offset = CalculateTargetOffset(target, RelocInfo::NONE, pc_);
     }
     DCHECK(IsNearCallOffset(offset));

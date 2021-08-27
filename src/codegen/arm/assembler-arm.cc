@@ -5472,8 +5472,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       if (!entry.is_merged()) {
         if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(entry.rmode())) {
           int offset = pc_offset();
-          saved_handles_for_raw_object_ptr_.push_back(
-              std::make_pair(offset, entry.value()));
+          saved_handles_for_raw_object_ptr_.emplace_back(offset, entry.value());
           Handle<HeapObject> object(reinterpret_cast<Address*>(entry.value()));
           emit(object->ptr());
           DCHECK(EmbeddedObjectMatches(offset, object));

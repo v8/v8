@@ -420,6 +420,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   CodeCommentsWriter code_comments_writer_;
 
   // Relocation information when code allocated directly on heap.
+  // These constants correspond to the 99% percentile of a selected number of JS
+  // frameworks and benchmarks, including jquery, lodash, d3 and speedometer3.
+  const int kSavedHandleForRawObjectsInitialSize = 60;
+  const int kSavedOffsetForRuntimeEntriesInitialSize = 100;
   std::vector<std::pair<uint32_t, Address>> saved_handles_for_raw_object_ptr_;
   std::vector<std::pair<uint32_t, uint32_t>> saved_offsets_for_runtime_entries_;
 

@@ -1918,8 +1918,7 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
     BlockGrowBufferScope block_growbuffer(this);
     int offset = pc_offset();
     Address address = j.immediate();
-    saved_handles_for_raw_object_ptr_.push_back(
-        std::make_pair(offset, address));
+    saved_handles_for_raw_object_ptr_.emplace_back(offset, address);
     Handle<HeapObject> object(reinterpret_cast<Address*>(address));
     int64_t immediate = object->ptr();
     RecordRelocInfo(j.rmode(), immediate);
