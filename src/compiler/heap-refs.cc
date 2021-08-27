@@ -2052,8 +2052,6 @@ int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
   return object()->constant_elements().length();
 }
 
-ObjectRef FixedArrayRef::get(int i) const { return TryGet(i).value(); }
-
 base::Optional<ObjectRef> FixedArrayRef::TryGet(int i) const {
   Handle<Object> value;
   {

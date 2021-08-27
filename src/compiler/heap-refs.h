@@ -815,12 +815,6 @@ class FixedArrayRef : public FixedArrayBaseRef {
 
   Handle<FixedArray> object() const;
 
-  ObjectRef get(int i) const;
-
-  // As above but may fail if Ref construction is not possible (e.g. for
-  // serialized types on the background thread).
-  // TODO(jgruber): Remove once all Ref types are never-serialized or
-  // background-serialized and can thus be created on background threads.
   base::Optional<ObjectRef> TryGet(int i) const;
 };
 
