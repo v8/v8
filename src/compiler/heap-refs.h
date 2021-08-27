@@ -55,8 +55,6 @@ inline bool IsAnyStore(AccessMode mode) {
   return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral;
 }
 
-enum class SerializationPolicy { kAssumeSerialized, kSerializeIfNeeded };
-
 // Clarifies in function signatures that a method may only be called when
 // concurrent inlining is disabled.
 class NotConcurrentInliningTag final {
@@ -936,9 +934,7 @@ class StringRef : public NameRef {
 
   // With concurrent inlining on, we return base::nullopt due to not being able
   // to use LookupIterator in a thread-safe way.
-  base::Optional<ObjectRef> GetCharAsStringOrUndefined(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> GetCharAsStringOrUndefined(uint32_t index) const;
 
   // When concurrently accessing non-read-only non-supported strings, we return
   // base::nullopt for these methods.

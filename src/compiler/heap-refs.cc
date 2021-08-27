@@ -363,18 +363,6 @@ void JSObjectData::SerializeObjectCreateMap(JSHeapBroker* broker,
 
 namespace {
 
-base::Optional<ObjectRef> GetOwnElementFromHeap(JSHeapBroker* broker,
-                                                Handle<Object> receiver,
-                                                uint32_t index,
-                                                bool constant_only) {
-  LookupIterator it(broker->isolate(), receiver, index, LookupIterator::OWN);
-  if (it.state() == LookupIterator::DATA &&
-      (!constant_only || (it.IsReadOnly() && !it.IsConfigurable()))) {
-    return MakeRef(broker, it.GetDataValue());
-  }
-  return base::nullopt;
-}
-
 base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
     JSHeapBroker* broker, JSObjectRef holder, Representation representation,
     FieldIndex field_index) {
@@ -1797,25 +1785,21 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
 }
 
 base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
-    uint32_t index, SerializationPolicy policy) const {
-  if (broker()->is_concurrent_inlining()) {
-    String maybe_char;
-    auto result = ConcurrentLookupIterator::TryGetOwnChar(
-        &maybe_char, broker()->isolate(), broker()->local_isolate(), *object(),
-        index);
+    uint32_t index) const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  String maybe_char;
+  auto result = ConcurrentLookupIterator::TryGetOwnChar(
+      &maybe_char, broker()->isolate(), broker()->local_isolate(), *object(),
+      index);
 
-    if (result == ConcurrentLookupIterator::kGaveUp) {
-      TRACE_BROKER_MISSING(broker(), "StringRef::GetCharAsStringOrUndefined on "
-                                         << *this << " at index " << index);
-      return {};
-    }
-
-    DCHECK_EQ(result, ConcurrentLookupIterator::kPresent);
-    return TryMakeRef(broker(), maybe_char);
+  if (result == ConcurrentLookupIterator::kGaveUp) {
+    TRACE_BROKER_MISSING(broker(), "StringRef::GetCharAsStringOrUndefined on "
+                                       << *this << " at index " << index);
+    return {};
   }
 
-  CHECK_EQ(data_->kind(), ObjectDataKind::kUnserializedHeapObject);
-  return GetOwnElementFromHeap(broker(), object(), index, true);
+  DCHECK_EQ(result, ConcurrentLookupIterator::kPresent);
+  return TryMakeRef(broker(), maybe_char);
 }
 
 bool StringRef::SupportedStringKind() const {
