@@ -1597,22 +1597,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // when there is a (v)mulss depending on the result.
       __ movaps(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
-    case kSSEFloat32Abs: {
-      // TODO(bmeurer): Use RIP relative 128-bit constants.
-      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
-      __ Pcmpeqd(tmp, tmp);
-      __ Psrlq(tmp, byte{33});
-      __ Andps(i.OutputDoubleRegister(), tmp);
-      break;
-    }
-    case kSSEFloat32Neg: {
-      // TODO(bmeurer): Use RIP relative 128-bit constants.
-      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
-      __ Pcmpeqd(tmp, tmp);
-      __ Psllq(tmp, byte{31});
-      __ Xorps(i.OutputDoubleRegister(), tmp);
-      break;
-    }
     case kSSEFloat32Sqrt:
       ASSEMBLE_SSE_UNOP(sqrtss);
       break;
@@ -1807,16 +1791,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       __ bind(&done_compare);
       __ bind(ool->exit());
-      break;
-    }
-    case kX64F64x2Abs:
-    case kSSEFloat64Abs: {
-      __ Abspd(i.OutputDoubleRegister());
-      break;
-    }
-    case kX64F64x2Neg:
-    case kSSEFloat64Neg: {
-      __ Negpd(i.OutputDoubleRegister());
       break;
     }
     case kSSEFloat64Sqrt:
@@ -2071,56 +2045,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // when there is a (v)mulsd depending on the result.
       __ Movapd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
-    case kAVXFloat32Abs: {
-      // TODO(bmeurer): Use RIP relative 128-bit constants.
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
-      __ vpcmpeqd(tmp, tmp, tmp);
-      __ vpsrlq(tmp, tmp, 33);
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ vandps(i.OutputDoubleRegister(), tmp, i.InputDoubleRegister(0));
-      } else {
-        __ vandps(i.OutputDoubleRegister(), tmp, i.InputOperand(0));
-      }
+    case kX64Float32Abs: {
+      __ Absps(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
-    case kAVXFloat32Neg: {
-      // TODO(bmeurer): Use RIP relative 128-bit constants.
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
-      __ vpcmpeqd(tmp, tmp, tmp);
-      __ vpsllq(tmp, tmp, 31);
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ vxorps(i.OutputDoubleRegister(), tmp, i.InputDoubleRegister(0));
-      } else {
-        __ vxorps(i.OutputDoubleRegister(), tmp, i.InputOperand(0));
-      }
+    case kX64Float32Neg: {
+      __ Negps(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
-    case kAVXFloat64Abs: {
-      // TODO(bmeurer): Use RIP relative 128-bit constants.
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
-      __ vpcmpeqd(tmp, tmp, tmp);
-      __ vpsrlq(tmp, tmp, 1);
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ vandpd(i.OutputDoubleRegister(), tmp, i.InputDoubleRegister(0));
-      } else {
-        __ vandpd(i.OutputDoubleRegister(), tmp, i.InputOperand(0));
-      }
+    case kX64F64x2Abs:
+    case kX64Float64Abs: {
+      __ Abspd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
-    case kAVXFloat64Neg: {
-      // TODO(bmeurer): Use RIP relative 128-bit constants.
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
-      __ vpcmpeqd(tmp, tmp, tmp);
-      __ vpsllq(tmp, tmp, 63);
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ vxorpd(i.OutputDoubleRegister(), tmp, i.InputDoubleRegister(0));
-      } else {
-        __ vxorpd(i.OutputDoubleRegister(), tmp, i.InputOperand(0));
-      }
+    case kX64F64x2Neg:
+    case kX64Float64Neg: {
+      __ Negpd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     }
     case kSSEFloat64SilenceNaN:

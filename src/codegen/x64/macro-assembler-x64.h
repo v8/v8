@@ -470,8 +470,10 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Blendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 XMMRegister mask);
 
-  void Abspd(XMMRegister dst);
-  void Negpd(XMMRegister dst);
+  void Absps(XMMRegister dst, XMMRegister src);
+  void Negps(XMMRegister dst, XMMRegister src);
+  void Abspd(XMMRegister dst, XMMRegister src);
+  void Negpd(XMMRegister dst, XMMRegister src);
 
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
@@ -820,10 +822,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Pop(Operand dst);
   void PopQuad(Operand dst);
 
-  // ---------------------------------------------------------------------------
-  // SIMD macros.
-  void Absps(XMMRegister dst);
-  void Negps(XMMRegister dst);
   // Generates a trampoline to jump to the off-heap instruction stream.
   void JumpToInstructionStream(Address entry);
 

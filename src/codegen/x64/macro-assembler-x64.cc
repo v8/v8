@@ -1562,16 +1562,6 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t high, uint64_t low) {
 
 // ----------------------------------------------------------------------------
 
-void MacroAssembler::Absps(XMMRegister dst) {
-  Andps(dst, ExternalReferenceAsOperand(
-                 ExternalReference::address_of_float_abs_constant()));
-}
-
-void MacroAssembler::Negps(XMMRegister dst) {
-  Xorps(dst, ExternalReferenceAsOperand(
-                 ExternalReference::address_of_float_neg_constant()));
-}
-
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
@@ -2202,14 +2192,44 @@ void TurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void TurboAssembler::Abspd(XMMRegister dst) {
-  Andps(dst, ExternalReferenceAsOperand(
-                 ExternalReference::address_of_double_abs_constant()));
+void TurboAssembler::Absps(XMMRegister dst, XMMRegister src) {
+  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+    movaps(dst, src);
+    src = dst;
+  }
+  Andps(dst, src,
+        ExternalReferenceAsOperand(
+            ExternalReference::address_of_float_abs_constant()));
 }
 
-void TurboAssembler::Negpd(XMMRegister dst) {
-  Xorps(dst, ExternalReferenceAsOperand(
-                 ExternalReference::address_of_double_neg_constant()));
+void TurboAssembler::Negps(XMMRegister dst, XMMRegister src) {
+  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+    movaps(dst, src);
+    src = dst;
+  }
+  Xorps(dst, src,
+        ExternalReferenceAsOperand(
+            ExternalReference::address_of_float_neg_constant()));
+}
+
+void TurboAssembler::Abspd(XMMRegister dst, XMMRegister src) {
+  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+    movaps(dst, src);
+    src = dst;
+  }
+  Andps(dst, src,
+        ExternalReferenceAsOperand(
+            ExternalReference::address_of_double_abs_constant()));
+}
+
+void TurboAssembler::Negpd(XMMRegister dst, XMMRegister src) {
+  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
+    movaps(dst, src);
+    src = dst;
+  }
+  Xorps(dst, src,
+        ExternalReferenceAsOperand(
+            ExternalReference::address_of_double_neg_constant()));
 }
 
 void TurboAssembler::Lzcntl(Register dst, Register src) {

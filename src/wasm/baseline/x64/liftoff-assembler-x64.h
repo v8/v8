@@ -3484,28 +3484,12 @@ void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-    Psrld(kScratchDoubleReg, static_cast<byte>(1));
-    Andps(dst.fp(), kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Psrld(dst.fp(), static_cast<byte>(1));
-    Andps(dst.fp(), src.fp());
-  }
+  Absps(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-    Pslld(kScratchDoubleReg, byte{31});
-    Xorps(dst.fp(), kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Pslld(dst.fp(), byte{31});
-    Xorps(dst.fp(), src.fp());
-  }
+  Negps(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
@@ -3640,28 +3624,12 @@ void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-    Psrlq(kScratchDoubleReg, byte{1});
-    Andpd(dst.fp(), kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Psrlq(dst.fp(), byte{1});
-    Andpd(dst.fp(), src.fp());
-  }
+  Abspd(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-    Psllq(kScratchDoubleReg, static_cast<byte>(63));
-    Xorpd(dst.fp(), kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Psllq(dst.fp(), static_cast<byte>(63));
-    Xorpd(dst.fp(), src.fp());
-  }
+  Negpd(dst.fp(), src.fp());
 }
 
 void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,

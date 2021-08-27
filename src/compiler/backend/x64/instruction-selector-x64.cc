@@ -1679,15 +1679,12 @@ void VisitFloatBinop(InstructionSelector* selector, Node* node,
 }
 
 void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
-                    ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
+                    ArchOpcode opcode) {
   X64OperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempDoubleRegister()};
   if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineAsRegister(node), g.UseUnique(input),
-                   arraysize(temps), temps);
+    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(input));
   } else {
-    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), g.UseRegister(input),
-                   arraysize(temps), temps);
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(input));
   }
 }
 
@@ -1827,7 +1824,7 @@ void InstructionSelector::VisitFloat32Div(Node* node) {
 }
 
 void InstructionSelector::VisitFloat32Abs(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat32Abs, kSSEFloat32Abs);
+  VisitFloatUnop(this, node, node->InputAt(0), kX64Float32Abs);
 }
 
 void InstructionSelector::VisitFloat32Max(Node* node) {
@@ -1871,7 +1868,7 @@ void InstructionSelector::VisitFloat64Min(Node* node) {
 }
 
 void InstructionSelector::VisitFloat64Abs(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat64Abs, kSSEFloat64Abs);
+  VisitFloatUnop(this, node, node->InputAt(0), kX64Float64Abs);
 }
 
 void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
@@ -1879,11 +1876,11 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 void InstructionSelector::VisitFloat32Neg(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat32Neg, kSSEFloat32Neg);
+  VisitFloatUnop(this, node, node->InputAt(0), kX64Float32Neg);
 }
 
 void InstructionSelector::VisitFloat64Neg(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat64Neg, kSSEFloat64Neg);
+  VisitFloatUnop(this, node, node->InputAt(0), kX64Float64Neg);
 }
 
 void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
@@ -3285,15 +3282,11 @@ void InstructionSelector::VisitS128AndNot(Node* node) {
 }
 
 void InstructionSelector::VisitF64x2Abs(Node* node) {
-  X64OperandGenerator g(this);
-  Emit(kX64F64x2Abs, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitFloatUnop(this, node, node->InputAt(0), kX64F64x2Abs);
 }
 
 void InstructionSelector::VisitF64x2Neg(Node* node) {
-  X64OperandGenerator g(this);
-  Emit(kX64F64x2Neg, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitFloatUnop(this, node, node->InputAt(0), kX64F64x2Neg);
 }
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
