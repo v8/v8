@@ -92,7 +92,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '3da1e2fcf66acd5c7194497b4285ac163f32e239',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6916c05c5f8b193305e115b2856b9ccb5d553c19',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '37c02f21fd30054a0d2bc9e71d2e1d37250d7cab',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '66ed2345b7719aeccce0b0943e8aca77920cf523',
   'buildtools/clang_format/script':
@@ -218,7 +218,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '4241fcac6b0c3051d56065ae94624d30a8474870',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '295492fe993ff18aa1e8cc8e8ea0228f143a24d4',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'fc66578e93b33c85eeda3d5104d513217ae04be2',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '094e3dd2cdb2a04a85a36fac17fe29650d26a857',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -235,7 +235,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '2b093325e17e409fa7a6d53197708a8bef0893e6',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'ff21b36e1e858bf9274ed2bbf4921e415363c393',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '955c7f837efad184ec63e771c42542d37545eaef',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a38aef9142ace942a8bf166020c569f4cda0f8d3',
   'third_party/instrumented_libraries':
