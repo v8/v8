@@ -299,6 +299,10 @@ class Config(object):
       cpu = "arm64"
     elif self.arch == "arm" and _GetMachine() in ("aarch64", "arm64"):
       cpu = "arm"
+    elif self.arch == "loong64" and _GetMachine() == "loongarch64":
+      cpu = "loong64"
+    elif self.arch == "mips64el" and _GetMachine() == "mips64":
+      cpu = "mips64el"
     elif "64" in self.arch or self.arch == "s390x":
       # Native x64 or simulator build.
       cpu = "x64"
@@ -322,9 +326,9 @@ class Config(object):
     return []
 
   def GetSpecialCompiler(self):
-    if _GetMachine() == "aarch64":
-      # We have no prebuilt Clang for arm64 on Linux, so use the system Clang
-      # instead.
+    if _GetMachine() in ("aarch64", "mips64", "loongarch64"):
+      # We have no prebuilt Clang for arm64, mips64 or loongarch64 on Linux,
+      # so use the system Clang instead.
       return ["clang_base_path = \"/usr\"", "clang_use_chrome_plugins = false"]
     return []
 
