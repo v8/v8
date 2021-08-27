@@ -377,7 +377,7 @@ int Assembler::target_at(int pos, bool is_internal) {
       } else {
         return pos + imm13;
       }
-    } break;
+    }
     case JAL: {
       int32_t imm21 = JumpOffset(instr);
       if (imm21 == kEndOfJumpChain) {
@@ -386,7 +386,7 @@ int Assembler::target_at(int pos, bool is_internal) {
       } else {
         return pos + imm21;
       }
-    } break;
+    }
     case JALR: {
       int32_t imm12 = instr >> 20;
       if (imm12 == kEndOfJumpChain) {
@@ -395,7 +395,7 @@ int Assembler::target_at(int pos, bool is_internal) {
       } else {
         return pos + imm12;
       }
-    } break;
+    }
     case LUI: {
       Address pc = reinterpret_cast<Address>(buffer_start_ + pos);
       pc = target_address_at(pc);
@@ -409,7 +409,7 @@ int Assembler::target_at(int pos, bool is_internal) {
         DCHECK(pos > delta);
         return pos - delta;
       }
-    } break;
+    }
     case AUIPC: {
       Instr instr_auipc = instr;
       Instr instr_I = instr_at(pos + 4);
@@ -417,18 +417,18 @@ int Assembler::target_at(int pos, bool is_internal) {
       int32_t offset = BrachlongOffset(instr_auipc, instr_I);
       if (offset == kEndOfJumpChain) return kEndOfChain;
       return offset + pos;
-    } break;
+    }
     case RO_C_J: {
       int32_t offset = instruction->RvcImm11CJValue();
       if (offset == kEndOfJumpChain) return kEndOfChain;
       return offset + pos;
-    } break;
+    }
     case RO_C_BNEZ:
     case RO_C_BEQZ: {
       int32_t offset = instruction->RvcImm8BValue();
       if (offset == kEndOfJumpChain) return kEndOfChain;
       return pos + offset;
-    } break;
+    }
     default: {
       if (instr == kEndOfJumpChain) {
         return kEndOfChain;
@@ -437,7 +437,7 @@ int Assembler::target_at(int pos, bool is_internal) {
             ((instr & static_cast<int32_t>(kImm16Mask)) << 16) >> 14;
         return (imm18 + pos);
       }
-    } break;
+    }
   }
 }
 
@@ -2766,7 +2766,6 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
     return 8;  // Number of instructions patched.
   } else {
     UNIMPLEMENTED();
-    return 1;
   }
 }
 

@@ -563,7 +563,6 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
 #else
         UNREACHABLE();
-        break;
 #endif
       case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kNone:

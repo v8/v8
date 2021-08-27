@@ -1882,7 +1882,7 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();  // RISC-V does not have the concept of a byte register.
-  return "nobytereg";
+  //return "nobytereg";
 }
 
 const char* NameConverter::NameInCode(byte* addr) const {

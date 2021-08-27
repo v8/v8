@@ -2452,7 +2452,6 @@ void TurboAssembler::CompareI(Register rd, Register rs, const Operand& rt,
       break;
     case cc_always:
       UNREACHABLE();
-      break;
     default:
       UNREACHABLE();
   }
@@ -3018,7 +3017,6 @@ bool TurboAssembler::BranchShortCheck(int32_t offset, Label* L, Condition cond,
     DCHECK_EQ(offset, 0);
     return BranchShortHelper(0, L, cond, rs, rt);
   }
-  return false;
 }
 
 void TurboAssembler::BranchShort(int32_t offset, Condition cond, Register rs,
@@ -3134,7 +3132,6 @@ bool TurboAssembler::BranchAndLinkShortCheck(int32_t offset, Label* L,
     DCHECK_EQ(offset, 0);
     return BranchAndLinkShortHelper(0, L, cond, rs, rt);
   }
-  return false;
 }
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,
