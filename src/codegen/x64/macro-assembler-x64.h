@@ -445,10 +445,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Trap();
   void DebugBreak();
 
-  // Will move src1 to dst if dst != src1.
-  void Pmaddubsw(XMMRegister dst, XMMRegister src1, Operand src2);
-  void Pmaddubsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
 
@@ -462,13 +458,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Pinsrd(XMMRegister dst, Operand src2, uint8_t imm8);
   void Pinsrq(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8);
   void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
-
-  void Pblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                XMMRegister mask);
-  void Blendvps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                XMMRegister mask);
-  void Blendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                XMMRegister mask);
 
   void Absps(XMMRegister dst, XMMRegister src);
   void Negps(XMMRegister dst, XMMRegister src);

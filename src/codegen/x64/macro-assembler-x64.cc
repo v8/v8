@@ -1994,34 +1994,6 @@ void TurboAssembler::JumpCodeTObject(Register code, JumpMode jump_mode) {
   }
 }
 
-void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
-                               Operand src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpmaddubsw(dst, src1, src2);
-  } else {
-    CpuFeatureScope ssse3_scope(this, SSSE3);
-    if (dst != src1) {
-      movaps(dst, src1);
-    }
-    pmaddubsw(dst, src2);
-  }
-}
-
-void TurboAssembler::Pmaddubsw(XMMRegister dst, XMMRegister src1,
-                               XMMRegister src2) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpmaddubsw(dst, src1, src2);
-  } else {
-    CpuFeatureScope ssse3_scope(this, SSSE3);
-    if (dst != src1) {
-      movaps(dst, src1);
-    }
-    pmaddubsw(dst, src2);
-  }
-}
-
 void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   if (imm8 == 0) {
     Movd(dst, src);
@@ -2151,45 +2123,6 @@ void TurboAssembler::Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2,
                             uint8_t imm8) {
   PinsrHelper(this, &Assembler::vpinsrq, &Assembler::pinsrq, dst, src1, src2,
               imm8, base::Optional<CpuFeature>(SSE4_1));
-}
-
-void TurboAssembler::Pblendvb(XMMRegister dst, XMMRegister src1,
-                              XMMRegister src2, XMMRegister mask) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vpblendvb(dst, src1, src2, mask);
-  } else {
-    CpuFeatureScope scope(this, SSE4_1);
-    DCHECK_EQ(dst, src1);
-    DCHECK_EQ(xmm0, mask);
-    pblendvb(dst, src2);
-  }
-}
-
-void TurboAssembler::Blendvps(XMMRegister dst, XMMRegister src1,
-                              XMMRegister src2, XMMRegister mask) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vblendvps(dst, src1, src2, mask);
-  } else {
-    CpuFeatureScope scope(this, SSE4_1);
-    DCHECK_EQ(dst, src1);
-    DCHECK_EQ(xmm0, mask);
-    blendvps(dst, src2);
-  }
-}
-
-void TurboAssembler::Blendvpd(XMMRegister dst, XMMRegister src1,
-                              XMMRegister src2, XMMRegister mask) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vblendvpd(dst, src1, src2, mask);
-  } else {
-    CpuFeatureScope scope(this, SSE4_1);
-    DCHECK_EQ(dst, src1);
-    DCHECK_EQ(xmm0, mask);
-    blendvpd(dst, src2);
-  }
 }
 
 void TurboAssembler::Absps(XMMRegister dst, XMMRegister src) {
