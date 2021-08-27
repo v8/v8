@@ -630,11 +630,6 @@ class FeedbackCellRef : public HeapObjectRef {
 
   Handle<FeedbackCell> object() const;
   base::Optional<SharedFunctionInfoRef> shared_function_info() const;
-
-  // TODO(mvstanton): Once we allow inlining of functions we didn't see
-  // during serialization, we do need to ensure that any feedback vector
-  // we read here has been fully initialized (ie, store-ordered into the
-  // cell).
   base::Optional<FeedbackVectorRef> value() const;
 };
 
@@ -754,6 +749,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
       ZoneVector<MapRef>* prototype_maps);
 
   // Concerning the underlying instance_descriptors:
+  DescriptorArrayRef instance_descriptors() const;
   MapRef FindFieldOwner(InternalIndex descriptor_index) const;
   PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const;
   NameRef GetPropertyKey(InternalIndex descriptor_index) const;
@@ -762,11 +758,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   base::Optional<ObjectRef> GetStrongValue(
       InternalIndex descriptor_number) const;
 
-  DescriptorArrayRef instance_descriptors() const;
-
-  void SerializeRootMap(NotConcurrentInliningTag tag);
-  base::Optional<MapRef> FindRootMap() const;
-
+  MapRef FindRootMap() const;
   ObjectRef GetConstructor() const;
 };
 

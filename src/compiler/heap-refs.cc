@@ -765,10 +765,6 @@ class MapData : public HeapObjectData {
     return is_abandoned_prototype_map_;
   }
 
-  // Extra information.
-  void SerializeRootMap(JSHeapBroker* broker, NotConcurrentInliningTag tag);
-  ObjectData* FindRootMap() const;
-
   void SerializeConstructor(JSHeapBroker* broker, NotConcurrentInliningTag tag);
   ObjectData* GetConstructor() const {
     CHECK(serialized_constructor_);
@@ -796,8 +792,7 @@ class MapData : public HeapObjectData {
 
   bool has_extra_serialized_data() const {
     return serialized_constructor_ || serialized_backpointer_ ||
-           serialized_prototype_ || serialized_root_map_ ||
-           serialized_for_element_store_;
+           serialized_prototype_ || serialized_for_element_store_;
   }
 
  private:
@@ -836,9 +831,6 @@ class MapData : public HeapObjectData {
 
   bool serialized_prototype_ = false;
   ObjectData* prototype_ = nullptr;
-
-  bool serialized_root_map_ = false;
-  ObjectData* root_map_ = nullptr;
 
   bool serialized_for_element_store_ = false;
 };
@@ -1451,19 +1443,6 @@ bool MapData::TrySerializePrototype(JSHeapBroker* broker,
   serialized_prototype_ = true;
   return true;
 }
-
-void MapData::SerializeRootMap(JSHeapBroker* broker,
-                               NotConcurrentInliningTag tag) {
-  if (serialized_root_map_) return;
-  serialized_root_map_ = true;
-
-  TraceScope tracer(broker, this, "MapData::SerializeRootMap");
-  Handle<Map> map = Handle<Map>::cast(object());
-  DCHECK_NULL(root_map_);
-  root_map_ = broker->GetOrCreateData(map->FindRootMap(broker->isolate()));
-}
-
-ObjectData* MapData::FindRootMap() const { return root_map_; }
 
 bool JSObjectData::SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
                                                    NotConcurrentInliningTag tag,
@@ -2412,27 +2391,11 @@ base::Optional<HeapObjectRef> MapRef::prototype() const {
   return HeapObjectRef(broker(), prototype_data);
 }
 
-void MapRef::SerializeRootMap(NotConcurrentInliningTag tag) {
-  if (data_->should_access_heap()) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsMap()->SerializeRootMap(broker(), tag);
-}
-
-// TODO(solanes, v8:7790): Remove base::Optional from the return type when
-// deleting serialization.
-base::Optional<MapRef> MapRef::FindRootMap() const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // TODO(solanes): Change TryMakeRef to MakeRef when Map is moved to
-    // kNeverSerialized.
-    // TODO(solanes, v8:7790): Consider caching the result of the root map.
-    return TryMakeRef(broker(), object()->FindRootMap(broker()->isolate()));
-  }
-  ObjectData* map_data = data()->AsMap()->FindRootMap();
-  if (map_data != nullptr) {
-    return MapRef(broker(), map_data);
-  }
-  TRACE_BROKER_MISSING(broker(), "root map for object " << *this);
-  return base::nullopt;
+MapRef MapRef::FindRootMap() const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  // TODO(solanes, v8:7790): Consider caching the result of the root map.
+  return MakeRefAssumeMemoryFence(broker(),
+                                  object()->FindRootMap(broker()->isolate()));
 }
 
 bool JSTypedArrayRef::is_on_heap() const {

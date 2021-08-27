@@ -864,10 +864,6 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
   for (MapRef& map : maps) {
-    if (!is_concurrent_inlining()) {
-      map.SerializeRootMap(NotConcurrentInliningTag{this});
-    }
-
     if (map.CanInlineElementAccess() &&
         IsFastElementsKind(map.elements_kind()) &&
         GetInitialFastElementsKind() != map.elements_kind()) {

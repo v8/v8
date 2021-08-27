@@ -1635,8 +1635,7 @@ void JSNativeContextSpecialization::RemoveImpossibleMaps(
     maps->erase(std::remove_if(maps->begin(), maps->end(),
                                [root_map](const MapRef& map) {
                                  return map.is_abandoned_prototype_map() ||
-                                        (map.FindRootMap().has_value() &&
-                                         !map.FindRootMap()->equals(*root_map));
+                                        !map.FindRootMap().equals(*root_map);
                                }),
                 maps->end());
   }
@@ -3451,10 +3450,7 @@ base::Optional<MapRef> JSNativeContextSpecialization::InferRootMap(
     base::Optional<MapRef> initial_map =
         NodeProperties::GetJSCreateMap(broker(), object);
     if (initial_map.has_value()) {
-      if (!initial_map->FindRootMap().has_value()) {
-        return base::nullopt;
-      }
-      DCHECK(initial_map->equals(*initial_map->FindRootMap()));
+      DCHECK(initial_map->equals(initial_map->FindRootMap()));
       return *initial_map;
     }
   }
