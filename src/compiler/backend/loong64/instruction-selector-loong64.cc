@@ -1357,7 +1357,7 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 #ifdef USE_SIMULATOR
   Node* value = node->InputAt(0);
-  if ((value->opcode() == IrOpcode::kLoad || ||
+  if ((value->opcode() == IrOpcode::kLoad ||
        value->opcode() == IrOpcode::kLoadImmutable) &&
       CanCover(node, value)) {
     // Generate sign-extending load.
