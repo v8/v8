@@ -362,7 +362,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       ModuleOrigin::kWasmOrigin, isolate->counters(),
       isolate->metrics_recorder(), v8::metrics::Recorder::ContextId::Empty(),
       DecodingMethod::kSync, GetWasmEngine()->allocator());
-  CHECK(module_res.ok());
+  CHECK_WITH_MSG(module_res.ok(), module_res.error().message().c_str());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
 

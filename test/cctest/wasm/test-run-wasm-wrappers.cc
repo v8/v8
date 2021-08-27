@@ -28,6 +28,7 @@ Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
   MaybeHandle<WasmInstanceObject> maybe_instance =
       CompileAndInstantiateForTesting(
           isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+  CHECK_WITH_MSG(!thrower.error(), thrower.error_msg());
   return maybe_instance.ToHandleChecked();
 }
 

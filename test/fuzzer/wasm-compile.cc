@@ -582,8 +582,11 @@ class WasmGenerator {
       if (call_direct) {
         builder_->EmitWithU32V(kExprReturnCall, func_index);
       } else {
+        // This will not trap because table[func_index] always contains function
+        // func_index.
         builder_->EmitI32Const(func_index);
         builder_->EmitWithU32V(kExprReturnCallIndirect, sig_index);
+        // TODO(11954): Use other table indices too.
         builder_->EmitByte(0);  // Table index.
       }
       return;
@@ -591,8 +594,11 @@ class WasmGenerator {
       if (call_direct) {
         builder_->EmitWithU32V(kExprCallFunction, func_index);
       } else {
+        // This will not trap because table[func_index] always contains function
+        // func_index.
         builder_->EmitI32Const(func_index);
         builder_->EmitWithU32V(kExprCallIndirect, sig_index);
+        // TODO(11954): Use other table indices too.
         builder_->EmitByte(0);  // Table index.
       }
     }
@@ -1730,7 +1736,7 @@ void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
     // default case.
     case HeapType::kAny: {
       // Weighed according to the types in the module.
-      // TODO(manoskouk): Generate i31ref.
+      // TODO(11954): Generate i31ref.
       uint32_t num_types = builder_->builder()->NumTypes();
       uint8_t random = data->get<uint8_t>() % (num_types + 2);
       if (random < num_structs_ + num_arrays_) {
@@ -1769,7 +1775,7 @@ void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
       // Else fall back to the default case outside the switch.
       break;
     }
-    // TODO(manoskouk): Add i31ref case.
+    // TODO(11954): Add i31ref case.
     default:
       break;
   }
