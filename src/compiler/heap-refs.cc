@@ -2172,51 +2172,34 @@ MapRef MapRef::FindRootMap() const {
 }
 
 bool JSTypedArrayRef::is_on_heap() const {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Safe to read concurrently because:
-    // - host object seen by serializer.
-    // - underlying field written 1. during initialization or 2. with
-    //   release-store.
-    return object()->is_on_heap(kAcquireLoad);
-  }
-  return data()->AsJSTypedArray()->data_ptr();
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
+  // Underlying field written 1. during initialization or 2. with release-store.
+  return object()->is_on_heap(kAcquireLoad);
 }
 
 size_t JSTypedArrayRef::length() const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
   CHECK(!is_on_heap());
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Safe to read concurrently because:
-    // - immutable after initialization.
-    // - host object seen by serializer.
-    return object()->length();
-  }
-  return data()->AsJSTypedArray()->length();
+  // Immutable after initialization.
+  return object()->length();
 }
 
 HeapObjectRef JSTypedArrayRef::buffer() const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
   CHECK(!is_on_heap());
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Safe to read concurrently because:
-    // - immutable after initialization.
-    // - host object seen by serializer.
-    return MakeRef<HeapObject>(broker(), object()->buffer());
-  }
-  return HeapObjectRef{broker(), data()->AsJSTypedArray()->buffer()};
+  // Immutable after initialization.
+  return MakeRef<HeapObject>(broker(), object()->buffer());
 }
 
 void* JSTypedArrayRef::data_ptr() const {
+  DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
   CHECK(!is_on_heap());
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Safe to read concurrently because:
-    // - host object seen by serializer.
-    // - underlying field written 1. during initialization or 2. protected by
-    //   the is_on_heap release/acquire semantics (external_pointer store
-    //   happens-before base_pointer store, and this external_pointer load
-    //   happens-after base_pointer load).
-    STATIC_ASSERT(JSTypedArray::kOffHeapDataPtrEqualsExternalPointer);
-    return object()->DataPtr();
-  }
-  return data()->AsJSTypedArray()->data_ptr();
+  // Underlying field written 1. during initialization or 2. protected by the
+  // is_on_heap release/acquire semantics (external_pointer store happens-before
+  // base_pointer store, and this external_pointer load happens-after
+  // base_pointer load).
+  STATIC_ASSERT(JSTypedArray::kOffHeapDataPtrEqualsExternalPointer);
+  return object()->DataPtr();
 }
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
@@ -2824,23 +2807,6 @@ bool MapRef::TrySerializePrototype(NotConcurrentInliningTag tag) {
 
 void MapRef::SerializePrototype(NotConcurrentInliningTag tag) {
   CHECK(TrySerializePrototype(tag));
-}
-
-void JSTypedArrayRef::Serialize(NotConcurrentInliningTag tag) {
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    // Nothing to do.
-  } else {
-    CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-    data()->AsJSTypedArray()->Serialize(broker(), tag);
-  }
-}
-
-bool JSTypedArrayRef::serialized() const {
-  if (data_->should_access_heap()) return true;
-  if (broker()->is_concurrent_inlining()) return true;
-  if (data_->AsJSTypedArray()->serialized()) return true;
-  TRACE_BROKER_MISSING(broker(), "data for JSTypedArray " << this);
-  return false;
 }
 
 bool PropertyCellRef::Cache() const {

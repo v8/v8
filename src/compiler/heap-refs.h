@@ -968,10 +968,6 @@ class JSTypedArrayRef : public JSObjectRef {
   bool is_on_heap() const;
   size_t length() const;
   void* data_ptr() const;
-
-  void Serialize(NotConcurrentInliningTag tag);
-  bool serialized() const;
-
   HeapObjectRef buffer() const;
 };
 

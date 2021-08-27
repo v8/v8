@@ -1746,14 +1746,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     }
   }
 
-  // Check if we have the necessary data for building element accesses.
   for (ElementAccessInfo const& access_info : access_infos) {
     if (!IsTypedArrayElementsKind(access_info.elements_kind())) continue;
-    base::Optional<JSTypedArrayRef> typed_array =
-        GetTypedArrayConstant(broker(), receiver);
-    if (typed_array.has_value() && !typed_array->serialized()) {
-      return NoChange();
-    }
   }
 
   // Check for the monomorphic case.
