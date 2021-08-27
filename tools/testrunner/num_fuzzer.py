@@ -20,7 +20,7 @@ from testrunner.testproc import fuzzer
 from testrunner.testproc.base import TestProcProducer
 from testrunner.testproc.combiner import CombinerProc
 from testrunner.testproc.execution import ExecutionProc
-from testrunner.testproc.expectation import ForgiveTimeoutProc
+from testrunner.testproc.expectation import ExpectationProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import ResultsTracker
@@ -163,7 +163,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
       # TODO(majeski): Improve sharding when combiner is present. Maybe select
       # different random seeds for shards instead of splitting tests.
       self._create_shard_proc(options),
-      ForgiveTimeoutProc(),
+      ExpectationProc(self.infra_staging),
       combiner,
       self._create_fuzzer(fuzzer_rng, options),
       sigproc,
