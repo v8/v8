@@ -3317,7 +3317,7 @@ void TurboAssembler::StoreF64LE(DoubleRegister dst, const MemOperand& mem,
   LoadU64(scratch, mem, scratch2);
   StoreU64LE(scratch, mem, scratch2);
 #else
-  LoadF64(dst, mem, scratch);
+  StoreF64(dst, mem, scratch);
 #endif
 }
 
@@ -3328,7 +3328,7 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   LoadU32(scratch, mem, scratch2);
   StoreU32LE(scratch, mem, scratch2);
 #else
-  LoadF64(dst, mem, scratch);
+  StoreF32(dst, mem, scratch);
 #endif
 }
 
