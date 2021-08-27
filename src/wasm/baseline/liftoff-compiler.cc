@@ -313,25 +313,11 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
 #define LIST_FEATURE(name, ...) kFeature_##name,
   constexpr WasmFeatures kExperimentalFeatures{
       FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(LIST_FEATURE)};
-  constexpr WasmFeatures kStagedFeatures{
-      FOREACH_WASM_STAGING_FEATURE_FLAG(LIST_FEATURE)};
 #undef LIST_FEATURE
 
   // Bailout is allowed if any experimental feature is enabled.
   if (env->enabled_features.contains_any(kExperimentalFeatures)) return;
 
-  // Staged features should be feature complete in Liftoff according to
-  // https://v8.dev/docs/wasm-shipping-checklist. Some are not though. They are
-  // listed here explicitly, with a bug assigned to each of them.
-
-  // TODO(7581): Fully implement reftypes in Liftoff.
-  STATIC_ASSERT(kStagedFeatures.has_reftypes());
-  if (reason == kRefTypes) {
-    DCHECK(env->enabled_features.has_reftypes());
-    return;
-  }
-
-  // Otherwise, bailout is not allowed.
   FATAL("Liftoff bailout should not happen. Cause: %s\n", detail);
 }
 

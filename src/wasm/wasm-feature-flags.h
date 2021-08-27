@@ -69,12 +69,6 @@
   /* Staged in v8.9 */                                                         \
   V(eh, "exception handling opcodes", false)                                   \
                                                                                \
-  /* Reference Types, a.k.a. reftypes proposal. */                             \
-  /* https://github.com/WebAssembly/reference-types */                         \
-  /* V8 side owner: ahaas */                                                   \
-  /* Staged in v7.8. */                                                        \
-  V(reftypes, "reference type opcodes", false)                                 \
-                                                                               \
   /* Tail call / return call proposal. */                                      \
   /* https://github.com/webassembly/tail-call */                               \
   /* V8 side owner: thibaudm */                                                \
@@ -97,6 +91,13 @@
   /* Staged in v8.7 * */                                                       \
   /* Shipped in v9.1 * */                                                      \
   V(simd, "SIMD opcodes", true)                                                \
+                                                                               \
+  /* Reference Types, a.k.a. reftypes proposal. */                             \
+  /* https://github.com/WebAssembly/reference-types */                         \
+  /* V8 side owner: ahaas */                                                   \
+  /* Staged in v7.8. */                                                        \
+  /* Shipped in v9.5 * */                                                      \
+  V(reftypes, "reference type opcodes", true)                                  \
                                                                                \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \
