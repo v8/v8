@@ -323,7 +323,6 @@ function loadSource(baseDir, relPath, parseStrict=false) {
 
   removeComments(ast);
   cleanAsserts(ast);
-  neuterDisallowedV8Natives(ast);
   annotateWithOriginalPath(ast, relPath);
 
   const flags = loadFlags(data);
@@ -369,28 +368,6 @@ function cleanAsserts(ast) {
       path.node.value.cooked = replace(path.node.value.cooked);
       path.node.value.raw = replace(path.node.value.raw);
     },
-  });
-}
-
-/**
- * Filter out disallowed V8 runtime functions.
- */
-function neuterDisallowedV8Natives(ast) {
-  babelTraverse(ast, {
-    CallExpression(path) {
-      if (!babelTypes.isIdentifier(path.node.callee) ||
-          !path.node.callee.name.startsWith(V8_BUILTIN_PREFIX)) {
-        return;
-      }
-
-      const functionName = path.node.callee.name.substr(
-          V8_BUILTIN_PREFIX.length);
-
-      if (!exceptions.isAllowedRuntimeFunction(functionName)) {
-        path.replaceWith(babelTypes.callExpression(
-            babelTypes.identifier('nop'), []));
-      }
-    }
   });
 }
 
