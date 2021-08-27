@@ -351,7 +351,6 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
     return 2;
   }
   UNREACHABLE();
-  return 0;
 }
 
 // Handle all FPUregister based formatting in this function to reduce the
@@ -376,7 +375,6 @@ int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
     return 2;
   }
   UNREACHABLE();
-  return 0;
 }
 
 // FormatOption takes a formatting string and interprets it based on
@@ -485,7 +483,6 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 'r': {
       return FormatRegister(instr, format);
-      break;
     }
     case 's': {
       switch (format[1]) {
@@ -773,7 +770,6 @@ void Decoder::DecodeTypekOp10(Instruction* instr) {
       break;
     case LD_WU:
       Format(instr, "ld.wu     'rd, 'rj, 'si12");
-      break;
       break;
     case FLD_S:
       Format(instr, "fld.s     'fd, 'rj, 'si12");
@@ -1662,7 +1658,6 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();
-  return "nobytereg";
 }
 
 const char* NameConverter::NameInCode(byte* addr) const {

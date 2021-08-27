@@ -93,7 +93,6 @@ class MipsOperandConverter final : public InstructionOperandConverter {
             constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(titzer): RPO immediates on mips?
-        break;
     }
     UNREACHABLE();
   }
@@ -1619,7 +1618,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             break;
           default: {
             UNREACHABLE();
-            break;
           }
         }
       } else {
@@ -3636,7 +3634,6 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         break;
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
-        break;
     }
   } else if (instr->arch_opcode() == kMipsMulOvf) {
     // Overflow occurs if overflow register is not zero
@@ -3649,7 +3646,6 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         break;
       default:
         UNSUPPORTED_COND(kMipsMulOvf, condition);
-        break;
     }
   } else if (instr->arch_opcode() == kMipsCmp) {
     cc = FlagsConditionToConditionCmp(condition);
@@ -4214,7 +4210,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kInt64:
           UNREACHABLE();
-          break;
         case Constant::kFloat64:
           __ li(dst, Operand::EmbeddedNumber(src.ToFloat64().value()));
           break;
@@ -4238,7 +4233,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           UNREACHABLE();
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(titzer): loading RPO numbers on mips.
-          break;
       }
       if (destination->IsStackSlot()) __ sw(dst, g.ToMemOperand(destination));
     } else if (src.type() == Constant::kFloat32) {

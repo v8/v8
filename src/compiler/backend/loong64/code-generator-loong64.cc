@@ -93,7 +93,6 @@ class Loong64OperandConverter final : public InstructionOperandConverter {
             constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(titzer): RPO immediates on loong64?
-        break;
     }
     UNREACHABLE();
   }
@@ -745,7 +744,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
-      break;
       break;
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
@@ -1882,7 +1880,6 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         break;
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
-        break;
     }
   } else if (instr->arch_opcode() == kLoong64MulOvf_w) {
     // Overflow occurs if overflow register is not zero
@@ -1895,7 +1892,6 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         break;
       default:
         UNSUPPORTED_COND(kLoong64MulOvf_w, condition);
-        break;
     }
   } else if (instr->arch_opcode() == kLoong64Cmp) {
     cc = FlagsConditionToConditionCmp(condition);
@@ -2489,7 +2485,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           UNREACHABLE();
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(titzer): loading RPO numbers on LOONG64.
-          break;
       }
       if (destination->IsStackSlot()) __ St_d(dst, g.ToMemOperand(destination));
     } else if (src.type() == Constant::kFloat32) {

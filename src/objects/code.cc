@@ -349,10 +349,10 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
     }
     return false;
   }
+  return true;
 #else
 #error Unsupported architecture.
 #endif
-  return true;
 }
 
 bool Code::Inlines(SharedFunctionInfo sfi) {

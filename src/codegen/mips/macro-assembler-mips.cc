@@ -3278,7 +3278,6 @@ bool TurboAssembler::BranchShortCheck(int32_t offset, Label* L, Condition cond,
       return BranchShortHelper(0, L, cond, rs, rt, bdslot);
     }
   }
-  return false;
 }
 
 void TurboAssembler::BranchShort(int32_t offset, Condition cond, Register rs,
@@ -3630,7 +3629,6 @@ bool TurboAssembler::BranchAndLinkShortCheck(int32_t offset, Label* L,
       return BranchAndLinkShortHelper(0, L, cond, rs, rt, bdslot);
     }
   }
-  return false;
 }
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,

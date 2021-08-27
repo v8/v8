@@ -190,7 +190,6 @@ bool Loong64Debugger::GetValue(const char* desc, int64_t* value) {
   } else {
     return SScanF(desc, "%" SCNu64, reinterpret_cast<uint64_t*>(value)) == 1;
   }
-  return false;
 }
 
 bool Loong64Debugger::SetBreakpoint(Instruction* breakpc) {
@@ -2133,7 +2132,6 @@ void Simulator::SoftwareInterrupt() {
             break;
           default:
             UNREACHABLE();
-            break;
         }
       }
       switch (redirection->type()) {
@@ -2168,7 +2166,6 @@ void Simulator::SoftwareInterrupt() {
         }
         default:
           UNREACHABLE();
-          break;
       }
       if (::v8::internal::FLAG_trace_sim) {
         switch (redirection->type()) {
@@ -2182,7 +2179,6 @@ void Simulator::SoftwareInterrupt() {
             break;
           default:
             UNREACHABLE();
-            break;
         }
       }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
@@ -3149,7 +3145,6 @@ void Simulator::DecodeTypeOp12() {
         case SOR:
         case SUNE:
           UNIMPLEMENTED();
-          break;
         default:
           UNREACHABLE();
       }
@@ -3251,7 +3246,6 @@ void Simulator::DecodeTypeOp12() {
         case SOR:
         case SUNE:
           UNIMPLEMENTED();
-          break;
         default:
           UNREACHABLE();
       }
@@ -3978,75 +3972,57 @@ void Simulator::DecodeTypeOp17() {
     case AMSWAP_W:
       printf("Sim UNIMPLEMENTED: AMSWAP_W\n");
       UNIMPLEMENTED();
-      break;
     case AMSWAP_D:
       printf("Sim UNIMPLEMENTED: AMSWAP_D\n");
       UNIMPLEMENTED();
-      break;
     case AMADD_W:
       printf("Sim UNIMPLEMENTED: AMADD_W\n");
       UNIMPLEMENTED();
-      break;
     case AMADD_D:
       printf("Sim UNIMPLEMENTED: AMADD_D\n");
       UNIMPLEMENTED();
-      break;
     case AMAND_W:
       printf("Sim UNIMPLEMENTED: AMAND_W\n");
       UNIMPLEMENTED();
-      break;
     case AMAND_D:
       printf("Sim UNIMPLEMENTED: AMAND_D\n");
       UNIMPLEMENTED();
-      break;
     case AMOR_W:
       printf("Sim UNIMPLEMENTED: AMOR_W\n");
       UNIMPLEMENTED();
-      break;
     case AMOR_D:
       printf("Sim UNIMPLEMENTED: AMOR_D\n");
       UNIMPLEMENTED();
-      break;
     case AMXOR_W:
       printf("Sim UNIMPLEMENTED: AMXOR_W\n");
       UNIMPLEMENTED();
-      break;
     case AMXOR_D:
       printf("Sim UNIMPLEMENTED: AMXOR_D\n");
       UNIMPLEMENTED();
-      break;
     case AMMAX_W:
       printf("Sim UNIMPLEMENTED: AMMAX_W\n");
       UNIMPLEMENTED();
-      break;
     case AMMAX_D:
       printf("Sim UNIMPLEMENTED: AMMAX_D\n");
       UNIMPLEMENTED();
-      break;
     case AMMIN_W:
       printf("Sim UNIMPLEMENTED: AMMIN_W\n");
       UNIMPLEMENTED();
-      break;
     case AMMIN_D:
       printf("Sim UNIMPLEMENTED: AMMIN_D\n");
       UNIMPLEMENTED();
-      break;
     case AMMAX_WU:
       printf("Sim UNIMPLEMENTED: AMMAX_WU\n");
       UNIMPLEMENTED();
-      break;
     case AMMAX_DU:
       printf("Sim UNIMPLEMENTED: AMMAX_DU\n");
       UNIMPLEMENTED();
-      break;
     case AMMIN_WU:
       printf("Sim UNIMPLEMENTED: AMMIN_WU\n");
       UNIMPLEMENTED();
-      break;
     case AMMIN_DU:
       printf("Sim UNIMPLEMENTED: AMMIN_DU\n");
       UNIMPLEMENTED();
-      break;
     case AMSWAP_DB_W: {
       printf_instr("AMSWAP_DB_W:\t %s: %016lx, %s, %016lx, %s, %016lx\n",
                    Registers::Name(rd_reg()), rd(), Registers::Name(rk_reg()),
@@ -4243,58 +4219,45 @@ void Simulator::DecodeTypeOp17() {
     case AMMAX_DB_W:
       printf("Sim UNIMPLEMENTED: AMMAX_DB_W\n");
       UNIMPLEMENTED();
-      break;
     case AMMAX_DB_D:
       printf("Sim UNIMPLEMENTED: AMMAX_DB_D\n");
       UNIMPLEMENTED();
-      break;
     case AMMIN_DB_W:
       printf("Sim UNIMPLEMENTED: AMMIN_DB_W\n");
       UNIMPLEMENTED();
-      break;
     case AMMIN_DB_D:
       printf("Sim UNIMPLEMENTED: AMMIN_DB_D\n");
       UNIMPLEMENTED();
-      break;
     case AMMAX_DB_WU:
       printf("Sim UNIMPLEMENTED: AMMAX_DB_WU\n");
       UNIMPLEMENTED();
-      break;
     case AMMAX_DB_DU:
       printf("Sim UNIMPLEMENTED: AMMAX_DB_DU\n");
       UNIMPLEMENTED();
-      break;
     case AMMIN_DB_WU:
       printf("Sim UNIMPLEMENTED: AMMIN_DB_WU\n");
       UNIMPLEMENTED();
-      break;
     case AMMIN_DB_DU:
       printf("Sim UNIMPLEMENTED: AMMIN_DB_DU\n");
       UNIMPLEMENTED();
-      break;
     case DBAR:
       printf_instr("DBAR\n");
       break;
     case IBAR:
       printf("Sim UNIMPLEMENTED: IBAR\n");
       UNIMPLEMENTED();
-      break;
     case FSCALEB_S:
       printf("Sim UNIMPLEMENTED: FSCALEB_S\n");
       UNIMPLEMENTED();
-      break;
     case FSCALEB_D:
       printf("Sim UNIMPLEMENTED: FSCALEB_D\n");
       UNIMPLEMENTED();
-      break;
     case FCOPYSIGN_S:
       printf("Sim UNIMPLEMENTED: FCOPYSIGN_S\n");
       UNIMPLEMENTED();
-      break;
     case FCOPYSIGN_D:
       printf("Sim UNIMPLEMENTED: FCOPYSIGN_D\n");
       UNIMPLEMENTED();
-      break;
     default:
       UNREACHABLE();
   }
@@ -5105,11 +5068,9 @@ void Simulator::DecodeTypeOp22() {
     case MOVFR2CF:
       printf("Sim UNIMPLEMENTED: MOVFR2CF\n");
       UNIMPLEMENTED();
-      break;
     case MOVCF2FR:
       printf("Sim UNIMPLEMENTED: MOVCF2FR\n");
       UNIMPLEMENTED();
-      break;
     case MOVGR2CF:
       printf_instr("MOVGR2CF\t FCC%d, %s: %016lx\n", cd_reg(),
                    Registers::Name(rj_reg()), rj());
@@ -5123,51 +5084,39 @@ void Simulator::DecodeTypeOp22() {
     case FRECIP_S:
       printf("Sim UNIMPLEMENTED: FRECIP_S\n");
       UNIMPLEMENTED();
-      break;
     case FRECIP_D:
       printf("Sim UNIMPLEMENTED: FRECIP_D\n");
       UNIMPLEMENTED();
-      break;
     case FRSQRT_S:
       printf("Sim UNIMPLEMENTED: FRSQRT_S\n");
       UNIMPLEMENTED();
-      break;
     case FRSQRT_D:
       printf("Sim UNIMPLEMENTED: FRSQRT_D\n");
       UNIMPLEMENTED();
-      break;
     case FCLASS_S:
       printf("Sim UNIMPLEMENTED: FCLASS_S\n");
       UNIMPLEMENTED();
-      break;
     case FCLASS_D:
       printf("Sim UNIMPLEMENTED: FCLASS_D\n");
       UNIMPLEMENTED();
-      break;
     case FLOGB_S:
       printf("Sim UNIMPLEMENTED: FLOGB_S\n");
       UNIMPLEMENTED();
-      break;
     case FLOGB_D:
       printf("Sim UNIMPLEMENTED: FLOGB_D\n");
       UNIMPLEMENTED();
-      break;
     case CLO_W:
       printf("Sim UNIMPLEMENTED: CLO_W\n");
       UNIMPLEMENTED();
-      break;
     case CTO_W:
       printf("Sim UNIMPLEMENTED: CTO_W\n");
       UNIMPLEMENTED();
-      break;
     case CLO_D:
       printf("Sim UNIMPLEMENTED: CLO_D\n");
       UNIMPLEMENTED();
-      break;
     case CTO_D:
       printf("Sim UNIMPLEMENTED: CTO_D\n");
       UNIMPLEMENTED();
-      break;
     // Unimplemented opcodes raised an error in the configuration step before,
     // so we can use the default here to set the destination register in common
     // cases.

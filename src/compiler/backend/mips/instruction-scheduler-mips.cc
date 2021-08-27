@@ -1655,19 +1655,15 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         switch (op->representation()) {
           case MachineRepresentation::kFloat32:
             return Latency::SWC1 + SubuLatency(false);
-            break;
           case MachineRepresentation::kFloat64:
             return Sdc1Latency() + SubuLatency(false);
-            break;
           default: {
             UNREACHABLE();
-            break;
           }
         }
       } else {
         return PushRegisterLatency();
       }
-      break;
     }
     case kMipsPeek: {
       if (instr->OutputAt(0)->IsFPRegister()) {
@@ -1680,7 +1676,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       } else {
         return 1;
       }
-      break;
     }
     case kMipsStackClaim:
       return SubuLatency(false);
@@ -1697,7 +1692,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       } else {
         return 1;
       }
-      break;
     }
     case kMipsByteSwap32:
       return ByteSwapSignedLatency();
