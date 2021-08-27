@@ -589,6 +589,12 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
 #undef __
 
+inline void EnsureAccumulatorPreservedScope::AssertEqualToAccumulator(
+    Register reg) {
+  assembler_->masm()->CmpTagged(reg, kInterpreterAccumulatorRegister);
+  assembler_->masm()->Assert(eq, AbortReason::kUnexpectedValue);
+}
+
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8

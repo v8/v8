@@ -490,13 +490,31 @@ void BaselineCompiler::VisitSingleBytecode() {
   TraceBytecode(Runtime::kTraceUnoptimizedBytecodeEntry);
 #endif
 
-  switch (iterator().current_bytecode()) {
+  {
+    interpreter::Bytecode bytecode = iterator().current_bytecode();
+
+#ifdef DEBUG
+    base::Optional<EnsureAccumulatorPreservedScope> accumulator_preserved_scope;
+    // We should make sure to preserve the accumulator whenever the bytecode
+    // isn't registered as writing to it. We can't do this for jumps or switches
+    // though, since the control flow would not match the control flow of this
+    // scope.
+    if (FLAG_debug_code &&
+        !interpreter::Bytecodes::WritesAccumulator(bytecode) &&
+        !interpreter::Bytecodes::IsJump(bytecode) &&
+        !interpreter::Bytecodes::IsSwitch(bytecode)) {
+      accumulator_preserved_scope.emplace(&basm_);
+    }
+#endif  // DEBUG
+
+    switch (bytecode) {
 #define BYTECODE_CASE(name, ...)       \
   case interpreter::Bytecode::k##name: \
     Visit##name();                     \
     break;
-    BYTECODE_LIST(BYTECODE_CASE)
+      BYTECODE_LIST(BYTECODE_CASE)
 #undef BYTECODE_CASE
+    }
   }
 
 #ifdef V8_TRACE_UNOPTIMIZED

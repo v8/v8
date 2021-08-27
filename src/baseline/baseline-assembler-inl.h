@@ -137,6 +137,24 @@ SaveAccumulatorScope::~SaveAccumulatorScope() {
   assembler_->Pop(kInterpreterAccumulatorRegister);
 }
 
+EnsureAccumulatorPreservedScope::EnsureAccumulatorPreservedScope(
+    BaselineAssembler* assembler)
+    : assembler_(assembler)
+#ifdef V8_CODE_COMMENTS
+      ,
+      comment_(assembler->masm(), "EnsureAccumulatorPreservedScope")
+#endif
+{
+  assembler_->Push(kInterpreterAccumulatorRegister);
+}
+
+EnsureAccumulatorPreservedScope::~EnsureAccumulatorPreservedScope() {
+  BaselineAssembler::ScratchRegisterScope scratch(assembler_);
+  Register reg = scratch.AcquireScratch();
+  assembler_->Pop(reg);
+  AssertEqualToAccumulator(reg);
+}
+
 #undef __
 
 }  // namespace baseline
