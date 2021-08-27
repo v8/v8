@@ -109,22 +109,6 @@ ValueType GetValueType(uint32_t num_types, DataRange* data,
   return types[data->get<uint8_t>() % arraysize(types)];
 }
 
-ValueType GetRefType(uint32_t num_types, DataRange* data,
-                     bool liftoff_as_reference) {
-  constexpr ValueType types[] = {
-      kWasmExternRef, kWasmFuncRef, kWasmEqRef, kWasmAnyRef,
-      ValueType::Ref(HeapType(HeapType::kData), kNullable)};
-
-  if (liftoff_as_reference) {
-    uint32_t id = data->get<uint8_t>() % (arraysize(types) + num_types);
-    if (id >= arraysize(types)) {
-      return ValueType::Ref(id - arraysize(types), kNullable);
-    }
-    return types[id];
-  }
-  return types[data->get<uint8_t>() % arraysize(types)];
-}
-
 class WasmGenerator {
   template <WasmOpcode Op, ValueKind... Args>
   void op(DataRange* data) {
@@ -322,6 +306,29 @@ class WasmGenerator {
     Generate(kWasmI32, data);
     builder_->EmitWithI32V(
         kExprBrIf, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
+    ConsumeAndGenerate(
+        break_types,
+        wanted_kind == kVoid
+            ? base::Vector<ValueType>{}
+            : base::VectorOf({ValueType::Primitive(wanted_kind)}),
+        data);
+  }
+
+  template <ValueKind wanted_kind>
+  void br_on_null(DataRange* data) {
+    DCHECK(!blocks_.empty());
+    const uint32_t target_block = data->get<uint32_t>() % blocks_.size();
+    const auto break_types = base::VectorOf(blocks_[target_block]);
+    if (!liftoff_as_reference_) {
+      Generate<wanted_kind>(data);
+      return;
+    }
+    Generate(break_types, data);
+    GenerateOptRef(HeapType(HeapType::kAny), data);
+    builder_->EmitWithI32V(
+        kExprBrOnNull,
+        static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
+    builder_->Emit(kExprDrop);
     ConsumeAndGenerate(
         break_types,
         wanted_kind == kVoid
@@ -868,10 +875,18 @@ class WasmGenerator {
 
   template <ValueKind wanted_kind>
   void ref_is_null(DataRange* data) {
-    ValueType val = GetRefType(builder_->builder()->NumTypes(), data,
-                               liftoff_as_reference_);
-    GenerateOptRef(val.heap_type(), data);
-    builder_->EmitU32V(kExprRefIsNull);
+    GenerateOptRef(HeapType(HeapType::kAny), data);
+    builder_->Emit(kExprRefIsNull);
+  }
+
+  void ref_eq(DataRange* data) {
+    if (!liftoff_as_reference_) {
+      Generate(kWasmI32, data);
+      return;
+    }
+    GenerateOptRef(HeapType(HeapType::kEq), data);
+    GenerateOptRef(HeapType(HeapType::kEq), data);
+    builder_->Emit(kExprRefEq);
   }
 
   using GenerateFn = void (WasmGenerator::*const)(DataRange*);
@@ -1007,6 +1022,7 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
       &WasmGenerator::if_<kVoid, kIfElse>,
       &WasmGenerator::br,
       &WasmGenerator::br_if<kVoid>,
+      &WasmGenerator::br_on_null<kVoid>,
 
       &WasmGenerator::memop<kExprI32StoreMem, kI32>,
       &WasmGenerator::memop<kExprI32StoreMem8, kI32>,
@@ -1127,6 +1143,7 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
       &WasmGenerator::loop<kI32>,
       &WasmGenerator::if_<kI32, kIfElse>,
       &WasmGenerator::br_if<kI32>,
+      &WasmGenerator::br_on_null<kI32>,
 
       &WasmGenerator::memop<kExprI32LoadMem>,
       &WasmGenerator::memop<kExprI32LoadMem8S>,
@@ -1192,7 +1209,8 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
 
       &WasmGenerator::struct_get<kI32>,
 
-      &WasmGenerator::ref_is_null<kI32>};
+      &WasmGenerator::ref_is_null<kI32>,
+      &WasmGenerator::ref_eq};
 
   GenerateOneOf(alternatives, data);
 }
@@ -1250,6 +1268,7 @@ void WasmGenerator::Generate<kI64>(DataRange* data) {
       &WasmGenerator::loop<kI64>,
       &WasmGenerator::if_<kI64, kIfElse>,
       &WasmGenerator::br_if<kI64>,
+      &WasmGenerator::br_on_null<kI64>,
 
       &WasmGenerator::memop<kExprI64LoadMem>,
       &WasmGenerator::memop<kExprI64LoadMem8S>,
@@ -1352,6 +1371,7 @@ void WasmGenerator::Generate<kF32>(DataRange* data) {
       &WasmGenerator::loop<kF32>,
       &WasmGenerator::if_<kF32, kIfElse>,
       &WasmGenerator::br_if<kF32>,
+      &WasmGenerator::br_on_null<kF32>,
 
       &WasmGenerator::memop<kExprF32LoadMem>,
 
@@ -1411,6 +1431,7 @@ void WasmGenerator::Generate<kF64>(DataRange* data) {
       &WasmGenerator::loop<kF64>,
       &WasmGenerator::if_<kF64, kIfElse>,
       &WasmGenerator::br_if<kF64>,
+      &WasmGenerator::br_on_null<kF64>,
 
       &WasmGenerator::memop<kExprF64LoadMem>,
 
