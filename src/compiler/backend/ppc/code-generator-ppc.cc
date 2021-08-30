@@ -3884,7 +3884,6 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
         break;
       default:
         UNREACHABLE();
-        break;
     }
   } else {
     if (reg_value != 0) __ li(reg, Operand::Zero());
@@ -4296,7 +4295,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         }
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(dcarney): loading RPO constants on PPC.
-          break;
       }
       if (destination->IsStackSlot()) {
         __ StoreU64(dst, g.ToMemOperand(destination), r0);

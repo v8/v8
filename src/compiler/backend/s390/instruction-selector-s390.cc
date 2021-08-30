@@ -106,7 +106,6 @@ class S390OperandGenerator final : public OperandGenerator {
       return OpParameter<int64_t>(node->op());
     else
       UNIMPLEMENTED();
-    return 0L;
   }
 
   bool CanBeImmediate(Node* node, OperandModes mode) {

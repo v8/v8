@@ -303,7 +303,6 @@ Condition Assembler::GetCondition(Instr instr) {
     default:
       UNIMPLEMENTED();
   }
-  return al;
 }
 
 bool Assembler::IsLis(Instr instr) {

@@ -1184,7 +1184,6 @@ void TurboAssembler::ConvertFloat32ToInt64(const Register dst,
       break;
     case kRoundToNearest:
       UNIMPLEMENTED();
-      break;
     case kRoundToPlusInf:
       m = Condition(6);
       break;
@@ -1193,7 +1192,6 @@ void TurboAssembler::ConvertFloat32ToInt64(const Register dst,
       break;
     default:
       UNIMPLEMENTED();
-      break;
   }
   cgebr(m, dst, double_input);
 }
@@ -1208,7 +1206,6 @@ void TurboAssembler::ConvertDoubleToInt64(const Register dst,
       break;
     case kRoundToNearest:
       UNIMPLEMENTED();
-      break;
     case kRoundToPlusInf:
       m = Condition(6);
       break;
@@ -1217,7 +1214,6 @@ void TurboAssembler::ConvertDoubleToInt64(const Register dst,
       break;
     default:
       UNIMPLEMENTED();
-      break;
   }
   cgdbr(m, dst, double_input);
 }
@@ -1241,7 +1237,6 @@ void TurboAssembler::ConvertDoubleToInt32(const Register dst,
       break;
     default:
       UNIMPLEMENTED();
-      break;
   }
 #ifdef V8_TARGET_ARCH_S390X
   lghi(dst, Operand::Zero());
@@ -1268,7 +1263,6 @@ void TurboAssembler::ConvertFloat32ToInt32(const Register result,
       break;
     default:
       UNIMPLEMENTED();
-      break;
   }
 #ifdef V8_TARGET_ARCH_S390X
   lghi(result, Operand::Zero());
@@ -1286,7 +1280,6 @@ void TurboAssembler::ConvertFloat32ToUnsignedInt32(
       break;
     case kRoundToNearest:
       UNIMPLEMENTED();
-      break;
     case kRoundToPlusInf:
       m = Condition(6);
       break;
@@ -1295,7 +1288,6 @@ void TurboAssembler::ConvertFloat32ToUnsignedInt32(
       break;
     default:
       UNIMPLEMENTED();
-      break;
   }
 #ifdef V8_TARGET_ARCH_S390X
   lghi(result, Operand::Zero());
@@ -1313,7 +1305,6 @@ void TurboAssembler::ConvertFloat32ToUnsignedInt64(
       break;
     case kRoundToNearest:
       UNIMPLEMENTED();
-      break;
     case kRoundToPlusInf:
       m = Condition(6);
       break;
@@ -1322,7 +1313,6 @@ void TurboAssembler::ConvertFloat32ToUnsignedInt64(
       break;
     default:
       UNIMPLEMENTED();
-      break;
   }
   clgebr(m, Condition(0), result, double_input);
 }
@@ -1337,7 +1327,6 @@ void TurboAssembler::ConvertDoubleToUnsignedInt64(
       break;
     case kRoundToNearest:
       UNIMPLEMENTED();
-      break;
     case kRoundToPlusInf:
       m = Condition(6);
       break;
@@ -1346,7 +1335,6 @@ void TurboAssembler::ConvertDoubleToUnsignedInt64(
       break;
     default:
       UNIMPLEMENTED();
-      break;
   }
   clgdbr(m, Condition(0), dst, double_input);
 }
@@ -1361,7 +1349,6 @@ void TurboAssembler::ConvertDoubleToUnsignedInt32(
       break;
     case kRoundToNearest:
       UNIMPLEMENTED();
-      break;
     case kRoundToPlusInf:
       m = Condition(6);
       break;
@@ -1370,7 +1357,6 @@ void TurboAssembler::ConvertDoubleToUnsignedInt32(
       break;
     default:
       UNIMPLEMENTED();
-      break;
   }
 #ifdef V8_TARGET_ARCH_S390X
   lghi(dst, Operand::Zero());

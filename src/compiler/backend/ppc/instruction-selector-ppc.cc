@@ -343,7 +343,6 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
         break;
 #else
         UNREACHABLE();
-        break;
 #endif
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
