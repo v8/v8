@@ -8,6 +8,7 @@
 
 #include <algorithm>
 
+#include "src/base/macros.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -69,13 +70,8 @@ class DataRange {
 
   template <typename T, size_t max_bytes = sizeof(T)>
   T get() {
-    // DISABLE FOR BOOL
-    // The -O3 on release will break the result. This creates a different
-    // observable side effect when invoking get<bool> between debug and release
-    // version, which eventually makes the code output different as well as
-    // raising various unrecoverable errors on runtime. It is caused by
-    // undefined behavior of assigning boolean via memcpy from randomized bytes.
-    STATIC_ASSERT(!(std::is_same<T, bool>::value));
+    // Bool needs special handling (see template specialization below).
+    static_assert(!std::is_same<T, bool>::value, "bool needs special handling");
     STATIC_ASSERT(max_bytes <= sizeof(T));
     // We want to support the case where we have less than sizeof(T) bytes
     // remaining in the slice. For example, if we emit an i32 constant, it's
@@ -87,6 +83,19 @@ class DataRange {
     memcpy(&result, data_.begin(), num_bytes);
     data_ += num_bytes;
     return result;
+  }
+
+  template <>
+  bool get() {
+    // The general implementation above is not instantiable for bool, as that
+    // would cause undefinied behaviour when memcpy'ing random bytes to the
+    // bool. This can result in different observable side effects when invoking
+    // get<bool> between debug and release version, which eventually makes the
+    // code output different as well as raising various unrecoverable errors on
+    // runtime.
+    // Hence we specialize get<bool> to consume a full byte and use the least
+    // significant bit only (0 == false, 1 == true).
+    return get<uint8_t>() % 2;
   }
 };
 
@@ -213,11 +222,10 @@ class WasmGenerator {
   }
 
   void try_block_helper(ValueType return_type, DataRange* data) {
-    bool has_catch_all = data->get<uint8_t>() % 2;
+    bool has_catch_all = data->get<bool>();
     uint8_t num_catch =
         data->get<uint8_t>() % (builder_->builder()->NumExceptions() + 1);
-    bool is_delegate =
-        num_catch == 0 && !has_catch_all && data->get<uint8_t>() % 2 == 0;
+    bool is_delegate = num_catch == 0 && !has_catch_all && data->get<bool>();
     // Allow one more target than there are enclosing try blocks, for delegating
     // to the caller.
     uint8_t delegate_target = data->get<uint8_t>() % (try_blocks_.size() + 1);
@@ -737,7 +745,7 @@ class WasmGenerator {
   void set_global(DataRange* data) { global_op<kVoid>(data); }
 
   void throw_or_rethrow(DataRange* data) {
-    bool rethrow = data->get<uint8_t>() % 2;
+    bool rethrow = data->get<bool>();
     if (rethrow && !catch_blocks_.empty()) {
       int control_depth = static_cast<int>(blocks_.size() - 1);
       int catch_index =
@@ -782,7 +790,7 @@ class WasmGenerator {
   }
   void new_object(HeapType type, DataRange* data) {
     if (liftoff_as_reference_ && type.is_index()) {
-      bool new_default = data->get<uint8_t>() % 2;
+      bool new_default = data->get<bool>();
       uint32_t index = type.ref_index();
       if (builder_->builder()->IsStructType(index)) {
         if (new_default) {
