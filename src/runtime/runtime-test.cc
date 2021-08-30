@@ -373,12 +373,12 @@ RUNTIME_FUNCTION(Runtime_CompileBaseline) {
 
   // First compile the bytecode, if we have to.
   if (!is_compiled_scope.is_compiled() &&
-      !Compiler::Compile(isolate, function, Compiler::KEEP_EXCEPTION,
+      !Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
                          &is_compiled_scope)) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  if (!Compiler::CompileBaseline(isolate, function, Compiler::KEEP_EXCEPTION,
+  if (!Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
                                  &is_compiled_scope)) {
     return CrashUnlessFuzzing(isolate);
   }
