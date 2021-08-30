@@ -46,6 +46,9 @@ const BABYLON_OPTIONS = {
     ],
 }
 
+const BABYLON_REPLACE_VAR_OPTIONS = Object.assign({}, BABYLON_OPTIONS);
+BABYLON_REPLACE_VAR_OPTIONS['placeholderPattern'] = /^VAR_[0-9]+$/;
+
 function _isV8OrSpiderMonkeyLoad(path) {
   // 'load' and 'loadRelativeToScript' used by V8 and SpiderMonkey.
   return (babelTypes.isIdentifier(path.node.callee) &&
@@ -445,6 +448,7 @@ function generateCode(source, dependencies=[]) {
 
 module.exports = {
   BABYLON_OPTIONS: BABYLON_OPTIONS,
+  BABYLON_REPLACE_VAR_OPTIONS: BABYLON_REPLACE_VAR_OPTIONS,
   generateCode: generateCode,
   loadDependencyAbs: loadDependencyAbs,
   loadResource: loadResource,

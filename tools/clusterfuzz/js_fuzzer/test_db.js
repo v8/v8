@@ -48,7 +48,7 @@ function main() {
     // super.
     const source = sourceHelpers.loadSource(
         __dirname,
-        'test_data/regress/build_db/cross_over_mutator_class_input.js');
+        'test_data/cross_over_mutator_class_input.js');
     try {
       mutator.mutate(source);
       nPass++;
