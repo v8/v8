@@ -19,62 +19,57 @@ namespace internal {
 
 void PendingCompilationErrorHandler::MessageDetails::SetString(
     Handle<String> string, Isolate* isolate) {
-  DCHECK_NE(arg0_type_, kMainThreadHandle);
-  arg0_type_ = kMainThreadHandle;
-  arg0_handle_ = string;
+  DCHECK_NE(args_[0].type, kMainThreadHandle);
+  args_[0].type = kMainThreadHandle;
+  args_[0].js_string = string;
 }
 
 void PendingCompilationErrorHandler::MessageDetails::SetString(
     Handle<String> string, LocalIsolate* isolate) {
-  DCHECK_NE(arg0_type_, kMainThreadHandle);
-  arg0_type_ = kMainThreadHandle;
-  arg0_handle_ = isolate->heap()->NewPersistentHandle(string);
+  DCHECK_NE(args_[0].type, kMainThreadHandle);
+  args_[0].type = kMainThreadHandle;
+  args_[0].js_string = isolate->heap()->NewPersistentHandle(string);
 }
 
 template <typename IsolateT>
 void PendingCompilationErrorHandler::MessageDetails::Prepare(
     IsolateT* isolate) {
-  switch (arg0_type_) {
-    case kAstRawString:
-      return SetString(arg0_->string(), isolate);
+  for (int i = 0; i < kMaxArgumentCount; i++) {
+    switch (args_[i].type) {
+      case kAstRawString:
+        return SetString(args_[i].ast_string->string(), isolate);
 
-    case kNone:
-    case kConstCharString:
-      // We can delay allocation until Arg0String(isolate).
-      // TODO(leszeks): We don't actually have to transfer this string, since
-      // it's a root.
-      return;
+      case kNone:
+      case kConstCharString:
+        // We can delay allocation until ArgString(isolate).
+        return;
 
-    case kMainThreadHandle:
-      // The message details might already be prepared, so skip them if this is
-      // the case.
-      return;
+      case kMainThreadHandle:
+        // The message details might already be prepared, so skip them if this
+        // is the case.
+        return;
+    }
   }
 }
 
-Handle<String> PendingCompilationErrorHandler::MessageDetails::Arg0String(
-    Isolate* isolate) const {
-  switch (arg0_type_) {
+Handle<String> PendingCompilationErrorHandler::MessageDetails::ArgString(
+    Isolate* isolate, int index) const {
+  // `index` may be >= argc; in that case we return a default value to pass on
+  // elsewhere.
+  DCHECK_LT(index, kMaxArgumentCount);
+  switch (args_[index].type) {
     case kMainThreadHandle:
-      return arg0_handle_;
+      return args_[index].js_string;
     case kNone:
-      return isolate->factory()->undefined_string();
+      return Handle<String>::null();
     case kConstCharString:
       return isolate->factory()
-          ->NewStringFromUtf8(base::CStrVector(char_arg0_),
+          ->NewStringFromUtf8(base::CStrVector(args_[index].c_string),
                               AllocationType::kOld)
           .ToHandleChecked();
     case kAstRawString:
       UNREACHABLE();
   }
-}
-
-Handle<String> PendingCompilationErrorHandler::MessageDetails::Arg1String(
-    Isolate* isolate) const {
-  if (arg1_ == nullptr) return Handle<String>::null();
-  return isolate->factory()
-      ->NewStringFromUtf8(base::CStrVector(arg1_), AllocationType::kOld)
-      .ToHandleChecked();
 }
 
 MessageLocation PendingCompilationErrorHandler::MessageDetails::GetLocation(
@@ -139,8 +134,8 @@ void PendingCompilationErrorHandler::ReportWarnings(
 
   for (const MessageDetails& warning : warning_messages_) {
     MessageLocation location = warning.GetLocation(script);
-    Handle<String> argument = warning.Arg0String(isolate);
-    DCHECK(warning.Arg1String(isolate).is_null());  // Only used for errors.
+    Handle<String> argument = warning.ArgString(isolate, 0);
+    DCHECK_LT(warning.ArgCount(), 2);  // Arg1 is only used for errors.
     Handle<JSMessageObject> message =
         MessageHandler::MakeMessageObject(isolate, warning.message(), &location,
                                           argument, Handle<FixedArray>::null());
@@ -181,8 +176,8 @@ void PendingCompilationErrorHandler::ThrowPendingError(
   if (!has_pending_error_) return;
 
   MessageLocation location = error_details_.GetLocation(script);
-  Handle<String> arg0 = error_details_.Arg0String(isolate);
-  Handle<String> arg1 = error_details_.Arg1String(isolate);
+  Handle<String> arg0 = error_details_.ArgString(isolate, 0);
+  Handle<String> arg1 = error_details_.ArgString(isolate, 1);
   isolate->debug()->OnCompileError(script);
 
   Factory* factory = isolate->factory();
@@ -195,8 +190,8 @@ Handle<String> PendingCompilationErrorHandler::FormatErrorMessageForTest(
     Isolate* isolate) {
   error_details_.Prepare(isolate);
   return MessageFormatter::Format(isolate, error_details_.message(),
-                                  error_details_.Arg0String(isolate),
-                                  error_details_.Arg1String(isolate));
+                                  error_details_.ArgString(isolate, 0),
+                                  error_details_.ArgString(isolate, 1));
 }
 
 }  // namespace internal

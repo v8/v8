@@ -25,9 +25,7 @@ class Script;
 // compilation phases.
 class PendingCompilationErrorHandler {
  public:
-  PendingCompilationErrorHandler()
-      : has_pending_error_(false), stack_overflow_(false) {}
-
+  PendingCompilationErrorHandler() = default;
   PendingCompilationErrorHandler(const PendingCompilationErrorHandler&) =
       delete;
   PendingCompilationErrorHandler& operator=(
@@ -89,40 +87,45 @@ class PendingCompilationErrorHandler {
     MessageDetails()
         : start_position_(-1),
           end_position_(-1),
-          message_(MessageTemplate::kNone),
-          arg1_(nullptr),
-          arg0_type_(kNone) {}
+          message_(MessageTemplate::kNone) {}
     MessageDetails(int start_position, int end_position,
-                   MessageTemplate message, const AstRawString* arg)
+                   MessageTemplate message, const AstRawString* arg0)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          arg0_(arg),
-          arg1_(nullptr),
-          arg0_type_(arg ? kAstRawString : kNone) {}
+          args_{MessageArgument{arg0}, MessageArgument{}} {}
     MessageDetails(int start_position, int end_position,
                    MessageTemplate message, const AstRawString* arg0,
                    const char* arg1)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          arg0_(arg0),
-          arg1_(arg1),
-          arg0_type_(kAstRawString) {
+          args_{MessageArgument{arg0}, MessageArgument{arg1}} {
       DCHECK_NOT_NULL(arg0);
       DCHECK_NOT_NULL(arg1);
     }
     MessageDetails(int start_position, int end_position,
-                   MessageTemplate message, const char* char_arg)
+                   MessageTemplate message, const char* arg0)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
-          char_arg0_(char_arg),
-          arg1_(nullptr),
-          arg0_type_(char_arg0_ ? kConstCharString : kNone) {}
+          args_{MessageArgument{arg0}, MessageArgument{}} {}
 
-    Handle<String> Arg0String(Isolate* isolate) const;
-    Handle<String> Arg1String(Isolate* isolate) const;
+    Handle<String> ArgString(Isolate* isolate, int index) const;
+    int ArgCount() const {
+      int argc = 0;
+      for (int i = 0; i < kMaxArgumentCount; i++) {
+        if (args_[i].type == kNone) break;
+        argc++;
+      }
+#ifdef DEBUG
+      for (int i = argc; i < kMaxArgumentCount; i++) {
+        DCHECK_EQ(args_[i].type, kNone);
+      }
+#endif  // DEBUG
+      return argc;
+    }
+
     MessageLocation GetLocation(Handle<Script> script) const;
     MessageTemplate message() const { return message_; }
 
@@ -137,22 +140,32 @@ class PendingCompilationErrorHandler {
 
     int start_position_;
     int end_position_;
+
     MessageTemplate message_;
-    union {
-      const AstRawString* arg0_;
-      const char* char_arg0_;
-      Handle<String> arg0_handle_;
+
+    struct MessageArgument final {
+      constexpr MessageArgument() : ast_string(nullptr), type(kNone) {}
+      explicit constexpr MessageArgument(const AstRawString* s)
+          : ast_string(s), type(s == nullptr ? kNone : kAstRawString) {}
+      explicit constexpr MessageArgument(const char* s)
+          : c_string(s), type(s == nullptr ? kNone : kConstCharString) {}
+
+      union {
+        const AstRawString* ast_string;
+        const char* c_string;
+        Handle<String> js_string;
+      };
+      Type type;
     };
-    // TODO(jgruber): If we ever extend functionality of arg1, refactor it to
-    // be more consistent with arg0.
-    const char* arg1_;
-    Type arg0_type_;
+
+    static constexpr int kMaxArgumentCount = 2;
+    MessageArgument args_[kMaxArgumentCount];
   };
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script) const;
 
-  bool has_pending_error_;
-  bool stack_overflow_;
+  bool has_pending_error_ = false;
+  bool stack_overflow_ = false;
   bool unidentifiable_error_ = false;
 
   MessageDetails error_details_;
