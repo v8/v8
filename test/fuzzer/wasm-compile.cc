@@ -84,20 +84,21 @@ class DataRange {
     data_ += num_bytes;
     return result;
   }
-
-  template <>
-  bool get() {
-    // The general implementation above is not instantiable for bool, as that
-    // would cause undefinied behaviour when memcpy'ing random bytes to the
-    // bool. This can result in different observable side effects when invoking
-    // get<bool> between debug and release version, which eventually makes the
-    // code output different as well as raising various unrecoverable errors on
-    // runtime.
-    // Hence we specialize get<bool> to consume a full byte and use the least
-    // significant bit only (0 == false, 1 == true).
-    return get<uint8_t>() % 2;
-  }
 };
+
+// Explicit specialization must be defined outside of class body.
+template <>
+bool DataRange::get() {
+  // The general implementation above is not instantiable for bool, as that
+  // would cause undefinied behaviour when memcpy'ing random bytes to the
+  // bool. This can result in different observable side effects when invoking
+  // get<bool> between debug and release version, which eventually makes the
+  // code output different as well as raising various unrecoverable errors on
+  // runtime.
+  // Hence we specialize get<bool> to consume a full byte and use the least
+  // significant bit only (0 == false, 1 == true).
+  return get<uint8_t>() % 2;
+}
 
 ValueType GetValueType(uint32_t num_types, DataRange* data,
                        bool liftoff_as_reference) {
