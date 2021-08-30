@@ -579,8 +579,6 @@ class Heap {
                                              int elements_to_trim);
   void RightTrimWeakFixedArray(WeakFixedArray obj, int elements_to_trim);
 
-  void UndoLastAllocationAt(Address addr, int size);
-
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball ToBoolean(bool condition);
 

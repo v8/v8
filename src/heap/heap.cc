@@ -3469,15 +3469,6 @@ void Heap::RightTrimWeakFixedArray(WeakFixedArray object,
                                        elements_to_trim * kTaggedSize);
 }
 
-void Heap::UndoLastAllocationAt(Address addr, int size) {
-  DCHECK_LE(0, size);
-  if (size == 0) return;
-  if (code_space_->TryFreeLast(addr, size)) {
-    return;
-  }
-  CreateFillerObjectAt(addr, size, ClearRecordedSlots::kNo);
-}
-
 template <typename T>
 void Heap::CreateFillerForArray(T object, int elements_to_trim,
                                 int bytes_to_trim) {

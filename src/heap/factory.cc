@@ -313,7 +313,8 @@ void Factory::CodeBuilder::FinalizeOnHeapCode(Handle<Code> code,
       Code::SizeFor(code_desc_.instruction_size() + code_desc_.metadata_size());
   int size_to_trim = old_object_size - new_object_size;
   DCHECK_GE(size_to_trim, 0);
-  heap->UndoLastAllocationAt(code->address() + new_object_size, size_to_trim);
+  heap->CreateFillerObjectAt(code->address() + new_object_size, size_to_trim,
+                             ClearRecordedSlots::kNo);
 }
 
 MaybeHandle<Code> Factory::NewEmptyCode(CodeKind kind, int buffer_size) {
