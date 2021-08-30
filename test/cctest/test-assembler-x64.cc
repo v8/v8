@@ -2550,6 +2550,37 @@ TEST(AssemblerX64Regmove256bit) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+TEST(AssemblerX64FloatingPoint256bit) {
+  if (!CpuFeatures::IsSupported(AVX)) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = CcTest::i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX);
+
+  __ vsqrtps(ymm0, ymm1);
+  __ vunpcklps(ymm2, ymm3, ymm14);
+  __ vsubps(ymm10, ymm11, ymm12);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+
+  byte expected[] = {// VSQRTPS
+                     0xC5, 0xFC, 0x51, 0xC1,
+                     // VUNPCKLPS
+                     0xC4, 0xC1, 0x64, 0x14, 0xD6,
+                     // VSUBPS
+                     0xC4, 0x41, 0x24, 0x5C, 0xD4};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
 TEST(CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));

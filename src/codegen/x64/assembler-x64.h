@@ -1371,6 +1371,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }                                                  \
   void v##instr(XMMRegister dst, Operand src2) {     \
     vps(0x##opcode, dst, xmm0, src2);                \
+  }                                                  \
+  void v##instr(YMMRegister dst, YMMRegister src2) { \
+    vps(0x##opcode, dst, ymm0, src2);                \
+  }                                                  \
+  void v##instr(YMMRegister dst, Operand src2) {     \
+    vps(0x##opcode, dst, ymm0, src2);                \
   }
   SSE_UNOP_INSTRUCTION_LIST(AVX_SSE_UNOP)
 #undef AVX_SSE_UNOP
@@ -1380,6 +1386,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vps(0x##opcode, dst, src1, src2);                                  \
   }                                                                    \
   void v##instr(XMMRegister dst, XMMRegister src1, Operand src2) {     \
+    vps(0x##opcode, dst, src1, src2);                                  \
+  }                                                                    \
+  void v##instr(YMMRegister dst, YMMRegister src1, YMMRegister src2) { \
+    vps(0x##opcode, dst, src1, src2);                                  \
+  }                                                                    \
+  void v##instr(YMMRegister dst, YMMRegister src1, Operand src2) {     \
     vps(0x##opcode, dst, src1, src2);                                  \
   }
   SSE_BINOP_INSTRUCTION_LIST(AVX_SSE_BINOP)
@@ -1697,7 +1709,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
+  void vps(byte op, YMMRegister dst, YMMRegister src1, YMMRegister src2);
   void vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
+  void vps(byte op, YMMRegister dst, YMMRegister src1, Operand src2);
   void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
            byte imm8);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
