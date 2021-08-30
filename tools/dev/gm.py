@@ -28,6 +28,7 @@ not contain spaces.
 from __future__ import print_function
 import errno
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -250,9 +251,7 @@ def _Notify(summary, body):
     print("{} - {}".format(summary, body))
 
 def _GetMachine():
-  # Once we migrate to Python3, this can use os.uname().machine.
-  # The index-based access is compatible with all Python versions.
-  return os.uname()[4]
+  return platform.machine()
 
 def GetPath(arch, mode):
   subdir = "%s.%s" % (arch, mode)
