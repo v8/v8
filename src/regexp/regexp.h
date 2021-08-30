@@ -71,11 +71,11 @@ class RegExp final : public AllStatic {
   static bool CanGenerateBytecode();
 
   // Verify the given pattern, i.e. check that parsing succeeds. If
-  // verification fails, `error_message_out` is set.
+  // verification fails, `regexp_error_out` is set.
   template <class CharT>
   static bool VerifySyntax(Zone* zone, uintptr_t stack_limit,
                            const CharT* input, int input_length,
-                           RegExpFlags flags, const char** error_message_out,
+                           RegExpFlags flags, RegExpError* regexp_error_out,
                            const DisallowGarbageCollection& no_gc);
 
   // Parses the RegExp pattern and prepares the JSRegExp object with

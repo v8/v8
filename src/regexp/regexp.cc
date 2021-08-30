@@ -111,22 +111,22 @@ bool RegExp::CanGenerateBytecode() {
 template <class CharT>
 bool RegExp::VerifySyntax(Zone* zone, uintptr_t stack_limit, const CharT* input,
                           int input_length, RegExpFlags flags,
-                          const char** error_message_out,
+                          RegExpError* regexp_error_out,
                           const DisallowGarbageCollection& no_gc) {
   RegExpCompileData data;
   bool pattern_is_valid = RegExpParser::VerifyRegExpSyntax(
       zone, stack_limit, input, input_length, flags, &data, no_gc);
-  if (!pattern_is_valid) *error_message_out = RegExpErrorString(data.error);
+  *regexp_error_out = data.error;
   return pattern_is_valid;
 }
 
 template bool RegExp::VerifySyntax<uint8_t>(Zone*, uintptr_t, const uint8_t*,
                                             int, RegExpFlags,
-                                            const char** error_message_out,
+                                            RegExpError* regexp_error_out,
                                             const DisallowGarbageCollection&);
 template bool RegExp::VerifySyntax<base::uc16>(
     Zone*, uintptr_t, const base::uc16*, int, RegExpFlags,
-    const char** error_message_out, const DisallowGarbageCollection&);
+    RegExpError* regexp_error_out, const DisallowGarbageCollection&);
 
 MaybeHandle<Object> RegExp::ThrowRegExpException(Isolate* isolate,
                                                  Handle<JSRegExp> re,
