@@ -583,7 +583,7 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
 
     Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
         isolate, compilation_info->feedback_vector_spec());
-    shared_info->set_feedback_metadata(*feedback_metadata);
+    shared_info->set_feedback_metadata(*feedback_metadata, kReleaseStore);
   } else {
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(compilation_info->has_asm_wasm_data());
@@ -591,7 +591,7 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     DCHECK((std::is_same<IsolateT, Isolate>::value));
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
     shared_info->set_feedback_metadata(
-        ReadOnlyRoots(isolate).empty_feedback_metadata());
+        ReadOnlyRoots(isolate).empty_feedback_metadata(), kReleaseStore);
 #else
     UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -335,9 +335,11 @@ class TransitionArray : public WeakFixedArray {
 
   // Search a non-property transition (like elements kind, observe or frozen
   // transitions).
-  inline int SearchSpecial(Symbol symbol, int* out_insertion_index = nullptr);
+  inline int SearchSpecial(Symbol symbol, bool concurrent_search = false,
+                           int* out_insertion_index = nullptr);
   // Search a first transition for a given property name.
-  inline int SearchName(Name name, int* out_insertion_index = nullptr);
+  inline int SearchName(Name name, bool concurrent_search = false,
+                        int* out_insertion_index = nullptr);
   int SearchDetails(int transition, PropertyKind kind,
                     PropertyAttributes attributes, int* out_insertion_index);
   Map SearchDetailsAndGetTarget(int transition, PropertyKind kind,

@@ -190,7 +190,8 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
     return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
   } else {
     int limit = std::max({kFastPropertiesSoftLimit, GetInObjectProperties()});
-    int external = NumberOfFields() - GetInObjectProperties();
+    int external = NumberOfFields(ConcurrencyMode::kNotConcurrent) -
+                   GetInObjectProperties();
     return external > limit;
   }
 }

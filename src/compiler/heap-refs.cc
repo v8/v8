@@ -2057,11 +2057,24 @@ ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
 
 base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
     uint32_t index, SerializationPolicy policy) const {
-    // TODO(solanes, neis, v8:7790, v8:11012): Re-enable this optimization for
-    // concurrent inlining when we have the infrastructure to safely do so.
-    if (broker()->is_concurrent_inlining()) return base::nullopt;
-    CHECK_EQ(data_->kind(), ObjectDataKind::kUnserializedHeapObject);
-    return GetOwnElementFromHeap(broker(), object(), index, true);
+  if (broker()->is_concurrent_inlining()) {
+    String maybe_char;
+    auto result = ConcurrentLookupIterator::TryGetOwnChar(
+        &maybe_char, broker()->isolate(), broker()->local_isolate(), *object(),
+        index);
+
+    if (result == ConcurrentLookupIterator::kGaveUp) {
+      TRACE_BROKER_MISSING(broker(), "StringRef::GetCharAsStringOrUndefined on "
+                                         << *this << " at index " << index);
+      return {};
+    }
+
+    DCHECK_EQ(result, ConcurrentLookupIterator::kPresent);
+    return TryMakeRef(broker(), maybe_char);
+  }
+
+  CHECK_EQ(data_->kind(), ObjectDataKind::kUnserializedHeapObject);
+  return GetOwnElementFromHeap(broker(), object(), index, true);
 }
 
 bool StringRef::SupportedStringKind() const {

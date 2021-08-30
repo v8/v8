@@ -497,15 +497,16 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   };
 
   FieldCounts GetFieldCounts() const;
-  int NumberOfFields() const;
+  int NumberOfFields(ConcurrencyMode cmode) const;
 
   bool HasOutOfObjectProperties() const;
 
   // TODO(ishell): candidate with JSObject::MigrateToMap().
-  bool InstancesNeedRewriting(Map target) const;
+  bool InstancesNeedRewriting(Map target, ConcurrencyMode cmode) const;
   bool InstancesNeedRewriting(Map target, int target_number_of_fields,
                               int target_inobject, int target_unused,
-                              int* old_number_of_fields) const;
+                              int* old_number_of_fields,
+                              ConcurrencyMode cmode) const;
   // Returns true if the |field_type| is the most general one for
   // given |representation|.
   static inline bool IsMostGeneralFieldType(Representation representation,
@@ -880,8 +881,9 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
                                 Handle<Map> child, Handle<Name> name,
                                 SimpleTransitionFlag flag);
 
-  bool EquivalentToForTransition(const Map other) const;
-  bool EquivalentToForElementsKindTransition(const Map other) const;
+  bool EquivalentToForTransition(const Map other, ConcurrencyMode cmode) const;
+  bool EquivalentToForElementsKindTransition(const Map other,
+                                             ConcurrencyMode cmode) const;
   static Handle<Map> RawCopy(Isolate* isolate, Handle<Map> map,
                              int instance_size, int inobject_properties);
   static Handle<Map> ShareDescriptor(Isolate* isolate, Handle<Map> map,

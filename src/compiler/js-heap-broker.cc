@@ -905,6 +905,10 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
 
     // Don't generate elements kind transitions from stable maps.
     if (!map.is_stable()) {
+      // The lock is needed for UnusedPropertyFields (called deep inside
+      // FindElementsKindTransitionedMap).
+      MapUpdaterGuardIfNeeded mumd_scope(this);
+
       transition_target = map.object()->FindElementsKindTransitionedMap(
           isolate(), possible_transition_targets, ConcurrencyMode::kConcurrent);
     }
