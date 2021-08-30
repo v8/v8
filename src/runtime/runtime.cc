@@ -226,7 +226,7 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
       return !FLAG_allow_natives_for_differential_fuzzing;
     case Runtime::kBaselineOsr:
     case Runtime::kCompileBaseline:
-      return FLAG_sparkplug;
+      return ENABLE_SPARKPLUG;
     default:
       return false;
   }
