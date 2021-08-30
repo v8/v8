@@ -211,6 +211,9 @@
   'regress/regress-crbug-941743': [PASS, HEAVY],
   'regress/regress-crbug-1191886': [PASS, HEAVY],
   'wasm/externref-globals': [PASS, HEAVY],
+
+  # TODO(v8:12149): Unskip once the JSFunctionRef dependency is relaxed.
+  'interrupt-budget-override': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
