@@ -13,6 +13,7 @@
 
 #include "include/cppgc/platform.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/globals.h"
 
 namespace cppgc {
@@ -227,6 +228,8 @@ class V8_EXPORT_PRIVATE PageBackend final {
   PageBackend& operator=(const PageBackend&) = delete;
 
  private:
+  // Guards against concurrent uses of `Lookup()`.
+  mutable v8::base::Mutex mutex_;
   PageAllocator& allocator_;
   FatalOutOfMemoryHandler& oom_handler_;
   NormalPageMemoryPool page_pool_;
@@ -273,6 +276,7 @@ PageMemoryRegion* PageMemoryRegionTree::Lookup(ConstAddress address) const {
 }
 
 Address PageBackend::Lookup(ConstAddress address) const {
+  v8::base::MutexGuard guard(&mutex_);
   PageMemoryRegion* pmr = page_memory_region_tree_.Lookup(address);
   return pmr ? pmr->Lookup(address) : nullptr;
 }
