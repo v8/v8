@@ -579,7 +579,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
             .Position(signature.parameter_names[signature.implicit_count]->pos);
       }
 
-      csa_ccfile() << "   TNode<Word32T> argc = UncheckedParameter<Word32T>("
+      csa_ccfile() << "  TNode<Word32T> argc = UncheckedParameter<Word32T>("
                    << "Descriptor::kJSActualArgumentsCount);\n";
       csa_ccfile() << "  TNode<IntPtrT> "
                       "arguments_length(ChangeInt32ToIntPtr(UncheckedCast<"
@@ -595,6 +595,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       parameters.Push("torque_arguments.frame");
       parameters.Push("torque_arguments.base");
       parameters.Push("torque_arguments.length");
+      parameters.Push("torque_arguments.actual_count");
       const Type* arguments_type = TypeOracle::GetArgumentsType();
       StackRange range = parameter_types.PushMany(LowerType(arguments_type));
       parameter_bindings.Add(*signature.arguments_variable,
@@ -625,7 +626,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                     ? "arguments.GetReceiver()"
                     : "UncheckedParameter<Object>(Descriptor::kReceiver)")
             << ";\n";
-        csa_ccfile() << "USE(" << generated_name << ");\n";
+        csa_ccfile() << "  USE(" << generated_name << ");\n";
         expected_types = {TypeOracle::GetJSAnyType()};
       } else if (param_name == "newTarget") {
         csa_ccfile() << "  TNode<Object> " << generated_name

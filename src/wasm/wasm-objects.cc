@@ -1547,7 +1547,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     if (kind == compiler::WasmImportCallKind ::kJSFunctionArityMismatch) {
       expected_arity = Handle<JSFunction>::cast(callable)
                            ->shared()
-                           .internal_formal_parameter_count();
+                           .internal_formal_parameter_count_without_receiver();
     }
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
         &env, kind, sig, false, expected_arity);
@@ -2110,7 +2110,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     CK kind = compiler::kDefaultImportCallKind;
     if (callable->IsJSFunction()) {
       SharedFunctionInfo shared = Handle<JSFunction>::cast(callable)->shared();
-      expected_arity = shared.internal_formal_parameter_count();
+      expected_arity =
+          shared.internal_formal_parameter_count_without_receiver();
       if (expected_arity != parameter_count) {
         kind = CK::kJSFunctionArityMismatch;
       }

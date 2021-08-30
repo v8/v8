@@ -1513,7 +1513,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   }
 
   os << "\n - formal_parameter_count: "
-     << shared().internal_formal_parameter_count();
+     << shared().internal_formal_parameter_count_without_receiver();
   os << "\n - kind: " << shared().kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(raw_code());
@@ -1583,7 +1583,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
   os << "\n - function_map_index: " << function_map_index();
-  os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
+  os << "\n - formal_parameter_count: "
+     << internal_formal_parameter_count_without_receiver();
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data(kAcquireLoad));

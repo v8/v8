@@ -477,15 +477,6 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind, bool reuse_code) {
   }
 }
 
-namespace {
-
-uint16_t InternalFormalParameterCountWithReceiver(SharedFunctionInfo sfi) {
-  static constexpr int kTheReceiver = 1;
-  return sfi.internal_formal_parameter_count() + kTheReceiver;
-}
-
-}  // namespace
-
 Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
                          DeoptimizeKind kind, unsigned deopt_exit_index,
                          Address from, int fp_to_sp_delta)
@@ -541,7 +532,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   }
   unsigned size = ComputeInputFrameSize();
   const int parameter_count =
-      InternalFormalParameterCountWithReceiver(function.shared());
+      function.shared().internal_formal_parameter_count_with_receiver();
   input_ = new (size) FrameDescription(size, parameter_count);
 
   if (kSupportsFixedDeoptExitSizes) {
@@ -903,7 +894,8 @@ void Deoptimizer::DoComputeOutputFrames() {
       isolate_, input_->GetFramePointerAddress(), stack_fp_, &state_iterator,
       input_data.LiteralArray(), input_->GetRegisterValues(), trace_file,
       function_.IsHeapObject()
-          ? function_.shared().internal_formal_parameter_count()
+          ? function_.shared()
+                .internal_formal_parameter_count_without_receiver()
           : 0,
       actual_argument_count_);
 
@@ -1026,7 +1018,8 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const int bytecode_offset =
       goto_catch_handler ? catch_handler_pc_offset_ : real_bytecode_offset;
 
-  const int parameters_count = InternalFormalParameterCountWithReceiver(shared);
+  const int parameters_count =
+      shared.internal_formal_parameter_count_with_receiver();
 
   // If this is the bottom most frame or the previous frame was the arguments
   // adaptor fake frame, then we already have extra arguments in the stack
@@ -1334,7 +1327,8 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   const int argument_count_without_receiver = translated_frame->height() - 1;
   const int formal_parameter_count =
-      translated_frame->raw_shared_info().internal_formal_parameter_count();
+      translated_frame->raw_shared_info()
+          .internal_formal_parameter_count_without_receiver();
   const int extra_argument_count =
       argument_count_without_receiver - formal_parameter_count;
   // The number of pushed arguments is the maximum of the actual argument count
@@ -2067,7 +2061,7 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
 
 // static
 unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
-  int parameter_slots = InternalFormalParameterCountWithReceiver(shared);
+  int parameter_slots = shared.internal_formal_parameter_count_with_receiver();
   return parameter_slots * kSystemPointerSize;
 }
 

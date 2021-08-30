@@ -1039,7 +1039,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       if (kind == compiler::WasmImportCallKind::kJSFunctionArityMismatch) {
         Handle<JSFunction> function = Handle<JSFunction>::cast(js_receiver);
         SharedFunctionInfo shared = function->shared();
-        expected_arity = shared.internal_formal_parameter_count();
+        expected_arity =
+            shared.internal_formal_parameter_count_without_receiver();
       }
 
       NativeModule* native_module = instance->module_object().native_module();
@@ -1443,7 +1444,8 @@ void InstanceBuilder::CompileImportWrappers(
         compiler::WasmImportCallKind::kJSFunctionArityMismatch) {
       Handle<JSFunction> function = Handle<JSFunction>::cast(resolved.second);
       SharedFunctionInfo shared = function->shared();
-      expected_arity = shared.internal_formal_parameter_count();
+      expected_arity =
+          shared.internal_formal_parameter_count_without_receiver();
     }
 
     WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity);

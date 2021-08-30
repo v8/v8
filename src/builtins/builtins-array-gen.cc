@@ -628,9 +628,9 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
     Label is_smi(this), is_nonsmi(this), done(this);
 
     // If no fromIndex was passed, default to 0.
-    GotoIf(
-        IntPtrLessThanOrEqual(args.GetLength(), IntPtrConstant(kFromIndexArg)),
-        &done);
+    GotoIf(IntPtrLessThanOrEqual(args.GetLengthWithoutReceiver(),
+                                 IntPtrConstant(kFromIndexArg)),
+           &done);
 
     TNode<Object> start_from = args.AtIndex(kFromIndexArg);
     // Handle Smis and undefined here and everything else in runtime.
@@ -1781,11 +1781,13 @@ void ArrayBuiltinsAssembler::GenerateDispatchToArrayStub(
     base::Optional<TNode<AllocationSite>> allocation_site) {
   CodeStubArguments args(this, argc);
   Label check_one_case(this), fallthrough(this);
-  GotoIfNot(IntPtrEqual(args.GetLength(), IntPtrConstant(0)), &check_one_case);
+  GotoIfNot(IntPtrEqual(args.GetLengthWithoutReceiver(), IntPtrConstant(0)),
+            &check_one_case);
   CreateArrayDispatchNoArgument(context, target, argc, mode, allocation_site);
 
   BIND(&check_one_case);
-  GotoIfNot(IntPtrEqual(args.GetLength(), IntPtrConstant(1)), &fallthrough);
+  GotoIfNot(IntPtrEqual(args.GetLengthWithoutReceiver(), IntPtrConstant(1)),
+            &fallthrough);
   CreateArrayDispatchSingleArgument(context, target, argc, mode,
                                     allocation_site);
 

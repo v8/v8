@@ -197,11 +197,11 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Node* const arguments_length =
             graph()->NewNode(simplified()->ArgumentsLength());
         // Allocate the elements backing store.
-        Node* const elements = effect =
-            graph()->NewNode(simplified()->NewArgumentsElements(
-                                 CreateArgumentsType::kUnmappedArguments,
-                                 shared.internal_formal_parameter_count()),
-                             arguments_length, effect);
+        Node* const elements = effect = graph()->NewNode(
+            simplified()->NewArgumentsElements(
+                CreateArgumentsType::kUnmappedArguments,
+                shared.internal_formal_parameter_count_without_receiver()),
+            arguments_length, effect);
         // Load the arguments object map.
         Node* const arguments_map =
             jsgraph()->Constant(native_context().strict_arguments_map());
@@ -222,14 +222,14 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Node* effect = NodeProperties::GetEffectInput(node);
         Node* const arguments_length =
             graph()->NewNode(simplified()->ArgumentsLength());
-        Node* const rest_length = graph()->NewNode(
-            simplified()->RestLength(shared.internal_formal_parameter_count()));
+        Node* const rest_length = graph()->NewNode(simplified()->RestLength(
+            shared.internal_formal_parameter_count_without_receiver()));
         // Allocate the elements backing store.
-        Node* const elements = effect =
-            graph()->NewNode(simplified()->NewArgumentsElements(
-                                 CreateArgumentsType::kRestParameter,
-                                 shared.internal_formal_parameter_count()),
-                             arguments_length, effect);
+        Node* const elements = effect = graph()->NewNode(
+            simplified()->NewArgumentsElements(
+                CreateArgumentsType::kRestParameter,
+                shared.internal_formal_parameter_count_without_receiver()),
+            arguments_length, effect);
         // Load the JSArray object map.
         Node* const jsarray_map = jsgraph()->Constant(
             native_context().js_array_packed_elements_map());
@@ -332,7 +332,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       return Changed(node);
     }
     case CreateArgumentsType::kRestParameter: {
-      int start_index = shared.internal_formal_parameter_count();
+      int start_index =
+          shared.internal_formal_parameter_count_without_receiver();
       // Use inline allocation for all unmapped arguments objects within inlined
       // (i.e. non-outermost) frames, independent of the object size.
       Node* effect = NodeProperties::GetEffectInput(node);
@@ -401,7 +402,8 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     // Allocate a register file.
     SharedFunctionInfoRef shared = js_function.shared();
     DCHECK(shared.HasBytecodeArray());
-    int parameter_count_no_receiver = shared.internal_formal_parameter_count();
+    int parameter_count_no_receiver =
+        shared.internal_formal_parameter_count_without_receiver();
     int length = parameter_count_no_receiver +
                  shared.GetBytecodeArray().register_count();
     MapRef fixed_array_map = MakeRef(broker(), factory()->fixed_array_map());
@@ -1487,7 +1489,8 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
 
   // If there is no aliasing, the arguments object elements are not special in
   // any way, we can just return an unmapped backing store instead.
-  int parameter_count = shared.internal_formal_parameter_count();
+  int parameter_count =
+      shared.internal_formal_parameter_count_without_receiver();
   if (parameter_count == 0) {
     return TryAllocateArguments(effect, control, frame_state);
   }
@@ -1553,7 +1556,8 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
     const SharedFunctionInfoRef& shared, bool* has_aliased_arguments) {
   // If there is no aliasing, the arguments object elements are not
   // special in any way, we can just return an unmapped backing store.
-  int parameter_count = shared.internal_formal_parameter_count();
+  int parameter_count =
+      shared.internal_formal_parameter_count_without_receiver();
   if (parameter_count == 0) {
     return graph()->NewNode(
         simplified()->NewArgumentsElements(

@@ -131,9 +131,23 @@ DEF_ACQUIRE_GETTER(SharedFunctionInfo,
   return value;
 }
 
-RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo,
-                               internal_formal_parameter_count,
-                               formal_parameter_count)
+uint16_t SharedFunctionInfo::internal_formal_parameter_count_with_receiver()
+    const {
+  uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
+  if (param_count == kDontAdaptArgumentsSentinel) return param_count;
+  return param_count + 1;
+}
+
+uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()
+    const {
+  return TorqueGeneratedClass::formal_parameter_count();
+}
+
+void SharedFunctionInfo::set_internal_formal_parameter_count(int value) {
+  DCHECK_EQ(value, static_cast<uint16_t>(value));
+  TorqueGeneratedClass::set_formal_parameter_count(value);
+}
+
 RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                                function_token_offset)
 
@@ -390,6 +404,11 @@ void SharedFunctionInfo::DontAdaptArguments() {
   DCHECK(!HasWasmExportedFunctionData());
 #endif  // V8_ENABLE_WEBASSEMBLY
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
+}
+
+bool SharedFunctionInfo::IsDontAdaptArguments() const {
+  return TorqueGeneratedClass::formal_parameter_count() ==
+         kDontAdaptArgumentsSentinel;
 }
 
 bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }

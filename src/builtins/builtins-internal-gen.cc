@@ -953,21 +953,23 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
 
   auto actual_argc =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  CodeStubArguments args(this, actual_argc);
 
-  TVARIABLE(Int32T, pushed_argc, actual_argc);
+  TVARIABLE(Int32T, pushed_argc,
+            TruncateIntPtrToInt32(args.GetLengthWithReceiver()));
 
   TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(target);
 
-  TNode<Int32T> formal_count =
-      UncheckedCast<Int32T>(LoadSharedFunctionInfoFormalParameterCount(shared));
+  TNode<Int32T> formal_count = UncheckedCast<Int32T>(
+      LoadSharedFunctionInfoFormalParameterCountWithReceiver(shared));
 
   // The number of arguments pushed is the maximum of actual arguments count
   // and formal parameters count. Except when the formal parameters count is
   // the sentinel.
   Label check_argc(this), update_argc(this), done_argc(this);
 
-  Branch(Word32Equal(formal_count, Int32Constant(kDontAdaptArgumentsSentinel)),
-         &done_argc, &check_argc);
+  Branch(IsSharedFunctionInfoDontAdaptArguments(shared), &done_argc,
+         &check_argc);
   BIND(&check_argc);
   Branch(Int32GreaterThan(formal_count, pushed_argc.value()), &update_argc,
          &done_argc);
@@ -980,7 +982,7 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
   // including the receiver and the extra arguments.
   TNode<Int32T> argc = Int32Add(
       pushed_argc.value(),
-      Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
+      Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver));
 
   const bool builtin_exit_frame = true;
   TNode<Code> code =
@@ -1304,17 +1306,17 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(maybe_result_or_smi_zero), &tailcall_to_function);
 
   TNode<SharedFunctionInfo> shared = LoadJSFunctionSharedFunctionInfo(function);
-  TNode<Int32T> parameter_count =
-      UncheckedCast<Int32T>(LoadSharedFunctionInfoFormalParameterCount(shared));
+  TNode<Int32T> parameter_count = UncheckedCast<Int32T>(
+      LoadSharedFunctionInfoFormalParameterCountWithReceiver(shared));
   // This builtin intercepts a call to {function}, where the number of arguments
   // pushed is the maximum of actual arguments count and formal parameters
   // count.
   Label argc_lt_param_count(this), argc_ge_param_count(this);
-  Branch(IntPtrLessThan(args.GetLength(), ChangeInt32ToIntPtr(parameter_count)),
+  Branch(IntPtrLessThan(args.GetLengthWithReceiver(),
+                        ChangeInt32ToIntPtr(parameter_count)),
          &argc_lt_param_count, &argc_ge_param_count);
   BIND(&argc_lt_param_count);
-  PopAndReturn(Int32Add(parameter_count, Int32Constant(1)),
-               maybe_result_or_smi_zero);
+  PopAndReturn(parameter_count, maybe_result_or_smi_zero);
   BIND(&argc_ge_param_count);
   args.PopAndReturn(maybe_result_or_smi_zero);
 

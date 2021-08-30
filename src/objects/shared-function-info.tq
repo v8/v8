@@ -84,6 +84,31 @@ class SharedFunctionInfo extends HeapObject {
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }
 
+const kDontAdaptArgumentsSentinel: constexpr int32
+    generates 'kDontAdaptArgumentsSentinel';
+
+@export
+macro LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(
+    sfi: SharedFunctionInfo): uint16 {
+  return sfi.formal_parameter_count;
+}
+
+@export
+macro LoadSharedFunctionInfoFormalParameterCountWithReceiver(
+    sfi: SharedFunctionInfo): uint16 {
+  let formalParameterCount = sfi.formal_parameter_count;
+  if (Convert<int32>(formalParameterCount) != kDontAdaptArgumentsSentinel) {
+    formalParameterCount = Convert<uint16>(formalParameterCount + 1);
+  }
+  return formalParameterCount;
+}
+
+@export
+macro IsSharedFunctionInfoDontAdaptArguments(sfi: SharedFunctionInfo): bool {
+  const formalParameterCount = sfi.formal_parameter_count;
+  return Convert<int32>(formalParameterCount) == kDontAdaptArgumentsSentinel;
+}
+
 @abstract
 @export
 @customCppClass

@@ -3188,7 +3188,8 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
 
   // Resize the capacity of the fixed array if it doesn't fit.
   TNode<IntPtrT> first = arg_index->value();
-  TNode<BInt> growth = IntPtrToBInt(IntPtrSub(args->GetLength(), first));
+  TNode<BInt> growth =
+      IntPtrToBInt(IntPtrSub(args->GetLengthWithoutReceiver(), first));
   PossiblyGrowElementsCapacity(kind, array, var_length.value(), &var_elements,
                                growth, &pre_bailout);
 
@@ -14074,7 +14075,8 @@ TNode<RawPtrT> CodeStubArguments::AtIndexPtr(TNode<IntPtrT> index) const {
 }
 
 TNode<Object> CodeStubArguments::AtIndex(TNode<IntPtrT> index) const {
-  CSA_ASSERT(assembler_, assembler_->UintPtrOrSmiLessThan(index, GetLength()));
+  CSA_ASSERT(assembler_, assembler_->UintPtrOrSmiLessThan(
+                             index, GetLengthWithoutReceiver()));
   return assembler_->LoadFullTagged(AtIndexPtr(index));
 }
 
@@ -14082,10 +14084,12 @@ TNode<Object> CodeStubArguments::AtIndex(int index) const {
   return AtIndex(assembler_->IntPtrConstant(index));
 }
 
+TNode<IntPtrT> CodeStubArguments::GetLengthWithoutReceiver() const {
+  return argc_;
+}
+
 TNode<IntPtrT> CodeStubArguments::GetLengthWithReceiver() const {
-  TNode<IntPtrT> argc = GetLength();
-  argc = assembler_->IntPtrAdd(argc, assembler_->IntPtrConstant(1));
-  return argc;
+  return assembler_->IntPtrAdd(argc_, assembler_->IntPtrConstant(1));
 }
 
 TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
@@ -14094,8 +14098,9 @@ TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
   CodeStubAssembler::Label argument_missing(assembler_),
       argument_done(assembler_, &result);
 
-  assembler_->GotoIf(assembler_->UintPtrGreaterThanOrEqual(index, argc_),
-                     &argument_missing);
+  assembler_->GotoIf(
+      assembler_->UintPtrGreaterThanOrEqual(index, GetLengthWithoutReceiver()),
+      &argument_missing);
   result = AtIndex(index);
   assembler_->Goto(&argument_done);
 
@@ -14116,7 +14121,7 @@ void CodeStubArguments::ForEach(
     first = assembler_->IntPtrConstant(0);
   }
   if (last == nullptr) {
-    last = argc_;
+    last = GetLengthWithoutReceiver();
   }
   TNode<RawPtrT> start = AtIndexPtr(first);
   TNode<RawPtrT> end = AtIndexPtr(last);
@@ -14131,8 +14136,7 @@ void CodeStubArguments::ForEach(
 }
 
 void CodeStubArguments::PopAndReturn(TNode<Object> value) {
-  TNode<IntPtrT> pop_count =
-      assembler_->IntPtrAdd(argc_, assembler_->IntPtrConstant(1));
+  TNode<IntPtrT> pop_count = GetLengthWithReceiver();
   assembler_->PopAndReturn(pop_count, value);
 }
 

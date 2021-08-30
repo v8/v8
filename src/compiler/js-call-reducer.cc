@@ -2098,7 +2098,8 @@ FrameState CreateArtificialFrameState(
 FrameState PromiseConstructorFrameState(
     const PromiseCtorFrameStateParams& params, CommonOperatorBuilder* common,
     Graph* graph) {
-  DCHECK_EQ(1, params.shared.internal_formal_parameter_count());
+  DCHECK_EQ(1,
+            params.shared.internal_formal_parameter_count_without_receiver());
   return CreateArtificialFrameState(
       params.node_ptr, params.outer_frame_state, 1,
       BytecodeOffset::ConstructStubInvoke(), FrameStateType::kConstructStub,
@@ -4036,7 +4037,8 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
       return NoChange();
     }
     formal_parameter_count =
-        MakeRef(broker(), shared).internal_formal_parameter_count();
+        MakeRef(broker(), shared)
+            .internal_formal_parameter_count_without_receiver();
   }
 
   if (type == CreateArgumentsType::kMappedArguments) {

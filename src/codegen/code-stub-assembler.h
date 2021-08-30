@@ -4079,7 +4079,7 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
   CodeStubArguments(CodeStubAssembler* assembler,
                     TorqueStructArguments torque_arguments)
       : assembler_(assembler),
-        argc_(torque_arguments.length),
+        argc_(torque_arguments.actual_count),
         base_(torque_arguments.base),
         fp_(torque_arguments.frame) {}
 
@@ -4097,12 +4097,12 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
   TNode<Object> AtIndex(int index) const;
 
   // Return the number of arguments (excluding the receiver).
-  TNode<IntPtrT> GetLength() const { return argc_; }
+  TNode<IntPtrT> GetLengthWithoutReceiver() const;
   // Return the number of arguments (including the receiver).
   TNode<IntPtrT> GetLengthWithReceiver() const;
 
   TorqueStructArguments GetTorqueArguments() const {
-    return TorqueStructArguments{fp_, base_, argc_};
+    return TorqueStructArguments{fp_, base_, GetLengthWithoutReceiver(), argc_};
   }
 
   TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index,

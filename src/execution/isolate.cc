@@ -638,7 +638,8 @@ class StackTraceBuilder {
     if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
       parameters = isolate_->factory()->CopyFixedArrayUpTo(
           handle(generator_object->parameters_and_registers(), isolate_),
-          function->shared().internal_formal_parameter_count());
+          function->shared()
+              .internal_formal_parameter_count_without_receiver());
     }
 
     AppendFrame(receiver, function, code, offset, flags, parameters);

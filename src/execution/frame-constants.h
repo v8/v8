@@ -283,7 +283,9 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
   static constexpr int kPaddingOffset = kArgcOffset + 1 * kSystemPointerSize;
   static constexpr int kFirstArgumentOffset =
       kPaddingOffset + 1 * kSystemPointerSize;
-  static constexpr int kNumExtraArgsWithReceiver = 5;
+  static constexpr int kNumExtraArgsWithoutReceiver = 4;
+  static constexpr int kNumExtraArgsWithReceiver =
+      kNumExtraArgsWithoutReceiver + 1;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript
