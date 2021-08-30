@@ -51,7 +51,7 @@ class EmbedderNode : public v8::EmbedderGraph::Node {
     // TODO(chromium:1218404): Add a DCHECK() to avoid overriding an already
     // set `wrapper_node_`. This can currently happen with global proxies that
     // are rewired (and still kept alive) after reloading a page, see
-    // `CreateMergedNode`. We accept overriding the wrapper node in such cases,
+    // `AddEdge`. We accept overriding the wrapper node in such cases,
     // leading to a random merged node and separated nodes for all other
     // proxies.
     wrapper_node_ = wrapper_node;
@@ -433,12 +433,6 @@ class CppGraphBuilderImpl final {
     }
     if (!current.get_node()) {
       current.set_node(AddNode(header));
-
-      const auto& it = pending_back_states_.find(&current);
-      if (it != pending_back_states_.end()) {
-        CreateMergedNode(current, it->second);
-        pending_back_states_.erase(it);
-      }
     }
 
     if (!edge_name.empty()) {
@@ -468,16 +462,28 @@ class CppGraphBuilderImpl final {
           reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
           v8_value);
       if (back_reference_object) {
-        auto& back_state = states_.GetExistingState(
-            HeapObjectHeader::FromObject(back_reference_object));
-        DCHECK_EQ(pending_back_states_.end(),
-                  pending_back_states_.find(&back_state));
-        const MergedNodeItem back_ref_item{v8_node, v8_value,
-                                           ref.WrapperClassId()};
+        auto& back_header = HeapObjectHeader::FromObject(back_reference_object);
+        auto& back_state = states_.GetExistingState(back_header);
+
+        // Generally the back reference will point to `parent.header()`. In the
+        // case of global proxy set up the backreference will point to a
+        // different object, which may not have a node at t his point. Merge the
+        // nodes nevertheless as Window objects need to be able to query their
+        // detachedness state.
+        //
+        // TODO(chromium:1218404): See bug description on how to fix this
+        // inconsistency and only merge states when the backref points back
+        // to the same object.
         if (!back_state.get_node()) {
-          pending_back_states_.emplace(&back_state, back_ref_item);
-        } else {
-          CreateMergedNode(back_state, back_ref_item);
+          back_state.set_node(AddNode(back_header));
+        }
+        back_state.get_node()->SetWrapperNode(v8_node);
+
+        auto* profiler =
+            reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
+        if (profiler->HasGetDetachednessCallback()) {
+          back_state.get_node()->SetDetachedness(
+              profiler->GetDetachedness(v8_value, ref.WrapperClassId()));
         }
       }
     }
@@ -512,30 +518,10 @@ class CppGraphBuilderImpl final {
     uint16_t wrapper_class_id_;
   };
 
-  void CreateMergedNode(State& back_state, const MergedNodeItem& item) {
-    // Generally the back reference will point to `parent.header()`. In the
-    // case of global proxy set up the backreference will point to a
-    // different object. Merge the nodes nevertheless as Window objects need
-    // to be able to query their detachedness state.
-    //
-    // TODO(chromium:1218404): See bug description on how to fix this
-    // inconsistency and only merge states when the backref points back
-    // to the same object.
-    back_state.get_node()->SetWrapperNode(item.node_);
-
-    auto* profiler =
-        reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
-    if (profiler->HasGetDetachednessCallback()) {
-      back_state.get_node()->SetDetachedness(
-          profiler->GetDetachedness(item.value_, item.wrapper_class_id_));
-    }
-  }
-
   CppHeap& cpp_heap_;
   v8::EmbedderGraph& graph_;
   StateStorage states_;
   std::vector<std::unique_ptr<WorkstackItemBase>> workstack_;
-  std::unordered_map<State*, const MergedNodeItem> pending_back_states_;
 };
 
 // Iterating live objects to mark them as visible if needed.
@@ -848,7 +834,6 @@ void CppGraphBuilderImpl::Run() {
     cppgc::internal::PersistentRegionLock guard;
     cpp_heap_.GetStrongCrossThreadPersistentRegion().Trace(&object_visitor);
   }
-  CHECK(pending_back_states_.empty());
 }
 
 // static
