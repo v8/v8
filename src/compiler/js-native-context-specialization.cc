@@ -2255,10 +2255,6 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
 Node* JSNativeContextSpecialization::InlineApiCall(
     Node* receiver, Node* holder, Node* frame_state, Node* value, Node** effect,
     Node** control, FunctionTemplateInfoRef const& function_template_info) {
-  if (!function_template_info.has_call_code()) {
-    return nullptr;
-  }
-
   if (!function_template_info.call_code().has_value()) {
     TRACE_BROKER_MISSING(broker(), "call code for function template info "
                                        << function_template_info);

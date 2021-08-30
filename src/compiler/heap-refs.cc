@@ -2259,32 +2259,15 @@ bool FunctionTemplateInfoRef::is_signature_undefined() const {
   return object()->signature().IsUndefined(broker()->isolate());
 }
 
-bool FunctionTemplateInfoRef::has_call_code() const {
-  HeapObject call_code = object()->call_code(kAcquireLoad);
-  return !call_code.IsUndefined();
-}
-
 HEAP_ACCESSOR_C(FunctionTemplateInfo, bool, accept_any_receiver)
 
 HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
-    MapRef receiver_map, SerializationPolicy policy) {
+    MapRef receiver_map) {
   const HolderLookupResult not_found;
-  // There are currently two ways we can see a FunctionTemplateInfo on the
-  // background thread: 1.) As part of a SharedFunctionInfo and 2.) in an
-  // AccessorPair. In both cases, the FTI is fully constructed on the main
-  // thread before.
-  // TODO(nicohartmann@, v8:7790): Once the above no longer holds, we might
-  // have to use the GC predicate to check whether objects are fully
-  // initialized and safe to read.
-  if (!receiver_map.IsJSReceiverMap() ||
-      (receiver_map.is_access_check_needed() &&
-       !object()->accept_any_receiver())) {
+  if (!receiver_map.IsJSObjectMap() || (receiver_map.is_access_check_needed() &&
+                                        !object()->accept_any_receiver())) {
     return not_found;
   }
-
-  if (!receiver_map.IsJSObjectMap()) return not_found;
-
-  DCHECK(has_call_code());
 
   Handle<FunctionTemplateInfo> expected_receiver_type;
   {
@@ -2298,17 +2281,11 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
     if (expected_receiver_type->IsTemplateFor(*receiver_map.object())) {
       return HolderLookupResult(CallOptimization::kHolderIsReceiver);
     }
-
     if (!receiver_map.IsJSGlobalProxyMap()) return not_found;
   }
 
-  if (policy == SerializationPolicy::kSerializeIfNeeded) {
-    receiver_map.SerializePrototype(NotConcurrentInliningTag{broker()});
-  }
   base::Optional<HeapObjectRef> prototype = receiver_map.prototype();
-  if (!prototype.has_value()) return not_found;
-  if (prototype->IsNull()) return not_found;
-
+  if (!prototype.has_value() || prototype->IsNull()) return not_found;
   if (!expected_receiver_type->IsTemplateFor(prototype->object()->map())) {
     return not_found;
   }
@@ -3108,18 +3085,6 @@ bool PropertyCellRef::Cache() const {
   CHECK(broker()->mode() == JSHeapBroker::kSerializing ||
         broker()->mode() == JSHeapBroker::kSerialized);
   return data()->AsPropertyCell()->Cache(broker());
-}
-
-void FunctionTemplateInfoRef::SerializeCallCode(NotConcurrentInliningTag tag) {
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  // CallHandlerInfo::data may still hold a serialized heap object, so we
-  // have to make the broker aware of it.
-  // TODO(v8:7790): Remove this case once ObjectRef is never serialized.
-  Handle<HeapObject> call_code(object()->call_code(kAcquireLoad),
-                               broker()->isolate());
-  if (call_code->IsCallHandlerInfo()) {
-    broker()->GetOrCreateData(Handle<CallHandlerInfo>::cast(call_code)->data());
-  }
 }
 
 bool NativeContextRef::GlobalIsDetached() const {

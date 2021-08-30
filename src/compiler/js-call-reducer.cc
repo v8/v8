@@ -3638,8 +3638,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   FunctionTemplateInfoRef function_template_info(
       shared.function_template_info().value());
 
-  if (!function_template_info.has_call_code()) return NoChange();
-
   if (function_template_info.accept_any_receiver() &&
       function_template_info.is_signature_undefined()) {
     // We might be able to

@@ -776,17 +776,10 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
 
   bool is_signature_undefined() const;
   bool accept_any_receiver() const;
-  // The following returns true if the CallHandlerInfo is present.
-  bool has_call_code() const;
-
-  void SerializeCallCode(NotConcurrentInliningTag tag);
   base::Optional<CallHandlerInfoRef> call_code() const;
   ZoneVector<Address> c_functions() const;
   ZoneVector<const CFunctionInfo*> c_signatures() const;
-
-  HolderLookupResult LookupHolderOfExpectedType(
-      MapRef receiver_map,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  HolderLookupResult LookupHolderOfExpectedType(MapRef receiver_map);
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {
