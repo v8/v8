@@ -104,6 +104,12 @@
                   '|WORKSPACE' \
                   '|bazel/',
     },
+    'cppgc': {
+      'filepath': 'src/heap/cppgc/' \
+                  '|src/heap/cppgc-js/' \
+                  '|include/cppgc/' \
+                  '|test/unittests/heap/',
+    },
   },
 
   'WATCHLISTS': {
@@ -165,6 +171,9 @@
     ],
     'api': [
       'cbruni+watch@chromium.org',
+    ],
+    'cppgc': [
+      'oilpan-reviews+v8@chromium.org',
     ],
   },
 }
