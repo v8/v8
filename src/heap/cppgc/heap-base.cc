@@ -75,8 +75,8 @@ HeapBase::HeapBase(
           v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),
       compactor_(raw_heap_),
-      object_allocator_(&raw_heap_, page_backend_.get(), stats_collector_.get(),
-                        prefinalizer_handler_.get()),
+      object_allocator_(raw_heap_, *page_backend_, *stats_collector_,
+                        *prefinalizer_handler_),
       sweeper_(*this),
       stack_support_(stack_support) {
   stats_collector_->RegisterObserver(
