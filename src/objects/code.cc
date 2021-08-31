@@ -775,7 +775,7 @@ void DependentCode::SetDependentCode(Handle<HeapObject> object,
 void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
                                       Handle<HeapObject> object,
                                       DependencyGroup group) {
-  if (V8_UNLIKELY(FLAG_trace_code_dependencies)) {
+  if (V8_UNLIKELY(FLAG_trace_compilation_dependencies)) {
     StdoutStream{} << "Installing dependency of [" << code->GetHeapObject()
                    << "] on [" << object << "] in group ["
                    << DependencyGroupName(group) << "]\n";

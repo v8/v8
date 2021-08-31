@@ -536,9 +536,9 @@ DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
 
-DEFINE_BOOL(trace_code_dependencies, false, "trace code dependencies")
+DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
-DEFINE_IMPLICATION(trace_code_dependencies, trace_deopt_verbose)
+DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
 #ifdef V8_ALLOCATION_SITE_TRACKING
 #define V8_ALLOCATION_SITE_TRACKING_BOOL true

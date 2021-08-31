@@ -8,7 +8,6 @@
 
 #include "src/builtins/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
-#include "src/compiler/compilation-dependency.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
@@ -57,7 +56,8 @@ bool HasFieldRepresentationDependenciesOnMap(
     ZoneVector<CompilationDependency const*>& dependencies,
     Handle<Map> const& field_owner_map) {
   for (auto dep : dependencies) {
-    if (dep->IsFieldRepresentationDependencyOnMap(field_owner_map)) {
+    if (CompilationDependencies::IsFieldRepresentationDependencyOnMap(
+            dep, field_owner_map)) {
       return true;
     }
   }

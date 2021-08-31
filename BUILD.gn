@@ -2575,7 +2575,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/common-operator-reducer.h",
     "src/compiler/common-operator.h",
     "src/compiler/compilation-dependencies.h",
-    "src/compiler/compilation-dependency.h",
     "src/compiler/compiler-source-position-table.h",
     "src/compiler/constant-folding-reducer.h",
     "src/compiler/control-equivalence.h",
