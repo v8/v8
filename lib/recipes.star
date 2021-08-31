@@ -37,8 +37,9 @@ def define_all_recipes():
         "v8/bazel",
         "v8/flako",
         "v8/node_integration_ng",
-        "v8/verify_flakes",
         "v8/presubmit",
+        "v8/test_tools",
+        "v8/verify_flakes",
     ]
     for recipe in build_recipes:
         build_recipe(name = "recipe:" + recipe)

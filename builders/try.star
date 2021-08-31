@@ -260,6 +260,17 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_test_tools",
+    bucket = "try",
+    cq_properties = {
+      "location_regexp": [".+/[+]/tools/clusterfuzz/js_fuzzer/.+"],
+      "cancel_stale": False,
+    },
+    executable = "recipe:v8/test_tools",
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+)
+
+try_builder(
     name = "v8_win64_msvc_compile_rel",
     bucket = "try",
     cq_properties = {"cancel_stale": False},
