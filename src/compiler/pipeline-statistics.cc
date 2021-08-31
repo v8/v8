@@ -16,15 +16,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
 // We log detailed phase information about the pipeline
 // in both the v8.turbofan and the v8.wasm.turbofan categories.
-constexpr const char kTraceCategory[] =           // --
+const char PipelineStatistics::kTraceCategory[] =
     TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","  // --
     TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan");
-
-}  // namespace
 
 void PipelineStatistics::CommonStats::Begin(
     PipelineStatistics* pipeline_stats) {

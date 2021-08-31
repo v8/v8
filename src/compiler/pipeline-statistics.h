@@ -29,6 +29,8 @@ class PipelineStatistics : public Malloced {
   void BeginPhaseKind(const char* phase_kind_name);
   void EndPhaseKind();
 
+  static const char kTraceCategory[];
+
  private:
   size_t OuterZoneSize() {
     return static_cast<size_t>(outer_zone_->allocation_size());

@@ -946,13 +946,10 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 
 void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
                             Schedule* schedule, const char* phase_name) {
-#ifdef V8_RUNTIME_CALL_STATS
-  PipelineRunScope scope(data, "V8.TraceScheduleAndVerify",
-                         RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
-                         RuntimeCallStats::kThreadSpecific);
-#else
-  PipelineRunScope scope(data, "V8.TraceScheduleAndVerify");
-#endif
+  RCS_SCOPE(data->runtime_call_stats(),
+            RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
+            RuntimeCallStats::kThreadSpecific);
+  TRACE_EVENT0(PipelineStatistics::kTraceCategory, "V8.TraceScheduleAndVerify");
   if (info->trace_turbo_json()) {
     UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
