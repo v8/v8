@@ -297,6 +297,9 @@ class V8_NODISCARD PrepareStackTraceScope {
 MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                                  Handle<JSObject> error,
                                                  Handle<Object> raw_stack) {
+  if (FLAG_correctness_fuzzer_suppressions) {
+    return isolate->factory()->empty_string();
+  }
   DCHECK(raw_stack->IsFixedArray());
   Handle<FixedArray> elems = Handle<FixedArray>::cast(raw_stack);
 
