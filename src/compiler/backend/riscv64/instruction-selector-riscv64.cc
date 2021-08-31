@@ -1782,7 +1782,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
             Int32BinopMatcher m(node, true);
             NumberBinopMatcher n(node, true);
             if (m.right().Is(0) || n.right().IsZero()) {
-              VisitWordCompareZero(selector, g.UseRegister(left), cont);
+              VisitWordCompareZero(selector, g.UseRegisterOrImmediateZero(left),
+                                   cont);
             } else {
               VisitCompare(selector, opcode, g.UseRegister(left),
                            g.UseRegister(right), cont);
@@ -1795,7 +1796,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
         case kUnsignedGreaterThanOrEqual: {
           Int32BinopMatcher m(node, true);
           if (m.right().Is(0)) {
-            VisitWordCompareZero(selector, g.UseRegister(left), cont);
+            VisitWordCompareZero(selector, g.UseRegisterOrImmediateZero(left),
+                                 cont);
           } else {
             VisitCompare(selector, opcode, g.UseRegister(left),
                          g.UseImmediate(right), cont);
@@ -1804,7 +1806,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
         default:
           Int32BinopMatcher m(node, true);
           if (m.right().Is(0)) {
-            VisitWordCompareZero(selector, g.UseRegister(left), cont);
+            VisitWordCompareZero(selector, g.UseRegisterOrImmediateZero(left),
+                                 cont);
           } else {
             VisitCompare(selector, opcode, g.UseRegister(left),
                          g.UseRegister(right), cont);
@@ -1926,7 +1929,8 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
 void EmitWordCompareZero(InstructionSelector* selector, Node* value,
                          FlagsContinuation* cont) {
   RiscvOperandGenerator g(selector);
-  selector->EmitWithContinuation(kRiscvCmpZero, g.UseRegister(value), cont);
+  selector->EmitWithContinuation(kRiscvCmpZero,
+                                 g.UseRegisterOrImmediateZero(value), cont);
 }
 
 void VisitAtomicLoad(InstructionSelector* selector, Node* node,

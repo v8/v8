@@ -1882,6 +1882,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  << "\"";                                                      \
   UNIMPLEMENTED();
 
+bool IsInludeEqual(Condition cc) {
+  switch (cc) {
+    case equal:
+    case greater_equal:
+    case less_equal:
+    case Uless_equal:
+    case Ugreater_equal:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
                             Instruction* instr, FlagsCondition condition,
                             Label* tlabel, Label* flabel, bool fallthru) {
@@ -1936,7 +1949,11 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
   } else if (instr->arch_opcode() == kRiscvCmpZero) {
     cc = FlagsConditionToConditionCmp(condition);
-    __ Branch(tlabel, cc, i.InputRegister(0), Operand(zero_reg));
+    if (i.InputOrZeroRegister(0) == zero_reg && IsInludeEqual(cc)) {
+      __ Branch(tlabel);
+    } else {
+      __ Branch(tlabel, cc, i.InputRegister(0), Operand(zero_reg));
+    }
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     cc = FlagsConditionToConditionCmp(condition);
     Register lhs_register = sp;
