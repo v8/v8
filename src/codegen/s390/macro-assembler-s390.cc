@@ -3910,6 +3910,7 @@ void TurboAssembler::StoreV128LE(Simd128Register src, const MemOperand& mem,
   }
 }
 
+// Vector LE Load and Transform instructions.
 void TurboAssembler::LoadAndSplat8x16LE(Simd128Register dst,
                                         const MemOperand& mem) {
   vlrep(dst, mem, Condition(0));
@@ -3959,6 +3960,26 @@ LOAD_SPLAT_LIST(LOAD_SPLAT)
 LOAD_EXTEND_LIST(LOAD_EXTEND)
 #undef LOAD_EXTEND
 #undef LOAD_EXTEND
+
+void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem) {
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+    vlebrf(dst, mem, Condition(3));
+    return;
+  }
+  LoadU32LE(r1, mem);
+  vlvg(dst, r1, MemOperand(r0, 3), Condition(2));
+}
+
+void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2)) {
+    vlebrg(dst, mem, Condition(1));
+    return;
+  }
+  LoadU64LE(r1, mem);
+  vlvg(dst, r1, MemOperand(r0, 1), Condition(3));
+}
 
 #else
 void TurboAssembler::LoadU64LE(Register dst, const MemOperand& mem,
@@ -4032,6 +4053,7 @@ void TurboAssembler::StoreV128LE(Simd128Register src, const MemOperand& mem,
   StoreV128(src, mem, scratch1);
 }
 
+// Vector LE Load and Transform instructions.
 #define LOAD_SPLAT_LIST(V) \
   V(64x2, 3)               \
   V(32x4, 2)               \
@@ -4065,6 +4087,16 @@ LOAD_SPLAT_LIST(LOAD_SPLAT)
 LOAD_EXTEND_LIST(LOAD_EXTEND)
 #undef LOAD_EXTEND
 #undef LOAD_EXTEND
+
+void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem) {
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+  vlef(dst, mem, Condition(3));
+}
+
+void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+  vleg(dst, mem, Condition(1));
+}
 
 #endif
 

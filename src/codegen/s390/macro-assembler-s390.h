@@ -392,6 +392,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                   Register scratch1);
   void LoadF64LE(DoubleRegister dst, const MemOperand& opnd, Register scratch);
   void LoadF32LE(DoubleRegister dst, const MemOperand& opnd, Register scratch);
+  // Vector LE Load and Transform instructions.
   void LoadAndSplat64x2LE(Simd128Register dst, const MemOperand& mem);
   void LoadAndSplat32x4LE(Simd128Register dst, const MemOperand& mem);
   void LoadAndSplat16x8LE(Simd128Register dst, const MemOperand& mem);
@@ -402,6 +403,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadAndExtend16x4SLE(Simd128Register dst, const MemOperand& mem);
   void LoadAndExtend32x2ULE(Simd128Register dst, const MemOperand& mem);
   void LoadAndExtend32x2SLE(Simd128Register dst, const MemOperand& mem);
+  void LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem);
+  void LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem);
 
   // Load And Test
   void LoadAndTest32(Register dst, Register src);

@@ -3439,6 +3439,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef LOAD_EXTEND
+#define LOAD_AND_ZERO(type)                        \
+  AddressingMode mode = kMode_None;                \
+  MemOperand operand = i.MemoryOperand(&mode);     \
+  Simd128Register dst = i.OutputSimd128Register(); \
+  __ LoadV##type##ZeroLE(dst, operand);
+    case kS390_S128Load32Zero: {
+      LOAD_AND_ZERO(32);
+      break;
+    }
+    case kS390_S128Load64Zero: {
+      LOAD_AND_ZERO(64);
+      break;
+    }
+#undef LOAD_AND_ZERO
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
