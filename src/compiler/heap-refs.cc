@@ -609,7 +609,6 @@ class JSFunctionData : public JSObjectData {
   ObjectData* feedback_cell_ = nullptr;
   int initial_map_instance_size_with_min_slack_;  // Derives from
                                                   // prototype_or_initial_map_.
-  ObjectData* function_data_ = nullptr;
 };
 
 class BigIntData : public HeapObjectData {
@@ -795,9 +794,6 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
   SharedFunctionInfo shared = function->shared(kRelaxedLoad);
   shared_ = broker->GetOrCreateData(shared, kAssumeMemoryFence);
 
-  function_data_ = broker->GetOrCreateData(shared.function_data(kAcquireLoad),
-                                           kAssumeMemoryFence);
-
   if (function->has_prototype_slot()) {
     prototype_or_initial_map_ = broker->GetOrCreateData(
         function->prototype_or_initial_map(kAcquireLoad), kAssumeMemoryFence);
@@ -865,13 +861,6 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
   CHECK_EQ(*context_->object(), f->context());
   CHECK_EQ(*native_context_->object(), f->native_context());
   CHECK_EQ(*shared_->object(), f->shared());
-
-  if (*function_data_->object() !=
-      Handle<SharedFunctionInfo>::cast(shared_->object())
-          ->function_data(kAcquireLoad)) {
-    TRACE_BROKER_MISSING(broker, "JSFunction::function_data");
-    return false;
-  }
 
   if (f->has_prototype_slot()) {
     if (*prototype_or_initial_map_->object() !=
