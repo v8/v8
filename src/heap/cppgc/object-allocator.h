@@ -20,6 +20,7 @@ namespace cppgc {
 
 namespace internal {
 class ObjectAllocator;
+class PreFinalizerHandler;
 }  // namespace internal
 
 class V8_EXPORT AllocationHandle {
@@ -38,7 +39,8 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   static constexpr size_t kSmallestSpaceSize = 32;
 
   ObjectAllocator(RawHeap* heap, PageBackend* page_backend,
-                  StatsCollector* stats_collector);
+                  StatsCollector* stats_collector,
+                  PreFinalizerHandler* prefinalizer_handler);
 
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo);
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo,
@@ -66,6 +68,7 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   RawHeap* raw_heap_;
   PageBackend* page_backend_;
   StatsCollector* stats_collector_;
+  PreFinalizerHandler* prefinalizer_handler_;
 };
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {

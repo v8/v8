@@ -215,7 +215,8 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   bool IsMarking() const { return marker_.get(); }
 
-  void ExecutePreFinalizers();
+  // Returns amount of bytes allocated while executing prefinalizers.
+  size_t ExecutePreFinalizers();
 
   PageAllocator* page_allocator() const;
 

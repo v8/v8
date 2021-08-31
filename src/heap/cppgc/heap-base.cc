@@ -75,8 +75,8 @@ HeapBase::HeapBase(
           v8::base::Stack::GetStackStart())),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),
       compactor_(raw_heap_),
-      object_allocator_(&raw_heap_, page_backend_.get(),
-                        stats_collector_.get()),
+      object_allocator_(&raw_heap_, page_backend_.get(), stats_collector_.get(),
+                        prefinalizer_handler_.get()),
       sweeper_(*this),
       stack_support_(stack_support) {
   stats_collector_->RegisterObserver(
@@ -100,10 +100,17 @@ size_t HeapBase::ObjectPayloadSize() const {
 void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
   if (marker_) marker_->AdvanceMarkingOnAllocation();
 }
-void HeapBase::ExecutePreFinalizers() {
+
+size_t HeapBase::ExecutePreFinalizers() {
+#ifdef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
+  // Allocations in pre finalizers should not trigger another GC.
+  cppgc::subtle::NoGarbageCollectionScope no_gc_scope(*this);
+#else
   // Pre finalizers are forbidden from allocating objects.
   cppgc::subtle::DisallowGarbageCollectionScope no_gc_scope(*this);
+#endif  // CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
   prefinalizer_handler_->InvokePreFinalizers();
+  return prefinalizer_handler_->ExtractBytesAllocatedInPrefinalizers();
 }
 
 void HeapBase::Terminate() {

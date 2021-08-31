@@ -297,6 +297,9 @@ declare_args() {
   # TODO(v8:11749): Enable by default after fixing any existing issues in Blink.
   cppgc_enable_check_assignments_in_prefinalizers = false
 
+  # Enable allocations during prefinalizer invocations.
+  cppgc_allow_allocations_in_prefinalizers = false
+
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
 
@@ -782,6 +785,10 @@ config("features") {
 
   if (cppgc_enable_check_assignments_in_prefinalizers) {
     defines += [ "CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS" ]
+  }
+
+  if (cppgc_allow_allocations_in_prefinalizers) {
+    defines += [ "CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS" ]
   }
 
   if (v8_embedder_string != "") {

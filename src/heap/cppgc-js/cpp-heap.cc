@@ -493,12 +493,14 @@ void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
   // The allocated bytes counter in v8 was reset to the current marked bytes, so
   // any pending allocated bytes updates should be discarded.
   buffered_allocated_bytes_ = 0;
-  ExecutePreFinalizers();
+  const size_t bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
 #if CPPGC_VERIFY_HEAP
   UnifiedHeapMarkingVerifier verifier(*this);
-  verifier.Run(stack_state_of_prev_gc(), stack_end_of_current_gc(),
-               stats_collector()->marked_bytes());
+  verifier.Run(
+      stack_state_of_prev_gc(), stack_end_of_current_gc(),
+      stats_collector()->marked_bytes() + bytes_allocated_in_prefinalizers);
 #endif  // CPPGC_VERIFY_HEAP
+  USE(bytes_allocated_in_prefinalizers);
 
   {
     cppgc::subtle::NoGarbageCollectionScope no_gc(*this);
