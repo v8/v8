@@ -1960,27 +1960,40 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       if (i == 0) builder.AddExport(base::CStrVector("main"), f);
     }
 
-    builder.AllocateIndirectFunctions(num_functions);
-    for (int i = 0; i < num_functions; ++i) {
-      builder.SetIndirectFunction(i, i);
-    }
-
-    int num_tables = range.get<uint8_t>() % (kMaxTables + 1);
+    // Always generate at least one table for call_indirect.
+    int num_tables = range.get<uint8_t>() % kMaxTables + 1;
 
     for (int i = 0; i < num_tables; i++) {
-      uint32_t min_size = range.get<uint8_t>() % kMaxTableSize;
+      // Table 0 has to reference all functions in the program. This is so that
+      // all functions count as declared so they can be referenced with
+      // ref.func.
+      // TODO(11954): Consider removing this restriction.
+      uint32_t min_size =
+          i == 0 ? num_functions : range.get<uint8_t>() % kMaxTableSize;
       uint32_t max_size =
           range.get<uint8_t>() % (kMaxTableSize - min_size) + min_size;
-      int which_ref = range.get<uint8_t>() % 3;
-      ValueType type =
-          which_ref == 0
-              ? kWasmExternRef
-              : which_ref == 1
-                    ? kWasmFuncRef
-                    : ValueType::Ref(function_signatures[range.get<uint8_t>() %
-                                                         num_functions],
-                                     kNullable);
-      builder.AddTable(type, min_size, max_size);
+      // Table 0 is always funcref.
+      // TODO(11954): Remove this requirement this once we support call_indirect
+      // with other table indices.
+      // TODO(11954): Support typed function tables.
+      bool use_funcref = i == 0 || range.get<bool>();
+      ValueType type = use_funcref ? kWasmFuncRef : kWasmExternRef;
+      uint32_t table_index = builder.AddTable(type, min_size, max_size);
+      if (type == kWasmFuncRef) {
+        // For function tables, initialize them with functions from the program.
+        // Currently, the fuzzer assumes that every function table contains the
+        // functions in the program in the order they are defined.
+        // TODO(11954): Consider generalizing this.
+        WasmModuleBuilder::WasmElemSegment segment(
+            zone, kWasmFuncRef, table_index, WasmInitExpr(0));
+        for (int entry_index = 0; entry_index < static_cast<int>(min_size);
+             entry_index++) {
+          segment.entries.emplace_back(
+              WasmModuleBuilder::WasmElemSegment::Entry::kRefFuncEntry,
+              entry_index % num_functions);
+        }
+        builder.AddElementSegment(std::move(segment));
+      }
     }
     builder.SetMaxMemorySize(32);
     // We enable shared memory to be able to test atomics.

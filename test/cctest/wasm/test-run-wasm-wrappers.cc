@@ -303,10 +303,15 @@ TEST(WrapperReplacement_IndirectExport) {
     uint32_t function_index = f->func_index();
 
     // Export a table of indirect functions.
-    uint32_t table_index = builder->AllocateIndirectFunctions(2);
+    const uint32_t table_size = 2;
+    const uint32_t table_index =
+        builder->AddTable(kWasmFuncRef, table_size, table_size);
     builder->AddExport(base::CStrVector("exported_table"), kExternalTable, 0);
+
     // Point from the exported table to the Wasm function.
-    builder->SetIndirectFunction(0, function_index);
+    builder->SetIndirectFunction(
+        table_index, 0, function_index,
+        WasmModuleBuilder::WasmElemSegment::kRelativeToImports);
 
     // Compile the module.
     Handle<WasmInstanceObject> instance =
