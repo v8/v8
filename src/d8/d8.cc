@@ -2012,8 +2012,14 @@ void Shell::TestVerifySourcePositions(
 
   auto callable = i::Handle<i::JSFunctionOrBoundFunction>::cast(arg_handle);
   while (callable->IsJSBoundFunction()) {
+    internal::DisallowGarbageCollection no_gc;
     auto bound_function = i::Handle<i::JSBoundFunction>::cast(callable);
     auto bound_target = bound_function->bound_target_function();
+    if (!bound_target.IsJSFunctionOrBoundFunction()) {
+      internal::AllowGarbageCollection allow_gc;
+      isolate->ThrowError("Expected function as bound target.");
+      return;
+    }
     callable =
         handle(i::JSFunctionOrBoundFunction::cast(bound_target), i_isolate);
   }
