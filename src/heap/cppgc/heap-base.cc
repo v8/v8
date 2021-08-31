@@ -63,7 +63,7 @@ HeapBase::HeapBase(
           platform_->GetPageAllocator())),
 #endif  // LEAK_SANITIZER
 #if defined(CPPGC_CAGED_HEAP)
-      caged_heap_(this, page_allocator()),
+      caged_heap_(*this, *page_allocator()),
       page_backend_(std::make_unique<PageBackend>(caged_heap_.allocator(),
                                                   *oom_handler_.get())),
 #else   // !CPPGC_CAGED_HEAP

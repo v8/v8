@@ -40,7 +40,7 @@ void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
                                          ? RoundUp(offset_end, kEntrySize)
                                          : RoundDown(offset_end, kEntrySize);
 
-  auto& age_table = page->heap()->caged_heap().local_data().age_table;
+  auto& age_table = page->heap().caged_heap().local_data().age_table;
   for (auto offset = young_offset_begin; offset < young_offset_end;
        offset += AgeTable::kEntrySizeInBytes) {
     age_table[offset] = AgeTable::Age::kYoung;
