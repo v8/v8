@@ -459,8 +459,10 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   // the main thread.
   bool IsConsistentWithHeapState() const;
 
-  // TODO(jgruber): Consider more fine-grained dependencies that keep track of
-  // which fields were actually inspected during compilation.
+  ContextRef context() const;
+  NativeContextRef native_context() const;
+  SharedFunctionInfoRef shared() const;
+
   bool has_feedback_vector(CompilationDependencies* dependencies) const;
   bool has_initial_map(CompilationDependencies* dependencies) const;
   bool PrototypeRequiresRuntimeLookup(
@@ -468,9 +470,6 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   bool has_instance_prototype(CompilationDependencies* dependencies) const;
   ObjectRef instance_prototype(CompilationDependencies* dependencies) const;
   MapRef initial_map(CompilationDependencies* dependencies) const;
-  ContextRef context(CompilationDependencies* dependencies) const;
-  NativeContextRef native_context(CompilationDependencies* dependencies) const;
-  SharedFunctionInfoRef shared(CompilationDependencies* dependencies) const;
   int InitialMapInstanceSizeWithMinSlack(
       CompilationDependencies* dependencies) const;
   FeedbackVectorRef feedback_vector(
@@ -479,9 +478,6 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
       CompilationDependencies* dependencies) const;
 
   CodeRef code() const;
-
- private:
-  void RecordDependencyIfNeeded(CompilationDependencies* dependencies) const;
 };
 
 class RegExpBoilerplateDescriptionRef : public HeapObjectRef {

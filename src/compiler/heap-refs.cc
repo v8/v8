@@ -534,64 +534,86 @@ class JSFunctionData : public JSObjectData {
 
   bool IsConsistentWithHeapState(JSHeapBroker* broker) const;
 
-  bool recorded_dependency() const { return recorded_dependency_; }
-  void set_recorded_dependency() { recorded_dependency_ = true; }
-
   bool has_feedback_vector() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return has_feedback_vector_;
   }
   bool has_initial_map() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return has_initial_map_;
   }
   bool has_instance_prototype() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return has_instance_prototype_;
   }
   bool PrototypeRequiresRuntimeLookup() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return PrototypeRequiresRuntimeLookup_;
   }
 
   ObjectData* context() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return context_;
   }
   ObjectData* native_context() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return native_context_;
   }
   MapData* initial_map() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return initial_map_;
   }
   ObjectData* instance_prototype() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return instance_prototype_;
   }
   ObjectData* shared() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return shared_;
   }
   ObjectData* raw_feedback_cell() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return feedback_cell_;
   }
   ObjectData* feedback_vector() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return feedback_vector_;
   }
   int initial_map_instance_size_with_min_slack() const {
-    CHECK(serialized_);
+    DCHECK(serialized_);
     return initial_map_instance_size_with_min_slack_;
   }
 
+  // Track serialized fields that are actually used, in order to relax
+  // ConsistentJSFunctionView dependency validation as much as possible.
+  enum UsedField {
+    kHasFeedbackVector = 1 << 0,
+    kPrototypeOrInitialMap = 1 << 1,
+    kHasInitialMap = 1 << 2,
+    kHasInstancePrototype = 1 << 3,
+    kPrototypeRequiresRuntimeLookup = 1 << 4,
+    kInitialMap = 1 << 5,
+    kInstancePrototype = 1 << 6,
+    kFeedbackVector = 1 << 7,
+    kFeedbackCell = 1 << 8,
+    kInitialMapInstanceSizeWithMinSlack = 1 << 9,
+  };
+
+  bool has_any_used_field() const { return used_fields_ != 0; }
+  bool has_used_field(UsedField used_field) const {
+    return (used_fields_ & used_field) != 0;
+  }
+  void set_used_field(UsedField used_field) { used_fields_ |= used_field; }
+
  private:
   void Cache(JSHeapBroker* broker);
-  bool serialized_ = false;
 
-  bool recorded_dependency_ = false;
+#ifdef DEBUG
+  bool serialized_ = false;
+#endif  // DEBUG
+
+  using UsedFields = base::Flags<UsedField>;
+  UsedFields used_fields_;
 
   bool has_feedback_vector_ = false;
   ObjectData* prototype_or_initial_map_ = nullptr;
@@ -771,7 +793,7 @@ int InstanceSizeWithMinSlack(JSHeapBroker* broker, MapRef map) {
 
 // IMPORTANT: Keep this sync'd with JSFunctionData::IsConsistentWithHeapState.
 void JSFunctionData::Cache(JSHeapBroker* broker) {
-  CHECK(!serialized_);
+  DCHECK(!serialized_);
 
   TraceScope tracer(broker, this, "JSFunctionData::Cache");
   Handle<JSFunction> function = Handle<JSFunction>::cast(object());
@@ -849,12 +871,14 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
     feedback_vector_ = maybe_feedback_vector;
   }
 
+#ifdef DEBUG
   serialized_ = true;
+#endif  // DEBUG
 }
 
 // IMPORTANT: Keep this sync'd with JSFunctionData::Cache.
 bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
-  CHECK(serialized_);
+  DCHECK(serialized_);
 
   Handle<JSFunction> f = Handle<JSFunction>::cast(object());
 
@@ -863,16 +887,19 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
   CHECK_EQ(*shared_->object(), f->shared());
 
   if (f->has_prototype_slot()) {
-    if (*prototype_or_initial_map_->object() !=
-        f->prototype_or_initial_map(kAcquireLoad)) {
+    if (has_used_field(kPrototypeOrInitialMap) &&
+        *prototype_or_initial_map_->object() !=
+            f->prototype_or_initial_map(kAcquireLoad)) {
       TRACE_BROKER_MISSING(broker, "JSFunction::prototype_or_initial_map");
       return false;
     }
-    if (has_initial_map_ != f->has_initial_map()) {
+    if (has_used_field(kHasInitialMap) &&
+        has_initial_map_ != f->has_initial_map()) {
       TRACE_BROKER_MISSING(broker, "JSFunction::has_initial_map");
       return false;
     }
-    if (has_instance_prototype_ != f->has_instance_prototype()) {
+    if (has_used_field(kHasInstancePrototype) &&
+        has_instance_prototype_ != f->has_instance_prototype()) {
       TRACE_BROKER_MISSING(broker, "JSFunction::has_instance_prototype");
       return false;
     }
@@ -882,12 +909,14 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
   }
 
   if (has_initial_map()) {
-    if (*initial_map_->object() != f->initial_map()) {
+    if (has_used_field(kInitialMap) &&
+        *initial_map_->object() != f->initial_map()) {
       TRACE_BROKER_MISSING(broker, "JSFunction::initial_map");
       return false;
     }
-    if (initial_map_instance_size_with_min_slack_ !=
-        f->ComputeInstanceSizeWithMinSlack(f->GetIsolate())) {
+    if (has_used_field(kInitialMapInstanceSizeWithMinSlack) &&
+        initial_map_instance_size_with_min_slack_ !=
+            f->ComputeInstanceSizeWithMinSlack(f->GetIsolate())) {
       TRACE_BROKER_MISSING(broker,
                            "JSFunction::ComputeInstanceSizeWithMinSlack");
       return false;
@@ -897,7 +926,8 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
   }
 
   if (has_instance_prototype_) {
-    if (*instance_prototype_->object() != f->instance_prototype()) {
+    if (has_used_field(kInstancePrototype) &&
+        *instance_prototype_->object() != f->instance_prototype()) {
       TRACE_BROKER_MISSING(broker, "JSFunction::instance_prototype");
       return false;
     }
@@ -905,23 +935,27 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
     DCHECK_NULL(instance_prototype_);
   }
 
-  if (PrototypeRequiresRuntimeLookup_ != f->PrototypeRequiresRuntimeLookup()) {
+  if (has_used_field(kPrototypeRequiresRuntimeLookup) &&
+      PrototypeRequiresRuntimeLookup_ != f->PrototypeRequiresRuntimeLookup()) {
     TRACE_BROKER_MISSING(broker, "JSFunction::PrototypeRequiresRuntimeLookup");
     return false;
   }
 
-  if (*feedback_cell_->object() != f->raw_feedback_cell()) {
+  if (has_used_field(kFeedbackCell) &&
+      *feedback_cell_->object() != f->raw_feedback_cell()) {
     TRACE_BROKER_MISSING(broker, "JSFunction::raw_feedback_cell");
     return false;
   }
 
-  if (has_feedback_vector_ != f->has_feedback_vector()) {
+  if (has_used_field(kHasFeedbackVector) &&
+      has_feedback_vector_ != f->has_feedback_vector()) {
     TRACE_BROKER_MISSING(broker, "JSFunction::has_feedback_vector");
     return false;
   }
 
   if (has_feedback_vector_) {
-    if (*feedback_vector_->object() != f->feedback_vector()) {
+    if (has_used_field(kFeedbackVector) &&
+        *feedback_vector_->object() != f->feedback_vector()) {
       TRACE_BROKER_MISSING(broker, "JSFunction::feedback_vector");
       return false;
     }
@@ -1611,12 +1645,29 @@ bool MapRef::supports_fast_array_resize() const {
   return data()->AsMap()->supports_fast_array_resize();
 }
 
+namespace {
+
+void RecordConsistentJSFunctionViewDependencyIfNeeded(
+    const JSHeapBroker* broker, const JSFunctionRef& ref, JSFunctionData* data,
+    JSFunctionData::UsedField used_field) {
+  if (!broker->is_concurrent_inlining()) return;
+  if (!data->has_any_used_field()) {
+    // Deduplicate dependencies.
+    broker->dependencies()->DependOnConsistentJSFunctionView(ref);
+  }
+  data->set_used_field(used_field);
+}
+
+}  // namespace
+
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack(
     CompilationDependencies* dependencies) const {
   if (data_->should_access_heap()) {
     return object()->ComputeInstanceSizeWithMinSlack(broker()->isolate());
   }
-  RecordDependencyIfNeeded(dependencies);
+  RecordConsistentJSFunctionViewDependencyIfNeeded(
+      broker(), *this, data()->AsJSFunction(),
+      JSFunctionData::kInitialMapInstanceSizeWithMinSlack);
   return data()->AsJSFunction()->initial_map_instance_size_with_min_slack();
 }
 
@@ -2688,42 +2739,44 @@ Handle<T> TinyRef<T>::object() const {
 HEAP_BROKER_OBJECT_LIST(V)
 #undef V
 
-void JSFunctionRef::RecordDependencyIfNeeded(
-    CompilationDependencies* dependencies) const {
-  CHECK_NOT_NULL(dependencies);
-  if (broker()->is_concurrent_inlining() &&
-      !data()->AsJSFunction()->recorded_dependency()) {
-    dependencies->DependOnConsistentJSFunctionView(*this);
-    data()->AsJSFunction()->set_recorded_dependency();
-  }
-}
-
-#define JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(result, name)               \
-  result##Ref JSFunctionRef::name(CompilationDependencies* dependencies) \
+#define JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Result, Name, UsedField)    \
+  Result##Ref JSFunctionRef::Name(CompilationDependencies* dependencies) \
       const {                                                            \
-    IF_ACCESS_FROM_HEAP(result, name);                                   \
-    RecordDependencyIfNeeded(dependencies);                              \
-    return result##Ref(broker(), data()->AsJSFunction()->name());        \
+    IF_ACCESS_FROM_HEAP(Result, Name);                                   \
+    RecordConsistentJSFunctionViewDependencyIfNeeded(                    \
+        broker(), *this, data()->AsJSFunction(), UsedField);             \
+    return Result##Ref(broker(), data()->AsJSFunction()->Name());        \
   }
 
-#define JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(result, name)                \
-  result JSFunctionRef::name(CompilationDependencies* dependencies) const { \
-    IF_ACCESS_FROM_HEAP_C(name);                                            \
-    RecordDependencyIfNeeded(dependencies);                                 \
-    return data()->AsJSFunction()->name();                                  \
+#define JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(Result, Name, UsedField)     \
+  Result JSFunctionRef::Name(CompilationDependencies* dependencies) const { \
+    IF_ACCESS_FROM_HEAP_C(Name);                                            \
+    RecordConsistentJSFunctionViewDependencyIfNeeded(                       \
+        broker(), *this, data()->AsJSFunction(), UsedField);                \
+    return data()->AsJSFunction()->Name();                                  \
   }
 
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_feedback_vector)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_initial_map)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_instance_prototype)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, PrototypeRequiresRuntimeLookup)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Context, context)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(NativeContext, native_context)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Map, initial_map)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Object, instance_prototype)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(SharedFunctionInfo, shared)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackVector, feedback_vector)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_feedback_vector,
+                                       JSFunctionData::kHasFeedbackVector)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_initial_map,
+                                       JSFunctionData::kHasInitialMap)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_instance_prototype,
+                                       JSFunctionData::kHasInstancePrototype)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(
+    bool, PrototypeRequiresRuntimeLookup,
+    JSFunctionData::kPrototypeRequiresRuntimeLookup)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Map, initial_map,
+                                     JSFunctionData::kInitialMap)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Object, instance_prototype,
+                                     JSFunctionData::kInstancePrototype)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell,
+                                     JSFunctionData::kFeedbackCell)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackVector, feedback_vector,
+                                     JSFunctionData::kFeedbackVector)
+
+BIMODAL_ACCESSOR(JSFunction, Context, context)
+BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
+BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C

@@ -399,7 +399,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
            initial_map.instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
     // Allocate a register file.
-    SharedFunctionInfoRef shared = js_function.shared(dependencies());
+    SharedFunctionInfoRef shared = js_function.shared();
     DCHECK(shared.HasBytecodeArray());
     int parameter_count_no_receiver = shared.internal_formal_parameter_count();
     int length = parameter_count_no_receiver +

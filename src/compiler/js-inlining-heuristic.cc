@@ -50,7 +50,7 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
   }
 
   return CanConsiderForInlining(
-      broker, function.shared(broker->dependencies()),
+      broker, function.shared(),
       function.feedback_vector(broker->dependencies()));
 }
 
@@ -68,7 +68,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     out.functions[0] = m.Ref(broker()).AsJSFunction();
     JSFunctionRef function = out.functions[0].value();
     if (CanConsiderForInlining(broker(), function)) {
-      out.bytecode[0] = function.shared(dependencies()).GetBytecodeArray();
+      out.bytecode[0] = function.shared().GetBytecodeArray();
       out.num_functions = 1;
       return out;
     }
@@ -89,7 +89,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
       out.functions[n] = m.Ref(broker()).AsJSFunction();
       JSFunctionRef function = out.functions[n].value();
       if (CanConsiderForInlining(broker(), function)) {
-        out.bytecode[n] = function.shared(dependencies()).GetBytecodeArray();
+        out.bytecode[n] = function.shared().GetBytecodeArray();
       }
     }
     out.num_functions = value_input_count;
@@ -166,10 +166,9 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       continue;
     }
 
-    SharedFunctionInfoRef shared =
-        candidate.functions[i].has_value()
-            ? candidate.functions[i].value().shared(dependencies())
-            : candidate.shared_info.value();
+    SharedFunctionInfoRef shared = candidate.functions[i].has_value()
+                                       ? candidate.functions[i].value().shared()
+                                       : candidate.shared_info.value();
     candidate.can_inline_function[i] = candidate.bytecode[i].has_value();
     CHECK_IMPLIES(candidate.can_inline_function[i], shared.IsInlineable());
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
@@ -782,10 +781,9 @@ void JSInliningHeuristic::PrintCandidates() {
        << candidate.node->id() << " with frequency " << candidate.frequency
        << ", " << candidate.num_functions << " target(s):" << std::endl;
     for (int i = 0; i < candidate.num_functions; ++i) {
-      SharedFunctionInfoRef shared =
-          candidate.functions[i].has_value()
-              ? candidate.functions[i]->shared(dependencies())
-              : candidate.shared_info.value();
+      SharedFunctionInfoRef shared = candidate.functions[i].has_value()
+                                         ? candidate.functions[i]->shared()
+                                         : candidate.shared_info.value();
       os << "  - target: " << shared;
       if (candidate.bytecode[i].has_value()) {
         os << ", bytecode size: " << candidate.bytecode[i]->length();
