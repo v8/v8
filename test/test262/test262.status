@@ -69,28 +69,8 @@
   # https://code.google.com/p/v8/issues/detail?id=10958
   'language/module-code/eval-gtbndng-indirect-faux-assertion': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4895
-  # Some TypedArray methods throw due to the same bug, from Get
-  'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/every/BigInt/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/filter/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/filter/BigInt/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/find/predicate-may-detach-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/find/BigInt/predicate-may-detach-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/findIndex/predicate-may-detach-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/findIndex/BigInt/predicate-may-detach-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/forEach/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/forEach/BigInt/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/map/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/map/BigInt/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/reduce/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/reduce/BigInt/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/reduceRight/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/reduceRight/BigInt/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/set/array-arg-primitive-toobject': [FAIL],
   'built-ins/TypedArray/prototype/set/BigInt/array-arg-primitive-toobject': [FAIL],
-  'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/some/BigInt/callbackfn-detachbuffer': [FAIL],
   # DataView functions should also throw on detached buffers
   'built-ins/DataView/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
