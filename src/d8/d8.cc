@@ -4379,8 +4379,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.fuzzilli_coverage_statistics = true;
       argv[i] = nullptr;
 #endif
-    } else if (strcmp(argv[i], "--fuzzy-module-file-extensions") == 0) {
-      options.fuzzy_module_file_extensions = true;
+    } else if (strcmp(argv[i], "--no-fuzzy-module-file-extensions") == 0) {
+      DCHECK(options.fuzzy_module_file_extensions);
+      options.fuzzy_module_file_extensions = false;
       argv[i] = nullptr;
 #if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
     } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
