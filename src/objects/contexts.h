@@ -361,6 +361,7 @@ class ScriptContextTable : public FixedArray {
                                            Handle<ScriptContextTable> table,
                                            int i);
   inline Context get_context(int i) const;
+  inline Context get_context(int i, AcquireLoadTag tag) const;
 
   // Lookup a variable `name` in a ScriptContextTable.
   // If it returns true, the variable is found and `result` contains

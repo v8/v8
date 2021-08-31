@@ -48,7 +48,12 @@ Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
 
 Context ScriptContextTable::get_context(int i) const {
   DCHECK_LT(i, used(kAcquireLoad));
-  return Context::cast(this->get(i + kFirstContextSlotIndex));
+  return Context::cast(get(i + kFirstContextSlotIndex));
+}
+
+Context ScriptContextTable::get_context(int i, AcquireLoadTag tag) const {
+  DCHECK_LT(i, used(kAcquireLoad));
+  return Context::cast(get(i + kFirstContextSlotIndex, tag));
 }
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Context)
