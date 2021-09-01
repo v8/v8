@@ -1001,8 +1001,11 @@ void Code::CodeVerify(Isolate* isolate) {
   CHECK_LE(constant_pool_offset(), code_comments_offset());
   CHECK_LE(code_comments_offset(), unwinding_info_offset());
   CHECK_LE(unwinding_info_offset(), MetadataSize());
+#if !defined(_MSC_VER) || defined(__clang__)
+  // See also: PlatformEmbeddedFileWriterWin::AlignToCodeAlignment.
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(InstructionStart(), kCodeAlignment));
+#endif  // !defined(_MSC_VER) || defined(__clang__)
   CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
                 IsAligned(raw_instruction_start(), kCodeAlignment));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
