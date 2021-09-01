@@ -10,17 +10,12 @@
 #include "src/compiler/zone-stats.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
-#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-// We log detailed phase information about the pipeline
-// in both the v8.turbofan and the v8.wasm.turbofan categories.
-const char PipelineStatistics::kTraceCategory[] =
-    TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","  // --
-    TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan");
+constexpr char PipelineStatistics::kTraceCategory[];
 
 void PipelineStatistics::CommonStats::Begin(
     PipelineStatistics* pipeline_stats) {

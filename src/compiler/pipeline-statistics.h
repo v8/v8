@@ -11,6 +11,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compiler/zone-stats.h"
 #include "src/diagnostics/compilation-statistics.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -29,7 +30,11 @@ class PipelineStatistics : public Malloced {
   void BeginPhaseKind(const char* phase_kind_name);
   void EndPhaseKind();
 
-  static const char kTraceCategory[];
+  // We log detailed phase information about the pipeline
+  // in both the v8.turbofan and the v8.wasm.turbofan categories.
+  static constexpr char kTraceCategory[] =
+      TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","  // --
+      TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan");
 
  private:
   size_t OuterZoneSize() {
