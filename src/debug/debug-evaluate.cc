@@ -1059,6 +1059,14 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kTSANRelaxedStore32SaveFP:
     case Builtin::kTSANRelaxedStore64IgnoreFP:
     case Builtin::kTSANRelaxedStore64SaveFP:
+    case Builtin::kTSANSeqCstStore8IgnoreFP:
+    case Builtin::kTSANSeqCstStore8SaveFP:
+    case Builtin::kTSANSeqCstStore16IgnoreFP:
+    case Builtin::kTSANSeqCstStore16SaveFP:
+    case Builtin::kTSANSeqCstStore32IgnoreFP:
+    case Builtin::kTSANSeqCstStore32SaveFP:
+    case Builtin::kTSANSeqCstStore64IgnoreFP:
+    case Builtin::kTSANSeqCstStore64SaveFP:
     case Builtin::kTSANRelaxedLoad32IgnoreFP:
     case Builtin::kTSANRelaxedLoad32SaveFP:
     case Builtin::kTSANRelaxedLoad64IgnoreFP:

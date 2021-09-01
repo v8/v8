@@ -439,10 +439,9 @@ class TSANRelaxedStoreCodeStubAssembler : public CodeStubAssembler {
 
   void GenerateTSANRelaxedStore(SaveFPRegsMode fp_mode, int size) {
     TNode<ExternalReference> function = GetExternalReference(size);
-    auto address =
-        UncheckedParameter<IntPtrT>(TSANRelaxedStoreDescriptor::kAddress);
+    auto address = UncheckedParameter<IntPtrT>(TSANStoreDescriptor::kAddress);
     TNode<IntPtrT> value = BitcastTaggedToWord(
-        UncheckedParameter<Object>(TSANRelaxedStoreDescriptor::kValue));
+        UncheckedParameter<Object>(TSANStoreDescriptor::kValue));
     CallCFunctionWithCallerSavedRegisters(
         function, MachineType::Int32(), fp_mode,
         std::make_pair(MachineType::IntPtr(), address),
@@ -483,6 +482,73 @@ TF_BUILTIN(TSANRelaxedStore64SaveFP, TSANRelaxedStoreCodeStubAssembler) {
   GenerateTSANRelaxedStore(SaveFPRegsMode::kSave, kInt64Size);
 }
 
+class TSANSeqCstStoreCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit TSANSeqCstStoreCodeStubAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  TNode<ExternalReference> GetExternalReference(int size) {
+    if (size == kInt8Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_seq_cst_store_function_8_bits());
+    } else if (size == kInt16Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_seq_cst_store_function_16_bits());
+    } else if (size == kInt32Size) {
+      return ExternalConstant(
+          ExternalReference::tsan_seq_cst_store_function_32_bits());
+    } else {
+      CHECK_EQ(size, kInt64Size);
+      return ExternalConstant(
+          ExternalReference::tsan_seq_cst_store_function_64_bits());
+    }
+  }
+
+  void GenerateTSANSeqCstStore(SaveFPRegsMode fp_mode, int size) {
+    TNode<ExternalReference> function = GetExternalReference(size);
+    auto address = UncheckedParameter<IntPtrT>(TSANStoreDescriptor::kAddress);
+    TNode<IntPtrT> value = BitcastTaggedToWord(
+        UncheckedParameter<Object>(TSANStoreDescriptor::kValue));
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineType::Int32(), fp_mode,
+        std::make_pair(MachineType::IntPtr(), address),
+        std::make_pair(MachineType::IntPtr(), value));
+    Return(UndefinedConstant());
+  }
+};
+
+TF_BUILTIN(TSANSeqCstStore8IgnoreFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kIgnore, kInt8Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore8SaveFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt8Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore16IgnoreFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kIgnore, kInt16Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore16SaveFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt16Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore32IgnoreFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kIgnore, kInt32Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore32SaveFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt32Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore64IgnoreFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kIgnore, kInt64Size);
+}
+
+TF_BUILTIN(TSANSeqCstStore64SaveFP, TSANSeqCstStoreCodeStubAssembler) {
+  GenerateTSANSeqCstStore(SaveFPRegsMode::kSave, kInt64Size);
+}
+
 class TSANRelaxedLoadCodeStubAssembler : public CodeStubAssembler {
  public:
   explicit TSANRelaxedLoadCodeStubAssembler(compiler::CodeAssemblerState* state)
@@ -501,8 +567,7 @@ class TSANRelaxedLoadCodeStubAssembler : public CodeStubAssembler {
 
   void GenerateTSANRelaxedLoad(SaveFPRegsMode fp_mode, int size) {
     TNode<ExternalReference> function = GetExternalReference(size);
-    auto address =
-        UncheckedParameter<IntPtrT>(TSANRelaxedLoadDescriptor::kAddress);
+    auto address = UncheckedParameter<IntPtrT>(TSANLoadDescriptor::kAddress);
     CallCFunctionWithCallerSavedRegisters(
         function, MachineType::Int32(), fp_mode,
         std::make_pair(MachineType::IntPtr(), address));

@@ -274,6 +274,14 @@ class StatsCounter;
           "tsan_relaxed_store_function_32_bits")                               \
   IF_TSAN(V, tsan_relaxed_store_function_64_bits,                              \
           "tsan_relaxed_store_function_64_bits")                               \
+  IF_TSAN(V, tsan_seq_cst_store_function_8_bits,                               \
+          "tsan_seq_cst_store_function_8_bits")                                \
+  IF_TSAN(V, tsan_seq_cst_store_function_16_bits,                              \
+          "tsan_seq_cst_store_function_16_bits")                               \
+  IF_TSAN(V, tsan_seq_cst_store_function_32_bits,                              \
+          "tsan_seq_cst_store_function_32_bits")                               \
+  IF_TSAN(V, tsan_seq_cst_store_function_64_bits,                              \
+          "tsan_seq_cst_store_function_64_bits")                               \
   IF_TSAN(V, tsan_relaxed_load_function_32_bits,                               \
           "tsan_relaxed_load_function_32_bits")                                \
   IF_TSAN(V, tsan_relaxed_load_function_64_bits,                               \

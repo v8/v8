@@ -344,22 +344,22 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
 ArchOpcode GetSeqCstStoreOpcode(StoreRepresentation store_rep) {
   switch (store_rep.representation()) {
     case MachineRepresentation::kWord8:
-      return kAtomicExchangeUint8;
+      return kAtomicStoreWord8;
     case MachineRepresentation::kWord16:
-      return kAtomicExchangeUint16;
+      return kAtomicStoreWord16;
     case MachineRepresentation::kWord32:
-      return kAtomicExchangeWord32;
+      return kAtomicStoreWord32;
     case MachineRepresentation::kWord64:
-      return kX64Word64AtomicExchangeUint64;
+      return kX64Word64AtomicStoreWord64;
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:
-      if (COMPRESS_POINTERS_BOOL) return kAtomicExchangeWord32;
-      return kX64Word64AtomicExchangeUint64;
+      if (COMPRESS_POINTERS_BOOL) return kAtomicStoreWord32;
+      return kX64Word64AtomicStoreWord64;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
       CHECK(COMPRESS_POINTERS_BOOL);
-      return kAtomicExchangeWord32;
+      return kAtomicStoreWord32;
     default:
       UNREACHABLE();
   }
@@ -529,8 +529,7 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
 
 void VisitStoreCommon(InstructionSelector* selector, Node* node,
                       StoreRepresentation store_rep,
-                      base::Optional<AtomicMemoryOrder> atomic_order,
-                      base::Optional<AtomicWidth> atomic_width) {
+                      base::Optional<AtomicMemoryOrder> atomic_order) {
   X64OperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -562,18 +561,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     code |= MiscField::encode(static_cast<int>(record_write_mode));
     selector->Emit(code, 0, nullptr, arraysize(inputs), inputs,
                    arraysize(temps), temps);
-  } else if (is_seqcst) {
-    VisitAtomicExchange(selector, node, GetSeqCstStoreOpcode(store_rep),
-                        *atomic_width);
   } else {
-    // Release and non-atomic stores emit MOV.
-    // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
-
-    if ((ElementSizeLog2Of(store_rep.representation()) <
-         kSystemPointerSizeLog2) &&
-        value->opcode() == IrOpcode::kTruncateInt64ToInt32) {
-      value = value->InputAt(0);
-    }
 #ifdef V8_IS_TSAN
     // On TSAN builds we require two scratch registers. Because of this we also
     // have to modify the inputs to take into account possible aliasing and use
@@ -587,15 +575,40 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     auto reg_kind = OperandGenerator::RegisterUseKind::kUseRegister;
 #endif  // V8_IS_TSAN
 
+    // Release and non-atomic stores emit MOV and sequentially consistent stores
+    // emit XCHG.
+    // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
+
+    ArchOpcode opcode;
+    AddressingMode addressing_mode;
     InstructionOperand inputs[4];
     size_t input_count = 0;
-    AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
-        node, inputs, &input_count, reg_kind);
-    InstructionOperand value_operand = g.CanBeImmediate(value)
-                                           ? g.UseImmediate(value)
-                                           : g.UseRegister(value, reg_kind);
-    inputs[input_count++] = value_operand;
-    ArchOpcode opcode = GetStoreOpcode(store_rep);
+
+    if (is_seqcst) {
+      // SeqCst stores emit XCHG instead of MOV, so encode the inputs as we
+      // would for XCHG. XCHG can't encode the value as an immediate and has
+      // fewer addressing modes available.
+      inputs[input_count++] = g.UseUniqueRegister(value);
+      inputs[input_count++] = g.UseUniqueRegister(base);
+      inputs[input_count++] =
+          g.GetEffectiveIndexOperand(index, &addressing_mode);
+      opcode = GetSeqCstStoreOpcode(store_rep);
+    } else {
+      if ((ElementSizeLog2Of(store_rep.representation()) <
+           kSystemPointerSizeLog2) &&
+          value->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+        value = value->InputAt(0);
+      }
+
+      addressing_mode = g.GetEffectiveAddressMemoryOperand(
+          node, inputs, &input_count, reg_kind);
+      InstructionOperand value_operand = g.CanBeImmediate(value)
+                                             ? g.UseImmediate(value)
+                                             : g.UseRegister(value, reg_kind);
+      inputs[input_count++] = value_operand;
+      opcode = GetStoreOpcode(store_rep);
+    }
+
     InstructionCode code =
         opcode | AddressingModeField::encode(addressing_mode);
     selector->Emit(code, 0, static_cast<InstructionOperand*>(nullptr),
@@ -607,7 +620,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
 
 void InstructionSelector::VisitStore(Node* node) {
   return VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
-                          base::nullopt, base::nullopt);
+                          base::nullopt);
 }
 
 void InstructionSelector::VisitProtectedStore(Node* node) {
@@ -2779,16 +2792,14 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   DCHECK_NE(params.representation(), MachineRepresentation::kWord64);
   DCHECK_IMPLIES(CanBeTaggedOrCompressedPointer(params.representation()),
                  kTaggedSize == 4);
-  VisitStoreCommon(this, node, params.store_representation(), params.order(),
-                   AtomicWidth::kWord32);
+  VisitStoreCommon(this, node, params.store_representation(), params.order());
 }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   AtomicStoreParameters params = AtomicStoreParametersOf(node->op());
   DCHECK_IMPLIES(CanBeTaggedOrCompressedPointer(params.representation()),
                  kTaggedSize == 8);
-  VisitStoreCommon(this, node, params.store_representation(), params.order(),
-                   AtomicWidth::kWord64);
+  VisitStoreCommon(this, node, params.store_representation(), params.order());
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(Node* node) {

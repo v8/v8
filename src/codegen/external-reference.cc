@@ -1182,7 +1182,7 @@ namespace {
 // address, with the same value. This is done in order for TSAN to see these
 // stores from generated code.
 // Note that {value} is an int64_t irrespective of the store size. This is on
-// purpose to keep the function signatures the same accross stores. The
+// purpose to keep the function signatures the same across stores. The
 // static_cast inside the method will ignore the bits which will not be stored.
 void tsan_relaxed_store_8_bits(Address addr, int64_t value) {
 #if V8_TARGET_ARCH_X64
@@ -1220,6 +1220,44 @@ void tsan_relaxed_store_64_bits(Address addr, int64_t value) {
 #endif  // V8_TARGET_ARCH_X64
 }
 
+// Same as above, for sequentially consistent stores.
+void tsan_seq_cst_store_8_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::SeqCst_Store(reinterpret_cast<base::Atomic8*>(addr),
+                     static_cast<base::Atomic8>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_seq_cst_store_16_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::SeqCst_Store(reinterpret_cast<base::Atomic16*>(addr),
+                     static_cast<base::Atomic16>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_seq_cst_store_32_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::SeqCst_Store(reinterpret_cast<base::Atomic32*>(addr),
+                     static_cast<base::Atomic32>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_seq_cst_store_64_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::SeqCst_Store(reinterpret_cast<base::Atomic64*>(addr),
+                     static_cast<base::Atomic64>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+// Same as above, for relaxed loads.
 base::Atomic32 tsan_relaxed_load_32_bits(Address addr, int64_t value) {
 #if V8_TARGET_ARCH_X64
   return base::Relaxed_Load(reinterpret_cast<base::Atomic32*>(addr));
@@ -1247,6 +1285,14 @@ IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_store_function_32_bits,
         tsan_relaxed_store_32_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_store_function_64_bits,
         tsan_relaxed_store_64_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_8_bits,
+        tsan_seq_cst_store_8_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_16_bits,
+        tsan_seq_cst_store_16_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_32_bits,
+        tsan_seq_cst_store_32_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_64_bits,
+        tsan_seq_cst_store_64_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_32_bits,
         tsan_relaxed_load_32_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,

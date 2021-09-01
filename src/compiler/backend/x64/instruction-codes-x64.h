@@ -392,6 +392,7 @@ namespace compiler {
   V(X64Word64AtomicAndUint64)       \
   V(X64Word64AtomicOrUint64)        \
   V(X64Word64AtomicXorUint64)       \
+  V(X64Word64AtomicStoreWord64)     \
   V(X64Word64AtomicExchangeUint64)  \
   V(X64Word64AtomicCompareExchangeUint64)
 

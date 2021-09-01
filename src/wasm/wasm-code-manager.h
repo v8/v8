@@ -102,6 +102,14 @@ struct WasmModule;
   IF_TSAN(V, TSANRelaxedStore32SaveFP)    \
   IF_TSAN(V, TSANRelaxedStore64IgnoreFP)  \
   IF_TSAN(V, TSANRelaxedStore64SaveFP)    \
+  IF_TSAN(V, TSANSeqCstStore8IgnoreFP)    \
+  IF_TSAN(V, TSANSeqCstStore8SaveFP)      \
+  IF_TSAN(V, TSANSeqCstStore16IgnoreFP)   \
+  IF_TSAN(V, TSANSeqCstStore16SaveFP)     \
+  IF_TSAN(V, TSANSeqCstStore32IgnoreFP)   \
+  IF_TSAN(V, TSANSeqCstStore32SaveFP)     \
+  IF_TSAN(V, TSANSeqCstStore64IgnoreFP)   \
+  IF_TSAN(V, TSANSeqCstStore64SaveFP)     \
   IF_TSAN(V, TSANRelaxedLoad32IgnoreFP)   \
   IF_TSAN(V, TSANRelaxedLoad32SaveFP)     \
   IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)   \
@@ -188,25 +196,47 @@ class V8_EXPORT_PRIVATE WasmCode final {
   }
 
 #ifdef V8_IS_TSAN
-  static RuntimeStubId GetTSANRelaxedStoreStub(SaveFPRegsMode fp_mode,
-                                               int size) {
-    if (size == kInt8Size) {
-      return fp_mode == SaveFPRegsMode::kIgnore
-                 ? RuntimeStubId::kTSANRelaxedStore8IgnoreFP
-                 : RuntimeStubId::kTSANRelaxedStore8SaveFP;
-    } else if (size == kInt16Size) {
-      return fp_mode == SaveFPRegsMode::kIgnore
-                 ? RuntimeStubId::kTSANRelaxedStore16IgnoreFP
-                 : RuntimeStubId::kTSANRelaxedStore16SaveFP;
-    } else if (size == kInt32Size) {
-      return fp_mode == SaveFPRegsMode::kIgnore
-                 ? RuntimeStubId::kTSANRelaxedStore32IgnoreFP
-                 : RuntimeStubId::kTSANRelaxedStore32SaveFP;
+  static RuntimeStubId GetTSANStoreStub(SaveFPRegsMode fp_mode, int size,
+                                        std::memory_order order) {
+    if (order == std::memory_order_relaxed) {
+      if (size == kInt8Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? RuntimeStubId::kTSANRelaxedStore8IgnoreFP
+                   : RuntimeStubId::kTSANRelaxedStore8SaveFP;
+      } else if (size == kInt16Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? RuntimeStubId::kTSANRelaxedStore16IgnoreFP
+                   : RuntimeStubId::kTSANRelaxedStore16SaveFP;
+      } else if (size == kInt32Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? RuntimeStubId::kTSANRelaxedStore32IgnoreFP
+                   : RuntimeStubId::kTSANRelaxedStore32SaveFP;
+      } else {
+        CHECK_EQ(size, kInt64Size);
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? RuntimeStubId::kTSANRelaxedStore64IgnoreFP
+                   : RuntimeStubId::kTSANRelaxedStore64SaveFP;
+      }
     } else {
-      CHECK_EQ(size, kInt64Size);
-      return fp_mode == SaveFPRegsMode::kIgnore
-                 ? RuntimeStubId::kTSANRelaxedStore64IgnoreFP
-                 : RuntimeStubId::kTSANRelaxedStore64SaveFP;
+      DCHECK_EQ(order, std::memory_order_seq_cst);
+      if (size == kInt8Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? RuntimeStubId::kTSANSeqCstStore8IgnoreFP
+                   : RuntimeStubId::kTSANSeqCstStore8SaveFP;
+      } else if (size == kInt16Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? RuntimeStubId::kTSANSeqCstStore16IgnoreFP
+                   : RuntimeStubId::kTSANSeqCstStore16SaveFP;
+      } else if (size == kInt32Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? RuntimeStubId::kTSANSeqCstStore32IgnoreFP
+                   : RuntimeStubId::kTSANSeqCstStore32SaveFP;
+      } else {
+        CHECK_EQ(size, kInt64Size);
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? RuntimeStubId::kTSANSeqCstStore64IgnoreFP
+                   : RuntimeStubId::kTSANSeqCstStore64SaveFP;
+      }
     }
   }
 
