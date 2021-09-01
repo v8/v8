@@ -69,8 +69,6 @@
   # https://code.google.com/p/v8/issues/detail?id=10958
   'language/module-code/eval-gtbndng-indirect-faux-assertion': [FAIL],
 
-  'built-ins/TypedArray/prototype/set/array-arg-primitive-toobject': [FAIL],
-  'built-ins/TypedArray/prototype/set/BigInt/array-arg-primitive-toobject': [FAIL],
   # DataView functions should also throw on detached buffers
   'built-ins/DataView/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
