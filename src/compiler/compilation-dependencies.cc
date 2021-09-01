@@ -75,7 +75,7 @@ class CompilationDependency : public ZoneObject {
 #ifdef DEBUG
 #define V(Name)                                     \
   bool Is##Name() const { return kind == k##Name; } \
-  const Name##Dependency* As##Name() const;
+  V8_ALLOW_UNUSED const Name##Dependency* As##Name() const;
   DEPENDENCY_LIST(V)
 #undef V
 #endif
