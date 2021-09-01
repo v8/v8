@@ -338,7 +338,7 @@ class FromStringAccumulator {
   // So for sufficiently large N, setting max_digits=N here will not actually
   // allow parsing BigInts with N digits. We can fix that if/when anyone cares.
   explicit FromStringAccumulator(int max_digits)
-      : max_digits_(std::max(max_digits - kStackParts, kStackParts)) {}
+      : max_digits_(std::max(max_digits, kStackParts)) {}
 
   // Step 2: Call this method to read all characters.
   // {Char} should be a character type, such as uint8_t or uint16_t.
