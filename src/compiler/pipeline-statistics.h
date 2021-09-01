@@ -11,6 +11,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compiler/zone-stats.h"
 #include "src/diagnostics/compilation-statistics.h"
+#include "src/objects/code-kind.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
@@ -67,6 +68,7 @@ class PipelineStatistics : public Malloced {
   Zone* outer_zone_;
   ZoneStats* zone_stats_;
   CompilationStatistics* compilation_stats_;
+  CodeKind code_kind_;
   std::string function_name_;
 
   // Stats for the entire compilation.

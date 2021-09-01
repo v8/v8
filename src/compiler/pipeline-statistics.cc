@@ -53,6 +53,7 @@ PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
     : outer_zone_(info->zone()),
       zone_stats_(zone_stats),
       compilation_stats_(compilation_stats),
+      code_kind_(info->code_kind()),
       phase_kind_name_(nullptr),
       phase_name_(nullptr) {
   if (info->has_shared_info()) {
@@ -60,7 +61,6 @@ PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
   }
   total_stats_.Begin(this);
 }
-
 
 PipelineStatistics::~PipelineStatistics() {
   if (InPhaseKind()) EndPhaseKind();
@@ -73,7 +73,8 @@ PipelineStatistics::~PipelineStatistics() {
 void PipelineStatistics::BeginPhaseKind(const char* phase_kind_name) {
   DCHECK(!InPhase());
   if (InPhaseKind()) EndPhaseKind();
-  TRACE_EVENT_BEGIN0(kTraceCategory, phase_kind_name);
+  TRACE_EVENT_BEGIN1(kTraceCategory, phase_kind_name, "kind",
+                     CodeKindToString(code_kind_));
   phase_kind_name_ = phase_kind_name;
   phase_kind_stats_.Begin(this);
 }
@@ -83,11 +84,14 @@ void PipelineStatistics::EndPhaseKind() {
   CompilationStatistics::BasicStats diff;
   phase_kind_stats_.End(this, &diff);
   compilation_stats_->RecordPhaseKindStats(phase_kind_name_, diff);
-  TRACE_EVENT_END0(kTraceCategory, phase_kind_name_);
+  TRACE_EVENT_END2(kTraceCategory, phase_kind_name_, "kind",
+                   CodeKindToString(code_kind_), "stats",
+                   TRACE_STR_COPY(diff.AsJSON().c_str()));
 }
 
 void PipelineStatistics::BeginPhase(const char* phase_name) {
-  TRACE_EVENT_BEGIN0(kTraceCategory, phase_name);
+  TRACE_EVENT_BEGIN1(kTraceCategory, phase_name, "kind",
+                     CodeKindToString(code_kind_));
   DCHECK(InPhaseKind());
   phase_name_ = phase_name;
   phase_stats_.Begin(this);
@@ -98,7 +102,9 @@ void PipelineStatistics::EndPhase() {
   CompilationStatistics::BasicStats diff;
   phase_stats_.End(this, &diff);
   compilation_stats_->RecordPhaseStats(phase_kind_name_, phase_name_, diff);
-  TRACE_EVENT_END0(kTraceCategory, phase_name_);
+  TRACE_EVENT_END2(kTraceCategory, phase_name_, "kind",
+                   CodeKindToString(code_kind_), "stats",
+                   TRACE_STR_COPY(diff.AsJSON().c_str()));
 }
 
 }  // namespace compiler
