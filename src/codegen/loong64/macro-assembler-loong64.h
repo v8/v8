@@ -664,7 +664,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Ceil_s(FPURegister fd, FPURegister fj);
 
   // Jump the register contains a smi.
-  void JumpIfSmi(Register value, Label* smi_label, Register scratch = t7);
+  void JumpIfSmi(Register value, Label* smi_label);
 
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
     UseScratchRegisterScope temps(this);
@@ -994,7 +994,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   // Jump if the register contains a non-smi.
-  void JumpIfNotSmi(Register value, Label* not_smi_label, Register scratch);
+  void JumpIfNotSmi(Register value, Label* not_smi_label);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);

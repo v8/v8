@@ -102,15 +102,11 @@ void BaselineAssembler::JumpIfNotRoot(Register value, RootIndex index,
 }
 void BaselineAssembler::JumpIfSmi(Register value, Label* target,
                                   Label::Distance) {
-  ScratchRegisterScope temps(this);
-  Register temp = temps.AcquireScratch();
-  __ JumpIfSmi(value, target, temp);
+  __ JumpIfSmi(value, target);
 }
 void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
                                      Label::Distance) {
-  ScratchRegisterScope temps(this);
-  Register temp = temps.AcquireScratch();
-  __ JumpIfNotSmi(value, target, temp);
+  __ JumpIfNotSmi(value, target);
 }
 
 void BaselineAssembler::CallBuiltin(Builtin builtin) {
