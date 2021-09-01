@@ -1945,24 +1945,19 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       globals.push_back(type);
       if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));
     }
+
+    // Generate function declarations before tables. This will be needed once we
+    // have typed-function tables.
+    std::vector<WasmFunctionBuilder*> functions;
     for (int i = 0; i < num_functions; ++i) {
-      DataRange function_range = range.split();
       FunctionSig* sig = builder.GetSignature(function_signatures[i]);
-      WasmFunctionBuilder* f = builder.AddFunction(sig);
-      WasmGenerator gen(f, function_signatures, globals, mutable_globals,
-                        num_structs, num_arrays, &function_range,
-                        liftoff_as_reference);
-      base::Vector<const ValueType> return_types(sig->returns().begin(),
-                                                 sig->return_count());
-      gen.Generate(return_types, &function_range);
-      if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return false;
-      f->Emit(kExprEnd);
-      if (i == 0) builder.AddExport(base::CStrVector("main"), f);
+      functions.push_back(builder.AddFunction(sig));
     }
 
+    // Generate tables before function bodies, so they are available for table
+    // operations.
     // Always generate at least one table for call_indirect.
     int num_tables = range.get<uint8_t>() % kMaxTables + 1;
-
     for (int i = 0; i < num_tables; i++) {
       // Table 0 has to reference all functions in the program. This is so that
       // all functions count as declared so they can be referenced with
@@ -1973,8 +1968,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       uint32_t max_size =
           range.get<uint8_t>() % (kMaxTableSize - min_size) + min_size;
       // Table 0 is always funcref.
-      // TODO(11954): Remove this requirement this once we support call_indirect
-      // with other table indices.
+      // TODO(11954): Remove this requirement once we support call_indirect with
+      // other table indices.
       // TODO(11954): Support typed function tables.
       bool use_funcref = i == 0 || range.get<bool>();
       ValueType type = use_funcref ? kWasmFuncRef : kWasmExternRef;
@@ -1995,6 +1990,22 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         builder.AddElementSegment(std::move(segment));
       }
     }
+
+    for (int i = 0; i < num_functions; ++i) {
+      WasmFunctionBuilder* f = functions[i];
+      DataRange function_range = range.split();
+      WasmGenerator gen(f, function_signatures, globals, mutable_globals,
+                        num_structs, num_arrays, &function_range,
+                        liftoff_as_reference);
+      FunctionSig* sig = f->signature();
+      base::Vector<const ValueType> return_types(sig->returns().begin(),
+                                                 sig->return_count());
+      gen.Generate(return_types, &function_range);
+      if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return false;
+      f->Emit(kExprEnd);
+      if (i == 0) builder.AddExport(base::CStrVector("main"), f);
+    }
+
     builder.SetMaxMemorySize(32);
     // We enable shared memory to be able to test atomics.
     builder.SetHasSharedMemory();
