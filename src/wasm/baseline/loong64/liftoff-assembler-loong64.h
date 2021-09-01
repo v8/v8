@@ -2750,15 +2750,17 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, FPURegister src,
                                        ValueKind kind) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  li(scratch, 1);
+  Label not_nan;
   if (kind == kF32) {
     CompareIsNanF32(src, src);
   } else {
     DCHECK_EQ(kind, kF64);
     CompareIsNanF64(src, src);
   }
-  LoadZeroIfNotFPUCondition(scratch);
-  St_d(scratch, MemOperand(dst, 0));
+  BranchFalseShortF(&not_nan);
+  li(scratch, 1);
+  St_w(scratch, MemOperand(dst, 0));
+  bind(&not_nan);
 }
 
 void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
