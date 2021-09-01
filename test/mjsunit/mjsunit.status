@@ -1027,6 +1027,9 @@
 
   # BUG(v8:11656) Skipped until we make progress on NumFuzz.
   'baseline/test-osr': [SKIP],
+
+  # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
+  'compiler/concurrent-inlining-1': [SKIP],
 }],  # 'deopt_fuzzer'
 
 ##############################################################################
