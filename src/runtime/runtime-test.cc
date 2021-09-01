@@ -660,6 +660,7 @@ RUNTIME_FUNCTION(Runtime_DisableOptimizationFinalization) {
   if (isolate->concurrent_recompilation_enabled()) {
     isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
     isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+    isolate->stack_guard()->ClearInstallCode();
     isolate->optimizing_compile_dispatcher()->set_finalize(false);
   }
   return ReadOnlyRoots(isolate).undefined_value();
