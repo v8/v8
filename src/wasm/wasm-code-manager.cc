@@ -1179,7 +1179,6 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     ExecutionTier tier, ForDebugging for_debugging) {
   base::Vector<byte> code_space;
   NativeModule::JumpTablesRef jump_table_ref;
-  CodeSpaceWriteScope code_space_write_scope(this);
   {
     base::RecursiveMutexGuard guard{&allocation_mutex_};
     code_space = code_allocator_.AllocateForCode(this, desc.instr_size);

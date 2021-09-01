@@ -44,6 +44,7 @@
 #include "src/roots/roots.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/code-space-access.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/graph-builder-interface.h"
@@ -7631,13 +7632,18 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
       call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION,
       wasm::WasmCode::kWasmToCapiWrapper, debug_name,
       WasmStubAssemblerOptions(), source_positions);
-  std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
-      wasm::kAnonymousFuncIndex, result.code_desc, result.frame_slot_count,
-      result.tagged_parameter_slots,
-      result.protected_instructions_data.as_vector(),
-      result.source_positions.as_vector(), wasm::WasmCode::kWasmToCapiWrapper,
-      wasm::ExecutionTier::kNone, wasm::kNoDebugging);
-  return native_module->PublishCode(std::move(wasm_code));
+  wasm::WasmCode* published_code;
+  {
+    wasm::CodeSpaceWriteScope code_space_write_scope(native_module);
+    std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
+        wasm::kAnonymousFuncIndex, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), wasm::WasmCode::kWasmToCapiWrapper,
+        wasm::ExecutionTier::kNone, wasm::kNoDebugging);
+    published_code = native_module->PublishCode(std::move(wasm_code));
+  }
+  return published_code;
 }
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,

@@ -17,6 +17,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/utils.h"
+#include "src/wasm/code-space-access.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
@@ -1532,7 +1533,8 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   if (sig_id >= 0) {
     wasm::NativeModule* native_module =
         instance->module_object().native_module();
-    // TODO(wasm): Cache and reuse wrapper code.
+    // TODO(wasm): Cache and reuse wrapper code, to avoid repeated compilation
+    // and permissions switching.
     const wasm::WasmFeatures enabled = native_module->enabled_features();
     auto resolved = compiler::ResolveWasmImportCall(
         callable, sig, instance->module(), enabled);
@@ -1549,6 +1551,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     }
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
         &env, kind, sig, false, expected_arity);
+    wasm::CodeSpaceWriteScope write_scope(native_module);
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots,
