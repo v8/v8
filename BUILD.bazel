@@ -1854,6 +1854,7 @@ filegroup(
         "src/base/sanitizer/lsan-page-allocator.cc",
         "src/base/sanitizer/lsan-page-allocator.h",
         "src/base/sanitizer/msan.h",
+        "src/base/sanitizer/tsan.h",
         "src/snapshot/code-serializer.cc",
         "src/snapshot/code-serializer.h",
         "src/snapshot/context-deserializer.cc",
