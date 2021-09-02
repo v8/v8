@@ -1951,7 +1951,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
     cc = FlagsConditionToConditionCmp(condition);
     if (i.InputOrZeroRegister(0) == zero_reg && IsInludeEqual(cc)) {
       __ Branch(tlabel);
-    } else {
+    } else if (i.InputOrZeroRegister(0) != zero_reg) {
       __ Branch(tlabel, cc, i.InputRegister(0), Operand(zero_reg));
     }
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
