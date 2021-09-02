@@ -3041,14 +3041,40 @@ void LiftoffAssembler::MaybeOSR() {}
 
 void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
                                        ValueKind kind) {
-  UNIMPLEMENTED();
+  Label return_nan, done;
+  if (kind == kF32) {
+    cebr(src, src);
+    bunordered(&return_nan);
+  } else {
+    DCHECK_EQ(kind, kF64);
+    cdbr(src, src);
+    bunordered(&return_nan);
+  }
+  b(&done);
+  bind(&return_nan);
+  StoreF32LE(src, MemOperand(dst), r0);
+  bind(&done);
 }
 
 void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
                                             Register tmp_gp,
                                             LiftoffRegister tmp_s128,
                                             ValueKind lane_kind) {
-  UNIMPLEMENTED();
+  Label return_nan, done;
+  if (lane_kind == kF32) {
+    vfce(tmp_s128.fp(), src.fp(), src.fp(), Condition(1), Condition(0),
+         Condition(2));
+    b(Condition(0x5), &return_nan);  // If any or all are NaN.
+  } else {
+    DCHECK_EQ(lane_kind, kF64);
+    vfce(tmp_s128.fp(), src.fp(), src.fp(), Condition(1), Condition(0),
+         Condition(3));
+    b(Condition(0x5), &return_nan);
+  }
+  b(&done);
+  bind(&return_nan);
+  StoreF32LE(src.fp(), MemOperand(dst), r0);
+  bind(&done);
 }
 
 void LiftoffStackSlots::Construct(int param_slots) {

@@ -4374,20 +4374,35 @@ EVALUATE(VFMAX) {
 #undef CASE
 
 template <class S, class D, class Operation>
-void VectorFPCompare(Simulator* sim, int dst, int src1, int src2,
+void VectorFPCompare(Simulator* sim, int dst, int src1, int src2, int m6,
                      Operation op) {
   static_assert(sizeof(S) == sizeof(D),
                 "Expect input type size == output type size");
+  bool some_zero = false;
+  bool all_zero = true;
   FOR_EACH_LANE(i, D) {
     S src1_val = sim->get_simd_register_by_lane<S>(src1, i);
     S src2_val = sim->get_simd_register_by_lane<S>(src2, i);
     D value = op(src1_val, src2_val);
     sim->set_simd_register_by_lane<D>(dst, i, value);
+    if (value) {
+      all_zero = false;
+    } else {
+      some_zero = true;
+    }
+  }
+  // TODO(miladfarca) implement other conditions.
+  if (m6) {
+    if (all_zero) {
+      sim->condition_reg_ = CC_OF;
+    } else if (some_zero) {
+      sim->condition_reg_ = 0x04;
+    }
   }
 }
 
-#define VECTOR_FP_COMPARE_FOR_TYPE(S, D, op) \
-  VectorFPCompare<S, D>(this, r1, r2, r3,    \
+#define VECTOR_FP_COMPARE_FOR_TYPE(S, D, op)  \
+  VectorFPCompare<S, D>(this, r1, r2, r3, m6, \
                         [](S a, S b) { return (a op b) ? -1 : 0; });
 
 #define VECTOR_FP_COMPARE(op)                                               \
@@ -4421,7 +4436,6 @@ void VectorFPCompare(Simulator* sim, int dst, int src1, int src2,
 EVALUATE(VFCE) {
   DCHECK_OPCODE(VFCE);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
-  USE(m6);
   VECTOR_FP_COMPARE(==)
   return length;
 }
