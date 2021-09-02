@@ -1044,8 +1044,6 @@ void RegExpMacroAssemblerLOONG64::WriteStackPointerToRegister(int reg) {
   __ St_d(a0, register_location(reg));
 }
 
-bool RegExpMacroAssemblerLOONG64::CanReadUnaligned() { return false; }
-
 // Private methods:
 
 void RegExpMacroAssemblerLOONG64::CallCheckStackGuardState(Register scratch) {
@@ -1225,20 +1223,36 @@ void RegExpMacroAssemblerLOONG64::CheckStackLimit() {
 void RegExpMacroAssemblerLOONG64::LoadCurrentCharacterUnchecked(
     int cp_offset, int characters) {
   Register offset = current_input_offset();
+
+  // If unaligned load/stores are not supported then this function must only
+  // be used to load a single character at a time.
+  if (!CanReadUnaligned()) {
+    DCHECK_EQ(1, characters);
+  }
+
   if (cp_offset != 0) {
     // t3 is not being used to store the capture start index at this point.
     __ Add_d(t3, current_input_offset(), Operand(cp_offset * char_size()));
     offset = t3;
   }
-  // We assume that we cannot do unaligned loads on LOONG64, so this function
-  // must only be used to load a single character at a time.
-  DCHECK_EQ(1, characters);
-  __ Add_d(t1, end_of_input_address(), Operand(offset));
+
   if (mode_ == LATIN1) {
-    __ Ld_bu(current_character(), MemOperand(t1, 0));
+    if (characters == 4) {
+      __ Ld_wu(current_character(), MemOperand(end_of_input_address(), offset));
+    } else if (characters == 2) {
+      __ Ld_hu(current_character(), MemOperand(end_of_input_address(), offset));
+    } else {
+      DCHECK_EQ(1, characters);
+      __ Ld_bu(current_character(), MemOperand(end_of_input_address(), offset));
+    }
   } else {
     DCHECK(mode_ == UC16);
-    __ Ld_hu(current_character(), MemOperand(t1, 0));
+    if (characters == 2) {
+      __ Ld_wu(current_character(), MemOperand(end_of_input_address(), offset));
+    } else {
+      DCHECK_EQ(1, characters);
+      __ Ld_hu(current_character(), MemOperand(end_of_input_address(), offset));
+    }
   }
 }
 
