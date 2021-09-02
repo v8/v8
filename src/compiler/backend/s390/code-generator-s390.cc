@@ -3453,6 +3453,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef LOAD_AND_ZERO
+#undef LOAD_EXTEND
+#define LOAD_LANE(type, lane)                          \
+  AddressingMode mode = kMode_None;                    \
+  size_t index = 2;                                    \
+  MemOperand operand = i.MemoryOperand(&mode, &index); \
+  Simd128Register dst = i.OutputSimd128Register();     \
+  DCHECK_EQ(dst, i.InputSimd128Register(0));           \
+  __ LoadLane##type##LE(dst, operand, lane);
+    case kS390_S128Load8Lane: {
+      LOAD_LANE(8, 15 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Load16Lane: {
+      LOAD_LANE(16, 7 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Load32Lane: {
+      LOAD_LANE(32, 3 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Load64Lane: {
+      LOAD_LANE(64, 1 - i.InputUint8(1));
+      break;
+    }
+#undef LOAD_LANE
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;

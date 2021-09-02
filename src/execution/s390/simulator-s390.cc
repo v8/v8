@@ -758,6 +758,8 @@ void Simulator::EvalTableInit() {
   V(vrepi, VREPI, 0xE745) /* type = VRI_A VECTOR REPLICATE IMMEDIATE  */       \
   V(vlr, VLR, 0xE756)     /* type = VRR_A VECTOR LOAD  */                      \
   V(vstef, VSTEF, 0xE70B) /* type = VRX   VECTOR STORE ELEMENT (32)  */        \
+  V(vleb, VLEB, 0xE701)   /* type = VRX   VECTOR LOAD ELEMENT (8)  */          \
+  V(vleh, VLEH, 0xE701)   /* type = VRX   VECTOR LOAD ELEMENT (16)  */         \
   V(vlef, VLEF, 0xE703)   /* type = VRX   VECTOR LOAD ELEMENT (32)  */         \
   V(vleg, VLEG, 0xE702)   /* type = VRX   VECTOR LOAD ELEMENT (64)  */         \
   V(vavgl, VAVGL, 0xE7F0) /* type = VRR_C VECTOR AVERAGE LOGICAL  */           \
@@ -3190,6 +3192,24 @@ EVALUATE(VSTEF) {
   intptr_t addr = GET_ADDRESS(x2, b2, d2);
   int32_t value = get_simd_register_by_lane<int32_t>(r1, m3);
   WriteW(addr, value);
+  return length;
+}
+
+EVALUATE(VLEB) {
+  DCHECK_OPCODE(VLEB);
+  DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int8_t value = ReadB(addr);
+  set_simd_register_by_lane<int8_t>(r1, m3, value);
+  return length;
+}
+
+EVALUATE(VLEH) {
+  DCHECK_OPCODE(VLEH);
+  DECODE_VRX_INSTRUCTION(r1, x2, b2, d2, m3);
+  intptr_t addr = GET_ADDRESS(x2, b2, d2);
+  int16_t value = ReadH(addr);
+  set_simd_register_by_lane<int16_t>(r1, m3, value);
   return length;
 }
 

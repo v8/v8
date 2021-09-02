@@ -371,6 +371,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_S128Load32x2U:
     case kS390_S128Load32Zero:
     case kS390_S128Load64Zero:
+    case kS390_S128Load8Lane:
+    case kS390_S128Load16Lane:
+    case kS390_S128Load32Lane:
+    case kS390_S128Load64Lane:
       return kIsLoadOperation;
 
     case kS390_StoreWord8:

@@ -3981,6 +3981,30 @@ void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
   vlvg(dst, r1, MemOperand(r0, 1), Condition(3));
 }
 
+void TurboAssembler::LoadLane8LE(Simd128Register dst, const MemOperand& mem,
+                                 int index) {
+  vleb(dst, mem, Condition(index));
+}
+#define LOAD_LANE_LIST(V)     \
+  V(64, vlebrg, LoadU64LE, 3) \
+  V(32, vlebrf, LoadU32LE, 2) \
+  V(16, vlebrh, LoadU16LE, 1)
+
+#define LOAD_LANE(name, vector_instr, scalar_instr, condition)               \
+  void TurboAssembler::LoadLane##name##LE(Simd128Register dst,               \
+                                          const MemOperand& mem, int lane) { \
+    if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&               \
+        is_uint12(mem.offset())) {                                           \
+      vector_instr(dst, mem, Condition(lane));                               \
+      return;                                                                \
+    }                                                                        \
+    scalar_instr(r1, mem);                                                   \
+    vlvg(dst, r1, MemOperand(r0, lane), Condition(condition));               \
+  }
+LOAD_LANE_LIST(LOAD_LANE)
+#undef LOAD_LANE
+#undef LOAD_LANE_LIST
+
 #else
 void TurboAssembler::LoadU64LE(Register dst, const MemOperand& mem,
                                Register scratch) {
@@ -4087,6 +4111,22 @@ LOAD_SPLAT_LIST(LOAD_SPLAT)
 LOAD_EXTEND_LIST(LOAD_EXTEND)
 #undef LOAD_EXTEND
 #undef LOAD_EXTEND
+
+#define LOAD_LANE_LIST(V) \
+  V(64, vleg)             \
+  V(32, vlef)             \
+  V(16, vleh)             \
+  V(8, vleb)
+
+#define LOAD_LANE(name, vector_instr)                                        \
+  void TurboAssembler::LoadLane##name##LE(Simd128Register dst,               \
+                                          const MemOperand& mem, int lane) { \
+    DCHECK(is_uint12(mem.offset()));                                         \
+    vector_instr(dst, mem, Condition(lane));                                 \
+  }
+LOAD_LANE_LIST(LOAD_LANE)
+#undef LOAD_LANE
+#undef LOAD_LANE_LIST
 
 void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem) {
   vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
