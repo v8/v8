@@ -721,7 +721,6 @@ DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
                               15 * KB)
 DEFINE_INT(max_serializer_nesting, 25,
            "maximum levels for nesting child serializers")
-DEFINE_WEAK_IMPLICATION(future, concurrent_inlining)
 DEFINE_BOOL(trace_heap_broker_verbose, false,
             "trace the heap broker verbosely (all reports)")
 DEFINE_BOOL(trace_heap_broker_memory, false,
