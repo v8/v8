@@ -1478,9 +1478,8 @@
 
 ##############################################################################
 ['variant == instruction_scheduling or variant == stress_instruction_scheduling', {
-  # BUG(12018): These tests currently fail with --turbo-instruction-scheduling.
+  # BUG(12018): This test currently fails with --turbo-instruction-scheduling.
   'regress/wasm/regress-1231950': [SKIP],
-  'regress/wasm/regress-1242300': [SKIP],
 }],  # variant == instruction_scheduling or variant == stress_instruction_scheduling
 
 ################################################################################
