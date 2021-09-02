@@ -77,6 +77,7 @@
       'V8 Linux64 - no wasm - builder': 'release_x64_webassembly_disabled',
       # Windows.
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
+      'V8 Win32 - builder (reclient)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'V8 Win64 ASAN': 'release_x64_asan_no_lsan',
@@ -614,6 +615,8 @@
       'release_trybot', 'x86', 'gcmole'],
     'release_x86_minimal_symbols': [
       'release_bot', 'x86', 'minimal_symbols'],
+    'release_x86_minimal_symbols_reclient': [
+      'release_bot_reclient', 'x86', 'minimal_symbols'],
     'release_x86_no_i18n_trybot': [
       'release_trybot', 'x86', 'v8_no_i18n'],
     'release_x86_predictable': [
