@@ -1127,6 +1127,12 @@ class ParserBase {
   }
 
   V8_INLINE IdentifierT ParseAndClassifyIdentifier(Token::Value token);
+
+  // Similar logic to ParseAndClassifyIdentifier but the identifier is
+  // already parsed in prop_info. Returns false if this is an invalid
+  // identifier or an invalid use of the "arguments" keyword.
+  V8_INLINE bool ClassifyPropertyIdentifier(Token::Value token,
+                                            ParsePropertyInfo* prop_info);
   // Parses an identifier or a strict mode future reserved word. Allows passing
   // in function_kind for the case of parsing the identifier in a function
   // expression, where the relevant "function_kind" bit is of the function being
@@ -1644,8 +1650,39 @@ void ParserBase<Impl>::ReportUnexpectedToken(Token::Value token) {
 }
 
 template <typename Impl>
+bool ParserBase<Impl>::ClassifyPropertyIdentifier(
+    Token::Value next, ParsePropertyInfo* prop_info) {
+  // Updates made here must be reflected on ParseAndClassifyIdentifier.
+  if (V8_LIKELY(base::IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
+    if (V8_UNLIKELY(impl()->IsArguments(prop_info->name) &&
+                    scope()->ShouldBanArguments())) {
+      ReportMessage(
+          MessageTemplate::kArgumentsDisallowedInInitializerAndStaticBlock);
+      return false;
+    }
+    return true;
+  }
+
+  if (!Token::IsValidIdentifier(next, language_mode(), is_generator(),
+                                is_await_as_identifier_disallowed())) {
+    ReportUnexpectedToken(next);
+    return false;
+  }
+
+  DCHECK(!prop_info->is_computed_name);
+
+  if (next == Token::AWAIT) {
+    DCHECK(!is_async_function());
+    expression_scope()->RecordAsyncArrowParametersError(
+        scanner()->peek_location(), MessageTemplate::kAwaitBindingIdentifier);
+  }
+  return true;
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::IdentifierT
 ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
+  // Updates made here must be reflected on ClassifyPropertyIdentifier.
   DCHECK_EQ(scanner()->current_token(), next);
   if (V8_LIKELY(base::IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
     IdentifierT name = impl()->GetIdentifier();
@@ -2550,7 +2587,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
 
   IdentifierT name = prop_info->name;
   ParseFunctionFlags function_flags = prop_info->function_flags;
-  ParsePropertyKind kind = prop_info->kind;
 
   switch (prop_info->kind) {
     case ParsePropertyKind::kSpread:
@@ -2598,19 +2634,10 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
       //    IdentifierReference Initializer?
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
-      if (!Token::IsValidIdentifier(name_token, language_mode(), is_generator(),
-                                    is_await_as_identifier_disallowed())) {
-        ReportUnexpectedToken(Next());
+      if (!ClassifyPropertyIdentifier(name_token, prop_info)) {
         return impl()->NullLiteralProperty();
       }
 
-      DCHECK(!prop_info->is_computed_name);
-
-      if (name_token == Token::AWAIT) {
-        DCHECK(!is_async_function());
-        expression_scope()->RecordAsyncArrowParametersError(
-            next_loc, MessageTemplate::kAwaitBindingIdentifier);
-      }
       ExpressionT lhs =
           impl()->ExpressionFromIdentifier(name, next_loc.beg_pos);
       if (!IsAssignableIdentifier(lhs)) {
@@ -2673,7 +2700,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
     case ParsePropertyKind::kAccessorGetter:
     case ParsePropertyKind::kAccessorSetter: {
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
-      bool is_get = kind == ParsePropertyKind::kAccessorGetter;
+      bool is_get = prop_info->kind == ParsePropertyKind::kAccessorGetter;
 
       expression_scope()->RecordPatternError(
           Scanner::Location(next_loc.beg_pos, end_position()),
