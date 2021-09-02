@@ -63,12 +63,6 @@
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Exception handling proposal. */                                           \
-  /* https://github.com/WebAssembly/exception-handling */                      \
-  /* V8 side owner: thibaudm */                                                \
-  /* Staged in v8.9 */                                                         \
-  V(eh, "exception handling opcodes", false)                                   \
-                                                                               \
   /* Tail call / return call proposal. */                                      \
   /* https://github.com/webassembly/tail-call */                               \
   /* V8 side owner: thibaudm */                                                \
@@ -109,6 +103,13 @@
   /* tD6np-OG2PU/rcNGROOMFQAJ */                                               \
   /* V8 side owner: gdeepti */                                                 \
   V(threads, "thread opcodes", true)                                           \
+                                                                               \
+  /* Exception handling proposal. */                                           \
+  /* https://github.com/WebAssembly/exception-handling */                      \
+  /* V8 side owner: thibaudm */                                                \
+  /* Staged in v8.9 */                                                         \
+  /* Shipped in v9.5 */                                                        \
+  V(eh, "exception handling opcodes", true)                                    \
                                                                                \
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \
