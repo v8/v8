@@ -2176,7 +2176,7 @@ base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
   DCHECK(data_->should_access_heap());
   Object value = object()->value(kAcquireLoad);
   if (!value.IsFeedbackVector()) return base::nullopt;
-  return TryMakeRef(broker(), FeedbackVector::cast(value));
+  return MakeRefAssumeMemoryFence(broker(), FeedbackVector::cast(value));
 }
 
 base::Optional<ObjectRef> MapRef::GetStrongValue(
@@ -2659,10 +2659,9 @@ base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
 
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
     const {
-  if (value()) {
-    return value()->shared_function_info();
-  }
-  return base::nullopt;
+  base::Optional<FeedbackVectorRef> feedback_vector = value();
+  if (!feedback_vector.has_value()) return {};
+  return feedback_vector->shared_function_info();
 }
 
 SharedFunctionInfoRef FeedbackVectorRef::shared_function_info() const {

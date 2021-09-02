@@ -1707,10 +1707,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     shared = ccp.shared_info(broker());
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
-    base::Optional<FeedbackVectorRef> feedback_vector = cell.value();
-    if (feedback_vector.has_value()) {
-      shared = feedback_vector->shared_function_info();
-    }
+    shared = cell.shared_function_info();
   }
 
   if (shared.has_value()) {
