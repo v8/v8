@@ -301,6 +301,17 @@ experiment_builder(
 )
 
 experiment_builder(
+    name = "V8 Win32 - builder (reclient)",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.NO,
+    use_rbe = RECLIENT.DEFAULT,
+    to_notify = ["yyanagisawa@google.com"],
+)
+
+experiment_builder(
     name = "V8 Linux gcc",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
