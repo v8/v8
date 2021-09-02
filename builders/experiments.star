@@ -99,6 +99,16 @@ experiment_builder(
 )
 
 experiment_builder_pair(
+    name = "V8 Linux64 - cppgc-non-default - debug",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.DEFAULT,
+    to_notify = ["mlippautz@chromium.org"],
+)
+
+experiment_builder_pair(
     name = "V8 Linux64 - debug - perfetto",
     bucket = "ci",
     triggered_by = ["v8-trigger"],
