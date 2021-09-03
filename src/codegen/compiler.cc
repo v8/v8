@@ -1179,9 +1179,13 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
          isolate->concurrent_recompilation_enabled() &&
          mode == ConcurrencyMode::kNotConcurrent &&
          isolate->node_observer() == nullptr);
+  GetOptimizedCodeResultHandling result_handling =
+      FLAG_stress_concurrent_inlining_attach_code
+          ? GetOptimizedCodeResultHandling::kDefault
+          : GetOptimizedCodeResultHandling::kDiscardForTesting;
   USE(GetOptimizedCode(isolate, function, ConcurrencyMode::kConcurrent,
                        code_kind, BytecodeOffset::None(), nullptr,
-                       GetOptimizedCodeResultHandling::kDiscardForTesting));
+                       result_handling));
 }
 
 bool FailAndClearPendingException(Isolate* isolate) {

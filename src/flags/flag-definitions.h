@@ -713,12 +713,17 @@ DEFINE_INT(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
 DEFINE_BOOL(concurrent_inlining, true,
             "run optimizing compiler's inlining phase on a separate thread")
-DEFINE_BOOL(stress_concurrent_inlining, false,
-            "makes concurrent inlining more likely to trigger in tests")
+DEFINE_BOOL(
+    stress_concurrent_inlining, false,
+    "create additional concurrent optimization jobs but throw away result")
 DEFINE_IMPLICATION(stress_concurrent_inlining, concurrent_inlining)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, lazy_feedback_allocation)
 DEFINE_WEAK_VALUE_IMPLICATION(stress_concurrent_inlining, interrupt_budget,
                               15 * KB)
+DEFINE_BOOL(stress_concurrent_inlining_attach_code, false,
+            "create additional concurrent optimization jobs")
+DEFINE_IMPLICATION(stress_concurrent_inlining_attach_code,
+                   stress_concurrent_inlining)
 DEFINE_INT(max_serializer_nesting, 25,
            "maximum levels for nesting child serializers")
 DEFINE_BOOL(trace_heap_broker_verbose, false,
