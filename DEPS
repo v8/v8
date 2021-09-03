@@ -46,7 +46,7 @@ vars = {
   'checkout_reclient': False,
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.33.0.3e223d5',
+  'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
   'gn_version': 'git_revision:69ec4fca1fa69ddadae13f9e6b7507efa0675263',
