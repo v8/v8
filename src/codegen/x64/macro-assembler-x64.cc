@@ -2024,16 +2024,17 @@ using NoAvxFn = void (Assembler::*)(XMMRegister, Src, uint8_t);
 template <typename Src>
 void PinsrHelper(Assembler* assm, AvxFn<Src> avx, NoAvxFn<Src> noavx,
                  XMMRegister dst, XMMRegister src1, Src src2, uint8_t imm8,
+                 uint32_t* load_pc_offset = nullptr,
                  base::Optional<CpuFeature> feature = base::nullopt) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(assm, AVX);
+    if (load_pc_offset) *load_pc_offset = assm->pc_offset();
     (assm->*avx)(dst, src1, src2, imm8);
     return;
   }
 
-  if (dst != src1) {
-    assm->movaps(dst, src1);
-  }
+  if (dst != src1) assm->movaps(dst, src1);
+  if (load_pc_offset) *load_pc_offset = assm->pc_offset();
   if (feature.has_value()) {
     DCHECK(CpuFeatures::IsSupported(*feature));
     CpuFeatureScope scope(assm, *feature);
@@ -2045,40 +2046,41 @@ void PinsrHelper(Assembler* assm, AvxFn<Src> avx, NoAvxFn<Src> noavx,
 }  // namespace
 
 void TurboAssembler::Pinsrb(XMMRegister dst, XMMRegister src1, Register src2,
-                            uint8_t imm8) {
+                            uint8_t imm8, uint32_t* load_pc_offset) {
   PinsrHelper(this, &Assembler::vpinsrb, &Assembler::pinsrb, dst, src1, src2,
-              imm8, base::Optional<CpuFeature>(SSE4_1));
+              imm8, load_pc_offset, {SSE4_1});
 }
 
 void TurboAssembler::Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2,
-                            uint8_t imm8) {
+                            uint8_t imm8, uint32_t* load_pc_offset) {
   PinsrHelper(this, &Assembler::vpinsrb, &Assembler::pinsrb, dst, src1, src2,
-              imm8, base::Optional<CpuFeature>(SSE4_1));
+              imm8, load_pc_offset, {SSE4_1});
 }
 
 void TurboAssembler::Pinsrw(XMMRegister dst, XMMRegister src1, Register src2,
-                            uint8_t imm8) {
+                            uint8_t imm8, uint32_t* load_pc_offset) {
   PinsrHelper(this, &Assembler::vpinsrw, &Assembler::pinsrw, dst, src1, src2,
-              imm8);
+              imm8, load_pc_offset);
 }
 
 void TurboAssembler::Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2,
-                            uint8_t imm8) {
+                            uint8_t imm8, uint32_t* load_pc_offset) {
   PinsrHelper(this, &Assembler::vpinsrw, &Assembler::pinsrw, dst, src1, src2,
-              imm8);
+              imm8, load_pc_offset);
 }
 
 void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Register src2,
-                            uint8_t imm8) {
+                            uint8_t imm8, uint32_t* load_pc_offset) {
   // Need a fall back when SSE4_1 is unavailable. Pinsrb and Pinsrq are used
   // only by Wasm SIMD, which requires SSE4_1 already.
   if (CpuFeatures::IsSupported(SSE4_1)) {
     PinsrHelper(this, &Assembler::vpinsrd, &Assembler::pinsrd, dst, src1, src2,
-                imm8, base::Optional<CpuFeature>(SSE4_1));
+                imm8, load_pc_offset, {SSE4_1});
     return;
   }
 
   Movd(kScratchDoubleReg, src2);
+  if (load_pc_offset) *load_pc_offset = pc_offset();
   if (imm8 == 1) {
     punpckldq(dst, kScratchDoubleReg);
   } else {
@@ -2088,16 +2090,17 @@ void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Register src2,
 }
 
 void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
-                            uint8_t imm8) {
+                            uint8_t imm8, uint32_t* load_pc_offset) {
   // Need a fall back when SSE4_1 is unavailable. Pinsrb and Pinsrq are used
   // only by Wasm SIMD, which requires SSE4_1 already.
   if (CpuFeatures::IsSupported(SSE4_1)) {
     PinsrHelper(this, &Assembler::vpinsrd, &Assembler::pinsrd, dst, src1, src2,
-                imm8, base::Optional<CpuFeature>(SSE4_1));
+                imm8, load_pc_offset, {SSE4_1});
     return;
   }
 
   Movd(kScratchDoubleReg, src2);
+  if (load_pc_offset) *load_pc_offset = pc_offset();
   if (imm8 == 1) {
     punpckldq(dst, kScratchDoubleReg);
   } else {
@@ -2106,24 +2109,26 @@ void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
   }
 }
 
-void TurboAssembler::Pinsrd(XMMRegister dst, Register src2, uint8_t imm8) {
-  Pinsrd(dst, dst, src2, imm8);
+void TurboAssembler::Pinsrd(XMMRegister dst, Register src2, uint8_t imm8,
+                            uint32_t* load_pc_offset) {
+  Pinsrd(dst, dst, src2, imm8, load_pc_offset);
 }
 
-void TurboAssembler::Pinsrd(XMMRegister dst, Operand src2, uint8_t imm8) {
-  Pinsrd(dst, dst, src2, imm8);
+void TurboAssembler::Pinsrd(XMMRegister dst, Operand src2, uint8_t imm8,
+                            uint32_t* load_pc_offset) {
+  Pinsrd(dst, dst, src2, imm8, load_pc_offset);
 }
 
 void TurboAssembler::Pinsrq(XMMRegister dst, XMMRegister src1, Register src2,
-                            uint8_t imm8) {
+                            uint8_t imm8, uint32_t* load_pc_offset) {
   PinsrHelper(this, &Assembler::vpinsrq, &Assembler::pinsrq, dst, src1, src2,
-              imm8, base::Optional<CpuFeature>(SSE4_1));
+              imm8, load_pc_offset, {SSE4_1});
 }
 
 void TurboAssembler::Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2,
-                            uint8_t imm8) {
+                            uint8_t imm8, uint32_t* load_pc_offset) {
   PinsrHelper(this, &Assembler::vpinsrq, &Assembler::pinsrq, dst, src1, src2,
-              imm8, base::Optional<CpuFeature>(SSE4_1));
+              imm8, load_pc_offset, {SSE4_1});
 }
 
 void TurboAssembler::Absps(XMMRegister dst, XMMRegister src) {

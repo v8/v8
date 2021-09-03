@@ -1707,13 +1707,13 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
   UseScratchRegisterScope temps(this);
   MemOperand src_op{
       liftoff::GetEffectiveAddress(this, &temps, addr, offset_reg, offset_imm)};
-  *protected_load_pc = pc_offset();
 
   MachineType mem_type = type.mem_type();
   if (dst != src) {
     Mov(dst.fp().Q(), src.fp().Q());
   }
 
+  *protected_load_pc = pc_offset();
   if (mem_type == MachineType::Int8()) {
     ld1(dst.fp().B(), laneidx, src_op);
   } else if (mem_type == MachineType::Int16()) {

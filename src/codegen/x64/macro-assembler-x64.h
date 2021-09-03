@@ -418,16 +418,26 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
 
-  void Pinsrb(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8);
-  void Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
-  void Pinsrw(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8);
-  void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
-  void Pinsrd(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8);
-  void Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src2, uint8_t imm8);
-  void Pinsrd(XMMRegister dst, Operand src2, uint8_t imm8);
-  void Pinsrq(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8);
-  void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
+  void Pinsrb(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrw(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrd(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrd(XMMRegister dst, Register src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrd(XMMRegister dst, Operand src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrq(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
 
   void Absps(XMMRegister dst, XMMRegister src);
   void Negps(XMMRegister dst, XMMRegister src);

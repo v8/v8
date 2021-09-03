@@ -1000,24 +1000,23 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                                                    \
   } while (false)
 
-#define ASSEMBLE_PINSR(ASM_INSTR)                                     \
-  do {                                                                \
-    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
-    XMMRegister dst = i.OutputSimd128Register();                      \
-    XMMRegister src = i.InputSimd128Register(0);                      \
-    uint8_t laneidx = i.InputUint8(1);                                \
-    if (HasAddressingMode(instr)) {                                   \
-      __ ASM_INSTR(dst, src, i.MemoryOperand(2), laneidx);            \
-      break;                                                          \
-    }                                                                 \
-    if (instr->InputAt(2)->IsFPRegister()) {                          \
-      __ Movq(kScratchRegister, i.InputDoubleRegister(2));            \
-      __ ASM_INSTR(dst, src, kScratchRegister, laneidx);              \
-    } else if (instr->InputAt(2)->IsRegister()) {                     \
-      __ ASM_INSTR(dst, src, i.InputRegister(2), laneidx);            \
-    } else {                                                          \
-      __ ASM_INSTR(dst, src, i.InputOperand(2), laneidx);             \
-    }                                                                 \
+#define ASSEMBLE_PINSR(ASM_INSTR)                                        \
+  do {                                                                   \
+    XMMRegister dst = i.OutputSimd128Register();                         \
+    XMMRegister src = i.InputSimd128Register(0);                         \
+    uint8_t laneidx = i.InputUint8(1);                                   \
+    uint32_t load_offset;                                                \
+    if (HasAddressingMode(instr)) {                                      \
+      __ ASM_INSTR(dst, src, i.MemoryOperand(2), laneidx, &load_offset); \
+    } else if (instr->InputAt(2)->IsFPRegister()) {                      \
+      __ Movq(kScratchRegister, i.InputDoubleRegister(2));               \
+      __ ASM_INSTR(dst, src, kScratchRegister, laneidx, &load_offset);   \
+    } else if (instr->InputAt(2)->IsRegister()) {                        \
+      __ ASM_INSTR(dst, src, i.InputRegister(2), laneidx, &load_offset); \
+    } else {                                                             \
+      __ ASM_INSTR(dst, src, i.InputOperand(2), laneidx, &load_offset);  \
+    }                                                                    \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, load_offset);       \
   } while (false)
 
 #define ASSEMBLE_SEQ_CST_STORE(rep)                                       \

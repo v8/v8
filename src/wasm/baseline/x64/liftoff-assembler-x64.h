@@ -2407,18 +2407,17 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
                                 uintptr_t offset_imm, LoadType type,
                                 uint8_t laneidx, uint32_t* protected_load_pc) {
   Operand src_op = liftoff::GetMemOp(this, addr, offset_reg, offset_imm);
-  *protected_load_pc = pc_offset();
 
   MachineType mem_type = type.mem_type();
   if (mem_type == MachineType::Int8()) {
-    Pinsrb(dst.fp(), src.fp(), src_op, laneidx);
+    Pinsrb(dst.fp(), src.fp(), src_op, laneidx, protected_load_pc);
   } else if (mem_type == MachineType::Int16()) {
-    Pinsrw(dst.fp(), src.fp(), src_op, laneidx);
+    Pinsrw(dst.fp(), src.fp(), src_op, laneidx, protected_load_pc);
   } else if (mem_type == MachineType::Int32()) {
-    Pinsrd(dst.fp(), src.fp(), src_op, laneidx);
+    Pinsrd(dst.fp(), src.fp(), src_op, laneidx, protected_load_pc);
   } else {
     DCHECK_EQ(MachineType::Int64(), mem_type);
-    Pinsrq(dst.fp(), src.fp(), src_op, laneidx);
+    Pinsrq(dst.fp(), src.fp(), src_op, laneidx, protected_load_pc);
   }
 }
 
