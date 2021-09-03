@@ -332,6 +332,15 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'v8_linux64_cppgc_non_default_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
   'v8_linux64_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1238,6 +1247,15 @@
       {'name': 'mjsunit', 'variant': 'concurrent_inlining'},
       # Wasm write protect code space.
       {'name': 'mjsunit', 'variant': 'wasm_write_protect_code'},
+    ],
+  },
+  'V8 Linux64 - cppgc-non-default - debug': {
+    'swarming_dimensions': {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 3},
     ],
   },
   'V8 Linux64 - debug - perfetto': {

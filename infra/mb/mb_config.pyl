@@ -106,6 +106,7 @@
       'V8 Linux gcc': 'release_x86_gcc',
       # FYI.
       'V8 iOS - sim': 'release_x64_ios_simulator',
+      'V8 Linux64 - cppgc-non-default - debug - builder': 'debug_x64_non_default_cppgc',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
       'V8 Linux64 - disable runtime call stats': 'release_x64_disable_runtime_call_stats',
       'V8 Linux64 - debug - single generation - builder': 'debug_x64_single_generation',
@@ -219,6 +220,7 @@
       'v8_linux_vtunejit': 'debug_x86_vtunejit',
       'v8_linux64_arm64_pointer_compression_rel_ng':
           'release_simulate_arm64_pointer_compression',
+      'v8_linux64_cppgc_non_default_dbg_ng': 'debug_x64_non_default_cppgc',
       'v8_linux64_dbg_ng': 'debug_x64_trybot',
       'v8_linux64_dict_tracking_dbg_ng': 'debug_x64_dict_tracking_trybot',
       'v8_linux64_disable_runtime_call_stats_rel': 'release_x64_disable_runtime_call_stats',
@@ -571,6 +573,8 @@
       'debug_bot', 'x64', 'v8_enable_heap_sandbox'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
+    'debug_x64_non_default_cppgc': [
+      'debug_bot', 'x64', 'non_default_cppgc'],
     'debug_x64_perfetto': [
       'debug_bot', 'x64', 'perfetto'],
     'debug_x64_single_generation': [
@@ -788,6 +792,10 @@
 
     'no_sysroot': {
       'gn_args': 'use_sysroot=false',
+    },
+
+    'non_default_cppgc': {
+      'gn_args': 'cppgc_enable_object_names=true cppgc_enable_young_generation=true',
     },
 
     'perfetto': {
