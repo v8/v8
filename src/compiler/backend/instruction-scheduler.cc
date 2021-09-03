@@ -173,6 +173,10 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
       if (last_side_effect_instr_ != nullptr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
+    }
+
+    // Update last deoptimization or trap point.
+    if (instr->IsDeoptimizeCall() || instr->IsTrap()) {
       last_deopt_or_trap_ = new_node;
     }
 
