@@ -13,11 +13,12 @@ ALL_VARIANT_FLAGS = {
   "infra_staging": [[]],
   "interpreted_regexp": [["--regexp-interpret-all"]],
   "experimental_regexp":  [["--default-to-experimental-regexp-engine"]],
-  "concurrent_inlining":  [["--concurrent-inlining"]],
   "jitless": [["--jitless"]],
   "sparkplug": [["--sparkplug"]],
   "always_sparkplug": [[ "--always-sparkplug", "--sparkplug"]],
   "minor_mc": [["--minor-mc"]],
+  "no_concurrent_inlining":  [["--no-concurrent-inlining",
+                               "--no-stress-concurrent-inlining"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see

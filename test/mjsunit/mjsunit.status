@@ -1472,11 +1472,6 @@
 }],  # variant == experimental_regexp
 
 ##############################################################################
-['variant == concurrent_inlining', {
-  'concurrent-initial-prototype-change-1': [SKIP],
-}],  # variant == concurrent_inlining
-
-##############################################################################
 ['variant == instruction_scheduling or variant == stress_instruction_scheduling', {
   # BUG(12018): This test currently fails with --turbo-instruction-scheduling.
   'regress/wasm/regress-1231950': [SKIP],
