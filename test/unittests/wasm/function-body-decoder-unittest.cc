@@ -2990,18 +2990,16 @@ TEST_F(FunctionBodyDecoderTest, TryDelegate) {
       sigs.v_v(),
       {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 2),
                   kExprCatch, ex, kExprEnd)});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_OP, kExprCatch, ex,
+                   WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
+                  kAppendEnd);
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_OP,
+                   WASM_BLOCK(WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0)),
+                   kExprCatch, ex, kExprEnd},
+                  kAppendEnd);
 
-  ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP,
-                 WASM_BLOCK(WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0)),
-                 kExprCatch, ex, kExprEnd},
-                kAppendEnd,
-                "delegate target must be a try block or the function block");
-  ExpectFailure(sigs.v_v(),
-                {WASM_TRY_OP, kExprCatch, ex,
-                 WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0), kExprEnd},
-                kAppendEnd,
-                "cannot delegate inside the catch handler of the target");
   ExpectFailure(
       sigs.v_v(),
       {WASM_BLOCK(WASM_TRY_OP, WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 3),

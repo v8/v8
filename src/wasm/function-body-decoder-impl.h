@@ -2635,19 +2635,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       return 0;
     }
     // +1 because the current try block is not included in the count.
-    Control* target = control_at(imm.depth + 1);
-    if (imm.depth + 1 < control_depth() - 1 && !target->is_try()) {
-      this->DecodeError(
-          "delegate target must be a try block or the function block");
-      return 0;
-    }
-    if (target->is_try_catch() || target->is_try_catchall()) {
-      this->DecodeError(
-          "cannot delegate inside the catch handler of the target");
-      return 0;
+    uint32_t target_depth = imm.depth + 1;
+    while (target_depth < control_depth() - 1 &&
+           (!control_at(target_depth)->is_try() ||
+            control_at(target_depth)->is_try_catch() ||
+            control_at(target_depth)->is_try_catchall())) {
+      target_depth++;
     }
     FallThrough();
-    CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(Delegate, imm.depth + 1, c);
+    CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(Delegate, target_depth, c);
     current_catch_ = c->previous_catch;
     EndControl();
     PopControl();
