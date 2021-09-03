@@ -469,9 +469,9 @@ class WasmGraphBuilder {
                 wasm::WasmCodePosition position);
   Node* ArrayLen(Node* array_object, CheckForNull null_check,
                  wasm::WasmCodePosition position);
-  void ArrayCopy(Node* dst_array, Node* dst_index, Node* src_array,
-                 Node* src_index, Node* length,
-                 wasm::WasmCodePosition position);
+  void ArrayCopy(Node* dst_array, Node* dst_index, CheckForNull dst_null_check,
+                 Node* src_array, Node* src_index, CheckForNull src_null_check,
+                 Node* length, wasm::WasmCodePosition position);
   Node* I31New(Node* input);
   Node* I31GetS(Node* input);
   Node* I31GetU(Node* input);

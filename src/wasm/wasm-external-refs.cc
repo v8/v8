@@ -537,6 +537,53 @@ int32_t memory_fill_wrapper(Address data) {
   return kSuccess;
 }
 
+namespace {
+inline void* ArrayElementAddress(WasmArray array, uint32_t index,
+                                 int element_size_bytes) {
+  return reinterpret_cast<void*>(array.ptr() + WasmArray::kHeaderSize -
+                                 kHeapObjectTag + index * element_size_bytes);
+}
+}  // namespace
+
+void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
+                        uint32_t dst_index, Address raw_src_array,
+                        uint32_t src_index, uint32_t length) {
+  ThreadNotInWasmScope thread_not_in_wasm_scope;
+  DisallowGarbageCollection no_gc;
+  WasmArray dst_array = WasmArray::cast(Object(raw_dst_array));
+  WasmArray src_array = WasmArray::cast(Object(raw_src_array));
+
+  bool overlapping_ranges =
+      dst_array.ptr() == src_array.ptr() &&
+      (dst_index < src_index ? dst_index + length > src_index
+                             : src_index + length > dst_index);
+  wasm::ValueType element_type = src_array.type()->element_type();
+  if (element_type.is_reference()) {
+    WasmInstanceObject instance =
+        WasmInstanceObject::cast(Object(raw_instance));
+    Isolate* isolate = Isolate::FromRootAddress(instance.isolate_root());
+    ObjectSlot dst_slot = dst_array.ElementSlot(dst_index);
+    ObjectSlot src_slot = src_array.ElementSlot(src_index);
+    if (overlapping_ranges) {
+      isolate->heap()->MoveRange(dst_array, dst_slot, src_slot, length,
+                                 UPDATE_WRITE_BARRIER);
+    } else {
+      isolate->heap()->CopyRange(dst_array, dst_slot, src_slot, length,
+                                 UPDATE_WRITE_BARRIER);
+    }
+  } else {
+    int element_size_bytes = element_type.element_size_bytes();
+    void* dst = ArrayElementAddress(dst_array, dst_index, element_size_bytes);
+    void* src = ArrayElementAddress(src_array, src_index, element_size_bytes);
+    size_t copy_size = length * element_size_bytes;
+    if (overlapping_ranges) {
+      MemMove(dst, src, copy_size);
+    } else {
+      MemCopy(dst, src, copy_size);
+    }
+  }
+}
+
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
 
 void set_trap_callback_for_testing(WasmTrapCallbackForTesting callback) {

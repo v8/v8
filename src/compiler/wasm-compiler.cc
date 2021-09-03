@@ -5964,24 +5964,33 @@ Node* WasmGraphBuilder::ArrayLen(Node* array_object, CheckForNull null_check,
   return gasm_->LoadWasmArrayLength(array_object);
 }
 
-// TODO(7748): Change {CallBuiltin} to {BuildCCall}. Add an option to copy in a
-// loop for small array sizes. To find the length limit, run
-// test/mjsunit/wasm/array-copy-benchmark.js.
+// TODO(7748): Add an option to copy in a loop for small array sizes. To find
+// the length limit, run test/mjsunit/wasm/array-copy-benchmark.js.
 void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
-                                 Node* src_array, Node* src_index, Node* length,
+                                 CheckForNull dst_null_check, Node* src_array,
+                                 Node* src_index, CheckForNull src_null_check,
+                                 Node* length,
                                  wasm::WasmCodePosition position) {
-  // TODO(7748): Skip null checks when possible.
-  TrapIfTrue(wasm::kTrapNullDereference, gasm_->WordEqual(dst_array, RefNull()),
-             position);
-  TrapIfTrue(wasm::kTrapNullDereference, gasm_->WordEqual(src_array, RefNull()),
-             position);
+  if (dst_null_check == kWithNullCheck) {
+    TrapIfTrue(wasm::kTrapNullDereference,
+               gasm_->WordEqual(dst_array, RefNull()), position);
+  }
+  if (src_null_check == kWithNullCheck) {
+    TrapIfTrue(wasm::kTrapNullDereference,
+               gasm_->WordEqual(src_array, RefNull()), position);
+  }
   BoundsCheckArrayCopy(dst_array, dst_index, length, position);
   BoundsCheckArrayCopy(src_array, src_index, length, position);
-  Operator::Properties copy_properties =
-      Operator::kIdempotent | Operator::kNoThrow | Operator::kNoDeopt;
-  // The builtin needs the int parameters first.
-  gasm_->CallBuiltin(Builtin::kWasmArrayCopy, copy_properties, dst_index,
-                     src_index, length, dst_array, src_array);
+
+  Node* function =
+      gasm_->ExternalConstant(ExternalReference::wasm_array_copy());
+  MachineType arg_types[]{
+      MachineType::TaggedPointer(), MachineType::TaggedPointer(),
+      MachineType::Uint32(),        MachineType::TaggedPointer(),
+      MachineType::Uint32(),        MachineType::Uint32()};
+  MachineSignature sig(0, 6, arg_types);
+  BuildCCall(&sig, function, GetInstance(), dst_array, dst_index, src_array,
+             src_index, length);
 }
 
 // 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.

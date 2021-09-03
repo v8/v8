@@ -977,7 +977,8 @@ class WasmGraphBuildingInterface {
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
                  const Value& length) {
-    builder_->ArrayCopy(dst.node, dst_index.node, src.node, src_index.node,
+    builder_->ArrayCopy(dst.node, dst_index.node, NullCheckFor(dst.type),
+                        src.node, src_index.node, NullCheckFor(src.type),
                         length.node, decoder->position());
   }
 

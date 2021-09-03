@@ -247,6 +247,7 @@ class StatsCounter;
   IF_WASM(V, wasm_memory_init, "wasm::memory_init")                            \
   IF_WASM(V, wasm_memory_copy, "wasm::memory_copy")                            \
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \
+  IF_WASM(V, wasm_array_copy, "wasm::array_copy")                              \
   V(address_of_wasm_f64x2_convert_low_i32x4_u_int_mask,                        \
     "wasm_f64x2_convert_low_i32x4_u_int_mask")                                 \
   V(supports_wasm_simd_128_address, "wasm::supports_wasm_simd_128_address")    \

@@ -5133,6 +5133,8 @@ class LiftoffCompiler {
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
                  const Value& length) {
+    // TODO(7748): Unify implementation with TF: Implement this with
+    // GenerateCCall. Remove runtime function and builtin in wasm.tq.
     CallRuntimeStub(WasmCode::kWasmArrayCopyWithChecks,
                     MakeSig::Params(kI32, kI32, kI32, kOptRef, kOptRef),
                     // Builtin parameter order:
