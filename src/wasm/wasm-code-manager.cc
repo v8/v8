@@ -667,12 +667,13 @@ class CheckWritableMemoryRegions {
     DCHECK(std::none_of(writable_memory_.begin(), writable_memory_.end(),
                         [](auto region) { return region.is_empty(); }));
 
-    // Regions are sorted and disjoint.
-    std::accumulate(writable_memory_.begin(), writable_memory_.end(),
-                    Address{0}, [](Address previous_end, auto region) {
-                      DCHECK_LT(previous_end, region.begin());
-                      return region.end();
-                    });
+    // Regions are sorted and disjoint. (std::accumulate has nodiscard on msvc
+    // so USE is required to prevent build failures in debug builds).
+    USE(std::accumulate(writable_memory_.begin(), writable_memory_.end(),
+                        Address{0}, [](Address previous_end, auto region) {
+                          DCHECK_LT(previous_end, region.begin());
+                          return region.end();
+                        }));
   }
 
  private:
