@@ -121,6 +121,7 @@ void HeapBase::Terminate() {
 
   constexpr size_t kMaxTerminationGCs = 20;
   size_t gc_count = 0;
+  bool more_termination_gcs_needed = false;
   do {
     CHECK_LT(gc_count++, kMaxTerminationGCs);
 
@@ -143,7 +144,14 @@ void HeapBase::Terminate() {
         {Sweeper::SweepingConfig::SweepingType::kAtomic,
          Sweeper::SweepingConfig::CompactableSpaceHandling::kSweep});
     sweeper().NotifyDoneIfNeeded();
-  } while (strong_persistent_region_.NodesInUse() > 0);
+    more_termination_gcs_needed =
+        strong_persistent_region_.NodesInUse() ||
+        weak_persistent_region_.NodesInUse() || [this]() {
+          PersistentRegionLock guard;
+          return strong_cross_thread_persistent_region_.NodesInUse() ||
+                 weak_cross_thread_persistent_region_.NodesInUse();
+        }();
+  } while (more_termination_gcs_needed);
 
   object_allocator().Terminate();
   disallow_gc_scope_++;
