@@ -69,12 +69,6 @@
   # https://code.google.com/p/v8/issues/detail?id=10958
   'language/module-code/eval-gtbndng-indirect-faux-assertion': [FAIL],
 
-  # DataView functions should also throw on detached buffers
-  'built-ins/DataView/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
-  'built-ins/DataView/prototype/byteLength/instance-has-detached-buffer': [FAIL],
-  'built-ins/DataView/custom-proto-access-detaches-buffer': [FAIL],
   # copyWithin should also throw on detached buffers
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached-prototype': [FAIL],
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-start-detached': [FAIL],

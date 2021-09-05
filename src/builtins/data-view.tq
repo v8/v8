@@ -6,6 +6,11 @@
 
 namespace data_view {
 
+const kBuiltinNameByteLength: constexpr string =
+    'DateView.prototype.byteLength';
+const kBuiltinNameByteOffset: constexpr string =
+    'DateView.prototype.byteOffset';
+
 macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
   if constexpr (kind == ElementsKind::UINT8_ELEMENTS) {
     return 'DataView.prototype.getUint8';
@@ -85,9 +90,7 @@ javascript builtin DataViewPrototypeGetByteLength(
   const dataView: JSDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_length');
   if (WasDetached(dataView)) {
-    // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-    // here if the JSArrayBuffer of the {dataView} was detached.
-    return 0;
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameByteLength);
   }
   return Convert<Number>(dataView.byte_length);
 }
@@ -98,9 +101,7 @@ javascript builtin DataViewPrototypeGetByteOffset(
   const dataView: JSDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_offset');
   if (WasDetached(dataView)) {
-    // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-    // here if the JSArrayBuffer of the {dataView} was detached.
-    return 0;
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameByteOffset);
   }
   return Convert<Number>(dataView.byte_offset);
 }
