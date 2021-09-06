@@ -64,7 +64,6 @@ in_category(
     multibranch_builder(
         name = "V8 Arm",
         parent_builder = "V8 Arm - builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 28800,
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
@@ -72,14 +71,12 @@ in_category(
     multibranch_builder(
         name = "V8 Arm - debug",
         parent_builder = "V8 Arm - debug builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 27000,
         properties = {"builder_group": "client.v8.ports"},
     ),
     multibranch_builder(
         name = "V8 Arm GC Stress",
         parent_builder = "V8 Arm - debug builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 30600,
         properties = {"builder_group": "client.v8.ports"},
     ),
@@ -113,7 +110,6 @@ in_category(
     multibranch_builder(
         name = "V8 Android Arm64 - N5X",
         parent_builder = "V8 Android Arm64 - builder",
-        dimensions = {"host_class": "multibot"},
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
     ),
@@ -149,7 +145,6 @@ in_category(
     multibranch_builder(
         name = "V8 Linux64 - arm64 - sim - pointer compression",
         parent_builder = "V8 Linux64 - arm64 - sim - pointer compression - builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8"},
     ),
@@ -176,7 +171,6 @@ in_category(
     multibranch_builder(
         name = "V8 Linux - mipsel - sim",
         parent_builder = "V8 Linux - mipsel - sim - builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
@@ -184,7 +178,6 @@ in_category(
     multibranch_builder(
         name = "V8 Linux - mips64el - sim",
         parent_builder = "V8 Linux - mips64el - sim - builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
@@ -227,7 +220,6 @@ in_category(
     multibranch_builder(
         name = "V8 Linux - riscv64 - sim",
         parent_builder = "V8 Linux - riscv64 - sim - builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
@@ -249,7 +241,6 @@ in_category(
     multibranch_builder(
         name = "V8 Linux - loong64 - sim",
         parent_builder = "V8 Linux - loong64 - sim - builder",
-        dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,

@@ -67,7 +67,6 @@ def experiment_builder_pair(name, **kwargs):
         in_console = "experiments/V8",
         name = name,
         parent_builder = name + " - builder",
-        dimensions = {"host_class": "multibot"},
         properties = properties,
         **kwargs
     )

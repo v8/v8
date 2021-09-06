@@ -45,13 +45,11 @@ in_category(
     ),
     main_multibranch_builder(
         name = "V8 Linux",
-        dimensions = {"host_class": "multibot"},
         parent_builder = "V8 Linux - builder",
     ),
     main_multibranch_builder(
         name = "V8 Linux - debug",
         parent_builder = "V8 Linux - debug builder",
-        dimensions = {"host_class": "multibot"},
     ),
     main_multibranch_builder(
         name = "V8 Linux - full debug",
@@ -114,7 +112,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64",
         parent_builder = "V8 Linux64 - builder",
-        dimensions = {"host_class": "multibot"},
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - internal snapshot",
@@ -124,12 +121,10 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 - debug",
         parent_builder = "V8 Linux64 - debug builder",
-        dimensions = {"host_class": "multibot"},
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - custom snapshot - debug",
         parent_builder = "V8 Linux64 - custom snapshot - debug builder",
-        dimensions = {"host_class": "multibot"},
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - debug - header includes",
@@ -165,7 +160,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Fuchsia",
         parent_builder = "V8 Fuchsia - builder",
-        dimensions = {"host_class": "multibot"},
         first_branch_version = "9.3",
     ),
     main_multibranch_builder(
@@ -192,13 +186,11 @@ in_category(
     main_multibranch_builder(
         name = "V8 Win32",
         parent_builder = "V8 Win32 - builder",
-        dimensions = {"host_class": "multibot"},
         close_tree = False,
     ),
     main_multibranch_builder(
         name = "V8 Win32 - debug",
         parent_builder = "V8 Win32 - debug builder",
-        dimensions = {"host_class": "multibot"},
         close_tree = False,
     ),
     main_multibranch_builder(
@@ -260,12 +252,10 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux - gc stress",
         parent_builder = "V8 Linux - debug builder",
-        dimensions = {"host_class": "multibot"},
     ),
     main_multibranch_builder(
         name = "V8 Linux64 GC Stress - custom snapshot",
         parent_builder = "V8 Linux64 - custom snapshot - debug builder",
-        dimensions = {"host_class": "multibot"},
     ),
     main_multibranch_builder(
         name = "V8 Mac64 GC Stress",
@@ -294,7 +284,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 TSAN",
         parent_builder = "V8 Linux64 TSAN - builder",
-        dimensions = {"host_class": "multibot"},
     ),
     multibranch_builder(
         name = "V8 Linux64 TSAN - stress-incremental-marking",
@@ -305,7 +294,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Linux64 TSAN - isolates",
         parent_builder = "V8 Linux64 TSAN - builder",
-        dimensions = {"host_class": "multibot"},
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 TSAN - no-concurrent-marking",

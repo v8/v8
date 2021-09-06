@@ -313,8 +313,6 @@ def multibranch_builder(**kwargs):
         if triggered_by_gitiles:
             args.setdefault("triggered_by", []).append(branch.poller_name)
             args["use_goma"] = args.get("use_goma", GOMA.DEFAULT)
-        else:
-            args["dimensions"] = {"host_class": "multibot"}
         args["priority"] = branch.priority
         if branch.bucket == "ci":
             if close_tree:
@@ -370,7 +368,8 @@ def fix_args(defaults, **kwargs):
     for key in mergeable_keys:
         merge_defaults(defaults, args, key)
     args["execution_timeout"] = args["execution_timeout"] * time.second
-    if args.get("dimensions", {}).get("host_class", "") == "multibot":
+    if args.get("properties", {}).get("parent_builder", None):
+        args["dimensions"]["host_class"] = "multibot"
         args["caches"] = multibot_caches
     if args.get("properties", {}).get("triggers", None):
         bucket_name = args["bucket"]
