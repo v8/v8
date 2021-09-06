@@ -2222,12 +2222,11 @@ void ExistingCodeLogger::LogCompiledFunctions() {
           Handle<AbstractCode>(
               AbstractCode::cast(shared->InterpreterTrampoline()), isolate_));
     }
-    if (shared->HasBaselineData()) {
+    if (shared->HasBaselineCode()) {
       LogExistingFunction(
-          shared,
-          Handle<AbstractCode>(
-              AbstractCode::cast(shared->baseline_data().baseline_code()),
-              isolate_));
+          shared, Handle<AbstractCode>(
+                      AbstractCode::cast(shared->baseline_code(kAcquireLoad)),
+                      isolate_));
     }
     if (pair.second.is_identical_to(BUILTIN_CODE(isolate_, CompileLazy)))
       continue;

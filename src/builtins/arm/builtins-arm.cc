@@ -338,14 +338,32 @@ void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
 
+static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
+                                 Register scratch) {
+  DCHECK(!AreAliased(code, scratch));
+  // Verify that the code kind is baseline code via the CodeKind.
+  __ ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
+  __ DecodeField<Code::KindField>(scratch);
+  __ cmp(scratch, Operand(static_cast<int>(CodeKind::BASELINE)));
+  __ Assert(eq, AbortReason::kExpectedBaselineData);
+}
+
 static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
                                                     Register sfi_data,
                                                     Register scratch1,
                                                     Label* is_baseline) {
   ASM_CODE_COMMENT(masm);
   Label done;
-  __ CompareObjectType(sfi_data, scratch1, scratch1, BASELINE_DATA_TYPE);
-  __ b(eq, is_baseline);
+  __ CompareObjectType(sfi_data, scratch1, scratch1, CODET_TYPE);
+  if (FLAG_debug_code) {
+    Label not_baseline;
+    __ b(ne, &not_baseline);
+    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    __ b(eq, is_baseline);
+    __ bind(&not_baseline);
+  } else {
+    __ b(eq, is_baseline);
+  }
   __ cmp(scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ b(ne, &done);
   __ ldr(sfi_data,
@@ -1433,8 +1451,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         &has_optimized_code_or_marker);
 
     // Load the baseline code into the closure.
-    __ ldr(r2, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                               BaselineData::kBaselineCodeOffset));
+    __ mov(r2, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
     ReplaceClosureCodeWithOptimizedCode(masm, r2, closure);
     __ JumpCodeObject(r2);
@@ -1834,7 +1851,8 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ ldr(r1, FieldMemOperand(r0, Code::kDeoptimizationDataOffset));
+  __ ldr(r1,
+         FieldMemOperand(r0, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
@@ -3528,7 +3546,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // always have baseline code.
   if (!is_osr) {
     Label start_with_baseline;
-    __ CompareObjectType(code_obj, r3, r3, BASELINE_DATA_TYPE);
+    __ CompareObjectType(code_obj, r3, r3, CODET_TYPE);
     __ b(eq, &start_with_baseline);
 
     // Start with bytecode as there is no baseline code.
@@ -3541,13 +3559,13 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // Start with baseline code.
     __ bind(&start_with_baseline);
   } else if (FLAG_debug_code) {
-    __ CompareObjectType(code_obj, r3, r3, BASELINE_DATA_TYPE);
+    __ CompareObjectType(code_obj, r3, r3, CODET_TYPE);
     __ Assert(eq, AbortReason::kExpectedBaselineData);
   }
 
-  // Load baseline code from baseline data.
-  __ ldr(code_obj,
-         FieldMemOperand(code_obj, BaselineData::kBaselineCodeOffset));
+  if (FLAG_debug_code) {
+    AssertCodeIsBaseline(masm, code_obj, r3);
+  }
 
   // Load the feedback vector.
   Register feedback_vector = r2;

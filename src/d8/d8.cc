@@ -2032,7 +2032,7 @@ void Shell::TestVerifySourcePositions(
   i::Handle<i::BytecodeArray> bytecodes =
       handle(function->shared().GetBytecodeArray(i_isolate), i_isolate);
   i::interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes);
-  bool has_baseline = function->shared().HasBaselineData();
+  bool has_baseline = function->shared().HasBaselineCode();
   i::Handle<i::ByteArray> bytecode_offsets;
   std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
   if (has_baseline) {

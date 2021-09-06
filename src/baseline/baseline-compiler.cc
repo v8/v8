@@ -323,9 +323,16 @@ MaybeHandle<Code> BaselineCompiler::Build(Isolate* isolate) {
   // Allocate the bytecode offset table.
   Handle<ByteArray> bytecode_offset_table =
       bytecode_offset_table_builder_.ToBytecodeOffsetTable(isolate);
-  return Factory::CodeBuilder(isolate, desc, CodeKind::BASELINE)
-      .set_bytecode_offset_table(bytecode_offset_table)
-      .TryBuild();
+
+  Factory::CodeBuilder code_builder(isolate, desc, CodeKind::BASELINE);
+  code_builder.set_bytecode_offset_table(bytecode_offset_table);
+  if (shared_function_info_->HasInterpreterData()) {
+    code_builder.set_interpreter_data(
+        handle(shared_function_info_->interpreter_data(), isolate));
+  } else {
+    code_builder.set_interpreter_data(bytecode_);
+  }
+  return code_builder.TryBuild();
 }
 
 int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {

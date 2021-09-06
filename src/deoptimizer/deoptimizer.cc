@@ -1061,7 +1061,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const bool advance_bc =
       (!is_topmost || (deopt_kind_ == DeoptimizeKind::kLazy)) &&
       !goto_catch_handler;
-  const bool is_baseline = shared.HasBaselineData();
+  const bool is_baseline = shared.HasBaselineCode();
   Code dispatch_builtin =
       builtins->code(DispatchBuiltinFor(is_baseline, advance_bc));
 

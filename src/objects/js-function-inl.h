@@ -324,7 +324,7 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
 }
 
 bool JSFunction::NeedsResetDueToFlushedBaselineCode() {
-  return code().kind() == CodeKind::BASELINE && !shared().HasBaselineData();
+  return code().kind() == CodeKind::BASELINE && !shared().HasBaselineCode();
 }
 
 void JSFunction::ResetIfCodeFlushed(

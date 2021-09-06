@@ -14,13 +14,6 @@ extern class InterpreterData extends Struct {
   @ifnot(V8_EXTERNAL_CODE_SPACE) interpreter_trampoline: Code;
 }
 
-@generatePrint
-extern class BaselineData extends Struct {
-  @if(V8_EXTERNAL_CODE_SPACE) baseline_code: CodeDataContainer;
-  @ifnot(V8_EXTERNAL_CODE_SPACE) baseline_code: Code;
-  data: BytecodeArray|InterpreterData;
-}
-
 type FunctionKind extends uint8 constexpr 'FunctionKind';
 type FunctionSyntaxKind extends uint8 constexpr 'FunctionSyntaxKind';
 type BailoutReason extends uint8 constexpr 'BailoutReason';

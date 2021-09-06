@@ -40,7 +40,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds() const {
 
   if ((result & CodeKindFlag::BASELINE) == 0) {
     // The SharedFunctionInfo could have attached baseline code.
-    if (shared().HasBaselineData()) {
+    if (shared().HasBaselineCode()) {
       result |= CodeKindFlag::BASELINE;
     }
   }

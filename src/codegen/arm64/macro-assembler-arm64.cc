@@ -1516,9 +1516,7 @@ void MacroAssembler::AssertCodeT(Register object) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
 
-  CompareObjectType(
-      object, temp, temp,
-      V8_EXTERNAL_CODE_SPACE_BOOL ? CODE_DATA_CONTAINER_TYPE : CODE_TYPE);
+  CompareObjectType(object, temp, temp, CODET_TYPE);
   Check(eq, AbortReason::kOperandIsNotACodeT);
 }
 

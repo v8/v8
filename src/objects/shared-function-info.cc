@@ -85,10 +85,10 @@ Code SharedFunctionInfo::GetCode() const {
     DCHECK(HasBytecodeArray());
     return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
   }
-  if (data.IsBaselineData()) {
-    // Having BaselineData means we are a compiled, baseline function.
-    DCHECK(HasBaselineData());
-    return baseline_data().baseline_code();
+  if (data.IsCodeT()) {
+    // Having baseline Code means we are a compiled, baseline function.
+    DCHECK(HasBaselineCode());
+    return FromCodeT(CodeT::cast(data));
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (data.IsAsmWasmData()) {
@@ -706,6 +706,7 @@ void SharedFunctionInfo::UninstallDebugBytecode(SharedFunctionInfo shared,
       isolate->shared_function_info_access());
   DebugInfo debug_info = shared.GetDebugInfo();
   BytecodeArray original_bytecode_array = debug_info.OriginalBytecodeArray();
+  DCHECK(!shared.HasBaselineCode());
   shared.SetActiveBytecodeArray(original_bytecode_array);
   debug_info.set_original_bytecode_array(
       ReadOnlyRoots(isolate).undefined_value(), kReleaseStore);

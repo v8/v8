@@ -2405,8 +2405,7 @@ void MacroAssembler::AssertCodeT(Register object) {
   Check(not_equal, AbortReason::kOperandIsNotACodeT);
   Push(object);
   LoadMap(object, object);
-  CmpInstanceType(object, V8_EXTERNAL_CODE_SPACE_BOOL ? CODE_DATA_CONTAINER_TYPE
-                                                      : CODE_TYPE);
+  CmpInstanceType(object, CODET_TYPE);
   Pop(object);
   Check(equal, AbortReason::kOperandIsNotACodeT);
 }

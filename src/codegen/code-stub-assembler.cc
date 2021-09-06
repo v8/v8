@@ -2925,10 +2925,14 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
   Label check_for_interpreter_data(this, &var_result);
   Label done(this, &var_result);
 
-  GotoIfNot(HasInstanceType(var_result.value(), BASELINE_DATA_TYPE),
+  GotoIfNot(HasInstanceType(var_result.value(), CODET_TYPE),
             &check_for_interpreter_data);
+  CSA_ASSERT(this,
+             Word32Equal(DecodeWord32<Code::KindField>(LoadObjectField<Int32T>(
+                             var_result.value(), Code::kFlagsOffset)),
+                         Int32Constant(static_cast<int>(CodeKind::BASELINE))));
   TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
-      var_result.value(), BaselineData::kDataOffset);
+      var_result.value(), Code::kDeoptimizationDataOrInterpreterDataOffset);
   var_result = baseline_data;
   Goto(&check_for_interpreter_data);
 
@@ -14321,7 +14325,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   int32_t case_values[] = {
     BYTECODE_ARRAY_TYPE,
-    BASELINE_DATA_TYPE,
+    CODET_TYPE,
     UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
     UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
     FUNCTION_TEMPLATE_INFO_TYPE,
@@ -14365,7 +14369,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   // IsBaselineData: Execute baseline code
   BIND(&check_is_baseline_data);
   {
-    TNode<CodeT> baseline_code = LoadBaselineDataBaselineCode(CAST(sfi_data));
+    TNode<CodeT> baseline_code = CAST(sfi_data);
     sfi_code = FromCodeT(baseline_code);
     Goto(&done);
   }

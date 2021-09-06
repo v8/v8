@@ -204,7 +204,7 @@ TEST(OptimizedCodeWithCodePages) {
       // If there is baseline code, check that it's only due to
       // --always-sparkplug (if this check fails, we'll have to re-think this
       // test).
-      if (foo->shared().HasBaselineData()) {
+      if (foo->shared().HasBaselineCode()) {
         CHECK(FLAG_always_sparkplug);
         return;
       }

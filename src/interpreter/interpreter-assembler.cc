@@ -1300,7 +1300,7 @@ void InterpreterAssembler::OnStackReplacement(TNode<Context> context,
   TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
 
   Label baseline(this);
-  GotoIf(InstanceTypeEqual(data_type, BASELINE_DATA_TYPE), &baseline);
+  GotoIf(InstanceTypeEqual(data_type, CODET_TYPE), &baseline);
   {
     Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
     CallStub(callable, context);

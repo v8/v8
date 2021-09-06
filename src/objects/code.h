@@ -279,8 +279,12 @@ class Code : public HeapObject {
   // This function should be called only from GC.
   void ClearEmbeddedObjects(Heap* heap);
 
-  // [deoptimization_data]: Array containing data for deopt.
+  // [deoptimization_data]: Array containing data for deopt for non-baseline
+  // code.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
+  // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
+  // baseline code.
+  DECL_ACCESSORS(bytecode_or_interpreter_data, HeapObject)
 
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
@@ -511,7 +515,7 @@ class Code : public HeapObject {
   // Layout description.
 #define CODE_FIELDS(V)                                                        \
   V(kRelocationInfoOffset, kTaggedSize)                                       \
-  V(kDeoptimizationDataOffset, kTaggedSize)                                   \
+  V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   V(kPositionTableOffset, kTaggedSize)                                        \
   V(kCodeDataContainerOffset, kTaggedSize)                                    \
   /* Data or code not directly visited by GC directly starts here. */         \
@@ -649,6 +653,10 @@ class Code::OptimizedCodeIterator {
 inline CodeT ToCodeT(Code code);
 inline Code FromCodeT(CodeT code);
 inline Code FromCodeT(CodeT code, RelaxedLoadTag);
+inline Code FromCodeT(CodeT code, AcquireLoadTag);
+inline Code FromCodeT(CodeT code, PtrComprCageBase);
+inline Code FromCodeT(CodeT code, PtrComprCageBase, RelaxedLoadTag);
+inline Code FromCodeT(CodeT code, PtrComprCageBase, AcquireLoadTag);
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
 class AbstractCode : public HeapObject {

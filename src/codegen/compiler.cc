@@ -1064,8 +1064,8 @@ Handle<Code> ContinuationForConcurrentOptimization(
       function->set_code(function->feedback_vector().optimized_code());
     }
     return handle(function->code(), isolate);
-  } else if (function->shared().HasBaselineData()) {
-    Code baseline_code = function->shared().baseline_data().baseline_code();
+  } else if (function->shared().HasBaselineCode()) {
+    Code baseline_code = function->shared().baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
     return handle(baseline_code, isolate);
   }
@@ -1980,7 +1980,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
   DCHECK(is_compiled_scope->is_compiled());
 
   // Early return for already baseline-compiled functions.
-  if (shared->HasBaselineData()) return true;
+  if (shared->HasBaselineCode()) return true;
 
   // Check if we actually can compile with baseline.
   if (!CanCompileWithBaseline(isolate, *shared)) return false;
@@ -2003,12 +2003,8 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
       // report these somehow, or silently ignore them?
       return false;
     }
+    shared->set_baseline_code(*code, kReleaseStore);
 
-    Handle<HeapObject> function_data =
-        handle(HeapObject::cast(shared->function_data(kAcquireLoad)), isolate);
-    Handle<BaselineData> baseline_data =
-        isolate->factory()->NewBaselineData(code, function_data);
-    shared->set_baseline_data(*baseline_data);
     if (V8_LIKELY(FLAG_use_osr)) {
       // Arm back edges for OSR
       shared->GetBytecodeArray(isolate).set_osr_loop_nesting_level(
@@ -2040,7 +2036,7 @@ bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
   // Baseline code needs a feedback vector.
   JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
 
-  Code baseline_code = shared->baseline_data().baseline_code(isolate);
+  Code baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
   function->set_code(baseline_code);
 

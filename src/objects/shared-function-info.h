@@ -155,16 +155,6 @@ class InterpreterData
   TQ_OBJECT_CONSTRUCTORS(InterpreterData)
 };
 
-class BaselineData : public TorqueGeneratedBaselineData<BaselineData, Struct> {
- public:
-  inline BytecodeArray GetActiveBytecodeArray() const;
-  inline void SetActiveBytecodeArray(BytecodeArray bytecode);
-
-  DECL_ACCESSORS(baseline_code, Code)
-
-  TQ_OBJECT_CONSTRUCTORS(BaselineData)
-};
-
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
 class SharedFunctionInfo
@@ -320,10 +310,10 @@ class SharedFunctionInfo
   inline bool HasInterpreterData() const;
   inline InterpreterData interpreter_data() const;
   inline void set_interpreter_data(InterpreterData interpreter_data);
-  inline bool HasBaselineData() const;
-  inline BaselineData baseline_data() const;
-  inline void set_baseline_data(BaselineData Baseline_data);
-  inline void flush_baseline_data();
+  inline bool HasBaselineCode() const;
+  inline Code baseline_code(AcquireLoadTag) const;
+  inline void set_baseline_code(Code baseline_code, ReleaseStoreTag);
+  inline void FlushBaselineCode();
   inline BytecodeArray GetActiveBytecodeArray() const;
   inline void SetActiveBytecodeArray(BytecodeArray bytecode);
 

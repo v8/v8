@@ -414,6 +414,16 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ Unreachable();
 }
 
+static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
+                                 Register scratch) {
+  DCHECK(!AreAliased(code, scratch));
+  // Verify that the code kind is baseline code via the CodeKind.
+  __ Ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
+  __ DecodeField<Code::KindField>(scratch);
+  __ Cmp(scratch, Operand(static_cast<int>(CodeKind::BASELINE)));
+  __ Assert(eq, AbortReason::kExpectedBaselineData);
+}
+
 // TODO(v8:11429): Add a path for "not_compiled" and unify the two uses under
 // the more general dispatch.
 static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
@@ -422,8 +432,16 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
                                                     Label* is_baseline) {
   ASM_CODE_COMMENT(masm);
   Label done;
-  __ CompareObjectType(sfi_data, scratch1, scratch1, BASELINE_DATA_TYPE);
-  __ B(eq, is_baseline);
+  __ CompareObjectType(sfi_data, scratch1, scratch1, CODET_TYPE);
+  if (FLAG_debug_code) {
+    Label not_baseline;
+    __ B(ne, &not_baseline);
+    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    __ B(eq, is_baseline);
+    __ Bind(&not_baseline);
+  } else {
+    __ B(eq, is_baseline);
+  }
   __ Cmp(scratch1, INTERPRETER_DATA_TYPE);
   __ B(ne, &done);
   __ LoadTaggedPointerField(
@@ -1614,9 +1632,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         &has_optimized_code_or_marker);
 
     // Load the baseline code into the closure.
-    __ LoadTaggedPointerField(
-        x2, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                            BaselineData::kBaselineCodeOffset));
+    __ Move(x2, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
     ReplaceClosureCodeWithOptimizedCode(masm, x2, closure);
     __ JumpCodeTObject(x2);
@@ -2078,7 +2094,8 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
   __ LoadTaggedPointerField(
-      x1, FieldMemOperand(x0, Code::kDeoptimizationDataOffset));
+      x1,
+      FieldMemOperand(x0, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -4026,7 +4043,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // always have baseline code.
   if (!is_osr) {
     Label start_with_baseline;
-    __ CompareObjectType(code_obj, x3, x3, BASELINE_DATA_TYPE);
+    __ CompareObjectType(code_obj, x3, x3, CODET_TYPE);
     __ B(eq, &start_with_baseline);
 
     // Start with bytecode as there is no baseline code.
@@ -4039,15 +4056,15 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // Start with baseline code.
     __ bind(&start_with_baseline);
   } else if (FLAG_debug_code) {
-    __ CompareObjectType(code_obj, x3, x3, BASELINE_DATA_TYPE);
+    __ CompareObjectType(code_obj, x3, x3, CODET_TYPE);
     __ Assert(eq, AbortReason::kExpectedBaselineData);
   }
 
-  // Load baseline code from baseline data.
-  __ LoadTaggedPointerField(
-      code_obj, FieldMemOperand(code_obj, BaselineData::kBaselineCodeOffset));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
+  }
+  if (FLAG_debug_code) {
+    AssertCodeIsBaseline(masm, code_obj, x3);
   }
 
   // Load the feedback vector.

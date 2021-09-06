@@ -162,10 +162,11 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     // passing IsPendingAllocation).
     raw_code.set_inlined_bytecode_size(inlined_bytecode_size_);
     raw_code.set_code_data_container(*data_container, kReleaseStore);
-    raw_code.set_deoptimization_data(*deoptimization_data_);
     if (kind_ == CodeKind::BASELINE) {
+      raw_code.set_bytecode_or_interpreter_data(*interpreter_data_);
       raw_code.set_bytecode_offset_table(*position_table_);
     } else {
+      raw_code.set_deoptimization_data(*deoptimization_data_);
       raw_code.set_source_position_table(*position_table_);
     }
     raw_code.set_handler_table_offset(
@@ -456,16 +457,6 @@ Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
   result.set_value1(*value1);
   result.set_value2(*value2);
   return handle(result, isolate());
-}
-
-Handle<BaselineData> Factory::NewBaselineData(
-    Handle<Code> code, Handle<HeapObject> function_data) {
-  auto baseline_data =
-      NewStructInternal<BaselineData>(BASELINE_DATA_TYPE, AllocationType::kOld);
-  DisallowGarbageCollection no_gc;
-  baseline_data.set_baseline_code(*code);
-  baseline_data.set_data(*function_data);
-  return handle(baseline_data, isolate());
 }
 
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,

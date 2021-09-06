@@ -588,6 +588,16 @@ static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
   __ bind(&done);
 }
 
+static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
+                                 Register scratch) {
+  DCHECK(!AreAliased(code, scratch));
+  // Verify that the code kind is baseline code via the CodeKind.
+  __ mov(scratch, FieldOperand(code, Code::kFlagsOffset));
+  __ DecodeField<Code::KindField>(scratch);
+  __ cmp(scratch, Immediate(static_cast<int>(CodeKind::BASELINE)));
+  __ Assert(equal, AbortReason::kExpectedBaselineData);
+}
+
 static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
                                                     Register sfi_data,
                                                     Register scratch1,
@@ -596,8 +606,16 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
   __ LoadMap(scratch1, sfi_data);
 
-  __ CmpInstanceType(scratch1, BASELINE_DATA_TYPE);
-  __ j(equal, is_baseline);
+  __ CmpInstanceType(scratch1, CODET_TYPE);
+  if (FLAG_debug_code) {
+    Label not_baseline;
+    __ j(not_equal, &not_baseline);
+    AssertCodeIsBaseline(masm, sfi_data, scratch1);
+    __ j(equal, is_baseline);
+    __ bind(&not_baseline);
+  } else {
+    __ j(equal, is_baseline);
+  }
 
   __ CmpInstanceType(scratch1, INTERPRETER_DATA_TYPE);
   __ j(not_equal, &done, Label::kNear);
@@ -703,7 +721,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
     __ bind(&is_baseline);
     __ Pop(eax);
-    __ CmpObjectType(ecx, BASELINE_DATA_TYPE, ecx);
+    __ CmpObjectType(ecx, CODET_TYPE, ecx);
     __ Assert(equal, AbortReason::kMissingBytecodeArray);
 
     __ bind(&ok);
@@ -1283,7 +1301,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
     // Load the baseline code into the closure.
     __ movd(ecx, xmm2);
-    __ mov(ecx, FieldOperand(ecx, BaselineData::kBaselineCodeOffset));
     static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
     __ push(edx);  // Spill.
     __ push(ecx);
@@ -2798,7 +2815,8 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
   }
 
   // Load deoptimization data from the code object.
-  __ mov(ecx, Operand(eax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
+  __ mov(ecx, Operand(eax, Code::kDeoptimizationDataOrInterpreterDataOffset -
+                               kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ mov(ecx, Operand(ecx, FixedArray::OffsetOfElementAt(
@@ -4155,8 +4173,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // always have baseline code.
   if (!is_osr) {
     Label start_with_baseline;
-    __ CmpObjectType(code_obj, BASELINE_DATA_TYPE,
-                     kInterpreterBytecodeOffsetRegister);
+    __ CmpObjectType(code_obj, CODET_TYPE, kInterpreterBytecodeOffsetRegister);
     __ j(equal, &start_with_baseline);
 
     // Start with bytecode as there is no baseline code.
@@ -4169,13 +4186,13 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
     __ bind(&start_with_baseline);
   } else if (FLAG_debug_code) {
-    __ CmpObjectType(code_obj, BASELINE_DATA_TYPE,
-                     kInterpreterBytecodeOffsetRegister);
+    __ CmpObjectType(code_obj, CODET_TYPE, kInterpreterBytecodeOffsetRegister);
     __ Assert(equal, AbortReason::kExpectedBaselineData);
   }
 
-  // Load baseline code from baseline data.
-  __ mov(code_obj, FieldOperand(code_obj, BaselineData::kBaselineCodeOffset));
+  if (FLAG_debug_code) {
+    AssertCodeIsBaseline(masm, code_obj, ecx);
+  }
 
   // Load the feedback vector.
   Register feedback_vector = ecx;

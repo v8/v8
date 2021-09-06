@@ -186,11 +186,13 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-    BaselineData baseline_data =
-        BaselineData::cast(shared_info.function_data(kAcquireLoad));
-    // Visit the bytecode hanging off baseline data.
-    VisitPointer(baseline_data,
-                 baseline_data.RawField(BaselineData::kDataOffset));
+    CodeT baseline_codet = CodeT::cast(shared_info.function_data(kAcquireLoad));
+    // Safe to do a relaxed load here since the CodeT was acquire-loaded.
+    Code baseline_code = FromCodeT(baseline_codet, kRelaxedLoad);
+    // Visit the bytecode hanging off baseline code.
+    VisitPointer(baseline_code,
+                 baseline_code.RawField(
+                     Code::kDeoptimizationDataOrInterpreterDataOffset));
     weak_objects_->code_flushing_candidates.Push(task_id_, shared_info);
   } else {
     // In other cases, record as a flushing candidate since we have old

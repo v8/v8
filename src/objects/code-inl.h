@@ -206,15 +206,26 @@ CODE_ACCESSORS_CHECKED(relocation_info_or_undefined, HeapObject,
                        kRelocationInfoOffset,
                        value.IsUndefined() || value.IsByteArray())
 
-CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
-#define IS_BASELINE() (kind() == CodeKind::BASELINE)
+ACCESSORS_CHECKED2(Code, deoptimization_data, FixedArray,
+                   kDeoptimizationDataOrInterpreterDataOffset,
+                   kind() != CodeKind::BASELINE,
+                   kind() != CodeKind::BASELINE &&
+                       !ObjectInYoungGeneration(value))
+ACCESSORS_CHECKED2(Code, bytecode_or_interpreter_data, HeapObject,
+                   kDeoptimizationDataOrInterpreterDataOffset,
+                   kind() == CodeKind::BASELINE,
+                   kind() == CodeKind::BASELINE &&
+                       !ObjectInYoungGeneration(value))
+
 ACCESSORS_CHECKED2(Code, source_position_table, ByteArray, kPositionTableOffset,
-                   !IS_BASELINE(),
-                   !IS_BASELINE() && !ObjectInYoungGeneration(value))
+                   kind() != CodeKind::BASELINE,
+                   kind() != CodeKind::BASELINE &&
+                       !ObjectInYoungGeneration(value))
 ACCESSORS_CHECKED2(Code, bytecode_offset_table, ByteArray, kPositionTableOffset,
-                   IS_BASELINE(),
-                   IS_BASELINE() && !ObjectInYoungGeneration(value))
-#undef IS_BASELINE
+                   kind() == CodeKind::BASELINE,
+                   kind() == CodeKind::BASELINE &&
+                       !ObjectInYoungGeneration(value))
+
 // Concurrent marker needs to access kind specific flags in code data container.
 RELEASE_ACQUIRE_CODE_ACCESSORS(code_data_container, CodeDataContainer,
                                kCodeDataContainerOffset)
@@ -269,7 +280,8 @@ inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) {
 
 void Code::WipeOutHeader() {
   WRITE_FIELD(*this, kRelocationInfoOffset, Smi::FromInt(0));
-  WRITE_FIELD(*this, kDeoptimizationDataOffset, Smi::FromInt(0));
+  WRITE_FIELD(*this, kDeoptimizationDataOrInterpreterDataOffset,
+              Smi::FromInt(0));
   WRITE_FIELD(*this, kPositionTableOffset, Smi::FromInt(0));
   WRITE_FIELD(*this, kCodeDataContainerOffset, Smi::FromInt(0));
 }
