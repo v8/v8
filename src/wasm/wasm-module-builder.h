@@ -358,6 +358,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   Zone* zone() { return zone_; }
 
+  ValueType GetTableType(uint32_t index) { return tables_[index].type; }
+
   bool IsSignature(uint32_t index) {
     return types_[index].kind == Type::kFunctionSig;
   }
