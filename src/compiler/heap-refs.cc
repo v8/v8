@@ -2665,7 +2665,8 @@ base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
 }
 
 SharedFunctionInfoRef FeedbackVectorRef::shared_function_info() const {
-  return MakeRef(broker(), object()->shared_function_info());
+  // Immutable after initialization.
+  return MakeRefAssumeMemoryFence(broker(), object()->shared_function_info());
 }
 
 bool NameRef::IsUniqueName() const {
