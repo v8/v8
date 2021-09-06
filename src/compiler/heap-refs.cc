@@ -2756,15 +2756,34 @@ HEAP_BROKER_OBJECT_LIST(V)
     return data()->AsJSFunction()->Name();                                  \
   }
 
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_feedback_vector,
-                                       JSFunctionData::kHasFeedbackVector)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_initial_map,
-                                       JSFunctionData::kHasInitialMap)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(bool, has_instance_prototype,
-                                       JSFunctionData::kHasInstancePrototype)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C(
+// Like JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C but only depend on the
+// field in question if its recorded value is "relevant". This is in order to
+// tolerate certain state changes during compilation, e.g. from "has no feedback
+// vector" (in which case we would simply do less optimization) to "has feedback
+// vector".
+#define JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_RELEVANT_C(                    \
+    Result, Name, UsedField, RelevantValue)                                 \
+  Result JSFunctionRef::Name(CompilationDependencies* dependencies) const { \
+    IF_ACCESS_FROM_HEAP_C(Name);                                            \
+    Result const result = data()->AsJSFunction()->Name();                   \
+    if (result == RelevantValue) {                                          \
+      RecordConsistentJSFunctionViewDependencyIfNeeded(                     \
+          broker(), *this, data()->AsJSFunction(), UsedField);              \
+    }                                                                       \
+    return result;                                                          \
+  }
+
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_RELEVANT_C(
+    bool, has_feedback_vector, JSFunctionData::kHasFeedbackVector, true)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_RELEVANT_C(bool, has_initial_map,
+                                                JSFunctionData::kHasInitialMap,
+                                                true)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_RELEVANT_C(
+    bool, has_instance_prototype, JSFunctionData::kHasInstancePrototype, true)
+JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_RELEVANT_C(
     bool, PrototypeRequiresRuntimeLookup,
-    JSFunctionData::kPrototypeRequiresRuntimeLookup)
+    JSFunctionData::kPrototypeRequiresRuntimeLookup, false)
+
 JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Map, initial_map,
                                      JSFunctionData::kInitialMap)
 JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Object, instance_prototype,
