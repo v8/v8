@@ -1823,8 +1823,7 @@ TEST(jump_tables1) {
 
     for (int i = 0; i < kNumCases; ++i) {
       __ bind(&labels[i]);
-      __ lui(a0, (values[i] + 0x800) >> 12);
-      __ addi(a0, a0, (values[i] << 20 >> 20));
+      __ RV_li(a0, values[i]);
       __ j(&done);
     }
 
@@ -1860,8 +1859,7 @@ TEST(jump_tables2) {
 
     for (int i = 0; i < kNumCases; ++i) {
       __ bind(&labels[i]);
-      __ lui(a0, (values[i] + 0x800) >> 12);
-      __ addi(a0, a0, (values[i] << 20 >> 20));
+      __ RV_li(a0, values[i]);
       __ j(&done);
     }
 
