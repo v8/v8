@@ -211,7 +211,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRootRelative(Register destination, int32_t offset) final;
 
   inline void GenPCRelativeJump(Register rd, int64_t imm32) {
-    DCHECK(is_int32(imm32));
+    DCHECK(is_int32(imm32 + 0x800));
     int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
     int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
     auipc(rd, Hi20);  // Read PC + Hi20 into scratch.
@@ -219,7 +219,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   inline void GenPCRelativeJumpAndLink(Register rd, int64_t imm32) {
-    DCHECK(is_int32(imm32));
+    DCHECK(is_int32(imm32 + 0x800));
     int32_t Hi20 = (((int32_t)imm32 + 0x800) >> 12);
     int32_t Lo12 = (int32_t)imm32 << 20 >> 20;
     auipc(rd, Hi20);  // Read PC + Hi20 into scratch.

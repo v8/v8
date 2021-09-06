@@ -1633,7 +1633,7 @@ static inline int InstrCountForLiLower32Bit(int64_t value) {
 }
 
 int TurboAssembler::InstrCountForLi64Bit(int64_t value) {
-  if (is_int32(value)) {
+  if (is_int32(value + 0x800)) {
     return InstrCountForLiLower32Bit(value);
   } else {
     return li_estimate(value);
@@ -3491,6 +3491,7 @@ void TurboAssembler::LoadAddress(Register dst, Label* target,
                                  RelocInfo::Mode rmode) {
   int32_t offset;
   if (CalculateOffset(target, &offset, OffsetSize::kOffset32)) {
+    CHECK(is_int32(offset + 0x800));
     int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
     int32_t Lo12 = (int32_t)offset << 20 >> 20;
     auipc(dst, Hi20);

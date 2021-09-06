@@ -576,7 +576,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal,
         instr_at_put(pos, instr);
         instr_at_put(pos + 4, kNopByte);
       } else {
-        DCHECK(is_int32(offset));
+        CHECK(is_int32(offset + 0x800));
 
         int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
         int32_t Lo12 = (int32_t)offset << 20 >> 20;
@@ -766,9 +766,9 @@ int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
                                      Instr instr_jalr, int32_t offset) {
   DCHECK(IsAuipc(instr_auipc));
   DCHECK(IsJalr(instr_jalr));
+  CHECK(is_int32(offset + 0x800));
   int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
   int32_t Lo12 = (int32_t)offset << 20 >> 20;
-  CHECK(is_int32(offset));
   instr_at_put(pc, SetAuipcOffset(Hi20, instr_auipc));
   instr_at_put(pc + 4, SetJalrOffset(Lo12, instr_jalr));
   DCHECK(offset ==
@@ -3584,7 +3584,7 @@ void Assembler::CheckTrampolinePool() {
       for (int i = 0; i < unbound_labels_count_; i++) {
         int64_t imm64;
         imm64 = branch_long_offset(&after_pool);
-        DCHECK(is_int32(imm64));
+        CHECK(is_int32(imm64 + 0x800));
         int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
         int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
         auipc(t6, Hi20);  // Read PC + Hi20 into t6
@@ -3628,7 +3628,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       int64_t imm = (int64_t)target - (int64_t)pc;
       Instr instr = instr_at(pc);
       Instr instr1 = instr_at(pc + 1 * kInstrSize);
-      DCHECK(is_int32(imm));
+      DCHECK(is_int32(imm + 0x800));
       int num = PatchBranchlongOffset(pc, instr, instr1, (int32_t)imm);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
         FlushInstructionCache(pc, num * kInstrSize);
@@ -3830,9 +3830,9 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
   int32_t distance = static_cast<int32_t>(
       reinterpret_cast<Address>(entry_offset) -
       reinterpret_cast<Address>(assm_->toAddress(load_offset)));
+  CHECK(is_int32(distance + 0x800));
   int32_t Hi20 = (((int32_t)distance + 0x800) >> 12);
   int32_t Lo12 = (int32_t)distance << 20 >> 20;
-  CHECK(is_int32(distance));
   assm_->instr_at_put(load_offset, SetAuipcOffset(Hi20, instr_auipc));
   assm_->instr_at_put(load_offset + 4, SetLdOffset(Lo12, instr_ld));
 }
