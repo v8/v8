@@ -108,6 +108,7 @@ ValueType GetValueType(uint32_t num_types, DataRange* data,
       kWasmS128,    kWasmExternRef,
       kWasmFuncRef, kWasmEqRef,
       kWasmAnyRef,  ValueType::Ref(HeapType(HeapType::kData), kNullable)};
+  constexpr int kLiftoffOnlyTypeCount = 3;  // at the end of {types}.
 
   if (liftoff_as_reference) {
     uint32_t id = data->get<uint8_t>() % (arraysize(types) + num_types);
@@ -116,7 +117,8 @@ ValueType GetValueType(uint32_t num_types, DataRange* data,
     }
     return types[id];
   }
-  return types[data->get<uint8_t>() % arraysize(types)];
+  return types[data->get<uint8_t>() %
+               (arraysize(types) - kLiftoffOnlyTypeCount)];
 }
 
 class WasmGenerator {
