@@ -544,7 +544,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
         Cell::cast(module_namespace->module().exports().Lookup(
             isolate, name.object(), Smi::ToInt(name.object()->GetHash()))));
-    if (cell->value().IsTheHole(isolate)) {
+    if (cell->value(kRelaxedLoad).IsTheHole(isolate)) {
       // This module has not been fully initialized yet.
       return PropertyAccessInfo::Invalid(zone);
     }
