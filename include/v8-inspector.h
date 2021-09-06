@@ -13,9 +13,6 @@
 #include "v8-isolate.h"       // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 
-// TODO(v8:11965) Remove this when chrome includes it directly where needed.
-#include "v8-script.h"  // NOLINT(build/include_directory)
-
 namespace v8 {
 class Context;
 class Name;
