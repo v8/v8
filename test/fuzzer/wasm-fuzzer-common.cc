@@ -476,6 +476,11 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << "], " << ValueTypeToConstantName(elem_segment.type) << ");\n";
   }
 
+  for (const WasmTag& tag : module->tags) {
+    os << "builder.addTag(makeSig(" << PrintParameters(tag.ToFunctionSig())
+       << ", []));\n";
+  }
+
   for (const WasmFunction& func : module->functions) {
     base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
     os << "// Generate function " << (func.func_index + 1) << " (out of "
