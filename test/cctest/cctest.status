@@ -136,6 +136,9 @@
   'test-strings/Traverse': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
+
+  # TODO(v8:11382): Reenable once irregexp is reentrant.
+  'test-regexp/RegExpInterruptReentrantExecution': [FAIL],
 }],  # ALWAYS
 
 ##############################################################################
@@ -670,6 +673,9 @@
 
   # Instruction cache flushing is disabled in jitless mode.
   'test-icache/*': [SKIP],
+
+  # Tests generated irregexp code.
+  'test-regexp/RegExpInterruptReentrantExecution': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################

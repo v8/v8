@@ -2346,6 +2346,50 @@ TEST(UnicodePropertyEscapeCodeSize) {
   }
 }
 
+namespace {
+
+struct RegExpExecData {
+  i::Isolate* isolate;
+  i::Handle<i::JSRegExp> regexp;
+  i::Handle<i::String> subject;
+};
+
+i::Handle<i::Object> RegExpExec(const RegExpExecData* d) {
+  return i::RegExp::Exec(d->isolate, d->regexp, d->subject, 0,
+                         d->isolate->regexp_last_match_info())
+      .ToHandleChecked();
+}
+
+void ReenterRegExp(v8::Isolate* isolate, void* data) {
+  RegExpExecData* d = static_cast<RegExpExecData*>(data);
+  i::Handle<i::Object> result = RegExpExec(d);
+  CHECK(result->IsNull());
+}
+
+}  // namespace
+
+// Tests reentrant irregexp calls.
+TEST(RegExpInterruptReentrantExecution) {
+  CHECK(!i::FLAG_jitless);
+  i::FLAG_regexp_tier_up = false;  // Enter irregexp, not the interpreter.
+
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  RegExpExecData d;
+  d.isolate = reinterpret_cast<i::Isolate*>(isolate);
+  d.regexp = v8::Utils::OpenHandle(
+      *v8::RegExp::New(context.local(), v8_str("(a*)*x"), v8::RegExp::kNone)
+           .ToLocalChecked());
+  d.subject = v8::Utils::OpenHandle(*v8_str("aaaa"));
+
+  isolate->RequestInterrupt(&ReenterRegExp, &d);
+
+  i::Handle<i::Object> result = RegExpExec(&d);
+  CHECK(result->IsNull());
+}
+
 #undef CHECK_PARSE_ERROR
 #undef CHECK_SIMPLE
 #undef CHECK_MIN_MAX

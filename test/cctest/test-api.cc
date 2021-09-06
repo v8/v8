@@ -21734,10 +21734,6 @@ TEST(RegExpInterruptAndMakeSubjectTwoByteExternal) {
   // experimental engine.
   i::FLAG_enable_experimental_regexp_engine_on_excessive_backtracks = false;
   RegExpInterruptTest test;
-  // We want to be stuck regexp execution, so no fallback to linear-time
-  // engine.
-  // TODO(mbid,v8:10765): Find a way to test interrupt support of the
-  // experimental engine.
   test.RunTest(RegExpInterruptTest::MakeSubjectTwoByteExternal);
 }
 
