@@ -747,24 +747,26 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
   switch (type.value()) {
     case LoadType::kI32Load8U:
     case LoadType::kI64Load8U:
+      fence(PSR | PSW, PSR | PSW);
       lbu(dst.gp(), src_reg, 0);
-      sync();
+      fence(PSR, PSR | PSW);
       return;
     case LoadType::kI32Load16U:
     case LoadType::kI64Load16U:
+      fence(PSR | PSW, PSR | PSW);
       lhu(dst.gp(), src_reg, 0);
-      sync();
+      fence(PSR, PSR | PSW);
       return;
     case LoadType::kI32Load:
-      lr_w(true, true, dst.gp(), src_reg);
-      return;
     case LoadType::kI64Load32U:
-      lr_w(true, true, dst.gp(), src_reg);
-      slli(dst.gp(), dst.gp(), 32);
-      srli(dst.gp(), dst.gp(), 32);
+      fence(PSR | PSW, PSR | PSW);
+      lw(dst.gp(), src_reg, 0);
+      fence(PSR, PSR | PSW);
       return;
     case LoadType::kI64Load:
-      lr_d(true, true, dst.gp(), src_reg);
+      fence(PSR | PSW, PSR | PSW);
+      ld(dst.gp(), src_reg, 0);
+      fence(PSR, PSR | PSW);
       return;
     default:
       UNREACHABLE();
@@ -780,22 +782,22 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI64Store8:
     case StoreType::kI32Store8:
-      sync();
+      fence(PSR | PSW, PSW);
       sb(src.gp(), dst_reg, 0);
-      sync();
       return;
     case StoreType::kI64Store16:
     case StoreType::kI32Store16:
-      sync();
+      fence(PSR | PSW, PSW);
       sh(src.gp(), dst_reg, 0);
-      sync();
       return;
     case StoreType::kI64Store32:
     case StoreType::kI32Store:
-      sc_w(true, true, zero_reg, dst_reg, src.gp());
+      fence(PSR | PSW, PSW);
+      sw(src.gp(), dst_reg, 0);
       return;
     case StoreType::kI64Store:
-      sc_d(true, true, zero_reg, dst_reg, src.gp());
+      fence(PSR | PSW, PSW);
+      sd(src.gp(), dst_reg, 0);
       return;
     default:
       UNREACHABLE();
