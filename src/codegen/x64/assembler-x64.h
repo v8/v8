@@ -1242,9 +1242,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cvtqsi2sd(XMMRegister dst, Operand src);
   void cvtqsi2sd(XMMRegister dst, Register src);
 
-  void cvtss2sd(XMMRegister dst, XMMRegister src);
-  void cvtss2sd(XMMRegister dst, Operand src);
-
   void cvtsd2si(Register dst, XMMRegister src);
   void cvtsd2siq(Register dst, XMMRegister src);
 
@@ -1437,12 +1434,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vcvtdq2pd(XMMRegister dst, XMMRegister src) {
     vinstr(0xe6, dst, xmm0, src, kF3, k0F, kWIG);
-  }
-  void vcvtss2sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vinstr(0x5a, dst, src1, src2, kF3, k0F, kWIG);
-  }
-  void vcvtss2sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vinstr(0x5a, dst, src1, src2, kF3, k0F, kWIG);
   }
   void vcvttps2dq(XMMRegister dst, XMMRegister src) {
     vinstr(0x5b, dst, xmm0, src, kF3, k0F, kWIG);
