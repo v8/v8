@@ -2149,6 +2149,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'stack',
+        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-stack-size=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'combined',
         'test_args': [
           '--infra-staging',
@@ -2160,6 +2165,7 @@
           '--stress-marking=4',
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
+          '--stress-stack-size=1',
         ],
         'shards': 4
       },
@@ -2199,6 +2205,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'stack',
+        'test_args': ['--infra-staging', '--total-timeout-sec=2100', '--stress-stack-size=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'combined',
         'test_args': [
           '--infra-staging',
@@ -2210,6 +2221,7 @@
           '--stress-marking=4',
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
+          '--stress-stack-size=1',
         ],
         'shards': 3
       },
