@@ -54,9 +54,8 @@ GCInfoIndex EnsureGCInfoIndexTrait::EnsureGCInfoIndexPolymorphic(
 
 // static
 GCInfoIndex EnsureGCInfoIndexTrait::EnsureGCInfoIndexNonPolymorphic(
-    std::atomic<GCInfoIndex>& registered_index,
-    FinalizationCallback finalization_callback, TraceCallback trace_callback,
-    NameCallback name_callback) {
+    std::atomic<GCInfoIndex>& registered_index, TraceCallback trace_callback,
+    FinalizationCallback finalization_callback, NameCallback name_callback) {
   return GlobalGCInfoTable::GetMutable().RegisterNewGCInfo(
       registered_index,
       {finalization_callback, trace_callback, name_callback, false});
