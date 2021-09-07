@@ -2681,27 +2681,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F64x2Qfma: {
-      if (CpuFeatures::IsSupported(FMA3)) {
-        CpuFeatureScope fma3_scope(tasm(), FMA3);
-        __ vfmadd231pd(i.OutputSimd128Register(), i.InputSimd128Register(1),
-                       i.InputSimd128Register(2));
-      } else {
-        __ Movapd(kScratchDoubleReg, i.InputSimd128Register(2));
-        __ Mulpd(kScratchDoubleReg, i.InputSimd128Register(1));
-        __ Addpd(i.OutputSimd128Register(), kScratchDoubleReg);
-      }
+      __ F64x2Qfma(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   kScratchDoubleReg);
       break;
     }
     case kX64F64x2Qfms: {
-      if (CpuFeatures::IsSupported(FMA3)) {
-        CpuFeatureScope fma3_scope(tasm(), FMA3);
-        __ vfnmadd231pd(i.OutputSimd128Register(), i.InputSimd128Register(1),
-                        i.InputSimd128Register(2));
-      } else {
-        __ Movapd(kScratchDoubleReg, i.InputSimd128Register(2));
-        __ Mulpd(kScratchDoubleReg, i.InputSimd128Register(1));
-        __ Subpd(i.OutputSimd128Register(), kScratchDoubleReg);
-      }
+      __ F64x2Qfms(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   kScratchDoubleReg);
       break;
     }
     case kX64F64x2ConvertLowI32x4S: {
@@ -2884,27 +2872,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Qfma: {
-      if (CpuFeatures::IsSupported(FMA3)) {
-        CpuFeatureScope fma3_scope(tasm(), FMA3);
-        __ vfmadd231ps(i.OutputSimd128Register(), i.InputSimd128Register(1),
-                       i.InputSimd128Register(2));
-      } else {
-        __ Movaps(kScratchDoubleReg, i.InputSimd128Register(2));
-        __ Mulps(kScratchDoubleReg, i.InputSimd128Register(1));
-        __ Addps(i.OutputSimd128Register(), kScratchDoubleReg);
-      }
+      __ F32x4Qfma(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   kScratchDoubleReg);
       break;
     }
     case kX64F32x4Qfms: {
-      if (CpuFeatures::IsSupported(FMA3)) {
-        CpuFeatureScope fma3_scope(tasm(), FMA3);
-        __ vfnmadd231ps(i.OutputSimd128Register(), i.InputSimd128Register(1),
-                        i.InputSimd128Register(2));
-      } else {
-        __ Movaps(kScratchDoubleReg, i.InputSimd128Register(2));
-        __ Mulps(kScratchDoubleReg, i.InputSimd128Register(1));
-        __ Subps(i.OutputSimd128Register(), kScratchDoubleReg);
-      }
+      __ F32x4Qfms(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   kScratchDoubleReg);
       break;
     }
     case kX64F32x4Pmin: {

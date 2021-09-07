@@ -893,10 +893,20 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vbroadcastss %s,", NameOfAVXRegister(regop));
         current += PrintRightAVXOperand(current);
         break;
+      case 0x98:
+        AppendToBuffer("vfmadd132p%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x99:
         AppendToBuffer("vfmadd132s%c %s,%s,", float_size_code(),
                        NameOfAVXRegister(regop), NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
+        break;
+      case 0xA8:
+        AppendToBuffer("vfmadd213p%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
         break;
       case 0xA9:
         AppendToBuffer("vfmadd213s%c %s,%s,", float_size_code(),
@@ -918,10 +928,20 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfAVXRegister(regop), NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
         break;
+      case 0x9C:
+        AppendToBuffer("vfnmadd132p%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0xAB:
         AppendToBuffer("vfmsub213s%c %s,%s,", float_size_code(),
                        NameOfAVXRegister(regop), NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
+        break;
+      case 0xAC:
+        AppendToBuffer("vfnmadd213p%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
         break;
       case 0xBB:
         AppendToBuffer("vfmsub231s%c %s,%s,", float_size_code(),

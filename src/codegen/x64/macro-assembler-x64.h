@@ -83,6 +83,15 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Movq(XMMRegister dst, Register src);
   void Movq(Register dst, XMMRegister src);
 
+  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
 
