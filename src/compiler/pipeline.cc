@@ -96,6 +96,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/compiler/wasm-inlining.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
@@ -1409,8 +1410,8 @@ struct InliningPhase {
 };
 
 #if V8_ENABLE_WEBASSEMBLY
-struct WasmInliningPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
+struct JSWasmInliningPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(JSWasmInlining)
   void Run(PipelineData* data, Zone* temp_zone) {
     DCHECK(data->has_js_wasm_calls());
 
@@ -1682,6 +1683,25 @@ struct WasmLoopUnrollingPhase {
         LoopPeeler::EliminateLoopExit(use);
       }
     }
+  }
+};
+
+struct WasmInliningPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
+
+  void Run(PipelineData* data, Zone* temp_zone, wasm::CompilationEnv* env,
+           const wasm::WireBytesStorage* wire_bytes) {
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
+    DeadCodeElimination dead(&graph_reducer, data->graph(),
+                             data->mcgraph()->common(), temp_zone);
+    WasmInliner inliner(&graph_reducer, env, data->source_positions(),
+                        data->node_origins(), data->mcgraph(), wire_bytes, 0);
+    AddReducer(data, &graph_reducer, &dead);
+    AddReducer(data, &graph_reducer, &inliner);
+
+    graph_reducer.ReduceGraph();
   }
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2735,8 +2755,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 #if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
     DCHECK(data->info()->inline_js_wasm_calls());
-    Run<WasmInliningPhase>();
-    RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
+    Run<JSWasmInliningPhase>();
+    RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2838,8 +2858,8 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
 #if V8_ENABLE_WEBASSEMBLY
   if (data->has_js_wasm_calls()) {
     DCHECK(data->info()->inline_js_wasm_calls());
-    Run<WasmInliningPhase>();
-    RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
+    Run<JSWasmInliningPhase>();
+    RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -3175,7 +3195,8 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 
 // static
 void Pipeline::GenerateCodeForWasmFunction(
-    OptimizedCompilationInfo* info, MachineGraph* mcgraph,
+    OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
+    const wasm::WireBytesStorage* wire_bytes_storage, MachineGraph* mcgraph,
     CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
     NodeOriginTable* node_origins, wasm::FunctionBody function_body,
     const wasm::WasmModule* module, int function_index,
@@ -3204,6 +3225,10 @@ void Pipeline::GenerateCodeForWasmFunction(
   if (FLAG_wasm_loop_unrolling) {
     pipeline.Run<WasmLoopUnrollingPhase>(loop_info);
     pipeline.RunPrintAndVerify(WasmLoopUnrollingPhase::phase_name(), true);
+  }
+  if (FLAG_wasm_inlining) {
+    pipeline.Run<WasmInliningPhase>(env, wire_bytes_storage);
+    pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
   }
   const bool is_asm_js = is_asmjs_module(module);
 

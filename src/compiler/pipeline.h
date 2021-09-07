@@ -23,11 +23,13 @@ class ProfileDataFromFile;
 class RegisterConfiguration;
 
 namespace wasm {
+struct CompilationEnv;
 struct FunctionBody;
 class NativeModule;
 struct WasmCompilationResult;
 class WasmEngine;
 struct WasmModule;
+class WireBytesStorage;
 }  // namespace wasm
 
 namespace compiler {
@@ -54,7 +56,8 @@ class Pipeline : public AllStatic {
 
   // Run the pipeline for the WebAssembly compilation info.
   static void GenerateCodeForWasmFunction(
-      OptimizedCompilationInfo* info, MachineGraph* mcgraph,
+      OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
+      const wasm::WireBytesStorage* wire_bytes_storage, MachineGraph* mcgraph,
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       NodeOriginTable* node_origins, wasm::FunctionBody function_body,
       const wasm::WasmModule* module, int function_index,

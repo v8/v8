@@ -134,7 +134,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
 
     case ExecutionTier::kTurbofan:
       result = compiler::ExecuteTurbofanWasmCompilation(
-          env, func_body, func_index_, counters, detected);
+          env, wire_bytes_storage, func_body, func_index_, counters, detected);
       result.for_debugging = for_debugging_;
       break;
   }

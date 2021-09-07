@@ -197,14 +197,7 @@ class WasmGraphAssembler : public GraphAssembler {
     return Call(call_descriptor, call_target, args...);
   }
 
-  void EnsureEnd() {
-    if (graph()->end() == nullptr) {
-      graph()->SetEnd(graph()->NewNode(mcgraph()->common()->End(0)));
-    }
-  }
-
   void MergeControlToEnd(Node* node) {
-    EnsureEnd();
     NodeProperties::MergeControlToEnd(graph(), mcgraph()->common(), node);
   }
 
@@ -213,7 +206,6 @@ class WasmGraphAssembler : public GraphAssembler {
     if (FLAG_debug_code) {
       auto ok = MakeLabel();
       GotoIfNot(condition, &ok);
-      EnsureEnd();
       Unreachable();
       Bind(&ok);
     }
@@ -501,6 +493,8 @@ void WasmGraphBuilder::Start(unsigned params) {
                 gasm_->LoadFunctionDataFromJSFunction(
                     Param(Linkage::kJSCallClosureParamIndex, "%closure")))
           : Param(wasm::kWasmInstanceParameterIndex);
+
+  graph()->SetEnd(graph()->NewNode(mcgraph()->common()->End(0)));
 }
 
 Node* WasmGraphBuilder::Param(int index, const char* debug_name) {
@@ -5587,8 +5581,6 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
     Node* element_size = Int32Constant(element_type.element_size_bytes());
     Node* end_offset =
         gasm_->Int32Add(start_offset, gasm_->Int32Mul(element_size, length));
-    // Loops need the graph's end to have been set up.
-    gasm_->EnsureEnd();
     gasm_->Goto(&loop, start_offset);
     gasm_->Bind(&loop);
     {
@@ -7855,8 +7847,9 @@ base::Vector<const char> GetDebugName(Zone* zone, int index) {
 }  // namespace
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
-    wasm::CompilationEnv* env, const wasm::FunctionBody& func_body,
-    int func_index, Counters* counters, wasm::WasmFeatures* detected) {
+    wasm::CompilationEnv* env, const wasm::WireBytesStorage* wire_bytes_storage,
+    const wasm::FunctionBody& func_body, int func_index, Counters* counters,
+    wasm::WasmFeatures* detected) {
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileTopTier", "func_index", func_index, "body_size",
                func_body.end - func_body.start);
@@ -7908,9 +7901,10 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     call_descriptor = GetI32WasmCallDescriptorForSimd(&zone, call_descriptor);
   }
 
-  Pipeline::GenerateCodeForWasmFunction(
-      &info, mcgraph, call_descriptor, source_positions, node_origins,
-      func_body, env->module, func_index, &loop_infos);
+  Pipeline::GenerateCodeForWasmFunction(&info, env, wire_bytes_storage, mcgraph,
+                                        call_descriptor, source_positions,
+                                        node_origins, func_body, env->module,
+                                        func_index, &loop_infos);
 
   if (counters) {
     int zone_bytes =

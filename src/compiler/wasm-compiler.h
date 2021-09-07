@@ -53,13 +53,15 @@ using TFNode = compiler::Node;
 using TFGraph = compiler::MachineGraph;
 class WasmCode;
 class WasmFeatures;
+class WireBytesStorage;
 enum class LoadTransformationKind : uint8_t;
 }  // namespace wasm
 
 namespace compiler {
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
-    wasm::CompilationEnv*, const wasm::FunctionBody&, int func_index, Counters*,
+    wasm::CompilationEnv*, const wasm::WireBytesStorage* wire_bytes_storage,
+    const wasm::FunctionBody&, int func_index, Counters*,
     wasm::WasmFeatures* detected);
 
 // Calls to Wasm imports are handled in several different ways, depending on the
