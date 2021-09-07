@@ -44,6 +44,7 @@ EXTRA_FLAGS = [
   (0.1, '--regexp-tier-up-ticks=100'),
   (0.1, '--stress-background-compile'),
   (0.1, '--stress-concurrent-inlining'),
+  (0.1, '--stress-flush-code'),
   (0.1, '--stress-lazy-source-positions'),
   (0.1, '--stress-wasm-code-gc'),
   (0.1, '--turbo-instruction-scheduling'),
