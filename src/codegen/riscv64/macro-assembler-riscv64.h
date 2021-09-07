@@ -910,6 +910,31 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       Sub64(rd, rs1, rs2);
     }
   }
+  // Wasm into RVV
+  void WasmRvvExtractLane(Register dst, VRegister src, int8_t idx, VSew sew,
+                          Vlmul lmul) {
+    VU.set(kScratchReg, sew, lmul);
+    VRegister Vsrc = idx != 0 ? kSimd128ScratchReg : src;
+    if (idx != 0) {
+      vslidedown_vi(kSimd128ScratchReg, src, idx);
+    }
+    vmv_xs(dst, Vsrc);
+  }
+
+  void WasmRvvEq(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                 Vlmul lmul);
+
+  void WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                 Vlmul lmul);
+  void WasmRvvGeS(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                  Vlmul lmul);
+  void WasmRvvGeU(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                  Vlmul lmul);
+  void WasmRvvGtS(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                  Vlmul lmul);
+  void WasmRvvGtU(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                  Vlmul lmul);
+  void WasmRvvS128const(VRegister dst, const uint8_t imms[16]);
 
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);

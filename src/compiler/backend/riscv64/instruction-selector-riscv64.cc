@@ -475,7 +475,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kRiscvLd;
       break;
     case MachineRepresentation::kSimd128:
-      opcode = kRiscvMsaLd;
+      opcode = kRiscvRvvLd;
       break;
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
@@ -554,7 +554,7 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kRiscvSd;
         break;
       case MachineRepresentation::kSimd128:
-        opcode = kRiscvMsaSt;
+        opcode = kRiscvRvvSt;
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
@@ -1632,7 +1632,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
       opcode = kRiscvUld;
       break;
     case MachineRepresentation::kSimd128:
-      opcode = kRiscvMsaLd;
+      opcode = kRiscvRvvLd;
       break;
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
@@ -1686,7 +1686,7 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
       opcode = kRiscvUsd;
       break;
     case MachineRepresentation::kSimd128:
-      opcode = kRiscvMsaSt;
+      opcode = kRiscvRvvSt;
       break;
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
@@ -2684,6 +2684,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 
 #define SIMD_TYPE_LIST(V) \
   V(F32x4)                \
+  V(I64x2)                \
   V(I32x4)                \
   V(I16x8)                \
   V(I8x16)
@@ -2888,6 +2889,7 @@ SIMD_VISIT_SPLAT(F64x2)
 SIMD_VISIT_EXTRACT_LANE(F64x2, )
 SIMD_VISIT_EXTRACT_LANE(F32x4, )
 SIMD_VISIT_EXTRACT_LANE(I32x4, )
+SIMD_VISIT_EXTRACT_LANE(I64x2, )
 SIMD_VISIT_EXTRACT_LANE(I16x8, U)
 SIMD_VISIT_EXTRACT_LANE(I16x8, S)
 SIMD_VISIT_EXTRACT_LANE(I8x16, U)
@@ -2934,73 +2936,75 @@ struct ShuffleEntry {
   ArchOpcode opcode;
 };
 
-static const ShuffleEntry arch_shuffles[] = {
-    {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23},
-     kRiscvS32x4InterleaveRight},
-    {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31},
-     kRiscvS32x4InterleaveLeft},
-    {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27},
-     kRiscvS32x4PackEven},
-    {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31},
-     kRiscvS32x4PackOdd},
-    {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27},
-     kRiscvS32x4InterleaveEven},
-    {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 28, 29, 30, 31},
-     kRiscvS32x4InterleaveOdd},
+// static const ShuffleEntry arch_shuffles[] = {
+//     {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23},
+//      kRiscvS32x4InterleaveRight},
+//     {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31},
+//      kRiscvS32x4InterleaveLeft},
+//     {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27},
+//      kRiscvS32x4PackEven},
+//     {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31},
+//      kRiscvS32x4PackOdd},
+//     {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27},
+//      kRiscvS32x4InterleaveEven},
+//     {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 28, 29, 30, 31},
+//      kRiscvS32x4InterleaveOdd},
 
-    {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23},
-     kRiscvS16x8InterleaveRight},
-    {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31},
-     kRiscvS16x8InterleaveLeft},
-    {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29},
-     kRiscvS16x8PackEven},
-    {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31},
-     kRiscvS16x8PackOdd},
-    {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29},
-     kRiscvS16x8InterleaveEven},
-    {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31},
-     kRiscvS16x8InterleaveOdd},
-    {{6, 7, 4, 5, 2, 3, 0, 1, 14, 15, 12, 13, 10, 11, 8, 9},
-     kRiscvS16x4Reverse},
-    {{2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13},
-     kRiscvS16x2Reverse},
+//     {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23},
+//      kRiscvS16x8InterleaveRight},
+//     {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31},
+//      kRiscvS16x8InterleaveLeft},
+//     {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29},
+//      kRiscvS16x8PackEven},
+//     {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31},
+//      kRiscvS16x8PackOdd},
+//     {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29},
+//      kRiscvS16x8InterleaveEven},
+//     {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31},
+//      kRiscvS16x8InterleaveOdd},
+//     {{6, 7, 4, 5, 2, 3, 0, 1, 14, 15, 12, 13, 10, 11, 8, 9},
+//      kRiscvS16x4Reverse},
+//     {{2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13},
+//      kRiscvS16x2Reverse},
 
-    {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
-     kRiscvS8x16InterleaveRight},
-    {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
-     kRiscvS8x16InterleaveLeft},
-    {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
-     kRiscvS8x16PackEven},
-    {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31},
-     kRiscvS8x16PackOdd},
-    {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30},
-     kRiscvS8x16InterleaveEven},
-    {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
-     kRiscvS8x16InterleaveOdd},
-    {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8}, kRiscvS8x8Reverse},
-    {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}, kRiscvS8x4Reverse},
-    {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14},
-     kRiscvS8x2Reverse}};
+//     {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
+//      kRiscvS8x16InterleaveRight},
+//     {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
+//      kRiscvS8x16InterleaveLeft},
+//     {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
+//      kRiscvS8x16PackEven},
+//     {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31},
+//      kRiscvS8x16PackOdd},
+//     {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30},
+//      kRiscvS8x16InterleaveEven},
+//     {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
+//      kRiscvS8x16InterleaveOdd},
+//     {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8},
+//     kRiscvS8x8Reverse},
+//     {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12},
+//     kRiscvS8x4Reverse},
+//     {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14},
+//      kRiscvS8x2Reverse}};
 
-bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
-                         size_t num_entries, bool is_swizzle,
-                         ArchOpcode* opcode) {
-  uint8_t mask = is_swizzle ? kSimd128Size - 1 : 2 * kSimd128Size - 1;
-  for (size_t i = 0; i < num_entries; ++i) {
-    const ShuffleEntry& entry = table[i];
-    int j = 0;
-    for (; j < kSimd128Size; ++j) {
-      if ((entry.shuffle[j] & mask) != (shuffle[j] & mask)) {
-        break;
-      }
-    }
-    if (j == kSimd128Size) {
-      *opcode = entry.opcode;
-      return true;
-    }
-  }
-  return false;
-}
+// bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
+//                          size_t num_entries, bool is_swizzle,
+//                          ArchOpcode* opcode) {
+//   uint8_t mask = is_swizzle ? kSimd128Size - 1 : 2 * kSimd128Size - 1;
+//   for (size_t i = 0; i < num_entries; ++i) {
+//     const ShuffleEntry& entry = table[i];
+//     int j = 0;
+//     for (; j < kSimd128Size; ++j) {
+//       if ((entry.shuffle[j] & mask) != (shuffle[j] & mask)) {
+//         break;
+//       }
+//     }
+//     if (j == kSimd128Size) {
+//       *opcode = entry.opcode;
+//       return true;
+//     }
+//   }
+//   return false;
+// }
 
 }  // namespace
 
@@ -3008,29 +3012,29 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
   CanonicalizeShuffle(node, shuffle, &is_swizzle);
-  uint8_t shuffle32x4[4];
-  ArchOpcode opcode;
-  if (TryMatchArchShuffle(shuffle, arch_shuffles, arraysize(arch_shuffles),
-                          is_swizzle, &opcode)) {
-    VisitRRR(this, opcode, node);
-    return;
-  }
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);
-  uint8_t offset;
   RiscvOperandGenerator g(this);
-  if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
-    Emit(kRiscvS8x16Concat, g.DefineSameAsFirst(node), g.UseRegister(input1),
-         g.UseRegister(input0), g.UseImmediate(offset));
-    return;
-  }
-  if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
-    Emit(kRiscvS32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-         g.UseRegister(input1),
-         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle32x4)));
-    return;
-  }
-  Emit(kRiscvS8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+  // uint8_t shuffle32x4[4];
+  // ArchOpcode opcode;
+  // if (TryMatchArchShuffle(shuffle, arch_shuffles, arraysize(arch_shuffles),
+  //                         is_swizzle, &opcode)) {
+  //   VisitRRR(this, opcode, node);
+  //   return;
+  // }
+  // uint8_t offset;
+  // if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
+  //   Emit(kRiscvS8x16Concat, g.DefineSameAsFirst(node), g.UseRegister(input1),
+  //        g.UseRegister(input0), g.UseImmediate(offset));
+  //   return;
+  // }
+  // if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+  //   Emit(kRiscvS32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+  //        g.UseRegister(input1),
+  //        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle32x4)));
+  //   return;
+  // }
+  Emit(kRiscvI8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
        g.UseRegister(input1),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle)),
        g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),

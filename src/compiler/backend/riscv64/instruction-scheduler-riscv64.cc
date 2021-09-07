@@ -318,7 +318,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS8x2Reverse:
     case kRiscvS8x4Reverse:
     case kRiscvS8x8Reverse:
-    case kRiscvS8x16Shuffle:
+    case kRiscvI8x16Shuffle:
     case kRiscvI8x16Swizzle:
     case kRiscvSar32:
     case kRiscvSignExtendByte:
@@ -352,7 +352,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvLw:
     case kRiscvLoadFloat:
     case kRiscvLwu:
-    case kRiscvMsaLd:
+    case kRiscvRvvLd:
     case kRiscvPeek:
     case kRiscvUld:
     case kRiscvULoadDouble:
@@ -380,7 +380,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
     case kRiscvModD:
     case kRiscvModS:
-    case kRiscvMsaSt:
+    case kRiscvRvvSt:
     case kRiscvPush:
     case kRiscvSb:
     case kRiscvSd:

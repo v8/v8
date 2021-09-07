@@ -1977,6 +1977,39 @@ TEST(li_estimate) {
   }
 }
 
+#define UTEST_LOAD_STORE_RVV(ldname, stname, SEW, arg...)            \
+  TEST(RISCV_UTEST_##stname##ldname##SEW) {                          \
+    CcTest::InitializeVM();                                          \
+    Isolate* isolate = CcTest::i_isolate();                          \
+    HandleScope scope(isolate);                                      \
+    int8_t src[16] = {arg};                                          \
+    int8_t dst[16];                                                  \
+    auto fn = [](MacroAssembler& assm) {                             \
+      __ VU.set(t0, SEW, Vlmul::m1);                                 \
+      __ vl(v2, a0, 0, VSew::E8);                                    \
+      __ vs(v2, a1, 0, VSew::E8);                                    \
+    };                                                               \
+    GenAndRunTest<int32_t, int64_t>((int64_t)src, (int64_t)dst, fn); \
+    CHECK(!memcmp(src, dst, sizeof(src)));                           \
+  }
+
+#ifdef CAN_USE_RVV_INSTRUCTIONS
+UTEST_LOAD_STORE_RVV(vl, vs, E8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+                     15, 16)
+// UTEST_LOAD_STORE_RVV(vl, vs, E8, 127, 127, 127, 127, 127, 127, 127)
+
+TEST(RVV_VSETIVLI) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  auto fn = [](MacroAssembler& assm) {
+    __ VU.set(t0, VSew::E8, Vlmul::m1);
+    __ vsetivli(t0, 16, VSew::E128, Vlmul::m1);
+  };
+  GenAndRunTest(fn);
+}
+#endif
+
 #undef __
 
 }  // namespace internal
