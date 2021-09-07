@@ -133,13 +133,13 @@ class V8_EXPORT_PRIVATE Operand {
 // Alternatively we can have a 16bit signed value immediate
 class V8_EXPORT_PRIVATE MemOperand {
  public:
-  explicit MemOperand(Register rn, int32_t offset = 0);
+  explicit MemOperand(Register rn, int64_t offset = 0);
 
   explicit MemOperand(Register ra, Register rb);
 
-  explicit MemOperand(Register ra, Register rb, int32_t offset);
+  explicit MemOperand(Register ra, Register rb, int64_t offset);
 
-  int32_t offset() const { return offset_; }
+  int64_t offset() const { return offset_; }
 
   // PowerPC - base register
   Register ra() const { return ra_; }
@@ -148,7 +148,7 @@ class V8_EXPORT_PRIVATE MemOperand {
 
  private:
   Register ra_;     // base
-  int32_t offset_;  // offset
+  int64_t offset_;  // offset
   Register rb_;     // index
 
   friend class Assembler;

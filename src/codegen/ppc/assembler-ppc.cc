@@ -187,13 +187,13 @@ Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
   return result;
 }
 
-MemOperand::MemOperand(Register rn, int32_t offset)
+MemOperand::MemOperand(Register rn, int64_t offset)
     : ra_(rn), offset_(offset), rb_(no_reg) {}
 
 MemOperand::MemOperand(Register ra, Register rb)
     : ra_(ra), offset_(0), rb_(rb) {}
 
-MemOperand::MemOperand(Register ra, Register rb, int32_t offset)
+MemOperand::MemOperand(Register ra, Register rb, int64_t offset)
     : ra_(ra), offset_(offset), rb_(rb) {}
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
