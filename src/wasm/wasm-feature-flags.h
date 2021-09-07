@@ -51,7 +51,12 @@
   /* Branch Hinting proposal. */                                               \
   /* https://github.com/WebAssembly/branch-hinting */                          \
   /* V8 side owner: jkummerow */                                               \
-  V(branch_hinting, "branch hinting", false)
+  V(branch_hinting, "branch hinting", false)                                   \
+                                                                               \
+  /* Stack Switching proposal. */                                              \
+  /* https://github.com/WebAssembly/stack-switching */                         \
+  /* V8 side owner: thibaudm & fgm */                                          \
+  V(stack_switching, "stack switching", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
