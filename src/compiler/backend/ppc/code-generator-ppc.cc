@@ -3481,7 +3481,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       MemOperand operand = i.MemoryOperand(&mode, &index);
       DCHECK_EQ(mode, kMode_MRR);
       __ vextractub(kScratchSimd128Reg, i.InputSimd128Register(0),
-                    Operand(15 - i.InputInt8(3)));
+                    Operand(15 - i.InputUint8(3)));
       __ stxsibx(kScratchSimd128Reg, operand);
       break;
     }
