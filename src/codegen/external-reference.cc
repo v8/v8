@@ -145,6 +145,19 @@ constexpr struct alignas(16) {
 } wasm_uint32_max_as_double = {uint64_t{0x41efffffffe00000},
                                uint64_t{0x41efffffffe00000}};
 
+// This is 2147483648.0, which is 1 more than INT32_MAX.
+constexpr struct alignas(16) {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t d;
+} wasm_int32_overflow_as_float = {
+    uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000},
+    uint32_t{0x4f00'0000},
+};
+
 // Implementation of ExternalReference
 
 static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
@@ -617,6 +630,11 @@ ExternalReference ExternalReference::address_of_wasm_int32_max_as_double() {
 ExternalReference ExternalReference::address_of_wasm_uint32_max_as_double() {
   return ExternalReference(
       reinterpret_cast<Address>(&wasm_uint32_max_as_double));
+}
+
+ExternalReference ExternalReference::address_of_wasm_int32_overflow_as_float() {
+  return ExternalReference(
+      reinterpret_cast<Address>(&wasm_int32_overflow_as_float));
 }
 
 ExternalReference

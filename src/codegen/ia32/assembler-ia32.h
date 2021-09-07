@@ -1715,6 +1715,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   PACKED_CMP_LIST(AVX_CMP_P)
+  // vcmpgeps/vcmpgepd only in AVX.
+  AVX_CMP_P(cmpge, 0xd)
 #undef AVX_CMP_P
 #undef PACKED_CMP_LIST
 

@@ -3101,7 +3101,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4SConvertF32x4: {
       __ I32x4SConvertF32x4(i.OutputSimd128Register(),
-                            i.InputSimd128Register(0), kScratchDoubleReg);
+                            i.InputSimd128Register(0), kScratchDoubleReg,
+                            kScratchRegister);
       break;
     }
     case kX64I32x4SConvertI16x8Low: {

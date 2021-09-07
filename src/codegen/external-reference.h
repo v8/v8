@@ -111,13 +111,6 @@ class StatsCounter;
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \
-  V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
-  V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
-  V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \
-  V(address_of_wasm_i8x16_splat_0x0f, "wasm_i8x16_splat_0x0f")                 \
-  V(address_of_wasm_i8x16_splat_0x33, "wasm_i8x16_splat_0x33")                 \
-  V(address_of_wasm_i8x16_splat_0x55, "wasm_i8x16_splat_0x55")                 \
-  V(address_of_wasm_i16x8_splat_0x0001, "wasm_16x8_splat_0x0001")              \
   V(baseline_pc_for_bytecode_offset, "BaselinePCForBytecodeOffset")            \
   V(baseline_pc_for_next_executed_bytecode,                                    \
     "BaselinePCForNextExecutedBytecode")                                       \
@@ -248,12 +241,20 @@ class StatsCounter;
   IF_WASM(V, wasm_memory_copy, "wasm::memory_copy")                            \
   IF_WASM(V, wasm_memory_fill, "wasm::memory_fill")                            \
   IF_WASM(V, wasm_array_copy, "wasm::array_copy")                              \
+  V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
+  V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \
+  V(address_of_wasm_i8x16_splat_0x01, "wasm_i8x16_splat_0x01")                 \
+  V(address_of_wasm_i8x16_splat_0x0f, "wasm_i8x16_splat_0x0f")                 \
+  V(address_of_wasm_i8x16_splat_0x33, "wasm_i8x16_splat_0x33")                 \
+  V(address_of_wasm_i8x16_splat_0x55, "wasm_i8x16_splat_0x55")                 \
+  V(address_of_wasm_i16x8_splat_0x0001, "wasm_16x8_splat_0x0001")              \
   V(address_of_wasm_f64x2_convert_low_i32x4_u_int_mask,                        \
     "wasm_f64x2_convert_low_i32x4_u_int_mask")                                 \
   V(supports_wasm_simd_128_address, "wasm::supports_wasm_simd_128_address")    \
   V(address_of_wasm_double_2_power_52, "wasm_double_2_power_52")               \
   V(address_of_wasm_int32_max_as_double, "wasm_int32_max_as_double")           \
   V(address_of_wasm_uint32_max_as_double, "wasm_uint32_max_as_double")         \
+  V(address_of_wasm_int32_overflow_as_float, "wasm_int32_overflow_as_float")   \
   V(write_barrier_marking_from_code_function, "WriteBarrier::MarkingFromCode") \
   V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")   \
   V(call_enter_context_function, "call_enter_context_function")                \

@@ -649,31 +649,6 @@ void SharedTurboAssembler::I32x4ExtMul(XMMRegister dst, XMMRegister src1,
   }
 }
 
-void SharedTurboAssembler::I32x4SConvertF32x4(XMMRegister dst, XMMRegister src,
-                                              XMMRegister scratch) {
-  // Convert NAN to 0.
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vcmpeqps(scratch, src, src);
-    vpand(dst, src, scratch);
-  } else {
-    movaps(scratch, src);
-    cmpeqps(scratch, src);
-    if (dst != src) movaps(dst, src);
-    andps(dst, scratch);
-  }
-
-  // Set top bit if >= 0 (but not -0.0!).
-  Pxor(scratch, dst);
-  // Convert to packed single-precision.
-  Cvttps2dq(dst, dst);
-  // Set top bit if >=0 is now < 0.
-  Pand(scratch, dst);
-  Psrad(scratch, scratch, byte{31});
-  // Set positive overflow lanes to 0x7FFFFFFF.
-  Pxor(dst, scratch);
-}
-
 void SharedTurboAssembler::I32x4SConvertI16x8High(XMMRegister dst,
                                                   XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {

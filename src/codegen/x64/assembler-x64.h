@@ -1606,6 +1606,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   AVX_CMP_P(vcmpneq, 0x4)
   AVX_CMP_P(vcmpnlt, 0x5)
   AVX_CMP_P(vcmpnle, 0x6)
+  AVX_CMP_P(vcmpge, 0xd)
 
 #undef AVX_CMP_P
 

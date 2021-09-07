@@ -4212,7 +4212,8 @@ void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_sconvert_f32x4(LiftoffRegister dst,
                                                  LiftoffRegister src) {
-  I32x4SConvertF32x4(dst.fp(), src.fp(), liftoff::kScratchDoubleReg);
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  I32x4SConvertF32x4(dst.fp(), src.fp(), liftoff::kScratchDoubleReg, tmp);
 }
 
 void LiftoffAssembler::emit_i32x4_uconvert_f32x4(LiftoffRegister dst,

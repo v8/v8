@@ -739,6 +739,8 @@ TEST(DisasmX64) {
       __ vcmpnltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
       __ vcmpnleps(xmm5, xmm4, xmm1);
       __ vcmpnleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
+      __ vcmpgeps(xmm5, xmm4, xmm1);
+      __ vcmpgeps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
       __ vcmppd(xmm5, xmm4, xmm1, 1);
       __ vcmppd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1);
       __ vcmpeqpd(xmm5, xmm4, xmm1);

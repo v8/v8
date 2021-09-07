@@ -740,6 +740,8 @@ TEST(DisasmIa320) {
       __ vcmpunordps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
       __ vcmpneqps(xmm5, xmm4, xmm1);
       __ vcmpneqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
+      __ vcmpgeps(xmm5, xmm4, xmm1);
+      __ vcmpgeps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
 
       __ vandpd(xmm0, xmm1, xmm2);
       __ vandpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));

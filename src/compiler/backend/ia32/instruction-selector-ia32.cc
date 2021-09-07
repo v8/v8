@@ -2518,7 +2518,12 @@ void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
 }
 
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
-  VisitRRSimd(this, node, kIA32I32x4SConvertF32x4);
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister()};
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  Emit(kIA32I32x4SConvertF32x4, dst, g.UseRegister(node->InputAt(0)),
+       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {

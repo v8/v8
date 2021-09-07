@@ -389,9 +389,6 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   // Requires that dst == src1 if AVX is not supported.
   void I32x4ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                    XMMRegister scratch, bool low, bool is_signed);
-  // Requires dst == src if AVX is not supported.
-  void I32x4SConvertF32x4(XMMRegister dst, XMMRegister src,
-                          XMMRegister scratch);
   void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);
   void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src,
                               XMMRegister scratch);
@@ -463,6 +460,47 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
     Subpd(dst,
           ExternalReferenceAsOperand(
               ExternalReference::address_of_wasm_double_2_power_52(), scratch));
+  }
+
+  void I32x4SConvertF32x4(XMMRegister dst, XMMRegister src, XMMRegister tmp,
+                          Register scratch) {
+    Operand op = ExternalReferenceAsOperand(
+        ExternalReference::address_of_wasm_int32_overflow_as_float(), scratch);
+
+    // This algorithm works by:
+    // 1. lanes with NaNs are zero-ed
+    // 2. lanes ge than 2147483648.0f (MAX_INT32+1) set to 0xffff'ffff
+    // 3. cvttps2dq sets all out of range lanes to 0x8000'0000
+    //   a. correct for underflows (< MIN_INT32)
+    //   b. wrong for overflow, and we know which lanes overflow from 2.
+    // 4. adjust for 3b by xor-ing 2 and 3
+    //   a. 0x8000'0000 xor 0xffff'ffff = 0x7fff'ffff (MAX_INT32)
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope scope(this, AVX);
+      vcmpeqps(tmp, src, src);
+      vandps(dst, src, tmp);
+      vcmpgeps(tmp, src, op);
+      vcvttps2dq(dst, dst);
+      vpxor(dst, dst, tmp);
+    } else {
+      if (src == dst) {
+        movaps(tmp, src);
+        cmpeqps(tmp, tmp);
+        andps(dst, tmp);
+        movaps(tmp, op);
+        cmpleps(tmp, dst);
+        cvttps2dq(dst, dst);
+        xorps(dst, tmp);
+      } else {
+        movaps(tmp, op);
+        cmpleps(tmp, src);
+        cvttps2dq(dst, src);
+        xorps(dst, tmp);
+        movaps(tmp, src);
+        cmpeqps(tmp, tmp);
+        andps(dst, tmp);
+      }
+    }
   }
 
   void I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src,
