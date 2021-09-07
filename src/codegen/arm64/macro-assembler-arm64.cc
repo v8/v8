@@ -2277,7 +2277,11 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
   Register slots_to_copy = x4;
   Register slots_to_claim = x5;
 
-  Add(slots_to_copy, actual_argument_count, 1);  // Copy with receiver.
+  if (kJSArgcIncludesReceiver) {
+    Mov(slots_to_copy, actual_argument_count);
+  } else {
+    Add(slots_to_copy, actual_argument_count, 1);  // Copy with receiver.
+  }
   Mov(slots_to_claim, extra_argument_count);
   Tbz(extra_argument_count, 0, &even_extra_count);
 
@@ -2291,7 +2295,9 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
     Register scratch = x11;
     Add(slots_to_claim, extra_argument_count, 1);
     And(scratch, actual_argument_count, 1);
-    Eor(scratch, scratch, 1);
+    if (!kJSArgcIncludesReceiver) {
+      Eor(scratch, scratch, 1);
+    }
     Sub(slots_to_claim, slots_to_claim, Operand(scratch, LSL, 1));
   }
 
@@ -2312,10 +2318,13 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
   }
 
   Bind(&skip_move);
-  Register actual_argument_with_receiver = x4;
+  Register actual_argument_with_receiver = actual_argument_count;
   Register pointer_next_value = x5;
-  Add(actual_argument_with_receiver, actual_argument_count,
-      1);  // {slots_to_copy} was scratched.
+  if (!kJSArgcIncludesReceiver) {
+    actual_argument_with_receiver = x4;
+    Add(actual_argument_with_receiver, actual_argument_count,
+        1);  // {slots_to_copy} was scratched.
+  }
 
   // Copy extra arguments as undefined values.
   {

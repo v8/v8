@@ -1779,7 +1779,20 @@ constexpr int kSwissNameDictionaryInitialCapacity = 4;
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
 
-static const uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
+#ifdef V8_INCLUDE_RECEIVER_IN_ARGC
+constexpr bool kJSArgcIncludesReceiver = true;
+constexpr int kJSArgcReceiverSlots = 1;
+constexpr uint16_t kDontAdaptArgumentsSentinel = 0;
+#else
+constexpr bool kJSArgcIncludesReceiver = false;
+constexpr int kJSArgcReceiverSlots = 0;
+constexpr uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
+#endif
+
+// Helper to get the parameter count for functions with JS linkage.
+inline constexpr int JSParameterCount(int param_count_without_receiver) {
+  return param_count_without_receiver + kJSArgcReceiverSlots;
+}
 
 // Opaque data type for identifying stack frames. Used extensively
 // by the debugger.

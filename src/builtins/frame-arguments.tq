@@ -9,7 +9,7 @@ struct Arguments {
   // length is the number of arguments without the receiver.
   const length: intptr;
   // actual_count is the actual number of arguments on the stack (depending on
-  // kArgcIncludesReceiver may or may not include the receiver).
+  // kJSArgcIncludesReceiver may or may not include the receiver).
   const actual_count: intptr;
 }
 

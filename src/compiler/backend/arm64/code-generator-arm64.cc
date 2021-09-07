@@ -3182,7 +3182,9 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // number of arguments is given by max(1 + argc_reg, parameter_slots).
     Label argc_reg_has_final_count;
     DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
-    __ Add(argc_reg, argc_reg, 1);  // Consider the receiver.
+    if (!kJSArgcIncludesReceiver) {
+      __ Add(argc_reg, argc_reg, 1);  // Consider the receiver.
+    }
     if (parameter_slots > 1) {
       __ Cmp(argc_reg, Operand(parameter_slots));
       __ B(&argc_reg_has_final_count, ge);

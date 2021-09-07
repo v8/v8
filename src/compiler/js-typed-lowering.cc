@@ -1595,7 +1595,8 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
     Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 3,
+                      jsgraph()->Constant(JSParameterCount(arity)));
     node->InsertInput(graph()->zone(), 4, jsgraph()->Constant(start_index));
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
@@ -1633,7 +1634,8 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
     node->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(graph()->zone(), 0, jsgraph()->Constant(code));
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 3,
+                      jsgraph()->Constant(JSParameterCount(arity)));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
     node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
@@ -1663,7 +1665,8 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
     Callable callable = CodeFactory::CallFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 2,
+                      jsgraph()->Constant(JSParameterCount(arity)));
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(start_index));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
@@ -1766,7 +1769,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), formal_count + 2, new_target);
       node->InsertInput(graph()->zone(), formal_count + 3,
-                        jsgraph()->Constant(arity));
+                        jsgraph()->Constant(JSParameterCount(arity)));
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + formal_count,
@@ -1789,13 +1792,15 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->RemoveInput(n.FeedbackVectorIndex());
       node->InsertInput(graph()->zone(), 0, stub_code);  // Code object.
       node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+      node->InsertInput(graph()->zone(), 3,
+                        jsgraph()->Constant(JSParameterCount(arity)));
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
       node->RemoveInput(n.FeedbackVectorIndex());
       node->InsertInput(graph()->zone(), arity + 2, new_target);
-      node->InsertInput(graph()->zone(), arity + 3, jsgraph()->Constant(arity));
+      node->InsertInput(graph()->zone(), arity + 3,
+                        jsgraph()->Constant(JSParameterCount(arity)));
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity,
@@ -1814,7 +1819,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     Callable callable = CodeFactory::CallFunction(isolate(), convert_mode);
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(arity));
+    node->InsertInput(graph()->zone(), 2,
+                      jsgraph()->Constant(JSParameterCount(arity)));
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
                   graph()->zone(), callable.descriptor(), 1 + arity, flags)));

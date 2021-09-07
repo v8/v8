@@ -346,6 +346,12 @@ declare_args() {
 
   # Enable global allocation site tracking.
   v8_allocation_site_tracking = true
+
+  # If enabled, the receiver is always included in the actual and formal
+  # parameter count of function with JS linkage.
+  # TODO(v8:11112): Remove once all architectures support the flag and it is
+  # enabled unconditionally.
+  v8_include_receiver_in_argc = false
 }
 
 # Derived defaults.
@@ -953,6 +959,9 @@ config("features") {
   }
   if (v8_advanced_bigint_algorithms) {
     defines += [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
+  }
+  if (v8_include_receiver_in_argc) {
+    defines += [ "V8_INCLUDE_RECEIVER_IN_ARGC" ]
   }
 }
 

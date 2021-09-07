@@ -1672,7 +1672,11 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     str(scratch, MemOperand(dest, kSystemPointerSize, PostIndex));
     sub(num, num, Operand(1), SetCC);
     bind(&check);
-    b(ge, &copy);
+    if (kJSArgcIncludesReceiver) {
+      b(gt, &copy);
+    } else {
+      b(ge, &copy);
+    }
   }
 
   // Fill remaining expected arguments with undefined values.

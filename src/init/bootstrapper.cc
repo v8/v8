@@ -551,7 +551,7 @@ V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
   fun->shared().set_native(true);
 
   if (adapt) {
-    fun->shared().set_internal_formal_parameter_count(len);
+    fun->shared().set_internal_formal_parameter_count(JSParameterCount(len));
   } else {
     fun->shared().DontAdaptArguments();
   }
@@ -2374,7 +2374,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::PROMISE_FUNCTION_INDEX);
 
     Handle<SharedFunctionInfo> shared(promise_fun->shared(), isolate_);
-    shared->set_internal_formal_parameter_count(1);
+    shared->set_internal_formal_parameter_count(JSParameterCount(1));
     shared->set_length(1);
 
     InstallSpeciesGetter(isolate_, promise_fun);
@@ -2437,7 +2437,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate_, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
     Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate_);
-    shared->set_internal_formal_parameter_count(2);
+    shared->set_internal_formal_parameter_count(JSParameterCount(2));
     shared->set_length(2);
 
     {
@@ -3776,7 +3776,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     isolate_->proxy_map()->SetConstructor(*proxy_function);
 
-    proxy_function->shared().set_internal_formal_parameter_count(2);
+    proxy_function->shared().set_internal_formal_parameter_count(
+        JSParameterCount(2));
     proxy_function->shared().set_length(2);
 
     native_context()->set_proxy_function(*proxy_function);

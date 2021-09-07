@@ -1271,8 +1271,10 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     lea(scratch,
         Operand(expected_parameter_count, times_system_pointer_size, 0));
     AllocateStackSpace(scratch);
-    // Extra words are the receiver and the return address (if a jump).
-    int extra_words = type == InvokeType::kCall ? 1 : 2;
+    // Extra words are the receiver (if not already included in argc) and the
+    // return address (if a jump).
+    int extra_words = type == InvokeType::kCall ? 0 : 1;
+    if (!kJSArgcIncludesReceiver) extra_words++;
     lea(num, Operand(eax, extra_words));  // Number of words to copy.
     Move(current, 0);
     // Fall-through to the loop body because there are non-zero words to copy.

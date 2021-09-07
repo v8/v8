@@ -1177,7 +1177,8 @@ int OptimizedFrame::ComputeParametersCount() const {
   Code code = LookupCode();
   if (code.kind() == CodeKind::BUILTIN) {
     return static_cast<int>(
-        Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
+               Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
+           kJSArgcReceiverSlots;
   } else {
     return JavaScriptFrame::ComputeParametersCount();
   }
@@ -1355,7 +1356,8 @@ int CommonFrameWithJSLinkage::ComputeParametersCount() const {
 
 int JavaScriptFrame::GetActualArgumentCount() const {
   return static_cast<int>(
-      Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset));
+             Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
+         kJSArgcReceiverSlots;
 }
 
 Handle<FixedArray> CommonFrameWithJSLinkage::GetParameters() const {

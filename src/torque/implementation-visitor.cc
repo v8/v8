@@ -588,7 +588,10 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                       "UncheckedCast<RawPtrT>(LoadFramePointer());\n";
       csa_ccfile() << "  TorqueStructArguments "
                       "torque_arguments(GetFrameArguments(arguments_frame, "
-                      "arguments_length));\n";
+                      "arguments_length, FrameArgumentsArgcType::"
+                   << (kJSArgcIncludesReceiver ? "kCountIncludesReceiver"
+                                               : "kCountExcludesReceiver")
+                   << "));\n";
       csa_ccfile()
           << "  CodeStubArguments arguments(this, torque_arguments);\n";
 
@@ -3522,7 +3525,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
           // count.
           int parameter_count =
               static_cast<int>(builtin->signature().ExplicitCount());
-          builtin_definitions << ", " << parameter_count;
+          builtin_definitions << ", " << JSParameterCount(parameter_count);
           // And the receiver is explicitly declared.
           builtin_definitions << ", kReceiver";
           for (size_t i = builtin->signature().implicit_count;

@@ -131,18 +131,21 @@ DEF_ACQUIRE_GETTER(SharedFunctionInfo,
 
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_with_receiver()
     const {
-  uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
+  const uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
   if (param_count == kDontAdaptArgumentsSentinel) return param_count;
-  return param_count + 1;
+  return param_count + (kJSArgcIncludesReceiver ? 0 : 1);
 }
 
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()
     const {
-  return TorqueGeneratedClass::formal_parameter_count();
+  const uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
+  if (param_count == kDontAdaptArgumentsSentinel) return param_count;
+  return param_count - kJSArgcReceiverSlots;
 }
 
 void SharedFunctionInfo::set_internal_formal_parameter_count(int value) {
   DCHECK_EQ(value, static_cast<uint16_t>(value));
+  DCHECK_GE(value, kJSArgcReceiverSlots);
   TorqueGeneratedClass::set_formal_parameter_count(value);
 }
 
@@ -401,7 +404,7 @@ void SharedFunctionInfo::DontAdaptArguments() {
   // TODO(leszeks): Revise this DCHECK now that the code field is gone.
   DCHECK(!HasWasmExportedFunctionData());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
+  TorqueGeneratedClass::set_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
 bool SharedFunctionInfo::IsDontAdaptArguments() const {

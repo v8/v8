@@ -712,14 +712,16 @@ void InterpreterAssembler::CallJSAndDispatch(
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
 
-  TNode<Word32T> args_count;
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    // The receiver is implied, so it is not in the argument list.
-    args_count = args.reg_count();
-  } else {
-    // Subtract the receiver from the argument count.
+  TNode<Word32T> args_count = args.reg_count();
+  const bool receiver_included =
+      receiver_mode != ConvertReceiverMode::kNullOrUndefined;
+  if (kJSArgcIncludesReceiver && !receiver_included) {
+    // Add receiver if we want to include it in argc and it isn't already.
+    args_count = Int32Add(args_count, Int32Constant(kJSArgcReceiverSlots));
+  } else if (!kJSArgcIncludesReceiver && receiver_included) {
+    // Subtract receiver if we don't want to include it, but it is included.
     TNode<Int32T> receiver_count = Int32Constant(1);
-    args_count = Int32Sub(args.reg_count(), receiver_count);
+    args_count = Int32Sub(args_count, receiver_count);
   }
 
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
@@ -747,6 +749,7 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
   Callable callable = CodeFactory::Call(isolate());
   TNode<Code> code_target = HeapConstant(callable.code());
 
+  arg_count = JSParameterCount(arg_count);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The first argument parameter (the receiver) is implied to be undefined.
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
@@ -791,8 +794,11 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
       InterpreterPushArgsMode::kWithFinalSpread);
   TNode<Code> code_target = HeapConstant(callable.code());
 
-  TNode<Int32T> receiver_count = Int32Constant(1);
-  TNode<Word32T> args_count = Int32Sub(args.reg_count(), receiver_count);
+  TNode<Word32T> args_count = args.reg_count();
+  if (!kJSArgcIncludesReceiver) {
+    TNode<Int32T> receiver_count = Int32Constant(1);
+    args_count = Int32Sub(args_count, receiver_count);
+  }
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
                                    args_count, args.base_reg_location(),
                                    function);
@@ -811,6 +817,7 @@ TNode<Object> InterpreterAssembler::Construct(
   Label return_result(this), construct_generic(this),
       construct_array(this, &var_site);
 
+  TNode<Word32T> args_count = JSParameterCount(args.reg_count());
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
                            slot_id, UpdateFeedbackMode::kOptionalFeedback,
                            &construct_generic, &construct_array, &var_site);
@@ -822,7 +829,7 @@ TNode<Object> InterpreterAssembler::Construct(
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kOther);
     var_result =
-        CallStub(callable, context, args.reg_count(), args.base_reg_location(),
+        CallStub(callable, context, args_count, args.base_reg_location(),
                  target, new_target, UndefinedConstant());
     Goto(&return_result);
   }
@@ -835,7 +842,7 @@ TNode<Object> InterpreterAssembler::Construct(
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kArrayFunction);
     var_result =
-        CallStub(callable, context, args.reg_count(), args.base_reg_location(),
+        CallStub(callable, context, args_count, args.base_reg_location(),
                  target, new_target, var_site.value());
     Goto(&return_result);
   }
@@ -961,7 +968,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   Comment("call using ConstructWithSpread builtin");
   Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
       isolate(), InterpreterPushArgsMode::kWithFinalSpread);
-  return CallStub(callable, context, args.reg_count(), args.base_reg_location(),
+  TNode<Word32T> args_count = JSParameterCount(args.reg_count());
+  return CallStub(callable, context, args_count, args.base_reg_location(),
                   target, new_target, UndefinedConstant());
 }
 

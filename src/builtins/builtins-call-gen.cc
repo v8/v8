@@ -274,7 +274,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   BIND(&if_done);
   {
     Label if_not_double(this), if_double(this);
-    TNode<Int32T> args_count = Int32Constant(0);  // args already on the stack
+    TNode<Int32T> args_count =
+        Int32Constant(i::JSParameterCount(0));  // args already on the stack
 
     TNode<Int32T> length = var_length.value();
     {

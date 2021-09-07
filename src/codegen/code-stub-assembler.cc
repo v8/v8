@@ -9522,7 +9522,8 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
             GetCreationContext(CAST(holder), if_bailout);
         var_value = CallBuiltin(
             Builtin::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver,
-            creation_context, getter, IntPtrConstant(0), receiver);
+            creation_context, getter, IntPtrConstant(i::JSParameterCount(0)),
+            receiver);
         Goto(&done);
 
         BIND(&runtime);
@@ -14089,11 +14090,19 @@ TNode<Object> CodeStubArguments::AtIndex(int index) const {
 }
 
 TNode<IntPtrT> CodeStubArguments::GetLengthWithoutReceiver() const {
-  return argc_;
+  TNode<IntPtrT> argc = argc_;
+  if (kJSArgcIncludesReceiver) {
+    argc = assembler_->IntPtrSub(argc, assembler_->IntPtrConstant(1));
+  }
+  return argc;
 }
 
 TNode<IntPtrT> CodeStubArguments::GetLengthWithReceiver() const {
-  return assembler_->IntPtrAdd(argc_, assembler_->IntPtrConstant(1));
+  TNode<IntPtrT> argc = argc_;
+  if (!kJSArgcIncludesReceiver) {
+    argc = assembler_->IntPtrAdd(argc, assembler_->IntPtrConstant(1));
+  }
+  return argc;
 }
 
 TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
@@ -14552,7 +14561,15 @@ TNode<Object> CodeStubAssembler::GetArgumentValue(TorqueStructArguments args,
 }
 
 TorqueStructArguments CodeStubAssembler::GetFrameArguments(
-    TNode<RawPtrT> frame, TNode<IntPtrT> argc) {
+    TNode<RawPtrT> frame, TNode<IntPtrT> argc,
+    FrameArgumentsArgcType argc_type) {
+  if (kJSArgcIncludesReceiver &&
+      argc_type == FrameArgumentsArgcType::kCountExcludesReceiver) {
+    argc = IntPtrAdd(argc, IntPtrConstant(kJSArgcReceiverSlots));
+  } else if (!kJSArgcIncludesReceiver &&
+             argc_type == FrameArgumentsArgcType::kCountIncludesReceiver) {
+    argc = IntPtrSub(argc, IntPtrConstant(1));
+  }
   return CodeStubArguments(this, argc, frame).GetTorqueArguments();
 }
 

@@ -53,7 +53,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
 
   // Set integer fields (smi or int, depending on the architecture).
   set_length(0);
-  set_internal_formal_parameter_count(0);
+  set_internal_formal_parameter_count(JSParameterCount(0));
   set_expected_nof_properties(0);
   set_raw_function_token_offset(0);
 
@@ -461,7 +461,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
   // When adding fields here, make sure DeclarationScope::AnalyzePartially is
   // updated accordingly.
-  shared_info->set_internal_formal_parameter_count(lit->parameter_count());
+  shared_info->set_internal_formal_parameter_count(
+      JSParameterCount(lit->parameter_count()));
   shared_info->SetFunctionTokenPosition(lit->function_token_position(),
                                         lit->start_position());
   shared_info->set_syntax_kind(lit->syntax_kind());
