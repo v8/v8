@@ -26,7 +26,6 @@
                                                                                \
   /* Non-specified, V8-only experimental additions to the GC proposal */       \
   /* V8 side owner: jkummerow */                                               \
-  V(gc_experiments, "garbage collection V8-only experimental features", false) \
   V(nn_locals,                                                                 \
     "allow non-defaultable/non-nullable locals, validated with 'until end of " \
     "block' semantics",                                                        \

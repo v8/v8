@@ -1091,7 +1091,6 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
   WASM_FEATURE_SCOPE(return_call);
 
   byte function_index = builder.AddFunction(sigs.i_ii());
@@ -4317,7 +4316,6 @@ TEST_F(FunctionBodyDecoderTest, RttSub) {
   WASM_FEATURE_SCOPE(reftypes);
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(gc_experiments);
 
   uint8_t array_type_index = builder.AddArray(kWasmI8, true);
   uint8_t super_struct_type_index = builder.AddStruct({F(kWasmI16, true)});

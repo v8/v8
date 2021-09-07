@@ -4261,7 +4261,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       }
       case kExprArrayCopy: {
         NON_CONST_ONLY
-        CHECK_PROTOTYPE_OPCODE(gc_experiments);
         ArrayIndexImmediate<validate> dst_imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, dst_imm)) return 0;
         if (!VALIDATE(dst_imm.array_type->mutability())) {
@@ -4296,7 +4295,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         return opcode_length + dst_imm.length + src_imm.length;
       }
       case kExprArrayInit: {
-        CHECK_PROTOTYPE_OPCODE(gc_experiments);
         if (decoding_mode != kInitExpression) {
           this->DecodeError("array.init is only allowed in init. expressions");
           return 0;
@@ -4365,8 +4363,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         return opcode_length + imm.length;
       }
       case kExprRttFreshSub:
-        CHECK_PROTOTYPE_OPCODE(gc_experiments);
-        V8_FALLTHROUGH;
       case kExprRttSub: {
         IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
                                      "type index");
