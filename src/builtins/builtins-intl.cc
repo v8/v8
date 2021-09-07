@@ -30,6 +30,7 @@
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
 #include "unicode/brkiter.h"
@@ -656,8 +657,7 @@ BUILTIN(LocaleConstructor) {
   // 10. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options_object;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, options_object,
-      Intl::CoerceOptionsToObject(isolate, options, method));
+      isolate, options_object, CoerceOptionsToObject(isolate, options, method));
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSLocale::New(isolate, map, locale_string, options_object));

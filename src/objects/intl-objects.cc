@@ -24,6 +24,7 @@
 #include "src/objects/js-locale.h"
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
@@ -652,82 +653,6 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
   return receiver;
 }
 
-Maybe<bool> Intl::GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
-                                  const char* property,
-                                  std::vector<const char*> values,
-                                  const char* service,
-                                  std::unique_ptr<char[]>* result) {
-  Handle<String> property_str =
-      isolate->factory()->NewStringFromAsciiChecked(property);
-
-  // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
-      Nothing<bool>());
-
-  if (value->IsUndefined(isolate)) {
-    return Just(false);
-  }
-
-  // 2. c. Let value be ? ToString(value).
-  Handle<String> value_str;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_str, Object::ToString(isolate, value), Nothing<bool>());
-  std::unique_ptr<char[]> value_cstr = value_str->ToCString();
-
-  // 2. d. if values is not undefined, then
-  if (values.size() > 0) {
-    // 2. d. i. If values does not contain an element equal to value,
-    // throw a RangeError exception.
-    for (size_t i = 0; i < values.size(); i++) {
-      if (strcmp(values.at(i), value_cstr.get()) == 0) {
-        // 2. e. return value
-        *result = std::move(value_cstr);
-        return Just(true);
-      }
-    }
-
-    Handle<String> service_str =
-        isolate->factory()->NewStringFromAsciiChecked(service);
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kValueOutOfRange, value, service_str,
-                      property_str),
-        Nothing<bool>());
-  }
-
-  // 2. e. return value
-  *result = std::move(value_cstr);
-  return Just(true);
-}
-
-V8_WARN_UNUSED_RESULT Maybe<bool> Intl::GetBoolOption(
-    Isolate* isolate, Handle<JSReceiver> options, const char* property,
-    const char* service, bool* result) {
-  Handle<String> property_str =
-      isolate->factory()->NewStringFromAsciiChecked(property);
-
-  // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      Object::GetPropertyOrElement(isolate, options, property_str),
-      Nothing<bool>());
-
-  // 2. If value is not undefined, then
-  if (!value->IsUndefined(isolate)) {
-    // 2. b. i. Let value be ToBoolean(value).
-    *result = value->BooleanValue(isolate);
-
-    // 2. e. return value
-    return Just(true);
-  }
-
-  return Just(false);
-}
-
 namespace {
 
 bool IsTwoLetterLanguage(const std::string& locale) {
@@ -1126,55 +1051,6 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                        numeric_obj);
 }
 
-namespace {
-
-// ecma402/#sec-defaultnumberoption
-Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
-                               int max, int fallback, Handle<String> property) {
-  // 2. Else, return fallback.
-  if (value->IsUndefined()) return Just(fallback);
-
-  // 1. If value is not undefined, then
-  // a. Let value be ? ToNumber(value).
-  Handle<Object> value_num;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value_num, Object::ToNumber(isolate, value), Nothing<int>());
-  DCHECK(value_num->IsNumber());
-
-  // b. If value is NaN or less than minimum or greater than maximum, throw a
-  // RangeError exception.
-  if (value_num->IsNaN() || value_num->Number() < min ||
-      value_num->Number() > max) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
-        Nothing<int>());
-  }
-
-  // The max and min arguments are integers and the above check makes
-  // sure that we are within the integer range making this double to
-  // int conversion safe.
-  //
-  // c. Return floor(value).
-  return Just(FastD2I(floor(value_num->Number())));
-}
-
-}  // namespace
-
-// ecma402/#sec-getnumberoption
-Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
-                                 Handle<String> property, int min, int max,
-                                 int fallback) {
-  // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, JSReceiver::GetProperty(isolate, options, property),
-      Nothing<int>());
-
-  // Return ? DefaultNumberOption(value, minimum, maximum, fallback).
-  return DefaultNumberOption(isolate, value, min, max, fallback, property);
-}
-
 Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     Isolate* isolate, Handle<JSReceiver> options, int mnfd_default,
     int mxfd_default, bool notation_is_compact) {
@@ -1184,8 +1060,8 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
   // 1).
   int mnid = 1;
-  if (!Intl::GetNumberOption(isolate, options,
-                             factory->minimumIntegerDigits_string(), 1, 21, 1)
+  if (!GetNumberOption(isolate, options, factory->minimumIntegerDigits_string(),
+                       1, 21, 1)
            .To(&mnid)) {
     return Nothing<NumberFormatDigitOptions>();
   }
@@ -1612,9 +1488,9 @@ MaybeHandle<JSObject> SupportedLocales(
 
   // 1. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options_obj,
-      Intl::CoerceOptionsToObject(isolate, options, method), JSObject);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
+                             CoerceOptionsToObject(isolate, options, method),
+                             JSObject);
 
   // 2. Let matcher be ? GetOption(options, "localeMatcher", "string",
   //       « "lookup", "best fit" », "best fit").
@@ -2222,7 +2098,7 @@ base::TimezoneCache* Intl::CreateTimeZoneCache() {
 Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
                                                   Handle<JSReceiver> options,
                                                   const char* method) {
-  return Intl::GetStringOption<Intl::MatcherOption>(
+  return GetStringOption<Intl::MatcherOption>(
       isolate, options, "localeMatcher", method, {"best fit", "lookup"},
       {Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
       Intl::MatcherOption::kBestFit);
@@ -2233,8 +2109,8 @@ Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                                      const char* method,
                                      std::unique_ptr<char[]>* result) {
   const std::vector<const char*> empty_values = {};
-  Maybe<bool> maybe = Intl::GetStringOption(isolate, options, "numberingSystem",
-                                            empty_values, method, result);
+  Maybe<bool> maybe = GetStringOption(isolate, options, "numberingSystem",
+                                      empty_values, method, result);
   MAYBE_RETURN(maybe, Nothing<bool>());
   if (maybe.FromJust() && *result != nullptr) {
     if (!IsWellFormedNumberingSystem(result->get())) {
@@ -2341,41 +2217,6 @@ MaybeHandle<String> Intl::FormattedToString(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
   }
   return Intl::ToString(isolate, result);
-}
-
-// ecma402/#sec-getoptionsobject
-MaybeHandle<JSReceiver> Intl::GetOptionsObject(Isolate* isolate,
-                                               Handle<Object> options,
-                                               const char* service) {
-  // 1. If options is undefined, then
-  if (options->IsUndefined(isolate)) {
-    // a. Return ! ObjectCreate(null).
-    return isolate->factory()->NewJSObjectWithNullProto();
-  }
-  // 2. If Type(options) is Object, then
-  if (options->IsJSReceiver()) {
-    // a. Return options.
-    return Handle<JSReceiver>::cast(options);
-  }
-  // 3. Throw a TypeError exception.
-  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument),
-                  JSReceiver);
-}
-
-// ecma402/#sec-coerceoptionstoobject
-MaybeHandle<JSReceiver> Intl::CoerceOptionsToObject(Isolate* isolate,
-                                                    Handle<Object> options,
-                                                    const char* service) {
-  // 1. If options is undefined, then
-  if (options->IsUndefined(isolate)) {
-    // a. Return ! ObjectCreate(null).
-    return isolate->factory()->NewJSObjectWithNullProto();
-  }
-  // 2. Return ? ToObject(options).
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                             Object::ToObject(isolate, options, service),
-                             JSReceiver);
-  return Handle<JSReceiver>::cast(options);
 }
 
 MaybeHandle<JSArray> Intl::ToJSArray(

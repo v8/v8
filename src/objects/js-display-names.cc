@@ -17,6 +17,7 @@
 #include "src/objects/js-display-names-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/option-utils.h"
 #include "unicode/dtfmtsym.h"
 #include "unicode/dtptngen.h"
 #include "unicode/localebuilder.h"
@@ -372,9 +373,9 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
       maybe_requested_locales.FromJust();
 
   // 4. Let options be ? GetOptionsObject(options).
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options, Intl::GetOptionsObject(isolate, input_options, service),
-      JSDisplayNames);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                             GetOptionsObject(isolate, input_options, service),
+                             JSDisplayNames);
 
   // Note: No need to create a record. It's not observable.
   // 5. Let opt be a new Record.
@@ -409,7 +410,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
 
   // 10. Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
-  Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
+  Maybe<Style> maybe_style = GetStringOption<Style>(
       isolate, options, "style", service, {"long", "short", "narrow"},
       {Style::kLong, Style::kShort, Style::kNarrow}, Style::kLong);
   MAYBE_RETURN(maybe_style, MaybeHandle<JSDisplayNames>());
@@ -422,23 +423,22 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   // undefined).
   Maybe<Type> maybe_type =
       FLAG_harmony_intl_displaynames_v2
-          ? Intl::GetStringOption<Type>(
+          ? GetStringOption<Type>(
                 isolate, options, "type", service,
                 {"language", "region", "script", "currency", "calendar",
                  "dateTimeField"},
                 {Type::kLanguage, Type::kRegion, Type::kScript, Type::kCurrency,
                  Type::kCalendar, Type::kDateTimeField},
                 Type::kUndefined)
-          : Intl::GetStringOption<Type>(
-                isolate, options, "type", service,
-                {"language", "region", "script", "currency"},
-                {
-                    Type::kLanguage,
-                    Type::kRegion,
-                    Type::kScript,
-                    Type::kCurrency,
-                },
-                Type::kUndefined);
+          : GetStringOption<Type>(isolate, options, "type", service,
+                                  {"language", "region", "script", "currency"},
+                                  {
+                                      Type::kLanguage,
+                                      Type::kRegion,
+                                      Type::kScript,
+                                      Type::kCurrency,
+                                  },
+                                  Type::kUndefined);
   MAYBE_RETURN(maybe_type, MaybeHandle<JSDisplayNames>());
   Type type_enum = maybe_type.FromJust();
 
@@ -452,7 +452,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
 
   // 15. Let fallback be ? GetOption(options, "fallback", "string",
   //     « "code", "none" », "code").
-  Maybe<Fallback> maybe_fallback = Intl::GetStringOption<Fallback>(
+  Maybe<Fallback> maybe_fallback = GetStringOption<Fallback>(
       isolate, options, "fallback", service, {"code", "none"},
       {Fallback::kCode, Fallback::kNone}, Fallback::kCode);
   MAYBE_RETURN(maybe_fallback, MaybeHandle<JSDisplayNames>());
@@ -465,7 +465,7 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
     // 24. Let languageDisplay be ? GetOption(options, "languageDisplay",
     // "string", « "dialect", "standard" », "dialect").
     Maybe<LanguageDisplay> maybe_language_display =
-        Intl::GetStringOption<LanguageDisplay>(
+        GetStringOption<LanguageDisplay>(
             isolate, options, "languageDisplay", service,
             {"dialect", "standard"},
             {LanguageDisplay::kDialect, LanguageDisplay::kStandard},

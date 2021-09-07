@@ -1619,6 +1619,8 @@ filegroup(
         "src/objects/objects-definitions.h",
         "src/objects/oddball-inl.h",
         "src/objects/oddball.h",
+        "src/objects/option-utils.h",
+        "src/objects/option-utils.cc",
         "src/objects/ordered-hash-table-inl.h",
         "src/objects/ordered-hash-table.cc",
         "src/objects/ordered-hash-table.h",
