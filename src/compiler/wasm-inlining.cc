@@ -51,7 +51,8 @@ Reduction WasmInliner::ReduceCall(Node* call) {
     Graph::SubgraphScope scope(graph());
     result = wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features,
                                 module(), &builder, &detected, inlinee_body,
-                                &infos, node_origins_, inlinee_index_);
+                                &infos, node_origins_, inlinee_index_,
+                                wasm::kDoNotInstrumentEndpoints);
     inlinee_start = graph()->start();
     inlinee_end = graph()->end();
   }
@@ -60,9 +61,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
   return InlineCall(call, inlinee_start, inlinee_end);
 }
 
-// TODO(12166): Handle exceptions.
-// TODO(12166): Test multiple/zero returns, infinite loops.
-// TODO(12166): Remove stack checks and wasm tracing from inlinee.
+// TODO(12166): Handle exceptions and tail calls.
 Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
                                   Node* callee_end) {
   DCHECK_EQ(call->opcode(), IrOpcode::kCall);

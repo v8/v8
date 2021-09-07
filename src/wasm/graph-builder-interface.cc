@@ -109,9 +109,12 @@ class WasmGraphBuildingInterface {
         : ControlBase(std::forward<Args>(args)...) {}
   };
 
-  explicit WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
-                                      int func_index)
-      : builder_(builder), func_index_(func_index) {}
+  WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
+                             int func_index,
+                             EndpointInstrumentationMode instrumentation)
+      : builder_(builder),
+        func_index_(func_index),
+        instrumentation_(instrumentation) {}
 
   void StartFunction(FullDecoder* decoder) {
     // Get the branch hints map for this function (if available)
@@ -155,7 +158,9 @@ class WasmGraphBuildingInterface {
     }
     LoadContextIntoSsa(ssa_env);
 
-    if (FLAG_trace_wasm) builder_->TraceFunctionEntry(decoder->position());
+    if (FLAG_trace_wasm && instrumentation_ == kInstrumentEndpoints) {
+      builder_->TraceFunctionEntry(decoder->position());
+    }
   }
 
   // Reload the instance cache entries into the Ssa Environment.
@@ -165,7 +170,11 @@ class WasmGraphBuildingInterface {
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
-  void FinishFunction(FullDecoder*) { builder_->PatchInStackCheckIfNeeded(); }
+  void FinishFunction(FullDecoder*) {
+    if (instrumentation_ == kInstrumentEndpoints) {
+      builder_->PatchInStackCheckIfNeeded();
+    }
+  }
 
   void OnFirstError(FullDecoder*) {}
 
@@ -477,7 +486,7 @@ class WasmGraphBuildingInterface {
                               : decoder->stack_value(ret_count + drop_values);
       GetNodes(values.begin(), stack_base, ret_count);
     }
-    if (FLAG_trace_wasm) {
+    if (FLAG_trace_wasm && instrumentation_ == kInstrumentEndpoints) {
       builder_->TraceFunctionExit(base::VectorOf(values), decoder->position());
     }
     builder_->Return(base::VectorOf(values));
@@ -1159,6 +1168,7 @@ class WasmGraphBuildingInterface {
   const BranchHintMap* branch_hints_ = nullptr;
   // Tracks loop data for loop unrolling.
   std::vector<compiler::WasmLoopInfo> loop_infos_;
+  EndpointInstrumentationMode instrumentation_;
 
   TFNode* effect() { return builder_->effect(); }
 
@@ -1594,10 +1604,12 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           WasmFeatures* detected, const FunctionBody& body,
                           std::vector<compiler::WasmLoopInfo>* loop_infos,
                           compiler::NodeOriginTable* node_origins,
-                          int func_index) {
+                          int func_index,
+                          EndpointInstrumentationMode instrumentation) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kFullValidation, WasmGraphBuildingInterface> decoder(
-      &zone, module, enabled, detected, body, builder, func_index);
+      &zone, module, enabled, detected, body, builder, func_index,
+      instrumentation);
   if (node_origins) {
     builder->AddBytecodePositionDecorator(node_origins, &decoder);
   }

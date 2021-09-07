@@ -384,15 +384,16 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
   std::vector<compiler::WasmLoopInfo> loops;
   DecodeResult result =
       BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
-                   &unused_detected_features, body, &loops, nullptr, 0);
+                   &unused_detected_features, body, &loops, nullptr, 0,
+                   kInstrumentEndpoints);
   if (result.failed()) {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
       FLAG_trace_wasm_decoder = true;
-      result =
-          BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
-                       &unused_detected_features, body, &loops, nullptr, 0);
+      result = BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr,
+                            builder, &unused_detected_features, body, &loops,
+                            nullptr, 0, kInstrumentEndpoints);
     }
 #endif
 
