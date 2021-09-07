@@ -3779,28 +3779,53 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
 
 namespace {
 
+// Used for pattern matching SIMD Add operations where one of the inputs matches
+// |opcode| and ensure that the matched input is on the LHS (input 0).
+struct SimdAddOpMatcher : public NodeMatcher {
+  explicit SimdAddOpMatcher(Node* node, IrOpcode::Value opcode)
+      : NodeMatcher(node),
+        opcode_(opcode),
+        left_(InputAt(0)),
+        right_(InputAt(1)) {
+    DCHECK(HasProperty(Operator::kCommutative));
+    PutOpOnLeft();
+  }
+
+  bool Matches() { return left_->opcode() == opcode_; }
+  Node* left() const { return left_; }
+  Node* right() const { return right_; }
+
+ private:
+  void PutOpOnLeft() {
+    if (right_->opcode() == opcode_) {
+      std::swap(left_, right_);
+      node()->ReplaceInput(0, left_);
+      node()->ReplaceInput(1, right_);
+    }
+  }
+  IrOpcode::Value opcode_;
+  Node* left_;
+  Node* right_;
+};
+
 bool ShraHelper(InstructionSelector* selector, Node* node, int lane_size,
                 InstructionCode shra_code, InstructionCode add_code,
                 IrOpcode::Value shift_op) {
   Arm64OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (right->opcode() == shift_op) {
-    std::swap(left, right);
-  } else if (left->opcode() != shift_op) {
-    return false;
-  }
-  if (!selector->CanCover(node, left) || !g.IsIntegerConstant(left->InputAt(1)))
-    return false;
+  SimdAddOpMatcher m(node, shift_op);
+  if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
+  if (!g.IsIntegerConstant(m.left()->InputAt(1))) return false;
+
   // If shifting by zero, just do the addition
-  if (g.GetIntegerConstantValue(left->InputAt(1)) % lane_size == 0) {
+  if (g.GetIntegerConstantValue(m.left()->InputAt(1)) % lane_size == 0) {
     selector->Emit(add_code, g.DefineAsRegister(node),
-                   g.UseRegister(left->InputAt(0)), g.UseRegister(right));
+                   g.UseRegister(m.left()->InputAt(0)),
+                   g.UseRegister(m.right()));
   } else {
     selector->Emit(shra_code | LaneSizeField::encode(lane_size),
-                   g.DefineSameAsFirst(node), g.UseRegister(right),
-                   g.UseRegister(left->InputAt(0)),
-                   g.UseImmediate(left->InputAt(1)));
+                   g.DefineSameAsFirst(node), g.UseRegister(m.right()),
+                   g.UseRegister(m.left()->InputAt(0)),
+                   g.UseImmediate(m.left()->InputAt(1)));
   }
   return true;
 }
@@ -3808,39 +3833,36 @@ bool ShraHelper(InstructionSelector* selector, Node* node, int lane_size,
 bool AdalpHelper(InstructionSelector* selector, Node* node, int lane_size,
                  InstructionCode adalp_code, IrOpcode::Value ext_op) {
   Arm64OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (right->opcode() == ext_op) {
-    std::swap(left, right);
-  } else if (left->opcode() != ext_op) {
-    return false;
-  }
-  if (selector->CanCover(node, left)) {
-    selector->Emit(adalp_code | LaneSizeField::encode(lane_size),
-                   g.DefineSameAsFirst(node), g.UseRegister(right),
-                   g.UseRegister(left->InputAt(0)));
-    return true;
-  }
-  return false;
+  SimdAddOpMatcher m(node, ext_op);
+  if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
+  selector->Emit(adalp_code | LaneSizeField::encode(lane_size),
+                 g.DefineSameAsFirst(node), g.UseRegister(m.right()),
+                 g.UseRegister(m.left()->InputAt(0)));
+  return true;
 }
 
 bool MlaHelper(InstructionSelector* selector, Node* node,
                InstructionCode mla_code, IrOpcode::Value mul_op) {
   Arm64OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  if (right->opcode() == mul_op) {
-    std::swap(left, right);
-  } else if (left->opcode() != mul_op) {
-    return false;
-  }
-  if (selector->CanCover(node, left)) {
-    selector->Emit(mla_code, g.DefineSameAsFirst(node), g.UseRegister(right),
-                   g.UseRegister(left->InputAt(0)),
-                   g.UseRegister(left->InputAt(1)));
-    return true;
-  }
-  return false;
+  SimdAddOpMatcher m(node, mul_op);
+  if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
+  selector->Emit(mla_code, g.DefineSameAsFirst(node), g.UseRegister(m.right()),
+                 g.UseRegister(m.left()->InputAt(0)),
+                 g.UseRegister(m.left()->InputAt(1)));
+  return true;
+}
+
+bool SmlalHelper(InstructionSelector* selector, Node* node, int lane_size,
+                 InstructionCode smlal_code, IrOpcode::Value ext_mul_op) {
+  Arm64OperandGenerator g(selector);
+  SimdAddOpMatcher m(node, ext_mul_op);
+  if (!m.Matches() || !selector->CanCover(node, m.left())) return false;
+
+  selector->Emit(smlal_code | LaneSizeField::encode(lane_size),
+                 g.DefineSameAsFirst(node), g.UseRegister(m.right()),
+                 g.UseRegister(m.left()->InputAt(0)),
+                 g.UseRegister(m.left()->InputAt(1)));
+  return true;
 }
 
 }  // namespace
@@ -3888,6 +3910,18 @@ void InstructionSelector::VisitI8x16Add(Node* node) {
         ShraHelper(this, node, LaneSize, kArm64Usra,                       \
                    kArm64IAdd | LaneSizeField::encode(LaneSize),           \
                    IrOpcode::k##Type##ShrU)) {                             \
+      return;                                                              \
+    }                                                                      \
+    /* Select Smlal/Umlal(x, y, z) for Add(x, ExtMulLow(y, z)) and         \
+     * Smlal2/Umlal2(x, y, z) for Add(x, ExtMulHigh(y, z)). */             \
+    if (SmlalHelper(this, node, LaneSize, kArm64Smlal,                     \
+                    IrOpcode::k##Type##ExtMulLow##PairwiseType##S) ||      \
+        SmlalHelper(this, node, LaneSize, kArm64Smlal2,                    \
+                    IrOpcode::k##Type##ExtMulHigh##PairwiseType##S) ||     \
+        SmlalHelper(this, node, LaneSize, kArm64Umlal,                     \
+                    IrOpcode::k##Type##ExtMulLow##PairwiseType##U) ||      \
+        SmlalHelper(this, node, LaneSize, kArm64Umlal2,                    \
+                    IrOpcode::k##Type##ExtMulHigh##PairwiseType##U)) {     \
       return;                                                              \
     }                                                                      \
     VisitRRR(this, kArm64IAdd | LaneSizeField::encode(LaneSize), node);    \

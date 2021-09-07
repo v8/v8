@@ -2328,6 +2328,83 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorSIMDShrAddTest,
                          ::testing::ValuesIn(kSIMDShrAddInstructions));
 
+namespace {
+struct SIMDAddExtMulInst {
+  const char* mul_constructor_name;
+  const Operator* (MachineOperatorBuilder::*mul_operator)();
+  const Operator* (MachineOperatorBuilder::*add_operator)();
+  ArchOpcode multiply_add_arch_opcode;
+  MachineType machine_type;
+  int lane_size;
+};
+}  // namespace
+
+static const SIMDAddExtMulInst kSimdAddExtMulInstructions[] = {
+    {"I16x8ExtMulLowI8x16S", &MachineOperatorBuilder::I16x8ExtMulLowI8x16S,
+     &MachineOperatorBuilder::I16x8Add, kArm64Smlal, MachineType::Simd128(),
+     16},
+    {"I16x8ExtMulHighI8x16S", &MachineOperatorBuilder::I16x8ExtMulHighI8x16S,
+     &MachineOperatorBuilder::I16x8Add, kArm64Smlal2, MachineType::Simd128(),
+     16},
+    {"I16x8ExtMulLowI8x16U", &MachineOperatorBuilder::I16x8ExtMulLowI8x16U,
+     &MachineOperatorBuilder::I16x8Add, kArm64Umlal, MachineType::Simd128(),
+     16},
+    {"I16x8ExtMulHighI8x16U", &MachineOperatorBuilder::I16x8ExtMulHighI8x16U,
+     &MachineOperatorBuilder::I16x8Add, kArm64Umlal2, MachineType::Simd128(),
+     16},
+    {"I32x4ExtMulLowI16x8S", &MachineOperatorBuilder::I32x4ExtMulLowI16x8S,
+     &MachineOperatorBuilder::I32x4Add, kArm64Smlal, MachineType::Simd128(),
+     32},
+    {"I32x4ExtMulHighI16x8S", &MachineOperatorBuilder::I32x4ExtMulHighI16x8S,
+     &MachineOperatorBuilder::I32x4Add, kArm64Smlal2, MachineType::Simd128(),
+     32},
+    {"I32x4ExtMulLowI16x8U", &MachineOperatorBuilder::I32x4ExtMulLowI16x8U,
+     &MachineOperatorBuilder::I32x4Add, kArm64Umlal, MachineType::Simd128(),
+     32},
+    {"I32x4ExtMulHighI16x8U", &MachineOperatorBuilder::I32x4ExtMulHighI16x8U,
+     &MachineOperatorBuilder::I32x4Add, kArm64Umlal2, MachineType::Simd128(),
+     32}};
+
+using InstructionSelectorSIMDAddExtMulTest =
+    InstructionSelectorTestWithParam<SIMDAddExtMulInst>;
+
+// TODO(zhin): This can be merged with InstructionSelectorSIMDDPWithSIMDMulTest
+// once sub+extmul matching is implemented.
+TEST_P(InstructionSelectorSIMDAddExtMulTest, AddExtMul) {
+  const SIMDAddExtMulInst mdpi = GetParam();
+  const MachineType type = mdpi.machine_type;
+  {
+    // Test Add(x, ExtMul(y, z)).
+    StreamBuilder m(this, type, type, type, type);
+    Node* n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(1),
+                        m.Parameter(2));
+    m.Return(m.AddNode((m.machine()->*mdpi.add_operator)(), m.Parameter(0), n));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.lane_size, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    // Test Add(ExtMul(y, z), x), making sure it's commutative.
+    StreamBuilder m(this, type, type, type, type);
+    Node* n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(0),
+                        m.Parameter(1));
+    m.Return(m.AddNode((m.machine()->*mdpi.add_operator)(), n, m.Parameter(2)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.lane_size, LaneSizeField::decode(s[0]->opcode()));
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorSIMDAddExtMulTest,
+                         ::testing::ValuesIn(kSimdAddExtMulInstructions));
+
 struct SIMDMulDupInst {
   const uint8_t shuffle[16];
   int32_t lane;
