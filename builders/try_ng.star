@@ -350,9 +350,11 @@ try_ng_pair(
 
 optional_rel_cq_properties = {
     "location_regexp": [
-        ".+/[+]/src/codegen/ia32/(macro-)?assembler-ia32.(h|cc)",
         ".+/[+]/src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)",
-        ".+/[+]/src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
+        ".+/[+]/src/codegen/x64/(macro-)?assembler-x64.(h|cc)",
+        ".+/[+]/src/codegen/x64/sse-instr.h",
+        ".+/[+]/src/compiler/backend/x64/code-generator-x64.cc",
+        ".+/[+]/src/wasm/baseline/x64/liftoff-assembler-x64.h",
     ],
     "cancel_stale": False,
 }
