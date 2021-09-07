@@ -3108,7 +3108,7 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
 
 #define GenerateMemoryOperation(reg, mem, ri_op, rr_op) \
   {                                                     \
-    int offset = mem.offset();                          \
+    int64_t offset = mem.offset();                          \
                                                         \
     if (mem.rb() == no_reg) {                           \
       if (!is_int16(offset)) {                          \
@@ -3137,7 +3137,7 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
 
 #define GenerateMemoryOperationWithAlign(reg, mem, ri_op, rr_op) \
   {                                                              \
-    int offset = mem.offset();                                   \
+    int64_t offset = mem.offset();                                   \
     int misaligned = (offset & 3);                               \
                                                                  \
     if (mem.rb() == no_reg) {                                    \
