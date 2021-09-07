@@ -1681,7 +1681,8 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
   __ LoadTaggedPointerField(
-      r3, FieldMemOperand(r2, Code::kDeoptimizationDataOffset));
+      r3,
+      FieldMemOperand(r2, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]

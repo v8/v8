@@ -1641,7 +1641,8 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
   __ LoadTaggedPointerField(
-      r4, FieldMemOperand(r3, Code::kDeoptimizationDataOffset), r0);
+      r4, FieldMemOperand(r3, Code::kDeoptimizationDataOrInterpreterDataOffset),
+      r0);
 
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(masm);
