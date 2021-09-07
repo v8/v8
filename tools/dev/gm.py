@@ -506,7 +506,7 @@ def Main(argv):
   return_code = 0
   # If we have Goma but it is not running, start it.
   if (IS_GOMA_MACHINE and
-      _Call("ps -e | grep compiler_proxy > /dev/null", silent=True) != 0):
+      _Call("pgrep -x compiler_proxy > /dev/null", silent=True) != 0):
     _Call("%s/goma_ctl.py ensure_start" % GOMADIR)
   for c in configs:
     return_code += configs[c].Build()
