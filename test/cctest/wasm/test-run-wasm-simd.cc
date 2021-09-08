@@ -1715,7 +1715,7 @@ void RunExtMulAddOptimizationTest(TestExecutionTier execution_tier,
 
       T expected = addop(MultiplyLong<T, S>(x, x), y);
       for (int i = 0; i < lanes; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<T>(&g[i]));
+        CHECK_EQ(expected, LANE(g, i));
       }
     }
   }
