@@ -1711,6 +1711,16 @@ TEST_F(FunctionBodyDecoderTest, ReturnCallsWithTooFewArguments) {
   ExpectFailure(sig, {WASM_RETURN_CALL_FUNCTION(2, WASM_LOCAL_GET(0))});
 }
 
+TEST_F(FunctionBodyDecoderTest, ReturnCallWithSubtype) {
+  WASM_FEATURE_SCOPE(return_call);
+
+  auto sig = MakeSig::Returns(kWasmExternRef);
+  auto callee_sig = MakeSig::Returns(kWasmExternNonNullableRef);
+  builder.AddFunction(&callee_sig);
+
+  ExpectValidates(&sig, {WASM_RETURN_CALL_FUNCTION0(0)});
+}
+
 TEST_F(FunctionBodyDecoderTest, ReturnCallsWithMismatchedSigs) {
   WASM_FEATURE_SCOPE(return_call);
 

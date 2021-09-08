@@ -1334,7 +1334,9 @@ class WasmDecoder : public Decoder {
     size_t num_returns = sig_->return_count();
     if (num_returns != target_sig->return_count()) return false;
     for (size_t i = 0; i < num_returns; ++i) {
-      if (sig_->GetReturn(i) != target_sig->GetReturn(i)) return false;
+      if (!IsSubtypeOf(target_sig->GetReturn(i), sig_->GetReturn(i),
+                       this->module_))
+        return false;
     }
     return true;
   }
@@ -3299,7 +3301,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     if (!VALIDATE(this->CanReturnCall(imm.sig))) {
       this->DecodeError("%s: %s", WasmOpcodes::OpcodeName(kExprReturnCall),
-                        "tail call return types mismatch");
+                        "tail call type error");
       return 0;
     }
     ArgVector args = PeekArgs(imm.sig);
