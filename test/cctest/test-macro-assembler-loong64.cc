@@ -241,7 +241,7 @@ TEST(jump_tables6) {
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
-  const int kSwitchTableCases = 40;
+  const int kSwitchTableCases = 80;
 
   const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
   const int kTrampolineSlotsSize = Assembler::kTrampolineSlotsSize;
@@ -250,8 +250,7 @@ TEST(jump_tables6) {
   const int kMaxOffsetForTrampolineStart =
       kMaxBranchOffset - 16 * kTrampolineSlotsSize;
   const int kFillInstr = (kMaxOffsetForTrampolineStart / kInstrSize) -
-                         (kSwitchTablePrologueSize + 2 * kSwitchTableCases) -
-                         20;
+                         (kSwitchTablePrologueSize + kSwitchTableCases) - 20;
 
   int values[kSwitchTableCases];
   isolate->random_number_generator()->NextBytes(values, sizeof(values));
@@ -275,7 +274,7 @@ TEST(jump_tables6) {
 
   __ GenerateSwitchTable(a0, kSwitchTableCases,
                          [&labels](size_t i) { return labels + i; });
-  gen_insn += (kSwitchTablePrologueSize + 2 * kSwitchTableCases);
+  gen_insn += (kSwitchTablePrologueSize + kSwitchTableCases);
 
   for (int i = 0; i < kSwitchTableCases; ++i) {
     __ bind(&labels[i]);

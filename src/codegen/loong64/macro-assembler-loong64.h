@@ -1042,20 +1042,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 template <typename Func>
 void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
                                          Func GetLabelFunction) {
-  // Ensure that dd-ed labels following this instruction use 8 bytes aligned
-  // addresses.
-  BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 +
-                         kSwitchTablePrologueSize);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Align(8);  // next is 4 instrs.
-  pcaddi(scratch, 4);
-  // alsl_d will do sa
-  alsl_d(scratch, index, scratch, kPointerSizeLog2);
-  Ld_d(scratch, MemOperand(scratch, 0));
+  UseScratchRegisterScope scope(this);
+  Register scratch = scope.Acquire();
+  BlockTrampolinePoolFor((3 + case_count) * kInstrSize);
+
+  pcaddi(scratch, 3);
+  alsl_d(scratch, index, scratch, kInstrSizeLog2);
   jirl(zero_reg, scratch, 0);
   for (size_t index = 0; index < case_count; ++index) {
-    dd(GetLabelFunction(index));
+    b(GetLabelFunction(index));
   }
 }
 
