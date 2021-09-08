@@ -212,6 +212,97 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
   }
 }
 
+// Specialized algorithms for power-of-two radixes. Designed to work with
+// {ParsePowerTwo}: {max_multiplier_} isn't saved, but {radix_} is, and
+// {last_multiplier_} has special meaning, namely the number of unpopulated bits
+// in the last part.
+// For these radixes, {parts} already is a list of correct bit sequences, we
+// just have to put them together in the right way:
+// - The parts are currently in reversed order. The highest-index parts[i]
+//   will go into Z[0].
+// - All parts, possibly except for the last, are maximally populated.
+// - A maximally populated part stores a non-fractional number of characters,
+//   i.e. the largest fitting multiple of {char_bits} of it is populated.
+// - The populated bits in a part are at the low end.
+// - The number of unused bits in the last part is stored in
+//   {accumulator->last_multiplier_}.
+//
+// Example: Given the following parts vector, where letters are used to
+// label bits, bit order is big endian (i.e. [00000101] encodes "5"),
+// 'x' means "unpopulated", kDigitBits == 8, radix == 8, and char_bits == 3:
+//
+//     parts[0] -> [xxABCDEF][xxGHIJKL][xxMNOPQR][xxxxxSTU] <- parts[3]
+//
+// We have to assemble the following result:
+//
+//         Z[0] -> [NOPQRSTU][FGHIJKLM][xxxABCDE] <- Z[2]
+//
+void ProcessorImpl::FromStringBasePowerOfTwo(
+    RWDigits Z, FromStringAccumulator* accumulator) {
+  const int num_parts = accumulator->ResultLength();
+  DCHECK(num_parts >= 1);  // NOLINT(readability/check)
+  DCHECK(Z.len() >= num_parts);
+  Digits parts(accumulator->heap_parts_.size() > 0
+                   ? accumulator->heap_parts_.data()
+                   : accumulator->stack_parts_,
+               num_parts);
+  uint8_t radix = accumulator->radix_;
+  DCHECK(radix == 2 || radix == 4 || radix == 8 || radix == 16 || radix == 32);
+  const int char_bits = BitLength(radix - 1);
+  const int unused_last_part_bits =
+      static_cast<int>(accumulator->last_multiplier_);
+  const int unused_part_bits = kDigitBits % char_bits;
+  const int max_part_bits = kDigitBits - unused_part_bits;
+  int z_index = 0;
+  int part_index = num_parts - 1;
+
+  // If the last part is fully populated, then all parts must be, and we can
+  // simply copy them (in reversed order).
+  if (unused_last_part_bits == 0) {
+    DCHECK(kDigitBits % char_bits == 0);  // NOLINT(readability/check)
+    while (part_index >= 0) {
+      Z[z_index++] = parts[part_index--];
+    }
+    for (; z_index < Z.len(); z_index++) Z[z_index] = 0;
+    return;
+  }
+
+  // Otherwise we have to shift parts contents around as needed.
+  // Holds the next Z digit that we want to store...
+  digit_t digit = parts[part_index--];
+  // ...and the number of bits (at the right end) we already know.
+  int digit_bits = kDigitBits - unused_last_part_bits;
+  while (part_index >= 0) {
+    // Holds the last part that we read from {parts}...
+    digit_t part;
+    // ...and the number of bits (at the right end) that we haven't used yet.
+    int part_bits;
+    while (digit_bits < kDigitBits) {
+      part = parts[part_index--];
+      part_bits = max_part_bits;
+      digit |= part << digit_bits;
+      int part_shift = kDigitBits - digit_bits;
+      if (part_shift > part_bits) {
+        digit_bits += part_bits;
+        part = 0;
+        part_bits = 0;
+        if (part_index < 0) break;
+      } else {
+        digit_bits = kDigitBits;
+        part >>= part_shift;
+        part_bits -= part_shift;
+      }
+    }
+    Z[z_index++] = digit;
+    digit = part;
+    digit_bits = part_bits;
+  }
+  if (digit_bits > 0) {
+    Z[z_index++] = digit;
+  }
+  for (; z_index < Z.len(); z_index++) Z[z_index] = 0;
+}
+
 void ProcessorImpl::FromString(RWDigits Z, FromStringAccumulator* accumulator) {
   if (accumulator->inline_everything_) {
     int i = 0;
@@ -221,6 +312,8 @@ void ProcessorImpl::FromString(RWDigits Z, FromStringAccumulator* accumulator) {
     for (; i < Z.len(); i++) Z[i] = 0;
   } else if (accumulator->stack_parts_used_ == 0) {
     for (int i = 0; i < Z.len(); i++) Z[i] = 0;
+  } else if (IsPowerOfTwo(accumulator->radix_)) {
+    FromStringBasePowerOfTwo(Z, accumulator);
   } else if (accumulator->ResultLength() < kFromStringLargeThreshold) {
     FromStringClassic(Z, accumulator);
   } else {

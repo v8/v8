@@ -29,13 +29,14 @@ int PrintHelp(char** argv) {
   return 1;
 }
 
-#define TESTS(V)               \
-  V(kBarrett, "barrett")       \
-  V(kBurnikel, "burnikel")     \
-  V(kFFT, "fft")               \
-  V(kFromString, "fromstring") \
-  V(kKaratsuba, "karatsuba")   \
-  V(kToom, "toom")             \
+#define TESTS(V)                     \
+  V(kBarrett, "barrett")             \
+  V(kBurnikel, "burnikel")           \
+  V(kFFT, "fft")                     \
+  V(kFromString, "fromstring")       \
+  V(kFromStringBase2, "fromstring2") \
+  V(kKaratsuba, "karatsuba")         \
+  V(kToom, "toom")                   \
   V(kToString, "tostring")
 
 enum Operation { kNoOp, kList, kTest };
@@ -214,6 +215,10 @@ class Runner {
     } else if (test_ == kFromString) {
       for (int i = 0; i < runs_; i++) {
         TestFromString(&count);
+      }
+    } else if (test_ == kFromStringBase2) {
+      for (int i = 0; i < runs_; i++) {
+        TestFromStringBaseTwo(&count);
       }
     } else {
       DCHECK(false);  // Unreachable.
@@ -413,8 +418,18 @@ class Runner {
     constexpr int kMax = kFromStringLargeThreshold * 2;
     for (int size = kMin; size < kMax; size++) {
       // To keep test execution times low, test one random radix every time.
-      // Valid range is 2 <= radix <= 36 (inclusive).
-      int radix = 2 + (rng_.NextUint64() % 35);
+      // Generally, radixes 2 through 36 (inclusive) are supported; however
+      // the functions {FromStringLarge} and {FromStringClassic} can't deal
+      // with the data format that {Parse} creates for power-of-two radixes,
+      // so we skip power-of-two radixes here (and test them separately below).
+      // We round up the number of radixes in the list to 32 by padding with
+      // 10, giving decimal numbers extra test coverage, and making it easy
+      // to evenly map a random number into the index space.
+      constexpr uint8_t radixes[] = {3,  5,  6,  7,  9,  10, 11, 12, 13, 14, 15,
+                                     17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+                                     28, 29, 30, 31, 33, 34, 35, 36, 10, 10};
+      int radix_index = (rng_.NextUint64() & 31);
+      int radix = radixes[radix_index];
       int num_chars = std::round(size * kDigitBits / std::log2(radix));
       std::unique_ptr<char[]> chars(new char[num_chars]);
       GenerateRandomString(chars.get(), num_chars, radix);
@@ -431,6 +446,38 @@ class Runner {
       AssertEquals(start, num_chars, radix, result, reference);
       if (error_) return;
       (*count)++;
+    }
+  }
+
+  void TestFromStringBaseTwo(int* count) {
+    constexpr int kMaxDigits = 1 << 20;  // Any large-enough value will do.
+    constexpr int kMin = 1;
+    constexpr int kMax = 100;
+    for (int size = kMin; size < kMax; size++) {
+      ScratchDigits X(size);
+      GenerateRandom(X);
+      for (int bits = 1; bits <= 5; bits++) {
+        int radix = 1 << bits;
+        int chars_required = ToStringResultLength(X, radix, false);
+        int string_len = chars_required;
+        std::unique_ptr<char[]> chars(new char[string_len]);
+        processor()->ToStringImpl(chars.get(), &string_len, X, radix, false,
+                                  true);
+        // Fill any remaining allocated characters with garbage to test that
+        // too.
+        for (int i = string_len; i < chars_required; i++) {
+          chars[i] = '?';
+        }
+        const char* start = chars.get();
+        const char* end = start + chars_required;
+        FromStringAccumulator accumulator(kMaxDigits);
+        accumulator.Parse(start, end, radix);
+        ScratchDigits result(accumulator.ResultLength());
+        processor()->FromString(result, &accumulator);
+        AssertEquals(start, chars_required, radix, X, result);
+        if (error_) return;
+        (*count)++;
+      }
     }
   }
 
