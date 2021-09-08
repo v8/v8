@@ -215,15 +215,23 @@ in_category(
 in_category(
     "Mac",
     main_multibranch_builder(
-        name = "V8 Mac64",
+        name = "V8 Mac64 - builder",
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "mac64", "binary": "d8"}},
     ),
     main_multibranch_builder(
-        name = "V8 Mac64 - debug",
+        name = "V8 Mac64",
+        parent_builder = "V8 Mac64 - builder",
+    ),
+    main_multibranch_builder(
+        name = "V8 Mac64 - debug builder",
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+    ),
+    main_multibranch_builder(
+        name = "V8 Mac64 - debug",
+        parent_builder = "V8 Mac64 - debug builder",
     ),
     main_multibranch_builder(
         name = "V8 Mac - arm64 - release builder",
@@ -259,8 +267,7 @@ in_category(
     ),
     main_multibranch_builder(
         name = "V8 Mac64 GC Stress",
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        parent_builder = "V8 Mac64 - debug builder",
     ),
 )
 
