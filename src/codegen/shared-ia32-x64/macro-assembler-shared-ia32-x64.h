@@ -332,6 +332,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSSE3(Psignw, psignw)
 
   AVX_OP_SSE4_1(Extractps, extractps)
+  AVX_OP_SSE4_1(Packusdw, packusdw)
   AVX_OP_SSE4_1(Pblendw, pblendw)
   AVX_OP_SSE4_1(Pextrb, pextrb)
   AVX_OP_SSE4_1(Pextrw, pextrw)

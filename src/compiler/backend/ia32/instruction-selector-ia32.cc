@@ -2299,6 +2299,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8MinU)                             \
   V(I16x8MaxU)                             \
   V(I16x8SConvertI32x4)                    \
+  V(I16x8UConvertI32x4)                    \
   V(I16x8RoundingAverageU)                 \
   V(I8x16Add)                              \
   V(I8x16AddSatS)                          \
@@ -2313,6 +2314,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16MinU)                             \
   V(I8x16MaxU)                             \
   V(I8x16SConvertI16x8)                    \
+  V(I8x16UConvertI16x8)                    \
   V(I8x16RoundingAverageU)                 \
   V(S128And)                               \
   V(S128Or)                                \
@@ -2686,35 +2688,11 @@ SIMD_BINOP_RRR(VISIT_SIMD_BINOP_RRR)
 #undef VISIT_SIMD_BINOP_RRR
 #undef SIMD_BINOP_RRR
 
-// TODO(v8:9198): SSE requires operand1 to be a register as we don't have memory
-// alignment yet. For AVX, memory operands are fine, but can have performance
-// issues if not aligned to 16/32 bytes (based on load size), see SDM Vol 1,
-// chapter 14.9
-void VisitPack(InstructionSelector* selector, Node* node, ArchOpcode avx_opcode,
-               ArchOpcode sse_opcode) {
-  IA32OperandGenerator g(selector);
-  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
-  if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineSameAsFirst(node), operand0, operand1);
-  } else {
-    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0, operand1);
-  }
-}
-
-void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
-  VisitPack(this, node, kAVXI16x8UConvertI32x4, kSSEI16x8UConvertI32x4);
-}
-
 void InstructionSelector::VisitI16x8BitMask(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kIA32I16x8BitMask, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
-}
-
-void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
-  VisitPack(this, node, kAVXI8x16UConvertI16x8, kSSEI8x16UConvertI16x8);
 }
 
 void InstructionSelector::VisitI8x16Shl(Node* node) {

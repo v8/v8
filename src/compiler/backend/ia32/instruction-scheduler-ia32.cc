@@ -221,8 +221,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8UConvertI8x16Low:
     case kIA32I16x8UConvertI8x16High:
     case kIA32I16x8ShrU:
-    case kSSEI16x8UConvertI32x4:
-    case kAVXI16x8UConvertI32x4:
+    case kIA32I16x8UConvertI32x4:
     case kIA32I16x8AddSatU:
     case kIA32I16x8SubSatU:
     case kIA32I16x8MinU:
@@ -265,8 +264,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16GtS:
     case kSSEI8x16GeS:
     case kAVXI8x16GeS:
-    case kSSEI8x16UConvertI16x8:
-    case kAVXI8x16UConvertI16x8:
+    case kIA32I8x16UConvertI16x8:
     case kIA32I8x16AddSatU:
     case kIA32I8x16SubSatU:
     case kIA32I8x16ShrU:
