@@ -529,7 +529,7 @@ class WasmGenerator {
     builder_->Emit(kExprDrop);
   }
 
-  enum CallDirect : bool { kCallDirect = true, kCallIndirect = false };
+  enum CallKind { kCallDirect, kCallIndirect, kCallRef };
 
   template <ValueKind wanted_kind>
   void call(DataRange* data) {
@@ -539,6 +539,15 @@ class WasmGenerator {
   template <ValueKind wanted_kind>
   void call_indirect(DataRange* data) {
     call(data, ValueType::Primitive(wanted_kind), kCallIndirect);
+  }
+
+  template <ValueKind wanted_kind>
+  void call_ref(DataRange* data) {
+    if (liftoff_as_reference_) {
+      call(data, ValueType::Primitive(wanted_kind), kCallRef);
+    } else {
+      Generate<wanted_kind>(data);
+    }
   }
 
   void Convert(ValueType src, ValueType dst) {
@@ -569,7 +578,7 @@ class WasmGenerator {
     builder_->Emit(kConvertOpcodes[arr_idx]);
   }
 
-  void call(DataRange* data, ValueType wanted_kind, CallDirect call_direct) {
+  void call(DataRange* data, ValueType wanted_kind, CallKind call_kind) {
     uint8_t random_byte = data->get<uint8_t>();
     int func_index = random_byte % functions_.size();
     uint32_t sig_index = functions_[func_index];
@@ -586,27 +595,33 @@ class WasmGenerator {
         std::equal(sig->returns().begin(), sig->returns().end(),
                    builder_->signature()->returns().begin(),
                    builder_->signature()->returns().end())) {
-      if (call_direct) {
+      if (call_kind == kCallDirect) {
         builder_->EmitWithU32V(kExprReturnCall, func_index);
-      } else {
+      } else if (call_kind == kCallIndirect) {
         // This will not trap because table[func_index] always contains function
         // func_index.
         builder_->EmitI32Const(func_index);
         builder_->EmitWithU32V(kExprReturnCallIndirect, sig_index);
         // TODO(11954): Use other table indices too.
         builder_->EmitByte(0);  // Table index.
+      } else {
+        GenerateOptRef(HeapType(sig_index), data);
+        builder_->Emit(kExprReturnCallRef);
       }
       return;
     } else {
-      if (call_direct) {
+      if (call_kind == kCallDirect) {
         builder_->EmitWithU32V(kExprCallFunction, func_index);
-      } else {
+      } else if (call_kind == kCallIndirect) {
         // This will not trap because table[func_index] always contains function
         // func_index.
         builder_->EmitI32Const(func_index);
         builder_->EmitWithU32V(kExprCallIndirect, sig_index);
         // TODO(11954): Use other table indices too.
         builder_->EmitByte(0);  // Table index.
+      } else {
+        GenerateOptRef(HeapType(sig_index), data);
+        builder_->Emit(kExprCallRef);
       }
     }
     if (sig->return_count() == 0 && wanted_kind != kWasmVoid) {
@@ -1111,6 +1126,7 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
 
       &WasmGenerator::call<kVoid>,
       &WasmGenerator::call_indirect<kVoid>,
+      &WasmGenerator::call_ref<kVoid>,
 
       &WasmGenerator::set_local,
       &WasmGenerator::set_global,
@@ -1269,6 +1285,7 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
 
       &WasmGenerator::call<kI32>,
       &WasmGenerator::call_indirect<kI32>,
+      &WasmGenerator::call_ref<kI32>,
       &WasmGenerator::try_block<kI32>,
 
       &WasmGenerator::struct_get<kI32>,
@@ -1392,6 +1409,7 @@ void WasmGenerator::Generate<kI64>(DataRange* data) {
 
       &WasmGenerator::call<kI64>,
       &WasmGenerator::call_indirect<kI64>,
+      &WasmGenerator::call_ref<kI64>,
       &WasmGenerator::try_block<kI64>,
 
       &WasmGenerator::struct_get<kI64>};
@@ -1452,6 +1470,7 @@ void WasmGenerator::Generate<kF32>(DataRange* data) {
 
       &WasmGenerator::call<kF32>,
       &WasmGenerator::call_indirect<kF32>,
+      &WasmGenerator::call_ref<kF32>,
       &WasmGenerator::try_block<kF32>,
 
       &WasmGenerator::struct_get<kF32>};
@@ -1512,6 +1531,7 @@ void WasmGenerator::Generate<kF64>(DataRange* data) {
 
       &WasmGenerator::call<kF64>,
       &WasmGenerator::call_indirect<kF64>,
+      &WasmGenerator::call_ref<kF64>,
       &WasmGenerator::try_block<kF64>,
 
       &WasmGenerator::struct_get<kF64>};
