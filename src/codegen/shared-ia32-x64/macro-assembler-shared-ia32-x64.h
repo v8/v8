@@ -259,6 +259,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pavgw, pavgw)
   AVX_OP(Pcmpgtb, pcmpgtb)
   AVX_OP(Pcmpgtd, pcmpgtd)
+  AVX_OP(Pcmpgtw, pcmpgtw)
   AVX_OP(Pcmpeqd, pcmpeqd)
   AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pinsrw, pinsrw)

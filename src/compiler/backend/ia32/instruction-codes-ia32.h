@@ -227,12 +227,10 @@ namespace compiler {
   V(IA32I16x8Mul)                  \
   V(IA32I16x8MinS)                 \
   V(IA32I16x8MaxS)                 \
-  V(SSEI16x8Eq)                    \
-  V(AVXI16x8Eq)                    \
+  V(IA32I16x8Eq)                   \
   V(SSEI16x8Ne)                    \
   V(AVXI16x8Ne)                    \
-  V(SSEI16x8GtS)                   \
-  V(AVXI16x8GtS)                   \
+  V(IA32I16x8GtS)                  \
   V(SSEI16x8GeS)                   \
   V(AVXI16x8GeS)                   \
   V(IA32I16x8UConvertI8x16Low)     \

@@ -2251,9 +2251,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F32x4Max)              \
   V(I32x4GtU)              \
   V(I32x4GeU)              \
-  V(I16x8Eq)               \
   V(I16x8Ne)               \
-  V(I16x8GtS)              \
   V(I16x8GeS)              \
   V(I16x8GtU)              \
   V(I16x8GeU)              \
@@ -2292,6 +2290,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8Sub)                              \
   V(I16x8SubSatS)                          \
   V(I16x8Mul)                              \
+  V(I16x8Eq)                               \
+  V(I16x8GtS)                              \
   V(I16x8MinS)                             \
   V(I16x8MaxS)                             \
   V(I16x8AddSatU)                          \

@@ -2645,15 +2645,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputOperand(1));
       break;
     }
-    case kSSEI16x8Eq: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pcmpeqw(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXI16x8Eq: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputOperand(1));
+    case kIA32I16x8Eq: {
+      __ Pcmpeqw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
       break;
     }
     case kSSEI16x8Ne: {
@@ -2672,15 +2666,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                kScratchDoubleReg);
       break;
     }
-    case kSSEI16x8GtS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pcmpgtw(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXI16x8GtS: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpgtw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputOperand(1));
+    case kIA32I16x8GtS: {
+      __ Pcmpgtw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
       break;
     }
     case kSSEI16x8GeS: {
