@@ -232,7 +232,6 @@ class WasmGenerator {
     bool is_delegate = num_catch == 0 && !has_catch_all && data->get<bool>();
     // Allow one more target than there are enclosing try blocks, for delegating
     // to the caller.
-    uint8_t delegate_target = data->get<uint8_t>() % (try_blocks_.size() + 1);
 
     base::Vector<const ValueType> return_type_vec =
         return_type.kind() == kVoid ? base::Vector<ValueType>{}
@@ -240,9 +239,7 @@ class WasmGenerator {
     BlockScope block_scope(this, kExprTry, {}, return_type_vec, return_type_vec,
                            !is_delegate);
     int control_depth = static_cast<int>(blocks_.size()) - 1;
-    try_blocks_.push_back(control_depth);
     Generate(return_type, data);
-    try_blocks_.pop_back();
     catch_blocks_.push_back(control_depth);
     for (int i = 0; i < num_catch; ++i) {
       const FunctionSig* exception_type =
@@ -258,12 +255,10 @@ class WasmGenerator {
       Generate(return_type, data);
     }
     if (is_delegate) {
-      DCHECK_GT(blocks_.size(), try_blocks_.size());
-      // If {delegate_target == try_blocks_.size()}, delegate to the caller.
-      int delegate_depth = delegate_target == try_blocks_.size()
-                               ? static_cast<int>(blocks_.size()) - 2
-                               : static_cast<int>(blocks_.size() - 2 -
-                                                  try_blocks_[delegate_target]);
+      // The delegate target depth does not include the current try block,
+      // because 'delegate' closes this scope. However it is still in the
+      // {blocks_} list, so remove one to get the correct size.
+      int delegate_depth = data->get<uint8_t>() % (blocks_.size() - 1);
       builder_->EmitWithU32V(kExprDelegate, delegate_depth);
     }
     catch_blocks_.pop_back();
@@ -1050,7 +1045,6 @@ class WasmGenerator {
   std::vector<ValueType> globals_;
   std::vector<uint8_t> mutable_globals_;  // indexes into {globals_}.
   uint32_t recursion_depth = 0;
-  std::vector<int> try_blocks_;
   std::vector<int> catch_blocks_;
   bool has_simd_;
   uint32_t num_structs_;
