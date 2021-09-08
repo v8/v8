@@ -40,7 +40,7 @@ namespace compiler {
 //
 // kBackgroundSerializedHeapObject: The underlying V8 object is a HeapObject
 //   and the data is an instance of the corresponding (most-specific) subclass,
-//   e.g.  JSFunctionData, which provides serialized information about the
+//   e.g. JSFunctionData, which provides serialized information about the
 //   object. Allows serialization from the background thread.
 //
 // kUnserializedHeapObject: The underlying V8 object is a HeapObject and the
@@ -534,10 +534,6 @@ class JSFunctionData : public JSObjectData {
 
   bool IsConsistentWithHeapState(JSHeapBroker* broker) const;
 
-  bool has_feedback_vector() const {
-    DCHECK(serialized_);
-    return has_feedback_vector_;
-  }
   bool has_initial_map() const {
     DCHECK(serialized_);
     return has_initial_map_;
@@ -575,10 +571,6 @@ class JSFunctionData : public JSObjectData {
     DCHECK(serialized_);
     return feedback_cell_;
   }
-  ObjectData* feedback_vector() const {
-    DCHECK(serialized_);
-    return feedback_vector_;
-  }
   int initial_map_instance_size_with_min_slack() const {
     DCHECK(serialized_);
     return initial_map_instance_size_with_min_slack_;
@@ -615,7 +607,6 @@ class JSFunctionData : public JSObjectData {
   using UsedFields = base::Flags<UsedField>;
   UsedFields used_fields_;
 
-  bool has_feedback_vector_ = false;
   ObjectData* prototype_or_initial_map_ = nullptr;
   bool has_initial_map_ = false;
   bool has_instance_prototype_ = false;
@@ -627,7 +618,6 @@ class JSFunctionData : public JSObjectData {
   ObjectData* instance_prototype_ =
       nullptr;  // Derives from prototype_or_initial_map_.
   ObjectData* shared_ = nullptr;
-  ObjectData* feedback_vector_ = nullptr;  // Derives from feedback_cell.
   ObjectData* feedback_cell_ = nullptr;
   int initial_map_instance_size_with_min_slack_;  // Derives from
                                                   // prototype_or_initial_map_.
@@ -864,13 +854,6 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
   FeedbackCell feedback_cell = function->raw_feedback_cell(kAcquireLoad);
   feedback_cell_ = broker->GetOrCreateData(feedback_cell, kAssumeMemoryFence);
 
-  ObjectData* maybe_feedback_vector = broker->GetOrCreateData(
-      feedback_cell.value(kAcquireLoad), kAssumeMemoryFence);
-  if (shared.is_compiled() && maybe_feedback_vector->IsFeedbackVector()) {
-    has_feedback_vector_ = true;
-    feedback_vector_ = maybe_feedback_vector;
-  }
-
 #ifdef DEBUG
   serialized_ = true;
 #endif  // DEBUG
@@ -945,22 +928,6 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
       *feedback_cell_->object() != f->raw_feedback_cell()) {
     TRACE_BROKER_MISSING(broker, "JSFunction::raw_feedback_cell");
     return false;
-  }
-
-  if (has_used_field(kHasFeedbackVector) &&
-      has_feedback_vector_ != f->has_feedback_vector()) {
-    TRACE_BROKER_MISSING(broker, "JSFunction::has_feedback_vector");
-    return false;
-  }
-
-  if (has_feedback_vector_) {
-    if (has_used_field(kFeedbackVector) &&
-        *feedback_vector_->object() != f->feedback_vector()) {
-      TRACE_BROKER_MISSING(broker, "JSFunction::feedback_vector");
-      return false;
-    }
-  } else {
-    DCHECK_NULL(feedback_vector_);
   }
 
   return true;
@@ -1660,6 +1627,11 @@ void RecordConsistentJSFunctionViewDependencyIfNeeded(
 
 }  // namespace
 
+base::Optional<FeedbackVectorRef> JSFunctionRef::feedback_vector(
+    CompilationDependencies* dependencies) const {
+  return raw_feedback_cell(dependencies).feedback_vector();
+}
+
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack(
     CompilationDependencies* dependencies) const {
   if (data_->should_access_heap()) {
@@ -2148,6 +2120,7 @@ ScopeInfoRef ScopeInfoRef::OuterScopeInfo() const {
 HEAP_ACCESSOR_C(SharedFunctionInfo, Builtin, builtin_id)
 
 BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray() const {
+  CHECK(HasBytecodeArray());
   BytecodeArray bytecode_array;
   if (!broker()->IsMainThread()) {
     bytecode_array = object()->GetBytecodeArray(broker()->local_isolate());
@@ -2171,12 +2144,9 @@ SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability()
                                           broker()->is_turboprop());
 }
 
-base::Optional<FeedbackVectorRef> FeedbackCellRef::value() const {
-  DisallowGarbageCollection no_gc;
+ObjectRef FeedbackCellRef::value() const {
   DCHECK(data_->should_access_heap());
-  Object value = object()->value(kAcquireLoad);
-  if (!value.IsFeedbackVector()) return base::nullopt;
-  return MakeRefAssumeMemoryFence(broker(), FeedbackVector::cast(value));
+  return MakeRefAssumeMemoryFence(broker(), object()->value(kAcquireLoad));
 }
 
 base::Optional<ObjectRef> MapRef::GetStrongValue(
@@ -2657,11 +2627,17 @@ base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
   return TryMakeRef(broker(), heap_object);
 }
 
+base::Optional<FeedbackVectorRef> FeedbackCellRef::feedback_vector() const {
+  ObjectRef contents = value();
+  if (!contents.IsFeedbackVector()) return {};
+  return contents.AsFeedbackVector();
+}
+
 base::Optional<SharedFunctionInfoRef> FeedbackCellRef::shared_function_info()
     const {
-  base::Optional<FeedbackVectorRef> feedback_vector = value();
-  if (!feedback_vector.has_value()) return {};
-  return feedback_vector->shared_function_info();
+  base::Optional<FeedbackVectorRef> vector = feedback_vector();
+  if (!vector.has_value()) return {};
+  return vector->shared_function_info();
 }
 
 SharedFunctionInfoRef FeedbackVectorRef::shared_function_info() const {
@@ -2773,8 +2749,6 @@ HEAP_BROKER_OBJECT_LIST(V)
     return result;                                                          \
   }
 
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_RELEVANT_C(
-    bool, has_feedback_vector, JSFunctionData::kHasFeedbackVector, true)
 JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_RELEVANT_C(bool, has_initial_map,
                                                 JSFunctionData::kHasInitialMap,
                                                 true)
@@ -2790,8 +2764,6 @@ JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(Object, instance_prototype,
                                      JSFunctionData::kInstancePrototype)
 JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell,
                                      JSFunctionData::kFeedbackCell)
-JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackVector, feedback_vector,
-                                     JSFunctionData::kFeedbackVector)
 
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)

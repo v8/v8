@@ -1052,7 +1052,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       shared_info_(shared_info),
       bytecode_array_(shared_info.GetBytecodeArray()),
       feedback_cell_(feedback_cell),
-      feedback_vector_(feedback_cell.value().value()),
+      feedback_vector_(feedback_cell.feedback_vector().value()),
       invocation_frequency_(invocation_frequency),
       type_hint_lowering_(
           broker, jsgraph, feedback_vector_,

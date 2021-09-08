@@ -462,8 +462,8 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
+  CodeRef code() const;
 
-  bool has_feedback_vector(CompilationDependencies* dependencies) const;
   bool has_initial_map(CompilationDependencies* dependencies) const;
   bool PrototypeRequiresRuntimeLookup(
       CompilationDependencies* dependencies) const;
@@ -472,12 +472,10 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   MapRef initial_map(CompilationDependencies* dependencies) const;
   int InitialMapInstanceSizeWithMinSlack(
       CompilationDependencies* dependencies) const;
-  FeedbackVectorRef feedback_vector(
-      CompilationDependencies* dependencies) const;
   FeedbackCellRef raw_feedback_cell(
       CompilationDependencies* dependencies) const;
-
-  CodeRef code() const;
+  base::Optional<FeedbackVectorRef> feedback_vector(
+      CompilationDependencies* dependencies) const;
 };
 
 class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
@@ -614,8 +612,12 @@ class FeedbackCellRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(FeedbackCell, HeapObjectRef)
 
   Handle<FeedbackCell> object() const;
+
+  ObjectRef value() const;
+
+  // Convenience wrappers around {value()}:
+  base::Optional<FeedbackVectorRef> feedback_vector() const;
   base::Optional<SharedFunctionInfoRef> shared_function_info() const;
-  base::Optional<FeedbackVectorRef> value() const;
 };
 
 class FeedbackVectorRef : public HeapObjectRef {
