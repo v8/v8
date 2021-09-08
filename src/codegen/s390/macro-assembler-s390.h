@@ -409,6 +409,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadLane16LE(Simd128Register dst, const MemOperand& mem, int lane);
   void LoadLane32LE(Simd128Register dst, const MemOperand& mem, int lane);
   void LoadLane64LE(Simd128Register dst, const MemOperand& mem, int lane);
+  void StoreLane8LE(Simd128Register src, const MemOperand& mem, int lane);
+  void StoreLane16LE(Simd128Register src, const MemOperand& mem, int lane);
+  void StoreLane32LE(Simd128Register src, const MemOperand& mem, int lane);
+  void StoreLane64LE(Simd128Register src, const MemOperand& mem, int lane);
 
   // Load And Test
   void LoadAndTest32(Register dst, Register src);

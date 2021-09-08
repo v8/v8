@@ -4005,6 +4005,30 @@ LOAD_LANE_LIST(LOAD_LANE)
 #undef LOAD_LANE
 #undef LOAD_LANE_LIST
 
+void TurboAssembler::StoreLane8LE(Simd128Register src, const MemOperand& mem,
+                                  int index) {
+  vsteb(src, mem, Condition(index));
+}
+#define STORE_LANE_LIST(V)      \
+  V(64, vstebrg, StoreU64LE, 3) \
+  V(32, vstebrf, StoreU32LE, 2) \
+  V(16, vstebrh, StoreU16LE, 1)
+
+#define STORE_LANE(name, vector_instr, scalar_instr, condition)               \
+  void TurboAssembler::StoreLane##name##LE(Simd128Register src,               \
+                                           const MemOperand& mem, int lane) { \
+    if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2) &&                \
+        is_uint12(mem.offset())) {                                            \
+      vector_instr(src, mem, Condition(lane));                                \
+      return;                                                                 \
+    }                                                                         \
+    vlgv(r1, src, MemOperand(r0, lane), Condition(condition));                \
+    scalar_instr(r1, mem);                                                    \
+  }
+STORE_LANE_LIST(STORE_LANE)
+#undef STORE_LANE
+#undef STORE_LANE_LIST
+
 #else
 void TurboAssembler::LoadU64LE(Register dst, const MemOperand& mem,
                                Register scratch) {
@@ -4112,6 +4136,16 @@ LOAD_EXTEND_LIST(LOAD_EXTEND)
 #undef LOAD_EXTEND
 #undef LOAD_EXTEND
 
+void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem) {
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+  vlef(dst, mem, Condition(3));
+}
+
+void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
+  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
+  vleg(dst, mem, Condition(1));
+}
+
 #define LOAD_LANE_LIST(V) \
   V(64, vleg)             \
   V(32, vlef)             \
@@ -4128,15 +4162,21 @@ LOAD_LANE_LIST(LOAD_LANE)
 #undef LOAD_LANE
 #undef LOAD_LANE_LIST
 
-void TurboAssembler::LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem) {
-  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
-  vlef(dst, mem, Condition(3));
-}
+#define STORE_LANE_LIST(V) \
+  V(64, vsteg)             \
+  V(32, vstef)             \
+  V(16, vsteh)             \
+  V(8, vsteb)
 
-void TurboAssembler::LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem) {
-  vx(dst, dst, dst, Condition(0), Condition(0), Condition(0));
-  vleg(dst, mem, Condition(1));
-}
+#define STORE_LANE(name, vector_instr)                                        \
+  void TurboAssembler::StoreLane##name##LE(Simd128Register src,               \
+                                           const MemOperand& mem, int lane) { \
+    DCHECK(is_uint12(mem.offset()));                                          \
+    vector_instr(src, mem, Condition(lane));                                  \
+  }
+STORE_LANE_LIST(STORE_LANE)
+#undef STORE_LANE
+#undef STORE_LANE_LIST
 
 #endif
 

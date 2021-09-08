@@ -2862,8 +2862,32 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
 }
 
 void InstructionSelector::VisitStoreLane(Node* node) {
-  // We should never reach here, see http://crrev.com/c/2577820
-  UNREACHABLE();
+  StoreLaneParameters params = StoreLaneParametersOf(node->op());
+  InstructionCode opcode;
+  if (params.rep == MachineRepresentation::kWord8) {
+    opcode = kS390_S128Store8Lane;
+  } else if (params.rep == MachineRepresentation::kWord16) {
+    opcode = kS390_S128Store16Lane;
+  } else if (params.rep == MachineRepresentation::kWord32) {
+    opcode = kS390_S128Store32Lane;
+  } else if (params.rep == MachineRepresentation::kWord64) {
+    opcode = kS390_S128Store64Lane;
+  } else {
+    UNREACHABLE();
+  }
+
+  S390OperandGenerator g(this);
+  InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
+  InstructionOperand inputs[5];
+  size_t input_count = 0;
+
+  inputs[input_count++] = g.UseRegister(node->InputAt(2));
+  inputs[input_count++] = g.UseImmediate(params.laneidx);
+
+  AddressingMode mode =
+      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+  opcode |= AddressingModeField::encode(mode);
+  Emit(opcode, 1, outputs, input_count, inputs);
 }
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {

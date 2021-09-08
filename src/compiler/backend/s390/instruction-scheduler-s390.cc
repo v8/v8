@@ -392,6 +392,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_Push:
     case kS390_PushFrame:
     case kS390_StoreToStackSlot:
+    case kS390_S128Store8Lane:
+    case kS390_S128Store16Lane:
+    case kS390_S128Store32Lane:
+    case kS390_S128Store64Lane:
       return kHasSideEffect;
 
     case kS390_Word64AtomicExchangeUint64:

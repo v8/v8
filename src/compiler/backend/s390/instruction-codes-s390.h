@@ -388,6 +388,10 @@ namespace compiler {
   V(S390_S128Load16Lane)                    \
   V(S390_S128Load32Lane)                    \
   V(S390_S128Load64Lane)                    \
+  V(S390_S128Store8Lane)                    \
+  V(S390_S128Store16Lane)                   \
+  V(S390_S128Store32Lane)                   \
+  V(S390_S128Store64Lane)                   \
   V(S390_StoreSimd128)                      \
   V(S390_LoadSimd128)                       \
   V(S390_StoreCompressTagged)               \

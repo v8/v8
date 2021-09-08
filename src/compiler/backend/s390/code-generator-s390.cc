@@ -3478,6 +3478,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef LOAD_LANE
+#define STORE_LANE(type, lane)                         \
+  AddressingMode mode = kMode_None;                    \
+  size_t index = 2;                                    \
+  MemOperand operand = i.MemoryOperand(&mode, &index); \
+  Simd128Register src = i.InputSimd128Register(0);     \
+  __ StoreLane##type##LE(src, operand, lane);
+    case kS390_S128Store8Lane: {
+      STORE_LANE(8, 15 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Store16Lane: {
+      STORE_LANE(16, 7 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Store32Lane: {
+      STORE_LANE(32, 3 - i.InputUint8(1));
+      break;
+    }
+    case kS390_S128Store64Lane: {
+      STORE_LANE(64, 1 - i.InputUint8(1));
+      break;
+    }
+#undef STORE_LANE
     case kS390_StoreCompressTagged: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
