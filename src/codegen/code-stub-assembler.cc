@@ -2927,13 +2927,16 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
 
   GotoIfNot(HasInstanceType(var_result.value(), CODET_TYPE),
             &check_for_interpreter_data);
-  CSA_ASSERT(this,
-             Word32Equal(DecodeWord32<Code::KindField>(LoadObjectField<Int32T>(
-                             var_result.value(), Code::kFlagsOffset)),
-                         Int32Constant(static_cast<int>(CodeKind::BASELINE))));
-  TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
-      var_result.value(), Code::kDeoptimizationDataOrInterpreterDataOffset);
-  var_result = baseline_data;
+  {
+    TNode<Code> code = FromCodeT(CAST(var_result.value()));
+    CSA_ASSERT(
+        this, Word32Equal(DecodeWord32<Code::KindField>(LoadObjectField<Int32T>(
+                              code, Code::kFlagsOffset)),
+                          Int32Constant(static_cast<int>(CodeKind::BASELINE))));
+    TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
+        code, Code::kDeoptimizationDataOrInterpreterDataOffset);
+    var_result = baseline_data;
+  }
   Goto(&check_for_interpreter_data);
 
   BIND(&check_for_interpreter_data);
