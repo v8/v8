@@ -45,20 +45,6 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void Add(Register dst, Immediate src);
   void And(Register dst, Immediate src);
 
-  void Movapd(XMMRegister dst, XMMRegister src);
-
-  template <typename Dst, typename Src>
-  void Movdqu(Dst dst, Src src) {
-    if (CpuFeatures::IsSupported(AVX)) {
-      CpuFeatureScope avx_scope(this, AVX);
-      vmovdqu(dst, src);
-    } else {
-      // movups is 1 byte shorter than movdqu. On most SSE systems, this incurs
-      // no delay moving between integer and floating-point domain.
-      movups(dst, src);
-    }
-  }
-
   // Supports both SSE and AVX. Move src1 to dst if they are not equal on SSE.
   template <typename Op>
   void Pshufb(XMMRegister dst, XMMRegister src, Op mask) {
@@ -325,6 +311,8 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Xorpd, xorpd)
   AVX_OP(Xorps, xorps)
 
+  AVX_OP_WITH_DIFF_SSE_INSTR(Movapd, movapd, movaps)
+  AVX_OP_WITH_DIFF_SSE_INSTR(Movdqu, movdqu, movups)
   AVX_OP_WITH_DIFF_SSE_INSTR(Pand, pand, andps)
   AVX_OP_WITH_DIFF_SSE_INSTR(Por, por, orps)
   AVX_OP_WITH_DIFF_SSE_INSTR(Pxor, pxor, xorps)

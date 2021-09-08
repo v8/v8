@@ -73,17 +73,6 @@ void SharedTurboAssembler::And(Register dst, Immediate src) {
 #endif
 }
 
-void SharedTurboAssembler::Movapd(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vmovapd(dst, src);
-  } else {
-    // On SSE, movaps is 1 byte shorter than movapd, and has the same
-    // behavior.
-    movaps(dst, src);
-  }
-}
-
 void SharedTurboAssembler::Shufps(XMMRegister dst, XMMRegister src1,
                                   XMMRegister src2, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
