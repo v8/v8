@@ -286,12 +286,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32S128Zero:
     case kIA32S128AllOnes:
     case kIA32S128Not:
-    case kSSES128And:
-    case kAVXS128And:
-    case kSSES128Or:
-    case kAVXS128Or:
-    case kSSES128Xor:
-    case kAVXS128Xor:
+    case kIA32S128And:
+    case kIA32S128Or:
+    case kIA32S128Xor:
     case kIA32S128Select:
     case kIA32S128AndNot:
     case kIA32I8x16Swizzle:

@@ -301,12 +301,9 @@ namespace compiler {
   V(IA32S128Zero)                  \
   V(IA32S128AllOnes)               \
   V(IA32S128Not)                   \
-  V(SSES128And)                    \
-  V(AVXS128And)                    \
-  V(SSES128Or)                     \
-  V(AVXS128Or)                     \
-  V(SSES128Xor)                    \
-  V(AVXS128Xor)                    \
+  V(IA32S128And)                   \
+  V(IA32S128Or)                    \
+  V(IA32S128Xor)                   \
   V(IA32S128Select)                \
   V(IA32S128AndNot)                \
   V(IA32I8x16Swizzle)              \

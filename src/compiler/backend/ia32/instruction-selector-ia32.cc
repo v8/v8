@@ -2260,10 +2260,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16Ne)               \
   V(I8x16GeS)              \
   V(I8x16GtU)              \
-  V(I8x16GeU)              \
-  V(S128And)               \
-  V(S128Or)                \
-  V(S128Xor)
+  V(I8x16GeU)
 
 #define SIMD_BINOP_UNIFIED_SSE_AVX_LIST(V) \
   V(F32x4Add)                              \
@@ -2316,7 +2313,10 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16MinU)                             \
   V(I8x16MaxU)                             \
   V(I8x16SConvertI16x8)                    \
-  V(I8x16RoundingAverageU)
+  V(I8x16RoundingAverageU)                 \
+  V(S128And)                               \
+  V(S128Or)                                \
+  V(S128Xor)
 
 // These opcodes require all inputs to be registers because the codegen is
 // simpler with all registers.

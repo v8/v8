@@ -3131,37 +3131,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  kScratchDoubleReg);
       break;
     }
-    case kSSES128And: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ andps(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXS128And: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpand(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               i.InputOperand(1));
-      break;
-    }
-    case kSSES128Or: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ orps(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXS128Or: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpor(i.OutputSimd128Register(), i.InputSimd128Register(0),
+    case kIA32S128And: {
+      __ Pand(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputOperand(1));
       break;
     }
-    case kSSES128Xor: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ xorps(i.OutputSimd128Register(), i.InputOperand(1));
+    case kIA32S128Or: {
+      __ Por(i.OutputSimd128Register(), i.InputSimd128Register(0),
+             i.InputOperand(1));
       break;
     }
-    case kAVXS128Xor: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpxor(i.OutputSimd128Register(), i.InputSimd128Register(0),
-               i.InputOperand(1));
+    case kIA32S128Xor: {
+      __ Pxor(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputOperand(1));
       break;
     }
     case kIA32S128Select: {

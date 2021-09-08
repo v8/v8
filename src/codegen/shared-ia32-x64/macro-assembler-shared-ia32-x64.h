@@ -158,6 +158,25 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
                                                               args...); \
   }
 
+// Define a macro which uses |avx_name| when AVX is supported, and |sse_name|
+// when AVX is not supported. This is useful for bit-wise instructions like
+// andpd/andps, where the behavior is exactly the same, but the *ps
+// version is 1 byte shorter, and on SSE-only processors there is no
+// performance difference since those processors don't differentiate integer
+// and floating-point domains.
+// Note: we require |avx_name| to be the AVX instruction without the "v"
+// prefix. If we require the full AVX instruction name and the caller
+// accidentally passes in a SSE instruction, we compile without any issues and
+// generate the SSE instruction. By appending "v" here, we ensure that we will
+// generate an AVX instruction.
+#define AVX_OP_WITH_DIFF_SSE_INSTR(macro_name, avx_name, sse_name)     \
+  template <typename Dst, typename Arg, typename... Args>              \
+  void macro_name(Dst dst, Arg arg, Args... args) {                    \
+    AvxHelper<Dst, Arg, Args...>{this}                                 \
+        .template emit<&Assembler::v##avx_name, &Assembler::sse_name>( \
+            dst, arg, args...);                                        \
+  }
+
 #define AVX_OP_SSE3(macro_name, name)                                    \
   template <typename Dst, typename Arg, typename... Args>                \
   void macro_name(Dst dst, Arg arg, Args... args) {                      \
@@ -250,7 +269,6 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Paddusb, paddusb)
   AVX_OP(Paddusw, paddusw)
   AVX_OP(Paddw, paddw)
-  AVX_OP(Pand, pand)
   AVX_OP(Pavgb, pavgb)
   AVX_OP(Pavgw, pavgw)
   AVX_OP(Pcmpgtb, pcmpgtb)
@@ -266,7 +284,6 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pmovmskb, pmovmskb)
   AVX_OP(Pmullw, pmullw)
   AVX_OP(Pmuludq, pmuludq)
-  AVX_OP(Por, por)
   AVX_OP(Pshufd, pshufd)
   AVX_OP(Pshufhw, pshufhw)
   AVX_OP(Pshuflw, pshuflw)
@@ -294,7 +311,6 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Punpckldq, punpckldq)
   AVX_OP(Punpcklqdq, punpcklqdq)
   AVX_OP(Punpcklwd, punpcklwd)
-  AVX_OP(Pxor, pxor)
   AVX_OP(Rcpps, rcpps)
   AVX_OP(Rsqrtps, rsqrtps)
   AVX_OP(Sqrtpd, sqrtpd)
@@ -308,6 +324,10 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Unpcklps, unpcklps)
   AVX_OP(Xorpd, xorpd)
   AVX_OP(Xorps, xorps)
+
+  AVX_OP_WITH_DIFF_SSE_INSTR(Pand, pand, andps)
+  AVX_OP_WITH_DIFF_SSE_INSTR(Por, por, orps)
+  AVX_OP_WITH_DIFF_SSE_INSTR(Pxor, pxor, xorps)
 
   AVX_OP_SSE3(Haddps, haddps)
   AVX_OP_SSE3(Movddup, movddup)
