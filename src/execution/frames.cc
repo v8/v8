@@ -1296,15 +1296,21 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
       if (frame->IsConstructor()) PrintF(file, "new ");
       JSFunction function = frame->function();
       int code_offset = 0;
+      AbstractCode abstract_code = function.abstract_code(isolate);
       if (frame->is_interpreted()) {
         InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
         code_offset = iframe->GetBytecodeOffset();
+      } else if (frame->is_baseline()) {
+        // TODO(pthier): AbstractCode should fully support Baseline code.
+        BaselineFrame* baseline_frame = BaselineFrame::cast(frame);
+        code_offset = baseline_frame->GetBytecodeOffset();
+        abstract_code = AbstractCode::cast(baseline_frame->GetBytecodeArray());
       } else {
         Code code = frame->unchecked_code();
         code_offset = code.GetOffsetFromInstructionStart(isolate, frame->pc());
       }
-      PrintFunctionAndOffset(function, function.abstract_code(isolate),
-                             code_offset, file, print_line_number);
+      PrintFunctionAndOffset(function, abstract_code, code_offset, file,
+                             print_line_number);
       if (print_args) {
         // function arguments
         // (we are intentionally only printing the actually
