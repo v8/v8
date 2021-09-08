@@ -2727,6 +2727,7 @@ filegroup(
         "src/bigint/bigint-internal.cc",
         "src/bigint/bigint-internal.h",
         "src/bigint/bigint.h",
+        "src/bigint/bitwise.cc",
         "src/bigint/digit-arithmetic.h",
         "src/bigint/div-barrett.cc",
         "src/bigint/div-burnikel.cc",
