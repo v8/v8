@@ -48,8 +48,10 @@ constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(
 
 #elif V8_TARGET_ARCH_LOONG64
 
-constexpr RegList kLiftoffAssemblerGpCacheRegs = Register::ListOf(
-    a0, a1, a2, a3, a4, a5, a6, a7, t0, t1, t2, t3, t4, t5, t6, t7, t8, s7);
+// t6-t8 and s3-s4: scratch registers, s6: root
+constexpr RegList kLiftoffAssemblerGpCacheRegs =
+    Register::ListOf(a0, a1, a2, a3, a4, a5, a6, a7, t0, t1, t2, t3, t4, t5, s0,
+                     s1, s2, s5, s7, s8);
 
 // f29: zero, f30-f31: macro-assembler scratch float Registers.
 constexpr RegList kLiftoffAssemblerFpCacheRegs = DoubleRegister::ListOf(

@@ -39,8 +39,8 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 // registers (see liftoff-assembler-defs.h).
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
-  // {a0, a1, a2, a3, a4, a5, a6, a7, t0, t1, t2, t3, t4, t5, t6, t7, t8, s7}
-  static constexpr uint32_t kPushedGpRegs = 0b1000000000111111111111111110000;
+  // {a0 ... a7, t0 ... t5, s0, s1, s2, s5, s7, s8}
+  static constexpr uint32_t kPushedGpRegs = 0b11010011100000111111111111110000;
   // {f0, f1, f2, ... f27, f28}
   static constexpr uint32_t kPushedFpRegs = 0x1fffffff;
 
