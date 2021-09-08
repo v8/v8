@@ -515,25 +515,58 @@ class Runner {
   }
 
  private:
-  // TODO(jkummerow): Also generate "non-random-looking" inputs, i.e. long
-  // strings of zeros and ones in the binary representation, such as
-  // ((1 << random) ± 1).
   void GenerateRandom(RWDigits Z) {
     if (Z.len() == 0) return;
-    if (sizeof(digit_t) == 8) {
-      for (int i = 0; i < Z.len(); i++) {
-        Z[i] = static_cast<digit_t>(rng_.NextUint64());
+    int mode = static_cast<int>(rng_.NextUint64() & 3);
+    if (mode == 0) {
+      // Generate random bits.
+      if (sizeof(digit_t) == 8) {
+        for (int i = 0; i < Z.len(); i++) {
+          Z[i] = static_cast<digit_t>(rng_.NextUint64());
+        }
+      } else {
+        for (int i = 0; i < Z.len(); i += 2) {
+          uint64_t random = rng_.NextUint64();
+          Z[i] = static_cast<digit_t>(random);
+          if (i + 1 < Z.len()) Z[i + 1] = static_cast<digit_t>(random >> 32);
+        }
       }
-    } else {
-      for (int i = 0; i < Z.len(); i += 2) {
-        uint64_t random = rng_.NextUint64();
-        Z[i] = static_cast<digit_t>(random);
-        if (i + 1 < Z.len()) Z[i + 1] = static_cast<digit_t>(random >> 32);
+      // Special case: we don't want the MSD to be zero.
+      while (Z.msd() == 0) {
+        Z[Z.len() - 1] = static_cast<digit_t>(rng_.NextUint64());
       }
+      return;
     }
-    // Special case: we don't want the MSD to be zero.
-    while (Z.msd() == 0) {
-      Z[Z.len() - 1] = static_cast<digit_t>(rng_.NextUint64());
+    if (mode == 1) {
+      // Generate a power of 2, with the lone 1-bit somewhere in the MSD.
+      int bit_in_msd = static_cast<int>(rng_.NextUint64() % kDigitBits);
+      Z[Z.len() - 1] = digit_t{1} << bit_in_msd;
+      for (int i = 0; i < Z.len() - 1; i++) Z[i] = 0;
+      return;
+    }
+    // For mode == 2 and mode == 3, generate a random number of 1-bits in the
+    // MSD, aligned to the least-significant end.
+    int bits_in_msd = static_cast<int>(rng_.NextUint64() % kDigitBits);
+    digit_t msd = (digit_t{1} << bits_in_msd) - 1;
+    if (msd == 0) msd = ~digit_t{0};
+    Z[Z.len() - 1] = msd;
+    if (mode == 2) {
+      // The non-MSD digits are all 1-bits.
+      for (int i = 0; i < Z.len() - 1; i++) Z[i] = ~digit_t{0};
+    } else {
+      // mode == 3
+      // Each non-MSD digit is either all ones or all zeros.
+      uint64_t random;
+      int random_bits = 0;
+      for (int i = 0; i < Z.len() - 1; i++) {
+        if (random_bits == 0) {
+          random = rng_.NextUint64();
+          random_bits = 64;
+        }
+        Z[i] = random & 1 ? ~digit_t{0} : digit_t{0};
+        random >>= 1;
+        random_bits--;
+      }
     }
   }
 
