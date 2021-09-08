@@ -351,6 +351,48 @@ WASM_SIMD_TEST(F32x4ConvertI32x4) {
   }
 }
 
+template <typename FloatType, typename ScalarType>
+void RunF128CompareOpConstImmTest(
+    TestExecutionTier execution_tier, WasmOpcode cmp_opcode,
+    WasmOpcode splat_opcode, ScalarType (*expected_op)(FloatType, FloatType)) {
+  for (FloatType x : compiler::ValueHelper::GetVector<FloatType>()) {
+    if (!PlatformCanRepresent(x)) continue;
+    WasmRunner<int32_t, FloatType> r(execution_tier);
+    // Set up globals to hold mask output for left and right cases
+    ScalarType* g1 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
+    ScalarType* g2 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
+    // Build fn to splat test values, perform compare op on both sides, and
+    // write the result.
+    byte value = 0;
+    byte temp = r.AllocateLocal(kWasmS128);
+    uint8_t const_buffer[kSimd128Size];
+    for (size_t i = 0; i < kSimd128Size / sizeof(FloatType); i++) {
+      memcpy(&const_buffer[i * sizeof(FloatType)], &x, sizeof(FloatType));
+    }
+    BUILD(r,
+          WASM_LOCAL_SET(temp,
+                         WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(value))),
+          WASM_GLOBAL_SET(
+              0, WASM_SIMD_BINOP(cmp_opcode, WASM_SIMD_CONSTANT(const_buffer),
+                                 WASM_LOCAL_GET(temp))),
+          WASM_GLOBAL_SET(1, WASM_SIMD_BINOP(cmp_opcode, WASM_LOCAL_GET(temp),
+                                             WASM_SIMD_CONSTANT(const_buffer))),
+          WASM_ONE);
+    for (FloatType y : compiler::ValueHelper::GetVector<FloatType>()) {
+      if (!PlatformCanRepresent(y)) continue;
+      FloatType diff = x - y;  // Model comparison as subtraction.
+      if (!PlatformCanRepresent(diff)) continue;
+      r.Call(y);
+      ScalarType expected1 = expected_op(x, y);
+      ScalarType expected2 = expected_op(y, x);
+      for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
+        CHECK_EQ(expected1, LANE(g1, i));
+        CHECK_EQ(expected2, LANE(g2, i));
+      }
+    }
+  }
+}
+
 WASM_SIMD_TEST(F32x4Abs) {
   RunF32x4UnOpTest(execution_tier, kExprF32x4Abs, std::abs);
 }
@@ -468,6 +510,36 @@ void RunShiftAddTestSequence(TestExecutionTier execution_tier,
       CHECK_EQ(expected, LANE(g2, i));
     }
   }
+}
+
+WASM_SIMD_TEST(F32x4EqZero) {
+  RunF128CompareOpConstImmTest<float, int32_t>(execution_tier, kExprF32x4Eq,
+                                               kExprF32x4Splat, Equal);
+}
+
+WASM_SIMD_TEST(F32x4NeZero) {
+  RunF128CompareOpConstImmTest<float, int32_t>(execution_tier, kExprF32x4Ne,
+                                               kExprF32x4Splat, NotEqual);
+}
+
+WASM_SIMD_TEST(F32x4GtZero) {
+  RunF128CompareOpConstImmTest<float, int32_t>(execution_tier, kExprF32x4Gt,
+                                               kExprF32x4Splat, Greater);
+}
+
+WASM_SIMD_TEST(F32x4GeZero) {
+  RunF128CompareOpConstImmTest<float, int32_t>(execution_tier, kExprF32x4Ge,
+                                               kExprF32x4Splat, GreaterEqual);
+}
+
+WASM_SIMD_TEST(F32x4LtZero) {
+  RunF128CompareOpConstImmTest<float, int32_t>(execution_tier, kExprF32x4Lt,
+                                               kExprF32x4Splat, Less);
+}
+
+WASM_SIMD_TEST(F32x4LeZero) {
+  RunF128CompareOpConstImmTest<float, int32_t>(execution_tier, kExprF32x4Le,
+                                               kExprF32x4Splat, LessEqual);
 }
 
 WASM_SIMD_TEST(I64x2Splat) {
@@ -856,6 +928,36 @@ WASM_SIMD_TEST(F64x2Lt) {
 
 WASM_SIMD_TEST(F64x2Le) {
   RunF64x2CompareOpTest(execution_tier, kExprF64x2Le, LessEqual);
+}
+
+WASM_SIMD_TEST(F64x2EqZero) {
+  RunF128CompareOpConstImmTest<double, int64_t>(execution_tier, kExprF64x2Eq,
+                                                kExprF64x2Splat, Equal);
+}
+
+WASM_SIMD_TEST(F64x2NeZero) {
+  RunF128CompareOpConstImmTest<double, int64_t>(execution_tier, kExprF64x2Ne,
+                                                kExprF64x2Splat, NotEqual);
+}
+
+WASM_SIMD_TEST(F64x2GtZero) {
+  RunF128CompareOpConstImmTest<double, int64_t>(execution_tier, kExprF64x2Gt,
+                                                kExprF64x2Splat, Greater);
+}
+
+WASM_SIMD_TEST(F64x2GeZero) {
+  RunF128CompareOpConstImmTest<double, int64_t>(execution_tier, kExprF64x2Ge,
+                                                kExprF64x2Splat, GreaterEqual);
+}
+
+WASM_SIMD_TEST(F64x2LtZero) {
+  RunF128CompareOpConstImmTest<double, int64_t>(execution_tier, kExprF64x2Lt,
+                                                kExprF64x2Splat, Less);
+}
+
+WASM_SIMD_TEST(F64x2LeZero) {
+  RunF128CompareOpConstImmTest<double, int64_t>(execution_tier, kExprF64x2Le,
+                                                kExprF64x2Splat, LessEqual);
 }
 
 WASM_SIMD_TEST(F64x2Min) {

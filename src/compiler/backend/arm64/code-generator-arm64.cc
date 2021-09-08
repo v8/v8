@@ -2077,6 +2077,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(1).Format(f));                     \
     break;                                                             \
   }
+#define SIMD_FCM_L_CASE(Op, ImmOp, RegOp)                              \
+  case Op: {                                                           \
+    VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode)); \
+    if (instr->InputCount() == 1) {                                    \
+      __ Fcm##ImmOp(i.OutputSimd128Register().Format(f),               \
+                    i.InputSimd128Register(0).Format(f), +0.0);        \
+    } else {                                                           \
+      __ Fcm##RegOp(i.OutputSimd128Register().Format(f),               \
+                    i.InputSimd128Register(1).Format(f),               \
+                    i.InputSimd128Register(0).Format(f));              \
+    }                                                                  \
+    break;                                                             \
+  }
+#define SIMD_FCM_G_CASE(Op, ImmOp)                                     \
+  case Op: {                                                           \
+    VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode)); \
+    /* Currently Gt/Ge instructions are only used with zero */         \
+    DCHECK_EQ(instr->InputCount(), 1);                                 \
+    __ Fcm##ImmOp(i.OutputSimd128Register().Format(f),                 \
+                  i.InputSimd128Register(0).Format(f), +0.0);          \
+    break;                                                             \
+  }
 #define SIMD_DESTRUCTIVE_BINOP_CASE(Op, Instr, FORMAT)     \
   case Op: {                                               \
     VRegister dst = i.OutputSimd128Register().V##FORMAT(); \
@@ -2192,29 +2214,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, i.InputInt8(1), i.InputSimd128Register(2).Format(f), 0);
       break;
     }
-      SIMD_BINOP_LANE_SIZE_CASE(kArm64FEq, Fcmeq);
+      SIMD_FCM_L_CASE(kArm64FEq, eq, eq);
     case kArm64FNe: {
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VRegister dst = i.OutputSimd128Register().Format(f);
-      __ Fcmeq(dst, i.InputSimd128Register(0).Format(f),
-               i.InputSimd128Register(1).Format(f));
+      if (instr->InputCount() == 1) {
+        __ Fcmeq(dst, i.InputSimd128Register(0).Format(f), +0.0);
+      } else {
+        __ Fcmeq(dst, i.InputSimd128Register(0).Format(f),
+                 i.InputSimd128Register(1).Format(f));
+      }
       __ Mvn(dst, dst);
       break;
     }
-    case kArm64FLt: {
-      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
-      __ Fcmgt(i.OutputSimd128Register().Format(f),
-               i.InputSimd128Register(1).Format(f),
-               i.InputSimd128Register(0).Format(f));
-      break;
-    }
-    case kArm64FLe: {
-      VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
-      __ Fcmge(i.OutputSimd128Register().Format(f),
-               i.InputSimd128Register(1).Format(f),
-               i.InputSimd128Register(0).Format(f));
-      break;
-    }
+      SIMD_FCM_L_CASE(kArm64FLt, lt, gt);
+      SIMD_FCM_L_CASE(kArm64FLe, le, ge);
+      SIMD_FCM_G_CASE(kArm64FGt, gt);
+      SIMD_FCM_G_CASE(kArm64FGe, ge);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfma, Fmla, 2D);
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfms, Fmls, 2D);
     case kArm64F64x2Pmin: {

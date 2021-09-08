@@ -210,6 +210,8 @@ namespace compiler {
   V(Arm64FNe)                         \
   V(Arm64FLt)                         \
   V(Arm64FLe)                         \
+  V(Arm64FGt)                         \
+  V(Arm64FGe)                         \
   V(Arm64F64x2Qfma)                   \
   V(Arm64F64x2Qfms)                   \
   V(Arm64F64x2Pmin)                   \
