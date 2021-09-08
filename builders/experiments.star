@@ -282,7 +282,7 @@ experiment_builder(
     executable = "recipe:v8/node_integration_ng",
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"v8_tot": True, "builder_group": "client.v8"},
-    use_rbe = RECLIENT.DEFAULT,
+    use_rbe = RECLIENT.CACHE_SILO,
     to_notify = ["yyanagisawa@google.com"],
 )
 
@@ -316,7 +316,28 @@ experiment_builder(
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     properties = {"builder_group": "client.v8"},
     use_goma = GOMA.NO,
-    use_rbe = RECLIENT.DEFAULT,
+    use_rbe = RECLIENT.CACHE_SILO,
+    to_notify = ["yyanagisawa@google.com"],
+)
+
+experiment_builder(
+    name = "V8 Win32 - builder (goma cache silo)",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.CACHE_SILO,
+    to_notify = ["yyanagisawa@google.com"],
+)
+
+experiment_builder(
+    name = "V8 Win32 - builder (reclient compare)",
+    bucket = "ci",
+    triggered_by = ["v8-trigger"],
+    dimensions = {"os": "Windows-10", "cpu": "x86-64"},
+    properties = {"builder_group": "client.v8"},
+    use_goma = GOMA.NO,
+    use_rbe = RECLIENT.COMPARE,
     to_notify = ["yyanagisawa@google.com"],
 )
 
