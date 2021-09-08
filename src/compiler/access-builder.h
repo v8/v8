@@ -339,7 +339,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForDictionaryObjectHashIndex();
 
   // Provides access to FeedbackCell fields.
-  static FieldAccess ForFeedbackCellValue();
   static FieldAccess ForFeedbackCellInterruptBudget();
 
   // Provides access to a FeedbackVector fields.

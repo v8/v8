@@ -1218,15 +1218,6 @@ FieldAccess AccessBuilder::ForDictionaryObjectHashIndex() {
 }
 
 // static
-FieldAccess AccessBuilder::ForFeedbackCellValue() {
-  FieldAccess access = {kTaggedBase,      FeedbackCell::kValueOffset,
-                        Handle<Name>(),   MaybeHandle<Map>(),
-                        Type::Any(),      MachineType::TaggedPointer(),
-                        kFullWriteBarrier};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForFeedbackCellInterruptBudget() {
   FieldAccess access = {kTaggedBase,
                         FeedbackCell::kInterruptBudgetOffset,

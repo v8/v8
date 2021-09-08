@@ -4453,7 +4453,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   } else if (feedback_target.has_value() && feedback_target->IsFeedbackCell()) {
     FeedbackCellRef feedback_cell =
         MakeRef(broker(), feedback_target.value().AsFeedbackCell().object());
-    if (feedback_cell.value().has_value()) {
+    // TODO(neis): This check seems unnecessary.
+    if (feedback_cell.feedback_vector().has_value()) {
       // Check that {target} is a closure with given {feedback_cell},
       // which uniquely identifies a given function inside a native context.
       Node* target_closure = effect =

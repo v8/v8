@@ -305,7 +305,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
 
     // The function might have not been called yet.
-    if (!function.has_feedback_vector(broker()->dependencies())) {
+    if (!function.feedback_vector(broker()->dependencies()).has_value()) {
       return base::nullopt;
     }
 
@@ -355,7 +355,7 @@ FeedbackCellRef JSInliner::DetermineCallContext(Node* node,
   if (match.HasResolvedValue() && match.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = match.Ref(broker()).AsJSFunction();
     // This was already ensured by DetermineCallTarget
-    CHECK(function.has_feedback_vector(broker()->dependencies()));
+    CHECK(function.feedback_vector(broker()->dependencies()).has_value());
 
     // The inlinee specializes to the context from the JSFunction object.
     *context_out = jsgraph()->Constant(function.context());
