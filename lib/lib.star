@@ -214,6 +214,7 @@ def _reclient_properties(use_rbe, name):
         rewrapper_env.update({
             "RBE_compare": "true",
         })
+        reclient["ensure_verified"] = True
 
     if rewrapper_env:
         reclient["rewrapper_env"] = rewrapper_env
