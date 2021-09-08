@@ -549,7 +549,7 @@ class WasmCodeAllocator {
   // Make a code region writable. Only allowed if there is at lease one writer
   // (see above).
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
-  void MakeWritable(base::AddressRegion);
+  V8_EXPORT_PRIVATE void MakeWritable(base::AddressRegion);
 
   // Free memory pages of all given code objects. Used for wasm code GC.
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
@@ -1038,6 +1038,10 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // Returns true if there is PKU support, false otherwise.
   bool HasMemoryProtectionKeySupport() const;
 
+  // This allocates a memory protection key (if none was allocated before),
+  // independent of the --wasm-memory-protection-keys flag.
+  void InitializeMemoryProtectionKeyForTesting();
+
  private:
   friend class WasmCodeAllocator;
   friend class WasmEngine;
@@ -1065,7 +1069,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // and updated after each GC.
   std::atomic<size_t> critical_committed_code_space_;
 
-  const int memory_protection_key_;
+  int memory_protection_key_;
 
   mutable base::Mutex native_modules_mutex_;
 

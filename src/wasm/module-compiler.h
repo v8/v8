@@ -48,6 +48,7 @@ class StreamingDecoder;
 class WasmCode;
 struct WasmModule;
 
+V8_EXPORT_PRIVATE
 std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
