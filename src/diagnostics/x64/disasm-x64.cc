@@ -1261,46 +1261,6 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfCPURegister(regop));
         current += PrintRightAVXOperand(current);
         break;
-      case 0x51:
-        AppendToBuffer("vsqrtsd %s,%s,", NameOfAVXRegister(regop),
-                       NameOfAVXRegister(vvvv));
-        current += PrintRightAVXOperand(current);
-        break;
-      case 0x58:
-        AppendToBuffer("vaddsd %s,%s,", NameOfAVXRegister(regop),
-                       NameOfAVXRegister(vvvv));
-        current += PrintRightAVXOperand(current);
-        break;
-      case 0x59:
-        AppendToBuffer("vmulsd %s,%s,", NameOfAVXRegister(regop),
-                       NameOfAVXRegister(vvvv));
-        current += PrintRightAVXOperand(current);
-        break;
-      case 0x5A:
-        AppendToBuffer("vcvtsd2ss %s,%s,", NameOfAVXRegister(regop),
-                       NameOfAVXRegister(vvvv));
-        current += PrintRightAVXOperand(current);
-        break;
-      case 0x5C:
-        AppendToBuffer("vsubsd %s,%s,", NameOfAVXRegister(regop),
-                       NameOfAVXRegister(vvvv));
-        current += PrintRightAVXOperand(current);
-        break;
-      case 0x5D:
-        AppendToBuffer("vminsd %s,%s,", NameOfAVXRegister(regop),
-                       NameOfAVXRegister(vvvv));
-        current += PrintRightAVXOperand(current);
-        break;
-      case 0x5E:
-        AppendToBuffer("vdivsd %s,%s,", NameOfAVXRegister(regop),
-                       NameOfAVXRegister(vvvv));
-        current += PrintRightAVXOperand(current);
-        break;
-      case 0x5F:
-        AppendToBuffer("vmaxsd %s,%s,", NameOfAVXRegister(regop),
-                       NameOfAVXRegister(vvvv));
-        current += PrintRightAVXOperand(current);
-        break;
       case 0xF0:
         AppendToBuffer("vlddqu %s,", NameOfAVXRegister(regop));
         current += PrintRightAVXOperand(current);
@@ -1315,6 +1275,14 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
         break;
+#define DISASM_SSE2_INSTRUCTION_LIST_SD(instruction, _1, _2, opcode)     \
+  case 0x##opcode:                                                       \
+    AppendToBuffer("v" #instruction " %s,%s,", NameOfAVXRegister(regop), \
+                   NameOfAVXRegister(vvvv));                             \
+    current += PrintRightAVXOperand(current);                            \
+    break;
+        SSE2_INSTRUCTION_LIST_SD(DISASM_SSE2_INSTRUCTION_LIST_SD)
+#undef DISASM_SSE2_INSTRUCTION_LIST_SD
       default:
         UnimplementedInstruction();
     }
