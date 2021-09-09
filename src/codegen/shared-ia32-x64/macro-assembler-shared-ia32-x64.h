@@ -218,7 +218,11 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Cvtdq2ps, cvtdq2ps)
   AVX_OP(Cvtpd2ps, cvtpd2ps)
   AVX_OP(Cvtps2pd, cvtps2pd)
+  AVX_OP(Cvtsd2ss, cvtsd2ss)
+  AVX_OP(Cvtss2sd, cvtss2sd)
   AVX_OP(Cvttps2dq, cvttps2dq)
+  AVX_OP(Cvttsd2si, cvttsd2si)
+  AVX_OP(Cvttss2si, cvttss2si)
   AVX_OP(Divpd, divpd)
   AVX_OP(Divps, divps)
   AVX_OP(Divsd, divsd)
@@ -355,6 +359,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Ptest, ptest)
   AVX_OP_SSE4_1(Roundpd, roundpd)
   AVX_OP_SSE4_1(Roundps, roundps)
+  AVX_OP_SSE4_1(Roundsd, roundsd)
 
   void F64x2ExtractLane(DoubleRegister dst, XMMRegister src, uint8_t lane);
   void F64x2ReplaceLane(XMMRegister dst, XMMRegister src, DoubleRegister rep,

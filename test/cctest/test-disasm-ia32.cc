@@ -822,6 +822,15 @@ TEST(DisasmIa320) {
       __ vcvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vcvttpd2dq(xmm1, xmm0);
 
+      __ vcvtsd2ss(xmm2, xmm3, Operand(ebx, ecx, times_4, 10000));
+      __ vcvtsd2ss(xmm2, xmm3, xmm6);
+      __ vcvtss2sd(xmm2, xmm3, Operand(ebx, ecx, times_1, 10000));
+      __ vcvtss2sd(xmm2, xmm3, xmm6);
+      __ vcvttsd2si(eax, Operand(ebx, ecx, times_4, 10000));
+      __ vcvttsd2si(ebx, xmm6);
+      __ vcvttss2si(eax, Operand(ebx, ecx, times_4, 10000));
+      __ vcvttss2si(ebx, xmm6);
+
       __ vmovddup(xmm1, xmm2);
       __ vmovddup(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmovshdup(xmm1, xmm2);
@@ -840,6 +849,8 @@ TEST(DisasmIa320) {
       __ vpmovmskb(ebx, xmm1);
 
       __ vpcmpgtq(xmm0, xmm1, xmm2);
+
+      __ vroundsd(xmm0, xmm3, xmm2, kRoundDown);
 
 #define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
   __ v##instruction(xmm7, xmm5, xmm1);                                \

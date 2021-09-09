@@ -3167,6 +3167,11 @@ void Assembler::vpinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
   EMIT(offset);
 }
 
+void Assembler::vroundsd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                         RoundingMode mode) {
+  vinstr(0x0b, dst, src1, src2, k66, k0F3A, kWIG);
+  EMIT(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
+}
 void Assembler::vroundps(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   vinstr(0x08, dst, xmm0, Operand(src), k66, k0F3A, kWIG);
   EMIT(static_cast<byte>(mode) | 0x8);  // Mask precision exception.

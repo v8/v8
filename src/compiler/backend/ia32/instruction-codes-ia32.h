@@ -56,23 +56,23 @@ namespace compiler {
   V(SSEFloat64Max)                 \
   V(SSEFloat32Min)                 \
   V(SSEFloat64Min)                 \
-  V(SSEFloat64Sqrt)                \
-  V(SSEFloat64Round)               \
-  V(SSEFloat32ToFloat64)           \
-  V(SSEFloat64ToFloat32)           \
-  V(SSEFloat32ToInt32)             \
-  V(SSEFloat32ToUint32)            \
-  V(SSEFloat64ToInt32)             \
-  V(SSEFloat64ToUint32)            \
-  V(SSEInt32ToFloat32)             \
-  V(SSEUint32ToFloat32)            \
-  V(SSEInt32ToFloat64)             \
-  V(SSEUint32ToFloat64)            \
-  V(SSEFloat64ExtractLowWord32)    \
-  V(SSEFloat64ExtractHighWord32)   \
-  V(SSEFloat64InsertLowWord32)     \
-  V(SSEFloat64InsertHighWord32)    \
-  V(SSEFloat64LoadLowWord32)       \
+  V(IA32Float64Sqrt)               \
+  V(IA32Float64Round)              \
+  V(IA32Float32ToFloat64)          \
+  V(IA32Float64ToFloat32)          \
+  V(IA32Float32ToInt32)            \
+  V(IA32Float32ToUint32)           \
+  V(IA32Float64ToInt32)            \
+  V(IA32Float64ToUint32)           \
+  V(IA32Int32ToFloat32)            \
+  V(IA32Uint32ToFloat32)           \
+  V(IA32Int32ToFloat64)            \
+  V(IA32Uint32ToFloat64)           \
+  V(IA32Float64ExtractLowWord32)   \
+  V(IA32Float64ExtractHighWord32)  \
+  V(IA32Float64InsertLowWord32)    \
+  V(IA32Float64InsertHighWord32)   \
+  V(IA32Float64LoadLowWord32)      \
   V(SSEFloat64SilenceNaN)          \
   V(Float32Add)                    \
   V(Float32Sub)                    \

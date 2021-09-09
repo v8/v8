@@ -1123,53 +1123,53 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, kIA32Ror);
 }
 
-#define RO_OP_LIST(V)                                       \
-  V(Word32Clz, kIA32Lzcnt)                                  \
-  V(Word32Ctz, kIA32Tzcnt)                                  \
-  V(Word32Popcnt, kIA32Popcnt)                              \
-  V(ChangeFloat32ToFloat64, kSSEFloat32ToFloat64)           \
-  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                \
-  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)               \
-  V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)             \
-  V(ChangeFloat64ToInt32, kSSEFloat64ToInt32)               \
-  V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)         \
-  V(RoundFloat64ToInt32, kSSEFloat64ToInt32)                \
-  V(BitcastFloat32ToInt32, kIA32BitcastFI)                  \
-  V(BitcastInt32ToFloat32, kIA32BitcastIF)                  \
-  V(Float32Sqrt, kSSEFloat32Sqrt)                           \
-  V(Float64Sqrt, kSSEFloat64Sqrt)                           \
-  V(Float64ExtractLowWord32, kSSEFloat64ExtractLowWord32)   \
-  V(Float64ExtractHighWord32, kSSEFloat64ExtractHighWord32) \
-  V(SignExtendWord8ToInt32, kIA32Movsxbl)                   \
-  V(SignExtendWord16ToInt32, kIA32Movsxwl)                  \
+#define RO_OP_LIST(V)                                        \
+  V(Word32Clz, kIA32Lzcnt)                                   \
+  V(Word32Ctz, kIA32Tzcnt)                                   \
+  V(Word32Popcnt, kIA32Popcnt)                               \
+  V(ChangeFloat32ToFloat64, kIA32Float32ToFloat64)           \
+  V(RoundInt32ToFloat32, kIA32Int32ToFloat32)                \
+  V(ChangeInt32ToFloat64, kIA32Int32ToFloat64)               \
+  V(TruncateFloat32ToInt32, kIA32Float32ToInt32)             \
+  V(ChangeFloat64ToInt32, kIA32Float64ToInt32)               \
+  V(TruncateFloat64ToFloat32, kIA32Float64ToFloat32)         \
+  V(RoundFloat64ToInt32, kIA32Float64ToInt32)                \
+  V(BitcastFloat32ToInt32, kIA32BitcastFI)                   \
+  V(BitcastInt32ToFloat32, kIA32BitcastIF)                   \
+  V(Float32Sqrt, kSSEFloat32Sqrt)                            \
+  V(Float64Sqrt, kIA32Float64Sqrt)                           \
+  V(Float64ExtractLowWord32, kIA32Float64ExtractLowWord32)   \
+  V(Float64ExtractHighWord32, kIA32Float64ExtractHighWord32) \
+  V(SignExtendWord8ToInt32, kIA32Movsxbl)                    \
+  V(SignExtendWord16ToInt32, kIA32Movsxwl)                   \
   V(F64x2Sqrt, kIA32F64x2Sqrt)
 
-#define RO_WITH_TEMP_OP_LIST(V) V(ChangeUint32ToFloat64, kSSEUint32ToFloat64)
+#define RO_WITH_TEMP_OP_LIST(V) V(ChangeUint32ToFloat64, kIA32Uint32ToFloat64)
 
-#define RO_WITH_TEMP_SIMD_OP_LIST(V)              \
-  V(TruncateFloat32ToUint32, kSSEFloat32ToUint32) \
-  V(ChangeFloat64ToUint32, kSSEFloat64ToUint32)   \
-  V(TruncateFloat64ToUint32, kSSEFloat64ToUint32)
+#define RO_WITH_TEMP_SIMD_OP_LIST(V)               \
+  V(TruncateFloat32ToUint32, kIA32Float32ToUint32) \
+  V(ChangeFloat64ToUint32, kIA32Float64ToUint32)   \
+  V(TruncateFloat64ToUint32, kIA32Float64ToUint32)
 
-#define RR_OP_LIST(V)                                                         \
-  V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)                          \
-  V(Float32RoundDown, kSSEFloat32Round | MiscField::encode(kRoundDown))       \
-  V(Float64RoundDown, kSSEFloat64Round | MiscField::encode(kRoundDown))       \
-  V(Float32RoundUp, kSSEFloat32Round | MiscField::encode(kRoundUp))           \
-  V(Float64RoundUp, kSSEFloat64Round | MiscField::encode(kRoundUp))           \
-  V(Float32RoundTruncate, kSSEFloat32Round | MiscField::encode(kRoundToZero)) \
-  V(Float64RoundTruncate, kSSEFloat64Round | MiscField::encode(kRoundToZero)) \
-  V(Float32RoundTiesEven,                                                     \
-    kSSEFloat32Round | MiscField::encode(kRoundToNearest))                    \
-  V(Float64RoundTiesEven,                                                     \
-    kSSEFloat64Round | MiscField::encode(kRoundToNearest))                    \
-  V(F32x4Ceil, kIA32F32x4Round | MiscField::encode(kRoundUp))                 \
-  V(F32x4Floor, kIA32F32x4Round | MiscField::encode(kRoundDown))              \
-  V(F32x4Trunc, kIA32F32x4Round | MiscField::encode(kRoundToZero))            \
-  V(F32x4NearestInt, kIA32F32x4Round | MiscField::encode(kRoundToNearest))    \
-  V(F64x2Ceil, kIA32F64x2Round | MiscField::encode(kRoundUp))                 \
-  V(F64x2Floor, kIA32F64x2Round | MiscField::encode(kRoundDown))              \
-  V(F64x2Trunc, kIA32F64x2Round | MiscField::encode(kRoundToZero))            \
+#define RR_OP_LIST(V)                                                          \
+  V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)                           \
+  V(Float32RoundDown, kSSEFloat32Round | MiscField::encode(kRoundDown))        \
+  V(Float64RoundDown, kIA32Float64Round | MiscField::encode(kRoundDown))       \
+  V(Float32RoundUp, kSSEFloat32Round | MiscField::encode(kRoundUp))            \
+  V(Float64RoundUp, kIA32Float64Round | MiscField::encode(kRoundUp))           \
+  V(Float32RoundTruncate, kSSEFloat32Round | MiscField::encode(kRoundToZero))  \
+  V(Float64RoundTruncate, kIA32Float64Round | MiscField::encode(kRoundToZero)) \
+  V(Float32RoundTiesEven,                                                      \
+    kSSEFloat32Round | MiscField::encode(kRoundToNearest))                     \
+  V(Float64RoundTiesEven,                                                      \
+    kIA32Float64Round | MiscField::encode(kRoundToNearest))                    \
+  V(F32x4Ceil, kIA32F32x4Round | MiscField::encode(kRoundUp))                  \
+  V(F32x4Floor, kIA32F32x4Round | MiscField::encode(kRoundDown))               \
+  V(F32x4Trunc, kIA32F32x4Round | MiscField::encode(kRoundToZero))             \
+  V(F32x4NearestInt, kIA32F32x4Round | MiscField::encode(kRoundToNearest))     \
+  V(F64x2Ceil, kIA32F64x2Round | MiscField::encode(kRoundUp))                  \
+  V(F64x2Floor, kIA32F64x2Round | MiscField::encode(kRoundDown))               \
+  V(F64x2Trunc, kIA32F64x2Round | MiscField::encode(kRoundToZero))             \
   V(F64x2NearestInt, kIA32F64x2Round | MiscField::encode(kRoundToNearest))
 
 #define RRO_FLOAT_OP_LIST(V) \
@@ -1347,7 +1347,7 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
 void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kSSEUint32ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
+  Emit(kIA32Uint32ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
        arraysize(temps), temps);
 }
 
@@ -1965,10 +1965,10 @@ void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
   Float64Matcher mleft(left);
   if (mleft.HasResolvedValue() &&
       (bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
-    Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
+    Emit(kIA32Float64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
     return;
   }
-  Emit(kSSEFloat64InsertLowWord32, g.DefineSameAsFirst(node),
+  Emit(kIA32Float64InsertLowWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.Use(right));
 }
 
@@ -1976,7 +1976,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
   IA32OperandGenerator g(this);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-  Emit(kSSEFloat64InsertHighWord32, g.DefineSameAsFirst(node),
+  Emit(kIA32Float64InsertHighWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.Use(right));
 }
 

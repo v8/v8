@@ -57,23 +57,23 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat64Max:
     case kSSEFloat32Min:
     case kSSEFloat64Min:
-    case kSSEFloat64Sqrt:
-    case kSSEFloat64Round:
-    case kSSEFloat32ToFloat64:
-    case kSSEFloat64ToFloat32:
-    case kSSEFloat32ToInt32:
-    case kSSEFloat32ToUint32:
-    case kSSEFloat64ToInt32:
-    case kSSEFloat64ToUint32:
-    case kSSEInt32ToFloat32:
-    case kSSEUint32ToFloat32:
-    case kSSEInt32ToFloat64:
-    case kSSEUint32ToFloat64:
-    case kSSEFloat64ExtractLowWord32:
-    case kSSEFloat64ExtractHighWord32:
-    case kSSEFloat64InsertLowWord32:
-    case kSSEFloat64InsertHighWord32:
-    case kSSEFloat64LoadLowWord32:
+    case kIA32Float64Sqrt:
+    case kIA32Float64Round:
+    case kIA32Float32ToFloat64:
+    case kIA32Float64ToFloat32:
+    case kIA32Float32ToInt32:
+    case kIA32Float32ToUint32:
+    case kIA32Float64ToInt32:
+    case kIA32Float64ToUint32:
+    case kIA32Int32ToFloat32:
+    case kIA32Uint32ToFloat32:
+    case kIA32Int32ToFloat64:
+    case kIA32Uint32ToFloat64:
+    case kIA32Float64ExtractLowWord32:
+    case kIA32Float64ExtractHighWord32:
+    case kIA32Float64InsertLowWord32:
+    case kIA32Float64InsertHighWord32:
+    case kIA32Float64LoadLowWord32:
     case kSSEFloat64SilenceNaN:
     case kFloat32Add:
     case kFloat32Sub:
@@ -422,17 +422,17 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return 5;
     case kFloat32Mul:
       return 4;
-    case kSSEFloat32ToFloat64:
-    case kSSEFloat64ToFloat32:
+    case kIA32Float32ToFloat64:
+    case kIA32Float64ToFloat32:
       return 6;
     case kSSEFloat32Round:
-    case kSSEFloat64Round:
-    case kSSEFloat32ToInt32:
-    case kSSEFloat64ToInt32:
+    case kIA32Float64Round:
+    case kIA32Float32ToInt32:
+    case kIA32Float64ToInt32:
       return 8;
-    case kSSEFloat32ToUint32:
+    case kIA32Float32ToUint32:
       return 21;
-    case kSSEFloat64ToUint32:
+    case kIA32Float64ToUint32:
       return 15;
     case kIA32Idiv:
       return 33;
@@ -443,7 +443,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kFloat64Div:
       return 63;
     case kSSEFloat32Sqrt:
-    case kSSEFloat64Sqrt:
+    case kIA32Float64Sqrt:
       return 25;
     case kSSEFloat64Mod:
       return 50;

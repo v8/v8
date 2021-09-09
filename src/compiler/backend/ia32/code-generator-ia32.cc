@@ -1410,72 +1410,71 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mov(esp, tmp);
       break;
     }
-    case kSSEFloat64Sqrt:
-      __ sqrtsd(i.OutputDoubleRegister(), i.InputOperand(0));
+    case kIA32Float64Sqrt:
+      __ Sqrtsd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
-    case kSSEFloat64Round: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+    case kIA32Float64Round: {
       RoundingMode const mode =
           static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
-      __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
+      __ Roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
-    case kSSEFloat32ToFloat64:
-      __ cvtss2sd(i.OutputDoubleRegister(), i.InputOperand(0));
+    case kIA32Float32ToFloat64:
+      __ Cvtss2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
-    case kSSEFloat64ToFloat32:
-      __ cvtsd2ss(i.OutputDoubleRegister(), i.InputOperand(0));
+    case kIA32Float64ToFloat32:
+      __ Cvtsd2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
-    case kSSEFloat32ToInt32:
-      __ cvttss2si(i.OutputRegister(), i.InputOperand(0));
+    case kIA32Float32ToInt32:
+      __ Cvttss2si(i.OutputRegister(), i.InputOperand(0));
       break;
-    case kSSEFloat32ToUint32:
+    case kIA32Float32ToUint32:
       __ Cvttss2ui(i.OutputRegister(), i.InputOperand(0),
                    i.TempSimd128Register(0));
       break;
-    case kSSEFloat64ToInt32:
-      __ cvttsd2si(i.OutputRegister(), i.InputOperand(0));
+    case kIA32Float64ToInt32:
+      __ Cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       break;
-    case kSSEFloat64ToUint32:
+    case kIA32Float64ToUint32:
       __ Cvttsd2ui(i.OutputRegister(), i.InputOperand(0),
                    i.TempSimd128Register(0));
       break;
-    case kSSEInt32ToFloat32:
-      __ cvtsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
+    case kIA32Int32ToFloat32:
+      __ Cvtsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
-    case kSSEUint32ToFloat32:
+    case kIA32Uint32ToFloat32:
       __ Cvtui2ss(i.OutputDoubleRegister(), i.InputOperand(0),
                   i.TempRegister(0));
       break;
-    case kSSEInt32ToFloat64:
-      __ cvtsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
+    case kIA32Int32ToFloat64:
+      __ Cvtsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
-    case kSSEUint32ToFloat64:
+    case kIA32Uint32ToFloat64:
       __ Cvtui2sd(i.OutputDoubleRegister(), i.InputOperand(0),
                   i.TempRegister(0));
       break;
-    case kSSEFloat64ExtractLowWord32:
+    case kIA32Float64ExtractLowWord32:
       if (instr->InputAt(0)->IsFPStackSlot()) {
         __ mov(i.OutputRegister(), i.InputOperand(0));
       } else {
-        __ movd(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Movd(i.OutputRegister(), i.InputDoubleRegister(0));
       }
       break;
-    case kSSEFloat64ExtractHighWord32:
+    case kIA32Float64ExtractHighWord32:
       if (instr->InputAt(0)->IsFPStackSlot()) {
         __ mov(i.OutputRegister(), i.InputOperand(0, kDoubleSize / 2));
       } else {
         __ Pextrd(i.OutputRegister(), i.InputDoubleRegister(0), 1);
       }
       break;
-    case kSSEFloat64InsertLowWord32:
+    case kIA32Float64InsertLowWord32:
       __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 0);
       break;
-    case kSSEFloat64InsertHighWord32:
+    case kIA32Float64InsertHighWord32:
       __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1);
       break;
-    case kSSEFloat64LoadLowWord32:
-      __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
+    case kIA32Float64LoadLowWord32:
+      __ Movd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kFloat32Add: {
       __ Addss(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
