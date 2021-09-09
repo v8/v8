@@ -493,20 +493,6 @@ TEST(DisasmIa320) {
     __ movd(eax, xmm1);
     __ movd(Operand(ebx, ecx, times_4, 10000), xmm1);
 
-    __ addsd(xmm1, xmm0);
-    __ addsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ mulsd(xmm1, xmm0);
-    __ mulsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ subsd(xmm1, xmm0);
-    __ subsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ divsd(xmm1, xmm0);
-    __ divsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ minsd(xmm1, xmm0);
-    __ minsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ maxsd(xmm1, xmm0);
-    __ maxsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-    __ sqrtsd(xmm1, xmm0);
-    __ sqrtsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);
 
@@ -569,6 +555,7 @@ TEST(DisasmIa320) {
   __ instruction(xmm5, Operand(edx, 4));
 
     SSE2_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
+    SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_INSTR)
 #undef EMIT_SSE2_INSTR
   }
 
@@ -657,21 +644,6 @@ TEST(DisasmIa320) {
   {
     if (CpuFeatures::IsSupported(AVX)) {
       CpuFeatureScope scope(&assm, AVX);
-      __ vaddsd(xmm0, xmm1, xmm2);
-      __ vaddsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vmulsd(xmm0, xmm1, xmm2);
-      __ vmulsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vsubsd(xmm0, xmm1, xmm2);
-      __ vsubsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vdivsd(xmm0, xmm1, xmm2);
-      __ vdivsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vminsd(xmm0, xmm1, xmm2);
-      __ vminsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vmaxsd(xmm0, xmm1, xmm2);
-      __ vmaxsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ vsqrtsd(xmm0, xmm1, xmm2);
-      __ vsqrtsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
-
       __ vaddss(xmm0, xmm1, xmm2);
       __ vaddss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmulss(xmm0, xmm1, xmm2);
@@ -857,6 +829,7 @@ TEST(DisasmIa320) {
   __ v##instruction(xmm7, xmm5, Operand(edx, 4));
 
       SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
+      SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_AVXINSTR)
 #undef EMIT_SSE2_AVXINSTR
 
 #define EMIT_SSE34_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
