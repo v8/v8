@@ -217,6 +217,42 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
          isolate->is_profiling();
 }
 
+std::string WasmCode::DebugName() const {
+  if (IsAnonymous()) {
+    return "anonymous function";
+  }
+
+  ModuleWireBytes wire_bytes(native_module()->wire_bytes());
+  const WasmModule* module = native_module()->module();
+  WireBytesRef name_ref =
+      module->lazily_generated_names.LookupFunctionName(wire_bytes, index());
+  WasmName name = wire_bytes.GetNameOrNull(name_ref);
+  std::string name_buffer;
+  if (kind() == kWasmToJsWrapper) {
+    name_buffer = "wasm-to-js:";
+    size_t prefix_len = name_buffer.size();
+    constexpr size_t kMaxSigLength = 128;
+    name_buffer.resize(prefix_len + kMaxSigLength);
+    const FunctionSig* sig = module->functions[index()].sig;
+    size_t sig_length = PrintSignature(
+        base::VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
+    name_buffer.resize(prefix_len + sig_length);
+    // If the import has a name, also append that (separated by "-").
+    if (!name.empty()) {
+      name_buffer += '-';
+      name_buffer.append(name.begin(), name.size());
+    }
+  } else if (name.empty()) {
+    name_buffer.resize(32);
+    name_buffer.resize(
+        SNPrintF(base::VectorOf(&name_buffer.front(), name_buffer.size()),
+                 "wasm-function[%d]", index()));
+  } else {
+    name_buffer.append(name.begin(), name.end());
+  }
+  return name_buffer;
+}
+
 void WasmCode::LogCode(Isolate* isolate, const char* source_url,
                        int script_id) const {
   DCHECK(ShouldBeLogged(isolate));
@@ -224,9 +260,8 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
 
   ModuleWireBytes wire_bytes(native_module_->wire_bytes());
   const WasmModule* module = native_module_->module();
-  WireBytesRef name_ref =
-      module->lazily_generated_names.LookupFunctionName(wire_bytes, index());
-  WasmName name = wire_bytes.GetNameOrNull(name_ref);
+  std::string fn_name = DebugName();
+  WasmName name = base::VectorOf(fn_name);
 
   const WasmDebugSymbols& debug_symbols = module->debug_symbols;
   auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
@@ -242,30 +277,6 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
         load_wasm_source_map(v8_isolate, external_url_string.c_str());
     native_module_->SetWasmSourceMap(
         std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
-  }
-
-  std::string name_buffer;
-  if (kind() == kWasmToJsWrapper) {
-    name_buffer = "wasm-to-js:";
-    size_t prefix_len = name_buffer.size();
-    constexpr size_t kMaxSigLength = 128;
-    name_buffer.resize(prefix_len + kMaxSigLength);
-    const FunctionSig* sig = module->functions[index_].sig;
-    size_t sig_length = PrintSignature(
-        base::VectorOf(&name_buffer[prefix_len], kMaxSigLength), sig);
-    name_buffer.resize(prefix_len + sig_length);
-    // If the import has a name, also append that (separated by "-").
-    if (!name.empty()) {
-      name_buffer += '-';
-      name_buffer.append(name.begin(), name.size());
-    }
-    name = base::VectorOf(name_buffer);
-  } else if (name.empty()) {
-    name_buffer.resize(32);
-    name_buffer.resize(
-        SNPrintF(base::VectorOf(&name_buffer.front(), name_buffer.size()),
-                 "wasm-function[%d]", index()));
-    name = base::VectorOf(name_buffer);
   }
 
   // Record source positions before adding code, otherwise when code is added,
@@ -334,7 +345,7 @@ void WasmCode::Validate() const {
 #endif
 }
 
-void WasmCode::MaybePrint(const char* name) const {
+void WasmCode::MaybePrint() const {
   // Determines whether flags want this code to be printed.
   bool function_index_matches =
       (!IsAnonymous() &&
@@ -342,7 +353,8 @@ void WasmCode::MaybePrint(const char* name) const {
   if (FLAG_print_code ||
       (kind() == kFunction ? (FLAG_print_wasm_code || function_index_matches)
                            : FLAG_print_wasm_stub_code)) {
-    Print(name);
+    std::string name = DebugName();
+    Print(name.c_str());
   }
 }
 
@@ -1255,6 +1267,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, instr_size, protected_instructions_data, reloc_info,
       source_position_table, kind, tier, for_debugging}};
+
   code->MaybePrint();
   code->Validate();
 

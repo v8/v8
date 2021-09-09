@@ -318,7 +318,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   void Validate() const;
   void Print(const char* name = nullptr) const;
-  void MaybePrint(const char* name = nullptr) const;
+  void MaybePrint() const;
   void Disassemble(const char* name, std::ostream& os,
                    Address current_pc = kNullAddress) const;
 
@@ -419,6 +419,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   std::unique_ptr<const byte[]> ConcatenateBytes(
       std::initializer_list<base::Vector<const byte>>);
+
+  // Tries to get a reasonable name. Lazily looks up the name section, and falls
+  // back to the function index. Return value is guaranteed to not be empty.
+  std::string DebugName() const;
 
   // Code objects that have been registered with the global trap handler within
   // this process, will have a {trap_handler_index} associated with them.
