@@ -152,8 +152,6 @@ namespace compiler {
   V(IA32Insertps)                  \
   V(IA32F32x4SConvertI32x4)        \
   V(IA32F32x4UConvertI32x4)        \
-  V(IA32F32x4Abs)                  \
-  V(IA32F32x4Neg)                  \
   V(IA32F32x4Sqrt)                 \
   V(IA32F32x4RecipApprox)          \
   V(IA32F32x4RecipSqrtApprox)      \

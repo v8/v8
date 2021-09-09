@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/codegen/cpu-features.h"
+#include "src/codegen/external-reference.h"
 #include "src/codegen/turbo-assembler.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -461,6 +462,27 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
   using SharedTurboAssembler::SharedTurboAssembler;
 
  public:
+  void Abspd(XMMRegister dst, XMMRegister src, Register tmp) {
+    FloatUnop(dst, src, tmp, &SharedTurboAssembler::Andps,
+              ExternalReference::address_of_double_abs_constant());
+  }
+
+  void Absps(XMMRegister dst, XMMRegister src, Register tmp) {
+    FloatUnop(dst, src, tmp, &SharedTurboAssembler::Andps,
+              ExternalReference::address_of_float_abs_constant());
+  }
+
+  void Negpd(XMMRegister dst, XMMRegister src, Register tmp) {
+    FloatUnop(dst, src, tmp, &SharedTurboAssembler::Xorps,
+              ExternalReference::address_of_double_neg_constant());
+  }
+
+  void Negps(XMMRegister dst, XMMRegister src, Register tmp) {
+    FloatUnop(dst, src, tmp, &SharedTurboAssembler::Xorps,
+              ExternalReference::address_of_float_neg_constant());
+  }
+#undef FLOAT_UNOP
+
   void F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src,
                              Register scratch) {
     ASM_CODE_COMMENT(this);
@@ -760,6 +782,18 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
   Operand ExternalReferenceAsOperand(ExternalReference reference,
                                      Register scratch) {
     return impl()->ExternalReferenceAsOperand(reference, scratch);
+  }
+
+  using FloatInstruction = void (SharedTurboAssembler::*)(XMMRegister,
+                                                          XMMRegister, Operand);
+  void FloatUnop(XMMRegister dst, XMMRegister src, Register tmp,
+                 FloatInstruction op, ExternalReference ext) {
+    if (!CpuFeatures::IsSupported(AVX) && (dst != src)) {
+      movaps(dst, src);
+      src = dst;
+    }
+    SharedTurboAssembler* assm = this;
+    (assm->*op)(dst, src, ExternalReferenceAsOperand(ext, tmp));
   }
 };
 

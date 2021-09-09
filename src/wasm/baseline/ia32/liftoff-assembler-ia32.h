@@ -3933,28 +3933,14 @@ void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Psrld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{1});
-    Andps(dst.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Psrld(dst.fp(), dst.fp(), byte{1});
-    Andps(dst.fp(), src.fp());
-  }
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  Absps(dst.fp(), src.fp(), tmp);
 }
 
 void LiftoffAssembler::emit_f32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Pslld(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{31});
-    Xorps(dst.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Pslld(dst.fp(), dst.fp(), byte{31});
-    Xorps(dst.fp(), src.fp());
-  }
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  Negps(dst.fp(), src.fp(), tmp);
 }
 
 void LiftoffAssembler::emit_f32x4_sqrt(LiftoffRegister dst,
@@ -4089,28 +4075,14 @@ void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Psrlq(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{1});
-    Andpd(dst.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Psrlq(dst.fp(), dst.fp(), byte{1});
-    Andpd(dst.fp(), src.fp());
-  }
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  Abspd(dst.fp(), src.fp(), tmp);
 }
 
 void LiftoffAssembler::emit_f64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  if (dst.fp() == src.fp()) {
-    Pcmpeqd(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
-    Psllq(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, byte{63});
-    Xorpd(dst.fp(), liftoff::kScratchDoubleReg);
-  } else {
-    Pcmpeqd(dst.fp(), dst.fp());
-    Psllq(dst.fp(), dst.fp(), byte{63});
-    Xorpd(dst.fp(), src.fp());
-  }
+  Register tmp = GetUnusedRegister(kGpReg, {}).gp();
+  Negpd(dst.fp(), src.fp(), tmp);
 }
 
 void LiftoffAssembler::emit_f64x2_sqrt(LiftoffRegister dst,

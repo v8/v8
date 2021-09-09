@@ -2194,21 +2194,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movapd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       break;
     case kX64Float32Abs: {
-      __ Absps(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Absps(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               kScratchRegister);
       break;
     }
     case kX64Float32Neg: {
-      __ Negps(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Negps(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               kScratchRegister);
       break;
     }
     case kX64F64x2Abs:
     case kX64Float64Abs: {
-      __ Abspd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Abspd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               kScratchRegister);
       break;
     }
     case kX64F64x2Neg:
     case kX64Float64Neg: {
-      __ Negpd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ Negpd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               kScratchRegister);
       break;
     }
     case kSSEFloat64SilenceNaN:

@@ -329,10 +329,13 @@ void VisitRROFloat(InstructionSelector* selector, Node* node,
 void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
                     ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempRegister()};
   if (selector->IsSupported(AVX)) {
-    selector->Emit(opcode, g.DefineAsRegister(node), g.Use(input));
+    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(input),
+                   arraysize(temps), temps);
   } else {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(input));
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(input),
+                   arraysize(temps), temps);
   }
 }
 
@@ -1195,6 +1198,8 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(Float64Abs, kFloat64Abs) \
   V(Float32Neg, kFloat32Neg) \
   V(Float64Neg, kFloat64Neg) \
+  V(F32x4Abs, kFloat32Abs)   \
+  V(F32x4Neg, kFloat32Neg)   \
   V(F64x2Abs, kFloat64Abs)   \
   V(F64x2Neg, kFloat64Neg)
 
@@ -2341,8 +2346,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(F64x2ConvertLowI32x4S)  \
   V(F64x2PromoteLowF32x4)   \
   V(F32x4DemoteF64x2Zero)   \
-  V(F32x4Abs)               \
-  V(F32x4Neg)               \
   V(F32x4Sqrt)              \
   V(F32x4SConvertI32x4)     \
   V(F32x4RecipApprox)       \

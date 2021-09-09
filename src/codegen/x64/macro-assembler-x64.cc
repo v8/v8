@@ -2233,46 +2233,6 @@ void TurboAssembler::Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2,
               imm8, load_pc_offset, {SSE4_1});
 }
 
-void TurboAssembler::Absps(XMMRegister dst, XMMRegister src) {
-  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
-    movaps(dst, src);
-    src = dst;
-  }
-  Andps(dst, src,
-        ExternalReferenceAsOperand(
-            ExternalReference::address_of_float_abs_constant()));
-}
-
-void TurboAssembler::Negps(XMMRegister dst, XMMRegister src) {
-  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
-    movaps(dst, src);
-    src = dst;
-  }
-  Xorps(dst, src,
-        ExternalReferenceAsOperand(
-            ExternalReference::address_of_float_neg_constant()));
-}
-
-void TurboAssembler::Abspd(XMMRegister dst, XMMRegister src) {
-  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
-    movaps(dst, src);
-    src = dst;
-  }
-  Andps(dst, src,
-        ExternalReferenceAsOperand(
-            ExternalReference::address_of_double_abs_constant()));
-}
-
-void TurboAssembler::Negpd(XMMRegister dst, XMMRegister src) {
-  if (!CpuFeatures::IsSupported(AVX) && dst != src) {
-    movaps(dst, src);
-    src = dst;
-  }
-  Xorps(dst, src,
-        ExternalReferenceAsOperand(
-            ExternalReference::address_of_double_neg_constant()));
-}
-
 void TurboAssembler::Lzcntl(Register dst, Register src) {
   if (CpuFeatures::IsSupported(LZCNT)) {
     CpuFeatureScope scope(this, LZCNT);
