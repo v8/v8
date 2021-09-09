@@ -27,16 +27,16 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
+#include "src/base/vector.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
-#include "src/utils/ostreams.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -1057,6 +1057,37 @@ TEST(DisasmX64) {
 #endif
 }
 
+// Tests that compares the checks the disassembly output with an expected
+// string.
+TEST(DisasmX64CheckOutput) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[8192];
+  Assembler assm(AssemblerOptions{},
+                 ExternalAssemblerBuffer(buffer, sizeof buffer));
+  base::EmbeddedVector<char, 128> disasm_buffer;
+  disasm::NameConverter converter;
+  disasm::Disassembler disassembler(converter);
+
+  std::string actual, expected;
+  int pcoffset = 0;
+  // Helper macro to compare the disassembly of an assembler function call with
+  // the expected disassembly output. We reuse |Assembler|, so we need to keep
+  // track of the offset into |buffer| which the Assembler has used, and
+  // disassemble the instruction at that offset.
+#define COMPARE(str, ASM)                                           \
+  assm.ASM;                                                         \
+  disassembler.InstructionDecode(disasm_buffer, buffer + pcoffset); \
+  pcoffset = assm.pc_offset();                                      \
+  actual = std::string{disasm_buffer.begin()};                      \
+  expected = str;                                                   \
+  CHECK_EQ(expected, actual);
+
+  COMPARE("48054e61bc00       REX.W add rax,0xbc614e",
+          addq(rax, Immediate(12345678)));
+}
+
 TEST(DisasmX64YMMRegister) {
   if (!CpuFeatures::IsSupported(AVX)) return;
   CcTest::InitializeVM();
@@ -1079,7 +1110,8 @@ TEST(DisasmX64YMMRegister) {
 
   base::Vector<const char> expected =
       base::StaticCharVector("c5fd6fc1           vmovdqa ymm0,ymm1\0");
-  CHECK(expected == actual);
+
+  CHECK_EQ(expected, actual);
 
   actual.Dispose();
 }
