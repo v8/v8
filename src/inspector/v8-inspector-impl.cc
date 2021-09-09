@@ -348,14 +348,7 @@ v8::MaybeLocal<v8::Context> V8InspectorImpl::regexContext() {
 }
 
 v8::MaybeLocal<v8::Context> V8InspectorImpl::exceptionMetaDataContext() {
-  if (m_exceptionMetaDataContext.IsEmpty()) {
-    m_exceptionMetaDataContext.Reset(m_isolate, v8::Context::New(m_isolate));
-    if (m_exceptionMetaDataContext.IsEmpty()) {
-      DCHECK(m_isolate->IsExecutionTerminating());
-      return {};
-    }
-  }
-  return m_exceptionMetaDataContext.Get(m_isolate);
+  return {};
 }
 
 void V8InspectorImpl::discardInspectedContext(int contextGroupId,

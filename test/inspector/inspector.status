@@ -20,6 +20,9 @@
   # loop instead of properly reporting a RangeError for a stack overflow.
   'regress/regress-crbug-1080638': [SKIP],
 
+  # https://crbug.com/1241860
+  'runtime/exception-thrown-metadata': [SKIP],
+
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'runtime/console-messages-limits': [PASS, HEAVY],
   'runtime/regression-732717': [PASS, HEAVY],
