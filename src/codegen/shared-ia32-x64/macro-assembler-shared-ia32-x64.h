@@ -375,6 +375,10 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
                 XMMRegister scratch);
   void F32x4Splat(XMMRegister dst, DoubleRegister src);
   void F32x4ExtractLane(FloatRegister dst, XMMRegister src, uint8_t lane);
+  void F32x4Min(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                XMMRegister scratch);
+  void F32x4Max(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
+                XMMRegister scratch);
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
   void I8x16Splat(XMMRegister dst, Register src, XMMRegister scratch);
   void I8x16Splat(XMMRegister dst, Operand src, XMMRegister scratch);

@@ -4002,61 +4002,12 @@ void LiftoffAssembler::emit_f32x4_div(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // The minps instruction doesn't propagate NaNs and +0's in its first
-  // operand. Perform minps in both orders, merge the results, and adjust.
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vminps(liftoff::kScratchDoubleReg, lhs.fp(), rhs.fp());
-    vminps(dst.fp(), rhs.fp(), lhs.fp());
-  } else if (dst.fp() == lhs.fp() || dst.fp() == rhs.fp()) {
-    XMMRegister src = dst.fp() == lhs.fp() ? rhs.fp() : lhs.fp();
-    movaps(liftoff::kScratchDoubleReg, src);
-    minps(liftoff::kScratchDoubleReg, dst.fp());
-    minps(dst.fp(), src);
-  } else {
-    movaps(liftoff::kScratchDoubleReg, lhs.fp());
-    minps(liftoff::kScratchDoubleReg, rhs.fp());
-    movaps(dst.fp(), rhs.fp());
-    minps(dst.fp(), lhs.fp());
-  }
-  // propagate -0's and NaNs, which may be non-canonical.
-  Orps(liftoff::kScratchDoubleReg, dst.fp());
-  // Canonicalize NaNs by quieting and clearing the payload.
-  Cmpunordps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
-  Orps(liftoff::kScratchDoubleReg, dst.fp());
-  Psrld(dst.fp(), dst.fp(), byte{10});
-  Andnps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
+  F32x4Min(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  // The maxps instruction doesn't propagate NaNs and +0's in its first
-  // operand. Perform maxps in both orders, merge the results, and adjust.
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vmaxps(liftoff::kScratchDoubleReg, lhs.fp(), rhs.fp());
-    vmaxps(dst.fp(), rhs.fp(), lhs.fp());
-  } else if (dst.fp() == lhs.fp() || dst.fp() == rhs.fp()) {
-    XMMRegister src = dst.fp() == lhs.fp() ? rhs.fp() : lhs.fp();
-    movaps(liftoff::kScratchDoubleReg, src);
-    maxps(liftoff::kScratchDoubleReg, dst.fp());
-    maxps(dst.fp(), src);
-  } else {
-    movaps(liftoff::kScratchDoubleReg, lhs.fp());
-    maxps(liftoff::kScratchDoubleReg, rhs.fp());
-    movaps(dst.fp(), rhs.fp());
-    maxps(dst.fp(), lhs.fp());
-  }
-  // Find discrepancies.
-  Xorps(dst.fp(), liftoff::kScratchDoubleReg);
-  // Propagate NaNs, which may be non-canonical.
-  Orps(liftoff::kScratchDoubleReg, dst.fp());
-  // Propagate sign discrepancy and (subtle) quiet NaNs.
-  Subps(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg, dst.fp());
-  // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-  Cmpunordps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
-  Psrld(dst.fp(), dst.fp(), byte{10});
-  Andnps(dst.fp(), dst.fp(), liftoff::kScratchDoubleReg);
+  F32x4Max(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,

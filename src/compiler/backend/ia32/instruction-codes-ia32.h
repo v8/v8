@@ -159,10 +159,8 @@ namespace compiler {
   V(IA32F32x4Sub)                  \
   V(IA32F32x4Mul)                  \
   V(IA32F32x4Div)                  \
-  V(SSEF32x4Min)                   \
-  V(AVXF32x4Min)                   \
-  V(SSEF32x4Max)                   \
-  V(AVXF32x4Max)                   \
+  V(IA32F32x4Min)                  \
+  V(IA32F32x4Max)                  \
   V(IA32F32x4Eq)                   \
   V(IA32F32x4Ne)                   \
   V(IA32F32x4Lt)                   \

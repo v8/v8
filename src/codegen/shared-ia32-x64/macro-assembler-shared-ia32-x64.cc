@@ -127,6 +127,65 @@ void SharedTurboAssembler::F64x2ReplaceLane(XMMRegister dst, XMMRegister src,
   }
 }
 
+void SharedTurboAssembler::F32x4Min(XMMRegister dst, XMMRegister lhs,
+                                    XMMRegister rhs, XMMRegister scratch) {
+  // The minps instruction doesn't propagate NaNs and +0's in its first
+  // operand. Perform minps in both orders, merge the results, and adjust.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vminps(scratch, lhs, rhs);
+    vminps(dst, rhs, lhs);
+  } else if (dst == lhs || dst == rhs) {
+    XMMRegister src = dst == lhs ? rhs : lhs;
+    movaps(scratch, src);
+    minps(scratch, dst);
+    minps(dst, src);
+  } else {
+    movaps(scratch, lhs);
+    minps(scratch, rhs);
+    movaps(dst, rhs);
+    minps(dst, lhs);
+  }
+  // Propagate -0's and NaNs, which may be non-canonical.
+  Orps(scratch, dst);
+  // Canonicalize NaNs by quieting and clearing the payload.
+  Cmpunordps(dst, dst, scratch);
+  Orps(scratch, dst);
+  Psrld(dst, dst, byte{10});
+  Andnps(dst, dst, scratch);
+}
+
+void SharedTurboAssembler::F32x4Max(XMMRegister dst, XMMRegister lhs,
+                                    XMMRegister rhs, XMMRegister scratch) {
+  // The maxps instruction doesn't propagate NaNs and +0's in its first
+  // operand. Perform maxps in both orders, merge the results, and adjust.
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmaxps(scratch, lhs, rhs);
+    vmaxps(dst, rhs, lhs);
+  } else if (dst == lhs || dst == rhs) {
+    XMMRegister src = dst == lhs ? rhs : lhs;
+    movaps(scratch, src);
+    maxps(scratch, dst);
+    maxps(dst, src);
+  } else {
+    movaps(scratch, lhs);
+    maxps(scratch, rhs);
+    movaps(dst, rhs);
+    maxps(dst, lhs);
+  }
+  // Find discrepancies.
+  Xorps(dst, scratch);
+  // Propagate NaNs, which may be non-canonical.
+  Orps(scratch, dst);
+  // Propagate sign discrepancy and (subtle) quiet NaNs.
+  Subps(scratch, scratch, dst);
+  // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+  Cmpunordps(dst, dst, scratch);
+  Psrld(dst, dst, byte{10});
+  Andnps(dst, dst, scratch);
+}
+
 void SharedTurboAssembler::F64x2Min(XMMRegister dst, XMMRegister lhs,
                                     XMMRegister rhs, XMMRegister scratch) {
   if (CpuFeatures::IsSupported(AVX)) {

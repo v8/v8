@@ -144,10 +144,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F32x4Sub:
     case kIA32F32x4Mul:
     case kIA32F32x4Div:
-    case kSSEF32x4Min:
-    case kAVXF32x4Min:
-    case kSSEF32x4Max:
-    case kAVXF32x4Max:
+    case kIA32F32x4Min:
+    case kIA32F32x4Max:
     case kIA32F32x4Eq:
     case kIA32F32x4Ne:
     case kIA32F32x4Lt:

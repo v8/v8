@@ -2821,42 +2821,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Min: {
-      XMMRegister src1 = i.InputSimd128Register(1),
-                  dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // The minps instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform minps in both orders, merge the resuls, and adjust.
-      __ Movaps(kScratchDoubleReg, src1);
-      __ Minps(kScratchDoubleReg, dst);
-      __ Minps(dst, src1);
-      // propagate -0's and NaNs, which may be non-canonical.
-      __ Orps(kScratchDoubleReg, dst);
-      // Canonicalize NaNs by quieting and clearing the payload.
-      __ Cmpunordps(dst, kScratchDoubleReg);
-      __ Orps(kScratchDoubleReg, dst);
-      __ Psrld(dst, byte{10});
-      __ Andnps(dst, kScratchDoubleReg);
+      __ F32x4Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kX64F32x4Max: {
-      XMMRegister src1 = i.InputSimd128Register(1),
-                  dst = i.OutputSimd128Register();
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      // The maxps instruction doesn't propagate NaNs and +0's in its first
-      // operand. Perform maxps in both orders, merge the resuls, and adjust.
-      __ Movaps(kScratchDoubleReg, src1);
-      __ Maxps(kScratchDoubleReg, dst);
-      __ Maxps(dst, src1);
-      // Find discrepancies.
-      __ Xorps(dst, kScratchDoubleReg);
-      // Propagate NaNs, which may be non-canonical.
-      __ Orps(kScratchDoubleReg, dst);
-      // Propagate sign discrepancy and (subtle) quiet NaNs.
-      __ Subps(kScratchDoubleReg, dst);
-      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ Cmpunordps(dst, kScratchDoubleReg);
-      __ Psrld(dst, byte{10});
-      __ Andnps(dst, kScratchDoubleReg);
+      __ F32x4Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
     case kX64F32x4Eq: {
