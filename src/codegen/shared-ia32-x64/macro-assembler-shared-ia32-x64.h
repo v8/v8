@@ -264,6 +264,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pcmpgtb, pcmpgtb)
   AVX_OP(Pcmpgtd, pcmpgtd)
   AVX_OP(Pcmpgtw, pcmpgtw)
+  AVX_OP(Pcmpeqb, pcmpeqb)
   AVX_OP(Pcmpeqd, pcmpeqd)
   AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pinsrw, pinsrw)
@@ -336,8 +337,10 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSSE3(Psignw, psignw)
 
   AVX_OP_SSE4_1(Extractps, extractps)
+  AVX_OP_SSE4_1(Insertps, insertps)
   AVX_OP_SSE4_1(Packusdw, packusdw)
   AVX_OP_SSE4_1(Pblendw, pblendw)
+  AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
   AVX_OP_SSE4_1(Pextrb, pextrb)
   AVX_OP_SSE4_1(Pextrw, pextrw)
   AVX_OP_SSE4_1(Pinsrb, pinsrb)

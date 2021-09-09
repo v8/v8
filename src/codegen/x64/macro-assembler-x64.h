@@ -61,27 +61,16 @@ class V8_EXPORT_PRIVATE TurboAssembler
     : public SharedTurboAssemblerBase<TurboAssembler> {
  public:
   using SharedTurboAssemblerBase<TurboAssembler>::SharedTurboAssemblerBase;
-  AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
-  AVX_OP(Pcmpeqb, pcmpeqb)
-  AVX_OP(Pcmpeqw, pcmpeqw)
-  AVX_OP(Pcmpeqd, pcmpeqd)
-  AVX_OP(Movlhps, movlhps)
-  AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
-  AVX_OP_SSE4_1(Packusdw, packusdw)
-  AVX_OP_SSE4_1(Insertps, insertps)
-  AVX_OP_SSE4_1(Pinsrq, pinsrq)
-  AVX_OP_SSE4_1(Pextrq, pextrq)
+  AVX_OP(Ucomiss, ucomiss)
   AVX_OP_SSE4_1(Roundss, roundss)
-  AVX_OP_SSE4_1(Roundsd, roundsd)
-
-#undef AVX_OP
 
   // Define movq here instead of using AVX_OP. movq is defined using templates
   // and there is a function template `void movq(P1)`, while technically
   // impossible, will be selected when deducing the arguments for AvxHelper.
   void Movq(XMMRegister dst, Register src);
   void Movq(Register dst, XMMRegister src);
+  void Pextrq(Register dst, XMMRegister src, int8_t imm8);
 
   void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                  XMMRegister src3, XMMRegister tmp);

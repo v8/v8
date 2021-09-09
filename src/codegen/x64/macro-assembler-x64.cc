@@ -859,6 +859,15 @@ void TurboAssembler::Movq(Register dst, XMMRegister src) {
   }
 }
 
+void TurboAssembler::Pextrq(Register dst, XMMRegister src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vpextrq(dst, src, imm8);
+  } else {
+    pextrq(dst, src, imm8);
+  }
+}
+
 // Helper macro to define qfma macro-assembler. This takes care of every
 // possible case of register aliasing to minimize the number of instructions.
 #define QFMA(ps_or_pd)                        \
@@ -1651,7 +1660,7 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
 void TurboAssembler::Move(XMMRegister dst, uint64_t high, uint64_t low) {
   Move(dst, low);
   movq(kScratchRegister, high);
-  Pinsrq(dst, kScratchRegister, uint8_t{1});
+  Pinsrq(dst, dst, kScratchRegister, uint8_t{1});
 }
 
 // ----------------------------------------------------------------------------
