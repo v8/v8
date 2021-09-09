@@ -367,7 +367,8 @@ void RunF128CompareOpConstImmTest(
     byte temp = r.AllocateLocal(kWasmS128);
     uint8_t const_buffer[kSimd128Size];
     for (size_t i = 0; i < kSimd128Size / sizeof(FloatType); i++) {
-      memcpy(&const_buffer[i * sizeof(FloatType)], &x, sizeof(FloatType));
+      WriteLittleEndianValue<FloatType>(
+          bit_cast<FloatType*>(&const_buffer[0]) + i, x);
     }
     BUILD(r,
           WASM_LOCAL_SET(temp,
