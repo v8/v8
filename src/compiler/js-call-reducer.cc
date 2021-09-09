@@ -5950,9 +5950,13 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
   Effect effect = n.effect();
   Control control = n.control();
 
-  // Optimize for the case where we simply clone the {receiver},
-  // i.e. when the {start} is zero and the {end} is undefined
-  // (meaning it will be set to {receiver}s "length" property).
+  // Optimize for the case where we simply clone the {receiver}, i.e. when the
+  // {start} is zero and the {end} is undefined (meaning it will be set to
+  // {receiver}s "length" property). This logic should be in sync with
+  // ReduceArrayPrototypeSlice (to a reasonable degree). This is because
+  // CloneFastJSArray produces arrays which are potentially COW. If there's a
+  // discrepancy, TF generates code which produces a COW array and then expects
+  // it to be non-COW (or the other way around) -> immediate deopt.
   if (!NumberMatcher(start).Is(0) ||
       !HeapObjectMatcher(end).Is(factory()->undefined_value())) {
     return NoChange();
