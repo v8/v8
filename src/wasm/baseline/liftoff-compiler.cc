@@ -2743,14 +2743,17 @@ class LiftoffCompiler {
     // Before making the runtime call, spill all cache registers.
     __ SpillAllRegisters();
 
-    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
+    LiftoffRegList pinned;
+    if (index != no_reg) pinned.set(index);
     // Get one register for computing the effective offset (offset + index).
     LiftoffRegister effective_offset =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    // TODO(clemensb): Do a 64-bit addition here if memory64 is used.
     DCHECK_GE(kMaxUInt32, offset);
     __ LoadConstant(effective_offset, WasmValue(static_cast<uint32_t>(offset)));
-    __ emit_i32_add(effective_offset.gp(), effective_offset.gp(), index);
+    if (index != no_reg) {
+      // TODO(clemensb): Do a 64-bit addition here if memory64 is used.
+      __ emit_i32_add(effective_offset.gp(), effective_offset.gp(), index);
+    }
 
     // Get a register to hold the stack slot for MemoryTracingInfo.
     LiftoffRegister info = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
