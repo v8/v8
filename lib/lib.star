@@ -297,6 +297,7 @@ def v8_basic_builder(defaults, **kwargs):
     properties.update(_reclient_properties(kwargs.pop("use_rbe", None), kwargs["name"]))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
     kwargs["properties"] = properties
+    kwargs.setdefault("resultdb_settings", resultdb.settings(enable = True))
     kwargs = fix_args(defaults, **kwargs)
     luci.builder(**kwargs)
 
