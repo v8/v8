@@ -1009,7 +1009,8 @@ BUILTIN(CollatorInternalCompare) {
   // 7. Return CompareStrings(collator, X, Y).
   icu::Collator* icu_collator = collator->icu_collator().raw();
   CHECK_NOT_NULL(icu_collator);
-  return *Intl::CompareStrings(isolate, *icu_collator, string_x, string_y);
+  return Smi::FromInt(
+      Intl::CompareStrings(isolate, *icu_collator, string_x, string_y));
 }
 
 // ecma402 #sec-%segmentiteratorprototype%.next

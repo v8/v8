@@ -1350,18 +1350,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     default_locale_ = locale;
   }
 
-  // enum to access the icu object cache.
   enum class ICUObjectCacheType{
       kDefaultCollator, kDefaultNumberFormat, kDefaultSimpleDateFormat,
       kDefaultSimpleDateFormatForTime, kDefaultSimpleDateFormatForDate};
+  static constexpr int kICUObjectCacheTypeCount = 5;
 
   icu::UMemory* get_cached_icu_object(ICUObjectCacheType cache_type,
                                       Handle<Object> locales);
   void set_icu_object_in_cache(ICUObjectCacheType cache_type,
-                               Handle<Object> locale,
+                               Handle<Object> locales,
                                std::shared_ptr<icu::UMemory> obj);
   void clear_cached_icu_object(ICUObjectCacheType cache_type);
-  void ClearCachedIcuObjects();
+  void clear_cached_icu_objects();
 
 #endif  // V8_INTL_SUPPORT
 
@@ -2047,14 +2047,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #ifdef V8_INTL_SUPPORT
   std::string default_locale_;
 
-  struct ICUObjectCacheTypeHash {
-    std::size_t operator()(ICUObjectCacheType a) const {
-      return static_cast<std::size_t>(a);
-    }
+  // The cache stores the most recently accessed {locales,obj} pair for each
+  // cache type.
+  struct ICUObjectCacheEntry {
+    std::string locales;
+    std::shared_ptr<icu::UMemory> obj;
+
+    ICUObjectCacheEntry() = default;
+    ICUObjectCacheEntry(std::string locales, std::shared_ptr<icu::UMemory> obj)
+        : locales(locales), obj(std::move(obj)) {}
   };
-  typedef std::pair<std::string, std::shared_ptr<icu::UMemory>> ICUCachePair;
-  std::unordered_map<ICUObjectCacheType, ICUCachePair, ICUObjectCacheTypeHash>
-      icu_object_cache_;
+
+  ICUObjectCacheEntry icu_object_cache_[kICUObjectCacheTypeCount];
 #endif  // V8_INTL_SUPPORT
 
   // true if being profiled. Causes collection of extra compile info.

@@ -158,13 +158,14 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ConvertToLower(
       Isolate* isolate, Handle<String> s);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> StringLocaleCompare(
+  V8_WARN_UNUSED_RESULT static base::Optional<int> StringLocaleCompare(
       Isolate* isolate, Handle<String> s1, Handle<String> s2,
       Handle<Object> locales, Handle<Object> options, const char* method);
 
-  V8_WARN_UNUSED_RESULT static Handle<Object> CompareStrings(
-      Isolate* isolate, const icu::Collator& collator, Handle<String> s1,
-      Handle<String> s2);
+  V8_WARN_UNUSED_RESULT static int CompareStrings(Isolate* isolate,
+                                                  const icu::Collator& collator,
+                                                  Handle<String> s1,
+                                                  Handle<String> s2);
 
   // ecma402/#sup-properties-of-the-number-prototype-object
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberToLocaleString(

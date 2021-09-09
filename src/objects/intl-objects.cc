@@ -999,7 +999,7 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
   }
 }
 
-MaybeHandle<Object> Intl::StringLocaleCompare(
+base::Optional<int> Intl::StringLocaleCompare(
     Isolate* isolate, Handle<String> string1, Handle<String> string2,
     Handle<Object> locales, Handle<Object> options, const char* method) {
   // We only cache the instance when locales is a string/undefined and
@@ -1025,9 +1025,9 @@ MaybeHandle<Object> Intl::StringLocaleCompare(
       isolate);
 
   Handle<JSCollator> collator;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, collator,
-      New<JSCollator>(isolate, constructor, locales, options, method), Object);
+  MaybeHandle<JSCollator> maybe_collator =
+      New<JSCollator>(isolate, constructor, locales, options, method);
+  if (!maybe_collator.ToHandle(&collator)) return {};
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator, locales,
@@ -1038,26 +1038,19 @@ MaybeHandle<Object> Intl::StringLocaleCompare(
 }
 
 // ecma402/#sec-collator-comparestrings
-Handle<Object> Intl::CompareStrings(Isolate* isolate,
-                                    const icu::Collator& icu_collator,
-                                    Handle<String> string1,
-                                    Handle<String> string2) {
-  Factory* factory = isolate->factory();
-
+int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
+                         Handle<String> string1, Handle<String> string2) {
   // Early return for identical strings.
   if (string1.is_identical_to(string2)) {
-    return factory->NewNumberFromInt(UCollationResult::UCOL_EQUAL);
+    return UCollationResult::UCOL_EQUAL;
   }
 
   // Early return for empty strings.
   if (string1->length() == 0) {
-    return factory->NewNumberFromInt(string2->length() == 0
-                                         ? UCollationResult::UCOL_EQUAL
-                                         : UCollationResult::UCOL_LESS);
+    return string2->length() == 0 ? UCollationResult::UCOL_EQUAL
+                                  : UCollationResult::UCOL_LESS;
   }
-  if (string2->length() == 0) {
-    return factory->NewNumberFromInt(UCollationResult::UCOL_GREATER);
-  }
+  if (string2->length() == 0) return UCollationResult::UCOL_GREATER;
 
   string1 = String::Flatten(isolate, string1);
   string2 = String::Flatten(isolate, string2);
@@ -1070,7 +1063,7 @@ Handle<Object> Intl::CompareStrings(Isolate* isolate,
     if (!string_piece2.empty()) {
       result = icu_collator.compareUTF8(string_piece1, string_piece2, status);
       DCHECK(U_SUCCESS(status));
-      return factory->NewNumberFromInt(result);
+      return result;
     }
   }
 
@@ -1078,8 +1071,7 @@ Handle<Object> Intl::CompareStrings(Isolate* isolate,
   icu::UnicodeString string_val2 = Intl::ToICUUnicodeString(isolate, string2);
   result = icu_collator.compare(string_val1, string_val2, status);
   DCHECK(U_SUCCESS(status));
-
-  return factory->NewNumberFromInt(result);
+  return result;
 }
 
 // ecma402/#sup-properties-of-the-number-prototype-object
