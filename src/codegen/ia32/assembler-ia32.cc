@@ -3408,27 +3408,27 @@ void Assembler::emit_operand(XMMRegister reg, Operand adr) {
 
 void Assembler::emit_operand(int code, Operand adr) {
   // Isolate-independent code may not embed relocatable addresses.
-  DCHECK(!options().isolate_independent_code ||
-         adr.rmode_ != RelocInfo::CODE_TARGET);
-  DCHECK(!options().isolate_independent_code ||
-         adr.rmode_ != RelocInfo::FULL_EMBEDDED_OBJECT);
-  DCHECK(!options().isolate_independent_code ||
-         adr.rmode_ != RelocInfo::EXTERNAL_REFERENCE);
+  DCHECK_IMPLIES(options().isolate_independent_code,
+                 adr.rmode() != RelocInfo::CODE_TARGET);
+  DCHECK_IMPLIES(options().isolate_independent_code,
+                 adr.rmode() != RelocInfo::FULL_EMBEDDED_OBJECT);
+  DCHECK_IMPLIES(options().isolate_independent_code,
+                 adr.rmode() != RelocInfo::EXTERNAL_REFERENCE);
 
-  const unsigned length = adr.len_;
+  const unsigned length = adr.encoded_bytes().length();
   DCHECK_GT(length, 0);
 
   // Emit updated ModRM byte containing the given register.
-  EMIT((adr.buf_[0] & ~0x38) | (code << 3));
+  EMIT((adr.encoded_bytes()[0] & ~0x38) | (code << 3));
 
   // Emit the rest of the encoded operand.
-  for (unsigned i = 1; i < length; i++) EMIT(adr.buf_[i]);
+  for (unsigned i = 1; i < length; i++) EMIT(adr.encoded_bytes()[i]);
 
   // Emit relocation information if necessary.
-  if (length >= sizeof(int32_t) && !RelocInfo::IsNone(adr.rmode_)) {
+  if (length >= sizeof(int32_t) && !RelocInfo::IsNone(adr.rmode())) {
     pc_ -= sizeof(int32_t);  // pc_ must be *at* disp32
-    RecordRelocInfo(adr.rmode_);
-    if (adr.rmode_ == RelocInfo::INTERNAL_REFERENCE) {  // Fixup for labels
+    RecordRelocInfo(adr.rmode());
+    if (adr.rmode() == RelocInfo::INTERNAL_REFERENCE) {  // Fixup for labels
       emit_label(ReadUnalignedValue<Label*>(reinterpret_cast<Address>(pc_)));
     } else {
       pc_ += sizeof(int32_t);

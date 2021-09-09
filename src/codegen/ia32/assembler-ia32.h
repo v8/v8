@@ -269,6 +269,9 @@ class V8_EXPORT_PRIVATE Operand {
   // register.
   Register reg() const;
 
+  base::Vector<const byte> encoded_bytes() const { return {buf_, len_}; }
+  RelocInfo::Mode rmode() { return rmode_; }
+
  private:
   // Set the ModRM byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
@@ -298,9 +301,6 @@ class V8_EXPORT_PRIVATE Operand {
   uint8_t len_ = 0;
   // Only valid if len_ > 4.
   RelocInfo::Mode rmode_ = RelocInfo::NONE;
-
-  // TODO(clemensb): Get rid of this friendship, or make Operand immutable.
-  friend class Assembler;
 };
 ASSERT_TRIVIALLY_COPYABLE(Operand);
 static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
