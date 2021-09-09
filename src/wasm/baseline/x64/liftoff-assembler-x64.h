@@ -1317,7 +1317,9 @@ void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
-  if (dst.gp() == rhs.gp()) {
+  if (lhs.gp() == rhs.gp()) {
+    xorq(dst.gp(), dst.gp());
+  } else if (dst.gp() == rhs.gp()) {
     negq(dst.gp());
     addq(dst.gp(), lhs.gp());
   } else {
