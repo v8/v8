@@ -67,7 +67,7 @@ luci.gitiles_poller(
     name = "v8-trigger",
     bucket = "ci",
     repo = "https://chromium.googlesource.com/v8/v8",
-    refs = ["refs/heads/master"],
+    refs = ["refs/heads/main"],
 )
 
 exec("//lib/recipes.star")
@@ -98,7 +98,7 @@ luci.console_view(
     name = "dev_image",
     title = "Dev Image",
     repo = "https://chromium.googlesource.com/v8/v8",
-    refs = ["refs/heads/master"],
+    refs = ["refs/heads/main"],
     favicon = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico",
     header = "//consoles/header_dev.textpb",
 )

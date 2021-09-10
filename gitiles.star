@@ -8,7 +8,7 @@ luci.gitiles_poller(
     name = "chromium-trigger",
     bucket = "ci",
     repo = "https://chromium.googlesource.com/chromium/src",
-    refs = ["refs/heads/master"],
+    refs = ["refs/heads/main"],
 )
 
 def branch_pollers():

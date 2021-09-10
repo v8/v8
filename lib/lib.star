@@ -19,13 +19,13 @@ def branch_descriptor(
         bucket = bucket,
         version = version,
         poller_name = poller_name,
-        create_consoles = branch_console_builder(bucket, version_tag, refs) if has_console_name_prefix else master_console_builder(),
+        create_consoles = branch_console_builder(bucket, version_tag, refs) if has_console_name_prefix else main_console_builder(),
         refs = refs,
         priority = priority,
         console_id_by_name = console_id_resolver(bucket, has_console_name_prefix),
     )
 
-def master_console_builder():
+def main_console_builder():
     def builder():
         console_view("main")
         console_view("ports")
@@ -56,10 +56,10 @@ branch_descriptors = [
     branch_descriptor(
         "ci",
         "v8-trigger",
-        ["refs/heads/master"],
+        ["refs/heads/main"],
         priority = 30,  # default
         has_console_name_prefix = False,
-    ),  # master
+    ),  # main
     branch_descriptor(
         "ci.br.beta",
         "v8-trigger-br-beta",
@@ -450,7 +450,8 @@ def console_view(name, title = None, repo = None, refs = None, exclude_ref = Non
         name = name,
         title = title or name,
         repo = repo or "https://chromium.googlesource.com/v8/v8",
-        refs = refs or ["refs/heads/master"],
+        # TODO(https://crbug.com/1222092): Remove master ref.
+        refs = refs or ["refs/heads/main", "refs/heads/master"],
         exclude_ref = exclude_ref,
         favicon = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico",
         header = header or "//consoles/header_main.textpb",

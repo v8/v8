@@ -3,7 +3,7 @@ Branches build coverage
 
 This is a description of V8 infrastructure for Beta and Stable branches.
 
-Builder coverage for Beta/Stable branches is organised in the following consoles that reflect the same schema used for the master branch:
+Builder coverage for Beta/Stable branches is organised in the following consoles that reflect the same schema used for the main branch:
  - [beta.main](https://ci.chromium.org/p/v8/g/br.beta/console)
  - [beta.ports](https://ci.chromium.org/p/v8/g/br.beta.ports/console)
  - [stable.main](https://ci.chromium.org/p/v8/g/br.stable/console)

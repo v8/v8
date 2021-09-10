@@ -30,7 +30,7 @@ console_view(
     name = "official",
     repo = "https://chromium.googlesource.com/v8/v8",
     refs = ["refs/branch-heads/\\d+\\.\\d+", "refs/heads/\\d+\\.\\d+\\.\\d+"],
-    exclude_ref = "refs/heads/master",
+    exclude_ref = "refs/heads/main",
 )
 
 list_view("tryserver", "Tryserver")
