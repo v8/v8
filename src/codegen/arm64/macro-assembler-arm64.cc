@@ -256,8 +256,7 @@ void TurboAssembler::Mov(const Register& rd, uint64_t imm) {
     bool invert_move = false;
     // If the number of 0xFFFF halfwords is greater than the number of 0x0000
     // halfwords, it's more efficient to use move-inverted.
-    if (CountClearHalfWords(~imm, reg_size) >
-        CountClearHalfWords(imm, reg_size)) {
+    if (CountSetHalfWords(imm, reg_size) > CountSetHalfWords(~imm, reg_size)) {
       ignored_halfword = 0xFFFFL;
       invert_move = true;
     }
@@ -560,23 +559,27 @@ void TurboAssembler::Mvn(const Register& rd, const Operand& operand) {
   }
 }
 
-unsigned TurboAssembler::CountClearHalfWords(uint64_t imm, unsigned reg_size) {
-  DCHECK_EQ(reg_size % 8, 0);
-  int count = 0;
-  for (unsigned i = 0; i < (reg_size / 16); i++) {
-    if ((imm & 0xFFFF) == 0) {
-      count++;
-    }
-    imm >>= 16;
+unsigned TurboAssembler::CountSetHalfWords(uint64_t imm, unsigned reg_size) {
+  DCHECK_EQ(reg_size % 16, 0);
+
+#define HALFWORD(idx) (((imm >> ((idx)*16)) & 0xFFFF) ? 1u : 0u)
+  switch (reg_size / 16) {
+    case 1:
+      return HALFWORD(0);
+    case 2:
+      return HALFWORD(0) + HALFWORD(1);
+    case 4:
+      return HALFWORD(0) + HALFWORD(1) + HALFWORD(2) + HALFWORD(3);
   }
-  return count;
+#undef HALFWORD
+  UNREACHABLE();
 }
 
 // The movz instruction can generate immediates containing an arbitrary 16-bit
 // half-word, with remaining bits clear, eg. 0x00001234, 0x0000123400000000.
 bool TurboAssembler::IsImmMovz(uint64_t imm, unsigned reg_size) {
   DCHECK((reg_size == kXRegSizeInBits) || (reg_size == kWRegSizeInBits));
-  return CountClearHalfWords(imm, reg_size) >= ((reg_size / 16) - 1);
+  return CountSetHalfWords(imm, reg_size) <= 1;
 }
 
 // The movn instruction can generate immediates containing an arbitrary 16-bit
