@@ -64,9 +64,9 @@ namespace compiler {
   V(IA32Float32ToUint32)           \
   V(IA32Float64ToInt32)            \
   V(IA32Float64ToUint32)           \
-  V(IA32Int32ToFloat32)            \
+  V(SSEInt32ToFloat32)             \
   V(IA32Uint32ToFloat32)           \
-  V(IA32Int32ToFloat64)            \
+  V(SSEInt32ToFloat64)             \
   V(IA32Uint32ToFloat64)           \
   V(IA32Float64ExtractLowWord32)   \
   V(IA32Float64ExtractHighWord32)  \

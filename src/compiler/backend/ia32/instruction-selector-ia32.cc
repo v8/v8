@@ -1128,8 +1128,8 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(Word32Ctz, kIA32Tzcnt)                                   \
   V(Word32Popcnt, kIA32Popcnt)                               \
   V(ChangeFloat32ToFloat64, kIA32Float32ToFloat64)           \
-  V(RoundInt32ToFloat32, kIA32Int32ToFloat32)                \
-  V(ChangeInt32ToFloat64, kIA32Int32ToFloat64)               \
+  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                 \
+  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)                \
   V(TruncateFloat32ToInt32, kIA32Float32ToInt32)             \
   V(ChangeFloat64ToInt32, kIA32Float64ToInt32)               \
   V(TruncateFloat64ToFloat32, kIA32Float64ToFloat32)         \

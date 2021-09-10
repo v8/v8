@@ -65,9 +65,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Float32ToUint32:
     case kIA32Float64ToInt32:
     case kIA32Float64ToUint32:
-    case kIA32Int32ToFloat32:
+    case kSSEInt32ToFloat32:
     case kIA32Uint32ToFloat32:
-    case kIA32Int32ToFloat64:
+    case kSSEInt32ToFloat64:
     case kIA32Uint32ToFloat64:
     case kIA32Float64ExtractLowWord32:
     case kIA32Float64ExtractHighWord32:

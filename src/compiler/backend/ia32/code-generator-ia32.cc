@@ -1439,15 +1439,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cvttsd2ui(i.OutputRegister(), i.InputOperand(0),
                    i.TempSimd128Register(0));
       break;
-    case kIA32Int32ToFloat32:
-      __ Cvtsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
+    case kSSEInt32ToFloat32:
+      // Calling Cvtsi2ss (which does a xor) regresses some benchmarks.
+      __ cvtsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kIA32Uint32ToFloat32:
       __ Cvtui2ss(i.OutputDoubleRegister(), i.InputOperand(0),
                   i.TempRegister(0));
       break;
-    case kIA32Int32ToFloat64:
-      __ Cvtsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
+    case kSSEInt32ToFloat64:
+      // Calling Cvtsi2sd (which does a xor) regresses some benchmarks.
+      __ cvtsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kIA32Uint32ToFloat64:
       __ Cvtui2sd(i.OutputDoubleRegister(), i.InputOperand(0),
