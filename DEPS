@@ -92,7 +92,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '715537d6007ca71837f48bcb04fc3d482aed2507',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '17d097b0ffdc297f04afb54e9e3abff3f1203f06',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0c04087fbf850f06f62336eeb5c355f857919e04',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7ea3a871db68ae2cbbeaf5433a3192a799ef3c11',
   'buildtools/clang_format/script':
@@ -155,7 +155,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'QewYN5289B8deg5Mn6clWEv58UqpocHGKeob2F0T87kC'
+              'version': 'vFeMtD7pamorE14xM1EkyVug7KRVEPRc7i89yT2sdaYC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -218,7 +218,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2331f088546de8f58dcc02daf8212254aaeb2d4c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '8141144003019719d7aff618ecb8f3d3f3d6d36a',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '728566654bb1d2c78cdbe6b642c0d68c6f658ca7',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e1482c55484acb20a6383bd9e458a0e1574d0a10',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -237,9 +237,9 @@ deps = {
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '955c7f837efad184ec63e771c42542d37545eaef',
   'third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'ece15d049f2d360721716089372e3749fb89e0f4',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '3f443830bd52d3aa5fab3c1aa2b6d0848bb5039d',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '47226fa33ef5c9b48668c74128f25ef82f10e7af',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '20795c9b89e0c29ad2f93f55ff3bbf9d3317e65a',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
