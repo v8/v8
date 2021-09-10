@@ -47,10 +47,10 @@ namespace compiler {
   V(IA32Bswap)                     \
   V(IA32MFence)                    \
   V(IA32LFence)                    \
-  V(SSEFloat32Cmp)                 \
-  V(SSEFloat32Sqrt)                \
-  V(SSEFloat32Round)               \
-  V(SSEFloat64Cmp)                 \
+  V(IA32Float32Cmp)                \
+  V(IA32Float32Sqrt)               \
+  V(IA32Float32Round)              \
+  V(IA32Float64Cmp)                \
   V(SSEFloat64Mod)                 \
   V(SSEFloat32Max)                 \
   V(SSEFloat64Max)                 \

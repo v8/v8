@@ -1255,21 +1255,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32LFence:
       __ lfence();
       break;
-    case kSSEFloat32Cmp:
-      __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
+    case kIA32Float32Cmp:
+      __ Ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
-    case kSSEFloat32Sqrt:
-      __ sqrtss(i.OutputDoubleRegister(), i.InputOperand(0));
+    case kIA32Float32Sqrt:
+      __ Sqrtss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
-    case kSSEFloat32Round: {
+    case kIA32Float32Round: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       RoundingMode const mode =
           static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
-      __ roundss(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
+      __ Roundss(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
-    case kSSEFloat64Cmp:
-      __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
+    case kIA32Float64Cmp:
+      __ Ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
     case kSSEFloat32Max: {
       Label compare_swap, done_compare;

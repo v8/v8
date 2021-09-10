@@ -1439,6 +1439,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vroundsd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 RoundingMode mode);
+  void vroundss(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                RoundingMode mode);
   void vroundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void vroundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
@@ -1529,6 +1531,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovmskps(Register dst, XMMRegister src);
 
   void vpmovmskb(Register dst, XMMRegister src);
+
+  void vucomisd(XMMRegister dst, XMMRegister src) {
+    vinstr(0x2E, dst, xmm0, src, k66, k0F, kWIG);
+  }
+  void vucomisd(XMMRegister dst, Operand src) {
+    vinstr(0x2E, dst, xmm0, src, k66, k0F, kWIG);
+  }
+  void vucomiss(XMMRegister dst, XMMRegister src) {
+    vinstr(0x2E, dst, xmm0, src, kNone, k0F, kWIG);
+  }
+  void vucomiss(XMMRegister dst, Operand src) {
+    vinstr(0x2E, dst, xmm0, src, kNone, k0F, kWIG);
+  }
 
   // BMI instruction
   void andn(Register dst, Register src1, Register src2) {

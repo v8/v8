@@ -658,6 +658,10 @@ TEST(DisasmIa320) {
       __ vmaxss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vsqrtss(xmm0, xmm1, xmm2);
       __ vsqrtss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vucomisd(xmm0, xmm1);
+      __ vucomisd(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vucomiss(xmm0, xmm1);
+      __ vucomiss(xmm0, Operand(ebx, ecx, times_4, 10000));
 
       __ vandps(xmm0, xmm1, xmm2);
       __ vandps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -823,6 +827,7 @@ TEST(DisasmIa320) {
       __ vpcmpgtq(xmm0, xmm1, xmm2);
 
       __ vroundsd(xmm0, xmm3, xmm2, kRoundDown);
+      __ vroundss(xmm0, xmm3, xmm2, kRoundDown);
 
 #define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
   __ v##instruction(xmm7, xmm5, xmm1);                                \

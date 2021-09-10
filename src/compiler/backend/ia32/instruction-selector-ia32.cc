@@ -1136,7 +1136,7 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(RoundFloat64ToInt32, kIA32Float64ToInt32)                \
   V(BitcastFloat32ToInt32, kIA32BitcastFI)                   \
   V(BitcastInt32ToFloat32, kIA32BitcastIF)                   \
-  V(Float32Sqrt, kSSEFloat32Sqrt)                            \
+  V(Float32Sqrt, kIA32Float32Sqrt)                           \
   V(Float64Sqrt, kIA32Float64Sqrt)                           \
   V(Float64ExtractLowWord32, kIA32Float64ExtractLowWord32)   \
   V(Float64ExtractHighWord32, kIA32Float64ExtractHighWord32) \
@@ -1153,14 +1153,14 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
 
 #define RR_OP_LIST(V)                                                          \
   V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)                           \
-  V(Float32RoundDown, kSSEFloat32Round | MiscField::encode(kRoundDown))        \
+  V(Float32RoundDown, kIA32Float32Round | MiscField::encode(kRoundDown))       \
   V(Float64RoundDown, kIA32Float64Round | MiscField::encode(kRoundDown))       \
-  V(Float32RoundUp, kSSEFloat32Round | MiscField::encode(kRoundUp))            \
+  V(Float32RoundUp, kIA32Float32Round | MiscField::encode(kRoundUp))           \
   V(Float64RoundUp, kIA32Float64Round | MiscField::encode(kRoundUp))           \
-  V(Float32RoundTruncate, kSSEFloat32Round | MiscField::encode(kRoundToZero))  \
+  V(Float32RoundTruncate, kIA32Float32Round | MiscField::encode(kRoundToZero)) \
   V(Float64RoundTruncate, kIA32Float64Round | MiscField::encode(kRoundToZero)) \
   V(Float32RoundTiesEven,                                                      \
-    kSSEFloat32Round | MiscField::encode(kRoundToNearest))                     \
+    kIA32Float32Round | MiscField::encode(kRoundToNearest))                    \
   V(Float64RoundTiesEven,                                                      \
     kIA32Float64Round | MiscField::encode(kRoundToNearest))                    \
   V(F32x4Ceil, kIA32F32x4Round | MiscField::encode(kRoundUp))                  \
@@ -1622,7 +1622,7 @@ void VisitFloat32Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
   Node* const left = node->InputAt(0);
   Node* const right = node->InputAt(1);
-  VisitCompare(selector, kSSEFloat32Cmp, right, left, cont, false);
+  VisitCompare(selector, kIA32Float32Cmp, right, left, cont, false);
 }
 
 // Shared routine for multiple float64 compare operations (inputs commuted).
@@ -1630,7 +1630,7 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
                          FlagsContinuation* cont) {
   Node* const left = node->InputAt(0);
   Node* const right = node->InputAt(1);
-  VisitCompare(selector, kSSEFloat64Cmp, right, left, cont, false);
+  VisitCompare(selector, kIA32Float64Cmp, right, left, cont, false);
 }
 
 // Shared routine for multiple word compare operations.

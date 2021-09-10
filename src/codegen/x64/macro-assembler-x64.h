@@ -63,7 +63,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   using SharedTurboAssemblerBase<TurboAssembler>::SharedTurboAssemblerBase;
   AVX_OP(Ucomisd, ucomisd)
   AVX_OP(Ucomiss, ucomiss)
-  AVX_OP_SSE4_1(Roundss, roundss)
 
   // Define movq here instead of using AVX_OP. movq is defined using templates
   // and there is a function template `void movq(P1)`, while technically

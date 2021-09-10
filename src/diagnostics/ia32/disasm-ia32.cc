@@ -818,6 +818,13 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer(",%d", Imm8_U(current));
         current++;
         break;
+      case 0x0a:
+        AppendToBuffer("vroundss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%d", Imm8_U(current));
+        current++;
+        break;
       case 0x0b:
         AppendToBuffer("vroundsd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1170,6 +1177,10 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer("vmovaps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x2e:
+        AppendToBuffer("vucomiss %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x50:
         AppendToBuffer("vmovmskps %s,%s", NameOfCPURegister(regop),
                        NameOfXMMRegister(rm));
@@ -1273,6 +1284,10 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         break;
       case 0x28:
         AppendToBuffer("vmovapd %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x2e:
+        AppendToBuffer("vucomisd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
       case 0x50:
