@@ -1294,6 +1294,7 @@
   'wasm/tier-down-to-liftoff': [SKIP],
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/test-partial-serialization': [SKIP],
+  'regress/wasm/regress-1248024': [SKIP],
 }], # arch not in (x64, ia32, arm64, arm)
 
 ##############################################################################
