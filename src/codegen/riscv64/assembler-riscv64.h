@@ -1192,6 +1192,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   VectorUnit VU;
 
+  void CheckTrampolinePoolQuick(int extra_instructions = 0) {
+    DEBUG_PRINTF("\tpc_offset:%d %d\n", pc_offset(),
+                 next_buffer_check_ - extra_instructions * kInstrSize);
+    if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
+      CheckTrampolinePool();
+    }
+  }
+
  protected:
   // Readable constants for base and offset adjustment helper, these indicate if
   // aside from offset, another value like offset + 4 should fit into int16.
@@ -1269,14 +1277,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
-
-  void CheckTrampolinePoolQuick(int extra_instructions = 0) {
-    DEBUG_PRINTF("\tpc_offset:%d %d\n", pc_offset(),
-                 next_buffer_check_ - extra_instructions * kInstrSize);
-    if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
-      CheckTrampolinePool();
-    }
-  }
 
 #ifdef DEBUG
   bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object) {
