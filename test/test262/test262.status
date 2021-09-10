@@ -236,9 +236,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12167
-  'intl402/DisplayNames/prototype/of/type-calendar-invalid': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12209
   'intl402/Intl/supportedValuesOf/calendars-accepted-by-DateTimeFormat': [FAIL],
   'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
