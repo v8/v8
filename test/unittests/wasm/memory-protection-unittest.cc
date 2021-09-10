@@ -69,7 +69,7 @@ class MemoryProtectionTest : public TestWithNativeContext {
   WasmCode* code() const { return code_; }
 
   bool code_is_protected() {
-    return V8_HAS_PTHREAD_JIT_WRITE_PROTECT || has_pku() || has_mprotect();
+    return V8_HAS_PTHREAD_JIT_WRITE_PROTECT || uses_pku() || uses_mprotect();
   }
 
   void MakeCodeWritable() {
@@ -78,17 +78,39 @@ class MemoryProtectionTest : public TestWithNativeContext {
 
   void WriteToCode() { code_->instructions()[0] = 0; }
 
- private:
-  bool has_pku() {
+  void AssertCodeEventuallyProtected() {
+    if (!code_is_protected()) {
+      // Without protection, writing to code should always work.
+      WriteToCode();
+      return;
+    }
+    // Tier-up might be running and unprotecting the code region temporarily (if
+    // using mprotect). In that case, repeatedly write to the code region to
+    // make us eventually crash.
+    ASSERT_DEATH_IF_SUPPORTED(
+        do {
+          WriteToCode();
+          base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
+        } while (uses_mprotect()),
+        "");
+  }
+
+  bool uses_mprotect() {
+    // M1 always uses MAP_JIT.
+    if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT) return false;
+    return mode_ == kMprotect ||
+           (mode_ == kPkuWithMprotectFallback && !uses_pku());
+  }
+
+  bool uses_pku() {
+    // M1 always uses MAP_JIT.
+    if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT) return false;
     bool param_has_pku = mode_ == kPku || mode_ == kPkuWithMprotectFallback;
     return param_has_pku &&
            GetWasmCodeManager()->HasMemoryProtectionKeySupport();
   }
 
-  bool has_mprotect() {
-    return mode_ == kMprotect || mode_ == kPkuWithMprotectFallback;
-  }
-
+ private:
   std::shared_ptr<NativeModule> CompileNativeModule() {
     // Define the bytes for a module with a single empty function.
     static const byte module_bytes[] = {
@@ -130,13 +152,6 @@ class ParameterizedMemoryProtectionTest
   void SetUp() override { Initialize(GetParam()); }
 };
 
-#define ASSERT_DEATH_IF_PROTECTED(code)  \
-  if (code_is_protected()) {             \
-    ASSERT_DEATH_IF_SUPPORTED(code, ""); \
-  } else {                               \
-    code;                                \
-  }
-
 std::string PrintMemoryProtectionTestParam(
     ::testing::TestParamInfo<MemoryProtectionMode> info) {
   return MemoryProtectionModeToString(info.param);
@@ -149,7 +164,7 @@ INSTANTIATE_TEST_SUITE_P(MemoryProtection, ParameterizedMemoryProtectionTest,
 
 TEST_P(ParameterizedMemoryProtectionTest, CodeNotWritableAfterCompilation) {
   CompileModule();
-  ASSERT_DEATH_IF_PROTECTED(WriteToCode());
+  AssertCodeEventuallyProtected();
 }
 
 TEST_P(ParameterizedMemoryProtectionTest, CodeWritableWithinScope) {
@@ -166,7 +181,7 @@ TEST_P(ParameterizedMemoryProtectionTest, CodeNotWritableAfterScope) {
     MakeCodeWritable();
     WriteToCode();
   }
-  ASSERT_DEATH_IF_PROTECTED(WriteToCode());
+  AssertCodeEventuallyProtected();
 }
 
 #if V8_OS_POSIX && !V8_OS_FUCHSIA
@@ -242,13 +257,19 @@ class ParameterizedMemoryProtectionTestWithSignalHandling
     if (write_in_signal_handler) {
       signal_handler_scope.SetAddressToWriteToOnSignal(code_start_ptr);
     }
-    // This will make us crash if code is protected and
-    // {write_in_signal_handler} is set.
-    {
+
+    bool need_repeated_kills = uses_mprotect() && write_in_signal_handler;
+    do {
       base::Optional<CodeSpaceWriteScope> write_scope;
       if (open_write_scope) write_scope.emplace(native_module());
+      // The signal handler will crash eventually if {write_in_signal_handler}
+      // is {true}. It might "accidentally" succeed though if tier-up is running
+      // in the background and using mprotect to unprotect the code for the
+      // whole process. In that case we repeatedly send the signal until we
+      // crash.
       pthread_kill(pthread_self(), SIGPROF);
-    }
+      base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
+    } while (need_repeated_kills);
 
     // If we write and code is protected, we never reach here.
     CHECK(!write_in_signal_handler || !code_is_protected());
@@ -282,8 +303,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
   const bool write_in_signal_handler = std::get<1>(GetParam());
-  if (write_in_signal_handler) {
-    ASSERT_DEATH_IF_PROTECTED(TestSignalHandler());
+  if (write_in_signal_handler && code_is_protected()) {
+    ASSERT_DEATH_IF_SUPPORTED(TestSignalHandler(), "");
   } else {
     TestSignalHandler();
   }
