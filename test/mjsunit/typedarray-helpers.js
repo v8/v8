@@ -46,10 +46,18 @@ function ToNumbers(array) {
   return result;
 }
 
-function FillHelper(ta, n, start, end) {
-  if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
-    ta.fill(BigInt(n), start, end);
+function AtHelper(array, index) {
+  let result = array.at(index);
+  if (typeof result == 'bigint') {
+    return Number(result);
+  }
+  return result;
+}
+
+function FillHelper(array, n, start, end) {
+  if (array instanceof BigInt64Array || array instanceof BigUint64Array) {
+    array.fill(BigInt(n), start, end);
   } else {
-    ta.fill(n, start, end);
+    array.fill(n, start, end);
   }
 }

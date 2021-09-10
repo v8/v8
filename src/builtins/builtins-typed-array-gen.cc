@@ -154,13 +154,13 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
 
   // Default to zero if the {receiver}s buffer was detached / out of bounds.
-  Label detached_or_oob(this), not_detached_or_oob(this);
+  Label detached_or_oob(this), not_detached_nor_oob(this);
   IsTypedArrayDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
-                                    &not_detached_or_oob);
+                                    &not_detached_nor_oob);
   BIND(&detached_or_oob);
   Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
 
-  BIND(&not_detached_or_oob);
+  BIND(&not_detached_nor_oob);
   Return(
       ChangeUintPtrToTagged(LoadJSArrayBufferViewByteOffset(CAST(receiver))));
 }
@@ -255,7 +255,25 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::ValidateTypedArray(
   // If the typed array's buffer is detached, throw
   ThrowIfArrayBufferViewBufferIsDetached(context, CAST(obj), method_name);
 
+  // TODO(v8:11111): Throw if the RAB / GSAB is OOB.
   return CAST(obj);
+}
+
+TNode<UintPtrT> TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
+    TNode<Context> context, TNode<Object> obj, const char* method_name) {
+  // If it is not a typed array, throw
+  ThrowIfNotInstanceType(context, obj, JS_TYPED_ARRAY_TYPE, method_name);
+
+  Label detached_or_oob(this), not_detached_nor_oob(this);
+  TNode<UintPtrT> length =
+      LoadJSTypedArrayLengthAndCheckDetached(CAST(obj), &detached_or_oob);
+  Goto(&not_detached_nor_oob);
+
+  BIND(&detached_or_oob);
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
+
+  BIND(&not_detached_nor_oob);
+  return length;
 }
 
 void TypedArrayBuiltinsAssembler::CallCMemmove(TNode<RawPtrT> dest_ptr,

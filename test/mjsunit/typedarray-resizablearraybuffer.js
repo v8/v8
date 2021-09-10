@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-rab-gsab --allow-natives-syntax
+// Flags: --harmony-relative-indexing-methods
 
 "use strict";
 
@@ -1154,5 +1155,72 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     assertThrows(() => { FillHelper(fixedLength, 3, evil, 2); }, TypeError);
     rab.resize(4 * ctor.BYTES_PER_ELEMENT);
     assertThrows(() => { FillHelper(fixedLength, 3, 1, evil); }, TypeError);
+  }
+})();
+
+(function At() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    let ta_write = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(ta_write, i, i);
+    }
+
+    assertEquals(3, AtHelper(fixedLength, -1));
+    assertEquals(3, AtHelper(lengthTracking, -1));
+    assertEquals(3, AtHelper(fixedLengthWithOffset, -1));
+    assertEquals(3, AtHelper(lengthTrackingWithOffset, -1));
+
+    // Shrink so that fixed length TAs go out of bounds.
+    rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { AtHelper(fixedLength, -1); });
+    assertThrows(() => { AtHelper(fixedLengthWithOffset, -1); });
+
+    assertEquals(2, AtHelper(lengthTracking, -1));
+    assertEquals(2, AtHelper(lengthTrackingWithOffset, -1));
+
+    // Shrink so that the TAs with offset go out of bounds.
+    rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { AtHelper(fixedLength, -1); });
+    assertThrows(() => { AtHelper(fixedLengthWithOffset, -1); });
+    assertEquals(0, AtHelper(lengthTracking, -1));
+    assertThrows(() => { AtHelper(lengthTrackingWithOffset, -1); });
+
+    // Grow so that all TAs are back in-bounds. New memory is zeroed.
+    rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+    assertEquals(0, AtHelper(fixedLength, -1));
+    assertEquals(0, AtHelper(lengthTracking, -1));
+    assertEquals(0, AtHelper(fixedLengthWithOffset, -1));
+    assertEquals(0, AtHelper(lengthTrackingWithOffset, -1));
+  }
+})();
+
+(function AtParameterConversionResizes() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => { rab.resize(2); return 0;}};
+    assertEquals(undefined, AtHelper(fixedLength, evil));
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => { rab.resize(2); return -1;}};
+    // The TypedArray is *not* out of bounds since it's length-tracking.
+    assertEquals(undefined, AtHelper(lengthTracking, evil));
   }
 })();

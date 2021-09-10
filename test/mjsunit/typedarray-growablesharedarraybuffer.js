@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-rab-gsab --allow-natives-syntax
+// Flags: --harmony-relative-indexing-methods
 
 "use strict";
 
@@ -685,5 +686,34 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
 
     FillHelper(lengthTrackingWithOffset, 20, 1, 2);
     assertEquals([15, 19, 19, 20, 16, 16], ReadDataFromBuffer(gsab, ctor));
+  }
+})();
+
+(function At() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    let ta_write = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(ta_write, i, i);
+    }
+
+    assertEquals(3, AtHelper(fixedLength, -1));
+    assertEquals(3, AtHelper(lengthTracking, -1));
+    assertEquals(3, AtHelper(fixedLengthWithOffset, -1));
+    assertEquals(3, AtHelper(lengthTrackingWithOffset, -1));
+
+    // Grow. New memory is zeroed.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    assertEquals(3, AtHelper(fixedLength, -1));
+    assertEquals(0, AtHelper(lengthTracking, -1));
+    assertEquals(3, AtHelper(fixedLengthWithOffset, -1));
+    assertEquals(0, AtHelper(lengthTrackingWithOffset, -1));
   }
 })();

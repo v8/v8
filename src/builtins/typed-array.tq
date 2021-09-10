@@ -56,6 +56,8 @@ extern runtime TypedArrayCopyElements(
     Context, JSTypedArray, Object, Number): void;
 extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
     Context, JSAny, constexpr string): JSTypedArray;
+extern macro TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
+    Context, JSAny, constexpr string): uintptr;
 
 extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
     RawPtr, RawPtr, uintptr): void;
@@ -83,6 +85,9 @@ extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
     Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind);
 extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
     Context, JSTypedArray, uintptr, JSAny, constexpr ElementsKind)
+    labels IfDetached;
+
+extern macro LoadJSTypedArrayLengthAndCheckDetached(JSTypedArray): uintptr
     labels IfDetached;
 
 type LoadNumericFn = builtin(JSTypedArray, uintptr) => Numeric;
