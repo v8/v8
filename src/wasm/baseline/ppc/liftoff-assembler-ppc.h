@@ -41,7 +41,8 @@ namespace liftoff {
 //
 //
 
-constexpr int32_t kInstanceOffset = 3 * kSystemPointerSize;
+constexpr int32_t kInstanceOffset =
+    (FLAG_enable_embedded_constant_pool ? 3 : 2) * kSystemPointerSize;
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
@@ -132,7 +133,9 @@ void LiftoffAssembler::AlignFrameSize() {}
 
 void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               SafepointTableBuilder*) {
-  int frame_size = GetTotalFrameSize() - 2 * kSystemPointerSize;
+  int frame_size =
+      GetTotalFrameSize() -
+      (FLAG_enable_embedded_constant_pool ? 3 : 2) * kSystemPointerSize;
 
 #ifdef USE_SIMULATOR
   // When using the simulator, deal with Liftoff which allocates the stack
