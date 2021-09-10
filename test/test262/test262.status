@@ -194,10 +194,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4698
   'language/expressions/call/tco-call-args': [SKIP],
-  'language/expressions/call/tco-cross-realm-class-construct': [SKIP],
-  'language/expressions/call/tco-cross-realm-class-derived-construct': [SKIP],
-  'language/expressions/call/tco-cross-realm-fun-call': [SKIP],
-  'language/expressions/call/tco-cross-realm-fun-construct': [SKIP],
   'language/expressions/call/tco-member-args': [SKIP],
   'language/expressions/call/tco-non-eval-function': [SKIP],
   'language/expressions/call/tco-non-eval-function-dynamic': [SKIP],
@@ -242,6 +238,15 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12167
   'intl402/DisplayNames/prototype/of/type-calendar-invalid': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12209
+  'intl402/Intl/supportedValuesOf/calendars-accepted-by-DateTimeFormat': [FAIL],
+  'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
+  'intl402/Intl/supportedValuesOf/currencies-accepted-by-DisplayNames': [FAIL],
+  'intl402/Intl/supportedValuesOf/length': [FAIL],
+  'intl402/Intl/supportedValuesOf/numberingSystems-accepted-by-DateTimeFormat': [FAIL],
+  'intl402/Intl/supportedValuesOf/numberingSystems-accepted-by-NumberFormat': [FAIL],
+  'intl402/Intl/supportedValuesOf/numberingSystems-accepted-by-RelativeTimeFormat': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
@@ -404,8 +409,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12168
   'built-ins/Date/prototype/valueOf/S9.4_A3_T1': [FAIL],
   'built-ins/Date/prototype/valueOf/S9.4_A3_T2': [FAIL],
-  'built-ins/Error/prototype/S15.11.4_A3': [FAIL],
-  'built-ins/Error/prototype/S15.11.4_A4': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
