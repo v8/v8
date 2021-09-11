@@ -95,10 +95,8 @@ class FastCApiObject {
 
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   typedef double Type;
-#define type_info kTypeInfoFloat64
 #else
   typedef int32_t Type;
-#define type_info kTypeInfoInt32
 #endif  // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   static Type AddAllSequenceFastCallback(Local<Object> receiver,
                                          bool should_fallback,
@@ -120,8 +118,9 @@ class FastCApiObject {
     }
 
     Type buffer[1024];
-    bool result = TryCopyAndConvertArrayToCppBuffer<&type_info, Type>(
-        seq_arg, buffer, 1024);
+    bool result = TryToCopyAndConvertArrayToCppBuffer<
+        i::CTypeInfoBuilder<Type>::Build().GetId(), Type>(seq_arg, buffer,
+                                                          1024);
     if (!result) {
       options.fallback = 1;
       return 0;

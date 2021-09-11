@@ -565,14 +565,6 @@ class BackingStoreBase {};
 
 }  // namespace internal
 
-V8_EXPORT bool CopyAndConvertArrayToCppBufferInt32(Local<Array> src,
-                                                   int32_t* dst,
-                                                   uint32_t max_length);
-
-V8_EXPORT bool CopyAndConvertArrayToCppBufferFloat64(Local<Array> src,
-                                                     double* dst,
-                                                     uint32_t max_length);
-
 }  // namespace v8
 
 #endif  // INCLUDE_V8_INTERNAL_H_
