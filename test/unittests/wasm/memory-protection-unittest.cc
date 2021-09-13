@@ -18,6 +18,7 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 #include "test/unittests/test-utils.h"
+#include "testing/gmock/include/gmock/gmock-matchers.h"
 
 namespace v8 {
 namespace internal {
@@ -218,6 +219,7 @@ class ParameterizedMemoryProtectionTestWithSignalHandling
 
    private:
     static void HandleSignal(int signal, siginfo_t*, void*) {
+      // We execute on POSIX only, so we just directly use {printf} and friends.
       if (signal == SIGPROF) {
         printf("Handled SIGPROF.\n");
       } else {
@@ -225,9 +227,13 @@ class ParameterizedMemoryProtectionTestWithSignalHandling
       }
       CHECK_NOT_NULL(current_handler_scope_);
       current_handler_scope_->handled_signals_ += 1;
-      if (current_handler_scope_->code_address_ != nullptr) {
-        printf("Writing to %p.\n", current_handler_scope_->code_address_);
-        *current_handler_scope_->code_address_ = 0;
+      if (uint8_t* write_address = current_handler_scope_->code_address_) {
+        // Print to the error output such that we can check against this message
+        // in the ASSERT_DEATH_IF_SUPPORTED below.
+        fprintf(stderr, "Writing to %p.\n", write_address);
+        // This write will crash if code is protected.
+        *write_address = 0;
+        fprintf(stderr, "Successfully wrote to %p.\n", write_address);
       }
     }
 
@@ -240,42 +246,6 @@ class ParameterizedMemoryProtectionTestWithSignalHandling
   };
 
   void SetUp() override { Initialize(std::get<0>(GetParam())); }
-
-  void TestSignalHandler() {
-    const bool write_in_signal_handler = std::get<1>(GetParam());
-    const bool open_write_scope = std::get<2>(GetParam());
-    CompileModule();
-    SignalHandlerScope signal_handler_scope;
-
-    CHECK_EQ(0, signal_handler_scope.num_handled_signals());
-    pthread_kill(pthread_self(), SIGPROF);
-    CHECK_EQ(1, signal_handler_scope.num_handled_signals());
-
-    uint8_t* code_start_ptr = &code()->instructions()[0];
-    uint8_t code_start = *code_start_ptr;
-    CHECK_NE(0, code_start);
-    if (write_in_signal_handler) {
-      signal_handler_scope.SetAddressToWriteToOnSignal(code_start_ptr);
-    }
-
-    bool need_repeated_kills = uses_mprotect() && write_in_signal_handler;
-    do {
-      base::Optional<CodeSpaceWriteScope> write_scope;
-      if (open_write_scope) write_scope.emplace(native_module());
-      // The signal handler will crash eventually if {write_in_signal_handler}
-      // is {true}. It might "accidentally" succeed though if tier-up is running
-      // in the background and using mprotect to unprotect the code for the
-      // whole process. In that case we repeatedly send the signal until we
-      // crash.
-      pthread_kill(pthread_self(), SIGPROF);
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
-    } while (need_repeated_kills);
-
-    // If we write and code is protected, we never reach here.
-    CHECK(!write_in_signal_handler || !code_is_protected());
-    CHECK_EQ(2, signal_handler_scope.num_handled_signals());
-    CHECK_EQ(write_in_signal_handler ? 0 : code_start, *code_start_ptr);
-  }
 };
 
 // static
@@ -302,11 +272,59 @@ INSTANTIATE_TEST_SUITE_P(
     PrintMemoryProtectionAndSignalHandlingTestParam);
 
 TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
+  // We must run in the "threadsafe" mode in order to make the spawned process
+  // for the death test(s) re-execute the whole unit test up to the point of the
+  // death test. Otherwise we would not really test the signal handling setup
+  // that we use in the wild.
+  // (see https://google.github.io/googletest/reference/assertions.html)
+  CHECK_EQ("threadsafe", ::testing::GTEST_FLAG(death_test_style));
+
   const bool write_in_signal_handler = std::get<1>(GetParam());
-  if (write_in_signal_handler && code_is_protected()) {
-    ASSERT_DEATH_IF_SUPPORTED(TestSignalHandler(), "");
+  const bool open_write_scope = std::get<2>(GetParam());
+  CompileModule();
+  SignalHandlerScope signal_handler_scope;
+
+  CHECK_EQ(0, signal_handler_scope.num_handled_signals());
+  pthread_kill(pthread_self(), SIGPROF);
+  CHECK_EQ(1, signal_handler_scope.num_handled_signals());
+
+  uint8_t* code_start_ptr = &code()->instructions()[0];
+  uint8_t code_start = *code_start_ptr;
+  CHECK_NE(0, code_start);
+  if (write_in_signal_handler) {
+    signal_handler_scope.SetAddressToWriteToOnSignal(code_start_ptr);
+  }
+
+  // If the signal handler writes to protected code we expect a crash.
+  // An exception is M1, where an open scope still has an effect in the signal
+  // handler.
+  bool expect_crash = write_in_signal_handler && code_is_protected() &&
+                      (!V8_HAS_PTHREAD_JIT_WRITE_PROTECT || !open_write_scope);
+  if (expect_crash) {
+    ASSERT_DEATH_IF_SUPPORTED(
+        // The signal handler should crash, but it might "accidentally"
+        // succeed if tier-up is running in the background and using mprotect
+        // to unprotect the code for the whole process. In that case we
+        // repeatedly send the signal until we crash.
+        do {
+          base::Optional<CodeSpaceWriteScope> write_scope;
+          if (open_write_scope) write_scope.emplace(native_module());
+          pthread_kill(pthread_self(), SIGPROF);
+          base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
+        } while (uses_mprotect()),  // Only loop for mprotect.
+        // Check that the subprocess tried to write, but did not succeed.
+        ::testing::AllOf(
+            ::testing::HasSubstr("Writing to"),
+            ::testing::Not(::testing::HasSubstr("Successfully wrote"))));
   } else {
-    TestSignalHandler();
+    base::Optional<CodeSpaceWriteScope> write_scope;
+    if (open_write_scope) write_scope.emplace(native_module());
+    // The signal handler does not write or code is not protected, hence this
+    // should succeed.
+    pthread_kill(pthread_self(), SIGPROF);
+
+    CHECK_EQ(2, signal_handler_scope.num_handled_signals());
+    CHECK_EQ(write_in_signal_handler ? 0 : code_start, *code_start_ptr);
   }
 }
 #endif  // V8_OS_POSIX && !V8_OS_FUCHSIA
