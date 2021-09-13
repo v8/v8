@@ -16,15 +16,19 @@ namespace internal {
 namespace compiler {
 
 Reduction WasmInliner::Reduce(Node* node) {
-  if (node->opcode() == IrOpcode::kCall) {
-    return ReduceCall(node);
-  } else {
-    return NoChange();
+  switch (node->opcode()) {
+    case IrOpcode::kCall:
+    case IrOpcode::kTailCall:
+      return ReduceCall(node);
+    default:
+      return NoChange();
   }
 }
 
 // TODO(12166): Abstract over a heuristics provider.
 Reduction WasmInliner::ReduceCall(Node* call) {
+  DCHECK(call->opcode() == IrOpcode::kCall ||
+         call->opcode() == IrOpcode::kTailCall);
   Node* callee = NodeProperties::GetValueInput(call, 0);
   IrOpcode::Value reloc_opcode = mcgraph_->machine()->Is32()
                                      ? IrOpcode::kRelocatableInt32Constant
@@ -57,18 +61,16 @@ Reduction WasmInliner::ReduceCall(Node* call) {
   }
 
   if (result.failed()) return NoChange();
-  return InlineCall(call, inlinee_start, inlinee_end);
+  return call->opcode() == IrOpcode::kCall
+             ? InlineCall(call, inlinee_start, inlinee_end)
+             : InlineTailCall(call, inlinee_start, inlinee_end);
 }
 
-// TODO(12166): Handle exceptions and tail calls.
-Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
-                                  Node* callee_end) {
-  DCHECK_EQ(call->opcode(), IrOpcode::kCall);
-
-  /* 1) Rewire callee formal parameters to the call-site real parameters. Rewire
-   * effect and control dependencies of callee's start node with the respective
-   * inputs of the call node.
-   */
+/* Rewire callee formal parameters to the call-site real parameters. Rewire
+ * effect and control dependencies of callee's start node with the respective
+ * inputs of the call node.
+ */
+void WasmInliner::RewireFunctionEntry(Node* call, Node* callee_start) {
   Node* control = NodeProperties::GetControlInput(call);
   Node* effect = NodeProperties::GetEffectInput(call);
 
@@ -92,16 +94,38 @@ Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
         break;
     }
   }
+}
 
-  /* 2) Rewire uses of the call node to the return values of the callee. Since
-   * there might be multiple return nodes in the callee, we have to create Merge
-   * and Phi nodes for them.
-   */
+Reduction WasmInliner::InlineTailCall(Node* call, Node* callee_start,
+                                      Node* callee_end) {
+  DCHECK(call->opcode() == IrOpcode::kTailCall);
+  // 1) Rewire function entry.
+  RewireFunctionEntry(call, callee_start);
+  // 2) For tail calls, all we have to do is rewire all terminators of the
+  // inlined graph to the end of the caller graph.
+  for (Node* const input : callee_end->inputs()) {
+    DCHECK(IrOpcode::IsGraphTerminator(input->opcode()));
+    NodeProperties::MergeControlToEnd(graph(), common(), input);
+    Revisit(graph()->end());
+  }
+  callee_end->Kill();
+  return Replace(mcgraph()->Dead());
+}
+
+// TODO(12166): Handle exceptions.
+Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
+                                  Node* callee_end) {
+  DCHECK(call->opcode() == IrOpcode::kCall);
+  // 1) Rewire function entry.
+  RewireFunctionEntry(call, callee_start);
+
+  // 2) Handle all graph terminators for the callee.
   NodeVector return_nodes(zone());
   for (Node* const input : callee_end->inputs()) {
     DCHECK(IrOpcode::IsGraphTerminator(input->opcode()));
     switch (input->opcode()) {
       case IrOpcode::kReturn:
+        // Returns are collected to be rewired into the caller graph later.
         return_nodes.push_back(input);
         break;
       case IrOpcode::kDeoptimize:
@@ -111,9 +135,9 @@ Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
         Revisit(graph()->end());
         break;
       case IrOpcode::kTailCall: {
-        // A tail call in the inlined function has to be transformed into a
-        // regular call, and then returned from the inlinee. It will then be
-        // handled like any other return.
+        // A tail call in the callee inlined in a regular call in the caller has
+        // to be transformed into a regular call, and then returned from the
+        // inlinee. It will then be handled like any other return.
         auto descriptor = CallDescriptorOf(input->op());
         NodeProperties::ChangeOp(input, common()->Call(descriptor));
         int return_arity = static_cast<int>(inlinee()->sig->return_count());
@@ -150,6 +174,8 @@ Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
   callee_end->Kill();
 
   if (return_nodes.size() > 0) {
+    /* 3) Collect all return site value, effect, and control inputs into phis
+     * and merges. */
     int const return_count = static_cast<int>(return_nodes.size());
     NodeVector controls(zone());
     NodeVector effects(zone());

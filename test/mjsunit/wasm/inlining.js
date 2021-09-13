@@ -95,3 +95,53 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate();
   assertEquals(23, instance.exports.main(10));
 })();
+
+(function MultipleCallAndReturnSitesTest() {
+  let builder = new WasmModuleBuilder();
+
+  // f(x) = x >= 0 ? x - 1 : x + 1
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 0, kExprI32GeS,
+              kExprIf, kWasmI32,
+                kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub,
+              kExprElse,
+                kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add,
+              kExprEnd]);
+  // g(x) = f(x) * f(-x)
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprCallFunction, callee.index,
+              kExprI32Const, 0, kExprLocalGet, 0, kExprI32Sub,
+              kExprCallFunction, callee.index,
+              kExprI32Mul])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(-81, instance.exports.main(10));
+})();
+
+(function TailCallInCallerTest() {
+  let builder = new WasmModuleBuilder();
+
+  // f(x) = x > 0 ? g(x) + 1: g(x - 1);
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 0, kExprI32GeS,
+              kExprIf, kWasmI32,
+                kExprLocalGet, 0, kExprCallFunction, 1, kExprI32Const, 1,
+                kExprI32Add,
+              kExprElse,
+                kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub,
+                kExprReturnCall, 1,
+              kExprEnd]);
+  // g(x) = x * 2
+  builder.addFunction("inner_callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Mul]);
+  // h(x) = f(x + 5)
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 5, kExprI32Add,
+              kExprReturnCall, callee.index])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(31, instance.exports.main(10));
+  assertEquals(-12, instance.exports.main(-10));
+})();

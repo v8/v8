@@ -63,6 +63,8 @@ class WasmInliner final : public AdvancedReducer {
 
   Reduction ReduceCall(Node* call);
   Reduction InlineCall(Node* call, Node* callee_start, Node* callee_end);
+  Reduction InlineTailCall(Node* call, Node* callee_start, Node* callee_end);
+  void RewireFunctionEntry(Node* call, Node* callee_start);
 
   wasm::CompilationEnv* const env_;
   SourcePositionTable* const spt_;
