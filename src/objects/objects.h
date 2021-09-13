@@ -65,6 +65,16 @@
 //         - JSRegExp
 //         - JSSetIterator
 //         - JSStringIterator
+//         - JSTemporalCalendar
+//         - JSTemporalDuration
+//         - JSTemporalInstant
+//         - JSTemporalPlainDate
+//         - JSTemporalPlainDateTime
+//         - JSTemporalPlainMonthDay
+//         - JSTemporalPlainTime
+//         - JSTemporalPlainYearMonth
+//         - JSTemporalTimeZone
+//         - JSTemporalZonedDateTime
 //         - JSWeakCollection
 //           - JSWeakMap
 //           - JSWeakSet

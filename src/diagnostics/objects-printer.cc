@@ -2255,6 +2255,55 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n";
 }
 
+void JSTemporalPlainDate::JSTemporalPlainDatePrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalPlainDate");
+  JSObjectPrintBody(os, *this);
+}
+
+void JSTemporalPlainTime::JSTemporalPlainTimePrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalPlainTime");
+  JSObjectPrintBody(os, *this);
+}
+
+void JSTemporalPlainDateTime::JSTemporalPlainDateTimePrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalPlainDateTime");
+  JSObjectPrintBody(os, *this);
+}
+
+void JSTemporalZonedDateTime::JSTemporalZonedDateTimePrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalZonedDateTime");
+  JSObjectPrintBody(os, *this);
+}
+
+void JSTemporalDuration::JSTemporalDurationPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalDuration");
+  JSObjectPrintBody(os, *this);
+}
+
+void JSTemporalInstant::JSTemporalInstantPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalInstant");
+  JSObjectPrintBody(os, *this);
+}
+
+void JSTemporalPlainYearMonth::JSTemporalPlainYearMonthPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalPlainYearMonth");
+  JSObjectPrintBody(os, *this);
+}
+
+void JSTemporalPlainMonthDay::JSTemporalPlainMonthDayPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalPlainMonthDay");
+  JSObjectPrintBody(os, *this);
+}
+
+void JSTemporalTimeZone::JSTemporalTimeZonePrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalTimeZone");
+  JSObjectPrintBody(os, *this);
+}
+
+void JSTemporalCalendar::JSTemporalCalendarPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSTemporalCalendar");
+  JSObjectPrintBody(os, *this);
+}
 #ifdef V8_INTL_SUPPORT
 void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSV8BreakIterator");

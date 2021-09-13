@@ -8,9 +8,15 @@ namespace v8 {
 namespace internal {
 
 const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
-const int Deoptimizer::kNonLazyDeoptExitSize = 2 * kInstrSize;
-const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
-const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 3 * kInstrSize;
+
+// These constants should *not* change unless the instruction sequence
+// of deoptimization exits (CallForDeoptimization) is changed. Changes
+// due to additional IsolateData fields (e.g. roots, builtins) should
+// be made s.t. exit sizes remain unchanged.
+// TODO(crbug.com/v8/12203)
+const int Deoptimizer::kNonLazyDeoptExitSize = 3 * kInstrSize;
+const int Deoptimizer::kLazyDeoptExitSize = 3 * kInstrSize;
+const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 4 * kInstrSize;
 const int Deoptimizer::kEagerWithResumeDeoptExitSize =
     kEagerWithResumeBeforeArgsSize + 2 * kSystemPointerSize;
 const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = kInstrSize;
