@@ -511,6 +511,17 @@ TEST(Regress1247119) {
   r.Call();
 }
 
+TEST(Regress1246712) {
+  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
+  TestSignatures sigs;
+  const int kExpected = 1;
+  uint8_t except = r.builder().AddException(sigs.v_v());
+  BUILD(r, kExprTry, kWasmI32.value_type_code(), kExprTry,
+        kWasmI32.value_type_code(), kExprThrow, except, kExprEnd, kExprCatchAll,
+        kExprI32Const, kExpected, kExprEnd);
+  CHECK_EQ(kExpected, r.Call());
+}
+
 }  // namespace test_run_wasm_interpreter
 }  // namespace wasm
 }  // namespace internal

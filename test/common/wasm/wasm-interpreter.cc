@@ -931,6 +931,8 @@ class SideTable : public ZoneObject {
                 if (exception_stack.back() == control_stack.size() - 1) {
                   // Close try scope for catch-less try.
                   exception_stack.pop_back();
+                  copy_unreachable();
+                  unreachable = control_stack.back().unreachable;
                 }
                 DCHECK_EQ(*c->pc, kExprTry);
                 constexpr int kUnusedControlIndex = -1;
