@@ -1211,7 +1211,8 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     }
   }
 
-  auto iterator = v8::debug::PropertyIterator::Create(context, object);
+  auto iterator = v8::debug::PropertyIterator::Create(context, object,
+                                                      nonIndexedPropertiesOnly);
   if (!iterator) {
     CHECK(tryCatch.HasCaught());
     return false;
@@ -1219,14 +1220,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
   while (!iterator->Done()) {
     bool isOwn = iterator->is_own();
     if (!isOwn && ownProperties) break;
-    bool isIndex = iterator->is_array_index();
-    if (isIndex && nonIndexedPropertiesOnly) {
-      if (!iterator->Advance().FromMaybe(false)) {
-        CHECK(tryCatch.HasCaught());
-        return false;
-      }
-      continue;
-    }
     v8::Local<v8::Name> v8Name = iterator->name();
     v8::Maybe<bool> result = set->Has(context, v8Name);
     if (result.IsNothing()) return false;
@@ -1324,7 +1317,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
                                  configurable,
                                  enumerable,
                                  isOwn,
-                                 isIndex,
+                                 iterator->is_array_index(),
                                  isAccessorProperty && valueMirror,
                                  std::move(valueMirror),
                                  std::move(getterMirror),

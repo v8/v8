@@ -1267,7 +1267,7 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
 }
 
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(
-    Local<Context> context, Local<Object> object) {
+    Local<Context> context, Local<Object> object, bool skip_indices) {
   internal::Isolate* isolate =
       reinterpret_cast<i::Isolate*>(object->GetIsolate());
   if (IsExecutionTerminatingCheck(isolate)) {
@@ -1275,8 +1275,8 @@ std::unique_ptr<PropertyIterator> PropertyIterator::Create(
   }
   CallDepthScope<false> call_depth_scope(isolate, context);
 
-  auto result =
-      i::DebugPropertyIterator::Create(isolate, Utils::OpenHandle(*object));
+  auto result = i::DebugPropertyIterator::Create(
+      isolate, Utils::OpenHandle(*object), skip_indices);
   if (!result) {
     DCHECK(isolate->has_pending_exception());
     call_depth_scope.Escape();
