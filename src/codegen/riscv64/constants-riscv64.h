@@ -57,7 +57,7 @@ const uint32_t kLessSignificantWordInDoublewordOffset = 4;
 namespace v8 {
 namespace internal {
 
-constexpr size_t kMaxPCRelativeCodeRangeInMB = 4096;
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 4094;
 
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
