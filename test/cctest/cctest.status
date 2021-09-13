@@ -440,9 +440,10 @@
   'test-run-wasm-64/*': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
   'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x2': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2AllNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2OneNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4OneNaN': [SKIP],
 }],  # 'arch == riscv64'
 
 ##############################################################################
@@ -762,8 +763,10 @@
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
   'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4OneNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2AllNaN': [SKIP],
+  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2OneNaN': [SKIP],
 }],  # no_simd_hardware == True
 
 ################################################################################
