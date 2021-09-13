@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-inlining --no-liftoff
+// Flags: --wasm-inlining --no-liftoff --experimental-wasm-return-call
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // TODO(12166): Consider running tests with --trace-wasm and inspecting their
-// output.
+// output, or implementing testing infrastructure with --allow-natives-syntax.
 
 (function SimpleInliningTest() {
   let builder = new WasmModuleBuilder();
@@ -22,7 +22,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   let instance = builder.instantiate();
-  assertEquals(instance.exports.main(10), 14);
+  assertEquals(14, instance.exports.main(10));
 })();
 
 (function MultiReturnTest() {
@@ -38,7 +38,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   let instance = builder.instantiate();
-  assertEquals(instance.exports.main(10), 9 * 11);
+  assertEquals(9 * 11, instance.exports.main(10));
 })();
 
 (function NoReturnTest() {
@@ -55,7 +55,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   let instance = builder.instantiate();
-  assertEquals(instance.exports.main(10), 10);
+  assertEquals(10, instance.exports.main(10));
 })();
 
 (function InfiniteLoopTest() {
@@ -74,4 +74,24 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   builder.instantiate();
+})();
+
+(function TailCallInCalleeTest() {
+  let builder = new WasmModuleBuilder();
+
+  // f(x) = g(x - 1)
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub,
+              kExprReturnCall, 1]);
+  // g(x) = x * 2
+  builder.addFunction("inner_callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Mul]);
+  // h(x) = f(x) + 5
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprCallFunction, callee.index,
+              kExprI32Const, 5, kExprI32Add])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(23, instance.exports.main(10));
 })();

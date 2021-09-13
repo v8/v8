@@ -18,6 +18,7 @@ namespace internal {
 namespace wasm {
 struct CompilationEnv;
 struct WasmModule;
+struct WasmFunction;
 class WireBytesStorage;
 }  // namespace wasm
 
@@ -58,6 +59,7 @@ class WasmInliner final : public AdvancedReducer {
   Graph* graph() const { return mcgraph_->graph(); }
   MachineGraph* mcgraph() const { return mcgraph_; }
   const wasm::WasmModule* module() const;
+  const wasm::WasmFunction* inlinee() const;
 
   Reduction ReduceCall(Node* call);
   Reduction InlineCall(Node* call, Node* callee_start, Node* callee_end);
