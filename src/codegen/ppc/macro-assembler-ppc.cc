@@ -3056,6 +3056,11 @@ void TurboAssembler::DivF32(DoubleRegister dst, DoubleRegister lhs,
   frsp(dst, dst, r);
 }
 
+void TurboAssembler::CopySignF64(DoubleRegister dst, DoubleRegister lhs,
+                                 DoubleRegister rhs, RCBit r) {
+  fcpsgn(dst, rhs, lhs, r);
+}
+
 void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
                                    CRegister cr) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)

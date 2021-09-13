@@ -279,6 +279,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
               RCBit r = LeaveRC);
   void DivF32(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
               RCBit r = LeaveRC);
+  void CopySignF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
+                   RCBit r = LeaveRC);
 
   void Push(Register src) { push(src); }
   // Push a handle.
