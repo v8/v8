@@ -62,7 +62,7 @@ class MemoryProtectionTest : public TestWithNativeContext {
   WasmCode* code() const { return code_; }
 
   bool code_is_protected() {
-    return V8_HAS_PTHREAD_JIT_WRITE_PROTECT || has_pku() || has_mprotect();
+    return V8_HAS_PTHREAD_JIT_WRITE_PROTECT || uses_pku() || uses_mprotect();
   }
 
   void MakeCodeWritable() {
@@ -71,17 +71,39 @@ class MemoryProtectionTest : public TestWithNativeContext {
 
   void WriteToCode() { code_->instructions()[0] = 0; }
 
- private:
-  bool has_pku() {
+  void AssertCodeEventuallyProtected() {
+    if (!code_is_protected()) {
+      // Without protection, writing to code should always work.
+      WriteToCode();
+      return;
+    }
+    // Tier-up might be running and unprotecting the code region temporarily (if
+    // using mprotect). In that case, repeatedly write to the code region to
+    // make us eventually crash.
+    ASSERT_DEATH_IF_SUPPORTED(
+        do {
+          WriteToCode();
+          base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
+        } while (uses_mprotect()),
+        "");
+  }
+
+  bool uses_mprotect() {
+    // M1 always uses MAP_JIT.
+    if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT) return false;
+    return mode_ == kMprotect ||
+           (mode_ == kPkuWithMprotectFallback && !uses_pku());
+  }
+
+  bool uses_pku() {
+    // M1 always uses MAP_JIT.
+    if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT) return false;
     bool param_has_pku = mode_ == kPku || mode_ == kPkuWithMprotectFallback;
     return param_has_pku &&
            GetWasmCodeManager()->HasMemoryProtectionKeySupport();
   }
 
-  bool has_mprotect() {
-    return mode_ == kMprotect || mode_ == kPkuWithMprotectFallback;
-  }
-
+ private:
   std::shared_ptr<NativeModule> CompileNativeModule() {
     // Define the bytes for a module with a single empty function.
     static const byte module_bytes[] = {
@@ -123,13 +145,6 @@ class ParameterizedMemoryProtectionTest
   void SetUp() override { Initialize(GetParam()); }
 };
 
-#define ASSERT_DEATH_IF_PROTECTED(code)  \
-  if (code_is_protected()) {             \
-    ASSERT_DEATH_IF_SUPPORTED(code, ""); \
-  } else {                               \
-    code;                                \
-  }
-
 std::string PrintMemoryProtectionTestParam(
     ::testing::TestParamInfo<MemoryProtectionMode> info) {
   return MemoryProtectionModeToString(info.param);
@@ -142,7 +157,7 @@ INSTANTIATE_TEST_SUITE_P(MemoryProtection, ParameterizedMemoryProtectionTest,
 
 TEST_P(ParameterizedMemoryProtectionTest, CodeNotWritableAfterCompilation) {
   CompileModule();
-  ASSERT_DEATH_IF_PROTECTED(WriteToCode());
+  AssertCodeEventuallyProtected();
 }
 
 TEST_P(ParameterizedMemoryProtectionTest, CodeWritableWithinScope) {
@@ -159,7 +174,7 @@ TEST_P(ParameterizedMemoryProtectionTest, CodeNotWritableAfterScope) {
     MakeCodeWritable();
     WriteToCode();
   }
-  ASSERT_DEATH_IF_PROTECTED(WriteToCode());
+  AssertCodeEventuallyProtected();
 }
 
 }  // namespace wasm
