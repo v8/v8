@@ -55,7 +55,7 @@
                                                                                \
   /* Stack Switching proposal. */                                              \
   /* https://github.com/WebAssembly/stack-switching */                         \
-  /* V8 side owner: thibaudm & fgm */                                          \
+  /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)
 
 // #############################################################################
