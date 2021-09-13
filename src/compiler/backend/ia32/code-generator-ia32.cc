@@ -1271,63 +1271,63 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32Float64Cmp:
       __ Ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
-    case kSSEFloat32Max: {
+    case kIA32Float32Max: {
       Label compare_swap, done_compare;
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        __ Ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
+        __ Ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
           zone()->New<OutOfLineLoadFloat32NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(above, &done_compare, Label::kNear);
       __ j(below, &compare_swap, Label::kNear);
-      __ movmskps(i.TempRegister(0), i.InputDoubleRegister(0));
+      __ Movmskps(i.TempRegister(0), i.InputDoubleRegister(0));
       __ test(i.TempRegister(0), Immediate(1));
       __ j(zero, &done_compare, Label::kNear);
       __ bind(&compare_swap);
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ movss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        __ Movss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ movss(i.InputDoubleRegister(0), i.InputOperand(1));
+        __ Movss(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       __ bind(&done_compare);
       __ bind(ool->exit());
       break;
     }
 
-    case kSSEFloat64Max: {
+    case kIA32Float64Max: {
       Label compare_swap, done_compare;
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ ucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        __ Ucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
+        __ Ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
           zone()->New<OutOfLineLoadFloat64NaN>(this, i.OutputDoubleRegister());
       __ j(parity_even, ool->entry());
       __ j(above, &done_compare, Label::kNear);
       __ j(below, &compare_swap, Label::kNear);
-      __ movmskpd(i.TempRegister(0), i.InputDoubleRegister(0));
+      __ Movmskpd(i.TempRegister(0), i.InputDoubleRegister(0));
       __ test(i.TempRegister(0), Immediate(1));
       __ j(zero, &done_compare, Label::kNear);
       __ bind(&compare_swap);
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ movsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        __ Movsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ movsd(i.InputDoubleRegister(0), i.InputOperand(1));
+        __ Movsd(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       __ bind(&done_compare);
       __ bind(ool->exit());
       break;
     }
-    case kSSEFloat32Min: {
+    case kIA32Float32Min: {
       Label compare_swap, done_compare;
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        __ Ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
+        __ Ucomiss(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
           zone()->New<OutOfLineLoadFloat32NaN>(this, i.OutputDoubleRegister());
@@ -1335,29 +1335,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ j(below, &done_compare, Label::kNear);
       __ j(above, &compare_swap, Label::kNear);
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ movmskps(i.TempRegister(0), i.InputDoubleRegister(1));
+        __ Movmskps(i.TempRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ movss(kScratchDoubleReg, i.InputOperand(1));
-        __ movmskps(i.TempRegister(0), kScratchDoubleReg);
+        __ Movss(kScratchDoubleReg, i.InputOperand(1));
+        __ Movmskps(i.TempRegister(0), kScratchDoubleReg);
       }
       __ test(i.TempRegister(0), Immediate(1));
       __ j(zero, &done_compare, Label::kNear);
       __ bind(&compare_swap);
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ movss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        __ Movss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ movss(i.InputDoubleRegister(0), i.InputOperand(1));
+        __ Movss(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       __ bind(&done_compare);
       __ bind(ool->exit());
       break;
     }
-    case kSSEFloat64Min: {
+    case kIA32Float64Min: {
       Label compare_swap, done_compare;
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ ucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        __ Ucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
+        __ Ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       auto ool =
           zone()->New<OutOfLineLoadFloat64NaN>(this, i.OutputDoubleRegister());
@@ -1365,32 +1365,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ j(below, &done_compare, Label::kNear);
       __ j(above, &compare_swap, Label::kNear);
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ movmskpd(i.TempRegister(0), i.InputDoubleRegister(1));
+        __ Movmskpd(i.TempRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ movsd(kScratchDoubleReg, i.InputOperand(1));
-        __ movmskpd(i.TempRegister(0), kScratchDoubleReg);
+        __ Movsd(kScratchDoubleReg, i.InputOperand(1));
+        __ Movmskpd(i.TempRegister(0), kScratchDoubleReg);
       }
       __ test(i.TempRegister(0), Immediate(1));
       __ j(zero, &done_compare, Label::kNear);
       __ bind(&compare_swap);
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ movsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+        __ Movsd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
-        __ movsd(i.InputDoubleRegister(0), i.InputOperand(1));
+        __ Movsd(i.InputDoubleRegister(0), i.InputOperand(1));
       }
       __ bind(&done_compare);
       __ bind(ool->exit());
       break;
     }
-    case kSSEFloat64Mod: {
+    case kIA32Float64Mod: {
       Register tmp = i.TempRegister(1);
       __ mov(tmp, esp);
       __ AllocateStackSpace(kDoubleSize);
       __ and_(esp, -8);  // align to 8 byte boundary.
       // Move values to st(0) and st(1).
-      __ movsd(Operand(esp, 0), i.InputDoubleRegister(1));
+      __ Movsd(Operand(esp, 0), i.InputDoubleRegister(1));
       __ fld_d(Operand(esp, 0));
-      __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
+      __ Movsd(Operand(esp, 0), i.InputDoubleRegister(0));
       __ fld_d(Operand(esp, 0));
       // Loop while fprem isn't done.
       Label mod_loop;
@@ -1406,7 +1406,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Move output to stack and clean up.
       __ fstp(1);
       __ fstp_d(Operand(esp, 0));
-      __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));
+      __ Movsd(i.OutputDoubleRegister(), Operand(esp, 0));
       __ mov(esp, tmp);
       break;
     }
@@ -1544,9 +1544,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.TempRegister(0));
       break;
     }
-    case kSSEFloat64SilenceNaN:
-      __ xorps(kScratchDoubleReg, kScratchDoubleReg);
-      __ subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
+    case kIA32Float64SilenceNaN:
+      __ Xorps(kScratchDoubleReg, kScratchDoubleReg);
+      __ Subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
       break;
     case kIA32Movsxbl:
       ASSEMBLE_MOVX(movsx_b);

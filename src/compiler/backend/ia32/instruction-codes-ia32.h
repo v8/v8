@@ -51,11 +51,11 @@ namespace compiler {
   V(IA32Float32Sqrt)               \
   V(IA32Float32Round)              \
   V(IA32Float64Cmp)                \
-  V(SSEFloat64Mod)                 \
-  V(SSEFloat32Max)                 \
-  V(SSEFloat64Max)                 \
-  V(SSEFloat32Min)                 \
-  V(SSEFloat64Min)                 \
+  V(IA32Float64Mod)                \
+  V(IA32Float32Max)                \
+  V(IA32Float64Max)                \
+  V(IA32Float32Min)                \
+  V(IA32Float64Min)                \
   V(IA32Float64Sqrt)               \
   V(IA32Float64Round)              \
   V(IA32Float32ToFloat64)          \
@@ -73,7 +73,7 @@ namespace compiler {
   V(IA32Float64InsertLowWord32)    \
   V(IA32Float64InsertHighWord32)   \
   V(IA32Float64LoadLowWord32)      \
-  V(SSEFloat64SilenceNaN)          \
+  V(IA32Float64SilenceNaN)         \
   V(Float32Add)                    \
   V(Float32Sub)                    \
   V(Float64Add)                    \

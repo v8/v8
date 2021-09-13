@@ -1359,7 +1359,7 @@ void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister()};
-  Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
+  Emit(kIA32Float64Mod, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        arraysize(temps), temps);
 }
@@ -1367,7 +1367,7 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 void InstructionSelector::VisitFloat32Max(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kSSEFloat32Max, g.DefineSameAsFirst(node),
+  Emit(kIA32Float32Max, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
        arraysize(temps), temps);
 }
@@ -1375,7 +1375,7 @@ void InstructionSelector::VisitFloat32Max(Node* node) {
 void InstructionSelector::VisitFloat64Max(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kSSEFloat64Max, g.DefineSameAsFirst(node),
+  Emit(kIA32Float64Max, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
        arraysize(temps), temps);
 }
@@ -1383,7 +1383,7 @@ void InstructionSelector::VisitFloat64Max(Node* node) {
 void InstructionSelector::VisitFloat32Min(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kSSEFloat32Min, g.DefineSameAsFirst(node),
+  Emit(kIA32Float32Min, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
        arraysize(temps), temps);
 }
@@ -1391,7 +1391,7 @@ void InstructionSelector::VisitFloat32Min(Node* node) {
 void InstructionSelector::VisitFloat64Min(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kSSEFloat64Min, g.DefineSameAsFirst(node),
+  Emit(kIA32Float64Min, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
        arraysize(temps), temps);
 }
@@ -1987,7 +1987,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 
 void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEFloat64SilenceNaN, g.DefineSameAsFirst(node),
+  Emit(kIA32Float64SilenceNaN, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)));
 }
 
