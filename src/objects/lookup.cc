@@ -1507,7 +1507,8 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
   uint16_t charcode;
   {
     SharedStringAccessGuardIfNeeded access_guard(local_isolate);
-    charcode = string.Get(static_cast<int>(index));
+    charcode = string.Get(static_cast<int>(index), PtrComprCageBase(isolate),
+                          access_guard);
   }
 
   if (charcode > unibrow::Latin1::kMaxChar) return kGaveUp;

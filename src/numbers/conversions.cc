@@ -1425,7 +1425,7 @@ base::Optional<double> TryStringToDouble(LocalIsolate* isolate,
   const int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
   auto buffer = std::make_unique<base::uc16[]>(max_length_for_conversion);
   SharedStringAccessGuardIfNeeded access_guard(isolate);
-  String::WriteToFlat(*object, buffer.get(), 0, length, access_guard);
+  String::WriteToFlat(*object, buffer.get(), 0, length, isolate, access_guard);
   base::Vector<const base::uc16> v(buffer.get(), length);
   return StringToDouble(v, flags);
 }

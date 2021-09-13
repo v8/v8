@@ -645,9 +645,10 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
     DisallowGarbageCollection no_gc;
     SharedStringAccessGuardIfNeeded access_guard(isolate());
     base::uc16* sink = result->GetChars(no_gc, access_guard);
-    String::WriteToFlat(*left, sink, 0, left->length(), access_guard);
-    String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
+    String::WriteToFlat(*left, sink, 0, left->length(), isolate(),
                         access_guard);
+    String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
+                        isolate(), access_guard);
     return result;
   }
 

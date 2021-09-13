@@ -119,6 +119,12 @@ StringShape::StringShape(const String str)
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
+StringShape::StringShape(const String str, PtrComprCageBase cage_base)
+    : type_(str.map(cage_base, kAcquireLoad).instance_type()) {
+  set_valid();
+  DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
+}
+
 StringShape::StringShape(Map map) : type_(map.instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
@@ -617,45 +623,53 @@ Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
   return string;
 }
 
+uint16_t String::Get(int index) const {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
+  return GetImpl(index, GetPtrComprCageBase(*this),
+                 SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
 uint16_t String::Get(int index, Isolate* isolate) const {
   SharedStringAccessGuardIfNeeded scope(isolate);
-  return GetImpl(index, scope);
+  return GetImpl(index, isolate, scope);
 }
 
 uint16_t String::Get(int index, LocalIsolate* local_isolate) const {
   SharedStringAccessGuardIfNeeded scope(local_isolate);
-  return GetImpl(index, scope);
+  return GetImpl(index, local_isolate, scope);
 }
 
 uint16_t String::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
-  return GetImpl(index, access_guard);
+    int index, PtrComprCageBase cage_base,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
+  return GetImpl(index, cage_base, access_guard);
 }
 
 uint16_t String::GetImpl(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    int index, PtrComprCageBase cage_base,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
   DCHECK(index >= 0 && index < length());
 
   class StringGetDispatcher : public AllStatic {
    public:
 #define DEFINE_METHOD(Type)                                  \
   static inline uint16_t Handle##Type(                       \
-      Type str, int index,                                   \
+      Type str, int index, PtrComprCageBase cage_base,       \
       const SharedStringAccessGuardIfNeeded& access_guard) { \
-    return str.Get(index, access_guard);                     \
+    return str.Get(index, cage_base, access_guard);          \
   }
     STRING_CLASS_TYPES(DEFINE_METHOD)
 #undef DEFINE_METHOD
     static inline uint16_t HandleInvalidString(
-        String str, int index,
+        String str, int index, PtrComprCageBase cage_base,
         const SharedStringAccessGuardIfNeeded& access_guard) {
       UNREACHABLE();
     }
   };
 
   return StringShape(*this)
-      .DispatchToSpecificType<StringGetDispatcher, uint16_t>(*this, index,
-                                                             access_guard);
+      .DispatchToSpecificType<StringGetDispatcher, uint16_t>(
+          *this, index, cage_base, access_guard);
 }
 
 void String::Set(int index, uint16_t value) {
@@ -667,9 +681,11 @@ void String::Set(int index, uint16_t value) {
              : SeqTwoByteString::cast(*this).SeqTwoByteStringSet(index, value);
 }
 
-bool String::IsFlat() const {
-  if (!StringShape(*this).IsCons()) return true;
-  return ConsString::cast(*this).second().length() == 0;
+bool String::IsFlat() const { return IsFlat(GetPtrComprCageBase(*this)); }
+
+bool String::IsFlat(PtrComprCageBase cage_base) const {
+  if (!StringShape(*this, cage_base).IsCons()) return true;
+  return ConsString::cast(*this).second(cage_base).length() == 0;
 }
 
 String String::GetUnderlying() const {
@@ -771,11 +787,13 @@ inline base::Vector<const base::uc16> String::GetCharVector(
 
 uint8_t SeqOneByteString::Get(int index) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
-  return Get(index, SharedStringAccessGuardIfNeeded::NotNeeded());
+  return Get(index, GetPtrComprCageBase(*this),
+             SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
 uint8_t SeqOneByteString::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    int index, PtrComprCageBase cage_base,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return ReadField<byte>(kHeaderSize + index * kCharSize);
@@ -825,7 +843,8 @@ base::uc16* SeqTwoByteString::GetChars(
 }
 
 uint16_t SeqTwoByteString::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    int index, PtrComprCageBase cage_base,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return ReadField<uint16_t>(kHeaderSize + index * kShortSize);
@@ -977,7 +996,8 @@ const uint8_t* ExternalOneByteString::GetChars() const {
 }
 
 uint8_t ExternalOneByteString::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    int index, PtrComprCageBase cage_base,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
@@ -1044,7 +1064,8 @@ const uint16_t* ExternalTwoByteString::GetChars() const {
 }
 
 uint16_t ExternalTwoByteString::Get(
-    int index, const SharedStringAccessGuardIfNeeded& access_guard) const {
+    int index, PtrComprCageBase cage_base,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
   USE(access_guard);
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
