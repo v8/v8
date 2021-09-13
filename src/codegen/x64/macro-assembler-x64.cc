@@ -864,6 +864,7 @@ void TurboAssembler::Pextrq(Register dst, XMMRegister src, int8_t imm8) {
     CpuFeatureScope avx_scope(this, AVX);
     vpextrq(dst, src, imm8);
   } else {
+    CpuFeatureScope sse_scope(this, SSE4_1);
     pextrq(dst, src, imm8);
   }
 }
