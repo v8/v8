@@ -6107,6 +6107,46 @@ class LiftoffCompiler {
                             tmp_s128, lane_kind);
   }
 
+  bool has_outstanding_op() const {
+    return outstanding_op_ != kNoOutstandingOp;
+  }
+
+  void TraceCacheState(FullDecoder* decoder) const {
+    if (!FLAG_trace_liftoff) return;
+    StdoutStream os;
+    for (int control_depth = decoder->control_depth() - 1; control_depth >= -1;
+         --control_depth) {
+      auto* cache_state =
+          control_depth == -1 ? __ cache_state()
+                              : &decoder->control_at(control_depth)
+                                     ->label_state;
+      os << PrintCollection(cache_state->stack_state);
+      if (control_depth != -1) PrintF("; ");
+    }
+    os << "\n";
+  }
+
+  void DefineSafepoint() {
+    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
+    __ cache_state()->DefineSafepoint(safepoint);
+  }
+
+  void DefineSafepointWithCalleeSavedRegisters() {
+    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
+    __ cache_state()->DefineSafepointWithCalleeSavedRegisters(safepoint);
+  }
+
+  Register LoadInstanceIntoRegister(LiftoffRegList pinned, Register fallback) {
+    Register instance = __ cache_state()->cached_instance;
+    if (instance == no_reg) {
+      instance = __ cache_state()->TrySetCachedInstanceRegister(
+          pinned | LiftoffRegList::ForRegs(fallback));
+      if (instance == no_reg) instance = fallback;
+      __ LoadInstanceFromFrame(instance);
+    }
+    return instance;
+  }
+
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
   static constexpr base::EnumSet<ValueKind> kUnconditionallySupported{
       // MVP:
@@ -6168,46 +6208,6 @@ class LiftoffCompiler {
 
   int32_t* max_steps_;
   int32_t* nondeterminism_;
-
-  bool has_outstanding_op() const {
-    return outstanding_op_ != kNoOutstandingOp;
-  }
-
-  void TraceCacheState(FullDecoder* decoder) const {
-    if (!FLAG_trace_liftoff) return;
-    StdoutStream os;
-    for (int control_depth = decoder->control_depth() - 1; control_depth >= -1;
-         --control_depth) {
-      auto* cache_state =
-          control_depth == -1 ? __ cache_state()
-                              : &decoder->control_at(control_depth)
-                                     ->label_state;
-      os << PrintCollection(cache_state->stack_state);
-      if (control_depth != -1) PrintF("; ");
-    }
-    os << "\n";
-  }
-
-  void DefineSafepoint() {
-    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
-    __ cache_state()->DefineSafepoint(safepoint);
-  }
-
-  void DefineSafepointWithCalleeSavedRegisters() {
-    Safepoint safepoint = safepoint_table_builder_.DefineSafepoint(&asm_);
-    __ cache_state()->DefineSafepointWithCalleeSavedRegisters(safepoint);
-  }
-
-  Register LoadInstanceIntoRegister(LiftoffRegList pinned, Register fallback) {
-    Register instance = __ cache_state()->cached_instance;
-    if (instance == no_reg) {
-      instance = __ cache_state()->TrySetCachedInstanceRegister(
-          pinned | LiftoffRegList::ForRegs(fallback));
-      if (instance == no_reg) instance = fallback;
-      __ LoadInstanceFromFrame(instance);
-    }
-    return instance;
-  }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(LiftoffCompiler);
 };

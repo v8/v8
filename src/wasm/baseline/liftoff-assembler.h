@@ -1506,6 +1506,10 @@ class LiftoffAssembler : public TurboAssembler {
  private:
   LiftoffRegister LoadI64HalfIntoRegister(VarState slot, RegPairHalf half);
 
+  V8_NOINLINE LiftoffRegister SpillOneRegister(LiftoffRegList candidates);
+  // Spill one or two fp registers to get a pair of adjacent fp registers.
+  LiftoffRegister SpillAdjacentFpRegisters(LiftoffRegList pinned);
+
   uint32_t num_locals_ = 0;
   static constexpr uint32_t kInlineLocalKinds = 16;
   union {
@@ -1521,10 +1525,6 @@ class LiftoffAssembler : public TurboAssembler {
   int ool_spill_space_size_ = 0;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   const char* bailout_detail_ = nullptr;
-
-  V8_NOINLINE LiftoffRegister SpillOneRegister(LiftoffRegList candidates);
-  // Spill one or two fp registers to get a pair of adjacent fp registers.
-  LiftoffRegister SpillAdjacentFpRegisters(LiftoffRegList pinned);
 };
 
 std::ostream& operator<<(std::ostream& os, LiftoffAssembler::VarState);
