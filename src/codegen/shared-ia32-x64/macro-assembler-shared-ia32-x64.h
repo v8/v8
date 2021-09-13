@@ -46,6 +46,20 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void Add(Register dst, Immediate src);
   void And(Register dst, Immediate src);
 
+  template <typename Op>
+  void Pinsrb(XMMRegister dst, XMMRegister src1, Op src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr) {
+    PinsrHelper(this, &Assembler::vpinsrb, &Assembler::pinsrb, dst, src1, src2,
+                imm8, load_pc_offset, {SSE4_1});
+  }
+
+  template <typename Op>
+  void Pinsrw(XMMRegister dst, XMMRegister src1, Op src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr) {
+    PinsrHelper(this, &Assembler::vpinsrw, &Assembler::pinsrw, dst, src1, src2,
+                imm8, load_pc_offset);
+  }
+
   // Supports both SSE and AVX. Move src1 to dst if they are not equal on SSE.
   template <typename Op>
   void Pshufb(XMMRegister dst, XMMRegister src, Op mask) {
@@ -268,7 +282,6 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pcmpeqb, pcmpeqb)
   AVX_OP(Pcmpeqd, pcmpeqd)
   AVX_OP(Pcmpeqw, pcmpeqw)
-  AVX_OP(Pinsrw, pinsrw)
   AVX_OP(Pmaddwd, pmaddwd)
   AVX_OP(Pmaxsw, pmaxsw)
   AVX_OP(Pmaxub, pmaxub)
@@ -344,7 +357,6 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
   AVX_OP_SSE4_1(Pextrb, pextrb)
   AVX_OP_SSE4_1(Pextrw, pextrw)
-  AVX_OP_SSE4_1(Pinsrb, pinsrb)
   AVX_OP_SSE4_1(Pmaxsb, pmaxsb)
   AVX_OP_SSE4_1(Pmaxsd, pmaxsd)
   AVX_OP_SSE4_1(Pmaxud, pmaxud)
@@ -440,6 +452,35 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void S128Load16Splat(XMMRegister dst, Operand src, XMMRegister scratch);
   void S128Load32Splat(XMMRegister dst, Operand src);
   void S128Store64Lane(Operand dst, XMMRegister src, uint8_t laneidx);
+
+ protected:
+  template <typename Op>
+  using AvxFn = void (Assembler::*)(XMMRegister, XMMRegister, Op, uint8_t);
+  template <typename Op>
+  using NoAvxFn = void (Assembler::*)(XMMRegister, Op, uint8_t);
+
+  template <typename Op>
+  void PinsrHelper(Assembler* assm, AvxFn<Op> avx, NoAvxFn<Op> noavx,
+                   XMMRegister dst, XMMRegister src1, Op src2, uint8_t imm8,
+                   uint32_t* load_pc_offset = nullptr,
+                   base::Optional<CpuFeature> feature = base::nullopt) {
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope scope(assm, AVX);
+      if (load_pc_offset) *load_pc_offset = assm->pc_offset();
+      (assm->*avx)(dst, src1, src2, imm8);
+      return;
+    }
+
+    if (dst != src1) assm->movaps(dst, src1);
+    if (load_pc_offset) *load_pc_offset = assm->pc_offset();
+    if (feature.has_value()) {
+      DCHECK(CpuFeatures::IsSupported(*feature));
+      CpuFeatureScope scope(assm, *feature);
+      (assm->*noavx)(dst, src2, imm8);
+    } else {
+      (assm->*noavx)(dst, src2, imm8);
+    }
+  }
 
  private:
   template <typename Op>

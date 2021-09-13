@@ -1613,28 +1613,6 @@ void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   add(esp, Immediate(kDoubleSize));
 }
 
-void TurboAssembler::Pinsrb(XMMRegister dst, Operand src, int8_t imm8) {
-  Pinsrb(dst, dst, src, imm8);
-}
-
-void TurboAssembler::Pinsrb(XMMRegister dst, XMMRegister src1, Operand src2,
-                            int8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpinsrb(dst, src1, src2, imm8);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    if (dst != src1) {
-      movaps(dst, src1);
-    }
-    pinsrb(dst, src2, imm8);
-    return;
-  }
-  FATAL("no AVX or SSE4.1 support");
-}
-
 void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
                             uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1671,25 +1649,6 @@ void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
 
 void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, uint8_t imm8) {
   Pinsrd(dst, dst, src, imm8);
-}
-
-void TurboAssembler::Pinsrw(XMMRegister dst, Operand src, int8_t imm8) {
-  Pinsrw(dst, dst, src, imm8);
-}
-
-void TurboAssembler::Pinsrw(XMMRegister dst, XMMRegister src1, Operand src2,
-                            int8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpinsrw(dst, src1, src2, imm8);
-    return;
-  } else {
-    if (dst != src1) {
-      movaps(dst, src1);
-    }
-    pinsrw(dst, src2, imm8);
-    return;
-  }
 }
 
 void TurboAssembler::Lzcnt(Register dst, Operand src) {
