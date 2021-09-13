@@ -7,6 +7,7 @@
 #include <algorithm>  // For min
 #include <cmath>      // For isnan.
 #include <limits>
+#include <sstream>
 #include <string>
 #include <utility>  // For move
 #include <vector>
@@ -3094,6 +3095,14 @@ MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
 }
 
 void Message::PrintCurrentStackTrace(Isolate* isolate, FILE* out) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  std::ostringstream stack_trace_stream;
+  i_isolate->PrintCurrentStackTrace(stack_trace_stream);
+  i::PrintF(out, "%s", stack_trace_stream.str().c_str());
+}
+
+void Message::PrintCurrentStackTrace(Isolate* isolate, std::ostream& out) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i_isolate->PrintCurrentStackTrace(out);

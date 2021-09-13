@@ -1453,6 +1453,13 @@ void String::PrintOn(FILE* file) {
   }
 }
 
+void String::PrintOn(std::ostream& ostream) {
+  int length = this->length();
+  for (int i = 0; i < length; i++) {
+    ostream.put(Get(i));
+  }
+}
+
 Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   if (new_length == 0) return string->GetReadOnlyRoots().empty_string_handle();
 

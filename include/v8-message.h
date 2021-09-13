@@ -7,6 +7,8 @@
 
 #include <stdio.h>
 
+#include <ostream>
+
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
@@ -206,8 +208,9 @@ class V8_EXPORT Message {
   bool IsSharedCrossOrigin() const;
   bool IsOpaque() const;
 
-  // TODO(1245381): Print to a string instead of on a FILE.
+  V8_DEPRECATE_SOON("Use the version that takes a std::ostream&.")
   static void PrintCurrentStackTrace(Isolate* isolate, FILE* out);
+  static void PrintCurrentStackTrace(Isolate* isolate, std::ostream& out);
 
   static const int kNoLineNumberInfo = 0;
   static const int kNoColumnInfo = 0;

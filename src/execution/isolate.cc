@@ -1564,7 +1564,9 @@ Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
       // print a user-friendly stack trace (not an internal one).
       PrintF(stderr, "%s\n\nFROM\n",
              MessageHandler::GetLocalizedMessage(this, message_obj).get());
-      PrintCurrentStackTrace(stderr);
+      std::ostringstream stack_trace_stream;
+      PrintCurrentStackTrace(stack_trace_stream);
+      PrintF(stderr, "%s", stack_trace_stream.str().c_str());
       base::OS::Abort();
     }
   }
@@ -2125,7 +2127,7 @@ Object Isolate::PromoteScheduledException() {
   return ReThrow(thrown);
 }
 
-void Isolate::PrintCurrentStackTrace(FILE* out) {
+void Isolate::PrintCurrentStackTrace(std::ostream& out) {
   CaptureStackTraceOptions options;
   options.limit = 0;
   options.skip_mode = SKIP_NONE;

@@ -403,6 +403,7 @@ class String : public TorqueGeneratedString<String, Name> {
   enum TrimMode { kTrim, kTrimStart, kTrimEnd };
 
   V8_EXPORT_PRIVATE void PrintOn(FILE* out);
+  V8_EXPORT_PRIVATE void PrintOn(std::ostream& out);
 
   // For use during stack traces.  Performs rudimentary sanity check.
   bool LooksValid();
