@@ -270,6 +270,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
  private:
   friend class FunctionTemplateInfoRef;
   friend class JSArrayData;
+  friend class JSFunctionData;
   friend class JSGlobalObjectData;
   friend class JSGlobalObjectRef;
   friend class JSHeapBroker;

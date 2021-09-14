@@ -551,10 +551,6 @@ class JSFunctionData : public JSObjectData {
     DCHECK(serialized_);
     return context_;
   }
-  ObjectData* native_context() const {
-    DCHECK(serialized_);
-    return native_context_;
-  }
   MapData* initial_map() const {
     DCHECK(serialized_);
     return initial_map_;
@@ -613,7 +609,6 @@ class JSFunctionData : public JSObjectData {
   bool PrototypeRequiresRuntimeLookup_ = false;
 
   ObjectData* context_ = nullptr;
-  ObjectData* native_context_ = nullptr;  // Derives from context_.
   MapData* initial_map_ = nullptr;  // Derives from prototype_or_initial_map_.
   ObjectData* instance_prototype_ =
       nullptr;  // Derives from prototype_or_initial_map_.
@@ -795,16 +790,13 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
   // guaranteed to see an initialized JSFunction object, and after
   // initialization fields remain in a valid state.
 
-  Context context = function->context(kRelaxedLoad);
-  context_ = broker->GetOrCreateData(context, kAssumeMemoryFence);
-  CHECK(context_->IsContext());
+  ContextRef context =
+      MakeRefAssumeMemoryFence(broker, function->context(kRelaxedLoad));
+  context_ = context.data();
 
-  native_context_ = broker->GetOrCreateData(context.map().native_context(),
-                                            kAssumeMemoryFence);
-  CHECK(native_context_->IsNativeContext());
-
-  SharedFunctionInfo shared = function->shared(kRelaxedLoad);
-  shared_ = broker->GetOrCreateData(shared, kAssumeMemoryFence);
+  SharedFunctionInfoRef shared =
+      MakeRefAssumeMemoryFence(broker, function->shared(kRelaxedLoad));
+  shared_ = shared.data();
 
   if (function->has_prototype_slot()) {
     prototype_or_initial_map_ = broker->GetOrCreateData(
@@ -838,9 +830,10 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
 
     if (has_initial_map_) {
       has_instance_prototype_ = true;
-      instance_prototype_ = broker->GetOrCreateData(
-          Handle<Map>::cast(initial_map_->object())->prototype(),
-          kAssumeMemoryFence);
+      instance_prototype_ =
+          MakeRefAssumeMemoryFence(
+              broker, Handle<Map>::cast(initial_map_->object())->prototype())
+              .data();
     } else if (prototype_or_initial_map_->IsHeapObject() &&
                !Handle<HeapObject>::cast(prototype_or_initial_map_->object())
                     ->IsTheHole()) {
@@ -851,8 +844,9 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
 
   PrototypeRequiresRuntimeLookup_ = function->PrototypeRequiresRuntimeLookup();
 
-  FeedbackCell feedback_cell = function->raw_feedback_cell(kAcquireLoad);
-  feedback_cell_ = broker->GetOrCreateData(feedback_cell, kAssumeMemoryFence);
+  FeedbackCellRef feedback_cell = MakeRefAssumeMemoryFence(
+      broker, function->raw_feedback_cell(kAcquireLoad));
+  feedback_cell_ = feedback_cell.data();
 
 #ifdef DEBUG
   serialized_ = true;
@@ -866,7 +860,6 @@ bool JSFunctionData::IsConsistentWithHeapState(JSHeapBroker* broker) const {
   Handle<JSFunction> f = Handle<JSFunction>::cast(object());
 
   CHECK_EQ(*context_->object(), f->context());
-  CHECK_EQ(*native_context_->object(), f->native_context());
   CHECK_EQ(*shared_->object(), f->shared());
 
   if (f->has_prototype_slot()) {
@@ -2766,7 +2759,6 @@ JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP(FeedbackCell, raw_feedback_cell,
                                      JSFunctionData::kFeedbackCell)
 
 BIMODAL_ACCESSOR(JSFunction, Context, context)
-BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
@@ -2774,6 +2766,11 @@ BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 
 CodeRef JSFunctionRef::code() const {
   return MakeRefAssumeMemoryFence(broker(), object()->code(kAcquireLoad));
+}
+
+NativeContextRef JSFunctionRef::native_context() const {
+  return MakeRefAssumeMemoryFence(broker(),
+                                  context().object()->native_context());
 }
 
 base::Optional<FunctionTemplateInfoRef>
