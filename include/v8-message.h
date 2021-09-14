@@ -7,7 +7,7 @@
 
 #include <stdio.h>
 
-#include <ostream>
+#include <iosfwd>
 
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
