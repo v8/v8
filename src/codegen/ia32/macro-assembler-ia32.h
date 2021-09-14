@@ -336,7 +336,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
     SharedTurboAssembler::Movhps(dst, src);
   }
 
-  void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
+  void PextrdPreSse41(Register dst, XMMRegister src, uint8_t imm8);
   void PinsrdPreSse41(XMMRegister dst, Register src, uint8_t imm8,
                       uint32_t* load_pc_offset) {
     PinsrdPreSse41(dst, Operand(src), imm8, load_pc_offset);

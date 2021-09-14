@@ -1588,19 +1588,10 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
   }
 }
 
-void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
+void TurboAssembler::PextrdPreSse41(Register dst, XMMRegister src,
+                                    uint8_t imm8) {
   if (imm8 == 0) {
     Movd(dst, src);
-    return;
-  }
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpextrd(dst, src, imm8);
-    return;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pextrd(dst, src, imm8);
     return;
   }
   // Without AVX or SSE, we can only have 64-bit values in xmm registers.

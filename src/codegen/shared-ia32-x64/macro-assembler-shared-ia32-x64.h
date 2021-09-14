@@ -528,6 +528,24 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
   }
 #undef FLOAT_UNOP
 
+  void Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
+    if (imm8 == 0) {
+      Movd(dst, src);
+      return;
+    }
+
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope scope(this, AVX);
+      vpextrd(dst, src, imm8);
+    } else if (CpuFeatures::IsSupported(SSE4_1)) {
+      CpuFeatureScope sse_scope(this, SSE4_1);
+      pextrd(dst, src, imm8);
+    } else {
+      DCHECK_LT(imm8, 2);
+      impl()->PextrdPreSse41(dst, src, imm8);
+    }
+  }
+
   template <typename Op>
   void Pinsrd(XMMRegister dst, XMMRegister src1, Op src2, uint8_t imm8,
               uint32_t* load_pc_offset = nullptr) {

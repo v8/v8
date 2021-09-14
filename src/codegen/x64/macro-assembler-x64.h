@@ -413,7 +413,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void DebugBreak();
 
   // Non-SSE2 instructions.
-  void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
+  void PextrdPreSse41(Register dst, XMMRegister src, uint8_t imm8);
 
   void PinsrdPreSse41(XMMRegister dst, Register src2, uint8_t imm8,
                       uint32_t* load_pc_offset = nullptr);
