@@ -1696,8 +1696,11 @@ struct WasmInliningPhase {
         data->jsgraph()->Dead(), data->observe_node_manager());
     DeadCodeElimination dead(&graph_reducer, data->graph(),
                              data->mcgraph()->common(), temp_zone);
+    // For now, hard-code inlining the function at index 0.
+    InlineByIndex heuristics({0});
     WasmInliner inliner(&graph_reducer, env, data->source_positions(),
-                        data->node_origins(), data->mcgraph(), wire_bytes, 0);
+                        data->node_origins(), data->mcgraph(), wire_bytes,
+                        &heuristics);
     AddReducer(data, &graph_reducer, &dead);
     AddReducer(data, &graph_reducer, &inliner);
 

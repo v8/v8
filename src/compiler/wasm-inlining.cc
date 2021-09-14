@@ -5,6 +5,7 @@
 #include "src/compiler/wasm-inlining.h"
 
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/wasm/function-body-decoder.h"
@@ -26,7 +27,9 @@ Reduction WasmInliner::Reduce(Node* node) {
   }
 }
 
-// TODO(12166): Abstract over a heuristics provider.
+// TODO(12166): Save inlined frames for trap/--trace-wasm purposes. Consider
+//              tail calls.
+// TODO(12166): Inline indirect calls/call_ref.
 Reduction WasmInliner::ReduceCall(Node* call) {
   DCHECK(call->opcode() == IrOpcode::kCall ||
          call->opcode() == IrOpcode::kTailCall);
@@ -36,16 +39,23 @@ Reduction WasmInliner::ReduceCall(Node* call) {
                                      : IrOpcode::kRelocatableInt64Constant;
   if (callee->opcode() != reloc_opcode) return NoChange();
   auto info = OpParameter<RelocatablePtrConstantInfo>(callee->op());
-  if (static_cast<uint32_t>(info.value()) != inlinee_index_) return NoChange();
+  uint32_t inlinee_index = static_cast<uint32_t>(info.value());
+  if (!heuristics_->DoInline(source_positions_->GetSourcePosition(call),
+                             inlinee_index)) {
+    return NoChange();
+  }
 
-  CHECK_LT(inlinee_index_, module()->functions.size());
-  base::Vector<const byte> function_bytes =
-      wire_bytes_->GetCode(inlinee()->code);
-  const wasm::FunctionBody inlinee_body(
-      inlinee()->sig, inlinee()->code.offset(), function_bytes.begin(),
-      function_bytes.end());
+  CHECK_LT(inlinee_index, module()->functions.size());
+  const wasm::WasmFunction* inlinee = &module()->functions[inlinee_index];
+
+  base::Vector<const byte> function_bytes = wire_bytes_->GetCode(inlinee->code);
+
+  const wasm::FunctionBody inlinee_body(inlinee->sig, inlinee->code.offset(),
+                                        function_bytes.begin(),
+                                        function_bytes.end());
   wasm::WasmFeatures detected;
-  WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig, spt_);
+  WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
+                           source_positions_);
   std::vector<WasmLoopInfo> infos;
 
   size_t subgraph_min_node_id = graph()->NodeCount();
@@ -56,7 +66,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
     Graph::SubgraphScope scope(graph());
     result = wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features,
                                 module(), &builder, &detected, inlinee_body,
-                                &infos, node_origins_, inlinee_index_,
+                                &infos, node_origins_, inlinee_index,
                                 wasm::kDoNotInstrumentEndpoints);
     inlinee_start = graph()->start();
     inlinee_end = graph()->end();
@@ -64,7 +74,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 
   if (result.failed()) return NoChange();
   return call->opcode() == IrOpcode::kCall
-             ? InlineCall(call, inlinee_start, inlinee_end,
+             ? InlineCall(call, inlinee_start, inlinee_end, inlinee->sig,
                           subgraph_min_node_id)
              : InlineTailCall(call, inlinee_start, inlinee_end);
 }
@@ -117,6 +127,7 @@ Reduction WasmInliner::InlineTailCall(Node* call, Node* callee_start,
 
 Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
                                   Node* callee_end,
+                                  const wasm::FunctionSig* inlinee_sig,
                                   size_t subgraph_min_node_id) {
   DCHECK(call->opcode() == IrOpcode::kCall);
 
@@ -159,7 +170,7 @@ Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
         // inlinee. It will then be handled like any other return.
         auto descriptor = CallDescriptorOf(input->op());
         NodeProperties::ChangeOp(input, common()->Call(descriptor));
-        int return_arity = static_cast<int>(inlinee()->sig->return_count());
+        int return_arity = static_cast<int>(inlinee_sig->return_count());
         NodeVector return_inputs(zone());
         // The first input of a return node is always the 0 constant.
         return_inputs.push_back(graph()->NewNode(common()->Int32Constant(0)));
@@ -256,7 +267,7 @@ Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
       // Find the correct machine representation for the return values from the
       // inlinee signature.
       MachineRepresentation repr =
-          inlinee()->sig->GetReturn(i).machine_representation();
+          inlinee_sig->GetReturn(i).machine_representation();
       Node* ith_value_output = graph()->NewNode(
           common()->Phi(repr, return_count),
           static_cast<int>(ith_values.size()), &ith_values.front());
@@ -294,10 +305,6 @@ Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
 }
 
 const wasm::WasmModule* WasmInliner::module() const { return env_->module; }
-
-const wasm::WasmFunction* WasmInliner::inlinee() const {
-  return &module()->functions[inlinee_index_];
-}
 
 }  // namespace compiler
 }  // namespace internal
