@@ -5,6 +5,24 @@
 [
 
 [ALWAYS, {
+  # This test can only be executed in the browser
+  'wpt/idlharness': [SKIP],
+  # Failing WPT tests
+  'wpt/table/type.tentative': [FAIL],
+  'wpt/table/set-reftypes.tentative': [FAIL],
+  'wpt/memory/constructor-types.tentative': [FAIL],
+  'wpt/prototypes': [FAIL],
+  'wpt/table/constructor-types.tentative': [FAIL],
+  'wpt/memory/types.tentative': [FAIL],
+  'wpt/function/constructor.tentative': [FAIL],
+  'wpt/exception/type.tentative': [FAIL],
+  'wpt/global/type.tentative': [FAIL],
+  'wpt/exception/toString.tentative': [FAIL],
+  'wpt/function/table.tentative': [FAIL],
+  'wpt/memory/type.tentative': [FAIL],
+  'wpt/function/type.tentative': [FAIL],
+  'wpt/table/grow-reftypes.tentative': [FAIL],
+
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
   'constructor/instantiate': [FAIL],
   'instance/constructor': [FAIL],
