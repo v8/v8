@@ -4,6 +4,7 @@
 
 #include "src/compiler/wasm-inlining.h"
 
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/wasm/function-body-decoder.h"
@@ -47,6 +48,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
   WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig, spt_);
   std::vector<WasmLoopInfo> infos;
 
+  size_t subgraph_min_node_id = graph()->NodeCount();
   wasm::DecodeResult result;
   Node* inlinee_start;
   Node* inlinee_end;
@@ -62,7 +64,8 @@ Reduction WasmInliner::ReduceCall(Node* call) {
 
   if (result.failed()) return NoChange();
   return call->opcode() == IrOpcode::kCall
-             ? InlineCall(call, inlinee_start, inlinee_end)
+             ? InlineCall(call, inlinee_start, inlinee_end,
+                          subgraph_min_node_id)
              : InlineTailCall(call, inlinee_start, inlinee_end);
 }
 
@@ -112,10 +115,26 @@ Reduction WasmInliner::InlineTailCall(Node* call, Node* callee_start,
   return Replace(mcgraph()->Dead());
 }
 
-// TODO(12166): Handle exceptions.
 Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
-                                  Node* callee_end) {
+                                  Node* callee_end,
+                                  size_t subgraph_min_node_id) {
   DCHECK(call->opcode() == IrOpcode::kCall);
+
+  // 0) Before doing anything, if {call} has an exception handler, collect all
+  // unhandled calls in the subgraph.
+  Node* handler = nullptr;
+  std::vector<Node*> unhandled_subcalls;
+  if (NodeProperties::IsExceptionalCall(call, &handler)) {
+    AllNodes subgraph_nodes(zone(), callee_end, graph());
+    for (Node* node : subgraph_nodes.reachable) {
+      if (node->id() >= subgraph_min_node_id &&
+          !node->op()->HasProperty(Operator::kNoThrow) &&
+          !NodeProperties::IsExceptionalCall(node)) {
+        unhandled_subcalls.push_back(node);
+      }
+    }
+  }
+
   // 1) Rewire function entry.
   RewireFunctionEntry(call, callee_start);
 
@@ -173,8 +192,39 @@ Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
   }
   callee_end->Kill();
 
+  // 3) Rewire unhandled calls to the handler.
+  std::vector<Node*> on_exception_nodes;
+  for (Node* subcall : unhandled_subcalls) {
+    Node* on_success = graph()->NewNode(common()->IfSuccess(), subcall);
+    NodeProperties::ReplaceUses(subcall, subcall, subcall, on_success);
+    NodeProperties::ReplaceControlInput(on_success, subcall);
+    Node* on_exception =
+        graph()->NewNode(common()->IfException(), subcall, subcall);
+    on_exception_nodes.push_back(on_exception);
+  }
+
+  int subcall_count = static_cast<int>(on_exception_nodes.size());
+
+  if (subcall_count > 0) {
+    Node* control_output =
+        graph()->NewNode(common()->Merge(subcall_count), subcall_count,
+                         on_exception_nodes.data());
+    on_exception_nodes.push_back(control_output);
+    Node* value_output = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, subcall_count),
+        subcall_count + 1, on_exception_nodes.data());
+    Node* effect_output =
+        graph()->NewNode(common()->EffectPhi(subcall_count), subcall_count + 1,
+                         on_exception_nodes.data());
+    ReplaceWithValue(handler, value_output, effect_output, control_output);
+  } else if (handler != nullptr) {
+    // Nothing in the inlined function can throw. Remove the handler.
+    ReplaceWithValue(handler, mcgraph()->Dead(), mcgraph()->Dead(),
+                     mcgraph()->Dead());
+  }
+
   if (return_nodes.size() > 0) {
-    /* 3) Collect all return site value, effect, and control inputs into phis
+    /* 4) Collect all return site value, effect, and control inputs into phis
      * and merges. */
     int const return_count = static_cast<int>(return_nodes.size());
     NodeVector controls(zone());

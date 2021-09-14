@@ -145,3 +145,97 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(31, instance.exports.main(10));
   assertEquals(-12, instance.exports.main(-10));
 })();
+
+(function HandledInHandledTest() {
+  let builder = new WasmModuleBuilder();
+  let tag = builder.addTag(kSig_v_i);
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprTry, kWasmI32,
+                kExprI32Const, 42,
+                kExprThrow, tag,
+              kExprCatchAll,
+                kExprLocalGet, 0,
+              kExprEnd]);
+
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([kExprTry, kWasmI32,
+                kExprLocalGet, 0,
+                kExprCallFunction, callee.index,
+              kExprCatchAll,
+                kExprLocalGet, 1,
+              kExprEnd])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(10, instance.exports.main(10, 20));
+})();
+
+(function HandledInUnhandledTest() {
+  let builder = new WasmModuleBuilder();
+  let tag = builder.addTag(kSig_v_i);
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprTry, kWasmI32,
+                kExprI32Const, 42,
+                kExprThrow, tag,
+              kExprCatchAll,
+                kExprLocalGet, 0,
+              kExprEnd]);
+
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([kExprLocalGet, 0,
+              kExprCallFunction, callee.index,])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(10, instance.exports.main(10, 20));
+})();
+
+(function UnhandledInUnhandledTest() {
+  let builder = new WasmModuleBuilder();
+  let tag = builder.addTag(kSig_v_i);
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprI32Const, 42, kExprThrow, tag]);
+
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([kExprLocalGet, 0,
+              kExprCallFunction, callee.index])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertThrows(() => instance.exports.main(10, 20), WebAssembly.Exception);
+})();
+
+// This is the most interesting of the exception tests, as it requires rewiring
+// the unhandled calls in the callee (including the 'throw' builtin) to the
+// handler in the caller.
+(function UnhandledInHandledTest() {
+  let builder = new WasmModuleBuilder();
+  let tag = builder.addTag(kSig_v_i);
+
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kWasmI32,
+        kExprLocalGet, 0, kExprThrow, tag,
+      kExprElse,
+        kExprCallFunction, 1,
+      kExprEnd]);
+
+  builder.addFunction("unreachable", kSig_i_v)
+    .addBody([kExprUnreachable]);
+
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([kExprTry, kWasmI32,
+                kExprLocalGet, 0,
+                kExprCallFunction, callee.index,
+              kExprCatchAll,
+                kExprLocalGet, 1,
+              kExprEnd])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(20, instance.exports.main(10, 20));
+})();

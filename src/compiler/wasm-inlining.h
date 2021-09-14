@@ -62,7 +62,8 @@ class WasmInliner final : public AdvancedReducer {
   const wasm::WasmFunction* inlinee() const;
 
   Reduction ReduceCall(Node* call);
-  Reduction InlineCall(Node* call, Node* callee_start, Node* callee_end);
+  Reduction InlineCall(Node* call, Node* callee_start, Node* callee_end,
+                       size_t subgraph_min_node_id);
   Reduction InlineTailCall(Node* call, Node* callee_start, Node* callee_end);
   void RewireFunctionEntry(Node* call, Node* callee_start);
 
