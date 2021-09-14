@@ -232,7 +232,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'third_party/google_benchmark/src': {
-    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '400ed3f57a5f7397c9d5e5d9de5783f38938a8e7',
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '713b9177183375c8b1b25595e33daf2a1625df5b',
   },
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '955c7f837efad184ec63e771c42542d37545eaef',
