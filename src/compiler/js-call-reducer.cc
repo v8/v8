@@ -4368,13 +4368,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return ReduceJSCall(node, p.shared_info(broker()));
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
-    if (cell.shared_function_info().has_value()) {
-      return ReduceJSCall(node, *cell.shared_function_info());
-    } else {
+    base::Optional<SharedFunctionInfoRef> shared = cell.shared_function_info();
+    if (!shared.has_value()) {
       TRACE_BROKER_MISSING(broker(), "Unable to reduce JSCall. FeedbackCell "
                                          << cell << " has no FeedbackVector");
       return NoChange();
     }
+    return ReduceJSCall(node, *shared);
   }
 
   // If {target} is the result of a JSCreateBoundFunction operation,
