@@ -3231,7 +3231,10 @@ void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
 #define GenerateMemoryLEOperation(reg, mem, op)                \
   {                                                            \
     if (mem.offset() == 0) {                                   \
-      op(reg, mem);                                            \
+      if (mem.rb() != no_reg)                                  \
+        op(reg, mem);                                          \
+      else                                                     \
+        op(reg, MemOperand(r0, mem.ra()));                     \
     } else if (is_int16(mem.offset())) {                       \
       if (mem.rb() != no_reg)                                  \
         addi(scratch, mem.rb(), Operand(mem.offset()));        \
