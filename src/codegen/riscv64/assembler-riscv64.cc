@@ -1151,6 +1151,16 @@ void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd,
                 ((vs2.code() & 0x1F) << kRvvVs2Shift);
   emit(instr);
 }
+
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd,
+                          int8_t vs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_MVV || opcode == OP_FVV || opcode == OP_IVV);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((vd.code() & 0x1F) << kRvvVdShift) |
+                ((vs1 & 0x1F) << kRvvVs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
 // OPMVV OPFVV
 void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, Register rd,
                           VRegister vs1, VRegister vs2, MaskType mask) {
@@ -1162,13 +1172,24 @@ void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, Register rd,
   emit(instr);
 }
 
-// OPIVX OPFVF OPMVX
+// OPIVX OPMVX
 void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd,
                           Register rs1, VRegister vs2, MaskType mask) {
-  DCHECK(opcode == OP_IVX || opcode == OP_FVF || opcode == OP_MVX);
+  DCHECK(opcode == OP_IVX || opcode == OP_MVX);
   Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
                 ((vd.code() & 0x1F) << kRvvVdShift) |
                 ((rs1.code() & 0x1F) << kRvvRs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+
+// OPFVF
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd,
+                          FPURegister fs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_FVF);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((vd.code() & 0x1F) << kRvvVdShift) |
+                ((fs1.code() & 0x1F) << kRvvRs1Shift) |
                 ((vs2.code() & 0x1F) << kRvvVs2Shift);
   emit(instr);
 }
@@ -2491,6 +2512,12 @@ void Assembler::vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
     GenInstrV(funct6, OP_IVV, vd, vs1, vs2, mask);                      \
   }
 
+#define DEFINE_OPFVV(name, funct6)                                      \
+  void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_FVV, vd, vs1, vs2, mask);                      \
+  }
+
 #define DEFINE_OPIVX(name, funct6)                                     \
   void Assembler::name##_vx(VRegister vd, VRegister vs2, Register rs1, \
                             MaskType mask) {                           \
@@ -2507,6 +2534,12 @@ void Assembler::vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
   void Assembler::name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
                             MaskType mask) {                            \
     GenInstrV(funct6, OP_MVV, vd, vs1, vs2, mask);                      \
+  }
+
+#define DEFINE_OPFVF(name, funct6)                                        \
+  void Assembler::name##_vf(VRegister vd, VRegister vs2, FPURegister fs1, \
+                            MaskType mask) {                              \
+    GenInstrV(funct6, OP_FVF, vd, fs1, vs2, mask);                        \
   }
 
 DEFINE_OPIVV(vadd, VADD_FUNCT6)
@@ -2592,9 +2625,33 @@ DEFINE_OPMVV(vredmaxu, VREDMAXU_FUNCT6)
 DEFINE_OPMVV(vredmax, VREDMAX_FUNCT6)
 DEFINE_OPMVV(vredmin, VREDMIN_FUNCT6)
 DEFINE_OPMVV(vredminu, VREDMINU_FUNCT6)
+
+DEFINE_OPFVV(vfadd, VFADD_FUNCT6)
+DEFINE_OPFVF(vfadd, VFADD_FUNCT6)
+DEFINE_OPFVV(vfsub, VFSUB_FUNCT6)
+DEFINE_OPFVF(vfsub, VFSUB_FUNCT6)
+DEFINE_OPFVV(vfdiv, VFDIV_FUNCT6)
+DEFINE_OPFVF(vfdiv, VFDIV_FUNCT6)
+DEFINE_OPFVV(vfmul, VFMUL_FUNCT6)
+DEFINE_OPFVF(vfmul, VFMUL_FUNCT6)
+DEFINE_OPFVV(vmfeq, VMFEQ_FUNCT6)
+DEFINE_OPFVV(vmfne, VMFNE_FUNCT6)
+DEFINE_OPFVV(vmflt, VMFLT_FUNCT6)
+DEFINE_OPFVV(vmfle, VMFLE_FUNCT6)
+DEFINE_OPFVV(vfmax, VFMAX_FUNCT6)
+DEFINE_OPFVV(vfmin, VFMIN_FUNCT6)
+
+DEFINE_OPFVV(vfsngj, VFSGNJ_FUNCT6)
+DEFINE_OPFVF(vfsngj, VFSGNJ_FUNCT6)
+DEFINE_OPFVV(vfsngjn, VFSGNJN_FUNCT6)
+DEFINE_OPFVF(vfsngjn, VFSGNJN_FUNCT6)
+DEFINE_OPFVV(vfsngjx, VFSGNJX_FUNCT6)
+DEFINE_OPFVF(vfsngjx, VFSGNJX_FUNCT6)
 #undef DEFINE_OPIVI
 #undef DEFINE_OPIVV
 #undef DEFINE_OPIVX
+#undef DEFINE_OPFVV
+#undef DEFINE_OPFVF
 
 void Assembler::vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
                         TailAgnosticType tail, MaskAgnosticType mask) {

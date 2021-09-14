@@ -837,6 +837,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Floor_s_s(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
   void Ceil_s_s(FPURegister fd, FPURegister fs, FPURegister fpu_scratch);
 
+  void Ceil_f(VRegister dst, VRegister src, Register scratch,
+              VRegister v_scratch);
+
+  void Ceil_d(VRegister dst, VRegister src, Register scratch,
+              VRegister v_scratch);
+
+  void Floor_f(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
+  void Floor_d(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label);
 
@@ -977,6 +987,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <typename F_TYPE>
   void RoundHelper(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
                    RoundingMode mode);
+
+  template <typename F>
+  void RoundHelper(VRegister dst, VRegister src, Register scratch,
+                   VRegister v_scratch, RoundingMode frm);
 
   template <typename TruncFunc>
   void RoundFloatingPointToInteger(Register rd, FPURegister fs, Register result,

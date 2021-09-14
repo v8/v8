@@ -23,8 +23,8 @@ namespace internal {
 // s3: scratch register s4: scratch register 2  used in code-generator-riscv64
 // s6: roots in Javascript code s7: context register
 // s11: PtrComprCageBaseRegister
-// t3 t5 s10 : scratch register used in scratch_register_list
-
+// t3 t5 : scratch register used in scratch_register_list
+// t6 : call reg.
 // t0 t1 t2 t4:caller saved scratch register can be used in macroassembler and
 // builtin-riscv64
 #define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V)  \
