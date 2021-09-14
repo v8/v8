@@ -45,7 +45,6 @@ namespace internal {
 #define __ assm.
 
 TEST(DisasmX64) {
-  CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
@@ -1059,10 +1058,7 @@ TEST(DisasmX64) {
 
 // Tests that compares the checks the disassembly output with an expected
 // string.
-TEST(DisasmX64CheckOutput) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
+UNINITIALIZED_TEST(DisasmX64CheckOutput) {
   v8::internal::byte buffer[8192];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
@@ -1088,11 +1084,8 @@ TEST(DisasmX64CheckOutput) {
           addq(rax, Immediate(12345678)));
 }
 
-TEST(DisasmX64YMMRegister) {
+UNINITIALIZED_TEST(DisasmX64YMMRegister) {
   if (!CpuFeatures::IsSupported(AVX)) return;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
