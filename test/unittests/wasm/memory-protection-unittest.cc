@@ -301,7 +301,10 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
   bool expect_crash = write_in_signal_handler && code_is_protected() &&
                       (!V8_HAS_PTHREAD_JIT_WRITE_PROTECT || !open_write_scope);
   if (expect_crash) {
-    ASSERT_DEATH_IF_SUPPORTED(
+    // Avoid {ASSERT_DEATH_IF_SUPPORTED}, because it only accepts a regex as
+    // second parameter, and not a matcher as {ASSERT_DEATH}.
+#if GTEST_HAS_DEATH_TEST
+    ASSERT_DEATH(
         // The signal handler should crash, but it might "accidentally"
         // succeed if tier-up is running in the background and using mprotect
         // to unprotect the code for the whole process. In that case we
@@ -316,6 +319,7 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
         ::testing::AllOf(
             ::testing::HasSubstr("Writing to"),
             ::testing::Not(::testing::HasSubstr("Successfully wrote"))));
+#endif  // GTEST_HAS_DEATH_TEST
   } else {
     base::Optional<CodeSpaceWriteScope> write_scope;
     if (open_write_scope) write_scope.emplace(native_module());
