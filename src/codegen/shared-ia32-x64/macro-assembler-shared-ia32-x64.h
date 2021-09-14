@@ -528,6 +528,27 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
   }
 #undef FLOAT_UNOP
 
+  template <typename Op>
+  void Pinsrd(XMMRegister dst, XMMRegister src1, Op src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr) {
+    if (CpuFeatures::IsSupported(SSE4_1)) {
+      PinsrHelper(this, &Assembler::vpinsrd, &Assembler::pinsrd, dst, src1,
+                  src2, imm8, load_pc_offset,
+                  base::Optional<CpuFeature>(SSE4_1));
+    } else {
+      if (dst != src1) {
+        movaps(dst, src1);
+      }
+      impl()->PinsrdPreSse41(dst, src2, imm8, load_pc_offset);
+    }
+  }
+
+  template <typename Op>
+  void Pinsrd(XMMRegister dst, Op src, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr) {
+    Pinsrd(dst, dst, src, imm8, load_pc_offset);
+  }
+
   void F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src,
                              Register scratch) {
     ASM_CODE_COMMENT(this);

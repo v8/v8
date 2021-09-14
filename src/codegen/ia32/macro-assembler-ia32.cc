@@ -1613,21 +1613,8 @@ void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   add(esp, Immediate(kDoubleSize));
 }
 
-void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
-                            uint8_t imm8) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vpinsrd(dst, src1, src2, imm8);
-    return;
-  }
-  if (dst != src1) {
-    movaps(dst, src1);
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope sse_scope(this, SSE4_1);
-    pinsrd(dst, src2, imm8);
-    return;
-  }
+void TurboAssembler::PinsrdPreSse41(XMMRegister dst, Operand src, uint8_t imm8,
+                                    uint32_t* load_pc_offset) {
   // Without AVX or SSE, we can only have 64-bit values in xmm registers.
   // We don't have an xmm scratch register, so move the data via the stack. This
   // path is rarely required, so it's acceptable to be slow.
@@ -1636,19 +1623,15 @@ void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
   // Write original content of {dst} to the stack.
   movsd(Operand(esp, 0), dst);
   // Overwrite the portion specified in {imm8}.
-  if (src2.is_reg_only()) {
-    mov(Operand(esp, imm8 * kUInt32Size), src2.reg());
+  if (src.is_reg_only()) {
+    mov(Operand(esp, imm8 * kUInt32Size), src.reg());
   } else {
-    movss(dst, src2);
+    movss(dst, src);
     movss(Operand(esp, imm8 * kUInt32Size), dst);
   }
   // Load back the full value into {dst}.
   movsd(dst, Operand(esp, 0));
   add(esp, Immediate(kDoubleSize));
-}
-
-void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, uint8_t imm8) {
-  Pinsrd(dst, dst, src, imm8);
 }
 
 void TurboAssembler::Lzcnt(Register dst, Operand src) {

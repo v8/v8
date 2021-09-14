@@ -337,12 +337,12 @@ class V8_EXPORT_PRIVATE TurboAssembler
   }
 
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src, uint8_t imm8) {
-    Pinsrd(dst, Operand(src), imm8);
+  void PinsrdPreSse41(XMMRegister dst, Register src, uint8_t imm8,
+                      uint32_t* load_pc_offset) {
+    PinsrdPreSse41(dst, Operand(src), imm8, load_pc_offset);
   }
-  void Pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
-  // Moves src1 to dst if AVX is not supported.
-  void Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8);
+  void PinsrdPreSse41(XMMRegister dst, Operand src, uint8_t imm8,
+                      uint32_t* load_pc_offset);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which

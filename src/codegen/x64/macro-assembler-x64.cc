@@ -2118,56 +2118,28 @@ void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
 }
 
 namespace {
+template <typename Op>
+void PinsrdPreSse41Helper(TurboAssembler* tasm, XMMRegister dst, Op src,
+                          uint8_t imm8, uint32_t* load_pc_offset) {
+  tasm->Movd(kScratchDoubleReg, src);
+  if (load_pc_offset) *load_pc_offset = tasm->pc_offset();
+  if (imm8 == 1) {
+    tasm->punpckldq(dst, kScratchDoubleReg);
+  } else {
+    DCHECK_EQ(0, imm8);
+    tasm->Movss(dst, kScratchDoubleReg);
+  }
+}
 }  // namespace
 
-void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Register src2,
-                            uint8_t imm8, uint32_t* load_pc_offset) {
-  // Need a fall back when SSE4_1 is unavailable. Pinsrb and Pinsrq are used
-  // only by Wasm SIMD, which requires SSE4_1 already.
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    PinsrHelper(this, &Assembler::vpinsrd, &Assembler::pinsrd, dst, src1, src2,
-                imm8, load_pc_offset, {SSE4_1});
-    return;
-  }
-
-  Movd(kScratchDoubleReg, src2);
-  if (load_pc_offset) *load_pc_offset = pc_offset();
-  if (imm8 == 1) {
-    punpckldq(dst, kScratchDoubleReg);
-  } else {
-    DCHECK_EQ(0, imm8);
-    Movss(dst, kScratchDoubleReg);
-  }
+void TurboAssembler::PinsrdPreSse41(XMMRegister dst, Register src, uint8_t imm8,
+                                    uint32_t* load_pc_offset) {
+  PinsrdPreSse41Helper(this, dst, src, imm8, load_pc_offset);
 }
 
-void TurboAssembler::Pinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
-                            uint8_t imm8, uint32_t* load_pc_offset) {
-  // Need a fall back when SSE4_1 is unavailable. Pinsrb and Pinsrq are used
-  // only by Wasm SIMD, which requires SSE4_1 already.
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    PinsrHelper(this, &Assembler::vpinsrd, &Assembler::pinsrd, dst, src1, src2,
-                imm8, load_pc_offset, {SSE4_1});
-    return;
-  }
-
-  Movd(kScratchDoubleReg, src2);
-  if (load_pc_offset) *load_pc_offset = pc_offset();
-  if (imm8 == 1) {
-    punpckldq(dst, kScratchDoubleReg);
-  } else {
-    DCHECK_EQ(0, imm8);
-    Movss(dst, kScratchDoubleReg);
-  }
-}
-
-void TurboAssembler::Pinsrd(XMMRegister dst, Register src2, uint8_t imm8,
-                            uint32_t* load_pc_offset) {
-  Pinsrd(dst, dst, src2, imm8, load_pc_offset);
-}
-
-void TurboAssembler::Pinsrd(XMMRegister dst, Operand src2, uint8_t imm8,
-                            uint32_t* load_pc_offset) {
-  Pinsrd(dst, dst, src2, imm8, load_pc_offset);
+void TurboAssembler::PinsrdPreSse41(XMMRegister dst, Operand src, uint8_t imm8,
+                                    uint32_t* load_pc_offset) {
+  PinsrdPreSse41Helper(this, dst, src, imm8, load_pc_offset);
 }
 
 void TurboAssembler::Pinsrq(XMMRegister dst, XMMRegister src1, Register src2,
