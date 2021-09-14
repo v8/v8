@@ -350,7 +350,7 @@ class FromStringAccumulator {
                                   digit_t radix);
 
   // Step 3: Check if a result is available, and determine its required
-  // allocation size.
+  // allocation size (guaranteed to be <= max_digits passed to the constructor).
   Result result() { return result_; }
   int ResultLength() {
     return std::max(stack_parts_used_, static_cast<int>(heap_parts_.size()));
@@ -367,7 +367,7 @@ class FromStringAccumulator {
                                           digit_t radix);
 
   ALWAYS_INLINE bool AddPart(digit_t multiplier, digit_t part, bool is_last);
-  ALWAYS_INLINE bool AddPart(digit_t part, bool is_last);
+  ALWAYS_INLINE bool AddPart(digit_t part);
 
   digit_t stack_parts_[kStackParts];
   std::vector<digit_t> heap_parts_;
@@ -443,7 +443,7 @@ const Char* FromStringAccumulator::ParsePowerTwo(const Char* current,
         break;
       }
     }
-    if (!AddPart(part, done)) return current;
+    if (!AddPart(part)) return current;
   } while (!done);
   // We use the unused {last_multiplier_} field to
   // communicate how many bits are unused in the last part.
@@ -529,10 +529,10 @@ bool FromStringAccumulator::AddPart(digit_t multiplier, digit_t part,
     BIGINT_H_DCHECK(max_multiplier_ == 0 || max_multiplier_ == multiplier);
     max_multiplier_ = multiplier;
   }
-  return AddPart(part, is_last);
+  return AddPart(part);
 }
 
-bool FromStringAccumulator::AddPart(digit_t part, bool is_last) {
+bool FromStringAccumulator::AddPart(digit_t part) {
   if (stack_parts_used_ < kStackParts) {
     stack_parts_[stack_parts_used_++] = part;
     return true;
@@ -544,7 +544,7 @@ bool FromStringAccumulator::AddPart(digit_t part, bool is_last) {
       heap_parts_.push_back(stack_parts_[i]);
     }
   }
-  if (static_cast<int>(heap_parts_.size()) >= max_digits_ && !is_last) {
+  if (static_cast<int>(heap_parts_.size()) >= max_digits_) {
     result_ = Result::kMaxSizeExceeded;
     return false;
   }
