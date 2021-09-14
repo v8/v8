@@ -254,6 +254,14 @@ void BitwiseXor_PosPos(RWDigits Z, Digits X, Digits Y);
 void BitwiseXor_NegNeg(RWDigits Z, Digits X, Digits Y);
 void BitwiseXor_PosNeg(RWDigits Z, Digits X, Digits Y);
 
+// Z := (least significant n bits of X, interpreted as a signed n-bit integer).
+// Returns true if the result is negative; Z will hold the absolute value.
+bool AsIntN(RWDigits Z, Digits X, bool x_negative, int n);
+// Z := (least significant n bits of X).
+void AsUintN_Pos(RWDigits Z, Digits X, int n);
+// Same, but X is the absolute value of a negative BigInt.
+void AsUintN_Neg(RWDigits Z, Digits X, int n);
+
 enum class Status { kOk, kInterrupted };
 
 class FromStringAccumulator;
@@ -343,6 +351,14 @@ inline int BitwiseXor_NegNeg_ResultLength(int x_length, int y_length) {
 inline int BitwiseXor_PosNeg_ResultLength(int x_length, int y_length) {
   // Result length growth example: 3 ^ -1 == -4 (2-bit inputs, 3-bit result).
   return std::max(x_length, y_length) + 1;
+}
+
+// Returns -1 if this "asIntN" operation would be a no-op.
+int AsIntNResultLength(Digits X, bool x_negative, int n);
+// Returns -1 if this "asUintN" operation would be a no-op.
+int AsUintN_Pos_ResultLength(Digits X, int n);
+inline int AsUintN_Neg_ResultLength(int n) {
+  return ((n - 1) / kDigitBits) + 1;
 }
 
 // Support for parsing BigInts from Strings, using an Accumulator object

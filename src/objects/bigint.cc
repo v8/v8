@@ -81,12 +81,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   }
 
   // Internal helpers.
-  static Handle<BigInt> TruncateToNBits(Isolate* isolate, int n,
-                                        Handle<BigInt> x);
-  static Handle<BigInt> TruncateAndSubFromPowerOfTwo(Isolate* isolate, int n,
-                                                     Handle<BigInt> x,
-                                                     bool result_sign);
-
   static MaybeHandle<MutableBigInt> AbsoluteAddOne(
       Isolate* isolate, Handle<BigIntBase> x, bool sign,
       MutableBigInt result_storage = MutableBigInt());
@@ -112,8 +106,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   // representation.
   static uint64_t GetRawBits(BigIntBase x, bool* lossless);
 
-  // Digit arithmetic helpers.
-  static inline digit_t digit_sub(digit_t a, digit_t b, digit_t* borrow);
   static inline bool digit_ismax(digit_t x) {
     return static_cast<digit_t>(~x) == 0;
   }
@@ -1490,160 +1482,41 @@ MaybeHandle<BigInt> BigInt::FromSerializedDigits(
 }
 
 Handle<BigInt> BigInt::AsIntN(Isolate* isolate, uint64_t n, Handle<BigInt> x) {
-  if (x->is_zero()) return x;
+  if (x->is_zero() || n > kMaxLengthBits) return x;
   if (n == 0) return MutableBigInt::Zero(isolate);
-  uint64_t needed_length = (n + kDigitBits - 1) / kDigitBits;
-  uint64_t x_length = static_cast<uint64_t>(x->length());
-  // If {x} has less than {n} bits, return it directly.
-  if (x_length < needed_length) return x;
-  DCHECK_LE(needed_length, kMaxInt);
-  digit_t top_digit = x->digit(static_cast<int>(needed_length) - 1);
-  digit_t compare_digit = static_cast<digit_t>(1) << ((n - 1) % kDigitBits);
-  if (x_length == needed_length && top_digit < compare_digit) return x;
-  // Otherwise we have to truncate (which is a no-op in the special case
-  // of x == -2^(n-1)), and determine the right sign. We also might have
-  // to subtract from 2^n to simulate having two's complement representation.
-  // In most cases, the result's sign is x->sign() xor "(n-1)th bit present".
-  // The only exception is when x is negative, has the (n-1)th bit, and all
-  // its bits below (n-1) are zero. In that case, the result is the minimum
-  // n-bit integer (example: asIntN(3, -12n) => -4n).
-  bool has_bit = (top_digit & compare_digit) == compare_digit;
-  DCHECK_LE(n, kMaxInt);
-  int N = static_cast<int>(n);
-  if (!has_bit) {
-    return MutableBigInt::TruncateToNBits(isolate, N, x);
-  }
-  if (!x->sign()) {
-    return MutableBigInt::TruncateAndSubFromPowerOfTwo(isolate, N, x, true);
-  }
-  // Negative numbers must subtract from 2^n, except for the special case
-  // described above.
-  if ((top_digit & (compare_digit - 1)) == 0) {
-    for (int i = static_cast<int>(needed_length) - 2; i >= 0; i--) {
-      if (x->digit(i) != 0) {
-        return MutableBigInt::TruncateAndSubFromPowerOfTwo(isolate, N, x,
-                                                           false);
-      }
-    }
-    // Truncation is no-op if x == -2^(n-1).
-    if (x_length == needed_length && top_digit == compare_digit) return x;
-    return MutableBigInt::TruncateToNBits(isolate, N, x);
-  }
-  return MutableBigInt::TruncateAndSubFromPowerOfTwo(isolate, N, x, false);
+  int needed_length =
+      bigint::AsIntNResultLength(GetDigits(x), x->sign(), static_cast<int>(n));
+  if (needed_length == -1) return x;
+  Handle<MutableBigInt> result =
+      MutableBigInt::New(isolate, needed_length).ToHandleChecked();
+  bool negative = bigint::AsIntN(GetRWDigits(result), GetDigits(x), x->sign(),
+                                 static_cast<int>(n));
+  result->set_sign(negative);
+  return MutableBigInt::MakeImmutable(result);
 }
 
 MaybeHandle<BigInt> BigInt::AsUintN(Isolate* isolate, uint64_t n,
                                     Handle<BigInt> x) {
   if (x->is_zero()) return x;
   if (n == 0) return MutableBigInt::Zero(isolate);
-  // If {x} is negative, simulate two's complement representation.
+  Handle<MutableBigInt> result;
   if (x->sign()) {
     if (n > kMaxLengthBits) {
       return ThrowBigIntTooBig<BigInt>(isolate);
     }
-    return MutableBigInt::TruncateAndSubFromPowerOfTwo(
-        isolate, static_cast<int>(n), x, false);
-  }
-  // If {x} is positive and has up to {n} bits, return it directly.
-  if (n >= kMaxLengthBits) return x;
-  STATIC_ASSERT(kMaxLengthBits < kMaxInt - kDigitBits);
-  int needed_length = static_cast<int>((n + kDigitBits - 1) / kDigitBits);
-  if (x->length() < needed_length) return x;
-  int bits_in_top_digit = n % kDigitBits;
-  if (x->length() == needed_length) {
-    if (bits_in_top_digit == 0) return x;
-    digit_t top_digit = x->digit(needed_length - 1);
-    if ((top_digit >> bits_in_top_digit) == 0) return x;
-  }
-  // Otherwise, truncate.
-  DCHECK_LE(n, kMaxInt);
-  return MutableBigInt::TruncateToNBits(isolate, static_cast<int>(n), x);
-}
-
-Handle<BigInt> MutableBigInt::TruncateToNBits(Isolate* isolate, int n,
-                                              Handle<BigInt> x) {
-  // Only call this when there's something to do.
-  DCHECK_NE(n, 0);
-  DCHECK_GT(x->length(), n / kDigitBits);
-
-  int needed_digits = (n + (kDigitBits - 1)) / kDigitBits;
-  DCHECK_LE(needed_digits, x->length());
-  Handle<MutableBigInt> result = New(isolate, needed_digits).ToHandleChecked();
-
-  // Copy all digits except the MSD.
-  int last = needed_digits - 1;
-  for (int i = 0; i < last; i++) {
-    result->set_digit(i, x->digit(i));
-  }
-
-  // The MSD might contain extra bits that we don't want.
-  digit_t msd = x->digit(last);
-  if (n % kDigitBits != 0) {
-    int drop = kDigitBits - (n % kDigitBits);
-    msd = (msd << drop) >> drop;
-  }
-  result->set_digit(last, msd);
-  result->set_sign(x->sign());
-  return MakeImmutable(result);
-}
-
-// Subtracts the least significant n bits of abs(x) from 2^n.
-Handle<BigInt> MutableBigInt::TruncateAndSubFromPowerOfTwo(Isolate* isolate,
-                                                           int n,
-                                                           Handle<BigInt> x,
-                                                           bool result_sign) {
-  DCHECK_NE(n, 0);
-  DCHECK_LE(n, kMaxLengthBits);
-
-  int needed_digits = (n + (kDigitBits - 1)) / kDigitBits;
-  DCHECK_LE(needed_digits, kMaxLength);  // Follows from n <= kMaxLengthBits.
-  Handle<MutableBigInt> result = New(isolate, needed_digits).ToHandleChecked();
-
-  // Process all digits except the MSD.
-  int i = 0;
-  int last = needed_digits - 1;
-  int x_length = x->length();
-  digit_t borrow = 0;
-  // Take digits from {x} unless its length is exhausted.
-  int limit = std::min(last, x_length);
-  for (; i < limit; i++) {
-    digit_t new_borrow = 0;
-    digit_t difference = digit_sub(0, x->digit(i), &new_borrow);
-    difference = digit_sub(difference, borrow, &new_borrow);
-    result->set_digit(i, difference);
-    borrow = new_borrow;
-  }
-  // Then simulate leading zeroes in {x} as needed.
-  for (; i < last; i++) {
-    digit_t new_borrow = 0;
-    digit_t difference = digit_sub(0, borrow, &new_borrow);
-    result->set_digit(i, difference);
-    borrow = new_borrow;
-  }
-
-  // The MSD might contain extra bits that we don't want.
-  digit_t msd = last < x_length ? x->digit(last) : 0;
-  int msd_bits_consumed = n % kDigitBits;
-  digit_t result_msd;
-  if (msd_bits_consumed == 0) {
-    digit_t new_borrow = 0;
-    result_msd = digit_sub(0, msd, &new_borrow);
-    result_msd = digit_sub(result_msd, borrow, &new_borrow);
+    int result_length = bigint::AsUintN_Neg_ResultLength(static_cast<int>(n));
+    result = MutableBigInt::New(isolate, result_length).ToHandleChecked();
+    bigint::AsUintN_Neg(GetRWDigits(result), GetDigits(x), static_cast<int>(n));
   } else {
-    int drop = kDigitBits - msd_bits_consumed;
-    msd = (msd << drop) >> drop;
-    digit_t minuend_msd = static_cast<digit_t>(1) << (kDigitBits - drop);
-    digit_t new_borrow = 0;
-    result_msd = digit_sub(minuend_msd, msd, &new_borrow);
-    result_msd = digit_sub(result_msd, borrow, &new_borrow);
-    DCHECK_EQ(new_borrow, 0);  // result < 2^n.
-    // If all subtracted bits were zero, we have to get rid of the
-    // materialized minuend_msd again.
-    result_msd &= (minuend_msd - 1);
+    if (n >= kMaxLengthBits) return x;
+    int result_length =
+        bigint::AsUintN_Pos_ResultLength(GetDigits(x), static_cast<int>(n));
+    if (result_length < 0) return x;
+    result = MutableBigInt::New(isolate, result_length).ToHandleChecked();
+    bigint::AsUintN_Pos(GetRWDigits(result), GetDigits(x), static_cast<int>(n));
   }
-  result->set_digit(last, result_msd);
-  result->set_sign(result_sign);
-  return MakeImmutable(result);
+  DCHECK(!result->sign());
+  return MutableBigInt::MakeImmutable(result);
 }
 
 Handle<BigInt> BigInt::FromInt64(Isolate* isolate, int64_t n) {
@@ -1768,34 +1641,6 @@ uint64_t BigInt::AsUint64(bool* lossless) {
   if (lossless != nullptr && sign()) *lossless = false;
   return result;
 }
-
-// Digit arithmetic helpers.
-
-#if V8_TARGET_ARCH_32_BIT
-#define HAVE_TWODIGIT_T 1
-using twodigit_t = uint64_t;
-#elif defined(__SIZEOF_INT128__)
-// Both Clang and GCC support this on x64.
-#define HAVE_TWODIGIT_T 1
-using twodigit_t = __uint128_t;
-#endif
-
-// {borrow} must point to an initialized digit_t and will either be incremented
-// by one or left alone.
-inline BigInt::digit_t MutableBigInt::digit_sub(digit_t a, digit_t b,
-                                                digit_t* borrow) {
-#if HAVE_TWODIGIT_T
-  twodigit_t result = static_cast<twodigit_t>(a) - static_cast<twodigit_t>(b);
-  *borrow += (result >> kDigitBits) & 1;
-  return static_cast<digit_t>(result);
-#else
-  digit_t result = a - b;
-  if (result > a) *borrow += 1;
-  return static_cast<digit_t>(result);
-#endif
-}
-
-#undef HAVE_TWODIGIT_T
 
 void MutableBigInt::set_64_bits(uint64_t bits) {
   STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);
