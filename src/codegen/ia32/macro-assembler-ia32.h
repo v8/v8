@@ -306,8 +306,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   AVX_OP(Pcmpeqb, pcmpeqb)
   AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pcmpeqd, pcmpeqd)
-  AVX_OP(Ucomisd, ucomisd)
-  AVX_OP(Ucomiss, ucomiss)
   AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
 
 // Macro for instructions that have 2 operands for AVX version and 1 operand for

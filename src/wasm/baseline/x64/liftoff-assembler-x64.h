@@ -2183,7 +2183,7 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
 }
 
 namespace liftoff {
-template <void (TurboAssembler::*cmp_op)(DoubleRegister, DoubleRegister)>
+template <void (SharedTurboAssembler::*cmp_op)(DoubleRegister, DoubleRegister)>
 void EmitFloatSetCond(LiftoffAssembler* assm, Condition cond, Register dst,
                       DoubleRegister lhs, DoubleRegister rhs) {
   Label cont;

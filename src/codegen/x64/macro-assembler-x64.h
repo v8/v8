@@ -61,24 +61,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
     : public SharedTurboAssemblerBase<TurboAssembler> {
  public:
   using SharedTurboAssemblerBase<TurboAssembler>::SharedTurboAssemblerBase;
-  AVX_OP(Ucomisd, ucomisd)
-  AVX_OP(Ucomiss, ucomiss)
-
-  // Define movq here instead of using AVX_OP. movq is defined using templates
-  // and there is a function template `void movq(P1)`, while technically
-  // impossible, will be selected when deducing the arguments for AvxHelper.
-  void Movq(XMMRegister dst, Register src);
-  void Movq(Register dst, XMMRegister src);
-  void Pextrq(Register dst, XMMRegister src, int8_t imm8);
-
-  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
 
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
@@ -137,6 +119,11 @@ class V8_EXPORT_PRIVATE TurboAssembler
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
 
+  // Define movq here instead of using AVX_OP. movq is defined using templates
+  // and there is a function template `void movq(P1)`, while technically
+  // impossible, will be selected when deducing the arguments for AvxHelper.
+  void Movq(XMMRegister dst, Register src);
+  void Movq(Register dst, XMMRegister src);
   void Movdqa(XMMRegister dst, Operand src);
   void Movdqa(XMMRegister dst, XMMRegister src);
 
@@ -178,6 +165,28 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Cvtlsi2ss(XMMRegister dst, Operand src);
   void Cvtlsi2sd(XMMRegister dst, Register src);
   void Cvtlsi2sd(XMMRegister dst, Operand src);
+
+  void PextrdPreSse41(Register dst, XMMRegister src, uint8_t imm8);
+  void Pextrq(Register dst, XMMRegister src, int8_t imm8);
+
+  void PinsrdPreSse41(XMMRegister dst, Register src2, uint8_t imm8,
+                      uint32_t* load_pc_offset = nullptr);
+  void PinsrdPreSse41(XMMRegister dst, Operand src2, uint8_t imm8,
+                      uint32_t* load_pc_offset = nullptr);
+
+  void Pinsrq(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+  void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
+              uint32_t* load_pc_offset = nullptr);
+
+  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
 
   void Lzcntq(Register dst, Register src);
   void Lzcntq(Register dst, Operand src);
@@ -411,18 +420,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   void Trap();
   void DebugBreak();
-
-  // Non-SSE2 instructions.
-  void PextrdPreSse41(Register dst, XMMRegister src, uint8_t imm8);
-
-  void PinsrdPreSse41(XMMRegister dst, Register src2, uint8_t imm8,
-                      uint32_t* load_pc_offset = nullptr);
-  void PinsrdPreSse41(XMMRegister dst, Operand src2, uint8_t imm8,
-                      uint32_t* load_pc_offset = nullptr);
-  void Pinsrq(XMMRegister dst, XMMRegister src1, Register src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
-  void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
-              uint32_t* load_pc_offset = nullptr);
 
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);

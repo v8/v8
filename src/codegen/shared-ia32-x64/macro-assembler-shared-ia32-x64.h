@@ -327,6 +327,8 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Subps, subps)
   AVX_OP(Subsd, subsd)
   AVX_OP(Subss, subss)
+  AVX_OP(Ucomisd, ucomisd)
+  AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Unpcklps, unpcklps)
   AVX_OP(Xorpd, xorpd)
   AVX_OP(Xorps, xorps)
