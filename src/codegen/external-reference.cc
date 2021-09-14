@@ -882,16 +882,16 @@ ExternalReference ExternalReference::search_string_raw_two_two() {
 
 namespace {
 
-void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t from,
-                              int32_t to) {
-  return String::WriteToFlat<uint8_t>(String::cast(Object(source)), sink, from,
-                                      to);
+void StringWriteToFlatOneByte(Address source, uint8_t* sink, int32_t start,
+                              int32_t length) {
+  return String::WriteToFlat<uint8_t>(String::cast(Object(source)), sink, start,
+                                      length);
 }
 
-void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t from,
-                              int32_t to) {
-  return String::WriteToFlat<uint16_t>(String::cast(Object(source)), sink, from,
-                                       to);
+void StringWriteToFlatTwoByte(Address source, uint16_t* sink, int32_t start,
+                              int32_t length) {
+  return String::WriteToFlat<uint16_t>(String::cast(Object(source)), sink,
+                                       start, length);
 }
 
 const uint8_t* ExternalOneByteStringGetChars(Address string) {

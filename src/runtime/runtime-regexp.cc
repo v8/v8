@@ -595,7 +595,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalAtomRegExpWithString(
     // Copy non-matched subject content.
     if (subject_pos < index) {
       String::WriteToFlat(*subject, result->GetChars(no_gc) + result_pos,
-                          subject_pos, index);
+                          subject_pos, index - subject_pos);
       result_pos += index - subject_pos;
     }
 
@@ -611,7 +611,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalAtomRegExpWithString(
   // Add remaining subject content at the end.
   if (subject_pos < subject_len) {
     String::WriteToFlat(*subject, result->GetChars(no_gc) + result_pos,
-                        subject_pos, subject_len);
+                        subject_pos, subject_len - subject_pos);
   }
 
   int32_t match_indices[] = {indices->back(), indices->back() + pattern_len};
@@ -753,7 +753,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithEmptyString(
     if (prev < start) {
       // Add substring subject[prev;start] to answer string.
       String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
-                          start);
+                          start - prev);
       position += start - prev;
     }
     prev = end;
@@ -769,7 +769,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithEmptyString(
   if (prev < subject_length) {
     // Add substring subject[prev;length] to answer string.
     String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
-                        subject_length);
+                        subject_length - prev);
     position += subject_length - prev;
   }
 

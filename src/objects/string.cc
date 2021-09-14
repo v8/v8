@@ -645,88 +645,91 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
 
 // static
 template <typename sinkchar>
-void String::WriteToFlat(String source, sinkchar* sink, int from, int to) {
+void String::WriteToFlat(String source, sinkchar* sink, int start, int length) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(source));
-  return WriteToFlat(source, sink, from, to, GetPtrComprCageBase(source),
+  return WriteToFlat(source, sink, start, length, GetPtrComprCageBase(source),
                      SharedStringAccessGuardIfNeeded::NotNeeded());
 }
 
 // static
 template <typename sinkchar>
-void String::WriteToFlat(String source, sinkchar* sink, int from, int to,
+void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
                          PtrComprCageBase cage_base,
                          const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
-  if (from == to) return;
+  if (length == 0) return;
   while (true) {
-    DCHECK_LT(from, to);
-    DCHECK_LE(0, from);
-    DCHECK_LE(to, source.length());
+    DCHECK_LT(0, length);
+    DCHECK_LE(0, start);
+    DCHECK_LE(length, source.length());
     switch (StringShape(source, cage_base).full_representation_tag()) {
       case kOneByteStringTag | kExternalStringTag:
-        CopyChars(sink, ExternalOneByteString::cast(source).GetChars() + from,
-                  to - from);
+        CopyChars(sink, ExternalOneByteString::cast(source).GetChars() + start,
+                  length);
         return;
       case kTwoByteStringTag | kExternalStringTag:
-        CopyChars(sink, ExternalTwoByteString::cast(source).GetChars() + from,
-                  to - from);
+        CopyChars(sink, ExternalTwoByteString::cast(source).GetChars() + start,
+                  length);
         return;
       case kOneByteStringTag | kSeqStringTag:
-        CopyChars(
-            sink,
-            SeqOneByteString::cast(source).GetChars(no_gc, access_guard) + from,
-            to - from);
+        CopyChars(sink,
+                  SeqOneByteString::cast(source).GetChars(no_gc, access_guard) +
+                      start,
+                  length);
         return;
       case kTwoByteStringTag | kSeqStringTag:
-        CopyChars(
-            sink,
-            SeqTwoByteString::cast(source).GetChars(no_gc, access_guard) + from,
-            to - from);
+        CopyChars(sink,
+                  SeqTwoByteString::cast(source).GetChars(no_gc, access_guard) +
+                      start,
+                  length);
         return;
       case kOneByteStringTag | kConsStringTag:
       case kTwoByteStringTag | kConsStringTag: {
         ConsString cons_string = ConsString::cast(source);
         String first = cons_string.first(cage_base);
         int boundary = first.length();
-        if (to - boundary >= boundary - from) {
+        int first_length = boundary - start;
+        int second_length = start + length - boundary;
+        if (second_length >= first_length) {
           // Right hand side is longer.  Recurse over left.
-          if (from < boundary) {
-            WriteToFlat(first, sink, from, boundary, cage_base, access_guard);
-            if (from == 0 && cons_string.second(cage_base) == first) {
+          if (first_length > 0) {
+            WriteToFlat(first, sink, start, first_length, cage_base,
+                        access_guard);
+            if (start == 0 && cons_string.second(cage_base) == first) {
               CopyChars(sink + boundary, sink, boundary);
               return;
             }
-            sink += boundary - from;
-            from = 0;
+            sink += boundary - start;
+            start = 0;
+            length -= first_length;
           } else {
-            from -= boundary;
+            start -= boundary;
           }
-          to -= boundary;
           source = cons_string.second(cage_base);
         } else {
           // Left hand side is longer.  Recurse over right.
-          if (to > boundary) {
+          if (second_length > 0) {
             String second = cons_string.second(cage_base);
             // When repeatedly appending to a string, we get a cons string that
             // is unbalanced to the left, a list, essentially.  We inline the
             // common case of sequential one-byte right child.
-            if (to - boundary == 1) {
-              sink[boundary - from] =
+            if (second_length == 1) {
+              sink[boundary - start] =
                   static_cast<sinkchar>(second.Get(0, cage_base, access_guard));
             } else if (second.IsSeqOneByteString(cage_base)) {
               CopyChars(
-                  sink + boundary - from,
+                  sink + boundary - start,
                   SeqOneByteString::cast(second).GetChars(no_gc, access_guard),
-                  to - boundary);
+                  second_length);
             } else {
-              WriteToFlat(second, sink + boundary - from, 0, to - boundary,
+              WriteToFlat(second, sink + boundary - start, 0, second_length,
                           cage_base, access_guard);
             }
-            to = boundary;
+            length -= second_length;
           }
           source = first;
         }
-        if (from == to) return;
+        if (length == 0) return;
         continue;
       }
       case kOneByteStringTag | kSlicedStringTag:
@@ -734,8 +737,7 @@ void String::WriteToFlat(String source, sinkchar* sink, int from, int to,
         SlicedString slice = SlicedString::cast(source);
         unsigned offset = slice.offset();
         source = slice.parent(cage_base);
-        from += offset;
-        to += offset;
+        start += offset;
         continue;
       }
       case kOneByteStringTag | kThinStringTag:

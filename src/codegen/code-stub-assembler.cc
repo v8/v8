@@ -8015,28 +8015,28 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
 
 void CodeStubAssembler::StringWriteToFlatOneByte(TNode<String> source,
                                                  TNode<RawPtrT> sink,
-                                                 TNode<Int32T> from,
-                                                 TNode<Int32T> to) {
+                                                 TNode<Int32T> start,
+                                                 TNode<Int32T> length) {
   TNode<ExternalReference> function =
       ExternalConstant(ExternalReference::string_write_to_flat_one_byte());
   CallCFunction(function, base::nullopt,
                 std::make_pair(MachineType::AnyTagged(), source),
                 std::make_pair(MachineType::Pointer(), sink),
-                std::make_pair(MachineType::Int32(), from),
-                std::make_pair(MachineType::Int32(), to));
+                std::make_pair(MachineType::Int32(), start),
+                std::make_pair(MachineType::Int32(), length));
 }
 
 void CodeStubAssembler::StringWriteToFlatTwoByte(TNode<String> source,
                                                  TNode<RawPtrT> sink,
-                                                 TNode<Int32T> from,
-                                                 TNode<Int32T> to) {
+                                                 TNode<Int32T> start,
+                                                 TNode<Int32T> length) {
   TNode<ExternalReference> function =
       ExternalConstant(ExternalReference::string_write_to_flat_two_byte());
   CallCFunction(function, base::nullopt,
                 std::make_pair(MachineType::AnyTagged(), source),
                 std::make_pair(MachineType::Pointer(), sink),
-                std::make_pair(MachineType::Int32(), from),
-                std::make_pair(MachineType::Int32(), to));
+                std::make_pair(MachineType::Int32(), start),
+                std::make_pair(MachineType::Int32(), length));
 }
 
 TNode<RawPtr<Uint8T>> CodeStubAssembler::ExternalOneByteStringGetChars(
