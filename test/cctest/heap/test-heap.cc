@@ -7318,6 +7318,7 @@ TEST(Regress11181) {
   v8::HandleScope scope(CcTest::isolate());
   GenerateGarbage();
   CcTest::CollectAllAvailableGarbage();
+  TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
 }
 
 TEST(LongTaskStatsFullAtomic) {
