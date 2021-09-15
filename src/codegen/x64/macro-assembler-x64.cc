@@ -962,30 +962,6 @@ void TurboAssembler::F64x2Qfms(XMMRegister dst, XMMRegister src1,
 
 #undef QFMOP
 
-void TurboAssembler::Movdqa(XMMRegister dst, Operand src) {
-  // See comments in Movdqa(XMMRegister, XMMRegister).
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    vmovdqa(dst, src);
-  } else {
-    movaps(dst, src);
-  }
-}
-
-void TurboAssembler::Movdqa(XMMRegister dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope avx_scope(this, AVX);
-    // Many AVX processors have separate integer/floating-point domains. Use the
-    // appropriate instructions.
-    vmovdqa(dst, src);
-  } else {
-    // On SSE, movaps is 1 byte shorter than movdqa, and has the same behavior.
-    // Most SSE processors also don't have the same delay moving between integer
-    // and floating-point domains.
-    movaps(dst, src);
-  }
-}
-
 void TurboAssembler::Cvtss2sd(XMMRegister dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

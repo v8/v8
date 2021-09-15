@@ -333,7 +333,12 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Xorpd, xorpd)
   AVX_OP(Xorps, xorps)
 
+  // Many AVX processors have separate integer/floating-point domains, so use
+  // vmovaps if AVX is supported. On SSE, movaps is 1 byte shorter than movdqa,
+  // and has the same behavior. Most SSE processors also don't have the same
+  // delay moving between integer and floating-point domains.
   AVX_OP_WITH_DIFF_SSE_INSTR(Movapd, movapd, movaps)
+  AVX_OP_WITH_DIFF_SSE_INSTR(Movdqa, movdqa, movaps)
   AVX_OP_WITH_DIFF_SSE_INSTR(Movdqu, movdqu, movups)
   AVX_OP_WITH_DIFF_SSE_INSTR(Pand, pand, andps)
   AVX_OP_WITH_DIFF_SSE_INSTR(Por, por, orps)

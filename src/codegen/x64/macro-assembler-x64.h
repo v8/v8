@@ -124,8 +124,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // impossible, will be selected when deducing the arguments for AvxHelper.
   void Movq(XMMRegister dst, Register src);
   void Movq(Register dst, XMMRegister src);
-  void Movdqa(XMMRegister dst, Operand src);
-  void Movdqa(XMMRegister dst, XMMRegister src);
 
   void Cvtss2sd(XMMRegister dst, XMMRegister src);
   void Cvtss2sd(XMMRegister dst, Operand src);
