@@ -2940,28 +2940,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2Mul: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister left = i.InputSimd128Register(0);
-      XMMRegister right = i.InputSimd128Register(1);
-      XMMRegister tmp1 = i.TempSimd128Register(0);
-      XMMRegister tmp2 = kScratchDoubleReg;
-
-      __ Movdqa(tmp1, left);
-      __ Movdqa(tmp2, right);
-
-      // Multiply high dword of each qword of left with right.
-      __ Psrlq(tmp1, byte{32});
-      __ Pmuludq(tmp1, right);
-
-      // Multiply high dword of each qword of right with left.
-      __ Psrlq(tmp2, byte{32});
-      __ Pmuludq(tmp2, left);
-
-      __ Paddq(tmp2, tmp1);
-      __ Psllq(tmp2, byte{32});
-
-      __ Pmuludq(left, right);
-      __ Paddq(left, tmp2);  // left == dst
+      __ I64x2Mul(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.TempSimd128Register(0),
+                  kScratchDoubleReg);
       break;
     }
     case kX64I64x2Eq: {

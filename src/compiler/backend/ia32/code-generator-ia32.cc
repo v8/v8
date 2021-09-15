@@ -1985,28 +1985,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I64x2Mul: {
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister left = i.InputSimd128Register(0);
-      XMMRegister right = i.InputSimd128Register(1);
-      XMMRegister tmp1 = i.TempSimd128Register(0);
-      XMMRegister tmp2 = i.TempSimd128Register(1);
-
-      __ Movaps(tmp1, left);
-      __ Movaps(tmp2, right);
-
-      // Multiply high dword of each qword of left with right.
-      __ Psrlq(tmp1, byte{32});
-      __ Pmuludq(tmp1, tmp1, right);
-
-      // Multiply high dword of each qword of right with left.
-      __ Psrlq(tmp2, byte{32});
-      __ Pmuludq(tmp2, tmp2, left);
-
-      __ Paddq(tmp2, tmp2, tmp1);
-      __ Psllq(tmp2, tmp2, byte{32});
-
-      __ Pmuludq(dst, left, right);
-      __ Paddq(dst, dst, tmp2);
+      __ I64x2Mul(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.TempSimd128Register(0),
+                  i.TempSimd128Register(1));
       break;
     }
     case kIA32I64x2ShrU: {

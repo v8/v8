@@ -3863,19 +3863,7 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
       GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs));
   LiftoffRegister tmp2 =
       GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs, tmp1));
-  Movaps(tmp1.fp(), lhs.fp());
-  Movaps(tmp2.fp(), rhs.fp());
-  // Multiply high dword of each qword of left with right.
-  Psrlq(tmp1.fp(), byte{32});
-  Pmuludq(tmp1.fp(), tmp1.fp(), rhs.fp());
-  // Multiply high dword of each qword of right with left.
-  Psrlq(tmp2.fp(), byte{32});
-  Pmuludq(tmp2.fp(), tmp2.fp(), lhs.fp());
-  Paddq(tmp2.fp(), tmp2.fp(), tmp1.fp());
-  Psllq(tmp2.fp(), tmp2.fp(), byte{32});
-  liftoff::EmitSimdCommutativeBinOp<&Assembler::vpmuludq, &Assembler::pmuludq>(
-      this, dst, lhs, rhs);
-  Paddq(dst.fp(), dst.fp(), tmp2.fp());
+  I64x2Mul(dst.fp(), lhs.fp(), rhs.fp(), tmp1.fp(), tmp2.fp());
 }
 
 void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_s(LiftoffRegister dst,

@@ -900,6 +900,51 @@ void SharedTurboAssembler::I64x2ShrS(XMMRegister dst, XMMRegister src,
   Psubq(dst, xmm_tmp);
 }
 
+void SharedTurboAssembler::I64x2Mul(XMMRegister dst, XMMRegister lhs,
+                                    XMMRegister rhs, XMMRegister tmp1,
+                                    XMMRegister tmp2) {
+  DCHECK(!AreAliased(dst, tmp1, tmp2));
+  DCHECK(!AreAliased(lhs, tmp1, tmp2));
+  DCHECK(!AreAliased(rhs, tmp1, tmp2));
+
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    // 1. Multiply high dword of each qword of left with right.
+    vpsrlq(tmp1, lhs, byte{32});
+    vpmuludq(tmp1, tmp1, rhs);
+    // 2. Multiply high dword of each qword of right with left.
+    vpsrlq(tmp2, rhs, byte{32});
+    vpmuludq(tmp2, tmp2, lhs);
+    // 3. Add 1 and 2, then shift left by 32 (this is the high dword of result).
+    vpaddq(tmp2, tmp2, tmp1);
+    vpsllq(tmp2, tmp2, byte{32});
+    // 4. Multiply low dwords (this is the low dword of result).
+    vpmuludq(dst, lhs, rhs);
+    // 5. Add 3 and 4.
+    vpaddq(dst, dst, tmp2);
+  } else {
+    // Same algorithm as AVX version, but with moves to not overwrite inputs.
+    movaps(tmp1, lhs);
+    movaps(tmp2, rhs);
+    psrlq(tmp1, byte{32});
+    pmuludq(tmp1, rhs);
+    psrlq(tmp2, byte{32});
+    pmuludq(tmp2, lhs);
+    paddq(tmp2, tmp1);
+    psllq(tmp2, byte{32});
+    if (dst == rhs) {
+      // pmuludq is commutative
+      pmuludq(dst, lhs);
+    } else {
+      if (dst != lhs) {
+        movaps(dst, lhs);
+      }
+      pmuludq(dst, rhs);
+    }
+    paddq(dst, tmp2);
+  }
+}
+
 // 1. Unpack src0, src1 into even-number elements of scratch.
 // 2. Unpack src1, src0 into even-number elements of dst.
 // 3. Multiply 1. with 2.
