@@ -2534,7 +2534,7 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
       !source->GetResourceOptions().IsModule(), "v8::ScriptCompiler::Compile",
       "v8::ScriptCompiler::CompileModule must be used to compile modules");
   auto isolate = context->GetIsolate();
-  auto maybe =
+  MaybeLocal<UnboundScript> maybe =
       CompileUnboundInternal(isolate, source, options, no_cache_reason);
   Local<UnboundScript> result;
   if (!maybe.ToLocal(&result)) return MaybeLocal<Script>();
@@ -2551,11 +2551,10 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   Utils::ApiCheck(source->GetResourceOptions().IsModule(),
                   "v8::ScriptCompiler::CompileModule",
                   "Invalid ScriptOrigin: is_module must be true");
-  auto maybe =
+  MaybeLocal<UnboundScript> maybe =
       CompileUnboundInternal(isolate, source, options, no_cache_reason);
   Local<UnboundScript> unbound;
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
-
   i::Handle<i::SharedFunctionInfo> shared = Utils::OpenHandle(*unbound);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   return ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(shared));
