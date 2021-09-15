@@ -316,19 +316,19 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
           pthread_kill(pthread_self(), SIGPROF);
           base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
         } while (uses_mprotect()),  // Only loop for mprotect.
-    // Check that the subprocess tried to write, but did not succeed.
-#if V8_USE_ADDRESS_SANITIZER
-        ::testing::ContainsRegex(
-            "Writing to code.\nAddressSanitizer:DEADLYSIGNAL"));
-#elif V8_USE_MEMORY_SANITIZER
-        ::testing::ContainsRegex(
-            "Writing to code.\nMemorySanitizer:DEADLYSIGNAL"));
-#elif V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
-        ::testing::ContainsRegex(
-            "Writing to code.\nUndefinedBehaviorSanitizer:DEADLYSIGNAL"));
-#else
-        ::testing::EndsWith("Writing to code.\n"));
-#endif  // V8_USE_ADDRESS_SANITIZER
+        // Check that the subprocess tried to write, but did not succeed.
+        ::testing::AnyOf(
+            // non-sanitizer builds:
+            ::testing::EndsWith("Writing to code.\n"),
+            // ASan:
+            ::testing::HasSubstr("Writing to code.\n"
+                                 "AddressSanitizer:DEADLYSIGNAL"),
+            // MSan:
+            ::testing::HasSubstr("Writing to code.\n"
+                                 "MemorySanitizer:DEADLYSIGNAL"),
+            // UBSan:
+            ::testing::HasSubstr("Writing to code.\n"
+                                 "UndefinedBehaviorSanitizer:DEADLYSIGNAL")));
 #endif  // GTEST_HAS_DEATH_TEST
   } else {
     base::Optional<CodeSpaceWriteScope> write_scope;
