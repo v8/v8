@@ -92,18 +92,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(table.get(2), testObject);
 })();
 
+function getDummy(val) {
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('dummy', kSig_i_v)
+      .addBody([kExprI32Const, val])
+      .exportAs('dummy');
+  return builder.instantiate().exports.dummy;
+}
+
 (function TestFuncRefTableConstructorWithDefaultValue() {
   print(arguments.callee.name);
 
   const expected = 6;
-  let dummy =
-      (() => {
-        let builder = new WasmModuleBuilder();
-        builder.addFunction('dummy', kSig_i_v)
-            .addBody([kExprI32Const, expected])
-            .exportAs('dummy');
-        return builder.instantiate().exports.dummy;
-      })();
+  let dummy = getDummy(expected);
 
   const argument = { "element": "anyfunc", "initial": 3 };
   const table = new WebAssembly.Table(argument, dummy);
@@ -111,4 +112,27 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(table.get(0)(), expected);
   assertEquals(table.get(1)(), expected);
   assertEquals(table.get(2)(), expected);
+})();
+
+(function TestExternFuncTableSetWithoutValue() {
+  print(arguments.callee.name);
+
+  const expected = 6;
+  const dummy = getDummy(expected);
+  const argument = { "element": "externref", "initial": 3 };
+  const table = new WebAssembly.Table(argument, dummy);
+  assertEquals(table.get(1)(), expected);
+  table.set(1);
+  assertEquals(table.get(1), null);
+})();
+
+(function TestExternRefTableSetWithoutValue() {
+  print(arguments.callee.name);
+
+  const testObject = {};
+  const argument = { "element": "externref", "initial": 3 };
+  const table = new WebAssembly.Table(argument, testObject);
+  assertEquals(table.get(1), testObject);
+  table.set(1);
+  assertEquals(table.get(1), null);
 })();

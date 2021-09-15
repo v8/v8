@@ -22,6 +22,8 @@
   'wpt/memory/type.tentative': [FAIL],
   'wpt/function/type.tentative': [FAIL],
   'wpt/table/grow-reftypes.tentative': [FAIL],
+  # Outdated test, does not conform with the spec
+  'table/get-set': [FAIL],
 
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
   'constructor/instantiate': [FAIL],

@@ -698,8 +698,6 @@ assertThrows(
 assertThrows(
     () => set.call({}), TypeError, /Receiver is not a WebAssembly.Table/);
 assertThrows(
-    () => set.call(tbl1, 0), TypeError, /must be null or a WebAssembly function/);
-assertThrows(
     () => set.call(tbl1, undefined), TypeError,
     /must be convertible to a valid number/);
 assertThrows(
