@@ -196,6 +196,7 @@ function assertTableIsValid(table, length) {
       assertThrows(() => table.set(key, f), RangeError);
     }
 
+    assertThrows(() => table.set(0), TypeError);
     for (let val of [undefined, 0, "", {}, [], () => {}]) {
       assertThrows(() => table.set(0, val), TypeError);
     }
