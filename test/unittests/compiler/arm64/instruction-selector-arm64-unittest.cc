@@ -5454,48 +5454,16 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsSimd128) {
                expected_poke_pair, expected_poke);
 }
 
-struct SIMDConstZeroCmTest {
+struct SIMDConstZeroFcmTest {
   const bool is_zero;
   const uint8_t lane_size;
-  const Operator* (MachineOperatorBuilder::*cm_operator)();
+  const Operator* (MachineOperatorBuilder::*fcm_operator)();
   const ArchOpcode expected_op_left;
   const ArchOpcode expected_op_right;
   const size_t size;
 };
 
-static const SIMDConstZeroCmTest SIMDConstZeroCmTests[] = {
-    {true, 8, &MachineOperatorBuilder::I8x16Eq, kArm64IEq, kArm64IEq, 1},
-    {true, 8, &MachineOperatorBuilder::I8x16Ne, kArm64INe, kArm64INe, 1},
-    {true, 8, &MachineOperatorBuilder::I8x16GeS, kArm64ILeS, kArm64IGeS, 1},
-    {true, 8, &MachineOperatorBuilder::I8x16GtS, kArm64ILtS, kArm64IGtS, 1},
-    {false, 8, &MachineOperatorBuilder::I8x16Eq, kArm64IEq, kArm64IEq, 2},
-    {false, 8, &MachineOperatorBuilder::I8x16Ne, kArm64INe, kArm64INe, 2},
-    {false, 8, &MachineOperatorBuilder::I8x16GeS, kArm64IGeS, kArm64IGeS, 2},
-    {false, 8, &MachineOperatorBuilder::I8x16GtS, kArm64IGtS, kArm64IGtS, 2},
-    {true, 16, &MachineOperatorBuilder::I16x8Eq, kArm64IEq, kArm64IEq, 1},
-    {true, 16, &MachineOperatorBuilder::I16x8Ne, kArm64INe, kArm64INe, 1},
-    {true, 16, &MachineOperatorBuilder::I16x8GeS, kArm64ILeS, kArm64IGeS, 1},
-    {true, 16, &MachineOperatorBuilder::I16x8GtS, kArm64ILtS, kArm64IGtS, 1},
-    {false, 16, &MachineOperatorBuilder::I16x8Eq, kArm64IEq, kArm64IEq, 2},
-    {false, 16, &MachineOperatorBuilder::I16x8Ne, kArm64INe, kArm64INe, 2},
-    {false, 16, &MachineOperatorBuilder::I16x8GeS, kArm64IGeS, kArm64IGeS, 2},
-    {false, 16, &MachineOperatorBuilder::I16x8GtS, kArm64IGtS, kArm64IGtS, 2},
-    {true, 32, &MachineOperatorBuilder::I32x4Eq, kArm64IEq, kArm64IEq, 1},
-    {true, 32, &MachineOperatorBuilder::I32x4Ne, kArm64INe, kArm64INe, 1},
-    {true, 32, &MachineOperatorBuilder::I32x4GeS, kArm64ILeS, kArm64IGeS, 1},
-    {true, 32, &MachineOperatorBuilder::I32x4GtS, kArm64ILtS, kArm64IGtS, 1},
-    {false, 32, &MachineOperatorBuilder::I32x4Eq, kArm64IEq, kArm64IEq, 2},
-    {false, 32, &MachineOperatorBuilder::I32x4Ne, kArm64INe, kArm64INe, 2},
-    {false, 32, &MachineOperatorBuilder::I32x4GeS, kArm64IGeS, kArm64IGeS, 2},
-    {false, 32, &MachineOperatorBuilder::I32x4GtS, kArm64IGtS, kArm64IGtS, 2},
-    {true, 64, &MachineOperatorBuilder::I64x2Eq, kArm64IEq, kArm64IEq, 1},
-    {true, 64, &MachineOperatorBuilder::I64x2Ne, kArm64INe, kArm64INe, 1},
-    {true, 64, &MachineOperatorBuilder::I64x2GeS, kArm64ILeS, kArm64IGeS, 1},
-    {true, 64, &MachineOperatorBuilder::I64x2GtS, kArm64ILtS, kArm64IGtS, 1},
-    {false, 64, &MachineOperatorBuilder::I64x2Eq, kArm64IEq, kArm64IEq, 2},
-    {false, 64, &MachineOperatorBuilder::I64x2Ne, kArm64INe, kArm64INe, 2},
-    {false, 64, &MachineOperatorBuilder::I64x2GeS, kArm64IGeS, kArm64IGeS, 2},
-    {false, 64, &MachineOperatorBuilder::I64x2GtS, kArm64IGtS, kArm64IGtS, 2},
+static const SIMDConstZeroFcmTest SIMDConstZeroFcmTests[] = {
     {true, 64, &MachineOperatorBuilder::F64x2Eq, kArm64FEq, kArm64FEq, 1},
     {true, 64, &MachineOperatorBuilder::F64x2Ne, kArm64FNe, kArm64FNe, 1},
     {true, 64, &MachineOperatorBuilder::F64x2Lt, kArm64FGt, kArm64FLt, 1},
@@ -5514,11 +5482,11 @@ static const SIMDConstZeroCmTest SIMDConstZeroCmTests[] = {
     {false, 32, &MachineOperatorBuilder::F32x4Le, kArm64FLe, kArm64FLe, 2},
 };
 
-using InstructionSelectorSIMDConstZeroCmTest =
-    InstructionSelectorTestWithParam<SIMDConstZeroCmTest>;
+using InstructionSelectorSIMDConstZeroFcmTest =
+    InstructionSelectorTestWithParam<SIMDConstZeroFcmTest>;
 
-TEST_P(InstructionSelectorSIMDConstZeroCmTest, ConstZero) {
-  const SIMDConstZeroCmTest param = GetParam();
+TEST_P(InstructionSelectorSIMDConstZeroFcmTest, ConstZero) {
+  const SIMDConstZeroFcmTest param = GetParam();
   byte data[16] = {};
   if (!param.is_zero) data[0] = 0xff;
   // Const node on the left
@@ -5526,7 +5494,7 @@ TEST_P(InstructionSelectorSIMDConstZeroCmTest, ConstZero) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
     Node* cnst = m.S128Const(data);
     Node* fcm =
-        m.AddNode((m.machine()->*param.cm_operator)(), cnst, m.Parameter(0));
+        m.AddNode((m.machine()->*param.fcm_operator)(), cnst, m.Parameter(0));
     m.Return(fcm);
     Stream s = m.Build();
     ASSERT_EQ(param.size, s.size());
@@ -5548,7 +5516,7 @@ TEST_P(InstructionSelectorSIMDConstZeroCmTest, ConstZero) {
     StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128());
     Node* cnst = m.S128Const(data);
     Node* fcm =
-        m.AddNode((m.machine()->*param.cm_operator)(), m.Parameter(0), cnst);
+        m.AddNode((m.machine()->*param.fcm_operator)(), m.Parameter(0), cnst);
     m.Return(fcm);
     Stream s = m.Build();
     ASSERT_EQ(param.size, s.size());
@@ -5568,8 +5536,8 @@ TEST_P(InstructionSelectorSIMDConstZeroCmTest, ConstZero) {
 }
 
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
-                         InstructionSelectorSIMDConstZeroCmTest,
-                         ::testing::ValuesIn(SIMDConstZeroCmTests));
+                         InstructionSelectorSIMDConstZeroFcmTest,
+                         ::testing::ValuesIn(SIMDConstZeroFcmTests));
 
 }  // namespace
 }  // namespace compiler

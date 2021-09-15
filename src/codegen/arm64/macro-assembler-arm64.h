@@ -1341,10 +1341,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     DCHECK(allow_macro_instructions());
     cmlt(vd, vn, imm);
   }
-  void Cmle(const VRegister& vd, const VRegister& vn, int imm) {
-    DCHECK(allow_macro_instructions());
-    cmle(vd, vn, imm);
-  }
 
   inline void Neg(const Register& rd, const Operand& operand);
   inline void Negs(const Register& rd, const Operand& operand);
@@ -1610,6 +1606,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                      const Register& ra);
   inline void Umsubl(const Register& rd, const Register& rn, const Register& rm,
                      const Register& ra);
+
+  void Cmle(const VRegister& vd, const VRegister& vn, int imm) {
+    DCHECK(allow_macro_instructions());
+    cmle(vd, vn, imm);
+  }
 
   void Ld1(const VRegister& vt, const MemOperand& src) {
     DCHECK(allow_macro_instructions());
