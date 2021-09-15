@@ -9,6 +9,7 @@
 #include <signal.h>
 #endif  // V8_OS_POSIX && !V8_OS_FUCHSIA
 
+#include "src/base/macros.h"
 #include "src/flags/flags.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/module-compiler.h"
@@ -230,10 +231,10 @@ class ParameterizedMemoryProtectionTestWithSignalHandling
       if (uint8_t* write_address = current_handler_scope_->code_address_) {
         // Print to the error output such that we can check against this message
         // in the ASSERT_DEATH_IF_SUPPORTED below.
-        fprintf(stderr, "Writing to %p.\n", write_address);
+        fprintf(stderr, "Writing to code.\n");
         // This write will crash if code is protected.
         *write_address = 0;
-        fprintf(stderr, "Successfully wrote to %p.\n", write_address);
+        fprintf(stderr, "Successfully wrote to code.\n");
       }
     }
 
@@ -315,10 +316,19 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
           pthread_kill(pthread_self(), SIGPROF);
           base::OS::Sleep(base::TimeDelta::FromMilliseconds(10));
         } while (uses_mprotect()),  // Only loop for mprotect.
-        // Check that the subprocess tried to write, but did not succeed.
-        ::testing::AllOf(
-            ::testing::HasSubstr("Writing to"),
-            ::testing::Not(::testing::HasSubstr("Successfully wrote"))));
+    // Check that the subprocess tried to write, but did not succeed.
+#if V8_USE_ADDRESS_SANITIZER
+        ::testing::ContainsRegex(
+            "Writing to code.\nAddressSanitizer:DEADLYSIGNAL"));
+#elif V8_USE_MEMORY_SANITIZER
+        ::testing::ContainsRegex(
+            "Writing to code.\nMemorySanitizer:DEADLYSIGNAL"));
+#elif V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
+        ::testing::ContainsRegex(
+            "Writing to code.\nUndefinedBehaviorSanitizer:DEADLYSIGNAL"));
+#else
+        ::testing::EndsWith("Writing to code.\n"));
+#endif  // V8_USE_ADDRESS_SANITIZER
 #endif  // GTEST_HAS_DEATH_TEST
   } else {
     base::Optional<CodeSpaceWriteScope> write_scope;
