@@ -15,6 +15,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/map.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string-comparator.h"
@@ -546,29 +547,30 @@ String::FlatContent String::GetFlatContent(
   }
 #endif
   USE(no_gc);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   int length = this->length();
-  StringShape shape(*this);
+  StringShape shape(*this, cage_base);
   String string = *this;
   int offset = 0;
   if (shape.representation_tag() == kConsStringTag) {
     ConsString cons = ConsString::cast(string);
-    if (cons.second().length() != 0) {
+    if (cons.second(cage_base).length() != 0) {
       return FlatContent(no_gc);
     }
-    string = cons.first();
-    shape = StringShape(string);
+    string = cons.first(cage_base);
+    shape = StringShape(string, cage_base);
   } else if (shape.representation_tag() == kSlicedStringTag) {
     SlicedString slice = SlicedString::cast(string);
     offset = slice.offset();
-    string = slice.parent();
-    shape = StringShape(string);
+    string = slice.parent(cage_base);
+    shape = StringShape(string, cage_base);
     DCHECK(shape.representation_tag() != kConsStringTag &&
            shape.representation_tag() != kSlicedStringTag);
   }
   if (shape.representation_tag() == kThinStringTag) {
     ThinString thin = ThinString::cast(string);
-    string = thin.actual();
-    shape = StringShape(string);
+    string = thin.actual(cage_base);
+    shape = StringShape(string, cage_base);
     DCHECK(!shape.IsCons());
     DCHECK(!shape.IsSliced());
   }
@@ -577,7 +579,7 @@ String::FlatContent String::GetFlatContent(
     if (shape.representation_tag() == kSeqStringTag) {
       start = SeqOneByteString::cast(string).GetChars(no_gc);
     } else {
-      start = ExternalOneByteString::cast(string).GetChars();
+      start = ExternalOneByteString::cast(string).GetChars(cage_base);
     }
     return FlatContent(start + offset, length, no_gc);
   } else {
@@ -586,7 +588,7 @@ String::FlatContent String::GetFlatContent(
     if (shape.representation_tag() == kSeqStringTag) {
       start = SeqTwoByteString::cast(string).GetChars(no_gc);
     } else {
-      start = ExternalTwoByteString::cast(string).GetChars();
+      start = ExternalTwoByteString::cast(string).GetChars(cage_base);
     }
     return FlatContent(start + offset, length, no_gc);
   }
@@ -664,12 +666,16 @@ void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
     DCHECK_LE(length, source.length());
     switch (StringShape(source, cage_base).full_representation_tag()) {
       case kOneByteStringTag | kExternalStringTag:
-        CopyChars(sink, ExternalOneByteString::cast(source).GetChars() + start,
-                  length);
+        CopyChars(
+            sink,
+            ExternalOneByteString::cast(source).GetChars(cage_base) + start,
+            length);
         return;
       case kTwoByteStringTag | kExternalStringTag:
-        CopyChars(sink, ExternalTwoByteString::cast(source).GetChars() + start,
-                  length);
+        CopyChars(
+            sink,
+            ExternalTwoByteString::cast(source).GetChars(cage_base) + start,
+            length);
         return;
       case kOneByteStringTag | kSeqStringTag:
         CopyChars(sink,
@@ -1377,7 +1383,7 @@ uint32_t HashString(String string, size_t start, int length, uint64_t seed,
                         access_guard);
     chars = buffer.get();
   } else {
-    chars = string.GetChars<Char>(no_gc, access_guard) + start;
+    chars = string.GetChars<Char>(cage_base, no_gc, access_guard) + start;
   }
 
   return StringHasher::HashSequentialString<Char>(chars, length, seed);
@@ -1734,30 +1740,39 @@ const byte* String::AddressOfCharacterAt(
     int start_index, const DisallowGarbageCollection& no_gc) {
   DCHECK(IsFlat());
   String subject = *this;
-  if (subject.IsConsString()) {
-    subject = ConsString::cast(subject).first();
-  } else if (subject.IsSlicedString()) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(subject);
+  StringShape shape(subject, cage_base);
+  if (subject.IsConsString(cage_base)) {
+    subject = ConsString::cast(subject).first(cage_base);
+    shape = StringShape(subject, cage_base);
+  } else if (subject.IsSlicedString(cage_base)) {
     start_index += SlicedString::cast(subject).offset();
-    subject = SlicedString::cast(subject).parent();
+    subject = SlicedString::cast(subject).parent(cage_base);
+    shape = StringShape(subject, cage_base);
   }
-  if (subject.IsThinString()) {
-    subject = ThinString::cast(subject).actual();
+  if (subject.IsThinString(cage_base)) {
+    subject = ThinString::cast(subject).actual(cage_base);
+    shape = StringShape(subject, cage_base);
   }
   CHECK_LE(0, start_index);
   CHECK_LE(start_index, subject.length());
-  if (subject.IsSeqOneByteString()) {
-    return reinterpret_cast<const byte*>(
-        SeqOneByteString::cast(subject).GetChars(no_gc) + start_index);
-  } else if (subject.IsSeqTwoByteString()) {
-    return reinterpret_cast<const byte*>(
-        SeqTwoByteString::cast(subject).GetChars(no_gc) + start_index);
-  } else if (subject.IsExternalOneByteString()) {
-    return reinterpret_cast<const byte*>(
-        ExternalOneByteString::cast(subject).GetChars() + start_index);
-  } else {
-    DCHECK(subject.IsExternalTwoByteString());
-    return reinterpret_cast<const byte*>(
-        ExternalTwoByteString::cast(subject).GetChars() + start_index);
+  switch (shape.full_representation_tag()) {
+    case kOneByteStringTag | kSeqStringTag:
+      return reinterpret_cast<const byte*>(
+          SeqOneByteString::cast(subject).GetChars(no_gc) + start_index);
+    case kTwoByteStringTag | kSeqStringTag:
+      return reinterpret_cast<const byte*>(
+          SeqTwoByteString::cast(subject).GetChars(no_gc) + start_index);
+    case kOneByteStringTag | kExternalStringTag:
+      return reinterpret_cast<const byte*>(
+          ExternalOneByteString::cast(subject).GetChars(cage_base) +
+          start_index);
+    case kTwoByteStringTag | kExternalStringTag:
+      return reinterpret_cast<const byte*>(
+          ExternalTwoByteString::cast(subject).GetChars(cage_base) +
+          start_index);
+    default:
+      UNREACHABLE();
   }
 }
 

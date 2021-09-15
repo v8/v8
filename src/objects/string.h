@@ -185,12 +185,13 @@ class String : public TorqueGeneratedString<String, Name> {
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
   template <typename Char>
-  inline const Char* GetChars(const DisallowGarbageCollection& no_gc) const;
+  inline const Char* GetChars(PtrComprCageBase cage_base,
+                              const DisallowGarbageCollection& no_gc) const;
 
   // Get chars from sequential or external strings.
   template <typename Char>
   inline const Char* GetChars(
-      const DisallowGarbageCollection& no_gc,
+      PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // Returns the address of the character at an offset into this string.
@@ -901,7 +902,7 @@ class ExternalOneByteString
   // which the pointer cache has to be refreshed.
   inline void update_data_cache(Isolate* isolate);
 
-  inline const uint8_t* GetChars() const;
+  inline const uint8_t* GetChars(PtrComprCageBase cage_base) const;
 
   // Dispatched behavior.
   inline uint8_t Get(int index, PtrComprCageBase cage_base,
@@ -944,7 +945,7 @@ class ExternalTwoByteString
   // which the pointer cache has to be refreshed.
   inline void update_data_cache(Isolate* isolate);
 
-  inline const uint16_t* GetChars() const;
+  inline const uint16_t* GetChars(PtrComprCageBase cage_base) const;
 
   // Dispatched behavior.
   inline uint16_t Get(

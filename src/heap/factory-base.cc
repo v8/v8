@@ -627,13 +627,13 @@ MaybeHandle<String> FactoryBase<Impl>::NewConsString(
       // Copy left part.
       {
         const uint8_t* src =
-            left->template GetChars<uint8_t>(no_gc, access_guard);
+            left->template GetChars<uint8_t>(isolate(), no_gc, access_guard);
         CopyChars(dest, src, left_length);
       }
       // Copy right part.
       {
         const uint8_t* src =
-            right->template GetChars<uint8_t>(no_gc, access_guard);
+            right->template GetChars<uint8_t>(isolate(), no_gc, access_guard);
         CopyChars(dest + left_length, src, right_length);
       }
       return result;
