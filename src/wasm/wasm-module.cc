@@ -113,6 +113,23 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
   return func_index;
 }
 
+// TODO(7748): Measure whether this iterative implementation is fast enough.
+// We could cache the result on the module, in yet another vector indexed by
+// type index.
+int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
+  uint32_t starting_point = type_index;
+  int depth = 0;
+  while ((type_index = module->supertype(type_index)) != kGenericSuperType) {
+    if (type_index == starting_point) return -1;  // Cycle detected.
+    // This is disallowed and will be rejected by validation, but might occur
+    // when this function is called.
+    if (type_index == kNoSuperType) break;
+    depth++;
+    if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) break;
+  }
+  return depth;
+}
+
 void LazilyGeneratedNames::AddForTesting(int function_index,
                                          WireBytesRef name) {
   base::MutexGuard lock(&mutex_);

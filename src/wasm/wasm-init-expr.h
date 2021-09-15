@@ -34,7 +34,9 @@ class WasmInitExpr {
     kRefNullConst,
     kRefFuncConst,
     kStructNewWithRtt,
+    kStructNew,
     kArrayInit,
+    kArrayInitStatic,
     kRttCanon,
     kRttSub,
     kRttFreshSub,
@@ -99,10 +101,28 @@ class WasmInitExpr {
     return expr;
   }
 
+  static WasmInitExpr StructNew(uint32_t index,
+                                std::vector<WasmInitExpr> elements) {
+    WasmInitExpr expr;
+    expr.kind_ = kStructNew;
+    expr.immediate_.index = index;
+    expr.operands_ = std::move(elements);
+    return expr;
+  }
+
   static WasmInitExpr ArrayInit(uint32_t index,
                                 std::vector<WasmInitExpr> elements) {
     WasmInitExpr expr;
     expr.kind_ = kArrayInit;
+    expr.immediate_.index = index;
+    expr.operands_ = std::move(elements);
+    return expr;
+  }
+
+  static WasmInitExpr ArrayInitStatic(uint32_t index,
+                                      std::vector<WasmInitExpr> elements) {
+    WasmInitExpr expr;
+    expr.kind_ = kArrayInitStatic;
     expr.immediate_.index = index;
     expr.operands_ = std::move(elements);
     return expr;
@@ -157,6 +177,7 @@ class WasmInitExpr {
       case kRefNullConst:
         return immediate().heap_type == other.immediate().heap_type;
       case kStructNewWithRtt:
+      case kStructNew:
         if (immediate().index != other.immediate().index) return false;
         DCHECK_EQ(operands().size(), other.operands().size());
         for (uint32_t i = 0; i < operands().size(); i++) {
@@ -164,6 +185,7 @@ class WasmInitExpr {
         }
         return true;
       case kArrayInit:
+      case kArrayInitStatic:
         if (immediate().index != other.immediate().index) return false;
         if (operands().size() != other.operands().size()) return false;
         for (uint32_t i = 0; i < operands().size(); i++) {

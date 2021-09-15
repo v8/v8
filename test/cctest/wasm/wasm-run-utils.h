@@ -132,7 +132,7 @@ class TestingModuleBuilder {
   byte AddSignature(const FunctionSig* sig) {
     DCHECK_EQ(test_module_->types.size(),
               test_module_->canonicalized_type_ids.size());
-    test_module_->add_signature(sig);
+    test_module_->add_signature(sig, kNoSuperType);
     size_t size = test_module_->types.size();
     CHECK_GT(127, size);
     return static_cast<byte>(size - 1);

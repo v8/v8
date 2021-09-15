@@ -810,7 +810,7 @@ class WasmGenerator {
       if (new_default) {
         builder_->EmitWithPrefix(kExprRttCanon);
         builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprStructNewDefault);
+        builder_->EmitWithPrefix(kExprStructNewDefaultWithRtt);
         builder_->EmitU32V(index);
       } else {
         StructType* struct_gen = builder_->builder()->GetStructType(index);
@@ -828,7 +828,7 @@ class WasmGenerator {
         Generate(kWasmI32, data);
         builder_->EmitWithPrefix(kExprRttCanon);
         builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprArrayNewDefault);
+        builder_->EmitWithPrefix(kExprArrayNewDefaultWithRtt);
         builder_->EmitU32V(index);
       } else {
         Generate(builder_->builder()->GetArrayType(index)->element_type(),

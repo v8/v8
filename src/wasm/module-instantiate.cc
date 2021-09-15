@@ -194,6 +194,41 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   return map;
 }
 
+void CreateMapForType(Isolate* isolate, const WasmModule* module,
+                      int type_index, Handle<WasmInstanceObject> instance,
+                      Handle<FixedArray> maps) {
+  // Recursive calls for supertypes may already have created this map.
+  if (maps->get(type_index).IsMap()) return;
+  Handle<Map> rtt_parent;
+  // If the type with {type_index} has an explicit supertype, make sure the
+  // map for that supertype is created first, so that the supertypes list
+  // that's cached on every RTT can be set up correctly.
+  uint32_t supertype = module->supertype(type_index);
+  if (supertype != kNoSuperType && supertype != kGenericSuperType) {
+    // This recursion is safe, because kV8MaxRttSubtypingDepth limits the
+    // number of recursive steps, so we won't overflow the stack.
+    CreateMapForType(isolate, module, supertype, instance, maps);
+    rtt_parent = handle(Map::cast(maps->get(supertype)), isolate);
+  }
+  Handle<Map> map;
+  switch (module->type_kinds[type_index]) {
+    case kWasmStructTypeCode:
+      map = CreateStructMap(isolate, module, type_index, rtt_parent, instance);
+      break;
+    case kWasmArrayTypeCode:
+      map = CreateArrayMap(isolate, module, type_index, rtt_parent, instance);
+      break;
+    case kWasmFunctionTypeCode:
+      // TODO(7748): Think about canonicalizing rtts to make them work for
+      // identical function types.
+      map = Map::Copy(isolate, isolate->wasm_exported_function_map(),
+                      "fresh function map for function type canonical rtt "
+                      "initialization");
+      break;
+  }
+  maps->set(type_index, *map);
+}
+
 namespace {
 
 // TODO(7748): Consider storing this array in Maps'
@@ -661,28 +696,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (enabled_.has_gc()) {
     Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
         static_cast<int>(module_->type_kinds.size()));
-    for (int map_index = 0;
-         map_index < static_cast<int>(module_->type_kinds.size());
-         map_index++) {
-      Handle<Map> map;
-      switch (module_->type_kinds[map_index]) {
-        case kWasmStructTypeCode:
-          map = CreateStructMap(isolate_, module_, map_index, Handle<Map>(),
-                                instance);
-          break;
-        case kWasmArrayTypeCode:
-          map = CreateArrayMap(isolate_, module_, map_index, Handle<Map>(),
-                               instance);
-          break;
-        case kWasmFunctionTypeCode:
-          // TODO(7748): Think about canonicalizing rtts to make them work for
-          // identical function types.
-          map = Map::Copy(isolate_, isolate_->wasm_exported_function_map(),
-                          "fresh function map for function type canonical rtt "
-                          "initialization");
-          break;
-      }
-      maps->set(map_index, *map);
+    for (uint32_t index = 0; index < module_->type_kinds.size(); index++) {
+      CreateMapForType(isolate_, module_, index, instance, maps);
     }
     instance->set_managed_object_maps(*maps);
   }
