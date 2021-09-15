@@ -502,7 +502,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
-DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, sparkplug)
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
@@ -888,7 +887,7 @@ DEFINE_BOOL(turbo_dynamic_map_checks, false,
             "if all handlers in an IC are the same for turboprop")
 DEFINE_BOOL(turbo_compress_translation_arrays, false,
             "compress translation arrays (experimental)")
-DEFINE_BOOL(turbo_inline_js_wasm_calls, false, "inline JS->Wasm calls")
+DEFINE_BOOL(turbo_inline_js_wasm_calls, true, "inline JS->Wasm calls")
 
 DEFINE_BOOL(turbo_optimize_apply, true, "optimize Function.prototype.apply")
 
