@@ -30,7 +30,7 @@ namespace internal {
 #define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V)  \
              V(a0)  V(a1)  V(a2)  V(a3) \
              V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  \
-             V(t1)  V(t2)  V(t4)  V(s7)  V(s8) V(s9)
+             V(t1)  V(t2)  V(t4)  V(s7)  V(s8) V(s9) V(s10)
 
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 #define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
