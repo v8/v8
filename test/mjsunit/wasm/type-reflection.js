@@ -6,52 +6,14 @@
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-(function TestInvalidArgumentToType() {
-  ["abc", 123, {}, _ => 0].forEach(function(invalidInput) {
-    assertThrows(
-      () => WebAssembly.Memory.type(invalidInput), TypeError,
-        "WebAssembly.Memory.type(): Argument 0 must be a WebAssembly.Memory");
-    assertThrows(
-      () => WebAssembly.Table.type(invalidInput), TypeError,
-        "WebAssembly.Table.type(): Argument 0 must be a WebAssembly.Table");
-    assertThrows(
-      () => WebAssembly.Global.type(invalidInput), TypeError,
-        "WebAssembly.Global.type(): Argument 0 must be a WebAssembly.Global");
-    assertThrows(
-      () => WebAssembly.Function.type(invalidInput), TypeError,
-        "WebAssembly.Function.type(): Argument 0 must be a WebAssembly.Function");
-  });
-
-  assertThrows(
-    () => WebAssembly.Memory.type(
-      new WebAssembly.Table({initial:1, element: "anyfunc"})),
-      TypeError,
-      "WebAssembly.Memory.type(): Argument 0 must be a WebAssembly.Memory");
-
-  assertThrows(
-    () => WebAssembly.Table.type(
-      new WebAssembly.Memory({initial:1})), TypeError,
-      "WebAssembly.Table.type(): Argument 0 must be a WebAssembly.Table");
-
-  assertThrows(
-    () => WebAssembly.Global.type(
-      new WebAssembly.Memory({initial:1})), TypeError,
-      "WebAssembly.Global.type(): Argument 0 must be a WebAssembly.Global");
-
-  assertThrows(
-    () => WebAssembly.Function.type(
-      new WebAssembly.Memory({initial:1})), TypeError,
-      "WebAssembly.Function.type(): Argument 0 must be a WebAssembly.Function");
-})();
-
 (function TestMemoryType() {
   let mem = new WebAssembly.Memory({initial: 1});
-  let type = WebAssembly.Memory.type(mem);
+  let type = mem.type();
   assertEquals(1, type.minimum);
   assertEquals(1, Object.getOwnPropertyNames(type).length);
 
   mem = new WebAssembly.Memory({initial: 2, maximum: 15});
-  type = WebAssembly.Memory.type(mem);
+  type = mem.type();
   assertEquals(2, type.minimum);
   assertEquals(15, type.maximum);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
@@ -105,14 +67,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestTableType() {
   let table = new WebAssembly.Table({initial: 1, element: "anyfunc"});
-  let type = WebAssembly.Table.type(table);
+  let type = table.type();
   assertEquals(1, type.minimum);
   assertEquals("anyfunc", type.element);
   assertEquals(undefined, type.maximum);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   table = new WebAssembly.Table({initial: 2, maximum: 15, element: "anyfunc"});
-  type = WebAssembly.Table.type(table);
+  type = table.type();
   assertEquals(2, type.minimum);
   assertEquals(15, type.maximum);
   assertEquals("anyfunc", type.element);
@@ -171,31 +133,31 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestGlobalType() {
   let global = new WebAssembly.Global({value: "i32", mutable: true});
-  let type = WebAssembly.Global.type(global);
+  let type = global.type();
   assertEquals("i32", type.value);
   assertEquals(true, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   global = new WebAssembly.Global({value: "i32"});
-  type = WebAssembly.Global.type(global);
+  type = global.type();
   assertEquals("i32", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   global = new WebAssembly.Global({value: "i64"});
-  type = WebAssembly.Global.type(global);
+  type = global.type();
   assertEquals("i64", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   global = new WebAssembly.Global({value: "f32"});
-  type = WebAssembly.Global.type(global);
+  type = global.type();
   assertEquals("f32", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   global = new WebAssembly.Global({value: "f64"});
-  type = WebAssembly.Global.type(global);
+  type = global.type();
   assertEquals("f64", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
@@ -242,26 +204,26 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function TestMemoryConstructorWithMinimum() {
   let mem = new WebAssembly.Memory({minimum: 1});
   assertTrue(mem instanceof WebAssembly.Memory);
-  let type = WebAssembly.Memory.type(mem);
+  let type = mem.type();
   assertEquals(1, type.minimum);
   assertEquals(1, Object.getOwnPropertyNames(type).length);
 
   mem = new WebAssembly.Memory({minimum: 1, maximum: 5});
   assertTrue(mem instanceof WebAssembly.Memory);
-  type = WebAssembly.Memory.type(mem);
+  type = mem.type();
   assertEquals(1, type.minimum);
   assertEquals(5, type.maximum);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   mem = new WebAssembly.Memory({minimum: 1, initial: 2});
   assertTrue(mem instanceof WebAssembly.Memory);
-  type = WebAssembly.Memory.type(mem);
+  type = mem.type();
   assertEquals(2, type.minimum);
   assertEquals(1, Object.getOwnPropertyNames(type).length);
 
   mem = new WebAssembly.Memory({minimum: 1, initial: 2, maximum: 5});
   assertTrue(mem instanceof WebAssembly.Memory);
-  type = WebAssembly.Memory.type(mem);
+  type = mem.type();
   assertEquals(2, type.minimum);
   assertEquals(5, type.maximum);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
@@ -270,14 +232,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function TestTableConstructorWithMinimum() {
   let table = new WebAssembly.Table({minimum: 1, element: 'anyfunc'});
   assertTrue(table instanceof WebAssembly.Table);
-  let type = WebAssembly.Table.type(table);
+  let type = table.type();
   assertEquals(1, type.minimum);
   assertEquals('anyfunc', type.element);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   table = new WebAssembly.Table({minimum: 1, element: 'anyfunc', maximum: 5});
   assertTrue(table instanceof WebAssembly.Table);
-  type = WebAssembly.Table.type(table);
+  type = table.type();
   assertEquals(1, type.minimum);
   assertEquals(5, type.maximum);
   assertEquals('anyfunc', type.element);
@@ -285,7 +247,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   table = new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc'});
   assertTrue(table instanceof WebAssembly.Table);
-  type = WebAssembly.Table.type(table);
+  type = table.type();
   assertEquals(2, type.minimum);
   assertEquals('anyfunc', type.element);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
@@ -293,7 +255,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   table = new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc',
                                  maximum: 5});
   assertTrue(table instanceof WebAssembly.Table);
-  type = WebAssembly.Table.type(table);
+  type = table.type();
   assertEquals(2, type.minimum);
   assertEquals(5, type.maximum);
   assertEquals('anyfunc', type.element);

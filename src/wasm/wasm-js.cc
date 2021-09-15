@@ -184,9 +184,6 @@ Local<String> v8_str(Isolate* isolate, const char* str) {
   }
 
 GET_FIRST_ARGUMENT_AS(Module)
-GET_FIRST_ARGUMENT_AS(Memory)
-GET_FIRST_ARGUMENT_AS(Table)
-GET_FIRST_ARGUMENT_AS(Global)
 GET_FIRST_ARGUMENT_AS(Tag)
 
 #undef GET_FIRST_ARGUMENT_AS
@@ -1917,16 +1914,14 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::WasmTableObject::Set(i_isolate, table_object, index, element);
 }
 
-// WebAssembly.Table.type(WebAssembly.Table) -> TableType
+// WebAssembly.Table.type() -> TableType
 void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.type()");
 
-  auto maybe_table = GetFirstArgumentAsTable(args, &thrower);
-  if (thrower.error()) return;
-  i::Handle<i::WasmTableObject> table = maybe_table.ToHandleChecked();
+  EXTRACT_THIS(table, WasmTableObject);
   base::Optional<uint32_t> max_size;
   if (!table->maximum_length().IsUndefined()) {
     uint64_t max_size64 = table->maximum_length().Number();
@@ -1999,16 +1994,14 @@ void WebAssemblyMemoryGetBuffer(
   return_value.Set(Utils::ToLocal(buffer));
 }
 
-// WebAssembly.Memory.type(WebAssembly.Memory) -> MemoryType
+// WebAssembly.Memory.type() -> MemoryType
 void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Memory.type()");
 
-  auto maybe_memory = GetFirstArgumentAsMemory(args, &thrower);
-  if (thrower.error()) return;
-  i::Handle<i::WasmMemoryObject> memory = maybe_memory.ToHandleChecked();
+  EXTRACT_THIS(memory, WasmMemoryObject);
   i::Handle<i::JSArrayBuffer> buffer(memory->array_buffer(), i_isolate);
   size_t curr_size = buffer->byte_length() / i::wasm::kWasmPageSize;
   DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
@@ -2365,16 +2358,14 @@ void WebAssemblyGlobalSetValue(
   }
 }
 
-// WebAssembly.Global.type(WebAssembly.Global) -> GlobalType
+// WebAssembly.Global.type() -> GlobalType
 void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Global.type()");
 
-  auto maybe_global = GetFirstArgumentAsGlobal(args, &thrower);
-  if (thrower.error()) return;
-  i::Handle<i::WasmGlobalObject> global = maybe_global.ToHandleChecked();
+  EXTRACT_THIS(global, WasmGlobalObject);
   auto type = i::wasm::GetTypeForGlobal(i_isolate, global->is_mutable(),
                                         global->type());
   args.GetReturnValue().Set(Utils::ToLocal(type));
@@ -2599,7 +2590,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
               SideEffectType::kHasNoSideEffect);
   InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
   if (enabled_features.has_type_reflection()) {
-    InstallFunc(isolate, table_constructor, "type", WebAssemblyTableType, 1);
+    InstallFunc(isolate, table_proto, "type", WebAssemblyTableType, 0, false,
+                NONE, SideEffectType::kHasNoSideEffect);
   }
   JSObject::AddProperty(isolate, table_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Table"), ro_attributes);
@@ -2619,7 +2611,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
   if (enabled_features.has_type_reflection()) {
-    InstallFunc(isolate, memory_constructor, "type", WebAssemblyMemoryType, 1);
+    InstallFunc(isolate, memory_proto, "type", WebAssemblyMemoryType, 0, false,
+                NONE, SideEffectType::kHasNoSideEffect);
   }
   JSObject::AddProperty(isolate, memory_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Memory"), ro_attributes);
@@ -2641,7 +2634,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallGetterSetter(isolate, global_proto, "value", WebAssemblyGlobalGetValue,
                       WebAssemblyGlobalSetValue);
   if (enabled_features.has_type_reflection()) {
-    InstallFunc(isolate, global_constructor, "type", WebAssemblyGlobalType, 1);
+    InstallFunc(isolate, global_proto, "type", WebAssemblyGlobalType, 0, false,
+                NONE, SideEffectType::kHasNoSideEffect);
   }
   JSObject::AddProperty(isolate, global_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Global"), ro_attributes);
