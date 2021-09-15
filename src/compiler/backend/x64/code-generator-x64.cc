@@ -2706,7 +2706,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F64x2PromoteLowF32x4: {
-      __ Cvtps2pd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      if (HasAddressingMode(instr)) {
+        EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        __ Cvtps2pd(i.OutputSimd128Register(), i.MemoryOperand());
+      } else {
+        __ Cvtps2pd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      }
       break;
     }
     case kX64F32x4DemoteF64x2Zero: {

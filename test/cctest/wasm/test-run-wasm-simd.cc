@@ -883,6 +883,51 @@ WASM_SIMD_TEST(F64x2PromoteLowF32x4) {
   }
 }
 
+// Test F64x2PromoteLowF32x4 with S128Load64Zero optimization (only on some
+// architectures). These 2 opcodes should be fused into a single instruction
+// with memory operands, which is tested in instruction-selector tests. This
+// test checks that we get correct results.
+WASM_SIMD_TEST(F64x2PromoteLowF32x4WithS128Load64Zero) {
+  {
+    WasmRunner<int32_t> r(execution_tier);
+    double* g = r.builder().AddGlobal<double>(kWasmS128);
+    float* memory =
+        r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+    r.builder().RandomizeMemory();
+    r.builder().WriteMemory(&memory[0], 1.0f);
+    r.builder().WriteMemory(&memory[1], 3.0f);
+    r.builder().WriteMemory(&memory[2], 5.0f);
+    r.builder().WriteMemory(&memory[3], 8.0f);
+
+    // Load at 4 (index) + 4 (offset) bytes, which is 2 floats.
+    BUILD(r,
+          WASM_GLOBAL_SET(
+              0, WASM_SIMD_UNOP(kExprF64x2PromoteLowF32x4,
+                                WASM_SIMD_LOAD_OP_OFFSET(kExprS128Load64Zero,
+                                                         WASM_I32V(4), 4))),
+          WASM_ONE);
+
+    r.Call();
+    CHECK_EQ(5.0f, LANE(g, 0));
+    CHECK_EQ(8.0f, LANE(g, 1));
+  }
+
+  {
+    // OOB tests.
+    WasmRunner<int32_t> r(execution_tier);
+    r.builder().AddGlobal<double>(kWasmS128);
+    r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+    BUILD(r,
+          WASM_GLOBAL_SET(
+              0, WASM_SIMD_UNOP(kExprF64x2PromoteLowF32x4,
+                                WASM_SIMD_LOAD_OP(kExprS128Load64Zero,
+                                                  WASM_I32V(kWasmPageSize)))),
+          WASM_ONE);
+
+    CHECK_TRAP(r.Call());
+  }
+}
+
 WASM_SIMD_TEST(F64x2Add) {
   RunF64x2BinOpTest(execution_tier, kExprF64x2Add, Add);
 }

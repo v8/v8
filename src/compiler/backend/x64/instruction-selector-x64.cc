@@ -16,6 +16,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/opcodes.h"
 #include "src/roots/roots-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3040,7 +3041,6 @@ VISIT_ATOMIC_BINOP(Xor)
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Sqrt)              \
   V(F64x2ConvertLowI32x4S)  \
-  V(F64x2PromoteLowF32x4)   \
   V(F32x4SConvertI32x4)     \
   V(F32x4Abs)               \
   V(F32x4Neg)               \
@@ -3840,6 +3840,26 @@ void InstructionSelector::VisitI64x2Abs(Node* node) {
     Emit(kX64I64x2Abs, g.DefineSameAsFirst(node),
          g.UseRegister(node->InputAt(0)));
   }
+}
+
+void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionCode code = kX64F64x2PromoteLowF32x4;
+  Node* input = node->InputAt(0);
+  LoadTransformMatcher m(input);
+
+  if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
+    if (m.ResolvedValue().kind == MemoryAccessKind::kProtected) {
+      code |= AccessModeField::encode(kMemoryAccessProtected);
+    }
+    // LoadTransforms cannot be eliminated, so they are visited even if
+    // unused. Mark it as defined so that we don't visit it.
+    MarkAsDefined(input);
+    VisitLoad(node, input, code);
+    return;
+  }
+
+  VisitRR(this, node, code);
 }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,

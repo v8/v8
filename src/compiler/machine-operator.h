@@ -119,6 +119,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
 V8_EXPORT_PRIVATE LoadTransformParameters const& LoadTransformParametersOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
+V8_EXPORT_PRIVATE bool operator==(LoadTransformParameters,
+                                  LoadTransformParameters);
+bool operator!=(LoadTransformParameters, LoadTransformParameters);
+
 struct LoadLaneParameters {
   MemoryAccessKind kind;
   LoadRepresentation rep;
