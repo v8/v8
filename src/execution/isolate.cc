@@ -3115,8 +3115,6 @@ void Isolate::Deinit() {
   // All client isolates should already be detached.
   DCHECK_NULL(client_isolate_head_);
 
-  DumpAndResetStats();
-
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
   }
@@ -3155,6 +3153,10 @@ void Isolate::Deinit() {
 
   // This stops cancelable tasks (i.e. concurrent marking tasks)
   cancelable_task_manager()->CancelAndWait();
+
+  // After all concurrent tasks are stopped, we know for sure that stats aren't
+  // updated anymore.
+  DumpAndResetStats();
 
   main_thread_local_isolate_->heap()->FreeLinearAllocationArea();
 
