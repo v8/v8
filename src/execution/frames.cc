@@ -1393,7 +1393,7 @@ int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
             kJavaScriptCallArgCountRegister.code());
   Object argc_object(
       Memory<Address>(fp() + BuiltinContinuationFrameConstants::kArgCOffset));
-  return Smi::ToInt(argc_object);
+  return Smi::ToInt(argc_object) - kJSArgcReceiverSlots;
 }
 
 intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
@@ -1875,7 +1875,8 @@ JSFunction BuiltinFrame::function() const {
 
 int BuiltinFrame::ComputeParametersCount() const {
   const int offset = BuiltinFrameConstants::kLengthOffset;
-  return Smi::ToInt(Object(base::Memory<Address>(fp() + offset)));
+  return Smi::ToInt(Object(base::Memory<Address>(fp() + offset))) -
+         kJSArgcReceiverSlots;
 }
 
 #if V8_ENABLE_WEBASSEMBLY
