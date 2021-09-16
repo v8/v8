@@ -4727,6 +4727,24 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
 }
 
+void Isolate::DetachGlobal(Handle<Context> env) {
+  counters()->errors_thrown_per_context()->AddSample(
+      env->native_context().GetErrorsThrown());
+
+  ReadOnlyRoots roots(this);
+  Handle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
+  global_proxy->set_native_context(roots.null_value());
+  // NOTE: Turbofan's JSNativeContextSpecialization depends on DetachGlobal
+  // causing a map change.
+  JSObject::ForceSetPrototype(this, global_proxy, factory()->null_value());
+  global_proxy->map().set_constructor_or_back_pointer(roots.null_value(),
+                                                      kRelaxedStore);
+  if (FLAG_track_detached_contexts) AddDetachedContext(env);
+  DCHECK(global_proxy->IsDetached());
+
+  env->native_context().set_microtask_queue(this, nullptr);
+}
+
 double Isolate::LoadStartTimeMs() {
   base::MutexGuard guard(&rail_mutex_);
   return load_start_time_ms_;

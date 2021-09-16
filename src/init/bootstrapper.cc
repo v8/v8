@@ -357,27 +357,6 @@ void Bootstrapper::LogAllMaps() {
   LOG(isolate_, LogAllMaps());
 }
 
-void Bootstrapper::DetachGlobal(Handle<Context> env) {
-  isolate_->counters()->errors_thrown_per_context()->AddSample(
-      env->native_context().GetErrorsThrown());
-
-  ReadOnlyRoots roots(isolate_);
-  Handle<JSGlobalProxy> global_proxy(env->global_proxy(), isolate_);
-  global_proxy->set_native_context(roots.null_value());
-  // NOTE: Turbofan's JSNativeContextSpecialization depends on DetachGlobal
-  // causing a map change.
-  JSObject::ForceSetPrototype(isolate_, global_proxy,
-                              isolate_->factory()->null_value());
-  global_proxy->map().set_constructor_or_back_pointer(roots.null_value(),
-                                                      kRelaxedStore);
-  if (FLAG_track_detached_contexts) {
-    isolate_->AddDetachedContext(env);
-  }
-  DCHECK(global_proxy->IsDetached());
-
-  env->native_context().set_microtask_queue(isolate_, nullptr);
-}
-
 namespace {
 
 #ifdef DEBUG
