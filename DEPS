@@ -52,7 +52,7 @@ vars = {
   'gn_version': 'git_revision:69ec4fca1fa69ddadae13f9e6b7507efa0675263',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:dc21267f89df3981e809fe9566591d6916ae758b',
+  'luci_go': 'git_revision:028cd41e0f4b2bec99d94c780caf2f978e09b182',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -92,7 +92,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '715537d6007ca71837f48bcb04fc3d482aed2507',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1384630c0c8a78f8444959e5047cd9e7261e135a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '590c648959efee0f0c8eaff125a53c6bf7f3fc9c',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7ea3a871db68ae2cbbeaf5433a3192a799ef3c11',
   'buildtools/clang_format/script':
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '287ed7c2dac07bad27243a55b064c192be45cdd8',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '53075227f31e38bf875dad98ec57d53076316d6f',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -239,7 +239,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '3f443830bd52d3aa5fab3c1aa2b6d0848bb5039d',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'cb29f9c8b82936d3eea65877853eae52e75b399e',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '0faacf906ac93ea9f5f9186d00fa70ca3fbf99fb',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
