@@ -351,8 +351,7 @@ declare_args() {
   # parameter count of function with JS linkage.
   # TODO(v8:11112): Remove once all architectures support the flag and it is
   # enabled unconditionally.
-  v8_include_receiver_in_argc =
-      v8_current_cpu == "x86" || v8_current_cpu == "x64"
+  v8_include_receiver_in_argc = false
 }
 
 # Derived defaults.
