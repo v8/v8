@@ -1101,6 +1101,38 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprF64ConvertF32:
       fmr(dst.fp(), src.fp());
       return true;
+    case kExprF32SConvertI32: {
+      ConvertIntToFloat(src.gp(), dst.fp());
+      return true;
+    }
+    case kExprF32UConvertI32: {
+      ConvertUnsignedIntToFloat(src.gp(), dst.fp());
+      return true;
+    }
+    case kExprF64SConvertI32: {
+      ConvertIntToDouble(src.gp(), dst.fp());
+      return true;
+    }
+    case kExprF64UConvertI32: {
+      ConvertUnsignedIntToDouble(src.gp(), dst.fp());
+      return true;
+    }
+    case kExprF64SConvertI64: {
+      ConvertInt64ToDouble(src.gp(), dst.fp());
+      return true;
+    }
+    case kExprF64UConvertI64: {
+      ConvertUnsignedInt64ToDouble(src.gp(), dst.fp());
+      return true;
+    }
+    case kExprF32SConvertI64: {
+      ConvertInt64ToFloat(src.gp(), dst.fp());
+      return true;
+    }
+    case kExprF32UConvertI64: {
+      ConvertUnsignedInt64ToFloat(src.gp(), dst.fp());
+      return true;
+    }
     default:
       break;
   }
