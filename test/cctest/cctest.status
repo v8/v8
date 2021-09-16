@@ -761,6 +761,8 @@
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
+  'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
+  'test-gc/RunWasmTurbofan_RefTrivialCastsStatic': [SKIP],
   'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
   'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
   'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
