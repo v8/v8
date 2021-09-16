@@ -365,6 +365,7 @@ void PagedSpace::DecreaseLimit(Address new_limit) {
       optional_scope.emplace(chunk);
     }
 
+    ConcurrentAllocationMutex guard(this);
     SetTopAndLimit(top(), new_limit);
     Free(new_limit, old_limit - new_limit,
          SpaceAccountingMode::kSpaceAccounted);
