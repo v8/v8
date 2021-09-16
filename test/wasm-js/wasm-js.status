@@ -17,7 +17,6 @@
   'wpt/function/table.tentative': [FAIL],
   'wpt/function/type.tentative': [FAIL],
   'wpt/memory/constructor-types.tentative': [FAIL],
-  'wpt/memory/type.tentative': [FAIL],
   'wpt/memory/types.tentative': [FAIL],
   'wpt/prototypes': [FAIL],
   'wpt/table/constructor-types.tentative': [FAIL],

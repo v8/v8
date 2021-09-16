@@ -10,13 +10,15 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let mem = new WebAssembly.Memory({initial: 1});
   let type = mem.type();
   assertEquals(1, type.minimum);
-  assertEquals(1, Object.getOwnPropertyNames(type).length);
+  assertEquals(false, type.shared);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
 
   mem = new WebAssembly.Memory({initial: 2, maximum: 15});
   type = mem.type();
   assertEquals(2, type.minimum);
   assertEquals(15, type.maximum);
-  assertEquals(2, Object.getOwnPropertyNames(type).length);
+  assertEquals(false, type.shared);
+  assertEquals(3, Object.getOwnPropertyNames(type).length);
 })();
 
 (function TestMemoryExports() {
@@ -206,27 +208,32 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTrue(mem instanceof WebAssembly.Memory);
   let type = mem.type();
   assertEquals(1, type.minimum);
-  assertEquals(1, Object.getOwnPropertyNames(type).length);
+  assertEquals(false, type.shared);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
 
-  mem = new WebAssembly.Memory({minimum: 1, maximum: 5});
+  mem = new WebAssembly.Memory({minimum: 1, maximum: 5, shared: false});
   assertTrue(mem instanceof WebAssembly.Memory);
   type = mem.type();
   assertEquals(1, type.minimum);
   assertEquals(5, type.maximum);
-  assertEquals(2, Object.getOwnPropertyNames(type).length);
+  assertEquals(false, type.shared);
+  assertEquals(3, Object.getOwnPropertyNames(type).length);
 
   mem = new WebAssembly.Memory({minimum: 1, initial: 2});
   assertTrue(mem instanceof WebAssembly.Memory);
   type = mem.type();
   assertEquals(2, type.minimum);
-  assertEquals(1, Object.getOwnPropertyNames(type).length);
+  assertEquals(false, type.shared);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
 
-  mem = new WebAssembly.Memory({minimum: 1, initial: 2, maximum: 5});
+  mem = new WebAssembly.Memory(
+      {minimum: 1, initial: 2, maximum: 5, shared: true});
   assertTrue(mem instanceof WebAssembly.Memory);
   type = mem.type();
   assertEquals(2, type.minimum);
   assertEquals(5, type.maximum);
-  assertEquals(2, Object.getOwnPropertyNames(type).length);
+  assertEquals(true, type.shared);
+  assertEquals(3, Object.getOwnPropertyNames(type).length);
 })();
 
 (function TestTableConstructorWithMinimum() {

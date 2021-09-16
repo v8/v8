@@ -500,7 +500,8 @@ Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig,
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
-                                  base::Optional<uint32_t> max_size);
+                                  base::Optional<uint32_t> max_size,
+                                  bool shared);
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
                                  base::Optional<uint32_t> max_size);

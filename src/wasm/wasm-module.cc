@@ -310,19 +310,23 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
 }
 
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
-                                  base::Optional<uint32_t> max_size) {
+                                  base::Optional<uint32_t> max_size,
+                                  bool shared) {
   Factory* factory = isolate->factory();
 
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
   Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
   Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
+  Handle<String> shared_string = factory->InternalizeUtf8String("shared");
   JSObject::AddProperty(isolate, object, minimum_string,
                         factory->NewNumberFromUint(min_size), NONE);
   if (max_size.has_value()) {
     JSObject::AddProperty(isolate, object, maximum_string,
                           factory->NewNumberFromUint(max_size.value()), NONE);
   }
+  JSObject::AddProperty(isolate, object, shared_string,
+                        factory->ToBoolean(shared), NONE);
 
   return object;
 }
@@ -418,7 +422,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
             maximum_size.emplace(module->maximum_pages);
           }
           type_value =
-              GetTypeForMemory(isolate, module->initial_pages, maximum_size);
+              GetTypeForMemory(isolate, module->initial_pages, maximum_size,
+                               module->has_shared_memory);
         }
         import_kind = memory_string;
         break;
@@ -515,7 +520,8 @@ Handle<JSArray> GetExports(Isolate* isolate,
             maximum_size.emplace(module->maximum_pages);
           }
           type_value =
-              GetTypeForMemory(isolate, module->initial_pages, maximum_size);
+              GetTypeForMemory(isolate, module->initial_pages, maximum_size,
+                               module->has_shared_memory);
         }
         export_kind = memory_string;
         break;

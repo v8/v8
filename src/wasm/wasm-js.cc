@@ -2007,7 +2007,8 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& args) {
     DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
     max_size.emplace(static_cast<uint32_t>(max_size64));
   }
-  auto type = i::wasm::GetTypeForMemory(i_isolate, min_size, max_size);
+  bool shared = buffer->is_shared();
+  auto type = i::wasm::GetTypeForMemory(i_isolate, min_size, max_size, shared);
   args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
