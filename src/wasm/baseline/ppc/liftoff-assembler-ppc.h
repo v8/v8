@@ -616,16 +616,16 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   switch (kind) {
     case kI32:
     case kF32:
-      LoadU32(ip, liftoff::GetStackSlot(dst_offset + stack_bias), r0);
-      StoreU32(ip, liftoff::GetStackSlot(src_offset + stack_bias), r0);
+      LoadU32(ip, liftoff::GetStackSlot(src_offset + stack_bias), r0);
+      StoreU32(ip, liftoff::GetStackSlot(dst_offset + stack_bias), r0);
       break;
     case kI64:
     case kOptRef:
     case kRef:
     case kRtt:
     case kF64:
-      LoadU64(ip, liftoff::GetStackSlot(dst_offset), r0);
-      StoreU64(ip, liftoff::GetStackSlot(src_offset), r0);
+      LoadU64(ip, liftoff::GetStackSlot(src_offset), r0);
+      StoreU64(ip, liftoff::GetStackSlot(dst_offset), r0);
       break;
     case kS128:
       bailout(kSimd, "simd op");
