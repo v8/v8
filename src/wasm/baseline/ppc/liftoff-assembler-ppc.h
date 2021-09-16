@@ -1180,6 +1180,78 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       boverflow(trap, cr7);
       return true;
     }
+    case kExprI32SConvertSatF64:
+    case kExprI32SConvertSatF32: {
+      Label done, src_is_nan;
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      fcmpu(src.fp(), kScratchDoubleReg);
+      bunordered(&src_is_nan);
+
+      mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      fctiwz(kScratchDoubleReg, src.fp());
+      MovDoubleLowToInt(dst.gp(), kScratchDoubleReg);
+      b(&done);
+
+      bind(&src_is_nan);
+      mov(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI32UConvertSatF64:
+    case kExprI32UConvertSatF32: {
+      Label done, src_is_nan;
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      fcmpu(src.fp(), kScratchDoubleReg);
+      bunordered(&src_is_nan);
+
+      mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      fctiwuz(kScratchDoubleReg, src.fp());
+      MovDoubleLowToInt(dst.gp(), kScratchDoubleReg);
+      b(&done);
+
+      bind(&src_is_nan);
+      mov(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI64SConvertSatF64:
+    case kExprI64SConvertSatF32: {
+      Label done, src_is_nan;
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      fcmpu(src.fp(), kScratchDoubleReg);
+      bunordered(&src_is_nan);
+
+      mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      fctidz(kScratchDoubleReg, src.fp());
+      MovDoubleToInt64(dst.gp(), kScratchDoubleReg);
+      b(&done);
+
+      bind(&src_is_nan);
+      mov(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
+    case kExprI64UConvertSatF64:
+    case kExprI64UConvertSatF32: {
+      Label done, src_is_nan;
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      fcmpu(src.fp(), kScratchDoubleReg);
+      bunordered(&src_is_nan);
+
+      mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      fctiduz(kScratchDoubleReg, src.fp());
+      MovDoubleToInt64(dst.gp(), kScratchDoubleReg);
+      b(&done);
+
+      bind(&src_is_nan);
+      mov(dst.gp(), Operand::Zero());
+
+      bind(&done);
+      return true;
+    }
     default:
       break;
   }
