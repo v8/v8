@@ -128,8 +128,8 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
   const unsigned kRootsTableSize = sizeof(RootsTable);
   const int kExtRefsTableStart = IsolateData::external_reference_table_offset();
   const unsigned kExtRefsTableSize = ExternalReferenceTable::kSizeInBytes;
-  const int kBuiltinsTableStart = IsolateData::builtins_table_offset();
-  const unsigned kBuiltinsTableSize =
+  const int kBuiltinTableStart = IsolateData::builtin_table_offset();
+  const unsigned kBuiltinTableSize =
       Builtins::kBuiltinCount * kSystemPointerSize;
 
   if (static_cast<unsigned>(offset - kRootsTableStart) < kRootsTableSize) {
@@ -163,9 +163,9 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
                  offset_in_extref_table));
     return v8_buffer_.begin();
 
-  } else if (static_cast<unsigned>(offset - kBuiltinsTableStart) <
-             kBuiltinsTableSize) {
-    uint32_t offset_in_builtins_table = (offset - kBuiltinsTableStart);
+  } else if (static_cast<unsigned>(offset - kBuiltinTableStart) <
+             kBuiltinTableSize) {
+    uint32_t offset_in_builtins_table = (offset - kBuiltinTableStart);
 
     Builtin builtin =
         Builtins::FromInt(offset_in_builtins_table / kSystemPointerSize);

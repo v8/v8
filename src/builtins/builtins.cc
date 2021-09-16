@@ -314,7 +314,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
     return;  // No need to iterate the entire table in this case.
   }
 
-  Address* builtins = isolate->builtins_table();
+  Address* builtins = isolate->builtin_table();
   int i = 0;
   HandleScope scope(isolate);
   for (; i < static_cast<int>(Builtin::kFirstBytecodeHandler); i++) {

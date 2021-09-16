@@ -101,6 +101,10 @@ class Builtins {
     DCHECK(IsBuiltinId(id));
     return static_cast<Builtin>(id);
   }
+  static constexpr int ToInt(Builtin id) {
+    DCHECK(IsBuiltinId(id));
+    return static_cast<int>(id);
+  }
 
   // The different builtin kinds are documented in builtins-definitions.h.
   enum Kind { CPP, TFJ, TFC, TFS, TFH, BCH, ASM };

@@ -2675,10 +2675,10 @@ void Isolate::ReleaseSharedPtrs() {
   }
 }
 
-bool Isolate::IsBuiltinsTableHandleLocation(Address* handle_location) {
+bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
   FullObjectSlot location(handle_location);
-  FullObjectSlot first_root(builtins_table());
-  FullObjectSlot last_root(builtins_table() + Builtins::kBuiltinCount);
+  FullObjectSlot first_root(builtin_table());
+  FullObjectSlot last_root(builtin_table() + Builtins::kBuiltinCount);
   if (location >= last_root) return false;
   if (location < first_root) return false;
   return true;
@@ -3049,7 +3049,7 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateLongTaskStatsCounterOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
            Internals::kIsolateStackGuardOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_)),
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)),
            Internals::kIsolateRootsOffset);
 
 #ifdef V8_HEAP_SANDBOX

@@ -1123,9 +1123,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   Address* builtin_entry_table() { return isolate_data_.builtin_entry_table(); }
-  V8_INLINE Address* builtins_table() { return isolate_data_.builtins(); }
+  V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
 
-  bool IsBuiltinsTableHandleLocation(Address* handle_location);
+  bool IsBuiltinTableHandleLocation(Address* handle_location);
 
   StubCache* load_stub_cache() const { return load_stub_cache_; }
   StubCache* store_stub_cache() const { return store_stub_cache_; }
