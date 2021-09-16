@@ -1133,6 +1133,53 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       ConvertUnsignedInt64ToFloat(src.gp(), dst.fp());
       return true;
     }
+    case kExprI32SConvertF64:
+    case kExprI32SConvertF32: {
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      fcmpu(src.fp(), kScratchDoubleReg);
+      bunordered(trap);
+
+      fctiwz(kScratchDoubleReg, src.fp());
+      MovDoubleLowToInt(dst.gp(), kScratchDoubleReg);
+      mcrfs(cr7, VXCVI);
+      boverflow(trap, cr7);
+      return true;
+    }
+    case kExprI32UConvertF64:
+    case kExprI32UConvertF32: {
+      ConvertDoubleToUnsignedInt64(src.fp(), r0, kScratchDoubleReg,
+                                   kRoundToZero);
+      mcrfs(cr7, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+      boverflow(trap, cr7);
+      ZeroExtWord32(dst.gp(), r0);
+      CmpU64(dst.gp(), r0);
+      bne(trap);
+      return true;
+    }
+    case kExprI64SConvertF64:
+    case kExprI64SConvertF32: {
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      fcmpu(src.fp(), kScratchDoubleReg);
+      bunordered(trap);
+
+      fctidz(kScratchDoubleReg, src.fp());
+      MovDoubleToInt64(dst.gp(), kScratchDoubleReg);
+      mcrfs(cr7, VXCVI);
+      boverflow(trap, cr7);
+      return true;
+    }
+    case kExprI64UConvertF64:
+    case kExprI64UConvertF32: {
+      LoadDoubleLiteral(kScratchDoubleReg, base::Double(0.0), r0);
+      fcmpu(src.fp(), kScratchDoubleReg);
+      bunordered(trap);
+
+      fctiduz(kScratchDoubleReg, src.fp());
+      MovDoubleToInt64(dst.gp(), kScratchDoubleReg);
+      mcrfs(cr7, VXCVI);
+      boverflow(trap, cr7);
+      return true;
+    }
     default:
       break;
   }
