@@ -1085,6 +1085,25 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src, Label* trap) {
+  switch (opcode) {
+    case kExprI32ConvertI64:
+      extsw(dst.gp(), src.gp());
+      return true;
+    case kExprI64SConvertI32:
+      extsw(dst.gp(), src.gp());
+      return true;
+    case kExprI64UConvertI32:
+      ZeroExtWord32(dst.gp(), src.gp());
+      return true;
+    case kExprF32ConvertF64:
+      frsp(dst.fp(), src.fp());
+      return true;
+    case kExprF64ConvertF32:
+      fmr(dst.fp(), src.fp());
+      return true;
+    default:
+      break;
+  }
   bailout(kUnsupportedArchitecture, "emit_type_conversion");
   return true;
 }
