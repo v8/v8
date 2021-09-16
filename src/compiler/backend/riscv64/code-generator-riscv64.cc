@@ -2549,11 +2549,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1));
       __ vand_vv(v0, v0, kSimd128ScratchReg);
       __ li(kScratchReg, kNaN);
-      __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
-      DCHECK_NE(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      DCHECK_NE(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ vfmax_vv(i.OutputSimd128Register(), i.InputSimd128Register(1),
+      __ vmv_vx(kSimd128ScratchReg, kScratchReg);
+      __ vfmax_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
                   i.InputSimd128Register(0), Mask);
+      __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
     case kRiscvF32x4Min: {
@@ -2564,11 +2563,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1));
       __ vand_vv(v0, v0, kSimd128ScratchReg);
       __ li(kScratchReg, kNaN);
-      __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
-      DCHECK_NE(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      DCHECK_NE(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ vfmin_vv(i.OutputSimd128Register(), i.InputSimd128Register(1),
-                  i.InputSimd128Register(0));
+      __ vmv_vx(kSimd128ScratchReg, kScratchReg);
+      __ vfmin_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
+                  i.InputSimd128Register(0), Mask);
+      __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
     default:

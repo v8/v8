@@ -2603,10 +2603,9 @@ void LiftoffAssembler::emit_f32x4_min(LiftoffRegister dst, LiftoffRegister lhs,
   vmfeq_vv(kSimd128ScratchReg, rhs.fp().toV(), rhs.fp().toV());
   vand_vv(v0, v0, kSimd128ScratchReg);
   li(kScratchReg, kNaN);
-  DCHECK_NE(dst, lhs);
-  DCHECK_NE(dst, rhs);
-  vmv_vx(dst.fp().toV(), kScratchReg);
-  vfmin_vv(dst.fp().toV(), rhs.fp().toV(), lhs.fp().toV(), Mask);
+  vmv_vx(kSimd128ScratchReg, kScratchReg);
+  vfmin_vv(kSimd128ScratchReg, rhs.fp().toV(), lhs.fp().toV(), Mask);
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2617,10 +2616,9 @@ void LiftoffAssembler::emit_f32x4_max(LiftoffRegister dst, LiftoffRegister lhs,
   vmfeq_vv(kSimd128ScratchReg, rhs.fp().toV(), rhs.fp().toV());
   vand_vv(v0, v0, kSimd128ScratchReg);
   li(kScratchReg, kNaN);
-  DCHECK_NE(dst, lhs);
-  DCHECK_NE(dst, rhs);
-  vmv_vx(dst.fp().toV(), kScratchReg);
-  vfmax_vv(dst.fp().toV(), rhs.fp().toV(), lhs.fp().toV(), Mask);
+  vmv_vx(kSimd128ScratchReg, kScratchReg);
+  vfmax_vv(kSimd128ScratchReg, rhs.fp().toV(), lhs.fp().toV(), Mask);
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
