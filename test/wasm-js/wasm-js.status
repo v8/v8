@@ -21,7 +21,12 @@
   'wpt/prototypes': [FAIL],
   'wpt/table/constructor-types.tentative': [FAIL],
   'wpt/table/grow-reftypes.tentative': [FAIL],
-  'wpt/table/set-reftypes.tentative': [FAIL],
+
+  # Outdated proposal tests.
+  'proposals/js-types/table/get-set': [FAIL],
+  'proposals/memory64/table/get-set': [FAIL],
+  'proposals/simd/table/get-set': [FAIL],
+  'proposals/tail-call/table/get-set': [FAIL],
 
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
   'proposals/js-types/constructor/instantiate': [FAIL],

@@ -1899,7 +1899,12 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::Object> element = Utils::OpenHandle(*args[1]);
+  i::Handle<i::Object> element;
+  if (args.Length() >= 2) {
+    element = Utils::OpenHandle(*args[1]);
+  } else {
+    element = i_isolate->factory()->null_value();
+  }
   if (!i::WasmTableObject::IsValidElement(i_isolate, table_object, element)) {
     thrower.TypeError(
         "Argument 1 must be null or a WebAssembly function of type compatible "
