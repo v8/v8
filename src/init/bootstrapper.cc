@@ -368,7 +368,8 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   // causing a map change.
   JSObject::ForceSetPrototype(isolate_, global_proxy,
                               isolate_->factory()->null_value());
-  global_proxy->map().SetConstructor(roots.null_value());
+  global_proxy->map().set_constructor_or_back_pointer(roots.null_value(),
+                                                      kRelaxedStore);
   if (FLAG_track_detached_contexts) {
     isolate_->AddDetachedContext(env);
   }
