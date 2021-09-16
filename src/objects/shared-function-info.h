@@ -533,17 +533,19 @@ class SharedFunctionInfo
   inline bool ShouldFlushCode(base::EnumSet<CodeFlushMode> code_flush_mode);
 
   enum Inlineability {
-    kIsInlineable,
     // Different reasons for not being inlineable:
     kHasNoScript,
     kNeedsBinaryCoverage,
-    kHasOptimizationDisabled,
     kIsBuiltin,
     kIsNotUserCode,
     kHasNoBytecode,
     kExceedsBytecodeLimit,
     kMayContainBreakPoints,
+    kHasOptimizationDisabled,
+    // Actually inlineable!
+    kIsInlineable,
   };
+  // Returns the first value that applies (see enum definition for the order).
   template <typename IsolateT>
   Inlineability GetInlineability(IsolateT* isolate, bool is_turboprop) const;
 
