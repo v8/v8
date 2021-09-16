@@ -61,7 +61,7 @@ class CppgcBoundedPageAllocator final : public v8::base::BoundedPageAllocator {
     // contents. To mitigate this problem, CppgcBoundedPageAllocator clears all
     // pages before they are freed. This also includes protected guard pages, so
     // CppgcBoundedPageAllocator needs to update permissions before clearing.
-    SetPermissions(address, size, Permission::kReadWrite);
+    CHECK(SetPermissions(address, size, Permission::kReadWrite));
     memset(address, 0, size);
     return v8::base::BoundedPageAllocator::FreePages(address, size);
   }
