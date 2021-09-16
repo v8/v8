@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-inlining --no-liftoff --experimental-wasm-return-call
+// Flags: --experimental-wasm-typed-funcref
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -238,4 +239,92 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate();
   assertEquals(20, instance.exports.main(10, 20));
+})();
+
+(function CallRefSpecSucceededTest() {
+  let builder = new WasmModuleBuilder();
+
+  // f(x) = x - 1
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
+
+  let global = builder.addGlobal(wasmRefType(0), false,
+                                 WasmInitExpr.RefFunc(callee.index));
+
+  // g(x) = f(5) + x
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprI32Const, 5, kExprGlobalGet, global.index, kExprCallRef,
+              kExprLocalGet, 0, kExprI32Add])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(14, instance.exports.main(10));
+})();
+
+(function CallRefSpecFailedTest() {
+  let builder = new WasmModuleBuilder();
+
+  // h(x) = x - 1
+  builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
+
+  // f(x) = x - 2
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
+
+  let global = builder.addGlobal(wasmRefType(1), false,
+                                 WasmInitExpr.RefFunc(callee.index));
+
+  // g(x) = f(5) + x
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprI32Const, 5, kExprGlobalGet, global.index, kExprCallRef,
+              kExprLocalGet, 0, kExprI32Add])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(13, instance.exports.main(10));
+})();
+
+(function CallReturnRefSpecSucceededTest() {
+  let builder = new WasmModuleBuilder();
+
+  // f(x) = x - 1
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
+
+  let global = builder.addGlobal(wasmRefType(0), false,
+                                 WasmInitExpr.RefFunc(callee.index));
+
+  // g(x) = f(5 + x)
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprI32Const, 5, kExprLocalGet, 0, kExprI32Add,
+              kExprGlobalGet, global.index, kExprReturnCallRef])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(14, instance.exports.main(10));
+})();
+
+(function CallReturnRefSpecFailedTest() {
+  let builder = new WasmModuleBuilder();
+
+  // h(x) = x - 1
+  builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
+
+  // f(x) = x - 2
+  let callee = builder.addFunction("callee", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
+
+  let global = builder.addGlobal(wasmRefType(1), false,
+                                 WasmInitExpr.RefFunc(callee.index));
+
+  // g(x) = f(5 + x)
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprI32Const, 5, kExprLocalGet, 0, kExprI32Add,
+              kExprGlobalGet, global.index, kExprReturnCallRef])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(13, instance.exports.main(10));
 })();

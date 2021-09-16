@@ -660,13 +660,93 @@ class WasmGraphBuildingInterface {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
+    if (!FLAG_wasm_inlining) {
+      DoCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref.node,
+             sig, sig_index, args, returns);
+      return;
+    }
+
+    // Check for equality against a function at a specific index, and if
+    // successful, just emit a direct call.
+    // TODO(12166): For now, we check against function 0. Decide the index based
+    // on liftoff feedback.
+    const uint32_t expected_function_index = 0;
+
+    TFNode* success_control;
+    TFNode* failure_control;
+    builder_->CompareToExternalFunctionAtIndex(
+        func_ref.node, expected_function_index, &success_control,
+        &failure_control);
+    TFNode* initial_effect = effect();
+
+    builder_->SetControl(success_control);
+    ssa_env_->control = success_control;
+    Value* returns_direct =
+        decoder->zone()->NewArray<Value>(sig->return_count());
+    DoCall(decoder, kCallDirect, expected_function_index,
+           CheckForNull::kWithoutNullCheck, nullptr,
+           decoder->module_->signature(sig_index), sig_index, args,
+           returns_direct);
+    TFNode* control_direct = control();
+    TFNode* effect_direct = effect();
+
+    builder_->SetEffectControl(initial_effect, failure_control);
+    ssa_env_->effect = initial_effect;
+    ssa_env_->control = failure_control;
+    Value* returns_ref = decoder->zone()->NewArray<Value>(sig->return_count());
     DoCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref.node,
-           sig, sig_index, args, returns);
+           sig, sig_index, args, returns_ref);
+    TFNode* control_ref = control();
+    TFNode* effect_ref = effect();
+
+    TFNode* control_args[] = {control_direct, control_ref};
+    TFNode* control = builder_->Merge(2, control_args);
+
+    TFNode* effect_args[] = {effect_direct, effect_ref, control};
+    TFNode* effect = builder_->EffectPhi(2, effect_args);
+
+    ssa_env_->control = control;
+    ssa_env_->effect = effect;
+    builder_->SetEffectControl(effect, control);
+
+    for (uint32_t i = 0; i < sig->return_count(); i++) {
+      TFNode* phi_args[] = {returns_direct[i].node, returns_ref[i].node,
+                            control};
+      returns[i].node = builder_->Phi(sig->GetReturn(i), 2, phi_args);
+    }
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
+    if (!FLAG_wasm_inlining) {
+      DoReturnCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref,
+                   sig, sig_index, args);
+      return;
+    }
+
+    // Check for equality against a function at a specific index, and if
+    // successful, just emit a direct call.
+    // TODO(12166): For now, we check against function 0. Decide the index based
+    // on liftoff feedback.
+    const uint32_t expected_function_index = 0;
+
+    TFNode* success_control;
+    TFNode* failure_control;
+    builder_->CompareToExternalFunctionAtIndex(
+        func_ref.node, expected_function_index, &success_control,
+        &failure_control);
+    TFNode* initial_effect = effect();
+
+    builder_->SetControl(success_control);
+    ssa_env_->control = success_control;
+    DoReturnCall(decoder, kCallDirect, 0, CheckForNull::kWithoutNullCheck,
+                 Value{nullptr, kWasmBottom}, sig, expected_function_index,
+                 args);
+
+    builder_->SetEffectControl(initial_effect, failure_control);
+    ssa_env_->effect = initial_effect;
+    ssa_env_->control = failure_control;
     DoReturnCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref,
                  sig, sig_index, args);
   }

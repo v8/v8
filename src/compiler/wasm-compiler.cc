@@ -3227,6 +3227,22 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index,
   return call;
 }
 
+void WasmGraphBuilder::CompareToExternalFunctionAtIndex(
+    Node* func_ref, uint32_t function_index, Node** success_control,
+    Node** failure_control) {
+  // Since we are comparing to a function reference, it is guaranteed that
+  // instance->wasm_external_functions() has been initialized.
+  Node* external_functions = gasm_->LoadFromObject(
+      MachineType::TaggedPointer(), GetInstance(),
+      wasm::ObjectAccess::ToTagged(
+          WasmInstanceObject::kWasmExternalFunctionsOffset));
+  Node* function_ref = gasm_->LoadFixedArrayElement(
+      external_functions, gasm_->IntPtrConstant(function_index),
+      MachineType::AnyTagged());
+  gasm_->Branch(gasm_->WordEqual(function_ref, func_ref), success_control,
+                failure_control, BranchHint::kTrue);
+}
+
 Node* WasmGraphBuilder::CallRef(uint32_t sig_index, base::Vector<Node*> args,
                                 base::Vector<Node*> rets,
                                 WasmGraphBuilder::CheckForNull null_check,

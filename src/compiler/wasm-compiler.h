@@ -328,6 +328,9 @@ class WasmGraphBuilder {
   Node* CallRef(uint32_t sig_index, base::Vector<Node*> args,
                 base::Vector<Node*> rets, CheckForNull null_check,
                 wasm::WasmCodePosition position);
+  void CompareToExternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
+                                        Node** success_control,
+                                        Node** failure_control);
 
   Node* ReturnCall(uint32_t index, base::Vector<Node*> args,
                    wasm::WasmCodePosition position);
