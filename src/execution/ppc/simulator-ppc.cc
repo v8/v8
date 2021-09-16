@@ -3640,8 +3640,8 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
                      ? kRoundToZero
                      : (fp_condition_reg_ & kFPRoundingModeMask);
       uint64_t frt_val;
-      uint64_t kMinVal = 0;
-      uint64_t kMaxVal = kMinVal - 1;
+      uint64_t kMinVal = kMinUInt32;
+      uint64_t kMaxVal = kMaxUInt32;
       bool invalid_convert = false;
 
       if (std::isnan(frb_val)) {
