@@ -184,11 +184,14 @@ BackingStore::~BackingStore() {
   }
 
   PageAllocator* page_allocator = GetPlatformPageAllocator();
+  // TODO(saelo) here and elsewhere in this file, replace with
+  // GetArrayBufferPageAllocator once the fallback to the platform page
+  // allocator is no longer allowed.
 #ifdef V8_VIRTUAL_MEMORY_CAGE
   if (GetProcessWideVirtualMemoryCage()->Contains(buffer_start_)) {
-    page_allocator = GetPlatformDataCagePageAllocator();
+    page_allocator = GetVirtualMemoryCagePageAllocator();
   } else {
-    DCHECK(kAllowBackingStoresOutsideDataCage);
+    DCHECK(kAllowBackingStoresOutsideCage);
   }
 #endif
 
@@ -445,17 +448,17 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   PageAllocator* page_allocator = GetPlatformPageAllocator();
   auto allocate_pages = [&] {
 #ifdef V8_VIRTUAL_MEMORY_CAGE
-    page_allocator = GetPlatformDataCagePageAllocator();
+    page_allocator = GetVirtualMemoryCagePageAllocator();
     allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
                                     page_size, PageAllocator::kNoAccess);
     if (allocation_base) return true;
     // We currently still allow falling back to the platform page allocator if
-    // the data cage page allocator fails. This will eventually be removed.
+    // the cage page allocator fails. This will eventually be removed.
     // TODO(chromium:1218005) once we forbid the fallback, we should have a
-    // single API, e.g. GetPlatformDataPageAllocator(), that returns the correct
+    // single API, e.g. GetArrayBufferPageAllocator(), that returns the correct
     // page allocator to use here depending on whether the virtual memory cage
     // is enabled or not.
-    if (!kAllowBackingStoresOutsideDataCage) return false;
+    if (!kAllowBackingStoresOutsideCage) return false;
     page_allocator = GetPlatformPageAllocator();
 #endif
     allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,

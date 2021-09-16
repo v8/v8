@@ -170,11 +170,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
   void* AllocateVM(size_t length) {
     DCHECK_LE(kVMThreshold, length);
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    v8::PageAllocator* page_allocator = i::GetPlatformDataCagePageAllocator();
-#else
-    v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
-#endif
+    v8::PageAllocator* page_allocator = i::GetArrayBufferPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
@@ -182,11 +178,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 
   void FreeVM(void* data, size_t length) {
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    v8::PageAllocator* page_allocator = i::GetPlatformDataCagePageAllocator();
-#else
-    v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
-#endif
+    v8::PageAllocator* page_allocator = i::GetArrayBufferPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     CHECK(i::FreePages(page_allocator, data, allocated));

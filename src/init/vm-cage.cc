@@ -43,9 +43,8 @@ bool V8VirtualMemoryCage::Initialize(v8::PageAllocator* page_allocator,
   page_allocator_ = page_allocator;
   size_ = size;
 
-  data_cage_page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
-      page_allocator_, data_cage_base(), data_cage_size(),
-      page_allocator_->AllocatePageSize());
+  cage_page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
+      page_allocator_, base_, size_, page_allocator_->AllocatePageSize());
 
   initialized_ = true;
 
@@ -54,7 +53,7 @@ bool V8VirtualMemoryCage::Initialize(v8::PageAllocator* page_allocator,
 
 void V8VirtualMemoryCage::TearDown() {
   if (initialized_) {
-    data_cage_page_allocator_.reset();
+    cage_page_allocator_.reset();
     Address reservation_base = base_;
     size_t reservation_size = size_;
     if (has_guard_regions_) {

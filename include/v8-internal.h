@@ -488,15 +488,10 @@ constexpr bool VirtualMemoryCageIsEnabled() {
 }
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE
-// Size of the pointer compression cage located at the start of the virtual
-// memory cage.
-constexpr size_t kVirtualMemoryCagePointerCageSize =
-    Internals::kPtrComprCageReservationSize;
-
 // Size of the virtual memory cage, excluding the guard regions surrounding it.
 constexpr size_t kVirtualMemoryCageSize = size_t{1} << 40;  // 1 TB
 
-static_assert(kVirtualMemoryCageSize > kVirtualMemoryCagePointerCageSize,
+static_assert(kVirtualMemoryCageSize > Internals::kPtrComprCageReservationSize,
               "The virtual memory cage must be larger than the pointer "
               "compression cage contained within it.");
 
@@ -521,16 +516,16 @@ static_assert((kVirtualMemoryCageGuardRegionSize %
 // Minimum possible size of the virtual memory cage, excluding the guard regions
 // surrounding it. Used by unit tests.
 constexpr size_t kVirtualMemoryCageMinimumSize =
-    2 * kVirtualMemoryCagePointerCageSize;
+    2 * Internals::kPtrComprCageReservationSize;
 
 // For now, even if the virtual memory cage is enabled, we still allow backing
 // stores to be allocated outside of it as fallback. This will simplify the
 // initial rollout. However, if the heap sandbox is also enabled, we already use
 // the "enforcing mode" of the virtual memory cage. This is useful for testing.
 #ifdef V8_HEAP_SANDBOX
-constexpr bool kAllowBackingStoresOutsideDataCage = false;
+constexpr bool kAllowBackingStoresOutsideCage = false;
 #else
-constexpr bool kAllowBackingStoresOutsideDataCage = true;
+constexpr bool kAllowBackingStoresOutsideCage = true;
 #endif  // V8_HEAP_SANDBOX
 
 #endif  // V8_VIRTUAL_MEMORY_CAGE

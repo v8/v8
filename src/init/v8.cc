@@ -80,7 +80,7 @@ void V8::InitializeOncePerProcessImpl() {
   if (!GetProcessWideVirtualMemoryCage()->is_initialized()) {
     // For now, we still allow the cage to be disabled even if V8 was compiled
     // with V8_VIRTUAL_MEMORY_CAGE. This will eventually be forbidden.
-    CHECK(kAllowBackingStoresOutsideDataCage);
+    CHECK(kAllowBackingStoresOutsideCage);
     GetProcessWideVirtualMemoryCage()->Disable();
   }
 #endif

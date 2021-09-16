@@ -408,7 +408,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   }
 
  private:
-  PageAllocator* page_allocator_ = internal::GetPlatformDataCagePageAllocator();
+  PageAllocator* page_allocator_ = internal::GetArrayBufferPageAllocator();
   const size_t page_size_ = page_allocator_->AllocatePageSize();
 };
 
@@ -6111,9 +6111,9 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE
-PageAllocator* v8::V8::GetVirtualMemoryCageDataPageAllocator() {
+PageAllocator* v8::V8::GetVirtualMemoryCagePageAllocator() {
   CHECK(i::GetProcessWideVirtualMemoryCage()->is_initialized());
-  return i::GetProcessWideVirtualMemoryCage()->GetDataCagePageAllocator();
+  return i::GetProcessWideVirtualMemoryCage()->page_allocator();
 }
 #endif
 
