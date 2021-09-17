@@ -3688,6 +3688,17 @@ void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
   emit_sse_operand(dst, src2);
 }
 
+void Assembler::vinstr(byte op, YMMRegister dst, YMMRegister src1,
+                       YMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
+                       CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  DCHECK(feature == AVX || feature == AVX2);
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL256, pp, m, w);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
                        SIMDPrefix pp, LeadingOpcode m, VexW w,
                        CpuFeature feature) {
@@ -3695,6 +3706,17 @@ void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
   DCHECK(feature == AVX || feature == AVX2);
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, kLIG, pp, m, w);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vinstr(byte op, YMMRegister dst, YMMRegister src1, Operand src2,
+                       SIMDPrefix pp, LeadingOpcode m, VexW w,
+                       CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
+  DCHECK(feature == AVX || feature == AVX2);
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL256, pp, m, w);
   emit(op);
   emit_sse_operand(dst, src2);
 }

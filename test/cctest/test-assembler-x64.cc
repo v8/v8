@@ -2562,6 +2562,47 @@ TEST(AssemblerX64Regmove256bit) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+TEST(AssemblerX64Shuffle256bit) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = CcTest::i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX2);
+
+  __ vpshufd(ymm1, ymm2, 85);
+  __ vpshufd(ymm1, Operand(rbx, rcx, times_4, 10000), 85);
+  __ vpshuflw(ymm9, ymm10, 85);
+  __ vpshuflw(ymm9, Operand(rbx, rcx, times_4, 10000), 85);
+  __ vpshufhw(ymm1, ymm2, 85);
+  __ vpshufhw(ymm1, Operand(rbx, rcx, times_4, 10000), 85);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+
+  byte expected[] = {// vpshufd ymm1, ymm2, 85
+                     0xC5, 0xFD, 0x70, 0xCA, 0x55,
+                     // vpshufd ymm1,YMMWORD PTR [rbx+rcx*4+0x2710], 85
+                     0xC5, 0xFD, 0x70, 0x8C, 0x8B, 0x10, 0x27, 0x00, 0x00, 0x55,
+                     // vpshuflw ymm9, ymm10, 85,
+                     0xC4, 0x41, 0x7F, 0x70, 0xCA, 0x55,
+                     // vpshuflw ymm9,YMMWORD PTR [rbx+rcx*4+0x2710], 85
+                     0xC5, 0x7F, 0x70, 0x8C, 0x8B, 0x10, 0x27, 0x00, 0x00, 0x55,
+                     // vpshufhw ymm1, ymm2, 85
+                     0xC5, 0xFE, 0x70, 0xCA, 0x55,
+                     // vpshufhw ymm1,YMMWORD PTR [rbx+rcx*4+0x2710], 85
+                     0xC5, 0xFE, 0x70, 0x8C, 0x8B, 0x10, 0x27, 0x00, 0x00,
+                     0x55};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
 TEST(AssemblerX64FloatingPoint256bit) {
   if (!CpuFeatures::IsSupported(AVX)) return;
   CcTest::InitializeVM();

@@ -964,8 +964,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature feature = AVX);
+  void vinstr(byte op, YMMRegister dst, YMMRegister src1, YMMRegister src2,
+              SIMDPrefix pp, LeadingOpcode m, VexW w,
+              CpuFeature feature = AVX2);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature feature = AVX);
+  void vinstr(byte op, YMMRegister dst, YMMRegister src1, Operand src2,
+              SIMDPrefix pp, LeadingOpcode m, VexW w,
+              CpuFeature feature = AVX2);
 
   // SSE instructions
   void sse_instr(XMMRegister dst, XMMRegister src, byte escape, byte opcode);
@@ -1662,24 +1668,48 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x70, dst, xmm0, src, k66, k0F, kWIG);
     emit(imm8);
   }
+  void vpshufd(YMMRegister dst, YMMRegister src, uint8_t imm8) {
+    vinstr(0x70, dst, ymm0, src, k66, k0F, kWIG);
+    emit(imm8);
+  }
   void vpshufd(XMMRegister dst, Operand src, uint8_t imm8) {
     vinstr(0x70, dst, xmm0, src, k66, k0F, kWIG);
+    emit(imm8);
+  }
+  void vpshufd(YMMRegister dst, Operand src, uint8_t imm8) {
+    vinstr(0x70, dst, ymm0, src, k66, k0F, kWIG);
     emit(imm8);
   }
   void vpshuflw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
     vinstr(0x70, dst, xmm0, src, kF2, k0F, kWIG);
     emit(imm8);
   }
+  void vpshuflw(YMMRegister dst, YMMRegister src, uint8_t imm8) {
+    vinstr(0x70, dst, ymm0, src, kF2, k0F, kWIG);
+    emit(imm8);
+  }
   void vpshuflw(XMMRegister dst, Operand src, uint8_t imm8) {
     vinstr(0x70, dst, xmm0, src, kF2, k0F, kWIG);
+    emit(imm8);
+  }
+  void vpshuflw(YMMRegister dst, Operand src, uint8_t imm8) {
+    vinstr(0x70, dst, ymm0, src, kF2, k0F, kWIG);
     emit(imm8);
   }
   void vpshufhw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
     vinstr(0x70, dst, xmm0, src, kF3, k0F, kWIG);
     emit(imm8);
   }
+  void vpshufhw(YMMRegister dst, YMMRegister src, uint8_t imm8) {
+    vinstr(0x70, dst, ymm0, src, kF3, k0F, kWIG);
+    emit(imm8);
+  }
   void vpshufhw(XMMRegister dst, Operand src, uint8_t imm8) {
-    vinstr(0x70, dst, xmm0, src, kF2, k0F, kWIG);
+    vinstr(0x70, dst, xmm0, src, kF3, k0F, kWIG);
+    emit(imm8);
+  }
+  void vpshufhw(YMMRegister dst, Operand src, uint8_t imm8) {
+    vinstr(0x70, dst, ymm0, src, kF3, k0F, kWIG);
     emit(imm8);
   }
 
