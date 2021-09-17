@@ -1172,8 +1172,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     if (descriptors_field_type->IsClass()) {
       unrecorded_dependencies.push_back(
           dependencies()->FieldTypeDependencyOffTheRecord(
-              transition_map, number,
-              MakeRef<Object>(broker(), descriptors_field_type)));
+              transition_map, number, *descriptors_field_type_ref));
       // Remember the field map, and try to infer a useful type.
       base::Optional<MapRef> maybe_field_map =
           TryMakeRef(broker(), descriptors_field_type->AsClass());
