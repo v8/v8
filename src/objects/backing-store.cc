@@ -54,6 +54,8 @@ constexpr size_t kAddressSpaceLimit = 0xC0000000;  // 3 GiB
 
 std::atomic<uint64_t> reserved_address_space_{0};
 
+std::atomic<uint32_t> next_backing_store_id_{1};
+
 // Allocation results are reported to UMA
 //
 // See wasm_memory_allocation_result in counters.h
@@ -143,6 +145,34 @@ void BackingStore::Clear() {
     holds_shared_ptr_to_allocator_ = false;
   }
   type_specific_data_.v8_api_array_buffer_allocator = nullptr;
+}
+
+BackingStore::BackingStore(void* buffer_start, size_t byte_length,
+                           size_t max_byte_length, size_t byte_capacity,
+                           SharedFlag shared, ResizableFlag resizable,
+                           bool is_wasm_memory, bool free_on_destruct,
+                           bool has_guard_regions, bool custom_deleter,
+                           bool empty_deleter)
+    : buffer_start_(buffer_start),
+      byte_length_(byte_length),
+      max_byte_length_(max_byte_length),
+      byte_capacity_(byte_capacity),
+      id_(next_backing_store_id_.fetch_add(1)),
+      is_shared_(shared == SharedFlag::kShared),
+      is_resizable_(resizable == ResizableFlag::kResizable),
+      is_wasm_memory_(is_wasm_memory),
+      holds_shared_ptr_to_allocator_(false),
+      free_on_destruct_(free_on_destruct),
+      has_guard_regions_(has_guard_regions),
+      globally_registered_(false),
+      custom_deleter_(custom_deleter),
+      empty_deleter_(empty_deleter) {
+  // TODO(v8:11111): RAB / GSAB - Wasm integration.
+  DCHECK_IMPLIES(is_wasm_memory_, !is_resizable_);
+  DCHECK_IMPLIES(is_resizable_, !custom_deleter_);
+  DCHECK_IMPLIES(is_resizable_, free_on_destruct_);
+  DCHECK_IMPLIES(!is_wasm_memory && !is_resizable_,
+                 byte_length_ == max_byte_length_);
 }
 
 BackingStore::~BackingStore() {
