@@ -2532,7 +2532,10 @@ TEST(AssemblerX64Regmove256bit) {
   CpuFeatureScope fscope(&masm, AVX);
 
   __ vmovdqa(ymm0, ymm1);
+  __ vmovdqa(ymm4, Operand(rbx, rcx, times_4, 10000));
   __ vmovdqu(ymm10, ymm11);
+  __ vmovdqu(ymm9, Operand(rbx, rcx, times_4, 10000));
+  __ vmovdqu(Operand(rbx, rcx, times_4, 10000), ymm0);
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2544,9 +2547,18 @@ TEST(AssemblerX64Regmove256bit) {
 #endif
 
   byte expected[] = {// VMOVDQA
+                     // vmovdqa ymm0,ymm1
                      0xC5, 0xFD, 0x6F, 0xC1,
+                     // vmovdqa ymm4,YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xC5, 0xFD, 0x6F, 0xA4, 0x8B, 0x10, 0x27, 0x00, 0x00,
+
                      // VMOVDQU
-                     0xC4, 0x41, 0x7E, 0x7F, 0xDA};
+                     // vmovdqu ymm10,ymm11
+                     0xC4, 0x41, 0x7E, 0x7F, 0xDA,
+                     // vmovdqu ymm9,YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xC5, 0x7E, 0x6F, 0x8C, 0x8B, 0x10, 0x27, 0x00, 0x00,
+                     // vmovdqu YMMWORD PTR [rbx+rcx*4+0x2710],ymm0
+                     0xC5, 0xFE, 0x7F, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

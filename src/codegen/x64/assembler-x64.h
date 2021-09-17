@@ -1350,10 +1350,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovsd(Operand dst, XMMRegister src) { vsd(0x11, src, xmm0, dst); }
   void vmovdqa(XMMRegister dst, Operand src);
   void vmovdqa(XMMRegister dst, XMMRegister src);
+  void vmovdqa(YMMRegister dst, Operand src);
   void vmovdqa(YMMRegister dst, YMMRegister src);
   void vmovdqu(XMMRegister dst, Operand src);
   void vmovdqu(Operand dst, XMMRegister src);
   void vmovdqu(XMMRegister dst, XMMRegister src);
+  void vmovdqu(YMMRegister dst, Operand src);
+  void vmovdqu(Operand dst, YMMRegister src);
   void vmovdqu(YMMRegister dst, YMMRegister src);
 
   void vmovlps(XMMRegister dst, XMMRegister src1, Operand src2);
