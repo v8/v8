@@ -522,6 +522,14 @@ TEST(Regress1246712) {
   CHECK_EQ(kExpected, r.Call());
 }
 
+TEST(Regress1249306) {
+  WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
+  TestSignatures sigs;
+  BUILD(r, kExprTry, kVoid, kExprCatchAll, kExprTry, kVoid, kExprDelegate, 0,
+        kExprEnd, kExprI32Const, 0);
+  r.Call();
+}
+
 }  // namespace test_run_wasm_interpreter
 }  // namespace wasm
 }  // namespace internal

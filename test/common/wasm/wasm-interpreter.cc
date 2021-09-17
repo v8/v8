@@ -970,17 +970,20 @@ class SideTable : public ZoneObject {
           Control* c = &control_stack.back();
           const size_t new_stack_size = control_stack.size() - 1;
           const size_t max_depth = new_stack_size - 1;
-          size_t target_depth = imm.depth;
-          while (target_depth < max_depth &&
-                 *control_stack[max_depth - target_depth].pc != kExprTry) {
-            target_depth++;
+          // Find the first try block that is equal to or encloses the target
+          // block, i.e. has a lower than or equal index in the control stack.
+          int try_index = static_cast<int>(exception_stack.size()) - 1;
+          while (try_index >= 0 &&
+                 exception_stack[try_index] > max_depth - imm.depth) {
+            try_index--;
           }
-          if (target_depth < max_depth) {
+          if (try_index >= 0) {
+            size_t target_depth = exception_stack[try_index];
             constexpr int kUnusedControlIndex = -1;
             c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex,
                                 kUnusedControlIndex);
             c->else_label->Finish(&map_, code->start);
-            Control* target = &control_stack[max_depth - target_depth];
+            Control* target = &control_stack[target_depth];
             DCHECK_EQ(*target->pc, kExprTry);
             DCHECK_NOT_NULL(target->else_label);
             if (!control_parent().unreachable) {
