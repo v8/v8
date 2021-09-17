@@ -424,6 +424,9 @@
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-functions-new-wrapping-on-each-evaluation': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-functions-share-no-properties': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-functions-share-no-properties-extended': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-multiple-different-realms-nested': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-multiple-different-realms': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/nested-realms': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/descriptor': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/exportName-tostring': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/import-value': [FAIL],
@@ -447,10 +450,6 @@
   'language/statements/class/subclass/derived-class-return-override-finally-super': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-finally-super-arrow': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-for-of-arrow': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12168
-  'built-ins/Date/prototype/valueOf/S9.4_A3_T1': [FAIL],
-  'built-ins/Date/prototype/valueOf/S9.4_A3_T2': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
