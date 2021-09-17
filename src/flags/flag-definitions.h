@@ -509,6 +509,7 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 #if V8_SHORT_BUILTIN_CALLS
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #endif
+DEFINE_WEAK_VALUE_IMPLICATION(future, write_protect_code_memory, false)
 
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
@@ -1180,7 +1181,13 @@ DEFINE_INT(scavenge_task_trigger, 80,
 DEFINE_BOOL(scavenge_separate_stack_scanning, false,
             "use a separate phase for stack scanning in scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
+#if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
 DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
+#else
+// Must be enabled on M1.
+DEFINE_READONLY_BOOL(write_protect_code_memory, true,
+                     "write protect code memory")
+#endif
 #if defined(V8_ATOMIC_MARKING_STATE) && defined(V8_ATOMIC_OBJECT_FIELD_WRITES)
 #define V8_CONCURRENT_MARKING_BOOL true
 #else
