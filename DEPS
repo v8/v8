@@ -48,6 +48,9 @@ vars = {
   # reclient CIPD package version
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
+  # This variable is overrided in Chromium's DEPS file.
+  'build_with_chromium': False,
+
   # GN CIPD package version.
   'gn_version': 'git_revision:69ec4fca1fa69ddadae13f9e6b7507efa0675263',
 
@@ -314,10 +317,15 @@ deps = {
       'condition': 'host_cpu != "s390" and host_os != "aix"',
       'dep_type': 'cipd',
   },
+  'third_party/abseil-cpp': {
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '6569bfcb586ad33f3f97921a3b350046c3a2af87',
+    'condition': 'not build_with_chromium',
+  }
 }
 
 include_rules = [
   # Everybody can use some things.
+  '+absl',
   '+include',
   '+unicode',
   '+third_party/fdlibm',
