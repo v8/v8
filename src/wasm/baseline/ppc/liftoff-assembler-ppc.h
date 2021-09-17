@@ -1252,11 +1252,37 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       bind(&done);
       return true;
     }
+    case kExprI32ReinterpretF32: {
+      subi(sp, sp, Operand(kSystemPointerSize));
+      StoreF32(src.fp(), MemOperand(sp), r0);
+      LoadU32(dst.gp(), MemOperand(sp), r0);
+      addi(sp, sp, Operand(kSystemPointerSize));
+      return true;
+    }
+    case kExprI64ReinterpretF64: {
+      subi(sp, sp, Operand(kSystemPointerSize));
+      StoreF64(src.fp(), MemOperand(sp), r0);
+      LoadU64(dst.gp(), MemOperand(sp), r0);
+      addi(sp, sp, Operand(kSystemPointerSize));
+      return true;
+    }
+    case kExprF32ReinterpretI32: {
+      subi(sp, sp, Operand(kSystemPointerSize));
+      StoreU32(src.gp(), MemOperand(sp), r0);
+      LoadF32(dst.fp(), MemOperand(sp), r0);
+      addi(sp, sp, Operand(kSystemPointerSize));
+      return true;
+    }
+    case kExprF64ReinterpretI64: {
+      subi(sp, sp, Operand(kSystemPointerSize));
+      StoreU64(src.gp(), MemOperand(sp), r0);
+      LoadF64(dst.fp(), MemOperand(sp), r0);
+      addi(sp, sp, Operand(kSystemPointerSize));
+      return true;
+    }
     default:
-      break;
+      UNREACHABLE();
   }
-  bailout(kUnsupportedArchitecture, "emit_type_conversion");
-  return true;
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { b(al, label); }
