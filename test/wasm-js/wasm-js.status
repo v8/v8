@@ -17,7 +17,6 @@
   'wpt/function/type.tentative': [FAIL],
   'wpt/memory/constructor-types.tentative': [FAIL],
   'wpt/memory/types.tentative': [FAIL],
-  'wpt/prototypes': [FAIL],
   'wpt/table/constructor-types.tentative': [FAIL],
   'wpt/table/grow-reftypes.tentative': [FAIL],
 
@@ -32,8 +31,6 @@
   'proposals/js-types/global/constructor': [FAIL],
   'proposals/js-types/global/value-get-set': [FAIL],
   'proposals/js-types/instance/constructor': [FAIL],
-
-  'prototypes': [FAIL],
 
   # These are slow, and not useful to run for the proposals:
   'proposals/js-types/limits': [SKIP],
