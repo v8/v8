@@ -1058,6 +1058,19 @@ bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
   return true;
 }
 
+namespace {
+i::Handle<i::Object> DefaultReferenceValue(i::Isolate* isolate,
+                                           i::wasm::ValueType type) {
+  if (type == i::wasm::kWasmFuncRef) {
+    return isolate->factory()->null_value();
+  }
+  if (type.is_reference()) {
+    return isolate->factory()->undefined_value();
+  }
+  UNREACHABLE();
+}
+}  // namespace
+
 // new WebAssembly.Table(args) -> WebAssembly.Table
 void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -1117,7 +1130,8 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Handle<i::WasmTableObject> table_obj =
       i::WasmTableObject::New(i_isolate, i::Handle<i::WasmInstanceObject>(),
                               type, static_cast<uint32_t>(initial), has_maximum,
-                              static_cast<uint32_t>(maximum), &fixed_array);
+                              static_cast<uint32_t>(maximum), &fixed_array,
+                              DefaultReferenceValue(i_isolate, type));
 
   if (initial > 0 && args.Length() >= 2 && !args[1]->IsUndefined()) {
     i::Handle<i::Object> element = Utils::OpenHandle(*args[1]);
@@ -1903,7 +1917,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() >= 2) {
     element = Utils::OpenHandle(*args[1]);
   } else {
-    element = i_isolate->factory()->null_value();
+    element = DefaultReferenceValue(i_isolate, table_object->type());
   }
   if (!i::WasmTableObject::IsValidElement(i_isolate, table_object, element)) {
     thrower.TypeError(

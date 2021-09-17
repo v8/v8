@@ -251,7 +251,7 @@ base::Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
 Handle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::ValueType type,
     uint32_t initial, bool has_maximum, uint32_t maximum,
-    Handle<FixedArray>* entries) {
+    Handle<FixedArray>* entries, Handle<Object> initial_value) {
   // TODO(7748): Make this work with other types when spec clears up.
   {
     const WasmModule* module =
@@ -260,9 +260,8 @@ Handle<WasmTableObject> WasmTableObject::New(
   }
 
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(initial);
-  Object null = ReadOnlyRoots(isolate).null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
-    backing_store->set(i, null);
+    backing_store->set(i, *initial_value);
   }
 
   Handle<Object> max;

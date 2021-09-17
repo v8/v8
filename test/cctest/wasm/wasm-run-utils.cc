@@ -220,7 +220,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       instance_object(), table_index, table_size);
   Handle<WasmTableObject> table_obj =
       WasmTableObject::New(isolate_, instance, table.type, table.initial_size,
-                           table.has_maximum_size, table.maximum_size, nullptr);
+                           table.has_maximum_size, table.maximum_size, nullptr,
+                           isolate_->factory()->null_value());
 
   WasmTableObject::AddDispatchTable(isolate_, table_obj, instance_object_,
                                     table_index);

@@ -10,8 +10,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let table = new WebAssembly.Table({element: "externref", initial: 10});
 
-  // Table should be initialized with null.
-  assertEquals(null, table.get(1));
+  // Table should be initialized with undefined.
+  assertEquals(undefined, table.get(1));
   let obj = {'hello' : 'world'};
   table.set(2, obj);
   assertSame(obj, table.get(2));
@@ -119,7 +119,7 @@ function getDummy(val) {
 
   const expected = 6;
   const dummy = getDummy(expected);
-  const argument = { "element": "externref", "initial": 3 };
+  const argument = { "element": "anyfunc", "initial": 3 };
   const table = new WebAssembly.Table(argument, dummy);
   assertEquals(table.get(1)(), expected);
   table.set(1);
@@ -134,5 +134,5 @@ function getDummy(val) {
   const table = new WebAssembly.Table(argument, testObject);
   assertEquals(table.get(1), testObject);
   table.set(1);
-  assertEquals(table.get(1), null);
+  assertEquals(table.get(1), undefined);
 })();
