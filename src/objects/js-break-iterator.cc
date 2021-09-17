@@ -10,6 +10,7 @@
 
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-break-iterator-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/option-utils.h"
 #include "unicode/brkiter.h"
 

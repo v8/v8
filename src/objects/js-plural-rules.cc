@@ -12,6 +12,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format.h"
 #include "src/objects/js-plural-rules-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/option-utils.h"
 #include "unicode/locid.h"
 #include "unicode/numberformatter.h"

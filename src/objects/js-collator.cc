@@ -11,6 +11,7 @@
 #include "src/execution/isolate.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-locale.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "unicode/coll.h"

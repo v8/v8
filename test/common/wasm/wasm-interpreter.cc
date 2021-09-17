@@ -12,6 +12,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/boxed-float.h"

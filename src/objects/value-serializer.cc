@@ -15,6 +15,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/heap/factory.h"

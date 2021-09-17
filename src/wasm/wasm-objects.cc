@@ -12,6 +12,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/logging/counters.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/struct-inl.h"
