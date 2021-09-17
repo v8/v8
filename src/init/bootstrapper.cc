@@ -281,7 +281,7 @@ class Genesis {
                                     Handle<Context> native_context);
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
-  bool ConfigureGlobalObjects(
+  bool ConfigureGlobalObject(
       v8::Local<v8::ObjectTemplate> global_proxy_template);
 
   // Migrates all properties from the 'from' object to the 'to'
@@ -1318,9 +1318,8 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   global_proxy_function->initial_map().set_may_have_interesting_symbols(true);
   native_context()->set_global_proxy_function(*global_proxy_function);
 
-  // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
-  // Return the global proxy.
-
+  // Set the global object as the (hidden) __proto__ of the global proxy after
+  // ConfigureGlobalObject
   factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
 
   // Set the native context for the global object.
@@ -5172,7 +5171,7 @@ bool Genesis::InstallExtension(Isolate* isolate,
   return result;
 }
 
-bool Genesis::ConfigureGlobalObjects(
+bool Genesis::ConfigureGlobalObject(
     v8::Local<v8::ObjectTemplate> global_proxy_template) {
   Handle<JSObject> global_proxy(native_context()->global_proxy(), isolate());
   Handle<JSObject> global_object(native_context()->global_object(), isolate());
@@ -5460,16 +5459,20 @@ Genesis::Genesis(
     isolate->set_context(*native_context());
     isolate->counters()->contexts_created_by_snapshot()->Increment();
 
-    if (context_snapshot_index == 0) {
+    // If no global proxy template was passed in, simply use the global in the
+    // snapshot. If a global proxy template was passed in it's used to recreate
+    // the global object and its protype chain, and the data properties from the
+    // deserialized global are copied onto it.
+    if (context_snapshot_index == 0 && !global_proxy_template.IsEmpty()) {
       Handle<JSGlobalObject> global_object =
           CreateNewGlobals(global_proxy_template, global_proxy);
       HookUpGlobalObject(global_object);
-
-      if (!ConfigureGlobalObjects(global_proxy_template)) return;
+      if (!ConfigureGlobalObject(global_proxy_template)) return;
     } else {
       // The global proxy needs to be integrated into the native context.
       HookUpGlobalProxy(global_proxy);
     }
+    DCHECK_EQ(global_proxy->native_context(), *native_context());
     DCHECK(!global_proxy->IsDetachedFrom(native_context()->global_object()));
   } else {
     DCHECK(native_context().is_null());
@@ -5496,7 +5499,7 @@ Genesis::Genesis(
 
     if (!InstallABunchOfRandomThings()) return;
     if (!InstallExtrasBindings()) return;
-    if (!ConfigureGlobalObjects(global_proxy_template)) return;
+    if (!ConfigureGlobalObject(global_proxy_template)) return;
 
     isolate->counters()->contexts_created_from_scratch()->Increment();
 
