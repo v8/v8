@@ -3155,7 +3155,7 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
 }
 
 // TODO(9495): Support CAPI function refs.
-Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index,
+Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
                                      base::Vector<Node*> args,
                                      base::Vector<Node*> rets,
                                      CheckForNull null_check,
@@ -3165,8 +3165,6 @@ Node* WasmGraphBuilder::BuildCallRef(uint32_t sig_index,
     TrapIfTrue(wasm::kTrapNullDereference, gasm_->WordEqual(args[0], RefNull()),
                position);
   }
-
-  const wasm::FunctionSig* sig = env_->module->signature(sig_index);
 
   Node* function_data = gasm_->LoadFunctionDataFromJSFunction(args[0]);
 
@@ -3243,20 +3241,21 @@ void WasmGraphBuilder::CompareToExternalFunctionAtIndex(
                 failure_control, BranchHint::kTrue);
 }
 
-Node* WasmGraphBuilder::CallRef(uint32_t sig_index, base::Vector<Node*> args,
+Node* WasmGraphBuilder::CallRef(const wasm::FunctionSig* sig,
+                                base::Vector<Node*> args,
                                 base::Vector<Node*> rets,
                                 WasmGraphBuilder::CheckForNull null_check,
                                 wasm::WasmCodePosition position) {
-  return BuildCallRef(sig_index, args, rets, null_check,
-                      IsReturnCall::kCallContinues, position);
+  return BuildCallRef(sig, args, rets, null_check, IsReturnCall::kCallContinues,
+                      position);
 }
 
-Node* WasmGraphBuilder::ReturnCallRef(uint32_t sig_index,
+Node* WasmGraphBuilder::ReturnCallRef(const wasm::FunctionSig* sig,
                                       base::Vector<Node*> args,
                                       WasmGraphBuilder::CheckForNull null_check,
                                       wasm::WasmCodePosition position) {
-  return BuildCallRef(sig_index, args, {}, null_check,
-                      IsReturnCall::kReturnCall, position);
+  return BuildCallRef(sig, args, {}, null_check, IsReturnCall::kReturnCall,
+                      position);
 }
 
 Node* WasmGraphBuilder::ReturnCall(uint32_t index, base::Vector<Node*> args,

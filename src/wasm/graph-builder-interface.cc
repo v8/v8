@@ -625,44 +625,42 @@ class WasmGraphBuildingInterface {
     LoadContextIntoSsa(ssa_env_);
   }
 
-  enum CallMode { kCallDirect, kCallIndirect, kCallRef };
-
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
-    DoCall(decoder, kCallDirect, 0, CheckForNull::kWithoutNullCheck, nullptr,
-           imm.sig, imm.index, args, returns);
+    DoCall(decoder, CallInfo::CallDirect(imm.index), imm.sig, args, returns);
   }
 
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
-    DoReturnCall(decoder, kCallDirect, 0, CheckForNull::kWithoutNullCheck,
-                 Value{nullptr, kWasmBottom}, imm.sig, imm.index, args);
+    DoReturnCall(decoder, CallInfo::CallDirect(imm.index), imm.sig, args);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    DoCall(decoder, kCallIndirect, imm.table_imm.index,
-           CheckForNull::kWithoutNullCheck, index.node, imm.sig,
-           imm.sig_imm.index, args, returns);
+    DoCall(
+        decoder,
+        CallInfo::CallIndirect(index, imm.table_imm.index, imm.sig_imm.index),
+        imm.sig, args, returns);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
-    DoReturnCall(decoder, kCallIndirect, imm.table_imm.index,
-                 CheckForNull::kWithoutNullCheck, index, imm.sig,
-                 imm.sig_imm.index, args);
+    DoReturnCall(
+        decoder,
+        CallInfo::CallIndirect(index, imm.table_imm.index, imm.sig_imm.index),
+        imm.sig, args);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
     if (!FLAG_wasm_inlining) {
-      DoCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref.node,
-             sig, sig_index, args, returns);
+      DoCall(decoder, CallInfo::CallRef(func_ref, NullCheckFor(func_ref.type)),
+             sig, args, returns);
       return;
     }
 
@@ -683,10 +681,8 @@ class WasmGraphBuildingInterface {
     ssa_env_->control = success_control;
     Value* returns_direct =
         decoder->zone()->NewArray<Value>(sig->return_count());
-    DoCall(decoder, kCallDirect, expected_function_index,
-           CheckForNull::kWithoutNullCheck, nullptr,
-           decoder->module_->signature(sig_index), sig_index, args,
-           returns_direct);
+    DoCall(decoder, CallInfo::CallDirect(expected_function_index),
+           decoder->module_->signature(sig_index), args, returns_direct);
     TFNode* control_direct = control();
     TFNode* effect_direct = effect();
 
@@ -694,8 +690,9 @@ class WasmGraphBuildingInterface {
     ssa_env_->effect = initial_effect;
     ssa_env_->control = failure_control;
     Value* returns_ref = decoder->zone()->NewArray<Value>(sig->return_count());
-    DoCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref.node,
-           sig, sig_index, args, returns_ref);
+    DoCall(decoder, CallInfo::CallRef(func_ref, NullCheckFor(func_ref.type)),
+           sig, args, returns_ref);
+
     TFNode* control_ref = control();
     TFNode* effect_ref = effect();
 
@@ -720,8 +717,9 @@ class WasmGraphBuildingInterface {
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
     if (!FLAG_wasm_inlining) {
-      DoReturnCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref,
-                   sig, sig_index, args);
+      DoReturnCall(decoder,
+                   CallInfo::CallRef(func_ref, NullCheckFor(func_ref.type)),
+                   sig, args);
       return;
     }
 
@@ -740,15 +738,15 @@ class WasmGraphBuildingInterface {
 
     builder_->SetControl(success_control);
     ssa_env_->control = success_control;
-    DoReturnCall(decoder, kCallDirect, 0, CheckForNull::kWithoutNullCheck,
-                 Value{nullptr, kWasmBottom}, sig, expected_function_index,
+    DoReturnCall(decoder, CallInfo::CallDirect(expected_function_index), sig,
                  args);
 
     builder_->SetEffectControl(initial_effect, failure_control);
     ssa_env_->effect = initial_effect;
     ssa_env_->control = failure_control;
-    DoReturnCall(decoder, kCallRef, 0, NullCheckFor(func_ref.type), func_ref,
-                 sig, sig_index, args);
+    DoReturnCall(decoder,
+                 CallInfo::CallRef(func_ref, NullCheckFor(func_ref.type)), sig,
+                 args);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
@@ -1522,36 +1520,102 @@ class WasmGraphBuildingInterface {
     return result;
   }
 
-  void DoCall(FullDecoder* decoder, CallMode call_mode, uint32_t table_index,
-              CheckForNull null_check, TFNode* caller_node,
-              const FunctionSig* sig, uint32_t sig_index, const Value args[],
-              Value returns[]) {
+  class CallInfo {
+   public:
+    enum CallMode { kCallDirect, kCallIndirect, kCallRef };
+
+    static CallInfo CallDirect(uint32_t callee_index) {
+      return {kCallDirect, callee_index, nullptr, 0,
+              CheckForNull::kWithoutNullCheck};
+    }
+
+    static CallInfo CallIndirect(const Value& index_value, uint32_t table_index,
+                                 uint32_t sig_index) {
+      return {kCallIndirect, sig_index, &index_value, table_index,
+              CheckForNull::kWithoutNullCheck};
+    }
+
+    static CallInfo CallRef(const Value& funcref_value,
+                            CheckForNull null_check) {
+      return {kCallRef, 0, &funcref_value, 0, null_check};
+    }
+
+    CallMode call_mode() { return call_mode_; }
+
+    uint32_t sig_index() {
+      DCHECK_EQ(call_mode_, kCallIndirect);
+      return callee_or_sig_index_;
+    }
+
+    uint32_t callee_index() {
+      DCHECK_EQ(call_mode_, kCallDirect);
+      return callee_or_sig_index_;
+    }
+
+    CheckForNull null_check() {
+      DCHECK_EQ(call_mode_, kCallRef);
+      return null_check_;
+    }
+
+    const Value* index_or_callee_value() {
+      DCHECK_NE(call_mode_, kCallDirect);
+      return index_or_callee_value_;
+    }
+
+    uint32_t table_index() {
+      DCHECK_EQ(call_mode_, kCallIndirect);
+      return table_index_;
+    }
+
+   private:
+    CallInfo(CallMode call_mode, uint32_t callee_or_sig_index,
+             const Value* index_or_callee_value, uint32_t table_index,
+             CheckForNull null_check)
+        : call_mode_(call_mode),
+          callee_or_sig_index_(callee_or_sig_index),
+          index_or_callee_value_(index_or_callee_value),
+          table_index_(table_index),
+          null_check_(null_check) {}
+    CallMode call_mode_;
+    uint32_t callee_or_sig_index_;
+    const Value* index_or_callee_value_;
+    uint32_t table_index_;
+    CheckForNull null_check_;
+  };
+
+  void DoCall(FullDecoder* decoder, CallInfo call_info, const FunctionSig* sig,
+              const Value args[], Value returns[]) {
     size_t param_count = sig->parameter_count();
     size_t return_count = sig->return_count();
     NodeVector arg_nodes(param_count + 1);
     base::SmallVector<TFNode*, 1> return_nodes(return_count);
-    arg_nodes[0] = caller_node;
+    arg_nodes[0] = (call_info.call_mode() == CallInfo::kCallDirect)
+                       ? nullptr
+                       : call_info.index_or_callee_value()->node;
+
     for (size_t i = 0; i < param_count; ++i) {
       arg_nodes[i + 1] = args[i].node;
     }
-    switch (call_mode) {
-      case kCallIndirect:
+    switch (call_info.call_mode()) {
+      case CallInfo::kCallIndirect:
         CheckForException(
             decoder, builder_->CallIndirect(
-                         table_index, sig_index, base::VectorOf(arg_nodes),
+                         call_info.table_index(), call_info.sig_index(),
+                         base::VectorOf(arg_nodes),
                          base::VectorOf(return_nodes), decoder->position()));
         break;
-      case kCallDirect:
+      case CallInfo::kCallDirect:
         CheckForException(
-            decoder, builder_->CallDirect(sig_index, base::VectorOf(arg_nodes),
-                                          base::VectorOf(return_nodes),
-                                          decoder->position()));
+            decoder, builder_->CallDirect(
+                         call_info.callee_index(), base::VectorOf(arg_nodes),
+                         base::VectorOf(return_nodes), decoder->position()));
         break;
-      case kCallRef:
+      case CallInfo::kCallRef:
         CheckForException(
-            decoder, builder_->CallRef(sig_index, base::VectorOf(arg_nodes),
-                                       base::VectorOf(return_nodes), null_check,
-                                       decoder->position()));
+            decoder,
+            builder_->CallRef(sig, base::VectorOf(arg_nodes),
+                              base::VectorOf(return_nodes),
+                              call_info.null_check(), decoder->position()));
         break;
     }
     for (size_t i = 0; i < return_count; ++i) {
@@ -1562,17 +1626,22 @@ class WasmGraphBuildingInterface {
     LoadContextIntoSsa(ssa_env_);
   }
 
-  void DoReturnCall(FullDecoder* decoder, CallMode call_mode,
-                    uint32_t table_index, CheckForNull null_check,
-                    Value index_or_caller_value, const FunctionSig* sig,
-                    uint32_t sig_index, const Value args[]) {
+  void DoReturnCall(FullDecoder* decoder, CallInfo call_info,
+                    const FunctionSig* sig, const Value args[]) {
     size_t arg_count = sig->parameter_count();
 
     ValueVector arg_values(arg_count + 1);
-    arg_values[0] = index_or_caller_value;
-    for (uint32_t i = 0; i < arg_count; i++) {
-      arg_values[i + 1] = args[i];
+    if (call_info.call_mode() == CallInfo::kCallDirect) {
+      arg_values[0].node = nullptr;
+    } else {
+      arg_values[0] = *call_info.index_or_callee_value();
+      // This is not done by copy assignment.
+      arg_values[0].node = call_info.index_or_callee_value()->node;
     }
+    if (arg_count > 0) {
+      std::memcpy(arg_values.data() + 1, args, arg_count * sizeof(Value));
+    }
+
     if (FLAG_wasm_loop_unrolling) {
       BuildNestedLoopExits(decoder, decoder->control_depth(), false,
                            arg_values);
@@ -1581,22 +1650,24 @@ class WasmGraphBuildingInterface {
     NodeVector arg_nodes(arg_count + 1);
     GetNodes(arg_nodes.data(), base::VectorOf(arg_values));
 
-    switch (call_mode) {
-      case kCallIndirect:
-        CheckForException(
-            decoder, builder_->ReturnCallIndirect(table_index, sig_index,
-                                                  base::VectorOf(arg_nodes),
-                                                  decoder->position()));
+    switch (call_info.call_mode()) {
+      case CallInfo::kCallIndirect:
+        CheckForException(decoder,
+                          builder_->ReturnCallIndirect(
+                              call_info.table_index(), call_info.sig_index(),
+                              base::VectorOf(arg_nodes), decoder->position()));
         break;
-      case kCallDirect:
-        CheckForException(
-            decoder, builder_->ReturnCall(sig_index, base::VectorOf(arg_nodes),
-                                          decoder->position()));
+      case CallInfo::kCallDirect:
+        CheckForException(decoder,
+                          builder_->ReturnCall(call_info.callee_index(),
+                                               base::VectorOf(arg_nodes),
+                                               decoder->position()));
         break;
-      case kCallRef:
-        CheckForException(decoder, builder_->ReturnCallRef(
-                                       sig_index, base::VectorOf(arg_nodes),
-                                       null_check, decoder->position()));
+      case CallInfo::kCallRef:
+        CheckForException(
+            decoder, builder_->ReturnCallRef(sig, base::VectorOf(arg_nodes),
+                                             call_info.null_check(),
+                                             decoder->position()));
         break;
     }
   }

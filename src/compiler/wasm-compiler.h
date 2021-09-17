@@ -325,7 +325,7 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t table_index, uint32_t sig_index,
                      base::Vector<Node*> args, base::Vector<Node*> rets,
                      wasm::WasmCodePosition position);
-  Node* CallRef(uint32_t sig_index, base::Vector<Node*> args,
+  Node* CallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                 base::Vector<Node*> rets, CheckForNull null_check,
                 wasm::WasmCodePosition position);
   void CompareToExternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
@@ -337,7 +337,7 @@ class WasmGraphBuilder {
   Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
                            base::Vector<Node*> args,
                            wasm::WasmCodePosition position);
-  Node* ReturnCallRef(uint32_t sig_index, base::Vector<Node*> args,
+  Node* ReturnCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                       CheckForNull null_check, wasm::WasmCodePosition position);
 
   void BrOnNull(Node* ref_object, Node** non_null_node, Node** null_node);
@@ -591,7 +591,7 @@ class WasmGraphBuilder {
                         base::Vector<Node*> rets,
                         wasm::WasmCodePosition position, Node* func_index,
                         IsReturnCall continuation);
-  Node* BuildCallRef(uint32_t sig_index, base::Vector<Node*> args,
+  Node* BuildCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                      base::Vector<Node*> rets, CheckForNull null_check,
                      IsReturnCall continuation,
                      wasm::WasmCodePosition position);
