@@ -2044,9 +2044,9 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // (off-heap) entry point directly without going through the (on-heap)
     // trampoline.  Otherwise, just call the Code object as always.
 
-    Ldrsw(scratch, FieldMemOperand(code_object, Code::kFlagsOffset));
-    Tst(scratch, Operand(Code::IsOffHeapTrampoline::kMask));
-    B(ne, &if_code_is_off_heap);
+    Ldr(scratch.W(), FieldMemOperand(code_object, Code::kFlagsOffset));
+    TestAndBranchIfAnySet(scratch.W(), Code::IsOffHeapTrampoline::kMask,
+                          &if_code_is_off_heap);
 
     // Not an off-heap trampoline object, the entry point is at
     // Code::raw_instruction_start().
@@ -2057,8 +2057,8 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // table.
     bind(&if_code_is_off_heap);
     Ldrsw(scratch, FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
-    Lsl(destination, scratch, kSystemPointerSizeLog2);
-    Add(destination, destination, kRootRegister);
+    Add(destination, kRootRegister,
+        Operand(scratch, LSL, kSystemPointerSizeLog2));
     Ldr(destination,
         MemOperand(destination, IsolateData::builtin_entry_table_offset()));
 
