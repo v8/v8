@@ -284,3 +284,18 @@ function assertTableIsValid(table, length) {
   table.grow({valueOf: () => {table.grow(2); return 1;}});
   assertEquals(3, table.length);
 })();
+
+(function TestGrowWithInit() {
+  function getDummy(val) {
+    let builder = new WasmModuleBuilder();
+    builder.addFunction('dummy', kSig_i_v)
+        .addBody([kExprI32Const, val])
+        .exportAs('dummy');
+    return builder.instantiate().exports.dummy;
+  }
+  let table = new WebAssembly.Table({element: "anyfunc", initial: 1});
+  table.grow(5, getDummy(24));
+  for (let i = 1; i <= 5; ++i) {
+    assertEquals(24, table.get(i)());
+  }
+})();

@@ -1846,16 +1846,16 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::Object> init_value = i_isolate->factory()->null_value();
-  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-  if (enabled_features.has_typed_funcref()) {
-    if (args.Length() >= 2 && !args[1]->IsUndefined()) {
-      init_value = Utils::OpenHandle(*args[1]);
-    }
+  i::Handle<i::Object> init_value;
+
+  if (args.Length() >= 2 && !args[1]->IsUndefined()) {
+    init_value = Utils::OpenHandle(*args[1]);
     if (!i::WasmTableObject::IsValidElement(i_isolate, receiver, init_value)) {
       thrower.TypeError("Argument 1 must be a valid type for the table");
       return;
     }
+  } else {
+    init_value = DefaultReferenceValue(i_isolate, receiver->type());
   }
 
   int old_size =
