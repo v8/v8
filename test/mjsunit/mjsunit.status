@@ -1279,10 +1279,10 @@
 }], # arch != x64 or deopt_fuzzer
 
 ##############################################################################
-# Liftoff is currently only sufficiently implemented on x64, ia32, arm64 and
-# arm.
+# Liftoff is currently only sufficiently implemented on x64, ia32, arm64,
+# arm, ppc64 and s390x.
 # TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
-['arch not in (x64, ia32, arm64, arm)', {
+['arch not in (x64, ia32, arm64, arm, ppc64, s390x)', {
   'wasm/liftoff': [SKIP],
   'wasm/liftoff-debug': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],
@@ -1290,7 +1290,7 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/test-partial-serialization': [SKIP],
   'regress/wasm/regress-1248024': [SKIP],
-}], # arch not in (x64, ia32, arm64, arm)
+}], # arch not in (x64, ia32, arm64, arm, ppc64 and s390x)
 
 ##############################################################################
 ['system != linux or virtual_memory_cage == True', {
