@@ -1877,6 +1877,13 @@ class WasmDecoder : public Decoder {
             ArrayIndexImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
           }
+          case kExprArrayInit:
+          case kExprArrayInitStatic: {
+            ArrayIndexImmediate<validate> array_imm(decoder, pc + length);
+            IndexImmediate<validate> length_imm(
+                decoder, pc + length + array_imm.length, "array length");
+            return length + array_imm.length + length_imm.length;
+          }
           case kExprArrayCopy: {
             ArrayIndexImmediate<validate> dst_imm(decoder, pc + length);
             ArrayIndexImmediate<validate> src_imm(decoder,
@@ -2097,6 +2104,13 @@ class WasmDecoder : public Decoder {
             StructIndexImmediate<validate> imm(this, pc + 2);
             CHECK(Validate(pc + 2, imm));
             return {imm.struct_type->field_count(), 1};
+          }
+          case kExprArrayInit:
+          case kExprArrayInitStatic: {
+            ArrayIndexImmediate<validate> array_imm(this, pc + 2);
+            IndexImmediate<validate> length_imm(this, pc + 2 + array_imm.length,
+                                                "array length");
+            return {length_imm.index + (opcode == kExprArrayInit ? 1 : 0), 1};
           }
           default:
             UNREACHABLE();
@@ -4355,10 +4369,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       }
       case kExprArrayInit:
       case kExprArrayInitStatic: {
-        if (decoding_mode != kInitExpression) {
-          this->DecodeError("array.init is only allowed in init. expressions");
-          return 0;
-        }
         ArrayIndexImmediate<validate> array_imm(this,
                                                 this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;

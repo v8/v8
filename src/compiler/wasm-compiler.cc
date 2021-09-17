@@ -5579,6 +5579,7 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
                   length, gasm_->Uint32Constant(WasmArray::MaxLength(type))),
               position);
   wasm::ValueType element_type = type->element_type();
+  // TODO(7748): Consider using gasm_->Allocate().
   Builtin stub = ChooseArrayAllocationBuiltin(element_type, initial_value);
   // Do NOT mark this as Operator::kEliminatable, because that would cause the
   // Call node to have no control inputs, which means it could get scheduled
@@ -5611,6 +5612,25 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
     gasm_->Bind(&done);
   }
   return a;
+}
+
+Node* WasmGraphBuilder::ArrayInit(uint32_t array_index,
+                                  const wasm::ArrayType* type, Node* rtt,
+                                  base::Vector<Node*> elements) {
+  wasm::ValueType element_type = type->element_type();
+  // TODO(7748): Consider using gasm_->Allocate().
+  Node* array =
+      gasm_->CallBuiltin(Builtin::kWasmAllocateArray_Uninitialized,
+                         Operator::kNoDeopt | Operator::kNoThrow, rtt,
+                         Int32Constant(static_cast<int32_t>(elements.size())),
+                         Int32Constant(element_type.element_size_bytes()));
+  for (int i = 0; i < static_cast<int>(elements.size()); i++) {
+    Node* offset =
+        gasm_->WasmArrayElementOffset(Int32Constant(i), element_type);
+    gasm_->StoreToObject(ObjectAccessForGCStores(element_type), array, offset,
+                         elements[i]);
+  }
+  return array;
 }
 
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {

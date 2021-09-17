@@ -5168,7 +5168,50 @@ class LiftoffCompiler {
   void ArrayInit(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
                  const base::Vector<Value>& elements, const Value& rtt,
                  Value* result) {
-    UNREACHABLE();
+    ValueKind rtt_kind = rtt.type.kind();
+    ValueKind elem_kind = imm.array_type->element_type().kind();
+    // Allocate the array.
+    {
+      LiftoffAssembler::VarState rtt_var =
+          __ cache_state()->stack_state.end()[-1];
+
+      LiftoffRegList pinned;
+
+      LiftoffRegister elem_size_reg =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      __ LoadConstant(elem_size_reg, WasmValue(element_size_bytes(elem_kind)));
+      LiftoffAssembler::VarState elem_size_var(kI32, elem_size_reg, 0);
+
+      LiftoffRegister length_reg =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      __ LoadConstant(length_reg,
+                      WasmValue(static_cast<int32_t>(elements.size())));
+      LiftoffAssembler::VarState length_var(kI32, length_reg, 0);
+
+      CallRuntimeStub(WasmCode::kWasmAllocateArray_Uninitialized,
+                      MakeSig::Returns(kRef).Params(rtt_kind, kI32, kI32),
+                      {rtt_var, length_var, elem_size_var},
+                      decoder->position());
+      // Drop the RTT.
+      __ DropValues(1);
+    }
+
+    // Initialize the array with stack arguments.
+    LiftoffRegister array(kReturnRegister0);
+    if (!CheckSupportedType(decoder, elem_kind, "array.init")) return;
+    for (int i = static_cast<int>(elements.size()) - 1; i >= 0; i--) {
+      LiftoffRegList pinned = LiftoffRegList::ForRegs(array);
+      LiftoffRegister element = pinned.set(__ PopToRegister(pinned));
+      LiftoffRegister offset_reg =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      __ LoadConstant(offset_reg, WasmValue(i << element_size_log2(elem_kind)));
+      StoreObjectField(array.gp(), offset_reg.gp(),
+                       wasm::ObjectAccess::ToTagged(WasmArray::kHeaderSize),
+                       element, pinned, elem_kind);
+    }
+
+    // Push the array onto the stack.
+    __ PushRegister(kRef, array);
   }
 
   // 1 bit Smi tag, 31 bits Smi shift, 1 bit i31ref high-bit truncation.

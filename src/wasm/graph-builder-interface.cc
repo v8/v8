@@ -1074,7 +1074,12 @@ class WasmGraphBuildingInterface {
   void ArrayInit(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
                  const base::Vector<Value>& elements, const Value& rtt,
                  Value* result) {
-    UNREACHABLE();
+    NodeVector element_nodes(elements.size());
+    for (uint32_t i = 0; i < elements.size(); i++) {
+      element_nodes[i] = elements[i].node;
+    }
+    result->node = builder_->ArrayInit(imm.index, imm.array_type, rtt.node,
+                                       VectorOf(element_nodes));
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {

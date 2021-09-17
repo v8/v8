@@ -937,7 +937,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   // Get the {ObjectSlot} corresponding to the element at {index}. Requires that
   // this is a reference array.
   ObjectSlot ElementSlot(uint32_t index);
-  wasm::WasmValue GetElement(uint32_t index);
+  V8_EXPORT_PRIVATE wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Map map, int length);
 

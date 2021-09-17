@@ -832,6 +832,12 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
       {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(2)), WASM_DROP,
        WASM_ARRAY_NEW(type_index, WASM_I32V(42), WASM_I32V(2)), kExprEnd});
 
+  const byte kInit = tester.DefineFunction(
+      &sig_q_v, {},
+      {WASM_ARRAY_INIT(type_index, 3, WASM_I32V(10), WASM_I32V(20),
+                       WASM_I32V(30), WASM_RTT_CANON(type_index)),
+       kExprEnd});
+
   const uint32_t kLongLength = 1u << 16;
   const byte kAllocateLarge = tester.DefineFunction(
       &sig_q_v, {},
@@ -878,6 +884,13 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   h_result = tester.GetResultObject(kAllocateStatic).ToHandleChecked();
   CHECK(h_result->IsWasmArray());
   CHECK_EQ(2, Handle<WasmArray>::cast(h_result)->length());
+
+  Handle<Object> init_result = tester.GetResultObject(kInit).ToHandleChecked();
+  CHECK(init_result->IsWasmArray());
+  CHECK_EQ(3, Handle<WasmArray>::cast(init_result)->length());
+  CHECK_EQ(10, Handle<WasmArray>::cast(init_result)->GetElement(0).to_i32());
+  CHECK_EQ(20, Handle<WasmArray>::cast(init_result)->GetElement(1).to_i32());
+  CHECK_EQ(30, Handle<WasmArray>::cast(init_result)->GetElement(2).to_i32());
 
   MaybeHandle<Object> maybe_large_result =
       tester.GetResultObject(kAllocateLarge);
