@@ -103,6 +103,7 @@ def MakeClangCommandLine(plugin, plugin_args, arch_cfg, clang_bin_dir,
       "-I./",
       "-Iinclude/",
       "-Iout/build/gen",
+      "-Ithird_party/abseil-cpp",
       "-Ithird_party/icu/source/common",
       "-Ithird_party/icu/source/i18n",
   ] + arch_cfg.arch_options)

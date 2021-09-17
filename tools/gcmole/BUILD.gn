@@ -26,6 +26,7 @@ group("v8_run_gcmole") {
     "../../test/cctest/",
     "../../test/common/",
     "../../testing/gtest/include/gtest/gtest_prod.h",
+    "../../third_party/abseil-cpp/",
     "../../third_party/googletest/src/googletest/include/gtest/gtest_prod.h",
     "../../third_party/icu/source/",
     "../../third_party/wasm-api/wasm.h",

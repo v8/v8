@@ -9,6 +9,7 @@ v8_executable("wasm_api_tests") {
 
   deps = [
     "../:common_test_headers",
+    "../..:v8_abseil",
     "../..:v8_internal_headers",
     "../..:v8_maybe_icu",
     "../..:wee8",
