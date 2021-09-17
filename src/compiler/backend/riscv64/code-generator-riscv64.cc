@@ -2156,12 +2156,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvI32x4GtS: {
-      __ WasmRvvGtU(i.OutputSimd128Register(), i.InputSimd128Register(0),
+      __ WasmRvvGtS(i.OutputSimd128Register(), i.InputSimd128Register(0),
                     i.InputSimd128Register(1), E32, m1);
       break;
     }
     case kRiscvI64x2GtS: {
-      __ WasmRvvGtU(i.OutputSimd128Register(), i.InputSimd128Register(0),
+      __ WasmRvvGtS(i.OutputSimd128Register(), i.InputSimd128Register(0),
                     i.InputSimd128Register(1), E64, m1);
       break;
     }
