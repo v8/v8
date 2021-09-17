@@ -787,8 +787,16 @@ void SharedTurboAssembler::I64x2GtS(XMMRegister dst, XMMRegister src0,
     vpcmpgtq(dst, src0, src1);
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
     CpuFeatureScope sse_scope(this, SSE4_2);
-    DCHECK_EQ(dst, src0);
-    pcmpgtq(dst, src1);
+    if (dst == src0) {
+      pcmpgtq(dst, src1);
+    } else if (dst == src1) {
+      movaps(scratch, src0);
+      pcmpgtq(scratch, src1);
+      movaps(dst, scratch);
+    } else {
+      movaps(dst, src0);
+      pcmpgtq(dst, src1);
+    }
   } else {
     CpuFeatureScope sse_scope(this, SSE3);
     DCHECK_NE(dst, src0);

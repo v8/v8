@@ -2719,17 +2719,11 @@ void LiftoffAssembler::emit_i64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i64x2_gt_s(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
   // Different register alias requirements depending on CpuFeatures supported:
-  if (CpuFeatures::IsSupported(AVX)) {
-    // 1. AVX, no requirements.
+  if (CpuFeatures::IsSupported(AVX) || CpuFeatures::IsSupported(SSE4_2)) {
+    // 1. AVX, or SSE4_2 no requirements (I64x2GtS takes care of aliasing).
     I64x2GtS(dst.fp(), lhs.fp(), rhs.fp(), kScratchDoubleReg);
-  } else if (CpuFeatures::IsSupported(SSE4_2)) {
-    // 2. SSE4_2, dst == lhs.
-    if (dst != lhs) {
-      movaps(dst.fp(), lhs.fp());
-    }
-    I64x2GtS(dst.fp(), dst.fp(), rhs.fp(), kScratchDoubleReg);
   } else {
-    // 3. Else, dst != lhs && dst != rhs (lhs == rhs is ok).
+    // 2. Else, dst != lhs && dst != rhs (lhs == rhs is ok).
     if (dst == lhs || dst == rhs) {
       I64x2GtS(liftoff::kScratchDoubleReg2, lhs.fp(), rhs.fp(),
                kScratchDoubleReg);

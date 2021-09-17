@@ -3705,6 +3705,30 @@ WASM_SIMD_TEST(AddExtAddPairwiseI32LeftUnsigned) {
       kExprI32x4ExtAddPairwiseI16x8U, {1, 2, 3, 4, 5, 6, 7, 8}, {4, 9, 14, 19});
 }
 
+// Regression test from https://crbug.com/v8/12237 to exercise a codegen bug
+// for i64x2.gts which overwrote one of the inputs.
+WASM_SIMD_TEST(Regress_12237) {
+  WasmRunner<int32_t, int64_t> r(execution_tier);
+  int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
+  byte value = 0;
+  byte temp = r.AllocateLocal(kWasmS128);
+  int64_t local = 123;
+  BUILD(r,
+        WASM_LOCAL_SET(temp,
+                       WASM_SIMD_OPN(kExprI64x2Splat, WASM_LOCAL_GET(value))),
+        WASM_GLOBAL_SET(
+            0,
+            WASM_SIMD_BINOP(kExprI64x2GtS, WASM_LOCAL_GET(temp),
+                            WASM_SIMD_BINOP(kExprI64x2Sub, WASM_LOCAL_GET(temp),
+                                            WASM_LOCAL_GET(temp)))),
+        WASM_ONE);
+  r.Call(local);
+  int64_t expected = Greater(local, local - local);
+  for (size_t i = 0; i < kSimd128Size / sizeof(int64_t); i++) {
+    CHECK_EQ(expected, LANE(g, 0));
+  }
+}
+
 #define WASM_EXTRACT_I16x8_TEST(Sign, Type)                                    \
   WASM_SIMD_TEST(I16X8ExtractLane##Sign) {                                     \
     WasmRunner<int32_t, int32_t> r(execution_tier);                            \
