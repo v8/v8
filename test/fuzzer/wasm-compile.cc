@@ -888,9 +888,9 @@ class WasmGenerator {
   }
   void table_get(HeapType type, DataRange* data) {
     ValueType needed_type = ValueType::Ref(type, kNullable);
-    int table_size = builder_->builder()->NumTables();
+    int table_count = builder_->builder()->NumTables();
     ZoneVector<uint32_t> table(builder_->builder()->zone());
-    for (int i = 0; i < table_size; i++) {
+    for (int i = 0; i < table_count; i++) {
       if (builder_->builder()->GetTableType(i) == needed_type) {
         table.push_back(i);
       }
@@ -913,6 +913,30 @@ class WasmGenerator {
   }
   void table_fill(DataRange* data) {
     table_op<kVoid>({kWasmI32, kWasmFuncRef, kWasmI32}, data, kExprTableFill);
+  }
+  void table_copy(DataRange* data) {
+    ValueType needed_type =
+        data->get<bool>()
+            ? ValueType::Ref(HeapType(HeapType::kFunc), kNullable)
+            : ValueType::Ref(HeapType(HeapType::kExtern), kNullable);
+    int table_count = builder_->builder()->NumTables();
+    ZoneVector<uint32_t> table(builder_->builder()->zone());
+    for (int i = 0; i < table_count; i++) {
+      if (builder_->builder()->GetTableType(i) == needed_type) {
+        table.push_back(i);
+      }
+    }
+    if (table.empty()) {
+      return;
+    }
+    int first_index = data->get<uint8_t>() % static_cast<int>(table.size());
+    int second_index = data->get<uint8_t>() % static_cast<int>(table.size());
+    Generate(kWasmI32, data);
+    Generate(kWasmI32, data);
+    Generate(kWasmI32, data);
+    builder_->EmitWithPrefix(kExprTableCopy);
+    builder_->EmitU32V(table[first_index]);
+    builder_->EmitU32V(table[second_index]);
   }
 
   template <ValueKind wanted_kind>
@@ -1200,7 +1224,8 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
       &WasmGenerator::array_set,
 
       &WasmGenerator::table_set,
-      &WasmGenerator::table_fill};
+      &WasmGenerator::table_fill,
+      &WasmGenerator::table_copy};
 
   GenerateOneOf(alternatives, data);
 }
