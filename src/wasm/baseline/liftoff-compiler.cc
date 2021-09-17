@@ -5949,11 +5949,9 @@ class LiftoffCompiler {
 
 #ifdef V8_HEAP_SANDBOX
     LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
-    __ LoadExternalPointerField(
-        target.gp(),
-        FieldOperand(func_data.gp(), WasmFunctionData::kForeignAddressOffset),
-        kForeignForeignAddressTag, temp.gp(),
-        TurboAssembler::IsolateRootLocation::kInScratchRegister);
+    __ LoadExternalPointer(target.gp(), func_data.gp(),
+                           WasmFunctionData::kForeignAddressOffset,
+                           kForeignForeignAddressTag, temp.gp());
 #else
     __ Load(
         target, func_data.gp(), no_reg,

@@ -2091,8 +2091,12 @@ void TurboAssembler::LoadCodeDataContainerEntry(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  Ldr(destination, FieldMemOperand(code_data_container_object,
-                                   CodeDataContainer::kCodeEntryPointOffset));
+
+  LoadExternalPointerField(
+      destination,
+      FieldMemOperand(code_data_container_object,
+                      CodeDataContainer::kCodeEntryPointOffset),
+      kCodeEntryPointTag);
 }
 
 void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
@@ -3057,6 +3061,34 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
               save_fp, remembered_set_action, SmiCheck::kOmit);
 
   Bind(&done);
+}
+
+void TurboAssembler::LoadExternalPointerField(Register destination,
+                                              MemOperand field_operand,
+                                              ExternalPointerTag tag,
+                                              Register isolate_root) {
+  DCHECK(!AreAliased(destination, isolate_root));
+  ASM_CODE_COMMENT(this);
+#ifdef V8_HEAP_SANDBOX
+  UseScratchRegisterScope temps(this);
+  Register external_table = temps.AcquireX();
+  if (isolate_root == no_reg) {
+    DCHECK(root_array_available_);
+    isolate_root = kRootRegister;
+  }
+  Ldr(external_table,
+      MemOperand(isolate_root,
+                 IsolateData::external_pointer_table_offset() +
+                     Internals::kExternalPointerTableBufferOffset));
+  Ldr(destination, field_operand);
+  Ldr(destination,
+      MemOperand(external_table, destination, LSL, kSystemPointerSizeLog2));
+  if (tag != 0) {
+    And(destination, destination, Immediate(~tag));
+  }
+#else
+  Ldr(destination, field_operand);
+#endif  // V8_HEAP_SANDBOX
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {
