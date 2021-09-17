@@ -2791,7 +2791,7 @@ void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
 
   bind(&check_offset);
   cmpq(bytes_scratch, Immediate(kStackPageSize));
-  j(greater, &touch_next_page);
+  j(greater_equal, &touch_next_page);
 
   subq(rsp, bytes_scratch);
 }
@@ -2799,7 +2799,7 @@ void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
 void TurboAssembler::AllocateStackSpace(int bytes) {
   ASM_CODE_COMMENT(this);
   DCHECK_GE(bytes, 0);
-  while (bytes > kStackPageSize) {
+  while (bytes >= kStackPageSize) {
     subq(rsp, Immediate(kStackPageSize));
     movb(Operand(rsp, 0), Immediate(0));
     bytes -= kStackPageSize;
