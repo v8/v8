@@ -945,6 +945,8 @@ struct ControlBase : public PcForErrors<validate> {
   F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)  \
   F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,          \
     const Value& rtt, const Value args[], Value* result)                  \
+  F(StructNewDefault, const StructIndexImmediate<validate>& imm,          \
+    const Value& rtt, Value* result)                                      \
   F(ArrayInit, const ArrayIndexImmediate<validate>& imm,                  \
     const base::Vector<Value>& elements, const Value& rtt, Value* result) \
   F(RttCanon, uint32_t type_index, Value* result)                         \
@@ -1047,8 +1049,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(TableSize, const IndexImmediate<validate>& imm, Value* result)            \
   F(TableFill, const IndexImmediate<validate>& imm, const Value& start,       \
     const Value& value, const Value& count)                                   \
-  F(StructNewDefault, const StructIndexImmediate<validate>& imm,              \
-    const Value& rtt, Value* result)                                          \
   F(StructGet, const Value& struct_object,                                    \
     const FieldImmediate<validate>& field, bool is_signed, Value* result)     \
   F(StructSet, const Value& struct_object,                                    \
@@ -4074,7 +4074,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       }
       case kExprStructNewDefault:
       case kExprStructNewDefaultWithRtt: {
-        NON_CONST_ONLY
         StructIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (validate) {

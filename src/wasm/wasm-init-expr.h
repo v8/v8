@@ -35,6 +35,8 @@ class WasmInitExpr {
     kRefFuncConst,
     kStructNewWithRtt,
     kStructNew,
+    kStructNewDefaultWithRtt,
+    kStructNewDefault,
     kArrayInit,
     kArrayInitStatic,
     kRttCanon,
@@ -110,6 +112,22 @@ class WasmInitExpr {
     return expr;
   }
 
+  static WasmInitExpr StructNewDefaultWithRtt(uint32_t index,
+                                              WasmInitExpr rtt) {
+    WasmInitExpr expr;
+    expr.kind_ = kStructNewDefaultWithRtt;
+    expr.immediate_.index = index;
+    expr.operands_.push_back(std::move(rtt));
+    return expr;
+  }
+
+  static WasmInitExpr StructNewDefault(uint32_t index) {
+    WasmInitExpr expr;
+    expr.kind_ = kStructNewDefault;
+    expr.immediate_.index = index;
+    return expr;
+  }
+
   static WasmInitExpr ArrayInit(uint32_t index,
                                 std::vector<WasmInitExpr> elements) {
     WasmInitExpr expr;
@@ -178,6 +196,8 @@ class WasmInitExpr {
         return immediate().heap_type == other.immediate().heap_type;
       case kStructNewWithRtt:
       case kStructNew:
+      case kStructNewDefaultWithRtt:
+      case kStructNewDefault:
         if (immediate().index != other.immediate().index) return false;
         DCHECK_EQ(operands().size(), other.operands().size());
         for (uint32_t i = 0; i < operands().size(); i++) {

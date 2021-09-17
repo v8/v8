@@ -512,15 +512,34 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
     }
     case WasmInitExpr::kStructNew:
     case WasmInitExpr::kStructNewWithRtt:
+    case WasmInitExpr::kStructNewDefault:
+    case WasmInitExpr::kStructNewDefaultWithRtt:
       STATIC_ASSERT((kExprStructNew >> 8) == kGCPrefix);
       STATIC_ASSERT((kExprStructNewWithRtt >> 8) == kGCPrefix);
+      STATIC_ASSERT((kExprStructNewDefault >> 8) == kGCPrefix);
+      STATIC_ASSERT((kExprStructNewDefaultWithRtt >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(
-          init.kind() == WasmInitExpr::kStructNew ? kExprStructNew
-                                                  : kExprStructNewWithRtt));
+      WasmOpcode opcode;
+      switch (init.kind()) {
+        case WasmInitExpr::kStructNewWithRtt:
+          opcode = kExprStructNewWithRtt;
+          break;
+        case WasmInitExpr::kStructNew:
+          opcode = kExprStructNew;
+          break;
+        case WasmInitExpr::kStructNewDefaultWithRtt:
+          opcode = kExprStructNewDefaultWithRtt;
+          break;
+        case WasmInitExpr::kStructNewDefault:
+          opcode = kExprStructNewDefault;
+          break;
+        default:
+          UNREACHABLE();
+      }
+      buffer->write_u8(static_cast<uint8_t>(opcode));
       buffer->write_u32v(init.immediate().index);
       break;
     case WasmInitExpr::kArrayInit:

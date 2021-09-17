@@ -983,7 +983,6 @@ class Binary {
     }
   }
 
-
   emit_init_expr_recursive(expr) {
     switch (expr.kind) {
       case kExprGlobalGet:
@@ -1015,6 +1014,8 @@ class Binary {
         break;
       case kExprStructNew:
       case kExprStructNewWithRtt:
+      case kExprStructNewDefault:
+      case kExprStructNewDefaultWithRtt:
         for (let operand of expr.operands) {
           this.emit_init_expr_recursive(operand);
         }
@@ -1183,6 +1184,12 @@ class WasmInitExpr {
   }
   static StructNew(type, args) {
     return {kind: kExprStructNew, value: type, operands: args};
+  }
+  static StructNewDefaultWithRtt(type, rtt) {
+    return {kind: kExprStructNewDefaultWithRtt, value: type, operands: [rtt]};
+  }
+  static StructNewDefault(type) {
+    return {kind: kExprStructNewDefault, value: type, operands: []};
   }
   static ArrayInit(type, args) {
     return {kind: kExprArrayInit, value: type, operands: args};
