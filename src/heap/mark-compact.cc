@@ -1717,12 +1717,6 @@ void MarkCompactCollector::RevisitObject(HeapObject obj) {
   marking_visitor_->Visit(obj.map(), obj);
 }
 
-void MarkCompactCollector::MarkDescriptorArrayFromWriteBarrier(
-    DescriptorArray descriptors, int number_of_own_descriptors) {
-  marking_visitor_->MarkDescriptorArrayFromWriteBarrier(
-      descriptors, number_of_own_descriptors);
-}
-
 void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
   bool work_to_do = true;
   int iterations = 0;
