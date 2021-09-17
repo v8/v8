@@ -2506,6 +2506,25 @@ void Assembler::vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
   GenInstrV(VMADC_FUNCT6, vd, imm5, vs2, Mask);
 }
 
+void Assembler::vrgather_vv(VRegister vd, VRegister vs2, VRegister vs1,
+                            MaskType mask) {
+  DCHECK_NE(vd, vs1);
+  DCHECK_NE(vd, vs2);
+  GenInstrV(VRGATHER_FUNCT6, OP_IVV, vd, vs1, vs2, mask);
+}
+
+void Assembler::vrgather_vi(VRegister vd, VRegister vs2, int8_t imm5,
+                            MaskType mask) {
+  DCHECK_NE(vd, vs2);
+  GenInstrV(VRGATHER_FUNCT6, vd, imm5, vs2, mask);
+}
+
+void Assembler::vrgather_vx(VRegister vd, VRegister vs2, Register rs1,
+                            MaskType mask) {
+  DCHECK_NE(vd, vs2);
+  GenInstrV(VRGATHER_FUNCT6, OP_IVX, vd, rs1, vs2, mask);
+}
+
 #define DEFINE_OPIVV(name, funct6)                                      \
   void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
                             MaskType mask) {                            \
@@ -2576,9 +2595,6 @@ DEFINE_OPIVI(vor, VOR_FUNCT6)
 DEFINE_OPIVV(vxor, VXOR_FUNCT6)
 DEFINE_OPIVX(vxor, VXOR_FUNCT6)
 DEFINE_OPIVI(vxor, VXOR_FUNCT6)
-DEFINE_OPIVV(vrgather, VRGATHER_FUNCT6)
-DEFINE_OPIVX(vrgather, VRGATHER_FUNCT6)
-DEFINE_OPIVI(vrgather, VRGATHER_FUNCT6)
 
 DEFINE_OPIVX(vslidedown, VSLIDEDOWN_FUNCT6)
 DEFINE_OPIVI(vslidedown, VSLIDEDOWN_FUNCT6)

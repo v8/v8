@@ -4459,6 +4459,8 @@ void Simulator::DecodeRvvIVV() {
     }
     case RO_V_VRGATHER_VV: {
       RVV_VI_GENERAL_LOOP_BASE
+      CHECK_NE(rvv_vs1_reg(), rvv_vd_reg());
+      CHECK_NE(rvv_vs2_reg(), rvv_vd_reg());
       switch (rvv_vsew()) {
         case E8: {
           auto vs1 = Rvvelt<uint8_t>(rvv_vs1_reg(), i);

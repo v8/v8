@@ -1718,17 +1718,21 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
   vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
 
   VU.set(kScratchReg, E8, m1);
+  VRegister temp =
+      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(lhs, rhs)).fp().toV();
   if (dst_v == lhs_v) {
-    vmv_vv(kSimd128ScratchReg2, lhs_v);
-    lhs_v = kSimd128ScratchReg2;
+    vmv_vv(temp, lhs_v);
+    lhs_v = temp;
   } else if (dst_v == rhs_v) {
-    vmv_vv(kSimd128ScratchReg2, rhs_v);
-    rhs_v = kSimd128ScratchReg2;
+    vmv_vv(temp, rhs_v);
+    rhs_v = temp;
   }
   vrgather_vv(dst_v, lhs_v, kSimd128ScratchReg);
-  vadd_vi(kSimd128ScratchReg, kSimd128ScratchReg, -16);
-  vrgather_vv(kSimd128ScratchReg, rhs_v, kSimd128ScratchReg);
-  vor_vv(dst_v, dst_v, kSimd128ScratchReg);
+  vadd_vi(kSimd128ScratchReg, kSimd128ScratchReg,
+          -16);  // The indices in range [16, 31] select the i - 16-th element
+                 // of rhs
+  vrgather_vv(kSimd128ScratchReg2, rhs_v, kSimd128ScratchReg);
+  vor_vv(dst_v, dst_v, kSimd128ScratchReg2);
 }
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
@@ -2520,7 +2524,7 @@ void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  VU.set(kScratchReg, E8, m1);
+  VU.set(kScratchReg, E64, m1);
   vsub_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
