@@ -1362,6 +1362,26 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
+  // The infrastructure for `new Foo` calls allocates an object, which is
+  // available here as {args.This()}. We're going to discard this object
+  // and use {global_obj} instead, but it does have the correct prototype,
+  // which we must harvest from it. This makes a difference when the JS
+  // constructor function wasn't {WebAssembly.Global} directly, but some
+  // subclass: {global_obj} has {WebAssembly.Global}'s prototype at this
+  // point, so we must overwrite that with the correct prototype for {Foo}.
+  i::MaybeHandle<i::HeapObject> maybe_prototype =
+      i::JSObject::GetPrototype(i_isolate, Utils::OpenHandle(*args.This()));
+  i::Handle<i::HeapObject> prototype;
+  if (maybe_prototype.ToHandle(&prototype)) {
+    Maybe<bool> result = i::JSObject::SetPrototype(global_obj, prototype,
+                                                   /*from_javascript=*/false,
+                                                   internal::kThrowOnError);
+    if (!result.FromJust()) {
+      DCHECK(i_isolate->has_pending_exception());
+      return;
+    }
+  }
+
   // Convert value to a WebAssembly value, the default value is 0.
   Local<v8::Value> value = Local<Value>::Cast(args[1]);
   switch (type.kind()) {
