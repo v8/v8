@@ -294,7 +294,6 @@ std::ostream& operator<<(std::ostream& os, WasmElemSegment::Entry entry) {
 
 // Appends an initializer expression encoded in {wire_bytes}, in the offset
 // contained in {expr}.
-// TODO(7748): Find a way to implement other expressions here.
 void AppendInitExpr(std::ostream& os, ModuleWireBytes wire_bytes,
                     WireBytesRef expr) {
   Decoder decoder(wire_bytes.module_bytes());

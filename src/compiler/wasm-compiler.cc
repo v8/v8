@@ -2905,8 +2905,8 @@ Node* WasmGraphBuilder::BuildWasmCall(const wasm::FunctionSig* sig,
   const Operator* op = mcgraph()->common()->Call(call_descriptor);
   Node* call =
       BuildCallNode(sig, args, position, instance_node, op, frame_state);
-  // TODO(manoskouk): Don't always set control if we ever add properties to wasm
-  // calls.
+  // TODO(manoskouk): If we have kNoThrow calls, do not set them as control.
+  DCHECK_GT(call->op()->ControlOutputCount(), 0);
   SetControl(call);
 
   size_t ret_count = sig->return_count();
@@ -2935,8 +2935,8 @@ Node* WasmGraphBuilder::BuildWasmReturnCall(const wasm::FunctionSig* sig,
   const Operator* op = mcgraph()->common()->TailCall(call_descriptor);
   Node* call = BuildCallNode(sig, args, position, instance_node, op);
 
-  // TODO(manoskouk): {call} will not always be a control node if we ever add
-  // properties to wasm calls.
+  // TODO(manoskouk): If we have kNoThrow calls, do not merge them to end.
+  DCHECK_GT(call->op()->ControlOutputCount(), 0);
   gasm_->MergeControlToEnd(call);
 
   return call;

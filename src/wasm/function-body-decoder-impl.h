@@ -2725,19 +2725,19 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // the stack as it is.
         break;
       case kOptRef: {
-          Value result = CreateValue(
-              ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
-          // The result of br_on_null has the same value as the argument (but a
-          // non-nullable type).
-          if (V8_LIKELY(current_code_reachable_and_ok_)) {
-            CALL_INTERFACE(BrOnNull, ref_object, imm.depth);
-            CALL_INTERFACE(Forward, ref_object, &result);
-            c->br_merge()->reached = true;
-          }
-          // In unreachable code, we still have to push a value of the correct
-          // type onto the stack.
-          Drop(ref_object);
-          Push(result);
+        Value result = CreateValue(
+            ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
+        // The result of br_on_null has the same value as the argument (but a
+        // non-nullable type).
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          CALL_INTERFACE(BrOnNull, ref_object, imm.depth);
+          CALL_INTERFACE(Forward, ref_object, &result);
+          c->br_merge()->reached = true;
+        }
+        // In unreachable code, we still have to push a value of the correct
+        // type onto the stack.
+        Drop(ref_object);
+        Push(result);
         break;
       }
       default:

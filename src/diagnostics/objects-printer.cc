@@ -1899,10 +1899,11 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
         os << Brief(base::ReadUnalignedValue<Object>(field_address));
         break;
       case wasm::kS128:
-      case wasm::kBottom:
-      case wasm::kVoid:
         os << "UNIMPLEMENTED";  // TODO(7748): Implement.
         break;
+      case wasm::kBottom:
+      case wasm::kVoid:
+        UNREACHABLE();
     }
   }
   os << "\n";

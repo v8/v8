@@ -653,7 +653,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
     for (int i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
-      // TODO(9495): Initialize with initializer from module if present.
+      // Initialize tables with null for now. We will initialize non-defaultable
+      // tables later, in {InitializeIndirectFunctionTables}.
       Handle<WasmTableObject> table_obj = WasmTableObject::New(
           isolate_, instance, table.type, table.initial_size,
           table.has_maximum_size, table.maximum_size, nullptr,
