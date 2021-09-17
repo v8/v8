@@ -1600,7 +1600,7 @@ void TurboAssembler::li(Register dst, Handle<HeapObject> value,
   } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
     EmbeddedObjectIndex index = AddEmbeddedObject(value);
     DCHECK(is_uint32(index));
-    li(dst, Operand(static_cast<int>(index), rmode));
+    li(dst, Operand(index, rmode));
   } else {
     DCHECK(RelocInfo::IsFullEmbeddedObject(rmode));
     li(dst, Operand(value.address(), rmode));
@@ -4214,7 +4214,7 @@ void TurboAssembler::Abort(AbortReason reason) {
     // We don't care if we constructed a frame. Just pretend we did.
     FrameScope assume_frame(this, StackFrame::NONE);
     PrepareCallCFunction(0, a0);
-    li(a0, Operand(static_cast<int>(reason)));
+    li(a0, Operand(static_cast<int64_t>(reason)));
     CallCFunction(ExternalReference::abort_with_reason(), 1);
     return;
   }
