@@ -95,7 +95,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '715537d6007ca71837f48bcb04fc3d482aed2507',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '48f708c0778d8a5af433b315bd6a775b009b5d03',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '67d9786cde44b0b524d518ea67924c266dd6cc0b',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7ea3a871db68ae2cbbeaf5433a3192a799ef3c11',
   'buildtools/clang_format/script':
@@ -221,7 +221,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '6b072fac8819d18c328c565ff180da0dce959c5f',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fa2350f096263837c8b4f423e61f123169934a9e',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -229,7 +229,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9cba73f1b7cbfc70f7f122ba04eed077467bf294',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cf9d64363b627bc156be3166aed94affb5cae6b1',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -242,7 +242,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '3f443830bd52d3aa5fab3c1aa2b6d0848bb5039d',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '0faacf906ac93ea9f5f9186d00fa70ca3fbf99fb',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'eb740e92b1e3f5714877db980363283b038f8c32',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
@@ -288,7 +288,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '77c132322fe81a1f5518b326e18c99ebd3281627',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'c8d8b3ecbd25e2ad08a56a7eacc74928772aafe3',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '6f44cf51dc0e59a57e97e6029e38d3942298c24d',
   'tools/clang/dsymutil': {
     'packages': [
       {
