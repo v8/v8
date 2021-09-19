@@ -95,7 +95,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '715537d6007ca71837f48bcb04fc3d482aed2507',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '67d9786cde44b0b524d518ea67924c266dd6cc0b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '28f08ad2322bdef5cb245d9d8e5e343e29732e37',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7ea3a871db68ae2cbbeaf5433a3192a799ef3c11',
   'buildtools/clang_format/script':
@@ -158,7 +158,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': '4_W8oYEfH2jwjpXXJX32HUtITINfNQfevdEMi6HVUm8C'
+              'version': '17S2VQDv3RUfAsW4s0c53HyKMVsd-i_1DocJS0aHWu4C'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
