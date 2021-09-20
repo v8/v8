@@ -124,7 +124,14 @@ try_builder(
 try_builder(
     name = "v8_linux_blink_rel",
     bucket = "try",
-    cq_properties = {"experiment_percentage": 5, "cancel_stale": False},
+    cq_properties = {
+      "experiment_percentage": 5,
+      "location_regexp": [
+        ".+/[+]/src/wasm/wasm-js.{h,cc}",
+        ".+/[+]/src/wasm/wasm-feature-flags.h",
+      ],
+      "cancel_stale": False
+    },
     executable = "recipe:chromium_trybot",
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 4400,
