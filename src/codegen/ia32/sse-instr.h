@@ -5,6 +5,14 @@
 #ifndef V8_CODEGEN_IA32_SSE_INSTR_H_
 #define V8_CODEGEN_IA32_SSE_INSTR_H_
 
+// SSE/SSE2 instructions whose AVX version has two operands.
+#define SSE_UNOP_INSTRUCTION_LIST(V) \
+  V(sqrtps, 0F, 51)                  \
+  V(rsqrtps, 0F, 52)                 \
+  V(rcpps, 0F, 53)                   \
+  V(cvtps2pd, 0F, 5A)                \
+  V(cvtdq2ps, 0F, 5B)
+
 #define SSE2_INSTRUCTION_LIST(V) \
   V(packsswb, 66, 0F, 63)        \
   V(packssdw, 66, 0F, 6B)        \

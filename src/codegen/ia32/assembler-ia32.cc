@@ -2188,25 +2188,11 @@ void Assembler::cvtss2sd(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::cvtdq2ps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0x5B);
-  emit_sse_operand(dst, src);
-}
-
 void Assembler::cvtdq2pd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF3);
   EMIT(0x0F);
   EMIT(0xE6);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::cvtps2pd(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0x5A);
   emit_sse_operand(dst, src);
 }
 
@@ -2231,27 +2217,6 @@ void Assembler::cvttpd2dq(XMMRegister dst, XMMRegister src) {
   EMIT(0x66);
   EMIT(0x0F);
   EMIT(0xE6);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::rcpps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0x53);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::sqrtps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0x51);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::rsqrtps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0x52);
   emit_sse_operand(dst, src);
 }
 
@@ -3204,6 +3169,14 @@ void Assembler::rorx(Register dst, Operand src, byte imm8) {
   EMIT(0xF0);
   emit_operand(dst, src);
   EMIT(imm8);
+}
+
+void Assembler::sse_instr(XMMRegister dst, Operand src, byte escape,
+                          byte opcode) {
+  EnsureSpace ensure_space(this);
+  EMIT(escape);
+  EMIT(opcode);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::sse2_instr(XMMRegister dst, Operand src, byte prefix,
