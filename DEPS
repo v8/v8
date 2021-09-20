@@ -76,7 +76,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_platform-tools_version
   # and whatever else without interference from each other.
-  'android_sdk_platform-tools_version': 'qi_k82nm6j9nz4dQosOoqXew4_TFAy8rcGOHDLptx1sC',
+  'android_sdk_platform-tools_version': 'g7n_-r6yJd_SGRklujGB1wEt8iyr77FZTUJVS9w6O34C',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_platforms_version
   # and whatever else without interference from each other.
@@ -88,14 +88,14 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_tools-lint_version
   # and whatever else without interference from each other.
-  'android_sdk_cmdline-tools_version': 'ZT3JmI6GMG4YVcZ1OtECRVMOLLJAWAdPbi-OclubJLMC',
+  'android_sdk_cmdline-tools_version': 'yODElY4RdHopNEfpOnqjRcrpa6JMzbhYYqGD53-DjJwC',
 }
 
 deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '715537d6007ca71837f48bcb04fc3d482aed2507',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ae8cb5d4efe8bc041196969ae336da06e263d0e9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '103712808f7c6f31c6c769057c17c994e08f3a30',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7ea3a871db68ae2cbbeaf5433a3192a799ef3c11',
   'buildtools/clang_format/script':
@@ -221,7 +221,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fa2350f096263837c8b4f423e61f123169934a9e',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fb6990454da9ed24ad473803c53a04173ba0f948',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -229,7 +229,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cf9d64363b627bc156be3166aed94affb5cae6b1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6550ec91db6949f4691a5c5aa1709e0bba2bcbc6',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -288,7 +288,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '77c132322fe81a1f5518b326e18c99ebd3281627',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '6f44cf51dc0e59a57e97e6029e38d3942298c24d',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7ea32d7ed3a92b628f4269ec1c4f93a389ea01ea',
   'tools/clang/dsymutil': {
     'packages': [
       {
@@ -318,7 +318,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '6569bfcb586ad33f3f97921a3b350046c3a2af87',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '48418f3dd75b4ec99af7d1159f175354db23ca3a',
     'condition': 'not build_with_chromium',
   }
 }
