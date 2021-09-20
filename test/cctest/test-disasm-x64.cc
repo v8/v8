@@ -112,48 +112,6 @@ TEST(DisasmX64) {
   __ j(less_equal, &Ljcc);
   __ j(greater, &Ljcc);
 
-  // 0xD9 instructions
-  __ nop();
-
-  __ fld(1);
-  __ fld1();
-  __ fldz();
-  __ fldpi();
-  __ fabs();
-  __ fchs();
-  __ fprem();
-  __ fprem1();
-  __ fincstp();
-  __ ftst();
-  __ fxch(3);
-  __ fld_s(Operand(rbx, rcx, times_4, 10000));
-  __ fstp_s(Operand(rbx, rcx, times_4, 10000));
-  __ ffree(3);
-  __ fld_d(Operand(rbx, rcx, times_4, 10000));
-  __ fstp_d(Operand(rbx, rcx, times_4, 10000));
-  __ nop();
-
-  __ fild_s(Operand(rbx, rcx, times_4, 10000));
-  __ fistp_s(Operand(rbx, rcx, times_4, 10000));
-  __ fild_d(Operand(rbx, rcx, times_4, 10000));
-  __ fistp_d(Operand(rbx, rcx, times_4, 10000));
-  __ fnstsw_ax();
-  __ nop();
-  __ fadd(3);
-  __ fsub(3);
-  __ fmul(3);
-  __ fdiv(3);
-
-  __ faddp(3);
-  __ fsubp(3);
-  __ fmulp(3);
-  __ fdivp(3);
-  __ fcompp();
-  __ fwait();
-  __ frndint();
-  __ fninit();
-  __ nop();
-
   // SSE instruction
   {
     // Move operation
@@ -1161,6 +1119,49 @@ UNINITIALIZED_TEST(DisasmX64CheckOutput) {
   COMPARE("cc                 int3l", int3());
   COMPARE("c3                 retl", ret(0));
   COMPARE("c20800             ret 0x8", ret(8));
+
+  // 0xD9 instructions
+  COMPARE("d9c1               fld st1", fld(1));
+  COMPARE("d9e8               fld1", fld1());
+  COMPARE("d9ee               fldz", fldz());
+  COMPARE("d9eb               fldpi", fldpi());
+  COMPARE("d9e1               fabs", fabs());
+  COMPARE("d9e0               fchs", fchs());
+  COMPARE("d9f8               fprem", fprem());
+  COMPARE("d9f5               fprem1", fprem1());
+  COMPARE("d9f7               fincstp", fincstp());
+  COMPARE("d9e4               ftst", ftst());
+  COMPARE("d9cb               fxch st3", fxch(3));
+  COMPARE("d9848b10270000     fld_s [rbx+rcx*4+0x2710]",
+          fld_s(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("d99c8b10270000     fstp_s [rbx+rcx*4+0x2710]",
+          fstp_s(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("ddc3               ffree st3", ffree(3));
+  COMPARE("dd848b10270000     fld_d [rbx+rcx*4+0x2710]",
+          fld_d(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("dd9c8b10270000     fstp_d [rbx+rcx*4+0x2710]",
+          fstp_d(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("db848b10270000     fild_s [rbx+rcx*4+0x2710]",
+          fild_s(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("db9c8b10270000     fistp_s [rbx+rcx*4+0x2710]",
+          fistp_s(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("dfac8b10270000     fild_d [rbx+rcx*4+0x2710]",
+          fild_d(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("dfbc8b10270000     fistp_d [rbx+rcx*4+0x2710]",
+          fistp_d(Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("dfe0               fnstsw_ax", fnstsw_ax());
+  COMPARE("dcc3               fadd st3", fadd(3));
+  COMPARE("dceb               fsub st3", fsub(3));
+  COMPARE("dccb               fmul st3", fmul(3));
+  COMPARE("dcfb               fdiv st3", fdiv(3));
+  COMPARE("dec3               faddp st3", faddp(3));
+  COMPARE("deeb               fsubp st3", fsubp(3));
+  COMPARE("decb               fmulp st3", fmulp(3));
+  COMPARE("defb               fdivp st3", fdivp(3));
+  COMPARE("ded9               fcompp", fcompp());
+  COMPARE("9b                 fwaitl", fwait());
+  COMPARE("d9fc               frndint", frndint());
+  COMPARE("dbe3               fninit", fninit());
 }
 
 UNINITIALIZED_TEST(DisasmX64YMMRegister) {
