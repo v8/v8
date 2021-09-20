@@ -74,10 +74,14 @@ class Builtins {
 #define ADD_ONE(Name, ...) +1
   static constexpr int kBuiltinCount = 0 BUILTIN_LIST(
       ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
+  static constexpr int kBuiltinTier0Count = 0 BUILTIN_LIST_TIER0(
+      ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE, ADD_ONE);
 #undef ADD_ONE
 
   static constexpr Builtin kFirst = static_cast<Builtin>(0);
   static constexpr Builtin kLast = static_cast<Builtin>(kBuiltinCount - 1);
+  static constexpr Builtin kLastTier0 =
+      static_cast<Builtin>(kBuiltinTier0Count - 1);
 
   static constexpr int kFirstWideBytecodeHandler =
       static_cast<int>(Builtin::kFirstBytecodeHandler) +
@@ -95,6 +99,9 @@ class Builtins {
     STATIC_ASSERT(static_cast<int>(Builtin::kNoBuiltinId) == -1);
     return static_cast<uint32_t>(maybe_id) <
            static_cast<uint32_t>(kBuiltinCount);
+  }
+  static constexpr bool IsTier0(Builtin builtin) {
+    return builtin <= kLastTier0 && IsBuiltinId(builtin);
   }
 
   static constexpr Builtin FromInt(int id) {
@@ -199,9 +206,7 @@ class Builtins {
     return kAllBuiltinsAreIsolateIndependent;
   }
 
-  // Initializes the table of builtin entry points based on the current contents
-  // of the builtins table.
-  static void InitializeBuiltinEntryTable(Isolate* isolate);
+  static void InitializeIsolateDataTables(Isolate* isolate);
 
   // Emits a CodeCreateEvent for every builtin.
   static void EmitCodeCreateEvents(Isolate* isolate);

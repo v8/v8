@@ -22,14 +22,23 @@ class Isolate;
 
 // IsolateData fields, defined as: V(Offset, Size, Name)
 #define ISOLATE_DATA_FIELDS(V)                                                \
+  /* Misc. fields. */                                                         \
+  V(kCageBaseOffset, kSystemPointerSize, cage_base)                           \
+  V(kStackGuardOffset, StackGuard::kSizeInBytes, stack_guard)                 \
+  /* Tier 0 tables (small but fast access). */                                \
+  V(kBuiltinTier0EntryTableOffset,                                            \
+    Builtins::kBuiltinTier0Count* kSystemPointerSize,                         \
+    builtin_tier0_entry_table)                                                \
+  V(kBuiltinsTier0TableOffset,                                                \
+    Builtins::kBuiltinTier0Count* kSystemPointerSize, builtin_tier0_table)    \
+  /* Misc. fields. */                                                         \
   V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize, \
     embedder_data)                                                            \
   V(kFastCCallCallerFPOffset, kSystemPointerSize, fast_c_call_caller_fp)      \
   V(kFastCCallCallerPCOffset, kSystemPointerSize, fast_c_call_caller_pc)      \
   V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)       \
-  V(kCageBaseOffset, kSystemPointerSize, cage_base)                           \
   V(kLongTaskStatsCounterOffset, kSizetSize, long_task_stats_counter)         \
-  V(kStackGuardOffset, StackGuard::kSizeInBytes, stack_guard)                 \
+  /* Full tables (arbitrary size, potentially slower access). */              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,         \
     roots_table)                                                              \
   V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes,      \
@@ -79,19 +88,20 @@ class IsolateData final {
     return roots_table_offset() + RootsTable::offset_of(root_index);
   }
 
-  static int builtin_entry_slot_offset(Builtin id) {
-    return builtin_entry_table_offset() +
+  static constexpr int BuiltinEntrySlotOffset(Builtin id) {
+    DCHECK(Builtins::IsBuiltinId(id));
+    return (Builtins::IsTier0(id) ? builtin_tier0_entry_table_offset()
+                                  : builtin_entry_table_offset()) +
            Builtins::ToInt(id) * kSystemPointerSize;
   }
-
   // TODO(ishell): remove in favour of typified id version.
-  static int builtin_slot_offset(int builtin_index) {
-    DCHECK(Builtins::IsBuiltinId(builtin_index));
-    return builtin_table_offset() + builtin_index * kSystemPointerSize;
+  static constexpr int builtin_slot_offset(int builtin_index) {
+    return BuiltinSlotOffset(Builtins::FromInt(builtin_index));
   }
-
-  static int builtin_slot_offset(Builtin id) {
-    return builtin_table_offset() + Builtins::ToInt(id) * kSystemPointerSize;
+  static constexpr int BuiltinSlotOffset(Builtin id) {
+    return (Builtins::IsTier0(id) ? builtin_tier0_table_offset()
+                                  : builtin_table_offset()) +
+           Builtins::ToInt(id) * kSystemPointerSize;
   }
 
 #define V(Offset, Size, Name) \
@@ -105,6 +115,8 @@ class IsolateData final {
   // The value of kPointerCageBaseRegister.
   Address cage_base() const { return cage_base_; }
   StackGuard* stack_guard() { return &stack_guard_; }
+  Address* builtin_tier0_entry_table() { return builtin_tier0_entry_table_; }
+  Address* builtin_tier0_table() { return builtin_tier0_table_; }
   RootsTable& roots() { return roots_table_; }
   const RootsTable& roots() const { return roots_table_; }
   ExternalReferenceTable* external_reference_table() {
@@ -144,6 +156,16 @@ class IsolateData final {
   DEFINE_FIELD_OFFSET_CONSTANTS(0, FIELDS)
 #undef FIELDS
 
+  const Address cage_base_;
+
+  // Fields related to the system and JS stack. In particular, this contains
+  // the stack limit used by stack checks in generated code.
+  StackGuard stack_guard_;
+
+  // Tier 0 tables. See also builtin_entry_table_ and builtin_table_.
+  Address builtin_tier0_entry_table_[Builtins::kBuiltinTier0Count] = {};
+  Address builtin_tier0_table_[Builtins::kBuiltinTier0Count] = {};
+
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8-internal.h) constants. The
   // layout consistency is verified in Isolate::CheckIsolateLayout() using
@@ -162,22 +184,16 @@ class IsolateData final {
   // generated code.
   Address fast_api_call_target_ = kNullAddress;
 
-  const Address cage_base_;
-
   // Used for implementation of LongTaskStats. Counts the number of potential
   // long tasks.
   size_t long_task_stats_counter_ = 0;
-
-  // Fields related to the system and JS stack. In particular, this contains
-  // the stack limit used by stack checks in generated code.
-  StackGuard stack_guard_;
 
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;
 
   ThreadLocalTop thread_local_top_;
 
-  // The entry points for all builtins. This corresponds to
+  // The entry points for builtins. This corresponds to
   // Code::InstructionStart() for each Code object in the builtins table below.
   // The entry table is in IsolateData for easy access through kRootRegister.
   Address builtin_entry_table_[Builtins::kBuiltinCount] = {};

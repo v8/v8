@@ -1895,8 +1895,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
 
 Operand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
   ASM_CODE_COMMENT(this);
-  return Operand(kRootRegister,
-                 IsolateData::builtin_entry_slot_offset(builtin));
+  return Operand(kRootRegister, IsolateData::BuiltinEntrySlotOffset(builtin));
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,

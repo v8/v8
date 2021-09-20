@@ -128,6 +128,9 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
   const unsigned kRootsTableSize = sizeof(RootsTable);
   const int kExtRefsTableStart = IsolateData::external_reference_table_offset();
   const unsigned kExtRefsTableSize = ExternalReferenceTable::kSizeInBytes;
+  const int kBuiltinTier0TableStart = IsolateData::builtin_tier0_table_offset();
+  const unsigned kBuiltinTier0TableSize =
+      Builtins::kBuiltinTier0Count * kSystemPointerSize;
   const int kBuiltinTableStart = IsolateData::builtin_table_offset();
   const unsigned kBuiltinTableSize =
       Builtins::kBuiltinCount * kSystemPointerSize;
@@ -143,7 +146,6 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
 
     SNPrintF(v8_buffer_, "root (%s)", RootsTable::name(root_index));
     return v8_buffer_.begin();
-
   } else if (static_cast<unsigned>(offset - kExtRefsTableStart) <
              kExtRefsTableSize) {
     uint32_t offset_in_extref_table = offset - kExtRefsTableStart;
@@ -162,7 +164,15 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
              isolate_->external_reference_table()->NameFromOffset(
                  offset_in_extref_table));
     return v8_buffer_.begin();
+  } else if (static_cast<unsigned>(offset - kBuiltinTier0TableStart) <
+             kBuiltinTier0TableSize) {
+    uint32_t offset_in_builtins_table = (offset - kBuiltinTier0TableStart);
 
+    Builtin builtin =
+        Builtins::FromInt(offset_in_builtins_table / kSystemPointerSize);
+    const char* name = Builtins::name(builtin);
+    SNPrintF(v8_buffer_, "builtin (%s)", name);
+    return v8_buffer_.begin();
   } else if (static_cast<unsigned>(offset - kBuiltinTableStart) <
              kBuiltinTableSize) {
     uint32_t offset_in_builtins_table = (offset - kBuiltinTableStart);
@@ -172,7 +182,6 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
     const char* name = Builtins::name(builtin);
     SNPrintF(v8_buffer_, "builtin (%s)", name);
     return v8_buffer_.begin();
-
   } else {
     // It must be a direct access to one of the external values.
     if (directly_accessed_external_refs_.empty()) {
