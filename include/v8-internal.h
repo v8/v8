@@ -520,10 +520,12 @@ static_assert((kVirtualMemoryCageGuardRegionSize %
               "The size of the virtual memory cage guard region must be a "
               "multiple of its required alignment.");
 
-// Minimum possible size of the virtual memory cage, excluding the guard regions
-// surrounding it. Used by unit tests.
-constexpr size_t kVirtualMemoryCageMinimumSize =
-    2 * Internals::kPtrComprCageReservationSize;
+// Minimum size of the virtual memory cage, excluding the guard regions
+// surrounding it. If the cage reservation fails, its size is currently halved
+// until either the reservation succeeds or the minimum size is reached. A
+// minimum of 32GB allows the 4GB pointer compression region as well as the
+// ArrayBuffer partition and two 10GB WASM memory cages to fit into the cage.
+constexpr size_t kVirtualMemoryCageMinimumSize = size_t{32} << 30;  // 32 GB
 
 // For now, even if the virtual memory cage is enabled, we still allow backing
 // stores to be allocated outside of it as fallback. This will simplify the
