@@ -578,7 +578,7 @@ void InstructionSelector::VisitLoad(Node* node, Node* value,
   InstructionOperand inputs[3];
   size_t input_count = 0;
   AddressingMode mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+      g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   Emit(code, 1, outputs, input_count, inputs);
 }
@@ -2344,7 +2344,6 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2ConvertLowI32x4S)  \
-  V(F64x2PromoteLowF32x4)   \
   V(F32x4DemoteF64x2Zero)   \
   V(F32x4Sqrt)              \
   V(F32x4SConvertI32x4)     \
@@ -3170,6 +3169,25 @@ void InstructionSelector::VisitI64x2GeS(Node* node) {
 
 void InstructionSelector::VisitI64x2Abs(Node* node) {
   VisitRRSimd(this, node, kIA32I64x2Abs, kIA32I64x2Abs);
+}
+
+void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionCode code = kIA32F64x2PromoteLowF32x4;
+  Node* input = node->InputAt(0);
+  LoadTransformMatcher m(input);
+
+  if (m.Is(LoadTransformation::kS128Load64Zero) && CanCover(node, input)) {
+    // Trap handler is not supported on IA32.
+    DCHECK_NE(m.ResolvedValue().kind, MemoryAccessKind::kProtected);
+    // LoadTransforms cannot be eliminated, so they are visited even if
+    // unused. Mark it as defined so that we don't visit it.
+    MarkAsDefined(input);
+    VisitLoad(node, input, code);
+    return;
+  }
+
+  VisitRR(this, node, code);
 }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,

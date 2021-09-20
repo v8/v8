@@ -1838,7 +1838,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32F64x2PromoteLowF32x4: {
-      __ Cvtps2pd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      if (HasAddressingMode(instr)) {
+        __ Cvtps2pd(i.OutputSimd128Register(), i.MemoryOperand());
+      } else {
+        __ Cvtps2pd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      }
       break;
     }
     case kIA32F32x4DemoteF64x2Zero: {
