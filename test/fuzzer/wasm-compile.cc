@@ -908,6 +908,61 @@ class WasmGenerator {
   }
 
   template <ValueKind wanted_kind>
+  void array_get(DataRange* data) {
+    WasmModuleBuilder* builder = builder_->builder();
+    ZoneVector<uint32_t> array_indices(builder->zone());
+    for (uint32_t i = num_structs_; i < num_arrays_ + num_structs_; i++) {
+      DCHECK(builder->IsArrayType(i));
+      if (builder->GetArrayType(i)->element_type().kind() == wanted_kind) {
+        array_indices.push_back(i);
+      }
+    }
+    if (array_indices.empty()) {
+      Generate<wanted_kind>(data);
+      return;
+    }
+    int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
+    GenerateOptRef(HeapType(array_indices[index]), data);
+    Generate(kWasmI32, data);
+    builder_->EmitWithPrefix(kExprArrayGet);
+    builder_->EmitU32V(array_indices[index]);
+  }
+
+  void array_len(DataRange* data) {
+    if (num_arrays_ > 1) {
+      int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
+      DCHECK(builder_->builder()->IsArrayType(array_index));
+      GenerateOptRef(HeapType(array_index), data);
+      builder_->EmitWithPrefix(kExprArrayLen);
+      builder_->EmitU32V(array_index);
+    } else {
+      Generate(kWasmI32, data);
+    }
+  }
+
+  void array_set(DataRange* data) {
+    WasmModuleBuilder* builder = builder_->builder();
+    ZoneVector<uint32_t> array_indices(builder->zone());
+    for (uint32_t i = num_structs_; i < num_arrays_ + num_structs_; i++) {
+      DCHECK(builder->IsArrayType(i));
+      if (builder->GetArrayType(i)->mutability()) {
+        array_indices.push_back(i);
+      }
+    }
+
+    if (array_indices.empty()) {
+      return;
+    }
+
+    int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
+    GenerateOptRef(HeapType(array_indices[index]), data);
+    Generate(kWasmI32, data);
+    Generate(builder->GetArrayType(array_indices[index])->element_type(), data);
+    builder_->EmitWithPrefix(kExprArraySet);
+    builder_->EmitU32V(array_indices[index]);
+  }
+
+  template <ValueKind wanted_kind>
   void struct_get(DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
     ZoneVector<uint32_t> field_index(builder->zone());
@@ -1134,6 +1189,7 @@ void WasmGenerator::Generate<kVoid>(DataRange* data) {
       &WasmGenerator::try_block<kVoid>,
 
       &WasmGenerator::struct_set,
+      &WasmGenerator::array_set,
 
       &WasmGenerator::table_set,
       &WasmGenerator::table_fill};
@@ -1289,6 +1345,8 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
       &WasmGenerator::try_block<kI32>,
 
       &WasmGenerator::struct_get<kI32>,
+      &WasmGenerator::array_get<kI32>,
+      &WasmGenerator::array_len,
 
       &WasmGenerator::ref_is_null<kI32>,
       &WasmGenerator::ref_eq,
@@ -1412,7 +1470,9 @@ void WasmGenerator::Generate<kI64>(DataRange* data) {
       &WasmGenerator::call_ref<kI64>,
       &WasmGenerator::try_block<kI64>,
 
-      &WasmGenerator::struct_get<kI64>};
+      &WasmGenerator::struct_get<kI64>,
+
+      &WasmGenerator::array_get<kI64>};
 
   GenerateOneOf(alternatives, data);
 }
@@ -1473,7 +1533,8 @@ void WasmGenerator::Generate<kF32>(DataRange* data) {
       &WasmGenerator::call_ref<kF32>,
       &WasmGenerator::try_block<kF32>,
 
-      &WasmGenerator::struct_get<kF32>};
+      &WasmGenerator::struct_get<kF32>,
+      &WasmGenerator::array_get<kF32>};
 
   GenerateOneOf(alternatives, data);
 }
@@ -1534,7 +1595,8 @@ void WasmGenerator::Generate<kF64>(DataRange* data) {
       &WasmGenerator::call_ref<kF64>,
       &WasmGenerator::try_block<kF64>,
 
-      &WasmGenerator::struct_get<kF64>};
+      &WasmGenerator::struct_get<kF64>,
+      &WasmGenerator::array_get<kF64>};
 
   GenerateOneOf(alternatives, data);
 }
