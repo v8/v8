@@ -16,6 +16,11 @@ http_archive(
 load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
 bazel_skylib_workspace()
 
+local_repository(
+  name = "com_google_absl",
+  path = "third_party/abseil-cpp",
+)
+
 new_local_repository(
     name = "zlib",
     path = "third_party/zlib",
