@@ -1635,6 +1635,12 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
 }
 
 void TurboAssembler::Move(XMMRegister dst, uint64_t high, uint64_t low) {
+  if (high == low) {
+    Move(dst, low);
+    Punpcklqdq(dst, dst);
+    return;
+  }
+
   Move(dst, low);
   movq(kScratchRegister, high);
   Pinsrq(dst, dst, kScratchRegister, uint8_t{1});
