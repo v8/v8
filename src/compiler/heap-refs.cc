@@ -256,13 +256,9 @@ bool PropertyCellData::Cache(JSHeapBroker* broker) {
     }
   }
 
-  if (property_details.cell_type() == PropertyCellType::kConstant) {
-    Handle<Object> value_again =
-        broker->CanonicalPersistentHandle(cell->value(kAcquireLoad));
-    if (*value != *value_again) {
-      DCHECK(!broker->IsMainThread());
-      return false;
-    }
+  if (property_details.cell_type() == PropertyCellType::kInTransition) {
+    DCHECK(!broker->IsMainThread());
+    return false;
   }
 
   ObjectData* value_data = broker->TryGetOrCreateData(value);
