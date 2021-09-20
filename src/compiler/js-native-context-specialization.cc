@@ -967,6 +967,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         break;
       }
       case PropertyCellType::kUndefined:
+      case PropertyCellType::kInTransition:
         UNREACHABLE();
     }
   }
