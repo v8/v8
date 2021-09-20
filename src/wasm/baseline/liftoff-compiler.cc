@@ -373,6 +373,29 @@ class LiftoffCompiler {
   using FullDecoder = WasmFullDecoder<validate, LiftoffCompiler>;
   using ValueKindSig = LiftoffAssembler::ValueKindSig;
 
+  class MostlySmallValueKindSig : public Signature<ValueKind> {
+   public:
+    MostlySmallValueKindSig(Zone* zone, const FunctionSig* sig)
+        : Signature<ValueKind>(sig->return_count(), sig->parameter_count(),
+                               MakeKinds(inline_storage_, zone, sig)) {}
+
+   private:
+    static constexpr size_t kInlineStorage = 8;
+
+    static ValueKind* MakeKinds(ValueKind* storage, Zone* zone,
+                                const FunctionSig* sig) {
+      const size_t size = sig->parameter_count() + sig->return_count();
+      if (V8_UNLIKELY(size > kInlineStorage)) {
+        storage = zone->NewArray<ValueKind>(size);
+      }
+      std::transform(sig->all().begin(), sig->all().end(), storage,
+                     [](ValueType type) { return type.kind(); });
+      return storage;
+    }
+
+    ValueKind inline_storage_[kInlineStorage];
+  };
+
   // For debugging, we need to spill registers before a trap or a stack check to
   // be able to inspect them.
   struct SpilledRegistersForInspection : public ZoneObject {
@@ -5659,20 +5682,11 @@ class LiftoffCompiler {
   }
 
  private:
-  ValueKindSig* MakeKindSig(Zone* zone, const FunctionSig* sig) {
-    ValueKind* reps =
-        zone->NewArray<ValueKind>(sig->parameter_count() + sig->return_count());
-    ValueKind* ptr = reps;
-    for (ValueType type : sig->all()) *ptr++ = type.kind();
-    return zone->New<ValueKindSig>(sig->return_count(), sig->parameter_count(),
-                                   reps);
-  }
-
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[], TailCall tail_call) {
-    ValueKindSig* sig = MakeKindSig(compilation_zone_, imm.sig);
-    for (ValueKind ret : sig->returns()) {
+    MostlySmallValueKindSig sig(compilation_zone_, imm.sig);
+    for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
@@ -5702,7 +5716,7 @@ class LiftoffCompiler {
           ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index), pinned);
 
       Register* explicit_instance = &imported_function_ref;
-      __ PrepareCall(sig, call_descriptor, &target, explicit_instance);
+      __ PrepareCall(&sig, call_descriptor, &target, explicit_instance);
       if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -5712,12 +5726,12 @@ class LiftoffCompiler {
       } else {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
-        __ CallIndirect(sig, call_descriptor, target);
-        FinishCall(decoder, sig, call_descriptor);
+        __ CallIndirect(&sig, call_descriptor, target);
+        FinishCall(decoder, &sig, call_descriptor);
       }
     } else {
       // A direct call within this module just gets the current instance.
-      __ PrepareCall(sig, call_descriptor);
+      __ PrepareCall(&sig, call_descriptor);
       // Just encode the function index. This will be patched at instantiation.
       Address addr = static_cast<Address>(imm.index);
       if (tail_call) {
@@ -5731,7 +5745,7 @@ class LiftoffCompiler {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
         __ CallNativeWasmCode(addr);
-        FinishCall(decoder, sig, call_descriptor);
+        FinishCall(decoder, &sig, call_descriptor);
       }
     }
   }
@@ -5739,8 +5753,8 @@ class LiftoffCompiler {
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate<validate>& imm,
                     TailCall tail_call) {
-    ValueKindSig* sig = MakeKindSig(compilation_zone_, imm.sig);
-    for (ValueKind ret : sig->returns()) {
+    MostlySmallValueKindSig sig(compilation_zone_, imm.sig);
+    for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
@@ -5864,7 +5878,7 @@ class LiftoffCompiler {
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
     Register target = scratch;
-    __ PrepareCall(sig, call_descriptor, &target, explicit_instance);
+    __ PrepareCall(&sig, call_descriptor, &target, explicit_instance);
     if (tail_call) {
       __ PrepareTailCall(
           static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -5874,16 +5888,16 @@ class LiftoffCompiler {
     } else {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
-      __ CallIndirect(sig, call_descriptor, target);
+      __ CallIndirect(&sig, call_descriptor, target);
 
-      FinishCall(decoder, sig, call_descriptor);
+      FinishCall(decoder, &sig, call_descriptor);
     }
   }
 
   void CallRef(FullDecoder* decoder, ValueType func_ref_type,
                const FunctionSig* type_sig, TailCall tail_call) {
-    ValueKindSig* sig = MakeKindSig(compilation_zone_, type_sig);
-    for (ValueKind ret : sig->returns()) {
+    MostlySmallValueKindSig sig(compilation_zone_, type_sig);
+    for (ValueKind ret : sig.returns()) {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
     compiler::CallDescriptor* call_descriptor =
@@ -5988,7 +6002,7 @@ class LiftoffCompiler {
     // is in {instance}.
     Register target_reg = target.gp();
     Register instance_reg = instance.gp();
-    __ PrepareCall(sig, call_descriptor, &target_reg, &instance_reg);
+    __ PrepareCall(&sig, call_descriptor, &target_reg, &instance_reg);
     if (tail_call) {
       __ PrepareTailCall(
           static_cast<int>(call_descriptor->ParameterSlotCount()),
@@ -5998,9 +6012,9 @@ class LiftoffCompiler {
     } else {
       source_position_table_builder_.AddPosition(
           __ pc_offset(), SourcePosition(decoder->position()), true);
-      __ CallIndirect(sig, call_descriptor, target_reg);
+      __ CallIndirect(&sig, call_descriptor, target_reg);
 
-      FinishCall(decoder, sig, call_descriptor);
+      FinishCall(decoder, &sig, call_descriptor);
     }
   }
 
