@@ -53,6 +53,9 @@ class MemoryProtectionTest : public TestWithNativeContext {
     FLAG_wasm_memory_protection_keys = enable_pku;
     if (enable_pku) {
       GetWasmCodeManager()->InitializeMemoryProtectionKeyForTesting();
+      // The key is initially write-protected.
+      CHECK_IMPLIES(GetWasmCodeManager()->HasMemoryProtectionKeySupport(),
+                    !GetWasmCodeManager()->MemoryProtectionKeyWritable());
     }
 
     bool enable_mprotect =

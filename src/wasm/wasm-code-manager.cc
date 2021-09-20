@@ -2128,6 +2128,11 @@ void WasmCodeManager::SetThreadWritable(bool writable) {
   MemoryProtectionKeyPermission permissions =
       writable ? kNoRestrictions : kDisableWrite;
 
+  // When switching to writable we should not already be writable. Otherwise
+  // this points at a problem with counting writers, or with wrong
+  // initialization (globally or per thread).
+  DCHECK_IMPLIES(writable, !MemoryProtectionKeyWritable());
+
   TRACE_HEAP("Setting memory protection key %d to writable: %d.\n",
              memory_protection_key_, writable);
   SetPermissionsForMemoryProtectionKey(memory_protection_key_, permissions);
@@ -2135,6 +2140,10 @@ void WasmCodeManager::SetThreadWritable(bool writable) {
 
 bool WasmCodeManager::HasMemoryProtectionKeySupport() const {
   return memory_protection_key_ != kNoMemoryProtectionKey;
+}
+
+bool WasmCodeManager::MemoryProtectionKeyWritable() const {
+  return wasm::MemoryProtectionKeyWritable(memory_protection_key_);
 }
 
 void WasmCodeManager::InitializeMemoryProtectionKeyForTesting() {

@@ -1042,6 +1042,11 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // Returns true if there is PKU support, false otherwise.
   bool HasMemoryProtectionKeySupport() const;
 
+  // Returns {true} if the memory protection key is write-enabled for the
+  // current thread.
+  // Can only be called if {HasMemoryProtectionKeySupport()} is {true}.
+  bool MemoryProtectionKeyWritable() const;
+
   // This allocates a memory protection key (if none was allocated before),
   // independent of the --wasm-memory-protection-keys flag.
   void InitializeMemoryProtectionKeyForTesting();
