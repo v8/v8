@@ -4297,6 +4297,14 @@ void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
   }
   os << "  DCHECK_LT(" << index << ", " << length_expression << ");\n";
 }
+
+bool CanGenerateFieldAccessors(const Type* field_type) {
+  // float64_or_hole should be treated like float64. For now, we don't need it.
+  // TODO(v8:10391) Generate accessors for external pointers.
+  return field_type != TypeOracle::GetVoidType() &&
+         field_type != TypeOracle::GetFloat64OrHoleType() &&
+         !field_type->IsSubtypeOf(TypeOracle::GetExternalPointerType());
+}
 }  // namespace
 
 // TODO(sigurds): Keep in sync with DECL_ACCESSORS and ACCESSORS macro.
@@ -4305,12 +4313,7 @@ void CppClassGenerator::GenerateFieldAccessors(
   const Field& innermost_field =
       struct_fields.empty() ? class_field : *struct_fields.back();
   const Type* field_type = innermost_field.name_and_type.type;
-  if (field_type == TypeOracle::GetVoidType()) return;
-
-  // float64_or_hole should be treated like float64. For now, we don't need it.
-  if (field_type == TypeOracle::GetFloat64OrHoleType()) {
-    return;
-  }
+  if (!CanGenerateFieldAccessors(field_type)) return;
 
   if (const StructType* struct_type = StructType::DynamicCast(field_type)) {
     struct_fields.resize(struct_fields.size() + 1);
@@ -4319,11 +4322,6 @@ void CppClassGenerator::GenerateFieldAccessors(
       GenerateFieldAccessors(class_field, struct_fields);
     }
     struct_fields.resize(struct_fields.size() - 1);
-    return;
-  }
-
-  // TODO(v8:10391) Generate accessors for external pointers
-  if (field_type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
     return;
   }
 
@@ -4783,42 +4781,49 @@ void GeneratePrintDefinitionsForClass(std::ostream& impl, const ClassType* type,
   std::map<std::string, const AggregateType*> field_names;
   for (const AggregateType* aggregate_type : hierarchy) {
     for (const Field& f : aggregate_type->fields()) {
-      if (f.name_and_type.name == "map") continue;
-      if (!f.index.has_value()) {
-        if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType()) ||
-            !f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-          impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << ";
-          if (f.name_and_type.type->StructSupertype()) {
-            // TODO(turbofan): Print struct fields too.
-            impl << "\" <struct field printing still unimplemented>\";\n";
-          } else {
-            impl << "this->" << f.name_and_type.name;
-            switch (f.read_synchronization) {
-              case FieldSynchronization::kNone:
-                impl << "();\n";
-                break;
-              case FieldSynchronization::kRelaxed:
-                impl << "(kRelaxedLoad);\n";
-                break;
-              case FieldSynchronization::kAcquireRelease:
-                impl << "(kAcquireLoad);\n";
-                break;
-            }
-          }
+      if (f.name_and_type.name == "map" || f.index.has_value() ||
+          !CanGenerateFieldAccessors(f.name_and_type.type)) {
+        continue;
+      }
+      std::string getter = f.name_and_type.name;
+      if (aggregate_type != type) {
+        // We must call getters directly on the class that provided them,
+        // because a subclass could have hidden them.
+        getter = aggregate_type->name() + "::TorqueGeneratedClass::" + getter;
+      }
+      if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType()) ||
+          !f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+        impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << ";
+        if (f.name_and_type.type->StructSupertype()) {
+          // TODO(turbofan): Print struct fields too.
+          impl << "\" <struct field printing still unimplemented>\";\n";
         } else {
-          impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << "
-               << "Brief(this->" << f.name_and_type.name;
+          impl << "this->" << getter;
           switch (f.read_synchronization) {
             case FieldSynchronization::kNone:
-              impl << "());\n";
+              impl << "();\n";
               break;
             case FieldSynchronization::kRelaxed:
-              impl << "(kRelaxedLoad));\n";
+              impl << "(kRelaxedLoad);\n";
               break;
             case FieldSynchronization::kAcquireRelease:
-              impl << "(kAcquireLoad));\n";
+              impl << "(kAcquireLoad);\n";
               break;
           }
+        }
+      } else {
+        impl << "  os << \"\\n - " << f.name_and_type.name << ": \" << "
+             << "Brief(this->" << getter;
+        switch (f.read_synchronization) {
+          case FieldSynchronization::kNone:
+            impl << "());\n";
+            break;
+          case FieldSynchronization::kRelaxed:
+            impl << "(kRelaxedLoad));\n";
+            break;
+          case FieldSynchronization::kAcquireRelease:
+            impl << "(kAcquireLoad));\n";
+            break;
         }
       }
     }
@@ -4842,19 +4847,14 @@ void ImplementationVisitor::GeneratePrintDefinitions(
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
       if (!type->ShouldGeneratePrint()) continue;
-
-      if (type->GenerateCppClassDefinitions()) {
-        const ClassType* super = type->GetSuperClass();
-        std::string gen_name = "TorqueGenerated" + type->name();
-        std::string gen_name_T =
-            gen_name + "<" + type->name() + ", " + super->name() + ">";
-        std::string template_decl = "template <>";
-        GeneratePrintDefinitionsForClass(impl, type, gen_name, gen_name_T,
-                                         template_decl);
-      } else {
-        GeneratePrintDefinitionsForClass(impl, type, type->name(), type->name(),
-                                         "");
-      }
+      DCHECK(type->GenerateCppClassDefinitions());
+      const ClassType* super = type->GetSuperClass();
+      std::string gen_name = "TorqueGenerated" + type->name();
+      std::string gen_name_T =
+          gen_name + "<" + type->name() + ", " + super->name() + ">";
+      std::string template_decl = "template <>";
+      GeneratePrintDefinitionsForClass(impl, type, gen_name, gen_name_T,
+                                       template_decl);
     }
   }
 

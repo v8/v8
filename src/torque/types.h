@@ -670,8 +670,8 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return flags_ & ClassFlag::kExtern; }
   bool ShouldGeneratePrint() const {
-    return !IsExtern() ||
-           ((flags_ & ClassFlag::kGeneratePrint) && !HasUndefinedLayout());
+    return !IsExtern() || (GenerateCppClassDefinitions() && !IsAbstract() &&
+                           !HasUndefinedLayout());
   }
   bool ShouldGenerateVerify() const {
     return !IsExtern() || ((flags_ & ClassFlag::kGenerateVerify) &&

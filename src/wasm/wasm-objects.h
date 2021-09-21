@@ -182,9 +182,6 @@ class WasmModuleObject
 class WasmTableObject
     : public TorqueGeneratedWasmTableObject<WasmTableObject, JSObject> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(WasmTableObject)
-
   inline wasm::ValueType type();
 
   V8_EXPORT_PRIVATE static int Grow(Isolate* isolate,
@@ -266,9 +263,6 @@ class WasmMemoryObject
     : public TorqueGeneratedWasmMemoryObject<WasmMemoryObject, JSObject> {
  public:
   DECL_OPTIONAL_ACCESSORS(instances, WeakArrayList)
-
-  // Dispatched behavior.
-  DECL_PRINTER(WasmMemoryObject)
 
   // Add an instance to the internal (weak) list.
   V8_EXPORT_PRIVATE static void AddInstance(Isolate* isolate,
@@ -554,9 +548,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 class WasmTagObject
     : public TorqueGeneratedWasmTagObject<WasmTagObject, JSObject> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(WasmTagObject)
-
   // Checks whether the given {sig} has the same parameter types as the
   // serialized signature stored within this tag object.
   bool MatchesSignature(const wasm::FunctionSig* sig);
@@ -840,8 +831,6 @@ class WasmExceptionTag
  public:
   V8_EXPORT_PRIVATE static Handle<WasmExceptionTag> New(Isolate* isolate,
                                                         int index);
-
-  DECL_PRINTER(WasmExceptionTag)
 
   TQ_OBJECT_CONSTRUCTORS(WasmExceptionTag)
 };

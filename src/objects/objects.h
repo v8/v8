@@ -646,7 +646,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     bool operator()(const Object a, const Object b) const { return a < b; }
   };
 
-  template <class T, typename std::enable_if<std::is_arithmetic<T>::value,
+  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
+                                                 std::is_enum<T>::value,
                                              int>::type = 0>
   inline T ReadField(size_t offset) const {
     // Pointer compression causes types larger than kTaggedSize to be unaligned.
@@ -663,7 +664,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     }
   }
 
-  template <class T, typename std::enable_if<std::is_arithmetic<T>::value,
+  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
+                                                 std::is_enum<T>::value,
                                              int>::type = 0>
   inline void WriteField(size_t offset, T value) const {
     // Pointer compression causes types larger than kTaggedSize to be unaligned.

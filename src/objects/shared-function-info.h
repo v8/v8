@@ -146,8 +146,6 @@ class InterpreterData
  public:
   DECL_ACCESSORS(interpreter_trampoline, Code)
 
-  DECL_PRINTER(InterpreterData)
-
  private:
   DECL_ACCESSORS(raw_interpreter_trampoline, CodeT)
 
