@@ -104,7 +104,9 @@ class JSArrayBuffer
   // Get a reference to backing store of this array buffer, if there is a
   // backing store. Returns nullptr if there is no backing store (e.g. detached
   // or a zero-length array buffer).
-  std::shared_ptr<BackingStore> GetBackingStore();
+  std::shared_ptr<BackingStore> GetBackingStore() const;
+
+  size_t GetByteLength() const;
 
   // Allocates an ArrayBufferExtension for this array buffer, unless it is
   // already associated with an extension.

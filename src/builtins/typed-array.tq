@@ -176,6 +176,7 @@ transient type AttachedJSTypedArray extends JSTypedArray;
 
 macro EnsureAttached(array: JSTypedArray): AttachedJSTypedArray
     labels Detached {
+  // TODO(v8:11111): Add OOB check for RAB / GSAB.
   if (IsDetachedBuffer(array.buffer)) goto Detached;
   return %RawDownCast<AttachedJSTypedArray>(array);
 }

@@ -192,7 +192,10 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
     TNode<Int32T> kind) {
   STATIC_ASSERT(BIGUINT64_ELEMENTS + 1 == BIGINT64_ELEMENTS);
-  return IsElementsKindInRange(kind, BIGUINT64_ELEMENTS, BIGINT64_ELEMENTS);
+  return Word32Or(
+      IsElementsKindInRange(kind, BIGUINT64_ELEMENTS, BIGINT64_ELEMENTS),
+      IsElementsKindInRange(kind, RAB_GSAB_BIGUINT64_ELEMENTS,
+                            RAB_GSAB_BIGINT64_ELEMENTS));
 }
 
 TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
@@ -406,13 +409,14 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)     \
-  BIND(&if_##type##array);                            \
-  {                                                   \
-    case_function(TYPE##_ELEMENTS, sizeof(ctype), 0); \
-    Goto(&next);                                      \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, NON_RAB_GSAB_TYPE) \
+  BIND(&if_##type##array);                                           \
+  {                                                                  \
+    case_function(TYPE##_ELEMENTS, sizeof(ctype),                    \
+                  Context::NON_RAB_GSAB_TYPE##_ARRAY_FUN_INDEX);     \
+    Goto(&next);                                                     \
   }
-  RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  RAB_GSAB_TYPED_ARRAYS_WITH_NON_RAB_GSAB_ELEMENTS_KIND(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
   BIND(&if_unknown_type);
