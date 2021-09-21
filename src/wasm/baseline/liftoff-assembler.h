@@ -32,7 +32,9 @@ namespace wasm {
 
 enum LiftoffCondition {
   kEqual,
+  kEqualZero = kEqual,  // When used in a unary operation.
   kUnequal,
+  kNotEqualZero = kUnequal,  // When used in a unary operation.
   kSignedLessThan,
   kSignedLessEqual,
   kSignedGreaterThan,

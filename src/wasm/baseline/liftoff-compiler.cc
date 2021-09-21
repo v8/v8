@@ -842,8 +842,8 @@ class LiftoffCompiler {
       // Check if the number of calls is a power of 2.
       __ emit_i32_and(old_number_of_calls.gp(), old_number_of_calls.gp(),
                       new_number_of_calls.gp());
-      // Unary "unequal" means "different from zero".
-      __ emit_cond_jump(kUnequal, &no_tierup, kI32, old_number_of_calls.gp());
+      __ emit_cond_jump(kNotEqualZero, &no_tierup, kI32,
+                        old_number_of_calls.gp());
       TierUpFunction(decoder);
       // After the runtime call, the instance cache register is clobbered (we
       // reset it already in {SpillAllRegisters} above, but then we still access
@@ -1019,13 +1019,11 @@ class LiftoffCompiler {
       LOAD_INSTANCE_FIELD(flag, HookOnFunctionCallAddress, kSystemPointerSize,
                           {});
       __ Load(LiftoffRegister{flag}, flag, no_reg, 0, LoadType::kI32Load8U, {});
-      // Unary "unequal" means "not equals zero".
-      __ emit_cond_jump(kUnequal, &do_break, kI32, flag);
+      __ emit_cond_jump(kNotEqualZero, &do_break, kI32, flag);
 
       // Check if we should stop on "script entry".
       LOAD_INSTANCE_FIELD(flag, BreakOnEntry, kUInt8Size, {});
-      // Unary "equal" means "equals zero".
-      __ emit_cond_jump(kEqual, &no_break, kI32, flag);
+      __ emit_cond_jump(kEqualZero, &no_break, kI32, flag);
 
       __ bind(&do_break);
       EmitBreakpoint(decoder);
@@ -1274,11 +1272,10 @@ class LiftoffCompiler {
     // Test the condition, jump to else if zero.
     Register value = __ PopToRegister().gp();
     if (!has_outstanding_op()) {
-      // Unary "equal" means "equals zero".
-      __ emit_cond_jump(kEqual, if_block->else_state->label.get(), kI32, value);
+      __ emit_cond_jump(kEqualZero, if_block->else_state->label.get(), kI32,
+                        value);
     } else if (outstanding_op_ == kExprI32Eqz) {
-      // Unary "unequal" means "not equals zero".
-      __ emit_cond_jump(kUnequal, if_block->else_state->label.get(), kI32,
+      __ emit_cond_jump(kNotEqualZero, if_block->else_state->label.get(), kI32,
                         value);
       outstanding_op_ = kNoOutstandingOp;
     } else {
@@ -2506,11 +2503,9 @@ class LiftoffCompiler {
     Register value = __ PopToRegister().gp();
 
     if (!has_outstanding_op()) {
-      // Unary "equal" means "equals zero".
-      __ emit_cond_jump(kEqual, &cont_false, kI32, value);
+      __ emit_cond_jump(kEqualZero, &cont_false, kI32, value);
     } else if (outstanding_op_ == kExprI32Eqz) {
-      // Unary "unequal" means "not equals zero".
-      __ emit_cond_jump(kUnequal, &cont_false, kI32, value);
+      __ emit_cond_jump(kNotEqualZero, &cont_false, kI32, value);
       outstanding_op_ = kNoOutstandingOp;
     } else {
       // Otherwise, it's an i32 compare opcode.
@@ -2703,8 +2698,7 @@ class LiftoffCompiler {
       __ emit_u32_to_intptr(index_ptrsize, index_ptrsize);
     } else if (kSystemPointerSize == kInt32Size) {
       DCHECK_GE(kMaxUInt32, env_->max_memory_size);
-      // Unary "unequal" means "not equals zero".
-      __ emit_cond_jump(kUnequal, trap_label, kI32, index.high_gp());
+      __ emit_cond_jump(kNotEqualZero, trap_label, kI32, index.high_gp());
     }
 
     uintptr_t end_offset = offset + access_size - 1u;
