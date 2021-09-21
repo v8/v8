@@ -94,7 +94,7 @@
   /* https://github.com/WebAssembly/reference-types */                         \
   /* V8 side owner: ahaas */                                                   \
   /* Staged in v7.8. */                                                        \
-  /* Shipped in v9.5 * */                                                      \
+  /* Shipped in v9.6 * */                                                      \
   V(reftypes, "reference type opcodes", true)                                  \
                                                                                \
   /* Threads proposal. */                                                      \
