@@ -6115,6 +6115,14 @@ PageAllocator* v8::V8::GetVirtualMemoryCagePageAllocator() {
   CHECK(i::GetProcessWideVirtualMemoryCage()->is_initialized());
   return i::GetProcessWideVirtualMemoryCage()->page_allocator();
 }
+
+size_t v8::V8::GetVirtualMemoryCageSizeInBytes() {
+  if (!i::GetProcessWideVirtualMemoryCage()->is_initialized()) {
+    return 0;
+  } else {
+    return i::GetProcessWideVirtualMemoryCage()->size();
+  }
+}
 #endif
 
 void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {

@@ -219,6 +219,14 @@ class V8_EXPORT V8 {
    * cage and V8.
    */
   static PageAllocator* GetVirtualMemoryCagePageAllocator();
+
+  /**
+   * Returns the size of the virtual memory cage in bytes.
+   *
+   * If the cage has not been initialized, or if the initialization failed,
+   * this returns zero.
+   */
+  static size_t GetVirtualMemoryCageSizeInBytes();
 #endif
 
   /**
