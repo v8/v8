@@ -2728,7 +2728,7 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
   assm->cmov(zero, dst.gp(), tmp);
 }
 
-template <void (TurboAssembler::*pcmp)(XMMRegister, XMMRegister)>
+template <void (SharedTurboAssembler::*pcmp)(XMMRegister, XMMRegister)>
 inline void EmitAllTrue(LiftoffAssembler* assm, LiftoffRegister dst,
                         LiftoffRegister src,
                         base::Optional<CpuFeature> feature = base::nullopt) {

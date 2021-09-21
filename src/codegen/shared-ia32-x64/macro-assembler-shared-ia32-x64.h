@@ -46,6 +46,10 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void Add(Register dst, Immediate src);
   void And(Register dst, Immediate src);
 
+  // Will move src1 to dst if AVX is not supported.
+  void Movhps(XMMRegister dst, XMMRegister src1, Operand src2);
+  void Movlps(XMMRegister dst, XMMRegister src1, Operand src2);
+
   template <typename Op>
   void Pinsrb(XMMRegister dst, XMMRegister src1, Op src2, uint8_t imm8,
               uint32_t* load_pc_offset = nullptr) {
@@ -385,6 +389,12 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP_SSE4_1(Roundsd, roundsd)
   AVX_OP_SSE4_1(Roundss, roundss)
 
+#undef AVX_OP
+#undef AVX_OP_SSE3
+#undef AVX_OP_SSSE3
+#undef AVX_OP_SSE4_1
+#undef AVX_OP_SSE4_2
+
   void F64x2ExtractLane(DoubleRegister dst, XMMRegister src, uint8_t lane);
   void F64x2ReplaceLane(XMMRegister dst, XMMRegister src, DoubleRegister rep,
                         uint8_t lane);
@@ -598,6 +608,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
 
   void I32x4SConvertF32x4(XMMRegister dst, XMMRegister src, XMMRegister tmp,
                           Register scratch) {
+    ASM_CODE_COMMENT(this);
     Operand op = ExternalReferenceAsOperand(
         ExternalReference::address_of_wasm_int32_overflow_as_float(), scratch);
 
@@ -639,6 +650,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
 
   void I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src,
                                XMMRegister scratch, Register tmp) {
+    ASM_CODE_COMMENT(this);
     if (CpuFeatures::IsSupported(AVX)) {
       CpuFeatureScope avx_scope(this, AVX);
       XMMRegister original_dst = dst;
@@ -675,6 +687,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
 
   void I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src,
                                XMMRegister scratch, Register tmp) {
+    ASM_CODE_COMMENT(this);
     if (CpuFeatures::IsSupported(AVX)) {
       CpuFeatureScope avx_scope(this, AVX);
       vxorpd(scratch, scratch, scratch);
@@ -714,6 +727,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
 
   void I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
                                  Register scratch) {
+    ASM_CODE_COMMENT(this);
     Operand op = ExternalReferenceAsOperand(
         ExternalReference::address_of_wasm_i16x8_splat_0x0001(), scratch);
     // pmaddwd multiplies signed words in src and op, producing

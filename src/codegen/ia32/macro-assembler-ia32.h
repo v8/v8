@@ -302,38 +302,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
-  // Defined here because some callers take a pointer to member functions.
-  AVX_OP(Pcmpeqb, pcmpeqb)
-  AVX_OP(Pcmpeqw, pcmpeqw)
-  AVX_OP(Pcmpeqd, pcmpeqd)
-  AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
-
-// Macro for instructions that have 2 operands for AVX version and 1 operand for
-// SSE version. Will move src1 to dst if dst != src1.
-#define AVX_OP3_WITH_MOVE(macro_name, name, dst_type, src_type) \
-  void macro_name(dst_type dst, dst_type src1, src_type src2) { \
-    if (CpuFeatures::IsSupported(AVX)) {                        \
-      CpuFeatureScope scope(this, AVX);                         \
-      v##name(dst, src1, src2);                                 \
-    } else {                                                    \
-      if (dst != src1) {                                        \
-        movaps(dst, src1);                                      \
-      }                                                         \
-      name(dst, src2);                                          \
-    }                                                           \
-  }
-  AVX_OP3_WITH_MOVE(Movlps, movlps, XMMRegister, Operand)
-  AVX_OP3_WITH_MOVE(Movhps, movhps, XMMRegister, Operand)
-#undef AVX_OP3_WITH_MOVE
-
-  // TODO(zhin): Remove after moving more definitions into SharedTurboAssembler.
-  void Movlps(Operand dst, XMMRegister src) {
-    SharedTurboAssembler::Movlps(dst, src);
-  }
-  void Movhps(Operand dst, XMMRegister src) {
-    SharedTurboAssembler::Movhps(dst, src);
-  }
-
   void PextrdPreSse41(Register dst, XMMRegister src, uint8_t imm8);
   void PinsrdPreSse41(XMMRegister dst, Register src, uint8_t imm8,
                       uint32_t* load_pc_offset) {
