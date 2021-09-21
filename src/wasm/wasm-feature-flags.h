@@ -67,12 +67,6 @@
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Reference Types, a.k.a. reftypes proposal. */                             \
-  /* https://github.com/WebAssembly/reference-types */                         \
-  /* V8 side owner: ahaas */                                                   \
-  /* Staged in v7.8. */                                                        \
-  V(reftypes, "reference type opcodes", false)                                 \
-                                                                               \
   /* Tail call / return call proposal. */                                      \
   /* https://github.com/webassembly/tail-call */                               \
   /* V8 side owner: thibaudm */                                                \
@@ -95,6 +89,13 @@
   /* Staged in v8.7 * */                                                       \
   /* Shipped in v9.1 * */                                                      \
   V(simd, "SIMD opcodes", true)                                                \
+                                                                               \
+  /* Reference Types, a.k.a. reftypes proposal. */                             \
+  /* https://github.com/WebAssembly/reference-types */                         \
+  /* V8 side owner: ahaas */                                                   \
+  /* Staged in v7.8. */                                                        \
+  /* Shipped in v9.5 * */                                                      \
+  V(reftypes, "reference type opcodes", true)                                  \
                                                                                \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \
