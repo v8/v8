@@ -283,6 +283,49 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CopySignF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
                    RCBit r = LeaveRC);
 
+  template <class _type, class bin_op>
+  void AtomicOps(MemOperand dst, Register value, Register output,
+                 Register scratch, bin_op op) {
+    Label binop;
+    lwsync();
+    bind(&binop);
+    switch (sizeof(_type)) {
+      case 1:
+        lbarx(output, dst);
+        break;
+      case 2:
+        lharx(output, dst);
+        break;
+      case 4:
+        lwarx(output, dst);
+        break;
+      case 8:
+        ldarx(output, dst);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    op(scratch, output, value);
+    switch (sizeof(_type)) {
+      case 1:
+        stbcx(scratch, dst);
+        break;
+      case 2:
+        sthcx(scratch, dst);
+        break;
+      case 4:
+        stwcx(scratch, dst);
+        break;
+      case 8:
+        stdcx(scratch, dst);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    bne(&binop, cr0);
+    sync();
+  }
+
   void Push(Register src) { push(src); }
   // Push a handle.
   void Push(Handle<HeapObject> handle);

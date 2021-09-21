@@ -564,32 +564,35 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ sync();                                                          \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_inst, load_inst, store_inst)               \
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, _type)                               \
   do {                                                                       \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
-    Label binop;                                                             \
-    __ lwsync();                                                             \
-    __ bind(&binop);                                                         \
-    __ load_inst(i.OutputRegister(), operand);                               \
-    __ bin_inst(kScratchReg, i.OutputRegister(), i.InputRegister(2));        \
-    __ store_inst(kScratchReg, operand);                                     \
-    __ bne(&binop, cr0);                                                     \
-    __ sync();                                                               \
-  } while (false)
-
-#define ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(bin_inst, load_inst, store_inst,      \
-                                       ext_instr)                            \
-  do {                                                                       \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
-    Label binop;                                                             \
-    __ lwsync();                                                             \
-    __ bind(&binop);                                                         \
-    __ load_inst(i.OutputRegister(), operand);                               \
-    __ ext_instr(i.OutputRegister(), i.OutputRegister());                    \
-    __ bin_inst(kScratchReg, i.OutputRegister(), i.InputRegister(2));        \
-    __ store_inst(kScratchReg, operand);                                     \
-    __ bne(&binop, cr0);                                                     \
-    __ sync();                                                               \
+    auto bin_op = [&](Register dst, Register lhs, Register rhs) {            \
+      if (std::is_signed<_type>::value) {                                    \
+        switch (sizeof(_type)) {                                             \
+          case 1:                                                            \
+            __ extsb(dst, lhs);                                              \
+            break;                                                           \
+          case 2:                                                            \
+            __ extsh(dst, lhs);                                              \
+            break;                                                           \
+          case 4:                                                            \
+            __ extsw(dst, lhs);                                              \
+            break;                                                           \
+          case 8:                                                            \
+            break;                                                           \
+          default:                                                           \
+            UNREACHABLE();                                                   \
+        }                                                                    \
+        __ bin_inst(dst, dst, rhs);                                          \
+      } else {                                                               \
+        __ bin_inst(dst, lhs, rhs);                                          \
+      }                                                                      \
+    };                                                                       \
+    MemOperand dst_operand =                                                 \
+        MemOperand(i.InputRegister(0), i.InputRegister(1));                  \
+    __ AtomicOps<_type>(dst_operand, i.InputRegister(2), i.OutputRegister(), \
+                        kScratchReg, bin_op);                                \
+    break;                                                                   \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp_inst, load_inst, store_inst,    \
@@ -2053,28 +2056,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(CmpS64, ldarx, stdcx, mr);
       break;
 
-#define ATOMIC_BINOP_CASE(op, inst)                            \
-  case kPPC_Atomic##op##Int8:                                  \
-    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lbarx, stbcx, extsb); \
-    break;                                                     \
-  case kPPC_Atomic##op##Uint8:                                 \
-    ASSEMBLE_ATOMIC_BINOP(inst, lbarx, stbcx);                 \
-    break;                                                     \
-  case kPPC_Atomic##op##Int16:                                 \
-    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lharx, sthcx, extsh); \
-    break;                                                     \
-  case kPPC_Atomic##op##Uint16:                                \
-    ASSEMBLE_ATOMIC_BINOP(inst, lharx, sthcx);                 \
-    break;                                                     \
-  case kPPC_Atomic##op##Int32:                                 \
-    ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(inst, lwarx, stwcx, extsw); \
-    break;                                                     \
-  case kPPC_Atomic##op##Uint32:                                \
-    ASSEMBLE_ATOMIC_BINOP(inst, lwarx, stwcx);                 \
-    break;                                                     \
-  case kPPC_Atomic##op##Int64:                                 \
-  case kPPC_Atomic##op##Uint64:                                \
-    ASSEMBLE_ATOMIC_BINOP(inst, ldarx, stdcx);                 \
+#define ATOMIC_BINOP_CASE(op, inst)        \
+  case kPPC_Atomic##op##Int8:              \
+    ASSEMBLE_ATOMIC_BINOP(inst, int8_t);   \
+    break;                                 \
+  case kPPC_Atomic##op##Uint8:             \
+    ASSEMBLE_ATOMIC_BINOP(inst, uint8_t);  \
+    break;                                 \
+  case kPPC_Atomic##op##Int16:             \
+    ASSEMBLE_ATOMIC_BINOP(inst, int16_t);  \
+    break;                                 \
+  case kPPC_Atomic##op##Uint16:            \
+    ASSEMBLE_ATOMIC_BINOP(inst, uint16_t); \
+    break;                                 \
+  case kPPC_Atomic##op##Int32:             \
+    ASSEMBLE_ATOMIC_BINOP(inst, int32_t);  \
+    break;                                 \
+  case kPPC_Atomic##op##Uint32:            \
+    ASSEMBLE_ATOMIC_BINOP(inst, uint32_t); \
+    break;                                 \
+  case kPPC_Atomic##op##Int64:             \
+  case kPPC_Atomic##op##Uint64:            \
+    ASSEMBLE_ATOMIC_BINOP(inst, uint64_t); \
     break;
       ATOMIC_BINOP_CASE(Add, add)
       ATOMIC_BINOP_CASE(Sub, sub)
