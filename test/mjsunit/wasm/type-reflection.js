@@ -219,21 +219,22 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(false, type.shared);
   assertEquals(3, Object.getOwnPropertyNames(type).length);
 
-  mem = new WebAssembly.Memory({minimum: 1, initial: 2});
+  mem = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
   assertTrue(mem instanceof WebAssembly.Memory);
   type = mem.type();
-  assertEquals(2, type.minimum);
-  assertEquals(false, type.shared);
-  assertEquals(2, Object.getOwnPropertyNames(type).length);
-
-  mem = new WebAssembly.Memory(
-      {minimum: 1, initial: 2, maximum: 5, shared: true});
-  assertTrue(mem instanceof WebAssembly.Memory);
-  type = mem.type();
-  assertEquals(2, type.minimum);
+  assertEquals(1, type.minimum);
   assertEquals(5, type.maximum);
   assertEquals(true, type.shared);
   assertEquals(3, Object.getOwnPropertyNames(type).length);
+
+  assertThrows(
+      () => new WebAssembly.Memory({minimum: 1, initial: 2}), TypeError,
+      /The properties 'initial' and 'minimum' are not allowed at the same time/);
+
+  assertThrows(
+      () => new WebAssembly.Memory({minimum: 1, initial: 2, maximum: 5}),
+      TypeError,
+      /The properties 'initial' and 'minimum' are not allowed at the same time/);
 })();
 
 (function TestTableConstructorWithMinimum() {
@@ -252,21 +253,16 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals('anyfunc', type.element);
   assertEquals(3, Object.getOwnPropertyNames(type).length);
 
-  table = new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc'});
-  assertTrue(table instanceof WebAssembly.Table);
-  type = table.type();
-  assertEquals(2, type.minimum);
-  assertEquals('anyfunc', type.element);
-  assertEquals(2, Object.getOwnPropertyNames(type).length);
+  assertThrows(
+      () => new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc'}),
+      TypeError,
+      /The properties 'initial' and 'minimum' are not allowed at the same time/);
 
-  table = new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc',
-                                 maximum: 5});
-  assertTrue(table instanceof WebAssembly.Table);
-  type = table.type();
-  assertEquals(2, type.minimum);
-  assertEquals(5, type.maximum);
-  assertEquals('anyfunc', type.element);
-  assertEquals(3, Object.getOwnPropertyNames(type).length);
+  assertThrows(
+      () => new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc',
+                                 maximum: 5}),
+      TypeError,
+      /The properties 'initial' and 'minimum' are not allowed at the same time/);
 })();
 
 (function TestFunctionConstructor() {

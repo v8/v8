@@ -1062,7 +1062,7 @@ bool GetOptionalIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
 }
 
 // Fetch 'initial' or 'minimum' property from object. If both are provided,
-// 'initial' is used.
+// a TypeError is thrown.
 // TODO(aseemgarg): change behavior when the following bug is resolved:
 // https://github.com/WebAssembly/js-types/issues/6
 bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
@@ -1075,12 +1075,26 @@ bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
                                   result, lower_bound, upper_bound)) {
     return false;
   }
-  auto enabled_features = i::wasm::WasmFeatures::FromFlags();
-  if (!has_initial && enabled_features.has_type_reflection()) {
+  auto enabled_features = i::wasm::WasmFeatures::FromIsolate(
+      reinterpret_cast<i::Isolate*>(isolate));
+  if (enabled_features.has_type_reflection()) {
+    bool has_minimum = false;
+    int64_t minimum = 0;
     if (!GetOptionalIntegerProperty(isolate, thrower, context, object,
-                                    v8_str(isolate, "minimum"), &has_initial,
-                                    result, lower_bound, upper_bound)) {
+                                    v8_str(isolate, "minimum"), &has_minimum,
+                                    &minimum, lower_bound, upper_bound)) {
       return false;
+    }
+    if (has_initial && has_minimum) {
+      thrower->TypeError(
+          "The properties 'initial' and 'minimum' are not allowed at the same "
+          "time");
+      return false;
+    }
+    if (has_minimum) {
+      // Only {minimum} exists, so we use {minimum} as {initial}.
+      has_initial = true;
+      *result = minimum;
     }
   }
   if (!has_initial) {
@@ -1129,7 +1143,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (!maybe.ToLocal(&value)) return;
     v8::Local<v8::String> string;
     if (!value->ToString(context).ToLocal(&string)) return;
-    auto enabled_features = i::wasm::WasmFeatures::FromFlags();
+    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
     // The JS api uses 'anyfunc' instead of 'funcref'.
     if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
       type = i::wasm::kWasmFuncRef;
