@@ -1981,24 +1981,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicLoadInt16:
       UNREACHABLE();
     case kAtomicExchangeInt8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
-      __ extsb(i.OutputRegister(0), i.OutputRegister(0));
+      __ AtomicExchange<int8_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.OutputRegister());
       break;
     case kPPC_AtomicExchangeUint8:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lbarx, stbcx);
+      __ AtomicExchange<uint8_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.OutputRegister());
       break;
     case kAtomicExchangeInt16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
-      __ extsh(i.OutputRegister(0), i.OutputRegister(0));
+      __ AtomicExchange<int16_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.OutputRegister());
       break;
     case kPPC_AtomicExchangeUint16:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lharx, sthcx);
+      __ AtomicExchange<uint16_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.OutputRegister());
       break;
     case kPPC_AtomicExchangeWord32:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(lwarx, stwcx);
+      __ AtomicExchange<uint32_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.OutputRegister());
       break;
     case kPPC_AtomicExchangeWord64:
-      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldarx, stdcx);
+      __ AtomicExchange<uint64_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.OutputRegister());
       break;
     case kAtomicCompareExchangeInt8:
       __ AtomicCompareExchange<int8_t>(

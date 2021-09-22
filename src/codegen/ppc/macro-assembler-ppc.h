@@ -395,6 +395,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     sync();
   }
 
+  template <class _type>
+  void AtomicExchange(MemOperand dst, Register new_value, Register output) {
+    Label exchange;
+    lwsync();
+    bind(&exchange);
+    LoadReserve<_type>(output, dst);
+    StoreConditional<_type>(new_value, dst);
+    bne(&exchange, cr0);
+    sync();
+  }
+
   template <class _type, class bin_op>
   void AtomicOps(MemOperand dst, Register value, Register output,
                  Register scratch, bin_op op) {
