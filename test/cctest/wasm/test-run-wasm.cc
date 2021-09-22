@@ -180,6 +180,65 @@ static void TestInt32Binop(TestExecutionTier execution_tier, WasmOpcode opcode,
       }
     }
   }
+  FOR_INT32_INPUTS(i) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on constant and parameter.
+    BUILD(r, WASM_BINOP(opcode, WASM_I32V(i), WASM_LOCAL_GET(0)));
+    FOR_INT32_INPUTS(j) {
+      CHECK_EQ(expected(i, j), r.Call(j));
+    }
+  }
+  FOR_INT32_INPUTS(j) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on parameter and constant.
+    BUILD(r, WASM_BINOP(opcode, WASM_LOCAL_GET(0), WASM_I32V(j)));
+    FOR_INT32_INPUTS(i) {
+      CHECK_EQ(expected(i, j), r.Call(i));
+    }
+  }
+  auto to_bool = [](ctype value) -> ctype {
+    return value == static_cast<ctype>(0xDEADBEEF) ? value : !!value;
+  };
+  FOR_INT32_INPUTS(i) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on constant and parameter, followed by {if}.
+    BUILD(r, WASM_IF(WASM_BINOP(opcode, WASM_I32V(i), WASM_LOCAL_GET(0)),
+                     WASM_RETURN(WASM_ONE)),
+             WASM_ZERO);
+    FOR_INT32_INPUTS(j) {
+      CHECK_EQ(to_bool(expected(i, j)), r.Call(j));
+    }
+  }
+  FOR_INT32_INPUTS(j) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on parameter and constant, followed by {if}.
+    BUILD(r, WASM_IF(WASM_BINOP(opcode, WASM_LOCAL_GET(0), WASM_I32V(j)),
+                     WASM_RETURN(WASM_ONE)),
+             WASM_ZERO);
+    FOR_INT32_INPUTS(i) {
+      CHECK_EQ(to_bool(expected(i, j)), r.Call(i));
+    }
+  }
+  FOR_INT32_INPUTS(i) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on constant and parameter, followed by {br_if}.
+    BUILD(r, WASM_BR_IFD(0, WASM_ONE,
+                         WASM_BINOP(opcode, WASM_I32V(i), WASM_LOCAL_GET(0))),
+             WASM_ZERO);
+    FOR_INT32_INPUTS(j) {
+      CHECK_EQ(to_bool(expected(i, j)), r.Call(j));
+    }
+  }
+  FOR_INT32_INPUTS(j) {
+    WasmRunner<ctype, ctype> r(execution_tier);
+    // Apply {opcode} on parameter and constant, followed by {br_if}.
+    BUILD(r, WASM_BR_IFD(0, WASM_ONE,
+                         WASM_BINOP(opcode, WASM_LOCAL_GET(0), WASM_I32V(j))),
+             WASM_ZERO);
+    FOR_INT32_INPUTS(i) {
+      CHECK_EQ(to_bool(expected(i, j)), r.Call(i));
+    }
+  }
 }
 // clang-format on
 

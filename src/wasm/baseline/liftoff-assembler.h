@@ -45,8 +45,8 @@ enum LiftoffCondition {
   kUnsignedGreaterEqual
 };
 
-inline constexpr LiftoffCondition Negate(LiftoffCondition liftoff_cond) {
-  switch (liftoff_cond) {
+inline constexpr LiftoffCondition Negate(LiftoffCondition cond) {
+  switch (cond) {
     case kEqual:
       return kUnequal;
     case kUnequal:
@@ -67,6 +67,31 @@ inline constexpr LiftoffCondition Negate(LiftoffCondition liftoff_cond) {
       return kUnsignedLessThan;
     case kUnsignedGreaterThan:
       return kUnsignedLessEqual;
+  }
+}
+
+inline constexpr LiftoffCondition Flip(LiftoffCondition cond) {
+  switch (cond) {
+    case kEqual:
+      return kEqual;
+    case kUnequal:
+      return kUnequal;
+    case kSignedLessThan:
+      return kSignedGreaterThan;
+    case kSignedLessEqual:
+      return kSignedGreaterEqual;
+    case kSignedGreaterEqual:
+      return kSignedLessEqual;
+    case kSignedGreaterThan:
+      return kSignedLessThan;
+    case kUnsignedLessThan:
+      return kUnsignedGreaterThan;
+    case kUnsignedLessEqual:
+      return kUnsignedGreaterEqual;
+    case kUnsignedGreaterEqual:
+      return kUnsignedLessEqual;
+    case kUnsignedGreaterThan:
+      return kUnsignedLessThan;
   }
 }
 
@@ -980,8 +1005,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void emit_cond_jump(LiftoffCondition, Label*, ValueKind value,
                              Register lhs, Register rhs = no_reg);
-  inline void emit_i32_cond_jumpi(LiftoffCondition liftoff_cond, Label* label,
-                                  Register lhs, int imm);
+  inline void emit_i32_cond_jumpi(LiftoffCondition, Label*, Register lhs,
+                                  int imm);
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_eqz(Register dst, Register src);
   inline void emit_i32_set_cond(LiftoffCondition, Register dst, Register lhs,

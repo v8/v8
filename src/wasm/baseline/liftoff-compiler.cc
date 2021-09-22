@@ -1262,6 +1262,46 @@ class LiftoffCompiler {
     }
   }
 
+  void JumpIfFalse(FullDecoder* decoder, Label* false_dst) {
+    LiftoffCondition cond =
+        test_and_reset_outstanding_op(kExprI32Eqz) ? kNotEqualZero : kEqualZero;
+
+    if (!has_outstanding_op()) {
+      // Unary comparison.
+      Register value = __ PopToRegister().gp();
+      __ emit_cond_jump(cond, false_dst, kI32, value);
+      return;
+    }
+
+    // Binary comparison of i32 values.
+    cond = Negate(GetCompareCondition(outstanding_op_));
+    outstanding_op_ = kNoOutstandingOp;
+    LiftoffAssembler::VarState rhs_slot = __ cache_state()->stack_state.back();
+    if (rhs_slot.is_const()) {
+      // Compare to a constant.
+      int32_t rhs_imm = rhs_slot.i32_const();
+      __ cache_state()->stack_state.pop_back();
+      Register lhs = __ PopToRegister().gp();
+      __ emit_i32_cond_jumpi(cond, false_dst, lhs, rhs_imm);
+      return;
+    }
+
+    Register rhs = __ PopToRegister().gp();
+    LiftoffAssembler::VarState lhs_slot = __ cache_state()->stack_state.back();
+    if (lhs_slot.is_const()) {
+      // Compare a constant to an arbitrary value.
+      int32_t lhs_imm = lhs_slot.i32_const();
+      __ cache_state()->stack_state.pop_back();
+      // Flip the condition, because {lhs} and {rhs} are swapped.
+      __ emit_i32_cond_jumpi(Flip(cond), false_dst, rhs, lhs_imm);
+      return;
+    }
+
+    // Compare two arbitrary values.
+    Register lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs)).gp();
+    __ emit_cond_jump(cond, false_dst, kI32, lhs, rhs);
+  }
+
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     DCHECK_EQ(if_block, decoder->control_at(0));
     DCHECK(if_block->is_if());
@@ -1269,24 +1309,8 @@ class LiftoffCompiler {
     // Allocate the else state.
     if_block->else_state = std::make_unique<ElseState>();
 
-    // Test the condition, jump to else if zero.
-    Register value = __ PopToRegister().gp();
-    if (!has_outstanding_op()) {
-      __ emit_cond_jump(kEqualZero, if_block->else_state->label.get(), kI32,
-                        value);
-    } else if (outstanding_op_ == kExprI32Eqz) {
-      __ emit_cond_jump(kNotEqualZero, if_block->else_state->label.get(), kI32,
-                        value);
-      outstanding_op_ = kNoOutstandingOp;
-    } else {
-      // Otherwise, it's an i32 compare opcode.
-      LiftoffCondition cond = Negate(GetCompareCondition(outstanding_op_));
-      Register rhs = value;
-      Register lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs)).gp();
-      __ emit_cond_jump(cond, if_block->else_state->label.get(), kI32, lhs,
-                        rhs);
-      outstanding_op_ = kNoOutstandingOp;
-    }
+    // Test the condition on the value stack, jump to else if zero.
+    JumpIfFalse(decoder, if_block->else_state->label.get());
 
     // Store the state (after popping the value) for executing the else branch.
     if_block->else_state->state.Split(*__ cache_state());
@@ -2500,21 +2524,9 @@ class LiftoffCompiler {
     }
 
     Label cont_false;
-    Register value = __ PopToRegister().gp();
 
-    if (!has_outstanding_op()) {
-      __ emit_cond_jump(kEqualZero, &cont_false, kI32, value);
-    } else if (outstanding_op_ == kExprI32Eqz) {
-      __ emit_cond_jump(kNotEqualZero, &cont_false, kI32, value);
-      outstanding_op_ = kNoOutstandingOp;
-    } else {
-      // Otherwise, it's an i32 compare opcode.
-      LiftoffCondition cond = Negate(GetCompareCondition(outstanding_op_));
-      Register rhs = value;
-      Register lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs)).gp();
-      __ emit_cond_jump(cond, &cont_false, kI32, lhs, rhs);
-      outstanding_op_ = kNoOutstandingOp;
-    }
+    // Test the condition on the value stack, jump to {cont_false} if zero.
+    JumpIfFalse(decoder, &cont_false);
 
     BrOrRet(decoder, depth, 0);
     __ bind(&cont_false);
@@ -6145,6 +6157,13 @@ class LiftoffCompiler {
 
   bool has_outstanding_op() const {
     return outstanding_op_ != kNoOutstandingOp;
+  }
+
+  bool test_and_reset_outstanding_op(WasmOpcode opcode) {
+    DCHECK_NE(kNoOutstandingOp, opcode);
+    if (outstanding_op_ != opcode) return false;
+    outstanding_op_ = kNoOutstandingOp;
+    return true;
   }
 
   void TraceCacheState(FullDecoder* decoder) const {
