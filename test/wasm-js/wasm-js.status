@@ -5,8 +5,6 @@
 [
 
 [ALWAYS, {
-  'table/constructor': [FAIL],
-  'table/grow': [FAIL],
   # This test can only be executed in the browser
   'wpt/idlharness': [SKIP],
   # Failing WPT tests
