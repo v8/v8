@@ -14,6 +14,8 @@ void Function::PrintDeclarationHeader(std::ostream& stream,
   if (!description_.empty()) {
     stream << std::string(indentation, ' ') << "// " << description_ << "\n";
   }
+  stream << std::string(indentation, ' ') << "// " << PositionAsString(pos_)
+         << "\n";
   stream << std::string(indentation, ' ');
   if (IsExport()) stream << "V8_EXPORT_PRIVATE ";
   if (IsV8Inline())
@@ -63,6 +65,8 @@ void Function::PrintInlineDefinition(
 
 void Function::PrintBeginDefinition(std::ostream& stream,
                                     int indentation) const {
+  stream << std::string(indentation, ' ') << "// " << PositionAsString(pos_)
+         << "\n";
   std::string scope;
   if (owning_class_) {
     scope = owning_class_->GetName();

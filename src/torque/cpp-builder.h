@@ -71,9 +71,13 @@ class Function {
   };
 
   explicit Function(std::string name)
-      : owning_class_(nullptr), name_(std::move(name)) {}
+      : pos_(CurrentSourcePosition::Get()),
+        owning_class_(nullptr),
+        name_(std::move(name)) {}
   Function(Class* owning_class, std::string name)
-      : owning_class_(owning_class), name_(std::move(name)) {}
+      : pos_(CurrentSourcePosition::Get()),
+        owning_class_(owning_class),
+        name_(std::move(name)) {}
   ~Function() = default;
 
   static Function DefaultGetter(std::string return_type, Class* owner,
@@ -159,6 +163,7 @@ class Function {
   void PrintDeclarationHeader(std::ostream& stream, int indentation) const;
 
  private:
+  SourcePosition pos_;
   Class* owning_class_;
   std::string description_;
   std::string name_;
