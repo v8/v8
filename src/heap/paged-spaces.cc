@@ -499,11 +499,11 @@ void PagedSpace::SetReadAndExecutable() {
   }
 }
 
-void PagedSpace::SetReadAndWritable() {
+void PagedSpace::SetCodeModificationPermissions() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
     CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
-    page->SetReadAndWritable();
+    page->SetCodeModificationPermissions();
   }
 }
 

@@ -2673,7 +2673,7 @@ void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
       guard.emplace(&unprotected_memory_chunks_mutex_);
     }
     if (unprotected_memory_chunks_.insert(chunk).second) {
-      chunk->SetReadAndWritable();
+      chunk->SetCodeModificationPermissions();
     }
   }
 }

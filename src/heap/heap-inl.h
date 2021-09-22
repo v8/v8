@@ -784,12 +784,12 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     : heap_(heap) {
   if (heap_->write_protect_code_memory()) {
     heap_->increment_code_space_memory_modification_scope_depth();
-    heap_->code_space()->SetReadAndWritable();
+    heap_->code_space()->SetCodeModificationPermissions();
     LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
       DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
       CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-      page->SetReadAndWritable();
+      page->SetCodeModificationPermissions();
       page = page->next_page();
     }
   }
@@ -847,7 +847,7 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
   if (scope_active_) {
     DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
            (chunk_->owner()->identity() == CODE_LO_SPACE));
-    MemoryChunk::cast(chunk_)->SetReadAndWritable();
+    MemoryChunk::cast(chunk_)->SetCodeModificationPermissions();
   }
 }
 
