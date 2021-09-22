@@ -429,10 +429,6 @@
   'built-ins/ShadowRealm/prototype/proto': [FAIL],
   'built-ins/ShadowRealm/prototype/Symbol.toStringTag': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12086
-  'language/expressions/in/private-field-invalid-assignment-reference': [FAIL],
-  'language/expressions/in/private-field-in-nested': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12085
   'language/statements/class/subclass/derived-class-return-override-catch-finally': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-catch-finally-arrow': [FAIL],

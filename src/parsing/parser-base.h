@@ -3233,20 +3233,21 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
     int prec) {
   DCHECK_GE(prec, 4);
-  ExpressionT x;
+
   // "#foo in ShiftExpression" needs to be parsed separately, since private
   // identifiers are not valid PrimaryExpressions.
   if (V8_UNLIKELY(FLAG_harmony_private_brand_checks &&
                   peek() == Token::PRIVATE_NAME)) {
-    x = ParsePropertyOrPrivatePropertyName();
-    if (peek() != Token::IN) {
-      ReportUnexpectedToken(peek());
+    ExpressionT x = ParsePropertyOrPrivatePropertyName();
+    int prec1 = Token::Precedence(peek(), accept_IN_);
+    if (peek() != Token::IN || prec1 < prec) {
+      ReportUnexpectedToken(Token::PRIVATE_NAME);
       return impl()->FailureExpression();
     }
-  } else {
-    x = ParseUnaryExpression();
+    return ParseBinaryContinuation(x, prec, prec1);
   }
 
+  ExpressionT x = ParseUnaryExpression();
   int prec1 = Token::Precedence(peek(), accept_IN_);
   if (prec1 >= prec) {
     return ParseBinaryContinuation(x, prec, prec1);
