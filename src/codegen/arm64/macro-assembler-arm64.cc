@@ -2266,8 +2266,10 @@ void MacroAssembler::InvokePrologue(Register formal_parameter_count,
 
   // If the formal parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
-  Cmp(formal_parameter_count, Operand(kDontAdaptArgumentsSentinel));
-  B(eq, &regular_invoke);
+  if (kDontAdaptArgumentsSentinel != 0) {
+    Cmp(formal_parameter_count, Operand(kDontAdaptArgumentsSentinel));
+    B(eq, &regular_invoke);
+  }
 
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
