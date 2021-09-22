@@ -88,14 +88,14 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_tools-lint_version
   # and whatever else without interference from each other.
-  'android_sdk_cmdline-tools_version': 'yODElY4RdHopNEfpOnqjRcrpa6JMzbhYYqGD53-DjJwC',
+  'android_sdk_cmdline-tools_version': 'AuYa11pULKT8AI14_owabJrkZoRGuovL-nvwmiONlYEC',
 }
 
 deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '715537d6007ca71837f48bcb04fc3d482aed2507',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '103712808f7c6f31c6c769057c17c994e08f3a30',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '66bad006832120801883a921c5758703b4b828d3',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7ea3a871db68ae2cbbeaf5433a3192a799ef3c11',
   'buildtools/clang_format/script':
@@ -158,7 +158,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'bOp0PE8R9VUQxsHclvuA10P4iOaWjRRpsK8ZQKtAZCAC'
+              'version': 'UnrNXrNKJtnUOqrH_BbjXgZ_Ns1v0PZ9WNtFgoHrQZwC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -221,7 +221,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '8ec776f0d708cc6fe208d85fea5044971a01636e',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '25814bb53d2bdd7a622d27394f33528830685748',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -229,7 +229,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c1fd44b01a571e82dea1aa16d9174c7c73f30118',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'eff810e93d23a0ad00fe36e577324b67612b3ec4',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -288,7 +288,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '77c132322fe81a1f5518b326e18c99ebd3281627',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '7ea32d7ed3a92b628f4269ec1c4f93a389ea01ea',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '948efd2585bdc983c1c95d2d2b604296220747d5',
   'tools/clang/dsymutil': {
     'packages': [
       {
