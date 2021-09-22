@@ -3138,6 +3138,11 @@ void Isolate::Deinit() {
   // not cause a GC.
   heap_.StartTearDown();
 
+  // This stops cancelable tasks (i.e. concurrent marking tasks).
+  // Stop concurrent tasks before destroying resources since they might still
+  // use those.
+  cancelable_task_manager()->CancelAndWait();
+
   ReleaseSharedPtrs();
 
   string_table_.reset();
@@ -3158,9 +3163,6 @@ void Isolate::Deinit() {
 
   delete baseline_batch_compiler_;
   baseline_batch_compiler_ = nullptr;
-
-  // This stops cancelable tasks (i.e. concurrent marking tasks)
-  cancelable_task_manager()->CancelAndWait();
 
   // After all concurrent tasks are stopped, we know for sure that stats aren't
   // updated anymore.
