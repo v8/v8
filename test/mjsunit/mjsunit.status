@@ -843,7 +843,6 @@
   'regress/regress-490': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
-  'compiler/regress-1226988': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
@@ -870,9 +869,6 @@
   # https://github.com/v8-riscv/v8/issues/418
   'regress/regress-1138075': [SKIP],
   'regress/regress-1138611': [SKIP],
-
-  # Some atomic functions are not yet implemented
-  'regress/wasm/regress-1196837': [SKIP],
 
   # SIMD not be implemented
   'regress/wasm/regress-1054466': [SKIP],
