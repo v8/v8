@@ -40,8 +40,6 @@ namespace internal {
  *       - Isolate* isolate     (address of the current isolate)
  *       - direct_call          (if 1, direct call from JavaScript code, if 0
  *                               call through the runtime system)
- *       - stack_area_base      (high end of the memory area to use as
- *                               backtracking stack)
  *       - capture array size   (may fit multiple sets of matches)
  *       - int* capture_array   (int[num_saved_registers_], for output).
  *       - end of input         (address of end of string)
@@ -74,7 +72,6 @@ namespace internal {
  *              Address end,
  *              int* capture_output_array,
  *              int num_capture_registers,
- *              byte* stack_area_base,
  *              bool direct_call = false,
  *              Isolate* isolate
  *              Address regexp);

@@ -436,8 +436,6 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   // External constants.
   TNode<ExternalReference> isolate_address =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
-  TNode<ExternalReference> regexp_stack_memory_top_address = ExternalConstant(
-      ExternalReference::address_of_regexp_stack_memory_top_address(isolate()));
   TNode<ExternalReference> static_offsets_vector_address = ExternalConstant(
       ExternalReference::address_of_static_offsets_vector(isolate()));
 
@@ -606,26 +604,18 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg5_type = type_int32;
     TNode<Int32T> arg5 = SmiToInt32(register_count);
 
-    // Argument 6: Start (high end) of backtracking stack memory area. This
-    // argument is ignored in the interpreter.
-    TNode<RawPtrT> stack_top = UncheckedCast<RawPtrT>(
-        Load(MachineType::Pointer(), regexp_stack_memory_top_address));
+    // Argument 6: Indicate that this is a direct call from JavaScript.
+    MachineType arg6_type = type_int32;
+    TNode<Int32T> arg6 = Int32Constant(RegExp::CallOrigin::kFromJs);
 
-    MachineType arg6_type = type_ptr;
-    TNode<RawPtrT> arg6 = stack_top;
+    // Argument 7: Pass current isolate address.
+    MachineType arg7_type = type_ptr;
+    TNode<ExternalReference> arg7 = isolate_address;
 
-    // Argument 7: Indicate that this is a direct call from JavaScript.
-    MachineType arg7_type = type_int32;
-    TNode<Int32T> arg7 = Int32Constant(RegExp::CallOrigin::kFromJs);
-
-    // Argument 8: Pass current isolate address.
-    MachineType arg8_type = type_ptr;
-    TNode<ExternalReference> arg8 = isolate_address;
-
-    // Argument 9: Regular expression object. This argument is ignored in native
+    // Argument 8: Regular expression object. This argument is ignored in native
     // irregexp code.
-    MachineType arg9_type = type_tagged;
-    TNode<JSRegExp> arg9 = regexp;
+    MachineType arg8_type = type_tagged;
+    TNode<JSRegExp> arg8 = regexp;
 
     // TODO(v8:11880): avoid roundtrips between cdc and code.
     TNode<RawPtrT> code_entry = LoadCodeObjectEntry(code);
@@ -640,8 +630,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
             std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2),
             std::make_pair(arg3_type, arg3), std::make_pair(arg4_type, arg4),
             std::make_pair(arg5_type, arg5), std::make_pair(arg6_type, arg6),
-            std::make_pair(arg7_type, arg7), std::make_pair(arg8_type, arg8),
-            std::make_pair(arg9_type, arg9)));
+            std::make_pair(arg7_type, arg7), std::make_pair(arg8_type, arg8)));
 
     // Check the result.
     // We expect exactly one result since we force the called regexp to behave

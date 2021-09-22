@@ -102,16 +102,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // Callee-saved registers (x19-x28).
   static const int kNumCalleeSavedRegisters = 10;
   static const int kCalleeSavedRegisters = kReturnAddress + kSystemPointerSize;
-  // Stack parameter placed by caller.
-  // It is placed above the FP, LR and the callee-saved registers.
-  static const int kIsolate =
-      kCalleeSavedRegisters + kNumCalleeSavedRegisters * kSystemPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
-  static const int kDirectCall = -kSystemPointerSize;
-  static const int kStackHighEnd = kDirectCall - kSystemPointerSize;
-  static const int kOutputSize = kStackHighEnd - kSystemPointerSize;
+  static const int kIsolate = -kSystemPointerSize;
+  static const int kDirectCall = kIsolate - kSystemPointerSize;
+  static const int kOutputSize = kDirectCall - kSystemPointerSize;
   static const int kInput = kOutputSize - kSystemPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.

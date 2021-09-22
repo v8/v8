@@ -192,8 +192,7 @@ int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate,
 int32_t ExperimentalRegExp::MatchForCallFromJs(
     Address subject, int32_t start_position, Address input_start,
     Address input_end, int* output_registers, int32_t output_register_count,
-    Address backtrack_stack, RegExp::CallOrigin call_origin, Isolate* isolate,
-    Address regexp) {
+    RegExp::CallOrigin call_origin, Isolate* isolate, Address regexp) {
   DCHECK(FLAG_enable_experimental_regexp_engine);
   DCHECK_NOT_NULL(isolate);
   DCHECK_NOT_NULL(output_registers);

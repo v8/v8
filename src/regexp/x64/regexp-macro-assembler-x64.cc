@@ -47,14 +47,12 @@ namespace internal {
  * Each call to a C++ method should retain these registers.
  *
  * The stack will have the following content, in some order, indexable from the
- * frame pointer (see, e.g., kStackHighEnd):
+ * frame pointer (see, e.g., kDirectCall):
  *    - Address regexp       (address of the JSRegExp object; unused in native
  *                            code, passed to match signature of interpreter)
  *    - Isolate* isolate     (address of the current isolate)
  *    - direct_call          (if 1, direct call from JavaScript code, if 0 call
  *                            through the runtime system)
- *    - stack_area_base      (high end of the memory area to use as
- *                            backtracking stack)
  *    - capture array size   (may fit multiple sets of matches)
  *    - int* capture_array   (int[num_saved_registers_], for output).
  *    - end of input         (address of end of string)
@@ -85,7 +83,6 @@ namespace internal {
  *              Address end,
  *              int* capture_output_array,
  *              int num_capture_registers,
- *              byte* stack_area_base,
  *              bool direct_call = false,
  *              Isolate* isolate,
  *              Address regexp);
@@ -849,8 +846,6 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   }
 
   // Initialize backtrack stack pointer.
-  // TODO(jgruber): Remove the kStackHighEnd parameter (and others like
-  // kIsolate).
   LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
   __ jmp(&start_label_);

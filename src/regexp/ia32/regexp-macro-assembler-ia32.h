@@ -105,8 +105,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   // one set of capture results.  For the case of non-global regexp, we ignore
   // this value.
   static const int kNumOutputRegisters = kRegisterOutput + kSystemPointerSize;
-  static const int kStackHighEnd = kNumOutputRegisters + kSystemPointerSize;
-  static const int kDirectCall = kStackHighEnd + kSystemPointerSize;
+  static const int kDirectCall = kNumOutputRegisters + kSystemPointerSize;
   static const int kIsolate = kDirectCall + kSystemPointerSize;
   // Below the frame pointer - local stack variables.
   // When adding local variables remember to push space for them in

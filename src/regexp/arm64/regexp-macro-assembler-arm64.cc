@@ -66,14 +66,12 @@ namespace internal {
  *  ^^^^^^^^^ fp ^^^^^^^^^
  *  - fp[-8]     direct_call        1 => Direct call from JavaScript code.
  *                                  0 => Call through the runtime system.
- *  - fp[-16]    stack_base         High end of the memory area to use as
- *                                  the backtracking stack.
- *  - fp[-24]    output_size        Output may fit multiple sets of matches.
- *  - fp[-32]    input              Handle containing the input string.
- *  - fp[-40]    success_counter
+ *  - fp[-16]    output_size        Output may fit multiple sets of matches.
+ *  - fp[-24]    input              Handle containing the input string.
+ *  - fp[-32]    success_counter
  *  ^^^^^^^^^^^^^ From here and downwards we store 32 bit values ^^^^^^^^^^^^^
- *  - fp[-44]    register N         Capture registers initialized with
- *  - fp[-48]    register N + 1     non_position_value.
+ *  - fp[-40]    register N         Capture registers initialized with
+ *  - fp[-44]    register N + 1     non_position_value.
  *               ...                The first kNumCachedRegisters (N) registers
  *               ...                are cached in x0 to x7.
  *               ...                Only positions must be stored in the first
@@ -95,7 +93,6 @@ namespace internal {
  *              Address end,
  *              int* capture_output_array,
  *              int num_capture_registers,
- *              byte* stack_area_base,
  *              bool direct_call = false,
  *              Isolate* isolate,
  *              Address regexp);
@@ -750,11 +747,10 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // x3:  byte*    input_end
   // x4:  int*     output array
   // x5:  int      output array size
-  // x6:  Address  stack_base
-  // x7:  int      direct_call
-
-  //  sp[8]:  address of the current isolate
-  //  sp[0]:  secondary link/return address used by native call
+  // x6:  int      direct_call
+  // x7:  Isolate* isolate
+  //
+  // sp[0]:  secondary link/return address used by native call
 
   // Tell the system that we have a stack frame.  Because the type is MANUAL, no
   // code is generated.

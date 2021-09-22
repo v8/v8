@@ -1111,7 +1111,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
 // builtin.
 IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
     Address subject, int32_t start_position, Address, Address,
-    int* output_registers, int32_t output_register_count, Address,
+    int* output_registers, int32_t output_register_count,
     RegExp::CallOrigin call_origin, Isolate* isolate, Address regexp) {
   DCHECK_NOT_NULL(isolate);
   DCHECK_NOT_NULL(output_registers);

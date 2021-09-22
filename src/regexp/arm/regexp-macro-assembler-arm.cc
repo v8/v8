@@ -38,14 +38,12 @@ namespace internal {
  * Each call to a public method should retain this convention.
  *
  * The stack will have the following structure:
- *  - fp[56]  Address regexp     (address of the JSRegExp object; unused in
+ *  - fp[52]  Address regexp     (address of the JSRegExp object; unused in
  *                                native code, passed to match signature of
  *                                the interpreter)
- *  - fp[52]  Isolate* isolate   (address of the current isolate)
- *  - fp[48]  direct_call        (if 1, direct call from JavaScript code,
+ *  - fp[48]  Isolate* isolate   (address of the current isolate)
+ *  - fp[44]  direct_call        (if 1, direct call from JavaScript code,
  *                                if 0, call through the runtime system).
- *  - fp[44]  stack_area_base    (high end of the memory area to use as
- *                                backtracking stack).
  *  - fp[40]  capture array size (may fit multiple sets of matches)
  *  - fp[36]  int* capture_array (int[num_saved_registers_], for output).
  *  --- sp when called ---
@@ -82,7 +80,6 @@ namespace internal {
  *              Address end,
  *              int* capture_output_array,
  *              int num_capture_registers,
- *              byte* stack_area_base,
  *              bool direct_call = false,
  *              Isolate* isolate,
  *              Address regexp);

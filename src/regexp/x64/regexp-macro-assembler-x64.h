@@ -108,9 +108,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // this value. NumOutputRegisters is passed as 32-bit value.  The upper
   // 32 bit of this 64-bit stack slot may contain garbage.
   static const int kNumOutputRegisters = kRegisterOutput + kSystemPointerSize;
-  static const int kStackHighEnd = kNumOutputRegisters + kSystemPointerSize;
   // DirectCall is passed as 32 bit int (values 0 or 1).
-  static const int kDirectCall = kStackHighEnd + kSystemPointerSize;
+  static const int kDirectCall = kNumOutputRegisters + kSystemPointerSize;
   static const int kIsolate = kDirectCall + kSystemPointerSize;
 #else
   // In AMD64 ABI Calling Convention, the first six integer parameters
@@ -121,13 +120,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   static const int kInputStart = kStartIndex - kSystemPointerSize;
   static const int kInputEnd = kInputStart - kSystemPointerSize;
   static const int kRegisterOutput = kInputEnd - kSystemPointerSize;
-
   // For the case of global regular expression, we have room to store at least
   // one set of capture results.  For the case of non-global regexp, we ignore
   // this value.
   static const int kNumOutputRegisters = kRegisterOutput - kSystemPointerSize;
-  static const int kStackHighEnd = kFrameAlign;
-  static const int kDirectCall = kStackHighEnd + kSystemPointerSize;
+
+  static const int kDirectCall = kFrameAlign;
   static const int kIsolate = kDirectCall + kSystemPointerSize;
 #endif
 
