@@ -4897,7 +4897,7 @@ class LiftoffCompiler {
     __ cache_state()->stack_state.pop_back(2);
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
-    __ SmiUntag(kReturnRegister0);
+    __ SmiToInt32(kReturnRegister0);
     __ PushRegister(kI32, LiftoffRegister(kReturnRegister0));
   }
 

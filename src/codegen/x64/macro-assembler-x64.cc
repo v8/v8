@@ -1356,6 +1356,16 @@ void TurboAssembler::SmiUntag(Register dst, Operand src) {
   }
 }
 
+void TurboAssembler::SmiToInt32(Register reg) {
+  STATIC_ASSERT(kSmiTag == 0);
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
+  if (COMPRESS_POINTERS_BOOL) {
+    sarl(reg, Immediate(kSmiShift));
+  } else {
+    shrq(reg, Immediate(kSmiShift));
+  }
+}
+
 void TurboAssembler::SmiCompare(Register smi1, Register smi2) {
   AssertSmi(smi1);
   AssertSmi(smi2);

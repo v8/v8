@@ -352,6 +352,9 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void SmiUntag(Register dst, Register src);
   void SmiUntag(Register dst, Operand src);
 
+  // Convert smi to 32-bit value.
+  void SmiToInt32(Register reg);
+
   // Loads the address of the external reference into the destination
   // register.
   void LoadAddress(Register destination, ExternalReference source);

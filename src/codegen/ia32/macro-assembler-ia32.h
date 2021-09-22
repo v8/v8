@@ -199,6 +199,8 @@ class V8_EXPORT_PRIVATE TurboAssembler
     SmiUntag(output);
   }
 
+  void SmiToInt32(Register reg) { SmiUntag(reg); }
+
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],
   // etc., not pushed. The argument count assumes all arguments are word sized.
