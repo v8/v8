@@ -283,6 +283,118 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CopySignF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
                    RCBit r = LeaveRC);
 
+  template <class _type>
+  void SignedExtend(Register dst, Register value) {
+    switch (sizeof(_type)) {
+      case 1:
+        extsb(dst, value);
+        break;
+      case 2:
+        extsh(dst, value);
+        break;
+      case 4:
+        extsw(dst, value);
+        break;
+      case 8:
+        if (dst != value) mr(dst, value);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  template <class _type>
+  void ZeroExtend(Register dst, Register value) {
+    switch (sizeof(_type)) {
+      case 1:
+        ZeroExtByte(dst, value);
+        break;
+      case 2:
+        ZeroExtHalfWord(dst, value);
+        break;
+      case 4:
+        ZeroExtWord32(dst, value);
+        break;
+      case 8:
+        if (dst != value) mr(dst, value);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  template <class _type>
+  void ExtendValue(Register dst, Register value) {
+    if (std::is_signed<_type>::value) {
+      SignedExtend<_type>(dst, value);
+    } else {
+      ZeroExtend<_type>(dst, value);
+    }
+  }
+
+  template <class _type>
+  void LoadReserve(Register output, MemOperand dst) {
+    switch (sizeof(_type)) {
+      case 1:
+        lbarx(output, dst);
+        break;
+      case 2:
+        lharx(output, dst);
+        break;
+      case 4:
+        lwarx(output, dst);
+        break;
+      case 8:
+        ldarx(output, dst);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    if (std::is_signed<_type>::value) {
+      SignedExtend<_type>(output, output);
+    }
+  }
+
+  template <class _type>
+  void StoreConditional(Register value, MemOperand dst) {
+    switch (sizeof(_type)) {
+      case 1:
+        stbcx(value, dst);
+        break;
+      case 2:
+        sthcx(value, dst);
+        break;
+      case 4:
+        stwcx(value, dst);
+        break;
+      case 8:
+        stdcx(value, dst);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  template <class _type>
+  void AtomicCompareExchange(MemOperand dst, Register old_value,
+                             Register new_value, Register output,
+                             Register scratch) {
+    Label loop;
+    Label exit;
+    if (sizeof(_type) != 8) {
+      ExtendValue<_type>(scratch, old_value);
+      old_value = scratch;
+    }
+    lwsync();
+    bind(&loop);
+    LoadReserve<_type>(output, dst);
+    cmp(output, old_value, cr0);
+    bne(&exit, cr0);
+    StoreConditional<_type>(new_value, dst);
+    bne(&loop, cr0);
+    bind(&exit);
+    sync();
+  }
+
   template <class _type, class bin_op>
   void AtomicOps(MemOperand dst, Register value, Register output,
                  Register scratch, bin_op op) {

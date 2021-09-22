@@ -595,43 +595,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     break;                                                                   \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp_inst, load_inst, store_inst,    \
-                                         input_ext)                          \
-  do {                                                                       \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
-    Label loop;                                                              \
-    Label exit;                                                              \
-    __ input_ext(r0, i.InputRegister(2));                                    \
-    __ lwsync();                                                             \
-    __ bind(&loop);                                                          \
-    __ load_inst(i.OutputRegister(), operand);                               \
-    __ cmp_inst(i.OutputRegister(), r0, cr0);                                \
-    __ bne(&exit, cr0);                                                      \
-    __ store_inst(i.InputRegister(3), operand);                              \
-    __ bne(&loop, cr0);                                                      \
-    __ bind(&exit);                                                          \
-    __ sync();                                                               \
-  } while (false)
-
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp_inst, load_inst,       \
-                                                  store_inst, ext_instr)     \
-  do {                                                                       \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
-    Label loop;                                                              \
-    Label exit;                                                              \
-    __ ext_instr(r0, i.InputRegister(2));                                    \
-    __ lwsync();                                                             \
-    __ bind(&loop);                                                          \
-    __ load_inst(i.OutputRegister(), operand);                               \
-    __ ext_instr(i.OutputRegister(), i.OutputRegister());                    \
-    __ cmp_inst(i.OutputRegister(), r0, cr0);                                \
-    __ bne(&exit, cr0);                                                      \
-    __ store_inst(i.InputRegister(3), operand);                              \
-    __ bne(&loop, cr0);                                                      \
-    __ bind(&exit);                                                          \
-    __ sync();                                                               \
-  } while (false)
-
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
@@ -2038,22 +2001,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldarx, stdcx);
       break;
     case kAtomicCompareExchangeInt8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(CmpS64, lbarx, stbcx, extsb);
+      __ AtomicCompareExchange<int8_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(),
+          kScratchReg);
       break;
     case kPPC_AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(CmpS64, lbarx, stbcx, ZeroExtByte);
+      __ AtomicCompareExchange<uint8_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(),
+          kScratchReg);
       break;
     case kAtomicCompareExchangeInt16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(CmpS64, lharx, sthcx, extsh);
+      __ AtomicCompareExchange<int16_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(),
+          kScratchReg);
       break;
     case kPPC_AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(CmpS64, lharx, sthcx, ZeroExtHalfWord);
+      __ AtomicCompareExchange<uint16_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(),
+          kScratchReg);
       break;
     case kPPC_AtomicCompareExchangeWord32:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmpw, lwarx, stwcx, ZeroExtWord32);
+      __ AtomicCompareExchange<uint32_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(),
+          kScratchReg);
       break;
     case kPPC_AtomicCompareExchangeWord64:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(CmpS64, ldarx, stdcx, mr);
+      __ AtomicCompareExchange<uint64_t>(
+          MemOperand(i.InputRegister(0), i.InputRegister(1)),
+          i.InputRegister(2), i.InputRegister(3), i.OutputRegister(),
+          kScratchReg);
       break;
 
 #define ATOMIC_BINOP_CASE(op, inst)        \
