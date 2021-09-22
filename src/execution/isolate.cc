@@ -832,6 +832,7 @@ class StackTraceBuilder {
 };
 
 bool GetStackTraceLimit(Isolate* isolate, int* result) {
+  DCHECK(!FLAG_correctness_fuzzer_suppressions);
   Handle<JSObject> error = isolate->error_function();
 
   Handle<String> key = isolate->factory()->stackTraceLimit_string();
@@ -1131,7 +1132,10 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                                 FrameSkipMode mode,
                                                 Handle<Object> caller) {
   int limit;
-  if (!GetStackTraceLimit(this, &limit)) return factory()->undefined_value();
+  if (FLAG_correctness_fuzzer_suppressions ||
+      !GetStackTraceLimit(this, &limit)) {
+    return factory()->undefined_value();
+  }
 
   CaptureStackTraceOptions options;
   options.limit = limit;
