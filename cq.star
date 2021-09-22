@@ -61,6 +61,8 @@ luci.cq_group(
             location_regexp = [
                 ".+/[+]/include/cppgc/.+",
                 ".+/[+]/src/inspector/.+",
+                ".+/[+]/src/wasm/wasm-feature-flags\\.h",
+                ".+/[+]/src/wasm/wasm-js\\.{h,cc}",
                 ".+/[+]/test/inspector/.+",
             ],
         ),
