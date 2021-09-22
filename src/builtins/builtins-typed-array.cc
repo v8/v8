@@ -147,6 +147,10 @@ BUILTIN(TypedArrayPrototypeFill) {
     }
   }
 
+  if (V8_UNLIKELY(array->WasDetached())) {
+    return *array;
+  }
+
   if (V8_UNLIKELY(array->IsVariableLength())) {
     bool out_of_bounds = false;
     array->GetLengthOrOutOfBounds(out_of_bounds);
@@ -156,8 +160,6 @@ BUILTIN(TypedArrayPrototypeFill) {
           isolate->factory()->NewStringFromAsciiChecked(method);
       THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
     }
-  } else if (V8_UNLIKELY(array->WasDetached())) {
-    return *array;
   }
 
   int64_t count = end - start;

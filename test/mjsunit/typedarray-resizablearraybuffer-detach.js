@@ -6,25 +6,7 @@
 
 "use strict";
 
-class MyUint8Array extends Uint8Array {};
-
-const ctors = [
-  Uint8Array,
-  Int8Array,
-  Uint16Array,
-  Int16Array,
-  Int32Array,
-  Float32Array,
-  Float64Array,
-  Uint8ClampedArray,
-  BigUint64Array,
-  BigInt64Array,
-  MyUint8Array
-];
-
-function CreateResizableArrayBuffer(byteLength, maxByteLength) {
-  return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
-}
+d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
 (function ConstructorThrowsIfBufferDetached() {
   const rab = CreateResizableArrayBuffer(40, 80);
@@ -138,5 +120,18 @@ function CreateResizableArrayBuffer(byteLength, maxByteLength) {
   // OOB read
   for (let i = 0; i < 3; ++i) {
     assertEquals(undefined, i8a[2]);
+  }
+})();
+
+(function FillParameterConversionDetaches() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => { %ArrayBufferDetach(rab); return 1;}};
+    // The length is read after converting the first parameter ('value'), so the
+    // detaching parameter has to be the 2nd ('start') or 3rd ('end').
+    FillHelper(fixedLength, 1, 0, evil);
   }
 })();

@@ -9,10 +9,6 @@
 
 d8.file.execute('test/mjsunit/typedarray-helpers.js');
 
-function CreateResizableArrayBuffer(byteLength, maxByteLength) {
-  return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
-}
-
 (function TypedArrayPrototype() {
   const rab = CreateResizableArrayBuffer(40, 80);
   const ab = new ArrayBuffer(80);

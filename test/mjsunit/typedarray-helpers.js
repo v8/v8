@@ -20,6 +20,10 @@ const ctors = [
   MyBigInt64Array,
 ];
 
+function CreateResizableArrayBuffer(byteLength, maxByteLength) {
+  return new ArrayBuffer(byteLength, {maxByteLength: maxByteLength});
+}
+
 function ReadDataFromBuffer(ab, ctor) {
   let result = [];
   const ta = new ctor(ab, 0, ab.byteLength / ctor.BYTES_PER_ELEMENT);
