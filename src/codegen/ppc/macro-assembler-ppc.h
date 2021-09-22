@@ -408,7 +408,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   template <class _type, class bin_op>
   void AtomicOps(MemOperand dst, Register value, Register output,
-                 Register scratch, bin_op op) {
+                 Register result, bin_op op) {
     Label binop;
     lwsync();
     bind(&binop);
@@ -428,19 +428,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       default:
         UNREACHABLE();
     }
-    op(scratch, output, value);
+    op(result, output, value);
     switch (sizeof(_type)) {
       case 1:
-        stbcx(scratch, dst);
+        stbcx(result, dst);
         break;
       case 2:
-        sthcx(scratch, dst);
+        sthcx(result, dst);
         break;
       case 4:
-        stwcx(scratch, dst);
+        stwcx(result, dst);
         break;
       case 8:
-        stdcx(scratch, dst);
+        stdcx(result, dst);
         break;
       default:
         UNREACHABLE();
@@ -598,6 +598,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SwapSimd128(Simd128Register src, MemOperand dst,
                    Simd128Register scratch);
   void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch);
+
+  void ByteReverseU16(Register dst, Register val);
+  void ByteReverseU32(Register dst, Register val);
+  void ByteReverseU64(Register dst, Register val);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored in

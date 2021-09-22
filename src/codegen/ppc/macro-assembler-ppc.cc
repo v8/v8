@@ -3516,6 +3516,27 @@ void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
   addi(sp, sp, Operand(2 * kSimd128Size));
 }
 
+void TurboAssembler::ByteReverseU16(Register dst, Register val) {
+  subi(sp, sp, Operand(kSystemPointerSize));
+  sth(val, MemOperand(sp));
+  lhbrx(dst, MemOperand(r0, sp));
+  addi(sp, sp, Operand(kSystemPointerSize));
+}
+
+void TurboAssembler::ByteReverseU32(Register dst, Register val) {
+  subi(sp, sp, Operand(kSystemPointerSize));
+  stw(val, MemOperand(sp));
+  lwbrx(dst, MemOperand(r0, sp));
+  addi(sp, sp, Operand(kSystemPointerSize));
+}
+
+void TurboAssembler::ByteReverseU64(Register dst, Register val) {
+  subi(sp, sp, Operand(kSystemPointerSize));
+  std(val, MemOperand(sp));
+  ldbrx(dst, MemOperand(r0, sp));
+  addi(sp, sp, Operand(kSystemPointerSize));
+}
+
 void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
   CmpS64(x, Operand(y), r0);
   beq(dest);
