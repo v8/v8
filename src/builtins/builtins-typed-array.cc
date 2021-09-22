@@ -51,7 +51,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
 
-  int64_t len = array->length();
+  int64_t len = array->GetLength();
   int64_t to = 0;
   int64_t from = 0;
   int64_t final = len;
@@ -85,6 +85,30 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   // throw would have come from ecma262/#sec-integerindexedelementget)
   // (see )
   if (V8_UNLIKELY(array->WasDetached())) return *array;
+
+  if (V8_UNLIKELY(array->is_backed_by_rab())) {
+    bool out_of_bounds = false;
+    int64_t new_len = array->GetLengthOrOutOfBounds(out_of_bounds);
+    if (out_of_bounds) {
+      const MessageTemplate message = MessageTemplate::kDetachedOperation;
+      Handle<String> operation =
+          isolate->factory()->NewStringFromAsciiChecked(method);
+      THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
+    }
+    if (new_len < len) {
+      // We don't need to account for growing, since we only copy an already
+      // determined number of elements and growing won't change it. If to >
+      // new_len or from > new_len, the count below will be < 0, so we don't
+      // need to check them separately.
+      if (final > new_len) {
+        final = new_len;
+      }
+      count = std::min<int64_t>(final - from, new_len - to);
+      if (count <= 0) {
+        return *array;
+      }
+    }
+  }
 
   // Ensure processed indexes are within array bounds
   DCHECK_GE(from, 0);

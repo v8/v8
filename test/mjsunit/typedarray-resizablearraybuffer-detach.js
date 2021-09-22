@@ -135,3 +135,14 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     FillHelper(fixedLength, 1, 0, evil);
   }
 })();
+
+(function CopyWithinParameterConversionDetaches() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => { %ArrayBufferDetach(rab); return 2;}};
+    fixedLength.copyWithin(evil, 0, 1);
+  }
+})();

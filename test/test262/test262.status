@@ -330,9 +330,6 @@
   'built-ins/DataView/prototype/setUint16/resizable-buffer': [FAIL],
   'built-ins/DataView/prototype/setUint32/resizable-buffer': [FAIL],
   'built-ins/DataView/prototype/setUint8/resizable-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/byteOffset/BigInt/resizable-array-buffer-auto': [FAIL],
-  'built-ins/TypedArray/prototype/copyWithin/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/copyWithin/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/entries/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
   'built-ins/TypedArray/prototype/entries/return-abrupt-from-this-out-of-bounds': [FAIL],
   'built-ins/TypedArray/prototype/every/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
@@ -481,7 +478,8 @@
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
 
-  # Pending update after https://github.com/tc39/proposal-resizablearraybuffer/issues/68
+  # https://github.com/tc39/test262/issues/3206
+  'built-ins/TypedArray/prototype/byteOffset/BigInt/resizable-array-buffer-auto': [FAIL],
   'built-ins/TypedArray/prototype/byteOffset/resizable-array-buffer-auto': [FAIL],
 
   ############################ SKIPPED TESTS #############################
