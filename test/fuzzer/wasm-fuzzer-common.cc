@@ -122,7 +122,6 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   int32_t result_ref = 0;
   int32_t result = 0;
 
-  auto interpreter_result = testing::WasmInterpretationResult::Failed();
   if (module_ref.is_null()) {
     base::OwnedVector<WasmValue> arguments =
         testing::MakeDefaultInterpreterArguments(isolate, main_function->sig());
@@ -183,7 +182,7 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
 
   if (exception_ref != exception) {
     const char* exception_text[] = {"no exception", "exception"};
-    FATAL("expected: %s; got: %s", exception_text[interpreter_result.trapped()],
+    FATAL("expected: %s; got: %s", exception_text[exception_ref],
           exception_text[exception]);
   }
 
