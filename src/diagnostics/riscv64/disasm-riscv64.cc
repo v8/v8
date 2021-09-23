@@ -1914,6 +1914,9 @@ void Decoder::DecodeRvvIVV(Instruction* instr) {
     case RO_V_VSADD_VV:
       Format(instr, "vsadd.vv  'vd, 'vs2, 'vs1'vm");
       break;
+    case RO_V_VSADDU_VV:
+      Format(instr, "vsaddu.vv 'vd, 'vs2, 'vs1'vm");
+      break;
     case RO_V_VSUB_VV:
       Format(instr, "vsub.vv   'vd, 'vs2, 'vs1'vm");
       break;
@@ -1998,6 +2001,9 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
     case RO_V_VSADD_VI:
       Format(instr, "vsadd.vi  'vd, 'vs2, 'simm5'vm");
       break;
+    case RO_V_VSADDU_VI:
+      Format(instr, "vsaddu.vi 'vd, 'vs2, 'simm5'vm");
+      break;
     case RO_V_VRSUB_VI:
       Format(instr, "vrsub.vi  'vd, 'vs2, 'simm5'vm");
       break;
@@ -2075,6 +2081,9 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       break;
     case RO_V_VSADD_VX:
       Format(instr, "vsadd.vx  'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VSADDU_VX:
+      Format(instr, "vsaddu.vx 'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VSUB_VX:
       Format(instr, "vsub.vx   'vd, 'vs2, 'rs1'vm");

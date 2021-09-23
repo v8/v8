@@ -4316,6 +4316,12 @@ void Simulator::DecodeRvvIVV() {
       RVV_VI_LOOP_END
       break;
     }
+    case RO_V_VSADDU_VV:
+      RVV_VI_VV_ULOOP({
+        vd = vs2 + vs1;
+        vd |= -(vd < vs2);
+      })
+      break;
     case RO_V_VSUB_VV: {
       RVV_VI_VV_LOOP({ vd = vs2 - vs1; })
       break;
@@ -4543,6 +4549,13 @@ void Simulator::DecodeRvvIVI() {
       RVV_VI_LOOP_END
       break;
     }
+    case RO_V_VSADDU_VI:{
+      RVV_VI_VI_ULOOP({
+        vd = vs2 + uimm5;
+        vd |= -(vd < vs2);
+      })
+      break;
+    }
     case RO_V_VRSUB_VI: {
       RVV_VI_VI_LOOP({ vd = vs2 - simm5; })
       break;
@@ -4679,6 +4692,13 @@ void Simulator::DecodeRvvIVX() {
       }
       set_rvv_vxsat(sat);
       RVV_VI_LOOP_END
+      break;
+    }
+    case RO_V_VSADDU_VX: {
+      RVV_VI_VX_ULOOP({
+        vd = vs2 + rs1;
+        vd |= -(vd < vs2);
+      })
       break;
     }
     case RO_V_VSUB_VX: {
