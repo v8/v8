@@ -58,7 +58,7 @@ std::atomic<uint32_t> next_backing_store_id_{1};
 
 // Allocation results are reported to UMA
 //
-// See wasm_memory_allocation_result in counters.h
+// See wasm_memory_allocation_result in counters-definitions.h
 enum class AllocationStatus {
   kSuccess,  // Succeeded on the first try
 
@@ -68,6 +68,19 @@ enum class AllocationStatus {
                                      // space limit
 
   kOtherFailure  // Failed for an unknown reason
+};
+
+// Attempts to allocate memory inside the virtual memory cage currently fall
+// back to allocating memory outside of the cage if necessary. Once this
+// fallback is no longer allowed/possible, these cases will become allocation
+// failures instead. To track the frequency of such events, the outcome of
+// memory allocation attempts inside the cage is reported to UMA.
+//
+// See caged_memory_allocation_outcome in counters-definitions.h
+enum class CagedMemoryAllocationOutcome {
+  kSuccess,      // Allocation succeeded inside the cage
+  kOutsideCage,  // Allocation failed inside the cage but succeeded outside
+  kFailure,      // Allocation failed inside and outside of the cage
 };
 
 base::AddressRegion GetReservedRegion(bool has_guard_regions,
@@ -107,6 +120,29 @@ size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity) {
 void RecordStatus(Isolate* isolate, AllocationStatus status) {
   isolate->counters()->wasm_memory_allocation_result()->AddSample(
       static_cast<int>(status));
+}
+
+// When the virtual memory cage is active, this function records the outcome of
+// attempts to allocate memory inside the cage which fall back to allocating
+// memory outside of the cage. Passing a value of nullptr for the result
+// indicates that the memory could not be allocated at all.
+void RecordCagedMemoryAllocationResult(Isolate* isolate, void* result) {
+  // This metric is only meaningful when the virtual memory cage is active.
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+  if (GetProcessWideVirtualMemoryCage()->is_initialized()) {
+    CagedMemoryAllocationOutcome outcome;
+    if (result) {
+      bool allocation_in_cage =
+          GetProcessWideVirtualMemoryCage()->Contains(result);
+      outcome = allocation_in_cage ? CagedMemoryAllocationOutcome::kSuccess
+                                   : CagedMemoryAllocationOutcome::kOutsideCage;
+    } else {
+      outcome = CagedMemoryAllocationOutcome::kFailure;
+    }
+    isolate->counters()->caged_memory_allocation_outcome()->AddSample(
+        static_cast<int>(outcome));
+  }
+#endif
 }
 
 inline void DebugCheckZero(void* start, size_t byte_length) {
@@ -469,6 +505,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     // Page allocator could not reserve enough pages.
     BackingStore::ReleaseReservation(reservation_size);
     RecordStatus(isolate, AllocationStatus::kOtherFailure);
+    RecordCagedMemoryAllocationResult(isolate, nullptr);
     TRACE_BS("BSw:try   failed to allocate pages\n");
     return {};
   }
@@ -504,6 +541,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   RecordStatus(isolate, did_retry ? AllocationStatus::kSuccessAfterRetry
                                   : AllocationStatus::kSuccess);
+  RecordCagedMemoryAllocationResult(isolate, allocation_base);
 
   ResizableFlag resizable =
       is_wasm_memory ? ResizableFlag::kNotResizable : ResizableFlag::kResizable;
