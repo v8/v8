@@ -693,7 +693,7 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
                          InstructionCode opcode, Instruction* instr,
                          int pc) {
-  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
+  const MemoryAccessMode access_mode = instr->memory_access_mode();
   if (access_mode == kMemoryAccessProtected) {
     zone->New<WasmProtectedInstructionTrap>(codegen, pc, instr);
   }
@@ -703,7 +703,7 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
 
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
                          InstructionCode opcode, Instruction* instr, int pc) {
-  DCHECK_NE(kMemoryAccessProtected, AccessModeField::decode(opcode));
+  DCHECK_NE(kMemoryAccessProtected, instr->memory_access_mode());
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY

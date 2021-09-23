@@ -1472,13 +1472,6 @@
   'regress/regress-779407': [SKIP],
 }],  # variant == experimental_regexp
 
-##############################################################################
-['variant == instruction_scheduling or variant == stress_instruction_scheduling', {
-  # BUG(12018): These tests currently fail with --turbo-instruction-scheduling.
-  'regress/wasm/regress-1231950': [SKIP],
-  'regress/wasm/regress-1242300': [SKIP],
-}],  # variant == instruction_scheduling or variant == stress_instruction_scheduling
-
 ################################################################################
 ['single_generation', {
   # These tests rely on allocation site tracking which only works in the young generation.
