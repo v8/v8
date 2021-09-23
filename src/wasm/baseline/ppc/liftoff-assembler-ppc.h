@@ -789,18 +789,12 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 
 // V(name, instr, dtype, stype, dcast, scast, rcast, return_val, return_type)
 #define UNOP_LIST(V)                                                         \
-  V(f32_abs, fabs, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, ,   \
-    void)                                                                    \
-  V(f32_neg, fneg, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, ,   \
-    void)                                                                    \
-  V(f32_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, , \
-    void)                                                                    \
-  V(f32_floor, frim, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,   \
-    true, bool)                                                              \
-  V(f32_ceil, frip, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,    \
-    true, bool)                                                              \
-  V(f32_trunc, friz, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,   \
-    true, bool)                                                              \
+  V(f32_abs, fabs, DoubleRegister, DoubleRegister, , , USE, , void)          \
+  V(f32_neg, fneg, DoubleRegister, DoubleRegister, , , USE, , void)          \
+  V(f32_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , USE, , void)        \
+  V(f32_floor, frim, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
+  V(f32_ceil, frip, DoubleRegister, DoubleRegister, , , USE, true, bool)     \
+  V(f32_trunc, friz, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
   V(f64_abs, fabs, DoubleRegister, DoubleRegister, , , USE, , void)          \
   V(f64_neg, fneg, DoubleRegister, DoubleRegister, , , USE, , void)          \
   V(f64_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , USE, , void)        \
@@ -1253,31 +1247,19 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI32ReinterpretF32: {
-      subi(sp, sp, Operand(kSystemPointerSize));
-      StoreF32(src.fp(), MemOperand(sp), r0);
-      LoadU32(dst.gp(), MemOperand(sp), r0);
-      addi(sp, sp, Operand(kSystemPointerSize));
+      MovFloatToInt(dst.gp(), src.fp(), kScratchDoubleReg);
       return true;
     }
     case kExprI64ReinterpretF64: {
-      subi(sp, sp, Operand(kSystemPointerSize));
-      StoreF64(src.fp(), MemOperand(sp), r0);
-      LoadU64(dst.gp(), MemOperand(sp), r0);
-      addi(sp, sp, Operand(kSystemPointerSize));
+      MovDoubleToInt64(dst.gp(), src.fp());
       return true;
     }
     case kExprF32ReinterpretI32: {
-      subi(sp, sp, Operand(kSystemPointerSize));
-      StoreU32(src.gp(), MemOperand(sp), r0);
-      LoadF32(dst.fp(), MemOperand(sp), r0);
-      addi(sp, sp, Operand(kSystemPointerSize));
+      MovIntToFloat(dst.fp(), src.gp(), r0);
       return true;
     }
     case kExprF64ReinterpretI64: {
-      subi(sp, sp, Operand(kSystemPointerSize));
-      StoreU64(src.gp(), MemOperand(sp), r0);
-      LoadF64(dst.fp(), MemOperand(sp), r0);
-      addi(sp, sp, Operand(kSystemPointerSize));
+      MovInt64ToDouble(dst.fp(), src.gp());
       return true;
     }
     default:
@@ -1395,11 +1377,19 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
 void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
                                          Register dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  fcmpu(lhs, rhs, cr7);
-  Label done;
-  mov(dst, Operand(1));
-  b(liftoff::ToCondition(liftoff_cond), &done, cr7);
+  fcmpu(lhs, rhs, cr0);
+  Label nan, done;
+  bunordered(&nan, cr0);
   mov(dst, Operand::Zero());
+  b(NegateCondition(liftoff::ToCondition(liftoff_cond)), &done, cr0);
+  mov(dst, Operand(1));
+  b(&done);
+  bind(&nan);
+  if (liftoff_cond == kUnequal) {
+    mov(dst, Operand(1));
+  } else {
+    mov(dst, Operand::Zero());
+  }
   bind(&done);
 }
 
