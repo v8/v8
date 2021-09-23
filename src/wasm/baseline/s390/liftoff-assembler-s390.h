@@ -2057,8 +2057,13 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
 void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
                                            Label* label, Register lhs,
                                            int32_t imm) {
+  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
   Condition cond = liftoff::ToCondition(liftoff_cond);
-  CmpS32(lhs, Operand(imm));
+  if (use_signed) {
+    CmpS32(lhs, Operand(imm));
+  } else {
+    CmpU32(lhs, Operand(imm));
+  }
   b(cond, label);
 }
 
