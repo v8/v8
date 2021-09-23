@@ -30,6 +30,9 @@ namespace fuzzer {
 
 namespace {
 
+constexpr int kMaxArrays = 4;
+constexpr int kMaxStructs = 4;
+constexpr int kMaxStructFields = 4;
 constexpr int kMaxFunctions = 4;
 constexpr int kMaxGlobals = 64;
 constexpr int kMaxParameters = 15;
@@ -1504,7 +1507,6 @@ void WasmGenerator::Generate<kI64>(DataRange* data) {
       &WasmGenerator::try_block<kI64>,
 
       &WasmGenerator::struct_get<kI64>,
-
       &WasmGenerator::array_get<kI64>};
 
   GenerateOneOf(alternatives, data);
@@ -1907,6 +1909,12 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
 }
 
 void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
+  GeneratorRecursionScope rec_scope(this);
+  if (recursion_limit_reached() || data->size() == 0) {
+    ref_null(type, data);
+    return;
+  }
+
   switch (type.representation()) {
     // For abstract types, generate one of their subtypes, or fall back to the
     // default case.
@@ -2072,31 +2080,38 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     // these types in function signatures.
     // Currently, WasmGenerator assumes this order for struct/array/signature
     // definitions.
-    uint32_t num_structs = 0, num_arrays = 0;
-    if (liftoff_as_reference) {
-      num_structs = 1;
-      num_arrays = 4;
-      uint32_t count = 4;
-      StructType::Builder struct_builder(zone, count);
-      struct_builder.AddField(kWasmI32, true);
-      struct_builder.AddField(kWasmI64, true);
-      struct_builder.AddField(kWasmF32, true);
-      struct_builder.AddField(kWasmF64, true);
-      StructType* struct_fuz = struct_builder.Build();
-      builder.AddStructType(struct_fuz);
-      ArrayType* array_fuzI32 = zone->New<ArrayType>(kWasmI32, true);
-      ArrayType* array_fuzI64 = zone->New<ArrayType>(kWasmI64, true);
-      ArrayType* array_fuzF32 = zone->New<ArrayType>(kWasmF32, true);
-      ArrayType* array_fuzF64 = zone->New<ArrayType>(kWasmF64, true);
-      builder.AddArrayType(array_fuzI32);
-      builder.AddArrayType(array_fuzI64);
-      builder.AddArrayType(array_fuzF32);
-      builder.AddArrayType(array_fuzF64);
-    }
-    function_signatures.push_back(builder.AddSignature(sigs.i_iii()));
 
+    uint8_t num_structs = 0;
+    uint8_t num_arrays = 0;
     static_assert(kMaxFunctions >= 1, "need min. 1 function");
-    int num_functions = 1 + (range.get<uint8_t>() % kMaxFunctions);
+    uint8_t num_functions = 1 + (range.get<uint8_t>() % kMaxFunctions);
+
+    if (liftoff_as_reference) {
+      num_structs = range.get<uint8_t>() % (kMaxStructs + 1);
+      num_arrays = range.get<uint8_t>() % (kMaxArrays + 1);
+      uint16_t num_types = num_structs + num_arrays;
+
+      for (int struct_index = 0; struct_index < num_structs; struct_index++) {
+        uint8_t num_fields = range.get<uint8_t>() % (kMaxStructFields + 1);
+        StructType::Builder struct_builder(zone, num_fields);
+        for (int field_index = 0; field_index < num_fields; field_index++) {
+          // TODO(v8:11954): Allow GetValueType to generate function signatures.
+          ValueType type = GetValueType(&range, true, {}, num_types);
+          bool mutability = range.get<uint8_t>() < 127;
+          struct_builder.AddField(type, mutability);
+        }
+        StructType* struct_fuz = struct_builder.Build();
+        builder.AddStructType(struct_fuz);
+      }
+
+      for (int array_index = 0; array_index < num_arrays; array_index++) {
+        ValueType type = GetValueType(&range, true, {}, num_types);
+        ArrayType* array_fuz = zone->New<ArrayType>(type, true);
+        builder.AddArrayType(array_fuz);
+      }
+    }
+
+    function_signatures.push_back(builder.AddSignature(sigs.i_iii()));
 
     for (int i = 1; i < num_functions; ++i) {
       FunctionSig* sig =
