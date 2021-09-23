@@ -1411,8 +1411,8 @@ void RunExtAddPairwiseTest(TestExecutionTier execution_tier,
   for (auto i = v.begin(), j = v.end() - 1; i < v.end(); i++, j--) {
     r.Call(*i, *j);
     Wide expected = AddLong<Wide>(*i, *j);
-    for (int i = 0; i < num_lanes; i++) {
-      CHECK_EQ(expected, LANE(g, i));
+    for (int l = 0; l < num_lanes; l++) {
+      CHECK_EQ(expected, LANE(g, l));
     }
   }
 }
@@ -2447,27 +2447,29 @@ WASM_SIMD_TEST(I8x16Swizzle) {
   // [0-15] and [16-31]. Using [0-15] as the indices will not sufficiently test
   // swizzle since the expected result is a no-op, using [16-31] will result in
   // all 0s.
-  WasmRunner<int32_t> r(execution_tier);
-  static const int kElems = kSimd128Size / sizeof(uint8_t);
-  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* src0 = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* src1 = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  BUILD(
-      r,
-      WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(kExprI8x16Swizzle, WASM_GLOBAL_GET(1),
-                                         WASM_GLOBAL_GET(2))),
-      WASM_ONE);
+  {
+    WasmRunner<int32_t> r(execution_tier);
+    static const int kElems = kSimd128Size / sizeof(uint8_t);
+    uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
+    uint8_t* src0 = r.builder().AddGlobal<uint8_t>(kWasmS128);
+    uint8_t* src1 = r.builder().AddGlobal<uint8_t>(kWasmS128);
+    BUILD(r,
+          WASM_GLOBAL_SET(0,
+                          WASM_SIMD_BINOP(kExprI8x16Swizzle, WASM_GLOBAL_GET(1),
+                                          WASM_GLOBAL_GET(2))),
+          WASM_ONE);
 
-  for (SwizzleTestArgs si : swizzle_test_vector) {
-    for (int i = 0; i < kElems; i++) {
-      LANE(src0, i) = si.input[i];
-      LANE(src1, i) = si.indices[i];
-    }
+    for (SwizzleTestArgs si : swizzle_test_vector) {
+      for (int i = 0; i < kElems; i++) {
+        LANE(src0, i) = si.input[i];
+        LANE(src1, i) = si.indices[i];
+      }
 
-    CHECK_EQ(1, r.Call());
+      CHECK_EQ(1, r.Call());
 
-    for (int i = 0; i < kElems; i++) {
-      CHECK_EQ(LANE(dst, i), si.expected[i]);
+      for (int i = 0; i < kElems; i++) {
+        CHECK_EQ(LANE(dst, i), si.expected[i]);
+      }
     }
   }
 
@@ -2596,8 +2598,8 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
     // Run the SIMD or scalar lowered compiled code and compare results.
     std::array<int8_t, kSimd128Size> result;
     RunWasmCode(execution_tier, buffer, &result);
-    for (size_t i = 0; i < kSimd128Size; ++i) {
-      CHECK_EQ(result[i], expected[i]);
+    for (size_t j = 0; j < kSimd128Size; ++j) {
+      CHECK_EQ(result[j], expected[j]);
     }
   }
 }
@@ -2933,18 +2935,21 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
 }
 
 WASM_SIMD_TEST(SimdLoadStoreLoad) {
-  WasmRunner<int32_t> r(execution_tier);
-  int32_t* memory =
-      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-  // Load memory, store it, then reload it and extract the first lane. Use a
-  // non-zero offset into the memory of 1 lane (4 bytes) to test indexing.
-  BUILD(r, WASM_SIMD_STORE_MEM(WASM_I32V(8), WASM_SIMD_LOAD_MEM(WASM_I32V(4))),
-        WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_SIMD_LOAD_MEM(WASM_I32V(8))));
+  {
+    WasmRunner<int32_t> r(execution_tier);
+    int32_t* memory =
+        r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+    // Load memory, store it, then reload it and extract the first lane. Use a
+    // non-zero offset into the memory of 1 lane (4 bytes) to test indexing.
+    BUILD(r,
+          WASM_SIMD_STORE_MEM(WASM_I32V(8), WASM_SIMD_LOAD_MEM(WASM_I32V(4))),
+          WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_SIMD_LOAD_MEM(WASM_I32V(8))));
 
-  FOR_INT32_INPUTS(i) {
-    int32_t expected = i;
-    r.builder().WriteMemory(&memory[1], expected);
-    CHECK_EQ(expected, r.Call());
+    FOR_INT32_INPUTS(i) {
+      int32_t expected = i;
+      r.builder().WriteMemory(&memory[1], expected);
+      CHECK_EQ(expected, r.Call());
+    }
   }
 
   {
@@ -2976,25 +2981,28 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
 }
 
 WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
-  WasmRunner<int32_t> r(execution_tier);
-  int32_t* memory =
-      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-  constexpr byte offset_1 = 4;
-  constexpr byte offset_2 = 8;
-  // Load from memory at offset_1, store to offset_2, load from offset_2, and
-  // extract first lane. We use non-zero memarg offsets to test offset decoding.
-  BUILD(
-      r,
-      WASM_SIMD_STORE_MEM_OFFSET(
-          offset_2, WASM_ZERO, WASM_SIMD_LOAD_MEM_OFFSET(offset_1, WASM_ZERO)),
-      WASM_SIMD_I32x4_EXTRACT_LANE(
-          0, WASM_SIMD_LOAD_MEM_OFFSET(offset_2, WASM_ZERO)));
+  {
+    WasmRunner<int32_t> r(execution_tier);
+    int32_t* memory =
+        r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+    constexpr byte offset_1 = 4;
+    constexpr byte offset_2 = 8;
+    // Load from memory at offset_1, store to offset_2, load from offset_2, and
+    // extract first lane. We use non-zero memarg offsets to test offset
+    // decoding.
+    BUILD(r,
+          WASM_SIMD_STORE_MEM_OFFSET(
+              offset_2, WASM_ZERO,
+              WASM_SIMD_LOAD_MEM_OFFSET(offset_1, WASM_ZERO)),
+          WASM_SIMD_I32x4_EXTRACT_LANE(
+              0, WASM_SIMD_LOAD_MEM_OFFSET(offset_2, WASM_ZERO)));
 
-  FOR_INT32_INPUTS(i) {
-    int32_t expected = i;
-    // Index 1 of memory (int32_t) will be bytes 4 to 8.
-    r.builder().WriteMemory(&memory[1], expected);
-    CHECK_EQ(expected, r.Call());
+    FOR_INT32_INPUTS(i) {
+      int32_t expected = i;
+      // Index 1 of memory (int32_t) will be bytes 4 to 8.
+      r.builder().WriteMemory(&memory[1], expected);
+      CHECK_EQ(expected, r.Call());
+    }
   }
 
   {
@@ -3051,18 +3059,20 @@ template <typename T>
 void RunLoadSplatTest(TestExecutionTier execution_tier, WasmOpcode op) {
   constexpr int lanes = 16 / sizeof(T);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
-  WasmRunner<int32_t> r(execution_tier);
-  T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
-  T* global = r.builder().AddGlobal<T>(kWasmS128);
-  BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
-        WASM_ONE);
+  {
+    WasmRunner<int32_t> r(execution_tier);
+    T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+    T* global = r.builder().AddGlobal<T>(kWasmS128);
+    BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
+          WASM_ONE);
 
-  for (T x : compiler::ValueHelper::GetVector<T>()) {
-    // 16-th byte in memory is lanes-th element (size T) of memory.
-    r.builder().WriteMemory(&memory[lanes], x);
-    r.Call();
-    for (int i = 0; i < lanes; i++) {
-      CHECK_EQ(x, LANE(global, i));
+    for (T x : compiler::ValueHelper::GetVector<T>()) {
+      // 16-th byte in memory is lanes-th element (size T) of memory.
+      r.builder().WriteMemory(&memory[lanes], x);
+      r.Call();
+      for (int i = 0; i < lanes; i++) {
+        CHECK_EQ(x, LANE(global, i));
+      }
     }
   }
 
