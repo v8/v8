@@ -214,10 +214,6 @@
 #define WASM_SELECT_A(tval, fval, cond) \
   tval, fval, cond, kExprSelectWithType, U32V_1(1), kFuncRefCode
 
-#define WASM_RETURN0 kExprReturn
-#define WASM_RETURN1(val) val, kExprReturn
-#define WASM_RETURNN(count, ...) __VA_ARGS__, kExprReturn
-
 #define WASM_BR(depth) kExprBr, static_cast<byte>(depth)
 #define WASM_BR_IF(depth, cond) cond, kExprBrIf, static_cast<byte>(depth)
 #define WASM_BR_IFD(depth, val, cond) \
@@ -225,12 +221,10 @@
 #define WASM_CONTINUE(depth) kExprBr, static_cast<byte>(depth)
 #define WASM_UNREACHABLE kExprUnreachable
 #define WASM_RETURN(...) __VA_ARGS__, kExprReturn
+#define WASM_RETURN0 kExprReturn
 
 #define WASM_BR_TABLE(key, count, ...) \
   key, kExprBrTable, U32V_1(count), __VA_ARGS__
-
-#define WASM_CASE(x) static_cast<byte>(x), static_cast<byte>(x >> 8)
-#define WASM_CASE_BR(x) static_cast<byte>(x), static_cast<byte>(0x80 | (x) >> 8)
 
 #define WASM_THROW(index) kExprThrow, static_cast<byte>(index)
 
@@ -876,9 +870,6 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   val, cond, kExprBrIf, static_cast<byte>(depth)
 #define WASM_BRV_IFD(depth, val, cond) \
   val, cond, kExprBrIf, static_cast<byte>(depth), kExprDrop
-#define WASM_IFB(cond, ...) cond, kExprIf, kVoidCode, __VA_ARGS__, kExprEnd
-#define WASM_BR_TABLEV(val, key, count, ...) \
-  val, key, kExprBrTable, U32V_1(count), __VA_ARGS__
 
 //------------------------------------------------------------------------------
 // Atomic Operations.

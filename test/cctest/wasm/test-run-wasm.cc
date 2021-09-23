@@ -920,7 +920,7 @@ WASM_EXEC_TEST(Br_height) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   BUILD(r, WASM_BLOCK_I(
                WASM_BLOCK(WASM_BRV_IFD(0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(0)),
-                          WASM_RETURN1(WASM_I32V_1(9))),
+                          WASM_RETURN(WASM_I32V_1(9))),
                WASM_BRV(0, WASM_I32V_1(8))));
 
   for (int32_t i = 0; i < 5; i++) {
@@ -1473,7 +1473,7 @@ WASM_EXEC_TEST(ExprIf_P) {
 WASM_EXEC_TEST(CountDown) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   BUILD(r,
-        WASM_LOOP(WASM_IFB(
+        WASM_LOOP(WASM_IF(
             WASM_LOCAL_GET(0),
             WASM_LOCAL_SET(0, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_I32V_1(1))),
             WASM_BR(1))),
@@ -3581,7 +3581,7 @@ WASM_EXEC_TEST(InvalidStackAfterBr) {
 
 WASM_EXEC_TEST(InvalidStackAfterReturn) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(r, WASM_RETURN1(WASM_I32V_1(17)), kExprI32Add);
+  BUILD(r, WASM_RETURN(WASM_I32V_1(17)), kExprI32Add);
   CHECK_EQ(17, r.Call());
 }
 
@@ -3639,15 +3639,14 @@ WASM_EXEC_TEST(BranchOverUnreachableCodeInLoop2) {
 
 WASM_EXEC_TEST(BlockInsideUnreachable) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(r, WASM_RETURN1(WASM_I32V_1(17)), WASM_BLOCK(WASM_BR(0)));
+  BUILD(r, WASM_RETURN(WASM_I32V_1(17)), WASM_BLOCK(WASM_BR(0)));
   CHECK_EQ(17, r.Call());
 }
 
 WASM_EXEC_TEST(IfInsideUnreachable) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(
-      r, WASM_RETURN1(WASM_I32V_1(17)),
-      WASM_IF_ELSE_I(WASM_ONE, WASM_BRV(0, WASM_ONE), WASM_RETURN1(WASM_ONE)));
+  BUILD(r, WASM_RETURN(WASM_I32V_1(17)),
+        WASM_IF_ELSE_I(WASM_ONE, WASM_BRV(0, WASM_ONE), WASM_RETURN(WASM_ONE)));
   CHECK_EQ(17, r.Call());
 }
 

@@ -753,7 +753,7 @@ TEST_F(FunctionBodyDecoderTest, Block3_continue) {
 }
 
 TEST_F(FunctionBodyDecoderTest, NestedBlock_return) {
-  ExpectValidates(sigs.i_i(), {B1(B1(WASM_RETURN1(WASM_ZERO))), WASM_ZERO});
+  ExpectValidates(sigs.i_i(), {B1(B1(WASM_RETURN(WASM_ZERO))), WASM_ZERO});
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockBrBinop) {
@@ -1369,13 +1369,13 @@ TEST_F(FunctionBodyDecoderTest, MultipleReturn) {
   static ValueType kIntTypes5[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32,
                                    kWasmI32};
   FunctionSig sig_ii_v(2, 0, kIntTypes5);
-  ExpectValidates(&sig_ii_v, {WASM_RETURNN(2, WASM_ZERO, WASM_ONE)});
-  ExpectFailure(&sig_ii_v, {WASM_RETURNN(1, WASM_ZERO)});
+  ExpectValidates(&sig_ii_v, {WASM_RETURN(WASM_ZERO, WASM_ONE)});
+  ExpectFailure(&sig_ii_v, {WASM_RETURN(WASM_ZERO)});
 
   FunctionSig sig_iii_v(3, 0, kIntTypes5);
   ExpectValidates(&sig_iii_v,
-                  {WASM_RETURNN(3, WASM_ZERO, WASM_ONE, WASM_I32V_1(44))});
-  ExpectFailure(&sig_iii_v, {WASM_RETURNN(2, WASM_ZERO, WASM_ONE)});
+                  {WASM_RETURN(WASM_ZERO, WASM_ONE, WASM_I32V_1(44))});
+  ExpectFailure(&sig_iii_v, {WASM_RETURN(WASM_ZERO, WASM_ONE)});
 }
 
 TEST_F(FunctionBodyDecoderTest, MultipleReturn_fallthru) {
@@ -3160,17 +3160,17 @@ TEST_F(FunctionBodyDecoderTest, BlockParam) {
   ExpectValidates(sigs.i_ii(), {WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                                 WASM_BLOCK_X(sig1, WASM_NOP),
                                 WASM_I32_ADD(WASM_NOP, WASM_NOP)});
-  ExpectFailure(sigs.i_ii(), {WASM_BLOCK_X(sig1, WASM_NOP),
-                              WASM_RETURN1(WASM_LOCAL_GET(0))});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_BLOCK_X(sig1, WASM_NOP), WASM_RETURN(WASM_LOCAL_GET(0))});
   ExpectFailure(sigs.i_ii(), {WASM_BLOCK_X(sig1, WASM_LOCAL_GET(0)),
-                              WASM_RETURN1(WASM_LOCAL_GET(0))});
+                              WASM_RETURN(WASM_LOCAL_GET(0))});
   ExpectFailure(
       sigs.i_ii(),
       {WASM_LOCAL_GET(0), WASM_BLOCK_X(sig2, WASM_I32_ADD(WASM_NOP, WASM_NOP)),
-       WASM_RETURN1(WASM_LOCAL_GET(0))});
+       WASM_RETURN(WASM_LOCAL_GET(0))});
   ExpectFailure(sigs.i_ii(),
                 {WASM_LOCAL_GET(0), WASM_BLOCK_X(sig1, WASM_F32_NEG(WASM_NOP)),
-                 WASM_RETURN1(WASM_LOCAL_GET(0))});
+                 WASM_RETURN(WASM_LOCAL_GET(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopParam) {
@@ -3186,16 +3186,16 @@ TEST_F(FunctionBodyDecoderTest, LoopParam) {
                                 WASM_LOOP_X(sig1, WASM_NOP),
                                 WASM_I32_ADD(WASM_NOP, WASM_NOP)});
   ExpectFailure(sigs.i_ii(),
-                {WASM_LOOP_X(sig1, WASM_NOP), WASM_RETURN1(WASM_LOCAL_GET(0))});
+                {WASM_LOOP_X(sig1, WASM_NOP), WASM_RETURN(WASM_LOCAL_GET(0))});
   ExpectFailure(sigs.i_ii(), {WASM_LOOP_X(sig1, WASM_LOCAL_GET(0)),
-                              WASM_RETURN1(WASM_LOCAL_GET(0))});
+                              WASM_RETURN(WASM_LOCAL_GET(0))});
   ExpectFailure(
       sigs.i_ii(),
       {WASM_LOCAL_GET(0), WASM_LOOP_X(sig2, WASM_I32_ADD(WASM_NOP, WASM_NOP)),
-       WASM_RETURN1(WASM_LOCAL_GET(0))});
+       WASM_RETURN(WASM_LOCAL_GET(0))});
   ExpectFailure(sigs.i_ii(),
                 {WASM_LOCAL_GET(0), WASM_LOOP_X(sig1, WASM_F32_NEG(WASM_NOP)),
-                 WASM_RETURN1(WASM_LOCAL_GET(0))});
+                 WASM_RETURN(WASM_LOCAL_GET(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopParamBr) {
@@ -3213,10 +3213,10 @@ TEST_F(FunctionBodyDecoderTest, LoopParamBr) {
       {WASM_LOCAL_GET(0), WASM_LOOP_X(sig1, WASM_BLOCK_X(sig1, WASM_BR(1)))});
   ExpectFailure(sigs.i_ii(),
                 {WASM_LOCAL_GET(0), WASM_LOOP_X(sig1, WASM_BLOCK(WASM_BR(1))),
-                 WASM_RETURN1(WASM_LOCAL_GET(0))});
+                 WASM_RETURN(WASM_LOCAL_GET(0))});
   ExpectFailure(sigs.i_ii(), {WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                               WASM_LOOP_X(sig2, WASM_BLOCK_X(sig1, WASM_BR(1))),
-                              WASM_RETURN1(WASM_LOCAL_GET(0))});
+                              WASM_RETURN(WASM_LOCAL_GET(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfParam) {

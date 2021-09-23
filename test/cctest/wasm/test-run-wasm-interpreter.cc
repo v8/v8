@@ -38,7 +38,7 @@ TEST(Run_WasmIfElse) {
 
 TEST(Run_WasmIfReturn) {
   WasmRunner<int32_t, int32_t> r(TestExecutionTier::kInterpreter);
-  BUILD(r, WASM_IF(WASM_LOCAL_GET(0), WASM_RETURN1(WASM_I32V_2(77))),
+  BUILD(r, WASM_IF(WASM_LOCAL_GET(0), WASM_RETURN(WASM_I32V_2(77))),
         WASM_I32V_2(65));
   CHECK_EQ(65, r.Call(0));
   CHECK_EQ(77, r.Call(1));

@@ -45,7 +45,7 @@ WASM_EXEC_TEST(I64Const_many) {
 WASM_EXEC_TEST(Return_I64) {
   WasmRunner<int64_t, int64_t> r(execution_tier);
 
-  BUILD(r, WASM_RETURN1(WASM_LOCAL_GET(0)));
+  BUILD(r, WASM_RETURN(WASM_LOCAL_GET(0)));
 
   FOR_INT64_INPUTS(i) { CHECK_EQ(i, r.Call(i)); }
 }
@@ -67,9 +67,10 @@ const int64_t kHasBit33On = 0x100000000;
 
 WASM_EXEC_TEST(Regress5800_Add) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(r, WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_ADD(
-                                        WASM_I64V(0), WASM_I64V(kHasBit33On)))),
-                      WASM_RETURN1(WASM_I32V(0))),
+  BUILD(r,
+        WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_ADD(
+                                     WASM_I64V(0), WASM_I64V(kHasBit33On)))),
+                   WASM_RETURN(WASM_I32V(0))),
         WASM_I32V(0));
   CHECK_EQ(0, r.Call());
 }
@@ -86,9 +87,10 @@ WASM_EXEC_TEST(I64Sub) {
 
 WASM_EXEC_TEST(Regress5800_Sub) {
   WasmRunner<int32_t> r(execution_tier);
-  BUILD(r, WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_SUB(
-                                        WASM_I64V(0), WASM_I64V(kHasBit33On)))),
-                      WASM_RETURN1(WASM_I32V(0))),
+  BUILD(r,
+        WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_SUB(
+                                     WASM_I64V(0), WASM_I64V(kHasBit33On)))),
+                   WASM_RETURN(WASM_I32V(0))),
         WASM_I32V(0));
   CHECK_EQ(0, r.Call());
 }

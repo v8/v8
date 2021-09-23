@@ -250,14 +250,14 @@ T Abs(T a) {
   WASM_IF(WASM_##LANE_TYPE##_NE(WASM_LOCAL_GET(lane_value),                    \
                                 WASM_SIMD_##TYPE##_EXTRACT_LANE(               \
                                     lane_index, WASM_LOCAL_GET(value))),       \
-          WASM_RETURN1(WASM_ZERO))
+          WASM_RETURN(WASM_ZERO))
 
 // Unsigned Extracts are only available for I8x16, I16x8 types
 #define WASM_SIMD_CHECK_LANE_U(TYPE, value, LANE_TYPE, lane_value, lane_index) \
   WASM_IF(WASM_##LANE_TYPE##_NE(WASM_LOCAL_GET(lane_value),                    \
                                 WASM_SIMD_##TYPE##_EXTRACT_LANE_U(             \
                                     lane_index, WASM_LOCAL_GET(value))),       \
-          WASM_RETURN1(WASM_ZERO))
+          WASM_RETURN(WASM_ZERO))
 
 WASM_SIMD_TEST(S128Globals) {
   WasmRunner<int32_t> r(execution_tier);
@@ -2621,28 +2621,28 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
-                  WASM_RETURN1(WASM_ZERO)),                                    \
+                  WASM_RETURN(WASM_ZERO)),                                     \
           WASM_LOCAL_SET(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
-                  WASM_RETURN1(WASM_ZERO)),                                    \
+                  WASM_RETURN(WASM_ZERO)),                                     \
           WASM_LOCAL_SET(                                                      \
               reduced, WASM_SIMD_UNOP(kExprI##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
-                  WASM_RETURN1(WASM_ZERO)),                                    \
+                  WASM_RETURN(WASM_ZERO)),                                     \
           WASM_LOCAL_SET(                                                      \
               reduced, WASM_SIMD_UNOP(kExprI##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(zero),    \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
-                  WASM_RETURN1(WASM_ZERO)),                                    \
+                  WASM_RETURN(WASM_ZERO)),                                     \
           WASM_LOCAL_SET(one_one,                                              \
                          WASM_SIMD_I##format##_REPLACE_LANE(                   \
                              lanes - 1, WASM_LOCAL_GET(zero), int_type(1))),   \
@@ -2652,28 +2652,28 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
-                  WASM_RETURN1(WASM_ZERO)),                                    \
+                  WASM_RETURN(WASM_ZERO)),                                     \
           WASM_LOCAL_SET(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV128AnyTrue,                        \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
-                  WASM_RETURN1(WASM_ZERO)),                                    \
+                  WASM_RETURN(WASM_ZERO)),                                     \
           WASM_LOCAL_SET(                                                      \
               reduced, WASM_SIMD_UNOP(kExprI##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
-                  WASM_RETURN1(WASM_ZERO)),                                    \
+                  WASM_RETURN(WASM_ZERO)),                                     \
           WASM_LOCAL_SET(                                                      \
               reduced, WASM_SIMD_UNOP(kExprI##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
                                                       WASM_LOCAL_GET(one_one), \
                                                       WASM_LOCAL_GET(zero)))), \
           WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
-                  WASM_RETURN1(WASM_ZERO)),                                    \
+                  WASM_RETURN(WASM_ZERO)),                                     \
           WASM_ONE);                                                           \
     CHECK_EQ(1, r.Call());                                                     \
   }
