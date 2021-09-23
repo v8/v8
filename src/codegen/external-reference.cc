@@ -761,6 +761,11 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
       isolate->regexp_stack()->memory_top_address_address());
 }
 
+ExternalReference ExternalReference::address_of_regexp_stack_stack_pointer(
+    Isolate* isolate) {
+  return ExternalReference(isolate->regexp_stack()->stack_pointer_address());
+}
+
 ExternalReference ExternalReference::javascript_execution_assert(
     Isolate* isolate) {
   return ExternalReference(isolate->javascript_execution_assert_address());

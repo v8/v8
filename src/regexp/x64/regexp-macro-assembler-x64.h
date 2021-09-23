@@ -5,9 +5,7 @@
 #ifndef V8_REGEXP_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 #define V8_REGEXP_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 
-#include "src/base/strings.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/x64/assembler-x64.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/zone/zone-chunk-list.h"
 
@@ -133,18 +131,17 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   static const int kIsolate = kDirectCall + kSystemPointerSize;
 #endif
 
+  // We push callee-save registers that we use after the frame pointer (and
+  // after the parameters).
 #ifdef V8_TARGET_OS_WIN
-  // Microsoft calling convention has three callee-saved registers
-  // (that we are using). We push these after the frame pointer.
   static const int kBackup_rsi = kFramePointer - kSystemPointerSize;
   static const int kBackup_rdi = kBackup_rsi - kSystemPointerSize;
   static const int kBackup_rbx = kBackup_rdi - kSystemPointerSize;
+  static const int kNumCalleeSaveRegisters = 3;
   static const int kLastCalleeSaveRegister = kBackup_rbx;
 #else
-  // AMD64 Calling Convention has only one callee-save register that
-  // we use. We push this after the frame pointer (and after the
-  // parameters).
   static const int kBackup_rbx = kNumOutputRegisters - kSystemPointerSize;
+  static const int kNumCalleeSaveRegisters = 1;
   static const int kLastCalleeSaveRegister = kBackup_rbx;
 #endif
 
@@ -155,9 +152,14 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   static const int kStringStartMinusOne =
       kSuccessfulCaptures - kSystemPointerSize;
   static const int kBacktrackCount = kStringStartMinusOne - kSystemPointerSize;
+  // Stores the initial value of the regexp stack pointer in a
+  // position-independent representation (in case the regexp stack grows and
+  // thus moves).
+  static const int kRegExpStackBasePointer =
+      kBacktrackCount - kSystemPointerSize;
 
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kBacktrackCount - kSystemPointerSize;
+  static const int kRegisterZero = kRegExpStackBasePointer - kSystemPointerSize;
 
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
@@ -175,14 +177,14 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   Operand register_location(int register_index);
 
   // The register containing the current character after LoadCurrentCharacter.
-  inline Register current_character() { return rdx; }
+  static constexpr Register current_character() { return rdx; }
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  inline Register backtrack_stackpointer() { return rcx; }
+  static constexpr Register backtrack_stackpointer() { return rcx; }
 
   // The registers containing a self pointer to this code's Code object.
-  inline Register code_object_pointer() { return r8; }
+  static constexpr Register code_object_pointer() { return r8; }
 
   // Byte size of chars in the string to match (decided by the Mode argument)
   inline int char_size() { return static_cast<int>(mode_); }
@@ -224,24 +226,36 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   // Increments the stack pointer (rcx) by a word size.
   inline void Drop();
 
+  void LoadRegExpStackPointerFromMemory(Register dst);
+  void StoreRegExpStackPointerToMemory(Register src, Register scratch);
+  void PushRegExpBasePointer(Register scratch1, Register scratch2);
+  void PopRegExpBasePointer(Register scratch1, Register scratch2);
+
   inline void ReadPositionFromRegister(Register dst, int reg);
 
   Isolate* isolate() const { return masm_.isolate(); }
 
   MacroAssembler masm_;
-  NoRootArrayScope no_root_array_scope_;
+
+  // On x64, there is no reason to keep the kRootRegister uninitialized; we
+  // could easily use it by 1. initializing it and 2. storing/restoring it
+  // as callee-save on entry/exit.
+  // But: on other platforms, specifically ia32, it would be tricky to enable
+  // the kRootRegister since it's currently used for other purposes. Thus, for
+  // consistency, we also keep it uninitialized here.
+  const NoRootArrayScope no_root_array_scope_;
 
   ZoneChunkList<int> code_relative_fixup_positions_;
 
   // Which mode to generate code for (LATIN1 or UC16).
-  Mode mode_;
+  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;
 
   // Number of registers to output at the end (the saved registers
   // are always 0..num_saved_registers_-1)
-  int num_saved_registers_;
+  const int num_saved_registers_;
 
   // Labels used internally.
   Label entry_label_;

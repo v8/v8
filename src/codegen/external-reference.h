@@ -72,6 +72,8 @@ class StatsCounter;
     "RegExpStack::limit_address_address()")                                    \
   V(address_of_regexp_stack_memory_top_address,                                \
     "RegExpStack::memory_top_address_address()")                               \
+  V(address_of_regexp_stack_stack_pointer,                                     \
+    "RegExpStack::stack_pointer_address()")                                    \
   V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector")  \
   V(thread_in_wasm_flag_address_address,                                       \
     "Isolate::thread_in_wasm_flag_address_address")                            \

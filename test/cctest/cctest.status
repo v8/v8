@@ -136,9 +136,6 @@
   'test-strings/Traverse': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
-
-  # TODO(v8:11382): Reenable once irregexp is reentrant.
-  'test-regexp/RegExpInterruptReentrantExecution': [FAIL],
 }],  # ALWAYS
 
 ##############################################################################

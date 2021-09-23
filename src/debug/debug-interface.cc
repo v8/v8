@@ -17,7 +17,6 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/regexp/regexp-stack.h"
 #include "src/strings/string-builder-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -304,10 +303,7 @@ void SetTerminateOnResume(Isolate* v8_isolate) {
 bool CanBreakProgram(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_DO_NOT_USE(isolate);
-  // We cannot break a program if we are currently running a regexp.
-  // TODO(yangguo): fix this exception.
-  return !isolate->regexp_stack()->is_in_use() &&
-         isolate->debug()->AllFramesOnStackAreBlackboxed();
+  return isolate->debug()->AllFramesOnStackAreBlackboxed();
 }
 
 Isolate* Script::GetIsolate() const {
