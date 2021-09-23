@@ -450,8 +450,7 @@ def console_view(name, title = None, repo = None, refs = None, exclude_ref = Non
         name = name,
         title = title or name,
         repo = repo or "https://chromium.googlesource.com/v8/v8",
-        # TODO(https://crbug.com/1222092): Remove master ref.
-        refs = refs or ["refs/heads/main", "refs/heads/master"],
+        refs = refs or ["refs/heads/main"],
         exclude_ref = exclude_ref,
         favicon = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico",
         header = header or "//consoles/header_main.textpb",
