@@ -1500,8 +1500,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x08, dst, xmm0, src, k66, k0F3A, kWIG);
     emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
   }
+  void vroundps(YMMRegister dst, YMMRegister src, RoundingMode mode) {
+    vinstr(0x08, dst, ymm0, src, k66, k0F3A, kWIG, AVX);
+    emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
+  }
   void vroundpd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
     vinstr(0x09, dst, xmm0, src, k66, k0F3A, kWIG);
+    emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
+  }
+  void vroundpd(YMMRegister dst, YMMRegister src, RoundingMode mode) {
+    vinstr(0x09, dst, ymm0, src, k66, k0F3A, kWIG, AVX);
     emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
   }
 
@@ -1693,7 +1701,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x0E, dst, src1, src2, k66, k0F3A, kWIG);
     emit(mask);
   }
+  void vpblendw(YMMRegister dst, YMMRegister src1, YMMRegister src2,
+                uint8_t mask) {
+    vinstr(0x0E, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(mask);
+  }
   void vpblendw(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t mask) {
+    vinstr(0x0E, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(mask);
+  }
+  void vpblendw(YMMRegister dst, YMMRegister src1, Operand src2, uint8_t mask) {
     vinstr(0x0E, dst, src1, src2, k66, k0F3A, kWIG);
     emit(mask);
   }
@@ -1703,7 +1720,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x0F, dst, src1, src2, k66, k0F3A, kWIG);
     emit(imm8);
   }
+  void vpalignr(YMMRegister dst, YMMRegister src1, YMMRegister src2,
+                uint8_t imm8) {
+    vinstr(0x0F, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(imm8);
+  }
   void vpalignr(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8) {
+    vinstr(0x0F, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(imm8);
+  }
+  void vpalignr(YMMRegister dst, YMMRegister src1, Operand src2, uint8_t imm8) {
     vinstr(0x0F, dst, src1, src2, k66, k0F3A, kWIG);
     emit(imm8);
   }
