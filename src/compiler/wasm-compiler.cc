@@ -7938,7 +7938,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   }
 
   if (ContainsSimd(func_body.sig) && !CpuFeatures::SupportsWasmSimd128()) {
-    call_descriptor = GetI32WasmCallDescriptorForSimd(&zone, call_descriptor);
+    // Fail compilation if hardware does not support SIMD.
+    return wasm::WasmCompilationResult{};
   }
 
   Pipeline::GenerateCodeForWasmFunction(&info, env, wire_bytes_storage, mcgraph,
