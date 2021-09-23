@@ -1185,8 +1185,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     //        TypeError exception.
     GotoIf(TaggedIsSmi(maybe_regexp), &next);
     TNode<HeapObject> heap_maybe_regexp = CAST(maybe_regexp);
-    regexp_asm.BranchIfFastRegExp_Strict(context, heap_maybe_regexp, &fast,
-                                         &slow);
+    regexp_asm.BranchIfFastRegExpForMatch(context, heap_maybe_regexp, &fast,
+                                          &slow);
 
     BIND(&fast);
     {
