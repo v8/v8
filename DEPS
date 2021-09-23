@@ -95,7 +95,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '715537d6007ca71837f48bcb04fc3d482aed2507',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '66bad006832120801883a921c5758703b4b828d3',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd7f25a427cdc733b40563c64e7166aa9bba21452',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7ea3a871db68ae2cbbeaf5433a3192a799ef3c11',
   'buildtools/clang_format/script':
@@ -158,7 +158,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'UnrNXrNKJtnUOqrH_BbjXgZ_Ns1v0PZ9WNtFgoHrQZwC'
+              'version': '93-xiCMBx8NRjVvu1v-vuwCsej5zB1Pj3FEUsphwCeUC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -221,7 +221,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '25814bb53d2bdd7a622d27394f33528830685748',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e155ea5c89252285c5c2fc03f4840fe8ef9c1a36',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -229,7 +229,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'eff810e93d23a0ad00fe36e577324b67612b3ec4',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '04d9c83459364333b8f4859559654cd24d032447',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -318,7 +318,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '48418f3dd75b4ec99af7d1159f175354db23ca3a',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + 'ba539c18fc016328ead14f1a25206d052799c1ad',
     'condition': 'not build_with_chromium',
   }
 }
