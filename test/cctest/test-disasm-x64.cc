@@ -112,64 +112,6 @@ TEST(DisasmX64) {
   __ j(less_equal, &Ljcc);
   __ j(greater, &Ljcc);
 
-  // SSE2 instructions
-  {
-    __ cvtdq2pd(xmm3, xmm4);
-    __ cvttsd2si(rdx, Operand(rbx, rcx, times_4, 10000));
-    __ cvttsd2si(rdx, xmm1);
-    __ cvttsd2siq(rdx, xmm1);
-    __ cvttsd2siq(rdx, Operand(rbx, rcx, times_4, 10000));
-    __ cvtlsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ cvtlsi2sd(xmm1, rdx);
-    __ cvtqsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ cvtqsi2sd(xmm1, rdx);
-    __ cvtss2sd(xmm1, xmm9);
-    __ cvtss2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ cvtsd2si(rdx, xmm9);
-    __ cvtsd2siq(rdx, xmm9);
-
-    __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
-    // 128 bit move instructions.
-    __ movupd(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ movupd(Operand(rbx, rcx, times_4, 10000), xmm0);
-    __ movdqa(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
-    __ movdqa(xmm0, xmm1);
-
-    __ ucomisd(xmm0, xmm1);
-    __ ucomisd(xmm8, Operand(rbx, rdx, times_4, 10000));
-
-    __ cmpltsd(xmm3, xmm11);
-
-    __ movmskpd(rdx, xmm9);
-    __ pmovmskb(rdx, xmm9);
-
-    __ pcmpeqd(xmm1, xmm0);
-
-    __ punpckldq(xmm1, xmm11);
-    __ punpckldq(xmm5, Operand(rdx, 4));
-    __ punpckhdq(xmm8, xmm15);
-
-    __ pshuflw(xmm2, xmm4, 3);
-    __ pshufhw(xmm1, xmm9, 6);
-
-#define EMIT_SSE2_INSTR(instruction, notUsed1, notUsed2, notUsed3) \
-  __ instruction(xmm5, xmm1);                                      \
-  __ instruction(xmm5, Operand(rdx, 4));
-
-    SSE2_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
-    SSE2_UNOP_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
-    SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_INSTR)
-#undef EMIT_SSE2_INSTR
-
-#define EMIT_SSE2_SHIFT_IMM(instruction, notUsed1, notUsed2, notUsed3, \
-                            notUsed4)                                  \
-  __ instruction(xmm3, 0xA3);
-    SSE2_INSTRUCTION_LIST_SHIFT_IMM(EMIT_SSE2_SHIFT_IMM)
-#undef EMIT_SSE2_SHIFT_IMM
-  }
-
   // cmov.
   {
     __ cmovq(overflow, rax, Operand(rax, 0));
@@ -1209,6 +1151,74 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE) {
   COMPARE_INSTR(exp, instruction(xmm1, Operand(rbx, rcx, times_4, 10000)));
   SSE_INSTRUCTION_LIST_SS(COMPARE_SSE_INSTR)
 #undef COMPARE_SSE_INSTR
+}
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputSSE2) {
+  DisassemblerTester t;
+  std::string actual, exp;
+
+  COMPARE("f30fe6dc           cvtdq2pd xmm3,xmm4", cvtdq2pd(xmm3, xmm4));
+  COMPARE("f20f2c948b10270000 cvttsd2sil rdx,[rbx+rcx*4+0x2710]",
+          cvttsd2si(rdx, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20f2cd1           cvttsd2sil rdx,xmm1", cvttsd2si(rdx, xmm1));
+  COMPARE("f2480f2cd1         REX.W cvttsd2siq rdx,xmm1",
+          cvttsd2siq(rdx, xmm1));
+  COMPARE("f2480f2c948b10270000 REX.W cvttsd2siq rdx,[rbx+rcx*4+0x2710]",
+          cvttsd2siq(rdx, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20f2a8c8b10270000 cvtsi2sd xmm1,[rbx+rcx*4+0x2710]",
+          cvtlsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20f2aca           cvtsi2sd xmm1,rdx", cvtlsi2sd(xmm1, rdx));
+  COMPARE("f2480f2a8c8b10270000 REX.W cvtsi2sd xmm1,[rbx+rcx*4+0x2710]",
+          cvtqsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f2480f2aca         REX.W cvtsi2sd xmm1,rdx", cvtqsi2sd(xmm1, rdx));
+  COMPARE("f3410f5ac9         cvtss2sd xmm1,xmm9", cvtss2sd(xmm1, xmm9));
+  COMPARE("f30f5a8c8b10270000 cvtss2sd xmm1,[rbx+rcx*4+0x2710]",
+          cvtss2sd(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f2410f2dd1         cvtsd2sil rdx,xmm9", cvtsd2si(rdx, xmm9));
+  COMPARE("f2490f2dd1         REX.W cvtsd2siq rdx,xmm9", cvtsd2siq(rdx, xmm9););
+
+  COMPARE("f20f108c8b10270000 movsd xmm1,[rbx+rcx*4+0x2710]",
+          movsd(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20f118c8b10270000 movsd [rbx+rcx*4+0x2710],xmm1",
+          movsd(Operand(rbx, rcx, times_4, 10000), xmm1));
+  COMPARE("660f10848b10270000 movupd xmm0,[rbx+rcx*4+0x2710]",
+          movupd(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("660f11848b10270000 movupd [rbx+rcx*4+0x2710],xmm0",
+          movupd(Operand(rbx, rcx, times_4, 10000), xmm0));
+  COMPARE("66480f6f848b10270000 REX.W movdqa xmm0,[rbx+rcx*4+0x2710]",
+          movdqa(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("66480f7f848b10270000 REX.W movdqa [rbx+rcx*4+0x2710],xmm0",
+          movdqa(Operand(rbx, rcx, times_4, 10000), xmm0));
+  COMPARE("66480f7fc8         REX.W movdqa xmm0,xmm1", movdqa(xmm0, xmm1));
+  COMPARE("660f2ec1           ucomisd xmm0,xmm1", ucomisd(xmm0, xmm1));
+  COMPARE("66440f2e849310270000 ucomisd xmm8,[rbx+rdx*4+0x2710]",
+          ucomisd(xmm8, Operand(rbx, rdx, times_4, 10000)));
+  COMPARE("f2410fc2db01       cmpltsd xmm3,xmm11", cmpltsd(xmm3, xmm11));
+  COMPARE("66410f50d1         movmskpd rdx,xmm9", movmskpd(rdx, xmm9));
+  COMPARE("66410fd7d1         pmovmskb r9,xmm2", pmovmskb(rdx, xmm9));
+  COMPARE("660f76c8           pcmpeqd xmm1,xmm0", pcmpeqd(xmm1, xmm0));
+  COMPARE("66410f62cb         punpckldq xmm1,xmm11", punpckldq(xmm1, xmm11));
+  COMPARE("660f626a04         punpckldq xmm5,[rdx+0x4]",
+          punpckldq(xmm5, Operand(rdx, 4)));
+  COMPARE("66450f6ac7         punpckhdq xmm8,xmm15", punpckhdq(xmm8, xmm15));
+  COMPARE("f20f70d403         pshuflw xmm2,xmm4,3", pshuflw(xmm2, xmm4, 3));
+  COMPARE("f3410f70c906       pshufhw xmm1,xmm9, 6", pshufhw(xmm1, xmm9, 6));
+
+#define COMPARE_SSE2_INSTR(instruction, _, __, ___) \
+  exp = #instruction " xmm1,xmm0";                  \
+  COMPARE_INSTR(exp, instruction(xmm1, xmm0));      \
+  exp = #instruction " xmm1,[rbx+rcx*4+0x2710]";    \
+  COMPARE_INSTR(exp, instruction(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  SSE2_INSTRUCTION_LIST(COMPARE_SSE2_INSTR)
+  SSE2_UNOP_INSTRUCTION_LIST(COMPARE_SSE2_INSTR)
+  SSE2_INSTRUCTION_LIST_SD(COMPARE_SSE2_INSTR)
+#undef COMPARE_SSE2_INSTR
+
+#define COMPARE_SSE2_SHIFT_IMM(instruction, _, __, ___, ____) \
+  exp = #instruction " xmm3,35";                              \
+  COMPARE_INSTR(exp, instruction(xmm3, 0xA3));
+  SSE2_INSTRUCTION_LIST_SHIFT_IMM(COMPARE_SSE2_SHIFT_IMM)
+#undef COMPARE_SSE2_SHIFT_IMM
 }
 
 UNINITIALIZED_TEST(DisasmX64YMMRegister) {
