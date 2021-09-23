@@ -271,7 +271,6 @@ class RegExpParserImpl final {
                              const ZoneVector<char>& name_1,
                              const ZoneVector<char>& name_2);
 
-  RegExpTree* GetPropertySequence(const ZoneVector<char>& name_1);
   RegExpTree* ParseCharacterClass(const RegExpBuilder* state);
 
   base::uc32 ParseOctalLiteral();
@@ -736,13 +735,6 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
                                                                  ranges);
                   builder->AddCharacterClass(cc);
                   break;
-                }
-                if (p == 'p' && name_2.empty()) {
-                  RegExpTree* sequence = GetPropertySequence(name_1);
-                  if (sequence != nullptr) {
-                    builder->AddAtom(sequence);
-                    break;
-                  }
                 }
               }
               return ReportError(RegExpError::kInvalidPropertyName);
@@ -1739,72 +1731,6 @@ bool RegExpParserImpl<CharT>::AddPropertyClassRange(
   }
 }
 
-template <class CharT>
-RegExpTree* RegExpParserImpl<CharT>::GetPropertySequence(
-    const ZoneVector<char>& name_1) {
-  if (!FLAG_harmony_regexp_sequence) return nullptr;
-  const char* name = name_1.data();
-  const base::uc32* sequence_list = nullptr;
-  RegExpFlags flags = RegExpFlag::kUnicode;
-  if (NameEquals(name, "Emoji_Flag_Sequence")) {
-    sequence_list = UnicodePropertySequences::kEmojiFlagSequences;
-  } else if (NameEquals(name, "Emoji_Tag_Sequence")) {
-    sequence_list = UnicodePropertySequences::kEmojiTagSequences;
-  } else if (NameEquals(name, "Emoji_ZWJ_Sequence")) {
-    sequence_list = UnicodePropertySequences::kEmojiZWJSequences;
-  }
-  if (sequence_list != nullptr) {
-    // TODO(yangguo): this creates huge regexp code. Alternative to this is
-    // to create a new operator that checks for these sequences at runtime.
-    RegExpBuilder builder(zone(), flags);
-    while (true) {                   // Iterate through list of sequences.
-      while (*sequence_list != 0) {  // Iterate through sequence.
-        builder.AddUnicodeCharacter(*sequence_list);
-        sequence_list++;
-      }
-      sequence_list++;
-      if (*sequence_list == 0) break;
-      builder.NewAlternative();
-    }
-    return builder.ToRegExp();
-  }
-
-  if (NameEquals(name, "Emoji_Keycap_Sequence")) {
-    // https://unicode.org/reports/tr51/#def_emoji_keycap_sequence
-    // emoji_keycap_sequence := [0-9#*] \x{FE0F 20E3}
-    RegExpBuilder builder(zone(), flags);
-    ZoneList<CharacterRange>* prefix_ranges =
-        zone()->template New<ZoneList<CharacterRange>>(2, zone());
-    prefix_ranges->Add(CharacterRange::Range('0', '9'), zone());
-    prefix_ranges->Add(CharacterRange::Singleton('#'), zone());
-    prefix_ranges->Add(CharacterRange::Singleton('*'), zone());
-    builder.AddCharacterClass(
-        zone()->template New<RegExpCharacterClass>(zone(), prefix_ranges));
-    builder.AddCharacter(0xFE0F);
-    builder.AddCharacter(0x20E3);
-    return builder.ToRegExp();
-  } else if (NameEquals(name, "Emoji_Modifier_Sequence")) {
-    // https://unicode.org/reports/tr51/#def_emoji_modifier_sequence
-    // emoji_modifier_sequence := emoji_modifier_base emoji_modifier
-    RegExpBuilder builder(zone(), flags);
-    ZoneList<CharacterRange>* modifier_base_ranges =
-        zone()->template New<ZoneList<CharacterRange>>(2, zone());
-    LookupPropertyValueName(UCHAR_EMOJI_MODIFIER_BASE, "Y", false,
-                            modifier_base_ranges, zone());
-    builder.AddCharacterClass(zone()->template New<RegExpCharacterClass>(
-        zone(), modifier_base_ranges));
-    ZoneList<CharacterRange>* modifier_ranges =
-        zone()->template New<ZoneList<CharacterRange>>(2, zone());
-    LookupPropertyValueName(UCHAR_EMOJI_MODIFIER, "Y", false, modifier_ranges,
-                            zone());
-    builder.AddCharacterClass(
-        zone()->template New<RegExpCharacterClass>(zone(), modifier_ranges));
-    return builder.ToRegExp();
-  }
-
-  return nullptr;
-}
-
 #else  // V8_INTL_SUPPORT
 
 template <class CharT>
@@ -1818,12 +1744,6 @@ bool RegExpParserImpl<CharT>::AddPropertyClassRange(
     ZoneList<CharacterRange>* add_to, bool negate,
     const ZoneVector<char>& name_1, const ZoneVector<char>& name_2) {
   return false;
-}
-
-template <class CharT>
-RegExpTree* RegExpParserImpl<CharT>::GetPropertySequence(
-    const ZoneVector<char>& name) {
-  return nullptr;
 }
 
 #endif  // V8_INTL_SUPPORT
