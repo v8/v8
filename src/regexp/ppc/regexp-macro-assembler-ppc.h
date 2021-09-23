@@ -89,20 +89,16 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
   static const int kFramePointer = 0;
 
   // Above the frame pointer - Stored registers and stack passed parameters.
-  // Register 25..31.
   static const int kStoredRegisters = kFramePointer;
   // Return address (stored from link register, read into pc on return).
   static const int kReturnAddress = kStoredRegisters + 7 * kSystemPointerSize;
   static const int kCallerFrame = kReturnAddress + kSystemPointerSize;
-  // Stack parameters placed by caller.
-  static const int kIsolate =
-      kCallerFrame + kStackFrameExtraParamSlot * kSystemPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
-  static const int kDirectCall = kFramePointer - kSystemPointerSize;
-  static const int kStackHighEnd = kDirectCall - kSystemPointerSize;
-  static const int kNumOutputRegisters = kStackHighEnd - kSystemPointerSize;
+  static const int kIsolate = kFramePointer - kSystemPointerSize;
+  static const int kDirectCall = kIsolate - kSystemPointerSize;
+  static const int kNumOutputRegisters = kDirectCall - kSystemPointerSize;
   static const int kRegisterOutput = kNumOutputRegisters - kSystemPointerSize;
   static const int kInputEnd = kRegisterOutput - kSystemPointerSize;
   static const int kInputStart = kInputEnd - kSystemPointerSize;

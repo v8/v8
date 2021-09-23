@@ -88,21 +88,15 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   static const int kFramePointer = 0;
 
   // Above the frame pointer - Stored registers and stack passed parameters.
-  // Register 6-15(sp)
   static const int kStoredRegisters = kFramePointer;
   static const int kCallerFrame =
       kStoredRegisters + kCalleeRegisterSaveAreaSize;
-  // Stack parameters placed by caller.
-  static const int kCaptureArraySize = kCallerFrame;
-  static const int kStackAreaBase = kCallerFrame + kSystemPointerSize;
-  // kDirectCall again
-  static const int kIsolate = kStackAreaBase + 2 * kSystemPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
-  static const int kDirectCall = kFramePointer - kSystemPointerSize;
-  static const int kStackHighEnd = kDirectCall - kSystemPointerSize;
-  static const int kNumOutputRegisters = kStackHighEnd - kSystemPointerSize;
+  static const int kIsolate = kFramePointer - kSystemPointerSize;
+  static const int kDirectCall = kIsolate - kSystemPointerSize;
+  static const int kNumOutputRegisters = kDirectCall - kSystemPointerSize;
   static const int kRegisterOutput = kNumOutputRegisters - kSystemPointerSize;
   static const int kInputEnd = kRegisterOutput - kSystemPointerSize;
   static const int kInputStart = kInputEnd - kSystemPointerSize;
