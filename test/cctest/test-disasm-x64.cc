@@ -112,49 +112,6 @@ TEST(DisasmX64) {
   __ j(less_equal, &Ljcc);
   __ j(greater, &Ljcc);
 
-  // SSE instruction
-  {
-    // Move operation
-    __ cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000));
-    __ cvttss2si(rdx, xmm1);
-    __ cvtqsi2ss(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ cvtqsi2ss(xmm1, rdx);
-    __ cvttps2dq(xmm0, xmm1);
-    __ cvttps2dq(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ movaps(xmm0, xmm1);
-    __ movaps(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ movdqa(xmm0, Operand(rsp, 12));
-    __ movdqa(Operand(rsp, 12), xmm0);
-    __ movdqu(xmm0, Operand(rsp, 12));
-    __ movdqu(Operand(rsp, 12), xmm0);
-    __ movdqu(xmm1, xmm0);
-    __ movhlps(xmm5, xmm1);
-    __ movlps(xmm8, Operand(rbx, rcx, times_4, 10000));
-    __ movlps(Operand(rbx, rcx, times_4, 10000), xmm9);
-    __ movlhps(xmm5, xmm1);
-    __ movhps(xmm8, Operand(rbx, rcx, times_4, 10000));
-    __ movhps(Operand(rbx, rcx, times_4, 10000), xmm9);
-    __ shufps(xmm0, xmm9, 0x0);
-
-    __ ucomiss(xmm0, xmm1);
-    __ ucomiss(xmm0, Operand(rbx, rcx, times_4, 10000));
-
-    __ movmskps(rdx, xmm9);
-
-#define EMIT_SSE_INSTR(instruction, notUsed1, notUsed2) \
-  __ instruction(xmm1, xmm0);                           \
-  __ instruction(xmm1, Operand(rbx, rcx, times_4, 10000));
-    SSE_BINOP_INSTRUCTION_LIST(EMIT_SSE_INSTR)
-    SSE_UNOP_INSTRUCTION_LIST(EMIT_SSE_INSTR)
-#undef EMIT_SSE_INSTR
-
-#define EMIT_SSE_INSTR(instruction, notUsed1, notUsed2, notUse3) \
-  __ instruction(xmm1, xmm0);                                    \
-  __ instruction(xmm1, Operand(rbx, rcx, times_4, 10000));
-    SSE_INSTRUCTION_LIST_SS(EMIT_SSE_INSTR)
-#undef EMIT_SSE_INSTR
-  }
-
   // SSE2 instructions
   {
     __ cvtdq2pd(xmm3, xmm4);
@@ -783,29 +740,45 @@ TEST(DisasmX64) {
 #endif
 }
 
+constexpr int kAssemblerBufferSize = 8192;
+
+// Helper to package up all the required classes for disassembling into a
+// buffer using |InstructionDecode|.
+struct DisassemblerTester {
+  DisassemblerTester()
+      : assm_(AssemblerOptions{},
+              ExternalAssemblerBuffer(buffer_, sizeof(buffer_))),
+        disasm(converter_) {}
+
+  std::string InstructionDecode() {
+    disasm.InstructionDecode(disasm_buffer, buffer_ + prev_offset);
+    return std::string{disasm_buffer.begin()};
+  }
+
+  int pc_offset() { return assm_.pc_offset(); }
+
+  v8::internal::byte buffer_[kAssemblerBufferSize];
+  Assembler assm_;
+  disasm::NameConverter converter_;
+  disasm::Disassembler disasm;
+  base::EmbeddedVector<char, 128> disasm_buffer;
+  int prev_offset = 0;
+};
+
+// Helper macro to compare the disassembly of an assembler function call with
+// the expected disassembly output. We reuse |Assembler|, so we need to keep
+// track of the offset into |buffer| which the Assembler has used, and
+// disassemble the instruction at that offset.
+// Requires a DisassemblerTester named t.
+#define COMPARE(str, ASM)        \
+  t.prev_offset = t.pc_offset(); \
+  t.assm_.ASM;                   \
+  CHECK_EQ(str, t.InstructionDecode());
+
 // Tests that compares the checks the disassembly output with an expected
 // string.
 UNINITIALIZED_TEST(DisasmX64CheckOutput) {
-  v8::internal::byte buffer[8192];
-  Assembler assm(AssemblerOptions{},
-                 ExternalAssemblerBuffer(buffer, sizeof buffer));
-  base::EmbeddedVector<char, 128> disasm_buffer;
-  disasm::NameConverter converter;
-  disasm::Disassembler disassembler(converter);
-
-  std::string actual, expected;
-  int pcoffset = 0;
-  // Helper macro to compare the disassembly of an assembler function call with
-  // the expected disassembly output. We reuse |Assembler|, so we need to keep
-  // track of the offset into |buffer| which the Assembler has used, and
-  // disassemble the instruction at that offset.
-#define COMPARE(str, ASM)                                           \
-  assm.ASM;                                                         \
-  disassembler.InstructionDecode(disasm_buffer, buffer + pcoffset); \
-  pcoffset = assm.pc_offset();                                      \
-  actual = std::string{disasm_buffer.begin()};                      \
-  expected = str;                                                   \
-  CHECK_EQ(expected, actual);
+  DisassemblerTester t;
 
   // Short immediate instructions
   COMPARE("48054e61bc00       REX.W add rax,0xbc614e",
@@ -1162,6 +1135,80 @@ UNINITIALIZED_TEST(DisasmX64CheckOutput) {
   COMPARE("9b                 fwaitl", fwait());
   COMPARE("d9fc               frndint", frndint());
   COMPARE("dbe3               fninit", fninit());
+}
+
+// This compares just the disassemble instruction (without the hex).
+// Requires a |std::string actual| to be in scope.
+// Hard coded offset of 19, the hex part is 18 bytes, plus a space. If and when
+// the padding changes, this should be adjusted.
+constexpr int kHexOffset = 19;
+#define COMPARE_INSTR(str, ASM)                                         \
+  t.prev_offset = t.pc_offset();                                        \
+  t.assm_.ASM;                                                          \
+  actual = t.InstructionDecode();                                       \
+  actual = std::string(actual, kHexOffset, actual.size() - kHexOffset); \
+  CHECK_EQ(str, actual);
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputSSE) {
+  DisassemblerTester t;
+  std::string actual;
+
+  COMPARE("f30f2c948b10270000 cvttss2sil rdx,[rbx+rcx*4+0x2710]",
+          cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f30f2cd1           cvttss2sil rdx,xmm1", cvttss2si(rdx, xmm1));
+  COMPARE("f3480f2a8c8b10270000 REX.W cvtsi2ss xmm1,[rbx+rcx*4+0x2710]",
+          cvtqsi2ss(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f3480f2aca         REX.W cvtsi2ss xmm1,rdx", cvtqsi2ss(xmm1, rdx));
+  COMPARE("f3480f5bc1         REX.W cvttps2dq xmm0,xmm1",
+          cvttps2dq(xmm0, xmm1));
+  COMPARE("f3480f5b848b10270000 REX.W cvttps2dq xmm0,[rbx+rcx*4+0x2710]",
+          cvttps2dq(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("0f28c1             movaps xmm0,xmm1", movaps(xmm0, xmm1));
+  COMPARE("0f28848b10270000   movaps xmm0,[rbx+rcx*4+0x2710]",
+          movaps(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("66480f6f44240c     REX.W movdqa xmm0,[rsp+0xc]",
+          movdqa(xmm0, Operand(rsp, 12)));
+  COMPARE("66480f7f44240c     REX.W movdqa [rsp+0xc],xmm0",
+          movdqa(Operand(rsp, 12), xmm0));
+  COMPARE("f3480f6f44240c     REX.W movdqu xmm0,[rsp+0xc]",
+          movdqu(xmm0, Operand(rsp, 12)));
+  COMPARE("f3480f7f44240c     REX.W movdqu [rsp+0xc],xmm0",
+          movdqu(Operand(rsp, 12), xmm0));
+  COMPARE("f3480f6fc8         REX.W movdqu xmm1,xmm0", movdqu(xmm1, xmm0));
+  COMPARE("0f12e9             movhlps xmm5,xmm1", movhlps(xmm5, xmm1));
+  COMPARE("440f12848b10270000 movlps xmm8,[rbx+rcx*4+0x2710]",
+          movlps(xmm8, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("440f138c8b10270000 movlps [rbx+rcx*4+0x2710],xmm9",
+          movlps(Operand(rbx, rcx, times_4, 10000), xmm9));
+  COMPARE("0f16e9             movlhps xmm5,xmm1", movlhps(xmm5, xmm1));
+  COMPARE("440f16848b10270000 movhps xmm8,[rbx+rcx*4+0x2710]",
+          movhps(xmm8, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("440f178c8b10270000 movhps [rbx+rcx*4+0x2710],xmm9",
+          movhps(Operand(rbx, rcx, times_4, 10000), xmm9));
+  COMPARE("410fc6c100         shufps xmm0, xmm9, 0", shufps(xmm0, xmm9, 0x0));
+  COMPARE("0f2ec1             ucomiss xmm0,xmm1", ucomiss(xmm0, xmm1));
+  COMPARE("0f2e848b10270000   ucomiss xmm0,[rbx+rcx*4+0x2710]",
+          ucomiss(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("410f50d1           movmskps rdx,xmm9", movmskps(rdx, xmm9));
+
+  std::string exp;
+
+#define COMPARE_SSE_INSTR(instruction, _, __)    \
+  exp = #instruction " xmm1,xmm0";               \
+  COMPARE_INSTR(exp, instruction(xmm1, xmm0));   \
+  exp = #instruction " xmm1,[rbx+rcx*4+0x2710]"; \
+  COMPARE_INSTR(exp, instruction(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  SSE_BINOP_INSTRUCTION_LIST(COMPARE_SSE_INSTR)
+  SSE_UNOP_INSTRUCTION_LIST(COMPARE_SSE_INSTR)
+#undef COMPARE_SSE_INSTR
+
+#define COMPARE_SSE_INSTR(instruction, _, __, ___) \
+  exp = #instruction " xmm1,xmm0";                 \
+  COMPARE_INSTR(exp, instruction(xmm1, xmm0));     \
+  exp = #instruction " xmm1,[rbx+rcx*4+0x2710]";   \
+  COMPARE_INSTR(exp, instruction(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  SSE_INSTRUCTION_LIST_SS(COMPARE_SSE_INSTR)
+#undef COMPARE_SSE_INSTR
 }
 
 UNINITIALIZED_TEST(DisasmX64YMMRegister) {
