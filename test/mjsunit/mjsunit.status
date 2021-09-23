@@ -1444,6 +1444,7 @@
   'regress/wasm/regress-1124885': [SKIP],
   'regress/wasm/regress-1132461': [SKIP],
   'regress/wasm/regress-1161555': [SKIP],
+  'regress/wasm/regress-1161654': [SKIP],
   'regress/wasm/regress-1161954': [SKIP],
   'regress/wasm/regress-1165966': [SKIP],
   'regress/wasm/regress-1187831': [SKIP],
