@@ -18,6 +18,11 @@
 // This macro does nothing. That's all.
 #define NOTHING(...)
 
+#define CONCAT_(a, b) a##b
+#define CONCAT(a, b) CONCAT_(a, b)
+// Creates an unique identifier. Useful for scopes to avoid shadowing names.
+#define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
+
 // TODO(all) Replace all uses of this macro with C++'s offsetof. To do that, we
 // have to make sure that only standard-layout types and simple field
 // designators are used.
