@@ -770,12 +770,13 @@ v8::MaybeLocal<v8::Value> V8Debugger::generatorScopes(
 }
 
 v8::MaybeLocal<v8::Array> V8Debugger::collectionsEntries(
-    v8::Local<v8::Context> context, v8::Local<v8::Value> value) {
+    v8::Local<v8::Context> context, v8::Local<v8::Value> collection) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::Local<v8::Array> entries;
   bool isKeyValue = false;
-  if (!value->IsObject() ||
-      !value.As<v8::Object>()->PreviewEntries(&isKeyValue).ToLocal(&entries)) {
+  if (!collection->IsObject() || !collection.As<v8::Object>()
+                                      ->PreviewEntries(&isKeyValue)
+                                      .ToLocal(&entries)) {
     return v8::MaybeLocal<v8::Array>();
   }
 

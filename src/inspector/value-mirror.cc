@@ -1252,9 +1252,10 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     bool configurable = false;
 
     bool isAccessorProperty = false;
-    v8::TryCatch tryCatch(isolate);
+    v8::TryCatch tryCatchAttributes(isolate);
     if (!iterator->attributes().To(&attributes)) {
-      exceptionMirror = ValueMirror::create(context, tryCatch.Exception());
+      exceptionMirror =
+          ValueMirror::create(context, tryCatchAttributes.Exception());
     } else {
       if (iterator->is_native_accessor()) {
         if (iterator->has_native_getter()) {
@@ -1268,10 +1269,11 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
         configurable = !(attributes & v8::PropertyAttribute::DontDelete);
         isAccessorProperty = getterMirror || setterMirror;
       } else {
-        v8::TryCatch tryCatch(isolate);
+        v8::TryCatch tryCatchDescriptor(isolate);
         v8::debug::PropertyDescriptor descriptor;
         if (!iterator->descriptor().To(&descriptor)) {
-          exceptionMirror = ValueMirror::create(context, tryCatch.Exception());
+          exceptionMirror =
+              ValueMirror::create(context, tryCatchDescriptor.Exception());
         } else {
           writable = descriptor.has_writable ? descriptor.writable : false;
           enumerable =
@@ -1293,7 +1295,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
           isAccessorProperty = getterMirror || setterMirror;
           if (name != "__proto__" && !getterFunction.IsEmpty() &&
               getterFunction->ScriptId() == v8::UnboundScript::kNoScriptId) {
-            v8::TryCatch tryCatch(isolate);
+            v8::TryCatch tryCatchFunction(isolate);
             v8::Local<v8::Value> value;
             if (v8::debug::CallFunctionOn(context, getterFunction, object, 0,
                                           nullptr, true)
@@ -1457,10 +1459,10 @@ String16 descriptionForNode(v8::Local<v8::Context> context,
     }
   }
   if (!description.length()) {
-    v8::Local<v8::Value> value;
+    v8::Local<v8::Value> constructor;
     if (!object->Get(context, toV8String(isolate, "constructor"))
-             .ToLocal(&value) ||
-        !value->IsObject()) {
+             .ToLocal(&constructor) ||
+        !constructor->IsObject()) {
       return String16();
     }
     if (!value.As<v8::Object>()
