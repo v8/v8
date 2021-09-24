@@ -2875,7 +2875,7 @@ void Assembler::vss(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
 }
 
 void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
-  vinstr(op, dst, src1, src2, kNone, k0F, kWIG);
+  vinstr(op, dst, src1, src2, kNoPrefix, k0F, kWIG);
 }
 
 void Assembler::vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
@@ -2890,27 +2890,27 @@ void Assembler::vshufpd(XMMRegister dst, XMMRegister src1, Operand src2,
 }
 
 void Assembler::vmovhlps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-  vinstr(0x12, dst, src1, src2, kNone, k0F, kWIG);
+  vinstr(0x12, dst, src1, src2, kNoPrefix, k0F, kWIG);
 }
 
 void Assembler::vmovlhps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-  vinstr(0x16, dst, src1, src2, kNone, k0F, kWIG);
+  vinstr(0x16, dst, src1, src2, kNoPrefix, k0F, kWIG);
 }
 
 void Assembler::vmovlps(XMMRegister dst, XMMRegister src1, Operand src2) {
-  vinstr(0x12, dst, src1, src2, kNone, k0F, kWIG);
+  vinstr(0x12, dst, src1, src2, kNoPrefix, k0F, kWIG);
 }
 
 void Assembler::vmovlps(Operand dst, XMMRegister src) {
-  vinstr(0x13, src, xmm0, dst, kNone, k0F, kWIG);
+  vinstr(0x13, src, xmm0, dst, kNoPrefix, k0F, kWIG);
 }
 
 void Assembler::vmovhps(XMMRegister dst, XMMRegister src1, Operand src2) {
-  vinstr(0x16, dst, src1, src2, kNone, k0F, kWIG);
+  vinstr(0x16, dst, src1, src2, kNoPrefix, k0F, kWIG);
 }
 
 void Assembler::vmovhps(Operand dst, XMMRegister src) {
-  vinstr(0x17, src, xmm0, dst, kNone, k0F, kWIG);
+  vinstr(0x17, src, xmm0, dst, kNoPrefix, k0F, kWIG);
 }
 
 void Assembler::vcmpps(XMMRegister dst, XMMRegister src1, Operand src2,
@@ -3094,7 +3094,7 @@ void Assembler::vmovmskpd(Register dst, XMMRegister src) {
 void Assembler::vmovmskps(Register dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(xmm0, kL128, kNone, k0F, kWIG);
+  emit_vex_prefix(xmm0, kL128, kNoPrefix, k0F, kWIG);
   EMIT(0x50);
   emit_sse_operand(dst, src);
 }
@@ -3119,7 +3119,7 @@ void Assembler::vpcmpgtq(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
 void Assembler::bmi1(byte op, Register reg, Register vreg, Operand rm) {
   DCHECK(IsEnabled(BMI1));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(vreg, kLZ, kNone, k0F38, kW0);
+  emit_vex_prefix(vreg, kLZ, kNoPrefix, k0F38, kW0);
   EMIT(op);
   emit_operand(reg, rm);
 }

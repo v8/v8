@@ -3648,7 +3648,7 @@ void Assembler::vmovdqu(YMMRegister dst, YMMRegister src) {
 void Assembler::vmovlps(XMMRegister dst, XMMRegister src1, Operand src2) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL128, kNone, k0F, kWIG);
+  emit_vex_prefix(dst, src1, src2, kL128, kNoPrefix, k0F, kWIG);
   emit(0x12);
   emit_sse_operand(dst, src2);
 }
@@ -3656,7 +3656,7 @@ void Assembler::vmovlps(XMMRegister dst, XMMRegister src1, Operand src2) {
 void Assembler::vmovlps(Operand dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(src, xmm0, dst, kL128, kNone, k0F, kWIG);
+  emit_vex_prefix(src, xmm0, dst, kL128, kNoPrefix, k0F, kWIG);
   emit(0x13);
   emit_sse_operand(src, dst);
 }
@@ -3664,7 +3664,7 @@ void Assembler::vmovlps(Operand dst, XMMRegister src) {
 void Assembler::vmovhps(XMMRegister dst, XMMRegister src1, Operand src2) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL128, kNone, k0F, kWIG);
+  emit_vex_prefix(dst, src1, src2, kL128, kNoPrefix, k0F, kWIG);
   emit(0x16);
   emit_sse_operand(dst, src2);
 }
@@ -3672,7 +3672,7 @@ void Assembler::vmovhps(XMMRegister dst, XMMRegister src1, Operand src2) {
 void Assembler::vmovhps(Operand dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(src, xmm0, dst, kL128, kNone, k0F, kWIG);
+  emit_vex_prefix(src, xmm0, dst, kL128, kNoPrefix, k0F, kWIG);
   emit(0x17);
   emit_sse_operand(src, dst);
 }
@@ -3725,7 +3725,7 @@ void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1,
                     XMMRegister src2) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL128, kNone, k0F, kWIG);
+  emit_vex_prefix(dst, src1, src2, kL128, kNoPrefix, k0F, kWIG);
   emit(op);
   emit_sse_operand(dst, src2);
 }
@@ -3734,7 +3734,7 @@ void Assembler::vps(byte op, YMMRegister dst, YMMRegister src1,
                     YMMRegister src2) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL256, kNone, k0F, kWIG);
+  emit_vex_prefix(dst, src1, src2, kL256, kNoPrefix, k0F, kWIG);
   emit(op);
   emit_sse_operand(dst, src2);
 }
@@ -3742,7 +3742,7 @@ void Assembler::vps(byte op, YMMRegister dst, YMMRegister src1,
 void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL128, kNone, k0F, kWIG);
+  emit_vex_prefix(dst, src1, src2, kL128, kNoPrefix, k0F, kWIG);
   emit(op);
   emit_sse_operand(dst, src2);
 }
@@ -3750,7 +3750,7 @@ void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
 void Assembler::vps(byte op, YMMRegister dst, YMMRegister src1, Operand src2) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL256, kNone, k0F, kWIG);
+  emit_vex_prefix(dst, src1, src2, kL256, kNoPrefix, k0F, kWIG);
   emit(op);
   emit_sse_operand(dst, src2);
 }
@@ -3759,7 +3759,7 @@ void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1,
                     XMMRegister src2, byte imm8) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL128, kNone, k0F, kWIG);
+  emit_vex_prefix(dst, src1, src2, kL128, kNoPrefix, k0F, kWIG);
   emit(op);
   emit_sse_operand(dst, src2);
   emit(imm8);
@@ -3785,7 +3785,7 @@ void Assembler::vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
 void Assembler::vucomiss(XMMRegister dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kLIG, kNone, k0F, kWIG);
+  emit_vex_prefix(dst, xmm0, src, kLIG, kNoPrefix, k0F, kWIG);
   emit(0x2E);
   emit_sse_operand(dst, src);
 }
@@ -3793,7 +3793,7 @@ void Assembler::vucomiss(XMMRegister dst, XMMRegister src) {
 void Assembler::vucomiss(XMMRegister dst, Operand src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kLIG, kNone, k0F, kWIG);
+  emit_vex_prefix(dst, xmm0, src, kLIG, kNoPrefix, k0F, kWIG);
   emit(0x2E);
   emit_sse_operand(dst, src);
 }
@@ -3827,7 +3827,7 @@ void Assembler::vss(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
 void Assembler::bmi1q(byte op, Register reg, Register vreg, Register rm) {
   DCHECK(IsEnabled(BMI1));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(reg, vreg, rm, kLZ, kNone, k0F38, kW1);
+  emit_vex_prefix(reg, vreg, rm, kLZ, kNoPrefix, k0F38, kW1);
   emit(op);
   emit_modrm(reg, rm);
 }
@@ -3835,7 +3835,7 @@ void Assembler::bmi1q(byte op, Register reg, Register vreg, Register rm) {
 void Assembler::bmi1q(byte op, Register reg, Register vreg, Operand rm) {
   DCHECK(IsEnabled(BMI1));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(reg, vreg, rm, kLZ, kNone, k0F38, kW1);
+  emit_vex_prefix(reg, vreg, rm, kLZ, kNoPrefix, k0F38, kW1);
   emit(op);
   emit_operand(reg, rm);
 }
@@ -3843,7 +3843,7 @@ void Assembler::bmi1q(byte op, Register reg, Register vreg, Operand rm) {
 void Assembler::bmi1l(byte op, Register reg, Register vreg, Register rm) {
   DCHECK(IsEnabled(BMI1));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(reg, vreg, rm, kLZ, kNone, k0F38, kW0);
+  emit_vex_prefix(reg, vreg, rm, kLZ, kNoPrefix, k0F38, kW0);
   emit(op);
   emit_modrm(reg, rm);
 }
@@ -3851,7 +3851,7 @@ void Assembler::bmi1l(byte op, Register reg, Register vreg, Register rm) {
 void Assembler::bmi1l(byte op, Register reg, Register vreg, Operand rm) {
   DCHECK(IsEnabled(BMI1));
   EnsureSpace ensure_space(this);
-  emit_vex_prefix(reg, vreg, rm, kLZ, kNone, k0F38, kW0);
+  emit_vex_prefix(reg, vreg, rm, kLZ, kNoPrefix, k0F38, kW0);
   emit(op);
   emit_operand(reg, rm);
 }

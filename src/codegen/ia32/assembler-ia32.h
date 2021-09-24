@@ -1505,10 +1505,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x2E, dst, xmm0, src, k66, k0F, kWIG);
   }
   void vucomiss(XMMRegister dst, XMMRegister src) {
-    vinstr(0x2E, dst, xmm0, src, kNone, k0F, kWIG);
+    vinstr(0x2E, dst, xmm0, src, kNoPrefix, k0F, kWIG);
   }
   void vucomiss(XMMRegister dst, Operand src) {
-    vinstr(0x2E, dst, xmm0, src, kNone, k0F, kWIG);
+    vinstr(0x2E, dst, xmm0, src, kNoPrefix, k0F, kWIG);
   }
 
   // BMI instruction
@@ -1543,7 +1543,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     bzhi(dst, Operand(src1), src2);
   }
   void bzhi(Register dst, Operand src1, Register src2) {
-    bmi2(kNone, 0xf5, dst, src2, src1);
+    bmi2(kNoPrefix, 0xf5, dst, src2, src1);
   }
   void mulx(Register dst1, Register dst2, Register src) {
     mulx(dst1, dst2, Operand(src));
@@ -1662,18 +1662,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #undef PACKED_CMP_LIST
 
 // Other SSE and AVX instructions
-#define DECLARE_SSE_UNOP_AND_AVX(instruction, escape, opcode)   \
-  void instruction(XMMRegister dst, XMMRegister src) {          \
-    instruction(dst, Operand(src));                             \
-  }                                                             \
-  void instruction(XMMRegister dst, Operand src) {              \
-    sse_instr(dst, src, 0x##escape, 0x##opcode);                \
-  }                                                             \
-  void v##instruction(XMMRegister dst, XMMRegister src) {       \
-    v##instruction(dst, Operand(src));                          \
-  }                                                             \
-  void v##instruction(XMMRegister dst, Operand src) {           \
-    vinstr(0x##opcode, dst, xmm0, src, kNone, k##escape, kWIG); \
+#define DECLARE_SSE_UNOP_AND_AVX(instruction, escape, opcode)       \
+  void instruction(XMMRegister dst, XMMRegister src) {              \
+    instruction(dst, Operand(src));                                 \
+  }                                                                 \
+  void instruction(XMMRegister dst, Operand src) {                  \
+    sse_instr(dst, src, 0x##escape, 0x##opcode);                    \
+  }                                                                 \
+  void v##instruction(XMMRegister dst, XMMRegister src) {           \
+    v##instruction(dst, Operand(src));                              \
+  }                                                                 \
+  void v##instruction(XMMRegister dst, Operand src) {               \
+    vinstr(0x##opcode, dst, xmm0, src, kNoPrefix, k##escape, kWIG); \
   }
 
   SSE_UNOP_INSTRUCTION_LIST(DECLARE_SSE_UNOP_AND_AVX)
@@ -1869,7 +1869,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_farith(int b1, int b2, int i);
 
   // Emit vex prefix
-  enum SIMDPrefix { kNone = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
+  enum SIMDPrefix { kNoPrefix = 0x0, k66 = 0x1, kF3 = 0x2, kF2 = 0x3 };
   enum VectorLength { kL128 = 0x0, kL256 = 0x4, kLIG = kL128, kLZ = kL128 };
   enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
   enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
