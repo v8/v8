@@ -795,32 +795,27 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   if (i_isolate->wasm_instance_callback()(args)) return;
 
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
-  if (!args.IsConstructCall()) {
-    thrower.TypeError("WebAssembly.Instance must be invoked with 'new'");
-    return;
-  }
-
-  GetFirstArgumentAsModule(args, &thrower);
-  if (thrower.error()) return;
-
   i::MaybeHandle<i::JSObject> maybe_instance_obj;
   {
     ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
-
-    i::Handle<i::Object> module_obj = Utils::OpenHandle(*args[0]);
-    if (!module_obj->IsWasmModuleObject()) {
-      thrower.TypeError("Argument 0 must be a WebAssembly.Module object");
+    if (!args.IsConstructCall()) {
+      thrower.TypeError("WebAssembly.Instance must be invoked with 'new'");
       return;
     }
+
+    i::MaybeHandle<i::WasmModuleObject> maybe_module =
+        GetFirstArgumentAsModule(args, &thrower);
+    if (thrower.error()) return;
+
+    i::Handle<i::WasmModuleObject> module_obj = maybe_module.ToHandleChecked();
 
     i::MaybeHandle<i::JSReceiver> maybe_imports =
         GetValueAsImports(args[1], &thrower);
     if (thrower.error()) return;
 
     maybe_instance_obj = i::wasm::GetWasmEngine()->SyncInstantiate(
-        i_isolate, &thrower, i::Handle<i::WasmModuleObject>::cast(module_obj),
-        maybe_imports, i::MaybeHandle<i::JSArrayBuffer>());
+        i_isolate, &thrower, module_obj, maybe_imports,
+        i::MaybeHandle<i::JSArrayBuffer>());
   }
 
   i::Handle<i::JSObject> instance_obj;
