@@ -245,7 +245,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
 
   const wasm::WasmModule* module = instance->module();
   const int function_index = function_data->function_index();
-  const wasm::WasmFunction function = module->functions[function_index];
+  const wasm::WasmFunction& function = module->functions[function_index];
   const wasm::FunctionSig* sig = function.sig;
 
   // The start function is not guaranteed to be registered as
@@ -277,8 +277,8 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
       continue;
     }
     int index = static_cast<int>(exp.index);
-    wasm::WasmFunction function = module->functions[index];
-    if (function.sig == sig && index != function_index) {
+    const wasm::WasmFunction& exp_function = module->functions[index];
+    if (exp_function.sig == sig && index != function_index) {
       ReplaceWrapper(isolate, instance, index, wrapper_code);
     }
   }
@@ -572,9 +572,8 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
     i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
     for (int i = 0; i < weak_instance_list.length(); ++i) {
       if (weak_instance_list.Get(i)->IsCleared()) continue;
-      i::WasmInstanceObject instance = i::WasmInstanceObject::cast(
-          weak_instance_list.Get(i)->GetHeapObject());
-      instance.set_break_on_entry(false);
+      i::WasmInstanceObject::cast(weak_instance_list.Get(i)->GetHeapObject())
+          .set_break_on_entry(false);
     }
     DCHECK(!instance->break_on_entry());
     Handle<FixedArray> on_entry_breakpoints;
