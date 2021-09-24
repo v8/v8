@@ -334,8 +334,6 @@
   'built-ins/TypedArray/prototype/entries/return-abrupt-from-this-out-of-bounds': [FAIL],
   'built-ins/TypedArray/prototype/every/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/every/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/fill/BigInt/return-abrupt-from-this-out-of-bounds': [FAIL],
-  'built-ins/TypedArray/prototype/fill/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/filter/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/filter/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/find/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
@@ -397,10 +395,13 @@
   'built-ins/ShadowRealm/prototype/evaluate/errors-from-the-other-realm-is-wrapped-into-a-typeerror': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/length': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/name': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/no-conditional-strict-mode': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/not-constructor': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/proto': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/returns-primitive-values': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/returns-proxy-callable-object': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/returns-symbol-values': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/throws-syntaxerror-on-bad-syntax': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/throws-typeerror-if-evaluation-resolves-to-non-primitive': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/throws-when-argument-is-not-a-string': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/validates-realm-object': [FAIL],
@@ -435,6 +436,9 @@
   'language/statements/class/subclass/derived-class-return-override-finally-super': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-finally-super-arrow': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-for-of-arrow': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12240
+  'language/module-code/namespace/internals/define-own-property': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -473,10 +477,6 @@
   # Test against internals of harness; we plug in differently
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
-
-  # https://github.com/tc39/test262/issues/3206
-  'built-ins/TypedArray/prototype/byteOffset/BigInt/resizable-array-buffer-auto': [FAIL],
-  'built-ins/TypedArray/prototype/byteOffset/resizable-array-buffer-auto': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
