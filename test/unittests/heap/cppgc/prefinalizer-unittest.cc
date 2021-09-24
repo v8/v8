@@ -340,5 +340,32 @@ TEST_F(PrefinalizerTest, AllocatingPrefinalizersInMultipleGCCycles) {
   USE(other_object);
 }
 #endif
+
+class GCedBase : public GarbageCollected<GCedBase> {
+  CPPGC_USING_PRE_FINALIZER(GCedBase, PreFinalize);
+
+ public:
+  void Trace(Visitor*) const {}
+  virtual void PreFinalize() { ++prefinalizer_count_; }
+  static size_t prefinalizer_count_;
+};
+size_t GCedBase::prefinalizer_count_ = 0u;
+
+class GCedInherited : public GCedBase {
+ public:
+  void PreFinalize() override { ++prefinalizer_count_; }
+  static size_t prefinalizer_count_;
+};
+size_t GCedInherited::prefinalizer_count_ = 0u;
+
+TEST_F(PrefinalizerTest, VirtualPrefinalizer) {
+  MakeGarbageCollected<GCedInherited>(GetAllocationHandle());
+  GCedBase::prefinalizer_count_ = 0u;
+  GCedInherited::prefinalizer_count_ = 0u;
+  PreciseGC();
+  EXPECT_EQ(0u, GCedBase::prefinalizer_count_);
+  EXPECT_LT(0u, GCedInherited::prefinalizer_count_);
+}
+
 }  // namespace internal
 }  // namespace cppgc
