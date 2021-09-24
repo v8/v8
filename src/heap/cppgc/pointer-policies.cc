@@ -86,6 +86,8 @@ void EnabledCheckingPolicyBase::CheckPointerImpl(
       USE(slot_is_live);
     }
   }
+#else
+  USE(is_on_heap);
 #endif  // CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
 }
 
