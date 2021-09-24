@@ -792,16 +792,16 @@ void Heap::PrintRetainingPath(HeapObject target, RetainingPathOption option) {
   }
   int distance = static_cast<int>(retaining_path.size());
   for (auto node : retaining_path) {
-    HeapObject object = node.first;
-    bool ephemeron = node.second;
+    HeapObject node_object = node.first;
+    bool node_ephemeron = node.second;
     PrintF("\n");
     PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
     PrintF("Distance from root %d%s: ", distance,
-           ephemeron ? " (ephemeron)" : "");
-    object.ShortPrint();
+           node_ephemeron ? " (ephemeron)" : "");
+    node_object.ShortPrint();
     PrintF("\n");
 #ifdef OBJECT_PRINT
-    object.Print();
+    node_object.Print();
     PrintF("\n");
 #endif
     --distance;
@@ -1179,8 +1179,8 @@ void Heap::ProcessPretenuringFeedback() {
     // Step 2: Pretenure allocation sites for manual requests.
     if (allocation_sites_to_pretenure_) {
       while (!allocation_sites_to_pretenure_->empty()) {
-        auto site = allocation_sites_to_pretenure_->Pop();
-        if (PretenureAllocationSiteManually(isolate_, site)) {
+        auto pretenure_site = allocation_sites_to_pretenure_->Pop();
+        if (PretenureAllocationSiteManually(isolate_, pretenure_site)) {
           trigger_deoptimization = true;
         }
       }
@@ -1776,7 +1776,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
           AllowGarbageCollection allow_gc;
           AllowJavascriptExecution allow_js(isolate());
           TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
-          VMState<EXTERNAL> state(isolate_);
+          VMState<EXTERNAL> callback_state(isolate_);
           HandleScope handle_scope(isolate_);
           CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
         }
@@ -1812,7 +1812,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
           AllowGarbageCollection allow_gc;
           AllowJavascriptExecution allow_js(isolate());
           TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
-          VMState<EXTERNAL> state(isolate_);
+          VMState<EXTERNAL> callback_state(isolate_);
           HandleScope handle_scope(isolate_);
           CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
         }
