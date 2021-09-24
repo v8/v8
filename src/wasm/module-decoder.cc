@@ -1149,7 +1149,7 @@ class ModuleDecoderImpl : public Decoder {
 
         // Decode module name, ignore the rest.
         // Function and local names will be decoded when needed.
-        if (name_type == NameSectionKindCode::kModule) {
+        if (name_type == NameSectionKindCode::kModuleCode) {
           WireBytesRef name = consume_string(&inner, false, "module name");
           if (inner.ok() && validate_utf8(&inner, name)) {
             module_->name = name;
@@ -2412,7 +2412,7 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
       uint32_t name_payload_len = decoder.consume_u32v("name payload length");
       if (!decoder.checkAvailable(name_payload_len)) break;
 
-      if (name_type != NameSectionKindCode::kFunction) {
+      if (name_type != NameSectionKindCode::kFunctionCode) {
         decoder.consume_bytes(name_payload_len, "name subsection payload");
         continue;
       }

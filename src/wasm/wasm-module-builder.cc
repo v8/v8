@@ -899,7 +899,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     // Emit the section string.
     buffer->write_string(base::CStrVector("name"));
     // Emit a subsection for the function names.
-    buffer->write_u8(NameSectionKindCode::kFunction);
+    buffer->write_u8(NameSectionKindCode::kFunctionCode);
     // Emit a placeholder for the subsection length.
     size_t functions_start = buffer->reserve_u32v();
     // Emit the function names.

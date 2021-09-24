@@ -1264,19 +1264,19 @@ STREAM_TEST(TestCompileErrorFunctionName) {
   };
 
   const uint8_t bytes_names[] = {
-      kUnknownSectionCode,             // section code
-      U32V_1(11),                      // section size
-      4,                               // section name length
-      'n',                             // section name
-      'a',                             // section name
-      'm',                             // section name
-      'e',                             // section name
-      NameSectionKindCode::kFunction,  // name section kind
-      4,                               // name section kind length
-      1,                               // num function names
-      0,                               // function index
-      1,                               // function name length
-      'f',                             // function name
+      kUnknownSectionCode,                 // section code
+      U32V_1(11),                          // section size
+      4,                                   // section name length
+      'n',                                 // section name
+      'a',                                 // section name
+      'm',                                 // section name
+      'e',                                 // section name
+      NameSectionKindCode::kFunctionCode,  // name section kind
+      4,                                   // name section kind length
+      1,                                   // num function names
+      0,                                   // function index
+      1,                                   // function name length
+      'f',                                 // function name
   };
 
   for (bool late_names : {false, true}) {
