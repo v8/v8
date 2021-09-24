@@ -1330,13 +1330,10 @@ class WasmDecoder : public Decoder {
   }
 
   bool CanReturnCall(const FunctionSig* target_sig) {
-    if (target_sig == nullptr) return false;
-    size_t num_returns = sig_->return_count();
-    if (num_returns != target_sig->return_count()) return false;
-    for (size_t i = 0; i < num_returns; ++i) {
-      if (!IsSubtypeOf(target_sig->GetReturn(i), sig_->GetReturn(i),
-                       this->module_))
-        return false;
+    if (sig_->return_count() != target_sig->return_count()) return false;
+    auto target_sig_it = target_sig->returns().begin();
+    for (ValueType ret_type : sig_->returns()) {
+      if (!IsSubtypeOf(*target_sig_it++, ret_type, this->module_)) return false;
     }
     return true;
   }
@@ -2650,9 +2647,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     c->reachability = control_at(1)->innerReachability();
     const WasmTagSig* sig = imm.tag->sig;
     EnsureStackSpace(static_cast<int>(sig->parameter_count()));
-    for (size_t i = 0, e = sig->parameter_count(); i < e; ++i) {
-      Push(CreateValue(sig->GetParam(i)));
-    }
+    for (ValueType type : sig->parameters()) Push(CreateValue(type));
     base::Vector<Value> values(stack_ + c->stack_depth, sig->parameter_count());
     current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchException, imm, c, values);
@@ -5097,9 +5092,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   V8_INLINE ReturnVector CreateReturnValues(const FunctionSig* sig) {
     size_t return_count = sig->return_count();
     ReturnVector values(return_count);
-    for (size_t i = 0; i < return_count; ++i) {
-      values[i] = CreateValue(sig->GetReturn(i));
-    }
+    std::transform(sig->returns().begin(), sig->returns().end(), values.begin(),
+                   [this](ValueType type) { return CreateValue(type); });
     return values;
   }
   V8_INLINE void PushReturns(ReturnVector values) {
