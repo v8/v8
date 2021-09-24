@@ -660,19 +660,20 @@ class SideTable : public ZoneObject {
             auto p = map->catch_map.emplace(
                 offset, ZoneVector<CatchControlTransferEntry>(zone));
             auto& catch_entries = p.first->second;
-            for (auto& p : catch_targets) {
-              auto pcdiff = static_cast<pcdiff_t>(p.pc - ref.from_pc);
+            for (auto& catch_target : catch_targets) {
+              auto pcdiff =
+                  static_cast<pcdiff_t>(catch_target.pc - ref.from_pc);
               TRACE(
                   "control transfer @%zu: Δpc %d, stack %u->%u, exn: %d = "
                   "-%u\n",
                   offset, pcdiff, ref.stack_height, target_stack_height,
-                  p.tag_index, spdiff);
+                  catch_target.tag_index, spdiff);
               CatchControlTransferEntry entry;
               entry.pc_diff = pcdiff;
               entry.sp_diff = spdiff;
               entry.target_arity = arity;
-              entry.tag_index = p.tag_index;
-              entry.target_control_index = p.target_control_index;
+              entry.tag_index = catch_target.tag_index;
+              entry.target_control_index = catch_target.target_control_index;
               catch_entries.emplace_back(entry);
             }
           }
@@ -2004,7 +2005,6 @@ class WasmInterpreterInternals {
 #else
     constexpr bool kBigEndian = false;
 #endif
-    WasmValue result;
     switch (opcode) {
 #define ATOMIC_BINOP_CASE(name, type, op_type, operation, op)                \
   case kExpr##name: {                                                        \
@@ -2124,20 +2124,20 @@ class WasmInterpreterInternals {
       ATOMIC_COMPARE_EXCHANGE_CASE(I64AtomicCompareExchange32U, uint32_t,
                                    uint64_t);
 #undef ATOMIC_COMPARE_EXCHANGE_CASE
-#define ATOMIC_LOAD_CASE(name, type, op_type, operation)                \
-  case kExpr##name: {                                                   \
-    Address addr;                                                       \
-    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, &addr, pc, \
-                                              len)) {                   \
-      return false;                                                     \
-    }                                                                   \
-    static_assert(sizeof(std::atomic<type>) == sizeof(type),            \
-                  "Size mismatch for types std::atomic<" #type          \
-                  ">, and " #type);                                     \
-    result = WasmValue(static_cast<op_type>(AdjustByteOrder<type>(      \
-        std::operation(reinterpret_cast<std::atomic<type>*>(addr)))));  \
-    Push(result);                                                       \
-    break;                                                              \
+#define ATOMIC_LOAD_CASE(name, type, op_type, operation)                     \
+  case kExpr##name: {                                                        \
+    Address addr;                                                            \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, &addr, pc,      \
+                                              len)) {                        \
+      return false;                                                          \
+    }                                                                        \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                 \
+                  "Size mismatch for types std::atomic<" #type               \
+                  ">, and " #type);                                          \
+    WasmValue result = WasmValue(static_cast<op_type>(AdjustByteOrder<type>( \
+        std::operation(reinterpret_cast<std::atomic<type>*>(addr)))));       \
+    Push(result);                                                            \
+    break;                                                                   \
   }
       ATOMIC_LOAD_CASE(I32AtomicLoad, uint32_t, uint32_t, atomic_load);
       ATOMIC_LOAD_CASE(I32AtomicLoad8U, uint8_t, uint32_t, atomic_load);
