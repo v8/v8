@@ -767,6 +767,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       ShiftRightS64(dst, src, Operand(kSmiShift), rc);
     }
   }
+  void SmiToInt32(Register smi) {
+    if (FLAG_enable_slow_asserts) {
+      AssertSmi(smi);
+    }
+    DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
+    SmiUntag(smi);
+  }
+
+  // Abort execution if argument is a smi, enabled via --debug-code.
+  void AssertNotSmi(Register object);
+  void AssertSmi(Register object);
 
   void ZeroExtByte(Register dst, Register src);
   void ZeroExtHalfWord(Register dst, Register src);
@@ -1280,10 +1291,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     TestIfSmi(value, r0);
     bne(not_smi_label, cr0);
   }
-
-  // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object);
-  void AssertSmi(Register object);
 
 #if !defined(V8_COMPRESS_POINTERS) && !defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   // Ensure it is permissible to read/write int value directly from

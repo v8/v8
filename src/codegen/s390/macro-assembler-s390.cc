@@ -2118,7 +2118,7 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
-void MacroAssembler::AssertNotSmi(Register object) {
+void TurboAssembler::AssertNotSmi(Register object) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
@@ -2126,7 +2126,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
   }
 }
 
-void MacroAssembler::AssertSmi(Register object) {
+void TurboAssembler::AssertSmi(Register object) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
