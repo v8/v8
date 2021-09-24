@@ -684,7 +684,7 @@ void TurboAssembler::Abort(AbortReason reason) {
 
   if (should_abort_hard()) {
     // We don't care if we constructed a frame. Just pretend we did.
-    FrameScope assume_frame(this, StackFrame::NONE);
+    FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
     Move(arg_reg_1, static_cast<int>(reason));
     PrepareCallCFunction(1);
     LoadAddress(rax, ExternalReference::abort_with_reason());
@@ -697,7 +697,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   if (!has_frame()) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
-    FrameScope scope(this, StackFrame::NONE);
+    FrameScope scope(this, StackFrame::NO_FRAME_TYPE);
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
   } else {
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
@@ -2684,8 +2684,8 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
     bind(&stack_overflow);
     {
-      FrameScope frame(this,
-                       has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+      FrameScope frame(
+          this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
       CallRuntime(Runtime::kThrowStackOverflow);
       int3();  // This should be unreachable.
     }
@@ -2696,7 +2696,8 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
                                              Register expected_parameter_count,
                                              Register actual_parameter_count) {
   ASM_CODE_COMMENT(this);
-  FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+  FrameScope frame(
+      this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
 
   SmiTag(expected_parameter_count);
   Push(expected_parameter_count);

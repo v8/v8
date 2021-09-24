@@ -1533,7 +1533,7 @@ void ReportBootstrappingException(Handle<Object> exception,
       PrintF(" <not available>\n");
     } else {
       PrintF("\n");
-      int line_number = 1;
+      line_number = 1;
       PrintF("%5d: ", line_number);
       for (int i = 0; i < len; i++) {
         uint16_t character = src->Get(i);
@@ -2449,8 +2449,7 @@ bool PromiseHasUserDefinedRejectHandlerInternal(Isolate* isolate,
             Handle<PromiseCapability>::cast(promise_or_capability)->promise(),
             isolate);
       }
-      Handle<JSPromise> promise =
-          Handle<JSPromise>::cast(promise_or_capability);
+      promise = Handle<JSPromise>::cast(promise_or_capability);
       if (!reaction->reject_handler().IsUndefined(isolate)) {
         Handle<JSReceiver> reject_handler(
             JSReceiver::cast(reaction->reject_handler()), isolate);
@@ -3739,7 +3738,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   // If we are deserializing, read the state into the now-empty heap.
   {
-    AlwaysAllocateScope always_allocate(heap());
     CodeSpaceMemoryModificationScope modification_scope(heap());
 
     if (create_heap_objects) {
@@ -4564,7 +4562,7 @@ void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
           debug::kDebugDidHandle, promise->async_task_id(), false);
       break;
     case PromiseHookType::kInit:
-      debug::DebugAsyncActionType type = debug::kDebugPromiseThen;
+      debug::DebugAsyncActionType action_type = debug::kDebugPromiseThen;
       bool last_frame_was_promise_builtin = false;
       JavaScriptFrameIterator it(this);
       while (!it.done()) {
@@ -4580,21 +4578,22 @@ void Isolate::RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                 promise->set_async_task_id(++async_task_count_);
               }
               async_event_delegate_->AsyncEventOccurred(
-                  type, promise->async_task_id(), debug()->IsBlackboxed(info));
+                  action_type, promise->async_task_id(),
+                  debug()->IsBlackboxed(info));
             }
             return;
           }
           last_frame_was_promise_builtin = false;
           if (info->HasBuiltinId()) {
             if (info->builtin_id() == Builtin::kPromisePrototypeThen) {
-              type = debug::kDebugPromiseThen;
+              action_type = debug::kDebugPromiseThen;
               last_frame_was_promise_builtin = true;
             } else if (info->builtin_id() == Builtin::kPromisePrototypeCatch) {
-              type = debug::kDebugPromiseCatch;
+              action_type = debug::kDebugPromiseCatch;
               last_frame_was_promise_builtin = true;
             } else if (info->builtin_id() ==
                        Builtin::kPromisePrototypeFinally) {
-              type = debug::kDebugPromiseFinally;
+              action_type = debug::kDebugPromiseFinally;
               last_frame_was_promise_builtin = true;
             }
           }

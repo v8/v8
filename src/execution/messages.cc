@@ -974,7 +974,6 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                                callsite, object);
     }
   } else {
-    Handle<Object> key_handle;
     if (!key.ToHandle(&key_handle) ||
         !maybe_property_name.ToHandle(&property_name)) {
       error = isolate->factory()->NewTypeError(

@@ -142,7 +142,7 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
 StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type,
                                                  StackFrame::State* state) {
   StackFrame* result = SingletonFor(type);
-  DCHECK((!result) == (type == StackFrame::NONE));
+  DCHECK((!result) == (type == StackFrame::NO_FRAME_TYPE));
   if (result) result->state_ = *state;
   return result;
 }
@@ -153,7 +153,7 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
     return &field##_;
 
   switch (type) {
-    case StackFrame::NONE:
+    case StackFrame::NO_FRAME_TYPE:
       return nullptr;
       STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
     default:
@@ -318,7 +318,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
     : StackFrameIteratorBase(isolate, false),
       low_bound_(sp),
       high_bound_(js_entry_sp),
-      top_frame_type_(StackFrame::NONE),
+      top_frame_type_(StackFrame::NO_FRAME_TYPE),
       top_context_address_(kNullAddress),
       external_callback_scope_(isolate->external_callback_scope()),
       top_link_register_(lr) {
@@ -412,7 +412,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
       // The frame anyways will be skipped.
       type = StackFrame::OPTIMIZED;
       // Top frame is incomplete so we cannot reliably determine its type.
-      top_frame_type_ = StackFrame::NONE;
+      top_frame_type_ = StackFrame::NO_FRAME_TYPE;
     }
   } else {
     return;
@@ -762,7 +762,7 @@ void ExitFrame::Iterate(RootVisitor* v) const {
 }
 
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
-  if (fp == 0) return NONE;
+  if (fp == 0) return NO_FRAME_TYPE;
   StackFrame::Type type = ComputeFrameType(fp);
 #if V8_ENABLE_WEBASSEMBLY
   Address sp = type == WASM_EXIT ? WasmExitFrame::ComputeStackPointer(fp)
@@ -1059,7 +1059,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         // in the place on the stack that one finds the frame type.
         UNREACHABLE();
       case NATIVE:
-      case NONE:
+      case NO_FRAME_TYPE:
       case NUMBER_OF_TYPES:
       case MANUAL:
         UNREACHABLE();
@@ -2177,9 +2177,9 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
     accumulator->PrintName(scope_info.ContextLocalName(i));
     accumulator->Add(" = ");
     if (!context.is_null()) {
-      int index = Context::MIN_CONTEXT_SLOTS + i;
-      if (index < context.length()) {
-        accumulator->Add("%o", context.get(index));
+      int slot_index = Context::MIN_CONTEXT_SLOTS + i;
+      if (slot_index < context.length()) {
+        accumulator->Add("%o", context.get(slot_index));
       } else {
         accumulator->Add(
             "// warning: missing context slot - inconsistent frame?");
