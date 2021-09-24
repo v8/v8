@@ -47,9 +47,10 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   HandleScope scope(isolate);
 
   Handle<JSTypedArray> array;
-  const char* method = "%TypedArray%.prototype.copyWithin";
+  const char* method_name = "%TypedArray%.prototype.copyWithin";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+      isolate, array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name));
 
   int64_t len = array->GetLength();
   int64_t to = 0;
@@ -92,7 +93,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
     if (out_of_bounds) {
       const MessageTemplate message = MessageTemplate::kDetachedOperation;
       Handle<String> operation =
-          isolate->factory()->NewStringFromAsciiChecked(method);
+          isolate->factory()->NewStringFromAsciiChecked(method_name);
       THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
     }
     if (new_len < len) {
@@ -137,9 +138,10 @@ BUILTIN(TypedArrayPrototypeFill) {
   HandleScope scope(isolate);
 
   Handle<JSTypedArray> array;
-  const char* method = "%TypedArray%.prototype.fill";
+  const char* method_name = "%TypedArray%.prototype.fill";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+      isolate, array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name));
   ElementsKind kind = array->GetElementsKind();
 
   Handle<Object> obj_value = args.atOrUndefined(isolate, 1);
@@ -181,7 +183,7 @@ BUILTIN(TypedArrayPrototypeFill) {
     if (out_of_bounds) {
       const MessageTemplate message = MessageTemplate::kDetachedOperation;
       Handle<String> operation =
-          isolate->factory()->NewStringFromAsciiChecked(method);
+          isolate->factory()->NewStringFromAsciiChecked(method_name);
       THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
     }
   }
@@ -204,9 +206,10 @@ BUILTIN(TypedArrayPrototypeIncludes) {
   HandleScope scope(isolate);
 
   Handle<JSTypedArray> array;
-  const char* method = "%TypedArray%.prototype.includes";
+  const char* method_name = "%TypedArray%.prototype.includes";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+      isolate, array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name));
 
   if (args.length() < 2) return ReadOnlyRoots(isolate).false_value();
 
@@ -237,9 +240,10 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
   HandleScope scope(isolate);
 
   Handle<JSTypedArray> array;
-  const char* method = "%TypedArray%.prototype.indexOf";
+  const char* method_name = "%TypedArray%.prototype.indexOf";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+      isolate, array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name));
 
   int64_t len = array->length();
   if (len == 0) return Smi::FromInt(-1);
@@ -267,9 +271,10 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
   HandleScope scope(isolate);
 
   Handle<JSTypedArray> array;
-  const char* method = "%TypedArray%.prototype.lastIndexOf";
+  const char* method_name = "%TypedArray%.prototype.lastIndexOf";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+      isolate, array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name));
 
   int64_t len = array->length();
   if (len == 0) return Smi::FromInt(-1);
@@ -301,9 +306,10 @@ BUILTIN(TypedArrayPrototypeReverse) {
   HandleScope scope(isolate);
 
   Handle<JSTypedArray> array;
-  const char* method = "%TypedArray%.prototype.reverse";
+  const char* method_name = "%TypedArray%.prototype.reverse";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+      isolate, array,
+      JSTypedArray::Validate(isolate, args.receiver(), method_name));
 
   ElementsAccessor* elements = array->GetElementsAccessor();
   elements->Reverse(*array);

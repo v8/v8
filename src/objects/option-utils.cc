@@ -13,7 +13,7 @@ namespace internal {
 // ecma402/#sec-getoptionsobject
 MaybeHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
                                          Handle<Object> options,
-                                         const char* method) {
+                                         const char* method_name) {
   // 1. If options is undefined, then
   if (options->IsUndefined(isolate)) {
     // a. Return ! ObjectCreate(null).
@@ -32,21 +32,23 @@ MaybeHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
 // ecma402/#sec-coerceoptionstoobject
 MaybeHandle<JSReceiver> CoerceOptionsToObject(Isolate* isolate,
                                               Handle<Object> options,
-                                              const char* method) {
+                                              const char* method_name) {
   // 1. If options is undefined, then
   if (options->IsUndefined(isolate)) {
     // a. Return ! ObjectCreate(null).
     return isolate->factory()->NewJSObjectWithNullProto();
   }
   // 2. Return ? ToObject(options).
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options, Object::ToObject(isolate, options, method), JSReceiver);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                             Object::ToObject(isolate, options, method_name),
+                             JSReceiver);
   return Handle<JSReceiver>::cast(options);
 }
 
 Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
                             const char* property,
-                            std::vector<const char*> values, const char* method,
+                            std::vector<const char*> values,
+                            const char* method_name,
                             std::unique_ptr<char[]>* result) {
   Handle<String> property_str =
       isolate->factory()->NewStringFromAsciiChecked(property);
@@ -81,7 +83,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
     }
 
     Handle<String> method_str =
-        isolate->factory()->NewStringFromAsciiChecked(method);
+        isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kValueOutOfRange, value, method_str,
@@ -97,7 +99,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
 V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(Isolate* isolate,
                                                 Handle<JSReceiver> options,
                                                 const char* property,
-                                                const char* method,
+                                                const char* method_name,
                                                 bool* result) {
   Handle<String> property_str =
       isolate->factory()->NewStringFromAsciiChecked(property);

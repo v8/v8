@@ -62,7 +62,7 @@ class Intl {
   static std::string GetNumberingSystem(const icu::Locale& icu_locale);
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> SupportedLocalesOf(
-      Isolate* isolate, const char* method,
+      Isolate* isolate, const char* method_name,
       const std::set<std::string>& available_locales, Handle<Object> locales_in,
       Handle<Object> options_in);
 
@@ -94,7 +94,7 @@ class Intl {
 
   V8_WARN_UNUSED_RESULT static base::Optional<int> StringLocaleCompare(
       Isolate* isolate, Handle<String> s1, Handle<String> s2,
-      Handle<Object> locales, Handle<Object> options, const char* method);
+      Handle<Object> locales, Handle<Object> options, const char* method_name);
 
   V8_WARN_UNUSED_RESULT static int CompareStrings(Isolate* isolate,
                                                   const icu::Collator& collator,
@@ -104,7 +104,7 @@ class Intl {
   // ecma402/#sup-properties-of-the-number-prototype-object
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberToLocaleString(
       Isolate* isolate, Handle<Object> num, Handle<Object> locales,
-      Handle<Object> options, const char* method);
+      Handle<Object> options, const char* method_name);
 
   // ecma402/#sec-setnfdigitoptions
   struct NumberFormatDigitOptions {
@@ -172,11 +172,11 @@ class Intl {
 
   // Shared function to read the "localeMatcher" option.
   V8_WARN_UNUSED_RESULT static Maybe<MatcherOption> GetLocaleMatcher(
-      Isolate* isolate, Handle<JSReceiver> options, const char* method);
+      Isolate* isolate, Handle<JSReceiver> options, const char* method_name);
 
   // Shared function to read the "numberingSystem" option.
   V8_WARN_UNUSED_RESULT static Maybe<bool> GetNumberingSystem(
-      Isolate* isolate, Handle<JSReceiver> options, const char* method,
+      Isolate* isolate, Handle<JSReceiver> options, const char* method_name,
       std::unique_ptr<char[]>* result);
 
   // Check the calendar is valid or not for that locale.

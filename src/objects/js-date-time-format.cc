@@ -77,9 +77,9 @@ JSDateTimeFormat::HourCycle ToHourCycle(UDateFormatHourCycle hc) {
 
 Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(Isolate* isolate,
                                                 Handle<JSReceiver> options,
-                                                const char* method) {
+                                                const char* method_name) {
   return GetStringOption<JSDateTimeFormat::HourCycle>(
-      isolate, options, "hourCycle", method, {"h11", "h12", "h23", "h24"},
+      isolate, options, "hourCycle", method_name, {"h11", "h12", "h23", "h24"},
       {JSDateTimeFormat::HourCycle::kH11, JSDateTimeFormat::HourCycle::kH12,
        JSDateTimeFormat::HourCycle::kH23, JSDateTimeFormat::HourCycle::kH24},
       JSDateTimeFormat::HourCycle::kUndefined);
@@ -772,7 +772,7 @@ Isolate::ICUObjectCacheType ConvertToCacheType(
 MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
     Isolate* isolate, Handle<Object> date, Handle<Object> locales,
     Handle<Object> options, RequiredOption required, DefaultsOption defaults,
-    const char* method) {
+    const char* method_name) {
   Isolate::ICUObjectCacheType cache_type = ConvertToCacheType(defaults);
 
   Factory* factory = isolate->factory();
@@ -822,7 +822,8 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   Handle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
-      JSDateTimeFormat::New(isolate, map, locales, internal_options, method),
+      JSDateTimeFormat::New(isolate, map, locales, internal_options,
+                            method_name),
       String);
 
   if (can_cache) {

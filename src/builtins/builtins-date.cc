@@ -775,8 +775,8 @@ BUILTIN(DatePrototypeToLocaleDateString) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleDateString);
 
-  const char* method = "Date.prototype.toLocaleDateString";
-  CHECK_RECEIVER(JSDate, date, method);
+  const char* method_name = "Date.prototype.toLocaleDateString";
+  CHECK_RECEIVER(JSDate, date, method_name);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
@@ -786,7 +786,7 @@ BUILTIN(DatePrototypeToLocaleDateString) {
                    args.atOrUndefined(isolate, 2),           // options
                    JSDateTimeFormat::RequiredOption::kDate,  // required
                    JSDateTimeFormat::DefaultsOption::kDate,  // defaults
-                   method));                                 // method
+                   method_name));                            // method_name
 }
 
 // ecma402 #sup-date.prototype.tolocalestring
@@ -795,8 +795,8 @@ BUILTIN(DatePrototypeToLocaleString) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleString);
 
-  const char* method = "Date.prototype.toLocaleString";
-  CHECK_RECEIVER(JSDate, date, method);
+  const char* method_name = "Date.prototype.toLocaleString";
+  CHECK_RECEIVER(JSDate, date, method_name);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
@@ -806,7 +806,7 @@ BUILTIN(DatePrototypeToLocaleString) {
                    args.atOrUndefined(isolate, 2),          // options
                    JSDateTimeFormat::RequiredOption::kAny,  // required
                    JSDateTimeFormat::DefaultsOption::kAll,  // defaults
-                   method));                                // method
+                   method_name));                           // method_name
 }
 
 // ecma402 #sup-date.prototype.tolocaletimestring
@@ -815,8 +815,8 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleTimeString);
 
-  const char* method = "Date.prototype.toLocaleTimeString";
-  CHECK_RECEIVER(JSDate, date, method);
+  const char* method_name = "Date.prototype.toLocaleTimeString";
+  CHECK_RECEIVER(JSDate, date, method_name);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
@@ -826,7 +826,7 @@ BUILTIN(DatePrototypeToLocaleTimeString) {
                    args.atOrUndefined(isolate, 2),           // options
                    JSDateTimeFormat::RequiredOption::kTime,  // required
                    JSDateTimeFormat::DefaultsOption::kTime,  // defaults
-                   method));                                 // method
+                   method_name));                            // method_name
 }
 #endif  // V8_INTL_SUPPORT
 

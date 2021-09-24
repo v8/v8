@@ -183,12 +183,12 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
 template <typename T>
 MaybeHandle<T> New(Isolate* isolate, Handle<JSFunction> constructor,
                    Handle<Object> locales, Handle<Object> options,
-                   const char* method) {
+                   const char* method_name) {
   Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, map,
       JSFunction::GetDerivedMap(isolate, constructor, constructor), T);
-  return T::New(isolate, map, locales, options, method);
+  return T::New(isolate, map, locales, options, method_name);
 }
 }  // namespace
 
@@ -927,7 +927,7 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
 
 base::Optional<int> Intl::StringLocaleCompare(
     Isolate* isolate, Handle<String> string1, Handle<String> string2,
-    Handle<Object> locales, Handle<Object> options, const char* method) {
+    Handle<Object> locales, Handle<Object> options, const char* method_name) {
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
@@ -952,7 +952,7 @@ base::Optional<int> Intl::StringLocaleCompare(
 
   Handle<JSCollator> collator;
   MaybeHandle<JSCollator> maybe_collator =
-      New<JSCollator>(isolate, constructor, locales, options, method);
+      New<JSCollator>(isolate, constructor, locales, options, method_name);
   if (!maybe_collator.ToHandle(&collator)) return {};
   if (can_cache) {
     isolate->set_icu_object_in_cache(
@@ -1005,7 +1005,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                                Handle<Object> num,
                                                Handle<Object> locales,
                                                Handle<Object> options,
-                                               const char* method) {
+                                               const char* method_name) {
   Handle<Object> numeric_obj;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
                              Object::ToNumeric(isolate, num), String);
@@ -1035,7 +1035,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, number_format,
-      New<JSNumberFormat>(isolate, constructor, locales, options, method),
+      New<JSNumberFormat>(isolate, constructor, locales, options, method_name),
       String);
 
   if (can_cache) {
@@ -1482,21 +1482,21 @@ MaybeHandle<JSArray> CreateArrayFromList(Isolate* isolate,
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
 // https://tc39.github.io/ecma402/#sec-supportedlocales
 MaybeHandle<JSObject> SupportedLocales(
-    Isolate* isolate, const char* method,
+    Isolate* isolate, const char* method_name,
     const std::set<std::string>& available_locales,
     const std::vector<std::string>& requested_locales, Handle<Object> options) {
   std::vector<std::string> supported_locales;
 
   // 1. Set options to ? CoerceOptionsToObject(options).
   Handle<JSReceiver> options_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
-                             CoerceOptionsToObject(isolate, options, method),
-                             JSObject);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options_obj,
+      CoerceOptionsToObject(isolate, options, method_name), JSObject);
 
   // 2. Let matcher be ? GetOption(options, "localeMatcher", "string",
   //       « "lookup", "best fit" », "best fit").
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options_obj, method);
+      Intl::GetLocaleMatcher(isolate, options_obj, method_name);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSObject>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
@@ -1676,7 +1676,7 @@ MaybeHandle<JSArray> Intl::SupportedValuesOf(Isolate* isolate,
 
 // ECMA 402 Intl.*.supportedLocalesOf
 MaybeHandle<JSObject> Intl::SupportedLocalesOf(
-    Isolate* isolate, const char* method,
+    Isolate* isolate, const char* method_name,
     const std::set<std::string>& available_locales, Handle<Object> locales,
     Handle<Object> options) {
   // Let availableLocales be %Collator%.[[AvailableLocales]].
@@ -1687,7 +1687,7 @@ MaybeHandle<JSObject> Intl::SupportedLocalesOf(
   MAYBE_RETURN(requested_locales, MaybeHandle<JSObject>());
 
   // Return ? SupportedLocales(availableLocales, requestedLocales, options).
-  return SupportedLocales(isolate, method, available_locales,
+  return SupportedLocales(isolate, method_name, available_locales,
                           requested_locales.FromJust(), options);
 }
 
@@ -2098,20 +2098,20 @@ base::TimezoneCache* Intl::CreateTimeZoneCache() {
 
 Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,
                                                   Handle<JSReceiver> options,
-                                                  const char* method) {
+                                                  const char* method_name) {
   return GetStringOption<Intl::MatcherOption>(
-      isolate, options, "localeMatcher", method, {"best fit", "lookup"},
+      isolate, options, "localeMatcher", method_name, {"best fit", "lookup"},
       {Intl::MatcherOption::kBestFit, Intl::MatcherOption::kLookup},
       Intl::MatcherOption::kBestFit);
 }
 
 Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                                      Handle<JSReceiver> options,
-                                     const char* method,
+                                     const char* method_name,
                                      std::unique_ptr<char[]>* result) {
   const std::vector<const char*> empty_values = {};
   Maybe<bool> maybe = GetStringOption(isolate, options, "numberingSystem",
-                                      empty_values, method, result);
+                                      empty_values, method_name, result);
   MAYBE_RETURN(maybe, Nothing<bool>());
   if (maybe.FromJust() && *result != nullptr) {
     if (!IsWellFormedNumberingSystem(result->get())) {

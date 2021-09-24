@@ -44,9 +44,9 @@ enum class Sensitivity {
 enum class CaseFirst { kUndefined, kUpper, kLower, kFalse };
 
 Maybe<CaseFirst> GetCaseFirst(Isolate* isolate, Handle<JSReceiver> options,
-                              const char* method) {
+                              const char* method_name) {
   return GetStringOption<CaseFirst>(
-      isolate, options, "caseFirst", method, {"upper", "lower", "false"},
+      isolate, options, "caseFirst", method_name, {"upper", "lower", "false"},
       {CaseFirst::kUpper, CaseFirst::kLower, CaseFirst::kFalse},
       CaseFirst::kUndefined);
 }

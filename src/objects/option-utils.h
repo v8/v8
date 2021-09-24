@@ -13,11 +13,11 @@ namespace internal {
 
 // ecma402/#sec-getoptionsobject and temporal/#sec-getoptionsobject
 V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> GetOptionsObject(
-    Isolate* isolate, Handle<Object> options, const char* method);
+    Isolate* isolate, Handle<Object> options, const char* method_name);
 
 // ecma402/#sec-coerceoptionstoobject
 V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> CoerceOptionsToObject(
-    Isolate* isolate, Handle<Object> options, const char* method);
+    Isolate* isolate, Handle<Object> options, const char* method_name);
 
 // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
 // ecma402/#sec-getoption and temporal/#sec-getoption
@@ -32,11 +32,11 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> CoerceOptionsToObject(
 // caller is required to use fallback value appropriately in this
 // case.
 //
-// method is a string denoting the method the call from; used when
+// method_name is a string denoting the method the call from; used when
 // printing the error message.
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
     Isolate* isolate, Handle<JSReceiver> options, const char* property,
-    std::vector<const char*> values, const char* method,
+    std::vector<const char*> values, const char* method_name,
     std::unique_ptr<char[]>* result);
 
 // A helper template to get string from option into a enum.
@@ -46,12 +46,12 @@ V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
 template <typename T>
 V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
     Isolate* isolate, Handle<JSReceiver> options, const char* name,
-    const char* method, const std::vector<const char*>& str_values,
+    const char* method_name, const std::vector<const char*>& str_values,
     const std::vector<T>& enum_values, T default_value) {
   DCHECK_EQ(str_values.size(), enum_values.size());
   std::unique_ptr<char[]> cstr;
   Maybe<bool> found =
-      GetStringOption(isolate, options, name, str_values, method, &cstr);
+      GetStringOption(isolate, options, name, str_values, method_name, &cstr);
   MAYBE_RETURN(found, Nothing<T>());
   if (found.FromJust()) {
     DCHECK_NOT_NULL(cstr.get());
@@ -75,11 +75,11 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
 // caller is required to use fallback value appropriately in this
 // case.
 //
-// method is a string denoting the method it called from; used when
+// method_name is a string denoting the method it called from; used when
 // printing the error message.
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
     Isolate* isolate, Handle<JSReceiver> options, const char* property,
-    const char* method, bool* result);
+    const char* method_name, bool* result);
 
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<int> GetNumberOption(
     Isolate* isolate, Handle<JSReceiver> options, Handle<String> property,
