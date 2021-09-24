@@ -214,7 +214,7 @@ void MarkerBase::StartMarking() {
 
   is_marking_ = true;
   if (EnterIncrementalMarkingIfNeeded(config_, heap())) {
-    StatsCollector::EnabledScope stats_scope(
+    StatsCollector::EnabledScope inner_stats_scope(
         heap().stats_collector(), StatsCollector::kMarkIncrementalStart);
 
     // Performing incremental or concurrent marking.
@@ -510,7 +510,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
     }
 
     {
-      StatsCollector::EnabledScope stats_scope(
+      StatsCollector::EnabledScope inner_stats_scope(
           heap().stats_collector(), StatsCollector::kMarkProcessEphemerons);
       if (!DrainWorklistWithBytesAndTimeDeadline(
               mutator_marking_state_, marked_bytes_deadline, time_deadline,
