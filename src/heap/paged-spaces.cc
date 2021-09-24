@@ -571,8 +571,9 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
   DCHECK(identity() == OLD_SPACE || identity() == MAP_SPACE);
   DCHECK_EQ(origin, AllocationOrigin::kRuntime);
 
-  auto result = TryAllocationFromFreeListBackground(
-      local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
+  base::Optional<std::pair<Address, size_t>> result =
+      TryAllocationFromFreeListBackground(local_heap, min_size_in_bytes,
+                                          max_size_in_bytes, alignment, origin);
   if (result) return result;
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
@@ -583,7 +584,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
     RefillFreeList();
 
     // Retry the free list allocation.
-    auto result = TryAllocationFromFreeListBackground(
+    result = TryAllocationFromFreeListBackground(
         local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
     if (result) return result;
 
@@ -601,7 +602,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
     RefillFreeList();
 
     if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
-      auto result = TryAllocationFromFreeListBackground(
+      result = TryAllocationFromFreeListBackground(
           local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
       if (result) return result;
     }
@@ -609,7 +610,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
       heap()->CanExpandOldGenerationBackground(local_heap, AreaSize())) {
-    auto result = ExpandBackground(local_heap, max_size_in_bytes);
+    result = ExpandBackground(local_heap, max_size_in_bytes);
     if (result) {
       DCHECK_EQ(Heap::GetFillToAlign(result->first, alignment), 0);
       return result;
@@ -730,8 +731,9 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
 
       if (object.IsExternalString()) {
         ExternalString external_string = ExternalString::cast(object);
-        size_t size = external_string.ExternalPayloadSize();
-        external_page_bytes[ExternalBackingStoreType::kExternalString] += size;
+        size_t payload_size = external_string.ExternalPayloadSize();
+        external_page_bytes[ExternalBackingStoreType::kExternalString] +=
+            payload_size;
       }
     }
     for (int i = 0; i < kNumTypes; i++) {

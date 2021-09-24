@@ -61,11 +61,11 @@ class V8_EXPORT_PRIVATE GCTracer {
   struct IncrementalMarkingInfos {
     IncrementalMarkingInfos() : duration(0), longest_step(0), steps(0) {}
 
-    void Update(double duration) {
+    void Update(double delta) {
       steps++;
-      this->duration += duration;
-      if (duration > longest_step) {
-        longest_step = duration;
+      duration += delta;
+      if (delta > longest_step) {
+        longest_step = delta;
       }
     }
 
