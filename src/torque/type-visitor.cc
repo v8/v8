@@ -189,7 +189,7 @@ const StructType* TypeVisitor::ComputeType(
     StructDeclaration* decl, MaybeSpecializationKey specialized_from) {
   StructType* struct_type = TypeOracle::GetStructType(decl, specialized_from);
   CurrentScope::Scope struct_namespace_scope(struct_type->nspace());
-  CurrentSourcePosition::Scope position_activator(decl->pos);
+  CurrentSourcePosition::Scope decl_position_activator(decl->pos);
 
   ResidueClass offset = 0;
   for (auto& field : decl->fields) {

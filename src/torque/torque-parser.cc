@@ -327,7 +327,7 @@ Expression* MakeCall(IdentifierExpression* callee,
   // All IdentifierExpressions are treated as label names and can be directly
   // used as labels identifiers. All other statements in a call's otherwise
   // must create intermediate Labels for the otherwise's statement code.
-  size_t label_id = 0;
+  size_t label_id_count = 0;
   std::vector<TryHandler*> temp_labels;
   for (auto* statement : otherwise) {
     if (auto* e = ExpressionStatement::DynamicCast(statement)) {
@@ -339,7 +339,7 @@ Expression* MakeCall(IdentifierExpression* callee,
         continue;
       }
     }
-    auto label_name = std::string("__label") + std::to_string(label_id++);
+    auto label_name = std::string("__label") + std::to_string(label_id_count++);
     auto label_id = MakeNode<Identifier>(label_name);
     label_id->pos = SourcePosition::Invalid();
     labels.push_back(label_id);
@@ -728,7 +728,7 @@ base::Optional<ParseResult> MakeAbstractTypeDeclaration(
         constexpr_name, flags | AbstractTypeFlag::kConstexpr, constexpr_extends,
         constexpr_generates);
     constexpr_decl->pos = name->pos;
-    Declaration* decl = constexpr_decl;
+    decl = constexpr_decl;
     if (!generic_parameters.empty()) {
       decl =
           MakeNode<GenericTypeDeclaration>(generic_parameters, constexpr_decl);
@@ -1498,7 +1498,7 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
     ParseResultIterator* child_results) {
   auto expression = child_results->NextAs<Expression*>();
   auto cases = child_results->NextAs<std::vector<TypeswitchCase>>();
-  CurrentSourcePosition::Scope current_source_position(
+  CurrentSourcePosition::Scope matched_input_current_source_position(
       child_results->matched_input().pos);
 
   // typeswitch (expression) case (x1 : T1) {

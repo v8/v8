@@ -293,11 +293,11 @@ VisitResult ImplementationVisitor::InlineMacro(
                            true);
   }
 
-  size_t i = 0;
+  size_t count = 0;
   for (auto arg : arguments) {
-    if (this_reference && i == signature.implicit_count) i++;
-    const bool mark_as_used = signature.implicit_count > i;
-    const Identifier* name = macro->parameter_names()[i++];
+    if (this_reference && count == signature.implicit_count) count++;
+    const bool mark_as_used = signature.implicit_count > count;
+    const Identifier* name = macro->parameter_names()[count++];
     parameter_bindings.Add(name,
                            LocalValue{LocationReference::Temporary(
                                arg, "parameter " + name->value)},
@@ -475,9 +475,9 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
     const LabelDeclaration& label_info = signature.labels[i];
     assembler().Bind(label_block);
     std::vector<std::string> label_parameter_variables;
-    for (size_t i = 0; i < label_info.types.size(); ++i) {
-      LowerLabelParameter(label_info.types[i],
-                          ExternalLabelParameterName(label_info.name->value, i),
+    for (size_t j = 0; j < label_info.types.size(); ++j) {
+      LowerLabelParameter(label_info.types[j],
+                          ExternalLabelParameterName(label_info.name->value, j),
                           &label_parameter_variables);
     }
     assembler().Emit(GotoExternalInstruction{
@@ -741,12 +741,12 @@ const Type* ImplementationVisitor::Visit(
       ReportError("constexpr variables need an initializer");
     }
     TypeVector lowered_types = LowerType(*type);
-    for (const Type* type : lowered_types) {
+    for (const Type* t : lowered_types) {
       assembler().Emit(PushUninitializedInstruction{TypeOracle::GetTopType(
           "uninitialized variable '" + stmt->name->value + "' of type " +
-              type->ToString() + " originally defined at " +
+              t->ToString() + " originally defined at " +
               PositionAsString(stmt->pos),
-          type)});
+          t)});
     }
     init_result =
         VisitResult(*type, assembler().TopRange(lowered_types.size()));
@@ -1911,9 +1911,9 @@ void FailCallableLookup(
     stream << "\nfailed to instantiate all of these generic declarations:";
     for (auto& failure : inapplicable_generics) {
       GenericCallable* generic = failure.first;
-      const std::string& reason = failure.second;
+      const std::string& fail_reason = failure.second;
       stream << "\n  " << generic->name() << " defined at "
-             << generic->Position() << ":\n    " << reason << "\n";
+             << generic->Position() << ":\n    " << fail_reason << "\n";
     }
   }
   ReportError(stream.str());
@@ -3020,10 +3020,10 @@ VisitResult ImplementationVisitor::GenerateCall(
           arguments_to_getter.parameters.begin(),
           converted_arguments.begin() + 1, converted_arguments.end());
 
-      Callable* callable = LookupCallable(
+      Callable* callable_macro = LookupCallable(
           qualified_getter_name, Declarations::Lookup(qualified_getter_name),
           arguments_to_getter, {});
-      Macro* getter = Macro::DynamicCast(callable);
+      Macro* getter = Macro::DynamicCast(callable_macro);
       if (!getter || getter->IsMethod()) {
         ReportError(
             "%MakeLazy expects a macro, not builtin or other type of callable");
@@ -3050,10 +3050,10 @@ VisitResult ImplementationVisitor::GenerateCall(
       StackRange argument_range_for_getter = assembler().TopRange(0);
       std::vector<std::string> constexpr_arguments_for_getter;
 
-      size_t current = 0;
+      size_t arg_count = 0;
       for (auto arg : arguments_to_getter.parameters) {
-        DCHECK_LT(current, getter->signature().types().size());
-        const Type* to_type = getter->signature().types()[current++];
+        DCHECK_LT(arg_count, getter->signature().types().size());
+        const Type* to_type = getter->signature().types()[arg_count++];
         AddCallParameter(getter, arg, to_type, &converted_arguments_for_getter,
                          &argument_range_for_getter,
                          &constexpr_arguments_for_getter,
@@ -4127,10 +4127,10 @@ void CppClassGenerator::GenerateClass() {
 
     // V8_INLINE int32_t AllocatedSize() const
     {
-      cpp::Function f =
+      cpp::Function allocated_size_f =
           cpp::Function::DefaultGetter("int32_t", &c, "AllocatedSize");
-      f.SetFlag(cpp::Function::kV8Inline);
-      f.PrintInlineDefinition(hdr_, [&](std::ostream& stream) {
+      allocated_size_f.SetFlag(cpp::Function::kV8Inline);
+      allocated_size_f.PrintInlineDefinition(hdr_, [&](std::ostream& stream) {
         stream << "    return SizeFor(";
         bool first = true;
         for (auto field : *index_fields) {
@@ -5373,12 +5373,12 @@ void ImplementationVisitor::GenerateCSATypes(
       }
       h_contents << "\n  std::tuple<";
       bool first = true;
-      for (const Type* type : LowerType(struct_type)) {
+      for (const Type* lowered_type : LowerType(struct_type)) {
         if (!first) {
           h_contents << ", ";
         }
         first = false;
-        h_contents << type->GetGeneratedTypeName();
+        h_contents << lowered_type->GetGeneratedTypeName();
       }
       std::vector<std::string> all_fields;
       for (auto& field : struct_type->fields()) {
