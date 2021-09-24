@@ -125,35 +125,35 @@ namespace module_decoder_unittest {
   kWasmArrayTypeCode, type, (mutability ? 1 : 0)
 #define WASM_FUNCTION_DEF(...) kWasmFunctionTypeCode, __VA_ARGS__
 
-#define EXPECT_VERIFIES(data)                                      \
-  do {                                                             \
-    ModuleResult result = DecodeModule(data, data + sizeof(data)); \
-    EXPECT_OK(result);                                             \
+#define EXPECT_VERIFIES(data)                                       \
+  do {                                                              \
+    ModuleResult _result = DecodeModule(data, data + sizeof(data)); \
+    EXPECT_OK(_result);                                             \
   } while (false)
 
-#define EXPECT_FAILURE_LEN(data, length)                     \
-  do {                                                       \
-    ModuleResult result = DecodeModule(data, data + length); \
-    EXPECT_FALSE(result.ok());                               \
+#define EXPECT_FAILURE_LEN(data, length)                      \
+  do {                                                        \
+    ModuleResult _result = DecodeModule(data, data + length); \
+    EXPECT_FALSE(_result.ok());                               \
   } while (false)
 
 #define EXPECT_FAILURE(data) EXPECT_FAILURE_LEN(data, sizeof(data))
 
-#define EXPECT_FAILURE_WITH_MSG(data, msg)                         \
-  do {                                                             \
-    ModuleResult result = DecodeModule(data, data + sizeof(data)); \
-    EXPECT_FALSE(result.ok());                                     \
-    if (!result.ok()) {                                            \
-      EXPECT_THAT(result.error().message(), HasSubstr(msg));       \
-    }                                                              \
+#define EXPECT_FAILURE_WITH_MSG(data, msg)                          \
+  do {                                                              \
+    ModuleResult _result = DecodeModule(data, data + sizeof(data)); \
+    EXPECT_FALSE(_result.ok());                                     \
+    if (!_result.ok()) {                                            \
+      EXPECT_THAT(_result.error().message(), HasSubstr(msg));       \
+    }                                                               \
   } while (false)
 
-#define EXPECT_OFF_END_FAILURE(data, min)                           \
-  do {                                                              \
-    STATIC_ASSERT(min < arraysize(data));                           \
-    for (size_t length = min; length < arraysize(data); length++) { \
-      EXPECT_FAILURE_LEN(data, length);                             \
-    }                                                               \
+#define EXPECT_OFF_END_FAILURE(data, min)                              \
+  do {                                                                 \
+    STATIC_ASSERT(min < arraysize(data));                              \
+    for (size_t _length = min; _length < arraysize(data); _length++) { \
+      EXPECT_FAILURE_LEN(data, _length);                               \
+    }                                                                  \
   } while (false)
 
 #define EXPECT_OK(result)                                        \
