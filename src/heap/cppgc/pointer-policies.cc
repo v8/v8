@@ -30,8 +30,8 @@ bool IsOnStack(const void* address) {
 
 }  // namespace
 
-void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
-                                             bool points_to_payload) {
+void EnabledCheckingPolicyBase::CheckPointerImpl(
+    const void* ptr, bool points_to_payload, bool check_off_heap_assignments) {
   // `ptr` must not reside on stack.
   DCHECK(!IsOnStack(ptr));
   auto* base_page = BasePage::FromPayload(ptr);
@@ -41,12 +41,14 @@ void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
 
   // References cannot change their heap association which means that state is
   // immutable once it is set.
+  bool is_on_heap = true;
   if (!heap_) {
     heap_ = &base_page->heap();
     if (!heap_->page_backend()->Lookup(reinterpret_cast<Address>(this))) {
       // If `this` is not contained within the heap of `ptr`, we must deal with
       // an on-stack or off-heap reference. For both cases there should be no
       // heap registered.
+      is_on_heap = false;
       CHECK(!HeapRegistry::TryFromManagedPointer(this));
     }
   }
@@ -69,17 +71,20 @@ void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
   }
 
 #ifdef CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
-  if (heap_->prefinalizer_handler()->IsInvokingPreFinalizers()) {
-    // During prefinalizers invocation, check that |ptr| refers to a live object
-    // and that it is assigned to a live slot.
-    DCHECK(header->IsMarked());
-    // Slot can be in a large object.
-    const auto* slot_page = BasePage::FromInnerAddress(heap_, this);
-    // Off-heap slots (from other heaps or on-stack) are considered live.
-    bool slot_is_live =
-        !slot_page || slot_page->ObjectHeaderFromInnerAddress(this).IsMarked();
-    DCHECK(slot_is_live);
-    USE(slot_is_live);
+  if (check_off_heap_assignments || is_on_heap) {
+    if (heap_->prefinalizer_handler()->IsInvokingPreFinalizers()) {
+      // During prefinalizers invocation, check that |ptr| refers to a live
+      // object and that it is assigned to a live slot.
+      DCHECK(header->IsMarked());
+      // Slot can be in a large object.
+      const auto* slot_page = BasePage::FromInnerAddress(heap_, this);
+      // Off-heap slots (from other heaps or on-stack) are considered live.
+      bool slot_is_live =
+          !slot_page ||
+          slot_page->ObjectHeaderFromInnerAddress(this).IsMarked();
+      DCHECK(slot_is_live);
+      USE(slot_is_live);
+    }
   }
 #endif  // CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
 }
