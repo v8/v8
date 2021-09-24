@@ -597,7 +597,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     if (wasm::WasmCode* wasm_code =
             wasm::GetWasmCodeManager()->LookupCode(pc)) {
       switch (wasm_code->kind()) {
-        case wasm::WasmCode::kFunction:
+        case wasm::WasmCode::kWasmFunction:
           return WASM;
         case wasm::WasmCode::kWasmToCapiWrapper:
           return WASM_EXIT;
@@ -974,7 +974,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     safepoint_entry = table.FindEntry(inner_pointer);
     stack_slots = wasm_code->stack_slots();
     has_tagged_outgoing_params =
-        wasm_code->kind() != wasm::WasmCode::kFunction &&
+        wasm_code->kind() != wasm::WasmCode::kWasmFunction &&
         wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
     first_tagged_parameter_slot = wasm_code->first_tagged_parameter_slot();
     num_tagged_parameter_slots = wasm_code->num_tagged_parameter_slots();

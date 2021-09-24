@@ -191,7 +191,7 @@ std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
 
 void WasmCode::RegisterTrapHandlerData() {
   DCHECK(!has_trap_handler_index());
-  if (kind() != WasmCode::kFunction) return;
+  if (kind() != WasmCode::kWasmFunction) return;
   if (protected_instructions_size_ == 0) return;
 
   Address base = instruction_start();
@@ -350,9 +350,9 @@ void WasmCode::MaybePrint() const {
   bool function_index_matches =
       (!IsAnonymous() &&
        FLAG_print_wasm_code_function_index == static_cast<int>(index()));
-  if (FLAG_print_code ||
-      (kind() == kFunction ? (FLAG_print_wasm_code || function_index_matches)
-                           : FLAG_print_wasm_stub_code)) {
+  if (FLAG_print_code || (kind() == kWasmFunction
+                              ? (FLAG_print_wasm_code || function_index_matches)
+                              : FLAG_print_wasm_stub_code)) {
     std::string name = DebugName();
     Print(name.c_str());
   }
@@ -376,7 +376,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   if (name) os << "name: " << name << "\n";
   if (!IsAnonymous()) os << "index: " << index() << "\n";
   os << "kind: " << GetWasmCodeKindAsString(kind()) << "\n";
-  if (kind() == kFunction) {
+  if (kind() == kWasmFunction) {
     DCHECK(is_liftoff() || tier() == ExecutionTier::kTurbofan);
     const char* compiler =
         is_liftoff() ? (for_debugging() ? "Liftoff (debug)" : "Liftoff")
@@ -470,7 +470,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
 
 const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
   switch (kind) {
-    case WasmCode::kFunction:
+    case WasmCode::kWasmFunction:
       return "wasm function";
     case WasmCode::kWasmToCapiWrapper:
       return "wasm-to-capi";
@@ -1129,22 +1129,22 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
 
   std::unique_ptr<WasmCode> new_code{
-      new WasmCode{this,                    // native_module
-                   kAnonymousFuncIndex,     // index
-                   dst_code_bytes,          // instructions
-                   stack_slots,             // stack_slots
-                   0,                       // tagged_parameter_slots
-                   safepoint_table_offset,  // safepoint_table_offset
-                   handler_table_offset,    // handler_table_offset
-                   constant_pool_offset,    // constant_pool_offset
-                   code_comments_offset,    // code_comments_offset
-                   instructions.length(),   // unpadded_binary_size
-                   {},                      // protected_instructions
-                   reloc_info.as_vector(),  // reloc_info
-                   source_pos.as_vector(),  // source positions
-                   WasmCode::kFunction,     // kind
-                   ExecutionTier::kNone,    // tier
-                   kNoDebugging}};          // for_debugging
+      new WasmCode{this,                     // native_module
+                   kAnonymousFuncIndex,      // index
+                   dst_code_bytes,           // instructions
+                   stack_slots,              // stack_slots
+                   0,                        // tagged_parameter_slots
+                   safepoint_table_offset,   // safepoint_table_offset
+                   handler_table_offset,     // handler_table_offset
+                   constant_pool_offset,     // constant_pool_offset
+                   code_comments_offset,     // code_comments_offset
+                   instructions.length(),    // unpadded_binary_size
+                   {},                       // protected_instructions
+                   reloc_info.as_vector(),   // reloc_info
+                   source_pos.as_vector(),   // source positions
+                   WasmCode::kWasmFunction,  // kind
+                   ExecutionTier::kNone,     // tier
+                   kNoDebugging}};           // for_debugging
   new_code->MaybePrint();
   new_code->Validate();
 
@@ -1304,7 +1304,7 @@ WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
     case WasmCompilationResult::kWasmToJsWrapper:
       return WasmCode::Kind::kWasmToJsWrapper;
     case WasmCompilationResult::kFunction:
-      return WasmCode::Kind::kFunction;
+      return WasmCode::Kind::kWasmFunction;
     default:
       UNREACHABLE();
   }

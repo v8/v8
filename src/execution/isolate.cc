@@ -684,7 +684,7 @@ class StackTraceBuilder {
 
 #if V8_ENABLE_WEBASSEMBLY
   void AppendWasmFrame(FrameSummary::WasmFrameSummary const& summary) {
-    if (summary.code()->kind() != wasm::WasmCode::kFunction) return;
+    if (summary.code()->kind() != wasm::WasmCode::kWasmFunction) return;
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = StackFrameInfo::kIsWasm;
     if (instance->module_object().is_asm_js()) {

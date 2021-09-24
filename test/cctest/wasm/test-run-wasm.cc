@@ -3958,7 +3958,7 @@ TEST(Liftoff_tier_up) {
   {
     CodeSpaceWriteScope write_scope(native_module);
     std::unique_ptr<WasmCode> new_code = native_module->AddCode(
-        add.function_index(), desc, 0, 0, {}, {}, WasmCode::kFunction,
+        add.function_index(), desc, 0, 0, {}, {}, WasmCode::kWasmFunction,
         ExecutionTier::kTurbofan, kNoDebugging);
     native_module->PublishCode(std::move(new_code));
   }

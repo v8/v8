@@ -7569,7 +7569,7 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
 
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
       call_descriptor, mcgraph, CodeKind::WASM_FUNCTION,
-      wasm::WasmCode::kFunction, debug_name, WasmStubAssemblerOptions(),
+      wasm::WasmCode::kWasmFunction, debug_name, WasmStubAssemblerOptions(),
       source_positions);
   return result;
 }

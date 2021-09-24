@@ -103,7 +103,7 @@ static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
 #if V8_ENABLE_WEBASSEMBLY
 static const char* ComputeMarker(const wasm::WasmCode* code) {
   switch (code->kind()) {
-    case wasm::WasmCode::kFunction:
+    case wasm::WasmCode::kWasmFunction:
       return code->is_liftoff() ? "" : "*";
     default:
       return "";

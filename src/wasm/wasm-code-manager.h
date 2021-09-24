@@ -156,12 +156,7 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
 
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
-  enum Kind {
-    kFunction,
-    kWasmToCapiWrapper,
-    kWasmToJsWrapper,
-    kJumpTable
-  };
+  enum Kind { kWasmFunction, kWasmToCapiWrapper, kWasmToJsWrapper, kJumpTable };
 
   // Each runtime stub is identified by an id. This id is used to reference the
   // stub via {RelocInfo::WASM_STUB_CALL} and gets resolved during relocation.
