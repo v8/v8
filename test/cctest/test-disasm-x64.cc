@@ -112,26 +112,6 @@ TEST(DisasmX64) {
   __ j(less_equal, &Ljcc);
   __ j(greater, &Ljcc);
 
-  // cmov.
-  {
-    __ cmovq(overflow, rax, Operand(rax, 0));
-    __ cmovq(no_overflow, rax, Operand(rax, 1));
-    __ cmovq(below, rax, Operand(rax, 2));
-    __ cmovq(above_equal, rax, Operand(rax, 3));
-    __ cmovq(equal, rax, Operand(rbx, 0));
-    __ cmovq(not_equal, rax, Operand(rbx, 1));
-    __ cmovq(below_equal, rax, Operand(rbx, 2));
-    __ cmovq(above, rax, Operand(rbx, 3));
-    __ cmovq(sign, rax, Operand(rcx, 0));
-    __ cmovq(not_sign, rax, Operand(rcx, 1));
-    __ cmovq(parity_even, rax, Operand(rcx, 2));
-    __ cmovq(parity_odd, rax, Operand(rcx, 3));
-    __ cmovq(less, rax, Operand(rdx, 0));
-    __ cmovq(greater_equal, rax, Operand(rdx, 1));
-    __ cmovq(less_equal, rax, Operand(rdx, 2));
-    __ cmovq(greater, rax, Operand(rdx, 3));
-  }
-
   {
     if (CpuFeatures::IsSupported(SSE3)) {
       CpuFeatureScope scope(&assm, SSE3);
@@ -1081,6 +1061,39 @@ UNINITIALIZED_TEST(DisasmX64CheckOutput) {
   COMPARE("9b                 fwaitl", fwait());
   COMPARE("d9fc               frndint", frndint());
   COMPARE("dbe3               fninit", fninit());
+
+  COMPARE("480f4000           REX.W cmovoq rax,[rax]",
+          cmovq(overflow, rax, Operand(rax, 0)));
+  COMPARE("480f414001         REX.W cmovnoq rax,[rax+0x1]",
+          cmovq(no_overflow, rax, Operand(rax, 1)));
+  COMPARE("480f424002         REX.W cmovcq rax,[rax+0x2]",
+          cmovq(below, rax, Operand(rax, 2)));
+  COMPARE("480f434003         REX.W cmovncq rax,[rax+0x3]",
+          cmovq(above_equal, rax, Operand(rax, 3)));
+  COMPARE("480f4403           REX.W cmovzq rax,[rbx]",
+          cmovq(equal, rax, Operand(rbx, 0)));
+  COMPARE("480f454301         REX.W cmovnzq rax,[rbx+0x1]",
+          cmovq(not_equal, rax, Operand(rbx, 1)));
+  COMPARE("480f464302         REX.W cmovnaq rax,[rbx+0x2]",
+          cmovq(below_equal, rax, Operand(rbx, 2)));
+  COMPARE("480f474303         REX.W cmovaq rax,[rbx+0x3]",
+          cmovq(above, rax, Operand(rbx, 3)));
+  COMPARE("480f4801           REX.W cmovsq rax,[rcx]",
+          cmovq(sign, rax, Operand(rcx, 0)));
+  COMPARE("480f494101         REX.W cmovnsq rax,[rcx+0x1]",
+          cmovq(not_sign, rax, Operand(rcx, 1)));
+  COMPARE("480f4a4102         REX.W cmovpeq rax,[rcx+0x2]",
+          cmovq(parity_even, rax, Operand(rcx, 2)));
+  COMPARE("480f4b4103         REX.W cmovpoq rax,[rcx+0x3]",
+          cmovq(parity_odd, rax, Operand(rcx, 3)));
+  COMPARE("480f4c02           REX.W cmovlq rax,[rdx]",
+          cmovq(less, rax, Operand(rdx, 0)));
+  COMPARE("480f4d4201         REX.W cmovgeq rax,[rdx+0x1]",
+          cmovq(greater_equal, rax, Operand(rdx, 1)));
+  COMPARE("480f4e4202         REX.W cmovleq rax,[rdx+0x2]",
+          cmovq(less_equal, rax, Operand(rdx, 2)));
+  COMPARE("480f4f4203         REX.W cmovgq rax,[rdx+0x3]",
+          cmovq(greater, rax, Operand(rdx, 3)));
 }
 
 // This compares just the disassemble instruction (without the hex).
