@@ -112,18 +112,6 @@ TEST(DisasmX64) {
   __ j(less_equal, &Ljcc);
   __ j(greater, &Ljcc);
 
-  {
-    if (CpuFeatures::IsSupported(SSE3)) {
-      CpuFeatureScope scope(&assm, SSE3);
-      __ haddps(xmm1, xmm0);
-      __ haddps(xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ lddqu(xmm1, Operand(rdx, 4));
-      __ movddup(xmm1, Operand(rax, 5));
-      __ movddup(xmm1, xmm2);
-      __ movshdup(xmm1, xmm2);
-    }
-  }
-
 #define EMIT_SSE34_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
   __ instruction(xmm5, xmm1);                                                 \
   __ instruction(xmm5, Operand(rdx, 4));
@@ -132,16 +120,6 @@ TEST(DisasmX64) {
                              notUsed4)                                  \
   __ instruction(rbx, xmm15, 0);                                        \
   __ instruction(Operand(rax, 10), xmm0, 1);
-
-  {
-    if (CpuFeatures::IsSupported(SSSE3)) {
-      CpuFeatureScope scope(&assm, SSSE3);
-      __ palignr(xmm5, xmm1, 5);
-      __ palignr(xmm5, Operand(rdx, 4), 5);
-      SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
-      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
-    }
-  }
 
   {
     if (CpuFeatures::IsSupported(SSE4_1)) {
@@ -1236,6 +1214,51 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE2) {
   COMPARE_INSTR(exp, instruction(xmm3, 0xA3));
   SSE2_INSTRUCTION_LIST_SHIFT_IMM(COMPARE_SSE2_SHIFT_IMM)
 #undef COMPARE_SSE2_SHIFT_IMM
+}
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputSSE3) {
+  if (!CpuFeatures::IsSupported(SSE3)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  CpuFeatureScope scope(&t.assm_, SSE3);
+
+  COMPARE("f20f7cc8           haddps xmm1,xmm0", haddps(xmm1, xmm0));
+  COMPARE("f20f7c8c8b10270000 haddps xmm1,[rbx+rcx*4+0x2710]",
+          haddps(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("f20ff04a04         lddqu xmm1,[rdx+0x4]",
+          lddqu(xmm1, Operand(rdx, 4)));
+  COMPARE("f20f124805         movddup xmm1,[rax+0x5]",
+          movddup(xmm1, Operand(rax, 5)));
+  COMPARE("f20f12ca           movddup xmm1,xmm2", movddup(xmm1, xmm2));
+  COMPARE("f30f16ca           movshdup xmm1,xmm2", movshdup(xmm1, xmm2));
+}
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputSSSE3) {
+  if (!CpuFeatures::IsSupported(SSSE3)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  std::string actual, exp;
+  CpuFeatureScope scope(&t.assm_, SSSE3);
+
+  COMPARE("660f3a0fe905       palignr xmm5,xmm1,0x5", palignr(xmm5, xmm1, 5));
+  COMPARE("660f3a0f6a0405     palignr xmm5,[rdx+0x4],0x5",
+          palignr(xmm5, Operand(rdx, 4), 5));
+
+// TODO(zhin): compare with rbx+rcx*4+0x2170, pshufb with this operand takes 10
+// bytes, which doesn't match our assumption of 9 bytes maximum. Fix the
+// padding, then change this test.
+#define COMPARE_SSSE3_INSTR(instruction, _, __, ___, ____) \
+  exp = #instruction " xmm5,xmm1";                         \
+  COMPARE_INSTR(exp, instruction(xmm5, xmm1));             \
+  exp = #instruction " xmm5,[rdx+0x4]";                    \
+  COMPARE_INSTR(exp, instruction(xmm5, Operand(rdx, 4)));
+  SSSE3_INSTRUCTION_LIST(COMPARE_SSSE3_INSTR)
+  SSSE3_UNOP_INSTRUCTION_LIST(COMPARE_SSSE3_INSTR)
+#undef COMPARE_SSSE3_INSTR
 }
 
 UNINITIALIZED_TEST(DisasmX64YMMRegister) {
