@@ -891,7 +891,6 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       GotoIf(IsJSTypedArrayMap(receiver_map), slow);
       CheckForAssociatedProtector(name, slow);
       Label extensible(this), is_private_symbol(this);
-      TNode<Uint32T> bitfield3 = LoadMapBitField3(receiver_map);
       GotoIf(IsPrivateSymbol(name), &is_private_symbol);
       Branch(IsSetWord32<Map::Bits3::IsExtensibleBit>(bitfield3), &extensible,
              slow);

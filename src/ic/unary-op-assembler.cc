@@ -145,7 +145,7 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
       Label if_smi(this), if_heapnumber(this), if_oddball(this);
       Label if_bigint(this, Label::kDeferred);
       Label if_other(this, Label::kDeferred);
-      TNode<Object> value = var_value.value();
+      value = var_value.value();
       GotoIf(TaggedIsSmi(value), &if_smi);
 
       TNode<HeapObject> value_heap_object = CAST(value);

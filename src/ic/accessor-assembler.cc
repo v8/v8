@@ -28,6 +28,11 @@ namespace internal {
 
 //////////////////// Private helpers.
 
+#define LOAD_KIND(kind) \
+  IntPtrConstant(static_cast<intptr_t>(LoadHandler::Kind::kind))
+#define STORE_KIND(kind) \
+  Int32Constant(static_cast<intptr_t>(StoreHandler::Kind::kind))
+
 // Loads dataX field from the DataHandler object.
 TNode<MaybeObject> AccessorAssembler::LoadHandlerDataField(
     TNode<DataHandler> handler, int data_index) {
@@ -267,13 +272,10 @@ void AccessorAssembler::HandleLoadAccessor(
 
   TVARIABLE(HeapObject, api_holder, CAST(p->lookup_start_object()));
   Label load(this);
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kApiGetter)),
-         &load);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetter)), &load);
 
-  CSA_ASSERT(
-      this,
-      WordEqual(handler_kind,
-                IntPtrConstant(LoadHandler::kApiGetterHolderIsPrototype)));
+  CSA_ASSERT(this,
+             WordEqual(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)));
 
   api_holder = LoadMapPrototype(LoadMap(CAST(p->lookup_start_object())));
   Goto(&load);
@@ -475,18 +477,14 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
         if_oob(this, Label::kDeferred), try_string_to_array_index(this),
         emit_element_load(this);
     TVARIABLE(IntPtrT, var_intptr_index);
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kElement)),
-           &if_element);
+    GotoIf(WordEqual(handler_kind, LOAD_KIND(kElement)), &if_element);
 
     if (access_mode == LoadAccessMode::kHas) {
-      CSA_ASSERT(this,
-                 WordNotEqual(handler_kind,
-                              IntPtrConstant(LoadHandler::kIndexedString)));
+      CSA_ASSERT(this, WordNotEqual(handler_kind, LOAD_KIND(kIndexedString)));
       Goto(&if_property);
     } else {
-      Branch(
-          WordEqual(handler_kind, IntPtrConstant(LoadHandler::kIndexedString)),
-          &if_indexed_string, &if_property);
+      Branch(WordEqual(handler_kind, LOAD_KIND(kIndexedString)),
+             &if_indexed_string, &if_property);
     }
 
     BIND(&if_element);
@@ -588,19 +586,19 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     if (access_mode != LoadAccessMode::kHas) {
       BIND(&if_indexed_string);
       {
-        Label if_oob(this, Label::kDeferred);
+        Label if_oob_string(this, Label::kDeferred);
 
         Comment("indexed string");
         TNode<String> string_holder = CAST(holder);
         TNode<UintPtrT> index = Unsigned(TryToIntptr(p->name(), miss));
         TNode<UintPtrT> length =
             Unsigned(LoadStringLengthAsWord(string_holder));
-        GotoIf(UintPtrGreaterThanOrEqual(index, length), &if_oob);
+        GotoIf(UintPtrGreaterThanOrEqual(index, length), &if_oob_string);
         TNode<Int32T> code = StringCharCodeAt(string_holder, index);
         TNode<String> result = StringFromSingleCharCode(code);
         Return(result);
 
-        BIND(&if_oob);
+        BIND(&if_oob_string);
         TNode<BoolT> allow_out_of_bounds =
             IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
         GotoIfNot(allow_out_of_bounds, miss);
@@ -637,41 +635,32 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       native_data_property(this, Label::kDeferred),
       api_getter(this, Label::kDeferred);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)), &field);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kField)), &field);
 
-  GotoIf(WordEqual(handler_kind,
-                   IntPtrConstant(LoadHandler::kConstantFromPrototype)),
-         &constant);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kConstantFromPrototype)), &constant);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNonExistent)),
-         &nonexistent);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNonExistent)), &nonexistent);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNormal)),
-         &normal);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNormal)), &normal);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kAccessor)),
-         &accessor);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kAccessor)), &accessor);
 
-  GotoIf(
-      WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNativeDataProperty)),
-      &native_data_property);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNativeDataProperty)),
+         &native_data_property);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kApiGetter)),
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetter)), &api_getter);
+
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)),
          &api_getter);
 
-  GotoIf(WordEqual(handler_kind,
-                   IntPtrConstant(LoadHandler::kApiGetterHolderIsPrototype)),
-         &api_getter);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kGlobal)), &global);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kGlobal)),
-         &global);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kSlow)), &slow);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kSlow)), &slow);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kProxy)), &proxy);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kProxy)), &proxy);
-
-  Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kModuleExport)),
-         &module_export, &interceptor);
+  Branch(WordEqual(handler_kind, LOAD_KIND(kModuleExport)), &module_export,
+         &interceptor);
 
   BIND(&field);
   {
@@ -876,37 +865,27 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
   Label return_true(this), return_false(this), return_lookup(this),
       normal(this), global(this), slow(this);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)),
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kField)), &return_true);
+
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kConstantFromPrototype)),
          &return_true);
 
-  GotoIf(WordEqual(handler_kind,
-                   IntPtrConstant(LoadHandler::kConstantFromPrototype)),
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNonExistent)), &return_false);
+
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNormal)), &normal);
+
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kAccessor)), &return_true);
+
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kNativeDataProperty)), &return_true);
+
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetter)), &return_true);
+
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kApiGetterHolderIsPrototype)),
          &return_true);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNonExistent)),
-         &return_false);
+  GotoIf(WordEqual(handler_kind, LOAD_KIND(kSlow)), &slow);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNormal)),
-         &normal);
-
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kAccessor)),
-         &return_true);
-
-  GotoIf(
-      WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNativeDataProperty)),
-      &return_true);
-
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kApiGetter)),
-         &return_true);
-
-  GotoIf(WordEqual(handler_kind,
-                   IntPtrConstant(LoadHandler::kApiGetterHolderIsPrototype)),
-         &return_true);
-
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kSlow)), &slow);
-
-  Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kGlobal)), &global,
-         &return_lookup);
+  Branch(WordEqual(handler_kind, LOAD_KIND(kGlobal)), &global, &return_lookup);
 
   BIND(&return_true);
   exit_point->Return(TrueConstant());
@@ -918,12 +897,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
   {
     CSA_ASSERT(
         this,
-        Word32Or(
-            WordEqual(handler_kind, IntPtrConstant(LoadHandler::kInterceptor)),
-            Word32Or(
-                WordEqual(handler_kind, IntPtrConstant(LoadHandler::kProxy)),
-                WordEqual(handler_kind,
-                          IntPtrConstant(LoadHandler::kModuleExport)))));
+        Word32Or(WordEqual(handler_kind, LOAD_KIND(kInterceptor)),
+                 Word32Or(WordEqual(handler_kind, LOAD_KIND(kProxy)),
+                          WordEqual(handler_kind, LOAD_KIND(kModuleExport)))));
     exit_point->ReturnCallStub(
         Builtins::CallableFor(isolate(), Builtin::kHasProperty), p->context(),
         p->receiver(), p->name());
@@ -1123,11 +1099,9 @@ void AccessorAssembler::HandleLoadICProtoHandler(
   {
     // If the "maybe_holder_or_constant" in the handler is a smi, then it's
     // guaranteed that it's not a holder object, but a constant value.
-    CSA_ASSERT(
-        this,
-        WordEqual(
-            Signed(DecodeWord<LoadHandler::KindBits>(SmiUntag(smi_handler))),
-            IntPtrConstant(LoadHandler::kConstantFromPrototype)));
+    CSA_ASSERT(this, WordEqual(Signed(DecodeWord<LoadHandler::KindBits>(
+                                   SmiUntag(smi_handler))),
+                               LOAD_KIND(kConstantFromPrototype)));
     if (access_mode == LoadAccessMode::kHas) {
       exit_point->Return(TrueConstant());
     } else {
@@ -1221,25 +1195,24 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     Label if_fast_smi(this), if_proxy(this), if_interceptor(this),
         if_slow(this);
 
-    STATIC_ASSERT(StoreHandler::kGlobalProxy + 1 == StoreHandler::kNormal);
-    STATIC_ASSERT(StoreHandler::kNormal + 1 == StoreHandler::kInterceptor);
-    STATIC_ASSERT(StoreHandler::kInterceptor + 1 == StoreHandler::kSlow);
-    STATIC_ASSERT(StoreHandler::kSlow + 1 == StoreHandler::kProxy);
-    STATIC_ASSERT(StoreHandler::kProxy + 1 == StoreHandler::kKindsNumber);
+#define ASSERT_CONSECUTIVE(a, b)                                    \
+  STATIC_ASSERT(static_cast<intptr_t>(StoreHandler::Kind::a) + 1 == \
+                static_cast<intptr_t>(StoreHandler::Kind::b));
+    ASSERT_CONSECUTIVE(kGlobalProxy, kNormal)
+    ASSERT_CONSECUTIVE(kNormal, kInterceptor)
+    ASSERT_CONSECUTIVE(kInterceptor, kSlow)
+    ASSERT_CONSECUTIVE(kSlow, kProxy)
+    ASSERT_CONSECUTIVE(kProxy, kKindsNumber)
+#undef ASSERT_CONSECUTIVE
 
     TNode<Uint32T> handler_kind =
         DecodeWord32<StoreHandler::KindBits>(handler_word);
-    GotoIf(
-        Int32LessThan(handler_kind, Int32Constant(StoreHandler::kGlobalProxy)),
-        &if_fast_smi);
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kProxy)),
-           &if_proxy);
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kInterceptor)),
+    GotoIf(Int32LessThan(handler_kind, STORE_KIND(kGlobalProxy)), &if_fast_smi);
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kProxy)), &if_proxy);
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kInterceptor)),
            &if_interceptor);
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kSlow)),
-           &if_slow);
-    CSA_ASSERT(this,
-               Word32Equal(handler_kind, Int32Constant(StoreHandler::kNormal)));
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kSlow)), &if_slow);
+    CSA_ASSERT(this, Word32Equal(handler_kind, STORE_KIND(kNormal)));
     TNode<PropertyDictionary> properties =
         CAST(LoadSlowProperties(CAST(holder)));
 
@@ -1282,14 +1255,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_fast_smi);
     {
-      TNode<Uint32T> handler_kind =
-          DecodeWord32<StoreHandler::KindBits>(handler_word);
-
       Label data(this), accessor(this), native_data_property(this);
-      GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kAccessor)),
-             &accessor);
-      Branch(Word32Equal(handler_kind,
-                         Int32Constant(StoreHandler::kNativeDataProperty)),
+      GotoIf(Word32Equal(handler_kind, STORE_KIND(kAccessor)), &accessor);
+      Branch(Word32Equal(handler_kind, STORE_KIND(kNativeDataProperty)),
              &native_data_property, &data);
 
       BIND(&accessor);
@@ -1764,36 +1732,28 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
     TNode<Uint32T> handler_kind =
         DecodeWord32<StoreHandler::KindBits>(handler_word);
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kNormal)),
-           &if_add_normal);
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kNormal)), &if_add_normal);
 
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kSlow)),
-           &if_slow);
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kSlow)), &if_slow);
 
     TNode<MaybeObject> maybe_holder = LoadHandlerDataField(handler, 1);
     CSA_ASSERT(this, IsWeakOrCleared(maybe_holder));
     TNode<HeapObject> holder = GetHeapObjectAssumeWeak(maybe_holder, miss);
 
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kGlobalProxy)),
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kGlobalProxy)),
            &if_store_global_proxy);
 
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kAccessor)),
-           &if_accessor);
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kAccessor)), &if_accessor);
 
-    GotoIf(Word32Equal(handler_kind,
-                       Int32Constant(StoreHandler::kNativeDataProperty)),
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kNativeDataProperty)),
            &if_native_data_property);
 
-    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kApiSetter)),
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kApiSetter)), &if_api_setter);
+
+    GotoIf(Word32Equal(handler_kind, STORE_KIND(kApiSetterHolderIsPrototype)),
            &if_api_setter);
 
-    GotoIf(
-        Word32Equal(handler_kind,
-                    Int32Constant(StoreHandler::kApiSetterHolderIsPrototype)),
-        &if_api_setter);
-
-    CSA_ASSERT(this,
-               Word32Equal(handler_kind, Int32Constant(StoreHandler::kProxy)));
+    CSA_ASSERT(this, Word32Equal(handler_kind, STORE_KIND(kProxy)));
     HandleStoreToProxy(p, CAST(holder), miss, support_elements);
 
     BIND(&if_slow);
@@ -1864,13 +1824,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
       TVARIABLE(Object, api_holder, p->receiver());
       Label store(this);
-      GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kApiSetter)),
-             &store);
+      GotoIf(Word32Equal(handler_kind, STORE_KIND(kApiSetter)), &store);
 
-      CSA_ASSERT(this,
-                 Word32Equal(
-                     handler_kind,
-                     Int32Constant(StoreHandler::kApiSetterHolderIsPrototype)));
+      CSA_ASSERT(this, Word32Equal(handler_kind,
+                                   STORE_KIND(kApiSetterHolderIsPrototype)));
 
       api_holder = LoadMapPrototype(LoadMap(CAST(p->receiver())));
       Goto(&store);
@@ -1935,11 +1892,9 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
 #ifdef DEBUG
   TNode<Uint32T> handler_kind =
       DecodeWord32<StoreHandler::KindBits>(handler_word);
-  CSA_ASSERT(
-      this,
-      Word32Or(
-          Word32Equal(handler_kind, Int32Constant(StoreHandler::kField)),
-          Word32Equal(handler_kind, Int32Constant(StoreHandler::kConstField))));
+  CSA_ASSERT(this,
+             Word32Or(Word32Equal(handler_kind, STORE_KIND(kField)),
+                      Word32Equal(handler_kind, STORE_KIND(kConstField))));
 #endif
 
   TNode<Uint32T> field_representation =
@@ -2005,7 +1960,7 @@ void AccessorAssembler::CheckHeapObjectTypeMatchesDescriptor(
   // Skip field type check in favor of constant value check when storing
   // to constant field.
   GotoIf(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
-                     Int32Constant(StoreHandler::kConstField)),
+                     STORE_KIND(kConstField)),
          &done);
   TNode<IntPtrT> descriptor =
       Signed(DecodeWordFromWord32<StoreHandler::DescriptorBits>(handler_word));
@@ -2048,8 +2003,6 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
     TNode<Word32T> handler_word, TNode<JSObject> holder, TNode<Object> value,
     base::Optional<TNode<Float64T>> double_value, Representation representation,
     Label* miss) {
-  Label done(this);
-
   bool store_value_as_double = representation.IsDouble();
 
   TNode<BoolT> is_inobject =
@@ -2085,7 +2038,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
   // Do constant value check if necessary.
   Label do_store(this);
   GotoIfNot(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
-                        Int32Constant(StoreHandler::kConstField)),
+                        STORE_KIND(kConstField)),
             &do_store);
   {
     if (store_value_as_double) {
@@ -2624,56 +2577,58 @@ void AccessorAssembler::GenericPropertyLoad(
   GotoIf(IsSetWord32<Map::Bits3::IsDictionaryMapBit>(bitfield3),
          &if_property_dictionary);
 
-  // Try looking up the property on the lookup_start_object; if unsuccessful,
-  // look for a handler in the stub cache.
-  TNode<DescriptorArray> descriptors =
-      LoadMapDescriptors(lookup_start_object_map);
-
-  Label if_descriptor_found(this), try_stub_cache(this);
-  TVARIABLE(IntPtrT, var_name_index);
-  Label* notfound = use_stub_cache == kUseStubCache ? &try_stub_cache
-                                                    : &lookup_prototype_chain;
-  DescriptorLookup(name, descriptors, bitfield3, &if_descriptor_found,
-                   &var_name_index, notfound);
-
-  BIND(&if_descriptor_found);
   {
-    LoadPropertyFromFastObject(lookup_start_object, lookup_start_object_map,
-                               descriptors, var_name_index.value(),
-                               &var_details, &var_value);
-    Goto(&if_found_on_lookup_start_object);
-  }
+    // Try looking up the property on the lookup_start_object; if unsuccessful,
+    // look for a handler in the stub cache.
+    TNode<DescriptorArray> descriptors =
+        LoadMapDescriptors(lookup_start_object_map);
 
-  if (use_stub_cache == kUseStubCache) {
-    DCHECK_EQ(lookup_start_object, p->receiver_and_lookup_start_object());
-    Label stub_cache(this);
-    BIND(&try_stub_cache);
-    // When there is no feedback vector don't use stub cache.
-    GotoIfNot(IsUndefined(p->vector()), &stub_cache);
-    // Fall back to the slow path for private symbols.
-    Branch(IsPrivateSymbol(name), slow, &lookup_prototype_chain);
+    Label if_descriptor_found(this), try_stub_cache(this);
+    TVARIABLE(IntPtrT, var_name_index);
+    Label* notfound = use_stub_cache == kUseStubCache ? &try_stub_cache
+                                                      : &lookup_prototype_chain;
+    DescriptorLookup(name, descriptors, bitfield3, &if_descriptor_found,
+                     &var_name_index, notfound);
 
-    BIND(&stub_cache);
-    Comment("stub cache probe for fast property load");
-    TVARIABLE(MaybeObject, var_handler);
-    Label found_handler(this, &var_handler), stub_cache_miss(this);
-    TryProbeStubCache(isolate()->load_stub_cache(), lookup_start_object, name,
-                      &found_handler, &var_handler, &stub_cache_miss);
-    BIND(&found_handler);
+    BIND(&if_descriptor_found);
     {
-      LazyLoadICParameters lazy_p(p);
-      HandleLoadICHandlerCase(&lazy_p, CAST(var_handler.value()),
-                              &stub_cache_miss, &direct_exit);
+      LoadPropertyFromFastObject(lookup_start_object, lookup_start_object_map,
+                                 descriptors, var_name_index.value(),
+                                 &var_details, &var_value);
+      Goto(&if_found_on_lookup_start_object);
     }
 
-    BIND(&stub_cache_miss);
-    {
-      // TODO(jkummerow): Check if the property exists on the prototype
-      // chain. If it doesn't, then there's no point in missing.
-      Comment("KeyedLoadGeneric_miss");
-      TailCallRuntime(Runtime::kKeyedLoadIC_Miss, p->context(),
-                      p->receiver_and_lookup_start_object(), name, p->slot(),
-                      p->vector());
+    if (use_stub_cache == kUseStubCache) {
+      DCHECK_EQ(lookup_start_object, p->receiver_and_lookup_start_object());
+      Label stub_cache(this);
+      BIND(&try_stub_cache);
+      // When there is no feedback vector don't use stub cache.
+      GotoIfNot(IsUndefined(p->vector()), &stub_cache);
+      // Fall back to the slow path for private symbols.
+      Branch(IsPrivateSymbol(name), slow, &lookup_prototype_chain);
+
+      BIND(&stub_cache);
+      Comment("stub cache probe for fast property load");
+      TVARIABLE(MaybeObject, var_handler);
+      Label found_handler(this, &var_handler), stub_cache_miss(this);
+      TryProbeStubCache(isolate()->load_stub_cache(), lookup_start_object, name,
+                        &found_handler, &var_handler, &stub_cache_miss);
+      BIND(&found_handler);
+      {
+        LazyLoadICParameters lazy_p(p);
+        HandleLoadICHandlerCase(&lazy_p, CAST(var_handler.value()),
+                                &stub_cache_miss, &direct_exit);
+      }
+
+      BIND(&stub_cache_miss);
+      {
+        // TODO(jkummerow): Check if the property exists on the prototype
+        // chain. If it doesn't, then there's no point in missing.
+        Comment("KeyedLoadGeneric_miss");
+        TailCallRuntime(Runtime::kKeyedLoadIC_Miss, p->context(),
+                        p->receiver_and_lookup_start_object(), name, p->slot(),
+                        p->vector());
+      }
     }
   }
 
@@ -3420,16 +3375,18 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
     // slot.
     Comment("KeyedLoadIC_try_polymorphic_name");
     TVARIABLE(Name, var_name);
-    TVARIABLE(IntPtrT, var_index);
     Label if_polymorphic_name(this), feedback_matches(this),
         if_internalized(this), if_notinternalized(this, Label::kDeferred);
 
     // Fast-case: The recorded {feedback} matches the {name}.
     GotoIf(TaggedEqual(strong_feedback, p->name()), &feedback_matches);
 
-    // Try to internalize the {name} if it isn't already.
-    TryToName(p->name(), &miss, &var_index, &if_internalized, &var_name, &miss,
-              &if_notinternalized);
+    {
+      // Try to internalize the {name} if it isn't already.
+      TVARIABLE(IntPtrT, var_index);
+      TryToName(p->name(), &miss, &var_index, &if_internalized, &var_name,
+                &miss, &if_notinternalized);
+    }
 
     BIND(&if_internalized);
     {
@@ -3929,8 +3886,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TNode<Int32T> handler_word = SmiToInt32(CAST(var_handler.value()));
         TNode<Uint32T> handler_kind =
             DecodeWord32<StoreHandler::KindBits>(handler_word);
-        CSA_ASSERT(this, Word32Equal(handler_kind,
-                                     Int32Constant(StoreHandler::kSlow)));
+        CSA_ASSERT(this, Word32Equal(handler_kind, STORE_KIND(kSlow)));
 #endif
 
         Comment("StoreInArrayLiteralIC_Slow");
@@ -4589,8 +4545,8 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // elements kind with the source object.
     TNode<FixedArrayBase> source_elements = LoadElements(CAST(source));
 
-    auto flags = ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW;
-    var_elements = CAST(CloneFixedArray(source_elements, flags));
+    auto flag = ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW;
+    var_elements = CAST(CloneFixedArray(source_elements, flag));
 
     // Copy the PropertyArray backing store. The source PropertyArray must be
     // either an Smi, or a PropertyArray.
@@ -4792,6 +4748,9 @@ void AccessorAssembler::BranchIfPrototypesHaveNoElements(
     }
   }
 }
+
+#undef LOAD_KIND
+#undef STORE_KIND
 
 }  // namespace internal
 }  // namespace v8
