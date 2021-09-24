@@ -253,8 +253,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                                                        i.pc() + 1, module);
         os << " @" << i.pc_offset();
         CHECK(decoder.Validate(i.pc() + 1, imm));
-        for (uint32_t i = 0; i < imm.out_arity(); i++) {
-          os << " " << imm.out_type(i).name();
+        for (uint32_t j = 0; j < imm.out_arity(); j++) {
+          os << " " << imm.out_type(j).name();
         }
         control_depth++;
         break;

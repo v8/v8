@@ -2344,7 +2344,7 @@ class LiftoffCompiler {
     __ PushRegister(kind, value);
   }
 
-  void GlobalSet(FullDecoder* decoder, const Value& value,
+  void GlobalSet(FullDecoder* decoder, const Value&,
                  const GlobalIndexImmediate<validate>& imm) {
     auto* global = &env_->module->globals[imm.index];
     ValueKind kind = global->type.kind();
@@ -4176,8 +4176,9 @@ class LiftoffCompiler {
         Load64BitExceptionValue(value, values_array, index, pinned);
         break;
       case kF64: {
-        RegClass rc = reg_class_for(kI64);
-        LiftoffRegister tmp_reg = pinned.set(__ GetUnusedRegister(rc, pinned));
+        RegClass rc_i64 = reg_class_for(kI64);
+        LiftoffRegister tmp_reg =
+            pinned.set(__ GetUnusedRegister(rc_i64, pinned));
         Load64BitExceptionValue(tmp_reg, values_array, index, pinned);
         __ emit_type_conversion(kExprF64ReinterpretI64, value, tmp_reg,
                                 nullptr);

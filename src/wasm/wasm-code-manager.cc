@@ -450,8 +450,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
         os << " registers: ";
         uint32_t register_bits = entry.register_bits();
         int bits = 32 - base::bits::CountLeadingZeros32(register_bits);
-        for (int i = bits - 1; i >= 0; --i) {
-          os << ((register_bits >> i) & 1);
+        for (int j = bits - 1; j >= 0; --j) {
+          os << ((register_bits >> j) & 1);
         }
       }
       os << "\n";

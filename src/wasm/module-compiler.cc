@@ -1531,13 +1531,13 @@ class CompilationTimeCallback {
         native_module_(std::move(native_module)),
         compile_mode_(compile_mode) {}
 
-  void operator()(CompilationEvent event) {
+  void operator()(CompilationEvent compilation_event) {
     DCHECK(base::TimeTicks::IsHighResolution());
     std::shared_ptr<NativeModule> native_module = native_module_.lock();
     if (!native_module) return;
     auto now = base::TimeTicks::Now();
     auto duration = now - start_time_;
-    if (event == CompilationEvent::kFinishedBaselineCompilation) {
+    if (compilation_event == CompilationEvent::kFinishedBaselineCompilation) {
       // Reset {start_time_} to measure tier-up time.
       start_time_ = now;
       if (compile_mode_ != kSynchronous) {
@@ -1562,7 +1562,7 @@ class CompilationTimeCallback {
               native_module->baseline_compilation_cpu_duration())};
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
-    if (event == CompilationEvent::kFinishedTopTierCompilation) {
+    if (compilation_event == CompilationEvent::kFinishedTopTierCompilation) {
       TimedHistogram* histogram = async_counters_->wasm_tier_up_module_time();
       histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
 
@@ -1574,7 +1574,7 @@ class CompilationTimeCallback {
               native_module->tier_up_cpu_duration())};
       metrics_recorder_->DelayMainThreadEvent(event, context_id_);
     }
-    if (event == CompilationEvent::kFailedCompilation) {
+    if (compilation_event == CompilationEvent::kFailedCompilation) {
       v8::metrics::WasmModuleCompiled event{
           (compile_mode_ != kSynchronous),         // async
           (compile_mode_ == kStreaming),           // streamed
