@@ -1400,14 +1400,14 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
   // kNullAddress.
   if (ExternalReference::new_space_allocation_top_address(isolate())
           .address() != kNullAddress) {
-    Address top_address =
+    Address raw_top_address =
         ExternalReference::new_space_allocation_top_address(isolate())
             .address();
-    Address limit_address =
+    Address raw_limit_address =
         ExternalReference::new_space_allocation_limit_address(isolate())
             .address();
 
-    CHECK_EQ(kSystemPointerSize, limit_address - top_address);
+    CHECK_EQ(kSystemPointerSize, raw_limit_address - raw_top_address);
   }
 
   DCHECK_EQ(kSystemPointerSize,
@@ -5917,11 +5917,11 @@ TNode<WordT> CodeStubAssembler::TimesDoubleSize(TNode<WordT> value) {
 }
 
 TNode<Object> CodeStubAssembler::ToThisValue(TNode<Context> context,
-                                             TNode<Object> value,
+                                             TNode<Object> input_value,
                                              PrimitiveType primitive_type,
                                              char const* method_name) {
   // We might need to loop once due to JSPrimitiveWrapper unboxing.
-  TVARIABLE(Object, var_value, value);
+  TVARIABLE(Object, var_value, input_value);
   Label loop(this, &var_value), done_loop(this),
       done_throw(this, Label::kDeferred);
   Goto(&loop);
@@ -8378,14 +8378,14 @@ void CodeStubAssembler::NameDictionaryLookup(
 
   // See Dictionary::FirstProbe().
   TNode<IntPtrT> count = IntPtrConstant(0);
-  TNode<IntPtrT> entry = Signed(WordAnd(hash, mask));
+  TNode<IntPtrT> initial_entry = Signed(WordAnd(hash, mask));
   TNode<Oddball> undefined = UndefinedConstant();
 
   // Appease the variable merging algorithm for "Goto(&loop)" below.
   *var_name_index = IntPtrConstant(0);
 
   TVARIABLE(IntPtrT, var_count, count);
-  TVARIABLE(IntPtrT, var_entry, entry);
+  TVARIABLE(IntPtrT, var_entry, initial_entry);
   Label loop(this, {&var_count, &var_entry, var_name_index});
   Goto(&loop);
   BIND(&loop);
@@ -8470,14 +8470,14 @@ void CodeStubAssembler::NumberDictionaryLookup(
 
   // See Dictionary::FirstProbe().
   TNode<IntPtrT> count = IntPtrConstant(0);
-  TNode<IntPtrT> entry = Signed(WordAnd(hash, mask));
+  TNode<IntPtrT> initial_entry = Signed(WordAnd(hash, mask));
 
   TNode<Oddball> undefined = UndefinedConstant();
   TNode<Oddball> the_hole = TheHoleConstant();
 
   TVARIABLE(IntPtrT, var_count, count);
   Label loop(this, {&var_count, var_entry});
-  *var_entry = entry;
+  *var_entry = initial_entry;
   Goto(&loop);
   BIND(&loop);
   {
@@ -9944,12 +9944,12 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
       GotoIf(IsNull(proto), if_end);
 
-      TNode<Map> map = LoadMap(proto);
-      TNode<Uint16T> instance_type = LoadMapInstanceType(map);
+      TNode<Map> proto_map = LoadMap(proto);
+      TNode<Uint16T> proto_instance_type = LoadMapInstanceType(proto_map);
 
       var_holder = proto;
-      var_holder_map = map;
-      var_holder_instance_type = instance_type;
+      var_holder_map = proto_map;
+      var_holder_instance_type = proto_instance_type;
       Goto(&loop);
     }
   }
@@ -9974,12 +9974,12 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
       GotoIf(IsNull(proto), if_end);
 
-      TNode<Map> map = LoadMap(proto);
-      TNode<Uint16T> instance_type = LoadMapInstanceType(map);
+      TNode<Map> proto_map = LoadMap(proto);
+      TNode<Uint16T> proto_instance_type = LoadMapInstanceType(proto_map);
 
       var_holder = proto;
-      var_holder_map = map;
-      var_holder_instance_type = instance_type;
+      var_holder_map = proto_map;
+      var_holder_instance_type = proto_instance_type;
       Goto(&loop);
     }
   }
@@ -12318,8 +12318,8 @@ TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
       BIND(&if_right_not_smi);
       {
         TNode<Map> right_map = LoadMap(CAST(right));
-        Label if_right_heapnumber(this), if_right_boolean(this),
-            if_right_oddball(this), if_right_bigint(this, Label::kDeferred),
+        Label if_right_heapnumber(this), if_right_oddball(this),
+            if_right_bigint(this, Label::kDeferred),
             if_right_receiver(this, Label::kDeferred);
         GotoIf(IsHeapNumberMap(right_map), &if_right_heapnumber);
 
