@@ -84,10 +84,17 @@ using compiler::Node;
 
 #define WASM_WRAPPER_RETURN_VALUE 8754
 
-#define BUILD(r, ...)                      \
-  do {                                     \
-    byte code[] = {__VA_ARGS__};           \
-    r.Build(code, code + arraysize(code)); \
+#define BUILD(r, ...)                            \
+  do {                                           \
+    byte __code[] = {__VA_ARGS__};               \
+    r.Build(__code, __code + arraysize(__code)); \
+  } while (false)
+
+#define ADD_CODE(vec, ...)                           \
+  do {                                               \
+    byte __buf[] = {__VA_ARGS__};                    \
+    for (size_t __i = 0; __i < sizeof(__buf); __i++) \
+      vec.push_back(__buf[__i]);                     \
   } while (false)
 
 // For tests that must manually import a JSFunction with source code.

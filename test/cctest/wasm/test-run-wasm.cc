@@ -1648,10 +1648,10 @@ WASM_EXEC_TEST(LoadMem_offset_oob) {
     r.builder().AddMemoryElems<byte>(num_bytes);
     r.builder().RandomizeMemory(1116 + static_cast<int>(m));
 
-    constexpr byte offset = 8;
-    uint32_t boundary = num_bytes - offset - machineTypes[m].MemSize();
+    constexpr byte kOffset = 8;
+    uint32_t boundary = num_bytes - kOffset - machineTypes[m].MemSize();
 
-    BUILD(r, WASM_LOAD_MEM_OFFSET(machineTypes[m], offset, WASM_LOCAL_GET(0)),
+    BUILD(r, WASM_LOAD_MEM_OFFSET(machineTypes[m], kOffset, WASM_LOCAL_GET(0)),
           WASM_DROP, WASM_ZERO);
 
     CHECK_EQ(0, r.Call(boundary));  // in bounds.
@@ -2743,12 +2743,6 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   }
 }
 
-#define ADD_CODE(vec, ...)                                              \
-  do {                                                                  \
-    byte __buf[] = {__VA_ARGS__};                                       \
-    for (size_t i = 0; i < sizeof(__buf); ++i) vec.push_back(__buf[i]); \
-  } while (false)
-
 static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
   const int kExpected = 6333;
   const int kElemSize = 8;
@@ -2778,8 +2772,8 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     for (int i = 0; i < num_params; ++i) {
       b.AddParam(ValueType::For(memtypes[i]));
     }
-    WasmFunctionCompiler& t = r.NewFunction(b.Build());
-    BUILD(t, WASM_LOCAL_GET(which));
+    WasmFunctionCompiler& f = r.NewFunction(b.Build());
+    BUILD(f, WASM_LOCAL_GET(which));
 
     // =========================================================================
     // Build the calling function.
@@ -2793,7 +2787,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     }
 
     // Call the selector function.
-    ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
+    ADD_CODE(code, WASM_CALL_FUNCTION0(f.function_index()));
 
     // Store the result in a local.
     byte local_index = r.AllocateLocal(ValueType::For(result));
@@ -2817,8 +2811,8 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
       for (int i = 0; i < size; ++i) {
         int base = (which + 1) * kElemSize;
         byte expected = r.builder().raw_mem_at<byte>(base + i);
-        byte result = r.builder().raw_mem_at<byte>(i);
-        CHECK_EQ(expected, result);
+        byte actual = r.builder().raw_mem_at<byte>(i);
+        CHECK_EQ(expected, actual);
       }
     }
   }
@@ -3990,7 +3984,6 @@ TEST(Regression_1185323_1185492) {
 #undef B2
 #undef RET
 #undef RET_I8
-#undef ADD_CODE
 
 }  // namespace test_run_wasm
 }  // namespace wasm
