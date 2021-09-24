@@ -315,31 +315,33 @@ BUILTIN(DatePrototypeSetFullYear) {
   Handle<Object> year = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year,
                                      Object::ToNumber(isolate, year));
-  double y = year->Number(), m = 0.0, dt = 1.0;
+  double year_double = year->Number(), month_double = 0.0, day_double = 1.0;
   int time_within_day = 0;
   if (!std::isnan(date->value().Number())) {
     int64_t const time_ms = static_cast<int64_t>(date->value().Number());
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
     int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
     time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
-    int year, month, day;
-    isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
-    m = month;
-    dt = day;
+    int year_int, month_int, day_int;
+    isolate->date_cache()->YearMonthDayFromDays(days, &year_int, &month_int,
+                                                &day_int);
+    month_double = month_int;
+    day_double = day_int;
   }
   if (argc >= 2) {
     Handle<Object> month = args.at(2);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                        Object::ToNumber(isolate, month));
-    m = month->Number();
+    month_double = month->Number();
     if (argc >= 3) {
-      Handle<Object> date = args.at(3);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date,
-                                         Object::ToNumber(isolate, date));
-      dt = date->Number();
+      Handle<Object> day = args.at(3);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, day,
+                                         Object::ToNumber(isolate, day));
+      day_double = day->Number();
     }
   }
-  double time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
+  double time_val =
+      MakeDate(MakeDay(year_double, month_double, day_double), time_within_day);
   return SetLocalDateValue(isolate, date, time_val);
 }
 
@@ -534,30 +536,32 @@ BUILTIN(DatePrototypeSetUTCFullYear) {
   Handle<Object> year = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year,
                                      Object::ToNumber(isolate, year));
-  double y = year->Number(), m = 0.0, dt = 1.0;
+  double year_double = year->Number(), month_double = 0.0, day_double = 1.0;
   int time_within_day = 0;
   if (!std::isnan(date->value().Number())) {
     int64_t const time_ms = static_cast<int64_t>(date->value().Number());
     int const days = isolate->date_cache()->DaysFromTime(time_ms);
     time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
-    int year, month, day;
-    isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
-    m = month;
-    dt = day;
+    int year_int, month_int, day_int;
+    isolate->date_cache()->YearMonthDayFromDays(days, &year_int, &month_int,
+                                                &day_int);
+    month_double = month_int;
+    day_double = day_int;
   }
   if (argc >= 2) {
     Handle<Object> month = args.at(2);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                        Object::ToNumber(isolate, month));
-    m = month->Number();
+    month_double = month->Number();
     if (argc >= 3) {
-      Handle<Object> date = args.at(3);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date,
-                                         Object::ToNumber(isolate, date));
-      dt = date->Number();
+      Handle<Object> day = args.at(3);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, day,
+                                         Object::ToNumber(isolate, day));
+      day_double = day->Number();
     }
   }
-  double const time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
+  double const time_val =
+      MakeDate(MakeDay(year_double, month_double, day_double), time_within_day);
   return *JSDate::SetValue(date, DateCache::TimeClip(time_val));
 }
 
@@ -872,11 +876,11 @@ BUILTIN(DatePrototypeSetYear) {
   Handle<Object> year = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year,
                                      Object::ToNumber(isolate, year));
-  double m = 0.0, dt = 1.0, y = year->Number();
-  if (!std::isnan(y)) {
-    double y_int = DoubleToInteger(y);
-    if (0.0 <= y_int && y_int <= 99.0) {
-      y = 1900.0 + y_int;
+  double month_double = 0.0, day_double = 1.0, year_double = year->Number();
+  if (!std::isnan(year_double)) {
+    double year_int = DoubleToInteger(year_double);
+    if (0.0 <= year_int && year_int <= 99.0) {
+      year_double = 1900.0 + year_int;
     }
   }
   int time_within_day = 0;
@@ -885,12 +889,14 @@ BUILTIN(DatePrototypeSetYear) {
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
     int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
     time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
-    int year, month, day;
-    isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
-    m = month;
-    dt = day;
+    int year_int, month_int, day_int;
+    isolate->date_cache()->YearMonthDayFromDays(days, &year_int, &month_int,
+                                                &day_int);
+    month_double = month_int;
+    day_double = day_int;
   }
-  double time_val = MakeDate(MakeDay(y, m, dt), time_within_day);
+  double time_val =
+      MakeDate(MakeDay(year_double, month_double, day_double), time_within_day);
   return SetLocalDateValue(isolate, date, time_val);
 }
 

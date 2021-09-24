@@ -323,12 +323,13 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
               &next);
 
-    TNode<IntPtrT> object = BitcastTaggedToWord(
-        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
-    Branch(
-        IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
-        &next, &call_incremental_wb);
-
+    {
+      TNode<IntPtrT> object = BitcastTaggedToWord(
+          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+      Branch(
+          IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
+          &next, &call_incremental_wb);
+    }
     BIND(&call_incremental_wb);
     {
       TNode<ExternalReference> function = ExternalConstant(

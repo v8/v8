@@ -1481,17 +1481,17 @@ CollectionsBuiltinsAssembler::Transition(
     Goto(&loop);
     BIND(&loop);
     {
-      TNode<TableType> table = var_table.value();
-      TNode<IntPtrT> index = var_index.value();
+      TNode<TableType> current_table = var_table.value();
+      TNode<IntPtrT> current_index = var_index.value();
 
       TNode<Object> next_table =
-          LoadObjectField(table, TableType::NextTableOffset());
+          LoadObjectField(current_table, TableType::NextTableOffset());
       GotoIf(TaggedIsSmi(next_table), &done_loop);
 
       var_table = CAST(next_table);
-      var_index = SmiUntag(
-          CAST(CallBuiltin(Builtin::kOrderedHashTableHealIndex,
-                           NoContextConstant(), table, SmiTag(index))));
+      var_index = SmiUntag(CAST(CallBuiltin(Builtin::kOrderedHashTableHealIndex,
+                                            NoContextConstant(), current_table,
+                                            SmiTag(current_index))));
       Goto(&loop);
     }
     BIND(&done_loop);

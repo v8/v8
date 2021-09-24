@@ -1828,7 +1828,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       // Push the baseline code return address now, as if it had been pushed by
       // the call to this builtin.
       __ PushReturnAddressFrom(return_address);
-      FrameScope frame_scope(masm, StackFrame::INTERNAL);
+      FrameScope inner_frame_scope(masm, StackFrame::INTERNAL);
       // Save incoming new target or generator
       __ Push(new_target);
       __ SmiTag(frame_size);

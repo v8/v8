@@ -112,9 +112,9 @@ const char* Builtins::Lookup(Address pc) {
 
   // May be called during initialization (disassembler).
   if (!initialized_) return nullptr;
-  for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
-       ++builtin) {
-    if (code(builtin).contains(isolate_, pc)) return name(builtin);
+  for (Builtin builtin_ix = Builtins::kFirst; builtin_ix <= Builtins::kLast;
+       ++builtin_ix) {
+    if (code(builtin_ix).contains(isolate_, pc)) return name(builtin_ix);
   }
   return nullptr;
 }

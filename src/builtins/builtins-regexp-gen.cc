@@ -260,19 +260,19 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   {
     TNode<IntPtrT> from_cursor = var_from_cursor.value();
     TNode<IntPtrT> to_cursor = var_to_cursor.value();
-    TNode<Smi> start =
+    TNode<Smi> start_cursor =
         CAST(UnsafeLoadFixedArrayElement(match_info, from_cursor));
 
     Label next_iter(this);
-    GotoIf(SmiEqual(start, SmiConstant(-1)), &next_iter);
+    GotoIf(SmiEqual(start_cursor, SmiConstant(-1)), &next_iter);
 
     TNode<IntPtrT> from_cursor_plus1 =
         IntPtrAdd(from_cursor, IntPtrConstant(1));
-    TNode<Smi> end =
+    TNode<Smi> end_cursor =
         CAST(UnsafeLoadFixedArrayElement(match_info, from_cursor_plus1));
 
-    TNode<String> capture =
-        CAST(CallBuiltin(Builtin::kSubString, context, string, start, end));
+    TNode<String> capture = CAST(CallBuiltin(Builtin::kSubString, context,
+                                             string, start_cursor, end_cursor));
     UnsafeStoreFixedArrayElement(result_elements, to_cursor, capture);
     Goto(&next_iter);
 
@@ -338,10 +338,10 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
     TVARIABLE(IntPtrT, var_i, IntPtrZero());
 
-    Label loop(this, &var_i);
+    Label inner_loop(this, &var_i);
 
-    Goto(&loop);
-    BIND(&loop);
+    Goto(&inner_loop);
+    BIND(&inner_loop);
     {
       TNode<IntPtrT> i = var_i.value();
       TNode<IntPtrT> i_plus_1 = IntPtrAdd(i, IntPtrConstant(1));
@@ -371,7 +371,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
       var_i = i_plus_2;
       Branch(IntPtrGreaterThanOrEqual(var_i.value(), names_length),
-             &maybe_build_indices, &loop);
+             &maybe_build_indices, &inner_loop);
 
       BIND(&add_dictionary_property_slow);
       // If the dictionary needs resizing, the above Add call will jump here
@@ -1310,12 +1310,12 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
 
     // {maybe_flags} must be undefined in this case, otherwise throw.
     {
-      Label next(this);
-      GotoIf(IsUndefined(maybe_flags), &next);
+      Label maybe_flags_is_undefined(this);
+      GotoIf(IsUndefined(maybe_flags), &maybe_flags_is_undefined);
 
       ThrowTypeError(context, MessageTemplate::kRegExpFlags);
 
-      BIND(&next);
+      BIND(&maybe_flags_is_undefined);
     }
 
     const TNode<JSRegExp> pattern = CAST(maybe_pattern);

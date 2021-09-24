@@ -228,16 +228,16 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
 
     // Let nextDone be IteratorComplete(nextResult).
     // IfAbruptRejectPromise(nextDone, promiseCapability).
-    const TNode<Object> done =
+    const TNode<Object> iter_result_done =
         GetProperty(context, iter_result, factory()->done_string());
 
     // Let nextValue be IteratorValue(nextResult).
     // IfAbruptRejectPromise(nextValue, promiseCapability).
-    const TNode<Object> value =
+    const TNode<Object> iter_result_value =
         GetProperty(context, iter_result, factory()->value_string());
 
-    var_value = value;
-    var_done = done;
+    var_value = iter_result_value;
+    var_done = iter_result_done;
     Goto(&merge);
   }
 

@@ -1434,9 +1434,10 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
     TNode<Smi> length = smi_zero;
     TNode<IntPtrT> capacity = IntPtrConstant(0);
-    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length);
+    TNode<JSArray> result_array =
+        AllocateJSArray(kind, array_map, capacity, length);
 
-    args.PopAndReturn(result);
+    args.PopAndReturn(result_array);
   }
 }
 

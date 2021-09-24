@@ -1096,7 +1096,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   BIND(&no_properties);
   {
     TVARIABLE(Map, map);
-    TVARIABLE(HeapObject, properties);
+    TVARIABLE(HeapObject, new_properties);
     Label null_proto(this), non_null_proto(this), instantiate_map(this);
 
     Branch(IsNull(prototype), &null_proto, &non_null_proto);
@@ -1105,17 +1105,18 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     {
       map = LoadSlowObjectWithNullPrototypeMap(native_context);
       if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-        properties =
+        new_properties =
             AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
       } else {
-        properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
+        new_properties =
+            AllocateNameDictionary(NameDictionary::kInitialCapacity);
       }
       Goto(&instantiate_map);
     }
 
     BIND(&non_null_proto);
     {
-      properties = EmptyFixedArrayConstant();
+      new_properties = EmptyFixedArrayConstant();
       map = LoadObjectFunctionInitialMap(native_context);
       GotoIf(TaggedEqual(prototype, LoadMapPrototype(map.value())),
              &instantiate_map);
@@ -1133,7 +1134,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&instantiate_map);
     {
       TNode<JSObject> instance =
-          AllocateJSObjectFromMap(map.value(), properties.value());
+          AllocateJSObjectFromMap(map.value(), new_properties.value());
       args.PopAndReturn(instance);
     }
   }

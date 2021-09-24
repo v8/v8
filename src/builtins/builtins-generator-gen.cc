@@ -94,21 +94,21 @@ void GeneratorBuiltinsAssembler::InnerResume(
   BIND(&if_receiverisclosed);
   {
     // The {receiver} is closed already.
-    TNode<Object> result;
+    TNode<Object> builtin_result;
     switch (resume_mode) {
       case JSGeneratorObject::kNext:
-        result = CallBuiltin(Builtin::kCreateIterResultObject, context,
-                             UndefinedConstant(), TrueConstant());
+        builtin_result = CallBuiltin(Builtin::kCreateIterResultObject, context,
+                                     UndefinedConstant(), TrueConstant());
         break;
       case JSGeneratorObject::kReturn:
-        result = CallBuiltin(Builtin::kCreateIterResultObject, context, value,
-                             TrueConstant());
+        builtin_result = CallBuiltin(Builtin::kCreateIterResultObject, context,
+                                     value, TrueConstant());
         break;
       case JSGeneratorObject::kThrow:
-        result = CallRuntime(Runtime::kThrow, context, value);
+        builtin_result = CallRuntime(Runtime::kThrow, context, value);
         break;
     }
-    args->PopAndReturn(result);
+    args->PopAndReturn(builtin_result);
   }
 
   BIND(&if_receiverisrunning);

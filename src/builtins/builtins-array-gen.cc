@@ -369,8 +369,8 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    TNode<Int32T> kind = LoadElementsKind(array_receiver);
-    GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
+    TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
+    GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
 
     GotoIfNotNumber(arg, &object_push);
@@ -413,8 +413,8 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    TNode<Int32T> kind = LoadElementsKind(array_receiver);
-    GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
+    TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
+    GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
     Goto(&object_push);
   }
@@ -806,16 +806,16 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
 
     BIND(&not_nan_loop);
     {
-      Label continue_loop(this), not_smi(this);
+      Label continue_loop(this), element_k_not_smi(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
                 &return_not_found);
       TNode<Object> element_k =
           UnsafeLoadFixedArrayElement(elements, index_var.value());
-      GotoIfNot(TaggedIsSmi(element_k), &not_smi);
+      GotoIfNot(TaggedIsSmi(element_k), &element_k_not_smi);
       Branch(Float64Equal(search_num.value(), SmiToFloat64(CAST(element_k))),
              &return_found, &continue_loop);
 
-      BIND(&not_smi);
+      BIND(&element_k_not_smi);
       GotoIfNot(IsHeapNumber(CAST(element_k)), &continue_loop);
       Branch(Float64Equal(search_num.value(),
                           LoadHeapNumberValue(CAST(element_k))),
