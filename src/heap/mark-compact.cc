@@ -2462,10 +2462,10 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
       DCHECK_EQ(raw_target.ToSmi(), Smi::uninitialized_deserialization_value());
 #ifdef DEBUG
       // Targets can only be dead iff this array is fully deserialized.
-      for (int i = 0; i < num_transitions; ++i) {
+      for (int j = 0; j < num_transitions; ++j) {
         DCHECK_IMPLIES(
-            !transitions.GetRawTarget(i).IsSmi(),
-            !non_atomic_marking_state()->IsWhite(transitions.GetTarget(i)));
+            !transitions.GetRawTarget(j).IsSmi(),
+            !non_atomic_marking_state()->IsWhite(transitions.GetTarget(j)));
       }
 #endif
       return false;
@@ -2473,8 +2473,8 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
                    TransitionsAccessor::GetTargetFromRaw(raw_target))) {
 #ifdef DEBUG
       // Targets can only be dead iff this array is fully deserialized.
-      for (int i = 0; i < num_transitions; ++i) {
-        DCHECK(!transitions.GetRawTarget(i).IsSmi());
+      for (int j = 0; j < num_transitions; ++j) {
+        DCHECK(!transitions.GetRawTarget(j).IsSmi());
       }
 #endif
       return true;
