@@ -292,7 +292,7 @@ class GCedHolder : public GarbageCollected<GCedHolder> {
 }  // namespace
 
 #if V8_ENABLE_CHECKS
-#ifdef CPPGC_VERIFY_HEAP
+#ifdef CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
 
 TEST_F(PrefinalizerDeathTest, PrefinalizerCantRewireGraphWithDeadObjects) {
   Persistent<LinkedNode> root{MakeGarbageCollected<LinkedNode>(
@@ -325,7 +325,7 @@ TEST_F(PrefinalizerDeathTest, PrefinalizerCantRessurectObjectOnHeap) {
   EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
 }
 
-#endif  // CPPGC_VERIFY_HEAP
+#endif  // CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
 #endif  // V8_ENABLE_CHECKS
 
 #ifdef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS

@@ -68,7 +68,7 @@ void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
     DCHECK(!header->IsFree());
   }
 
-#ifdef CPPGC_VERIFY_HEAP
+#ifdef CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
   if (heap_->prefinalizer_handler()->IsInvokingPreFinalizers()) {
     // During prefinalizers invocation, check that |ptr| refers to a live object
     // and that it is assigned to a live slot.
@@ -81,7 +81,7 @@ void EnabledCheckingPolicy::CheckPointerImpl(const void* ptr,
     DCHECK(slot_is_live);
     USE(slot_is_live);
   }
-#endif  // CPPGC_VERIFY_HEAP
+#endif  // CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
 }
 
 PersistentRegion& StrongPersistentPolicy::GetPersistentRegion(
