@@ -136,6 +136,7 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz"},
         close_tree = False,
+        notifies = ["NumFuzz maintainer"],
     ),
     v8_builder(
         name = "V8 NumFuzz - debug",
@@ -144,39 +145,10 @@ in_category(
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8.clusterfuzz"},
         close_tree = False,
+        notifies = ["NumFuzz maintainer"],
     ),
     v8_builder(
         name = "V8 NumFuzz - TSAN",
-        parent_builder = "V8 Clusterfuzz Linux64 TSAN - release builder",
-        bucket = "ci",
-        execution_timeout = 19800,
-        properties = {"builder_group": "client.v8.clusterfuzz"},
-        close_tree = False,
-    ),
-)
-
-in_category(
-    "Staging Fuzzers",
-    v8_builder(
-        name = "V8 NumFuzz - staging",
-        parent_builder = "V8 Clusterfuzz Linux64 - release builder",
-        bucket = "ci",
-        execution_timeout = 19800,
-        properties = {"builder_group": "client.v8.clusterfuzz"},
-        close_tree = False,
-        notifies = ["NumFuzz maintainer"],
-    ),
-    v8_builder(
-        name = "V8 NumFuzz - debug - staging",
-        parent_builder = "V8 Clusterfuzz Linux64 - debug builder",
-        bucket = "ci",
-        execution_timeout = 19800,
-        properties = {"builder_group": "client.v8.clusterfuzz"},
-        close_tree = False,
-        notifies = ["NumFuzz maintainer"],
-    ),
-    v8_builder(
-        name = "V8 NumFuzz - TSAN - staging",
         parent_builder = "V8 Clusterfuzz Linux64 TSAN - release builder",
         bucket = "ci",
         execution_timeout = 19800,
