@@ -59,7 +59,7 @@ Smi PropertyDetails::AsSmi() const {
 }
 
 int PropertyDetails::field_width_in_words() const {
-  DCHECK_EQ(location(), kField);
+  DCHECK_EQ(location(), PropertyLocation::kField);
   return 1;
 }
 

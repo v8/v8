@@ -1481,8 +1481,9 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
              Word32Equal(DecodeWord32<PropertyDetails::KindField>(details),
                          Int32Constant(kData)));
 
-  Branch(Word32Equal(DecodeWord32<PropertyDetails::LocationField>(details),
-                     Int32Constant(kField)),
+  Branch(Word32Equal(
+             DecodeWord32<PropertyDetails::LocationField>(details),
+             Int32Constant(static_cast<int32_t>(PropertyLocation::kField))),
          &if_field, &if_descriptor);
 
   BIND(&if_field);

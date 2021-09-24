@@ -9347,8 +9347,9 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
       DecodeWord32<PropertyDetails::LocationField>(details);
 
   Label if_in_field(this), if_in_descriptor(this), done(this);
-  Branch(Word32Equal(location, Int32Constant(kField)), &if_in_field,
-         &if_in_descriptor);
+  Branch(Word32Equal(location, Int32Constant(static_cast<int32_t>(
+                                   PropertyLocation::kField))),
+         &if_in_field, &if_in_descriptor);
   BIND(&if_in_field);
   {
     TNode<IntPtrT> field_index =

@@ -5238,7 +5238,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         from->map().instance_descriptors(isolate()), isolate());
     for (InternalIndex i : from->map().IterateOwnDescriptors()) {
       PropertyDetails details = descs->GetDetails(i);
-      if (details.location() == kField) {
+      if (details.location() == PropertyLocation::kField) {
         if (details.kind() == kData) {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i), isolate());
@@ -5255,7 +5255,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         }
 
       } else {
-        DCHECK_EQ(kDescriptor, details.location());
+        DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
         DCHECK_EQ(kAccessor, details.kind());
         Handle<Name> key(descs->GetKey(i), isolate());
         // If the property is already there we skip it.

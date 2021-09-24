@@ -1423,7 +1423,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
     for (InternalIndex i : js_obj.map().IterateOwnDescriptors()) {
       PropertyDetails details = descs.GetDetails(i);
       switch (details.location()) {
-        case kField: {
+        case PropertyLocation::kField: {
           if (!snapshot_->capture_numeric_value()) {
             Representation r = details.representation();
             if (r.IsSmi() || r.IsDouble()) break;
@@ -1439,7 +1439,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
                                              nullptr, field_offset);
           break;
         }
-        case kDescriptor:
+        case PropertyLocation::kDescriptor:
           SetDataOrAccessorPropertyReference(
               details.kind(), entry, descs.GetKey(i), descs.GetStrongValue(i));
           break;

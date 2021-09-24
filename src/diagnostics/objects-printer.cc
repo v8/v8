@@ -295,18 +295,18 @@ bool JSObject::PrintProperties(std::ostream& os) {
       os << ": ";
       PropertyDetails details = descs.GetDetails(i);
       switch (details.location()) {
-        case kField: {
+        case PropertyLocation::kField: {
           FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
           os << Brief(RawFastPropertyAt(field_index));
           break;
         }
-        case kDescriptor:
+        case PropertyLocation::kDescriptor:
           os << Brief(descs.GetStrongValue(i));
           break;
       }
       os << " ";
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
-      if (details.location() == kField) {
+      if (details.location() == PropertyLocation::kField) {
         int field_index = details.field_index();
         if (field_index < nof_inobject_properties) {
           os << ", location: in-object";
@@ -2665,12 +2665,12 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os,
   details.PrintAsFastTo(os, mode);
   os << " @ ";
   switch (details.location()) {
-    case kField: {
+    case PropertyLocation::kField: {
       FieldType field_type = GetFieldType(descriptor);
       field_type.PrintTo(os);
       break;
     }
-    case kDescriptor:
+    case PropertyLocation::kDescriptor:
       Object value = GetStrongValue(descriptor);
       os << Brief(value);
       if (value.IsAccessorPair()) {

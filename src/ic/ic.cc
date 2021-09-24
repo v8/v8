@@ -1134,7 +1134,8 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
         return LoadHandler::LoadSlow(isolate());
       } else {
-        DCHECK_EQ(kField, lookup->property_details().location());
+        DCHECK_EQ(PropertyLocation::kField,
+                  lookup->property_details().location());
 #if V8_ENABLE_WEBASSEMBLY
         if (V8_UNLIKELY(holder->IsWasmObject(isolate()))) {
           smi_handler =
@@ -1993,7 +1994,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       }
 
       // -------------- Fields --------------
-      if (lookup->property_details().location() == kField) {
+      if (lookup->property_details().location() == PropertyLocation::kField) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
         int descriptor = lookup->GetFieldDescriptorIndex();
         FieldIndex index = lookup->GetFieldIndex();
@@ -2010,7 +2011,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       }
 
       // -------------- Constant properties --------------
-      DCHECK_EQ(kDescriptor, lookup->property_details().location());
+      DCHECK_EQ(PropertyLocation::kDescriptor,
+                lookup->property_details().location());
       set_slow_stub_reason("constant property");
       TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
       return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));

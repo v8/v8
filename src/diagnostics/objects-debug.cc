@@ -417,7 +417,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(i);
-      if (details.location() == kField) {
+      if (details.location() == PropertyLocation::kField) {
         DCHECK_EQ(kData, details.kind());
         Representation r = details.representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
@@ -652,7 +652,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
       }
       MaybeObject value = GetValue(descriptor);
       HeapObject heap_object;
-      if (details.location() == kField) {
+      if (details.location() == PropertyLocation::kField) {
         CHECK_EQ(details.field_index(), expected_field_index);
         CHECK(
             value == MaybeObject::FromObject(FieldType::None()) ||

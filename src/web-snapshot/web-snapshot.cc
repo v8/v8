@@ -392,7 +392,7 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map, uint32_t& id) {
     PropertyDetails details =
         map->instance_descriptors(kRelaxedLoad).GetDetails(i);
 
-    if (details.location() != kField) {
+    if (details.location() != PropertyLocation::kField) {
       Throw("Web snapshot: Properties which are not fields not supported");
       return;
     }
@@ -1285,7 +1285,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
       ReadValue(value, wanted_representation, property_array, i);
       // Read the representation from the map.
       PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
-      CHECK_EQ(details.location(), kField);
+      CHECK_EQ(details.location(), PropertyLocation::kField);
       CHECK_EQ(kData, details.kind());
       Representation r = details.representation();
       if (r.IsNone()) {

@@ -782,7 +782,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
           map->instance_descriptors(isolate_).GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
-      if (details.location() == kField && *map == object->map()) {
+      if (details.location() == PropertyLocation::kField &&
+          *map == object->map()) {
         DCHECK_EQ(kData, details.kind());
         FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
         property = JSObject::FastPropertyAt(object, details.representation(),

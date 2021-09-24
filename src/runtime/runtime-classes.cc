@@ -298,7 +298,8 @@ bool AddDescriptorsByTemplate(
   int count = 0;
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     PropertyDetails details = descriptors_template->GetDetails(i);
-    if (details.location() == kDescriptor && details.kind() == kData) {
+    if (details.location() == PropertyLocation::kDescriptor &&
+        details.kind() == kData) {
       count++;
     }
   }
@@ -319,7 +320,7 @@ bool AddDescriptorsByTemplate(
     Name name = descriptors_template->GetKey(i);
     DCHECK(name.IsUniqueName());
     PropertyDetails details = descriptors_template->GetDetails(i);
-    if (details.location() == kDescriptor) {
+    if (details.location() == PropertyLocation::kDescriptor) {
       if (details.kind() == kData) {
         if (value.IsSmi()) {
           value = GetMethodWithSharedName(isolate, args, value);
@@ -344,11 +345,13 @@ bool AddDescriptorsByTemplate(
       UNREACHABLE();
     }
     DCHECK(value.FitsRepresentation(details.representation()));
-    if (details.location() == kDescriptor && details.kind() == kData) {
-      details = PropertyDetails(details.kind(), details.attributes(), kField,
-                                PropertyConstness::kConst,
-                                details.representation(), field_index)
-                    .set_pointer(details.pointer());
+    if (details.location() == PropertyLocation::kDescriptor &&
+        details.kind() == kData) {
+      details =
+          PropertyDetails(details.kind(), details.attributes(),
+                          PropertyLocation::kField, PropertyConstness::kConst,
+                          details.representation(), field_index)
+              .set_pointer(details.pointer());
 
       property_array->set(field_index, value);
       field_index++;
