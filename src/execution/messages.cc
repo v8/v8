@@ -821,11 +821,11 @@ MessageTemplate UpdateErrorTemplate(CallPrinter::ErrorHint hint,
 Handle<JSObject> ErrorUtils::NewIteratorError(Isolate* isolate,
                                               Handle<Object> source) {
   MessageLocation location;
-  CallPrinter::ErrorHint hint = CallPrinter::kNone;
+  CallPrinter::ErrorHint hint = CallPrinter::ErrorHint::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
   MessageTemplate id = MessageTemplate::kNotIterableNoSymbolLoad;
 
-  if (hint == CallPrinter::kNone) {
+  if (hint == CallPrinter::ErrorHint::kNone) {
     Handle<Symbol> iterator_symbol = isolate->factory()->iterator_symbol();
     return isolate->factory()->NewTypeError(id, callsite, iterator_symbol);
   }
@@ -871,7 +871,7 @@ Object ErrorUtils::ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
 Handle<JSObject> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
                                                        Handle<Object> source) {
   MessageLocation location;
-  CallPrinter::ErrorHint hint = CallPrinter::kNone;
+  CallPrinter::ErrorHint hint = CallPrinter::ErrorHint::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
   MessageTemplate id = MessageTemplate::kCalledNonCallable;
   id = UpdateErrorTemplate(hint, id);
@@ -881,7 +881,7 @@ Handle<JSObject> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
 Handle<JSObject> ErrorUtils::NewConstructedNonConstructable(
     Isolate* isolate, Handle<Object> source) {
   MessageLocation location;
-  CallPrinter::ErrorHint hint = CallPrinter::kNone;
+  CallPrinter::ErrorHint hint = CallPrinter::ErrorHint::kNone;
   Handle<String> callsite = RenderCallSite(isolate, source, &location, &hint);
   MessageTemplate id = MessageTemplate::kNotConstructor;
   return isolate->factory()->NewTypeError(id, callsite);
