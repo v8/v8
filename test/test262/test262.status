@@ -431,9 +431,6 @@
   'language/statements/class/subclass/derived-class-return-override-finally-super-arrow': [FAIL],
   'language/statements/class/subclass/derived-class-return-override-for-of-arrow': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12240
-  'language/module-code/namespace/internals/define-own-property': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

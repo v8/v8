@@ -160,6 +160,10 @@ class JSModuleNamespace
   static V8_WARN_UNUSED_RESULT Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);
 
+  static V8_WARN_UNUSED_RESULT Maybe<bool> DefineOwnProperty(
+      Isolate* isolate, Handle<JSModuleNamespace> o, Handle<Object> key,
+      PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
+
   // In-object fields.
   enum {
     kToStringTagFieldIndex,
