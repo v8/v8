@@ -341,10 +341,16 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
     DCHECK(first_size <= from_byte_length);
     DCHECK(from_byte_length - first_size >= new_len_size);
     uint8_t* from_data =
-        reinterpret_cast<uint8_t*>(array_buffer->backing_store());
+        reinterpret_cast<uint8_t*>(array_buffer->backing_store()) + first_size;
     uint8_t* to_data =
         reinterpret_cast<uint8_t*>(new_array_buffer->backing_store());
-    CopyBytes(to_data, from_data + first_size, new_len_size);
+    if (is_shared) {
+      base::Relaxed_Memcpy(reinterpret_cast<base::Atomic8*>(to_data),
+                           reinterpret_cast<base::Atomic8*>(from_data),
+                           new_len_size);
+    } else {
+      CopyBytes(to_data, from_data, new_len_size);
+    }
   }
 
   return *new_;
