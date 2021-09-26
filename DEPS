@@ -95,7 +95,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '715537d6007ca71837f48bcb04fc3d482aed2507',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '32fc0641a60b9815d4d28b9d0bf7a18339f9f12b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a169c196997a81ffb80db0422eeb4d22c6855b17',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '9d33a7111785c29f91e831d0ad3b01e04d7229ca',
   'buildtools/clang_format/script':
@@ -158,7 +158,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'y7X4kitLsRPSZc6ksrVllZRbH7mvEXlq9-4wOg7zR5cC'
+              'version': '6Vr4alb5803W2n5PbA5ZLwCcJznKdmFX1pDoy_5hfOAC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -288,7 +288,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'dfa96e81458fb3b39676e45f7e9e000dff789b05',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '77d41f045a522bd39d8ec5e9307363bda56a036c',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'efd7c814c2f02b1a1219ff649489b8fcfff342f4',
   'tools/clang/dsymutil': {
     'packages': [
       {
