@@ -785,9 +785,9 @@ void TestGeneralizeField(const CRFTData& from, const CRFTData& to,
     // Check the cases when the map being reconfigured is NOT a part of the
     // transition tree. "None -> anything" representation changes make sense
     // only for "attached" maps.
-    int indices[] = {0, kPropCount - 1};
-    for (int i = 0; i < static_cast<int>(arraysize(indices)); i++) {
-      TestGeneralizeField(indices[i], 2, from, to, expected, expected_alert);
+    int indices2[] = {0, kPropCount - 1};
+    for (int i = 0; i < static_cast<int>(arraysize(indices2)); i++) {
+      TestGeneralizeField(indices2[i], 2, from, to, expected, expected_alert);
     }
 
     // Check that reconfiguration to the very same field works correctly.
@@ -2196,8 +2196,8 @@ static void TestGeneralizeFieldWithSpecialTransition(
         if (config->is_non_equivalent_transition()) {
           // In case of non-equivalent transition currently we generalize all
           // representations.
-          for (int i = 0; i < kPropCount; i++) {
-            expectations2.GeneralizeField(i);
+          for (int j = 0; j < kPropCount; j++) {
+            expectations2.GeneralizeField(j);
           }
           CHECK(new_map2->GetBackPointer().IsUndefined(isolate));
           CHECK(expectations2.Check(*new_map2));
