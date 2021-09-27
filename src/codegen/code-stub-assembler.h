@@ -3563,9 +3563,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayByteLength(
       TNode<Context> context, TNode<JSTypedArray> array,
       TNode<JSArrayBuffer> buffer);
-  void IsTypedArrayDetachedOrOutOfBounds(TNode<JSTypedArray> array,
-                                         Label* detached_or_oob,
-                                         Label* not_detached_nor_oob);
+  void IsJSTypedArrayDetachedOrOutOfBounds(TNode<JSTypedArray> array,
+                                           Label* detached_or_oob,
+                                           Label* not_detached_nor_oob);
 
   TNode<IntPtrT> RabGsabElementsKindToElementByteSize(
       TNode<Int32T> elementsKind);

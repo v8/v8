@@ -155,8 +155,8 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
 
   // Default to zero if the {receiver}s buffer was detached / out of bounds.
   Label detached_or_oob(this), not_detached_nor_oob(this);
-  IsTypedArrayDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
-                                    &not_detached_nor_oob);
+  IsJSTypedArrayDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
+                                      &not_detached_nor_oob);
   BIND(&detached_or_oob);
   Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
 

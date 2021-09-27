@@ -13916,7 +13916,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
   return result.value();
 }
 
-void CodeStubAssembler::IsTypedArrayDetachedOrOutOfBounds(
+void CodeStubAssembler::IsJSTypedArrayDetachedOrOutOfBounds(
     TNode<JSTypedArray> array, Label* detached_or_oob,
     Label* not_detached_nor_oob) {
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);

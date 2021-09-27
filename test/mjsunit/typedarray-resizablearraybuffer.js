@@ -744,7 +744,12 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   let values = [];
   let resized = false;
   for (const value of ta) {
-    values.push(Number(value));
+    if (value instanceof Array) {
+      // When iterating via entries(), the values will be arrays [key, value].
+      values.push([value[0], Number(value[1])]);
+    } else {
+      values.push(Number(value));
+    }
     if (!resized && values.length == resize_after) {
       rab.resize(new_byte_length);
       resized = true;
@@ -1571,5 +1576,404 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     //           start     target
     lengthTracking.copyWithin(2, evil);
     assertEquals([0, 1, 0, 1, 4, 5], ToNumbers(lengthTracking));
+  }
+})();
+
+(function EntriesKeysValues() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(fixedLength));
+    assertEquals([0, 2, 4, 6], ValuesToNumbers(fixedLength));
+    assertEquals([0, 1, 2, 3], Keys(fixedLength));
+
+    assertEquals([4, 6], ToNumbersWithEntries(fixedLengthWithOffset));
+    assertEquals([4, 6], ValuesToNumbers(fixedLengthWithOffset));
+    assertEquals([0, 1], Keys(fixedLengthWithOffset));
+
+    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(lengthTracking));
+    assertEquals([0, 2, 4, 6], ValuesToNumbers(lengthTracking));
+    assertEquals([0, 1, 2, 3], Keys(lengthTracking));
+
+    assertEquals([4, 6], ToNumbersWithEntries(lengthTrackingWithOffset));
+    assertEquals([4, 6], ValuesToNumbers(lengthTrackingWithOffset));
+    assertEquals([0, 1], Keys(lengthTrackingWithOffset));
+
+    // Shrink so that fixed length TAs go out of bounds.
+    rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+
+    // Orig. array: [0, 2, 4]
+    //              [0, 2, 4, ...] << lengthTracking
+    //                    [4, ...] << lengthTrackingWithOffset
+
+    assertThrows(() => { fixedLength.entries(); });
+    assertThrows(() => { fixedLength.values(); });
+    assertThrows(() => { fixedLength.keys(); });
+    assertThrows(() => { fixedLengthWithOffset.entries(); });
+    assertThrows(() => { fixedLengthWithOffset.values(); });
+    assertThrows(() => { fixedLengthWithOffset.keys(); });
+
+    assertEquals([0, 2, 4], ToNumbersWithEntries(lengthTracking));
+    assertEquals([0, 2, 4], ValuesToNumbers(lengthTracking));
+    assertEquals([0, 1, 2], Keys(lengthTracking));
+
+    assertEquals([4], ToNumbersWithEntries(lengthTrackingWithOffset));
+    assertEquals([4], ValuesToNumbers(lengthTrackingWithOffset));
+    assertEquals([0], Keys(lengthTrackingWithOffset));
+
+    // Shrink so that the TAs with offset go out of bounds.
+    rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { fixedLength.entries(); });
+    assertThrows(() => { fixedLength.values(); });
+    assertThrows(() => { fixedLength.keys(); });
+    assertThrows(() => { fixedLengthWithOffset.entries(); });
+    assertThrows(() => { fixedLengthWithOffset.values(); });
+    assertThrows(() => { fixedLengthWithOffset.keys(); });
+    assertThrows(() => { lengthTrackingWithOffset.entries(); });
+    assertThrows(() => { lengthTrackingWithOffset.values(); });
+    assertThrows(() => { lengthTrackingWithOffset.keys(); });
+
+    assertEquals([0], ToNumbersWithEntries(lengthTracking));
+    assertEquals([0], ValuesToNumbers(lengthTracking));
+    assertEquals([0], Keys(lengthTracking));
+
+    // Shrink to zero.
+    rab.resize(0);
+
+    assertThrows(() => { fixedLength.entries(); });
+    assertThrows(() => { fixedLength.values(); });
+    assertThrows(() => { fixedLength.keys(); });
+    assertThrows(() => { fixedLengthWithOffset.entries(); });
+    assertThrows(() => { fixedLengthWithOffset.values(); });
+    assertThrows(() => { fixedLengthWithOffset.keys(); });
+    assertThrows(() => { lengthTrackingWithOffset.entries(); });
+    assertThrows(() => { lengthTrackingWithOffset.values(); });
+    assertThrows(() => { lengthTrackingWithOffset.keys(); });
+
+    assertEquals([], ToNumbersWithEntries(lengthTracking));
+    assertEquals([], ValuesToNumbers(lengthTracking));
+    assertEquals([], Keys(lengthTracking));
+
+    // Grow so that all TAs are back in-bounds.
+    rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6, 8, 10]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
+    //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
+
+    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(fixedLength));
+    assertEquals([0, 2, 4, 6], ValuesToNumbers(fixedLength));
+    assertEquals([0, 1, 2, 3], Keys(fixedLength));
+
+    assertEquals([4, 6], ToNumbersWithEntries(fixedLengthWithOffset));
+    assertEquals([4, 6], ValuesToNumbers(fixedLengthWithOffset));
+    assertEquals([0, 1], Keys(fixedLengthWithOffset));
+
+    assertEquals([0, 2, 4, 6, 8, 10], ToNumbersWithEntries(lengthTracking));
+    assertEquals([0, 2, 4, 6, 8, 10], ValuesToNumbers(lengthTracking));
+    assertEquals([0, 1, 2, 3, 4, 5], Keys(lengthTracking));
+
+    assertEquals([4, 6, 8, 10], ToNumbersWithEntries(lengthTrackingWithOffset));
+    assertEquals([4, 6, 8, 10], ValuesToNumbers(lengthTrackingWithOffset));
+    assertEquals([0, 1, 2, 3], Keys(lengthTrackingWithOffset));
+  }
+})();
+
+(function EntriesKeysValuesGrowMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  // Iterating with entries() (the 4 loops below).
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndResize(fixedLength.entries(),
+                           [[0, 0], [1, 2], [2, 4], [3, 6]],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndResize(fixedLengthWithOffset.entries(),
+                           [[0, 4], [1, 6]],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    TestIterationAndResize(lengthTracking.entries(),
+                           [[0, 0], [1, 2], [2, 4], [3, 6], [4, 0], [5, 0]],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    TestIterationAndResize(lengthTrackingWithOffset.entries(),
+                           [[0, 4], [1, 6], [2, 0], [3, 0]],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  // Iterating with keys() (the 4 loops below).
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndResize(fixedLength.keys(),
+                           [0, 1, 2, 3],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndResize(fixedLengthWithOffset.keys(),
+                           [0, 1],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    TestIterationAndResize(lengthTracking.keys(),
+                           [0, 1, 2, 3, 4, 5],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    TestIterationAndResize(lengthTrackingWithOffset.keys(),
+                           [0, 1, 2, 3],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  // Iterating with values() (the 4 loops below).
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndResize(fixedLength.values(),
+                           [0, 2, 4, 6],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+
+    // The fixed length array is not affected by resizing.
+    TestIterationAndResize(fixedLengthWithOffset.values(),
+                           [4, 6],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    TestIterationAndResize(lengthTracking.values(),
+                           [0, 2, 4, 6, 0, 0],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    TestIterationAndResize(lengthTrackingWithOffset.values(),
+                           [4, 6, 0, 0],
+                           rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
+  }
+})();
+
+(function EntriesKeysValuesShrinkMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  // Iterating with entries() (the 4 loops below).
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    // The fixed length array goes out of bounds when the RAB is resized.
+    assertThrows(() => { TestIterationAndResize(
+                             fixedLength.entries(),
+                             null,
+                             rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+
+    // The fixed length array goes out of bounds when the RAB is resized.
+    assertThrows(() => { TestIterationAndResize(
+                             fixedLengthWithOffset.entries(),
+                             null,
+                             rab, 1, 3 * ctor.BYTES_PER_ELEMENT); });
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    TestIterationAndResize(lengthTracking.entries(),
+                           [[0, 0], [1, 2], [2, 4]],
+                           rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    TestIterationAndResize(lengthTrackingWithOffset.entries(),
+                           [[0, 4], [1, 6]],
+                           rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  // Iterating with keys() (the 4 loops below).
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    // The fixed length array goes out of bounds when the RAB is resized.
+    assertThrows(() => { TestIterationAndResize(
+                             fixedLength.keys(),
+                             null,
+                             rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+
+    // The fixed length array goes out of bounds when the RAB is resized.
+    assertThrows(() => { TestIterationAndResize(
+                             fixedLengthWithOffset.keys(),
+                             null,
+                             rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    TestIterationAndResize(lengthTracking.keys(),
+                           [0, 1, 2],
+                           rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    TestIterationAndResize(lengthTrackingWithOffset.keys(),
+                           [0, 1],
+                           rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  // Iterating with values() (the 4 loops below).
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    // The fixed length array goes out of bounds when the RAB is resized.
+    assertThrows(() => { TestIterationAndResize(
+                             fixedLength.values(),
+                             null,
+                             rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+
+    // The fixed length array goes out of bounds when the RAB is resized.
+    assertThrows(() => { TestIterationAndResize(
+                             fixedLengthWithOffset.values(),
+                             null,
+                             rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+
+    TestIterationAndResize(lengthTracking.values(),
+                           [0, 2, 4],
+                           rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    TestIterationAndResize(lengthTrackingWithOffset.values(),
+                           [4, 6],
+                           rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
 })();

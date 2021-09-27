@@ -50,6 +50,33 @@ function ToNumbers(array) {
   return result;
 }
 
+function ToNumbersWithEntries(array) {
+  let result = [];
+  let expectedKey = 0;
+  for (let [key, value] of array.entries()) {
+    assertEquals(expectedKey, key);
+    ++expectedKey;
+    result.push(Number(value));
+  }
+  return result;
+}
+
+function Keys(array) {
+  let result = [];
+  for (let key of array.keys()) {
+    result.push(key);
+  }
+  return result;
+}
+
+function ValuesToNumbers(array) {
+  let result = [];
+  for (let value of array.values()) {
+    result.push(Number(value));
+  }
+  return result;
+}
+
 function AtHelper(array, index) {
   let result = array.at(index);
   if (typeof result == 'bigint') {
