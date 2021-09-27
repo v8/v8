@@ -3850,14 +3850,14 @@ class SlotCollectingVisitor final : public ObjectVisitor {
 
   MaybeObjectSlot slot(int i) { return slots_[i]; }
 #if V8_EXTERNAL_CODE_SPACE
-  ObjectSlot code_slot(int i) { return code_slots_[i]; }
+  CodeObjectSlot code_slot(int i) { return code_slots_[i]; }
   int number_of_code_slots() { return static_cast<int>(code_slots_.size()); }
 #endif
 
  private:
   std::vector<MaybeObjectSlot> slots_;
 #if V8_EXTERNAL_CODE_SPACE
-  std::vector<ObjectSlot> code_slots_;
+  std::vector<CodeObjectSlot> code_slots_;
 #endif
 };
 
@@ -4444,11 +4444,11 @@ void Heap::VerifyReadOnlyHeap() {
   read_only_space_->Verify(isolate());
 }
 
-class SlotVerifyingVisitor : public ObjectVisitor {
+class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
  public:
-  SlotVerifyingVisitor(std::set<Address>* untyped,
+  SlotVerifyingVisitor(Isolate* isolate, std::set<Address>* untyped,
                        std::set<std::pair<SlotType, Address>>* typed)
-      : untyped_(untyped), typed_(typed) {}
+      : ObjectVisitorWithCageBases(isolate), untyped_(untyped), typed_(typed) {}
 
   virtual bool ShouldHaveBeenRecorded(HeapObject host, MaybeObject target) = 0;
 
@@ -4456,7 +4456,8 @@ class SlotVerifyingVisitor : public ObjectVisitor {
                      ObjectSlot end) override {
 #ifdef DEBUG
     for (ObjectSlot slot = start; slot < end; ++slot) {
-      DCHECK(!MapWord::IsPacked((*slot).ptr()) || !HasWeakHeapObjectTag(*slot));
+      Object obj = slot.load(cage_base());
+      CHECK(!MapWord::IsPacked(obj.ptr()) || !HasWeakHeapObjectTag(obj));
     }
 #endif  // DEBUG
     VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
@@ -4465,7 +4466,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) final {
     for (MaybeObjectSlot slot = start; slot < end; ++slot) {
-      if (ShouldHaveBeenRecorded(host, *slot)) {
+      if (ShouldHaveBeenRecorded(host, slot.load(cage_base()))) {
         CHECK_GT(untyped_->count(slot.address()), 0);
       }
     }
@@ -4473,11 +4474,8 @@ class SlotVerifyingVisitor : public ObjectVisitor {
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // TODO(v8:11880): support external code space.
-    PtrComprCageBase code_cage_base =
-        GetPtrComprCageBaseFromOnHeapAddress(slot.address());
     if (ShouldHaveBeenRecorded(
-            host, MaybeObject::FromObject(slot.load(code_cage_base)))) {
+            host, MaybeObject::FromObject(slot.load(code_cage_base())))) {
       CHECK_GT(untyped_->count(slot.address()), 0);
     }
   }
@@ -4493,7 +4491,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    Object target = rinfo->target_object();
+    Object target = rinfo->target_object_no_host(cage_base());
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(
           InTypedSet(FULL_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
@@ -4522,10 +4520,10 @@ class SlotVerifyingVisitor : public ObjectVisitor {
 
 class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
  public:
-  OldToNewSlotVerifyingVisitor(std::set<Address>* untyped,
+  OldToNewSlotVerifyingVisitor(Isolate* isolate, std::set<Address>* untyped,
                                std::set<std::pair<SlotType, Address>>* typed,
                                EphemeronRememberedSet* ephemeron_remembered_set)
-      : SlotVerifyingVisitor(untyped, typed),
+      : SlotVerifyingVisitor(isolate, untyped, typed),
         ephemeron_remembered_set_(ephemeron_remembered_set) {}
 
   bool ShouldHaveBeenRecorded(HeapObject host, MaybeObject target) override {
@@ -4605,7 +4603,8 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
   std::set<std::pair<SlotType, Address>> typed_old_to_new;
   if (!InYoungGeneration(object)) {
     CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
-    OldToNewSlotVerifyingVisitor visitor(&old_to_new, &typed_old_to_new,
+    OldToNewSlotVerifyingVisitor visitor(isolate(), &old_to_new,
+                                         &typed_old_to_new,
                                          &this->ephemeron_remembered_set_);
     object.IterateBody(&visitor);
   }
@@ -6367,10 +6366,10 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   static constexpr intptr_t kLogicalChunkAlignmentMask =
       kLogicalChunkAlignment - 1;
 
-  class MarkingVisitor : public ObjectVisitor, public RootVisitor {
+  class MarkingVisitor : public ObjectVisitorWithCageBases, public RootVisitor {
    public:
     explicit MarkingVisitor(UnreachableObjectsFilter* filter)
-        : filter_(filter) {}
+        : ObjectVisitorWithCageBases(filter->heap_), filter_(filter) {}
 
     void VisitMapPointer(HeapObject object) override {
       MarkHeapObject(Map::unchecked_cast(object.map()));
@@ -6387,9 +6386,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
     void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
       CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-      // TODO(v8:11880): support external code space.
-      PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
-      HeapObject code = HeapObject::unchecked_cast(slot.load(code_cage_base));
+      HeapObject code = HeapObject::unchecked_cast(slot.load(code_cage_base()));
       MarkHeapObject(code);
     }
 
@@ -6398,7 +6395,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       MarkHeapObject(target);
     }
     void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
-      MarkHeapObject(rinfo->target_object());
+      MarkHeapObject(rinfo->target_object_no_host(cage_base()));
     }
 
     void VisitRootPointers(Root root, const char* description,
@@ -6427,9 +6424,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     template <typename TSlot>
     V8_INLINE void MarkPointersImpl(TSlot start, TSlot end) {
       // Treat weak references as strong.
-      Isolate* isolate = filter_->heap_->isolate();
       for (TSlot p = start; p < end; ++p) {
-        typename TSlot::TObject object = p.load(isolate);
+        typename TSlot::TObject object = p.load(cage_base());
         HeapObject heap_object;
         if (object.GetHeapObject(&heap_object)) {
           MarkHeapObject(heap_object);
@@ -6868,9 +6864,7 @@ void VerifyPointersVisitor::VisitPointers(HeapObject host,
 void VerifyPointersVisitor::VisitCodePointer(HeapObject host,
                                              CodeObjectSlot slot) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  // TODO(v8:11880): support external code space.
-  PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
-  Object maybe_code = slot.load(code_cage_base);
+  Object maybe_code = slot.load(code_cage_base());
   HeapObject code;
   if (maybe_code.GetHeapObject(&code)) {
     VerifyCodeObjectImpl(code);
@@ -6895,22 +6889,20 @@ void VerifyPointersVisitor::VisitRootPointers(Root root,
 
 void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
-  CHECK(heap_object.map().IsMap());
+  CHECK(heap_object.map(cage_base()).IsMap());
 }
 
 void VerifyPointersVisitor::VerifyCodeObjectImpl(HeapObject heap_object) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
   CHECK(IsValidCodeObject(heap_, heap_object));
-  PtrComprCageBase cage_base(heap_->isolate());
-  CHECK(heap_object.map(cage_base).IsMap(cage_base));
-  CHECK(heap_object.map(cage_base).instance_type() == CODE_TYPE);
+  CHECK(heap_object.map(cage_base()).IsMap());
+  CHECK(heap_object.map(cage_base()).instance_type() == CODE_TYPE);
 }
 
 template <typename TSlot>
 void VerifyPointersVisitor::VerifyPointersImpl(TSlot start, TSlot end) {
-  Isolate* isolate = heap_->isolate();
   for (TSlot slot = start; slot < end; ++slot) {
-    typename TSlot::TObject object = slot.load(isolate);
+    typename TSlot::TObject object = slot.load(cage_base());
     HeapObject heap_object;
     if (object.GetHeapObject(&heap_object)) {
       VerifyHeapObjectImpl(heap_object);
@@ -6938,7 +6930,7 @@ void VerifyPointersVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
 }
 
 void VerifyPointersVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
-  VerifyHeapObjectImpl(rinfo->target_object());
+  VerifyHeapObjectImpl(rinfo->target_object_no_host(cage_base()));
 }
 
 void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,

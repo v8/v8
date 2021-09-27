@@ -648,6 +648,10 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
   return MaybeObjectSlot(field_address(byte_offset));
 }
 
+CodeObjectSlot HeapObject::RawCodeField(int byte_offset) const {
+  return CodeObjectSlot(field_address(byte_offset));
+}
+
 MapWord MapWord::FromMap(const Map map) {
   DCHECK(map.is_null() || !MapWord::IsPacked(map.ptr()));
 #ifdef V8_MAP_PACKING

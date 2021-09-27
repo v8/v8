@@ -718,11 +718,12 @@ int V8HeapExplorer::EstimateObjectsCount() {
   return objects_count;
 }
 
-class IndexedReferencesExtractor : public ObjectVisitor {
+class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
  public:
   IndexedReferencesExtractor(V8HeapExplorer* generator, HeapObject parent_obj,
                              HeapEntry* parent)
-      : generator_(generator),
+      : ObjectVisitorWithCageBases(generator->isolate()),
+        generator_(generator),
         parent_obj_(parent_obj),
         parent_start_(parent_obj_.RawMaybeWeakField(0)),
         parent_end_(parent_obj_.RawMaybeWeakField(parent_obj_.Size())),
@@ -733,10 +734,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
     VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
   }
   void VisitMapPointer(HeapObject object) override {
-    // TODO(v8:11880): support external code space (here object could be Code,
-    // so the V8 heap cage_base must be used here).
-    PtrComprCageBase cage_base = GetPtrComprCageBase(object);
-    VisitSlotImpl(cage_base, object.map_slot());
+    VisitSlotImpl(cage_base(), object.map_slot());
   }
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
@@ -744,17 +742,14 @@ class IndexedReferencesExtractor : public ObjectVisitor {
     // all the slots must point inside the object.
     CHECK_LE(parent_start_, start);
     CHECK_LE(end, parent_end_);
-    PtrComprCageBase cage_base = GetPtrComprCageBase(host);
     for (MaybeObjectSlot slot = start; slot < end; ++slot) {
-      VisitSlotImpl(cage_base, slot);
+      VisitSlotImpl(cage_base(), slot);
     }
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // TODO(v8:11880): support external code space.
-    PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
-    VisitSlotImpl(code_cage_base, slot);
+    VisitSlotImpl(code_cage_base(), slot);
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
@@ -763,7 +758,7 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    HeapObject object = rinfo->target_object();
+    HeapObject object = rinfo->target_object_no_host(cage_base());
     if (host.IsWeakObject(object)) {
       generator_->SetWeakReference(parent_, next_index_++, object, {});
     } else {

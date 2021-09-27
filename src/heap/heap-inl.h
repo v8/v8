@@ -43,6 +43,7 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/visitors-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/ostreams.h"
@@ -768,6 +769,9 @@ void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
 bool Heap::HasDirtyJSFinalizationRegistries() {
   return !dirty_js_finalization_registries_list().IsUndefined(isolate());
 }
+
+VerifyPointersVisitor::VerifyPointersVisitor(Heap* heap)
+    : ObjectVisitorWithCageBases(heap), heap_(heap) {}
 
 AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {
   heap_->always_allocate_scope_count_++;

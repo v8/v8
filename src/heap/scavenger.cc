@@ -780,7 +780,8 @@ RootScavengeVisitor::RootScavengeVisitor(Scavenger* scavenger)
     : scavenger_(scavenger) {}
 
 ScavengeVisitor::ScavengeVisitor(Scavenger* scavenger)
-    : scavenger_(scavenger) {}
+    : NewSpaceVisitor<ScavengeVisitor>(scavenger->heap()->isolate()),
+      scavenger_(scavenger) {}
 
 }  // namespace internal
 }  // namespace v8

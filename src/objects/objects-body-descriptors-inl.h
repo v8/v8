@@ -931,7 +931,7 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
         CodeDataContainer::kPointerFieldsWeakEndOffset, v);
 
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      v->VisitCodePointer(obj, obj.RawField(kCodeOffset));
+      v->VisitCodePointer(obj, obj.RawCodeField(kCodeOffset));
     }
   }
 

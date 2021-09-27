@@ -2658,9 +2658,10 @@ class V8_NODISCARD CodePageMemoryModificationScope {
 // point into the heap to a location that has a map pointer at its first word.
 // Caveat: Heap::Contains is an approximation because it can return true for
 // objects in a heap space but above the allocation pointer.
-class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
+class VerifyPointersVisitor : public ObjectVisitorWithCageBases,
+                              public RootVisitor {
  public:
-  explicit VerifyPointersVisitor(Heap* heap) : heap_(heap) {}
+  V8_INLINE explicit VerifyPointersVisitor(Heap* heap);
   void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override;
   void VisitPointers(HeapObject host, MaybeObjectSlot start,

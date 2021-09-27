@@ -107,7 +107,8 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool is_embedder_tracing_enabled, bool is_forced_gc)
-      : local_marking_worklists_(local_marking_worklists),
+      : HeapVisitor<int, ConcreteVisitor>(heap),
+        local_marking_worklists_(local_marking_worklists),
         weak_objects_(weak_objects),
         heap_(heap),
         task_id_(task_id),
@@ -134,11 +135,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitWeakCell(Map map, WeakCell object);
 
   // ObjectVisitor overrides.
-  void VisitMapPointer(HeapObject host) final {
-    // Note that we are skipping the recording the slot because map objects
-    // can't move, so this is safe (see ProcessStrongHeapObject for comparison)
-    MarkObject(host, HeapObject::cast(host.map()));
-  }
+  V8_INLINE void VisitMapPointer(HeapObject host) final;
   V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);
   }

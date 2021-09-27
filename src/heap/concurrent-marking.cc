@@ -31,6 +31,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/objects/visitors.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
 
@@ -168,28 +169,28 @@ class ConcurrentMarkingVisitor final
 
  private:
   // Helper class for collecting in-object slot addresses and values.
-  class SlotSnapshottingVisitor final : public ObjectVisitor {
+  class SlotSnapshottingVisitor final : public ObjectVisitorWithCageBases {
    public:
-    explicit SlotSnapshottingVisitor(SlotSnapshot* slot_snapshot)
-        : slot_snapshot_(slot_snapshot) {
+    explicit SlotSnapshottingVisitor(SlotSnapshot* slot_snapshot,
+                                     PtrComprCageBase cage_base,
+                                     PtrComprCageBase code_cage_base)
+        : ObjectVisitorWithCageBases(cage_base, code_cage_base),
+          slot_snapshot_(slot_snapshot) {
       slot_snapshot_->clear();
     }
 
     void VisitPointers(HeapObject host, ObjectSlot start,
                        ObjectSlot end) override {
-      PtrComprCageBase cage_base = GetPtrComprCageBase(host);
       for (ObjectSlot p = start; p < end; ++p) {
-        Object object = p.Relaxed_Load(cage_base);
+        Object object = p.Relaxed_Load(cage_base());
         slot_snapshot_->add(p, object);
       }
     }
 
     void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
       CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-      // TODO(v8:11880): support external code space.
-      PtrComprCageBase code_cage_base = GetPtrComprCageBase(host);
-      Object code = slot.Relaxed_Load(code_cage_base);
-      slot_snapshot_->add(slot, code);
+      Object code = slot.Relaxed_Load(code_cage_base());
+      slot_snapshot_->add(ObjectSlot(slot.address()), code);
     }
 
     void VisitPointers(HeapObject host, MaybeObjectSlot start,
@@ -280,7 +281,8 @@ class ConcurrentMarkingVisitor final
 
   template <typename T, typename TBodyDescriptor>
   const SlotSnapshot& MakeSlotSnapshot(Map map, T object, int size) {
-    SlotSnapshottingVisitor visitor(&slot_snapshot_);
+    SlotSnapshottingVisitor visitor(&slot_snapshot_, cage_base(),
+                                    code_cage_base());
     visitor.VisitPointer(object, object.map_slot());
     TBodyDescriptor::IterateBody(map, object, size, &visitor);
     return slot_snapshot_;
