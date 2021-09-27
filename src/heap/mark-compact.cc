@@ -3899,7 +3899,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void UpdateUntypedPointers() {
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
       DCHECK_IMPLIES(
-          collector == MARK_COMPACTOR,
+          collector == GarbageCollector::MARK_COMPACTOR,
           chunk_->SweepingDone() &&
               chunk_->sweeping_slot_set<AccessMode::NON_ATOMIC>() == nullptr);
 
@@ -3912,9 +3912,9 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           },
           SlotSet::FREE_EMPTY_BUCKETS);
 
-      DCHECK_IMPLIES(
-          collector == MARK_COMPACTOR && FLAG_always_promote_young_mc,
-          slots == 0);
+      DCHECK_IMPLIES(collector == GarbageCollector::MARK_COMPACTOR &&
+                         FLAG_always_promote_young_mc,
+                     slots == 0);
 
       if (slots == 0) {
         chunk_->ReleaseSlotSet<OLD_TO_NEW>();
@@ -3923,7 +3923,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
     if (chunk_->sweeping_slot_set<AccessMode::NON_ATOMIC>()) {
       DCHECK_IMPLIES(
-          collector == MARK_COMPACTOR,
+          collector == GarbageCollector::MARK_COMPACTOR,
           !chunk_->SweepingDone() &&
               (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>()) ==
                   nullptr);
@@ -3938,9 +3938,9 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           },
           SlotSet::FREE_EMPTY_BUCKETS);
 
-      DCHECK_IMPLIES(
-          collector == MARK_COMPACTOR && FLAG_always_promote_young_mc,
-          slots == 0);
+      DCHECK_IMPLIES(collector == GarbageCollector::MARK_COMPACTOR &&
+                         FLAG_always_promote_young_mc,
+                     slots == 0);
 
       if (slots == 0) {
         chunk_->ReleaseSweepingSlotSet();
@@ -4042,8 +4042,8 @@ std::unique_ptr<UpdatingItem> MarkCompactCollector::CreateToSpaceUpdatingItem(
 std::unique_ptr<UpdatingItem>
 MarkCompactCollector::CreateRememberedSetUpdatingItem(
     MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) {
-  return std::make_unique<
-      RememberedSetUpdatingItem<NonAtomicMarkingState, MARK_COMPACTOR>>(
+  return std::make_unique<RememberedSetUpdatingItem<
+      NonAtomicMarkingState, GarbageCollector::MARK_COMPACTOR>>(
       heap(), non_atomic_marking_state(), chunk, updating_mode);
 }
 
@@ -4991,8 +4991,8 @@ MinorMarkCompactCollector::CreateToSpaceUpdatingItem(MemoryChunk* chunk,
 std::unique_ptr<UpdatingItem>
 MinorMarkCompactCollector::CreateRememberedSetUpdatingItem(
     MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) {
-  return std::make_unique<
-      RememberedSetUpdatingItem<NonAtomicMarkingState, MINOR_MARK_COMPACTOR>>(
+  return std::make_unique<RememberedSetUpdatingItem<
+      NonAtomicMarkingState, GarbageCollector::MINOR_MARK_COMPACTOR>>(
       heap(), non_atomic_marking_state(), chunk, updating_mode);
 }
 

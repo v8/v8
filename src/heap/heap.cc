@@ -461,18 +461,18 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   if (space != NEW_SPACE && space != NEW_LO_SPACE) {
     isolate_->counters()->gc_compactor_caused_by_request()->Increment();
     *reason = "GC in old space requested";
-    return MARK_COMPACTOR;
+    return GarbageCollector::MARK_COMPACTOR;
   }
 
   if (FLAG_gc_global || ShouldStressCompaction() || !new_space()) {
     *reason = "GC in old space forced by flags";
-    return MARK_COMPACTOR;
+    return GarbageCollector::MARK_COMPACTOR;
   }
 
   if (incremental_marking()->NeedsFinalization() &&
       AllocationLimitOvershotByLargeMargin()) {
     *reason = "Incremental marking needs finalization";
-    return MARK_COMPACTOR;
+    return GarbageCollector::MARK_COMPACTOR;
   }
 
   if (!CanPromoteYoungAndExpandOldGeneration(0)) {
@@ -480,7 +480,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
         ->gc_compactor_caused_by_oldspace_exhaustion()
         ->Increment();
     *reason = "scavenge might not succeed";
-    return MARK_COMPACTOR;
+    return GarbageCollector::MARK_COMPACTOR;
   }
 
   // Default
@@ -1252,7 +1252,7 @@ void Heap::DeoptMarkedAllocationSites() {
 }
 
 void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
-  if (collector == MARK_COMPACTOR) {
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
     memory_pressure_level_.store(MemoryPressureLevel::kNone,
                                  std::memory_order_relaxed);
   }
@@ -1726,7 +1726,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
   size_t committed_memory_before = 0;
 
-  if (collector == MARK_COMPACTOR) {
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
     committed_memory_before = CommittedOldGenerationMemory();
     if (cpp_heap()) {
       // CppHeap needs a stack marker at the top of all entry points to allow
@@ -1763,8 +1763,9 @@ bool Heap::CollectGarbage(AllocationSpace space,
         PROFILE(isolate_, CodeMovingGCEvent());
       }
 
-      GCType gc_type = collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact
-                                                   : kGCTypeScavenge;
+      GCType gc_type = collector == GarbageCollector::MARK_COMPACTOR
+                           ? kGCTypeMarkSweepCompact
+                           : kGCTypeScavenge;
       {
         GCCallbacksScope scope(this);
         // Temporary override any embedder stack state as callbacks may create
@@ -1817,17 +1818,19 @@ bool Heap::CollectGarbage(AllocationSpace space,
           CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
         }
       }
-      if (collector == MARK_COMPACTOR || collector == SCAVENGER) {
+      if (collector == GarbageCollector::MARK_COMPACTOR ||
+          collector == GarbageCollector::SCAVENGER) {
         tracer()->RecordGCPhasesHistograms(gc_type_timer);
       }
     }
 
     GarbageCollectionEpilogue();
-    if (collector == MARK_COMPACTOR && FLAG_track_detached_contexts) {
+    if (collector == GarbageCollector::MARK_COMPACTOR &&
+        FLAG_track_detached_contexts) {
       isolate()->CheckDetachedContextsAfterGC();
     }
 
-    if (collector == MARK_COMPACTOR) {
+    if (collector == GarbageCollector::MARK_COMPACTOR) {
       // Calculate used memory first, then committed memory. Following code
       // assumes that committed >= used, which might not hold when this is
       // calculated in the wrong order and background threads allocate
@@ -1856,7 +1859,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
     tracer()->Stop(collector);
   }
 
-  if (collector == MARK_COMPACTOR &&
+  if (collector == GarbageCollector::MARK_COMPACTOR &&
       (gc_callback_flags & (kGCCallbackFlagForced |
                             kGCCallbackFlagCollectAllAvailableGarbage)) != 0) {
     isolate()->CountUsage(v8::Isolate::kForcedGC);
@@ -2148,11 +2151,11 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
 namespace {
 GCTracer::Scope::ScopeId CollectorScopeId(GarbageCollector collector) {
   switch (collector) {
-    case MARK_COMPACTOR:
+    case GarbageCollector::MARK_COMPACTOR:
       return GCTracer::Scope::ScopeId::MARK_COMPACTOR;
-    case MINOR_MARK_COMPACTOR:
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
       return GCTracer::Scope::ScopeId::MINOR_MARK_COMPACTOR;
-    case SCAVENGER:
+    case GarbageCollector::SCAVENGER:
       return GCTracer::Scope::ScopeId::SCAVENGER;
   }
   UNREACHABLE();
@@ -2199,13 +2202,13 @@ size_t Heap::PerformGarbageCollection(
       NewSpaceSize() + (new_lo_space() ? new_lo_space()->SizeOfObjects() : 0);
 
   switch (collector) {
-    case MARK_COMPACTOR:
+    case GarbageCollector::MARK_COMPACTOR:
       MarkCompact();
       break;
-    case MINOR_MARK_COMPACTOR:
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
       MinorMarkCompact();
       break;
-    case SCAVENGER:
+    case GarbageCollector::SCAVENGER:
       Scavenge();
       break;
   }
@@ -2215,14 +2218,14 @@ size_t Heap::PerformGarbageCollection(
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ConfigureInitialOldGenerationSize();
 
-  if (collector != MARK_COMPACTOR) {
+  if (collector != GarbageCollector::MARK_COMPACTOR) {
     // Objects that died in the new space might have been accounted
     // as bytes marked ahead of schedule by the incremental marker.
     incremental_marking()->UpdateMarkedBytesAfterScavenge(
         start_young_generation_size - SurvivedYoungObjectSize());
   }
 
-  if (!fast_promotion_mode_ || collector == MARK_COMPACTOR) {
+  if (!fast_promotion_mode_ || collector == GarbageCollector::MARK_COMPACTOR) {
     ComputeFastPromotionMode();
   }
 
@@ -2243,7 +2246,7 @@ size_t Heap::PerformGarbageCollection(
         isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
   }
 
-  if (collector == MARK_COMPACTOR) {
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
     TRACE_GC(tracer(), GCTracer::Scope::HEAP_EMBEDDER_TRACING_EPILOGUE);
     // TraceEpilogue may trigger operations that invalidate global handles. It
     // has to be called *after* all other operations that potentially touch and
@@ -2282,7 +2285,7 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   base::MutexGuard guard(isolate()->client_isolate_mutex());
 
   const char* collector_reason = nullptr;
-  GarbageCollector collector = MARK_COMPACTOR;
+  GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
 
   tracer()->Start(collector, gc_reason, collector_reason);
 
@@ -2300,7 +2303,7 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
     client_heap->shared_map_allocator_->FreeLinearAllocationArea();
   });
 
-  PerformGarbageCollection(MARK_COMPACTOR);
+  PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR);
 
   isolate()->IterateClientIsolates([initiator](Isolate* client) {
     GlobalSafepoint::StopMainThread stop_main_thread =
@@ -2357,7 +2360,7 @@ void Heap::UpdateCurrentEpoch(GarbageCollector collector) {
 void Heap::UpdateEpochFull() { epoch_full_ = next_epoch(); }
 
 void Heap::RecomputeLimits(GarbageCollector collector) {
-  if (!((collector == MARK_COMPACTOR) ||
+  if (!((collector == GarbageCollector::MARK_COMPACTOR) ||
         (HasLowYoungGenerationAllocationRate() &&
          old_generation_size_configured_))) {
     return;
@@ -2389,7 +2392,7 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
   size_t new_space_capacity = NewSpaceCapacity();
   HeapGrowingMode mode = CurrentHeapGrowingMode();
 
-  if (collector == MARK_COMPACTOR) {
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
     external_memory_.ResetAfterGC();
 
     set_old_generation_allocation_limit(
