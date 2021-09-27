@@ -4451,8 +4451,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     // Try to further reduce the JSCall {node}.
     return Changed(node).FollowedBy(ReduceJSCall(node));
   } else if (feedback_target.has_value() && feedback_target->IsFeedbackCell()) {
-    FeedbackCellRef feedback_cell =
-        MakeRef(broker(), feedback_target.value().AsFeedbackCell().object());
+    FeedbackCellRef feedback_cell = feedback_target.value().AsFeedbackCell();
     // TODO(neis): This check seems unnecessary.
     if (feedback_cell.feedback_vector().has_value()) {
       // Check that {target} is a closure with given {feedback_cell},
