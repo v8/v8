@@ -7,6 +7,7 @@
 
 #include "src/torque/ast.h"
 #include "src/torque/contextual.h"
+#include "src/torque/kythe-data.h"
 #include "src/torque/server-data.h"
 #include "src/torque/source-positions.h"
 #include "src/torque/utils.h"
@@ -19,6 +20,7 @@ struct TorqueCompilerOptions {
   std::string output_directory = "";
   std::string v8_root = "";
   bool collect_language_server_data = false;
+  bool collect_kythe_data = false;
 
   // assert(...) are only generated for debug builds. The provide
   // language server support for statements inside asserts, this flag
@@ -52,10 +54,18 @@ struct TorqueCompilerResult {
   std::vector<TorqueMessage> messages;
 };
 
+struct TorqueCompilationUnit {
+  std::string source_file_path;
+  std::string file_content;
+};
+
 V8_EXPORT_PRIVATE TorqueCompilerResult
 CompileTorque(const std::string& source, TorqueCompilerOptions options);
 TorqueCompilerResult CompileTorque(std::vector<std::string> files,
                                    TorqueCompilerOptions options);
+V8_EXPORT_PRIVATE TorqueCompilerResult CompileTorqueForKythe(
+    std::vector<TorqueCompilationUnit> units, TorqueCompilerOptions options,
+    KytheConsumer* kythe_consumer);
 
 }  // namespace torque
 }  // namespace internal

@@ -17,6 +17,7 @@
 #include "src/torque/csa-generator.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
+#include "src/torque/kythe-data.h"
 #include "src/torque/parameter-difference.h"
 #include "src/torque/server-data.h"
 #include "src/torque/source-positions.h"
@@ -28,6 +29,8 @@
 namespace v8 {
 namespace internal {
 namespace torque {
+
+uint64_t next_unique_binding_index = 0;
 
 // Sadly, 'using std::string_literals::operator""s;' is bugged in MSVC (see
 // https://developercommunity.visualstudio.com/t/Incorrect-warning-when-using-standard-st/673948).
@@ -291,6 +294,8 @@ VisitResult ImplementationVisitor::InlineMacro(
     DCHECK(macro->IsMethod());
     parameter_bindings.Add(kThisParameterName, LocalValue{*this_reference},
                            true);
+    // TODO(v8:12261): Tracking 'this'-binding for kythe led to a few weird
+    // issues. Review to fully support 'this' in methods.
   }
 
   size_t count = 0;
@@ -298,17 +303,24 @@ VisitResult ImplementationVisitor::InlineMacro(
     if (this_reference && count == signature.implicit_count) count++;
     const bool mark_as_used = signature.implicit_count > count;
     const Identifier* name = macro->parameter_names()[count++];
-    parameter_bindings.Add(name,
-                           LocalValue{LocationReference::Temporary(
-                               arg, "parameter " + name->value)},
-                           mark_as_used);
+    Binding<LocalValue>* binding =
+        parameter_bindings.Add(name,
+                               LocalValue{LocationReference::Temporary(
+                                   arg, "parameter " + name->value)},
+                               mark_as_used);
+    if (GlobalContext::collect_kythe_data()) {
+      KytheData::AddBindingDefinition(binding);
+    }
   }
 
   DCHECK_EQ(label_blocks.size(), signature.labels.size());
   for (size_t i = 0; i < signature.labels.size(); ++i) {
     const LabelDeclaration& label_info = signature.labels[i];
-    label_bindings.Add(label_info.name,
-                       LocalLabel{label_blocks[i], label_info.types});
+    Binding<LocalLabel>* binding = label_bindings.Add(
+        label_info.name, LocalLabel{label_blocks[i], label_info.types});
+    if (GlobalContext::collect_kythe_data()) {
+      KytheData::AddBindingDefinition(binding);
+    }
   }
 
   Block* macro_end;
@@ -542,11 +554,14 @@ std::string AddParameter(size_t i, Builtin* builtin,
   std::string external_name = "parameter" + std::to_string(i);
   parameters->Push(external_name);
   StackRange range = parameter_types->PushMany(LowerType(type));
-  parameter_bindings->Add(
+  Binding<LocalValue>* binding = parameter_bindings->Add(
       name,
       LocalValue{LocationReference::Temporary(VisitResult(type, range),
                                               "parameter " + name->value)},
       mark_as_used);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddBindingDefinition(binding);
+  }
   return external_name;
 }
 
@@ -1004,6 +1019,9 @@ const Type* ImplementationVisitor::Visit(GotoStatement* stmt) {
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::AddDefinition(stmt->label->pos,
                                       label->declaration_position());
+  }
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddBindingUse(stmt->label->pos, label);
   }
 
   size_t i = 0;
@@ -2230,6 +2248,9 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
     if (GlobalContext::collect_language_server_data() && pos.has_value()) {
       LanguageServerData::AddDefinition(*pos, field.pos);
     }
+    if (GlobalContext::collect_kythe_data() && pos.has_value()) {
+      KytheData::AddClassFieldUse(*pos, &field);
+    }
     if (field.const_qualified) {
       VisitResult t_value = ProjectStructField(reference.variable(), fieldname);
       return LocationReference::Temporary(
@@ -2326,6 +2347,9 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
       if (GlobalContext::collect_language_server_data() && pos.has_value()) {
         LanguageServerData::AddDefinition(*pos, field.pos);
       }
+      if (GlobalContext::collect_kythe_data()) {
+        KytheData::AddClassFieldUse(*pos, &field);
+      }
       return GenerateFieldReference(object_result, field, *class_type);
     }
   }
@@ -2367,6 +2391,13 @@ LocationReference ImplementationVisitor::GetLocationReference(
         LanguageServerData::AddDefinition(expr->name->pos,
                                           (*value)->declaration_position());
       }
+      if (GlobalContext::collect_kythe_data()) {
+        if (!expr->IsThis()) {
+          DCHECK_EQ(expr->name->pos.end.column - expr->name->pos.start.column,
+                    expr->name->value.length());
+          KytheData::AddBindingUse(expr->name->pos, *value);
+        }
+      }
       if (expr->generic_arguments.size() != 0) {
         ReportError("cannot have generic parameters on local name ",
                     expr->name);
@@ -2385,6 +2416,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
       LanguageServerData::AddDefinition(expr->name->pos,
                                         (*builtin)->Position());
     }
+    // TODO(v8:12261): Consider collecting KytheData here.
     return LocationReference::Temporary(GetBuiltinCode(*builtin),
                                         "builtin " + expr->name->value);
   }
@@ -2411,6 +2443,9 @@ LocationReference ImplementationVisitor::GetLocationReference(
     LanguageServerData::AddDefinition(expr->name->pos, value->name()->pos);
   }
   if (auto* constant = NamespaceConstant::DynamicCast(value)) {
+    if (GlobalContext::collect_kythe_data()) {
+      KytheData::AddConstantUse(expr->name->pos, constant);
+    }
     if (constant->type()->IsConstexpr()) {
       return LocationReference::Temporary(
           VisitResult(constant->type(), constant->external_name() + "(state_)"),
@@ -2424,6 +2459,9 @@ LocationReference ImplementationVisitor::GetLocationReference(
         "namespace constant " + expr->name->value);
   }
   ExternConstant* constant = ExternConstant::cast(value);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddConstantUse(expr->name->pos, constant);
+  }
   return LocationReference::Temporary(constant->value(),
                                       "extern value " + expr->name->value);
 }
@@ -3135,6 +3173,12 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
       LanguageServerData::AddDefinition(expr->callee->name->pos,
                                         callable->IdentifierPosition());
     }
+    if (GlobalContext::collect_kythe_data()) {
+      Callable* callable = LookupCallable(name, Declarations::Lookup(name),
+                                          arguments, specialization_types);
+      Callable* caller = CurrentCallable::Get();
+      KytheData::AddCall(caller, expr->callee->name->pos, callable);
+    }
     if (expr->callee->name->value == "!" && arguments.parameters.size() == 1) {
       PropagateBitfieldMark(expr->arguments[0], expr);
     }
@@ -3177,6 +3221,10 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::AddDefinition(expr->method->name->pos,
                                       callable->IdentifierPosition());
+  }
+  if (GlobalContext::collect_kythe_data()) {
+    Callable* caller = CurrentCallable::Get();
+    KytheData::AddCall(caller, expr->method->name->pos, callable);
   }
   return scope.Yield(GenerateCall(callable, target, arguments, {}, false));
 }
@@ -3268,6 +3316,7 @@ std::vector<Binding<LocalLabel>*> ImplementationVisitor::LabelsFromIdentifiers(
       LanguageServerData::AddDefinition(name->pos,
                                         label->declaration_position());
     }
+    // TODO(v8:12261): Might have to track KytheData here.
   }
   return result;
 }
@@ -3548,7 +3597,8 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
           Declarations::FindSomeInternalBuiltinWithType(type);
       if (!example_builtin) {
         CurrentSourcePosition::Scope current_source_position(
-            SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
+            SourcePosition{CurrentSourceFile::Get(), LineAndColumn::Invalid(),
+                           LineAndColumn::Invalid()});
         ReportError("unable to find any builtin with type \"", *type, "\"");
       }
       builtin_definitions << "  V(" << type->function_pointer_type_id() << ","

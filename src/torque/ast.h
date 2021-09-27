@@ -625,18 +625,18 @@ struct BasicTypeExpression : TypeExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(BasicTypeExpression)
   BasicTypeExpression(SourcePosition pos,
                       std::vector<std::string> namespace_qualification,
-                      std::string name,
+                      Identifier* name,
                       std::vector<TypeExpression*> generic_arguments)
       : TypeExpression(kKind, pos),
         namespace_qualification(std::move(namespace_qualification)),
-        is_constexpr(IsConstexprName(name)),
-        name(std::move(name)),
+        is_constexpr(IsConstexprName(name->value)),
+        name(name),
         generic_arguments(std::move(generic_arguments)) {}
-  BasicTypeExpression(SourcePosition pos, std::string name)
-      : BasicTypeExpression(pos, {}, std::move(name), {}) {}
+  BasicTypeExpression(SourcePosition pos, Identifier* name)
+      : BasicTypeExpression(pos, {}, name, {}) {}
   std::vector<std::string> namespace_qualification;
   bool is_constexpr;
-  std::string name;
+  Identifier* name;
   std::vector<TypeExpression*> generic_arguments;
 };
 
@@ -1306,10 +1306,9 @@ inline VarDeclarationStatement* MakeConstDeclarationStatement(
 }
 
 inline BasicTypeExpression* MakeBasicTypeExpression(
-    std::vector<std::string> namespace_qualification, std::string name,
+    std::vector<std::string> namespace_qualification, Identifier* name,
     std::vector<TypeExpression*> generic_arguments = {}) {
-  return MakeNode<BasicTypeExpression>(std::move(namespace_qualification),
-                                       std::move(name),
+  return MakeNode<BasicTypeExpression>(std::move(namespace_qualification), name,
                                        std::move(generic_arguments));
 }
 

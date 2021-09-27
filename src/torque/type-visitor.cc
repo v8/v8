@@ -7,6 +7,7 @@
 #include "src/common/globals.h"
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
+#include "src/torque/kythe-data.h"
 #include "src/torque/server-data.h"
 #include "src/torque/type-inference.h"
 #include "src/torque/type-oracle.h"
@@ -117,7 +118,10 @@ void DeclareMethods(AggregateType* container_type,
     signature.parameter_types.types.insert(
         signature.parameter_types.types.begin() + signature.implicit_count,
         container_type);
-    Declarations::CreateMethod(container_type, method_name, signature, body);
+    Method* m = Declarations::CreateMethod(container_type, method_name,
+                                           signature, body);
+    m->SetPosition(method->pos);
+    m->SetIdentifierPosition(method->name->pos);
   }
 }
 
@@ -334,7 +338,8 @@ const ClassType* TypeVisitor::ComputeType(
 
 const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
   if (auto* basic = BasicTypeExpression::DynamicCast(type_expression)) {
-    QualifiedName qualified_name{basic->namespace_qualification, basic->name};
+    QualifiedName qualified_name{basic->namespace_qualification,
+                                 basic->name->value};
     auto& args = basic->generic_arguments;
     const Type* type;
     SourcePosition pos = SourcePosition::Invalid();
@@ -343,12 +348,20 @@ const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
       auto* alias = Declarations::LookupTypeAlias(qualified_name);
       type = alias->type();
       pos = alias->GetDeclarationPosition();
+      if (GlobalContext::collect_kythe_data()) {
+        if (alias->IsUserDefined()) {
+          KytheData::AddTypeUse(basic->name->pos, alias);
+        }
+      }
     } else {
       auto* generic_type =
           Declarations::LookupUniqueGenericType(qualified_name);
       type = TypeOracle::GetGenericTypeInstance(generic_type,
                                                 ComputeTypeVector(args));
       pos = generic_type->declaration()->name->pos;
+      if (GlobalContext::collect_kythe_data()) {
+        KytheData::AddTypeUse(basic->name->pos, generic_type);
+      }
     }
 
     if (GlobalContext::collect_language_server_data()) {
@@ -482,7 +495,8 @@ const Type* TypeVisitor::ComputeTypeForStructExpression(
     ReportError("expected basic type expression referring to struct");
   }
 
-  QualifiedName qualified_name{basic->namespace_qualification, basic->name};
+  QualifiedName qualified_name{basic->namespace_qualification,
+                               basic->name->value};
   base::Optional<GenericType*> maybe_generic_type =
       Declarations::TryLookupGenericType(qualified_name);
 
