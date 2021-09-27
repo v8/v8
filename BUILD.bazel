@@ -1712,6 +1712,7 @@ filegroup(
         "src/objects/value-serializer.cc",
         "src/objects/value-serializer.h",
         "src/objects/visitors.cc",
+        "src/objects/visitors-inl.h",
         "src/objects/visitors.h",
         "src/parsing/expression-scope.h",
         "src/parsing/func-name-inferrer.cc",
