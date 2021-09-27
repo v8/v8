@@ -377,11 +377,12 @@ class MainMarkingVisitor final
                      WeakObjects* weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
-                     bool embedder_tracing_enabled, bool is_forced_gc)
+                     bool embedder_tracing_enabled,
+                     bool should_keep_ages_unchanged)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
             kMainThreadTask, local_marking_worklists, weak_objects, heap,
             mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
-            is_forced_gc),
+            should_keep_ages_unchanged),
         marking_state_(marking_state),
         revisiting_object_(false) {}
 

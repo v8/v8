@@ -88,11 +88,13 @@ class ConcurrentMarkingVisitor final
                            WeakObjects* weak_objects, Heap* heap,
                            unsigned mark_compact_epoch,
                            base::EnumSet<CodeFlushMode> code_flush_mode,
-                           bool embedder_tracing_enabled, bool is_forced_gc,
+                           bool embedder_tracing_enabled,
+                           bool should_keep_ages_unchanged,
                            MemoryChunkDataMap* memory_chunk_data)
       : MarkingVisitorBase(task_id, local_marking_worklists, weak_objects, heap,
                            mark_compact_epoch, code_flush_mode,
-                           embedder_tracing_enabled, is_forced_gc),
+                           embedder_tracing_enabled,
+                           should_keep_ages_unchanged),
         marking_state_(memory_chunk_data),
         memory_chunk_data_(memory_chunk_data) {}
 
@@ -370,11 +372,12 @@ StrongDescriptorArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
 class ConcurrentMarking::JobTask : public v8::JobTask {
  public:
   JobTask(ConcurrentMarking* concurrent_marking, unsigned mark_compact_epoch,
-          base::EnumSet<CodeFlushMode> code_flush_mode, bool is_forced_gc)
+          base::EnumSet<CodeFlushMode> code_flush_mode,
+          bool should_keep_ages_unchanged)
       : concurrent_marking_(concurrent_marking),
         mark_compact_epoch_(mark_compact_epoch),
         code_flush_mode_(code_flush_mode),
-        is_forced_gc_(is_forced_gc) {}
+        should_keep_ages_unchanged_(should_keep_ages_unchanged) {}
 
   ~JobTask() override = default;
   JobTask(const JobTask&) = delete;
@@ -385,13 +388,13 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
     if (delegate->IsJoiningThread()) {
       // TRACE_GC is not needed here because the caller opens the right scope.
       concurrent_marking_->Run(delegate, code_flush_mode_, mark_compact_epoch_,
-                               is_forced_gc_);
+                               should_keep_ages_unchanged_);
     } else {
       TRACE_GC_EPOCH(concurrent_marking_->heap_->tracer(),
                      GCTracer::Scope::MC_BACKGROUND_MARKING,
                      ThreadKind::kBackground);
       concurrent_marking_->Run(delegate, code_flush_mode_, mark_compact_epoch_,
-                               is_forced_gc_);
+                               should_keep_ages_unchanged_);
     }
   }
 
@@ -403,7 +406,7 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
   ConcurrentMarking* concurrent_marking_;
   const unsigned mark_compact_epoch_;
   base::EnumSet<CodeFlushMode> code_flush_mode_;
-  const bool is_forced_gc_;
+  const bool should_keep_ages_unchanged_;
 };
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap,
@@ -424,7 +427,8 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap,
 
 void ConcurrentMarking::Run(JobDelegate* delegate,
                             base::EnumSet<CodeFlushMode> code_flush_mode,
-                            unsigned mark_compact_epoch, bool is_forced_gc) {
+                            unsigned mark_compact_epoch,
+                            bool should_keep_ages_unchanged) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;
@@ -433,7 +437,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
   ConcurrentMarkingVisitor visitor(
       task_id, &local_marking_worklists, weak_objects_, heap_,
       mark_compact_epoch, code_flush_mode,
-      heap_->local_embedder_heap_tracer()->InUse(), is_forced_gc,
+      heap_->local_embedder_heap_tracer()->InUse(), should_keep_ages_unchanged,
       &task_state->memory_chunk_data);
   NativeContextInferrer& native_context_inferrer =
       task_state->native_context_inferrer;
@@ -576,7 +580,7 @@ void ConcurrentMarking::ScheduleJob(TaskPriority priority) {
       priority, std::make_unique<JobTask>(
                     this, heap_->mark_compact_collector()->epoch(),
                     heap_->mark_compact_collector()->code_flush_mode(),
-                    heap_->is_current_gc_forced()));
+                    heap_->ShouldCurrentGCKeepAgesUnchanged()));
   DCHECK(job_handle_->IsValid());
 }
 

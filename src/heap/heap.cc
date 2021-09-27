@@ -1684,6 +1684,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
   is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced ||
                           current_gc_flags_ & kForcedGC ||
                           force_gc_on_next_allocation_;
+  is_current_gc_for_heap_profiler_ =
+      gc_reason == GarbageCollectionReason::kHeapProfiler;
   if (force_gc_on_next_allocation_) force_gc_on_next_allocation_ = false;
 
   DevToolsTraceEventScope devtools_trace_event_scope(
@@ -1789,10 +1791,11 @@ bool Heap::CollectGarbage(AllocationSpace space,
         freed_global_handles +=
             PerformGarbageCollection(collector, gc_callback_flags);
       }
-      // Clear is_current_gc_forced now that the current GC is complete. Do this
-      // before GarbageCollectionEpilogue() since that could trigger another
-      // unforced GC.
+      // Clear flags describing the current GC now that the current GC is
+      // complete. Do this before GarbageCollectionEpilogue() since that could
+      // trigger another unforced GC.
       is_current_gc_forced_ = false;
+      is_current_gc_for_heap_profiler_ = false;
 
       {
         TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);

@@ -559,7 +559,7 @@ void MarkCompactCollector::StartMarking() {
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), local_marking_worklists(), weak_objects(), heap_,
       epoch(), code_flush_mode(), heap_->local_embedder_heap_tracer()->InUse(),
-      heap_->is_current_gc_forced());
+      heap_->ShouldCurrentGCKeepAgesUnchanged());
 // Marking bits are cleared by the sweeper.
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {

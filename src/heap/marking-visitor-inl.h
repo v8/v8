@@ -152,7 +152,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitBytecodeArray(
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
   this->VisitMapPointer(object);
   BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
-  if (!is_forced_gc_) {
+  if (!should_keep_ages_unchanged_) {
     object.MakeOlder();
   }
   return size;
