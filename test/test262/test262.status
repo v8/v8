@@ -69,17 +69,6 @@
   # https://code.google.com/p/v8/issues/detail?id=10958
   'language/module-code/eval-gtbndng-indirect-faux-assertion': [FAIL],
 
-  # copyWithin should also throw on detached buffers
-  'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached-prototype': [FAIL],
-  'built-ins/TypedArray/prototype/copyWithin/coerced-values-start-detached': [FAIL],
-  'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached': [FAIL],
-  # fill should also throw on detached buffers
-  'built-ins/TypedArray/prototype/fill/coerced-value-detach': [FAIL],
-  'built-ins/TypedArray/prototype/fill/coerced-end-detach': [FAIL],
-  'built-ins/TypedArray/prototype/fill/coerced-start-detach': [FAIL],
-  'built-ins/TypedArray/prototype/includes/detached-buffer-during-fromIndex-returns-true-for-undefined': [FAIL],
-  'built-ins/TypedArray/prototype/includes/BigInt/detached-buffer-during-fromIndex-returns-true-for-undefined': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],

@@ -132,7 +132,9 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     let evil = { valueOf: () => { %ArrayBufferDetach(rab); return 1;}};
     // The length is read after converting the first parameter ('value'), so the
     // detaching parameter has to be the 2nd ('start') or 3rd ('end').
-    FillHelper(fixedLength, 1, 0, evil);
+    assertThrows(function() {
+      FillHelper(fixedLength, 1, 0, evil);
+    }, TypeError);
   }
 })();
 
@@ -143,6 +145,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
 
     let evil = { valueOf: () => { %ArrayBufferDetach(rab); return 2;}};
-    fixedLength.copyWithin(evil, 0, 1);
+    assertThrows(function() {
+      fixedLength.copyWithin(evil, 0, 1);
+    }, TypeError);
   }
 })();

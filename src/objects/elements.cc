@@ -3327,8 +3327,6 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
-    // TODO(caitp): return Just(false) here when implementing strict throwing on
-    // detached views.
     if (typed_array.WasDetached()) {
       return Just(value->IsUndefined(isolate) && length > start_from);
     }
