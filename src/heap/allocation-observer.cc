@@ -4,9 +4,6 @@
 
 #include "src/heap/allocation-observer.h"
 
-#include <algorithm>
-#include <cstdint>
-
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 
@@ -61,16 +58,15 @@ void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
   if (observers_.size() == 0) {
     current_counter_ = next_counter_ = 0;
   } else {
-    // There's at least one observer.
-    const size_t min_next_counter =
-        std::min_element(observers_.begin(), observers_.end(),
-                         [](const auto& a, const auto& b) {
-                           return a.next_counter_ < b.next_counter_;
-                         })
-            ->next_counter_;
-    DCHECK_GT(min_next_counter, current_counter_);
-    const size_t min_step_size = min_next_counter - current_counter_;
-    next_counter_ = current_counter_ + min_step_size;
+    size_t step_size = 0;
+
+    for (AllocationObserverCounter& observer : observers_) {
+      size_t left_in_step = observer.next_counter_ - current_counter_;
+      DCHECK_GT(left_in_step, 0);
+      step_size = step_size ? std::min(step_size, left_in_step) : left_in_step;
+    }
+
+    next_counter_ = current_counter_ + step_size;
   }
 }
 
