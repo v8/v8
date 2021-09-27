@@ -821,10 +821,15 @@ namespace {
 void PrintContextWithHeader(std::ostream& os, Context context,
                             const char* type) {
   context.PrintHeader(os, type);
-  os << "\n - length: " << context.length();
+  os << "\n - type: " << context.map().instance_type();
   os << "\n - scope_info: " << Brief(context.scope_info());
   os << "\n - previous: " << Brief(context.unchecked_previous());
   os << "\n - native_context: " << Brief(context.native_context());
+  if (context.scope_info().HasContextExtensionSlot()) {
+    os << "\n - extension: " << context.extension();
+  }
+  os << "\n - length: " << context.length();
+  os << "\n - elements:";
   PrintFixedArrayElements(os, context);
   os << "\n";
 }
