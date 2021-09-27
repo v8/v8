@@ -2100,6 +2100,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(0).Format(f), +0.0);          \
     break;                                                             \
   }
+#define SIMD_CM_L_CASE(Op, ImmOp)                                      \
+  case Op: {                                                           \
+    VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode)); \
+    DCHECK_EQ(instr->InputCount(), 1);                                 \
+    __ Cm##ImmOp(i.OutputSimd128Register().Format(f),                  \
+                 i.InputSimd128Register(0).Format(f), 0);              \
+    break;                                                             \
+  }
+#define SIMD_CM_G_CASE(Op, CmOp)                                       \
+  case Op: {                                                           \
+    VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode)); \
+    if (instr->InputCount() == 1) {                                    \
+      __ Cm##CmOp(i.OutputSimd128Register().Format(f),                 \
+                  i.InputSimd128Register(0).Format(f), 0);             \
+    } else {                                                           \
+      __ Cm##CmOp(i.OutputSimd128Register().Format(f),                 \
+                  i.InputSimd128Register(0).Format(f),                 \
+                  i.InputSimd128Register(1).Format(f));                \
+    }                                                                  \
+    break;                                                             \
+  }
 #define SIMD_DESTRUCTIVE_BINOP_CASE(Op, Instr, FORMAT)     \
   case Op: {                                               \
     VRegister dst = i.OutputSimd128Register().V##FORMAT(); \
@@ -2379,17 +2400,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       break;
     }
-      SIMD_BINOP_LANE_SIZE_CASE(kArm64IEq, Cmeq);
+      SIMD_CM_G_CASE(kArm64IEq, eq);
     case kArm64INe: {
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       VRegister dst = i.OutputSimd128Register().Format(f);
-      __ Cmeq(dst, i.InputSimd128Register(0).Format(f),
-              i.InputSimd128Register(1).Format(f));
+      if (instr->InputCount() == 1) {
+        __ Cmeq(dst, i.InputSimd128Register(0).Format(f), 0);
+      } else {
+        __ Cmeq(dst, i.InputSimd128Register(0).Format(f),
+                i.InputSimd128Register(1).Format(f));
+      }
       __ Mvn(dst, dst);
       break;
     }
-      SIMD_BINOP_LANE_SIZE_CASE(kArm64IGtS, Cmgt);
-      SIMD_BINOP_LANE_SIZE_CASE(kArm64IGeS, Cmge);
+      SIMD_CM_L_CASE(kArm64ILtS, lt);
+      SIMD_CM_L_CASE(kArm64ILeS, le);
+      SIMD_CM_G_CASE(kArm64IGtS, gt);
+      SIMD_CM_G_CASE(kArm64IGeS, ge);
     case kArm64I64x2ShrU: {
       ASSEMBLE_SIMD_SHIFT_RIGHT(Ushr, 6, V2D, Ushl, X);
       break;
