@@ -234,6 +234,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case BIG_INT_BASE_TYPE:
       BigIntBase::cast(*this).BigIntBasePrint(os);
       break;
+    case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:

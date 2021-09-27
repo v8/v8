@@ -28,4 +28,13 @@ extern class JSFunction extends JSFunctionOrBoundFunction {
   @noVerifier prototype_or_initial_map: JSReceiver|Map;
 }
 
+// Class constructors are special, because they are callable, but [[Call]] will
+// raise an exception.
+// See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+@doNotGenerateCast
+@noVerifier
+@highestInstanceTypeWithinParentClassRange
+extern class JSClassConstructor extends JSFunction
+    generates 'TNode<JSFunction>';
+
 type JSFunctionWithPrototypeSlot extends JSFunction;

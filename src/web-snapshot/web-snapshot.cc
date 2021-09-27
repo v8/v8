@@ -694,19 +694,16 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       serializer.WriteUint32(ValueType::DOUBLE);
       serializer.WriteDouble(HeapNumber::cast(*object).value());
       break;
-    case JS_FUNCTION_TYPE: {
-      Handle<JSFunction> function = Handle<JSFunction>::cast(object);
-      FunctionKind kind = function->shared().kind();
-      if (IsClassConstructor(kind)) {
-        SerializeClass(function, id);
-        serializer.WriteUint32(ValueType::CLASS_ID);
-      } else {
-        SerializeFunction(function, id);
-        serializer.WriteUint32(ValueType::FUNCTION_ID);
-      }
+    case JS_FUNCTION_TYPE:
+      SerializeFunction(Handle<JSFunction>::cast(object), id);
+      serializer.WriteUint32(ValueType::FUNCTION_ID);
       serializer.WriteUint32(id);
       break;
-    }
+    case JS_CLASS_CONSTRUCTOR_TYPE:
+      SerializeClass(Handle<JSFunction>::cast(object), id);
+      serializer.WriteUint32(ValueType::CLASS_ID);
+      serializer.WriteUint32(id);
+      break;
     case JS_OBJECT_TYPE:
       SerializeObject(Handle<JSObject>::cast(object), id);
       serializer.WriteUint32(ValueType::OBJECT_ID);

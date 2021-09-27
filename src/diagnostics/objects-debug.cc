@@ -293,6 +293,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       BigIntBase::cast(*this).BigIntBaseVerify(isolate);
       break;
 
+    case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_ARRAY_CONSTRUCTOR_TYPE:
