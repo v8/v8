@@ -184,7 +184,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
 
   Isolate* isolate() const { return masm_->isolate(); }
 
-  MacroAssembler* const masm_;
+  const std::unique_ptr<MacroAssembler> masm_;
   const NoRootArrayScope no_root_array_scope_;
 
   // Which mode to generate code for (Latin1 or UC16).

@@ -108,9 +108,10 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
                                                      Zone* zone, Mode mode,
                                                      int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, CodeObjectRequired::kYes,
-                               NewAssemblerBuffer(kRegExpCodeSize))),
-      no_root_array_scope_(masm_),
+      masm_(std::make_unique<MacroAssembler>(
+          isolate, CodeObjectRequired::kYes,
+          NewAssemblerBuffer(kRegExpCodeSize))),
+      no_root_array_scope_(masm_.get()),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -130,7 +131,6 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
 }
 
 RegExpMacroAssemblerARM64::~RegExpMacroAssemblerARM64() {
-  delete masm_;
   // Unuse labels in case we throw away the assembler without calling GetCode.
   entry_label_.Unuse();
   start_label_.Unuse();
@@ -190,7 +190,7 @@ void RegExpMacroAssemblerARM64::Backtrack() {
   CheckPreemption();
   if (has_backtrack_limit()) {
     Label next;
-    UseScratchRegisterScope temps(masm_);
+    UseScratchRegisterScope temps(masm_.get());
     Register scratch = temps.AcquireW();
     __ Ldr(scratch, MemOperand(frame_pointer(), kBacktrackCount));
     __ Add(scratch, scratch, 1);
@@ -421,7 +421,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     __ Mov(x3, ExternalReference::isolate_address(isolate()));
 
     {
-      AllowExternalCallThatCantCauseGC scope(masm_);
+      AllowExternalCallThatCantCauseGC scope(masm_.get());
       ExternalReference function =
           unicode ? ExternalReference::re_case_insensitive_compare_unicode(
                         isolate())
@@ -754,7 +754,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
 
   // Tell the system that we have a stack frame.  Because the type is MANUAL, no
   // code is generated.
-  FrameScope scope(masm_, StackFrame::MANUAL);
+  FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
   // Push registers on the stack, only push the argument registers that we need.
   CPURegList argument_registers(x0, x5, x6, x7);

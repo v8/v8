@@ -85,9 +85,10 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(Isolate* isolate, Zone* zone,
                                                    Mode mode,
                                                    int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, CodeObjectRequired::kYes,
-                               NewAssemblerBuffer(kRegExpCodeSize))),
-      no_root_array_scope_(masm_),
+      masm_(std::make_unique<MacroAssembler>(
+          isolate, CodeObjectRequired::kYes,
+          NewAssemblerBuffer(kRegExpCodeSize))),
+      no_root_array_scope_(masm_.get()),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -102,7 +103,6 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(Isolate* isolate, Zone* zone,
 }
 
 RegExpMacroAssemblerIA32::~RegExpMacroAssemblerIA32() {
-  delete masm_;
   // Unuse labels in case we throw away the assembler without calling GetCode.
   entry_label_.Unuse();
   start_label_.Unuse();
@@ -334,7 +334,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ mov(Operand(esp, 0 * kSystemPointerSize), edx);
 
     {
-      AllowExternalCallThatCantCauseGC scope(masm_);
+      AllowExternalCallThatCantCauseGC scope(masm_.get());
       ExternalReference compare =
           unicode ? ExternalReference::re_case_insensitive_compare_unicode(
                         isolate())
@@ -693,7 +693,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   // Tell the system that we have a stack frame.  Because the type is MANUAL, no
   // code is generated.
-  FrameScope scope(masm_, StackFrame::MANUAL);
+  FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
   // Actually emit code to start a new stack frame.
   __ push(ebp);
