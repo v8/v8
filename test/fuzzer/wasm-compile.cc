@@ -104,8 +104,7 @@ bool DataRange::get() {
 }
 
 ValueType GetValueType(DataRange* data, bool liftoff_as_reference,
-                       const std::vector<uint32_t>& functions,
-                       uint32_t num_structs_and_arrays) {
+                       uint32_t num_types) {
   constexpr ValueType types[] = {
       kWasmI32,     kWasmI64,
       kWasmF32,     kWasmF64,
@@ -115,20 +114,13 @@ ValueType GetValueType(DataRange* data, bool liftoff_as_reference,
   constexpr int kLiftoffOnlyTypeCount = 3;  // at the end of {types}.
 
   if (liftoff_as_reference) {
-    uint8_t random_byte = data->get<uint8_t>();
-    uint8_t id = random_byte %
-                 (arraysize(types) + num_structs_and_arrays + functions.size());
-    if (id < arraysize(types)) {
-      return types[id];
-    } else if (id - arraysize(types) >= num_structs_and_arrays) {
-      int func_index = id - arraysize(types) - num_structs_and_arrays;
-      uint32_t sig_index = functions[func_index];
-      return ValueType::Ref(sig_index, kNullable);
-    } else {
-      uint32_t type_index = id - arraysize(types);
-      return ValueType::Ref(type_index, kNullable);
+    uint32_t id = data->get<uint8_t>() % (arraysize(types) + num_types);
+    if (id >= arraysize(types)) {
+      return ValueType::Ref(id - arraysize(types), kNullable);
     }
+    return types[id];
   }
+
   return types[data->get<uint8_t>() %
                (arraysize(types) - kLiftoffOnlyTypeCount)];
 }
@@ -534,8 +526,9 @@ class WasmGenerator {
   }
 
   void drop(DataRange* data) {
-    Generate(GetValueType(data, liftoff_as_reference_, functions_,
-                          num_structs_ + num_arrays_),
+    Generate(GetValueType(data, liftoff_as_reference_,
+                          static_cast<uint32_t>(functions_.size()) +
+                              num_structs_ + num_arrays_),
              data);
     builder_->Emit(kExprDrop);
   }
@@ -1022,6 +1015,7 @@ class WasmGenerator {
     builder_->EmitU32V(struct_index[index]);
     builder_->EmitU32V(field_index[index]);
   }
+
   void struct_set(DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
     if (num_structs_ > 0) {
@@ -1114,8 +1108,9 @@ class WasmGenerator {
     constexpr uint32_t kMaxLocals = 32;
     locals_.resize(data->get<uint8_t>() % kMaxLocals);
     for (ValueType& local : locals_) {
-      local = GetValueType(data, liftoff_as_reference_, functions_,
-                           num_structs_ + num_arrays_);
+      local = GetValueType(data, liftoff_as_reference_,
+                           static_cast<uint32_t>(functions_.size()) +
+                               num_structs_ + num_arrays_);
       fn->AddLocal(local);
     }
   }
@@ -1986,8 +1981,9 @@ std::vector<ValueType> WasmGenerator::GenerateTypes(DataRange* data) {
   std::vector<ValueType> types;
   int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
   for (int i = 0; i < num_params; ++i) {
-    types.push_back(GetValueType(data, liftoff_as_reference_, functions_,
-                                 num_structs_ + num_arrays_));
+    types.push_back(GetValueType(
+        data, liftoff_as_reference_,
+        num_structs_ + num_arrays_ + static_cast<uint32_t>(functions_.size())));
   }
   return types;
 }
@@ -2042,9 +2038,7 @@ void WasmGenerator::ConsumeAndGenerate(
 enum SigKind { kFunctionSig, kExceptionSig };
 
 FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
-                         bool liftoff_as_reference,
-                         const std::vector<uint32_t>& functions,
-                         int num_structs_and_arrays) {
+                         bool liftoff_as_reference, int num_types) {
   // Generate enough parameters to spill some to the stack.
   int num_params = int{data->get<uint8_t>()} % (kMaxParameters + 1);
   int num_returns = sig_kind == kFunctionSig
@@ -2053,12 +2047,10 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
 
   FunctionSig::Builder builder(zone, num_returns, num_params);
   for (int i = 0; i < num_returns; ++i) {
-    builder.AddReturn(GetValueType(data, liftoff_as_reference, functions,
-                                   num_structs_and_arrays));
+    builder.AddReturn(GetValueType(data, liftoff_as_reference, num_types));
   }
   for (int i = 0; i < num_params; ++i) {
-    builder.AddParam(GetValueType(data, liftoff_as_reference, functions,
-                                  num_structs_and_arrays));
+    builder.AddParam(GetValueType(data, liftoff_as_reference, num_types));
   }
   return builder.Build();
 }
@@ -2085,18 +2077,19 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     uint8_t num_arrays = 0;
     static_assert(kMaxFunctions >= 1, "need min. 1 function");
     uint8_t num_functions = 1 + (range.get<uint8_t>() % kMaxFunctions);
+    uint16_t num_types = num_functions;
 
     if (liftoff_as_reference) {
       num_structs = range.get<uint8_t>() % (kMaxStructs + 1);
       num_arrays = range.get<uint8_t>() % (kMaxArrays + 1);
-      uint16_t num_types = num_structs + num_arrays;
+
+      num_types += num_structs + num_arrays;
 
       for (int struct_index = 0; struct_index < num_structs; struct_index++) {
         uint8_t num_fields = range.get<uint8_t>() % (kMaxStructFields + 1);
         StructType::Builder struct_builder(zone, num_fields);
         for (int field_index = 0; field_index < num_fields; field_index++) {
-          // TODO(v8:11954): Allow GetValueType to generate function signatures.
-          ValueType type = GetValueType(&range, true, {}, num_types);
+          ValueType type = GetValueType(&range, true, num_types);
           bool mutability = range.get<uint8_t>() < 127;
           struct_builder.AddField(type, mutability);
         }
@@ -2105,19 +2098,18 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       }
 
       for (int array_index = 0; array_index < num_arrays; array_index++) {
-        ValueType type = GetValueType(&range, true, {}, num_types);
+        ValueType type = GetValueType(&range, true, num_types);
         ArrayType* array_fuz = zone->New<ArrayType>(type, true);
         builder.AddArrayType(array_fuz);
       }
     }
 
-    function_signatures.push_back(builder.AddSignature(sigs.i_iii()));
+    function_signatures.push_back(builder.ForceAddSignature(sigs.i_iii()));
 
     for (int i = 1; i < num_functions; ++i) {
-      FunctionSig* sig =
-          GenerateSig(zone, &range, kFunctionSig, liftoff_as_reference,
-                      function_signatures, num_structs + num_arrays);
-      uint32_t signature_index = builder.AddSignature(sig);
+      FunctionSig* sig = GenerateSig(zone, &range, kFunctionSig,
+                                     liftoff_as_reference, num_types);
+      uint32_t signature_index = builder.ForceAddSignature(sig);
       function_signatures.push_back(signature_index);
     }
 
@@ -2129,16 +2121,13 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     int num_exceptions = 1 + (range.get<uint8_t>() % kMaxExceptions);
     for (int i = 0; i < num_exceptions; ++i) {
-      FunctionSig* sig =
-          GenerateSig(zone, &range, kExceptionSig, liftoff_as_reference,
-                      function_signatures, num_structs + num_arrays);
+      FunctionSig* sig = GenerateSig(zone, &range, kExceptionSig,
+                                     liftoff_as_reference, num_types);
       builder.AddException(sig);
     }
 
     for (int i = 0; i < num_globals; ++i) {
-      ValueType type =
-          GetValueType(&range, liftoff_as_reference, function_signatures,
-                       num_structs + num_arrays);
+      ValueType type = GetValueType(&range, liftoff_as_reference, num_types);
       // 1/8 of globals are immutable.
       const bool mutability = (range.get<uint8_t>() % 8) != 0;
       builder.AddGlobal(type, mutability, WasmInitExpr());

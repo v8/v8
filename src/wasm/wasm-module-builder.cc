@@ -290,13 +290,18 @@ void WasmModuleBuilder::AddDataSegment(const byte* data, uint32_t size,
   }
 }
 
-uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig, uint32_t supertype) {
-  auto sig_entry = signature_map_.find(*sig);
-  if (sig_entry != signature_map_.end()) return sig_entry->second;
+uint32_t WasmModuleBuilder::ForceAddSignature(FunctionSig* sig,
+                                              uint32_t supertype) {
   uint32_t index = static_cast<uint32_t>(types_.size());
   signature_map_.emplace(*sig, index);
   types_.push_back(Type(sig, supertype));
   return index;
+}
+
+uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig, uint32_t supertype) {
+  auto sig_entry = signature_map_.find(*sig);
+  if (sig_entry != signature_map_.end()) return sig_entry->second;
+  return ForceAddSignature(sig, supertype);
 }
 
 uint32_t WasmModuleBuilder::AddException(FunctionSig* type) {

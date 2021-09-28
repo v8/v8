@@ -331,7 +331,11 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   // size, or the maximum uint32_t value if the maximum table size has been
   // exceeded.
   uint32_t IncreaseTableMinSize(uint32_t table_index, uint32_t count);
+  // Adds the signature to the module if it does not already exist.
   uint32_t AddSignature(FunctionSig* sig, uint32_t supertype = kNoSuperType);
+  // Does not deduplicate function signatures.
+  uint32_t ForceAddSignature(FunctionSig* sig,
+                             uint32_t supertype = kNoSuperType);
   uint32_t AddException(FunctionSig* type);
   uint32_t AddStructType(StructType* type, uint32_t supertype = kNoSuperType);
   uint32_t AddArrayType(ArrayType* type, uint32_t supertype = kNoSuperType);
