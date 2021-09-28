@@ -894,6 +894,8 @@ filegroup(
         "src/torque/instance-type-generator.cc",
         "src/torque/instructions.cc",
         "src/torque/instructions.h",
+        "src/torque/kythe-data.cc",
+        "src/torque/kythe-data.h",
         "src/torque/parameter-difference.h",
         "src/torque/server-data.cc",
         "src/torque/server-data.h",
