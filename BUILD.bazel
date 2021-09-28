@@ -3008,7 +3008,6 @@ v8_library(
         ":v8_shared_internal_headers",
         ":v8_libbase_files",
     ],
-    deps = [ "@com_google_absl//absl/types:optional" ],
 )
 
 v8_library(
@@ -3076,10 +3075,7 @@ v8_binary(
         "src/regexp/special-case.h",
         "src/regexp/gen-regexp-special-case.cc",
     ],
-    deps = [
-        "@icu",
-        "@com_google_absl//absl/types:optional",
-    ],
+    deps = [ "@icu" ],
 )
 
 v8_binary(
