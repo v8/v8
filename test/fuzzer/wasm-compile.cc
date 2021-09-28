@@ -1021,13 +1021,20 @@ class WasmGenerator {
     if (num_structs_ > 0) {
       int struct_index = data->get<uint8_t>() % num_structs_;
       DCHECK(builder->IsStructType(struct_index));
-      int field_count = builder->GetStructType(struct_index)->field_count();
-      if (field_count == 0) {
+      StructType* struct_type = builder->GetStructType(struct_index);
+      ZoneVector<uint32_t> field_indices(builder->zone());
+      for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+        if (struct_type->mutability(i)) {
+          field_indices.push_back(i);
+        }
+      }
+      if (field_indices.empty()) {
         return;
       }
-      int field_index = data->get<uint8_t>() % field_count;
+      int field_index =
+          field_indices[data->get<uint8_t>() % field_indices.size()];
       GenerateOptRef(HeapType(struct_index), data);
-      Generate(builder->GetStructType(struct_index)->field(field_index), data);
+      Generate(struct_type->field(field_index), data);
       builder_->EmitWithPrefix(kExprStructSet);
       builder_->EmitU32V(struct_index);
       builder_->EmitU32V(field_index);
