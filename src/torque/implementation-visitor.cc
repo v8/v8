@@ -3767,30 +3767,6 @@ class FieldOffsetsGenerator {
   bool header_size_emitted_ = false;
 };
 
-class MacroFieldOffsetsGenerator : public FieldOffsetsGenerator {
- public:
-  MacroFieldOffsetsGenerator(std::ostream& out, const ClassType* type)
-      : FieldOffsetsGenerator(type), out_(out) {
-    out_ << "#define ";
-    out_ << "TORQUE_GENERATED_" << CapifyStringWithUnderscores(type_->name())
-         << "_FIELDS(V) \\\n";
-  }
-  void WriteField(const Field& f, const std::string& size_string) override {
-    out_ << "/* " << PositionAsString(f.pos) << " */ \\\n";
-    out_ << "V(k" << CamelifyString(f.name_and_type.name) << "Offset, "
-         << size_string << ") \\\n";
-  }
-  void WriteFieldOffsetGetter(const Field& f) override {
-    // Can't do anything here.
-  }
-  void WriteMarker(const std::string& marker) override {
-    out_ << "V(" << marker << ", 0) \\\n";
-  }
-
- private:
-  std::ostream& out_;
-};
-
 void GenerateClassExport(const ClassType* type, std::ostream& header,
                          std::ostream& inl_header) {
   const ClassType* super = type->GetSuperClass();
@@ -3808,26 +3784,12 @@ void GenerateClassExport(const ClassType* type, std::ostream& header,
 
 }  // namespace
 
-void ImplementationVisitor::GenerateClassFieldOffsets(
+void ImplementationVisitor::GenerateVisitorLists(
     const std::string& output_directory) {
   std::stringstream header;
-  std::string file_name = "field-offsets.h";
+  std::string file_name = "visitor-lists.h";
   {
     IncludeGuardScope include_guard(header, file_name);
-
-    for (const ClassType* type : TypeOracle::GetClasses()) {
-      // TODO(danno): Remove this once all classes use ClassFieldOffsetGenerator
-      // to generate field offsets without the use of macros.
-      if (!type->GenerateCppClassDefinitions() && !type->HasUndefinedLayout()) {
-        MacroFieldOffsetsGenerator g(header, type);
-        for (auto f : type->fields()) {
-          CurrentSourcePosition::Scope scope(f.pos);
-          g.RecordOffsetFor(f);
-        }
-        g.Finish();
-        header << "\n";
-      }
-    }
 
     header << "#define TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(V)\\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {

@@ -25,7 +25,6 @@
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-containers.h"
-#include "torque-generated/field-offsets.h"
 
 namespace v8 {
 namespace internal {

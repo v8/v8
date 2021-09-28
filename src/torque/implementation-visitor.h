@@ -443,7 +443,7 @@ class ImplementationVisitor {
  public:
   void GenerateBuiltinDefinitionsAndInterfaceDescriptors(
       const std::string& output_directory);
-  void GenerateClassFieldOffsets(const std::string& output_directory);
+  void GenerateVisitorLists(const std::string& output_directory);
   void GenerateBitFields(const std::string& output_directory);
   void GeneratePrintDefinitions(const std::string& output_directory);
   void GenerateClassDefinitions(const std::string& output_directory);

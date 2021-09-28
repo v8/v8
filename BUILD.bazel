@@ -2916,11 +2916,11 @@ v8_torque(
         "exported-macros-assembler.h",
         "factory.cc",
         "factory.inc",
-        "field-offsets.h",
         "instance-types.h",
         "interface-descriptors.inc",
         "objects-body-descriptors-inl.inc",
         "objects-printer.cc",
+        "visitor-lists.h",
     ],
     args = select({
         ":is_v8_annotate_torque_ir": [ "-annotate-ir" ],
