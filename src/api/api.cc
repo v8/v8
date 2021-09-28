@@ -947,7 +947,7 @@ void HandleScope::Initialize(Isolate* isolate) {
   // We make an exception if the serializer is enabled, which means that the
   // Isolate is exclusively used to create a snapshot.
   Utils::ApiCheck(
-      !v8::Locker::IsActive() ||
+      !v8::Locker::WasEverUsed() ||
           internal_isolate->thread_manager()->IsLockedByCurrentThread() ||
           internal_isolate->serializer_enabled(),
       "HandleScope::HandleScope",
@@ -9036,7 +9036,7 @@ void Isolate::IsolateInBackgroundNotification() {
 void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   bool on_isolate_thread =
-      v8::Locker::IsActive()
+      v8::Locker::WasEverUsed()
           ? isolate->thread_manager()->IsLockedByCurrentThread()
           : i::ThreadId::Current() == isolate->thread_id();
   isolate->heap()->MemoryPressureNotification(level, on_isolate_thread);
