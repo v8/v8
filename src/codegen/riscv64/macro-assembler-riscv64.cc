@@ -4478,6 +4478,15 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
   }
 }
 
+void TurboAssembler::SmiToInt32(Register smi) {
+  DCHECK(smi.Is64Bits());
+  if (FLAG_enable_slow_asserts) {
+    AssertSmi(smi);
+  }
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
+  SmiUntag(smi);
+}
+
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label) {
   DCHECK_EQ(0, kSmiTag);
   UseScratchRegisterScope temps(this);
@@ -4494,7 +4503,7 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   Branch(not_smi_label, ne, scratch, Operand(zero_reg));
 }
 
-void MacroAssembler::AssertNotSmi(Register object) {
+void TurboAssembler::AssertNotSmi(Register object) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     DCHECK(object != kScratchReg);
@@ -4503,7 +4512,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
   }
 }
 
-void MacroAssembler::AssertSmi(Register object) {
+void TurboAssembler::AssertSmi(Register object) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     DCHECK(object != kScratchReg);

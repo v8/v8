@@ -492,6 +492,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   void SmiUntag(Register reg) { SmiUntag(reg, reg); }
+  void SmiToInt32(Register smi);
+
+  // Enabled via --debug-code.
+  void AssertNotSmi(Register object);
+  void AssertSmi(Register object);
 
   int CalculateStackPassedDWords(int num_gp_arguments, int num_fp_arguments);
 

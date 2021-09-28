@@ -119,7 +119,6 @@ RegExpMacroAssemblerRISCV::RegExpMacroAssemblerRISCV(Isolate* isolate,
 }
 
 RegExpMacroAssemblerRISCV::~RegExpMacroAssemblerRISCV() {
-  delete masm_;
   // Unuse labels in case we throw away the assembler without calling GetCode.
   entry_label_.Unuse();
   start_label_.Unuse();
@@ -334,7 +333,7 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
     __ li(a3, Operand(ExternalReference::isolate_address(masm_->isolate())));
 
     {
-      AllowExternalCallThatCantCauseGC scope(masm_);
+      AllowExternalCallThatCantCauseGC scope(masm_.get());
       ExternalReference function =
           unicode ? ExternalReference::re_case_insensitive_compare_unicode(
                         isolate())
@@ -645,7 +644,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
 
     // Tell the system that we have a stack frame.  Because the type is MANUAL,
     // no is generated.
-    FrameScope scope(masm_, StackFrame::MANUAL);
+    FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
     // Actually emit code to start a new stack frame.
     // Push arguments
@@ -1015,7 +1014,7 @@ void RegExpMacroAssemblerRISCV::PushBacktrack(Label* label) {
     int target = label->pos();
     __ li(a0, Operand(target + Code::kHeaderSize - kHeapObjectTag));
   } else {
-    Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
+    Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_.get());
     Label after_constant;
     __ BranchShort(&after_constant);
     int offset = masm_->pc_offset();
