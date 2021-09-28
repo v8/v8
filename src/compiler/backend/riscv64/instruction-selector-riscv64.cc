@@ -454,7 +454,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = load_rep.IsUnsigned() ? kRiscvLhu : kRiscvLh;
       break;
     case MachineRepresentation::kWord32:
-      opcode = load_rep.IsUnsigned() ? kRiscvLwu : kRiscvLw;
+      opcode = kRiscvLw;
       break;
 #ifdef V8_COMPRESS_POINTERS
     case MachineRepresentation::kTaggedSigned:
@@ -1287,7 +1287,6 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
       switch (load_rep.representation()) {
         case MachineRepresentation::kWord8:
         case MachineRepresentation::kWord16:
-        case MachineRepresentation::kWord32:
           return true;
         default:
           return false;
@@ -1623,7 +1622,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
       opcode = load_rep.IsUnsigned() ? kRiscvUlhu : kRiscvUlh;
       break;
     case MachineRepresentation::kWord32:
-      opcode = load_rep.IsUnsigned() ? kRiscvUlwu : kRiscvUlw;
+      opcode = kRiscvUlw;
       break;
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.

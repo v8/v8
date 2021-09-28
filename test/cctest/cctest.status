@@ -441,6 +441,10 @@
   'test-liftoff-for-fuzzing/NondeterminismUnopF64x2OneNaN': [SKIP],
   'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
   'test-liftoff-for-fuzzing/NondeterminismUnopF32x4OneNaN': [SKIP],
+
+  # riscv64 sign extend on uint32.
+  'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
+  'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
 }],  # 'arch == riscv64'
 
 ##############################################################################
