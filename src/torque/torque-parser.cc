@@ -888,7 +888,7 @@ base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
   AnnotationSet annotations(
       child_results,
-      {ANNOTATION_GENERATE_PRINT, ANNOTATION_NO_VERIFIER, ANNOTATION_ABSTRACT,
+      {ANNOTATION_GENERATE_PRINT, ANNOTATION_ABSTRACT,
        ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT,
        ANNOTATION_DO_NOT_GENERATE_CPP_CLASS, ANNOTATION_CUSTOM_CPP_CLASS,
        ANNOTATION_CUSTOM_MAP, ANNOTATION_GENERATE_BODY_DESCRIPTOR,
@@ -900,8 +900,6 @@ base::Optional<ParseResult> MakeClassDeclaration(
   ClassFlags flags = ClassFlag::kNone;
   bool generate_print = annotations.Contains(ANNOTATION_GENERATE_PRINT);
   if (generate_print) flags |= ClassFlag::kGeneratePrint;
-  bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
-  if (generate_verify) flags |= ClassFlag::kGenerateVerify;
   if (annotations.Contains(ANNOTATION_ABSTRACT)) {
     flags |= ClassFlag::kAbstract;
   }
@@ -1971,11 +1969,9 @@ base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   AnnotationSet annotations(
       child_results,
-      {ANNOTATION_NO_VERIFIER, ANNOTATION_CPP_RELAXED_STORE,
-       ANNOTATION_CPP_RELAXED_LOAD, ANNOTATION_CPP_RELEASE_STORE,
-       ANNOTATION_CPP_ACQUIRE_LOAD},
+      {ANNOTATION_CPP_RELAXED_STORE, ANNOTATION_CPP_RELAXED_LOAD,
+       ANNOTATION_CPP_RELEASE_STORE, ANNOTATION_CPP_ACQUIRE_LOAD},
       {ANNOTATION_IF, ANNOTATION_IFNOT});
-  bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
   FieldSynchronization write_synchronization = FieldSynchronization::kNone;
   if (annotations.Contains(ANNOTATION_CPP_RELEASE_STORE)) {
     write_synchronization = FieldSynchronization::kAcquireRelease;
@@ -2027,7 +2023,6 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
                                           std::move(conditions),
                                           weak,
                                           const_qualified,
-                                          generate_verify,
                                           read_synchronization,
                                           write_synchronization}};
 }

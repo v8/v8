@@ -939,7 +939,6 @@ struct ClassFieldExpression {
   std::vector<ConditionalAnnotation> conditions;
   bool weak;
   bool const_qualified;
-  bool generate_verify;
   FieldSynchronization read_synchronization;
   FieldSynchronization write_synchronization;
 };
