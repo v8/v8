@@ -524,10 +524,23 @@ TEST(Regress1246712) {
 
 TEST(Regress1249306) {
   WasmRunner<uint32_t> r(TestExecutionTier::kInterpreter);
-  TestSignatures sigs;
   BUILD(r, kExprTry, kVoid, kExprCatchAll, kExprTry, kVoid, kExprDelegate, 0,
         kExprEnd, kExprI32Const, 0);
   r.Call();
+}
+
+TEST(Regress1251845) {
+  WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(
+      TestExecutionTier::kInterpreter);
+  ValueType reps[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32};
+  FunctionSig sig_iii_i(1, 3, reps);
+  byte sig = r.builder().AddSignature(&sig_iii_i);
+  BUILD(r, kExprI32Const, 0, kExprI32Const, 0, kExprI32Const, 0, kExprTry, sig,
+        kExprI32Const, 0, kExprTry, 0, kExprTry, 0, kExprI32Const, 0, kExprTry,
+        sig, kExprUnreachable, kExprTry, 0, kExprUnreachable, kExprEnd,
+        kExprTry, sig, kExprUnreachable, kExprEnd, kExprEnd, kExprUnreachable,
+        kExprEnd, kExprEnd, kExprUnreachable, kExprEnd);
+  r.Call(0, 0, 0);
 }
 
 }  // namespace test_run_wasm_interpreter

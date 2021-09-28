@@ -929,6 +929,9 @@ class SideTable : public ZoneObject {
                 // Bind else label for one-armed if.
                 c->else_label->Bind(i.pc());
               } else if (!exception_stack.empty()) {
+                DCHECK_IMPLIES(
+                    !unreachable,
+                    stack_height >= c->else_label->target_stack_height);
                 // No catch_all block, prepare for implicit rethrow.
                 if (exception_stack.back() == control_stack.size() - 1) {
                   // Close try scope for catch-less try.
@@ -940,9 +943,6 @@ class SideTable : public ZoneObject {
                 constexpr int kUnusedControlIndex = -1;
                 c->else_label->Bind(i.pc(), kRethrowOrDelegateExceptionIndex,
                                     kUnusedControlIndex);
-                DCHECK_IMPLIES(
-                    !unreachable,
-                    stack_height >= c->else_label->target_stack_height);
                 stack_height = c->else_label->target_stack_height;
                 rethrow = !unreachable && !exception_stack.empty();
               }
