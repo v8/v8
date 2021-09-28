@@ -9,20 +9,36 @@
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/object-allocator.h"
 
+#if defined(__clang__)
+#if !defined(DEBUG) && V8_HAS_ATTRIBUTE_ALWAYS_INLINE
+#define CPPGC_FORCE_ALWAYS_INLINE __attribute__((always_inline))
+#elif !defined(DEBUG) && V8_HAS___FORCEINLINE
+#define CPPGC_FORCE_ALWAYS_INLINE __forceinline
+#else
+#define CPPGC_FORCE_ALWAYS_INLINE
+#endif
+#else
+#define CPPGC_FORCE_ALWAYS_INLINE V8_INLINE
+#endif
+
 namespace cppgc {
 namespace internal {
 
 STATIC_ASSERT(api_constants::kLargeObjectSizeThreshold ==
               kLargeObjectSizeThreshold);
 
+// Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
+// fast path.
 // static
-void* MakeGarbageCollectedTraitInternal::Allocate(
+CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, GCInfoIndex index) {
   return static_cast<ObjectAllocator&>(handle).AllocateObject(size, index);
 }
 
+// Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
+// fast path.
 // static
-void* MakeGarbageCollectedTraitInternal::Allocate(
+CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, GCInfoIndex index,
     CustomSpaceIndex space_index) {
   return static_cast<ObjectAllocator&>(handle).AllocateObject(size, index,
