@@ -293,10 +293,6 @@ declare_args() {
   # Enables additional heap verification phases and checks.
   cppgc_enable_verify_heap = ""
 
-  # Enable assignment checks for Members/Persistents during prefinalizer invocations.
-  # TODO(v8:11749): Enable by default after fixing any existing issues in Blink.
-  cppgc_enable_check_assignments_in_prefinalizers = false
-
   # Enable allocations during prefinalizer invocations.
   cppgc_allow_allocations_in_prefinalizers = false
 
@@ -789,10 +785,6 @@ config("features") {
 
   if (cppgc_enable_verify_heap) {
     defines += [ "CPPGC_VERIFY_HEAP" ]
-  }
-
-  if (cppgc_enable_check_assignments_in_prefinalizers) {
-    defines += [ "CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS" ]
   }
 
   if (cppgc_allow_allocations_in_prefinalizers) {

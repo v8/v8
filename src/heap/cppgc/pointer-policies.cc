@@ -70,7 +70,7 @@ void EnabledCheckingPolicyBase::CheckPointerImpl(
     DCHECK(!header->IsFree());
   }
 
-#ifdef CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
+#ifdef CPPGC_VERIFY_HEAP
   if (check_off_heap_assignments || is_on_heap) {
     if (heap_->prefinalizer_handler()->IsInvokingPreFinalizers()) {
       // During prefinalizers invocation, check that |ptr| refers to a live
@@ -88,7 +88,7 @@ void EnabledCheckingPolicyBase::CheckPointerImpl(
   }
 #else
   USE(is_on_heap);
-#endif  // CPPGC_CHECK_ASSIGNMENTS_IN_PREFINALIZERS
+#endif  // CPPGC_VERIFY_HEAP
 }
 
 PersistentRegion& StrongPersistentPolicy::GetPersistentRegion(
