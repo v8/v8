@@ -1780,11 +1780,6 @@ MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {
       object()->FindFieldOwner(broker()->isolate(), descriptor_index));
 }
 
-ObjectRef MapRef::GetFieldType(InternalIndex descriptor_index) const {
-  CHECK_LT(descriptor_index.as_int(), NumberOfOwnDescriptors());
-  return instance_descriptors().GetFieldType(descriptor_index);
-}
-
 base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
     uint32_t index) const {
   DCHECK(data_->should_access_heap() || broker()->is_concurrent_inlining());
@@ -2594,12 +2589,6 @@ NameRef DescriptorArrayRef::GetPropertyKey(
   NameRef result = MakeRef(broker(), object()->GetKey(descriptor_index));
   CHECK(result.IsUniqueName());
   return result;
-}
-
-ObjectRef DescriptorArrayRef::GetFieldType(
-    InternalIndex descriptor_index) const {
-  return MakeRef(broker(),
-                 Object::cast(object()->GetFieldType(descriptor_index)));
 }
 
 base::Optional<ObjectRef> DescriptorArrayRef::GetStrongValue(
