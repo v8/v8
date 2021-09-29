@@ -244,12 +244,6 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
   config_.stack_state = stack_state;
   config_.marking_type = MarkingConfig::MarkingType::kAtomic;
 
-  // Lock guards against changes to {Weak}CrossThreadPersistent handles, that
-  // may conflict with marking. E.g., a WeakCrossThreadPersistent may be
-  // converted into a CrossThreadPersistent which requires that the handle
-  // is either cleared or the object is retained.
-  g_process_mutex.Pointer()->Lock();
-
   {
     // VisitRoots also resets the LABs.
     VisitRoots(config_.stack_state);
@@ -307,6 +301,7 @@ void MarkerBase::ProcessWeakness() {
   heap().GetWeakPersistentRegion().Trace(&visitor());
   // Processing cross-thread handles requires taking the process lock.
   g_process_mutex.Get().AssertHeld();
+  CHECK(visited_cross_thread_persistents_in_atomic_pause_);
   heap().GetWeakCrossThreadPersistentRegion().Trace(&visitor());
 
   // Call weak callbacks on objects that may now be pointing to dead objects.
@@ -336,13 +331,6 @@ void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
           heap().stats_collector(), StatsCollector::kMarkVisitPersistents);
       heap().GetStrongPersistentRegion().Trace(&visitor());
     }
-    if (config_.marking_type == MarkingConfig::MarkingType::kAtomic) {
-      StatsCollector::DisabledScope inner_stats_scope(
-          heap().stats_collector(),
-          StatsCollector::kMarkVisitCrossThreadPersistents);
-      g_process_mutex.Get().AssertHeld();
-      heap().GetStrongCrossThreadPersistentRegion().Trace(&visitor());
-    }
   }
 
   if (stack_state != MarkingConfig::StackState::kNoHeapPointers) {
@@ -353,6 +341,24 @@ void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
   if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
     VisitRememberedSlots(heap(), mutator_marking_state_);
   }
+}
+
+bool MarkerBase::VisitCrossThreadPersistentsIfNeeded() {
+  if (config_.marking_type != MarkingConfig::MarkingType::kAtomic ||
+      visited_cross_thread_persistents_in_atomic_pause_)
+    return false;
+
+  StatsCollector::DisabledScope inner_stats_scope(
+      heap().stats_collector(),
+      StatsCollector::kMarkVisitCrossThreadPersistents);
+  // Lock guards against changes to {Weak}CrossThreadPersistent handles, that
+  // may conflict with marking. E.g., a WeakCrossThreadPersistent may be
+  // converted into a CrossThreadPersistent which requires that the handle
+  // is either cleared or the object is retained.
+  g_process_mutex.Pointer()->Lock();
+  heap().GetStrongCrossThreadPersistentRegion().Trace(&visitor());
+  visited_cross_thread_persistents_in_atomic_pause_ = true;
+  return true;
 }
 
 void MarkerBase::ScheduleIncrementalMarkingTask() {
@@ -399,8 +405,13 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
         heap().stats_collector(),
         StatsCollector::kMarkTransitiveClosureWithDeadline, "deadline_ms",
         max_duration.InMillisecondsF());
-    is_done = ProcessWorklistsWithDeadline(
-        marked_bytes_limit, v8::base::TimeTicks::Now() + max_duration);
+    const auto deadline = v8::base::TimeTicks::Now() + max_duration;
+    is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
+    if (is_done && VisitCrossThreadPersistentsIfNeeded()) {
+      // Both limits are absolute and hence can be passed along without further
+      // adjustment.
+      is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
+    }
     schedule_.UpdateMutatorThreadMarkedBytes(
         mutator_marking_state_.marked_bytes());
   }
