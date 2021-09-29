@@ -1984,7 +1984,6 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   DCHECK_GT(size, 0);
   size_t allocate_page_size = page_allocator->AllocatePageSize();
   size = RoundUp(size, allocate_page_size);
-  if (!BackingStore::ReserveAddressSpace(size)) return {};
   if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
   // When we start exposing Wasm in jitless mode, then the jitless flag
@@ -1992,10 +1991,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   DCHECK(!FLAG_jitless);
   VirtualMemory mem(page_allocator, size, hint, allocate_page_size,
                     VirtualMemory::kMapAsJittable);
-  if (!mem.IsReserved()) {
-    BackingStore::ReleaseReservation(size);
-    return {};
-  }
+  if (!mem.IsReserved()) return {};
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
              mem.end(), mem.size());
 
@@ -2436,7 +2432,6 @@ void WasmCodeManager::FreeNativeModule(
 #endif  // V8_OS_WIN64
 
     lookup_map_.erase(code_space.address());
-    BackingStore::ReleaseReservation(code_space.size());
     code_space.Free();
     DCHECK(!code_space.IsReserved());
   }

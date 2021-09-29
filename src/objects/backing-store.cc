@@ -39,21 +39,6 @@ constexpr uint64_t kFullGuardSize = uint64_t{10} * GB;
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64
-// MIPS64 and LOONG64 has a user space of 2^40 bytes on most processors,
-// address space limits needs to be smaller.
-constexpr size_t kAddressSpaceLimit = 0x8000000000L;  // 512 GiB
-#elif V8_TARGET_ARCH_RISCV64
-// RISC-V64 has a user space of 256GB on the Sv39 scheme.
-constexpr size_t kAddressSpaceLimit = 0x4000000000L;  // 256 GiB
-#elif V8_TARGET_ARCH_64_BIT
-constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4 GiB
-#else
-constexpr size_t kAddressSpaceLimit = 0xC0000000;  // 3 GiB
-#endif
-
-std::atomic<uint64_t> reserved_address_space_{0};
-
 std::atomic<uint32_t> next_backing_store_id_{1};
 
 // Allocation results are reported to UMA
@@ -258,7 +243,6 @@ BackingStore::~BackingStore() {
         FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
                   region.size());
     CHECK(pages_were_freed);
-    BackingStore::ReleaseReservation(reservation_size);
     Clear();
     return;
   }
@@ -267,8 +251,6 @@ BackingStore::~BackingStore() {
   if (is_resizable_) {
     DCHECK(free_on_destruct_);
     DCHECK(!custom_deleter_);
-    size_t reservation_size =
-        GetReservationSize(has_guard_regions_, byte_capacity_);
     auto region =
         GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
 
@@ -277,7 +259,6 @@ BackingStore::~BackingStore() {
         FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
                   region.size());
     CHECK(pages_were_freed);
-    BackingStore::ReleaseReservation(reservation_size);
     Clear();
     return;
   }
@@ -399,25 +380,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-bool BackingStore::ReserveAddressSpace(uint64_t num_bytes) {
-  uint64_t reservation_limit = kAddressSpaceLimit;
-  uint64_t old_count = reserved_address_space_.load(std::memory_order_relaxed);
-  while (true) {
-    if (old_count > reservation_limit) return false;
-    if (reservation_limit - old_count < num_bytes) return false;
-    if (reserved_address_space_.compare_exchange_weak(
-            old_count, old_count + num_bytes, std::memory_order_acq_rel)) {
-      return true;
-    }
-  }
-}
-
-void BackingStore::ReleaseReservation(uint64_t num_bytes) {
-  uint64_t old_reserved = reserved_address_space_.fetch_sub(num_bytes);
-  USE(old_reserved);
-  DCHECK_LE(num_bytes, old_reserved);
-}
-
 std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     Isolate* isolate, size_t byte_length, size_t max_byte_length,
     size_t page_size, size_t initial_pages, size_t maximum_pages,
@@ -460,25 +422,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   size_t reservation_size = GetReservationSize(guards, byte_capacity);
 
   //--------------------------------------------------------------------------
-  // 1. Enforce maximum address space reservation per engine.
-  //--------------------------------------------------------------------------
-  auto reserve_memory_space = [&] {
-    return BackingStore::ReserveAddressSpace(reservation_size);
-  };
-
-  if (!gc_retry(reserve_memory_space)) {
-    // Crash on out-of-memory if the correctness fuzzer is running.
-    if (FLAG_correctness_fuzzer_suppressions) {
-      FATAL("could not allocate wasm memory backing store");
-    }
-    RecordStatus(isolate, AllocationStatus::kAddressSpaceLimitReachedFailure);
-    TRACE_BS("BSw:try   failed to reserve address space (size %zu)\n",
-             reservation_size);
-    return {};
-  }
-
-  //--------------------------------------------------------------------------
-  // 2. Allocate pages (inaccessible by default).
+  // Allocate pages (inaccessible by default).
   //--------------------------------------------------------------------------
   void* allocation_base = nullptr;
   PageAllocator* page_allocator = GetPlatformPageAllocator();
@@ -503,7 +447,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   };
   if (!gc_retry(allocate_pages)) {
     // Page allocator could not reserve enough pages.
-    BackingStore::ReleaseReservation(reservation_size);
     RecordStatus(isolate, AllocationStatus::kOtherFailure);
     RecordCagedMemoryAllocationResult(isolate, nullptr);
     TRACE_BS("BSw:try   failed to allocate pages\n");
@@ -521,8 +464,9 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   DCHECK(!guards);
   byte* buffer_start = reinterpret_cast<byte*>(allocation_base);
 #endif
+
   //--------------------------------------------------------------------------
-  // 3. Commit the initial pages (allow read/write).
+  // Commit the initial pages (allow read/write).
   //--------------------------------------------------------------------------
   size_t committed_byte_length = initial_pages * page_size;
   auto commit_memory = [&] {

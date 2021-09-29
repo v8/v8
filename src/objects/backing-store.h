@@ -138,12 +138,6 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   static void UpdateSharedWasmMemoryObjects(Isolate* isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  // TODO(wasm): address space limitations should be enforced in page alloc.
-  // These methods enforce a limit on the total amount of address space,
-  // which is used for both backing stores and wasm memory.
-  static bool ReserveAddressSpace(uint64_t num_bytes);
-  static void ReleaseReservation(uint64_t num_bytes);
-
   // Returns the size of the external memory owned by this backing store.
   // It is used for triggering GCs based on the external memory pressure.
   size_t PerIsolateAccountingLength() {
