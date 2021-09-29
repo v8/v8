@@ -52,7 +52,7 @@ vars = {
   'gn_version': 'git_revision:0153d369bbccc908f4da4993b1ba82728055926a',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:e9585787c808e21d6eaa2c7d7a928dbc19999172',
+  'luci_go': 'git_revision:a373a19da0fbbbe81b2b684e3797260294393e40',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -90,9 +90,9 @@ vars = {
 
 deps = {
   'base/trace_event/common':
-    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '715537d6007ca71837f48bcb04fc3d482aed2507',
+    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '68d816952258c9d817bba656ee2664b35507f01b',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a76920d402f851f8293e76510860631607075276',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ecb990f6f5bcf4a5b5b22f01463e61541e67d65c',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a9bc3e283182a586998338a665c7eae17406ec54',
   'buildtools/clang_format/script':
@@ -155,7 +155,7 @@ deps = {
       'packages': [
           {
               'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': '6Vr4alb5803W2n5PbA5ZLwCcJznKdmFX1pDoy_5hfOAC'
+              'version': 'e_KiIcYNB7sHa2eqRBhqVoR_Mmg2Q7nqmzRCXzegWQAC'
           },
       ],
       'condition': 'host_os == "linux" and checkout_fuchsia',
@@ -218,7 +218,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2146b04fafd1a411b058d3b45a0298810aa8b3ab',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5afc36517c1603b94f9583cfece3706923caaec6',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ce514ad38e0f8077d92704d2300f6ab0a1d263ad',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '764c927d7d1af720fc0b5694f928543dee85b693',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -235,7 +235,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '0baacde3618ca617da95375e0af13ce1baadea47',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e4717df71a4f45bf9f0ac88c6cd9846a0bc248dd',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'ab36804e42d4cb85b7e7fe9946928597840684db',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '3f443830bd52d3aa5fab3c1aa2b6d0848bb5039d',
   'third_party/instrumented_libraries':
@@ -285,7 +285,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'dfa96e81458fb3b39676e45f7e9e000dff789b05',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2e80143c5087a724d7da26530fa7d104ac65414c',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '278dd91c9c2f982e3bf5f0b5372ac326713d5448',
   'tools/clang/dsymutil': {
     'packages': [
       {
