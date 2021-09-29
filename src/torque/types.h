@@ -228,6 +228,7 @@ struct Field {
 
   bool is_weak;
   bool const_qualified;
+  bool generate_verify;
   FieldSynchronization read_synchronization;
   FieldSynchronization write_synchronization;
 };
@@ -673,8 +674,8 @@ class ClassType final : public AggregateType {
            ((flags_ & ClassFlag::kGeneratePrint) && !HasUndefinedLayout());
   }
   bool ShouldGenerateVerify() const {
-    return !IsExtern() || (ShouldGenerateCppClassDefinitions() &&
-                           !HasUndefinedLayout() && !IsShape());
+    return !IsExtern() || ((flags_ & ClassFlag::kGenerateVerify) &&
+                           (!HasUndefinedLayout() && !IsShape()));
   }
   bool ShouldGenerateBodyDescriptor() const {
     return flags_ & ClassFlag::kGenerateBodyDescriptor ||
@@ -688,8 +689,9 @@ class ClassType final : public AggregateType {
   bool HasSameInstanceTypeAsParent() const {
     return flags_ & ClassFlag::kHasSameInstanceTypeAsParent;
   }
-  bool ShouldGenerateCppClassDefinitions() const {
-    return (flags_ & ClassFlag::kGenerateCppClassDefinitions) || !IsExtern();
+  bool GenerateCppClassDefinitions() const {
+    return flags_ & ClassFlag::kGenerateCppClassDefinitions || !IsExtern() ||
+           ShouldGenerateBodyDescriptor();
   }
   bool ShouldGenerateFullClassDefinition() const {
     return !IsExtern() && !(flags_ & ClassFlag::kCustomCppClass);

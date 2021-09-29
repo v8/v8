@@ -211,6 +211,7 @@ const StructType* TypeVisitor::ComputeType(
             offset.SingleValue(),
             false,
             field.const_qualified,
+            false,
             FieldSynchronization::kNone,
             FieldSynchronization::kNone};
     auto optional_size = SizeOf(f.name_and_type.type);
@@ -318,7 +319,7 @@ const ClassType* TypeVisitor::ComputeType(
         Error("non-external classes must have defined layouts");
       }
     }
-    flags = flags | ClassFlag::kGeneratePrint;
+    flags = flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify;
   }
   if (!(flags & ClassFlag::kExtern) &&
       (flags & ClassFlag::kHasSameInstanceTypeAsParent)) {
@@ -441,6 +442,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          class_offset.SingleValue(),
          field_expression.weak,
          field_expression.const_qualified,
+         field_expression.generate_verify,
          field_expression.read_synchronization,
          field_expression.write_synchronization});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());

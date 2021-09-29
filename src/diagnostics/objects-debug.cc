@@ -166,9 +166,7 @@ void TaggedIndex::TaggedIndexVerify(Isolate* isolate) {
 }
 
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
-  CHECK(IsHeapObject());
-  VerifyPointer(isolate, map(isolate));
-  CHECK(map(isolate).IsMap());
+  TorqueGeneratedClassVerifiers::HeapObjectVerify(*this, isolate);
 
   switch (map().instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
@@ -829,24 +827,7 @@ void JSBoundFunction::JSBoundFunctionVerify(Isolate* isolate) {
 }
 
 void JSFunction::JSFunctionVerify(Isolate* isolate) {
-  // Don't call TorqueGeneratedClassVerifiers::JSFunctionVerify here because the
-  // Torque class definition contains the field `prototype_or_initial_map` which
-  // may not be allocated.
-
-  // This assertion exists to encourage updating this verification function if
-  // new fields are added in the Torque class layout definition.
-  STATIC_ASSERT(JSFunction::TorqueGeneratedClass::kHeaderSize ==
-                8 * kTaggedSize);
-
-  JSFunctionOrBoundFunctionVerify(isolate);
-  CHECK(IsJSFunction());
-  VerifyPointer(isolate, shared(isolate));
-  CHECK(shared(isolate).IsSharedFunctionInfo());
-  VerifyPointer(isolate, context(isolate, kRelaxedLoad));
-  CHECK(context(isolate, kRelaxedLoad).IsContext());
-  VerifyPointer(isolate, raw_feedback_cell(isolate));
-  CHECK(raw_feedback_cell(isolate).IsFeedbackCell());
-  VerifyPointer(isolate, raw_code(isolate));
+  TorqueGeneratedClassVerifiers::JSFunctionVerify(*this, isolate);
   CHECK(raw_code(isolate).IsCodeT());
   CHECK(map(isolate).is_callable());
   Handle<JSFunction> function(*this, isolate);
@@ -1249,9 +1230,8 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
     }
   }
 }
-
 void SmallOrderedHashMap::SmallOrderedHashMapVerify(Isolate* isolate) {
-  CHECK(IsSmallOrderedHashMap());
+  TorqueGeneratedClassVerifiers::SmallOrderedHashMapVerify(*this, isolate);
   SmallOrderedHashTable<SmallOrderedHashMap>::SmallOrderedHashTableVerify(
       isolate);
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
@@ -1264,7 +1244,7 @@ void SmallOrderedHashMap::SmallOrderedHashMapVerify(Isolate* isolate) {
 }
 
 void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
-  CHECK(IsSmallOrderedHashSet());
+  TorqueGeneratedClassVerifiers::SmallOrderedHashSetVerify(*this, isolate);
   SmallOrderedHashTable<SmallOrderedHashSet>::SmallOrderedHashTableVerify(
       isolate);
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
@@ -1278,7 +1258,8 @@ void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
 
 void SmallOrderedNameDictionary::SmallOrderedNameDictionaryVerify(
     Isolate* isolate) {
-  CHECK(IsSmallOrderedNameDictionary());
+  TorqueGeneratedClassVerifiers::SmallOrderedNameDictionaryVerify(*this,
+                                                                  isolate);
   SmallOrderedHashTable<
       SmallOrderedNameDictionary>::SmallOrderedHashTableVerify(isolate);
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
@@ -1674,20 +1655,9 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void DataHandler::DataHandlerVerify(Isolate* isolate) {
-  // Don't call TorqueGeneratedClassVerifiers::DataHandlerVerify because the
-  // Torque definition of this class includes all of the optional fields.
-
-  // This assertion exists to encourage updating this verification function if
-  // new fields are added in the Torque class layout definition.
-  STATIC_ASSERT(DataHandler::kHeaderSize == 6 * kTaggedSize);
-
-  StructVerify(isolate);
-  CHECK(IsDataHandler());
-  VerifyPointer(isolate, smi_handler(isolate));
+  TorqueGeneratedClassVerifiers::DataHandlerVerify(*this, isolate);
   CHECK_IMPLIES(!smi_handler().IsSmi(),
                 IsStoreHandler() && smi_handler().IsCodeT());
-  VerifyPointer(isolate, validity_cell(isolate));
-  CHECK(validity_cell().IsSmi() || validity_cell().IsCell());
   int data_count = data_field_count();
   if (data_count >= 1) {
     VerifyMaybeObjectField(isolate, kData1Offset);

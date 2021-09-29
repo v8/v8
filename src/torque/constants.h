@@ -84,6 +84,7 @@ static const char* const WEAK_HEAP_OBJECT = "WeakHeapObject";
 static const char* const STATIC_ASSERT_MACRO_STRING = "StaticAssert";
 
 static const char* const ANNOTATION_GENERATE_PRINT = "@generatePrint";
+static const char* const ANNOTATION_NO_VERIFIER = "@noVerifier";
 static const char* const ANNOTATION_ABSTRACT = "@abstract";
 static const char* const ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT =
     "@hasSameInstanceTypeAsParent";
@@ -144,19 +145,20 @@ enum class ClassFlag {
   kNone = 0,
   kExtern = 1 << 0,
   kGeneratePrint = 1 << 1,
-  kTransient = 1 << 2,
-  kAbstract = 1 << 3,
-  kIsShape = 1 << 4,
-  kHasSameInstanceTypeAsParent = 1 << 5,
-  kGenerateCppClassDefinitions = 1 << 6,
-  kCustomCppClass = 1 << 7,
-  kHighestInstanceTypeWithinParent = 1 << 8,
-  kLowestInstanceTypeWithinParent = 1 << 9,
-  kUndefinedLayout = 1 << 10,
-  kGenerateBodyDescriptor = 1 << 11,
-  kExport = 1 << 12,
-  kDoNotGenerateCast = 1 << 13,
-  kCustomMap = 1 << 14,
+  kGenerateVerify = 1 << 2,
+  kTransient = 1 << 3,
+  kAbstract = 1 << 4,
+  kIsShape = 1 << 5,
+  kHasSameInstanceTypeAsParent = 1 << 6,
+  kGenerateCppClassDefinitions = 1 << 7,
+  kCustomCppClass = 1 << 8,
+  kHighestInstanceTypeWithinParent = 1 << 9,
+  kLowestInstanceTypeWithinParent = 1 << 10,
+  kUndefinedLayout = 1 << 11,
+  kGenerateBodyDescriptor = 1 << 12,
+  kExport = 1 << 13,
+  kDoNotGenerateCast = 1 << 14,
+  kCustomMap = 1 << 15,
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

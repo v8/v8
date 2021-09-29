@@ -4,6 +4,7 @@
 
 #include 'src/objects/swiss-name-dictionary.h'
 
+@noVerifier
 @doNotGenerateCppClass
 extern class SwissNameDictionary extends HeapObject {
   hash: uint32;
