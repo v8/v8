@@ -443,7 +443,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
     isolate->PrintWithTimestamp("Starting concurrent marking task %d\n",
                                 task_id);
   }
-  bool ephemeron_marked = false;
+  bool another_ephemeron_iteration = false;
 
   {
     TimedScope scope(&time_ms);
@@ -453,7 +453,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
 
       while (weak_objects_->current_ephemerons.Pop(task_id, &ephemeron)) {
         if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
-          ephemeron_marked = true;
+          another_ephemeron_iteration = true;
         }
       }
     }
@@ -506,6 +506,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
           current_marked_bytes += visited_size;
         }
       }
+      if (objects_processed > 0) another_ephemeron_iteration = true;
       marked_bytes += current_marked_bytes;
       base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
                                                 marked_bytes);
@@ -521,7 +522,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
 
       while (weak_objects_->discovered_ephemerons.Pop(task_id, &ephemeron)) {
         if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
-          ephemeron_marked = true;
+          another_ephemeron_iteration = true;
         }
       }
     }
@@ -542,8 +543,8 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
 
-    if (ephemeron_marked) {
-      set_ephemeron_marked(true);
+    if (another_ephemeron_iteration) {
+      set_another_ephemeron_iteration(true);
     }
   }
   if (FLAG_trace_concurrent_marking) {
