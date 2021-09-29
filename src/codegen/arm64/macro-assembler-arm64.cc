@@ -1693,23 +1693,13 @@ void TurboAssembler::CallCFunction(ExternalReference function,
 }
 
 static const int kRegisterPassedArguments = 8;
+static const int kFPRegisterPassedArguments = 8;
 
 void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
                                    int num_of_double_args) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_of_reg_args + num_of_double_args, kMaxCParameters);
   DCHECK(has_frame());
-
-  // If we're passing doubles, we're limited to the following prototypes
-  // (defined by ExternalReference::Type):
-  //  BUILTIN_COMPARE_CALL:  int f(double, double)
-  //  BUILTIN_FP_FP_CALL:    double f(double, double)
-  //  BUILTIN_FP_CALL:       double f(double)
-  //  BUILTIN_FP_INT_CALL:   double f(double, int)
-  if (num_of_double_args > 0) {
-    DCHECK_LE(num_of_reg_args, 1);
-    DCHECK_LE(num_of_double_args + num_of_reg_args, 2);
-  }
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
@@ -1759,6 +1749,13 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
   if (num_of_reg_args > kRegisterPassedArguments) {
     // Drop the register passed arguments.
     int claim_slots = RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
+    Drop(claim_slots);
+  }
+
+  if (num_of_double_args > kFPRegisterPassedArguments) {
+    // Drop the register passed arguments.
+    int claim_slots =
+        RoundUp(num_of_double_args - kFPRegisterPassedArguments, 2);
     Drop(claim_slots);
   }
 }

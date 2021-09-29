@@ -17,7 +17,8 @@
 // and resetting these counters.
 
 // Make sure to sync the following with src/compiler/globals.h.
-#if defined(V8_TARGET_ARCH_X64)
+#if defined(V8_TARGET_ARCH_X64) || \
+    (defined(V8_TARGET_ARCH_ARM64) && !defined(USE_SIMULATOR))
 #define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
 #endif
 

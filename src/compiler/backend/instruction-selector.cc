@@ -2914,16 +2914,21 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   InstructionCode opcode;
   switch (call_descriptor->kind()) {
     case CallDescriptor::kCallAddress: {
-      int misc_field = static_cast<int>(call_descriptor->ParameterCount());
+      int gp_param_count =
+          static_cast<int>(call_descriptor->GPParameterCount());
+      int fp_param_count =
+          static_cast<int>(call_descriptor->FPParameterCount());
 #if ABI_USES_FUNCTION_DESCRIPTORS
-      // Highest misc_field bit is used on AIX to indicate if a CFunction call
-      // has function descriptor or not.
-      STATIC_ASSERT(MiscField::kSize == kHasFunctionDescriptorBitShift + 1);
+      // Highest fp_param_count bit is used on AIX to indicate if a CFunction
+      // call has function descriptor or not.
+      STATIC_ASSERT(ParamField::kSize + FPParamField::kSize ==
+                    kHasFunctionDescriptorBitShift + 1);
       if (!call_descriptor->NoFunctionDescriptor()) {
-        misc_field |= 1 << kHasFunctionDescriptorBitShift;
+        fp_param_count |= 1 << kHasFunctionDescriptorBitShift;
       }
 #endif
-      opcode = kArchCallCFunction | MiscField::encode(misc_field);
+      opcode = kArchCallCFunction | ParamField::encode(gp_param_count) |
+               FPParamField::encode(fp_param_count);
       break;
     }
     case CallDescriptor::kCallCodeObject:

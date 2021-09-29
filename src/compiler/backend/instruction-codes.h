@@ -341,6 +341,14 @@ using AtomicWidthField = base::BitField<AtomicWidth, 22, 2>;
 using AtomicMemoryOrderField = base::BitField<AtomicMemoryOrder, 24, 2>;
 using AtomicStoreRecordWriteModeField = base::BitField<RecordWriteMode, 26, 4>;
 
+// ParamField and FPParamField overlap with MiscField, as the latter is never
+// used for Call instructions. These 2 fields represent the general purpose
+// and floating point parameter counts of a direct call into C and are given 5
+// bits each, which allow storing a number up to the current maximum parameter
+// count, which is 20 (see kMaxCParameters defined in macro-assembler.h).
+using ParamField = base::BitField<int, 22, 5>;
+using FPParamField = base::BitField<int, 27, 5>;
+
 // This static assertion serves as an early warning if we are about to exhaust
 // the available opcode space. If we are about to exhaust it, we should start
 // looking into options to compress some opcodes (see

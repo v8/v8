@@ -1305,7 +1305,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssemblePrepareTailCall();
       break;
     case kArchCallCFunction: {
-      int const num_parameters = MiscField::decode(instr->opcode());
+      int const num_gp_parameters = ParamField::decode(instr->opcode());
+      int const num_fp_parameters = FPParamField::decode(instr->opcode());
       Label return_location;
 #if V8_ENABLE_WEBASSEMBLY
       if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
@@ -1317,10 +1318,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (HasImmediateInput(instr, 0)) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_parameters);
+        __ CallCFunction(ref, num_gp_parameters + num_fp_parameters);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_parameters);
+        __ CallCFunction(func, num_gp_parameters + num_fp_parameters);
       }
       __ bind(&return_location);
 #if V8_ENABLE_WEBASSEMBLY

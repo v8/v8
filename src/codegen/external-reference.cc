@@ -190,8 +190,8 @@ ExternalReference ExternalReference::Create(const Runtime::Function* f) {
 }
 
 // static
-ExternalReference ExternalReference::Create(Address address) {
-  return ExternalReference(Redirect(address));
+ExternalReference ExternalReference::Create(Address address, Type type) {
+  return ExternalReference(Redirect(address, type));
 }
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
