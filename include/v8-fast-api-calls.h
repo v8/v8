@@ -857,7 +857,7 @@ bool V8_EXPORT V8_WARN_UNUSED_RESULT TryToCopyAndConvertArrayToCppBuffer(
 
 template <>
 bool V8_EXPORT V8_WARN_UNUSED_RESULT TryToCopyAndConvertArrayToCppBuffer<
-    internal::CTypeInfoBuilder<uint32_t>::Build().GetId(), int32_t>(
+    internal::CTypeInfoBuilder<int32_t>::Build().GetId(), int32_t>(
     Local<Array> src, int32_t* dst, uint32_t max_length);
 
 template <>
