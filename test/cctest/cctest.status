@@ -382,6 +382,10 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+
+  # The uint32 values are sign-extended on MIPS64.
+  'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
+  'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
