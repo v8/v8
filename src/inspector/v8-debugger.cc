@@ -657,7 +657,7 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
       break;
     case v8::debug::kAsyncFunctionSuspended: {
       if (m_asyncTaskStacks.find(task) == m_asyncTaskStacks.end()) {
-        asyncTaskScheduledForStack("async function", task, true);
+        asyncTaskScheduledForStack("await", task, true, true);
       }
       auto stackIt = m_asyncTaskStacks.find(task);
       if (stackIt != m_asyncTaskStacks.end() && !stackIt->second.expired()) {
@@ -977,11 +977,13 @@ void V8Debugger::asyncTaskFinished(void* task) {
 }
 
 void V8Debugger::asyncTaskScheduledForStack(const String16& taskName,
-                                            void* task, bool recurring) {
+                                            void* task, bool recurring,
+                                            bool skipTopFrame) {
   if (!m_maxAsyncCallStackDepth) return;
   v8::HandleScope scope(m_isolate);
   std::shared_ptr<AsyncStackTrace> asyncStack = AsyncStackTrace::capture(
-      this, taskName, V8StackTraceImpl::maxCallStackSizeToCapture);
+      this, taskName, V8StackTraceImpl::maxCallStackSizeToCapture,
+      skipTopFrame);
   if (asyncStack) {
     m_asyncTaskStacks[task] = asyncStack;
     if (recurring) m_recurringTasks.insert(task);
