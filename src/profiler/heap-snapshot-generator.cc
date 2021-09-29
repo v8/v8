@@ -604,7 +604,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
     return AddEntry(object, HeapEntry::kClosure, "native_bind");
   } else if (object.IsJSRegExp()) {
     JSRegExp re = JSRegExp::cast(object);
-    return AddEntry(object, HeapEntry::kRegExp, names_->GetName(re.Pattern()));
+    return AddEntry(object, HeapEntry::kRegExp, names_->GetName(re.source()));
   } else if (object.IsJSObject()) {
     const char* name = names_->GetName(
         GetConstructorName(JSObject::cast(object)));

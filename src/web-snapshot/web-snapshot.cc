@@ -724,9 +724,9 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
         return;
       }
       uint32_t pattern_id, flags_id;
-      Handle<String> pattern = handle(regexp->Pattern(), isolate_);
+      Handle<String> pattern = handle(regexp->source(), isolate_);
       Handle<String> flags_string =
-          JSRegExp::StringFromFlags(isolate_, regexp->GetFlags());
+          JSRegExp::StringFromFlags(isolate_, regexp->flags());
       SerializeString(pattern, pattern_id);
       SerializeString(flags_string, flags_id);
       serializer.WriteUint32(ValueType::REGEXP);

@@ -806,7 +806,7 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
       // Check that ATOM regexp remains valid.
       i::Handle<i::JSRegExp> re =
           Utils::OpenHandle(*CompileRun("re2").As<v8::RegExp>());
-      CHECK_EQ(re->TypeTag(), JSRegExp::ATOM);
+      CHECK_EQ(re->type_tag(), JSRegExp::ATOM);
       CHECK(!re->HasCompiledCode());
     }
   }

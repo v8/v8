@@ -1348,7 +1348,7 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
 
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSRegExpVerify(*this, isolate);
-  switch (TypeTag()) {
+  switch (type_tag()) {
     case JSRegExp::ATOM: {
       FixedArray arr = FixedArray::cast(data());
       CHECK(arr.get(JSRegExp::kAtomPatternIndex).IsString());
@@ -1426,7 +1426,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       break;
     }
     default:
-      CHECK_EQ(JSRegExp::NOT_COMPILED, TypeTag());
+      CHECK_EQ(JSRegExp::NOT_COMPILED, type_tag());
       CHECK(data().IsUndefined(isolate));
       break;
   }

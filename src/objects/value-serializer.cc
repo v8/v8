@@ -806,8 +806,8 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
 
 void ValueSerializer::WriteJSRegExp(Handle<JSRegExp> regexp) {
   WriteTag(SerializationTag::kRegExp);
-  WriteString(handle(regexp->Pattern(), isolate_));
-  WriteVarint(static_cast<uint32_t>(regexp->GetFlags()));
+  WriteString(handle(regexp->source(), isolate_));
+  WriteVarint(static_cast<uint32_t>(regexp->flags()));
 }
 
 Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {

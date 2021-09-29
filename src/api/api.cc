@@ -7171,7 +7171,7 @@ REGEXP_FLAG_ASSERT_EQ(kLinear);
 
 v8::RegExp::Flags v8::RegExp::GetFlags() const {
   i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
-  return RegExp::Flags(static_cast<int>(obj->GetFlags()));
+  return RegExp::Flags(static_cast<int>(obj->flags()));
 }
 
 MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,

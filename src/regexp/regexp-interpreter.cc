@@ -1060,12 +1060,12 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
   if (FLAG_regexp_tier_up) regexp.TierUpTick();
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
-  ByteArray code_array = ByteArray::cast(regexp.Bytecode(is_one_byte));
-  int total_register_count = regexp.MaxRegisterCount();
+  ByteArray code_array = ByteArray::cast(regexp.bytecode(is_one_byte));
+  int total_register_count = regexp.max_register_count();
 
   return MatchInternal(isolate, code_array, subject_string, output_registers,
                        output_register_count, total_register_count,
-                       start_position, call_origin, regexp.BacktrackLimit());
+                       start_position, call_origin, regexp.backtrack_limit());
 }
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(

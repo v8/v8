@@ -37,13 +37,50 @@ namespace internal {
 // - number of capture registers (output values) of the regexp.
 class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
  public:
-  // Meaning of Type:
-  // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
-  // ATOM: A simple string to match against using an indexOf operation.
-  // IRREGEXP: Compiled with Irregexp.
-  // EXPERIMENTAL: Compiled to use the new linear time engine.
-  enum Type { NOT_COMPILED, ATOM, IRREGEXP, EXPERIMENTAL };
+  enum Type {
+    NOT_COMPILED,  // Initial value. No data array has been set yet.
+    ATOM,          // A simple string match.
+    IRREGEXP,      // Compiled with Irregexp (code or bytecode).
+    EXPERIMENTAL,  // Compiled to use the experimental linear time engine.
+  };
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
+
+  V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(
+      Isolate* isolate, Handle<String> source, Flags flags,
+      uint32_t backtrack_limit = kNoBacktrackLimit);
+
+  static MaybeHandle<JSRegExp> Initialize(
+      Handle<JSRegExp> regexp, Handle<String> source, Flags flags,
+      uint32_t backtrack_limit = kNoBacktrackLimit);
+  static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
+                                          Handle<String> source,
+                                          Handle<String> flags_string);
+
+  DECL_ACCESSORS(last_index, Object)
+
+  // Instance fields accessors.
+  inline String source() const;
+  inline Flags flags() const;
+
+  // Data array field accessors.
+
+  inline Type type_tag() const;
+  inline String atom_pattern() const;
+  // This could be a Smi kUninitializedValue or Code.
+  V8_EXPORT_PRIVATE Object code(bool is_latin1) const;
+  V8_EXPORT_PRIVATE void set_code(bool is_unicode, Handle<Code> code);
+  // This could be a Smi kUninitializedValue or ByteArray.
+  V8_EXPORT_PRIVATE Object bytecode(bool is_latin1) const;
+  // Sets the bytecode as well as initializing trampoline slots to the
+  // RegExpInterpreterTrampoline.
+  void set_bytecode_and_trampoline(Isolate* isolate,
+                                   Handle<ByteArray> bytecode);
+  inline int max_register_count() const;
+  // Number of captures (without the match itself).
+  inline int capture_count() const;
+  inline Object capture_name_map();
+  inline void set_capture_name_map(Handle<FixedArray> capture_name_map);
+  uint32_t backtrack_limit() const;
 
   static constexpr Flag AsJSRegExpFlag(RegExpFlag f) {
     return static_cast<Flag>(f);
@@ -75,27 +112,13 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   STATIC_ASSERT(kFlagCount == v8::RegExp::kFlagCount);
   STATIC_ASSERT(kFlagCount == kRegExpFlagCount);
 
-  DECL_ACCESSORS(last_index, Object)
-
-  // If the backtrack limit is set to this marker value, no limit is applied.
-  static constexpr uint32_t kNoBacktrackLimit = 0;
-
-  V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(
-      Isolate* isolate, Handle<String> source, Flags flags,
-      uint32_t backtrack_limit = kNoBacktrackLimit);
-
-  static MaybeHandle<JSRegExp> Initialize(
-      Handle<JSRegExp> regexp, Handle<String> source, Flags flags,
-      uint32_t backtrack_limit = kNoBacktrackLimit);
-  static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
-                                          Handle<String> source,
-                                          Handle<String> flags_string);
-
   static base::Optional<Flags> FlagsFromString(Isolate* isolate,
                                                Handle<String> flags);
 
   V8_EXPORT_PRIVATE static Handle<String> StringFromFlags(Isolate* isolate,
                                                           Flags flags);
+
+  inline String EscapedPattern();
 
   bool CanTierUp();
   bool MarkedForTierUp();
@@ -103,30 +126,18 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   void TierUpTick();
   void MarkTierUpForNextExec();
 
-  inline Type TypeTag() const;
+  bool ShouldProduceBytecode();
+  inline bool HasCompiledCode() const;
+  inline void DiscardCompiledCodeForSerialization();
+
   static constexpr bool TypeSupportsCaptures(Type t) {
     return t == IRREGEXP || t == EXPERIMENTAL;
   }
 
-  // Maximum number of captures allowed.
-  static constexpr int kMaxCaptures = 1 << 16;
-
-  // Number of captures (without the match itself).
-  inline int CaptureCount() const;
   // Each capture (including the match itself) needs two registers.
   static constexpr int RegistersForCaptureCount(int count) {
     return (count + 1) * 2;
   }
-
-  inline int MaxRegisterCount() const;
-  inline Flags GetFlags() const;
-  inline String Pattern();
-  inline String EscapedPattern();
-  inline Object CaptureNameMap();
-  inline Object DataAt(int index) const;
-  // Set implementation data after the object has been prepared.
-  inline void SetDataAt(int index, Object value);
-  inline void SetCaptureNameMap(Handle<FixedArray> capture_name_map);
 
   static constexpr int code_index(bool is_latin1) {
     return is_latin1 ? kIrregexpLatin1CodeIndex : kIrregexpUC16CodeIndex;
@@ -136,17 +147,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
     return is_latin1 ? kIrregexpLatin1BytecodeIndex
                      : kIrregexpUC16BytecodeIndex;
   }
-
-  // This could be a Smi kUninitializedValue or Code.
-  V8_EXPORT_PRIVATE Object Code(bool is_latin1) const;
-  // This could be a Smi kUninitializedValue or ByteArray.
-  V8_EXPORT_PRIVATE Object Bytecode(bool is_latin1) const;
-
-  bool ShouldProduceBytecode();
-  inline bool HasCompiledCode() const;
-  inline void DiscardCompiledCodeForSerialization();
-
-  uint32_t BacktrackLimit() const;
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
@@ -233,9 +233,19 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // The uninitialized value for a regexp code object.
   static constexpr int kUninitializedValue = -1;
 
+  // If the backtrack limit is set to this marker value, no limit is applied.
+  static constexpr uint32_t kNoBacktrackLimit = 0;
+
   // The heuristic value for the length of the subject string for which we
   // tier-up to the compiler immediately, instead of using the interpreter.
   static constexpr int kTierUpForSubjectLengthValue = 1000;
+
+  // Maximum number of captures allowed.
+  static constexpr int kMaxCaptures = 1 << 16;
+
+ private:
+  inline Object DataAt(int index) const;
+  inline void SetDataAt(int index, Object value);
 
   TQ_OBJECT_CONSTRUCTORS(JSRegExp)
 };
