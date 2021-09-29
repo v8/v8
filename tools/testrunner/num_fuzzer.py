@@ -124,9 +124,11 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _runner_flags(self):
     """Extra default flags specific to the test runner implementation."""
-    flags = ['--no-abort-on-contradictory-flags', '--testing-d8-test-runner']
-    if self.infra_staging:
-      flags.append('--no-fail')
+    flags = [
+      '--no-abort-on-contradictory-flags',
+      '--testing-d8-test-runner',
+      '--no-fail'
+    ]
     return flags
 
   def _get_statusfile_variables(self, options):
@@ -163,7 +165,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
       # TODO(majeski): Improve sharding when combiner is present. Maybe select
       # different random seeds for shards instead of splitting tests.
       self._create_shard_proc(options),
-      ExpectationProc(self.infra_staging),
+      ExpectationProc(),
       combiner,
       self._create_fuzzer(fuzzer_rng, options),
       sigproc,
