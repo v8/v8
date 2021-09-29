@@ -4479,7 +4479,6 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
 }
 
 void TurboAssembler::SmiToInt32(Register smi) {
-  DCHECK(smi.Is64Bits());
   if (FLAG_enable_slow_asserts) {
     AssertSmi(smi);
   }
