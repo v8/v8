@@ -434,43 +434,124 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicLoad");
+  Load(dst, src_addr, offset_reg, offset_imm, type, pinned, nullptr, true);
+  lwsync();
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned) {
-  bailout(kAtomics, "AtomicStore");
+  lwsync();
+  Store(dst_addr, offset_reg, offset_imm, src, type, pinned, nullptr, true);
+  sync();
 }
+
+#ifdef V8_TARGET_BIG_ENDIAN
+constexpr bool is_be = true;
+#else
+constexpr bool is_be = false;
+#endif
+
+#define ATOMIC_OP(instr)                                                \
+  {                                                                     \
+    Register offset = r0;                                               \
+    if (offset_imm != 0) {                                              \
+      mov(ip, Operand(offset_imm));                                     \
+      if (offset_reg != no_reg) {                                       \
+        add(ip, ip, offset_reg);                                        \
+      }                                                                 \
+      offset = ip;                                                      \
+    } else {                                                            \
+      if (offset_reg != no_reg) {                                       \
+        offset = offset_reg;                                            \
+      }                                                                 \
+    }                                                                   \
+                                                                        \
+    MemOperand dst = MemOperand(offset, dst_addr);                      \
+                                                                        \
+    switch (type.value()) {                                             \
+      case StoreType::kI32Store8:                                       \
+      case StoreType::kI64Store8: {                                     \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
+          instr(dst, lhs, rhs);                                         \
+        };                                                              \
+        AtomicOps<uint8_t>(dst, value.gp(), result.gp(), r0, op_func);  \
+        break;                                                          \
+      }                                                                 \
+      case StoreType::kI32Store16:                                      \
+      case StoreType::kI64Store16: {                                    \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
+          if (is_be) {                                                  \
+            ByteReverseU16(dst, lhs);                                   \
+            instr(dst, dst, rhs);                                       \
+            ByteReverseU16(dst, dst);                                   \
+          } else {                                                      \
+            instr(dst, lhs, rhs);                                       \
+          }                                                             \
+        };                                                              \
+        AtomicOps<uint16_t>(dst, value.gp(), result.gp(), r0, op_func); \
+        break;                                                          \
+      }                                                                 \
+      case StoreType::kI32Store:                                        \
+      case StoreType::kI64Store32: {                                    \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
+          if (is_be) {                                                  \
+            ByteReverseU32(dst, lhs);                                   \
+            instr(dst, dst, rhs);                                       \
+            ByteReverseU32(dst, dst);                                   \
+          } else {                                                      \
+            instr(dst, lhs, rhs);                                       \
+          }                                                             \
+        };                                                              \
+        AtomicOps<uint32_t>(dst, value.gp(), result.gp(), r0, op_func); \
+        break;                                                          \
+      }                                                                 \
+      case StoreType::kI64Store: {                                      \
+        auto op_func = [&](Register dst, Register lhs, Register rhs) {  \
+          if (is_be) {                                                  \
+            ByteReverseU64(dst, lhs);                                   \
+            instr(dst, dst, rhs);                                       \
+            ByteReverseU64(dst, dst);                                   \
+          } else {                                                      \
+            instr(dst, lhs, rhs);                                       \
+          }                                                             \
+        };                                                              \
+        AtomicOps<uint64_t>(dst, value.gp(), result.gp(), r0, op_func); \
+        break;                                                          \
+      }                                                                 \
+      default:                                                          \
+        UNREACHABLE();                                                  \
+    }                                                                   \
+  }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicAdd");
+  ATOMIC_OP(add);
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicSub");
+  ATOMIC_OP(sub);
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicAnd");
+  ATOMIC_OP(and_);
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
                                 uintptr_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicOr");
+  ATOMIC_OP(orx);
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicXor");
+  ATOMIC_OP(xor_);
 }
 
 void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
