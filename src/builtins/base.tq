@@ -554,7 +554,6 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 // Like JSObject, but created from API function.
 @apiExposedInstanceTypeValue(0x422)
 @doNotGenerateCast
-@noVerifier
 extern class JSApiObject extends JSObject generates 'TNode<JSObject>';
 
 // TODO(gsathya): This only exists to make JSApiObject instance type into a
@@ -562,7 +561,6 @@ extern class JSApiObject extends JSObject generates 'TNode<JSObject>';
 @apiExposedInstanceTypeValue(0x80A)
 @doNotGenerateCast
 @highestInstanceTypeWithinParentClassRange
-@noVerifier
 extern class JSLastDummyApiObject extends JSApiObject
     generates 'TNode<JSObject>';
 

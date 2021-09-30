@@ -77,7 +77,7 @@ const Type* ImplementationVisitor::Visit(Statement* stmt) {
 void ImplementationVisitor::BeginGeneratedFiles() {
   std::set<SourceId> contains_class_definitions;
   for (const ClassType* type : TypeOracle::GetClasses()) {
-    if (type->GenerateCppClassDefinitions()) {
+    if (type->ShouldGenerateCppClassDefinitions()) {
       contains_class_definitions.insert(type->AttributedToFile());
     }
   }
@@ -4170,7 +4170,7 @@ void CppClassGenerator::GenerateClass() {
     // hand-written definition.
     base::Optional<const ClassType*> parent = type_->parent()->ClassSupertype();
     while (parent) {
-      if ((*parent)->GenerateCppClassDefinitions() &&
+      if ((*parent)->ShouldGenerateCppClassDefinitions() &&
           !(*parent)->ShouldGenerateFullClassDefinition() &&
           (*parent)->AttributedToFile() == type_->AttributedToFile()) {
         Error("Exported ", *type_,
@@ -4641,7 +4641,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
       CurrentSourcePosition::Scope position_activator(type->GetPosition());
       auto& streams = GlobalContext::GeneratedPerFile(type->AttributedToFile());
       std::ostream& header = streams.class_definition_headerfile;
-      std::string name = type->GenerateCppClassDefinitions()
+      std::string name = type->ShouldGenerateCppClassDefinitions()
                              ? type->name()
                              : type->GetGeneratedTNodeTypeName();
       header << "class " << name << ";\n";
@@ -4655,7 +4655,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
       std::ostream& inline_header = streams.class_definition_inline_headerfile;
       std::ostream& implementation = streams.class_definition_ccfile;
 
-      if (type->GenerateCppClassDefinitions()) {
+      if (type->ShouldGenerateCppClassDefinitions()) {
         CppClassGenerator g(type, header, inline_header, implementation);
         g.GenerateClass();
       }
@@ -4847,7 +4847,7 @@ void ImplementationVisitor::GeneratePrintDefinitions(
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
       if (!type->ShouldGeneratePrint()) continue;
-      DCHECK(type->GenerateCppClassDefinitions());
+      DCHECK(type->ShouldGenerateCppClassDefinitions());
       const ClassType* super = type->GetSuperClass();
       std::string gen_name = "TorqueGenerated" + type->name();
       std::string gen_name_T =
@@ -5081,7 +5081,6 @@ void GenerateClassFieldVerifier(const std::string& class_name,
                                 const ClassType& class_type, const Field& f,
                                 std::ostream& h_contents,
                                 std::ostream& cc_contents) {
-  if (!f.generate_verify) return;
   const Type* field_type = f.name_and_type.type;
 
   // We only verify tagged types, not raw numbers or pointers. Structs
@@ -5198,16 +5197,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
       }
       if (super_type) {
         std::string super_name = super_type->name();
-        if (super_name == "HeapObject") {
-          // Special case: HeapObjectVerify checks the Map type and dispatches
-          // to more specific types, so calling it here would cause infinite
-          // recursion. We could consider moving that behavior into a
-          // different method to make the contract of *Verify methods more
-          // consistent, but for now we'll just avoid the bad case.
-          cc_contents << "  " << super_name << "Verify(o, isolate);\n";
-        } else {
-          cc_contents << "  o." << super_name << "Verify(isolate);\n";
-        }
+        cc_contents << "  o." << super_name << "Verify(isolate);\n";
       }
 
       // Second, verify that this object is what it claims to be.
