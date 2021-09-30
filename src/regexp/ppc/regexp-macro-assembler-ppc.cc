@@ -665,26 +665,26 @@ void RegExpMacroAssemblerPPC::StoreRegExpStackPointerToMemory(
   __ StoreU64(src, MemOperand(scratch));
 }
 
-void RegExpMacroAssemblerPPC::PushRegExpBasePointer(Register scratch1,
-                                                    Register scratch2) {
-  LoadRegExpStackPointerFromMemory(scratch1);
+void RegExpMacroAssemblerPPC::PushRegExpBasePointer(Register stack_pointer,
+                                                    Register scratch) {
   ExternalReference ref =
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ mov(scratch2, Operand(ref));
-  __ LoadU64(scratch2, MemOperand(scratch2));
-  __ SubS64(scratch2, scratch1, scratch2);
-  __ StoreU64(scratch2, MemOperand(frame_pointer(), kRegExpStackBasePointer));
+  __ mov(scratch, Operand(ref));
+  __ LoadU64(scratch, MemOperand(scratch));
+  __ SubS64(scratch, stack_pointer, scratch);
+  __ StoreU64(scratch, MemOperand(frame_pointer(), kRegExpStackBasePointer));
 }
 
-void RegExpMacroAssemblerPPC::PopRegExpBasePointer(Register scratch1,
-                                                   Register scratch2) {
+void RegExpMacroAssemblerPPC::PopRegExpBasePointer(Register stack_pointer_out,
+                                                   Register scratch) {
   ExternalReference ref =
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ LoadU64(scratch1, MemOperand(frame_pointer(), kRegExpStackBasePointer));
-  __ mov(scratch2, Operand(ref));
-  __ LoadU64(scratch2, MemOperand(scratch2));
-  __ AddS64(scratch1, scratch1, scratch2);
-  StoreRegExpStackPointerToMemory(scratch1, scratch2);
+  __ LoadU64(stack_pointer_out,
+             MemOperand(frame_pointer(), kRegExpStackBasePointer));
+  __ mov(scratch, Operand(ref));
+  __ LoadU64(scratch, MemOperand(scratch));
+  __ AddS64(stack_pointer_out, stack_pointer_out, scratch);
+  StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
 Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
@@ -743,37 +743,44 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
                   kBacktrackCount - kSystemPointerSize);
     __ push(r3);  // The regexp stack base ptr.
 
+    // Initialize backtrack stack pointer. It must not be clobbered from here
+    // on. Note the backtrack_stackpointer is callee-saved.
+    STATIC_ASSERT(backtrack_stackpointer() == r29);
+    LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
+
     // Store the regexp base pointer - we'll later restore it / write it to
     // memory when returning from this irregexp code object.
-    PushRegExpBasePointer(r3, r4);
+    PushRegExpBasePointer(backtrack_stackpointer(), r4);
 
-    // Check if we have space on the stack for registers.
-    Label stack_limit_hit;
-    Label stack_ok;
+    {
+      // Check if we have space on the stack for registers.
+      Label stack_limit_hit, stack_ok;
 
-    ExternalReference stack_limit =
-        ExternalReference::address_of_jslimit(isolate());
-    __ mov(r3, Operand(stack_limit));
-    __ LoadU64(r3, MemOperand(r3));
-    __ sub(r3, sp, r3, LeaveOE, SetRC);
-    // Handle it if the stack pointer is already below the stack limit.
-    __ ble(&stack_limit_hit, cr0);
-    // Check if there is room for the variable number of registers above
-    // the stack limit.
-    __ CmpU64(r3, Operand(num_registers_ * kSystemPointerSize), r0);
-    __ bge(&stack_ok);
-    // Exit with OutOfMemory exception. There is not enough space on the stack
-    // for our working registers.
-    __ li(r3, Operand(EXCEPTION));
-    __ b(&return_r3);
+      ExternalReference stack_limit =
+          ExternalReference::address_of_jslimit(isolate());
+      __ mov(r3, Operand(stack_limit));
+      __ LoadU64(r3, MemOperand(r3));
+      __ sub(r3, sp, r3, LeaveOE, SetRC);
+      // Handle it if the stack pointer is already below the stack limit.
+      __ ble(&stack_limit_hit, cr0);
+      // Check if there is room for the variable number of registers above
+      // the stack limit.
+      __ CmpU64(r3, Operand(num_registers_ * kSystemPointerSize), r0);
+      __ bge(&stack_ok);
+      // Exit with OutOfMemory exception. There is not enough space on the stack
+      // for our working registers.
+      __ li(r3, Operand(EXCEPTION));
+      __ b(&return_r3);
 
-    __ bind(&stack_limit_hit);
-    CallCheckStackGuardState(r3);
-    __ cmpi(r3, Operand::Zero());
-    // If returned value is non-zero, we exit with the returned value as result.
-    __ bne(&return_r3);
+      __ bind(&stack_limit_hit);
+      CallCheckStackGuardState(r3);
+      __ cmpi(r3, Operand::Zero());
+      // If returned value is non-zero, we exit with the returned value as
+      // result.
+      __ bne(&return_r3);
 
-    __ bind(&stack_ok);
+      __ bind(&stack_ok);
+    }
 
     // Allocate space on stack for registers.
     __ AddS64(sp, sp, Operand(-num_registers_ * kSystemPointerSize), r0);
@@ -800,18 +807,21 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
     // Initialize code pointer register
     __ mov(code_pointer(), Operand(masm_->CodeObject()));
 
-    Label load_char_start_regexp, start_regexp;
-    // Load newline if index is at start, previous character otherwise.
-    __ cmpi(r4, Operand::Zero());
-    __ bne(&load_char_start_regexp);
-    __ li(current_character(), Operand('\n'));
-    __ b(&start_regexp);
+    Label load_char_start_regexp;
+    {
+      Label start_regexp;
+      // Load newline if index is at start, previous character otherwise.
+      __ cmpi(r4, Operand::Zero());
+      __ bne(&load_char_start_regexp);
+      __ li(current_character(), Operand('\n'));
+      __ b(&start_regexp);
 
-    // Global regexp restarts matching here.
-    __ bind(&load_char_start_regexp);
-    // Load previous char as initial value of current character register.
-    LoadCurrentCharacterUnchecked(-1, 1);
-    __ bind(&start_regexp);
+      // Global regexp restarts matching here.
+      __ bind(&load_char_start_regexp);
+      // Load previous char as initial value of current character register.
+      LoadCurrentCharacterUnchecked(-1, 1);
+      __ bind(&start_regexp);
+    }
 
     // Initialize on-stack registers.
     if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
@@ -832,9 +842,6 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
         }
       }
     }
-
-    // Initialize backtrack stack pointer.
-    LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
     __ b(&start_label_);
 
@@ -906,6 +913,10 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
         // Prepare r3 to initialize registers with its value in the next run.
         __ LoadU64(r3, MemOperand(frame_pointer(), kStringStartMinusOne));
 
+        // Restore the original regexp stack pointer value (effectively, pop the
+        // stored base pointer).
+        PopRegExpBasePointer(backtrack_stackpointer(), r5);
+
         if (global_with_zero_length_check()) {
           // Special case for zero-length matches.
           // r25: capture start index
@@ -938,7 +949,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
     __ bind(&return_r3);
     // Restore the original regexp stack pointer value (effectively, pop the
     // stored base pointer).
-    PopRegExpBasePointer(r4, r5);
+    PopRegExpBasePointer(backtrack_stackpointer(), r5);
 
     // Skip sp past regexp registers and local variables..
     __ mr(sp, frame_pointer());
