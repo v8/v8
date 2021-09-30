@@ -1360,13 +1360,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchComment:
       __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
       break;
-    case kArchAbortCSAAssert:
+    case kArchAbortCSADcheck:
       DCHECK(i.InputRegister(0) == rdx);
       {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NO_FRAME_TYPE);
-        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSAAssert),
+        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSADcheck),
                 RelocInfo::CODE_TARGET);
       }
       __ int3();

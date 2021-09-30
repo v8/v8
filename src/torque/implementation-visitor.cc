@@ -1214,7 +1214,7 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
                            {}});
     return TypeOracle::GetVoidType();
   }
-  bool do_check = stmt->kind != AssertStatement::AssertKind::kAssert ||
+  bool do_check = stmt->kind != AssertStatement::AssertKind::kDcheck ||
                   GlobalContext::force_assert_statements();
 #if defined(DEBUG)
   do_check = true;
@@ -1228,15 +1228,15 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
     assembler().Bind(unreachable_block);
   }
 
-  // CSA_ASSERT & co. are not used here on purpose for two reasons. First,
+  // CSA_DCHECK & co. are not used here on purpose for two reasons. First,
   // Torque allows and handles two types of expressions in the if protocol
   // automagically, ones that return TNode<BoolT> and those that use the
   // BranchIf(..., Label* true, Label* false) idiom. Because the machinery to
   // handle this is embedded in the expression handling and to it's not
-  // possible to make the decision to use CSA_ASSERT or CSA_ASSERT_BRANCH
+  // possible to make the decision to use CSA_DCHECK or CSA_DCHECK_BRANCH
   // isn't trivial up-front. Secondly, on failure, the assert text should be
   // the corresponding Torque code, not the -gen.cc code, which would be the
-  // case when using CSA_ASSERT_XXX.
+  // case when using CSA_DCHECK_XXX.
   Block* true_block = assembler().NewBlock(assembler().CurrentStack());
   Block* false_block = assembler().NewBlock(assembler().CurrentStack(), true);
   GenerateExpressionBranch(stmt->expression, true_block, false_block);

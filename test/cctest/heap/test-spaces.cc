@@ -355,7 +355,7 @@ TEST(OldLargeObjectSpace) {
 #ifndef DEBUG
 // The test verifies that committed size of a space is less then some threshold.
 // Debug builds pull in all sorts of additional instrumentation that increases
-// heap sizes. E.g. CSA_ASSERT creates on-heap strings for error messages. These
+// heap sizes. E.g. CSA_DCHECK creates on-heap strings for error messages. These
 // messages are also not stable if files are moved and modified during the build
 // process (jumbo builds).
 TEST(SizeOfInitialHeap) {

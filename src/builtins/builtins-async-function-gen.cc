@@ -55,7 +55,7 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
   // unnecessary runtime checks removed.
 
   // Ensure that the {async_function_object} is neither closed nor running.
-  CSA_SLOW_ASSERT(
+  CSA_SLOW_DCHECK(
       this, SmiGreaterThan(
                 LoadObjectField<Smi>(async_function_object,
                                      JSGeneratorObject::kContinuationOffset),
@@ -226,7 +226,7 @@ TF_BUILTIN(AsyncFunctionLazyDeoptContinuation, AsyncFunctionBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 1);
+  CSA_DCHECK_JS_ARGC_EQ(this, 1);
   const auto sentError = Parameter<Object>(Descriptor::kSentError);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
@@ -236,7 +236,7 @@ TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncFunctionAwaitResolveClosure, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 1);
+  CSA_DCHECK_JS_ARGC_EQ(this, 1);
   const auto sentValue = Parameter<Object>(Descriptor::kSentValue);
   const auto context = Parameter<Context>(Descriptor::kContext);
 

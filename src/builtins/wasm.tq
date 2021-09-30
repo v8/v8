@@ -160,7 +160,7 @@ builtin WasmTableGet(tableIndex: intptr, index: int32): Object {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   const entryIndex: intptr = ChangeInt32ToIntPtr(index);
   try {
-    assert(IsValidPositiveSmi(tableIndex));
+    dcheck(IsValidPositiveSmi(tableIndex));
     if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
 
     const tables: FixedArray = LoadTablesFromInstance(instance);
@@ -193,7 +193,7 @@ builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   const entryIndex: intptr = ChangeInt32ToIntPtr(index);
   try {
-    assert(IsValidPositiveSmi(tableIndex));
+    dcheck(IsValidPositiveSmi(tableIndex));
     if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
 
     const tables: FixedArray = LoadTablesFromInstance(instance);
@@ -412,7 +412,7 @@ builtin UintPtr53ToNumber(value: uintptr): Number {
   const valueFloat = ChangeUintPtrToFloat64(value);
   // Values need to be within [0..2^53], such that they can be represented as
   // float64.
-  assert(ChangeFloat64ToUintPtr(valueFloat) == value);
+  dcheck(ChangeFloat64ToUintPtr(valueFloat) == value);
   return AllocateHeapNumberWithValue(valueFloat);
 }
 

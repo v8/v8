@@ -673,8 +673,8 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3,
   current_block_ = nullptr;
 }
 
-void RawMachineAssembler::AbortCSAAssert(Node* message) {
-  AddNode(machine()->AbortCSAAssert(), message);
+void RawMachineAssembler::AbortCSADcheck(Node* message) {
+  AddNode(machine()->AbortCSADcheck(), message);
 }
 
 void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }

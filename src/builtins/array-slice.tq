@@ -89,7 +89,7 @@ macro HandleFastSlice(
     labels Bailout {
   const start: Smi = Cast<Smi>(startNumber) otherwise Bailout;
   const count: Smi = Cast<Smi>(countNumber) otherwise Bailout;
-  assert(start >= 0);
+  dcheck(start >= 0);
 
   try {
     typeswitch (o) {
@@ -182,12 +182,12 @@ ArrayPrototypeSlice(
   // 7. Let count be max(final - k, 0).
   const count: Number = Max(final - k, 0);
 
-  assert(0 <= k);
-  assert(k <= len);
-  assert(0 <= final);
-  assert(final <= len);
-  assert(0 <= count);
-  assert(count <= len);
+  dcheck(0 <= k);
+  dcheck(k <= len);
+  dcheck(0 <= final);
+  dcheck(final <= len);
+  dcheck(0 <= count);
+  dcheck(count <= len);
 
   try {
     return HandleFastSlice(context, o, k, count)

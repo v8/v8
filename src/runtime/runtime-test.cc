@@ -983,11 +983,11 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   UNREACHABLE();
 }
 
-RUNTIME_FUNCTION(Runtime_AbortCSAAssert) {
+RUNTIME_FUNCTION(Runtime_AbortCSADcheck) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, message, 0);
-  base::OS::PrintError("abort: CSA_ASSERT failed: %s\n",
+  base::OS::PrintError("abort: CSA_DCHECK failed: %s\n",
                        message->ToCString().get());
   isolate->PrintStack(stderr);
   base::OS::Abort();

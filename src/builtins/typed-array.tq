@@ -108,7 +108,7 @@ struct TypedArrayAccessor {
       context: Context, array: JSTypedArray, index: uintptr, value: Numeric) {
     const storefn: StoreNumericFn = this.storeNumericFn;
     const result = storefn(context, array, index, value);
-    assert(result == kStoreSucceded);
+    dcheck(result == kStoreSucceded);
   }
 
   macro StoreJSAny(
@@ -119,7 +119,7 @@ struct TypedArrayAccessor {
     if (result == kStoreFailureArrayDetached) {
       goto IfDetached;
     }
-    assert(result == kStoreSucceded);
+    dcheck(result == kStoreSucceded);
   }
 
   loadNumericFn: LoadNumericFn;

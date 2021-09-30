@@ -231,7 +231,7 @@ const kAllocateBaseFlags: constexpr AllocationFlag =
     AllocationFlag::kAllowLargeObjectAllocation;
 macro AllocateFromNew(
     sizeInBytes: intptr, map: Map, pretenured: bool): UninitializedHeapObject {
-  assert(ValidAllocationSize(sizeInBytes, map));
+  dcheck(ValidAllocationSize(sizeInBytes, map));
   if (pretenured) {
     return Allocate(
         sizeInBytes,
@@ -321,7 +321,7 @@ struct UninitializedIterator {}
 
 // %RawDownCast should *never* be used anywhere in Torque code except for
 // in Torque-based UnsafeCast operators preceeded by an appropriate
-// type assert()
+// type dcheck()
 intrinsic %RawDownCast<To: type, From: type>(x: From): To;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
 

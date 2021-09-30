@@ -458,9 +458,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitAbortCSAAssert(Node* node) {
+void InstructionSelector::VisitAbortCSADcheck(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), edx));
+  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), edx));
 }
 
 void InstructionSelector::VisitLoadLane(Node* node) {

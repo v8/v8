@@ -237,12 +237,12 @@ struct FastJSArrayWitness {
   }
 
   macro ChangeLength(newLength: Smi) {
-    assert(this.arrayIsPushable);
+    dcheck(this.arrayIsPushable);
     this.unstable.length = newLength;
   }
 
   macro Push(value: JSAny) labels Failed {
-    assert(this.arrayIsPushable);
+    dcheck(this.arrayIsPushable);
     if (this.hasDoubles) {
       BuildAppendJSArray(
           ElementsKind::HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
@@ -251,7 +251,7 @@ struct FastJSArrayWitness {
       BuildAppendJSArray(ElementsKind::HOLEY_SMI_ELEMENTS, this.unstable, value)
           otherwise Failed;
     } else {
-      assert(
+      dcheck(
           this.map.elements_kind == ElementsKind::HOLEY_ELEMENTS ||
           this.map.elements_kind == ElementsKind::PACKED_ELEMENTS);
       BuildAppendJSArray(ElementsKind::HOLEY_ELEMENTS, this.unstable, value)
@@ -260,7 +260,7 @@ struct FastJSArrayWitness {
   }
 
   macro MoveElements(dst: intptr, src: intptr, length: intptr) {
-    assert(this.arrayIsPushable);
+    dcheck(this.arrayIsPushable);
     if (this.hasDoubles) {
       const elements: FixedDoubleArray =
           Cast<FixedDoubleArray>(this.unstable.elements)

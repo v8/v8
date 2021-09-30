@@ -592,7 +592,7 @@ macro TestOtherwiseWithCode1() {
   } label B(v1: Smi) {
     v = v1;
   }
-  assert(v == 2);
+  dcheck(v == 2);
 }
 
 @export
@@ -602,7 +602,7 @@ macro TestOtherwiseWithCode2() {
     TestCall(i) otherwise break;
     ++s;
   }
-  assert(s == 5);
+  dcheck(s == 5);
 }
 
 @export
@@ -611,7 +611,7 @@ macro TestOtherwiseWithCode3() {
   for (let i: Smi = 0; i < 10; ++i) {
     s += TestCall(i) otherwise break;
   }
-  assert(s == 10);
+  dcheck(s == 10);
 }
 
 @export
@@ -621,7 +621,7 @@ macro TestForwardLabel() {
   } label A {
     goto B(5);
   } label B(b: Smi) {
-    assert(b == 5);
+    dcheck(b == 5);
   }
 }
 
@@ -705,8 +705,8 @@ macro TestFrame1(implicit context: Context)() {
   const f: Frame = LoadFramePointer();
   const frameType: FrameType =
       Cast<FrameType>(f.context_or_frame_type) otherwise unreachable;
-  assert(frameType == STUB_FRAME);
-  assert(f.caller == LoadParentFramePointer());
+  dcheck(frameType == STUB_FRAME);
+  dcheck(f.caller == LoadParentFramePointer());
   typeswitch (f) {
     case (_f: StandardFrame): {
       unreachable;
@@ -1234,12 +1234,12 @@ macro TestFullyGeneratedClassWithElements() {
       value: 11
     }
   };
-  assert(object1.length == 3);
-  assert(object1.data == 0);
-  assert(object1.object == Undefined);
-  assert(object1.entries[0] == 11);
-  assert(object1.entries[1] == 12);
-  assert(object1.entries[2] == 13);
+  dcheck(object1.length == 3);
+  dcheck(object1.data == 0);
+  dcheck(object1.object == Undefined);
+  dcheck(object1.entries[0] == 11);
+  dcheck(object1.entries[1] == 12);
+  dcheck(object1.entries[2] == 13);
 
   // Test creation, initialization and access of a fully generated class
   // with elements that are a struct.
@@ -1255,20 +1255,20 @@ macro TestFullyGeneratedClassWithElements() {
     }
   };
 
-  assert(object2.dummy1 == 44);
-  assert(object2.dummy2 == 45);
-  assert(object2.count == 3);
-  assert(object2.data == 55);
-  assert(object2.object == Undefined);
-  assert(object2.entries[0] == 3);
-  assert(object2.entries[1] == 4);
-  assert(object2.entries[2] == 5);
-  assert(object2.more_entries[0].a == 1);
-  assert(object2.more_entries[0].b == 2);
-  assert(object2.more_entries[1].a == 3);
-  assert(object2.more_entries[1].b == 4);
-  assert(object2.more_entries[2].a == 5);
-  assert(object2.more_entries[2].b == 6);
+  dcheck(object2.dummy1 == 44);
+  dcheck(object2.dummy2 == 45);
+  dcheck(object2.count == 3);
+  dcheck(object2.data == 55);
+  dcheck(object2.object == Undefined);
+  dcheck(object2.entries[0] == 3);
+  dcheck(object2.entries[1] == 4);
+  dcheck(object2.entries[2] == 5);
+  dcheck(object2.more_entries[0].a == 1);
+  dcheck(object2.more_entries[0].b == 2);
+  dcheck(object2.more_entries[1].a == 3);
+  dcheck(object2.more_entries[1].b == 4);
+  dcheck(object2.more_entries[2].a == 5);
+  dcheck(object2.more_entries[2].b == 6);
 }
 
 @export
@@ -1294,25 +1294,25 @@ macro TestGeneratedCastOperators(implicit context: Context)() {
   const aO: Object = a;
   const bO: Object = b;
   const cO: Object = c;
-  assert(Is<ExportedSubClassBase>(aO));
-  assert(Is<ExportedSubClass>(aO));
-  assert(!Is<ExportedSubClass2>(aO));
-  assert(Is<ExportedSubClassBase>(bO));
-  assert(!Is<ExportedSubClass>(bO));
-  assert(Is<ExportedSubClassBase>(cO));
-  assert(!Is<ExportedSubClass>(cO));
-  assert(Is<ExportedSubClass2>(cO));
+  dcheck(Is<ExportedSubClassBase>(aO));
+  dcheck(Is<ExportedSubClass>(aO));
+  dcheck(!Is<ExportedSubClass2>(aO));
+  dcheck(Is<ExportedSubClassBase>(bO));
+  dcheck(!Is<ExportedSubClass>(bO));
+  dcheck(Is<ExportedSubClassBase>(cO));
+  dcheck(!Is<ExportedSubClass>(cO));
+  dcheck(Is<ExportedSubClass2>(cO));
 
   const jsf: JSFunction =
       *NativeContextSlot(ContextSlot::REGEXP_FUNCTION_INDEX);
-  assert(!Is<JSSloppyArgumentsObject>(jsf));
+  dcheck(!Is<JSSloppyArgumentsObject>(jsf));
 
   const parameterValues = NewFixedArray(0, ConstantIterator(TheHole));
   const elements = NewSloppyArgumentsElements(
       0, context, parameterValues, ConstantIterator(TheHole));
   const fastArgs = arguments::NewJSFastAliasedArgumentsObject(
       elements, Convert<Smi>(0), jsf);
-  assert(Is<JSArgumentsObject>(fastArgs));
+  dcheck(Is<JSArgumentsObject>(fastArgs));
 }
 
 extern runtime InYoungGeneration(implicit context: Context)(HeapObject):
@@ -1321,8 +1321,8 @@ extern runtime InYoungGeneration(implicit context: Context)(HeapObject):
 @export
 macro TestNewPretenured(implicit context: Context)() {
   const obj = new (Pretenured) ExportedSubClassBase{a: Undefined, b: Null};
-  assert(Is<ExportedSubClassBase>(obj));
-  assert(InYoungGeneration(obj) == False);
+  dcheck(Is<ExportedSubClassBase>(obj));
+  dcheck(InYoungGeneration(obj) == False);
 }
 
 @export

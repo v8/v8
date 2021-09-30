@@ -74,7 +74,7 @@ void GeneratorBuiltinsAssembler::InnerResume(
 
   // The generator function should not close the generator by itself, let's
   // check it is indeed not closed yet.
-  CSA_ASSERT(this, SmiNotEqual(result_continuation, closed));
+  CSA_DCHECK(this, SmiNotEqual(result_continuation, closed));
 
   TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   GotoIf(SmiEqual(result_continuation, executing), &if_final_return);
@@ -219,7 +219,7 @@ TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
 
   TNode<JSFunction> closure = LoadJSGeneratorObjectFunction(generator);
   auto sfi = LoadJSFunctionSharedFunctionInfo(closure);
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              Word32BinaryNot(IsSharedFunctionInfoDontAdaptArguments(sfi)));
   TNode<IntPtrT> formal_parameter_count = Signed(ChangeUint32ToWord(
       LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(sfi)));
@@ -273,7 +273,7 @@ TF_BUILTIN(ResumeGeneratorBaseline, GeneratorBuiltinsAssembler) {
   auto generator = Parameter<JSGeneratorObject>(Descriptor::kGeneratorObject);
   TNode<JSFunction> closure = LoadJSGeneratorObjectFunction(generator);
   auto sfi = LoadJSFunctionSharedFunctionInfo(closure);
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              Word32BinaryNot(IsSharedFunctionInfoDontAdaptArguments(sfi)));
   TNode<IntPtrT> formal_parameter_count = Signed(ChangeUint32ToWord(
       LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(sfi)));

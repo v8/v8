@@ -158,7 +158,7 @@ struct float64_or_hole {
     return this.value;
   }
   macro ValueUnsafeAssumeNotHole(): float64 {
-    assert(!this.is_hole);
+    dcheck(!this.is_hole);
     return this.value;
   }
 
@@ -601,7 +601,7 @@ transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
         // ToInteger normalizes -0 to +0.
         if (value == 0.0) return SmiConstant(0);
         const result = ChangeFloat64ToTagged(value);
-        assert(IsNumberNormalized(result));
+        dcheck(IsNumberNormalized(result));
         return result;
       }
       case (a: JSAnyNotNumber): {
@@ -1252,7 +1252,7 @@ macro FastHoleyElementsKind(kind: ElementsKind): ElementsKind {
   } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
     return ElementsKind::HOLEY_DOUBLE_ELEMENTS;
   }
-  assert(kind == ElementsKind::PACKED_ELEMENTS);
+  dcheck(kind == ElementsKind::PACKED_ELEMENTS);
   return ElementsKind::HOLEY_ELEMENTS;
 }
 
@@ -1396,8 +1396,8 @@ macro SameValue(a: JSAny, b: JSAny): bool {
 macro CheckIntegerIndexAdditionOverflow(
     index1: uintptr, index2: uintptr, limit: uintptr) labels IfOverflow {
   if constexpr (Is64()) {
-    assert(index1 <= kMaxSafeIntegerUint64);
-    assert(index2 <= kMaxSafeIntegerUint64);
+    dcheck(index1 <= kMaxSafeIntegerUint64);
+    dcheck(index2 <= kMaxSafeIntegerUint64);
     // Given that both index1 and index2 are in a safe integer range the
     // addition can't overflow.
     if (index1 + index2 > limit) goto IfOverflow;
@@ -1431,7 +1431,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       if (kMode == kModeValueIsAnyNumber) {
         if (valueSmi < 0) goto IfLessThanZero;
       } else {
-        assert(valueSmi >= 0);
+        dcheck(valueSmi >= 0);
       }
       const value: uintptr = Unsigned(Convert<intptr>(valueSmi));
       // Positive Smi values definitely fit into both [0, kMaxSafeInteger] and
@@ -1439,14 +1439,14 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       return value;
     }
     case (valueHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(valueHeapNumber));
+      dcheck(IsNumberNormalized(valueHeapNumber));
       const valueDouble: float64 = Convert<float64>(valueHeapNumber);
       // NaNs must be handled outside.
-      assert(!Float64IsNaN(valueDouble));
+      dcheck(!Float64IsNaN(valueDouble));
       if (kMode == kModeValueIsAnyNumber) {
         if (valueDouble < 0) goto IfLessThanZero;
       } else {
-        assert(valueDouble >= 0);
+        dcheck(valueDouble >= 0);
       }
 
       if constexpr (Is64()) {
@@ -1455,7 +1455,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
         if (kMode == kModeValueIsAnyNumber) {
           if (valueDouble > kMaxSafeInteger) goto IfSafeIntegerOverflow;
         } else {
-          assert(valueDouble <= kMaxSafeInteger);
+          dcheck(valueDouble <= kMaxSafeInteger);
         }
       } else {
         // On 32-bit architectures uintptr range is smaller than safe integer
@@ -1464,7 +1464,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
             kMode == kModeValueIsSafeInteger) {
           if (valueDouble > kMaxUInt32Double) goto IfUIntPtrOverflow;
         } else {
-          assert(valueDouble <= kMaxUInt32Double);
+          dcheck(valueDouble <= kMaxUInt32Double);
         }
       }
       return ChangeFloat64ToUintPtr(valueDouble);
@@ -1602,13 +1602,13 @@ macro ConvertToRelativeIndex(indexNumber: Number, length: uintptr): uintptr {
       }
     }
     case (indexHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(indexHeapNumber));
+      dcheck(IsNumberNormalized(indexHeapNumber));
       const indexDouble: float64 = Convert<float64>(indexHeapNumber);
       // NaNs must already be handled by ConvertToRelativeIndex() version
       // above accepting JSAny indices.
-      assert(!Float64IsNaN(indexDouble));
+      dcheck(!Float64IsNaN(indexDouble));
       const lengthDouble: float64 = Convert<float64>(length);
-      assert(lengthDouble <= kMaxSafeInteger);
+      dcheck(lengthDouble <= kMaxSafeInteger);
       if (indexDouble < 0) {
         const relativeIndex: float64 = lengthDouble + indexDouble;
         return relativeIndex > 0 ? ChangeFloat64ToUintPtr(relativeIndex) : 0;
@@ -1643,15 +1643,15 @@ macro ClampToIndexRange(indexNumber: Number, limit: uintptr): uintptr {
       return index;
     }
     case (indexHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(indexHeapNumber));
+      dcheck(IsNumberNormalized(indexHeapNumber));
       const indexDouble: float64 = Convert<float64>(indexHeapNumber);
       // NaNs must already be handled by ClampToIndexRange() version
       // above accepting JSAny indices.
-      assert(!Float64IsNaN(indexDouble));
+      dcheck(!Float64IsNaN(indexDouble));
       if (indexDouble <= 0) return 0;
 
       const maxIndexDouble: float64 = Convert<float64>(limit);
-      assert(maxIndexDouble <= kMaxSafeInteger);
+      dcheck(maxIndexDouble <= kMaxSafeInteger);
       if (indexDouble >= maxIndexDouble) return limit;
 
       return ChangeFloat64ToUintPtr(indexDouble);
@@ -1746,7 +1746,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
         BuildAppendJSArray(ElementsKind::HOLEY_DOUBLE_ELEMENTS, array, value)
             otherwise Slow;
       } else {
-        assert(IsFastSmiOrTaggedElementsKind(kind));
+        dcheck(IsFastSmiOrTaggedElementsKind(kind));
         BuildAppendJSArray(ElementsKind::HOLEY_ELEMENTS, array, value)
             otherwise Slow;
       }
@@ -1767,7 +1767,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
             otherwise unreachable;
         doubleElements[index] = numberValue;
       } else {
-        assert(IsFastSmiOrTaggedElementsKind(kind));
+        dcheck(IsFastSmiOrTaggedElementsKind(kind));
         const elements = Cast<FixedArray>(array.elements) otherwise unreachable;
         elements[index] = value;
       }

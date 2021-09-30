@@ -161,7 +161,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   const TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  CSA_ASSERT(this, IsConstructor(promise_fun));
+  CSA_DCHECK(this, IsConstructor(promise_fun));
 
   // Let valueWrapper be PromiseResolve(%Promise%, « value »).
   // IfAbruptRejectPromise(valueWrapper, promiseCapability).

@@ -579,9 +579,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitAbortCSAAssert(Node* node) {
+void InstructionSelector::VisitAbortCSADcheck(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), x1));
+  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), x1));
 }
 
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,

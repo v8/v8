@@ -278,7 +278,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     {
       // Currently, we will not invoke getters,
       // so, map will not be changed.
-      CSA_ASSERT(this, TaggedEqual(map, LoadMap(object)));
+      CSA_DCHECK(this, TaggedEqual(map, LoadMap(object)));
       TNode<IntPtrT> descriptor_entry = var_descriptor_number.value();
       TNode<Name> next_key =
           LoadKeyByDescriptorEntry(descriptors, descriptor_entry);
@@ -293,7 +293,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
 
       // If property is accessor, we escape fast path and call runtime.
       GotoIf(IsPropertyKindAccessor(kind), if_call_runtime_with_fast_path);
-      CSA_ASSERT(this, IsPropertyKindData(kind));
+      CSA_DCHECK(this, IsPropertyKindData(kind));
 
       // If desc is not undefined and desc.[[Enumerable]] is true, then skip to
       // the next descriptor.
@@ -346,7 +346,7 @@ TNode<JSArray>
 ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
     TNode<Context> context, TNode<FixedArray> result, TNode<IntPtrT> size,
     TNode<Map> array_map, Label* if_empty) {
-  CSA_ASSERT(this, IsJSArrayMap(array_map));
+  CSA_DCHECK(this, IsJSArrayMap(array_map));
 
   GotoIf(IntPtrEqual(size, IntPtrConstant(0)), if_empty);
   TNode<JSArray> array = AllocateJSArray(array_map, result, SmiTag(size));
@@ -477,7 +477,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
       &if_slow);
 
   // Ensure that the {object} doesn't have any elements.
-  CSA_ASSERT(this, IsJSObjectMap(object_map));
+  CSA_DCHECK(this, IsJSObjectMap(object_map));
   TNode<FixedArrayBase> object_elements = LoadElements(CAST(object));
   GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
   Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
@@ -853,7 +853,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_object);
   {
-    CSA_ASSERT(this, IsJSReceiver(CAST(receiver)));
+    CSA_DCHECK(this, IsJSReceiver(CAST(receiver)));
     var_default = ObjectToStringConstant();
     Goto(&checkstringtag);
   }
@@ -868,7 +868,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     GotoIf(IsHeapNumberMap(receiver_map), &if_number);
     GotoIf(IsSymbolMap(receiver_map), &if_symbol);
     GotoIf(IsUndefined(receiver), &return_undefined);
-    CSA_ASSERT(this, IsNull(receiver));
+    CSA_DCHECK(this, IsNull(receiver));
     Return(NullToStringConstant());
 
     BIND(&return_undefined);
@@ -980,7 +980,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         LoadMapInstanceType(receiver_value_map);
     GotoIf(IsBigIntInstanceType(receiver_value_instance_type),
            &if_value_is_bigint);
-    CSA_ASSERT(this, IsStringInstanceType(receiver_value_instance_type));
+    CSA_DCHECK(this, IsStringInstanceType(receiver_value_instance_type));
     Goto(&if_value_is_string);
 
     BIND(&if_value_is_number);
@@ -1295,7 +1295,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  CSA_ASSERT(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
+  CSA_DCHECK(this, IsUndefined(Parameter<Object>(Descriptor::kJSNewTarget)));
 
   CodeStubArguments args(this, argc);
   TNode<Object> object_input = args.GetOptionalArgumentValue(0);
@@ -1497,7 +1497,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     Goto(&return_desc);
 
     BIND(&bailout);
-    CSA_ASSERT(this, Int32Constant(0));
+    CSA_DCHECK(this, Int32Constant(0));
     Unreachable();
   }
 

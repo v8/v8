@@ -338,7 +338,7 @@ void TypedArrayBuiltinsAssembler::
     CallCCopyFastNumberJSArrayElementsToTypedArray(
         TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,
         TNode<UintPtrT> source_length, TNode<UintPtrT> offset) {
-  CSA_ASSERT(this,
+  CSA_DCHECK(this,
              Word32BinaryNot(IsBigInt64ElementsKind(LoadElementsKind(dest))));
   TNode<ExternalReference> f = ExternalConstant(
       ExternalReference::copy_fast_number_jsarray_elements_to_typed_array());

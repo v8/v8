@@ -36,8 +36,8 @@ macro FastCopy(
       otherwise unreachable;
   const srcPtr: RawPtr = src.data_ptr + Convert<intptr>(startOffset);
 
-  assert(countBytes <= dest.byte_length);
-  assert(countBytes <= src.byte_length - startOffset);
+  dcheck(countBytes <= dest.byte_length);
+  dcheck(countBytes <= src.byte_length - startOffset);
 
   if (IsSharedArrayBuffer(src.buffer)) {
     // SABs need a relaxed memmove to preserve atomicity.

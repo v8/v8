@@ -604,7 +604,7 @@ TEST(TryToName) {
       m.Goto(&check_result);
 
       m.BIND(&if_expectedisheapnumber);
-      CSA_ASSERT(&m, m.IsHeapNumber(m.CAST(expected_arg)));
+      CSA_DCHECK(&m, m.IsHeapNumber(m.CAST(expected_arg)));
       TNode<Float64T> value = m.LoadHeapNumberValue(m.CAST(expected_arg));
       // We know this to be safe as all expected values are in intptr
       // range.

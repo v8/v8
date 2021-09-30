@@ -18,7 +18,7 @@ macro GetCoverageInfo(implicit context: Context)(function: JSFunction):
 
 macro IncrementBlockCount(implicit context: Context)(
     coverageInfo: CoverageInfo, slot: Smi) {
-  assert(Convert<int32>(slot) < coverageInfo.slot_count);
+  dcheck(Convert<int32>(slot) < coverageInfo.slot_count);
   ++coverageInfo.slots[slot].block_count;
 }
 

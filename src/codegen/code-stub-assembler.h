@@ -233,36 +233,36 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #endif
 
 #ifdef DEBUG
-// CSA_ASSERT_ARGS generates an
+// CSA_DCHECK_ARGS generates an
 // std::initializer_list<CodeStubAssembler::ExtraNode> from __VA_ARGS__. It
 // currently supports between 0 and 2 arguments.
 
 // clang-format off
-#define CSA_ASSERT_0_ARGS(...) {}
-#define CSA_ASSERT_1_ARG(a, ...) {{a, #a}}
-#define CSA_ASSERT_2_ARGS(a, b, ...) {{a, #a}, {b, #b}}
+#define CSA_DCHECK_0_ARGS(...) {}
+#define CSA_DCHECK_1_ARG(a, ...) {{a, #a}}
+#define CSA_DCHECK_2_ARGS(a, b, ...) {{a, #a}, {b, #b}}
 // clang-format on
-#define SWITCH_CSA_ASSERT_ARGS(dummy, a, b, FUNC, ...) FUNC(a, b)
-#define CSA_ASSERT_ARGS(...)                                        \
-  CALL(SWITCH_CSA_ASSERT_ARGS, (, ##__VA_ARGS__, CSA_ASSERT_2_ARGS, \
-                                CSA_ASSERT_1_ARG, CSA_ASSERT_0_ARGS))
+#define SWITCH_CSA_DCHECK_ARGS(dummy, a, b, FUNC, ...) FUNC(a, b)
+#define CSA_DCHECK_ARGS(...)                                        \
+  CALL(SWITCH_CSA_DCHECK_ARGS, (, ##__VA_ARGS__, CSA_DCHECK_2_ARGS, \
+                                CSA_DCHECK_1_ARG, CSA_DCHECK_0_ARGS))
 // Workaround for MSVC to skip comma in empty __VA_ARGS__.
 #define CALL(x, y) x y
 
-// CSA_ASSERT(csa, <condition>, <extra values to print...>)
+// CSA_DCHECK(csa, <condition>, <extra values to print...>)
 
-#define CSA_ASSERT(csa, condition_node, ...)                         \
-  (csa)->Assert(condition_node, #condition_node, __FILE__, __LINE__, \
-                CSA_ASSERT_ARGS(__VA_ARGS__))
+#define CSA_DCHECK(csa, condition_node, ...)                         \
+  (csa)->Dcheck(condition_node, #condition_node, __FILE__, __LINE__, \
+                CSA_DCHECK_ARGS(__VA_ARGS__))
 
-// CSA_ASSERT_BRANCH(csa, [](Label* ok, Label* not_ok) {...},
+// CSA_DCHECK_BRANCH(csa, [](Label* ok, Label* not_ok) {...},
 //     <extra values to print...>)
 
-#define CSA_ASSERT_BRANCH(csa, gen, ...) \
-  (csa)->Assert(gen, #gen, __FILE__, __LINE__, CSA_ASSERT_ARGS(__VA_ARGS__))
+#define CSA_DCHECK_BRANCH(csa, gen, ...) \
+  (csa)->Dcheck(gen, #gen, __FILE__, __LINE__, CSA_DCHECK_ARGS(__VA_ARGS__))
 
-#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                           \
-  (csa)->Assert(                                                               \
+#define CSA_DCHECK_JS_ARGC_OP(csa, Op, op, expected)                           \
+  (csa)->Dcheck(                                                               \
       [&]() -> TNode<BoolT> {                                                  \
         const TNode<Word32T> argc = (csa)->UncheckedParameter<Word32T>(        \
             Descriptor::kJSActualArgumentsCount);                              \
@@ -274,8 +274,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
             Descriptor::kJSActualArgumentsCount)),                             \
         "argc"}})
 
-#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \
-  CSA_ASSERT_JS_ARGC_OP(csa, Word32Equal, ==, expected)
+#define CSA_DCHECK_JS_ARGC_EQ(csa, expected) \
+  CSA_DCHECK_JS_ARGC_OP(csa, Word32Equal, ==, expected)
 
 #define CSA_DEBUG_INFO(name) \
   { #name, __FILE__, __LINE__ }
@@ -285,9 +285,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #define TYPED_VARIABLE_CONSTRUCTOR(name, ...) \
   name(CSA_DEBUG_INFO(name), __VA_ARGS__)
 #else  // DEBUG
-#define CSA_ASSERT(csa, ...) ((void)0)
-#define CSA_ASSERT_BRANCH(csa, ...) ((void)0)
-#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
+#define CSA_DCHECK(csa, ...) ((void)0)
+#define CSA_DCHECK_BRANCH(csa, ...) ((void)0)
+#define CSA_DCHECK_JS_ARGC_EQ(csa, expected) ((void)0)
 #define BIND(label) Bind(label)
 #define TYPED_VARIABLE_DEF(type, name, ...) TVariable<type> name(__VA_ARGS__)
 #define TYPED_VARIABLE_CONSTRUCTOR(name, ...) name(__VA_ARGS__)
@@ -298,12 +298,12 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   EXPAND(TYPED_VARIABLE_CONSTRUCTOR(__VA_ARGS__, this))
 
 #ifdef ENABLE_SLOW_DCHECKS
-#define CSA_SLOW_ASSERT(csa, ...) \
+#define CSA_SLOW_DCHECK(csa, ...) \
   if (FLAG_enable_slow_asserts) { \
-    CSA_ASSERT(csa, __VA_ARGS__); \
+    CSA_DCHECK(csa, __VA_ARGS__); \
   }
 #else
-#define CSA_SLOW_ASSERT(csa, ...) ((void)0)
+#define CSA_SLOW_DCHECK(csa, ...) ((void)0)
 #endif
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
@@ -768,13 +768,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   using NodeGenerator = std::function<TNode<T>()>;
   using ExtraNode = std::pair<TNode<Object>, const char*>;
 
-  void Assert(const BranchGenerator& branch, const char* message,
+  void Dcheck(const BranchGenerator& branch, const char* message,
               const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {});
-  void Assert(const NodeGenerator<BoolT>& condition_body, const char* message,
+  void Dcheck(const NodeGenerator<BoolT>& condition_body, const char* message,
               const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {});
-  void Assert(TNode<Word32T> condition_node, const char* message,
+  void Dcheck(TNode<Word32T> condition_node, const char* message,
               const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {});
   void Check(const BranchGenerator& branch, const char* message,
@@ -1097,7 +1097,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<ExternalString> object) {
     // This is only valid for ExternalStrings where the resource data
     // pointer is cached (i.e. no uncached external strings).
-    CSA_ASSERT(this, Word32NotEqual(
+    CSA_DCHECK(this, Word32NotEqual(
                          Word32And(LoadInstanceType(object),
                                    Int32Constant(kUncachedExternalStringMask)),
                          Int32Constant(kUncachedExternalStringTag)));
@@ -1236,7 +1236,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
-    CSA_ASSERT(this, TaggedIsNotSmi(reference.object));
+    CSA_DCHECK(this, TaggedIsNotSmi(reference.object));
     return CAST(
         LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
@@ -1270,7 +1270,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     }
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
-    CSA_ASSERT(this, TaggedIsNotSmi(reference.object));
+    CSA_DCHECK(this, TaggedIsNotSmi(reference.object));
     StoreToObject(rep, reference.object, offset, value, write_barrier);
   }
   template <class T, typename std::enable_if<
@@ -4068,7 +4068,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           TVariable<Number>* var_result,
                                           Label* if_bailout);
 
-  void AssertHasValidMap(TNode<HeapObject> object);
+  void DcheckHasValidMap(TNode<HeapObject> object);
 
   template <typename TValue>
   void EmitElementStoreTypedArray(TNode<JSTypedArray> typed_array,

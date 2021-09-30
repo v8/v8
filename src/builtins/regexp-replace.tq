@@ -175,9 +175,9 @@ transitioning macro RegExpReplaceFastString(implicit context: Context)(
 
 transitioning builtin RegExpReplace(implicit context: Context)(
     regexp: FastJSRegExp, string: String, replaceValue: JSAny): String {
-  // TODO(pwong): Remove assert when all callers (StringPrototypeReplace) are
+  // TODO(pwong): Remove dcheck when all callers (StringPrototypeReplace) are
   // from Torque.
-  assert(Is<FastJSRegExp>(regexp));
+  dcheck(Is<FastJSRegExp>(regexp));
 
   // 2. Is {replace_value} callable?
   typeswitch (replaceValue) {

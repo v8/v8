@@ -70,10 +70,10 @@ macro SwissNameDictionaryCapacityFor(atLeastSpaceFor: intptr): intptr {
     } else if (atLeastSpaceFor < kSwissNameDictionaryInitialCapacity) {
       return 4;
     } else if (FromConstexpr<bool>(kGroupWidth == 16)) {
-      assert(atLeastSpaceFor == 4);
+      dcheck(atLeastSpaceFor == 4);
       return 4;
     } else if (FromConstexpr<bool>(kGroupWidth == 8)) {
-      assert(atLeastSpaceFor == 4);
+      dcheck(atLeastSpaceFor == 4);
       return 8;
     }
   }
@@ -85,7 +85,7 @@ macro SwissNameDictionaryCapacityFor(atLeastSpaceFor: intptr): intptr {
 // Counterpart for SwissNameDictionary::MaxUsableCapacity in C++.
 @export
 macro SwissNameDictionaryMaxUsableCapacity(capacity: intptr): intptr {
-  assert(capacity == 0 || capacity >= kSwissNameDictionaryInitialCapacity);
+  dcheck(capacity == 0 || capacity >= kSwissNameDictionaryInitialCapacity);
   if (FromConstexpr<bool>(kGroupWidth == 8) && capacity == 4) {
     // If the group size is 16 we can fully utilize capacity 4: There will be
     // enough kEmpty entries in the ctrl table.
@@ -147,7 +147,7 @@ macro SwissNameDictionaryCtrlTableStartOffsetMT(capacity: intptr): intptr {
 
 macro Probe(hash: uint32, mask: uint32): ProbeSequence {
   // Mask must be a power of 2 minus 1.
-  assert(((mask + 1) & mask) == 0);
+  dcheck(((mask + 1) & mask) == 0);
 
   return ProbeSequence{mask: mask, offset: H1(hash) & mask, index: 0};
 }

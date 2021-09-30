@@ -308,7 +308,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 #if V8_ENABLE_WEBASSEMBLY
     case kArchTailCallWasm:
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case kArchAbortCSAAssert:
+    case kArchAbortCSADcheck:
       return kHasSideEffect;
 
     case kArchDebugBreak:

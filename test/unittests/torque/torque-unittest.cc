@@ -449,10 +449,10 @@ TEST(Torque, NoUnusedWarningForImplicitArguments) {
   )");
 }
 
-TEST(Torque, NoUnusedWarningForVariablesOnlyUsedInAsserts) {
+TEST(Torque, NoUnusedWarningForVariablesOnlyUsedInDchecks) {
   ExpectSuccessfulCompilation(R"(
     @export macro Foo(x: bool) {
-      assert(x);
+      dcheck(x);
     }
   )");
 }

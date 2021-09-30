@@ -501,8 +501,8 @@ base::Optional<ParseResult> MakeAssertStatement(
   auto kind_string = child_results->NextAs<Identifier*>()->value;
   auto expr_with_source = child_results->NextAs<ExpressionWithSource>();
   AssertStatement::AssertKind kind;
-  if (kind_string == "assert") {
-    kind = AssertStatement::AssertKind::kAssert;
+  if (kind_string == "dcheck") {
+    kind = AssertStatement::AssertKind::kDcheck;
   } else if (kind_string == "check") {
     kind = AssertStatement::AssertKind::kCheck;
   } else if (kind_string == "static_assert") {
@@ -2559,7 +2559,7 @@ struct TorqueGrammar : Grammar {
           MakeTypeswitchStatement),
       Rule({Token("try"), &block, List<TryHandler*>(&tryHandler)},
            MakeTryLabelExpression),
-      Rule({OneOf({"assert", "check", "static_assert"}), Token("("),
+      Rule({OneOf({"dcheck", "check", "static_assert"}), Token("("),
             &expressionWithSource, Token(")"), Token(";")},
            MakeAssertStatement),
       Rule({Token("while"), Token("("), expression, Token(")"), &statement},

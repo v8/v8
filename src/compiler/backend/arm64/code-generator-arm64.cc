@@ -871,16 +871,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
       break;
-    case kArchAbortCSAAssert:
+    case kArchAbortCSADcheck:
       DCHECK_EQ(i.InputRegister(0), x1);
       {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NO_FRAME_TYPE);
-        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSAAssert),
+        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSADcheck),
                 RelocInfo::CODE_TARGET);
       }
-      __ Debug("kArchAbortCSAAssert", 0, BREAK);
+      __ Debug("kArchAbortCSADcheck", 0, BREAK);
       unwinding_info_writer_.MarkBlockWillExit();
       break;
     case kArchDebugBreak:

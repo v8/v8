@@ -65,7 +65,7 @@ macro InitContextSlot<
   // Make sure the arguments have the right type.
   const context: AnnotatedContext = context;
   const value: T = value;
-  assert(TaggedEqual(context.elements[index], kInitialContextSlotValue));
+  dcheck(TaggedEqual(context.elements[index], kInitialContextSlotValue));
   context.elements[index] = value;
 }
 

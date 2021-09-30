@@ -408,7 +408,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   MachineOperatorBuilder& operator=(const MachineOperatorBuilder&) = delete;
 
   const Operator* Comment(const char* msg);
-  const Operator* AbortCSAAssert();
+  const Operator* AbortCSADcheck();
   const Operator* DebugBreak();
   const Operator* UnsafePointerAdd();
 
