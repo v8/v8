@@ -335,6 +335,14 @@ struct FastApiTypedArray : public FastApiTypedArrayBase {
     return tmp;
   }
 
+  bool getStorageIfAligned(T** elements) const {
+    if (reinterpret_cast<uintptr_t>(data_) % alignof(T) != 0) {
+      return false;
+    }
+    *elements = reinterpret_cast<T*>(data_);
+    return true;
+  }
+
  private:
   // This pointer should include the typed array offset applied.
   // It's not guaranteed that it's aligned to sizeof(T), it's only
