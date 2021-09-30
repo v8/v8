@@ -523,13 +523,6 @@ base::Optional<ParseResult> MakeDebugStatement(
   return ParseResult{result};
 }
 
-base::Optional<ParseResult> MakeVoidType(ParseResultIterator* child_results) {
-  TypeExpression* result = MakeNode<BasicTypeExpression>(
-      std::vector<std::string>{}, MakeNode<Identifier>("void"),
-      std::vector<TypeExpression*>{});
-  return ParseResult{result};
-}
-
 base::Optional<ParseResult> MakeExternalMacro(
     ParseResultIterator* child_results) {
   auto transitioning = child_results->NextAs<bool>();
@@ -2269,10 +2262,6 @@ struct TorqueGrammar : Grammar {
        TryOrDefault<TypeList>(Sequence({Token("("), typeList, Token(")")}))},
       MakeLabelAndTypes)};
 
-  // Result: TypeExpression*
-  Symbol optionalReturnType = {Rule({Token(":"), &type}),
-                               Rule({}, MakeVoidType)};
-
   // Result: LabelAndTypesVector
   Symbol* optionalLabelList{TryOrDefault<LabelAndTypesVector>(
       Sequence({Token("labels"),
@@ -2580,7 +2569,7 @@ struct TorqueGrammar : Grammar {
   Symbol method = {Rule(
       {CheckIf(Token("transitioning")),
        Optional<std::string>(Sequence({Token("operator"), &externalString})),
-       Token("macro"), &name, &parameterListNoVararg, &optionalReturnType,
+       Token("macro"), &name, &parameterListNoVararg, Token(":"), &type,
        optionalLabelList, &block},
       MakeMethodDeclaration)};
 
@@ -2627,7 +2616,7 @@ struct TorqueGrammar : Grammar {
            AsSingletonVector<Declaration*, MakeTypeAliasDeclaration>()),
       Rule({Token("intrinsic"), &intrinsicName,
             TryOrDefault<GenericParameters>(&genericParameters),
-            &parameterListNoVararg, &optionalReturnType, &optionalBody},
+            &parameterListNoVararg, Token(":"), &type, &optionalBody},
            AsSingletonVector<Declaration*, MakeIntrinsicDeclaration>()),
       Rule({Token("extern"), CheckIf(Token("transitioning")),
             Optional<std::string>(
@@ -2635,33 +2624,33 @@ struct TorqueGrammar : Grammar {
             Token("macro"),
             Optional<std::string>(Sequence({&identifier, Token("::")})), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
-            &typeListMaybeVarArgs, &optionalReturnType, optionalLabelList,
+            &typeListMaybeVarArgs, Token(":"), &type, optionalLabelList,
             Token(";")},
            AsSingletonVector<Declaration*, MakeExternalMacro>()),
       Rule({Token("extern"), CheckIf(Token("transitioning")),
             CheckIf(Token("javascript")), Token("builtin"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
-            &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
+            &typeListMaybeVarArgs, Token(":"), &type, Token(";")},
            AsSingletonVector<Declaration*, MakeExternalBuiltin>()),
       Rule({Token("extern"), CheckIf(Token("transitioning")), Token("runtime"),
-            &name, &typeListMaybeVarArgs, &optionalReturnType, Token(";")},
+            &name, &typeListMaybeVarArgs, Token(":"), &type, Token(";")},
            AsSingletonVector<Declaration*, MakeExternalRuntime>()),
       Rule({annotations, CheckIf(Token("transitioning")),
             Optional<std::string>(
                 Sequence({Token("operator"), &externalString})),
             Token("macro"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
-            &parameterListNoVararg, &optionalReturnType, optionalLabelList,
+            &parameterListNoVararg, Token(":"), &type, optionalLabelList,
             &optionalBody},
            AsSingletonVector<Declaration*, MakeTorqueMacroDeclaration>()),
       Rule({CheckIf(Token("transitioning")), CheckIf(Token("javascript")),
             Token("builtin"), &name,
             TryOrDefault<GenericParameters>(&genericParameters),
-            &parameterListAllowVararg, &optionalReturnType, &optionalBody},
+            &parameterListAllowVararg, Token(":"), &type, &optionalBody},
            AsSingletonVector<Declaration*, MakeTorqueBuiltinDeclaration>()),
       Rule({CheckIf(Token("transitioning")), &name,
             &genericSpecializationTypeList, &parameterListAllowVararg,
-            &optionalReturnType, optionalLabelList, &block},
+            Token(":"), &type, optionalLabelList, &block},
            AsSingletonVector<Declaration*, MakeSpecializationDeclaration>()),
       Rule({Token("#include"), &externalString},
            AsSingletonVector<Declaration*, MakeCppIncludeDeclaration>()),

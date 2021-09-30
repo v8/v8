@@ -11,7 +11,7 @@ SetPropertyWithReceiver(implicit context: Context)(
     Object, Name, Object, Object): void;
 
 transitioning macro CallThrowTypeErrorIfStrict(implicit context: Context)(
-    message: constexpr MessageTemplate) {
+    message: constexpr MessageTemplate): void {
   ThrowTypeErrorIfStrict(SmiConstant(message), Null, Null);
 }
 

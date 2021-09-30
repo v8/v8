@@ -276,7 +276,7 @@ TEST(Torque, ClassDefinition) {
     @export
     macro TestClassWithAllTypesLoadsAndStores(
         t: TestClassWithAllTypes, r: RawPtr, v1: int8, v2: uint8, v3: int16,
-        v4: uint16, v5: int32, v6: uint32, v7: intptr, v8: uintptr) {
+        v4: uint16, v5: int32, v6: uint32, v7: intptr, v8: uintptr): void {
       t.a = v1;
       t.b = v2;
       t.c = v3;
@@ -355,7 +355,7 @@ TEST(Torque, ConditionalFields) {
 
 TEST(Torque, ConstexprLetBindingDoesNotCrash) {
   ExpectFailingCompilation(
-      R"(@export macro FooBar() { let foo = 0; check(foo >= 0); })",
+      R"(@export macro FooBar(): void { let foo = 0; check(foo >= 0); })",
       HasSubstr("Use 'const' instead of 'let' for variable 'foo'"));
 }
 
@@ -366,10 +366,10 @@ TEST(Torque, FailedImplicitCastFromConstexprDoesNotCrash) {
       kValue,
       ...
     }
-    macro Foo() {
+    macro Foo(): void {
       Bar(SomeEnum::kValue);
     }
-    macro Bar<T: type>(value: T) {}
+    macro Bar<T: type>(value: T): void {}
   )",
       HasSubstr(
           "Cannot find non-constexpr type corresponding to constexpr kValue"));
@@ -377,7 +377,7 @@ TEST(Torque, FailedImplicitCastFromConstexprDoesNotCrash) {
 
 TEST(Torque, DoubleUnderScorePrefixIllegalForIdentifiers) {
   ExpectFailingCompilation(R"(
-    @export macro Foo() {
+    @export macro Foo(): void {
       let __x;
     }
   )",
@@ -387,7 +387,7 @@ TEST(Torque, DoubleUnderScorePrefixIllegalForIdentifiers) {
 
 TEST(Torque, UnusedLetBindingLintError) {
   ExpectFailingCompilation(R"(
-    @export macro Foo(y: Smi) {
+    @export macro Foo(y: Smi): void {
       let x: Smi = y;
     }
   )",
@@ -396,7 +396,7 @@ TEST(Torque, UnusedLetBindingLintError) {
 
 TEST(Torque, UnderscorePrefixSilencesUnusedWarning) {
   ExpectSuccessfulCompilation(R"(
-    @export macro Foo(y: Smi) {
+    @export macro Foo(y: Smi): void {
       let _x: Smi = y;
     }
   )");
@@ -408,7 +408,7 @@ TEST(Torque, UnderscorePrefixSilencesUnusedWarning) {
 #if !defined(V8_TARGET_OS_FUCHSIA)
 TEST(Torque, UsingUnderscorePrefixedIdentifierError) {
   ExpectFailingCompilation(R"(
-    @export macro Foo(y: Smi) {
+    @export macro Foo(y: Smi): void {
       let _x: Smi = y;
       check(_x == y);
     }
@@ -419,39 +419,39 @@ TEST(Torque, UsingUnderscorePrefixedIdentifierError) {
 
 TEST(Torque, UnusedArgumentLintError) {
   ExpectFailingCompilation(R"(
-    @export macro Foo(x: Smi) {}
+    @export macro Foo(x: Smi): void {}
   )",
                            HasSubstr("Variable 'x' is never used."));
 }
 
 TEST(Torque, UsingUnderscorePrefixedArgumentSilencesWarning) {
   ExpectSuccessfulCompilation(R"(
-    @export macro Foo(_y: Smi) {}
+    @export macro Foo(_y: Smi): void {}
   )");
 }
 
 TEST(Torque, UnusedLabelLintError) {
   ExpectFailingCompilation(R"(
-    @export macro Foo() labels Bar {}
+    @export macro Foo(): void labels Bar {}
   )",
                            HasSubstr("Label 'Bar' is never used."));
 }
 
 TEST(Torque, UsingUnderScorePrefixLabelSilencesWarning) {
   ExpectSuccessfulCompilation(R"(
-    @export macro Foo() labels _Bar {}
+    @export macro Foo(): void labels _Bar {}
   )");
 }
 
 TEST(Torque, NoUnusedWarningForImplicitArguments) {
   ExpectSuccessfulCompilation(R"(
-    @export macro Foo(implicit c: Context, r: JSReceiver)() {}
+    @export macro Foo(implicit c: Context, r: JSReceiver)(): void {}
   )");
 }
 
 TEST(Torque, NoUnusedWarningForVariablesOnlyUsedInDchecks) {
   ExpectSuccessfulCompilation(R"(
-    @export macro Foo(x: bool) {
+    @export macro Foo(x: bool): void {
       dcheck(x);
     }
   )");
@@ -493,12 +493,12 @@ TEST(Torque, LetShouldBeConstIsSkippedForStructs) {
 TEST(Torque, GenericAbstractType) {
   ExpectSuccessfulCompilation(R"(
     type Foo<T: type> extends HeapObject;
-    extern macro F1(HeapObject);
-    macro F2<T: type>(x: Foo<T>) {
+    extern macro F1(HeapObject): void;
+    macro F2<T: type>(x: Foo<T>): void {
       F1(x);
     }
     @export
-    macro F3(a: Foo<Smi>, b: Foo<HeapObject>){
+    macro F3(a: Foo<Smi>, b: Foo<HeapObject>): void {
       F2(a);
       F2(b);
     }
@@ -506,18 +506,18 @@ TEST(Torque, GenericAbstractType) {
 
   ExpectFailingCompilation(R"(
     type Foo<T: type> extends HeapObject;
-    macro F1<T: type>(x: Foo<T>) {}
+    macro F1<T: type>(x: Foo<T>): void {}
     @export
-    macro F2(a: Foo<Smi>) {
+    macro F2(a: Foo<Smi>): void {
       F1<HeapObject>(a);
     })",
                            HasSubstr("cannot find suitable callable"));
 
   ExpectFailingCompilation(R"(
     type Foo<T: type> extends HeapObject;
-    extern macro F1(Foo<HeapObject>);
+    extern macro F1(Foo<HeapObject>): void;
     @export
-    macro F2(a: Foo<Smi>) {
+    macro F2(a: Foo<Smi>): void {
       F1(a);
     })",
                            HasSubstr("cannot find suitable callable"));
@@ -526,14 +526,14 @@ TEST(Torque, GenericAbstractType) {
 TEST(Torque, SpecializationRequesters) {
   ExpectFailingCompilation(
       R"(
-    macro A<T: type extends HeapObject>() {}
-    macro B<T: type>() {
+    macro A<T: type extends HeapObject>(): void {}
+    macro B<T: type>(): void {
       A<T>();
     }
-    macro C<T: type>() {
+    macro C<T: type>(): void {
       B<T>();
     }
-    macro D() {
+    macro D(): void {
       C<Smi>();
     }
   )",
@@ -586,16 +586,16 @@ TEST(Torque, SpecializationRequesters) {
 
   ExpectFailingCompilation(
       R"(
-    macro A<T: type extends HeapObject>() {}
-    macro B<T: type>() {
+    macro A<T: type extends HeapObject>(): void {}
+    macro B<T: type>(): void {
       A<T>();
     }
     struct C<T: type> {
-      macro Method() {
+      macro Method(): void {
         B<T>();
       }
     }
-    macro D(_b: C<Smi>) {}
+    macro D(_b: C<Smi>): void {}
   )",
       SubstrVector{
           SubstrTester("cannot find suitable callable", 4, 7),
@@ -691,7 +691,7 @@ TEST(Torque, EnumTypeAnnotations) {
       kValue2: Type2,
       kValue3
     }
-    @export macro Foo() {
+    @export macro Foo(): void {
       const _a: Type1 = MyEnum::kValue1;
       const _b: Type2 = MyEnum::kValue2;
       const _c: intptr = MyEnum::kValue3;
@@ -707,7 +707,7 @@ TEST(Torque, ConstClassFields) {
     }
 
     @export
-    macro Test(implicit context: Context)(o: Foo, n: int32) {
+    macro Test(implicit context: Context)(o: Foo, n: int32): void {
       const _x: int32 = o.x;
       o.y = n;
     }
@@ -719,7 +719,7 @@ TEST(Torque, ConstClassFields) {
     }
 
     @export
-    macro Test(implicit context: Context)(o: Foo, n: int32) {
+    macro Test(implicit context: Context)(o: Foo, n: int32): void {
       o.x = n;
     }
   )",
@@ -735,7 +735,7 @@ TEST(Torque, ConstClassFields) {
     }
 
     @export
-    macro Test(implicit context: Context)(o: Foo, n: int32) {
+    macro Test(implicit context: Context)(o: Foo, n: int32): void {
       const _x: int32 = o.s.x;
       // Assigning a struct as a value is OK, even when the struct contains
       // const fields.
@@ -754,7 +754,7 @@ TEST(Torque, ConstClassFields) {
     }
 
     @export
-    macro Test(implicit context: Context)(o: Foo, n: int32) {
+    macro Test(implicit context: Context)(o: Foo, n: int32): void {
       o.s.y = n;
     }
   )",
@@ -770,7 +770,7 @@ TEST(Torque, ConstClassFields) {
     }
 
     @export
-    macro Test(implicit context: Context)(o: Foo, n: int32) {
+    macro Test(implicit context: Context)(o: Foo, n: int32): void {
       o.s.x = n;
     }
   )",
@@ -785,7 +785,7 @@ TEST(Torque, References) {
     }
 
     @export
-    macro Test(implicit context: Context)(o: Foo, n: int32) {
+    macro Test(implicit context: Context)(o: Foo, n: int32): void {
       const constRefX: const &int32 = &o.x;
       const refY: &int32 = &o.y;
       const constRefY: const &int32 = refY;
@@ -805,7 +805,7 @@ TEST(Torque, References) {
     }
 
     @export
-    macro Test(implicit context: Context)(o: Foo) {
+    macro Test(implicit context: Context)(o: Foo): void {
       const _refX: &int32 = &o.x;
     }
   )",
@@ -819,7 +819,7 @@ TEST(Torque, References) {
     }
 
     @export
-    macro Test(implicit context: Context)(o: Foo, n: int32) {
+    macro Test(implicit context: Context)(o: Foo, n: int32): void {
       const constRefX: const &int32 = &o.x;
       *constRefX = n;
     }
@@ -831,7 +831,7 @@ TEST(Torque, CatchFirstHandler) {
   ExpectFailingCompilation(
       R"(
     @export
-    macro Test() {
+    macro Test(): void {
       try {
       } label Foo {
       } catch (e) {}
@@ -876,14 +876,14 @@ TEST(Torque, UnusedImplicit) {
     @export
     macro Test1(implicit c: Smi)(a: Object): Object { return a; }
     @export
-    macro Test2(b: Object) { Test1(b);  }
+    macro Test2(b: Object): void { Test1(b);  }
   )");
 
   ExpectFailingCompilation(
       R"(
     macro Test1(implicit c: Smi)(_a: Object): Smi { return c; }
     @export
-    macro Test2(b: Smi) { Test1(b);  }
+    macro Test2(b: Smi): void { Test1(b);  }
   )",
       HasSubstr("undefined expression of type Smi: the implicit "
                 "parameter 'c' is not defined when invoking Test1 at"));
@@ -892,7 +892,7 @@ TEST(Torque, UnusedImplicit) {
       R"(
     extern macro Test3(implicit c: Smi)(Object): Smi;
     @export
-    macro Test4(b: Smi) { Test3(b);  }
+    macro Test4(b: Smi): void { Test3(b);  }
   )",
       HasSubstr("unititialized implicit parameters can only be passed to "
                 "Torque-defined macros: the implicit parameter 'c' is not "
@@ -902,7 +902,7 @@ TEST(Torque, UnusedImplicit) {
     macro Test7<T: type>(implicit c: Smi)(o: T): Smi;
     Test7<Smi>(implicit c: Smi)(o: Smi): Smi { return o; }
     @export
-    macro Test8(b: Smi) { Test7(b); }
+    macro Test8(b: Smi): void { Test7(b); }
   )");
 
   ExpectFailingCompilation(
@@ -914,7 +914,7 @@ TEST(Torque, UnusedImplicit) {
     macro Test7<T: type>(o: T): Smi;
     Test7<Smi>(o: Smi): Smi { return Test6<Smi>(o); }
     @export
-    macro Test8(b: Smi) { Test7(b); }
+    macro Test8(b: Smi): void { Test7(b); }
   )",
       HasSubstr("\nambiguous callable : \n  Test6(Smi)\ncandidates are:\n  "
                 "Test6(Smi): Smi\n  Test6(implicit Smi)(Smi): Smi"));
@@ -922,27 +922,27 @@ TEST(Torque, UnusedImplicit) {
 
 TEST(Torque, ImplicitTemplateParameterInference) {
   ExpectSuccessfulCompilation(R"(
-    macro Foo(_x: Map) {}
-    macro Foo(_x: Smi) {}
-    macro GenericMacro<T: type>(implicit x: T)() {
+    macro Foo(_x: Map): void {}
+    macro Foo(_x: Smi): void {}
+    macro GenericMacro<T: type>(implicit x: T)(): void {
       Foo(x);
     }
     @export
-    macro Test1(implicit x: Smi)() { GenericMacro(); }
+    macro Test1(implicit x: Smi)(): void { GenericMacro(); }
     @export
-    macro Test2(implicit x: Map)() { GenericMacro();  }
+    macro Test2(implicit x: Map)(): void { GenericMacro();  }
   )");
 
   ExpectFailingCompilation(
       R"(
     // Wrap in namespace to avoid redeclaration error.
     namespace foo {
-    macro Foo(implicit x: Map)() {}
+    macro Foo(implicit x: Map)(): void {}
     }
-    macro Foo(implicit x: Smi)() {}
+    macro Foo(implicit x: Smi)(): void {}
     namespace foo{
     @export
-    macro Test(implicit x: Smi)() { Foo(); }
+    macro Test(implicit x: Smi)(): void { Foo(); }
     }
   )",
       HasSubstr("ambiguous callable"));
@@ -951,12 +951,12 @@ TEST(Torque, ImplicitTemplateParameterInference) {
       R"(
     // Wrap in namespace to avoid redeclaration error.
     namespace foo {
-    macro Foo(implicit x: Map)() {}
+    macro Foo(implicit x: Map)(): void {}
     }
-    macro Foo(implicit x: Smi)() {}
+    macro Foo(implicit x: Smi)(): void {}
     namespace foo{
     @export
-    macro Test(implicit x: Map)() { Foo(); }
+    macro Test(implicit x: Map)(): void { Foo(); }
     }
   )",
       HasSubstr("ambiguous callable"));

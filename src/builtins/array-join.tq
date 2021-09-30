@@ -147,7 +147,7 @@ macro StoreAndGrowFixedArray<T: type>(
 // Buffer.AddSeparators().
 struct Buffer {
   macro Add(implicit context: Context)(
-      str: String, nofSeparators: intptr, separatorLength: intptr) {
+      str: String, nofSeparators: intptr, separatorLength: intptr): void {
     // Add separators if necessary (at the beginning or more than one)
     const writeSeparators: bool = this.index == 0 | nofSeparators > 1;
     this.AddSeparators(nofSeparators, separatorLength, writeSeparators);
@@ -161,7 +161,7 @@ struct Buffer {
   }
 
   macro AddSeparators(implicit context: Context)(
-      nofSeparators: intptr, separatorLength: intptr, write: bool) {
+      nofSeparators: intptr, separatorLength: intptr, write: bool): void {
     if (nofSeparators == 0 || separatorLength == 0) return;
 
     const nofSeparatorsInt: intptr = nofSeparators;
@@ -504,7 +504,8 @@ builtin JoinStackPop(implicit context: Context)(
 }
 
 // Fast path the common non-nested calls.
-macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver) {
+macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver):
+    void {
   const stack: FixedArray = LoadJoinStack()
       otherwise unreachable;
   const len: intptr = stack.length_intptr;

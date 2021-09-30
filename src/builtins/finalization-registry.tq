@@ -55,7 +55,7 @@ PopClearedCell(finalizationRegistry: JSFinalizationRegistry): WeakCell|
 }
 
 transitioning macro PushCell(
-    finalizationRegistry: JSFinalizationRegistry, cell: WeakCell) {
+    finalizationRegistry: JSFinalizationRegistry, cell: WeakCell): void {
   cell.next = finalizationRegistry.active_cells;
   typeswitch (finalizationRegistry.active_cells) {
     case (Undefined): {
@@ -69,7 +69,7 @@ transitioning macro PushCell(
 
 transitioning macro
 FinalizationRegistryCleanupLoop(implicit context: Context)(
-    finalizationRegistry: JSFinalizationRegistry, callback: Callable) {
+    finalizationRegistry: JSFinalizationRegistry, callback: Callable): void {
   while (true) {
     const weakCellHead = PopClearedCell(finalizationRegistry);
     typeswitch (weakCellHead) {

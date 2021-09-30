@@ -16,7 +16,8 @@ type FastSmiOrObjectElements extends ElementsKind;
 type FastDoubleElements extends ElementsKind;
 type DictionaryElements extends ElementsKind;
 
-macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray) {
+macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray):
+    void {
   dcheck(IsFastElementsKind(array.map.elements_kind));
 
   const elements: FixedArrayBase = array.elements;
@@ -51,7 +52,7 @@ macro StoreArrayHole(elements: FixedArray, k: Smi): void {
   elements.objects[k] = TheHole;
 }
 
-extern macro SetPropertyLength(implicit context: Context)(JSAny, Number);
+extern macro SetPropertyLength(implicit context: Context)(JSAny, Number): void;
 
 const kLengthDescriptorIndex:
     constexpr int31 generates 'JSArray::kLengthDescriptorIndex';

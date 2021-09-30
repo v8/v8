@@ -97,7 +97,7 @@ transitioning builtin ArrayMapLoopContinuation(implicit context: Context)(
 }
 
 struct Vector {
-  macro ReportSkippedElement() {
+  macro ReportSkippedElement(): void {
     this.skippedElements = true;
   }
 
@@ -153,7 +153,8 @@ struct Vector {
     return a;
   }
 
-  macro StoreResult(implicit context: Context)(index: Smi, result: JSAny) {
+  macro StoreResult(implicit context: Context)(
+      index: Smi, result: JSAny): void {
     typeswitch (result) {
       case (s: Smi): {
         this.fixedArray.objects[index] = s;

@@ -177,8 +177,10 @@ macro AllocateSeqTwoByteString(length: uint32): SeqTwoByteString|EmptyString {
   return AllocateSeqTwoByteString(length, UninitializedIterator{});
 }
 
-extern macro StringWriteToFlatOneByte(String, RawPtr<char8>, int32, int32);
-extern macro StringWriteToFlatTwoByte(String, RawPtr<char16>, int32, int32);
+extern macro StringWriteToFlatOneByte(
+    String, RawPtr<char8>, int32, int32): void;
+extern macro StringWriteToFlatTwoByte(
+    String, RawPtr<char16>, int32, int32): void;
 
 // Corresponds to String::SlowFlatten in the C++ runtime.
 builtin StringSlowFlatten(cons: ConsString): String {

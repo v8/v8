@@ -117,7 +117,7 @@ transitioning builtin CallIteratorWithFeedback(
 // https://tc39.es/ecma262/#sec-iteratorclose
 @export
 transitioning macro IteratorCloseOnException(implicit context: Context)(
-    iterator: IteratorRecord) {
+    iterator: IteratorRecord): void {
   try {
     // 4. Let innerResult be GetMethod(iterator, "return").
     const method = GetProperty(iterator.object, kReturnString);

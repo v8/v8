@@ -3107,10 +3107,20 @@ VisitResult ImplementationVisitor::GenerateCall(
       const Type* type = specialization_types[0];
       const ClassType* class_type = ClassType::DynamicCast(type);
       if (!class_type) {
-        ReportError("%FieldSlice must take a class type parameter");
+        ReportError("The first type parameter to %FieldSlice must be a class");
       }
       const Field& field =
           class_type->LookupField(StringLiteralUnquote(constexpr_arguments[0]));
+      const Type* expected_slice_type =
+          field.const_qualified
+              ? TypeOracle::GetConstSliceType(field.name_and_type.type)
+              : TypeOracle::GetMutableSliceType(field.name_and_type.type);
+      const Type* declared_slice_type = specialization_types[1];
+      if (expected_slice_type != declared_slice_type) {
+        Error(
+            "The second type parameter to %FieldSlice must be the precise "
+            "slice type for the named field");
+      }
       LocationReference ref = GenerateFieldReference(
           VisitResult(type, argument_range), field, class_type,
           /*treat_optional_as_indexed=*/true);

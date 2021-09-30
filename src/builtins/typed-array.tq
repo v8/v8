@@ -82,10 +82,10 @@ extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(ElementsKind):
 extern macro LoadFixedTypedArrayElementAsTagged(
     RawPtr, uintptr, constexpr ElementsKind): Numeric;
 extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
-    Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind);
+    Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind): void;
 extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
-    Context, JSTypedArray, uintptr, JSAny, constexpr ElementsKind)
-    labels IfDetached;
+    Context, JSTypedArray, uintptr, JSAny,
+    constexpr ElementsKind): void labels IfDetached;
 
 extern macro LoadJSTypedArrayLengthAndCheckDetached(JSTypedArray): uintptr
     labels IfDetached;
@@ -105,15 +105,16 @@ struct TypedArrayAccessor {
   }
 
   macro StoreNumeric(
-      context: Context, array: JSTypedArray, index: uintptr, value: Numeric) {
+      context: Context, array: JSTypedArray, index: uintptr,
+      value: Numeric): void {
     const storefn: StoreNumericFn = this.storeNumericFn;
     const result = storefn(context, array, index, value);
     dcheck(result == kStoreSucceded);
   }
 
   macro StoreJSAny(
-      context: Context, array: JSTypedArray, index: uintptr, value: JSAny)
-      labels IfDetached {
+      context: Context, array: JSTypedArray, index: uintptr,
+      value: JSAny): void labels IfDetached {
     const storefn: StoreJSAnyFn = this.storeJSAnyFn;
     const result = storefn(context, array, index, value);
     if (result == kStoreFailureArrayDetached) {
@@ -194,7 +195,7 @@ struct AttachedJSTypedArrayWitness {
     return this.stable;
   }
 
-  macro Recheck() labels Detached {
+  macro Recheck(): void labels Detached {
     if (IsDetachedBuffer(this.stable.buffer)) goto Detached;
     this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
   }

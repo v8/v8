@@ -31,13 +31,13 @@ const kNotFoundSentinel:
 extern macro LoadSwissNameDictionaryKey(SwissNameDictionary, intptr): Name;
 
 extern macro StoreSwissNameDictionaryKeyAndValue(
-    SwissNameDictionary, intptr, Object, Object);
+    SwissNameDictionary, intptr, Object, Object): void;
 
 extern macro SwissNameDictionarySetCtrl(
-    SwissNameDictionary, intptr, intptr, uint8);
+    SwissNameDictionary, intptr, intptr, uint8): void;
 
 extern macro StoreSwissNameDictionaryPropertyDetails(
-    SwissNameDictionary, intptr, intptr, uint8);
+    SwissNameDictionary, intptr, intptr, uint8): void;
 
 extern macro
 SwissNameDictionaryIncreaseElementCountOrBailout(
@@ -45,7 +45,7 @@ SwissNameDictionaryIncreaseElementCountOrBailout(
 
 extern macro
 StoreSwissNameDictionaryEnumToEntryMapping(
-    SwissNameDictionary, intptr, intptr, int32);
+    SwissNameDictionary, intptr, intptr, int32): void;
 
 extern macro
 SwissNameDictionaryUpdateCountsForDeletion(ByteArray, intptr): uint32;
@@ -214,8 +214,7 @@ macro FindFirstEmpty<GroupLoader: type>(
 
 macro Add<GroupLoader: type>(
     table: SwissNameDictionary, key: Name, value: Object,
-    propertyDetails: uint8)
-    labels Bailout {
+    propertyDetails: uint8): void labels Bailout {
   const capacity: intptr = Convert<intptr>(table.capacity);
   const maxUsable: uint32 =
       Unsigned(Convert<int32>(SwissNameDictionaryMaxUsableCapacity(capacity)));
@@ -249,9 +248,8 @@ macro Add<GroupLoader: type>(
 }
 
 @export
-macro SwissNameDictionaryDelete(table: SwissNameDictionary, entry: intptr)
-    labels
-    Shrunk(SwissNameDictionary) {
+macro SwissNameDictionaryDelete(table: SwissNameDictionary, entry: intptr):
+    void labels Shrunk(SwissNameDictionary) {
   const capacity = Convert<intptr>(table.capacity);
 
   // Update present and deleted element counts at once, without needing to do
@@ -304,7 +302,7 @@ Found(intptr),
 @export
 macro SwissNameDictionaryAddSIMD(
     table: SwissNameDictionary, key: Name, value: Object,
-    propertyDetails: uint8) labels Bailout {
+    propertyDetails: uint8): void labels Bailout {
   Add<GroupSse2Loader>(table, key, value, propertyDetails)
       otherwise Bailout;
 }
@@ -312,7 +310,7 @@ macro SwissNameDictionaryAddSIMD(
 @export
 macro SwissNameDictionaryAddPortable(
     table: SwissNameDictionary, key: Name, value: Object,
-    propertyDetails: uint8) labels Bailout {
+    propertyDetails: uint8): void labels Bailout {
   Add<GroupPortableLoader>(table, key, value, propertyDetails)
       otherwise Bailout;
 }

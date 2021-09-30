@@ -576,11 +576,11 @@ extern macro Is64(): constexpr bool;
 
 extern macro SelectBooleanConstant(bool): Boolean;
 
-extern macro Print(constexpr string);
-extern macro Print(constexpr string, Object);
-extern macro Comment(constexpr string);
-extern macro Print(Object);
-extern macro DebugBreak();
+extern macro Print(constexpr string): void;
+extern macro Print(constexpr string, Object): void;
+extern macro Comment(constexpr string): void;
+extern macro Print(Object): void;
+extern macro DebugBreak(): void;
 
 // ES6 7.1.4 ToInteger ( argument )
 transitioning macro ToIntegerImpl(implicit context: Context)(input: JSAny):
@@ -739,9 +739,9 @@ transitioning macro ToPrimitiveDefault(implicit context: Context)(v: JSAny):
   }
 }
 
-extern transitioning runtime NormalizeElements(Context, JSObject);
+extern transitioning runtime NormalizeElements(Context, JSObject): void;
 extern transitioning runtime TransitionElementsKindWithKind(
-    Context, JSObject, Smi);
+    Context, JSObject, Smi): void;
 
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
@@ -1226,7 +1226,7 @@ extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
 
 extern operator '.length' macro LoadFastJSArrayLength(FastJSArray): Smi;
 operator '.length=' macro StoreFastJSArrayLength(
-    array: FastJSArray, length: Smi) {
+    array: FastJSArray, length: Smi): void {
   const array: JSArray = array;
   array.length = length;
 }
@@ -1360,7 +1360,7 @@ macro NumberIsNaN(number: Number): bool {
   }
 }
 
-extern macro GotoIfForceSlowPath() labels Taken;
+extern macro GotoIfForceSlowPath(): void labels Taken;
 macro IsForceSlowPath(): bool {
   GotoIfForceSlowPath() otherwise return true;
   return false;
@@ -1392,7 +1392,7 @@ macro SameValue(a: JSAny, b: JSAny): bool {
 // Does "if (index1 + index2 > limit) goto IfOverflow" in an uintptr overflow
 // friendly way where index1 and index2 are in [0, kMaxSafeInteger] range.
 macro CheckIntegerIndexAdditionOverflow(
-    index1: uintptr, index2: uintptr, limit: uintptr) labels IfOverflow {
+    index1: uintptr, index2: uintptr, limit: uintptr): void labels IfOverflow {
   if constexpr (Is64()) {
     dcheck(index1 <= kMaxSafeIntegerUint64);
     dcheck(index2 <= kMaxSafeIntegerUint64);
@@ -1711,10 +1711,10 @@ macro IsFastJSArrayForReadWithNoCustomIteration(context: Context, o: Object):
 }
 
 extern transitioning runtime
-CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny);
+CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny): void;
 
 extern transitioning runtime SetOwnPropertyIgnoreAttributes(
-    implicit context: Context)(JSObject, String, JSAny, Smi);
+    implicit context: Context)(JSObject, String, JSAny, Smi): void;
 
 namespace runtime {
 extern runtime

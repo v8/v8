@@ -5,7 +5,7 @@
 namespace growable_fixed_array {
 // TODO(pwong): Support FixedTypedArrays.
 struct GrowableFixedArray {
-  macro Push(obj: Object) {
+  macro Push(obj: Object): void {
     this.EnsureCapacity();
     this.array.objects[this.length++] = obj;
   }
@@ -16,7 +16,7 @@ struct GrowableFixedArray {
     const first: intptr = 0;
     return ExtractFixedArray(this.array, first, this.length, newCapacity);
   }
-  macro EnsureCapacity() {
+  macro EnsureCapacity(): void {
     dcheck(this.length <= this.capacity);
     if (this.capacity == this.length) {
       // Growth rate is analog to JSObject::NewElementsCapacity:

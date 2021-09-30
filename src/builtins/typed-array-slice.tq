@@ -12,7 +12,7 @@ extern macro TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsSlice(
 
 macro FastCopy(
     src: typed_array::AttachedJSTypedArray, dest: JSTypedArray, k: uintptr,
-    count: uintptr) labels IfSlow {
+    count: uintptr): void labels IfSlow {
   if (IsForceSlowPath()) goto IfSlow;
 
   const srcKind: ElementsKind = src.elements_kind;
@@ -48,7 +48,7 @@ macro FastCopy(
 }
 
 macro SlowCopy(implicit context: Context)(
-    src: JSTypedArray, dest: JSTypedArray, k: uintptr, final: uintptr) {
+    src: JSTypedArray, dest: JSTypedArray, k: uintptr, final: uintptr): void {
   if (typed_array::IsBigInt64ElementsKind(src.elements_kind) !=
       typed_array::IsBigInt64ElementsKind(dest.elements_kind))
     deferred {

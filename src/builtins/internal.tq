@@ -52,7 +52,7 @@ extern transitioning builtin ForInFilter(implicit context: Context)(
 extern enum ForInFeedback extends uint31 { kAny, ...}
 extern macro UpdateFeedback(
     SmiTagged<ForInFeedback>, Undefined | FeedbackVector, uintptr,
-    constexpr UpdateFeedbackMode);
+    constexpr UpdateFeedbackMode): void;
 
 @export
 transitioning macro ForInNextSlow(

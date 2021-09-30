@@ -20,7 +20,7 @@ class SortState extends HeapObject {
     return sortCompare(context, this.userCmpFn, x, y);
   }
 
-  macro CheckAccessor(implicit context: Context)() labels Bailout {
+  macro CheckAccessor(implicit context: Context)(): void labels Bailout {
     if (!IsFastJSArray(this.receiver, context)) goto Bailout;
 
     const canUseSameAccessorFn: CanUseSameAccessorFn =
@@ -33,7 +33,7 @@ class SortState extends HeapObject {
     }
   }
 
-  macro ResetToGenericAccessor() {
+  macro ResetToGenericAccessor(): void {
     this.loadFn = Load<GenericElementsAccessor>;
     this.storeFn = Store<GenericElementsAccessor>;
     this.deleteFn = Delete<GenericElementsAccessor>;
@@ -410,7 +410,7 @@ macro GetPendingRunBase(implicit context: Context)(
   return UnsafeCast<Smi>(pendingRuns.objects[run << 1]);
 }
 
-macro SetPendingRunBase(pendingRuns: FixedArray, run: Smi, value: Smi) {
+macro SetPendingRunBase(pendingRuns: FixedArray, run: Smi, value: Smi): void {
   pendingRuns.objects[run << 1] = value;
 }
 
@@ -419,12 +419,12 @@ macro GetPendingRunLength(implicit context: Context)(
   return UnsafeCast<Smi>(pendingRuns.objects[(run << 1) + 1]);
 }
 
-macro SetPendingRunLength(pendingRuns: FixedArray, run: Smi, value: Smi) {
+macro SetPendingRunLength(pendingRuns: FixedArray, run: Smi, value: Smi): void {
   pendingRuns.objects[(run << 1) + 1] = value;
 }
 
 macro PushRun(implicit context: Context)(
-    sortState: SortState, base: Smi, length: Smi) {
+    sortState: SortState, base: Smi, length: Smi): void {
   dcheck(GetPendingRunsSize(sortState) < kMaxMergePending);
 
   const stackSize: Smi = GetPendingRunsSize(sortState);
@@ -498,7 +498,7 @@ Copy(implicit context: Context)(
 // On entry, must have low <= start <= high, and that [low, start) is
 // already sorted. Pass start == low if you do not know!.
 macro BinaryInsertionSort(implicit context: Context, sortState: SortState)(
-    low: Smi, startArg: Smi, high: Smi) {
+    low: Smi, startArg: Smi, high: Smi): void {
   dcheck(low <= startArg && startArg <= high);
 
   const workArray = sortState.workArray;
@@ -604,7 +604,7 @@ macro CountAndMakeRun(implicit context: Context, sortState: SortState)(
   return runLength;
 }
 
-macro ReverseRange(array: FixedArray, from: Smi, to: Smi) {
+macro ReverseRange(array: FixedArray, from: Smi, to: Smi): void {
   let low: Smi = from;
   let high: Smi = to - 1;
 
@@ -890,7 +890,7 @@ builtin GallopRight(implicit context: Context, sortState: SortState)(
 // that array[baseA + lengthA - 1] belongs at the end of the merge,
 // and should have lengthA <= lengthB.
 transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
-    baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi) {
+    baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi): void {
   dcheck(0 < lengthAArg && 0 < lengthBArg);
   dcheck(0 <= baseA && 0 < baseB);
   dcheck(baseA + lengthAArg == baseB);
@@ -1020,7 +1020,7 @@ transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
 // be > 0. Must also have that array[baseA + lengthA - 1] belongs at the
 // end of the merge and should have lengthA >= lengthB.
 transitioning macro MergeHigh(implicit context: Context, sortState: SortState)(
-    baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi) {
+    baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi): void {
   dcheck(0 < lengthAArg && 0 < lengthBArg);
   dcheck(0 <= baseA && 0 < baseB);
   dcheck(baseA + lengthAArg == baseB);
@@ -1198,7 +1198,8 @@ macro RunInvariantEstablished(implicit context: Context)(
 // TODO(szuend): Remove unnecessary loads. This macro was refactored to
 //               improve readability, introducing unnecessary loads in the
 //               process. Determine if all these extra loads are ok.
-transitioning macro MergeCollapse(context: Context, sortState: SortState) {
+transitioning macro MergeCollapse(
+    context: Context, sortState: SortState): void {
   const pendingRuns: FixedArray = sortState.pendingRuns;
 
   // Reload the stack size because MergeAt might change it.
@@ -1226,7 +1227,7 @@ transitioning macro MergeCollapse(context: Context, sortState: SortState) {
 // Regardless of invariants, merge all runs on the stack until only one
 // remains. This is used at the end of the mergesort.
 transitioning macro
-MergeForceCollapse(context: Context, sortState: SortState) {
+MergeForceCollapse(context: Context, sortState: SortState): void {
   const pendingRuns: FixedArray = sortState.pendingRuns;
 
   // Reload the stack size becuase MergeAt might change it.
@@ -1243,7 +1244,7 @@ MergeForceCollapse(context: Context, sortState: SortState) {
 }
 
 transitioning macro
-ArrayTimSortImpl(context: Context, sortState: SortState, length: Smi) {
+ArrayTimSortImpl(context: Context, sortState: SortState, length: Smi): void {
   if (length < 2) return;
   let remaining: Smi = length;
 
@@ -1322,7 +1323,7 @@ CompactReceiverElementsIntoWorkArray(
 
 transitioning macro
 CopyWorkArrayToReceiver(implicit context: Context, sortState: SortState)(
-    numberOfNonUndefined: Smi) {
+    numberOfNonUndefined: Smi): void {
   const storeFn = sortState.storeFn;
   const workArray = sortState.workArray;
 

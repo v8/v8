@@ -33,7 +33,7 @@ transitioning macro
 TypedArrayMerge(
     implicit context: Context, array: JSTypedArray, comparefn: Callable)(
     source: FixedArray, from: uintptr, middle: uintptr, to: uintptr,
-    target: FixedArray) {
+    target: FixedArray): void {
   let left: uintptr = from;
   let right: uintptr = middle;
 
