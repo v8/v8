@@ -435,7 +435,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   }
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
-  // comparison.
+  // comparison. Flags CF=1 or ZF=1 indicate the value is in the range
+  // (condition below_equal). It is valid, that |value| == |scratch| as far as
+  // this function is concerned.
+  void CompareRange(Register value, unsigned lower_limit, unsigned higher_limit,
+                    Register scratch);
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Register scratch,
                        Label* on_in_range,
@@ -519,8 +523,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   //
   // Always use unsigned comparisons: below_equal for a positive
   // result.
-  void CmpInstanceTypeRange(Register map, Register scratch,
-                            InstanceType lower_limit,
+  void CmpInstanceTypeRange(Register map, Register instance_type_out,
+                            Register scratch, InstanceType lower_limit,
                             InstanceType higher_limit);
 
   // Smi tagging support.

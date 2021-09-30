@@ -158,16 +158,23 @@ void MacroAssembler::PushRoot(RootIndex index) {
   }
 }
 
-void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
-                                     unsigned higher_limit, Register scratch,
-                                     Label* on_in_range,
-                                     Label::Distance near_jump) {
+void MacroAssembler::CompareRange(Register value, unsigned lower_limit,
+                                  unsigned higher_limit, Register scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_LT(lower_limit, higher_limit);
   if (lower_limit != 0) {
     lea(scratch, Operand(value, 0u - lower_limit));
     cmp(scratch, Immediate(higher_limit - lower_limit));
   } else {
     cmp(value, Immediate(higher_limit));
   }
+}
+
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+                                     unsigned higher_limit, Register scratch,
+                                     Label* on_in_range,
+                                     Label::Distance near_jump) {
+  CompareRange(value, lower_limit, higher_limit, scratch);
   j(below_equal, on_in_range, near_jump);
 }
 
@@ -723,14 +730,15 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
   cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
-void MacroAssembler::CmpInstanceTypeRange(Register map, Register scratch,
+void MacroAssembler::CmpInstanceTypeRange(Register map,
+                                          Register instance_type_out,
+                                          Register scratch,
                                           InstanceType lower_limit,
                                           InstanceType higher_limit) {
   ASM_CODE_COMMENT(this);
   DCHECK_LT(lower_limit, higher_limit);
-  movzx_w(scratch, FieldOperand(map, Map::kInstanceTypeOffset));
-  lea(scratch, Operand(scratch, 0u - lower_limit));
-  cmp(scratch, Immediate(higher_limit - lower_limit));
+  movzx_w(instance_type_out, FieldOperand(map, Map::kInstanceTypeOffset));
+  CompareRange(instance_type_out, lower_limit, higher_limit, scratch);
 }
 
 void MacroAssembler::AssertSmi(Register object) {
@@ -762,7 +770,7 @@ void MacroAssembler::AssertFunction(Register object, Register scratch) {
     Check(not_equal, AbortReason::kOperandIsASmiAndNotAFunction);
     Push(object);
     LoadMap(object, object);
-    CmpInstanceTypeRange(object, scratch, FIRST_JS_FUNCTION_TYPE,
+    CmpInstanceTypeRange(object, scratch, scratch, FIRST_JS_FUNCTION_TYPE,
                          LAST_JS_FUNCTION_TYPE);
     Pop(object);
     Check(below_equal, AbortReason::kOperandIsNotAFunction);

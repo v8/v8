@@ -750,7 +750,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Cmp(Operand dst, Handle<Object> source);
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
-  // comparison.
+  // comparison. Flags CF=1 or ZF=1 indicate the value is in the range
+  // (condition below_equal).
+  void CompareRange(Register value, unsigned lower_limit,
+                    unsigned higher_limit);
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range,
                        Label::Distance near_jump = Label::kFar);
@@ -784,7 +787,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Compare instance type ranges for a map (low and high inclusive)
   // Always use unsigned comparisons: below_equal for a positive result.
-  void CmpInstanceTypeRange(Register map, InstanceType low, InstanceType high);
+  void CmpInstanceTypeRange(Register map, Register instance_type_out,
+                            InstanceType low, InstanceType high);
 
   template <typename Field>
   void DecodeField(Register reg) {
