@@ -753,7 +753,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kStringFromCharCode:
     case Builtin::kStringFromCodePoint:
     case Builtin::kStringConstructor:
-    case Builtin::kStringListFromIterable:
     case Builtin::kStringPrototypeAnchor:
     case Builtin::kStringPrototypeAt:
     case Builtin::kStringPrototypeBig:
@@ -832,78 +831,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kAllocateRegularInOldGeneration:
       return DebugInfo::kHasNoSideEffect;
 
-#ifdef V8_INTL_SUPPORT
-    // Intl builtins.
-    case Builtin::kIntlGetCanonicalLocales:
-    // Intl.Collator builtins.
-    case Builtin::kCollatorConstructor:
-    case Builtin::kCollatorInternalCompare:
-    case Builtin::kCollatorPrototypeCompare:
-    case Builtin::kCollatorPrototypeResolvedOptions:
-    case Builtin::kCollatorSupportedLocalesOf:
-    // Intl.DateTimeFormat builtins.
-    case Builtin::kDateTimeFormatConstructor:
-    case Builtin::kDateTimeFormatInternalFormat:
-    case Builtin::kDateTimeFormatPrototypeFormat:
-    case Builtin::kDateTimeFormatPrototypeFormatRange:
-    case Builtin::kDateTimeFormatPrototypeFormatRangeToParts:
-    case Builtin::kDateTimeFormatPrototypeFormatToParts:
-    case Builtin::kDateTimeFormatPrototypeResolvedOptions:
-    case Builtin::kDateTimeFormatSupportedLocalesOf:
-    // Intl.DisplayNames builtins.
-    case Builtin::kDisplayNamesConstructor:
-    case Builtin::kDisplayNamesPrototypeOf:
-    case Builtin::kDisplayNamesPrototypeResolvedOptions:
-    case Builtin::kDisplayNamesSupportedLocalesOf:
-    // Intl.ListFormat builtins.
-    case Builtin::kListFormatConstructor:
-    case Builtin::kListFormatPrototypeFormat:
-    case Builtin::kListFormatPrototypeFormatToParts:
-    case Builtin::kListFormatPrototypeResolvedOptions:
-    case Builtin::kListFormatSupportedLocalesOf:
-    // Intl.Locale builtins.
-    case Builtin::kLocaleConstructor:
-    case Builtin::kLocalePrototypeBaseName:
-    case Builtin::kLocalePrototypeCalendar:
-    case Builtin::kLocalePrototypeCalendars:
-    case Builtin::kLocalePrototypeCaseFirst:
-    case Builtin::kLocalePrototypeCollation:
-    case Builtin::kLocalePrototypeCollations:
-    case Builtin::kLocalePrototypeHourCycle:
-    case Builtin::kLocalePrototypeHourCycles:
-    case Builtin::kLocalePrototypeLanguage:
-    case Builtin::kLocalePrototypeMaximize:
-    case Builtin::kLocalePrototypeMinimize:
-    case Builtin::kLocalePrototypeNumeric:
-    case Builtin::kLocalePrototypeNumberingSystem:
-    case Builtin::kLocalePrototypeNumberingSystems:
-    case Builtin::kLocalePrototypeRegion:
-    case Builtin::kLocalePrototypeScript:
-    case Builtin::kLocalePrototypeTextInfo:
-    case Builtin::kLocalePrototypeTimeZones:
-    case Builtin::kLocalePrototypeToString:
-    case Builtin::kLocalePrototypeWeekInfo:
-    // Intl.NumberFormat builtins.
-    case Builtin::kNumberFormatConstructor:
-    case Builtin::kNumberFormatInternalFormatNumber:
-    case Builtin::kNumberFormatPrototypeFormatNumber:
-    case Builtin::kNumberFormatPrototypeFormatToParts:
-    case Builtin::kNumberFormatPrototypeResolvedOptions:
-    case Builtin::kNumberFormatSupportedLocalesOf:
-    // Intl.PluralRules builtins.
-    case Builtin::kPluralRulesConstructor:
-    case Builtin::kPluralRulesPrototypeResolvedOptions:
-    case Builtin::kPluralRulesPrototypeSelect:
-    case Builtin::kPluralRulesSupportedLocalesOf:
-    // Intl.RelativeTimeFormat builtins.
-    case Builtin::kRelativeTimeFormatConstructor:
-    case Builtin::kRelativeTimeFormatPrototypeFormat:
-    case Builtin::kRelativeTimeFormatPrototypeFormatToParts:
-    case Builtin::kRelativeTimeFormatPrototypeResolvedOptions:
-    case Builtin::kRelativeTimeFormatSupportedLocalesOf:
-      return DebugInfo::kHasNoSideEffect;
-#endif  // V8_INTL_SUPPORT
-
     // Set builtins.
     case Builtin::kSetIteratorPrototypeNext:
     case Builtin::kSetPrototypeAdd:
@@ -955,7 +882,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kRegExpPrototypeUnicodeGetter:
     case Builtin::kRegExpPrototypeStickyGetter:
       return DebugInfo::kRequiresRuntimeChecks;
-
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] built-in %s may cause side effect.\n",
