@@ -30,7 +30,7 @@ bool IsOnStack(const void* address) {
 
 }  // namespace
 
-void EnabledCheckingPolicyBase::CheckPointerImpl(
+void SameThreadEnabledCheckingPolicyBase::CheckPointerImpl(
     const void* ptr, bool points_to_payload, bool check_off_heap_assignments) {
   // `ptr` must not reside on stack.
   DCHECK(!IsOnStack(ptr));
@@ -55,6 +55,8 @@ void EnabledCheckingPolicyBase::CheckPointerImpl(
 
   // Member references should never mix heaps.
   DCHECK_EQ(heap_, &base_page->heap());
+
+  DCHECK_EQ(heap_->GetCreationThreadId(), v8::base::OS::GetCurrentThreadId());
 
   // Header checks.
   const HeapObjectHeader* header = nullptr;

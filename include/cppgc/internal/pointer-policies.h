@@ -51,7 +51,7 @@ struct NoWriteBarrierPolicy {
   static void AssigningBarrier(const void*, const void*) {}
 };
 
-class V8_EXPORT EnabledCheckingPolicyBase {
+class V8_EXPORT SameThreadEnabledCheckingPolicyBase {
  protected:
   void CheckPointerImpl(const void* ptr, bool points_to_payload,
                         bool check_off_heap_assignments);
@@ -60,7 +60,8 @@ class V8_EXPORT EnabledCheckingPolicyBase {
 };
 
 template <bool kCheckOffHeapAssignments>
-class V8_EXPORT EnabledCheckingPolicy : private EnabledCheckingPolicyBase {
+class V8_EXPORT SameThreadEnabledCheckingPolicy
+    : private SameThreadEnabledCheckingPolicyBase {
  protected:
   template <typename T>
   void CheckPointer(const T* ptr) {
@@ -72,14 +73,14 @@ class V8_EXPORT EnabledCheckingPolicy : private EnabledCheckingPolicyBase {
  private:
   template <typename T, bool = IsCompleteV<T>>
   struct CheckPointersImplTrampoline {
-    static void Call(EnabledCheckingPolicy* policy, const T* ptr) {
+    static void Call(SameThreadEnabledCheckingPolicy* policy, const T* ptr) {
       policy->CheckPointerImpl(ptr, false, kCheckOffHeapAssignments);
     }
   };
 
   template <typename T>
   struct CheckPointersImplTrampoline<T, true> {
-    static void Call(EnabledCheckingPolicy* policy, const T* ptr) {
+    static void Call(SameThreadEnabledCheckingPolicy* policy, const T* ptr) {
       policy->CheckPointerImpl(ptr, IsGarbageCollectedTypeV<T>,
                                kCheckOffHeapAssignments);
     }
@@ -95,9 +96,9 @@ class DisabledCheckingPolicy {
 // Off heap members are not connected to object graph and thus cannot ressurect
 // dead objects.
 using DefaultMemberCheckingPolicy =
-    EnabledCheckingPolicy<false /* kCheckOffHeapAssignments*/>;
+    SameThreadEnabledCheckingPolicy<false /* kCheckOffHeapAssignments*/>;
 using DefaultPersistentCheckingPolicy =
-    EnabledCheckingPolicy<true /* kCheckOffHeapAssignments*/>;
+    SameThreadEnabledCheckingPolicy<true /* kCheckOffHeapAssignments*/>;
 #else
 using DefaultMemberCheckingPolicy = DisabledCheckingPolicy;
 using DefaultPersistentCheckingPolicy = DisabledCheckingPolicy;
