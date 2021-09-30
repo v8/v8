@@ -110,11 +110,10 @@ class WasmGraphBuildingInterface {
   };
 
   WasmGraphBuildingInterface(compiler::WasmGraphBuilder* builder,
-                             int func_index,
-                             EndpointInstrumentationMode instrumentation)
+                             int func_index, InlinedStatus inlined_status)
       : builder_(builder),
         func_index_(func_index),
-        instrumentation_(instrumentation) {}
+        inlined_status_(inlined_status) {}
 
   void StartFunction(FullDecoder* decoder) {
     // Get the branch hints map for this function (if available)
@@ -158,7 +157,7 @@ class WasmGraphBuildingInterface {
     }
     LoadContextIntoSsa(ssa_env);
 
-    if (FLAG_trace_wasm && instrumentation_ == kInstrumentEndpoints) {
+    if (FLAG_trace_wasm && inlined_status_ == kRegularFunction) {
       builder_->TraceFunctionEntry(decoder->position());
     }
   }
@@ -171,7 +170,7 @@ class WasmGraphBuildingInterface {
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder*) {
-    if (instrumentation_ == kInstrumentEndpoints) {
+    if (inlined_status_ == kRegularFunction) {
       builder_->PatchInStackCheckIfNeeded();
     }
   }
@@ -196,7 +195,7 @@ class WasmGraphBuildingInterface {
 
     TFNode* loop_node = builder_->Loop(control());
 
-    if (FLAG_wasm_loop_unrolling) {
+    if (emit_loop_exits()) {
       uint32_t nesting_depth = 0;
       for (uint32_t depth = 1; depth < decoder->control_depth(); depth++) {
         if (decoder->control_at(depth)->is_loop()) {
@@ -306,7 +305,7 @@ class WasmGraphBuildingInterface {
     // However, if loop unrolling is enabled, we must create a loop exit and
     // wrap the fallthru values on the stack.
     if (block->is_loop()) {
-      if (FLAG_wasm_loop_unrolling && block->reachable()) {
+      if (emit_loop_exits() && block->reachable()) {
         BuildLoopExits(decoder, block);
         WrapLocalsAtLoopExit(decoder, block);
         uint32_t arity = block->end_merge.arity;
@@ -434,7 +433,7 @@ class WasmGraphBuildingInterface {
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
     ValueVector values;
-    if (FLAG_wasm_loop_unrolling) {
+    if (emit_loop_exits()) {
       BuildNestedLoopExits(decoder, decoder->control_depth() - 1, false,
                            values);
     }
@@ -473,7 +472,7 @@ class WasmGraphBuildingInterface {
     uint32_t ret_count = static_cast<uint32_t>(decoder->sig_->return_count());
     NodeVector values(ret_count);
     SsaEnv* internal_env = ssa_env_;
-    if (FLAG_wasm_loop_unrolling) {
+    if (emit_loop_exits()) {
       SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
       SetEnv(exit_env);
       auto stack_values = CopyStackValues(decoder, ret_count, drop_values);
@@ -486,7 +485,7 @@ class WasmGraphBuildingInterface {
                               : decoder->stack_value(ret_count + drop_values);
       GetNodes(values.begin(), stack_base, ret_count);
     }
-    if (FLAG_trace_wasm && instrumentation_ == kInstrumentEndpoints) {
+    if (FLAG_trace_wasm && inlined_status_ == kRegularFunction) {
       builder_->TraceFunctionExit(base::VectorOf(values), decoder->position());
     }
     builder_->Return(base::VectorOf(values));
@@ -498,7 +497,7 @@ class WasmGraphBuildingInterface {
       DoReturn(decoder, drop_values);
     } else {
       Control* target = decoder->control_at(depth);
-      if (FLAG_wasm_loop_unrolling) {
+      if (emit_loop_exits()) {
         SsaEnv* internal_env = ssa_env_;
         SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
         SetEnv(exit_env);
@@ -878,7 +877,7 @@ class WasmGraphBuildingInterface {
       }
       DCHECK(decoder->control_at(depth)->is_try());
       TryInfo* target_try = decoder->control_at(depth)->try_info;
-      if (FLAG_wasm_loop_unrolling) {
+      if (emit_loop_exits()) {
         ValueVector stack_values;
         BuildNestedLoopExits(decoder, depth, true, stack_values,
                              &block->try_info->exception);
@@ -1251,7 +1250,7 @@ class WasmGraphBuildingInterface {
   const BranchHintMap* branch_hints_ = nullptr;
   // Tracks loop data for loop unrolling.
   std::vector<compiler::WasmLoopInfo> loop_infos_;
-  EndpointInstrumentationMode instrumentation_;
+  InlinedStatus inlined_status_;
 
   TFNode* effect() { return builder_->effect(); }
 
@@ -1261,6 +1260,14 @@ class WasmGraphBuildingInterface {
     DCHECK_LT(decoder->current_catch(), decoder->control_depth());
     return decoder->control_at(decoder->control_depth_of_current_catch())
         ->try_info;
+  }
+
+  // Loop exits are only used during loop unrolling and are then removed, as
+  // they cannot be handled by later optimization stages. Since unrolling comes
+  // before inlining in the compilation pipeline, we should not emit loop exits
+  // in inlined functions. Also, we should not do so when unrolling is disabled.
+  bool emit_loop_exits() {
+    return FLAG_wasm_loop_unrolling && inlined_status_ == kRegularFunction;
   }
 
   void GetNodes(TFNode** nodes, Value* values, size_t count) {
@@ -1330,7 +1337,7 @@ class WasmGraphBuildingInterface {
     exception_env->effect = if_exception;
     SetEnv(exception_env);
     TryInfo* try_info = current_try_info(decoder);
-    if (FLAG_wasm_loop_unrolling) {
+    if (emit_loop_exits()) {
       ValueVector values;
       BuildNestedLoopExits(decoder, decoder->control_depth_of_current_catch(),
                            true, values, &if_exception);
@@ -1642,7 +1649,7 @@ class WasmGraphBuildingInterface {
       std::memcpy(arg_values.data() + 1, args, arg_count * sizeof(Value));
     }
 
-    if (FLAG_wasm_loop_unrolling) {
+    if (emit_loop_exits()) {
       BuildNestedLoopExits(decoder, decoder->control_depth(), false,
                            arg_values);
     }
@@ -1702,7 +1709,7 @@ class WasmGraphBuildingInterface {
   void BuildNestedLoopExits(FullDecoder* decoder, uint32_t depth_limit,
                             bool wrap_exit_values, ValueVector& stack_values,
                             TFNode** exception_value = nullptr) {
-    DCHECK(FLAG_wasm_loop_unrolling);
+    DCHECK(emit_loop_exits());
     Control* control = nullptr;
     // We are only interested in exits from the innermost loop.
     for (uint32_t i = 0; i < depth_limit; i++) {
@@ -1731,7 +1738,7 @@ class WasmGraphBuildingInterface {
   }
 
   void TerminateThrow(FullDecoder* decoder) {
-    if (FLAG_wasm_loop_unrolling) {
+    if (emit_loop_exits()) {
       SsaEnv* internal_env = ssa_env_;
       SsaEnv* exit_env = Split(decoder->zone(), ssa_env_);
       SetEnv(exit_env);
@@ -1760,12 +1767,11 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
                           WasmFeatures* detected, const FunctionBody& body,
                           std::vector<compiler::WasmLoopInfo>* loop_infos,
                           compiler::NodeOriginTable* node_origins,
-                          int func_index,
-                          EndpointInstrumentationMode instrumentation) {
+                          int func_index, InlinedStatus inlined_status) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kFullValidation, WasmGraphBuildingInterface> decoder(
       &zone, module, enabled, detected, body, builder, func_index,
-      instrumentation);
+      inlined_status);
   if (node_origins) {
     builder->AddBytecodePositionDecorator(node_origins, &decoder);
   }
@@ -1773,7 +1779,7 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator,
   if (node_origins) {
     builder->RemoveBytecodePositionDecorator();
   }
-  if (FLAG_wasm_loop_unrolling) {
+  if (FLAG_wasm_loop_unrolling && inlined_status == kRegularFunction) {
     *loop_infos = decoder.interface().loop_infos();
   }
   return decoder.toResult(nullptr);

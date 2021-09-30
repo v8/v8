@@ -67,7 +67,7 @@ Reduction WasmInliner::ReduceCall(Node* call) {
     result = wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features,
                                 module(), &builder, &detected, inlinee_body,
                                 &infos, node_origins_, inlinee_index,
-                                wasm::kDoNotInstrumentEndpoints);
+                                wasm::kInlinedFunction);
     inlinee_start = graph()->start();
     inlinee_end = graph()->end();
   }

@@ -328,3 +328,28 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate();
   assertEquals(13, instance.exports.main(10));
 })();
+
+// Tests that no LoopExits are emitted in the inlined function.
+(function LoopUnrollingTest() {
+  let builder = new WasmModuleBuilder();
+
+  // f(x, y) = { do { y += 1; x -= 1; } while (x > 0); return y; }
+  let callee = builder.addFunction("callee", kSig_i_ii)
+    .addBody([
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 1, kExprI32Const, 1, kExprI32Add, kExprLocalSet, 1,
+        kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub, kExprLocalSet, 0,
+        kExprLocalGet, 0, kExprI32Const, 0, kExprI32GtS, kExprBrIf, 0,
+      kExprEnd,
+      kExprLocalGet, 1
+    ]);
+  // g(x) = f(5, x) + x
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprI32Const, 5, kExprLocalGet, 0,
+              kExprCallFunction, callee.index,
+              kExprLocalGet, 0, kExprI32Add])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(25, instance.exports.main(10));
+})();
