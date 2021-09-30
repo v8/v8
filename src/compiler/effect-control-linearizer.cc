@@ -4743,6 +4743,12 @@ Node* EffectControlLinearizer::ChangeSmiToIntPtr(Node* value) {
         __ ChangeInt32ToInt64(__ TruncateInt64ToInt32(value)),
         SmiShiftBitsConstant());
   }
+  if (machine()->Is32() && value->opcode() == IrOpcode::kNumberConstant) {
+    // Smi constants are guaranteed to be 31 bits.
+    double number = OpParameter<double>(value->op());
+    return __ WordSarShiftOutZeros(
+        __ Int32Constant(static_cast<int32_t>(number)), SmiShiftBitsConstant());
+  }
   return __ WordSarShiftOutZeros(value, SmiShiftBitsConstant());
 }
 
