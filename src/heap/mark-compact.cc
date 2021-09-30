@@ -4797,6 +4797,9 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 };
 
 void MinorMarkCompactCollector::CollectGarbage() {
+  // Minor MC does not support processing the ephemeron remembered set.
+  DCHECK(heap()->ephemeron_remembered_set_.empty());
+
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEPING);
     heap()->mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();

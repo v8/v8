@@ -7087,11 +7087,18 @@ void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
 
 void Heap::RecordEphemeronKeyWrite(EphemeronHashTable table, Address slot) {
   DCHECK(ObjectInYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
-  int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
-  InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
-  auto it =
-      ephemeron_remembered_set_.insert({table, std::unordered_set<int>()});
-  it.first->second.insert(entry.as_int());
+  if (FLAG_minor_mc) {
+    // Minor MC lacks support for specialized generational ephemeron barriers.
+    // The regular write barrier works as well but keeps more memory alive.
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(table);
+    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
+  } else {
+    int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
+    InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
+    auto it =
+        ephemeron_remembered_set_.insert({table, std::unordered_set<int>()});
+    it.first->second.insert(entry.as_int());
+  }
 }
 
 void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
