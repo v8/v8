@@ -397,6 +397,10 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
             "invalid value type 's128', enable with --experimental-wasm-simd");
         return kWasmBottom;
       }
+      if (!VALIDATE(CheckHardwareSupportsSimd())) {
+        DecodeError<validate>(decoder, pc, "Wasm SIMD unsupported");
+        return kWasmBottom;
+      }
       return kWasmS128;
     }
     // Although these codes are included in ValueTypeCode, they technically

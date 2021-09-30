@@ -428,6 +428,7 @@
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 
   # SIMD not fully implemented yet.
+  'test-run-wasm-relaxed-simd/*': [SKIP],
   'test-run-wasm-simd/RunWasm_F64x2ExtractLaneWithI64x2_liftoff': [SKIP],
   'test-run-wasm-simd/RunWasm_I64x2ExtractWithF64x2_liftoff': [SKIP],
   'test-run-wasm-simd-liftoff/*': [SKIP],
@@ -758,8 +759,9 @@
 
 ##############################################################################
 ['no_simd_hardware == True', {
-  'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-relaxed-simd/*': [SKIP],
   'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-run-wasm-simd/*': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
