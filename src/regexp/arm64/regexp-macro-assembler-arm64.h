@@ -262,8 +262,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
 
   void LoadRegExpStackPointerFromMemory(Register dst);
   void StoreRegExpStackPointerToMemory(Register src, Register scratch);
-  void PushRegExpBasePointer(Register scratch1, Register scratch2);
-  void PopRegExpBasePointer(Register scratch1, Register scratch2);
+  void PushRegExpBasePointer(Register stack_pointer, Register scratch);
+  void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 
   Isolate* isolate() const { return masm_->isolate(); }
 

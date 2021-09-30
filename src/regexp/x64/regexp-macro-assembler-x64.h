@@ -226,8 +226,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
 
   void LoadRegExpStackPointerFromMemory(Register dst);
   void StoreRegExpStackPointerToMemory(Register src, Register scratch);
-  void PushRegExpBasePointer(Register scratch1, Register scratch2);
-  void PopRegExpBasePointer(Register scratch1, Register scratch2);
+  void PushRegExpBasePointer(Register scratch_pointer, Register scratch);
+  void PopRegExpBasePointer(Register scratch_pointer_out, Register scratch);
 
   inline void ReadPositionFromRegister(Register dst, int reg);
 
