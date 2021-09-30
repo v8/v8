@@ -1206,6 +1206,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Checks if value is in range [lower_limit, higher_limit] using a single
   // comparison.
+  void CompareRange(Register value, unsigned lower_limit,
+                    unsigned higher_limit);
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
 

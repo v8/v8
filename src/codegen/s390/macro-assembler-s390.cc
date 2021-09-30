@@ -1891,16 +1891,27 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
   CmpS64(type_reg, Operand(type));
 }
 
+void MacroAssembler::CompareRange(Register value, unsigned lower_limit,
+                                  unsigned higher_limit) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_LT(lower_limit, higher_limit);
+  if (lower_limit != 0) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    mov(scratch, value);
+    slgfi(scratch, Operand(lower_limit));
+    CmpU64(scratch, Operand(higher_limit - lower_limit));
+  } else {
+    CmpU64(value, Operand(higher_limit));
+  }
+}
+
 void MacroAssembler::CompareInstanceTypeRange(Register map, Register type_reg,
                                               InstanceType lower_limit,
                                               InstanceType higher_limit) {
   DCHECK_LT(lower_limit, higher_limit);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
   LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  mov(scratch, type_reg);
-  slgfi(scratch, Operand(lower_limit));
-  CmpU64(scratch, Operand(higher_limit - lower_limit));
+  CompareRange(type_reg, lower_limit, higher_limit);
 }
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
@@ -1914,14 +1925,7 @@ void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      unsigned higher_limit,
                                      Label* on_in_range) {
-  if (lower_limit != 0) {
-    Register scratch = r0;
-    mov(scratch, value);
-    slgfi(scratch, Operand(lower_limit));
-    CmpU64(scratch, Operand(higher_limit - lower_limit));
-  } else {
-    CmpU64(value, Operand(higher_limit));
-  }
+  CompareRange(value, lower_limit, higher_limit);
   ble(on_in_range);
 }
 

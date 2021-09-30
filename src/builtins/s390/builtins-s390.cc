@@ -2273,38 +2273,48 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- r2 : the number of arguments (not including the receiver)
   //  -- r3 : the target to call (can be any Object).
   // -----------------------------------
+  Register argc = r2;
+  Register target = r3;
+  Register map = r6;
+  Register instance_type = r7;
+  DCHECK(!AreAliased(argc, target, map, instance_type));
 
   Label non_callable, class_constructor;
-  __ JumpIfSmi(r3, &non_callable);
-  __ LoadMap(r6, r3);
-  __ CompareInstanceTypeRange(r6, r7, FIRST_CALLABLE_JS_FUNCTION_TYPE,
+  __ JumpIfSmi(target, &non_callable);
+  __ LoadMap(map, target);
+  __ CompareInstanceTypeRange(map, instance_type,
+                              FIRST_CALLABLE_JS_FUNCTION_TYPE,
                               LAST_CALLABLE_JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
           RelocInfo::CODE_TARGET, le);
-  __ CmpS64(r7, Operand(JS_BOUND_FUNCTION_TYPE));
+  __ CmpS64(instance_type, Operand(JS_BOUND_FUNCTION_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), CallBoundFunction),
           RelocInfo::CODE_TARGET, eq);
 
   // Check if target has a [[Call]] internal method.
-  __ LoadU8(r6, FieldMemOperand(r6, Map::kBitFieldOffset));
-  __ TestBit(r6, Map::Bits1::IsCallableBit::kShift);
-  __ beq(&non_callable);
+  {
+    Register flags = r6;
+    __ LoadU8(flags, FieldMemOperand(map, Map::kBitFieldOffset));
+    map = no_reg;
+    __ TestBit(flags, Map::Bits1::IsCallableBit::kShift);
+    __ beq(&non_callable);
+  }
 
   // Check if target is a proxy and call CallProxy external builtin
-  __ CmpS64(r7, Operand(JS_PROXY_TYPE));
+  __ CmpS64(instance_type, Operand(JS_PROXY_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET, eq);
 
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   // Check that the function is not a "classConstructor".
-  __ CmpS64(r7, Operand(JS_CLASS_CONSTRUCTOR_TYPE));
+  __ CmpS64(instance_type, Operand(JS_CLASS_CONSTRUCTOR_TYPE));
   __ beq(&class_constructor);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
   // Overwrite the original receiver the (original) target.
-  __ StoreReceiver(r3, r2, r7);
+  __ StoreReceiver(target, argc, r7);
   // Let the "call_as_function_delegate" take care of the rest.
-  __ LoadNativeContextSlot(r3, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
+  __ LoadNativeContextSlot(target, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
   __ Jump(masm->isolate()->builtins()->CallFunction(
               ConvertReceiverMode::kNotNullOrUndefined),
           RelocInfo::CODE_TARGET);
@@ -2313,7 +2323,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ bind(&non_callable);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ Push(r3);
+    __ Push(target);
     __ CallRuntime(Runtime::kThrowCalledNonCallable);
     __ Trap();  // Unreachable.
   }
@@ -2322,7 +2332,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ bind(&class_constructor);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ Push(r3);
+    __ Push(target);
     __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
     __ Trap();  // Unreachable.
   }
@@ -2394,31 +2404,41 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //  -- r5 : the new target (either the same as the constructor or
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
+  Register argc = r2;
+  Register target = r3;
+  Register map = r6;
+  Register instance_type = r7;
+  DCHECK(!AreAliased(argc, target, map, instance_type));
 
   // Check if target is a Smi.
   Label non_constructor, non_proxy;
-  __ JumpIfSmi(r3, &non_constructor);
+  __ JumpIfSmi(target, &non_constructor);
 
   // Check if target has a [[Construct]] internal method.
-  __ LoadTaggedPointerField(r6, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ LoadU8(r4, FieldMemOperand(r6, Map::kBitFieldOffset));
-  __ TestBit(r4, Map::Bits1::IsConstructorBit::kShift);
-  __ beq(&non_constructor);
+  __ LoadTaggedPointerField(map,
+                            FieldMemOperand(target, HeapObject::kMapOffset));
+  {
+    Register flags = r4;
+    DCHECK(!AreAliased(argc, target, map, instance_type, flags));
+    __ LoadU8(flags, FieldMemOperand(map, Map::kBitFieldOffset));
+    __ TestBit(flags, Map::Bits1::IsConstructorBit::kShift);
+    __ beq(&non_constructor);
+  }
 
   // Dispatch based on instance type.
-  __ CompareInstanceTypeRange(r6, r7, FIRST_JS_FUNCTION_TYPE,
+  __ CompareInstanceTypeRange(map, instance_type, FIRST_JS_FUNCTION_TYPE,
                               LAST_JS_FUNCTION_TYPE);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructFunction),
           RelocInfo::CODE_TARGET, le);
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.
-  __ CmpS64(r7, Operand(JS_BOUND_FUNCTION_TYPE));
+  __ CmpS64(instance_type, Operand(JS_BOUND_FUNCTION_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructBoundFunction),
           RelocInfo::CODE_TARGET, eq);
 
   // Only dispatch to proxies after checking whether they are constructors.
-  __ CmpS64(r7, Operand(JS_PROXY_TYPE));
+  __ CmpS64(instance_type, Operand(JS_PROXY_TYPE));
   __ bne(&non_proxy);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
           RelocInfo::CODE_TARGET);
@@ -2427,9 +2447,10 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
-    __ StoreReceiver(r3, r2, r7);
+    __ StoreReceiver(target, argc, r7);
     // Let the "call_as_constructor_delegate" take care of the rest.
-    __ LoadNativeContextSlot(r3, Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX);
+    __ LoadNativeContextSlot(target,
+                             Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX);
     __ Jump(masm->isolate()->builtins()->CallFunction(),
             RelocInfo::CODE_TARGET);
   }
