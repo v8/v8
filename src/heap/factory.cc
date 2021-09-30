@@ -1572,14 +1572,17 @@ Handle<WasmArray> Factory::NewWasmArray(
   WasmArray result = WasmArray::cast(raw);
   result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   result.set_length(length);
-  for (uint32_t i = 0; i < length; i++) {
-    Address address = result.ElementAddress(i);
-    if (type->element_type().is_numeric()) {
+  if (type->element_type().is_numeric()) {
+    for (uint32_t i = 0; i < length; i++) {
+      Address address = result.ElementAddress(i);
       elements[i]
           .Packed(type->element_type())
           .CopyTo(reinterpret_cast<byte*>(address));
-    } else {
-      base::WriteUnalignedValue<Object>(address, *elements[i].to_ref());
+    }
+  } else {
+    for (uint32_t i = 0; i < length; i++) {
+      int offset = result.element_offset(i);
+      TaggedField<Object>::store(result, offset, *elements[i].to_ref());
     }
   }
   return handle(result, isolate());
@@ -1594,11 +1597,13 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
   WasmStruct result = WasmStruct::cast(raw);
   result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
   for (uint32_t i = 0; i < type->field_count(); i++) {
-    Address address = result.RawFieldAddress(type->field_offset(i));
+    int offset = type->field_offset(i);
     if (type->field(i).is_numeric()) {
+      Address address = result.RawFieldAddress(offset);
       args[i].Packed(type->field(i)).CopyTo(reinterpret_cast<byte*>(address));
     } else {
-      base::WriteUnalignedValue<Object>(address, *args[i].to_ref());
+      offset += WasmStruct::kHeaderSize;
+      TaggedField<Object>::store(result, offset, *args[i].to_ref());
     }
   }
   return handle(result, isolate());

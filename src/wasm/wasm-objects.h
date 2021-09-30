@@ -925,7 +925,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
 
   // Get the {ObjectSlot} corresponding to the element at {index}. Requires that
   // this is a reference array.
-  ObjectSlot ElementSlot(uint32_t index);
+  inline ObjectSlot ElementSlot(uint32_t index);
   V8_EXPORT_PRIVATE wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Map map, int length);
@@ -935,8 +935,9 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
                                           Handle<WasmArray> array,
                                           uint32_t index);
 
-  // Returns the Address of the element at {index}.
-  Address ElementAddress(uint32_t index);
+  // Returns the offset/Address of the element at {index}.
+  inline uint32_t element_offset(uint32_t index);
+  inline Address ElementAddress(uint32_t index);
 
   static int MaxLength(const wasm::ArrayType* type) {
     // The total object size must fit into a Smi, for filler objects. To make

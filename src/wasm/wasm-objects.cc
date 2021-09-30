@@ -1688,18 +1688,6 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
   }
 }
 
-ObjectSlot WasmArray::ElementSlot(uint32_t index) {
-  DCHECK_LE(index, length());
-  DCHECK(type()->element_type().is_reference());
-  return RawField(kHeaderSize + kTaggedSize * index);
-}
-
-Address WasmArray::ElementAddress(uint32_t index) {
-  DCHECK_LE(index, length());
-  return ptr() + WasmArray::kHeaderSize +
-         index * type()->element_type().element_size_bytes() - kHeapObjectTag;
-}
-
 // static
 Handle<WasmTagObject> WasmTagObject::New(Isolate* isolate,
                                          const wasm::FunctionSig* sig,
