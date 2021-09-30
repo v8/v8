@@ -640,7 +640,7 @@ inline void* ArrayElementAddress(Handle<WasmArray> array, uint32_t index,
 }
 }  // namespace
 
-// Assumes copy ranges are in-bounds.
+// Assumes copy ranges are in-bounds and copy length > 0.
 RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
@@ -650,6 +650,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   CONVERT_ARG_HANDLE_CHECKED(WasmArray, src_array, 2);
   CONVERT_UINT32_ARG_CHECKED(src_index, 3);
   CONVERT_UINT32_ARG_CHECKED(length, 4);
+  DCHECK_GT(length, 0);
   bool overlapping_ranges =
       dst_array->ptr() == src_array->ptr() &&
       (dst_index < src_index ? dst_index + length > src_index

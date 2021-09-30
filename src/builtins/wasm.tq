@@ -364,6 +364,7 @@ builtin WasmArrayCopyWithChecks(
       srcIndex + length > srcArray.length || srcIndex + length < srcIndex) {
     tail ThrowWasmTrapArrayOutOfBounds();
   }
+  if (length == 0) return Undefined;
   tail runtime::WasmArrayCopy(
       LoadContextFromFrame(), dstArray, SmiFromUint32(dstIndex), srcArray,
       SmiFromUint32(srcIndex), SmiFromUint32(length));

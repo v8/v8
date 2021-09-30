@@ -1111,6 +1111,19 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
                        WASM_I32V(5)),
        kExprEnd});
 
+  const byte kZeroLength = tester.DefineFunction(
+      tester.sigs.i_v(), {optref(arrayref_index), optref(arrayref_index)},
+      {WASM_LOCAL_SET(
+           0, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(arrayref_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(arrayref_index))),
+       WASM_LOCAL_SET(
+           1, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(arrayref_index, WASM_I32V(10),
+                                              WASM_RTT_CANON(arrayref_index))),
+       WASM_ARRAY_COPY(arrayref_index, arrayref_index, WASM_LOCAL_GET(1),
+                       WASM_I32V(6), WASM_LOCAL_GET(0), WASM_I32V(3),
+                       WASM_I32V(0)),
+       WASM_I32V(0), kExprEnd});
+
   tester.CompileModule();
 
   tester.CheckResult(kCopyI32, 0, 5);
@@ -1153,6 +1166,7 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
 
   tester.CheckHasThrown(kOobSource);
   tester.CheckHasThrown(kOobDestination);
+  tester.CheckResult(kZeroLength, 0);  // Does not throw.
 }
 
 WASM_COMPILED_EXEC_TEST(NewDefault) {

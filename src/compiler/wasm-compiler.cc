@@ -6009,6 +6009,11 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
   BoundsCheckArrayCopy(dst_array, dst_index, length, position);
   BoundsCheckArrayCopy(src_array, src_index, length, position);
 
+  auto skip = gasm_->MakeLabel();
+
+  gasm_->GotoIf(gasm_->WordEqual(length, Int32Constant(0)), &skip,
+                BranchHint::kFalse);
+
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_array_copy());
   MachineType arg_types[]{
@@ -6018,6 +6023,8 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
   MachineSignature sig(0, 6, arg_types);
   BuildCCall(&sig, function, GetInstance(), dst_array, dst_index, src_array,
              src_index, length);
+  gasm_->Goto(&skip);
+  gasm_->Bind(&skip);
 }
 
 // 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.
