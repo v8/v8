@@ -80,7 +80,6 @@
   # BUG(v8:9506): slow tests.
   'wasm/shared-memory-worker-explicit-gc-stress': [PASS, SLOW],
   'wasm/shared-memory-worker-gc-stress': [PASS, SLOW],
-  'wasm/shared-memory-gc-stress': [PASS, SLOW],
 
   # https://crbug.com/1129854
   'tools/log': ['arch == arm or arch == arm64', SKIP],
