@@ -1046,10 +1046,14 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
 #define UNOP_LIST(V)                                                         \
   V(f32_abs, fabs, DoubleRegister, DoubleRegister, , , USE, , void)          \
   V(f32_neg, fneg, DoubleRegister, DoubleRegister, , , USE, , void)          \
-  V(f32_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , USE, , void)        \
-  V(f32_floor, frim, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
-  V(f32_ceil, frip, DoubleRegister, DoubleRegister, , , USE, true, bool)     \
-  V(f32_trunc, friz, DoubleRegister, DoubleRegister, , , USE, true, bool)    \
+  V(f32_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32, , \
+    void)                                                                    \
+  V(f32_floor, frim, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,   \
+    true, bool)                                                              \
+  V(f32_ceil, frip, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,    \
+    true, bool)                                                              \
+  V(f32_trunc, friz, DoubleRegister, DoubleRegister, , , ROUND_F64_TO_F32,   \
+    true, bool)                                                              \
   V(f64_abs, fabs, DoubleRegister, DoubleRegister, , , USE, , void)          \
   V(f64_neg, fneg, DoubleRegister, DoubleRegister, , , USE, , void)          \
   V(f64_sqrt, fsqrt, DoubleRegister, DoubleRegister, , , USE, , void)        \
