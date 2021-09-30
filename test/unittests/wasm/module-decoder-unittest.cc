@@ -1156,7 +1156,7 @@ TEST_F(WasmModuleVerifyTest, ArrayInitInitExpr) {
                                         WASM_I32V(30), WASM_RTT_CANON(0)))};
   EXPECT_FAILURE_WITH_MSG(
       length_error,
-      "not enough arguments on the stack for array.init, expected 7 more");
+      "not enough arguments on the stack for array.init (need 11, got 4)");
 }
 
 TEST_F(WasmModuleVerifyTest, EmptyStruct) {

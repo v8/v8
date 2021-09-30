@@ -3633,8 +3633,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   V8_NOINLINE int EnsureStackArguments_Slow(int count, uint32_t limit) {
     if (!VALIDATE(control_.back().unreachable())) {
-      int index = count - stack_size() - 1;
-      NotEnoughArgumentsError(index);
+      NotEnoughArgumentsError(count, stack_size() - limit);
     }
     // Silently create unreachable values out of thin air underneath the
     // existing stack values. To do so, we have to move existing stack values
@@ -5118,10 +5117,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     PopTypeError(index, val, ("type " + expected.name()).c_str());
   }
 
-  V8_NOINLINE void NotEnoughArgumentsError(int index) {
+  V8_NOINLINE void NotEnoughArgumentsError(int needed, int actual) {
+    DCHECK_LT(0, needed);
+    DCHECK_LE(0, actual);
+    DCHECK_LT(actual, needed);
     this->DecodeError(
-        "not enough arguments on the stack for %s, expected %d more",
-        SafeOpcodeNameAt(this->pc_), index + 1);
+        "not enough arguments on the stack for %s (need %d, got %d)",
+        SafeOpcodeNameAt(this->pc_), needed, actual);
   }
 
   V8_INLINE Value Peek(int depth, int index, ValueType expected) {
@@ -5140,7 +5142,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       // Peeking past the current control start in reachable code.
       if (!VALIDATE(decoding_mode == kFunctionBody &&
                     control_.back().unreachable())) {
-        NotEnoughArgumentsError(index);
+        NotEnoughArgumentsError(depth + 1, stack_size() - limit);
       }
       return UnreachableValue(this->pc_);
     }

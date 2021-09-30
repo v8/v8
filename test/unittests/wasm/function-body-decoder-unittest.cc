@@ -706,21 +706,33 @@ TEST_F(FunctionBodyDecoderTest, BlockType) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockType_fail) {
-  ExpectFailure(sigs.i_i(), {WASM_BLOCK_L(WASM_I64V_1(0))});
-  ExpectFailure(sigs.i_i(), {WASM_BLOCK_F(WASM_F32(0.0))});
-  ExpectFailure(sigs.i_i(), {WASM_BLOCK_D(WASM_F64(1.1))});
+  ExpectFailure(sigs.i_i(), {WASM_BLOCK_L(WASM_I64V_1(0))}, kAppendEnd,
+                "type error in fallthru[0]");
+  ExpectFailure(sigs.i_i(), {WASM_BLOCK_F(WASM_F32(0.0))}, kAppendEnd,
+                "type error in fallthru[0]");
+  ExpectFailure(sigs.i_i(), {WASM_BLOCK_D(WASM_F64(1.1))}, kAppendEnd,
+                "type error in fallthru[0]");
 
-  ExpectFailure(sigs.l_l(), {WASM_BLOCK_I(WASM_ZERO)});
-  ExpectFailure(sigs.l_l(), {WASM_BLOCK_F(WASM_F32(0.0))});
-  ExpectFailure(sigs.l_l(), {WASM_BLOCK_D(WASM_F64(1.1))});
+  ExpectFailure(sigs.l_l(), {WASM_BLOCK_I(WASM_ZERO)}, kAppendEnd,
+                "type error in fallthru[0]");
+  ExpectFailure(sigs.l_l(), {WASM_BLOCK_F(WASM_F32(0.0))}, kAppendEnd,
+                "type error in fallthru[0]");
+  ExpectFailure(sigs.l_l(), {WASM_BLOCK_D(WASM_F64(1.1))}, kAppendEnd,
+                "type error in fallthru[0]");
 
-  ExpectFailure(sigs.f_ff(), {WASM_BLOCK_I(WASM_ZERO)});
-  ExpectFailure(sigs.f_ff(), {WASM_BLOCK_L(WASM_I64V_1(0))});
-  ExpectFailure(sigs.f_ff(), {WASM_BLOCK_D(WASM_F64(1.1))});
+  ExpectFailure(sigs.f_ff(), {WASM_BLOCK_I(WASM_ZERO)}, kAppendEnd,
+                "type error in fallthru[0]");
+  ExpectFailure(sigs.f_ff(), {WASM_BLOCK_L(WASM_I64V_1(0))}, kAppendEnd,
+                "type error in fallthru[0]");
+  ExpectFailure(sigs.f_ff(), {WASM_BLOCK_D(WASM_F64(1.1))}, kAppendEnd,
+                "type error in fallthru[0]");
 
-  ExpectFailure(sigs.d_dd(), {WASM_BLOCK_I(WASM_ZERO)});
-  ExpectFailure(sigs.d_dd(), {WASM_BLOCK_L(WASM_I64V_1(0))});
-  ExpectFailure(sigs.d_dd(), {WASM_BLOCK_F(WASM_F32(0.0))});
+  ExpectFailure(sigs.d_dd(), {WASM_BLOCK_I(WASM_ZERO)}, kAppendEnd,
+                "type error in fallthru[0]");
+  ExpectFailure(sigs.d_dd(), {WASM_BLOCK_L(WASM_I64V_1(0))}, kAppendEnd,
+                "type error in fallthru[0]");
+  ExpectFailure(sigs.d_dd(), {WASM_BLOCK_F(WASM_F32(0.0))}, kAppendEnd,
+                "type error in fallthru[0]");
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockF32) {
@@ -3033,16 +3045,29 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   ExpectValidates(
       sigs.i_ii(),
       {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprI32Add});
-  ExpectFailure(sigs.i_ii(), {WASM_BLOCK_X(sig0, WASM_NOP), kExprI32Add});
-  ExpectFailure(sigs.i_ii(),
-                {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0)), kExprI32Add});
+  ExpectFailure(sigs.i_ii(), {WASM_BLOCK_X(sig0, WASM_NOP), kExprI32Add},
+                kAppendEnd,
+                "expected 2 elements on the stack for fallthru, found 0");
+  ExpectFailure(
+      sigs.i_ii(), {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0)), kExprI32Add},
+      kAppendEnd, "expected 2 elements on the stack for fallthru, found 1");
   ExpectFailure(sigs.i_ii(),
                 {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                               WASM_LOCAL_GET(0)),
-                 kExprI32Add});
+                 kExprI32Add},
+                kAppendEnd,
+                "expected 2 elements on the stack for fallthru, found 3");
   ExpectFailure(
       sigs.i_ii(),
-      {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprF32Add});
+      {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprF32Add},
+      kAppendEnd, "f32.add[1] expected type f32, found block of type i32");
+
+  byte sig1 = builder.AddSignature(sigs.v_i());
+  ExpectFailure(
+      sigs.v_i(),
+      {WASM_LOCAL_GET(0), WASM_BLOCK(WASM_BLOCK_X(sig1, WASM_UNREACHABLE))},
+      kAppendEnd,
+      "not enough arguments on the stack for block (need 1, got 0)");
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
@@ -3992,8 +4017,8 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
                 {WASM_STRUCT_NEW_WITH_RTT(struct_type_index,
                                           WASM_RTT_CANON(struct_type_index))},
                 kAppendEnd,
-                "not enough arguments on the stack for struct.new_with_rtt, "
-                "expected 1 more");
+                "not enough arguments on the stack for struct.new_with_rtt "
+                "(need 2, got 1)");
   // Too many arguments.
   ExpectFailure(
       &sig_r_v,
@@ -4127,8 +4152,8 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
                 {WASM_I32V(10), WASM_RTT_CANON(array_type_index),
                  WASM_GC_OP(kExprArrayNewWithRtt), array_type_index},
                 kAppendEnd,
-                "not enough arguments on the stack for array.new_with_rtt, "
-                "expected 1 more");
+                "not enough arguments on the stack for array.new_with_rtt "
+                "(need 3, got 2)");
   // Mistyped initializer.
   ExpectFailure(&sig_r_v,
                 {WASM_ARRAY_NEW_WITH_RTT(
