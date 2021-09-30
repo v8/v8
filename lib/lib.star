@@ -410,11 +410,19 @@ def branch_by_name(name):
 def in_console(console_id, *builders):
     def in_category(category_name, *builders):
         for builder in builders:
-            luci.console_view_entry(
-                console_view = console_id,
-                builder = builder,
-                category = category_name,
-            )
+            if type(builder) == 'list':
+                for sub_builder in builder:
+                    luci.console_view_entry(
+                        console_view = console_id,
+                        builder = sub_builder,
+                        category = category_name,
+                    )
+            else:
+                luci.console_view_entry(
+                    console_view = console_id,
+                    builder = builder,
+                    category = category_name,
+                )
 
     return in_category
 
