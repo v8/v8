@@ -2201,7 +2201,6 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'd8testing_random_gc'},
       {
         'name': 'numfuzz',
         'suffix': 'marking',
