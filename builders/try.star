@@ -24,6 +24,7 @@ try_builder(
     name = "v8_android_arm_compile_rel",
     bucket = "try",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
     use_goma = GOMA.DEFAULT,
@@ -51,6 +52,7 @@ try_builder(
     name = "v8_full_presubmit",
     bucket = "try",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     executable = "recipe:v8/presubmit",
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
 )
@@ -112,6 +114,7 @@ try_builder(
     name = "v8_linux64_header_includes_dbg",
     bucket = "try",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.DEFAULT,
@@ -121,6 +124,7 @@ try_builder(
     name = "v8_linux64_no_wasm_compile_rel",
     bucket = "try",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -129,6 +133,7 @@ try_builder(
     name = "v8_linux64_shared_compile_rel",
     bucket = "try",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -187,6 +192,7 @@ try_builder(
     name = "v8_linux_noi18n_compile_dbg",
     bucket = "try",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -265,6 +271,7 @@ try_builder(
     name = "v8_presubmit",
     bucket = "try",
     cq_properties = CQ.BLOCK_NO_REUSE,
+    cq_branch_properties = CQ.BLOCK_NO_REUSE,
     executable = "recipe:run_presubmit",
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 600,
@@ -284,6 +291,7 @@ try_builder(
     name = "v8_win64_msvc_compile_rel",
     bucket = "try",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["d8"], "use_goma": False},
@@ -294,6 +302,7 @@ try_builder(
     name = "v8_win_compile_dbg",
     bucket = "try",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_goma = GOMA.ATS,
 )

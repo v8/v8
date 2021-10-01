@@ -81,6 +81,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_fuchsia_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
     use_goma = GOMA.DEFAULT,
@@ -96,6 +97,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_linux64_asan_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -117,6 +119,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_linux64_dbg",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -175,6 +178,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_linux64_nodcheck_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -189,6 +193,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_linux64_pointer_compression_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -203,6 +208,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_linux64_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -255,6 +261,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_linux64_verify_csa_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -285,6 +292,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_linux_arm64_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -314,6 +322,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_linux_arm_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 2400,
     use_goma = GOMA.DEFAULT,
@@ -362,6 +371,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_linux_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 2400,
     gclient_vars = [GCLIENT_VARS.GCMOLE],
@@ -419,6 +429,7 @@ try_ng_pair(
     name = "v8_mac64_rel",
     triggered_timeout = 7200,
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
@@ -520,6 +531,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_win64_rel",
     cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_goma = GOMA.ATS,
 )
