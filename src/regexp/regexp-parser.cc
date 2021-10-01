@@ -344,7 +344,7 @@ class RegExpParserImpl final {
 
   // Returns true iff the pattern contains named captures. May call
   // ScanForCaptures to look ahead at the remaining pattern.
-  bool HasNamedCaptures();
+  bool HasNamedCaptures(InClassEscapeState in_class_escape_state);
 
   Zone* zone() const { return zone_; }
 
@@ -359,7 +359,7 @@ class RegExpParserImpl final {
     return input_[index];
   }
   int input_length() const { return input_length_; }
-  void ScanForCaptures();
+  void ScanForCaptures(InClassEscapeState in_class_escape_state);
 
   struct RegExpCaptureNameLess {
     bool operator()(const RegExpCapture* lhs, const RegExpCapture* rhs) const {
@@ -810,7 +810,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
             // an identity escape for non-Unicode patterns without named
             // capture groups, and as the beginning of a named back-reference
             // in all other cases.
-            const bool has_named_captures = HasNamedCaptures(CHECK_FAILED);
+            const bool has_named_captures =
+                HasNamedCaptures(InClassEscapeState::kNotInClass CHECK_FAILED);
             if (unicode() || has_named_captures) {
               Advance(2);
               ParseNamedBackReference(builder, state CHECK_FAILED);
@@ -994,11 +995,24 @@ static bool IsSpecialClassEscape(base::uc32 c) {
 // Important: The scanner has to be in a consistent state when calling
 // ScanForCaptures, e.g. not in the middle of an escape sequence '\['.
 template <class CharT>
-void RegExpParserImpl<CharT>::ScanForCaptures() {
+void RegExpParserImpl<CharT>::ScanForCaptures(
+    InClassEscapeState in_class_escape_state) {
   DCHECK(!is_scanned_for_captures_);
   const int saved_position = position();
   // Start with captures started previous to current position
   int capture_count = captures_started();
+  // When we start inside a character class, skip everything inside the class.
+  if (in_class_escape_state == InClassEscapeState::kInClass) {
+    int c;
+    while ((c = current()) != kEndMarker) {
+      Advance();
+      if (c == '\\') {
+        Advance();
+      } else {
+        if (c == ']') break;
+      }
+    }
+  }
   // Add count of captures after this position.
   int n;
   while ((n = current()) != kEndMarker) {
@@ -1071,7 +1085,8 @@ bool RegExpParserImpl<CharT>::ParseBackReferenceIndex(int* index_out) {
     }
   }
   if (value > captures_started()) {
-    if (!is_scanned_for_captures_) ScanForCaptures();
+    if (!is_scanned_for_captures_)
+      ScanForCaptures(InClassEscapeState::kNotInClass);
     if (value > capture_count_) {
       Reset(start);
       return false;
@@ -1269,12 +1284,13 @@ ZoneVector<RegExpCapture*>* RegExpParserImpl<CharT>::GetNamedCaptures() const {
 }
 
 template <class CharT>
-bool RegExpParserImpl<CharT>::HasNamedCaptures() {
+bool RegExpParserImpl<CharT>::HasNamedCaptures(
+    InClassEscapeState in_class_escape_state) {
   if (has_named_captures_ || is_scanned_for_captures_) {
     return has_named_captures_;
   }
 
-  ScanForCaptures();
+  ScanForCaptures(in_class_escape_state);
   DCHECK(is_scanned_for_captures_);
   return has_named_captures_;
 }
@@ -1866,7 +1882,7 @@ base::uc32 RegExpParserImpl<CharT>::ParseCharacterEscape(
   Advance();
   // Note: It's important to Advance before the HasNamedCaptures call s.t. we
   // don't start scanning in the middle of an escape.
-  if (HasNamedCaptures() && c == 'k') {
+  if (c == 'k' && HasNamedCaptures(in_class_escape_state)) {
     ReportError(RegExpError::kInvalidEscape);
     return 0;
   }
