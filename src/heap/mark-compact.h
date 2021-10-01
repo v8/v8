@@ -720,7 +720,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void ReleaseEvacuationCandidates();
   // Returns number of aborted pages.
   size_t PostProcessEvacuationCandidates();
-  void ReportAbortedEvacuationCandidate(HeapObject failed_object,
+  void ReportAbortedEvacuationCandidate(Address failed_start,
                                         MemoryChunk* chunk);
 
   static const int kEphemeronChunkSize = 8 * KB;
@@ -774,7 +774,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Pages that are actually processed during evacuation.
   std::vector<Page*> old_space_evacuation_pages_;
   std::vector<Page*> new_space_evacuation_pages_;
-  std::vector<std::pair<HeapObject, Page*>> aborted_evacuation_candidates_;
+  std::vector<std::pair<Address, Page*>> aborted_evacuation_candidates_;
 
   Sweeper* sweeper_;
 

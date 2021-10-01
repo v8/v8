@@ -3355,7 +3355,8 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
         } else {
           // Aborted compaction page. Actual processing happens on the main
           // thread for simplicity reasons.
-          collector_->ReportAbortedEvacuationCandidate(failed_object, chunk);
+          collector_->ReportAbortedEvacuationCandidate(failed_object.address(),
+                                                       chunk);
         }
       }
       break;
@@ -4248,39 +4249,37 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 }
 
 void MarkCompactCollector::ReportAbortedEvacuationCandidate(
-    HeapObject failed_object, MemoryChunk* chunk) {
+    Address failed_start, MemoryChunk* chunk) {
   base::MutexGuard guard(&mutex_);
 
   aborted_evacuation_candidates_.push_back(
-      std::make_pair(failed_object, static_cast<Page*>(chunk)));
+      std::make_pair(failed_start, static_cast<Page*>(chunk)));
 }
 
 size_t MarkCompactCollector::PostProcessEvacuationCandidates() {
   CHECK_IMPLIES(FLAG_crash_on_aborted_evacuation,
                 aborted_evacuation_candidates_.empty());
 
-  for (auto object_and_page : aborted_evacuation_candidates_) {
-    HeapObject failed_object = object_and_page.first;
-    Page* page = object_and_page.second;
+  for (auto start_and_page : aborted_evacuation_candidates_) {
+    Address failed_start = start_and_page.first;
+    Page* page = start_and_page.second;
     page->SetFlag(Page::COMPACTION_WAS_ABORTED);
     // Aborted compaction page. We have to record slots here, since we
     // might not have recorded them in first place.
 
     // Remove outdated slots.
-    RememberedSetSweeping::RemoveRange(page, page->address(),
-                                       failed_object.address(),
+    RememberedSetSweeping::RemoveRange(page, page->address(), failed_start,
                                        SlotSet::FREE_EMPTY_BUCKETS);
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(),
-                                           failed_object.address(),
+    RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(), failed_start,
                                            SlotSet::FREE_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
-                                                failed_object.address());
+                                                failed_start);
 
     // Remove invalidated slots.
-    if (failed_object.address() > page->area_start()) {
+    if (failed_start > page->area_start()) {
       InvalidatedSlotsCleanup old_to_new_cleanup =
           InvalidatedSlotsCleanup::OldToNew(page);
-      old_to_new_cleanup.Free(page->area_start(), failed_object.address());
+      old_to_new_cleanup.Free(page->area_start(), failed_start);
     }
 
     // Recompute live bytes.
