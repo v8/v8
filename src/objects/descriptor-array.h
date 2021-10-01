@@ -144,7 +144,6 @@ class DescriptorArray
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  STATIC_ASSERT(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
   STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
 
   // Garbage collection support.
@@ -164,10 +163,6 @@ class DescriptorArray
   inline ObjectSlot GetFirstPointerSlot();
   inline ObjectSlot GetDescriptorSlot(int descriptor);
 
-  static_assert(kEndOfStrongFieldsOffset == kStartOfWeakFieldsOffset,
-                "Weak fields follow strong fields.");
-  static_assert(kEndOfWeakFieldsOffset == kHeaderSize,
-                "Weak fields extend up to the end of the header.");
   static_assert(kDescriptorsOffset == kHeaderSize,
                 "Variable-size array follows header.");
   class BodyDescriptor;

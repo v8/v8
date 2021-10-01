@@ -36,7 +36,6 @@ namespace internal {
   V(WeakCell)                           \
   V(JSWeakCollection)                   \
   V(JSWeakRef)                          \
-  V(Map)                                \
   V(NativeContext)                      \
   V(PreparseData)                       \
   V(PropertyArray)                      \

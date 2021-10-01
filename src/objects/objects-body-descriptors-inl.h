@@ -843,28 +843,6 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class Map::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    static_assert(
-        Map::kEndOfStrongFieldsOffset == Map::kStartOfWeakFieldsOffset,
-        "Leverage that weak fields directly follow strong fields for the "
-        "check below");
-    return offset >= Map::kStartOfStrongFieldsOffset &&
-           offset < Map::kEndOfWeakFieldsOffset;
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    IteratePointers(obj, Map::kStartOfStrongFieldsOffset,
-                    Map::kEndOfStrongFieldsOffset, v);
-    IterateMaybeWeakPointer(obj, kTransitionsOrPrototypeInfoOffset, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject obj) { return Map::kSize; }
-};
-
 class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -1171,8 +1149,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<JSProxy::BodyDescriptor>(p1, p2, p3, p4);
     case FOREIGN_TYPE:
       return Op::template apply<Foreign::BodyDescriptor>(p1, p2, p3, p4);
-    case MAP_TYPE:
-      return Op::template apply<Map::BodyDescriptor>(p1, p2, p3, p4);
     case CODE_TYPE:
       return Op::template apply<Code::BodyDescriptor>(p1, p2, p3, p4);
     case CELL_TYPE:

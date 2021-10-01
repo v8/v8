@@ -52,7 +52,6 @@ enum InstanceType : uint16_t;
   V(JSTypedArray)                       \
   V(JSWeakRef)                          \
   V(JSWeakCollection)                   \
-  V(Map)                                \
   V(NativeContext)                      \
   V(PreparseData)                       \
   V(PropertyArray)                      \
