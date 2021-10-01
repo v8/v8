@@ -1089,8 +1089,9 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
   const ElementsKind kind = PACKED_ELEMENTS;
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
-  TNode<JSArray> array = AllocateJSArray(kind, array_map, size, SmiTag(size),
-                                         kAllowLargeObjectAllocation);
+  TNode<JSArray> array =
+      AllocateJSArray(kind, array_map, size, SmiTag(size),
+                      AllocationFlag::kAllowLargeObjectAllocation);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
@@ -1200,8 +1201,9 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
   const ElementsKind kind = PACKED_ELEMENTS;
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
-  TNode<JSArray> array = AllocateJSArray(kind, array_map, size, SmiTag(size),
-                                         kAllowLargeObjectAllocation);
+  TNode<JSArray> array =
+      AllocateJSArray(kind, array_map, size, SmiTag(size),
+                      AllocationFlag::kAllowLargeObjectAllocation);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
@@ -2502,8 +2504,8 @@ TNode<HeapObject> WeakCollectionsBuiltinsAssembler::AllocateTable(
 
   // See HashTable::NewInternal().
   TNode<IntPtrT> length = KeyIndexFromEntry(capacity);
-  TNode<FixedArray> table = CAST(
-      AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation));
+  TNode<FixedArray> table = CAST(AllocateFixedArray(
+      HOLEY_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation));
 
   TNode<Map> map =
       HeapConstant(EphemeronHashTable::GetMap(ReadOnlyRoots(isolate())));

@@ -338,7 +338,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
 
   BIND(&instantiate_map);
   return AllocateJSObjectFromMap(initial_map, properties.value(), base::nullopt,
-                                 kNone, kWithSlackTracking);
+                                 AllocationFlag::kNone, kWithSlackTracking);
 }
 
 TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(

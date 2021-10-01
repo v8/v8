@@ -236,7 +236,8 @@ macro AllocateFromNew(
     return Allocate(
         sizeInBytes,
         %RawConstexprCast<constexpr AllocationFlag>(
-            kAllocateBaseFlags | AllocationFlag::kPretenured));
+            %RawConstexprCast<constexpr int32>(kAllocateBaseFlags) |
+            %RawConstexprCast<constexpr int32>(AllocationFlag::kPretenured)));
   } else {
     return Allocate(sizeInBytes, kAllocateBaseFlags);
   }

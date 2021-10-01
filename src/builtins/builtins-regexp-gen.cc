@@ -112,7 +112,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
     std::tie(var_array, var_elements) =
         AllocateUninitializedJSArrayWithElements(
             elements_kind, map, length, no_gc_site, length_intptr,
-            kAllowLargeObjectAllocation, JSRegExpResult::kSize);
+            AllocationFlag::kAllowLargeObjectAllocation, JSRegExpResult::kSize);
     Goto(&allocated);
   }
 
@@ -124,7 +124,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
     std::tie(var_array, var_elements) =
         AllocateUninitializedJSArrayWithElements(
             elements_kind, map, length, no_gc_site, length_intptr,
-            kAllowLargeObjectAllocation, JSRegExpResultWithIndices::kSize);
+            AllocationFlag::kAllowLargeObjectAllocation,
+            JSRegExpResultWithIndices::kSize);
     Goto(&allocated);
   }
 
@@ -329,8 +330,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       properties = AllocateSwissNameDictionary(num_properties);
     } else {
-      properties =
-          AllocateNameDictionary(num_properties, kAllowLargeObjectAllocation);
+      properties = AllocateNameDictionary(
+          num_properties, AllocationFlag::kAllowLargeObjectAllocation);
     }
 
     TNode<JSObject> group_object = AllocateJSObjectFromMap(map, properties);

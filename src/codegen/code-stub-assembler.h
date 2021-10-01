@@ -322,7 +322,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   explicit CodeStubAssembler(compiler::CodeAssemblerState* state);
 
-  enum AllocationFlag : uint8_t {
+  enum class AllocationFlag : uint8_t {
     kNone = 0,
     kDoubleAlignment = 1,
     kPretenured = 1 << 1,
@@ -753,13 +753,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                           Operation bitwise_op);
 
   // Allocate an object of the given size.
-  TNode<HeapObject> AllocateInNewSpace(TNode<IntPtrT> size,
-                                       AllocationFlags flags = kNone);
-  TNode<HeapObject> AllocateInNewSpace(int size, AllocationFlags flags = kNone);
+  TNode<HeapObject> AllocateInNewSpace(
+      TNode<IntPtrT> size, AllocationFlags flags = AllocationFlag::kNone);
+  TNode<HeapObject> AllocateInNewSpace(
+      int size, AllocationFlags flags = AllocationFlag::kNone);
   TNode<HeapObject> Allocate(TNode<IntPtrT> size,
-                             AllocationFlags flags = kNone);
+                             AllocationFlags flags = AllocationFlag::kNone);
 
-  TNode<HeapObject> Allocate(int size, AllocationFlags flags = kNone);
+  TNode<HeapObject> Allocate(int size,
+                             AllocationFlags flags = AllocationFlag::kNone);
 
   TNode<BoolT> IsRegularHeapObjectSize(TNode<IntPtrT> size);
 
@@ -1809,17 +1811,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                              AllocationFlags flags);
 
   // Allocate a ByteArray with the given length.
-  TNode<ByteArray> AllocateByteArray(TNode<UintPtrT> length,
-                                     AllocationFlags flags = kNone);
+  TNode<ByteArray> AllocateByteArray(
+      TNode<UintPtrT> length, AllocationFlags flags = AllocationFlag::kNone);
 
   // Allocate a SeqOneByteString with the given length.
-  TNode<String> AllocateSeqOneByteString(uint32_t length,
-                                         AllocationFlags flags = kNone);
+  TNode<String> AllocateSeqOneByteString(
+      uint32_t length, AllocationFlags flags = AllocationFlag::kNone);
   using TorqueGeneratedExportedMacrosAssembler::AllocateSeqOneByteString;
 
   // Allocate a SeqTwoByteString with the given length.
-  TNode<String> AllocateSeqTwoByteString(uint32_t length,
-                                         AllocationFlags flags = kNone);
+  TNode<String> AllocateSeqTwoByteString(
+      uint32_t length, AllocationFlags flags = AllocationFlag::kNone);
   using TorqueGeneratedExportedMacrosAssembler::AllocateSeqTwoByteString;
 
   // Allocate a SlicedOneByteString with the given length, parent and offset.
@@ -1836,9 +1838,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<NameDictionary> AllocateNameDictionary(int at_least_space_for);
   TNode<NameDictionary> AllocateNameDictionary(
-      TNode<IntPtrT> at_least_space_for, AllocationFlags = kNone);
+      TNode<IntPtrT> at_least_space_for,
+      AllocationFlags = AllocationFlag::kNone);
   TNode<NameDictionary> AllocateNameDictionaryWithCapacity(
-      TNode<IntPtrT> capacity, AllocationFlags = kNone);
+      TNode<IntPtrT> capacity, AllocationFlags = AllocationFlag::kNone);
   TNode<NameDictionary> CopyNameDictionary(TNode<NameDictionary> dictionary,
                                            Label* large_object_fallback);
 
@@ -1856,7 +1859,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Map> map,
       base::Optional<TNode<HeapObject>> properties = base::nullopt,
       base::Optional<TNode<FixedArray>> elements = base::nullopt,
-      AllocationFlags flags = kNone,
+      AllocationFlags flags = AllocationFlag::kNone,
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
   void InitializeJSObjectFromMap(
@@ -1881,30 +1884,33 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   AllocateUninitializedJSArrayWithElements(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
       base::Optional<TNode<AllocationSite>> allocation_site,
-      TNode<IntPtrT> capacity, AllocationFlags allocation_flags = kNone,
+      TNode<IntPtrT> capacity,
+      AllocationFlags allocation_flags = AllocationFlag::kNone,
       int array_header_size = JSArray::kHeaderSize);
 
   // Allocate a JSArray and fill elements with the hole.
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
       TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
-      AllocationFlags allocation_flags = kNone);
+      AllocationFlags allocation_flags = AllocationFlag::kNone);
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> capacity,
       TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
-      AllocationFlags allocation_flags = kNone) {
+      AllocationFlags allocation_flags = AllocationFlag::kNone) {
     return AllocateJSArray(kind, array_map, SmiUntag(capacity), length,
                            allocation_site, allocation_flags);
   }
-  TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
-                                 TNode<Smi> capacity, TNode<Smi> length,
-                                 AllocationFlags allocation_flags = kNone) {
+  TNode<JSArray> AllocateJSArray(
+      ElementsKind kind, TNode<Map> array_map, TNode<Smi> capacity,
+      TNode<Smi> length,
+      AllocationFlags allocation_flags = AllocationFlag::kNone) {
     return AllocateJSArray(kind, array_map, SmiUntag(capacity), length,
                            base::nullopt, allocation_flags);
   }
-  TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
-                                 TNode<IntPtrT> capacity, TNode<Smi> length,
-                                 AllocationFlags allocation_flags = kNone) {
+  TNode<JSArray> AllocateJSArray(
+      ElementsKind kind, TNode<Map> array_map, TNode<IntPtrT> capacity,
+      TNode<Smi> length,
+      AllocationFlags allocation_flags = AllocationFlag::kNone) {
     return AllocateJSArray(kind, array_map, capacity, length, base::nullopt,
                            allocation_flags);
   }
@@ -1937,7 +1943,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename TIndex>
   TNode<FixedArrayBase> AllocateFixedArray(
-      ElementsKind kind, TNode<TIndex> capacity, AllocationFlags flags = kNone,
+      ElementsKind kind, TNode<TIndex> capacity,
+      AllocationFlags flags = AllocationFlag::kNone,
       base::Optional<TNode<Map>> fixed_array_map = base::nullopt);
 
   TNode<NativeContext> GetCreationContext(TNode<JSReceiver> receiver,

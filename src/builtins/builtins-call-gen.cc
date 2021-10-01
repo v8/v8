@@ -334,7 +334,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
 
   // Allocate a new FixedArray of Objects.
   TNode<FixedArray> new_elements = CAST(AllocateFixedArray(
-      new_kind, intptr_length, CodeStubAssembler::kAllowLargeObjectAllocation));
+      new_kind, intptr_length, AllocationFlag::kAllowLargeObjectAllocation));
   // CopyFixedArrayElements does not distinguish between holey and packed for
   // its first argument, so we don't need to dispatch on {kind} here.
   CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, new_kind,
