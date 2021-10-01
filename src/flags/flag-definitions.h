@@ -1816,6 +1816,8 @@ DEFINE_BOOL_READONLY(minor_mc, false,
 //
 
 DEFINE_BOOL(help, false, "Print usage message, including flags, on console")
+DEFINE_BOOL(print_flag_values, false, "Print all flag values of V8")
+
 DEFINE_BOOL(dump_counters, false, "Dump counters on exit")
 DEFINE_BOOL(slow_histograms, false,
             "Enable slow histograms with more overhead.")
