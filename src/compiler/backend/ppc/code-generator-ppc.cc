@@ -854,8 +854,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchPrepareCallCFunction: {
-      int const num_parameters = MiscField::decode(instr->opcode());
-      __ PrepareCallCFunction(num_parameters, kScratchReg);
+      int const num_gp_parameters = ParamField::decode(instr->opcode());
+      int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      __ PrepareCallCFunction(num_gp_parameters + num_fp_parameters,
+                              kScratchReg);
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
       break;
@@ -898,8 +900,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     case kArchCallCFunction: {
-      int misc_field = MiscField::decode(instr->opcode());
-      int num_parameters = misc_field;
+      int const num_gp_parameters = ParamField::decode(instr->opcode());
+      int const fp_param_field = FPParamField::decode(instr->opcode());
+      int num_fp_parameters = fp_param_field;
       bool has_function_descriptor = false;
       int offset = 20 * kInstrSize;
 
@@ -920,10 +923,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 #if ABI_USES_FUNCTION_DESCRIPTORS
       // AIX/PPC64BE Linux uses a function descriptor
-      int kNumParametersMask = kHasFunctionDescriptorBitMask - 1;
-      num_parameters = kNumParametersMask & misc_field;
+      int kNumFPParametersMask = kHasFunctionDescriptorBitMask - 1;
+      num_fp_parameters = kNumFPParametersMask & fp_param_field;
       has_function_descriptor =
-          (misc_field & kHasFunctionDescriptorBitMask) != 0;
+          (fp_param_field & kHasFunctionDescriptorBitMask) != 0;
       // AIX may emit 2 extra Load instructions under CallCFunctionHelper
       // due to having function descriptor.
       if (has_function_descriptor) {
@@ -946,10 +949,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_parameters, has_function_descriptor);
+        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                         has_function_descriptor);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_parameters, has_function_descriptor);
+        __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                         has_function_descriptor);
       }
       // TODO(miladfar): In the above block, kScratchReg must be populated with
       // the strictly-correct PC, which is the return address at this spot. The

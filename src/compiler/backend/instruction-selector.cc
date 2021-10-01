@@ -2921,8 +2921,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 #if ABI_USES_FUNCTION_DESCRIPTORS
       // Highest fp_param_count bit is used on AIX to indicate if a CFunction
       // call has function descriptor or not.
-      STATIC_ASSERT(ParamField::kSize + FPParamField::kSize ==
-                    kHasFunctionDescriptorBitShift + 1);
+      STATIC_ASSERT(FPParamField::kSize == kHasFunctionDescriptorBitShift + 1);
       if (!call_descriptor->NoFunctionDescriptor()) {
         fp_param_count |= 1 << kHasFunctionDescriptorBitShift;
       }
