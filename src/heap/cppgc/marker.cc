@@ -358,7 +358,7 @@ bool MarkerBase::VisitCrossThreadPersistentsIfNeeded() {
   g_process_mutex.Pointer()->Lock();
   heap().GetStrongCrossThreadPersistentRegion().Trace(&visitor());
   visited_cross_thread_persistents_in_atomic_pause_ = true;
-  return true;
+  return (heap().GetStrongCrossThreadPersistentRegion().NodesInUse() > 0);
 }
 
 void MarkerBase::ScheduleIncrementalMarkingTask() {
