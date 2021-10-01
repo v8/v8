@@ -13,28 +13,39 @@ load(
 )
 
 #TODO(almuthanna): get rid of kwargs and specify default values
-def try_ng_pair(name, use_cas = False, **kwargs):
+def try_ng_pair(name, cq_properties = CQ.NONE,
+                cq_branch_properties = CQ.NONE, **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
-    cq = kwargs.pop("cq_properties", None)
-    cq_tg = dict(cq)
-    cq_td = dict(cq)
-    cq_exp = dict(cq)
     kwargs.setdefault("properties", {})["triggers"] = [
         "%s_ng_triggered" % name,
     ]
-    if "experiment_percentage" in cq:
-        # Triggered builders don't support experiments. Therefore we create
-        # a separate experimental builder below. The trigger pair will remain
-        # as opt-in trybots.
-        cq_tg.pop("experiment_percentage")
-        cq_tg["includable_only"] = "true"
-        cq_td.pop("experiment_percentage")
-        cq_td["includable_only"] = "true"
+
+    # All unspecified branch trybots are per default optional.
+    if (cq_properties != CQ.NONE and cq_branch_properties == CQ.NONE):
+        cq_branch_properties = CQ.OPTIONAL
+
+    # Copy properties as they are modified below.
+    cq_tg = dict(cq_properties)
+    cq_td = dict(cq_properties)
+    cq_exp = dict(cq_properties)
+    cq_branch_tg = dict(cq_branch_properties)
+    cq_branch_td = dict(cq_branch_properties)
+    cq_branch_exp = dict(cq_branch_properties)
+
+    # Triggered builders don't support experiments. Therefore we create
+    # a separate experimental builder below. The trigger pair will remain
+    # as opt-in trybots.
+    for prop in (cq_tg, cq_td, cq_branch_tg, cq_branch_td):
+        if "experiment_percentage" in prop:
+            prop.pop("experiment_percentage")
+            prop["includable_only"] = "true"
+
     v8_builder(
         defaults_try,
         name = name + "_ng",
         bucket = "try",
         cq_properties = cq_tg,
+        cq_branch_properties = cq_branch_tg,
         in_list = "tryserver",
         **kwargs
     )
@@ -44,15 +55,17 @@ def try_ng_pair(name, use_cas = False, **kwargs):
         bucket = "try.triggered",
         execution_timeout = triggered_timeout,
         cq_properties = cq_td,
+        cq_branch_properties = cq_branch_td,
         in_list = "tryserver",
     )
-    if "experiment_percentage" in cq:
+    if "experiment_percentage" in cq_properties:
         kwargs["properties"]["triggers"] = None
         v8_builder(
             defaults_try,
             name = name + "_exp",
             bucket = "try",
             cq_properties = cq_exp,
+            cq_branch_properties = cq_branch_exp,
             in_list = "tryserver",
             **kwargs
         )
@@ -218,8 +231,8 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux64_tsan_no_cm_rel",
-    cq_properties = CQ.on_files([".+/[+]/src/compiler/js-heap-broker.(h|cc)",
-                                 ".+/[+]/src/compiler/heap-refs.(h|cc)"]),
+    cq_properties = CQ.on_files(".+/[+]/src/compiler/js-heap-broker.(h|cc)",
+                                ".+/[+]/src/compiler/heap-refs.(h|cc)"),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
@@ -340,7 +353,7 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux_noi18n_rel",
-    cq_properties = CQ.on_files([".+/[+]/.*intl.*", ".+/[+]/.*test262.*"]),
+    cq_properties = CQ.on_files(".+/[+]/.*intl.*", ".+/[+]/.*test262.*"),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
@@ -357,13 +370,13 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux_optional_rel",
-    cq_properties = CQ.on_files([
+    cq_properties = CQ.on_files(
         ".+/[+]/src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)",
         ".+/[+]/src/codegen/x64/(macro-)?assembler-x64.(h|cc)",
         ".+/[+]/src/codegen/x64/sse-instr.h",
         ".+/[+]/src/compiler/backend/x64/code-generator-x64.cc",
         ".+/[+]/src/wasm/baseline/x64/liftoff-assembler-x64.h",
-    ]),
+    ),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )

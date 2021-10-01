@@ -4,8 +4,18 @@
 
 load("//lib/lib.star", "CQ", "GCLIENT_VARS", "GOMA", "GOMA_JOBS", "v8_builder")
 
-def try_builder(**kwargs):
+def try_builder(name, bucket = "try", cq_properties = CQ.NONE,
+                cq_branch_properties = CQ.NONE, **kwargs):
+
+    # All unspecified branch trybots are per default optional.
+    if (cq_properties != CQ.NONE and cq_branch_properties == CQ.NONE):
+        cq_branch_properties = CQ.OPTIONAL
+
     v8_builder(
+        name = name,
+        bucket = bucket,
+        cq_properties = cq_properties,
+        cq_branch_properties = cq_branch_properties,
         in_list = "tryserver",
         **kwargs
     )
@@ -22,6 +32,7 @@ try_builder(
 try_builder(
     name = "v8_android_arm64_compile_dbg",
     bucket = "try",
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "android", "target_arch": "arm"},
     use_goma = GOMA.DEFAULT,
@@ -47,6 +58,7 @@ try_builder(
 try_builder(
     name = "v8_ios_simulator",
     bucket = "try",
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     execution_timeout = 3600,
     properties = {"$depot_tools/osx_sdk": {"sdk_version": "12d4e"}, "target_platform": "ios"},
@@ -158,6 +170,7 @@ try_builder(
 try_builder(
     name = "v8_linux_mips64el_compile_rel",
     bucket = "try",
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -165,6 +178,7 @@ try_builder(
 try_builder(
     name = "v8_linux_mipsel_compile_rel",
     bucket = "try",
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -180,6 +194,7 @@ try_builder(
 try_builder(
     name = "v8_linux_shared_compile_rel",
     bucket = "try",
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -195,6 +210,7 @@ try_builder(
 try_builder(
     name = "v8_linux_torque_compare",
     bucket = "try",
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"default_targets": ["compare_torque_runs"]},
     use_goma = GOMA.DEFAULT,
@@ -259,7 +275,7 @@ try_builder(
 try_builder(
     name = "v8_test_tools",
     bucket = "try",
-    cq_properties = CQ.on_files([".+/[+]/tools/clusterfuzz/js_fuzzer/.+"]),
+    cq_properties = CQ.on_files(".+/[+]/tools/clusterfuzz/js_fuzzer/.+"),
     executable = "recipe:v8/test_tools",
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
 )

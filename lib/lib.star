@@ -83,8 +83,8 @@ branch_descriptors = [
     ),
 ]
 
-def cq_on_files(regexp_list):
-  return { "location_regexp": regexp_list, "cancel_stale": False }
+def cq_on_files(*regexp_list):
+  return { "location_regexp": list(regexp_list), "cancel_stale": False }
 
 CQ = struct(
     BLOCK = { "cancel_stale": False },
@@ -92,6 +92,7 @@ CQ = struct(
     EXP_5_PERCENT = { "experiment_percentage": 5, "cancel_stale": False },
     EXP_50_PERCENT = { "experiment_percentage": 50, "cancel_stale": False },
     EXP_100_PERCENT = { "experiment_percentage": 100, "cancel_stale": False },
+    NONE = None,
     OPTIONAL = { "includable_only": "true", "cancel_stale": False },
     on_files = cq_on_files,
 )
@@ -301,6 +302,13 @@ def v8_basic_builder(defaults, **kwargs):
             kwargs["name"],
             cq_group = "v8-cq",
             **cq_properties
+        )
+    cq_branch_properties = kwargs.pop("cq_branch_properties", None)
+    if cq_branch_properties:
+        luci.cq_tryjob_verifier(
+            kwargs["name"],
+            cq_group = "v8-branch-cq",
+            **cq_branch_properties
         )
     properties = dict(kwargs.pop("properties", {}))
     properties.update(_goma_properties(
