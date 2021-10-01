@@ -3423,27 +3423,24 @@ class PageEvacuationJob : public v8::JobTask {
 };
 
 template <class Evacuator, class Collector>
-void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
+size_t MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
     Collector* collector,
     std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items,
-    MigrationObserver* migration_observer, const intptr_t live_bytes) {
-  // Used for trace summary.
-  double compaction_speed = 0;
-  if (FLAG_trace_evacuation) {
-    compaction_speed = heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
+    MigrationObserver* migration_observer) {
+  base::Optional<ProfilingMigrationObserver> profiling_observer;
+  if (isolate()->LogObjectRelocation()) {
+    profiling_observer.emplace(heap());
   }
-
-  const bool profiling = isolate()->LogObjectRelocation();
-  ProfilingMigrationObserver profiling_observer(heap());
-
-  const size_t pages_count = evacuation_items.size();
   std::vector<std::unique_ptr<v8::internal::Evacuator>> evacuators;
   const int wanted_num_tasks = NumberOfParallelCompactionTasks();
   for (int i = 0; i < wanted_num_tasks; i++) {
     auto evacuator = std::make_unique<Evacuator>(collector);
-    if (profiling) evacuator->AddObserver(&profiling_observer);
-    if (migration_observer != nullptr)
+    if (profiling_observer) {
+      evacuator->AddObserver(&profiling_observer.value());
+    }
+    if (migration_observer) {
       evacuator->AddObserver(migration_observer);
+    }
     evacuators.push_back(std::move(evacuator));
   }
   V8::GetCurrentPlatform()
@@ -3451,21 +3448,10 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
                 std::make_unique<PageEvacuationJob>(
                     isolate(), &evacuators, std::move(evacuation_items)))
       ->Join();
-
-  for (auto& evacuator : evacuators) evacuator->Finalize();
-  evacuators.clear();
-
-  if (FLAG_trace_evacuation) {
-    PrintIsolate(isolate(),
-                 "%8.0f ms: evacuation-summary: parallel=%s pages=%zu "
-                 "wanted_tasks=%d cores=%d live_bytes=%" V8PRIdPTR
-                 " compaction_speed=%.f\n",
-                 isolate()->time_millis_since_init(),
-                 FLAG_parallel_compaction ? "yes" : "no", pages_count,
-                 wanted_num_tasks,
-                 V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1,
-                 live_bytes, compaction_speed);
+  for (auto& evacuator : evacuators) {
+    evacuator->Finalize();
   }
+  return wanted_num_tasks;
 }
 
 bool MarkCompactCollectorBase::ShouldMovePage(Page* p, intptr_t live_bytes,
@@ -3477,6 +3463,26 @@ bool MarkCompactCollectorBase::ShouldMovePage(Page* p, intptr_t live_bytes,
          (always_promote_young || !p->Contains(age_mark)) &&
          heap()->CanExpandOldGeneration(live_bytes);
 }
+
+namespace {
+
+void TraceEvacuation(Isolate* isolate, size_t pages_count,
+                     size_t wanted_num_tasks, size_t live_bytes,
+                     size_t aborted_pages) {
+  DCHECK(FLAG_trace_evacuation);
+  PrintIsolate(
+      isolate,
+      "%8.0f ms: evacuation-summary: parallel=%s pages=%zu "
+      "wanted_tasks=%zu cores=%d live_bytes=%" V8PRIdPTR
+      " compaction_speed=%.f aborted=%zu\n",
+      isolate->time_millis_since_init(),
+      FLAG_parallel_compaction ? "yes" : "no", pages_count, wanted_num_tasks,
+      V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1, live_bytes,
+      isolate->heap()->tracer()->CompactionSpeedInBytesPerMillisecond(),
+      aborted_pages);
+}
+
+}  // namespace
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
   std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items;
@@ -3535,8 +3541,10 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
                "MarkCompactCollector::EvacuatePagesInParallel", "pages",
                evacuation_items.size());
 
-  CreateAndExecuteEvacuationTasks<FullEvacuator>(
-      this, std::move(evacuation_items), nullptr, live_bytes);
+  const size_t pages_count = evacuation_items.size();
+  const size_t wanted_num_tasks =
+      CreateAndExecuteEvacuationTasks<FullEvacuator>(
+          this, std::move(evacuation_items), nullptr);
 
   // After evacuation there might still be swept pages that weren't
   // added to one of the compaction space but still reside in the
@@ -3545,7 +3553,12 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   // in the sweeping or old-to-new remembered set.
   sweeper()->MergeOldToNewRememberedSetsForSweptPages();
 
-  PostProcessEvacuationCandidates();
+  const size_t aborted_pages = PostProcessEvacuationCandidates();
+
+  if (FLAG_trace_evacuation) {
+    TraceEvacuation(isolate(), pages_count, wanted_num_tasks, live_bytes,
+                    aborted_pages);
+  }
 }
 
 class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
@@ -4242,7 +4255,7 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidate(
       std::make_pair(failed_object, static_cast<Page*>(chunk)));
 }
 
-void MarkCompactCollector::PostProcessEvacuationCandidates() {
+size_t MarkCompactCollector::PostProcessEvacuationCandidates() {
   CHECK_IMPLIES(FLAG_crash_on_aborted_evacuation,
                 aborted_evacuation_candidates_.empty());
 
@@ -4295,10 +4308,7 @@ void MarkCompactCollector::PostProcessEvacuationCandidates() {
     }
   }
   DCHECK_EQ(aborted_pages_verified, aborted_pages);
-  if (FLAG_trace_evacuation && (aborted_pages > 0)) {
-    PrintIsolate(isolate(), "%8.0f ms: evacuation: aborted=%d\n",
-                 isolate()->time_millis_since_init(), aborted_pages);
-  }
+  return aborted_pages;
 }
 
 void MarkCompactCollector::ReleaseEvacuationCandidates() {
@@ -5525,8 +5535,14 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
 
   YoungGenerationMigrationObserver observer(heap(),
                                             heap()->mark_compact_collector());
-  CreateAndExecuteEvacuationTasks<YoungGenerationEvacuator>(
-      this, std::move(evacuation_items), &observer, live_bytes);
+  const auto pages_count = evacuation_items.size();
+  const auto wanted_num_tasks =
+      CreateAndExecuteEvacuationTasks<YoungGenerationEvacuator>(
+          this, std::move(evacuation_items), &observer);
+
+  if (FLAG_trace_evacuation) {
+    TraceEvacuation(isolate(), pages_count, wanted_num_tasks, live_bytes, 0);
+  }
 }
 
 #endif  // ENABLE_MINOR_MC

@@ -219,11 +219,12 @@ class MarkCompactCollectorBase {
   virtual std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) = 0;
 
+  // Returns the number of wanted compaction tasks.
   template <class Evacuator, class Collector>
-  void CreateAndExecuteEvacuationTasks(
+  size_t CreateAndExecuteEvacuationTasks(
       Collector* collector,
       std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items,
-      MigrationObserver* migration_observer, const intptr_t live_bytes);
+      MigrationObserver* migration_observer);
 
   // Returns whether this page should be moved according to heuristics.
   bool ShouldMovePage(Page* p, intptr_t live_bytes, bool promote_young);
@@ -717,7 +718,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) override;
 
   void ReleaseEvacuationCandidates();
-  void PostProcessEvacuationCandidates();
+  // Returns number of aborted pages.
+  size_t PostProcessEvacuationCandidates();
   void ReportAbortedEvacuationCandidate(HeapObject failed_object,
                                         MemoryChunk* chunk);
 
