@@ -1378,15 +1378,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE_BINOP_INSTRUCTION_LIST(AVX_SSE_BINOP)
 #undef AVX_SSE_BINOP
 
-#define AVX_3(instr, opcode, impl)                                  \
-  void instr(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
-    impl(opcode, dst, src1, src2);                                  \
-  }                                                                 \
-  void instr(XMMRegister dst, XMMRegister src1, Operand src2) {     \
-    impl(opcode, dst, src1, src2);                                  \
+#define AVX_3(instr, opcode, impl, SIMDRegister)                       \
+  void instr(SIMDRegister dst, SIMDRegister src1, SIMDRegister src2) { \
+    impl(opcode, dst, src1, src2);                                     \
+  }                                                                    \
+  void instr(SIMDRegister dst, SIMDRegister src1, Operand src2) {      \
+    impl(opcode, dst, src1, src2);                                     \
   }
 
-  AVX_3(vhaddps, 0x7c, vsd)
+  AVX_3(vhaddps, 0x7c, vsd, XMMRegister)
+  AVX_3(vhaddps, 0x7c, vsd, YMMRegister)
 
 #define AVX_SCALAR(instr, prefix, escape, opcode)                      \
   void v##instr(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
@@ -1513,11 +1514,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
   }
 
-  void vsd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vinstr(op, dst, src1, src2, kF2, k0F, kWIG);
-  }
-  void vsd(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
-    vinstr(op, dst, src1, src2, kF2, k0F, kWIG);
+  template <typename Reg, typename Op>
+  void vsd(byte op, Reg dst, Reg src1, Op src2) {
+    vinstr(op, dst, src1, src2, kF2, k0F, kWIG, AVX);
   }
 
   void vmovss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {

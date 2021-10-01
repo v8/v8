@@ -2629,6 +2629,8 @@ TEST(AssemblerX64FloatingPoint256bit) {
   __ vsubps(ymm10, ymm11, ymm12);
   __ vroundps(ymm9, ymm2, kRoundUp);
   __ vroundpd(ymm9, ymm2, kRoundToNearest);
+  __ vhaddps(ymm1, ymm2, ymm3);
+  __ vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000));
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2648,7 +2650,11 @@ TEST(AssemblerX64FloatingPoint256bit) {
                      // vroundps ymm9, ymm2, 0xA
                      0xC4, 0x63, 0x7D, 0x08, 0xCA, 0x0A,
                      // vroundpd ymm9, ymm2, 0x8
-                     0xC4, 0x63, 0x7D, 0x09, 0xCA, 0x08};
+                     0xC4, 0x63, 0x7D, 0x09, 0xCA, 0x08,
+                     // VHADDPS ymm1, ymm2, ymm3
+                     0xC5, 0xEF, 0x7C, 0xCB,
+                     // VHADDPS ymm0, ymm1, YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xc5, 0xf7, 0x7c, 0x84, 0x8b, 0x10, 0x27, 0x00, 0x00};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

@@ -349,6 +349,8 @@ TEST(DisasmX64) {
       __ vxorps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vhaddps(xmm0, xmm1, xmm9);
       __ vhaddps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vhaddps(ymm0, ymm1, ymm2);
+      __ vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000));
 
       __ vpcmpeqd(xmm0, xmm15, xmm5);
       __ vpcmpeqd(xmm15, xmm0, Operand(rbx, rcx, times_4, 10000));
@@ -698,6 +700,8 @@ struct DisassemblerTester {
   }
 
   int pc_offset() { return assm_.pc_offset(); }
+
+  Assembler* assm() { return &assm_; }
 
   v8::internal::byte buffer_[kAssemblerBufferSize];
   Assembler assm_;
@@ -1223,27 +1227,15 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE2) {
 
 UNINITIALIZED_TEST(DisasmX64YMMRegister) {
   if (!CpuFeatures::IsSupported(AVX)) return;
-  v8::internal::byte buffer[8192];
-  Assembler assm(AssemblerOptions{},
-                 ExternalAssemblerBuffer(buffer, sizeof buffer));
-  CpuFeatureScope fscope(&assm, AVX);
+  DisassemblerTester t;
+  CpuFeatureScope fscope(t.assm(), AVX);
 
-  __ vmovdqa(ymm0, ymm1);
-
-  base::Vector<char> actual = base::Vector<char>::New(37);
-  disasm::NameConverter converter;
-  disasm::Disassembler disassembler(converter);
-  disassembler.InstructionDecode(actual, buffer);
-#ifdef OBJECT_PRINT
-  fprintf(stdout, "Disassembled buffer: %s\n", actual.begin());
-#endif
-
-  base::Vector<const char> expected =
-      base::StaticCharVector("c5fd6fc1           vmovdqa ymm0,ymm1\0");
-
-  CHECK_EQ(expected, actual);
-
-  actual.Dispose();
+  // Short immediate instructions
+  COMPARE("c5fd6fc1           vmovdqa ymm0,ymm1", vmovdqa(ymm0, ymm1));
+  COMPARE("c5f77cc2           vhaddps ymm0,ymm1,ymm2",
+          vhaddps(ymm0, ymm1, ymm2));
+  COMPARE("c5f77c848b10270000 vhaddps ymm0,ymm1,[rbx+rcx*4+0x2710]",
+          vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000)));
 }
 
 #undef __
