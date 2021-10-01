@@ -850,7 +850,8 @@ class WasmGenerator {
         WasmFunctionBuilder* func = builder_->builder()->GetFunction(i);
         // TODO(11954): Choose a random function from among those matching the
         // signature (consider function subtyping?).
-        if (func->sig_index() == index) {
+        if (*(func->signature()) ==
+            *(builder_->builder()->GetSignature(index))) {
           builder_->EmitWithU32V(kExprRefFunc, func->func_index());
           return;
         }
