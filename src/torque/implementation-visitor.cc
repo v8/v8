@@ -106,6 +106,7 @@ void ImplementationVisitor::BeginGeneratedFiles() {
       file << "\n";
 
       streams.csa_cc.BeginNamespace("v8", "internal");
+      streams.csa_ccfile << "\n";
     }
     // Output beginning of CSA .h file.
     {
@@ -118,6 +119,7 @@ void ImplementationVisitor::BeginGeneratedFiles() {
       file << "\n";
 
       streams.csa_header.BeginNamespace("v8", "internal");
+      streams.csa_headerfile << "\n";
     }
     // Output beginning of class definition .cc file.
     {
@@ -131,6 +133,7 @@ void ImplementationVisitor::BeginGeneratedFiles() {
       }
 
       streams.class_definition_cc.BeginNamespace("v8", "internal");
+      streams.class_definition_ccfile << "\n";
     }
   }
 }
@@ -149,6 +152,7 @@ void ImplementationVisitor::EndGeneratedFiles() {
           UnderlinifyPath(SourceFileMap::PathFromV8Root(file)) + "_CSA_H_";
 
       streams.csa_header.EndNamespace("v8", "internal");
+      streams.csa_headerfile << "\n";
       streams.csa_header.EndIncludeGuard(header_define);
     }
 
@@ -394,6 +398,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
 
   cpp::Function f = GenerateMacroFunctionDeclaration(macro);
   f.PrintDeclaration(csa_headerfile());
+  csa_headerfile() << "\n";
 
   cpp::File csa_cc(csa_ccfile());
 
@@ -530,7 +535,6 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   f.PrintEndDefinition(csa_ccfile());
 
   include_guard.reset();
-  csa_ccfile() << "\n";
 }
 
 void ImplementationVisitor::Visit(TorqueMacro* macro) {
@@ -4025,18 +4029,21 @@ void CppClassGenerator::GenerateClass() {
     f.AddParameter("HeapObject", "o");
 
     f.PrintDeclaration(hdr_);
+    hdr_ << "\n";
     f.PrintDefinition(impl_, [&](std::ostream& stream) {
-      stream << "  return o.Is" << name_ << "();";
+      stream << "  return o.Is" << name_ << "();\n";
     });
   }
-  hdr_ << "// Definition" << PositionAsString(Position()) << "\n";
+  hdr_ << "// Definition " << PositionAsString(Position()) << "\n";
   hdr_ << template_decl() << "\n";
   hdr_ << "class " << gen_name_ << " : public P {\n";
-  hdr_ << "  static_assert(std::is_same<" << name_ << ", D>::value,\n"
-       << "    \"Use this class as direct base for " << name_ << ".\");\n";
-  hdr_ << "  static_assert(std::is_same<" << super_->name() << ", P>::value,\n"
-       << "    \"Pass in " << super_->name()
-       << " as second template parameter for " << gen_name_ << ".\");\n";
+  hdr_ << "  static_assert(\n"
+       << "      std::is_same<" << name_ << ", D>::value,\n"
+       << "      \"Use this class as direct base for " << name_ << ".\");\n";
+  hdr_ << "  static_assert(\n"
+       << "      std::is_same<" << super_->name() << ", P>::value,\n"
+       << "      \"Pass in " << super_->name()
+       << " as second template parameter for " << gen_name_ << ".\");\n\n";
   hdr_ << " public: \n";
   hdr_ << "  using Super = P;\n";
   hdr_ << "  using TorqueGeneratedClass = " << gen_name_ << "<D,P>;\n\n";
@@ -4059,7 +4066,7 @@ void CppClassGenerator::GenerateClass() {
   cpp::Class c(std::move(templateArgs), gen_name_);
 
   if (type_->ShouldGeneratePrint()) {
-    hdr_ << "\n  DECL_PRINTER(" << name_ << ")\n";
+    hdr_ << "  DECL_PRINTER(" << name_ << ")\n\n";
   }
 
   if (type_->ShouldGenerateVerify()) {
@@ -4078,7 +4085,10 @@ void CppClassGenerator::GenerateClass() {
     impl_ << "  TorqueGeneratedClassVerifiers::" << name_ << "Verify(" << name_
           << "::cast(*this), "
              "isolate);\n";
-    impl_ << "}\n";
+    impl_ << "}\n\n";
+  }
+  if (type_->ShouldGenerateVerify()) {
+    impl_ << "\n";
   }
 
   hdr_ << "\n";
@@ -4105,7 +4115,7 @@ void CppClassGenerator::GenerateClass() {
     {
       cpp::Function f =
           cpp::Function::DefaultGetter("int", &c, "AllocatedSize");
-      f.PrintDeclaration(hdr_, 2);
+      f.PrintDeclaration(hdr_);
 
       f.PrintDefinition(inl_, [&](std::ostream& stream) {
         stream << "  auto slice = "
@@ -4201,12 +4211,12 @@ void CppClassGenerator::GenerateClassCasts() {
 
   // V8_INLINE static D cast(Object)
   f.PrintInlineDefinition(hdr_, [](std::ostream& stream) {
-    stream << "  return D(object.ptr());\n";
+    stream << "    return D(object.ptr());\n";
   });
   // V8_INLINE static D unchecked_cast(Object)
   f.SetName("unchecked_cast");
   f.PrintInlineDefinition(hdr_, [](std::ostream& stream) {
-    stream << "  return bit_cast<D>(object);\n";
+    stream << "    return bit_cast<D>(object);\n";
   });
 }
 
@@ -4222,14 +4232,13 @@ void CppClassGenerator::GenerateClassConstructors() {
     DCHECK(typecheck_type);
   }
 
-  hdr_ << " public:\n";
   hdr_ << "  template <class DAlias = D>\n";
   hdr_ << "  constexpr " << gen_name_ << "() : P() {\n";
-  hdr_ << "    static_assert(std::is_base_of<" << gen_name_ << ", \n";
-  hdr_ << "      DAlias>::value,\n";
-  hdr_ << "      \"class " << gen_name_ << " should be used as direct base for "
-       << name_ << ".\");\n";
-  hdr_ << "  }\n";
+  hdr_ << "    static_assert(\n";
+  hdr_ << "        std::is_base_of<" << gen_name_ << ", DAlias>::value,\n";
+  hdr_ << "        \"class " << gen_name_
+       << " should be used as direct base for " << name_ << ".\");\n";
+  hdr_ << "  }\n\n";
 
   hdr_ << " protected:\n";
   hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
@@ -4241,7 +4250,7 @@ void CppClassGenerator::GenerateClassConstructors() {
 
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
-  inl_ << "  : P(ptr) {\n";
+  inl_ << "    : P(ptr) {\n";
   inl_ << "  SLOW_DCHECK(Is" << typecheck_type->name()
        << "_NonInline(*this));\n";
   inl_ << "}\n";
@@ -4249,7 +4258,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_
        << "(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)\n";
-  inl_ << "  : P(ptr, allow_smi) {\n";
+  inl_ << "    : P(ptr, allow_smi) {\n";
   inl_ << "  SLOW_DCHECK("
        << "(allow_smi == HeapObject::AllowInlineSmiStorage::kAllowBeingASmi"
           " && this->IsSmi()) || Is"

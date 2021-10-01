@@ -38,6 +38,9 @@ void Function::PrintDeclarationHeader(std::ostream& stream,
 }
 
 void Function::PrintDeclaration(std::ostream& stream, int indentation) const {
+  if (indentation == kAutomaticIndentation) {
+    indentation = owning_class_ ? 2 : 0;
+  }
   PrintDeclarationHeader(stream, indentation);
   stream << ";\n";
 }
@@ -120,7 +123,7 @@ void File::BeginIncludeGuard(const std::string& name) {
   s() << "#ifndef " << name
       << "\n"
          "#define "
-      << name << "\n";
+      << name << "\n\n";
 }
 
 void File::EndIncludeGuard(const std::string& name) {

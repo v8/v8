@@ -149,13 +149,15 @@ class Function {
     return names;
   }
 
-  void PrintDeclaration(std::ostream& stream, int indentation = 0) const;
+  static constexpr int kAutomaticIndentation = -1;
+  void PrintDeclaration(std::ostream& stream,
+                        int indentation = kAutomaticIndentation) const;
   void PrintDefinition(std::ostream& stream,
                        const std::function<void(std::ostream&)>& builder,
                        int indentation = 0) const;
   void PrintInlineDefinition(std::ostream& stream,
                              const std::function<void(std::ostream&)>& builder,
-                             int indentation = 0) const;
+                             int indentation = 2) const;
   void PrintBeginDefinition(std::ostream& stream, int indentation = 0) const;
   void PrintEndDefinition(std::ostream& stream, int indentation = 0) const;
 
