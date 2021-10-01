@@ -2,28 +2,33 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "defaults_triggered", "defaults_try", "v8_builder")
-
-CQ = struct(
-    OPTIONAL = {
-        "cancel_stale": False,
-        "includable_only": "true",
-    },
-    BLOCK = { "cancel_stale": False },
+load(
+    "//lib/lib.star",
+    "CQ",
+    "GCLIENT_VARS",
+    "GOMA",
+    "defaults_triggered",
+    "defaults_try",
+    "v8_builder",
 )
 
 #TODO(almuthanna): get rid of kwargs and specify default values
-def try_ng_pair(name, use_cas = False, experimental = False, **kwargs):
+def try_ng_pair(name, use_cas = False, **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
     cq = kwargs.pop("cq_properties", None)
-    cq_tg = kwargs.pop("cq_properties_trigger", cq)
-    cq_td = kwargs.pop("cq_properties_triggered", cq)
-    cq_exp = dict(cq_tg)
+    cq_tg = dict(cq)
+    cq_td = dict(cq)
+    cq_exp = dict(cq)
     kwargs.setdefault("properties", {})["triggers"] = [
-        "%s_ng_triggered" % name
+        "%s_ng_triggered" % name,
     ]
-    if experimental:
+    if "experiment_percentage" in cq:
+        # Triggered builders don't support experiments. Therefore we create
+        # a separate experimental builder below. The trigger pair will remain
+        # as opt-in trybots.
+        cq_tg.pop("experiment_percentage")
         cq_tg["includable_only"] = "true"
+        cq_td.pop("experiment_percentage")
         cq_td["includable_only"] = "true"
     v8_builder(
         defaults_try,
@@ -41,8 +46,7 @@ def try_ng_pair(name, use_cas = False, experimental = False, **kwargs):
         cq_properties = cq_td,
         in_list = "tryserver",
     )
-    if experimental:
-        cq_exp["experiment_percentage"] = 100
+    if "experiment_percentage" in cq:
         kwargs["properties"]["triggers"] = None
         v8_builder(
             defaults_try,
@@ -178,8 +182,7 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux64_single_generation_dbg",
-    cq_properties_trigger = {"cancel_stale": False, "includable_only": "true"},
-    cq_properties_triggered = {"cancel_stale": False, "includable_only": "true"},
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -207,18 +210,16 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux64_tsan_rel",
-    cq_properties_trigger = {"cancel_stale": False},
-    cq_properties_triggered = {"cancel_stale": False},
+    cq_properties = CQ.EXP_100_PERCENT,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
-    experimental = True,
 )
 
 try_ng_pair(
     name = "v8_linux64_tsan_no_cm_rel",
-    cq_properties_trigger = {"location_regexp": [".+/[+]/src/compiler/js-heap-broker.(h|cc)", ".+/[+]/src/compiler/heap-refs.(h|cc)"], "cancel_stale": False},
-    cq_properties_triggered = {"location_regexp": [".+/[+]/src/compiler/js-heap-broker.(h|cc)", ".+/[+]/src/compiler/heap-refs.(h|cc)"], "cancel_stale": False},
+    cq_properties = CQ.on_files([".+/[+]/src/compiler/js-heap-broker.(h|cc)",
+                                 ".+/[+]/src/compiler/heap-refs.(h|cc)"]),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
@@ -339,8 +340,7 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux_noi18n_rel",
-    cq_properties_trigger = {"location_regexp": [".+/[+]/.*intl.*", ".+/[+]/.*test262.*"], "cancel_stale": False},
-    cq_properties_triggered = {"location_regexp": [".+/[+]/.*intl.*", ".+/[+]/.*test262.*"], "cancel_stale": False},
+    cq_properties = CQ.on_files([".+/[+]/.*intl.*", ".+/[+]/.*test262.*"]),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
@@ -355,21 +355,15 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-optional_rel_cq_properties = {
-    "location_regexp": [
+try_ng_pair(
+    name = "v8_linux_optional_rel",
+    cq_properties = CQ.on_files([
         ".+/[+]/src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.(h|cc)",
         ".+/[+]/src/codegen/x64/(macro-)?assembler-x64.(h|cc)",
         ".+/[+]/src/codegen/x64/sse-instr.h",
         ".+/[+]/src/compiler/backend/x64/code-generator-x64.cc",
         ".+/[+]/src/wasm/baseline/x64/liftoff-assembler-x64.h",
-    ],
-    "cancel_stale": False,
-}
-
-try_ng_pair(
-    name = "v8_linux_optional_rel",
-    cq_properties_trigger = optional_rel_cq_properties,
-    cq_properties_triggered = optional_rel_cq_properties,
+    ]),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
@@ -464,7 +458,6 @@ try_ng_pair(
     use_goma = GOMA.DEFAULT,
 )
 
-
 try_ng_pair(
     name = "v8_numfuzz",
     cq_properties = CQ.OPTIONAL,
@@ -528,8 +521,7 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_win_rel",
-    cq_properties_trigger = {"cancel_stale": False, "includable_only": "true"},
-    cq_properties_triggered = {"cancel_stale": False, "includable_only": "true"},
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_goma = GOMA.ATS,
 )

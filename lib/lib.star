@@ -83,6 +83,19 @@ branch_descriptors = [
     ),
 ]
 
+def cq_on_files(regexp_list):
+  return { "location_regexp": regexp_list, "cancel_stale": False }
+
+CQ = struct(
+    BLOCK = { "cancel_stale": False },
+    BLOCK_NO_REUSE = { "disable_reuse": "true", "cancel_stale": False },
+    EXP_5_PERCENT = { "experiment_percentage": 5, "cancel_stale": False },
+    EXP_50_PERCENT = { "experiment_percentage": 50, "cancel_stale": False },
+    EXP_100_PERCENT = { "experiment_percentage": 100, "cancel_stale": False },
+    OPTIONAL = { "includable_only": "true", "cancel_stale": False },
+    on_files = cq_on_files,
+)
+
 waterfall_acls = [
     acl.entry(
         roles = acl.BUILDBUCKET_TRIGGERER,
