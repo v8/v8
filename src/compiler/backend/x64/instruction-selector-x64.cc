@@ -1007,15 +1007,15 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
             kPositiveDisplacement);
     return;
   } else {
-    Int64BinopMatcher m(node);
-    if ((m.left().IsChangeInt32ToInt64() ||
-         m.left().IsChangeUint32ToUint64()) &&
-        m.right().IsInRange(32, 63)) {
+    Int64BinopMatcher bm(node);
+    if ((bm.left().IsChangeInt32ToInt64() ||
+         bm.left().IsChangeUint32ToUint64()) &&
+        bm.right().IsInRange(32, 63)) {
       // There's no need to sign/zero-extend to 64-bit if we shift out the upper
       // 32 bits anyway.
       Emit(kX64Shl, g.DefineSameAsFirst(node),
-           g.UseRegister(m.left().node()->InputAt(0)),
-           g.UseImmediate(m.right().node()));
+           g.UseRegister(bm.left().node()->InputAt(0)),
+           g.UseImmediate(bm.right().node()));
       return;
     }
   }
@@ -2435,19 +2435,19 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         Int64BinopMatcher m(value);
         if (m.right().Is(0)) {
           // Try to combine the branch with a comparison.
-          Node* const user = m.node();
-          Node* const value = m.left().node();
-          if (CanCover(user, value)) {
-            switch (value->opcode()) {
+          Node* const eq_user = m.node();
+          Node* const eq_value = m.left().node();
+          if (CanCover(eq_user, eq_value)) {
+            switch (eq_value->opcode()) {
               case IrOpcode::kInt64Sub:
-                return VisitWordCompare(this, value, kX64Cmp, cont);
+                return VisitWordCompare(this, eq_value, kX64Cmp, cont);
               case IrOpcode::kWord64And:
-                return VisitWordCompare(this, value, kX64Test, cont);
+                return VisitWordCompare(this, eq_value, kX64Test, cont);
               default:
                 break;
             }
           }
-          return VisitCompareZero(this, user, value, kX64Cmp, cont);
+          return VisitCompareZero(this, eq_user, eq_value, kX64Cmp, cont);
         }
         return VisitWord64EqualImpl(this, value, cont);
       }
