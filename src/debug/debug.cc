@@ -2686,6 +2686,18 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
       handle(bytecode_array, isolate_), offset);
 
   Bytecode bytecode = bytecode_iterator.current_bytecode();
+  if (interpreter::Bytecodes::IsCallRuntime(bytecode)) {
+    auto id = (bytecode == Bytecode::kInvokeIntrinsic)
+                  ? bytecode_iterator.GetIntrinsicIdOperand(0)
+                  : bytecode_iterator.GetRuntimeIdOperand(0);
+    if (DebugEvaluate::IsSideEffectFreeIntrinsic(id)) {
+      return true;
+    }
+    side_effect_check_failed_ = true;
+    // Throw an uncatchable termination exception.
+    isolate_->TerminateExecution();
+    return false;
+  }
   interpreter::Register reg;
   switch (bytecode) {
     case Bytecode::kStaCurrentContextSlot:

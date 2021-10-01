@@ -288,9 +288,8 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
   }
 }
 
-namespace {
-
-bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
+// static
+bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
 // Use macro to include only the non-inlined version of an intrinsic.
 #define INTRINSIC_ALLOWLIST(V)                \
   /* Conversions */                           \
@@ -385,7 +384,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(StringMaxLength)                          \
   V(StringToArray)                            \
   V(AsyncFunctionEnter)                       \
-  V(AsyncFunctionReject)                      \
   V(AsyncFunctionResolve)                     \
   /* Test */                                  \
   V(GetOptimizationStatus)                    \
@@ -395,7 +393,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 // Intrinsics with inline versions have to be allowlisted here a second time.
 #define INLINE_INTRINSIC_ALLOWLIST(V) \
   V(AsyncFunctionEnter)               \
-  V(AsyncFunctionReject)              \
   V(AsyncFunctionResolve)
 
 #define CASE(Name) case Runtime::k##Name:
@@ -417,6 +414,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 #undef INTRINSIC_ALLOWLIST
 #undef INLINE_INTRINSIC_ALLOWLIST
 }
+
+namespace {
 
 bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   using interpreter::Bytecode;
@@ -976,7 +975,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
     case Bytecode::kStaCurrentContextSlot:
       return true;
     default:
-      return false;
+      return interpreter::Bytecodes::IsCallRuntime(bytecode);
   }
 }
 
@@ -1003,16 +1002,6 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
          it.Advance()) {
       interpreter::Bytecode bytecode = it.current_bytecode();
-
-      if (interpreter::Bytecodes::IsCallRuntime(bytecode)) {
-        Runtime::FunctionId id =
-            (bytecode == interpreter::Bytecode::kInvokeIntrinsic)
-                ? it.GetIntrinsicIdOperand(0)
-                : it.GetRuntimeIdOperand(0);
-        if (IntrinsicHasNoSideEffect(id)) continue;
-        return DebugInfo::kHasSideEffects;
-      }
-
       if (BytecodeHasNoSideEffect(bytecode)) continue;
       if (BytecodeRequiresRuntimeCheck(bytecode)) {
         requires_runtime_checks = true;
