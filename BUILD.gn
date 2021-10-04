@@ -472,13 +472,6 @@ if (build_with_chromium && v8_current_cpu == "arm64" &&
   v8_control_flow_integrity = true
 }
 
-# Enable the virtual memory cage on 64-bit Chromium builds.
-if (build_with_chromium &&
-    (v8_current_cpu == "arm64" || v8_current_cpu == "x64")) {
-  # The cage is incompatible with lsan.
-  v8_enable_virtual_memory_cage = !is_lsan
-}
-
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
        "Disabling write barriers works only with single generation")
 
