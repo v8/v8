@@ -936,25 +936,44 @@ class WasmGenerator {
     builder_->EmitU32V(table[second_index]);
   }
 
-  template <ValueKind wanted_kind>
-  void array_get(DataRange* data) {
+  bool array_get_helper(ValueType value_type, DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
     ZoneVector<uint32_t> array_indices(builder->zone());
+
     for (uint32_t i = num_structs_; i < num_arrays_ + num_structs_; i++) {
       DCHECK(builder->IsArrayType(i));
-      if (builder->GetArrayType(i)->element_type().kind() == wanted_kind) {
+      if (builder->GetArrayType(i)->element_type() == value_type) {
         array_indices.push_back(i);
       }
     }
-    if (array_indices.empty()) {
-      Generate<wanted_kind>(data);
-      return;
+
+    if (!array_indices.empty()) {
+      int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
+      GenerateOptRef(HeapType(array_indices[index]), data);
+      Generate(kWasmI32, data);
+      builder_->EmitWithPrefix(kExprArrayGet);
+      builder_->EmitU32V(array_indices[index]);
+      return true;
     }
-    int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
-    GenerateOptRef(HeapType(array_indices[index]), data);
-    Generate(kWasmI32, data);
-    builder_->EmitWithPrefix(kExprArrayGet);
-    builder_->EmitU32V(array_indices[index]);
+
+    return false;
+  }
+
+  template <ValueKind wanted_kind>
+  void array_get(DataRange* data) {
+    bool got_array_value =
+        array_get_helper(ValueType::Primitive(wanted_kind), data);
+    if (!got_array_value) {
+      Generate<wanted_kind>(data);
+    }
+  }
+
+  void array_get_opt_ref(HeapType type, DataRange* data) {
+    ValueType needed_type = ValueType::Ref(type, kNullable);
+    bool got_array_value = array_get_helper(needed_type, data);
+    if (!got_array_value) {
+      ref_null(type, data);
+    }
   }
 
   void array_len(DataRange* data) {
@@ -991,8 +1010,7 @@ class WasmGenerator {
     builder_->EmitU32V(array_indices[index]);
   }
 
-  template <ValueKind wanted_kind>
-  void struct_get(DataRange* data) {
+  bool struct_get_helper(ValueType value_type, DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
     ZoneVector<uint32_t> field_index(builder->zone());
     ZoneVector<uint32_t> struct_index(builder->zone());
@@ -1000,21 +1018,38 @@ class WasmGenerator {
       DCHECK(builder->IsStructType(i));
       int field_count = builder->GetStructType(i)->field_count();
       for (int index = 0; index < field_count; index++) {
-        if (builder->GetStructType(i)->field(index).kind() == wanted_kind) {
+        if (builder->GetStructType(i)->field(index) == value_type) {
           field_index.push_back(index);
           struct_index.push_back(i);
         }
       }
     }
-    if (field_index.empty()) {
-      Generate<wanted_kind>(data);
-      return;
+    if (!field_index.empty()) {
+      int index = data->get<uint8_t>() % static_cast<int>(field_index.size());
+      GenerateOptRef(HeapType(struct_index[index]), data);
+      builder_->EmitWithPrefix(kExprStructGet);
+      builder_->EmitU32V(struct_index[index]);
+      builder_->EmitU32V(field_index[index]);
+      return true;
     }
-    int index = data->get<uint8_t>() % static_cast<int>(field_index.size());
-    GenerateOptRef(HeapType(struct_index[index]), data);
-    builder_->EmitWithPrefix(kExprStructGet);
-    builder_->EmitU32V(struct_index[index]);
-    builder_->EmitU32V(field_index[index]);
+    return false;
+  }
+
+  template <ValueKind wanted_kind>
+  void struct_get(DataRange* data) {
+    bool got_struct_value =
+        struct_get_helper(ValueType::Primitive(wanted_kind), data);
+    if (!got_struct_value) {
+      Generate<wanted_kind>(data);
+    }
+  }
+
+  void struct_get_opt_ref(HeapType type, DataRange* data) {
+    ValueType needed_type = ValueType::Ref(type, kNullable);
+    bool got_struct_value = struct_get_helper(needed_type, data);
+    if (!got_struct_value) {
+      ref_null(type, data);
+    }
   }
 
   void struct_set(DataRange* data) {
@@ -1967,14 +2002,17 @@ void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
 
   constexpr GenerateFnWithHeap alternatives_with_index[] = {
       &WasmGenerator::new_object, &WasmGenerator::get_local_opt_ref,
+      &WasmGenerator::array_get_opt_ref, &WasmGenerator::struct_get_opt_ref,
       &WasmGenerator::ref_null};
 
   constexpr GenerateFnWithHeap alternatives_func_extern[] = {
       &WasmGenerator::table_get, &WasmGenerator::get_local_opt_ref,
+      &WasmGenerator::array_get_opt_ref, &WasmGenerator::struct_get_opt_ref,
       &WasmGenerator::ref_null};
 
   constexpr GenerateFnWithHeap alternatives_null[] = {
-      &WasmGenerator::ref_null, &WasmGenerator::get_local_opt_ref};
+      &WasmGenerator::array_get_opt_ref, &WasmGenerator::ref_null,
+      &WasmGenerator::get_local_opt_ref, &WasmGenerator::struct_get_opt_ref};
 
   if (liftoff_as_reference_ && type.is_index()) {
     GenerateOneOf(alternatives_with_index, type, data);
