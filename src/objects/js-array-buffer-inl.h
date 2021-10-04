@@ -42,7 +42,7 @@ DEF_GETTER(JSArrayBuffer, backing_store, void*) {
   return reinterpret_cast<void*>(ReadField<Address>(kBackingStoreOffset));
 }
 
-void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
+void JSArrayBuffer::set_backing_store(void* value) {
   DCHECK(IsValidBackingStorePointer(value));
   WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
 }

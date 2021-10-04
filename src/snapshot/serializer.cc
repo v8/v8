@@ -541,7 +541,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
 
   SerializeObject();
 
-  buffer->set_backing_store(isolate(), backing_store);
+  buffer->set_backing_store(backing_store);
   buffer->set_extension(extension);
 }
 

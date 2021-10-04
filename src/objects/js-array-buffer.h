@@ -38,7 +38,7 @@ class JSArrayBuffer
 
   // [backing_store]: backing memory for this array
   DECL_GETTER(backing_store, void*)
-  inline void set_backing_store(Isolate* isolate, void* value);
+  inline void set_backing_store(void* value);
 
   // [extension]: extension object used for GC
   DECL_PRIMITIVE_ACCESSORS(extension, ArrayBufferExtension*)
