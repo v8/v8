@@ -1913,26 +1913,17 @@ int BytecodeArrayRef::handler_table_size() const {
     return BitField::decode(ObjectRef::data()->As##holder()->field()); \
   }
 
-// Like IF_ACCESS_FROM_HEAP[_C] but we also allow direct heap access for
+// Like IF_ACCESS_FROM_HEAP but we also allow direct heap access for
 // kBackgroundSerialized only for methods that we identified to be safe.
-#define IF_ACCESS_FROM_HEAP_WITH_FLAG(result, name)                        \
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) { \
-    return MakeRef(broker(), result::cast(object()->name()));              \
-  }
 #define IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name)                              \
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) { \
     return object()->name();                                               \
   }
 
-// Like BIMODAL_ACCESSOR[_C] except that we force a direct heap access if
+// Like BIMODAL_ACCESSOR except that we force a direct heap access if
 // broker()->is_concurrent_inlining() is true (even for kBackgroundSerialized).
 // This is because we identified the method to be safe to use direct heap
 // access, but the holder##Data class still needs to be serialized.
-#define BIMODAL_ACCESSOR_WITH_FLAG(holder, result, name)                   \
-  result##Ref holder##Ref::name() const {                                  \
-    IF_ACCESS_FROM_HEAP_WITH_FLAG(result, name);                           \
-    return result##Ref(broker(), ObjectRef::data()->As##holder()->name()); \
-  }
 #define BIMODAL_ACCESSOR_WITH_FLAG_C(holder, result, name) \
   result holder##Ref::name() const {                       \
     IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name);                 \
@@ -2024,8 +2015,6 @@ BIMODAL_ACCESSOR_C(Map, int, instance_size)
 BIMODAL_ACCESSOR_WITH_FLAG_C(Map, int, NextFreePropertyIndex)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 BIMODAL_ACCESSOR_WITH_FLAG_C(Map, InstanceType, instance_type)
-BIMODAL_ACCESSOR_WITH_FLAG(Map, Object, GetConstructor)
-BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, GetBackPointer)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
 
 int ObjectBoilerplateDescriptionRef::size() const { return object()->size(); }
@@ -2163,6 +2152,23 @@ MapRef MapRef::FindRootMap() const {
   // TODO(solanes, v8:7790): Consider caching the result of the root map.
   return MakeRefAssumeMemoryFence(broker(),
                                   object()->FindRootMap(broker()->isolate()));
+}
+
+ObjectRef MapRef::GetConstructor() const {
+  if (data()->should_access_heap() || broker()->is_concurrent_inlining()) {
+    // Immutable after initialization.
+    return MakeRefAssumeMemoryFence(broker(), object()->GetConstructor());
+  }
+  return ObjectRef(broker(), data()->AsMap()->GetConstructor());
+}
+
+HeapObjectRef MapRef::GetBackPointer() const {
+  if (data()->should_access_heap() || broker()->is_concurrent_inlining()) {
+    // Immutable after initialization.
+    return MakeRefAssumeMemoryFence(
+        broker(), HeapObject::cast(object()->GetBackPointer()));
+  }
+  return HeapObjectRef(broker(), ObjectRef::data()->AsMap()->GetBackPointer());
 }
 
 bool JSTypedArrayRef::is_on_heap() const {
@@ -2874,13 +2880,11 @@ unsigned CodeRef::GetInlinedBytecodeSize() const {
 #undef BIMODAL_ACCESSOR
 #undef BIMODAL_ACCESSOR_B
 #undef BIMODAL_ACCESSOR_C
-#undef BIMODAL_ACCESSOR_WITH_FLAG
 #undef BIMODAL_ACCESSOR_WITH_FLAG_B
 #undef BIMODAL_ACCESSOR_WITH_FLAG_C
 #undef HEAP_ACCESSOR_C
 #undef IF_ACCESS_FROM_HEAP
 #undef IF_ACCESS_FROM_HEAP_C
-#undef IF_ACCESS_FROM_HEAP_WITH_FLAG
 #undef IF_ACCESS_FROM_HEAP_WITH_FLAG_C
 #undef TRACE
 #undef TRACE_MISSING
