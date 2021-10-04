@@ -222,6 +222,7 @@ bool BranchElimination::TryPullTrapIntoMerge(Node* node) {
     merge->ReplaceInput(i, new_merge_inputs[i]);
   }
   ReplaceWithValue(node, dead(), dead(), merge);
+  node->Kill();
   Revisit(merge);
 
   return true;
@@ -252,8 +253,8 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
   if (from_input.LookupCondition(condition, &previous_branch,
                                  &condition_value)) {
     if (condition_value == trapping_condition) {
-      // Special case: Trap directly inside a branch. Replace the branch with
-      // the trap.
+      // Special case: Trap directly inside a branch without sibling nodes.
+      // Replace the branch with the trap.
       //    condition  control              condition  control
       //     |   \      /                        \      /
       //     |    Branch                          TrapIf
@@ -265,7 +266,8 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
       //   <subgraph1>                     <subgraph1>
       // (and symmetrically for TrapUnless.)
       if ((control_input->opcode() == IrOpcode::kIfTrue ||
-           control_input->opcode() == IrOpcode::kIfFalse)) {
+           control_input->opcode() == IrOpcode::kIfFalse) &&
+          control_input->UseCount() == 1) {
         Node* branch = NodeProperties::GetControlInput(control_input);
         DCHECK_EQ(branch->opcode(), IrOpcode::kBranch);
         if (condition == NodeProperties::GetValueInput(branch, 0)) {
@@ -279,6 +281,9 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
                              NodeProperties::GetControlInput(branch));
           ReplaceWithValue(node, dead(), dead(), dead());
           ReplaceWithValue(other_if_branch, node, node, node);
+          other_if_branch->Kill();
+          control_input->Kill();
+          branch->Kill();
           return Changed(node);
         }
       }
