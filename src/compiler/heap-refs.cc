@@ -2456,13 +2456,14 @@ ObjectRef JSArrayRef::GetBoilerplateLength() const {
   // Safe to read concurrently because:
   // - boilerplates are immutable after initialization.
   // - boilerplates are published into the feedback vector.
-  return length_unsafe();
+  // These facts also mean we can expect a valid value.
+  return length_unsafe().value();
 }
 
-ObjectRef JSArrayRef::length_unsafe() const {
+base::Optional<ObjectRef> JSArrayRef::length_unsafe() const {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return MakeRef(broker(),
-                   object()->length(broker()->isolate(), kRelaxedLoad));
+    return TryMakeRef(broker(),
+                      object()->length(broker()->isolate(), kRelaxedLoad));
   } else {
     return ObjectRef{broker(), data()->AsJSArray()->length()};
   }
@@ -2491,14 +2492,16 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
   // `elements`. We rely on the invariant that any `length` change will
   // also result in an `elements` change to make this safe. The `elements`
   // consistency check in the caller thus also guards the value of `length`.
-  ObjectRef length_ref = length_unsafe();
+  base::Optional<ObjectRef> length_ref = length_unsafe();
+
+  if (!length_ref.has_value()) return {};
 
   // Likewise we only deal with smi lengths.
-  if (!length_ref.IsSmi()) return {};
+  if (!length_ref->IsSmi()) return {};
 
   base::Optional<Object> result = ConcurrentLookupIterator::TryGetOwnCowElement(
       broker()->isolate(), *elements_ref.AsFixedArray().object(), elements_kind,
-      length_ref.AsSmi(), index);
+      length_ref->AsSmi(), index);
   if (!result.has_value()) return {};
 
   return TryMakeRef(broker(), result.value());
