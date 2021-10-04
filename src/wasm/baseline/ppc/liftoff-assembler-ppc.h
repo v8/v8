@@ -2738,8 +2738,7 @@ void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  Drop(num_stack_slots);
-  Ret();
+  bailout(kUnsupportedArchitecture, "DropStackSlotsAndRet");
 }
 
 void LiftoffAssembler::CallC(const ValueKindSig* sig,
