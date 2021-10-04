@@ -42,7 +42,7 @@ namespace internal {
  * TODO(chromium:1218005) come up with a coherent naming scheme for this class
  * and the other "cages" in v8.
  */
-class V8VirtualMemoryCage {
+class V8_EXPORT_PRIVATE V8VirtualMemoryCage {
  public:
   // +-  ~~~  -+----------------------------------------  ~~~  -+-  ~~~  -+
   // |  32 GB  |                 (Ideally) 1 TB                 |  32 GB  |
@@ -109,7 +109,7 @@ class V8VirtualMemoryCage {
   std::unique_ptr<base::BoundedPageAllocator> cage_page_allocator_;
 };
 
-V8VirtualMemoryCage* GetProcessWideVirtualMemoryCage();
+V8_EXPORT_PRIVATE V8VirtualMemoryCage* GetProcessWideVirtualMemoryCage();
 
 #endif  // V8_VIRTUAL_MEMORY_CAGE
 
