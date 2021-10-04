@@ -529,6 +529,11 @@
 ['arch == ppc64', {
   # https://crbug.com/v8/8766
   'test-bytecode-generator/WideRegisters': [SKIP],
+  # Liftoff is not currently supported on ppc
+  'test-liftoff-*': [SKIP],
+  'test-gc/RunWasmLiftoff*': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
+  'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
 }],
 
 ##############################################################################
