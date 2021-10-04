@@ -407,7 +407,10 @@ ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
 bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   for (auto const& group : transition_groups()) {
     for (Handle<Map> map : group) {
-      if (!MakeRef(broker, map).IsStringMap()) return false;
+      // We assume a memory fence because {map} was read earlier from
+      // the feedback vector and was store ordered on insertion into the
+      // vector.
+      if (!MakeRefAssumeMemoryFence(broker, map).IsStringMap()) return false;
     }
   }
   return true;
@@ -972,9 +975,13 @@ MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   MinimorphicLoadPropertyAccessInfo access_info =
       factory.ComputePropertyAccessInfo(feedback);
   if (is_concurrent_inlining_) {
+    // We can assume a memory fence on {source.vector} because in production,
+    // the vector has already passed the gc predicate. Unit tests create
+    // FeedbackSource objects directly from handles, but they run on
+    // the main thread.
     TRACE(this, "Storing MinimorphicLoadPropertyAccessInfo for "
                     << source.index() << "  "
-                    << MakeRef<Object>(this, source.vector));
+                    << MakeRefAssumeMemoryFence<Object>(this, source.vector));
     minimorphic_property_access_infos_.insert({source, access_info});
   }
   return access_info;
