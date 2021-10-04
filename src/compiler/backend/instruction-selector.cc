@@ -2784,7 +2784,7 @@ namespace {
 
 LinkageLocation ExceptionLocation() {
   return LinkageLocation::ForRegister(kReturnRegister0.code(),
-                                      MachineType::IntPtr());
+                                      MachineType::TaggedPointer());
 }
 
 constexpr InstructionCode EncodeCallDescriptorFlags(

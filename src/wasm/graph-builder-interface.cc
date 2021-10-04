@@ -1349,7 +1349,7 @@ class WasmGraphBuildingInterface {
     } else {
       DCHECK_EQ(SsaEnv::kMerged, try_info->catch_env->state);
       try_info->exception = builder_->CreateOrMergeIntoPhi(
-          MachineRepresentation::kWord32, try_info->catch_env->control,
+          MachineRepresentation::kTaggedPointer, try_info->catch_env->control,
           try_info->exception, if_exception);
     }
 
