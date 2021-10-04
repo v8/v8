@@ -3100,7 +3100,7 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
 // static
 wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
-    int wasm_kind, const char* debug_name, const AssemblerOptions& options,
+    const char* debug_name, const AssemblerOptions& options,
     SourcePositionTable* source_positions) {
   Graph* graph = mcgraph->graph();
   OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),

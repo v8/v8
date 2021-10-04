@@ -7578,11 +7578,9 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
-  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      call_descriptor, mcgraph, CodeKind::WASM_FUNCTION,
-      wasm::WasmCode::kWasmFunction, debug_name, WasmStubAssemblerOptions(),
-      source_positions);
-  return result;
+  return Pipeline::GenerateCodeForWasmNativeStub(
+      call_descriptor, mcgraph, CodeKind::WASM_FUNCTION, debug_name,
+      WasmStubAssemblerOptions(), source_positions);
 }
 
 }  // namespace
@@ -7637,9 +7635,8 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      incoming, mcgraph, CodeKind::WASM_TO_JS_FUNCTION,
-      wasm::WasmCode::kWasmToJsWrapper, func_name, WasmStubAssemblerOptions(),
-      source_position_table);
+      incoming, mcgraph, CodeKind::WASM_TO_JS_FUNCTION, func_name,
+      WasmStubAssemblerOptions(), source_position_table);
   result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
   return result;
 }
@@ -7680,8 +7677,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
 
   const char* debug_name = "WasmCapiCall";
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION,
-      wasm::WasmCode::kWasmToCapiWrapper, debug_name,
+      call_descriptor, mcgraph, CodeKind::WASM_TO_CAPI_FUNCTION, debug_name,
       WasmStubAssemblerOptions(), source_positions);
   wasm::WasmCode* published_code;
   {
