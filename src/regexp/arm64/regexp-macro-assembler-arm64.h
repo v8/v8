@@ -19,7 +19,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   RegExpMacroAssemblerARM64(Isolate* isolate, Zone* zone, Mode mode,
                             int registers_to_save);
   ~RegExpMacroAssemblerARM64() override;
-  void AbortedCodeGeneration() override { masm_->AbortedCodeGeneration(); }
+  void AbortedCodeGeneration() override;
   int stack_limit_slack() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;

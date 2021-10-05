@@ -130,8 +130,10 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
   __ Bind(&start_label_);  // And then continue from here.
 }
 
-RegExpMacroAssemblerARM64::~RegExpMacroAssemblerARM64() {
-  // Unuse labels in case we throw away the assembler without calling GetCode.
+RegExpMacroAssemblerARM64::~RegExpMacroAssemblerARM64() = default;
+
+void RegExpMacroAssemblerARM64::AbortedCodeGeneration() {
+  masm_->AbortedCodeGeneration();
   entry_label_.Unuse();
   start_label_.Unuse();
   success_label_.Unuse();
