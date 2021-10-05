@@ -17,6 +17,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM
   RegExpMacroAssemblerARM(Isolate* isolate, Zone* zone, Mode mode,
                           int registers_to_save);
   virtual ~RegExpMacroAssemblerARM();
+  virtual void AbortedCodeGeneration();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
   virtual void AdvanceRegister(int reg, int by);

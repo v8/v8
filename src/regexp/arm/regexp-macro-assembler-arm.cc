@@ -112,7 +112,10 @@ RegExpMacroAssemblerARM::RegExpMacroAssemblerARM(Isolate* isolate, Zone* zone,
   __ bind(&start_label_);  // And then continue from here.
 }
 
-RegExpMacroAssemblerARM::~RegExpMacroAssemblerARM() {
+RegExpMacroAssemblerARM::~RegExpMacroAssemblerARM() = default;
+
+void RegExpMacroAssemblerARM::AbortedCodeGeneration() {
+  masm_->AbortedCodeGeneration();
   // Unuse labels in case we throw away the assembler without calling GetCode.
   entry_label_.Unuse();
   start_label_.Unuse();
@@ -123,7 +126,6 @@ RegExpMacroAssemblerARM::~RegExpMacroAssemblerARM() {
   stack_overflow_label_.Unuse();
   fallback_label_.Unuse();
 }
-
 
 int RegExpMacroAssemblerARM::stack_limit_slack()  {
   return RegExpStack::kStackLimitSlack;
