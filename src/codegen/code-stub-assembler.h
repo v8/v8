@@ -837,6 +837,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #endif
   }
 
+  TNode<RawPtrT> GetCodeEntry(TNode<CodeT> code);
+
   // The following Call wrappers call an object according to the semantics that
   // one finds in the EcmaScript spec, operating on an Callable (e.g. a
   // JSFunction or proxy) rather than a Code object.

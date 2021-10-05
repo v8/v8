@@ -14440,6 +14440,19 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   return sfi_code.value();
 }
 
+TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<CodeT> code) {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  TNode<CodeDataContainer> cdc = CodeDataContainerFromCodeT(code);
+  return LoadExternalPointerFromObject(
+      cdc, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset),
+      kCodeEntryPointTag);
+#else
+  TNode<IntPtrT> object = BitcastTaggedToWord(code);
+  return ReinterpretCast<RawPtrT>(
+      IntPtrAdd(object, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
+#endif
+}
+
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
     TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
     TNode<Context> context) {
