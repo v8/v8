@@ -1435,9 +1435,10 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   inline bool TryEvacuateObject(AllocationSpace target_space, HeapObject object,
                                 int size, HeapObject* target_object) {
-#ifdef VERIFY_HEAP
-    if (FLAG_verify_heap && AbortCompactionForTesting(object)) return false;
-#endif  // VERIFY_HEAP
+#ifdef DEBUG
+    if (FLAG_stress_compaction && AbortCompactionForTesting(object))
+      return false;
+#endif  // DEBUG
     AllocationAlignment alignment = HeapObject::RequiredAlignment(object.map());
     AllocationResult allocation = local_allocator_->Allocate(
         target_space, size, AllocationOrigin::kGC, alignment);
@@ -1464,7 +1465,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     migration_function_(this, dst, src, size, dest);
   }
 
-#ifdef VERIFY_HEAP
+#ifdef DEBUG
   bool AbortCompactionForTesting(HeapObject object) {
     if (FLAG_stress_compaction) {
       const uintptr_t mask = static_cast<uintptr_t>(FLAG_random_seed) &
@@ -1481,7 +1482,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     }
     return false;
   }
-#endif  // VERIFY_HEAP
+#endif  // DEBUG
 
   Heap* heap_;
   EvacuationAllocator* local_allocator_;
