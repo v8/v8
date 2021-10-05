@@ -2879,8 +2879,10 @@ static inline SlotCallbackResult UpdateSlot(PtrComprCageBase cage_base,
                    MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
                        Page::FromHeapObject(heap_obj)->IsFlagSet(
                            Page::COMPACTION_WAS_ABORTED));
-    typename TSlot::TObject target =
-        MakeSlotValue<TSlot, reference_type>(map_word.ToForwardingAddress());
+    PtrComprCageBase host_cage_base =
+        V8_EXTERNAL_CODE_SPACE_BOOL ? GetPtrComprCageBase(heap_obj) : cage_base;
+    typename TSlot::TObject target = MakeSlotValue<TSlot, reference_type>(
+        map_word.ToForwardingAddress(host_cage_base));
     if (access_mode == AccessMode::NON_ATOMIC) {
       slot.store(target);
     } else {
@@ -4019,7 +4021,11 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           (chunk_->slot_set<OLD_TO_CODE, AccessMode::NON_ATOMIC>() !=
            nullptr)) {
         PtrComprCageBase cage_base = heap_->isolate();
-        PtrComprCageBase code_cage_base = heap_->isolate();
+#if V8_EXTERNAL_CODE_SPACE
+        PtrComprCageBase code_cage_base(heap_->isolate()->code_cage_base());
+#else
+        PtrComprCageBase code_cage_base = cage_base;
+#endif
         RememberedSet<OLD_TO_CODE>::Iterate(
             chunk_,
             [=](MaybeObjectSlot slot) {
@@ -4153,25 +4159,26 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                  "EphemeronTableUpdatingItem::Process");
+    PtrComprCageBase cage_base(heap_->isolate());
 
     for (auto it = heap_->ephemeron_remembered_set_.begin();
          it != heap_->ephemeron_remembered_set_.end();) {
       EphemeronHashTable table = it->first;
       auto& indices = it->second;
-      if (table.map_word(kRelaxedLoad).IsForwardingAddress()) {
+      if (table.map_word(cage_base, kRelaxedLoad).IsForwardingAddress()) {
         // The table has moved, and RecordMigratedSlotVisitor::VisitEphemeron
         // inserts entries for the moved table into ephemeron_remembered_set_.
         it = heap_->ephemeron_remembered_set_.erase(it);
         continue;
       }
-      DCHECK(table.map().IsMap());
-      DCHECK(table.Object::IsEphemeronHashTable());
+      DCHECK(table.map(cage_base).IsMap(cage_base));
+      DCHECK(table.IsEphemeronHashTable(cage_base));
       for (auto iti = indices.begin(); iti != indices.end();) {
         // EphemeronHashTable keys must be heap objects.
         HeapObjectSlot key_slot(table.RawFieldOfElementAt(
             EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
         HeapObject key = key_slot.ToHeapObject();
-        MapWord map_word = key.map_word(kRelaxedLoad);
+        MapWord map_word = key.map_word(cage_base, kRelaxedLoad);
         if (map_word.IsForwardingAddress()) {
           key = map_word.ToForwardingAddress();
           key_slot.StoreHeapObject(key);

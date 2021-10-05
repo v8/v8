@@ -978,10 +978,11 @@ size_t Heap::UsedGlobalHandlesSize() {
 
 void Heap::MergeAllocationSitePretenuringFeedback(
     const PretenuringFeedbackMap& local_pretenuring_feedback) {
+  PtrComprCageBase cage_base(isolate());
   AllocationSite site;
   for (auto& site_and_count : local_pretenuring_feedback) {
     site = site_and_count.first;
-    MapWord map_word = site_and_count.first.map_word(kRelaxedLoad);
+    MapWord map_word = site.map_word(cage_base, kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
       site = AllocationSite::cast(map_word.ToForwardingAddress());
     }
@@ -2731,8 +2732,9 @@ void Heap::UpdateExternalString(String string, size_t old_payload,
 
 String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
                                                             FullObjectSlot p) {
+  PtrComprCageBase cage_base(heap->isolate());
   HeapObject obj = HeapObject::cast(*p);
-  MapWord first_word = obj.map_word(kRelaxedLoad);
+  MapWord first_word = obj.map_word(cage_base, kRelaxedLoad);
 
   String new_string;
 
@@ -2740,9 +2742,9 @@ String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
     if (!first_word.IsForwardingAddress()) {
       // Unreachable external string can be finalized.
       String string = String::cast(obj);
-      if (!string.IsExternalString()) {
+      if (!string.IsExternalString(cage_base)) {
         // Original external string has been internalized.
-        DCHECK(string.IsThinString());
+        DCHECK(string.IsThinString(cage_base));
         return String();
       }
       heap->FinalizeExternalString(string);
@@ -2754,10 +2756,10 @@ String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
   }
 
   // String is still reachable.
-  if (new_string.IsThinString()) {
+  if (new_string.IsThinString(cage_base)) {
     // Filtering Thin strings out of the external string table.
     return String();
-  } else if (new_string.IsExternalString()) {
+  } else if (new_string.IsExternalString(cage_base)) {
     MemoryChunk::MoveExternalBackingStoreBytes(
         ExternalBackingStoreType::kExternalString,
         Page::FromAddress((*p).ptr()), Page::FromHeapObject(new_string),
@@ -2766,7 +2768,7 @@ String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
   }
 
   // Internalization can replace external strings with non-external strings.
-  return new_string.IsExternalString() ? new_string : String();
+  return new_string.IsExternalString(cage_base) ? new_string : String();
 }
 
 void Heap::ExternalStringTable::VerifyYoung() {
@@ -6995,9 +6997,17 @@ void Heap::CreateObjectStats() {
 }
 
 Map Heap::GcSafeMapOfCodeSpaceObject(HeapObject object) {
-  MapWord map_word = object.map_word(kRelaxedLoad);
-  return map_word.IsForwardingAddress() ? map_word.ToForwardingAddress().map()
-                                        : map_word.ToMap();
+  PtrComprCageBase cage_base(isolate());
+  MapWord map_word = object.map_word(cage_base, kRelaxedLoad);
+  if (map_word.IsForwardingAddress()) {
+#if V8_EXTERNAL_CODE_SPACE
+    PtrComprCageBase code_cage_base(isolate()->code_cage_base());
+#else
+    PtrComprCageBase code_cage_base = cage_base;
+#endif
+    return map_word.ToForwardingAddress(code_cage_base).map(cage_base);
+  }
+  return map_word.ToMap();
 }
 
 Code Heap::GcSafeCastToCode(HeapObject object, Address inner_pointer) {

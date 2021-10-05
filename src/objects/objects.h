@@ -787,8 +787,14 @@ class MapWord {
   // Create a map word from a forwarding address.
   static inline MapWord FromForwardingAddress(HeapObject object);
 
-  // View this map word as a forwarding address.
+  // View this map word as a forwarding address. The parameterless version
+  // is allowed to be used for objects allocated in the main pointer compression
+  // cage, while the second variant uses the value of the cage base explicitly
+  // and thus can be used in situations where one has to deal with both cases.
+  // Note, that the parameterless version is preferred because it avoids
+  // unnecessary recompressions.
   inline HeapObject ToForwardingAddress();
+  inline HeapObject ToForwardingAddress(PtrComprCageBase host_cage_base);
 
   inline Address ptr() { return value_; }
 
