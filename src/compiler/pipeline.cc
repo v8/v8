@@ -3163,6 +3163,9 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   result.frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.result_tier = wasm::ExecutionTier::kTurbofan;
+  if (kind == CodeKind::WASM_TO_JS_FUNCTION) {
+    result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
+  }
 
   DCHECK(result.succeeded());
 

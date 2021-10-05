@@ -7578,8 +7578,11 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
+  // The code does not call to JS, but conceptually it is an import wrapper,
+  // hence use {WASM_TO_JS_FUNCTION} here.
+  // TODO(wasm): Rename this to {WASM_IMPORT_CALL}?
   return Pipeline::GenerateCodeForWasmNativeStub(
-      call_descriptor, mcgraph, CodeKind::WASM_FUNCTION, debug_name,
+      call_descriptor, mcgraph, CodeKind::WASM_TO_JS_FUNCTION, debug_name,
       WasmStubAssemblerOptions(), source_positions);
 }
 
@@ -7634,11 +7637,9 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   if (machine->Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
-  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
+  return Pipeline::GenerateCodeForWasmNativeStub(
       incoming, mcgraph, CodeKind::WASM_TO_JS_FUNCTION, func_name,
       WasmStubAssemblerOptions(), source_position_table);
-  result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
-  return result;
 }
 
 wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
