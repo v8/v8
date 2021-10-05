@@ -184,6 +184,7 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
 void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
     TNode<JSArrayBuffer> array_buffer, const CallResultProcessor& processor,
     ForEachDirection direction, TNode<JSTypedArray> typed_array) {
+  // TODO(v8:11111): Support RAB / GSAB.
   VariableList list({&a_, &k_}, zone());
 
   TNode<UintPtrT> start = UintPtrConstant(0);

@@ -307,8 +307,17 @@ extern enum ElementsKind extends int32 {
   UINT8_CLAMPED_ELEMENTS,
   BIGUINT64_ELEMENTS,
   BIGINT64_ELEMENTS,
+  RAB_GSAB_UINT8_ELEMENTS,
+  // TODO(torque): Allow duplicate enum values.
+  // FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+  // FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
   ...
 }
+
+const kFirstFixedTypedArrayElementsKind: constexpr ElementsKind =
+    ElementsKind::UINT8_ELEMENTS;
+const kFirstRabGsabFixedTypedArrayElementsKind: constexpr ElementsKind =
+    ElementsKind::RAB_GSAB_UINT8_ELEMENTS;
 
 extern enum AllocationFlag extends int32
 constexpr 'CodeStubAssembler::AllocationFlag' {
@@ -803,6 +812,8 @@ operator '!=' macro ElementsKindNotEqual(
 extern macro IsElementsKindLessThanOrEqual(
     ElementsKind, constexpr ElementsKind): bool;
 extern macro IsElementsKindGreaterThan(
+    ElementsKind, constexpr ElementsKind): bool;
+extern macro IsElementsKindGreaterThanOrEqual(
     ElementsKind, constexpr ElementsKind): bool;
 extern macro IsElementsKindInRange(
     ElementsKind, constexpr ElementsKind, constexpr ElementsKind): bool;

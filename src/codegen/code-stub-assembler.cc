@@ -14237,6 +14237,11 @@ TNode<BoolT> CodeStubAssembler::IsElementsKindGreaterThan(
   return Int32GreaterThan(target_kind, Int32Constant(reference_kind));
 }
 
+TNode<BoolT> CodeStubAssembler::IsElementsKindGreaterThanOrEqual(
+    TNode<Int32T> target_kind, ElementsKind reference_kind) {
+  return Int32GreaterThanOrEqual(target_kind, Int32Constant(reference_kind));
+}
+
 TNode<BoolT> CodeStubAssembler::IsElementsKindLessThanOrEqual(
     TNode<Int32T> target_kind, ElementsKind reference_kind) {
   return Int32LessThanOrEqual(target_kind, Int32Constant(reference_kind));

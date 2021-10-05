@@ -19,6 +19,7 @@ type Float64Elements extends ElementsKind;
 type Uint8ClampedElements extends ElementsKind;
 type BigUint64Elements extends ElementsKind;
 type BigInt64Elements extends ElementsKind;
+type RabGsabUint8Elements extends ElementsKind;
 
 @export
 struct TypedArrayElementsInfo {
@@ -136,7 +137,15 @@ macro GetTypedArrayAccessor<T : type extends ElementsKind>():
   return TypedArrayAccessor{loadNumericFn, storeNumericFn, storeJSAnyFn};
 }
 
-macro GetTypedArrayAccessor(elementsKind: ElementsKind): TypedArrayAccessor {
+macro GetTypedArrayAccessor(elementsKindParam: ElementsKind):
+    TypedArrayAccessor {
+  let elementsKind = elementsKindParam;
+  if (IsElementsKindGreaterThanOrEqual(
+          elementsKind, kFirstRabGsabFixedTypedArrayElementsKind)) {
+    elementsKind = %RawDownCast<ElementsKind>(
+        elementsKind - kFirstRabGsabFixedTypedArrayElementsKind +
+        kFirstFixedTypedArrayElementsKind);
+  }
   if (IsElementsKindGreaterThan(elementsKind, ElementsKind::UINT32_ELEMENTS)) {
     if (elementsKind == ElementsKind::INT32_ELEMENTS) {
       return GetTypedArrayAccessor<Int32Elements>();
@@ -195,8 +204,18 @@ struct AttachedJSTypedArrayWitness {
     return this.stable;
   }
 
+  // TODO(v8:11111): Migrate users to use RecheckIndex.
   macro Recheck(): void labels Detached {
     if (IsDetachedBuffer(this.stable.buffer)) goto Detached;
+    this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
+  }
+
+  macro RecheckIndex(index: uintptr): void labels DetachedOrOutOfBounds {
+    const length = LoadJSTypedArrayLengthAndCheckDetached(this.stable)
+        otherwise DetachedOrOutOfBounds;
+    if (index >= length) {
+      goto DetachedOrOutOfBounds;
+    }
     this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
   }
 

@@ -2629,6 +2629,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsHoleyFastElementsKindForRead(TNode<Int32T> elements_kind);
   TNode<BoolT> IsElementsKindGreaterThan(TNode<Int32T> target_kind,
                                          ElementsKind reference_kind);
+  TNode<BoolT> IsElementsKindGreaterThanOrEqual(TNode<Int32T> target_kind,
+                                                ElementsKind reference_kind);
   TNode<BoolT> IsElementsKindLessThanOrEqual(TNode<Int32T> target_kind,
                                              ElementsKind reference_kind);
   // Check if lower_reference_kind <= target_kind <= higher_reference_kind.

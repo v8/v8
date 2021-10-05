@@ -150,3 +150,141 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     }, TypeError);
   }
 })();
+
+(function EveryDetachMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  let values = [];
+  let rab;
+  let detachAfter;
+  function myFunc(n) {
+    if (n == undefined) {
+      values.push(n);
+    } else {
+      values.push(Number(n));
+    }
+    if (values.length == detachAfter) {
+      %ArrayBufferDetach(rab);
+    }
+    return true;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+    values = [];
+    detachAfter = 2;
+    assertTrue(fixedLength.every(myFunc));
+    assertEquals([0, 2, undefined, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    values = [];
+    detachAfter = 1;
+    assertTrue(fixedLengthWithOffset.every(myFunc));
+    assertEquals([4, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    detachAfter = 2;
+    assertTrue(lengthTracking.every(myFunc));
+    assertEquals([0, 2, undefined, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+    values = [];
+    detachAfter = 1;
+    assertTrue(lengthTrackingWithOffset.every(myFunc));
+    assertEquals([4, undefined], values);
+  }
+})();
+
+(function SomeDetachMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  let values;
+  let rab;
+  let detachAfter;
+  function myFunc(n) {
+    if (n == undefined) {
+      values.push(n);
+    } else {
+      values.push(Number(n));
+    }
+    if (values.length == detachAfter) {
+      %ArrayBufferDetach(rab);
+    }
+    return false;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+    values = [];
+    detachAfter = 2;
+    assertFalse(fixedLength.some(myFunc));
+    assertEquals([0, 2, undefined, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    values = [];
+    detachAfter = 1;
+    assertFalse(fixedLengthWithOffset.some(myFunc));
+    assertEquals([4, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    detachAfter = 2;
+    assertFalse(lengthTracking.some(myFunc));
+    assertEquals([0, 2, undefined, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+    values = [];
+    detachAfter = 1;
+    assertFalse(lengthTrackingWithOffset.some(myFunc));
+    assertEquals([4, undefined], values);
+  }
+})();

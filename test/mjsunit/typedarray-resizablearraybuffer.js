@@ -1977,3 +1977,444 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
 })();
+
+(function EverySome() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, ...] << lengthTracking
+    //                    [4, 6, ...] << lengthTrackingWithOffset
+
+    function div3(n) {
+      return Number(n) % 3 == 0;
+    }
+
+    function even(n) {
+      return Number(n) % 2 == 0;
+    }
+
+    function over10(n) {
+      return Number(n) > 10;
+    }
+
+    assertFalse(fixedLength.every(div3));
+    assertTrue(fixedLength.every(even));
+    assertTrue(fixedLength.some(div3));
+    assertFalse(fixedLength.some(over10));
+
+    assertFalse(fixedLengthWithOffset.every(div3));
+    assertTrue(fixedLengthWithOffset.every(even));
+    assertTrue(fixedLengthWithOffset.some(div3));
+    assertFalse(fixedLengthWithOffset.some(over10));
+
+    assertFalse(lengthTracking.every(div3));
+    assertTrue(lengthTracking.every(even));
+    assertTrue(lengthTracking.some(div3));
+    assertFalse(lengthTracking.some(over10));
+
+    assertFalse(lengthTrackingWithOffset.every(div3));
+    assertTrue(lengthTrackingWithOffset.every(even));
+    assertTrue(lengthTrackingWithOffset.some(div3));
+    assertFalse(lengthTrackingWithOffset.some(over10));
+
+    // Shrink so that fixed length TAs go out of bounds.
+    rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+
+    // Orig. array: [0, 2, 4]
+    //              [0, 2, 4, ...] << lengthTracking
+    //                    [4, ...] << lengthTrackingWithOffset
+
+    assertThrows(() => { fixedLength.every(div3); });
+    assertThrows(() => { fixedLength.some(div3); });
+
+    assertThrows(() => { fixedLengthWithOffset.every(div3); });
+    assertThrows(() => { fixedLengthWithOffset.some(div3); });
+
+    assertFalse(lengthTracking.every(div3));
+    assertTrue(lengthTracking.every(even));
+    assertTrue(lengthTracking.some(div3));
+    assertFalse(lengthTracking.some(over10));
+
+    assertFalse(lengthTrackingWithOffset.every(div3));
+    assertTrue(lengthTrackingWithOffset.every(even));
+    assertFalse(lengthTrackingWithOffset.some(div3));
+    assertFalse(lengthTrackingWithOffset.some(over10));
+
+    // Shrink so that the TAs with offset go out of bounds.
+    rab.resize(1 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { fixedLength.every(div3); });
+    assertThrows(() => { fixedLength.some(div3); });
+
+    assertThrows(() => { fixedLengthWithOffset.every(div3); });
+    assertThrows(() => { fixedLengthWithOffset.some(div3); });
+
+    assertTrue(lengthTracking.every(div3));
+    assertTrue(lengthTracking.every(even));
+    assertTrue(lengthTracking.some(div3));
+    assertFalse(lengthTracking.some(over10));
+
+    assertThrows(() => { lengthTrackingWithOffset.every(div3); });
+    assertThrows(() => { lengthTrackingWithOffset.some(div3); });
+
+    // Shrink to zero.
+    rab.resize(0);
+
+    assertThrows(() => { fixedLength.every(div3); });
+    assertThrows(() => { fixedLength.some(div3); });
+
+    assertThrows(() => { fixedLengthWithOffset.every(div3); });
+    assertThrows(() => { fixedLengthWithOffset.some(div3); });
+
+    assertTrue(lengthTracking.every(div3));
+    assertTrue(lengthTracking.every(even));
+    assertFalse(lengthTracking.some(div3));
+    assertFalse(lengthTracking.some(over10));
+
+    assertThrows(() => { lengthTrackingWithOffset.every(div3); });
+    assertThrows(() => { lengthTrackingWithOffset.some(div3); });
+
+    // Grow so that all TAs are back in-bounds.
+    rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+    for (let i = 0; i < 6; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+
+    // Orig. array: [0, 2, 4, 6, 8, 10]
+    //              [0, 2, 4, 6] << fixedLength
+    //                    [4, 6] << fixedLengthWithOffset
+    //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
+    //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
+
+    assertFalse(fixedLength.every(div3));
+    assertTrue(fixedLength.every(even));
+    assertTrue(fixedLength.some(div3));
+    assertFalse(fixedLength.some(over10));
+
+    assertFalse(fixedLengthWithOffset.every(div3));
+    assertTrue(fixedLengthWithOffset.every(even));
+    assertTrue(fixedLengthWithOffset.some(div3));
+    assertFalse(fixedLengthWithOffset.some(over10));
+
+    assertFalse(lengthTracking.every(div3));
+    assertTrue(lengthTracking.every(even));
+    assertTrue(lengthTracking.some(div3));
+    assertFalse(lengthTracking.some(over10));
+
+    assertFalse(lengthTrackingWithOffset.every(div3));
+    assertTrue(lengthTrackingWithOffset.every(even));
+    assertTrue(lengthTrackingWithOffset.some(div3));
+    assertFalse(lengthTrackingWithOffset.some(over10));
+  }
+})();
+
+(function EveryShrinkMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  let values;
+  let rab;
+  let resizeAfter;
+  let resizeTo;
+  function myFunc(n) {
+    if (n == undefined) {
+      values.push(n);
+    } else {
+      values.push(Number(n));
+    }
+    if (values.length == resizeAfter) {
+      rab.resize(resizeTo);
+    }
+    return true;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(fixedLength.every(myFunc));
+    assertEquals([0, 2, undefined, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    values = [];
+    resizeAfter = 1;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(fixedLengthWithOffset.every(myFunc));
+    assertEquals([4, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(lengthTracking.every(myFunc));
+    assertEquals([0, 2, 4, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+    values = [];
+    resizeAfter = 1;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(lengthTrackingWithOffset.every(myFunc));
+    assertEquals([4, undefined], values);
+  }
+})();
+
+(function EveryGrowMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  let values;
+  let rab;
+  let resizeAfter;
+  let resizeTo;
+  function myFunc(n) {
+    if (n == undefined) {
+      values.push(n);
+    } else {
+      values.push(Number(n));
+    }
+    if (values.length == resizeAfter) {
+      rab.resize(resizeTo);
+    }
+    return true;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(fixedLength.every(myFunc));
+    assertEquals([0, 2, 4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    values = [];
+    resizeAfter = 1;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(fixedLengthWithOffset.every(myFunc));
+    assertEquals([4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(lengthTracking.every(myFunc));
+    assertEquals([0, 2, 4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+    values = [];
+    resizeAfter = 1;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertTrue(lengthTrackingWithOffset.every(myFunc));
+    assertEquals([4, 6], values);
+  }
+})();
+
+(function SomeShrinkMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  let values;
+  let rab;
+  let resizeAfter;
+  let resizeTo;
+  function myFunc(n) {
+    if (n == undefined) {
+      values.push(n);
+    } else {
+      values.push(Number(n));
+    }
+    if (values.length == resizeAfter) {
+      rab.resize(resizeTo);
+    }
+    return false;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(fixedLength.some(myFunc));
+    assertEquals([0, 2, undefined, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    values = [];
+    resizeAfter = 1;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(fixedLengthWithOffset.some(myFunc));
+    assertEquals([4, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(lengthTracking.some(myFunc));
+    assertEquals([0, 2, 4, undefined], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+    values = [];
+    resizeAfter = 1;
+    resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(lengthTrackingWithOffset.some(myFunc));
+    assertEquals([4, undefined], values);
+  }
+})();
+
+(function SomeGrowMidIteration() {
+  // Orig. array: [0, 2, 4, 6]
+  //              [0, 2, 4, 6] << fixedLength
+  //                    [4, 6] << fixedLengthWithOffset
+  //              [0, 2, 4, 6, ...] << lengthTracking
+  //                    [4, 6, ...] << lengthTrackingWithOffset
+  function CreateRabForTest(ctor) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    // Write some data into the array.
+    const taWrite = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, 2 * i);
+    }
+    return rab;
+  }
+
+  let values = [];
+  let rab;
+  let resizeAfter;
+  let resizeTo;
+  function myFunc(n) {
+    if (n == undefined) {
+      values.push(n);
+    } else {
+      values.push(Number(n));
+    }
+    if (values.length == resizeAfter) {
+      rab.resize(resizeTo);
+    }
+    return false;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLength = new ctor(rab, 0, 4);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(fixedLength.some(myFunc));
+    assertEquals([0, 2, 4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    values = [];
+    resizeAfter = 1;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(fixedLengthWithOffset.some(myFunc));
+    assertEquals([4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTracking = new ctor(rab, 0);
+    values = [];
+    resizeAfter = 2;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(lengthTracking.some(myFunc));
+    assertEquals([0, 2, 4, 6], values);
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateRabForTest(ctor);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+    values = [];
+    rab = rab;
+    resizeAfter = 1;
+    resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
+    assertFalse(lengthTrackingWithOffset.some(myFunc));
+    assertEquals([4, 6], values);
+  }
+})();
