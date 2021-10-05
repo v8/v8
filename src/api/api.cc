@@ -382,11 +382,11 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 
 namespace {
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-// ArrayBufferAllocator to use when the virtual memory cage is enabled, in which
-// case all ArrayBuffer backing stores need to be allocated inside the data
-// cage. Note, the current implementation is extremely inefficient as it uses
-// the BoundedPageAllocator. In the future, we'll need a proper allocator
+#ifdef V8_HEAP_SANDBOX
+// ArrayBufferAllocator to use when the heap sandbox is enabled, in which case
+// all ArrayBuffer backing stores need to be allocated inside the virtual
+// memory cage. Note, the current implementation is extremely inefficient as it
+// uses the BoundedPageAllocator. In the future, we'll need a proper allocator
 // implementation.
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
@@ -454,7 +454,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     return new_data;
   }
 };
-#endif  // V8_VIRTUAL_MEMORY_CAGE
+#endif  // V8_HEAP_SANDBOX
 
 struct SnapshotCreatorData {
   explicit SnapshotCreatorData(Isolate* isolate)
