@@ -229,7 +229,7 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux64_tsan_rel",
-    cq_properties = CQ.EXP_100_PERCENT,
+    cq_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,
