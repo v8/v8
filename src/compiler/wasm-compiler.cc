@@ -5815,10 +5815,12 @@ Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
 Node* WasmGraphBuilder::RefCast(Node* object, Node* rtt,
                                 ObjectReferenceKnowledge config,
                                 wasm::WasmCodePosition position) {
-  auto done = gasm_->MakeLabel();
-  TypeCheck(object, rtt, config, true, CastCallbacks(&done, position));
-  gasm_->Goto(&done);
-  gasm_->Bind(&done);
+  if (!FLAG_experimental_wasm_assume_ref_cast_succeeds) {
+    auto done = gasm_->MakeLabel();
+    TypeCheck(object, rtt, config, true, CastCallbacks(&done, position));
+    gasm_->Goto(&done);
+    gasm_->Bind(&done);
+  }
   return object;
 }
 

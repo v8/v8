@@ -32,6 +32,10 @@
     false)                                                                     \
   V(unsafe_nn_locals,                                                          \
     "allow non-defaultable/non-nullable locals, no validation", false)         \
+  V(assume_ref_cast_succeeds,                                                  \
+    "assume ref.cast always succeeds and skip the related type check "         \
+    "(unsafe)",                                                                \
+    false)                                                                     \
                                                                                \
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \

@@ -5413,11 +5413,16 @@ class LiftoffCompiler {
 
   void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
                Value* result) {
-    Label* trap_label =
-        AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
-    LiftoffRegister obj_reg =
-        SubtypeCheck(decoder, obj, rtt, trap_label, kNullSucceeds);
-    __ PushRegister(obj.type.kind(), obj_reg);
+    if (FLAG_experimental_wasm_assume_ref_cast_succeeds) {
+      // Just drop the rtt.
+      __ DropValues(1);
+    } else {
+      Label* trap_label =
+          AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
+      LiftoffRegister obj_reg =
+          SubtypeCheck(decoder, obj, rtt, trap_label, kNullSucceeds);
+      __ PushRegister(obj.type.kind(), obj_reg);
+    }
   }
 
   void BrOnCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
