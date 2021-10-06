@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --stack-size=1200
+// Flags: --allow-natives-syntax --stack-size=1400
 
 const needle = Array(1802).join(" +") + Array(16884).join("A");
 const string = "A";
