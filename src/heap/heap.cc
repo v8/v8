@@ -3065,27 +3065,24 @@ size_t Heap::GetCodeRangeReservedAreaSize() {
   return kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
 }
 
-// static
-HeapObject Heap::PrecedeWithFiller(ReadOnlyRoots roots, HeapObject object,
-                                   int filler_size) {
-  CreateFillerObjectAt(roots, object.address(), filler_size,
+HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
+  CreateFillerObjectAt(object.address(), filler_size,
                        ClearFreedMemoryMode::kDontClearFreedMemory);
   return HeapObject::FromAddress(object.address() + filler_size);
 }
 
-// static
-HeapObject Heap::AlignWithFiller(ReadOnlyRoots roots, HeapObject object,
-                                 int object_size, int allocation_size,
+HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
+                                 int allocation_size,
                                  AllocationAlignment alignment) {
   int filler_size = allocation_size - object_size;
   DCHECK_LT(0, filler_size);
   int pre_filler = GetFillToAlign(object.address(), alignment);
   if (pre_filler) {
-    object = PrecedeWithFiller(roots, object, pre_filler);
+    object = PrecedeWithFiller(object, pre_filler);
     filler_size -= pre_filler;
   }
   if (filler_size) {
-    CreateFillerObjectAt(roots, object.address() + object_size, filler_size,
+    CreateFillerObjectAt(object.address() + object_size, filler_size,
                          ClearFreedMemoryMode::kDontClearFreedMemory);
   }
   return object;
@@ -3158,10 +3155,11 @@ void Heap::FlushNumberStringCache() {
 
 namespace {
 
-HeapObject CreateFillerObjectAtImpl(ReadOnlyRoots roots, Address addr, int size,
+HeapObject CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
                                     ClearFreedMemoryMode clear_memory_mode) {
   if (size == 0) return HeapObject();
   HeapObject filler = HeapObject::FromAddress(addr);
+  ReadOnlyRoots roots(heap);
   if (size == kTaggedSize) {
     filler.set_map_after_allocation(roots.unchecked_one_pointer_filler_map(),
                                     SKIP_WRITE_BARRIER);
@@ -3186,8 +3184,8 @@ HeapObject CreateFillerObjectAtImpl(ReadOnlyRoots roots, Address addr, int size,
   // At this point, we may be deserializing the heap from a snapshot, and
   // none of the maps have been created yet and are nullptr.
   DCHECK((filler.map_slot().contains_map_value(kNullAddress) &&
-          !Heap::FromWritableHeapObject(filler)->deserialization_complete()) ||
-         filler.map().IsMap());
+          !heap->deserialization_complete()) ||
+         filler.map(heap->isolate()).IsMap());
 
   return filler;
 }
@@ -3207,20 +3205,18 @@ void VerifyNoNeedToClearSlots(Address start, Address end) {}
 
 }  // namespace
 
-// static
-HeapObject Heap::CreateFillerObjectAt(ReadOnlyRoots roots, Address addr,
-                                      int size,
+HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
                                       ClearFreedMemoryMode clear_memory_mode) {
   // TODO(leszeks): Verify that no slots need to be recorded.
   HeapObject filler =
-      CreateFillerObjectAtImpl(roots, addr, size, clear_memory_mode);
+      CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
   VerifyNoNeedToClearSlots(addr, addr + size);
   return filler;
 }
 
 void Heap::CreateFillerObjectAtBackground(
     Address addr, int size, ClearFreedMemoryMode clear_memory_mode) {
-  CreateFillerObjectAtImpl(ReadOnlyRoots(this), addr, size, clear_memory_mode);
+  CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
   // Do not verify whether slots are cleared here: the concurrent sweeper is not
   // allowed to access the main thread's remembered set.
 }
@@ -3233,7 +3229,7 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
   // LargeObjectSpace::AllocateLargePage.
   if (size == 0) return HeapObject();
   HeapObject filler = CreateFillerObjectAtImpl(
-      ReadOnlyRoots(this), addr, size,
+      this, addr, size,
       clear_slots_mode == ClearRecordedSlots::kYes
           ? ClearFreedMemoryMode::kClearFreedMemory
           : ClearFreedMemoryMode::kDontClearFreedMemory);

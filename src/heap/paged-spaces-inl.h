@@ -113,7 +113,7 @@ AllocationResult PagedSpace::AllocateFastAligned(
       HeapObject::FromAddress(allocation_info_.IncrementTop(aligned_size));
   if (aligned_size_in_bytes) *aligned_size_in_bytes = aligned_size;
   if (filler_size > 0) {
-    obj = Heap::PrecedeWithFiller(ReadOnlyRoots(heap()), obj, filler_size);
+    obj = heap()->PrecedeWithFiller(obj, filler_size);
   }
   return AllocationResult(obj);
 }
