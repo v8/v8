@@ -4579,7 +4579,7 @@ void Genesis::InitializeGlobal_harmony_intl_enumeration() {
           .ToHandleChecked());
 
   SimpleInstallFunction(isolate(), intl, "supportedValuesOf",
-                        Builtin::kIntlSupportedValuesOf, 1, false);
+                        Builtin::kIntlSupportedValuesOf, 0, false);
 }
 
 #endif  // V8_INTL_SUPPORT

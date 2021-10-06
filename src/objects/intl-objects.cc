@@ -429,9 +429,7 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstance(icu_locale, status));
-  if (U_SUCCESS(status) && !numbering_system->isAlgorithmic()) {
-    return numbering_system->getName();
-  }
+  if (U_SUCCESS(status)) return numbering_system->getName();
   return "latn";
 }
 
@@ -1572,18 +1570,8 @@ MaybeHandle<JSArray> AvailableCurrencies(Isolate* isolate) {
   std::vector<std::string> array;
   while (U_SUCCESS(status) &&
          (next = uenum_next(ids, nullptr, &status)) != nullptr) {
-    // Work around the issue that we do not support VEF currency code
-    // in DisplayNames by not reporting it.
-    if (strcmp(next, "VEF") == 0) continue;
     array.push_back(next);
   }
-  // Work around the issue that we do support the following currency codes
-  // in DisplayNames but the ICU API does not reporting it.
-  array.push_back("SVC");
-  array.push_back("VES");
-  array.push_back("XDR");
-  array.push_back("XSU");
-  array.push_back("ZWL");
   std::sort(array.begin(), array.end());
   uenum_close(ids);
   return VectorToJSArray(isolate, array);
@@ -1759,8 +1747,7 @@ bool Intl::IsValidNumberingSystem(const std::string& value) {
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstanceByName(value.c_str(), status));
-  return U_SUCCESS(status) && numbering_system.get() != nullptr &&
-         !numbering_system->isAlgorithmic();
+  return U_SUCCESS(status) && numbering_system.get() != nullptr;
 }
 
 namespace {
