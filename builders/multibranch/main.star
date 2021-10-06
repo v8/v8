@@ -209,6 +209,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"use_goma": False},
         use_goma = GOMA.NO,
+        close_tree = False,
     ),
 )
 
