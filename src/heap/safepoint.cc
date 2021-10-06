@@ -184,7 +184,7 @@ bool IsolateSafepoint::ContainsAnyLocalHeap() {
 }
 
 void IsolateSafepoint::Iterate(RootVisitor* visitor) {
-  DCHECK(IsActive());
+  AssertActive();
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
     current->handles()->Iterate(visitor);

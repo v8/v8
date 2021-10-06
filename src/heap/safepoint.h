@@ -42,14 +42,14 @@ class IsolateSafepoint final {
   // Iterate local heaps
   template <typename Callback>
   void IterateLocalHeaps(Callback callback) {
-    DCHECK(IsActive());
+    AssertActive();
     for (LocalHeap* current = local_heaps_head_; current;
          current = current->next_) {
       callback(current);
     }
   }
 
-  bool IsActive() { return active_safepoint_scopes_ > 0; }
+  void AssertActive() { local_heaps_mutex_.AssertHeld(); }
 
  private:
   class Barrier {

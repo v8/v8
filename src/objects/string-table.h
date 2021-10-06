@@ -90,9 +90,7 @@ class V8_EXPORT_PRIVATE StringTable {
   // Write mutex is mutable so that readers of concurrently mutated values (e.g.
   // NumberOfElements) are allowed to lock it while staying const.
   mutable base::Mutex write_mutex_;
-#ifdef DEBUG
   Isolate* isolate_;
-#endif
 };
 
 }  // namespace internal
