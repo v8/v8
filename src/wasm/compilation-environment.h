@@ -105,6 +105,7 @@ class WireBytesStorage {
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
   kFinishedExportWrappers,
+  kFinishedCompilationChunk,
   kFinishedTopTierCompilation,
   kFailedCompilation,
   kFinishedRecompilation

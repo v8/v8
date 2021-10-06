@@ -746,6 +746,9 @@ class CompilationStateImpl {
   int outstanding_baseline_units_ = 0;
   int outstanding_export_wrappers_ = 0;
   int outstanding_top_tier_functions_ = 0;
+  // The amount of generated top tier code since the last
+  // {kFinishedCompilationChunk} event.
+  size_t bytes_since_last_chunk = 0;
   std::vector<uint8_t> compilation_progress_;
 
   int outstanding_recompilation_functions_ = 0;
@@ -2095,8 +2098,12 @@ class AsyncCompileJob::CompilationStateCallback {
                                                   : nullptr);
         }
         break;
+      case CompilationEvent::kFinishedCompilationChunk:
+        DCHECK(CompilationEvent::kFinishedBaselineCompilation == last_event_ ||
+               CompilationEvent::kFinishedCompilationChunk == last_event_);
+        break;
       case CompilationEvent::kFinishedTopTierCompilation:
-        DCHECK_EQ(CompilationEvent::kFinishedBaselineCompilation, last_event_);
+        DCHECK(CompilationEvent::kFinishedBaselineCompilation == last_event_);
         // At this point, the job will already be gone, thus do not access it
         // here.
         break;
@@ -3191,6 +3198,10 @@ void CompilationStateImpl::CommitTopTierCompilationUnit(
 void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
     WasmCompilationUnit unit, size_t priority) {
   compilation_unit_queues_.AddTopTierPriorityUnit(unit, priority);
+  {
+    base::MutexGuard guard(&callbacks_mutex_);
+    outstanding_top_tier_functions_++;
+  }
   compile_job_->NotifyConcurrencyIncrease();
 }
 
@@ -3303,6 +3314,9 @@ void CompilationStateImpl::OnFinishedUnits(
         DCHECK_GT(outstanding_baseline_units_, 0);
         outstanding_baseline_units_--;
       }
+      if (code->tier() == ExecutionTier::kTurbofan) {
+        bytes_since_last_chunk += code->instructions().size();
+      }
       if (reached_tier < required_top_tier &&
           required_top_tier <= code->tier()) {
         DCHECK_GT(outstanding_top_tier_functions_, 0);
@@ -3356,12 +3370,17 @@ void CompilationStateImpl::TriggerCallbacks(
     triggered_events.Add(CompilationEvent::kFinishedExportWrappers);
     if (outstanding_baseline_units_ == 0) {
       triggered_events.Add(CompilationEvent::kFinishedBaselineCompilation);
-      if (outstanding_top_tier_functions_ == 0) {
+      if (!FLAG_wasm_dynamic_tiering && outstanding_top_tier_functions_ == 0) {
         triggered_events.Add(CompilationEvent::kFinishedTopTierCompilation);
       }
     }
   }
 
+  if (static_cast<size_t>(FLAG_wasm_caching_threshold) <
+      bytes_since_last_chunk) {
+    triggered_events.Add(CompilationEvent::kFinishedCompilationChunk);
+    bytes_since_last_chunk = 0;
+  }
   if (compile_failed_.load(std::memory_order_relaxed)) {
     // *Only* trigger the "failed" event.
     triggered_events =
@@ -3372,9 +3391,11 @@ void CompilationStateImpl::TriggerCallbacks(
 
   // Don't trigger past events again.
   triggered_events -= finished_events_;
-  // Recompilation can happen multiple times, thus do not store this.
-  finished_events_ |=
-      triggered_events - CompilationEvent::kFinishedRecompilation;
+  // Recompilation can happen multiple times, thus do not store this. There can
+  // also be multiple compilation chunks.
+  finished_events_ |= triggered_events -
+                      CompilationEvent::kFinishedRecompilation -
+                      CompilationEvent::kFinishedCompilationChunk;
 
   for (auto event :
        {std::make_pair(CompilationEvent::kFailedCompilation,
@@ -3385,6 +3406,8 @@ void CompilationStateImpl::TriggerCallbacks(
                        "wasm.BaselineFinished"),
         std::make_pair(CompilationEvent::kFinishedTopTierCompilation,
                        "wasm.TopTierFinished"),
+        std::make_pair(CompilationEvent::kFinishedCompilationChunk,
+                       "wasm.CompilationChunkFinished"),
         std::make_pair(CompilationEvent::kFinishedRecompilation,
                        "wasm.RecompilationFinished")}) {
     if (!triggered_events.contains(event.first)) continue;
@@ -3395,7 +3418,11 @@ void CompilationStateImpl::TriggerCallbacks(
     }
   }
 
-  if (outstanding_baseline_units_ == 0 && outstanding_export_wrappers_ == 0 &&
+  // With dynamic tiering, we don't know if we can ever delete the callback.
+  // TODO(https://crbug.com/v8/12289): Release some callbacks also when dynamic
+  // tiering is enabled.
+  if (!FLAG_wasm_dynamic_tiering && outstanding_baseline_units_ == 0 &&
+      outstanding_export_wrappers_ == 0 &&
       outstanding_top_tier_functions_ == 0 &&
       outstanding_recompilation_functions_ == 0) {
     // Clear the callbacks because no more events will be delivered.
