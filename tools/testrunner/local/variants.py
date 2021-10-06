@@ -54,7 +54,7 @@ ALL_VARIANT_FLAGS = {
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "jitless": ["--opt", "--always-opt", "--liftoff", "--track-field-types",
               "--validate-asm", "--sparkplug", "--always-sparkplug",
-              "--regexp-tier-up"],
+              "--regexp-tier-up", "--no-regexp-interpret-all"],
   "nooptimization": ["--always-opt"],
   "slow_path": ["--no-force-slow-path"],
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
