@@ -120,20 +120,6 @@ TEST(DisasmX64) {
       __ vmovss(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovss(Operand(rbx, rcx, times_4, 10000), xmm0);
 
-      __ vaddss(xmm0, xmm1, xmm2);
-      __ vaddss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vmulss(xmm0, xmm1, xmm2);
-      __ vmulss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vsubss(xmm0, xmm1, xmm2);
-      __ vsubss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vdivss(xmm0, xmm1, xmm2);
-      __ vdivss(xmm0, xmm1, Operand(rbx, rcx, times_2, 10000));
-      __ vminss(xmm8, xmm1, xmm2);
-      __ vminss(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
-      __ vmaxss(xmm8, xmm1, xmm2);
-      __ vmaxss(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
-      __ vsqrtss(xmm8, xmm1, xmm2);
-      __ vsqrtss(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
       __ vmovss(xmm9, Operand(r11, rcx, times_8, -10000));
       __ vmovss(Operand(rbx, r9, times_4, 10000), xmm1);
       __ vucomiss(xmm9, xmm1);
@@ -201,12 +187,6 @@ TEST(DisasmX64) {
       __ vmovups(xmm5, Operand(rdx, 4));
       __ vmovups(Operand(rdx, 4), xmm5);
 
-      __ vandps(xmm0, xmm9, xmm2);
-      __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vandnps(xmm0, xmm9, xmm2);
-      __ vandnps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vxorps(xmm0, xmm1, xmm9);
-      __ vxorps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vhaddps(xmm0, xmm1, xmm9);
       __ vhaddps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vhaddps(ymm0, ymm1, ymm2);
@@ -249,74 +229,6 @@ TEST(DisasmX64) {
       __ vcmpnltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
       __ vcmpnlepd(xmm5, xmm4, xmm1);
       __ vcmpnlepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-
-#define EMIT_SSE_UNOP_AVXINSTR(instruction, notUsed1, notUsed2) \
-  __ v##instruction(xmm10, xmm1);                               \
-  __ v##instruction(xmm10, Operand(rbx, rcx, times_4, 10000));  \
-  __ v##instruction(ymm10, ymm1);                               \
-  __ v##instruction(ymm10, Operand(rbx, rcx, times_4, 10000));
-
-      SSE_UNOP_INSTRUCTION_LIST(EMIT_SSE_UNOP_AVXINSTR)
-#undef EMIT_SSE_UNOP_AVXINSTR
-
-#define EMIT_SSE_BINOP_AVXINSTR(instruction, notUsed1, notUsed2)     \
-  __ v##instruction(xmm10, xmm5, xmm1);                              \
-  __ v##instruction(xmm10, xmm5, Operand(rbx, rcx, times_4, 10000)); \
-  __ v##instruction(ymm10, ymm5, ymm1);                              \
-  __ v##instruction(ymm10, ymm5, Operand(rbx, rcx, times_4, 10000));
-
-      SSE_BINOP_INSTRUCTION_LIST(EMIT_SSE_BINOP_AVXINSTR)
-#undef EMIT_SSE_BINOP_AVXINSTR
-
-#define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
-  __ v##instruction(xmm10, xmm5, xmm1);                               \
-  __ v##instruction(xmm10, xmm5, Operand(rdx, 4));
-
-      SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
-#undef EMIT_SSE2_AVXINSTR
-
-#define EMIT_SSE2_UNOP_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
-  __ v##instruction(xmm10, xmm1);                                          \
-  __ v##instruction(xmm10, Operand(rdx, 4));
-
-      SSE2_UNOP_INSTRUCTION_LIST(EMIT_SSE2_UNOP_AVXINSTR)
-#undef EMIT_SSE2_AVXINSTR
-
-#define EMIT_SSE2_SD_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
-  __ v##instruction(xmm10, xmm5, xmm1);                                  \
-  __ v##instruction(xmm10, xmm5, Operand(rbx, rcx, times_4, 10000));
-      SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_SD_AVXINSTR)
-#undef EMIT_SSE2_SD_AVXINSTR
-
-#define EMIT_SSE34_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
-                            notUsed4)                                  \
-  __ v##instruction(xmm10, xmm5, xmm1);                                \
-  __ v##instruction(xmm10, xmm5, Operand(rdx, 4));
-
-      SSSE3_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
-      SSE4_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
-      SSE4_2_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
-#undef EMIT_SSE34_AVXINSTR
-
-#define EMIT_SSSE3_UNOP_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
-                                 notUsed4)                                  \
-  __ v##instruction(xmm9, xmm3);                                            \
-  __ v##instruction(xmm9, Operand(rdx, 5));
-      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSSE3_UNOP_AVXINSTR)
-#undef EMIT_SSSE3_UNOP_AVXINSTR
-
-#define EMIT_SSE4_PMOV_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
-                                notUsed4)                                  \
-  __ v##instruction(xmm10, xmm1);                                          \
-  __ v##instruction(xmm10, Operand(rdx, 4));
-      SSE4_UNOP_INSTRUCTION_LIST(EMIT_SSE4_PMOV_AVXINSTR)
-#undef EMIT_SSE4_PMOV_AVXINSTR
-
-#define EMIT_SSE2_SHIFT_IMM_AVX(instruction, notUsed1, notUsed2, notUsed3, \
-                                notUsed4)                                  \
-  __ v##instruction(xmm0, xmm15, 21);
-      SSE2_INSTRUCTION_LIST_SHIFT_IMM(EMIT_SSE2_SHIFT_IMM_AVX)
-#undef EMIT_SSE2_SHIFT_IMM_AVX
 
       __ vinsertps(xmm1, xmm2, xmm3, 1);
       __ vinsertps(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 1);
@@ -1313,6 +1225,88 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE4_2) {
   exp = #instruction " xmm5,[rbx+rcx*4+0x2710]";            \
   COMPARE_INSTR(exp, instruction(xmm5, Operand(rbx, rcx, times_4, 10000)));
   SSE4_2_INSTRUCTION_LIST(COMPARE_SSE4_2_INSTR)
+#undef COMPARE_SSE4_2_INSTR
+}
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputAVX) {
+  if (!CpuFeatures::IsSupported(AVX)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  std::string actual, exp;
+  CpuFeatureScope scope(&t.assm_, AVX);
+
+#define COMPARE_AVX_INSTR(instruction, _, __)                                  \
+  exp = "v" #instruction " xmm9,xmm5";                                         \
+  COMPARE_INSTR(exp, v##instruction(xmm9, xmm5));                              \
+  exp = "v" #instruction " xmm9,[rbx+rcx*4+0x2710]";                           \
+  COMPARE_INSTR(exp, v##instruction(xmm9, Operand(rbx, rcx, times_4, 10000))); \
+  exp = "v" #instruction " ymm9,ymm5";                                         \
+  COMPARE_INSTR(exp, v##instruction(ymm9, ymm5));                              \
+  exp = "v" #instruction " ymm9,[rbx+rcx*4+0x2710]";                           \
+  COMPARE_INSTR(exp, v##instruction(ymm9, Operand(rbx, rcx, times_4, 10000)));
+  SSE_UNOP_INSTRUCTION_LIST(COMPARE_AVX_INSTR)
+#undef COMPARE_AVX_INSTR
+
+#define COMPARE_AVX_INSTR(instruction, _, __)                              \
+  exp = "v" #instruction " xmm9,xmm5,xmm2";                                \
+  COMPARE_INSTR(exp, v##instruction(xmm9, xmm5, xmm2));                    \
+  exp = "v" #instruction " xmm9,xmm5,[rbx+rcx*4+0x2710]";                  \
+  COMPARE_INSTR(                                                           \
+      exp, v##instruction(xmm9, xmm5, Operand(rbx, rcx, times_4, 10000))); \
+  exp = "v" #instruction " ymm9,ymm5,ymm2";                                \
+  COMPARE_INSTR(exp, v##instruction(ymm9, ymm5, ymm2));                    \
+  exp = "v" #instruction " ymm9,ymm5,[rbx+rcx*4+0x2710]";                  \
+  COMPARE_INSTR(                                                           \
+      exp, v##instruction(ymm9, ymm5, Operand(rbx, rcx, times_4, 10000)));
+  SSE_BINOP_INSTRUCTION_LIST(COMPARE_AVX_INSTR)
+#undef COMPARE_AVX_INSTR
+
+#define COMPARE_AVX_INSTR(instruction, _, __, ___)   \
+  exp = "v" #instruction " xmm9,xmm2";               \
+  COMPARE_INSTR(exp, v##instruction(xmm9, xmm2));    \
+  exp = "v" #instruction " xmm9,[rbx+rcx*4+0x2710]"; \
+  COMPARE_INSTR(exp, v##instruction(xmm9, Operand(rbx, rcx, times_4, 10000)));
+  SSE2_UNOP_INSTRUCTION_LIST(COMPARE_AVX_INSTR)
+#undef COMPARE_AVX_INSTR
+
+#define COMPARE_AVX_INSTR(instruction, _, __, ___)        \
+  exp = "v" #instruction " xmm9,xmm5,xmm2";               \
+  COMPARE_INSTR(exp, v##instruction(xmm9, xmm5, xmm2));   \
+  exp = "v" #instruction " xmm9,xmm5,[rbx+rcx*4+0x2710]"; \
+  COMPARE_INSTR(                                          \
+      exp, v##instruction(xmm9, xmm5, Operand(rbx, rcx, times_4, 10000)));
+  SSE_INSTRUCTION_LIST_SS(COMPARE_AVX_INSTR)
+  SSE2_INSTRUCTION_LIST(COMPARE_AVX_INSTR)
+  SSE2_INSTRUCTION_LIST_SD(COMPARE_AVX_INSTR)
+#undef COMPARE_AVX_INSTR
+
+#define COMPARE_AVX_INSTR(instruction, _, __, ___, ____)  \
+  exp = "v" #instruction " xmm9,xmm5,xmm2";               \
+  COMPARE_INSTR(exp, v##instruction(xmm9, xmm5, xmm2));   \
+  exp = "v" #instruction " xmm9,xmm5,[rbx+rcx*4+0x2710]"; \
+  COMPARE_INSTR(                                          \
+      exp, v##instruction(xmm9, xmm5, Operand(rbx, rcx, times_4, 10000)));
+  SSSE3_INSTRUCTION_LIST(COMPARE_AVX_INSTR)
+  SSE4_INSTRUCTION_LIST(COMPARE_AVX_INSTR)
+  SSE4_2_INSTRUCTION_LIST(COMPARE_AVX_INSTR)
+#undef COMPARE_AVX_INSTR
+
+#define COMPARE_AVX_INSTR(instruction, _, __, ___, ____) \
+  exp = "v" #instruction " xmm9,xmm2";                   \
+  COMPARE_INSTR(exp, v##instruction(xmm9, xmm2));        \
+  exp = "v" #instruction " xmm9,[rbx+rcx*4+0x2710]";     \
+  COMPARE_INSTR(exp, v##instruction(xmm9, Operand(rbx, rcx, times_4, 10000)));
+  SSSE3_UNOP_INSTRUCTION_LIST(COMPARE_AVX_INSTR)
+  SSE4_UNOP_INSTRUCTION_LIST(COMPARE_AVX_INSTR)
+#undef COMPARE_AVX_INSTR
+
+#define COMPARE_AVX_INSTR(instruction, _, __, ___, ____) \
+  exp = "v" #instruction " xmm9,xmm2,21";                \
+  COMPARE_INSTR(exp, v##instruction(xmm9, xmm2, 21));
+  SSE2_INSTRUCTION_LIST_SHIFT_IMM(COMPARE_AVX_INSTR)
+#undef COMPARE_AVX_INSTR
 }
 
 UNINITIALIZED_TEST(DisasmX64YMMRegister) {
