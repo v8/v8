@@ -883,9 +883,6 @@ ConsoleCallArguments::ConsoleCallArguments(
           args.length() > 1 ? args.address_of_first_argument() : nullptr,
           args.length() - 1) {}
 
-// Marked V8_DEPRECATED.
-int GetStackFrameId(v8::Local<v8::StackFrame> frame) { return 0; }
-
 v8::Local<v8::StackTrace> GetDetailedStackTrace(
     Isolate* v8_isolate, v8::Local<v8::Object> v8_error) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
