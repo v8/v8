@@ -303,8 +303,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_import_assertions, "harmony import assertions")                    \
   V(harmony_rab_gsab,                                                          \
-    "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")                \
-  V(harmony_array_find_last, "harmony array find last helpers")
+    "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
@@ -313,7 +312,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)
+#define HARMONY_STAGED_BASE(V) \
+  V(harmony_array_find_last, "harmony array find last helpers")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                 \
