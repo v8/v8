@@ -970,6 +970,7 @@ BoundsCheckStrategy GetBoundsChecks(const WasmModule* module) {
 }  // namespace
 
 NativeModule::NativeModule(const WasmFeatures& enabled,
+                           DynamicTiering dynamic_tiering,
                            VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
                            std::shared_ptr<Counters> async_counters,
@@ -988,8 +989,8 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
   DCHECK_NOT_NULL(shared_this);
   DCHECK_NULL(*shared_this);
   shared_this->reset(this);
-  compilation_state_ =
-      CompilationState::New(*shared_this, std::move(async_counters));
+  compilation_state_ = CompilationState::New(
+      *shared_this, std::move(async_counters), dynamic_tiering);
   compilation_state_->InitCompileJob();
   DCHECK_NOT_NULL(module_);
   if (module_->num_declared_functions > 0) {
@@ -1055,8 +1056,8 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 }
 
 CompilationEnv NativeModule::CreateCompilationEnv() const {
-  return {module(), bounds_checks_, kRuntimeExceptionSupport,
-          enabled_features_};
+  return {module(), bounds_checks_, kRuntimeExceptionSupport, enabled_features_,
+          compilation_state()->dynamic_tiering()};
 }
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
@@ -2201,8 +2202,11 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  new NativeModule(enabled, std::move(code_space), std::move(module),
-                   isolate->async_counters(), &ret);
+  DynamicTiering dynamic_tiering = isolate->IsWasmDynamicTieringEnabled()
+                                       ? DynamicTiering::kEnabled
+                                       : DynamicTiering::kDisabled;
+  new NativeModule(enabled, dynamic_tiering, std::move(code_space),
+                   std::move(module), isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.
   DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: 0x%" PRIxPTR ",+%zu\n", ret.get(),
