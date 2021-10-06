@@ -868,8 +868,9 @@ class JSArrayRef : public JSObjectRef {
 
   // The `JSArray::length` property; not safe to use in general, but can be
   // used in some special cases that guarantee a valid `length` value despite
-  // concurrent reads.
-  ObjectRef length_unsafe() const;
+  // concurrent reads. The result needs to be optional in case the
+  // return value was created too recently to pass the gc predicate.
+  base::Optional<ObjectRef> length_unsafe() const;
 };
 
 class ScopeInfoRef : public HeapObjectRef {

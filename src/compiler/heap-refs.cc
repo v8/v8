@@ -1918,26 +1918,17 @@ int BytecodeArrayRef::handler_table_size() const {
     return BitField::decode(ObjectRef::data()->As##holder()->field()); \
   }
 
-// Like IF_ACCESS_FROM_HEAP[_C] but we also allow direct heap access for
+// Like IF_ACCESS_FROM_HEAP but we also allow direct heap access for
 // kBackgroundSerialized only for methods that we identified to be safe.
-#define IF_ACCESS_FROM_HEAP_WITH_FLAG(result, name)                        \
-  if (data_->should_access_heap() || broker()->is_concurrent_inlining()) { \
-    return MakeRef(broker(), result::cast(object()->name()));              \
-  }
 #define IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name)                              \
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) { \
     return object()->name();                                               \
   }
 
-// Like BIMODAL_ACCESSOR[_C] except that we force a direct heap access if
+// Like BIMODAL_ACCESSOR except that we force a direct heap access if
 // broker()->is_concurrent_inlining() is true (even for kBackgroundSerialized).
 // This is because we identified the method to be safe to use direct heap
 // access, but the holder##Data class still needs to be serialized.
-#define BIMODAL_ACCESSOR_WITH_FLAG(holder, result, name)                   \
-  result##Ref holder##Ref::name() const {                                  \
-    IF_ACCESS_FROM_HEAP_WITH_FLAG(result, name);                           \
-    return result##Ref(broker(), ObjectRef::data()->As##holder()->name()); \
-  }
 #define BIMODAL_ACCESSOR_WITH_FLAG_C(holder, result, name) \
   result holder##Ref::name() const {                       \
     IF_ACCESS_FROM_HEAP_WITH_FLAG_C(name);                 \
@@ -2029,8 +2020,6 @@ BIMODAL_ACCESSOR_C(Map, int, instance_size)
 BIMODAL_ACCESSOR_WITH_FLAG_C(Map, int, NextFreePropertyIndex)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 BIMODAL_ACCESSOR_WITH_FLAG_C(Map, InstanceType, instance_type)
-BIMODAL_ACCESSOR_WITH_FLAG(Map, Object, GetConstructor)
-BIMODAL_ACCESSOR_WITH_FLAG(Map, HeapObject, GetBackPointer)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
 
 int ObjectBoilerplateDescriptionRef::size() const { return object()->size(); }
@@ -2168,6 +2157,23 @@ MapRef MapRef::FindRootMap() const {
   // TODO(solanes, v8:7790): Consider caching the result of the root map.
   return MakeRefAssumeMemoryFence(broker(),
                                   object()->FindRootMap(broker()->isolate()));
+}
+
+ObjectRef MapRef::GetConstructor() const {
+  if (data()->should_access_heap() || broker()->is_concurrent_inlining()) {
+    // Immutable after initialization.
+    return MakeRefAssumeMemoryFence(broker(), object()->GetConstructor());
+  }
+  return ObjectRef(broker(), data()->AsMap()->GetConstructor());
+}
+
+HeapObjectRef MapRef::GetBackPointer() const {
+  if (data()->should_access_heap() || broker()->is_concurrent_inlining()) {
+    // Immutable after initialization.
+    return MakeRefAssumeMemoryFence(
+        broker(), HeapObject::cast(object()->GetBackPointer()));
+  }
+  return HeapObjectRef(broker(), ObjectRef::data()->AsMap()->GetBackPointer());
 }
 
 bool JSTypedArrayRef::is_on_heap() const {
@@ -2455,13 +2461,14 @@ ObjectRef JSArrayRef::GetBoilerplateLength() const {
   // Safe to read concurrently because:
   // - boilerplates are immutable after initialization.
   // - boilerplates are published into the feedback vector.
-  return length_unsafe();
+  // These facts also mean we can expect a valid value.
+  return length_unsafe().value();
 }
 
-ObjectRef JSArrayRef::length_unsafe() const {
+base::Optional<ObjectRef> JSArrayRef::length_unsafe() const {
   if (data_->should_access_heap() || broker()->is_concurrent_inlining()) {
-    return MakeRef(broker(),
-                   object()->length(broker()->isolate(), kRelaxedLoad));
+    return TryMakeRef(broker(),
+                      object()->length(broker()->isolate(), kRelaxedLoad));
   } else {
     return ObjectRef{broker(), data()->AsJSArray()->length()};
   }
@@ -2490,14 +2497,16 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
   // `elements`. We rely on the invariant that any `length` change will
   // also result in an `elements` change to make this safe. The `elements`
   // consistency check in the caller thus also guards the value of `length`.
-  ObjectRef length_ref = length_unsafe();
+  base::Optional<ObjectRef> length_ref = length_unsafe();
+
+  if (!length_ref.has_value()) return {};
 
   // Likewise we only deal with smi lengths.
-  if (!length_ref.IsSmi()) return {};
+  if (!length_ref->IsSmi()) return {};
 
   base::Optional<Object> result = ConcurrentLookupIterator::TryGetOwnCowElement(
       broker()->isolate(), *elements_ref.AsFixedArray().object(), elements_kind,
-      length_ref.AsSmi(), index);
+      length_ref->AsSmi(), index);
   if (!result.has_value()) return {};
 
   return TryMakeRef(broker(), result.value());
@@ -2885,13 +2894,11 @@ unsigned CodeRef::GetInlinedBytecodeSize() const {
 #undef BIMODAL_ACCESSOR
 #undef BIMODAL_ACCESSOR_B
 #undef BIMODAL_ACCESSOR_C
-#undef BIMODAL_ACCESSOR_WITH_FLAG
 #undef BIMODAL_ACCESSOR_WITH_FLAG_B
 #undef BIMODAL_ACCESSOR_WITH_FLAG_C
 #undef HEAP_ACCESSOR_C
 #undef IF_ACCESS_FROM_HEAP
 #undef IF_ACCESS_FROM_HEAP_C
-#undef IF_ACCESS_FROM_HEAP_WITH_FLAG
 #undef IF_ACCESS_FROM_HEAP_WITH_FLAG_C
 #undef TRACE
 #undef TRACE_MISSING
