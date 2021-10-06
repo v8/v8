@@ -534,6 +534,8 @@
   'test-gc/RunWasmLiftoff*': [SKIP],
   'test-run-wasm-module/Run_WasmModule_CompilationHintsNoTiering': [SKIP],
   'test-wasm-serialization/TierDownAfterDeserialization': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
+  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
 }],
 
 ##############################################################################
