@@ -1935,7 +1935,8 @@ void FailCallableLookup(
       GenericCallable* generic = failure.first;
       const std::string& fail_reason = failure.second;
       stream << "\n  " << generic->name() << " defined at "
-             << generic->Position() << ":\n    " << fail_reason << "\n";
+             << PositionAsString(generic->Position()) << ":\n    "
+             << fail_reason << "\n";
     }
   }
   ReportError(stream.str());
@@ -3897,7 +3898,7 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
         gen_name_(gen_name) {}
 
   void WriteField(const Field& f, const std::string& size_string) override {
-    hdr_ << "  // " << PositionAsString(f.pos) << "\n";
+    hdr_ << "  // " << f.pos << "\n";
     std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
     std::string field_end = field + "End";
     hdr_ << "  static constexpr int " << field << " = " << previous_field_end_
@@ -4034,7 +4035,7 @@ void CppClassGenerator::GenerateClass() {
       stream << "  return o.Is" << name_ << "();\n";
     });
   }
-  hdr_ << "// Definition " << PositionAsString(Position()) << "\n";
+  hdr_ << "// Definition " << Position() << "\n";
   hdr_ << template_decl() << "\n";
   hdr_ << "class " << gen_name_ << " : public P {\n";
   hdr_ << "  static_assert(\n"
