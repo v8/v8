@@ -119,8 +119,11 @@ class LanguageNames : public LocaleDisplayNamesCommon {
   LanguageNames(const icu::Locale& locale, JSDisplayNames::Style style,
                 bool fallback, bool dialect)
       : LocaleDisplayNamesCommon(locale, style, fallback, dialect) {}
+
   ~LanguageNames() override = default;
+
   const char* type() const override { return "language"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     UErrorCode status = U_ZERO_ERROR;
@@ -153,8 +156,11 @@ class RegionNames : public LocaleDisplayNamesCommon {
   RegionNames(const icu::Locale& locale, JSDisplayNames::Style style,
               bool fallback, bool dialect)
       : LocaleDisplayNamesCommon(locale, style, fallback, dialect) {}
+
   ~RegionNames() override = default;
+
   const char* type() const override { return "region"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -175,8 +181,11 @@ class ScriptNames : public LocaleDisplayNamesCommon {
   ScriptNames(const icu::Locale& locale, JSDisplayNames::Style style,
               bool fallback, bool dialect)
       : LocaleDisplayNamesCommon(locale, style, fallback, dialect) {}
+
   ~ScriptNames() override = default;
+
   const char* type() const override { return "script"; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -195,30 +204,47 @@ class ScriptNames : public LocaleDisplayNamesCommon {
 class KeyValueDisplayNames : public LocaleDisplayNamesCommon {
  public:
   KeyValueDisplayNames(const icu::Locale& locale, JSDisplayNames::Style style,
-                       bool fallback, bool dialect, const char* key)
-      : LocaleDisplayNamesCommon(locale, style, fallback, dialect), key_(key) {}
+                       bool fallback, bool dialect, const char* key,
+                       bool prevent_fallback)
+      : LocaleDisplayNamesCommon(locale, style, fallback, dialect),
+        key_(key),
+        prevent_fallback_(prevent_fallback) {}
+
   ~KeyValueDisplayNames() override = default;
+
   const char* type() const override { return key_.c_str(); }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
     icu::UnicodeString result;
     locale_display_names()->keyValueDisplayName(key_.c_str(), code_str.c_str(),
                                                 result);
+    // Work around the issue that the keyValueDisplayNames ignore no
+    // substituion and always fallback.
+    if (prevent_fallback_ && (result.length() == 3) &&
+        (code_str.length() == 3) &&
+        (result == icu::UnicodeString(code_str.c_str(), -1, US_INV))) {
+      result.setToBogus();
+    }
 
     return Just(result);
   }
 
  private:
   std::string key_;
+  bool prevent_fallback_;
 };
 
 class CurrencyNames : public KeyValueDisplayNames {
  public:
   CurrencyNames(const icu::Locale& locale, JSDisplayNames::Style style,
                 bool fallback, bool dialect)
-      : KeyValueDisplayNames(locale, style, fallback, dialect, "currency") {}
+      : KeyValueDisplayNames(locale, style, fallback, dialect, "currency",
+                             fallback == false) {}
+
   ~CurrencyNames() override = default;
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -235,8 +261,11 @@ class CalendarNames : public KeyValueDisplayNames {
  public:
   CalendarNames(const icu::Locale& locale, JSDisplayNames::Style style,
                 bool fallback, bool dialect)
-      : KeyValueDisplayNames(locale, style, fallback, dialect, "calendar") {}
+      : KeyValueDisplayNames(locale, style, fallback, dialect, "calendar",
+                             false) {}
+
   ~CalendarNames() override = default;
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     std::string code_str(code);
@@ -313,9 +342,13 @@ class DateTimeFieldNames : public DisplayNamesInternal {
         icu::DateTimePatternGenerator::createInstance(locale_, status));
     DCHECK(U_SUCCESS(status));
   }
+
   ~DateTimeFieldNames() override = default;
+
   const char* type() const override { return "dateTimeField"; }
+
   icu::Locale locale() const override { return locale_; }
+
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
     UDateTimePatternField field = StringToUDateTimePatternField(code);

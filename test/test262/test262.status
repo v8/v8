@@ -220,13 +220,7 @@
   'intl402/NumberFormat/currency-digits': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12209
-  'intl402/Intl/supportedValuesOf/calendars-accepted-by-DateTimeFormat': [FAIL],
   'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
-  'intl402/Intl/supportedValuesOf/currencies-accepted-by-DisplayNames': [FAIL],
-  'intl402/Intl/supportedValuesOf/length': [FAIL],
-  'intl402/Intl/supportedValuesOf/numberingSystems-accepted-by-DateTimeFormat': [FAIL],
-  'intl402/Intl/supportedValuesOf/numberingSystems-accepted-by-NumberFormat': [FAIL],
-  'intl402/Intl/supportedValuesOf/numberingSystems-accepted-by-RelativeTimeFormat': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
