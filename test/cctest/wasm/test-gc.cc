@@ -317,8 +317,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
   tester.CheckResult(kSet, -99);
 }
 
-// Test struct.set, ref.as_non_null,
-// struct refs types in globals and if-results.
+// Test struct.get, ref.as_non_null and ref-typed globals.
 WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
   WasmGCTester tester(execution_tier);
   const byte type_index =
@@ -332,21 +331,48 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
                        WasmInitExpr::RefNullConst(
                            static_cast<HeapType::Representation>(type_index)));
   const byte field_index = 0;
-  const byte kFunc = tester.DefineFunction(
+  const byte kNonNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_GLOBAL_SET(
            global_index,
            WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(55), WASM_I32V(66),
                                     WASM_RTT_CANON(type_index))),
-       WASM_STRUCT_GET(
-           type_index, field_index,
-           WASM_REF_AS_NON_NULL(WASM_IF_ELSE_R(kOptRefType, WASM_I32V(1),
-                                               WASM_GLOBAL_GET(global_index),
-                                               WASM_REF_NULL(type_index)))),
+       WASM_STRUCT_GET(type_index, field_index,
+                       WASM_REF_AS_NON_NULL(WASM_GLOBAL_GET(global_index))),
+       kExprEnd});
+  const byte kNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_GLOBAL_SET(global_index, WASM_REF_NULL(type_index)),
+       WASM_STRUCT_GET(type_index, field_index,
+                       WASM_REF_AS_NON_NULL(WASM_GLOBAL_GET(global_index))),
        kExprEnd});
 
   tester.CompileModule();
-  tester.CheckResult(kFunc, 55);
+  tester.CheckResult(kNonNull, 55);
+  tester.CheckHasThrown(kNull);
+}
+
+WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
+  FlagScope<bool> no_check(&FLAG_experimental_wasm_skip_null_checks, true);
+  WasmGCTester tester(execution_tier);
+  const byte type_index =
+      tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
+  ValueType kRefType = ref(type_index);
+  FunctionSig sig_q_v(1, 0, &kRefType);
+
+  const byte global_index =
+      tester.AddGlobal(optref(type_index), true,
+                       WasmInitExpr::RefNullConst(
+                           static_cast<HeapType::Representation>(type_index)));
+  const byte kFunc = tester.DefineFunction(
+      &sig_q_v, {},
+      {WASM_GLOBAL_SET(global_index, WASM_REF_NULL(type_index)),
+       WASM_REF_AS_NON_NULL(WASM_GLOBAL_GET(global_index)), kExprEnd});
+
+  tester.CompileModule();
+  Handle<Object> result = tester.GetResultObject(kFunc).ToHandleChecked();
+  // Without null checks, ref.as_non_null can actually return null.
+  CHECK(result->IsNull());
 }
 
 WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {

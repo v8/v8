@@ -611,8 +611,10 @@ Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
 
 Node* WasmGraphBuilder::RefAsNonNull(Node* arg,
                                      wasm::WasmCodePosition position) {
-  TrapIfTrue(wasm::kTrapIllegalCast, gasm_->WordEqual(arg, RefNull()),
-             position);
+  if (!FLAG_experimental_wasm_skip_null_checks) {
+    TrapIfTrue(wasm::kTrapIllegalCast, gasm_->WordEqual(arg, RefNull()),
+               position);
+  }
   return arg;
 }
 

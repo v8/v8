@@ -1754,8 +1754,9 @@ class WasmGraphBuildingInterface {
 
   CheckForNull NullCheckFor(ValueType type) {
     DCHECK(type.is_object_reference());
-    return type.is_nullable() ? CheckForNull::kWithNullCheck
-                              : CheckForNull::kWithoutNullCheck;
+    return (!FLAG_experimental_wasm_skip_null_checks && type.is_nullable())
+               ? CheckForNull::kWithNullCheck
+               : CheckForNull::kWithoutNullCheck;
   }
 };
 
