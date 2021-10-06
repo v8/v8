@@ -112,19 +112,6 @@ TEST(DisasmX64) {
   __ j(less_equal, &Ljcc);
   __ j(greater, &Ljcc);
 
-#define EMIT_SSE34_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
-  __ instruction(xmm5, xmm1);                                                 \
-  __ instruction(xmm5, Operand(rdx, 4));
-
-  {
-    if (CpuFeatures::IsSupported(SSE4_2)) {
-      CpuFeatureScope scope(&assm, SSE4_2);
-
-      SSE4_2_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
-    }
-  }
-#undef EMIT_SSE34_INSTR
-
   // AVX instruction
   {
     if (CpuFeatures::IsSupported(AVX)) {
@@ -1309,6 +1296,23 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE4_1) {
   COMPARE_INSTR(exp, instruction(Operand(rax, 10), xmm0, 1));
   SSE4_EXTRACT_INSTRUCTION_LIST(COMPARE_SSE4_EXTRACT_INSTR)
 #undef COMPARE_SSE4_EXTRACT_INSTR
+}
+
+UNINITIALIZED_TEST(DisasmX64CheckOutputSSE4_2) {
+  if (!CpuFeatures::IsSupported(SSE4_2)) {
+    return;
+  }
+
+  DisassemblerTester t;
+  std::string actual, exp;
+  CpuFeatureScope scope(&t.assm_, SSE4_2);
+
+#define COMPARE_SSE4_2_INSTR(instruction, _, __, ___, ____) \
+  exp = #instruction " xmm5,xmm1";                          \
+  COMPARE_INSTR(exp, instruction(xmm5, xmm1));              \
+  exp = #instruction " xmm5,[rbx+rcx*4+0x2710]";            \
+  COMPARE_INSTR(exp, instruction(xmm5, Operand(rbx, rcx, times_4, 10000)));
+  SSE4_2_INSTRUCTION_LIST(COMPARE_SSE4_2_INSTR)
 }
 
 UNINITIALIZED_TEST(DisasmX64YMMRegister) {
