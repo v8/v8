@@ -1598,6 +1598,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return V8_SHORT_BUILTIN_CALLS_BOOL && is_short_builtin_calls_enabled_;
   }
 
+  static base::AddressRegion GetShortBuiltinsCallRegion();
+
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
   }

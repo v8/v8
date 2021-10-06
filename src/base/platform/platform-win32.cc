@@ -1440,6 +1440,12 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 void OS::AdjustSchedulingParams() {}
 
+std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+    OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
+    size_t alignment) {
+  return {};
+}
+
 // static
 Stack::StackSlot Stack::GetStackStart() {
 #if defined(V8_TARGET_ARCH_X64)

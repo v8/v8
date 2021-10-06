@@ -20,9 +20,14 @@ namespace internal {
 // leaks (see crbug.com/870054).
 class CodeRangeAddressHint {
  public:
-  // Returns the most recently freed code range start address for the given
-  // size. If there is no such entry, then a random address is returned.
-  V8_EXPORT_PRIVATE Address GetAddressHint(size_t code_range_size);
+  // When near code range is enabled, an address within
+  // kShortBuiltinCallsBoundary to the embedded blob is returned if
+  // there is enough space. Otherwise a random address is returned.
+  // When near code range is disabled, returns the most recently freed code
+  // range start address for the given size. If there is no such entry, then a
+  // random address is returned.
+  V8_EXPORT_PRIVATE Address GetAddressHint(size_t code_range_size,
+                                           size_t alignment);
 
   V8_EXPORT_PRIVATE void NotifyFreedCodeRange(Address code_range_start,
                                               size_t code_range_size);

@@ -103,18 +103,20 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
                   kStackLimitSlackForDeoptimizationInBytes <=
               MB);
 
-// Determine whether the short builtin calls optimization is enabled.
-#ifdef V8_SHORT_BUILTIN_CALLS
-#ifndef V8_COMPRESS_POINTERS
-// TODO(11527): Fix this by passing Isolate* to Code::OffHeapInstructionStart()
-// and friends.
-#error Short builtin calls feature requires pointer compression
-#endif
+#if defined(V8_SHORT_BUILTIN_CALLS) && !defined(V8_COMPRESS_POINTERS)
+#define V8_ENABLE_NEAR_CODE_RANGE_BOOL true
+#else
+#define V8_ENABLE_NEAR_CODE_RANGE_BOOL false
 #endif
 
 // This constant is used for detecting whether the machine has >= 4GB of
 // physical memory by checking the max old space size.
 const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
+
+// This constant is used for detecting whether code range could be
+// allocated within the +/- 2GB boundary to builtins' embedded blob
+// to use short builtin calls.
+const size_t kShortBuiltinCallsBoundary = size_t{2} * GB;
 
 // Determine whether dict mode prototypes feature is enabled.
 #ifdef V8_ENABLE_SWISS_NAME_DICTIONARY

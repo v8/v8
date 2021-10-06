@@ -177,5 +177,11 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
 
 void OS::AdjustSchedulingParams() {}
 
+std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+    OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
+    size_t alignment) {
+  return {};
+}
+
 }  // namespace base
 }  // namespace v8

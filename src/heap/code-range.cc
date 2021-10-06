@@ -29,13 +29,47 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(CodeRangeAddressHint, GetCodeRangeAddressHint)
 void FunctionInStaticBinaryForAddressHint() {}
 }  // anonymous namespace
 
-Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size) {
+Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
+                                             size_t alignment) {
   base::MutexGuard guard(&mutex_);
+
+  Address result = 0;
   auto it = recently_freed_.find(code_range_size);
+  // No recently freed region has been found, try to provide a hint for placing
+  // a code region
   if (it == recently_freed_.end() || it->second.empty()) {
-    return FUNCTION_ADDR(&FunctionInStaticBinaryForAddressHint);
+    if (V8_ENABLE_NEAR_CODE_RANGE_BOOL) {
+      base::AddressRegion region = Isolate::GetShortBuiltinsCallRegion();
+      DCHECK_LT(region.begin(), region.end());
+      auto memory_ranges = base::OS::GetFreeMemoryRangesWithin(
+          region.begin(), region.end(), code_range_size, alignment);
+      if (!memory_ranges.empty()) {
+        result = memory_ranges.front().start;
+        CHECK(IsAligned(result, alignment));
+        return result;
+      }
+    }
+    return RoundUp(FUNCTION_ADDR(&FunctionInStaticBinaryForAddressHint),
+                   alignment);
   }
-  Address result = it->second.back();
+
+  // Try to reuse near code range first.
+  if (V8_ENABLE_NEAR_CODE_RANGE_BOOL) {
+    base::AddressRegion region = Isolate::GetShortBuiltinsCallRegion();
+    auto freed_regions_for_size = it->second;
+    for (auto it_freed = freed_regions_for_size.rbegin();
+         it_freed != freed_regions_for_size.rend(); ++it_freed) {
+      Address code_range_start = *it_freed;
+      if (region.contains(code_range_start, code_range_size)) {
+        CHECK(IsAligned(code_range_start, alignment));
+        freed_regions_for_size.erase((it_freed + 1).base());
+        return code_range_start;
+      }
+    }
+  }
+
+  result = it->second.back();
+  CHECK(IsAligned(result, alignment));
   it->second.pop_back();
   return result;
 }
@@ -69,12 +103,15 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   VirtualMemoryCage::ReservationParams params;
   params.page_allocator = page_allocator;
   params.reservation_size = requested;
+  // base_alignment should be kAnyBaseAlignment when V8_ENABLE_NEAR_CODE_RANGE
+  // is enabled so that InitReservation would not break the alignment in
+  // GetAddressHint().
   params.base_alignment =
       VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
   params.base_bias_size = reserved_area;
   params.page_size = MemoryChunk::kPageSize;
-  params.requested_start_hint =
-      GetCodeRangeAddressHint()->GetAddressHint(requested);
+  params.requested_start_hint = GetCodeRangeAddressHint()->GetAddressHint(
+      requested, page_allocator->AllocatePageSize());
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 
