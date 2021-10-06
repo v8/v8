@@ -80,7 +80,7 @@ class GCIdleTimeHeapState;
 class GCTracer;
 template <typename T>
 class GlobalHandleVector;
-class GlobalSafepoint;
+class IsolateSafepoint;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapStats;
@@ -735,7 +735,7 @@ class Heap {
   void DetachArrayBufferExtension(JSArrayBuffer object,
                                   ArrayBufferExtension* extension);
 
-  GlobalSafepoint* safepoint() { return safepoint_.get(); }
+  IsolateSafepoint* safepoint() { return safepoint_.get(); }
 
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs() const;
 
@@ -2455,7 +2455,7 @@ class Heap {
   GCCallbackFlags current_gc_callback_flags_ =
       GCCallbackFlags::kNoGCCallbackFlags;
 
-  std::unique_ptr<GlobalSafepoint> safepoint_;
+  std::unique_ptr<IsolateSafepoint> safepoint_;
 
   bool is_current_gc_forced_ = false;
   bool is_current_gc_for_heap_profiler_ = false;

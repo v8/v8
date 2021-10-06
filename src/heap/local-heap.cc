@@ -191,7 +191,7 @@ void LocalHeap::SafepointSlowPath() {
     ThreadState expected = kSafepointRequested;
     CHECK(state_.compare_exchange_strong(expected, kSafepoint));
     heap_->safepoint()->WaitInSafepoint();
-    // This might be a bit surprising, GlobalSafepoint transitions the state
+    // This might be a bit surprising, IsolateSafepoint transitions the state
     // from Safepoint (--> Running) --> Parked when returning from the
     // safepoint.
     Unpark();

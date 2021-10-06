@@ -213,7 +213,7 @@ Heap::Heap()
     : isolate_(isolate()),
       memory_pressure_level_(MemoryPressureLevel::kNone),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
-      safepoint_(new GlobalSafepoint(this)),
+      safepoint_(std::make_unique<IsolateSafepoint>(this)),
       external_string_table_(this),
       collection_barrier_(new CollectionBarrier(this)) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
@@ -2297,9 +2297,9 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
     DCHECK_NOT_NULL(client->shared_isolate());
     Heap* client_heap = client->heap();
 
-    GlobalSafepoint::StopMainThread stop_main_thread =
-        initiator == client ? GlobalSafepoint::StopMainThread::kNo
-                            : GlobalSafepoint::StopMainThread::kYes;
+    IsolateSafepoint::StopMainThread stop_main_thread =
+        initiator == client ? IsolateSafepoint::StopMainThread::kNo
+                            : IsolateSafepoint::StopMainThread::kYes;
 
     client_heap->safepoint()->EnterSafepointScope(stop_main_thread);
 
@@ -2310,9 +2310,9 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR);
 
   isolate()->IterateClientIsolates([initiator](Isolate* client) {
-    GlobalSafepoint::StopMainThread stop_main_thread =
-        initiator == client ? GlobalSafepoint::StopMainThread::kNo
-                            : GlobalSafepoint::StopMainThread::kYes;
+    IsolateSafepoint::StopMainThread stop_main_thread =
+        initiator == client ? IsolateSafepoint::StopMainThread::kNo
+                            : IsolateSafepoint::StopMainThread::kYes;
     client->heap()->safepoint()->LeaveSafepointScope(stop_main_thread);
   });
 
