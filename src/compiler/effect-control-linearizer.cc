@@ -3977,8 +3977,8 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   __ Goto(&loop, receiver, position);
   __ Bind(&loop);
   {
-    Node* receiver = loop.PhiAt(0);
-    Node* position = loop.PhiAt(1);
+    receiver = loop.PhiAt(0);
+    position = loop.PhiAt(1);
     Node* receiver_map = __ LoadField(AccessBuilder::ForMap(), receiver);
     Node* receiver_instance_type =
         __ LoadField(AccessBuilder::ForMapInstanceType(), receiver_map);
