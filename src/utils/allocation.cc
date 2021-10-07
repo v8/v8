@@ -63,21 +63,12 @@ class PageAllocatorInitializer {
 
   PageAllocator* page_allocator() const { return page_allocator_; }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  PageAllocator* data_cage_page_allocator() const {
-    return data_cage_page_allocator_;
-  }
-#endif
-
   void SetPageAllocatorForTesting(PageAllocator* allocator) {
     page_allocator_ = allocator;
   }
 
  private:
   PageAllocator* page_allocator_;
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  PageAllocator* data_cage_page_allocator_;
-#endif
 };
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(PageAllocatorInitializer,
@@ -451,7 +442,8 @@ bool VirtualMemoryCage::InitReservation(
                 params.page_size);
   page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
       params.page_allocator, allocatable_base, allocatable_size,
-      params.page_size);
+      params.page_size,
+      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized);
   return true;
 }
 
