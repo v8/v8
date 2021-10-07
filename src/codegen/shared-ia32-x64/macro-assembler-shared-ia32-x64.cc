@@ -1139,7 +1139,6 @@ void SharedTurboAssembler::S128Load8Splat(XMMRegister dst, Operand src,
     vpshufb(dst, dst, scratch);
   } else {
     CpuFeatureScope ssse4_scope(this, SSE4_1);
-    CpuFeatureScope ssse3_scope(this, SSSE3);
     pinsrb(dst, src, uint8_t{0});
     xorps(scratch, scratch);
     pshufb(dst, scratch);

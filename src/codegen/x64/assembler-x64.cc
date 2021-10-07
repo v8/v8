@@ -347,6 +347,9 @@ Assembler::Assembler(const AssemblerOptions& options,
   if (CpuFeatures::IsSupported(SSE4_1)) {
     EnableCpuFeature(SSSE3);
   }
+  if (CpuFeatures::IsSupported(SSSE3)) {
+    EnableCpuFeature(SSE3);
+  }
 
 #if defined(V8_OS_WIN_X64)
   if (options.collect_win64_unwind_info) {
