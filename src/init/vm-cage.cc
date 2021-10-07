@@ -60,7 +60,8 @@ bool V8VirtualMemoryCage::Initialize(v8::PageAllocator* page_allocator,
   size_ = size;
 
   cage_page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
-      page_allocator_, base_, size_, page_allocator_->AllocatePageSize());
+      page_allocator_, base_, size_, page_allocator_->AllocatePageSize(),
+      base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized);
 
   initialized_ = true;
 
