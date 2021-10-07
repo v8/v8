@@ -32,11 +32,12 @@ namespace liftoff {
 //  -----+--------------------+  <-- frame ptr (fp)
 //  -1   | 0xa: WASM          |
 //  -2   |     instance       |
+//  -3   |    feedback vector |
 //  -----+--------------------+---------------------------
-//  -3   |    slot 0 (high)   |   ^
-//  -4   |    slot 0 (low)    |   |
-//  -5   |    slot 1 (high)   | Frame slots
-//  -6   |    slot 1 (low)    |   |
+//  -4   |    slot 0 (high)   |   ^
+//  -5   |    slot 0 (low)    |   |
+//  -6   |    slot 1 (high)   | Frame slots
+//  -7   |    slot 1 (low)    |   |
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
@@ -44,6 +45,8 @@ namespace liftoff {
 
 constexpr int32_t kInstanceOffset =
     (FLAG_enable_embedded_constant_pool ? 3 : 2) * kSystemPointerSize;
+constexpr int kFeedbackVectorOffset =
+    (FLAG_enable_embedded_constant_pool ? 4 : 3) * kSystemPointerSize;
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
@@ -215,7 +218,7 @@ void LiftoffAssembler::AbortCompilation() { FinishCode(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kInstanceOffset;
+  return liftoff::kFeedbackVectorOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
