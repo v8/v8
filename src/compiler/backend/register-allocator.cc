@@ -4829,7 +4829,8 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
         DCHECK_IMPLIES(
             result.cur_cover_->TopLevel()->IsSpilledOnlyInDeferredBlocks(
                 data()) &&
-                !(pred_op.IsAnyRegister() && cur_op.IsAnyRegister()),
+                !(pred_op.IsAnyRegister() && cur_op.IsAnyRegister()) &&
+                move_loc != -1,
             code()->GetInstructionBlock(move_loc)->IsDeferred());
       }
       iterator.Advance();
@@ -4866,6 +4867,18 @@ int LiveRangeConnector::ResolveControlFlow(const InstructionBlock* block,
     gap_index = block->first_instruction_index();
     position = Instruction::START;
   } else {
+    Instruction* last = code()->InstructionAt(pred->last_instruction_index());
+    // The connecting move might invalidate uses of the destination operand in
+    // the deoptimization call. See crbug.com/v8/12218. Omitting the move is
+    // safe since the deopt call exits the current code.
+    if (last->IsDeoptimizeCall()) {
+      return -1;
+    }
+    // In every other case the last instruction should not participate in
+    // register allocation, or it could interfere with the connecting move.
+    for (size_t i = 0; i < last->InputCount(); ++i) {
+      DCHECK(last->InputAt(i)->IsImmediate());
+    }
     DCHECK_EQ(1, pred->SuccessorCount());
     DCHECK(!code()
                 ->InstructionAt(pred->last_instruction_index())
