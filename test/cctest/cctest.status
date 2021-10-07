@@ -338,12 +338,6 @@
 }],  # 'arch == arm'
 
 ##############################################################################
-['arch == arm and not simulator_run', {
-  # crbug.com/v8/11134
-  'test-cpu-profiler/MultipleThreadsSingleIsolate': [PASS, ['system != android', SKIP]],
-}],  # 'arch == arm and not simulator_run'
-
-##############################################################################
 ['arch == mipsel or arch == mips', {
   # TODO(mips-team): Improve code-size on large RegExp's.
   'test-heap/TestSizeOfRegExpCode':  [SKIP],
@@ -539,12 +533,6 @@
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
 }],
-
-##############################################################################
-['arch == ppc64 and not simulator_run', {
-  # crbug.com/v8/11134
-  'test-cpu-profiler/MultipleThreadsSingleIsolate': [SKIP],
-}],  # 'arch == ppc64 and not simulator_run'
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
