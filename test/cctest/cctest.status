@@ -1240,4 +1240,13 @@
   'test-calls-with-arraylike-or-spread/*': [SKIP],
 }],
 
+################################################################################
+['variant == stress', {
+  # The 'stress' variants sets the '--stress-opt' d8 flag, which executes 2 runs
+  # in debug mode and 5 runs in release mode. Hence the module will be cached
+  # between runs, and the correct caching behavior cannot be observed anymore in
+  # the later runs.
+  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
+}],
 ]

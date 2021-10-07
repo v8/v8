@@ -810,7 +810,7 @@ class LiftoffCompiler {
     // is never a position of any instruction in the function.
     StackCheck(decoder, 0);
 
-    if (FLAG_wasm_dynamic_tiering) {
+    if (env_->dynamic_tiering == DynamicTiering::kEnabled) {
       // TODO(arobin): Avoid spilling registers unconditionally.
       __ SpillAllRegisters();
       CODE_COMMENT("dynamic tiering");
