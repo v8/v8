@@ -142,6 +142,8 @@ class String : public TorqueGeneratedString<String, Name> {
       return onebyte_start == other.onebyte_start;
     }
 
+    int length() const { return length_; }
+
    private:
     enum State { NON_FLAT, ONE_BYTE, TWO_BYTE };
 
