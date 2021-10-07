@@ -433,7 +433,9 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstance(icu_locale, status));
-  if (U_SUCCESS(status)) return numbering_system->getName();
+  if (U_SUCCESS(status) && !numbering_system->isAlgorithmic()) {
+    return numbering_system->getName();
+  }
   return "latn";
 }
 
@@ -2009,19 +2011,62 @@ MaybeHandle<JSArray> VectorToJSArray(Isolate* isolate,
   return factory->NewJSArrayWithElements(fixed_array);
 }
 
-MaybeHandle<JSArray> AvailableCurrencies(Isolate* isolate) {
-  UErrorCode status = U_ZERO_ERROR;
-  UEnumeration* ids =
-      ucurr_openISOCurrencies(UCURR_COMMON | UCURR_NON_DEPRECATED, &status);
-  const char* next = nullptr;
-  std::vector<std::string> array;
-  while (U_SUCCESS(status) &&
-         (next = uenum_next(ids, nullptr, &status)) != nullptr) {
-    array.push_back(next);
+namespace {
+
+class ResourceAvailableCurrencies {
+ public:
+  ResourceAvailableCurrencies() {
+    UErrorCode status = U_ZERO_ERROR;
+    UEnumeration* uenum =
+        ucurr_openISOCurrencies(UCURR_COMMON | UCURR_NON_DEPRECATED, &status);
+    DCHECK(U_SUCCESS(status));
+    const char* next = nullptr;
+    while (U_SUCCESS(status) &&
+           (next = uenum_next(uenum, nullptr, &status)) != nullptr) {
+      // Work around the issue that we do not support VEF currency code
+      // in DisplayNames by not reporting it.
+      if (strcmp(next, "VEF") == 0) continue;
+      AddIfAvailable(next);
+    }
+    // Work around the issue that we do support the following currency codes
+    // in DisplayNames but the ICU API is not reporting it.
+    AddIfAvailable("SVC");
+    AddIfAvailable("VES");
+    AddIfAvailable("XDR");
+    AddIfAvailable("XSU");
+    AddIfAvailable("ZWL");
+    std::sort(list_.begin(), list_.end());
+    uenum_close(uenum);
   }
-  std::sort(array.begin(), array.end());
-  uenum_close(ids);
-  return VectorToJSArray(isolate, array);
+
+  const std::vector<std::string>& Get() const { return list_; }
+
+  void AddIfAvailable(const char* currency) {
+    icu::UnicodeString code(currency, -1, US_INV);
+    UErrorCode status = U_ZERO_ERROR;
+    int32_t len = 0;
+    const UChar* result =
+        ucurr_getName(code.getTerminatedBuffer(), "en", UCURR_LONG_NAME,
+                      nullptr, &len, &status);
+    if (U_SUCCESS(status) &&
+        u_strcmp(result, code.getTerminatedBuffer()) != 0) {
+      list_.push_back(currency);
+    }
+  }
+
+ private:
+  std::vector<std::string> list_;
+};
+
+const std::vector<std::string>& GetAvailableCurrencies() {
+  static base::LazyInstance<ResourceAvailableCurrencies>::type
+      available_currencies = LAZY_INSTANCE_INITIALIZER;
+  return available_currencies.Pointer()->Get();
+}
+}  // namespace
+
+MaybeHandle<JSArray> AvailableCurrencies(Isolate* isolate) {
+  return VectorToJSArray(isolate, GetAvailableCurrencies());
 }
 
 MaybeHandle<JSArray> AvailableNumberingSystems(Isolate* isolate) {
@@ -2194,7 +2239,8 @@ bool Intl::IsValidNumberingSystem(const std::string& value) {
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstanceByName(value.c_str(), status));
-  return U_SUCCESS(status) && numbering_system.get() != nullptr;
+  return U_SUCCESS(status) && numbering_system.get() != nullptr &&
+         !numbering_system->isAlgorithmic();
 }
 
 namespace {
