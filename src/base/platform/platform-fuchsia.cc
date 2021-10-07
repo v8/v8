@@ -156,10 +156,7 @@ bool OS::DecommitPages(void* address, size_t size) {
 }
 
 // static
-bool OS::HasLazyCommits() {
-  // TODO(scottmg): Port, https://crbug.com/731217.
-  return false;
-}
+bool OS::HasLazyCommits() { return true; }
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   UNREACHABLE();  // TODO(scottmg): Port, https://crbug.com/731217.
