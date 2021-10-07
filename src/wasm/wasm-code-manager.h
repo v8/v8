@@ -728,7 +728,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   void LogWasmCodes(Isolate*, Script);
 
-  CompilationState* compilation_state() { return compilation_state_.get(); }
+  CompilationState* compilation_state() const {
+    return compilation_state_.get();
+  }
 
   // Create a {CompilationEnv} object for compilation. The caller has to ensure
   // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
@@ -848,7 +850,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
-  NativeModule(const WasmFeatures& enabled_features, VirtualMemory code_space,
+  NativeModule(const WasmFeatures& enabled_features,
+               DynamicTiering dynamic_tiering, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);

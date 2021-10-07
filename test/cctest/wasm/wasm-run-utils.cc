@@ -336,7 +336,8 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
 
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {test_module_.get(), native_module_->bounds_checks(),
-          runtime_exception_support_, enabled_features_};
+          runtime_exception_support_, enabled_features_,
+          DynamicTiering::kDisabled};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
