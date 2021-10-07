@@ -542,39 +542,39 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline void set_scope_info(ScopeInfo scope_info,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Object unchecked_previous();
-  inline Context previous();
+  inline Object unchecked_previous() const;
+  inline Context previous() const;
 
-  inline Object next_context_link();
+  inline Object next_context_link() const;
 
-  inline bool has_extension();
-  inline HeapObject extension();
+  inline bool has_extension() const;
+  inline HeapObject extension() const;
   inline void set_extension(HeapObject object,
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  JSObject extension_object();
-  JSReceiver extension_receiver();
-  V8_EXPORT_PRIVATE ScopeInfo scope_info();
+  JSObject extension_object() const;
+  JSReceiver extension_receiver() const;
+  V8_EXPORT_PRIVATE inline ScopeInfo scope_info() const;
 
   // Find the module context (assuming there is one) and return the associated
   // module object.
-  SourceTextModule module();
+  SourceTextModule module() const;
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
-  Context declaration_context();
-  bool is_declaration_context();
+  Context declaration_context() const;
+  bool is_declaration_context() const;
 
   // Get the next closure's context on the context chain.
-  Context closure_context();
+  Context closure_context() const;
 
   // Returns a JSGlobalProxy object or null.
-  V8_EXPORT_PRIVATE JSGlobalProxy global_proxy();
+  V8_EXPORT_PRIVATE JSGlobalProxy global_proxy() const;
 
   // Get the JSGlobalObject object.
-  V8_EXPORT_PRIVATE JSGlobalObject global_object();
+  V8_EXPORT_PRIVATE JSGlobalObject global_object() const;
 
   // Get the script context by traversing the context chain.
-  Context script_context();
+  Context script_context() const;
 
   // Compute the native context.
   inline NativeContext native_context() const;
@@ -651,6 +651,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   DECL_VERIFIER(Context)
 
   class BodyDescriptor;
+
+#ifdef VERIFY_HEAP
+  void VerifyExtensionSlot(HeapObject extension);
+#endif
 
  private:
 #ifdef DEBUG

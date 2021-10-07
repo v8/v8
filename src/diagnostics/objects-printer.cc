@@ -123,8 +123,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case MODULE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
-    case SCRIPT_CONTEXT_TABLE_TYPE:
       Context::cast(*this).ContextPrint(os);
+      break;
+    case SCRIPT_CONTEXT_TABLE_TYPE:
+      FixedArray::cast(*this).FixedArrayPrint(os);
       break;
     case NATIVE_CONTEXT_TYPE:
       NativeContext::cast(*this).NativeContextPrint(os);

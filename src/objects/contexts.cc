@@ -65,7 +65,7 @@ bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
   return false;
 }
 
-bool Context::is_declaration_context() {
+bool Context::is_declaration_context() const {
   if (IsFunctionContext() || IsNativeContext() || IsScriptContext() ||
       IsModuleContext()) {
     return true;
@@ -77,7 +77,7 @@ bool Context::is_declaration_context() {
   return scope_info().is_declaration_scope();
 }
 
-Context Context::declaration_context() {
+Context Context::declaration_context() const {
   Context current = *this;
   while (!current.is_declaration_context()) {
     current = current.previous();
@@ -85,7 +85,7 @@ Context Context::declaration_context() {
   return current;
 }
 
-Context Context::closure_context() {
+Context Context::closure_context() const {
   Context current = *this;
   while (!current.IsFunctionContext() && !current.IsScriptContext() &&
          !current.IsModuleContext() && !current.IsNativeContext() &&
@@ -95,7 +95,7 @@ Context Context::closure_context() {
   return current;
 }
 
-JSObject Context::extension_object() {
+JSObject Context::extension_object() const {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   HeapObject object = extension();
@@ -105,17 +105,13 @@ JSObject Context::extension_object() {
   return JSObject::cast(object);
 }
 
-JSReceiver Context::extension_receiver() {
+JSReceiver Context::extension_receiver() const {
   DCHECK(IsNativeContext() || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
   return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
 }
 
-ScopeInfo Context::scope_info() {
-  return ScopeInfo::cast(get(SCOPE_INFO_INDEX));
-}
-
-SourceTextModule Context::module() {
+SourceTextModule Context::module() const {
   Context current = *this;
   while (!current.IsModuleContext()) {
     current = current.previous();
@@ -123,11 +119,11 @@ SourceTextModule Context::module() {
   return SourceTextModule::cast(current.extension());
 }
 
-JSGlobalObject Context::global_object() {
+JSGlobalObject Context::global_object() const {
   return JSGlobalObject::cast(native_context().extension());
 }
 
-Context Context::script_context() {
+Context Context::script_context() const {
   Context current = *this;
   while (!current.IsScriptContext()) {
     current = current.previous();
@@ -135,7 +131,7 @@ Context Context::script_context() {
   return current;
 }
 
-JSGlobalProxy Context::global_proxy() {
+JSGlobalProxy Context::global_proxy() const {
   return native_context().global_proxy_object();
 }
 
@@ -445,6 +441,23 @@ int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
 }
 
 #undef COMPARE_NAME
+
+#ifdef VERIFY_HEAP
+void Context::VerifyExtensionSlot(HeapObject extension) {
+  CHECK(scope_info().HasContextExtensionSlot());
+  if (extension.IsUndefined()) return;
+  if (IsModuleContext()) {
+    extension.IsSourceTextModule();
+  } else if (IsDebugEvaluateContext() || IsWithContext()) {
+    extension.IsJSReceiver();
+  } else if (IsNativeContext()) {
+    extension.IsJSGlobalObject();
+  } else if ((IsBlockContext() && scope_info().is_declaration_scope()) ||
+             IsFunctionContext()) {
+    extension.IsJSContextExtensionObject();
+  }
+}
+#endif  // VERIFY_HEAP
 
 #ifdef DEBUG
 
