@@ -755,7 +755,7 @@ class CompilationStateImpl {
   int outstanding_top_tier_functions_ = 0;
   // The amount of generated top tier code since the last
   // {kFinishedCompilationChunk} event.
-  size_t bytes_since_last_chunk = 0;
+  size_t bytes_since_last_chunk_ = 0;
   std::vector<uint8_t> compilation_progress_;
 
   int outstanding_recompilation_functions_ = 0;
@@ -3331,7 +3331,7 @@ void CompilationStateImpl::OnFinishedUnits(
         outstanding_baseline_units_--;
       }
       if (code->tier() == ExecutionTier::kTurbofan) {
-        bytes_since_last_chunk += code->instructions().size();
+        bytes_since_last_chunk_ += code->instructions().size();
       }
       if (reached_tier < required_top_tier &&
           required_top_tier <= code->tier()) {
@@ -3393,10 +3393,11 @@ void CompilationStateImpl::TriggerCallbacks(
     }
   }
 
-  if (static_cast<size_t>(FLAG_wasm_caching_threshold) <
-      bytes_since_last_chunk) {
+  if (dynamic_tiering_ == DynamicTiering::kEnabled &&
+      static_cast<size_t>(FLAG_wasm_caching_threshold) <
+          bytes_since_last_chunk_) {
     triggered_events.Add(CompilationEvent::kFinishedCompilationChunk);
-    bytes_since_last_chunk = 0;
+    bytes_since_last_chunk_ = 0;
   }
   if (compile_failed_.load(std::memory_order_relaxed)) {
     // *Only* trigger the "failed" event.
