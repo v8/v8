@@ -462,15 +462,22 @@ WasmEngine::~WasmEngine() {
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
                               const ModuleWireBytes& bytes) {
+  return SyncValidateResult(isolate, enabled, bytes).ok();
+}
+
+ModuleResult WasmEngine::SyncValidateResult(Isolate* isolate,
+                                            const WasmFeatures& enabled,
+                                            const ModuleWireBytes& bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
   // TODO(titzer): remove dependency on the isolate.
-  if (bytes.start() == nullptr || bytes.length() == 0) return false;
-  ModuleResult result = DecodeWasmModule(
+  if (bytes.start() == nullptr || bytes.length() == 0) {
+    return ModuleResult(WasmError(0, "empty module wire bytes"));
+  }
+  return DecodeWasmModule(
       enabled, bytes.start(), bytes.end(), true, kWasmOrigin,
       isolate->counters(), isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kSync, allocator());
-  return result.ok();
 }
 
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
