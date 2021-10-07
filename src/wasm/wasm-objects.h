@@ -349,6 +349,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
   DECL_OPTIONAL_ACCESSORS(wasm_external_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
+  DECL_ACCESSORS(feedback_vectors, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(isolate_root, Address)
@@ -425,6 +426,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kTagsTableOffset, kTaggedSize)                                        \
   V(kWasmExternalFunctionsOffset, kTaggedSize)                            \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
+  V(kFeedbackVectorsOffset, kTaggedSize)                                  \
   V(kBreakOnEntryOffset, kUInt8Size)                                      \
   /* More padding to make the header pointer-size aligned */              \
   V(kHeaderPaddingOffset, POINTER_SIZE_PADDING(kHeaderPaddingOffset))     \
@@ -460,7 +462,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kManagedNativeAllocationsOffset,
       kTagsTableOffset,
       kWasmExternalFunctionsOffset,
-      kManagedObjectMapsOffset};
+      kManagedObjectMapsOffset,
+      kFeedbackVectorsOffset};
 
   const wasm::WasmModule* module();
 

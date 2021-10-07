@@ -27,6 +27,11 @@ Reduction WasmInliner::Reduce(Node* node) {
   }
 }
 
+#define TRACE(...)                            \
+  if (FLAG_trace_wasm_speculative_inlining) { \
+    PrintF(__VA_ARGS__);                      \
+  }
+
 // TODO(12166): Save inlined frames for trap/--trace-wasm purposes. Consider
 //              tail calls.
 // TODO(12166): Inline indirect calls/call_ref.
@@ -40,10 +45,22 @@ Reduction WasmInliner::ReduceCall(Node* call) {
   if (callee->opcode() != reloc_opcode) return NoChange();
   auto info = OpParameter<RelocatablePtrConstantInfo>(callee->op());
   uint32_t inlinee_index = static_cast<uint32_t>(info.value());
-  if (!heuristics_->DoInline(source_positions_->GetSourcePosition(call),
-                             inlinee_index)) {
+  TRACE("[considering call to %d... ", inlinee_index)
+  if (info.rmode() != RelocInfo::WASM_CALL) {
+    TRACE("not a wasm call]\n")
     return NoChange();
   }
+  if (inlinee_index < module()->num_imported_functions) {
+    TRACE("imported function]\n")
+    return NoChange();
+  }
+
+  if (!heuristics_->DoInline(source_positions_->GetSourcePosition(call),
+                             inlinee_index)) {
+    TRACE("heuristics say no]\n")
+    return NoChange();
+  }
+  TRACE("inlining!]\n")
 
   CHECK_LT(inlinee_index, module()->functions.size());
   const wasm::WasmFunction* inlinee = &module()->functions[inlinee_index];

@@ -512,6 +512,12 @@ class LiftoffCompiler {
     return __ GetTotalFrameSlotCountForGC();
   }
 
+  int GetFeedbackVectorSlots() const {
+    // The number of instructions is capped by max function size.
+    STATIC_ASSERT(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max());
+    return static_cast<int>(num_call_ref_instructions_) * 2;
+  }
+
   void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
                    const char* detail) {
     DCHECK_NE(kSuccess, reason);
@@ -754,7 +760,20 @@ class LiftoffCompiler {
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
     // Load the feedback vector and cache it in a stack slot.
     if (FLAG_wasm_speculative_inlining) {
-      UNIMPLEMENTED();
+      int declared_func_index =
+          func_index_ - env_->module->num_imported_functions;
+      DCHECK_GE(declared_func_index, 0);
+      LiftoffRegList pinned;
+      for (auto reg : kGpParamRegisters) pinned.set(reg);
+      LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      __ LoadTaggedPointerFromInstance(
+          tmp.gp(), kWasmInstanceRegister,
+          WASM_INSTANCE_OBJECT_FIELD_OFFSET(FeedbackVectors));
+      __ LoadTaggedPointer(tmp.gp(), tmp.gp(), no_reg,
+                           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
+                               declared_func_index),
+                           pinned);
+      __ Spill(liftoff::kFeedbackVectorOffset, tmp, kPointerKind);
     } else {
       __ Spill(liftoff::kFeedbackVectorOffset, WasmValue::ForUintPtr(0));
     }
@@ -5910,101 +5929,135 @@ class LiftoffCompiler {
     call_descriptor =
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
-    // Executing a write barrier needs temp registers; doing this on a
-    // conditional branch confuses the LiftoffAssembler's register management.
-    // Spill everything up front to work around that.
-    __ SpillAllRegisters();
+    Register target_reg = no_reg, instance_reg = no_reg;
 
-    // We limit ourselves to four registers:
-    // (1) func_data, initially reused for func_ref.
-    // (2) instance, initially used as temp.
-    // (3) target, initially used as temp.
-    // (4) temp.
-    LiftoffRegList pinned;
-    LiftoffRegister func_ref = pinned.set(__ PopToModifiableRegister(pinned));
-    MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
-    LiftoffRegister instance = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    if (FLAG_wasm_speculative_inlining) {
+      ValueKind kIntPtrKind = kPointerKind;
 
-    // Load the WasmFunctionData.
-    LiftoffRegister func_data = func_ref;
-    __ LoadTaggedPointer(
-        func_data.gp(), func_ref.gp(), no_reg,
-        wasm::ObjectAccess::ToTagged(JSFunction::kSharedFunctionInfoOffset),
-        pinned);
-    __ LoadTaggedPointer(
-        func_data.gp(), func_data.gp(), no_reg,
-        wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFunctionDataOffset),
-        pinned);
+      LiftoffRegList pinned;
+      LiftoffAssembler::VarState funcref =
+          __ cache_state()->stack_state.end()[-1];
+      if (funcref.is_reg()) pinned.set(funcref.reg());
+      LiftoffRegister vector = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      __ Fill(vector, liftoff::kFeedbackVectorOffset, kPointerKind);
+      LiftoffAssembler::VarState vector_var(kPointerKind, vector, 0);
+      LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      uintptr_t vector_slot = num_call_ref_instructions_ * 2;
+      num_call_ref_instructions_++;
+      __ LoadConstant(index, WasmValue::ForUintPtr(vector_slot));
+      LiftoffAssembler::VarState index_var(kIntPtrKind, index, 0);
 
-    // Load "ref" (instance or <instance, callable> pair) and target.
-    __ LoadTaggedPointer(
-        instance.gp(), func_data.gp(), no_reg,
-        wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset), pinned);
+      // CallRefIC(vector: FixedArray, index: intptr, funcref: JSFunction)
+      CallRuntimeStub(WasmCode::kCallRefIC,
+                      MakeSig::Returns(kPointerKind, kPointerKind)
+                          .Params(kPointerKind, kIntPtrKind, kPointerKind),
+                      {vector_var, index_var, funcref}, decoder->position());
 
-    Label load_target, perform_call;
+      __ cache_state()->stack_state.pop_back(1);  // Drop funcref.
+      target_reg = LiftoffRegister(kReturnRegister0).gp();
+      instance_reg = LiftoffRegister(kReturnRegister1).gp();
 
-    // Check if "ref" is a Tuple2.
-    {
-      LiftoffRegister pair_map = temp;
-      LiftoffRegister ref_map = target;
-      __ LoadMap(ref_map.gp(), instance.gp());
-      LOAD_INSTANCE_FIELD(pair_map.gp(), IsolateRoot, kSystemPointerSize,
-                          pinned);
-      __ LoadTaggedPointer(pair_map.gp(), pair_map.gp(), no_reg,
-                           IsolateData::root_slot_offset(RootIndex::kTuple2Map),
-                           pinned);
-      __ emit_cond_jump(kUnequal, &load_target, kRef, ref_map.gp(),
-                        pair_map.gp());
+    } else {  // FLAG_wasm_speculative_inlining
+      // Non-feedback-collecting version.
+      // Executing a write barrier needs temp registers; doing this on a
+      // conditional branch confuses the LiftoffAssembler's register management.
+      // Spill everything up front to work around that.
+      __ SpillAllRegisters();
 
-      // Overwrite the tuple's "instance" entry with the current instance.
-      // TODO(jkummerow): Can we figure out a way to guarantee that the
-      // instance field is always precomputed?
-      LiftoffRegister current_instance = temp;
-      __ FillInstanceInto(current_instance.gp());
-      __ StoreTaggedPointer(instance.gp(), no_reg,
-                            wasm::ObjectAccess::ToTagged(Tuple2::kValue1Offset),
-                            current_instance, pinned);
-      // Fall through to {load_target}.
-    }
-    // Load the call target.
-    __ bind(&load_target);
+      // We limit ourselves to four registers:
+      // (1) func_data, initially reused for func_ref.
+      // (2) instance, initially used as temp.
+      // (3) target, initially used as temp.
+      // (4) temp.
+      LiftoffRegList pinned;
+      LiftoffRegister func_ref = pinned.set(__ PopToModifiableRegister(pinned));
+      MaybeEmitNullCheck(decoder, func_ref.gp(), pinned, func_ref_type);
+      LiftoffRegister instance =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LiftoffRegister temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+      // Load the WasmFunctionData.
+      LiftoffRegister func_data = func_ref;
+      __ LoadTaggedPointer(
+          func_data.gp(), func_ref.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(JSFunction::kSharedFunctionInfoOffset),
+          pinned);
+      __ LoadTaggedPointer(
+          func_data.gp(), func_data.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFunctionDataOffset),
+          pinned);
+
+      // Load "ref" (instance or <instance, callable> pair) and target.
+      __ LoadTaggedPointer(
+          instance.gp(), func_data.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset), pinned);
+
+      Label load_target, perform_call;
+
+      // Check if "ref" is a Tuple2.
+      {
+        LiftoffRegister pair_map = temp;
+        LiftoffRegister ref_map = target;
+        __ LoadMap(ref_map.gp(), instance.gp());
+        LOAD_INSTANCE_FIELD(pair_map.gp(), IsolateRoot, kSystemPointerSize,
+                            pinned);
+        __ LoadTaggedPointer(
+            pair_map.gp(), pair_map.gp(), no_reg,
+            IsolateData::root_slot_offset(RootIndex::kTuple2Map), pinned);
+        __ emit_cond_jump(kUnequal, &load_target, kRef, ref_map.gp(),
+                          pair_map.gp());
+
+        // Overwrite the tuple's "instance" entry with the current instance.
+        // TODO(jkummerow): Can we figure out a way to guarantee that the
+        // instance field is always precomputed?
+        LiftoffRegister current_instance = temp;
+        __ FillInstanceInto(current_instance.gp());
+        __ StoreTaggedPointer(
+            instance.gp(), no_reg,
+            wasm::ObjectAccess::ToTagged(Tuple2::kValue1Offset),
+            current_instance, pinned);
+        // Fall through to {load_target}.
+      }
+      // Load the call target.
+      __ bind(&load_target);
 
 #ifdef V8_HEAP_SANDBOX
-    LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
-    __ LoadExternalPointer(target.gp(), func_data.gp(),
-                           WasmFunctionData::kForeignAddressOffset,
-                           kForeignForeignAddressTag, temp.gp());
+      LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
+      __ LoadExternalPointer(target.gp(), func_data.gp(),
+                             WasmFunctionData::kForeignAddressOffset,
+                             kForeignForeignAddressTag, temp.gp());
 #else
-    __ Load(
-        target, func_data.gp(), no_reg,
-        wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset),
-        kPointerLoadType, pinned);
+      __ Load(
+          target, func_data.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset),
+          kPointerLoadType, pinned);
 #endif
 
-    LiftoffRegister null_address = temp;
-    __ LoadConstant(null_address, WasmValue::ForUintPtr(0));
-    __ emit_cond_jump(kUnequal, &perform_call, kRef, target.gp(),
-                      null_address.gp());
-    // The cached target can only be null for WasmJSFunctions.
-    __ LoadTaggedPointer(target.gp(), func_data.gp(), no_reg,
-                         wasm::ObjectAccess::ToTagged(
-                             WasmJSFunctionData::kWasmToJsWrapperCodeOffset),
-                         pinned);
+      LiftoffRegister null_address = temp;
+      __ LoadConstant(null_address, WasmValue::ForUintPtr(0));
+      __ emit_cond_jump(kUnequal, &perform_call, kRef, target.gp(),
+                        null_address.gp());
+      // The cached target can only be null for WasmJSFunctions.
+      __ LoadTaggedPointer(target.gp(), func_data.gp(), no_reg,
+                           wasm::ObjectAccess::ToTagged(
+                               WasmJSFunctionData::kWasmToJsWrapperCodeOffset),
+                           pinned);
 #ifdef V8_EXTERNAL_CODE_SPACE
-    __ LoadCodeDataContainerEntry(target.gp(), target.gp());
+      __ LoadCodeDataContainerEntry(target.gp(), target.gp());
 #else
-    __ emit_ptrsize_addi(target.gp(), target.gp(),
-                         wasm::ObjectAccess::ToTagged(Code::kHeaderSize));
+      __ emit_ptrsize_addi(target.gp(), target.gp(),
+                           wasm::ObjectAccess::ToTagged(Code::kHeaderSize));
 #endif
-    // Fall through to {perform_call}.
+      // Fall through to {perform_call}.
 
-    __ bind(&perform_call);
-    // Now the call target is in {target}, and the right instance object
-    // is in {instance}.
-    Register target_reg = target.gp();
-    Register instance_reg = instance.gp();
+      __ bind(&perform_call);
+      // Now the call target is in {target}, and the right instance object
+      // is in {instance}.
+      target_reg = target.gp();
+      instance_reg = instance.gp();
+    }  // FLAG_wasm_speculative_inlining
+
     __ PrepareCall(&sig, call_descriptor, &target_reg, &instance_reg);
     if (tail_call) {
       __ PrepareTailCall(
@@ -6273,6 +6326,10 @@ class LiftoffCompiler {
   // Current number of exception refs on the stack.
   int num_exceptions_ = 0;
 
+  // Number of {call_ref} instructions encountered. While compiling, also
+  // index of the next {call_ref}. Used for indexing type feedback.
+  uintptr_t num_call_ref_instructions_ = 0;
+
   int32_t* max_steps_;
   int32_t* nondeterminism_;
 
@@ -6349,6 +6406,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   if (auto* debug_sidetable = compiler_options.debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }
+  result.feedback_vector_slots = compiler->GetFeedbackVectorSlots();
 
   DCHECK(result.succeeded());
   return result;

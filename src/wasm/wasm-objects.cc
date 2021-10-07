@@ -1311,6 +1311,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_hook_on_function_call_address(
       isolate->debug()->hook_on_function_call_address());
   instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
+  instance->set_feedback_vectors(*isolate->factory()->empty_fixed_array());
   instance->set_num_liftoff_function_calls_array(
       module_object->native_module()->num_liftoff_function_calls_array());
   instance->set_break_on_entry(module_object->script().break_on_entry());

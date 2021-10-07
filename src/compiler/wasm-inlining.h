@@ -33,26 +33,18 @@ class SourcePositionTable;
 // Parent class for classes that provide heuristics on how to inline in wasm.
 class WasmInliningHeuristics {
  public:
-  virtual bool DoInline(SourcePosition position,
-                        uint32_t function_index) const = 0;
+  virtual bool DoInline(SourcePosition position, uint32_t function_index) = 0;
 };
 
-// A simple inlining heuristic that inlines all function calls to a set of given
-// function indices.
-class InlineByIndex : public WasmInliningHeuristics {
+class InlineFirstFew : public WasmInliningHeuristics {
  public:
-  explicit InlineByIndex(uint32_t function_index)
-      : WasmInliningHeuristics(), function_indices_(function_index) {}
-  InlineByIndex(std::initializer_list<uint32_t> function_indices)
-      : WasmInliningHeuristics(), function_indices_(function_indices) {}
-
-  bool DoInline(SourcePosition position,
-                uint32_t function_index) const override {
-    return function_indices_.count(function_index) > 0;
+  explicit InlineFirstFew(int count) : count_(count) {}
+  bool DoInline(SourcePosition position, uint32_t function_index) override {
+    return count_-- > 0;
   }
 
  private:
-  std::unordered_set<uint32_t> function_indices_;
+  int count_;
 };
 
 // The WasmInliner provides the core graph inlining machinery for Webassembly
@@ -65,7 +57,7 @@ class WasmInliner final : public AdvancedReducer {
               SourcePositionTable* source_positions,
               NodeOriginTable* node_origins, MachineGraph* mcgraph,
               const wasm::WireBytesStorage* wire_bytes,
-              const WasmInliningHeuristics* heuristics)
+              WasmInliningHeuristics* heuristics)
       : AdvancedReducer(editor),
         env_(env),
         source_positions_(source_positions),
@@ -98,7 +90,7 @@ class WasmInliner final : public AdvancedReducer {
   NodeOriginTable* const node_origins_;
   MachineGraph* const mcgraph_;
   const wasm::WireBytesStorage* const wire_bytes_;
-  const WasmInliningHeuristics* const heuristics_;
+  WasmInliningHeuristics* heuristics_;
 };
 
 }  // namespace compiler

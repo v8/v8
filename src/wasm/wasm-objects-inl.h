@@ -253,6 +253,8 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_external_functions, FixedArray,
                    kWasmExternalFunctionsOffset)
 ACCESSORS(WasmInstanceObject, managed_object_maps, FixedArray,
           kManagedObjectMapsOffset)
+ACCESSORS(WasmInstanceObject, feedback_vectors, FixedArray,
+          kFeedbackVectorsOffset)
 
 void WasmInstanceObject::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {

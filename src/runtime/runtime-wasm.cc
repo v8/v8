@@ -208,15 +208,15 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
-  Handle<WasmModuleObject> module_object{instance->module_object(), isolate};
-  bool success = wasm::CompileLazy(isolate, module_object, func_index);
+  bool success = wasm::CompileLazy(isolate, instance, func_index);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
 
   Address entrypoint =
-      module_object->native_module()->GetCallTargetForFunction(func_index);
+      instance->module_object().native_module()->GetCallTargetForFunction(
+          func_index);
 
   return Object(entrypoint);
 }
@@ -295,7 +295,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   int func_index = frame_finder.frame()->function_index();
   auto* native_module = instance->module_object().native_module();
 
-  wasm::TriggerTierUp(isolate, native_module, func_index);
+  wasm::TriggerTierUp(isolate, native_module, func_index, instance);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

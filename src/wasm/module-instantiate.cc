@@ -706,6 +706,27 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
+  // Allocate type feedback vectors for functions.
+  //--------------------------------------------------------------------------
+  if (FLAG_wasm_speculative_inlining) {
+    int num_functions = static_cast<int>(module_->num_declared_functions);
+    Handle<FixedArray> vectors =
+        isolate_->factory()->NewFixedArray(num_functions, AllocationType::kOld);
+    instance->set_feedback_vectors(*vectors);
+    for (int i = 0; i < num_functions; i++) {
+      int func_index = module_->num_imported_functions + i;
+      int slots = module_->functions[func_index].feedback_slots;
+      if (slots == 0) continue;
+      if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function %d (declared %d): allocating %d feedback slots]\n",
+               func_index, i, slots);
+      }
+      Handle<FixedArray> feedback = isolate_->factory()->NewFixedArray(slots);
+      vectors->set(i, *feedback);
+    }
+  }
+
+  //--------------------------------------------------------------------------
   // Process the initialization for the module's globals.
   //--------------------------------------------------------------------------
   InitGlobals(instance);

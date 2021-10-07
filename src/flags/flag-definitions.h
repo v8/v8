@@ -1046,8 +1046,16 @@ DEFINE_BOOL(wasm_math_intrinsics, true,
 DEFINE_BOOL(
     wasm_inlining, false,
     "enable inlining of wasm functions into wasm functions (experimental)")
+DEFINE_INT(wasm_inlining_budget, 3,
+           "maximum number of call targets to inline into a Wasm function")
 DEFINE_BOOL(wasm_speculative_inlining, false,
             "enable speculative inlining of call_ref targets (experimental)")
+DEFINE_BOOL(trace_wasm_speculative_inlining, false,
+            "trace wasm speculative inlining")
+DEFINE_IMPLICATION(wasm_speculative_inlining, experimental_wasm_typed_funcref)
+DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_inlining)
+DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_dynamic_tiering)
+DEFINE_NEG_IMPLICATION(wasm_speculative_inlining, wasm_tier_up)
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,

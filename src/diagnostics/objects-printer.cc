@@ -1868,6 +1868,11 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
     os << "\n - managed_native_allocations: "
        << Brief(managed_native_allocations());
   }
+  if (has_tags_table()) {
+    os << "\n - tags table: " << Brief(tags_table());
+  }
+  os << "\n - managed object maps: " << Brief(managed_object_maps());
+  os << "\n - feedback vectors: " << Brief(feedback_vectors());
   os << "\n - memory_start: " << static_cast<void*>(memory_start());
   os << "\n - memory_size: " << memory_size();
   os << "\n - imported_function_targets: "

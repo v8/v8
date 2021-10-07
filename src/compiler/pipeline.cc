@@ -1696,8 +1696,8 @@ struct WasmInliningPhase {
         data->jsgraph()->Dead(), data->observe_node_manager());
     DeadCodeElimination dead(&graph_reducer, data->graph(),
                              data->mcgraph()->common(), temp_zone);
-    // For now, hard-code inlining the function at index 0.
-    InlineByIndex heuristics({0});
+    // For now, inline the first few functions;
+    InlineFirstFew heuristics(FLAG_wasm_inlining_budget);
     WasmInliner inliner(&graph_reducer, env, data->source_positions(),
                         data->node_origins(), data->mcgraph(), wire_bytes,
                         &heuristics);

@@ -86,6 +86,7 @@ struct WasmModule;
   V(WasmTraceMemory)                      \
   V(BigIntToI32Pair)                      \
   V(BigIntToI64)                          \
+  V(CallRefIC)                            \
   V(DoubleToI)                            \
   V(I32PairToBigInt)                      \
   V(I64ToBigInt)                          \
