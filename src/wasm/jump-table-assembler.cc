@@ -314,19 +314,36 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 bool JumpTableAssembler::EmitJumpSlot(Address target) {
-  mov(r0, Operand(target));
-  mtctr(r0);
-  bctr();
+  intptr_t relative_target = reinterpret_cast<byte*>(target) - pc_;
+
+  if (!is_int26(relative_target)) {
+    return false;
+  }
+
+  b(relative_target, LeaveLK);
   return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  JumpToInstructionStream(target);
+  byte* start = pc_;
+  mov(ip, Operand(reinterpret_cast<Address>(start + kFarJumpTableSlotSize -
+                                            8)));  // 5 instr
+  LoadU64(ip, MemOperand(ip));
+  mtctr(ip);
+  bctr();
+  byte* end = pc_;
+  int used = end - start;
+  CHECK(used < kFarJumpTableSlotSize - 8);
+  NopBytes(kFarJumpTableSlotSize - 8 - used);
+  CHECK_EQ(reinterpret_cast<Address>(pc_) & 0x7, 0);  // Alignment
+  dp(target);
 }
 
 // static
 void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
-  UNREACHABLE();
+  Address target_addr = slot + kFarJumpTableSlotSize - 8;
+  reinterpret_cast<std::atomic<Address>*>(target_addr)
+      ->store(target, std::memory_order_relaxed);
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
