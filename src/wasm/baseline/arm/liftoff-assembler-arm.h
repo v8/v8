@@ -57,17 +57,19 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //  -----+--------------------+  <-- frame ptr (fp)
 //  -1   | 0xa: WASM          |
 //  -2   |     instance       |
+//  -3   |    feedback vector |
 //  -----+--------------------+---------------------------
-//  -3   |    slot 0 (high)   |   ^
-//  -4   |    slot 0 (low)    |   |
-//  -5   |    slot 1 (high)   | Frame slots
-//  -6   |    slot 1 (low)    |   |
+//  -4   |    slot 0 (high)   |   ^
+//  -5   |    slot 0 (low)    |   |
+//  -6   |    slot 1 (high)   | Frame slots
+//  -7   |    slot 1 (low)    |   |
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
 static_assert(2 * kSystemPointerSize == LiftoffAssembler::kStackSlotSize,
               "Slot size should be twice the size of the 32 bit pointer.");
 constexpr int kInstanceOffset = 2 * kSystemPointerSize;
+constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
 // kPatchInstructionsRequired sets a maximum limit of how many instructions that
 // PatchPrepareStackFrame will use in order to increase the stack appropriately.
 // Three instructions are required to sub a large constant, movw + movt + sub.
@@ -557,7 +559,7 @@ void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kInstanceOffset;
+  return liftoff::kFeedbackVectorOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {

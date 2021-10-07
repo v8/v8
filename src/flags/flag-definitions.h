@@ -1046,6 +1046,8 @@ DEFINE_BOOL(wasm_math_intrinsics, true,
 DEFINE_BOOL(
     wasm_inlining, false,
     "enable inlining of wasm functions into wasm functions (experimental)")
+DEFINE_BOOL(wasm_speculative_inlining, false,
+            "enable speculative inlining of call_ref targets (experimental)")
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,
