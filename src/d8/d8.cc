@@ -1174,7 +1174,7 @@ void Shell::ModuleResolutionFailureCallback(
 }
 
 MaybeLocal<Promise> Shell::HostImportModuleDynamically(
-    Local<Context> context, Local<ScriptOrModule> referrer,
+    Local<Context> context, Local<ScriptOrModule> script_or_module,
     Local<String> specifier, Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
 
@@ -1182,9 +1182,9 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
       Promise::Resolver::New(context);
   Local<Promise::Resolver> resolver;
   if (maybe_resolver.ToLocal(&resolver)) {
-    DynamicImportData* data =
-        new DynamicImportData(isolate, referrer->GetResourceName().As<String>(),
-                              specifier, import_assertions, resolver);
+    DynamicImportData* data = new DynamicImportData(
+        isolate, script_or_module->GetResourceName().As<String>(), specifier,
+        import_assertions, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
     return resolver->GetPromise();

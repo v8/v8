@@ -605,7 +605,7 @@ class Shell : public i::AllStatic {
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static MaybeLocal<Promise> HostImportModuleDynamically(
-      Local<Context> context, Local<ScriptOrModule> referrer,
+      Local<Context> context, Local<ScriptOrModule> script_or_module,
       Local<String> specifier, Local<FixedArray> import_assertions);
 
   static void ModuleResolutionSuccessCallback(
