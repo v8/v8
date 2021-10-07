@@ -104,25 +104,40 @@ bool DataRange::get() {
 }
 
 ValueType GetValueType(DataRange* data, bool liftoff_as_reference,
-                       uint32_t num_types) {
+                       uint32_t num_types, bool include_packed_types = false) {
   constexpr ValueType types[] = {
+      kWasmI8,      kWasmI16,
       kWasmI32,     kWasmI64,
       kWasmF32,     kWasmF64,
       kWasmS128,    kWasmExternRef,
       kWasmFuncRef, kWasmEqRef,
       kWasmAnyRef,  ValueType::Ref(HeapType(HeapType::kData), kNullable)};
+
   constexpr int kLiftoffOnlyTypeCount = 3;  // at the end of {types}.
+  constexpr int kPackedOnlyTypeCount = 2;   // at the begining of {types}.
 
   if (liftoff_as_reference) {
-    uint32_t id = data->get<uint8_t>() % (arraysize(types) + num_types);
+    uint32_t id;
+    if (include_packed_types) {
+      id = data->get<uint8_t>() % (arraysize(types) + num_types);
+    } else {
+      id = kPackedOnlyTypeCount +
+           (data->get<uint8_t>() %
+            (arraysize(types) + num_types - kPackedOnlyTypeCount));
+    }
     if (id >= arraysize(types)) {
       return ValueType::Ref(id - arraysize(types), kNullable);
     }
     return types[id];
   }
-
-  return types[data->get<uint8_t>() %
-               (arraysize(types) - kLiftoffOnlyTypeCount)];
+  if (include_packed_types) {
+    return types[data->get<uint8_t>() %
+                 (arraysize(types) - kLiftoffOnlyTypeCount)];
+  }
+  return types[kPackedOnlyTypeCount +
+               (data->get<uint8_t>() %
+                (arraysize(types) - kPackedOnlyTypeCount -
+                 kLiftoffOnlyTypeCount))];
 }
 
 class WasmGenerator {
@@ -820,7 +835,7 @@ class WasmGenerator {
         StructType* struct_gen = builder_->builder()->GetStructType(index);
         int field_count = struct_gen->field_count();
         for (int i = 0; i < field_count; i++) {
-          Generate(struct_gen->field(i), data);
+          Generate(struct_gen->field(i).Unpacked(), data);
         }
         builder_->EmitWithPrefix(kExprRttCanon);
         builder_->EmitU32V(index);
@@ -835,8 +850,9 @@ class WasmGenerator {
         builder_->EmitWithPrefix(kExprArrayNewDefaultWithRtt);
         builder_->EmitU32V(index);
       } else {
-        Generate(builder_->builder()->GetArrayType(index)->element_type(),
-                 data);
+        Generate(
+            builder_->builder()->GetArrayType(index)->element_type().Unpacked(),
+            data);
         Generate(kWasmI32, data);
         builder_->EmitWithPrefix(kExprRttCanon);
         builder_->EmitU32V(index);
@@ -942,7 +958,7 @@ class WasmGenerator {
 
     for (uint32_t i = num_structs_; i < num_arrays_ + num_structs_; i++) {
       DCHECK(builder->IsArrayType(i));
-      if (builder->GetArrayType(i)->element_type() == value_type) {
+      if (builder->GetArrayType(i)->element_type().Unpacked() == value_type) {
         array_indices.push_back(i);
       }
     }
@@ -951,7 +967,15 @@ class WasmGenerator {
       int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
       GenerateOptRef(HeapType(array_indices[index]), data);
       Generate(kWasmI32, data);
-      builder_->EmitWithPrefix(kExprArrayGet);
+      if (builder->GetArrayType(array_indices[index])
+              ->element_type()
+              .is_packed()) {
+        builder_->EmitWithPrefix(data->get<bool>() ? kExprArrayGetS
+                                                   : kExprArrayGetU);
+
+      } else {
+        builder_->EmitWithPrefix(kExprArrayGet);
+      }
       builder_->EmitU32V(array_indices[index]);
       return true;
     }
@@ -1005,7 +1029,9 @@ class WasmGenerator {
     int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
     GenerateOptRef(HeapType(array_indices[index]), data);
     Generate(kWasmI32, data);
-    Generate(builder->GetArrayType(array_indices[index])->element_type(), data);
+    Generate(
+        builder->GetArrayType(array_indices[index])->element_type().Unpacked(),
+        data);
     builder_->EmitWithPrefix(kExprArraySet);
     builder_->EmitU32V(array_indices[index]);
   }
@@ -1027,7 +1053,14 @@ class WasmGenerator {
     if (!field_index.empty()) {
       int index = data->get<uint8_t>() % static_cast<int>(field_index.size());
       GenerateOptRef(HeapType(struct_index[index]), data);
-      builder_->EmitWithPrefix(kExprStructGet);
+      if (builder->GetStructType(struct_index[index])
+              ->field(field_index[index])
+              .is_packed()) {
+        builder_->EmitWithPrefix(data->get<bool>() ? kExprStructGetS
+                                                   : kExprStructGetU);
+      } else {
+        builder_->EmitWithPrefix(kExprStructGet);
+      }
       builder_->EmitU32V(struct_index[index]);
       builder_->EmitU32V(field_index[index]);
       return true;
@@ -1070,7 +1103,7 @@ class WasmGenerator {
       int field_index =
           field_indices[data->get<uint8_t>() % field_indices.size()];
       GenerateOptRef(HeapType(struct_index), data);
-      Generate(struct_type->field(field_index), data);
+      Generate(struct_type->field(field_index).Unpacked(), data);
       builder_->EmitWithPrefix(kExprStructSet);
       builder_->EmitU32V(struct_index);
       builder_->EmitU32V(field_index);
@@ -2135,7 +2168,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         uint8_t num_fields = range.get<uint8_t>() % (kMaxStructFields + 1);
         StructType::Builder struct_builder(zone, num_fields);
         for (int field_index = 0; field_index < num_fields; field_index++) {
-          ValueType type = GetValueType(&range, true, num_types);
+          ValueType type = GetValueType(&range, true, num_types, true);
           bool mutability = range.get<uint8_t>() < 127;
           struct_builder.AddField(type, mutability);
         }
@@ -2144,7 +2177,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       }
 
       for (int array_index = 0; array_index < num_arrays; array_index++) {
-        ValueType type = GetValueType(&range, true, num_types);
+        ValueType type = GetValueType(&range, true, num_types, true);
         ArrayType* array_fuz = zone->New<ArrayType>(type, true);
         builder.AddArrayType(array_fuz);
       }

@@ -204,6 +204,10 @@ PrintSig PrintReturns(const FunctionSig* sig) {
 }
 std::string ValueTypeToConstantName(ValueType type) {
   switch (type.kind()) {
+    case kI8:
+      return "kWasmI8";
+    case kI16:
+      return "kWasmI16";
     case kI32:
       return "kWasmI32";
     case kI64:
