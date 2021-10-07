@@ -118,7 +118,6 @@ void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace& space, size_t size,
                                          GCInfoIndex gcinfo) {
   void* memory = OutOfLineAllocateImpl(space, size, gcinfo);
   stats_collector_.NotifySafePointForConservativeCollection();
-  raw_heap_.heap()->AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
   if (prefinalizer_handler_.IsInvokingPreFinalizers()) {
     // Objects allocated during pre finalizers should be allocated as black
     // since marking is already done. Atomics are not needed because there is

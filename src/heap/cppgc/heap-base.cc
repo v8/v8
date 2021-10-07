@@ -13,7 +13,6 @@
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-statistics-collector.h"
 #include "src/heap/cppgc/heap-visitor.h"
-#include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-verifier.h"
 #include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
@@ -95,10 +94,6 @@ PageAllocator* HeapBase::page_allocator() const {
 
 size_t HeapBase::ObjectPayloadSize() const {
   return ObjectSizeCounter().GetSize(const_cast<RawHeap&>(raw_heap()));
-}
-
-void HeapBase::AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded() {
-  if (marker_) marker_->AdvanceMarkingOnAllocation();
 }
 
 size_t HeapBase::ExecutePreFinalizers() {

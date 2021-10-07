@@ -172,8 +172,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     return override_stack_state_.get();
   }
 
-  void AdvanceIncrementalGarbageCollectionOnAllocationIfNeeded();
-
   // Termination drops all roots (clears them out) and runs garbage collections
   // in a bounded fixed point loop  until no new objects are created in
   // destructors. Exceeding the loop bound results in a crash.
