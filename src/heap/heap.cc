@@ -4896,10 +4896,21 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     }
     v->Synchronize(VisitorSynchronization::kStrongRoots);
 
-    // Iterate over the startup object cache unless serializing or
-    // deserializing.
-    SerializerDeserializer::Iterate(isolate_, v);
+    // Iterate over the startup and shared heap object caches unless
+    // serializing or deserializing.
+    SerializerDeserializer::IterateStartupObjectCache(isolate_, v);
     v->Synchronize(VisitorSynchronization::kStartupObjectCache);
+
+    // When shared_isolate() is null, isolate_ is either an unshared (instead of
+    // a client) Isolate or the shared Isolate. In both cases isolate_ owns its
+    // shared heap object cache and should iterate it.
+    //
+    // When shared_isolate() is not null, isolate_ is a client Isolate, does not
+    // own its shared heap object cache, and should not iterate it.
+    if (isolate_->shared_isolate() == nullptr) {
+      SerializerDeserializer::IterateSharedHeapObjectCache(isolate_, v);
+      v->Synchronize(VisitorSynchronization::kSharedHeapObjectCache);
+    }
   }
 
   if (!options.contains(SkipRoot::kWeak)) {

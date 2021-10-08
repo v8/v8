@@ -36,6 +36,7 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/references.h"
 #include "src/snapshot/serializer-deserializer.h"
+#include "src/snapshot/shared-heap-serializer.h"
 #include "src/snapshot/snapshot-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
@@ -600,16 +601,13 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
   AllocationType allocation = SpaceToAllocation(space);
 
-  // When sharing a string table, all in-place internalizable strings except
-  // internalized strings are allocated in the shared heap. Internalized strings
-  // are allocated in the local heap as an optimization, because they need to be
-  // looked up in the shared string table to get the canonical copy anyway, and
-  // the shared allocation is needless synchronization on the concurrent
-  // allocator.
+  // When sharing a string table, all in-place internalizable and internalized
+  // strings internalized strings are allocated in the shared heap.
+  //
+  // TODO(12007): When shipping, add a new SharedOld SnapshotSpace.
   if (FLAG_shared_string_table &&
-      !isolate()->factory()->GetInPlaceInternalizedStringMap(*map).is_null() &&
-      (!InstanceTypeChecker::IsInternalizedString(map->instance_type()) ||
-       deserializing_user_code())) {
+      (!isolate()->factory()->GetInPlaceInternalizedStringMap(*map).is_null() ||
+       InstanceTypeChecker::IsInternalizedString(map->instance_type()))) {
     allocation = isolate()
                      ->factory()
                      ->RefineAllocationTypeForInPlaceInternalizableString(
@@ -966,6 +964,19 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       // entry as a Handle backing?
       HeapObject heap_object = HeapObject::cast(
           isolate()->read_only_heap()->cached_read_only_object(cache_index));
+      return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
+    }
+
+    // Find an object in the shared heap object cache and write a pointer to it
+    // to the current object.
+    case kSharedHeapObjectCache: {
+      int cache_index = source_.GetInt();
+      // TODO(leszeks): Could we use the address of the
+      // shared_heap_object_cache entry as a Handle backing?
+      HeapObject heap_object = HeapObject::cast(
+          main_thread_isolate()->shared_heap_object_cache()->at(cache_index));
+      DCHECK(SharedHeapSerializer::ShouldBeInSharedOldSpace(
+          main_thread_isolate(), heap_object));
       return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
     }
 

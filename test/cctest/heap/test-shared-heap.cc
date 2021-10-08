@@ -164,7 +164,7 @@ UNINITIALIZED_TEST(SharedCollectionWithoutClients) {
   Isolate::Delete(shared_isolate);
 }
 
-void AllocateInSharedSpace(Isolate* shared_isolate) {
+void AllocateInSharedHeap(Isolate* shared_isolate) {
   SetupClientIsolateAndRunCallback(
       shared_isolate,
       [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
@@ -198,7 +198,7 @@ UNINITIALIZED_TEST(SharedCollectionWithOneClient) {
   create_params.array_buffer_allocator = allocator.get();
   Isolate* shared_isolate = Isolate::NewShared(create_params);
 
-  AllocateInSharedSpace(shared_isolate);
+  AllocateInSharedHeap(shared_isolate);
 
   Isolate::Delete(shared_isolate);
 }

@@ -1262,6 +1262,13 @@ SubStringRange::iterator SubStringRange::end() {
   return SubStringRange::iterator(string_, first_ + length_, no_gc_);
 }
 
+// static
+bool String::IsInPlaceInternalizable(Isolate* isolate, String string) {
+  return !isolate->factory()
+              ->GetInPlaceInternalizedStringMap(string.map())
+              .is_null();
+}
+
 }  // namespace internal
 }  // namespace v8
 

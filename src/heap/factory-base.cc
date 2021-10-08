@@ -938,7 +938,7 @@ MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
       return read_only_roots()
           .external_one_byte_internalized_string_map_handle();
     default:
-      return MaybeHandle<Map>();  // No match found.
+      return MaybeHandle<Map>();
   }
 }
 
