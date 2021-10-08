@@ -711,6 +711,9 @@ DEFINE_BOOL(trace_baseline_batch_compilation, false,
 #undef FLAG
 #define FLAG FLAG_FULL
 
+// Internalize into a shared string table in the shared isolate
+DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
+
 #if !defined(V8_OS_MACOSX) || !defined(V8_HOST_ARCH_ARM64)
 DEFINE_BOOL(write_code_using_rwx, true,
             "flip permissions to rwx to write page instead of rw")

@@ -3700,6 +3700,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   heap_.InitializeMainThreadLocalHeap(main_thread_local_heap());
 
+  if (shared_isolate_) heap()->InitSharedSpaces();
+
   isolate_data_.external_reference_table()->Init(this);
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -5129,9 +5131,9 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
 void Isolate::AttachToSharedIsolate(Isolate* shared) {
   DCHECK(shared->is_shared());
   DCHECK_NULL(shared_isolate_);
+  DCHECK(!heap_.HasBeenSetUp());
   shared->AppendAsClientIsolate(this);
   shared_isolate_ = shared;
-  heap()->InitSharedSpaces();
 }
 
 void Isolate::DetachFromSharedIsolate() {

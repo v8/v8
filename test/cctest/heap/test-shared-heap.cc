@@ -28,9 +28,10 @@ void SetupClientIsolateAndRunCallback(Isolate* shared_isolate,
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
+  create_params.experimental_attach_to_shared_isolate =
+      reinterpret_cast<v8::Isolate*>(shared_isolate);
   v8::Isolate* client_isolate = v8::Isolate::New(create_params);
   Isolate* i_client_isolate = reinterpret_cast<Isolate*>(client_isolate);
-  i_client_isolate->AttachToSharedIsolate(shared_isolate);
 
   callback(client_isolate, i_client_isolate);
 

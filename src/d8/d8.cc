@@ -476,6 +476,7 @@ std::atomic<int> Shell::unhandled_promise_rejections_{0};
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
+Isolate* Shell::shared_isolate = nullptr;
 bool check_d8_flag_contradictions = true;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
@@ -3284,6 +3285,9 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 
 void Shell::OnExit(v8::Isolate* isolate) {
   isolate->Dispose();
+  if (shared_isolate) {
+    i::Isolate::Delete(reinterpret_cast<i::Isolate*>(shared_isolate));
+  }
 
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
     std::vector<std::pair<std::string, Counter*>> counters(
@@ -3850,6 +3854,7 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
 void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  create_params.experimental_attach_to_shared_isolate = Shell::shared_isolate;
   Isolate* isolate = Isolate::New(create_params);
   Shell::SetWaitUntilDone(isolate, false);
   D8Console console(isolate);
@@ -4084,6 +4089,7 @@ void Worker::ProcessMessages() {
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  create_params.experimental_attach_to_shared_isolate = Shell::shared_isolate;
   isolate_ = Isolate::New(create_params);
   {
     base::MutexGuard lock_guard(&worker_mutex_);
@@ -4973,6 +4979,12 @@ void Shell::WaitForRunningWorkers() {
   allow_new_workers_ = true;
 }
 
+namespace {
+
+bool HasFlagThatRequiresSharedIsolate() { return i::FLAG_shared_string_table; }
+
+}  // namespace
+
 int Shell::Main(int argc, char* argv[]) {
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
@@ -5123,6 +5135,14 @@ int Shell::Main(int argc, char* argv[]) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  if (HasFlagThatRequiresSharedIsolate()) {
+    Isolate::CreateParams shared_create_params;
+    shared_create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+    shared_isolate =
+        reinterpret_cast<Isolate*>(i::Isolate::NewShared(create_params));
+    create_params.experimental_attach_to_shared_isolate = shared_isolate;
+  }
+
   Isolate* isolate = Isolate::New(create_params);
 
   {
@@ -5196,6 +5216,8 @@ int Shell::Main(int argc, char* argv[]) {
         // First run to produce the cache
         Isolate::CreateParams create_params2;
         create_params2.array_buffer_allocator = Shell::array_buffer_allocator;
+        create_params2.experimental_attach_to_shared_isolate =
+            Shell::shared_isolate;
         i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
         Isolate* isolate2 = Isolate::New(create_params2);
         i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
