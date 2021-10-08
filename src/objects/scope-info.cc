@@ -89,7 +89,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       receiver_info = VariableAllocationInfo::UNUSED;
     } else if (var->IsContextSlot()) {
       receiver_info = VariableAllocationInfo::CONTEXT;
-      context_local_count++;
     } else {
       DCHECK(var->IsParameter());
       receiver_info = VariableAllocationInfo::STACK;
@@ -307,23 +306,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         int info = Smi::ToInt(scope_info.get(info_index));
         info = ParameterNumberBits::update(info, i);
         scope_info.set(info_index, Smi::FromInt(info));
-      }
-
-      // TODO(verwaest): Remove this unnecessary entry.
-      if (scope->AsDeclarationScope()->has_this_declaration()) {
-        Variable* var = scope->AsDeclarationScope()->receiver();
-        if (var->location() == VariableLocation::CONTEXT) {
-          int local_index = var->index() - scope->ContextHeaderLength();
-          uint32_t info =
-              VariableModeBits::encode(var->mode()) |
-              InitFlagBit::encode(var->initialization_flag()) |
-              MaybeAssignedFlagBit::encode(var->maybe_assigned()) |
-              ParameterNumberBits::encode(ParameterNumberBits::kMax) |
-              IsStaticFlagBit::encode(var->is_static_flag());
-          scope_info.set(context_local_base + local_index, *var->name(), mode);
-          scope_info.set(context_local_info_base + local_index,
-                         Smi::FromInt(info));
-        }
       }
     }
 

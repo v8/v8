@@ -679,6 +679,7 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
       THIS_VARIABLE,
       derived_constructor ? kNeedsInitialization : kCreatedInitialized,
       kNotAssigned);
+  locals_.Add(receiver_);
 }
 
 void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
