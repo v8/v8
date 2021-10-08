@@ -4346,22 +4346,22 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_slots).
-    __ Daddu(t0, t0, Operand(1));  // Also pop the receiver.
+    if (!kJSArgcIncludesReceiver) {
+      __ Daddu(t0, t0, Operand(1));  // Also pop the receiver.
+    }
     if (parameter_slots > 1) {
       __ li(kScratchReg, parameter_slots);
       __ slt(kScratchReg2, t0, kScratchReg);
       __ movn(t0, kScratchReg, kScratchReg2);
     }
-    __ dsll(t0, t0, kSystemPointerSizeLog2);
-    __ Daddu(sp, sp, t0);
+    __ Dlsa(sp, sp, t0, kSystemPointerSizeLog2);
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);
   } else {
     Register pop_reg = g.ToRegister(additional_pop_count);
     __ Drop(parameter_slots);
-    __ dsll(pop_reg, pop_reg, kSystemPointerSizeLog2);
-    __ Daddu(sp, sp, pop_reg);
+    __ Dlsa(sp, sp, pop_reg, kSystemPointerSizeLog2);
   }
   __ Ret();
 }

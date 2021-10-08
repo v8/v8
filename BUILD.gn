@@ -349,7 +349,9 @@ declare_args() {
   # enabled unconditionally.
   v8_include_receiver_in_argc =
       v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
-      v8_current_cpu == "arm" || v8_current_cpu == "arm64"
+      v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
+      v8_current_cpu == "mips64el" || v8_current_cpu == "mipsel" ||
+      v8_current_cpu == "loong64"
 }
 
 # Derived defaults.
