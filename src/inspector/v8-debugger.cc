@@ -23,7 +23,7 @@ namespace v8_inspector {
 
 namespace {
 
-static const int kMaxAsyncTaskStacks = 128 * 1024;
+static const int kMaxAsyncTaskStacks = 8 * 1024;
 static const int kNoBreakpointId = 0;
 
 template <typename Map>
