@@ -27,9 +27,10 @@ namespace liftoff {
 //   3   |   parameter 0      | or parameter 1
 //   2   |  (result address)  | or parameter 0
 //  -----+--------------------+---------------------------
-//   1   | return addr (lr)   |
-//   0   | previous frame (fp)|
-//  -----+--------------------+  <-- frame ptr (fp)
+//   2   | return addr (lr)   |
+//   1   | previous frame (fp)|
+//   0   | const pool (r28)   | if const pool is enabled
+//  -----+--------------------+  <-- frame ptr (fp) or cp
 //  -1   | 0xa: WASM          |
 //  -2   |     instance       |
 //  -3   |    feedback vector |
