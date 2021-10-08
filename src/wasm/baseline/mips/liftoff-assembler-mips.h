@@ -55,11 +55,12 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //  -----+--------------------+  <-- frame ptr (fp)
 //  -1   | 0xa: WASM          |
 //  -2   |     instance       |
+//  -3   |    feedback vector |
 //  -----+--------------------+---------------------------
-//  -3   |    slot 0 (high)   |   ^
-//  -4   |    slot 0 (low)    |   |
-//  -5   |    slot 1 (high)   | Frame slots
-//  -6   |    slot 1 (low)    |   |
+//  -4   |    slot 0 (high)   |   ^
+//  -5   |    slot 0 (low)    |   |
+//  -6   |    slot 1 (high)   | Frame slots
+//  -7   |    slot 1 (low)    |   |
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
@@ -71,8 +72,8 @@ constexpr int32_t kLowWordOffset = 0;
 constexpr int32_t kHighWordOffset = 4;
 #endif
 
-// fp-4 holds the stack marker, fp-8 is the instance parameter.
-constexpr int kInstanceOffset = 8;
+constexpr int kInstanceOffset = 2 * kSystemPointerSize;
+constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
 
 inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
@@ -421,7 +422,7 @@ void LiftoffAssembler::AbortCompilation() {}
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kInstanceOffset;
+  return liftoff::kFeedbackVectorOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
