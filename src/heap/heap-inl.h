@@ -325,12 +325,12 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   Heap* heap = isolate()->heap();
   if (allocation == AllocationType::kYoung &&
       alignment == AllocationAlignment::kWordAligned &&
-      size <= MaxRegularHeapObjectSize(allocation) && !FLAG_single_generation) {
+      size <= MaxRegularHeapObjectSize(allocation) &&
+      V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
+                FLAG_gc_interval == -1)) {
     Address* top = heap->NewSpaceAllocationTopAddress();
     Address* limit = heap->NewSpaceAllocationLimitAddress();
-    if ((*limit - *top >= static_cast<unsigned>(size)) &&
-        V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
-                  FLAG_gc_interval == 0)) {
+    if (*limit - *top >= static_cast<unsigned>(size)) {
       DCHECK(IsAligned(size, kTaggedSize));
       HeapObject obj = HeapObject::FromAddress(*top);
       *top += size;
