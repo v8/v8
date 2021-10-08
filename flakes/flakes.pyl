@@ -19,6 +19,24 @@
 
 [
   {
+    "bisect_builder_group": "client.v8",
+    "bisect_buildername": "V8 Linux - verify csa",
+    "bug_url": "https://crbug.com/1246913",
+    "extra_args": [],
+    "isolated_name": "bot_default",
+    "num_shards": 2,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64",
+      "os:Ubuntu-18.04",
+      "pool:chromium.tests",
+    ],
+    "test_name": "inspector/debugger/wasm-stepping-with-skiplist",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "default",
+  },
+  {
     "bisect_builder_group": "client.v8.clusterfuzz",
     "bisect_buildername": "V8 Clusterfuzz Linux64 - debug builder",
     "bug_url": "https://crbug.com/v8/12012",
