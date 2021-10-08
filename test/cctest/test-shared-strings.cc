@@ -328,6 +328,87 @@ UNINITIALIZED_TEST(ConcurrentInternalization) {
   }
 }
 
+UNINITIALIZED_TEST(PromotionMarkCompact) {
+  if (FLAG_single_generation) return;
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+
+  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  FLAG_shared_string_table = true;
+
+  MultiClientIsolateTest test;
+  v8::Isolate* isolate = test.NewClientIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+  Heap* heap = i_isolate->heap();
+  // Heap* shared_heap = test.i_shared_isolate()->heap();
+
+  const char raw_one_byte[] = "foo";
+
+  {
+    HandleScope scope(i_isolate);
+
+    // heap::SealCurrentObjects(heap);
+    // heap::SealCurrentObjects(shared_heap);
+
+    Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+
+    CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
+    CHECK(heap->InSpace(*one_byte_seq, NEW_SPACE));
+
+    for (int i = 0; i < 2; i++) {
+      heap->CollectAllGarbage(Heap::kNoGCFlags,
+                              GarbageCollectionReason::kTesting);
+    }
+
+    // In-place-internalizable strings are promoted into the shared heap when
+    // sharing.
+    CHECK(!heap->Contains(*one_byte_seq));
+    CHECK(heap->SharedHeapContains(*one_byte_seq));
+  }
+}
+
+UNINITIALIZED_TEST(PromotionScavenge) {
+  if (FLAG_single_generation) return;
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+
+  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  FLAG_shared_string_table = true;
+
+  MultiClientIsolateTest test;
+  v8::Isolate* isolate = test.NewClientIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+  Heap* heap = i_isolate->heap();
+  // Heap* shared_heap = test.i_shared_isolate()->heap();
+
+  const char raw_one_byte[] = "foo";
+
+  {
+    HandleScope scope(i_isolate);
+
+    // heap::SealCurrentObjects(heap);
+    // heap::SealCurrentObjects(shared_heap);
+
+    Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+
+    CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
+    CHECK(heap->InSpace(*one_byte_seq, NEW_SPACE));
+
+    for (int i = 0; i < 2; i++) {
+      heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
+    }
+
+    // In-place-internalizable strings are promoted into the shared heap when
+    // sharing.
+    CHECK(!heap->Contains(*one_byte_seq));
+    CHECK(heap->SharedHeapContains(*one_byte_seq));
+  }
+}
+
 }  // namespace test_shared_strings
 }  // namespace internal
 }  // namespace v8

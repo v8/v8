@@ -569,7 +569,8 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
     AllocationAlignment alignment, AllocationOrigin origin) {
   DCHECK(!is_compaction_space());
   DCHECK(identity() == OLD_SPACE || identity() == MAP_SPACE);
-  DCHECK_EQ(origin, AllocationOrigin::kRuntime);
+  DCHECK(origin == AllocationOrigin::kRuntime ||
+         origin == AllocationOrigin::kGC);
 
   base::Optional<std::pair<Address, size_t>> result =
       TryAllocationFromFreeListBackground(local_heap, min_size_in_bytes,

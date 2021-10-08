@@ -2521,6 +2521,7 @@ class Heap {
   friend class ArrayBufferCollector;
   friend class ArrayBufferSweeper;
   friend class ConcurrentMarking;
+  friend class EvacuateVisitorBase;
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapObjectIterator;
@@ -2531,6 +2532,7 @@ class Heap {
   friend class LocalHeap;
   friend class MarkingBarrier;
   friend class OldLargeObjectSpace;
+  friend class OptionalAlwaysAllocateScope;
   template <typename ConcreteVisitor, typename MarkingState>
   friend class MarkingVisitorBase;
   friend class MarkCompactCollector;
@@ -2613,6 +2615,24 @@ class V8_NODISCARD AlwaysAllocateScope {
   friend class Isolate;
 
   explicit inline AlwaysAllocateScope(Heap* heap);
+  Heap* heap_;
+};
+
+// Like AlwaysAllocateScope if the heap argument to the constructor is
+// non-null. No-op otherwise.
+//
+// This class exists because AlwaysAllocateScope doesn't compose with
+// base::Optional, since supporting that composition requires making
+// base::Optional a friend class, defeating the purpose of hiding its
+// constructor.
+class V8_NODISCARD OptionalAlwaysAllocateScope {
+ public:
+  inline ~OptionalAlwaysAllocateScope();
+
+ private:
+  friend class Heap;
+
+  explicit inline OptionalAlwaysAllocateScope(Heap* heap);
   Heap* heap_;
 };
 

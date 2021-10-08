@@ -833,9 +833,8 @@ enum class AllocationType : uint8_t {
   kCode,       // Code object allocated in CODE_SPACE or CODE_LO_SPACE
   kMap,        // Map object allocated in MAP_SPACE
   kReadOnly,   // Object allocated in RO_SPACE
-  kSharedOld,  // Regular object allocated in SHARED_OLD_SPACE or
-               // SHARED_LO_SPACE
-  kSharedMap,  // Map object in SHARED_MAP_SPACE
+  kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap
+  kSharedMap,  // Map object in MAP_SPACE in the shared heap
 };
 
 inline size_t hash_value(AllocationType kind) {

@@ -1263,10 +1263,21 @@ SubStringRange::iterator SubStringRange::end() {
 }
 
 // static
-bool String::IsInPlaceInternalizable(Isolate* isolate, String string) {
-  return !isolate->factory()
-              ->GetInPlaceInternalizedStringMap(string.map())
-              .is_null();
+bool String::IsInPlaceInternalizable(String string) {
+  return IsInPlaceInternalizable(string.map().instance_type());
+}
+
+// static
+bool String::IsInPlaceInternalizable(InstanceType instance_type) {
+  switch (instance_type) {
+    case STRING_TYPE:
+    case ONE_BYTE_STRING_TYPE:
+    case EXTERNAL_STRING_TYPE:
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
+      return true;
+    default:
+      return false;
+  }
 }
 
 }  // namespace internal

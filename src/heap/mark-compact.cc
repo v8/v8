@@ -53,6 +53,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
+#include "src/snapshot/shared-heap-serializer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils/utils-inl.h"
@@ -267,9 +268,11 @@ class FullMarkingVerifier : public MarkingVerifier {
         BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
       return;
 
-    if (!heap_->isolate()->OwnsStringTable() && heap_object.IsString() &&
-        !Heap::InYoungGeneration(heap_object)) {
-      CHECK(BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap());
+    if (!heap_->isolate()->OwnsStringTable() &&
+        !Heap::InYoungGeneration(heap_object) &&
+        SharedHeapSerializer::ShouldBeInSharedOldSpace(heap_->isolate(),
+                                                       heap_object)) {
+      CHECK(heap_->SharedHeapContains(heap_object));
     }
 
     CHECK(marking_state_->IsBlackOrGrey(heap_object));
@@ -1435,6 +1438,12 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       : heap_(heap),
         local_allocator_(local_allocator),
         record_visitor_(record_visitor) {
+    if (FLAG_shared_string_table) {
+      if (Isolate* shared_isolate = heap->isolate()->shared_isolate()) {
+        shared_string_table_ = true;
+        shared_old_allocator_ = heap_->shared_old_allocator_.get();
+      }
+    }
     migration_function_ = RawMigrateObject<MigrationMode::kFast>;
   }
 
@@ -1444,9 +1453,19 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (FLAG_stress_compaction && AbortCompactionForTesting(object))
       return false;
 #endif  // DEBUG
-    AllocationAlignment alignment = HeapObject::RequiredAlignment(object.map());
-    AllocationResult allocation = local_allocator_->Allocate(
-        target_space, size, AllocationOrigin::kGC, alignment);
+    Map map = object.map();
+    AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
+    AllocationResult allocation;
+    if (ShouldPromoteIntoSharedHeap(map)) {
+      DCHECK_EQ(target_space, OLD_SPACE);
+      DCHECK(Heap::InYoungGeneration(object));
+      DCHECK_NOT_NULL(shared_old_allocator_);
+      allocation = shared_old_allocator_->AllocateRaw(size, alignment,
+                                                      AllocationOrigin::kGC);
+    } else {
+      allocation = local_allocator_->Allocate(target_space, size,
+                                              AllocationOrigin::kGC, alignment);
+    }
     if (allocation.To(target_object)) {
       MigrateObject(*target_object, object, size, target_space);
       if (target_space == CODE_SPACE)
@@ -1454,6 +1473,13 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
             ->GetCodeObjectRegistry()
             ->RegisterNewlyAllocatedCodeObject((*target_object).address());
       return true;
+    }
+    return false;
+  }
+
+  inline bool ShouldPromoteIntoSharedHeap(Map map) {
+    if (shared_string_table_) {
+      return String::IsInPlaceInternalizable(map.instance_type());
     }
     return false;
   }
@@ -1491,9 +1517,11 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   Heap* heap_;
   EvacuationAllocator* local_allocator_;
+  ConcurrentAllocator* shared_old_allocator_ = nullptr;
   RecordMigratedSlotVisitor* record_visitor_;
   std::vector<MigrationObserver*> observers_;
   MigrateFunction migration_function_;
+  bool shared_string_table_ = false;
 };
 
 class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {

@@ -927,28 +927,38 @@ FactoryBase<Impl>::NewFunctionTemplateRareData() {
 template <typename Impl>
 MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
     Map from_string_map) {
-  switch (from_string_map.instance_type()) {
+  InstanceType instance_type = from_string_map.instance_type();
+  MaybeHandle<Map> map;
+  switch (instance_type) {
     case STRING_TYPE:
-      return read_only_roots().internalized_string_map_handle();
+      map = read_only_roots().internalized_string_map_handle();
+      break;
     case ONE_BYTE_STRING_TYPE:
-      return read_only_roots().one_byte_internalized_string_map_handle();
+      map = read_only_roots().one_byte_internalized_string_map_handle();
+      break;
     case EXTERNAL_STRING_TYPE:
-      return read_only_roots().external_internalized_string_map_handle();
+      map = read_only_roots().external_internalized_string_map_handle();
+      break;
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
-      return read_only_roots()
-          .external_one_byte_internalized_string_map_handle();
+      map =
+          read_only_roots().external_one_byte_internalized_string_map_handle();
+      break;
     default:
-      return MaybeHandle<Map>();
+      break;
   }
+  DCHECK_EQ(!map.is_null(), String::IsInPlaceInternalizable(instance_type));
+  return map;
 }
 
 template <typename Impl>
 AllocationType
 FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
     AllocationType allocation, Map string_map) {
-  DCHECK(
-      InstanceTypeChecker::IsInternalizedString(string_map.instance_type()) ||
-      !GetInPlaceInternalizedStringMap(string_map).is_null());
+#ifdef DEBUG
+  InstanceType instance_type = string_map.instance_type();
+  DCHECK(InstanceTypeChecker::IsInternalizedString(instance_type) ||
+         String::IsInPlaceInternalizable(instance_type));
+#endif
   if (allocation != AllocationType::kOld) return allocation;
   return impl()->AllocationTypeForInPlaceInternalizableString();
 }

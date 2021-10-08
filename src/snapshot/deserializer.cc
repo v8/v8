@@ -606,13 +606,15 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // strings internalized strings are allocated in the shared heap.
   //
   // TODO(12007): When shipping, add a new SharedOld SnapshotSpace.
-  if (FLAG_shared_string_table &&
-      (!isolate()->factory()->GetInPlaceInternalizedStringMap(*map).is_null() ||
-       InstanceTypeChecker::IsInternalizedString(map->instance_type()))) {
-    allocation = isolate()
-                     ->factory()
-                     ->RefineAllocationTypeForInPlaceInternalizableString(
-                         allocation, *map);
+  if (FLAG_shared_string_table) {
+    InstanceType instance_type = map->instance_type();
+    if (InstanceTypeChecker::IsInternalizedString(instance_type) ||
+        String::IsInPlaceInternalizable(instance_type)) {
+      allocation = isolate()
+                       ->factory()
+                       ->RefineAllocationTypeForInPlaceInternalizableString(
+                           allocation, *map);
+    }
   }
 
   // Filling an object's fields can cause GCs and heap walks, so this object has

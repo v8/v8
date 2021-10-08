@@ -736,5 +736,12 @@ void StringTable::NotifyElementsRemoved(int count) {
   data_.load(std::memory_order_relaxed)->ElementsRemoved(count);
 }
 
+void StringTable::UpdateCountersIfOwnedBy(Isolate* isolate) {
+  DCHECK_EQ(isolate->string_table(), this);
+  if (!isolate->OwnsStringTable()) return;
+  isolate->counters()->string_table_capacity()->Set(Capacity());
+  isolate->counters()->number_of_symbols()->Set(NumberOfElements());
+}
+
 }  // namespace internal
 }  // namespace v8

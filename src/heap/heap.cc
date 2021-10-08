@@ -1342,10 +1342,7 @@ void Heap::GarbageCollectionEpilogue() {
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));
 
-  isolate_->counters()->string_table_capacity()->Set(
-      isolate()->string_table()->Capacity());
-  isolate_->counters()->number_of_symbols()->Set(
-      isolate()->string_table()->NumberOfElements());
+  isolate_->string_table()->UpdateCountersIfOwnedBy(isolate_);
 
   if (CommittedMemory() > 0) {
     isolate_->counters()->external_fragmentation_total()->AddSample(
@@ -2071,41 +2068,6 @@ void Heap::CopyRange(HeapObject dst_object, const TSlot dst_slot,
   WriteBarrierForRange(dst_object, dst_slot, dst_end);
 }
 
-#ifdef VERIFY_HEAP
-// Helper class for verifying the string table.
-class StringTableVerifier : public RootVisitor {
- public:
-  explicit StringTableVerifier(Isolate* isolate) : isolate_(isolate) {}
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override {
-    UNREACHABLE();
-  }
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
-    // Visit all HeapObject pointers in [start, end).
-    for (OffHeapObjectSlot p = start; p < end; ++p) {
-      Object o = p.load(isolate_);
-      DCHECK(!HasWeakHeapObjectTag(o));
-      if (o.IsHeapObject()) {
-        HeapObject object = HeapObject::cast(o);
-        // Check that the string is actually internalized.
-        CHECK(object.IsInternalizedString());
-      }
-    }
-  }
-
- private:
-  Isolate* isolate_;
-};
-
-static void VerifyStringTable(Isolate* isolate) {
-  StringTableVerifier verifier(isolate);
-  isolate->string_table()->IterateElements(&verifier);
-}
-#endif  // VERIFY_HEAP
-
 void Heap::EnsureFromSpaceIsCommitted() {
   if (!new_space_) return;
   if (new_space_->CommitFromSpaceIfNeeded()) return;
@@ -2471,6 +2433,12 @@ void Heap::MarkCompact() {
 
   CodeSpaceMemoryModificationScope code_modifcation(this);
 
+  // Disable soft allocation limits in the shared heap, if one exists, as
+  // promotions into the shared heap should always succeed.
+  OptionalAlwaysAllocateScope always_allocate_shared_heap(
+      isolate()->shared_isolate() ? isolate()->shared_isolate()->heap()
+                                  : nullptr);
+
   UpdateOldGenerationAllocationCounter();
   uint64_t size_of_objects_before_gc = SizeOfObjects();
 
@@ -2511,6 +2479,11 @@ void Heap::MinorMarkCompact() {
 
   TRACE_GC(tracer(), GCTracer::Scope::MINOR_MC);
   AlwaysAllocateScope always_allocate(this);
+  // Disable soft allocation limits in the shared heap, if one exists, as
+  // promotions into the shared heap should always succeed.
+  OptionalAlwaysAllocateScope always_allocate_shared_heap(
+      isolate()->shared_isolate() ? isolate()->shared_isolate()->heap()
+                                  : nullptr);
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
   ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
@@ -2628,6 +2601,12 @@ void Heap::Scavenge() {
   // sweep collection by failing allocations. There is no sense in trying to
   // trigger one during scavenge: scavenges allocation should always succeed.
   AlwaysAllocateScope scope(this);
+
+  // Disable soft allocation limits in the shared heap, if one exists, as
+  // promotions into the shared heap should always succeed.
+  OptionalAlwaysAllocateScope always_allocate_shared_heap(
+      isolate()->shared_isolate() ? isolate()->shared_isolate()->heap()
+                                  : nullptr);
 
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
@@ -4429,7 +4408,7 @@ void Heap::Verify() {
   lo_space_->Verify(isolate());
   code_lo_space_->Verify(isolate());
   if (new_lo_space_) new_lo_space_->Verify(isolate());
-  if (isolate()->OwnsStringTable()) VerifyStringTable(isolate());
+  isolate()->string_table()->VerifyIfOwnedBy(isolate());
 }
 
 void Heap::VerifyReadOnlyHeap() {

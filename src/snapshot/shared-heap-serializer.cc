@@ -15,9 +15,10 @@ namespace internal {
 // static
 bool SharedHeapSerializer::ShouldBeInSharedOldSpace(Isolate* isolate,
                                                     HeapObject obj) {
+  if (ReadOnlyHeap::Contains(obj)) return false;
   if (obj.IsString()) {
     return obj.IsInternalizedString() ||
-           String::IsInPlaceInternalizable(isolate, String::cast(obj));
+           String::IsInPlaceInternalizable(String::cast(obj));
   }
   return false;
 }

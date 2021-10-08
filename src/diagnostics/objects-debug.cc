@@ -1789,6 +1789,41 @@ void FunctionTemplateRareData::FunctionTemplateRareDataVerify(
         c_function_overloads().IsUndefined(isolate));
 }
 
+// Helper class for verifying the string table.
+class StringTableVerifier : public RootVisitor {
+ public:
+  explicit StringTableVerifier(Isolate* isolate) : isolate_(isolate) {}
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    UNREACHABLE();
+  }
+  void VisitRootPointers(Root root, const char* description,
+                         OffHeapObjectSlot start,
+                         OffHeapObjectSlot end) override {
+    // Visit all HeapObject pointers in [start, end).
+    for (OffHeapObjectSlot p = start; p < end; ++p) {
+      Object o = p.load(isolate_);
+      DCHECK(!HasWeakHeapObjectTag(o));
+      if (o.IsHeapObject()) {
+        HeapObject object = HeapObject::cast(o);
+        // Check that the string is actually internalized.
+        CHECK(object.IsInternalizedString());
+      }
+    }
+  }
+
+ private:
+  Isolate* isolate_;
+};
+
+void StringTable::VerifyIfOwnedBy(Isolate* isolate) {
+  DCHECK_EQ(isolate->string_table(), this);
+  if (!isolate->OwnsStringTable()) return;
+  StringTableVerifier verifier(isolate);
+  IterateElements(&verifier);
+}
+
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG
