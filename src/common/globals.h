@@ -1875,6 +1875,15 @@ enum PropertiesEnumerationMode {
   kPropertyAdditionOrder,
 };
 
+enum class StringInternalizationStrategy {
+  // The string must be internalized by first copying.
+  kCopy,
+  // The string can be internalized in-place by changing its map.
+  kInPlace,
+  // The string is already internalized.
+  kAlreadyInternalized
+};
+
 }  // namespace internal
 
 // Tag dispatching support for acquire loads and release stores.

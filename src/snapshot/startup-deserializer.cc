@@ -85,14 +85,24 @@ void StartupDeserializer::DeserializeStringTable() {
   // TODO(leszeks): Consider pre-sizing the string table.
   for (int i = 0; i < string_table_size; ++i) {
     Handle<String> string = Handle<String>::cast(ReadObject());
-    StringTableInsertionKey key(isolate(), string);
+    StringTableInsertionKey key(
+        isolate(), string,
+        DeserializingUserCodeOption::kNotDeserializingUserCode);
     Handle<String> result =
         isolate()->string_table()->LookupKey(isolate(), &key);
-    USE(result);
 
-    // This is startup, so there should be no duplicate entries in the string
-    // table, and the lookup should unconditionally add the given string.
-    DCHECK_EQ(*result, *string);
+    if (isolate()->OwnsStringTable()) {
+      // When not sharing the string table, since this is startup, there should
+      // be no duplicate entries in the string table, and the lookup should
+      // unconditionally add the given string.
+      DCHECK_EQ(*result, *string);
+      USE(result);
+    } else if (*result != *string) {
+      DCHECK(!string->InSharedHeap());
+      DCHECK(result->InSharedHeap());
+      string->MakeThin(isolate(), *result);
+      string.PatchValue(*result);
+    }
   }
 
   DCHECK_EQ(string_table_size, isolate()->string_table()->NumberOfElements());

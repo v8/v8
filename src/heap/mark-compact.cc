@@ -267,6 +267,11 @@ class FullMarkingVerifier : public MarkingVerifier {
         BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
       return;
 
+    if (!heap_->isolate()->OwnsStringTable() && heap_object.IsString() &&
+        !Heap::InYoungGeneration(heap_object)) {
+      CHECK(BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap());
+    }
+
     CHECK(marking_state_->IsBlackOrGrey(heap_object));
   }
 
@@ -2183,7 +2188,7 @@ void MarkCompactCollector::MarkLiveObjects() {
 void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
 
-  {
+  if (isolate()->OwnsStringTable()) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_STRING_TABLE);
 
     // Prune the string table removing all strings only pointed to by the

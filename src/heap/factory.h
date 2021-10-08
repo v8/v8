@@ -277,10 +277,19 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<String> NewInternalizedStringImpl(Handle<String> string, int chars,
                                            uint32_t hash_field);
 
-  // Compute the matching internalized string map for a string if possible.
-  // Empty handle is returned if string is in new space or not flattened.
-  V8_WARN_UNUSED_RESULT MaybeHandle<Map> InternalizedStringMapForString(
-      Handle<String> string);
+  // Compute the internalization strategy for the input string.
+  //
+  // Old-generation flat strings can be internalized by mutating their map
+  // return kInPlace, along with the matching internalized string map for string
+  // is stored in internalized_map.
+  //
+  // Internalized strings return kAlreadyInternalized.
+  //
+  // All other strings are internalized by flattening and copying and return
+  // kCopy.
+  V8_WARN_UNUSED_RESULT StringInternalizationStrategy
+  ComputeInternalizationStrategyForString(Handle<String> string,
+                                          MaybeHandle<Map>* internalized_map);
 
   // Creates an internalized copy of an external string. |string| must be
   // of type StringClass.
@@ -969,6 +978,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
   bool CanAllocateInReadOnlySpace();
   bool EmptyStringRootIsInitialized();
+  AllocationType AllocationTypeForInPlaceInternalizableString();
 
   void AddToScriptList(Handle<Script> shared);
   // ------

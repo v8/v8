@@ -883,12 +883,14 @@ Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
     size = SeqTwoByteString::SizeFor(chars);
   }
 
-  String result = String::cast(
-      AllocateRawWithImmortalMap(size,
-                                 isolate()->heap()->CanAllocateInReadOnlySpace()
-                                     ? AllocationType::kReadOnly
-                                     : AllocationType::kOld,
-                                 map));
+  String result = String::cast(AllocateRawWithImmortalMap(
+      size,
+      RefineAllocationTypeForInPlaceInternalizableString(
+          isolate()->heap()->CanAllocateInReadOnlySpace()
+              ? AllocationType::kReadOnly
+              : AllocationType::kOld,
+          map),
+      map));
   DisallowGarbageCollection no_gc;
   result.set_length(chars);
   result.set_raw_hash_field(hash_field);
@@ -913,34 +915,35 @@ Handle<String> Factory::NewInternalizedStringImpl(Handle<String> string,
 
 namespace {
 
-MaybeHandle<Map> GetInternalizedStringMap(Factory* f, Handle<String> string) {
-  switch (string->map().instance_type()) {
-    case STRING_TYPE:
-      return f->internalized_string_map();
-    case ONE_BYTE_STRING_TYPE:
-      return f->one_byte_internalized_string_map();
-    case EXTERNAL_STRING_TYPE:
-      return f->external_internalized_string_map();
-    case EXTERNAL_ONE_BYTE_STRING_TYPE:
-      return f->external_one_byte_internalized_string_map();
-    default:
-      return MaybeHandle<Map>();  // No match found.
-  }
-}
-
 }  // namespace
 
-MaybeHandle<Map> Factory::InternalizedStringMapForString(
-    Handle<String> string) {
-  // Do not internalize young strings: This allows us to ignore both string
-  // table and stub cache on scavenges.
-  if (Heap::InYoungGeneration(*string)) return MaybeHandle<Map>();
-  return GetInternalizedStringMap(this, string);
+StringInternalizationStrategy Factory::ComputeInternalizationStrategyForString(
+    Handle<String> string, MaybeHandle<Map>* internalized_map) {
+  // Do not internalize young strings in-place: This allows us to ignore both
+  // string table and stub cache on scavenges.
+  if (Heap::InYoungGeneration(*string)) {
+    return StringInternalizationStrategy::kCopy;
+  }
+  DCHECK_NOT_NULL(internalized_map);
+  DisallowGarbageCollection no_gc;
+  // This method may be called concurrently, so snapshot the map from the input
+  // string instead of the calling IsType methods on HeapObject, which would
+  // reload the map each time.
+  Map map = string->map();
+  *internalized_map = GetInPlaceInternalizedStringMap(map);
+  if (!internalized_map->is_null()) {
+    return StringInternalizationStrategy::kInPlace;
+  }
+  if (InstanceTypeChecker::IsInternalizedString(map.instance_type())) {
+    return StringInternalizationStrategy::kAlreadyInternalized;
+  }
+  return StringInternalizationStrategy::kCopy;
 }
 
 template <class StringClass>
 Handle<StringClass> Factory::InternalizeExternalString(Handle<String> string) {
-  Handle<Map> map = GetInternalizedStringMap(this, string).ToHandleChecked();
+  Handle<Map> map =
+      GetInPlaceInternalizedStringMap(string->map()).ToHandleChecked();
   StringClass external_string =
       StringClass::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
@@ -3736,6 +3739,12 @@ bool Factory::CanAllocateInReadOnlySpace() {
 
 bool Factory::EmptyStringRootIsInitialized() {
   return isolate()->roots_table()[RootIndex::kempty_string] != kNullAddress;
+}
+
+AllocationType Factory::AllocationTypeForInPlaceInternalizableString() {
+  return isolate()
+      ->heap()
+      ->allocation_type_for_in_place_internalizable_strings();
 }
 
 Handle<JSFunction> Factory::NewFunctionForTesting(Handle<String> name) {

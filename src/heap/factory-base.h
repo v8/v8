@@ -234,6 +234,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
 
   Handle<FunctionTemplateRareData> NewFunctionTemplateRareData();
 
+  MaybeHandle<Map> GetInPlaceInternalizedStringMap(Map from_string_map);
+
+  AllocationType RefineAllocationTypeForInPlaceInternalizableString(
+      AllocationType allocation, Map string_map);
+
  protected:
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
   HeapObject AllocateRawArray(int size, AllocationType allocation);

@@ -215,6 +215,9 @@ Heap::Heap()
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
       safepoint_(std::make_unique<IsolateSafepoint>(this)),
       external_string_table_(this),
+      allocation_type_for_in_place_internalizable_strings_(
+          isolate()->OwnsStringTable() ? AllocationType::kOld
+                                       : AllocationType::kSharedOld),
       collection_barrier_(new CollectionBarrier(this)) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (Page::kPageSize - 1));
@@ -225,6 +228,7 @@ Heap::Heap()
   set_allocation_sites_list(Smi::zero());
   set_dirty_js_finalization_registries_list(Smi::zero());
   set_dirty_js_finalization_registries_list_tail(Smi::zero());
+
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(kNullAddress, false);
@@ -3882,6 +3886,15 @@ void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
       // tagged fields are introduced.
       return;
     }
+    if (FLAG_shared_string_table && object.IsString() &&
+        InstanceTypeChecker::IsInternalizedString(new_map.instance_type())) {
+      // In-place internalization does not change a string's fields.
+      //
+      // When sharing the string table, the setting and re-setting of maps below
+      // can race when there are parallel internalization operations, causing
+      // DCHECKs to fail.
+      return;
+    }
     // Check that the set of slots before and after the transition match.
     SlotCollectingVisitor old_visitor;
     object.IterateFast(&old_visitor);
@@ -4437,7 +4450,7 @@ void Heap::Verify() {
   lo_space_->Verify(isolate());
   code_lo_space_->Verify(isolate());
   if (new_lo_space_) new_lo_space_->Verify(isolate());
-  VerifyStringTable(isolate());
+  if (isolate()->OwnsStringTable()) VerifyStringTable(isolate());
 }
 
 void Heap::VerifyReadOnlyHeap() {
@@ -4685,9 +4698,14 @@ void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   DCHECK(!options.contains(SkipRoot::kWeak));
 
   if (!options.contains(SkipRoot::kOldGeneration) &&
-      !options.contains(SkipRoot::kUnserializable)) {
-    // Do not visit for serialization, since the string table is custom
-    // serialized. Also do not visit if we are skipping old generation.
+      !options.contains(SkipRoot::kUnserializable) &&
+      isolate()->OwnsStringTable()) {
+    // Do not visit for the following reasons.
+    // - Serialization, since the string table is custom serialized.
+    // - If we are skipping old generation, since all internalized strings
+    //   are in old space.
+    // - If the string table is shared and this is not the shared heap,
+    //   since all internalized strings are in the shared heap.
     isolate()->string_table()->IterateElements(v);
   }
   v->Synchronize(VisitorSynchronization::kStringTable);

@@ -555,6 +555,7 @@ class String : public TorqueGeneratedString<String, Name> {
  private:
   friend class Name;
   friend class StringTableInsertionKey;
+  friend class SharedStringTableInsertionKey;
   friend class InternalizedStringKey;
 
   // Implementation of the Get() public methods. Do not use directly.
@@ -577,6 +578,9 @@ class String : public TorqueGeneratedString<String, Name> {
 
   V8_EXPORT_PRIVATE static Handle<String> SlowFlatten(
       Isolate* isolate, Handle<ConsString> cons, AllocationType allocation);
+
+  static Handle<String> SlowCopy(Isolate* isolate, Handle<SeqString> source,
+                                 AllocationType allocation);
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.

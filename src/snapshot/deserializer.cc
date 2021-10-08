@@ -343,17 +343,25 @@ uint32_t ComputeRawHashField(IsolateT* isolate, String string) {
 }
 }  // namespace
 
-StringTableInsertionKey::StringTableInsertionKey(Isolate* isolate,
-                                                 Handle<String> string)
+StringTableInsertionKey::StringTableInsertionKey(
+    Isolate* isolate, Handle<String> string,
+    DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
+#ifdef DEBUG
+  deserializing_user_code_ = deserializing_user_code;
+#endif
   DCHECK(string->IsInternalizedString());
 }
 
-StringTableInsertionKey::StringTableInsertionKey(LocalIsolate* isolate,
-                                                 Handle<String> string)
+StringTableInsertionKey::StringTableInsertionKey(
+    LocalIsolate* isolate, Handle<String> string,
+    DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
+#ifdef DEBUG
+  deserializing_user_code_ = deserializing_user_code;
+#endif
   DCHECK(string->IsInternalizedString());
 }
 
@@ -415,7 +423,9 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       // be dead, try immediately freeing it.
       Handle<String> string = Handle<String>::cast(obj);
 
-      StringTableInsertionKey key(isolate(), string);
+      StringTableInsertionKey key(
+          isolate(), string,
+          DeserializingUserCodeOption::kIsDeserializingUserCode);
       Handle<String> result =
           isolate()->string_table()->LookupKey(isolate(), &key);
 
@@ -562,6 +572,21 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject() {
   return ret;
 }
 
+namespace {
+AllocationType SpaceToAllocation(SnapshotSpace space) {
+  switch (space) {
+    case SnapshotSpace::kCode:
+      return AllocationType::kCode;
+    case SnapshotSpace::kMap:
+      return AllocationType::kMap;
+    case SnapshotSpace::kOld:
+      return AllocationType::kOld;
+    case SnapshotSpace::kReadOnlyHeap:
+      return AllocationType::kReadOnly;
+  }
+}
+}  // namespace
+
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   const int size_in_tagged = source_.GetInt();
@@ -572,6 +597,24 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // use the kNewMetaMap bytecode.
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
   Handle<Map> map = Handle<Map>::cast(ReadObject());
+
+  AllocationType allocation = SpaceToAllocation(space);
+
+  // When sharing a string table, all in-place internalizable strings except
+  // internalized strings are allocated in the shared heap. Internalized strings
+  // are allocated in the local heap as an optimization, because they need to be
+  // looked up in the shared string table to get the canonical copy anyway, and
+  // the shared allocation is needless synchronization on the concurrent
+  // allocator.
+  if (FLAG_shared_string_table &&
+      !isolate()->factory()->GetInPlaceInternalizedStringMap(*map).is_null() &&
+      (!InstanceTypeChecker::IsInternalizedString(map->instance_type()) ||
+       deserializing_user_code())) {
+    allocation = isolate()
+                     ->factory()
+                     ->RefineAllocationTypeForInPlaceInternalizableString(
+                         allocation, *map);
+  }
 
   // Filling an object's fields can cause GCs and heap walks, so this object has
   // to be in a 'sufficiently initialised' state by the time the next allocation
@@ -593,7 +636,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   //     - We ensure this is the case by DCHECKing on object allocation that the
   //       previously allocated object has a valid size (see `Allocate`).
   HeapObject raw_obj =
-      Allocate(space, size_in_bytes, HeapObject::RequiredAlignment(*map));
+      Allocate(allocation, size_in_bytes, HeapObject::RequiredAlignment(*map));
   raw_obj.set_map_after_allocation(*map);
   MemsetTagged(raw_obj.RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
@@ -651,7 +694,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
   const int size_in_bytes = Map::kSize;
   const int size_in_tagged = size_in_bytes / kTaggedSize;
 
-  HeapObject raw_obj = Allocate(space, size_in_bytes, kWordAligned);
+  HeapObject raw_obj =
+      Allocate(SpaceToAllocation(space), size_in_bytes, kWordAligned);
   raw_obj.set_map_after_allocation(Map::unchecked_cast(raw_obj));
   MemsetTagged(raw_obj.RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
@@ -1191,23 +1235,8 @@ Address Deserializer<IsolateT>::ReadExternalReferenceCase() {
       reference_id);
 }
 
-namespace {
-AllocationType SpaceToType(SnapshotSpace space) {
-  switch (space) {
-    case SnapshotSpace::kCode:
-      return AllocationType::kCode;
-    case SnapshotSpace::kMap:
-      return AllocationType::kMap;
-    case SnapshotSpace::kOld:
-      return AllocationType::kOld;
-    case SnapshotSpace::kReadOnlyHeap:
-      return AllocationType::kReadOnly;
-  }
-}
-}  // namespace
-
 template <typename IsolateT>
-HeapObject Deserializer<IsolateT>::Allocate(SnapshotSpace space, int size,
+HeapObject Deserializer<IsolateT>::Allocate(AllocationType allocation, int size,
                                             AllocationAlignment alignment) {
 #ifdef DEBUG
   if (!previous_allocation_obj_.is_null()) {
@@ -1219,7 +1248,7 @@ HeapObject Deserializer<IsolateT>::Allocate(SnapshotSpace space, int size,
 #endif
 
   HeapObject obj = HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
-      size, SpaceToType(space), AllocationOrigin::kRuntime, alignment));
+      size, allocation, AllocationOrigin::kRuntime, alignment));
 
 #ifdef DEBUG
   previous_allocation_obj_ = handle(obj, isolate());

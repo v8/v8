@@ -605,6 +605,7 @@ const Char* String::GetChars(
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
                                AllocationType allocation) {
   if (string->IsConsString()) {
+    DCHECK(!string->InSharedHeap());
     Handle<ConsString> cons = Handle<ConsString>::cast(string);
     if (cons->IsFlat()) {
       string = handle(cons->first(), isolate);
