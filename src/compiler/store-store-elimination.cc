@@ -50,6 +50,7 @@ using StoreOffset = uint32_t;
 struct UnobservableStore {
   NodeId id_;
   StoreOffset offset_;
+  bool is_initializing_;  // Store is initializing a newly allocated object.
 
   bool operator==(const UnobservableStore other) const {
     return (id_ == other.id_) && (offset_ == other.offset_);
@@ -113,9 +114,15 @@ class UnobservablesSet final {
   // This can probably be done better if the observations are stored first by
   // offset and then by node.
   // We are removing all nodes with offset off since different nodes may
-  // alias one another, and we currently we don't have the means to know if
+  // alias one another, and currently we don't have the means to know if
   // two nodes are definitely the same value.
   UnobservablesSet RemoveSameOffset(StoreOffset off, Zone* zone) const;
+
+  // Returns a set that it is the current one, except for all of the
+  // observations of an initializing store. This is done by creating a new set
+  // and copying all observations of non-initializing stores.
+  // Initializing stores are stores to a freshly created object.
+  UnobservablesSet RemoveInitializingStores(Zone* zone) const;
 
   const SetT* set() const { return set_; }
 
@@ -284,13 +291,16 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(
       Node* stored_to = node->InputAt(0);
       const FieldAccess& access = FieldAccessOf(node->op());
       StoreOffset offset = ToOffset(access);
+      const bool is_initializing = NodeProperties::IsFreshObject(stored_to);
 
-      UnobservableStore observation = {stored_to->id(), offset};
+      UnobservableStore observation = {stored_to->id(), offset,
+                                       is_initializing};
       bool is_not_observable = uses.Contains(observation);
 
       if (is_not_observable) {
-        TRACE("  #%d is StoreField[+%d,%s](#%d), unobservable", node->id(),
-              offset, MachineReprToString(access.machine_type.representation()),
+        TRACE("  #%d is %sStoreField[+%d,%s](#%d), unobservable", node->id(),
+              (is_initializing ? "initializing " : ""), offset,
+              MachineReprToString(access.machine_type.representation()),
               stored_to->id());
         to_remove().insert(node);
         return uses;
@@ -315,6 +325,16 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(
           loaded_from->id(), offset);
 
       return uses.RemoveSameOffset(offset, temp_zone());
+    }
+    case IrOpcode::kAllocate:
+    case IrOpcode::kAllocateRaw: {
+      // Allocations can trigger a GC, therefore stores observable by allocation
+      // can not be eliminated, if they are initializing stores.
+      TRACE(
+          "  #%d is Allocate or AllocateRaw, removing initalizing stores from "
+          "set",
+          node->id());
+      return uses.RemoveInitializingStores(temp_zone());
     }
     default:
       if (CannotObserveStoreField(node)) {
@@ -484,6 +504,18 @@ UnobservablesSet UnobservablesSet::RemoveSameOffset(StoreOffset offset,
   return UnobservablesSet(new_set);
 }
 
+UnobservablesSet UnobservablesSet::RemoveInitializingStores(Zone* zone) const {
+  UnobservablesSet::SetT* new_set = NewSet(zone);
+  *new_set = *set();
+
+  // Remove elements that are initializing stores.
+  for (auto entry : *new_set) {
+    const UnobservableStore& obs = entry.first;
+    if (obs.is_initializing_) SetErase(new_set, obs);
+  }
+
+  return UnobservablesSet(new_set);
+}
 }  // namespace
 
 // static
