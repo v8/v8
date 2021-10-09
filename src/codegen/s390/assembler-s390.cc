@@ -483,10 +483,10 @@ int Assembler::target_at(int pos) {
     if (imm16 == 0) return kEndOfChain;
     return pos + imm16;
   } else if (LLILF == opcode || BRCL == opcode || LARL == opcode ||
-             BRASL == opcode) {
+             BRASL == opcode || LGRL == opcode) {
     int32_t imm32 =
         static_cast<int32_t>(instr & (static_cast<uint64_t>(0xFFFFFFFF)));
-    if (LLILF != opcode)
+    if (LLILF != opcode && LGRL != opcode)
       imm32 <<= 1;  // BR* + LARL treat immediate in # of halfwords
     if (imm32 == 0) return kEndOfChain;
     return pos + imm32;
@@ -527,6 +527,12 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
     instr_at_put<SixByteInstr>(pos, instr | (imm32 >> 1));
     return;
+  } else if (LGRL == opcode) {
+    // Immediate is in # of bytes
+    int32_t imm32 = target_pos - pos;
+    instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
+    instr_at_put<SixByteInstr>(pos, instr | imm32);
+    return;
   } else if (LLILF == opcode) {
     DCHECK(target_pos == kEndOfChain || target_pos >= 0);
     // Emitted label constant, not part of a branch.
@@ -557,7 +563,7 @@ int Assembler::max_reach_from(int pos) {
       BRXHG == opcode) {
     return 16;
   } else if (LLILF == opcode || BRCL == opcode || LARL == opcode ||
-             BRASL == opcode) {
+             BRASL == opcode || LGRL == opcode) {
     return 31;  // Using 31 as workaround instead of 32 as
                 // is_intn(x,32) doesn't work on 32-bit platforms.
                 // llilf: Emitted label constant, not part of
@@ -697,6 +703,10 @@ void Assembler::nop(int type) {
 // Load Address Relative Long
 void Assembler::larl(Register r1, Label* l) {
   larl(r1, Operand(branch_offset(l)));
+}
+
+void Assembler::lgrl(Register r1, Label* l) {
+  lgrl(r1, Operand(branch_offset(l)));
 }
 
 void Assembler::EnsureSpaceFor(int space_needed) {

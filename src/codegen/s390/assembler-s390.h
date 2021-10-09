@@ -1281,6 +1281,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Load Address Instructions
   void larl(Register r, Label* l);
+  void lgrl(Register r, Label* l);
 
   // Exception-generating instructions and debugging support
   void stop(Condition cond = al, int32_t code = kDefaultStopCode,
