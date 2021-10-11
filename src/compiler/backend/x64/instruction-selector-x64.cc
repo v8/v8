@@ -3687,13 +3687,18 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitI8x16Swizzle(Node* node) {
   InstructionCode op = kX64I8x16Swizzle;
 
-  auto m = V128ConstMatcher(node->InputAt(1));
-  if (m.HasResolvedValue()) {
-    // If the indices vector is a const, check if they are in range, or if the
-    // top bit is set, then we can avoid the paddusb in the codegen and simply
-    // emit a pshufb
-    auto imms = m.ResolvedValue().immediate();
-    op |= MiscField::encode(wasm::SimdSwizzle::AllInRangeOrTopBitSet(imms));
+  bool relaxed = OpParameter<bool>(node->op());
+  if (relaxed) {
+    op |= MiscField::encode(true);
+  } else {
+    auto m = V128ConstMatcher(node->InputAt(1));
+    if (m.HasResolvedValue()) {
+      // If the indices vector is a const, check if they are in range, or if the
+      // top bit is set, then we can avoid the paddusb in the codegen and simply
+      // emit a pshufb.
+      auto imms = m.ResolvedValue().immediate();
+      op |= MiscField::encode(wasm::SimdSwizzle::AllInRangeOrTopBitSet(imms));
+    }
   }
 
   X64OperandGenerator g(this);

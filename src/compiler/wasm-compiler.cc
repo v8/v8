@@ -5111,8 +5111,11 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI8x16AllTrue:
       return graph()->NewNode(mcgraph()->machine()->I8x16AllTrue(), inputs[0]);
     case wasm::kExprI8x16Swizzle:
-      return graph()->NewNode(mcgraph()->machine()->I8x16Swizzle(), inputs[0],
-                              inputs[1]);
+      return graph()->NewNode(mcgraph()->machine()->I8x16Swizzle(false),
+                              inputs[0], inputs[1]);
+    case wasm::kExprI8x16RelaxedSwizzle:
+      return graph()->NewNode(mcgraph()->machine()->I8x16Swizzle(true),
+                              inputs[0], inputs[1]);
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }

@@ -515,6 +515,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(F64x2ConvertLowI32x4U, 0xfdff, s_s)
 
 #define FOREACH_RELAXED_SIMD_OPCODE(V) \
+  V(I8x16RelaxedSwizzle, 0xfda2, s_ss) \
   V(F32x4Qfma, 0xfdaf, s_sss)          \
   V(F32x4Qfms, 0xfdb0, s_sss)          \
   V(F64x2Qfma, 0xfdcf, s_sss)          \

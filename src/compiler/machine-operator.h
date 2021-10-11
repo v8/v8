@@ -905,7 +905,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* S128Select();
   const Operator* S128AndNot();
 
-  const Operator* I8x16Swizzle();
+  const Operator* I8x16Swizzle(bool relaxed = false);
   const Operator* I8x16Shuffle(const uint8_t shuffle[16]);
 
   const Operator* V128AnyTrue();

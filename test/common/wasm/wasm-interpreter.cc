@@ -2761,6 +2761,7 @@ class WasmInterpreterInternals {
         *len += 16;
         return true;
       }
+      case kExprI8x16RelaxedSwizzle:
       case kExprI8x16Swizzle: {
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();

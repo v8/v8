@@ -230,6 +230,30 @@ WASM_RELAXED_SIMD_TEST(F32x4RecipSqrtApprox) {
                    false /* !exact */);
 }
 
+#if V8_TARGET_ARCH_X64
+WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
+  // Output is only defined for indices in the range [0,15].
+  WasmRunner<int32_t> r(execution_tier);
+  static const int kElems = kSimd128Size / sizeof(uint8_t);
+  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* indices = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  BUILD(r,
+        WASM_GLOBAL_SET(
+            0, WASM_SIMD_BINOP(kExprI8x16RelaxedSwizzle, WASM_GLOBAL_GET(1),
+                               WASM_GLOBAL_GET(2))),
+        WASM_ONE);
+  for (int i = 0; i < kElems; i++) {
+    LANE(src, i) = kElems - i - 1;
+    LANE(indices, i) = kElems - i - 1;
+  }
+  CHECK_EQ(1, r.Call());
+  for (int i = 0; i < kElems; i++) {
+    CHECK_EQ(LANE(dst, i), i);
+  }
+}
+#endif  // V8_TARGET_ARCH_X64
+
 #undef WASM_RELAXED_SIMD_TEST
 }  // namespace test_run_wasm_relaxed_simd
 }  // namespace wasm
