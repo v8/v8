@@ -563,6 +563,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kArrayPrototypeFill:
     case Builtin::kArrayPrototypeFind:
     case Builtin::kArrayPrototypeFindIndex:
+    case Builtin::kArrayPrototypeFindLast:
+    case Builtin::kArrayPrototypeFindLastIndex:
     case Builtin::kArrayPrototypeFlat:
     case Builtin::kArrayPrototypeFlatMap:
     case Builtin::kArrayPrototypeJoin:
@@ -595,6 +597,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kTypedArrayPrototypeValues:
     case Builtin::kTypedArrayPrototypeFind:
     case Builtin::kTypedArrayPrototypeFindIndex:
+    case Builtin::kTypedArrayPrototypeFindLast:
+    case Builtin::kTypedArrayPrototypeFindLastIndex:
     case Builtin::kTypedArrayPrototypeIncludes:
     case Builtin::kTypedArrayPrototypeJoin:
     case Builtin::kTypedArrayPrototypeIndexOf:
@@ -1049,6 +1053,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kArrayFilterLoopContinuation:
     case Builtin::kArrayFindIndexLoopContinuation:
     case Builtin::kArrayFindLoopContinuation:
+    case Builtin::kArrayFindLastIndexLoopContinuation:
+    case Builtin::kArrayFindLastLoopContinuation:
     case Builtin::kArrayForEachLoopContinuation:
     case Builtin::kArrayIncludesHoleyDoubles:
     case Builtin::kArrayIncludesPackedDoubles:
