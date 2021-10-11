@@ -126,7 +126,7 @@ void Serializer::SerializeObject(Handle<HeapObject> obj) {
   // indirection and serialize the actual string directly.
   if (obj->IsThinString(isolate())) {
     obj = handle(ThinString::cast(*obj).actual(isolate()), isolate());
-  } else if (obj->IsCodeT()) {
+  } else if (obj->IsCodeT(isolate())) {
     Code code = FromCodeT(CodeT::cast(*obj));
     if (code.kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
@@ -633,13 +633,13 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 class V8_NODISCARD UnlinkWeakNextScope {
  public:
   explicit UnlinkWeakNextScope(Heap* heap, Handle<HeapObject> object) {
-    if (object->IsAllocationSite() &&
+    Isolate* isolate = heap->isolate();
+    if (object->IsAllocationSite(isolate) &&
         Handle<AllocationSite>::cast(object)->HasWeakNext()) {
       object_ = object;
-      next_ =
-          handle(AllocationSite::cast(*object).weak_next(), heap->isolate());
+      next_ = handle(AllocationSite::cast(*object).weak_next(), isolate);
       Handle<AllocationSite>::cast(object)->set_weak_next(
-          ReadOnlyRoots(heap).undefined_value());
+          ReadOnlyRoots(isolate).undefined_value());
     }
   }
 

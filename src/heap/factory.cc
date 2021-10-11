@@ -202,6 +202,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     raw_code.clear_padding();
 
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+      raw_code.set_main_cage_base(isolate_->cage_base());
       data_container->SetCodeAndEntryPoint(isolate_, raw_code);
     }
 #ifdef VERIFY_HEAP
@@ -2091,6 +2092,7 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(
   data_container.set_kind_specific_flags(flags, kRelaxedStore);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     data_container.AllocateExternalPointerEntries(isolate());
+    data_container.set_code_cage_base(isolate()->code_cage_base());
     data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
     data_container.set_code_entry_point(isolate(), kNullAddress);
   }

@@ -462,6 +462,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
              InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
     auto code_data_container = Handle<CodeDataContainer>::cast(obj);
+    code_data_container->set_code_cage_base(isolate()->code_cage_base());
     code_data_container->AllocateExternalPointerEntries(main_thread_isolate());
     code_data_container->UpdateCodeEntryPoint(main_thread_isolate(),
                                               code_data_container->code());
@@ -557,7 +558,7 @@ Handle<HeapObject> Deserializer<IsolateT>::GetBackReferencedObject() {
 
   // We don't allow ThinStrings in backreferences -- if internalization produces
   // a thin string, then it should also update the backref handle.
-  DCHECK(!obj->IsThinString());
+  DCHECK(!obj->IsThinString(isolate()));
 
   hot_objects_.Add(obj);
   DCHECK(!HasWeakHeapObjectTag(*obj));
@@ -647,8 +648,9 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   }
 
 #ifdef DEBUG
+  PtrComprCageBase cage_base(isolate());
   // We want to make sure that all embedder pointers are initialized to null.
-  if (raw_obj.IsJSObject() && JSObject::cast(raw_obj).IsApiWrapper()) {
+  if (raw_obj.IsJSObject(cage_base) && JSObject::cast(raw_obj).IsApiWrapper()) {
     JSObject js_obj = JSObject::cast(raw_obj);
     for (int i = 0; i < js_obj.GetEmbedderFieldCount(); ++i) {
       void* pointer;
@@ -656,7 +658,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
           main_thread_isolate(), &pointer));
       CHECK_NULL(pointer);
     }
-  } else if (raw_obj.IsEmbedderDataArray()) {
+  } else if (raw_obj.IsEmbedderDataArray(cage_base)) {
     EmbedderDataArray array = EmbedderDataArray::cast(raw_obj);
     EmbedderDataSlot start(array, 0);
     EmbedderDataSlot end(array, array.length());
@@ -675,7 +677,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   PostProcessNewObject(map, obj, space);
 
 #ifdef DEBUG
-  if (obj->IsCode()) {
+  if (obj->IsCode(cage_base)) {
     DCHECK(space == SnapshotSpace::kCode ||
            space == SnapshotSpace::kReadOnlyHeap);
   } else {
@@ -1112,6 +1114,9 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
         DisallowGarbageCollection no_gc;
 
         Code code = Code::cast(*slot_accessor.object());
+        if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+          code.set_main_cage_base(isolate()->cage_base());
+        }
         DeserializerRelocInfoVisitor visitor(this, &preserialized_objects);
         for (RelocIterator it(code, Code::BodyDescriptor::kRelocModeMask);
              !it.done(); it.next()) {

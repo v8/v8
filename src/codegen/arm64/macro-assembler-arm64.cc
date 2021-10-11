@@ -2091,9 +2091,13 @@ void TurboAssembler::LoadCodeDataContainerEntry(
 void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
-  LoadTaggedPointerField(destination,
-                         FieldMemOperand(code_data_container_object,
-                                         CodeDataContainer::kCodeOffset));
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // Given the fields layout we can read the Code reference as a full word.
+  STATIC_ASSERT(!V8_EXTERNAL_CODE_SPACE_BOOL ||
+                (CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
+                 CodeDataContainer::kCodeOffset + kTaggedSize));
+  Ldr(destination, FieldMemOperand(code_data_container_object,
+                                   CodeDataContainer::kCodeOffset));
 }
 
 void TurboAssembler::CallCodeDataContainerObject(
