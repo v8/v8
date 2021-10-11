@@ -1962,10 +1962,6 @@ ScriptCompiler::CachedData::~CachedData() {
   }
 }
 
-bool ScriptCompiler::ExternalSourceStream::SetBookmark() { return false; }
-
-void ScriptCompiler::ExternalSourceStream::ResetToBookmark() { UNREACHABLE(); }
-
 ScriptCompiler::StreamedSource::StreamedSource(
     std::unique_ptr<ExternalSourceStream> stream, Encoding encoding)
     : impl_(new i::ScriptStreamingData(std::move(stream), encoding)) {}
