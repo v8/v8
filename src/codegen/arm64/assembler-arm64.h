@@ -2689,12 +2689,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static size_t GetApproxMaxDistToConstPoolForTesting() {
     return ConstantPool::kApproxDistToPool64;
   }
-
-  bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object,
-                             EmbeddedObjectIndex index) {
-    return *reinterpret_cast<uint64_t*>(buffer_->start() + pc_offset) ==
-           (IsOnHeap() ? object->ptr() : index);
-  }
 #endif
 
   class FarBranchInfo {

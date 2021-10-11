@@ -1215,16 +1215,9 @@ void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
 }
 
 void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
-  Object reloc_info_or_undefined = code.relocation_info_or_undefined();
-  TagObject(reloc_info_or_undefined, "(code relocation info)");
-  SetInternalReference(entry, "relocation_info", reloc_info_or_undefined,
+  TagObject(code.relocation_info(), "(code relocation info)");
+  SetInternalReference(entry, "relocation_info", code.relocation_info(),
                        Code::kRelocationInfoOffset);
-  if (reloc_info_or_undefined.IsUndefined()) {
-    // The code object was compiled directly on the heap, but it was not
-    // finalized.
-    DCHECK(code.kind() == CodeKind::BASELINE);
-    return;
-  }
 
   if (code.kind() == CodeKind::BASELINE) {
     TagObject(code.bytecode_or_interpreter_data(), "(interpreter data)");

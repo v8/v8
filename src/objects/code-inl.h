@@ -12,12 +12,9 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
-#include "src/objects/fixed-array.h"
-#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object-inl.h"
@@ -186,25 +183,14 @@ INT_ACCESSORS(Code, raw_metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
-#define CODE_ACCESSORS(name, type, offset)            \
-  ACCESSORS_CHECKED2(Code, name, type, offset,        \
-                     !ObjectInYoungGeneration(value), \
+#define CODE_ACCESSORS(name, type, offset)           \
+  ACCESSORS_CHECKED2(Code, name, type, offset, true, \
                      !ObjectInYoungGeneration(value))
-#define CODE_ACCESSORS_CHECKED(name, type, offset, condition)        \
-  ACCESSORS_CHECKED2(Code, name, type, offset,                       \
-                     !ObjectInYoungGeneration(value) && (condition), \
-                     !ObjectInYoungGeneration(value) && (condition))
-#define RELEASE_ACQUIRE_CODE_ACCESSORS(name, type, offset)            \
-  RELEASE_ACQUIRE_ACCESSORS_CHECKED2(Code, name, type, offset,        \
-                                     !ObjectInYoungGeneration(value), \
+#define RELEASE_ACQUIRE_CODE_ACCESSORS(name, type, offset)           \
+  RELEASE_ACQUIRE_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
                                      !ObjectInYoungGeneration(value))
 
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
-RELEASE_ACQUIRE_CODE_ACCESSORS(relocation_info, ByteArray,
-                               kRelocationInfoOffset)
-CODE_ACCESSORS_CHECKED(relocation_info_or_undefined, HeapObject,
-                       kRelocationInfoOffset,
-                       value.IsUndefined() || value.IsByteArray())
 
 ACCESSORS_CHECKED2(Code, deoptimization_data, FixedArray,
                    kDeoptimizationDataOrInterpreterDataOffset,
@@ -230,7 +216,6 @@ ACCESSORS_CHECKED2(Code, bytecode_offset_table, ByteArray, kPositionTableOffset,
 RELEASE_ACQUIRE_CODE_ACCESSORS(code_data_container, CodeDataContainer,
                                kCodeDataContainerOffset)
 #undef CODE_ACCESSORS
-#undef CODE_ACCESSORS_CHECKED
 #undef RELEASE_ACQUIRE_CODE_ACCESSORS
 
 CodeDataContainer Code::GCSafeCodeDataContainer(AcquireLoadTag) const {
@@ -404,12 +389,6 @@ ByteArray Code::unchecked_relocation_info() const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return ByteArray::unchecked_cast(
       TaggedField<HeapObject, kRelocationInfoOffset>::load(cage_base, *this));
-}
-
-HeapObject Code::synchronized_unchecked_relocation_info_or_undefined() const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return TaggedField<HeapObject, kRelocationInfoOffset>::Acquire_Load(cage_base,
-                                                                      *this);
 }
 
 byte* Code::relocation_start() const {

@@ -51,11 +51,9 @@ class BytecodeOffsetTableBuilder {
 
 class BaselineCompiler {
  public:
-  enum CodeLocation { kOffHeap, kOnHeap };
-  explicit BaselineCompiler(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared_function_info,
-      Handle<BytecodeArray> bytecode,
-      CodeLocation code_location = CodeLocation::kOffHeap);
+  explicit BaselineCompiler(Isolate* isolate,
+                            Handle<SharedFunctionInfo> shared_function_info,
+                            Handle<BytecodeArray> bytecode);
 
   void GenerateCode();
   MaybeHandle<Code> Build(Isolate* isolate);

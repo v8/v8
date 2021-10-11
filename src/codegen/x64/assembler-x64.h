@@ -1920,13 +1920,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void dq(Label* label);
 
-#ifdef DEBUG
-  bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object) {
-    return *reinterpret_cast<uint64_t*>(buffer_->start() + pc_offset) ==
-           (IsOnHeap() ? object->ptr() : object.address());
-  }
-#endif
-
   // Patch entries for partial constant pool.
   void PatchConstPool();
 

@@ -1038,23 +1038,20 @@ void Code::CodeVerify(Isolate* isolate) {
   // CodeVerify is called halfway through constructing the trampoline and so not
   // everything is set up.
   // CHECK_EQ(ReadOnlyHeap::Contains(*this), !IsExecutable());
-  HeapObject relocation_info = relocation_info_or_undefined();
-  if (!relocation_info.IsUndefined()) {
-    ByteArray::cast(relocation_info).ObjectVerify(isolate);
-    Address last_gc_pc = kNullAddress;
-    for (RelocIterator it(*this); !it.done(); it.next()) {
-      it.rinfo()->Verify(isolate);
-      // Ensure that GC will not iterate twice over the same pointer.
-      if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
-        CHECK(it.rinfo()->pc() != last_gc_pc);
-        last_gc_pc = it.rinfo()->pc();
-      }
-    }
-  }
-
+  relocation_info().ObjectVerify(isolate);
   CHECK(V8_ENABLE_THIRD_PARTY_HEAP_BOOL ||
         CodeSize() <= MemoryChunkLayout::MaxRegularCodeObjectSize() ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
+  Address last_gc_pc = kNullAddress;
+
+  for (RelocIterator it(*this); !it.done(); it.next()) {
+    it.rinfo()->Verify(isolate);
+    // Ensure that GC will not iterate twice over the same pointer.
+    if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
+      CHECK(it.rinfo()->pc() != last_gc_pc);
+      last_gc_pc = it.rinfo()->pc();
+    }
+  }
 }
 
 void JSArray::JSArrayVerify(Isolate* isolate) {

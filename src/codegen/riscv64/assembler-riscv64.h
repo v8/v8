@@ -1335,14 +1335,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
 
-#ifdef DEBUG
-  bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object) {
-    return target_address_at(
-               reinterpret_cast<Address>(buffer_->start() + pc_offset)) ==
-           (IsOnHeap() ? object->ptr() : object.address());
-  }
-#endif
-
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;

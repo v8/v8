@@ -1168,9 +1168,6 @@ class Heap {
       InvalidateRecordedSlots invalidate_recorded_slots =
           InvalidateRecordedSlots::kYes);
 
-  void NotifyCodeObjectChangeStart(Code code, const DisallowGarbageCollection&);
-  void NotifyCodeObjectChangeEnd(Code code, const DisallowGarbageCollection&);
-
 #ifdef VERIFY_HEAP
   // This function checks that either
   // - the map transition is safe,

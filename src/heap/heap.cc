@@ -3800,27 +3800,6 @@ void Heap::NotifyObjectLayoutChange(
 #endif
 }
 
-void Heap::NotifyCodeObjectChangeStart(Code code,
-                                       const DisallowGarbageCollection&) {
-  // Updating the code object will also trim the object size, this results in
-  // free memory which we want to give back to the LAB. Sweeping that object's
-  // page will ensure that we don't add that memory to the free list as well.
-  EnsureSweepingCompleted(code);
-}
-
-void Heap::NotifyCodeObjectChangeEnd(Code code,
-                                     const DisallowGarbageCollection&) {
-  // Ensure relocation_info is already initialized.
-  DCHECK(code.relocation_info_or_undefined().IsByteArray());
-
-  if (incremental_marking()->IsMarking()) {
-    // Object might have been marked already without relocation_info. Force
-    // revisitation of the object such that we find all pointers in the
-    // instruction stream.
-    incremental_marking()->MarkBlackAndRevisitObject(code);
-  }
-}
-
 #ifdef VERIFY_HEAP
 // Helper class for collecting slot addresses.
 class SlotCollectingVisitor final : public ObjectVisitor {

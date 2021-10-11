@@ -243,26 +243,15 @@ namespace {
 // than pre-allocating a large enough buffer.
 #ifdef V8_TARGET_ARCH_IA32
 const int kAverageBytecodeToInstructionRatio = 5;
-const int kMinimumEstimatedInstructionSize = 200;
 #else
 const int kAverageBytecodeToInstructionRatio = 7;
-const int kMinimumEstimatedInstructionSize = 300;
 #endif
 std::unique_ptr<AssemblerBuffer> AllocateBuffer(
-    Isolate* isolate, Handle<BytecodeArray> bytecodes,
-    BaselineCompiler::CodeLocation code_location) {
+    Handle<BytecodeArray> bytecodes) {
   int estimated_size;
   {
     DisallowHeapAllocation no_gc;
     estimated_size = BaselineCompiler::EstimateInstructionSize(*bytecodes);
-  }
-  Heap* heap = isolate->heap();
-  // TODO(victorgomes): When compiling on heap, we allocate whatever is left
-  // over on the page with a minimum of the estimated_size.
-  if (code_location == BaselineCompiler::kOnHeap &&
-      Code::SizeFor(estimated_size) <
-          heap->MaxRegularHeapObjectSize(AllocationType::kCode)) {
-    return NewOnHeapAssemblerBuffer(isolate, estimated_size);
   }
   return NewAssemblerBuffer(RoundUp(estimated_size, 4 * KB));
 }
@@ -270,13 +259,12 @@ std::unique_ptr<AssemblerBuffer> AllocateBuffer(
 
 BaselineCompiler::BaselineCompiler(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_function_info,
-    Handle<BytecodeArray> bytecode, CodeLocation code_location)
+    Handle<BytecodeArray> bytecode)
     : local_isolate_(isolate->AsLocalIsolate()),
       stats_(isolate->counters()->runtime_call_stats()),
       shared_function_info_(shared_function_info),
       bytecode_(bytecode),
-      masm_(isolate, CodeObjectRequired::kNo,
-            AllocateBuffer(isolate, bytecode, code_location)),
+      masm_(isolate, CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(isolate->allocator(), ZONE_NAME),
@@ -336,8 +324,7 @@ MaybeHandle<Code> BaselineCompiler::Build(Isolate* isolate) {
 }
 
 int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {
-  return bytecode.length() * kAverageBytecodeToInstructionRatio +
-         kMinimumEstimatedInstructionSize;
+  return bytecode.length() * kAverageBytecodeToInstructionRatio;
 }
 
 interpreter::Register BaselineCompiler::RegisterOperand(int operand_index) {
