@@ -17,54 +17,41 @@ if (optimize_param == "opt") {
   throw new Error("Unknown optimization configuration " + arguments.join(' '));
 }
 
-let factory;
+let klass;
 let array;
 
 switch (TEST_TYPE) {
-  case "public-field-single":
-    factory = EvaluateSinglePublicFieldClass;
+  case "single":
+    klass = EvaluateSingleComputedFieldClass();
     break;
-  case "public-field-multiple":
-    factory = EvaluateMultiPublicFieldClass;
+  case "multiple":
+    klass = EvaluateMultiComputedFieldClass();
     break;
-  case "private-field-single":
-    factory = EvaluateSinglePrivateFieldClass;
-    break;
-  case "private-field-multiple":
-    factory = EvaluateMultiPrivateFieldClass;
-    break;
-  case "computed-field-single":
-    factory = EvaluateSingleComputedFieldClass;
-    break;
-  case "computed-field-multiple":
-    factory = EvaluateMultiComputedFieldClass;
-    break;
-
   default:
     throw new Error("Unknown optimization configuration " + arguments.join(' '));
 }
 
 if (optimize) {
-  %PrepareFunctionForOptimization(factory);
+  %PrepareFunctionForOptimization(klass);
 } else {
-  %NeverOptimizeFunction(factory);
+  %NeverOptimizeFunction(klass);
 }
 
 function setUp() {
-  array = [factory(), factory()];
+  array = [new klass(), new klass()];
   // Populate the array first to reduce the impact of
   // array allocations.
   for (let i = 0; i < LOCAL_ITERATIONS - 2; ++i) {
     array.push(array[0]);
   }
   if (optimize) {
-    %OptimizeFunctionOnNextCall(factory);
+    %OptimizeFunctionOnNextCall(klass);
   }
 }
 
 function runBenchmark() {
   for (let i = 0; i < LOCAL_ITERATIONS; ++i) {
-    array[i] = factory();
+    array[i] = new klass();
   }
 }
 
@@ -72,9 +59,7 @@ function tearDown() {
   if (array.length < 3) {
     throw new Error(`Check failed, array length ${array.length}`);
   }
-
-  for (const klass of array) {
-    const instance = new klass();
+  for (const instance of array) {
     if (!instance.check())
       throw new Error(`instance.check() failed`);
   }

@@ -36,7 +36,8 @@
           "name": "evaluate-class-private-field-single-noopt",
           "main": "run.js",
           "test_flags": [ "evaluate-class", "private-field-single", "noopt" ]
-        },        {
+        },
+        {
           "name": "evaluate-class-public-field-multiple-opt",
           "main": "run.js",
           "test_flags": [ "evaluate-class", "public-field-multiple", "opt" ]
@@ -55,6 +56,26 @@
           "name": "evaluate-class-private-field-multiple-noopt",
           "main": "run.js",
           "test_flags": [ "evaluate-class", "private-field-multiple", "noopt" ]
+        },
+        {
+          "name": "evaluate-class-computed-field-single-opt",
+          "main": "run.js",
+          "test_flags": [ "evaluate-class", "computed-field-single", "opt" ]
+        },
+        {
+          "name": "evaluate-class-computed-field-single-noopt",
+          "main": "run.js",
+          "test_flags": [ "evaluate-class", "computed-field-single", "noopt" ]
+        },
+        {
+          "name": "evaluate-class-computed-field-multiple-opt",
+          "main": "run.js",
+          "test_flags": [ "evaluate-class", "computed-field-multiple", "opt" ]
+        },
+        {
+          "name": "evaluate-class-computed-field-multiple-noopt",
+          "main": "run.js",
+          "test_flags": [ "evaluate-class", "computed-field-multiple", "noopt" ]
         }
       ]
     },
@@ -111,6 +132,34 @@
           "name": "define-private-field-multiple-noopt",
           "main": "run.js",
           "test_flags": [ "define-private-field", "multiple", "noopt" ]
+        }
+      ]
+    },
+    {
+      "name": "define-computed-field",
+      "resources": [ "define-computed-field.js", "classes.js" ],
+      "flags": ["--allow-natives-syntax"],
+      "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "define-computed-field-single-opt",
+          "main": "run.js",
+          "test_flags": [ "define-computed-field", "single", "opt" ]
+        },
+        {
+          "name": "define-computed-field-single-noopt",
+          "main": "run.js",
+          "test_flags": [ "define-computed-field", "single", "noopt" ]
+        },
+        {
+          "name": "define-computed-field-multiple-opt",
+          "main": "run.js",
+          "test_flags": [ "define-computed-field", "multiple", "opt" ]
+        },
+        {
+          "name": "define-computed-field-multiple-noopt",
+          "main": "run.js",
+          "test_flags": [ "define-computed-field", "multiple", "noopt" ]
         }
       ]
     }
