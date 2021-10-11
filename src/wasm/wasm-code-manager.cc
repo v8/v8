@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <numeric>
 
+#include "src/base/atomicops.h"
 #include "src/base/build_config.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
@@ -2268,10 +2269,13 @@ std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
     total_code_space += RoundUp<kCodeAlignment>(result.code_desc.instr_size);
     if (result.result_tier == ExecutionTier::kLiftoff) {
       int index = result.func_index;
-      DCHECK(module()->functions[index].feedback_slots == 0 ||
-             module()->functions[index].feedback_slots ==
-                 result.feedback_vector_slots);
-      module()->functions[index].feedback_slots = result.feedback_vector_slots;
+      int* slots = &module()->functions[index].feedback_slots;
+#if DEBUG
+      int current_value = base::Relaxed_Load(slots);
+      DCHECK(current_value == 0 ||
+             current_value == result.feedback_vector_slots);
+#endif
+      base::Relaxed_Store(slots, result.feedback_vector_slots);
     }
   }
   base::Vector<byte> code_space;

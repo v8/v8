@@ -6,6 +6,7 @@
 
 #include "src/api/api.h"
 #include "src/asmjs/asm-js.h"
+#include "src/base/atomicops.h"
 #include "src/base/platform/wrappers.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
@@ -715,7 +716,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     instance->set_feedback_vectors(*vectors);
     for (int i = 0; i < num_functions; i++) {
       int func_index = module_->num_imported_functions + i;
-      int slots = module_->functions[func_index].feedback_slots;
+      int slots =
+          base::Relaxed_Load(&module_->functions[func_index].feedback_slots);
       if (slots == 0) continue;
       if (FLAG_trace_wasm_speculative_inlining) {
         PrintF("[Function %d (declared %d): allocating %d feedback slots]\n",
