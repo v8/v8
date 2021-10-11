@@ -368,6 +368,10 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMDF_OP(Qfma, "qfma")
     CASE_SIMDF_OP(Qfms, "qfms")
     CASE_I8x16_OP(RelaxedSwizzle, "relaxed_swizzle");
+    CASE_I8x16_OP(RelaxedLaneSelect, "relaxed_laneselect");
+    CASE_I16x8_OP(RelaxedLaneSelect, "relaxed_laneselect");
+    CASE_I32x4_OP(RelaxedLaneSelect, "relaxed_laneselect");
+    CASE_I64x2_OP(RelaxedLaneSelect, "relaxed_laneselect");
 
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")

@@ -914,6 +914,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8AllTrue();
   const Operator* I8x16AllTrue();
 
+  // Relaxed SIMD operators.
+  const Operator* I8x16RelaxedLaneSelect();
+  const Operator* I16x8RelaxedLaneSelect();
+  const Operator* I32x4RelaxedLaneSelect();
+  const Operator* I64x2RelaxedLaneSelect();
+
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
   const Operator* LoadImmutable(LoadRepresentation rep);

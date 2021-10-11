@@ -392,6 +392,7 @@ namespace compiler {
   V(X64I32x4AllTrue)                                 \
   V(X64I16x8AllTrue)                                 \
   V(X64I8x16AllTrue)                                 \
+  V(X64Pblendvb)                                     \
   V(X64Word64AtomicAddUint64)                        \
   V(X64Word64AtomicSubUint64)                        \
   V(X64Word64AtomicAndUint64)                        \

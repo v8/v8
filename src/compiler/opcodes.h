@@ -981,6 +981,10 @@
   V(S128Select)                 \
   V(S128AndNot)                 \
   V(I8x16Swizzle)               \
+  V(I8x16RelaxedLaneSelect)     \
+  V(I16x8RelaxedLaneSelect)     \
+  V(I32x4RelaxedLaneSelect)     \
+  V(I64x2RelaxedLaneSelect)     \
   V(I8x16Shuffle)               \
   V(V128AnyTrue)                \
   V(I64x2AllTrue)               \

@@ -2352,6 +2352,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitI16x8AllTrue(node);
     case IrOpcode::kI8x16AllTrue:
       return MarkAsWord32(node), VisitI8x16AllTrue(node);
+    case IrOpcode::kI8x16RelaxedLaneSelect:
+      return MarkAsSimd128(node), VisitI8x16RelaxedLaneSelect(node);
+    case IrOpcode::kI16x8RelaxedLaneSelect:
+      return MarkAsSimd128(node), VisitI16x8RelaxedLaneSelect(node);
+    case IrOpcode::kI32x4RelaxedLaneSelect:
+      return MarkAsSimd128(node), VisitI32x4RelaxedLaneSelect(node);
+    case IrOpcode::kI64x2RelaxedLaneSelect:
+      return MarkAsSimd128(node), VisitI64x2RelaxedLaneSelect(node);
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
             node->op()->mnemonic(), node->id());
@@ -2764,6 +2772,21 @@ void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
+
+#if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

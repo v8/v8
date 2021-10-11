@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/overflowing-math.h"
+#include "src/common/globals.h"
 #include "src/wasm/compilation-environment.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -251,6 +252,85 @@ WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
   for (int i = 0; i < kElems; i++) {
     CHECK_EQ(LANE(dst, i), i);
   }
+}
+
+namespace {
+// Helper to convert an array of T into an array of uint8_t to be used a v128
+// constants.
+template <typename T, size_t N = kSimd128Size / sizeof(T)>
+std::array<uint8_t, kSimd128Size> as_uint8(const T* src) {
+  std::array<uint8_t, kSimd128Size> arr;
+  for (size_t i = 0; i < N; i++) {
+    WriteLittleEndianValue<T>(bit_cast<T*>(&arr[0]) + i, src[i]);
+  }
+  return arr;
+}
+
+template <typename T, int kElems>
+void RelaxedLaneSelectTest(TestExecutionTier execution_tier, const T v1[kElems],
+                           const T v2[kElems], const T s[kElems],
+                           const T expected[kElems], WasmOpcode laneselect) {
+  auto lhs = as_uint8<T>(v1);
+  auto rhs = as_uint8<T>(v2);
+  auto mask = as_uint8<T>(s);
+  WasmRunner<int32_t> r(execution_tier);
+  T* dst = r.builder().AddGlobal<T>(kWasmS128);
+  BUILD(r,
+        WASM_GLOBAL_SET(0, WASM_SIMD_OPN(laneselect, WASM_SIMD_CONSTANT(lhs),
+                                         WASM_SIMD_CONSTANT(rhs),
+                                         WASM_SIMD_CONSTANT(mask))),
+        WASM_ONE);
+
+  CHECK_EQ(1, r.Call());
+  for (int i = 0; i < kElems; i++) {
+    CHECK_EQ(expected[i], LANE(dst, i));
+  }
+}
+
+}  // namespace
+
+WASM_RELAXED_SIMD_TEST(I8x16RelaxedLaneSelect) {
+  constexpr int kElems = 16;
+  constexpr uint8_t v1[kElems] = {0, 1, 2,  3,  4,  5,  6,  7,
+                                  8, 9, 10, 11, 12, 13, 14, 15};
+  constexpr uint8_t v2[kElems] = {16, 17, 18, 19, 20, 21, 22, 23,
+                                  24, 25, 26, 27, 28, 29, 30, 31};
+  constexpr uint8_t s[kElems] = {0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF,
+                                 0, 0xFF, 0, 0xFF, 0, 0xFF, 0, 0xFF};
+  constexpr uint8_t expected[kElems] = {16, 1, 18, 3,  20, 5,  22, 7,
+                                        24, 9, 26, 11, 28, 13, 30, 15};
+  RelaxedLaneSelectTest<uint8_t, kElems>(execution_tier, v1, v2, s, expected,
+                                         kExprI8x16RelaxedLaneSelect);
+}
+
+WASM_RELAXED_SIMD_TEST(I16x8RelaxedLaneSelect) {
+  constexpr int kElems = 8;
+  uint16_t v1[kElems] = {0, 1, 2, 3, 4, 5, 6, 7};
+  uint16_t v2[kElems] = {8, 9, 10, 11, 12, 13, 14, 15};
+  uint16_t s[kElems] = {0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF};
+  constexpr uint16_t expected[kElems] = {8, 1, 10, 3, 12, 5, 14, 7};
+  RelaxedLaneSelectTest<uint16_t, kElems>(execution_tier, v1, v2, s, expected,
+                                          kExprI16x8RelaxedLaneSelect);
+}
+
+WASM_RELAXED_SIMD_TEST(I32x4RelaxedLaneSelect) {
+  constexpr int kElems = 4;
+  uint32_t v1[kElems] = {0, 1, 2, 3};
+  uint32_t v2[kElems] = {4, 5, 6, 7};
+  uint32_t s[kElems] = {0, 0xFFFF'FFFF, 0, 0xFFFF'FFFF};
+  constexpr uint32_t expected[kElems] = {4, 1, 6, 3};
+  RelaxedLaneSelectTest<uint32_t, kElems>(execution_tier, v1, v2, s, expected,
+                                          kExprI32x4RelaxedLaneSelect);
+}
+
+WASM_RELAXED_SIMD_TEST(I64x2RelaxedLaneSelect) {
+  constexpr int kElems = 2;
+  uint64_t v1[kElems] = {0, 1};
+  uint64_t v2[kElems] = {2, 3};
+  uint64_t s[kElems] = {0, 0xFFFF'FFFF'FFFF'FFFF};
+  constexpr uint64_t expected[kElems] = {2, 1};
+  RelaxedLaneSelectTest<uint64_t, kElems>(execution_tier, v1, v2, s, expected,
+                                          kExprI64x2RelaxedLaneSelect);
 }
 #endif  // V8_TARGET_ARCH_X64
 

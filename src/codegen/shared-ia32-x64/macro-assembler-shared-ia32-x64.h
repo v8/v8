@@ -50,6 +50,9 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void Movhps(XMMRegister dst, XMMRegister src1, Operand src2);
   void Movlps(XMMRegister dst, XMMRegister src1, Operand src2);
 
+  void Pblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                XMMRegister mask);
+
   template <typename Op>
   void Pinsrb(XMMRegister dst, XMMRegister src1, Op src2, uint8_t imm8,
               uint32_t* load_pc_offset = nullptr) {

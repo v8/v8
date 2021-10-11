@@ -99,6 +99,19 @@ void SharedTurboAssembler::Movlps(XMMRegister dst, XMMRegister src1,
   }
 }
 
+void SharedTurboAssembler::Pblendvb(XMMRegister dst, XMMRegister src1,
+                                    XMMRegister src2, XMMRegister mask) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpblendvb(dst, src1, src2, mask);
+  } else {
+    CpuFeatureScope scope(this, SSE4_1);
+    DCHECK_EQ(mask, xmm0);
+    DCHECK_EQ(dst, src1);
+    pblendvb(dst, src2);
+  }
+}
+
 void SharedTurboAssembler::Shufps(XMMRegister dst, XMMRegister src1,
                                   XMMRegister src2, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
