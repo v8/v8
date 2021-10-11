@@ -94,6 +94,7 @@ def _default_args(configs):
             "-fPIC",
             "-Werror",
             "-Wextra",
+            "-Wno-bitwise-instead-of-logical",
             "-Wno-builtin-assume-aligned-alignment",
             "-Wno-unused-parameter",
             "-Wno-implicit-int-float-conversion",
