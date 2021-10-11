@@ -42,6 +42,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreIC();
   void GenerateStoreICTrampoline();
   void GenerateStoreICBaseline();
+  void GenerateStoreOwnIC();
+  void GenerateStoreOwnICTrampoline();
+  void GenerateStoreOwnICBaseline();
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
   void GenerateStoreGlobalICBaseline();
@@ -62,6 +65,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedStoreIC();
   void GenerateKeyedStoreICTrampoline();
   void GenerateKeyedStoreICBaseline();
+
+  void GenerateKeyedDefineOwnIC();
+  void GenerateKeyedDefineOwnICTrampoline();
+  void GenerateKeyedDefineOwnICBaseline();
 
   void GenerateStoreInArrayLiteralIC();
   void GenerateStoreInArrayLiteralICBaseline();
@@ -190,17 +197,24 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                           int data_index);
 
  protected:
+  enum class StoreICMode {
+    kDefault,
+    kStoreOwn,
+    kDefineOwn,
+  };
   struct StoreICParameters {
     StoreICParameters(TNode<Context> context,
                       base::Optional<TNode<Object>> receiver,
                       TNode<Object> name, TNode<Object> value,
-                      TNode<TaggedIndex> slot, TNode<HeapObject> vector)
+                      TNode<TaggedIndex> slot, TNode<HeapObject> vector,
+                      StoreICMode mode)
         : context_(context),
           receiver_(receiver),
           name_(name),
           value_(value),
           slot_(slot),
-          vector_(vector) {}
+          vector_(vector),
+          mode_(mode) {}
 
     TNode<Context> context() const { return context_; }
     TNode<Object> receiver() const { return receiver_.value(); }
@@ -213,6 +227,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
     bool receiver_is_null() const { return !receiver_.has_value(); }
 
+    bool IsStoreOwn() const { return mode_ == StoreICMode::kStoreOwn; }
+    bool IsDefineOwn() const { return mode_ == StoreICMode::kDefineOwn; }
+
    private:
     TNode<Context> context_;
     base::Optional<TNode<Object>> receiver_;
@@ -220,6 +237,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Object> value_;
     TNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
+    StoreICMode mode_;
   };
 
   enum class LoadAccessMode { kLoad, kHas };
@@ -289,12 +307,14 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void KeyedLoadICGeneric(const LoadICParameters* p);
   void KeyedLoadICPolymorphicName(const LoadICParameters* p,
                                   LoadAccessMode access_mode);
+
   void StoreIC(const StoreICParameters* p);
   void StoreGlobalIC(const StoreICParameters* p);
   void StoreGlobalIC_PropertyCellCase(TNode<PropertyCell> property_cell,
                                       TNode<Object> value,
                                       ExitPoint* exit_point, Label* miss);
   void KeyedStoreIC(const StoreICParameters* p);
+  void KeyedDefineOwnIC(const StoreICParameters* p);
   void StoreInArrayLiteralIC(const StoreICParameters* p);
 
   // IC dispatcher behavior.

@@ -1420,6 +1420,8 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
 
 Type Typer::Visitor::TypeJSStoreProperty(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeJSDefineProperty(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeJSStoreNamed(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeJSStoreGlobal(Node* node) { UNREACHABLE(); }

@@ -1212,6 +1212,7 @@ void FeedbackNexus::Print(std::ostream& os) {
   switch (kind()) {
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kCloneObject:
+    case FeedbackSlotKind::kDefineOwnKeyed:
     case FeedbackSlotKind::kHasKeyed:
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:

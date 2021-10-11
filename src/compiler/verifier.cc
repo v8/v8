@@ -740,6 +740,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       CHECK(PropertyAccessOf(node->op()).feedback().IsValid());
       break;
+    case IrOpcode::kJSDefineProperty:
+      CheckNotTyped(node);
+      CHECK(PropertyAccessOf(node->op()).feedback().IsValid());
+      break;
     case IrOpcode::kJSStoreNamed:
       CheckNotTyped(node);
       break;

@@ -2152,6 +2152,40 @@ void BytecodeGraphBuilder::VisitStaKeyedProperty() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitStaKeyedPropertyAsDefine() {
+  PrepareEagerCheckpoint();
+  Node* value = environment()->LookupAccumulator();
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* key =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  FeedbackSource source =
+      CreateFeedbackSource(bytecode_iterator().GetIndexOperand(2));
+  LanguageMode language_mode =
+      GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(source));
+
+  const Operator* op = javascript()->DefineProperty(language_mode, source);
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedStoreKeyed(op, object, key, value, source.slot);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    STATIC_ASSERT(JSDefinePropertyNode::ObjectIndex() == 0);
+    STATIC_ASSERT(JSDefinePropertyNode::KeyIndex() == 1);
+    STATIC_ASSERT(JSDefinePropertyNode::ValueIndex() == 2);
+    STATIC_ASSERT(JSDefinePropertyNode::FeedbackVectorIndex() == 3);
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+    node = NewNode(op, object, key, value, feedback_vector_node());
+  }
+
+  environment()->RecordAfterState(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitLdaModuleVariable() {
   int32_t cell_index = bytecode_iterator().GetImmediateOperand(0);
   uint32_t depth = bytecode_iterator().GetUnsignedImmediateOperand(1);

@@ -54,8 +54,10 @@ class IC {
   }
   bool IsAnyStore() const {
     return IsStoreIC() || IsStoreOwnIC() || IsStoreGlobalIC() ||
-           IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind());
+           IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind()) ||
+           IsDefineOwnIC();
   }
+  bool IsAnyStoreOwn() const { return IsStoreOwnIC() || IsDefineOwnIC(); }
 
   static inline bool IsHandler(MaybeObject object);
 
@@ -119,11 +121,13 @@ class IC {
   bool IsStoreGlobalIC() const { return IsStoreGlobalICKind(kind_); }
   bool IsStoreIC() const { return IsStoreICKind(kind_); }
   bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
+  bool IsDefineOwnIC() const { return IsDefineOwnICKind(kind_); }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
   bool IsKeyedHasIC() const { return IsKeyedHasICKind(kind_); }
   bool is_keyed() const {
     return IsKeyedLoadIC() || IsKeyedStoreIC() ||
-           IsStoreInArrayLiteralICKind(kind_) || IsKeyedHasIC();
+           IsStoreInArrayLiteralICKind(kind_) || IsKeyedHasIC() ||
+           IsKeyedDefineOwnICKind(kind_);
   }
   bool ShouldRecomputeHandler(Handle<String> name);
 

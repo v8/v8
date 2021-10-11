@@ -114,7 +114,8 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   } else if (IsKeyedLoadIC()) {
     KeyedAccessLoadMode mode = nexus()->GetKeyedAccessLoadMode();
     modifier = GetModifier(mode);
-  } else if (IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind())) {
+  } else if (IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind()) ||
+             IsDefineOwnIC()) {
     KeyedAccessStoreMode mode = nexus()->GetKeyedAccessStoreMode();
     modifier = GetModifier(mode);
   }
@@ -1723,7 +1724,10 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
     PropertyKey key(isolate(), name);
-    LookupIterator it(isolate(), object, key);
+    LookupIterator it(
+        isolate(), object, key,
+        IsAnyStoreOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
+    DCHECK_IMPLIES(IsStoreOwnIC(), it.IsFound() && it.HolderIsReceiver());
     MAYBE_RETURN_NULL(Object::SetProperty(&it, value, StoreOrigin::kNamed));
     return value;
   }
@@ -1745,14 +1749,22 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
   JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
   PropertyKey key(isolate(), name);
-  LookupIterator it(isolate(), object, key);
+  LookupIterator it(
+      isolate(), object, key,
+      IsAnyStoreOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
 
   if (name->IsPrivate()) {
-    if (name->IsPrivateName() && !it.IsFound()) {
+    bool exists = it.IsFound();
+    if (name->IsPrivateName() && exists == IsDefineOwnIC()) {
       Handle<String> name_string(
           String::cast(Symbol::cast(*name).description()), isolate());
-      return TypeError(MessageTemplate::kInvalidPrivateMemberWrite, object,
-                       name_string);
+      if (exists) {
+        return TypeError(MessageTemplate::kInvalidPrivateFieldReitialization,
+                         object, name_string);
+      } else {
+        return TypeError(MessageTemplate::kInvalidPrivateMemberWrite, object,
+                         name_string);
+      }
     }
 
     // IC handling of private fields/symbols stores on JSProxy is not
@@ -2332,8 +2344,11 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        Runtime::SetObjectProperty(isolate(), object, key, value,
-                                   StoreOrigin::kMaybeKeyed),
+        IsDefineOwnIC()
+            ? Runtime::DefineClassField(isolate(), object, key, value,
+                                        StoreOrigin::kMaybeKeyed)
+            : Runtime::SetObjectProperty(isolate(), object, key, value,
+                                         StoreOrigin::kMaybeKeyed),
         Object);
     return result;
   }
@@ -2684,6 +2699,34 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
+RUNTIME_FUNCTION(Runtime_StoreOwnIC_Miss) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> value = args.at(0);
+  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
+  Handle<Object> receiver = args.at(3);
+  Handle<Name> key = args.at<Name>(4);
+
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+
+  // When there is no feedback vector it is OK to use the StoreOwnNamed
+  // feedback kind. There _should_ be a vector, though.
+  FeedbackSlotKind kind = FeedbackSlotKind::kStoreOwnNamed;
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    kind = vector->GetKind(vector_slot);
+  }
+
+  DCHECK(IsStoreOwnICKind(kind));
+  StoreIC ic(isolate, vector, vector_slot, kind);
+  ic.UpdateState(receiver, key);
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
+}
+
 RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -2795,7 +2838,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
 
   // The elements store stubs miss into this function, but they are shared by
   // different ICs.
-  if (IsKeyedStoreICKind(kind)) {
+  if (IsKeyedStoreICKind(kind) || IsKeyedDefineOwnICKind(kind)) {
     KeyedStoreIC ic(isolate, vector, vector_slot, kind);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
@@ -2808,6 +2851,33 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
     RETURN_RESULT_OR_FAILURE(
         isolate, ic.Store(Handle<JSArray>::cast(receiver), key, value));
   }
+}
+
+RUNTIME_FUNCTION(Runtime_KeyedDefineOwnIC_Miss) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> value = args.at(0);
+  Handle<TaggedIndex> slot = args.at<TaggedIndex>(1);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
+  Handle<Object> receiver = args.at(3);
+  Handle<Object> key = args.at(4);
+  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
+
+  FeedbackSlotKind kind = FeedbackSlotKind::kDefineOwnKeyed;
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    kind = vector->GetKind(vector_slot);
+    DCHECK(IsDefineOwnICKind(kind));
+  }
+
+  // The elements store stubs miss into this function, but they are shared by
+  // different ICs.
+  KeyedStoreIC ic(isolate, vector, vector_slot, kind);
+  ic.UpdateState(receiver, key);
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {

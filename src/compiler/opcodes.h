@@ -175,6 +175,7 @@
   V(JSLoadNamedFromSuper)         \
   V(JSLoadGlobal)                 \
   V(JSStoreProperty)              \
+  V(JSDefineProperty)             \
   V(JSStoreNamed)                 \
   V(JSStoreNamedOwn)              \
   V(JSStoreGlobal)                \
@@ -1120,6 +1121,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSCreateLiteralArray:
       case kJSCreateLiteralObject:
       case kJSCreateLiteralRegExp:
+      case kJSDefineProperty:
       case kJSForInNext:
       case kJSForInPrepare:
       case kJSGetIterator:

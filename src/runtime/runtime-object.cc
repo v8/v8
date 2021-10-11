@@ -552,6 +552,41 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
   return value;
 }
 
+MaybeHandle<Object> Runtime::DefineClassField(Isolate* isolate,
+                                              Handle<Object> object,
+                                              Handle<Object> key,
+                                              Handle<Object> value,
+                                              StoreOrigin store_origin,
+                                              Maybe<ShouldThrow> should_throw) {
+  if (object->IsNullOrUndefined(isolate)) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object),
+        Object);
+  }
+
+  // Check if the given key is an array index.
+  bool success = false;
+  PropertyKey lookup_key(isolate, key, &success);
+  if (!success) return MaybeHandle<Object>();
+  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+
+  if (it.IsFound() && key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
+    Handle<Object> name_string(Symbol::cast(*key).description(), isolate);
+    DCHECK(name_string->IsString());
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kInvalidPrivateFieldReitialization,
+                     name_string),
+        Object);
+  }
+
+  MAYBE_RETURN_NULL(
+      Object::SetProperty(&it, value, store_origin, should_throw));
+
+  return value;
+}
+
 RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -820,6 +855,19 @@ RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::SetObjectProperty(isolate, object, key, value,
                                           StoreOrigin::kMaybeKeyed));
+}
+
+RUNTIME_FUNCTION(Runtime_DefineClassField) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Runtime::DefineClassField(isolate, object, key, value,
+                                         StoreOrigin::kMaybeKeyed));
 }
 
 RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
