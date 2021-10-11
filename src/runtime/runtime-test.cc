@@ -494,6 +494,10 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   if (!FLAG_opt) return ReadOnlyRoots(isolate).undefined_value();
 
+  if (!function->shared().allows_lazy_compilation()) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
   if (function->shared().optimization_disabled() &&
       function->shared().disable_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
