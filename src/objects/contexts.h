@@ -568,8 +568,8 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   inline bool has_extension() const;
   inline HeapObject extension() const;
-  inline void set_extension(HeapObject object,
-                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  V8_EXPORT_PRIVATE void set_extension(
+      HeapObject object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   JSObject extension_object() const;
   JSReceiver extension_receiver() const;
   V8_EXPORT_PRIVATE inline ScopeInfo scope_info() const;
@@ -672,7 +672,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   class BodyDescriptor;
 
 #ifdef VERIFY_HEAP
-  void VerifyExtensionSlot(HeapObject extension);
+  V8_EXPORT_PRIVATE void VerifyExtensionSlot(HeapObject extension);
 #endif
 
  private:

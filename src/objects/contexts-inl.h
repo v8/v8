@@ -141,14 +141,6 @@ HeapObject Context::extension() const {
   return HeapObject::cast(get(EXTENSION_INDEX));
 }
 
-void Context::set_extension(HeapObject object, WriteBarrierMode mode) {
-  DCHECK(scope_info().HasContextExtensionSlot());
-#ifdef VERIFY_HEAP
-  VerifyExtensionSlot(object);
-#endif
-  set(EXTENSION_INDEX, object, mode);
-}
-
 NativeContext Context::native_context() const {
   return this->map().native_context();
 }

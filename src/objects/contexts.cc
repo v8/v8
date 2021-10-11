@@ -443,21 +443,45 @@ int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
 #undef COMPARE_NAME
 
 #ifdef VERIFY_HEAP
+namespace {
+// TODO(v8:12298): Fix js-context-specialization cctests to set up full
+// native contexts instead of using dummy internalized strings as
+// extensions.
+bool IsContexExtensionTestObject(HeapObject extension) {
+  return extension.IsInternalizedString() &&
+         String::cast(extension).length() == 1;
+}
+}  // namespace
+
 void Context::VerifyExtensionSlot(HeapObject extension) {
   CHECK(scope_info().HasContextExtensionSlot());
+  // Early exit for potentially uninitialized contexfts.
   if (extension.IsUndefined()) return;
-  if (IsModuleContext()) {
-    extension.IsSourceTextModule();
+  if (extension.IsJSContextExtensionObject()) {
+    CHECK((IsBlockContext() && scope_info().is_declaration_scope()) ||
+          IsFunctionContext());
+  } else if (IsModuleContext()) {
+    CHECK(extension.IsSourceTextModule());
   } else if (IsDebugEvaluateContext() || IsWithContext()) {
-    extension.IsJSReceiver();
+    CHECK(extension.IsJSReceiver() ||
+          (IsWithContext() && IsContexExtensionTestObject(extension)));
   } else if (IsNativeContext()) {
-    extension.IsJSGlobalObject();
-  } else if ((IsBlockContext() && scope_info().is_declaration_scope()) ||
-             IsFunctionContext()) {
-    extension.IsJSContextExtensionObject();
+    CHECK(extension.IsJSGlobalObject() ||
+          IsContexExtensionTestObject(extension));
+  } else if (IsScriptContext()) {
+    // Host-defined options can be stored on the context for classic scripts.
+    CHECK(extension.IsFixedArray());
   }
 }
 #endif  // VERIFY_HEAP
+
+void Context::set_extension(HeapObject object, WriteBarrierMode mode) {
+  DCHECK(scope_info().HasContextExtensionSlot());
+#ifdef VERIFY_HEAP
+  VerifyExtensionSlot(object);
+#endif
+  set(EXTENSION_INDEX, object, mode);
+}
 
 #ifdef DEBUG
 
