@@ -22,6 +22,8 @@
 namespace v8 {
 namespace internal {
 
+constexpr uint8_t WebSnapshotSerializerDeserializer::kMagicNumber[4];
+
 // When encountering an error during deserializing, we note down the error but
 // don't bail out from processing the snapshot further. This is to speed up
 // deserialization; the error case is now slower since we don't bail out, but
@@ -258,6 +260,7 @@ void WebSnapshotSerializer::SerializePendingItems() {
 }
 
 // Format (full snapshot):
+// - Magic number (4 bytes)
 // - String count
 // - For each string:
 //   - Serialized string
@@ -282,16 +285,16 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
 
   ValueSerializer total_serializer(isolate_, nullptr);
   size_t needed_size =
-      string_serializer_.buffer_size_ + map_serializer_.buffer_size_ +
-      context_serializer_.buffer_size_ + function_serializer_.buffer_size_ +
-      class_serializer_.buffer_size_ + array_serializer_.buffer_size_ +
-      object_serializer_.buffer_size_ + export_serializer_.buffer_size_ +
-      8 * sizeof(uint32_t);
+      sizeof(kMagicNumber) + string_serializer_.buffer_size_ +
+      map_serializer_.buffer_size_ + context_serializer_.buffer_size_ +
+      function_serializer_.buffer_size_ + class_serializer_.buffer_size_ +
+      array_serializer_.buffer_size_ + object_serializer_.buffer_size_ +
+      export_serializer_.buffer_size_ + 8 * sizeof(uint32_t);
   if (total_serializer.ExpandBuffer(needed_size).IsNothing()) {
     Throw("Web snapshot: Out of memory");
     return;
   }
-
+  total_serializer.WriteRawBytes(kMagicNumber, 4);
   total_serializer.WriteUint32(static_cast<uint32_t>(string_count()));
   total_serializer.WriteRawBytes(string_serializer_.buffer_,
                                  string_serializer_.buffer_size_);
@@ -778,6 +781,14 @@ bool WebSnapshotDeserializer::UseWebSnapshot(const uint8_t* data,
 
   deserializer_.reset(new ValueDeserializer(isolate_, data, buffer_size));
   deferred_references_ = ArrayList::New(isolate_, 30);
+
+  const void* magic_bytes;
+  if (!deserializer_->ReadRawBytes(sizeof(kMagicNumber), &magic_bytes) ||
+      memcmp(magic_bytes, kMagicNumber, sizeof(kMagicNumber)) != 0) {
+    Throw("Web snapshot: Invalid magic number");
+    return false;
+  }
+
   DeserializeStrings();
   DeserializeMaps();
   DeserializeContexts();

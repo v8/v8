@@ -56,6 +56,8 @@ class WebSnapshotSerializerDeserializer {
     REGEXP
   };
 
+  static constexpr uint8_t kMagicNumber[4] = {'+', '+', '+', ';'};
+
   enum ContextType : uint8_t { FUNCTION, BLOCK };
 
   enum PropertyAttributesType : uint8_t { DEFAULT, CUSTOM };
