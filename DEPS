@@ -49,10 +49,10 @@ vars = {
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:0153d369bbccc908f4da4993b1ba82728055926a',
+  'gn_version': 'git_revision:693f9fb87e4febdd4299db9f73d8d2c958e63148',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:413d434bd4eee1130614494dfb19f1eba03d71af',
+  'luci_go': 'git_revision:d1c03082ecda0148d8096f1fd8bf5491eafc7323',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -92,7 +92,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '68d816952258c9d817bba656ee2664b35507f01b',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '64ad2a11a00ee472af74735316ca388c1ee04ed2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b0914688deaa632e537bfe1f87e9dcd2a2ba1f23',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a9bc3e283182a586998338a665c7eae17406ec54',
   'buildtools/clang_format/script':
@@ -218,7 +218,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ee3f2f49c13e4853a323e7e23b45ae5d006639f2',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '89d8a1b2c541992b209d84381bdf9eeb6694c372',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -226,7 +226,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7cdf1424b91417c4fae021caa9ef239980b4d180',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '97b5b5f83daeefa0413d83f42ca45674c94e2cba',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -283,7 +283,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'bffc82b236567dad6aba5ae14d09bcd1127f7d95',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'edc0e0684f38d65b052a19287be00d1ce8dd4d00',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '203feb789163278951e55ffeb624d70e016508e3',
   'tools/clang/dsymutil': {
