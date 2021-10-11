@@ -1438,11 +1438,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       : heap_(heap),
         local_allocator_(local_allocator),
         record_visitor_(record_visitor) {
-    if (FLAG_shared_string_table) {
-      if (Isolate* shared_isolate = heap->isolate()->shared_isolate()) {
-        shared_string_table_ = true;
-        shared_old_allocator_ = heap_->shared_old_allocator_.get();
-      }
+    if (FLAG_shared_string_table && heap->isolate()->shared_isolate()) {
+      shared_string_table_ = true;
+      shared_old_allocator_ = heap_->shared_old_allocator_.get();
     }
     migration_function_ = RawMigrateObject<MigrationMode::kFast>;
   }
