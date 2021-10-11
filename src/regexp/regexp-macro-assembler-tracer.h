@@ -18,7 +18,9 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   ~RegExpMacroAssemblerTracer() override;
   void AbortedCodeGeneration() override;
   int stack_limit_slack() override { return assembler_->stack_limit_slack(); }
-  bool CanReadUnaligned() override { return assembler_->CanReadUnaligned(); }
+  bool CanReadUnaligned() const override {
+    return assembler_->CanReadUnaligned();
+  }
   void AdvanceCurrentPosition(int by) override;    // Signed cp change.
   void AdvanceRegister(int reg, int by) override;  // r[reg] += by.
   void Backtrack() override;

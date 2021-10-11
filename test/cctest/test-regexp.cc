@@ -655,7 +655,7 @@ static ArchRegExpMacroAssembler::Result Execute(JSRegExp regexp, String input,
                                                 Address input_end,
                                                 int* captures) {
   return static_cast<NativeRegExpMacroAssembler::Result>(
-      NativeRegExpMacroAssembler::Execute(
+      NativeRegExpMacroAssembler::ExecuteForTesting(
           input, start_offset, reinterpret_cast<byte*>(input_start),
           reinterpret_cast<byte*>(input_end), captures, 0, CcTest::i_isolate(),
           regexp));

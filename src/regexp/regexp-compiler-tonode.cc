@@ -845,6 +845,11 @@ RegExpNode* RegExpEmpty::ToNode(RegExpCompiler* compiler,
   return on_success;
 }
 
+RegExpNode* RegExpGroup::ToNode(RegExpCompiler* compiler,
+                                RegExpNode* on_success) {
+  return body_->ToNode(compiler, on_success);
+}
+
 RegExpLookaround::Builder::Builder(bool is_positive, RegExpNode* on_success,
                                    int stack_pointer_register,
                                    int position_register,
@@ -1114,10 +1119,6 @@ void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
     default:
       UNREACHABLE();
   }
-}
-
-base::Vector<const int> CharacterRange::GetWordBounds() {
-  return base::Vector<const int>(kWordRanges, kWordRangeCount - 1);
 }
 
 // static

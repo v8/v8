@@ -355,10 +355,9 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     {
       AllowExternalCallThatCantCauseGC scope(&masm_);
       ExternalReference compare =
-          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
-                        isolate())
-                  : ExternalReference::re_case_insensitive_compare_non_unicode(
-                        isolate());
+          unicode
+              ? ExternalReference::re_case_insensitive_compare_unicode()
+              : ExternalReference::re_case_insensitive_compare_non_unicode();
       __ CallCFunction(compare, num_arguments);
     }
 
@@ -619,7 +618,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(base::uc16 type,
       __ cmpl(current_character(), Immediate('z'));
       BranchOrBacktrack(above, on_no_match);
     }
-    __ Move(rbx, ExternalReference::re_word_character_map(isolate()));
+    __ Move(rbx, ExternalReference::re_word_character_map());
     DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
     __ testb(Operand(rbx, current_character(), times_1, 0),
              current_character());
@@ -633,7 +632,7 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(base::uc16 type,
       __ cmpl(current_character(), Immediate('z'));
       __ j(above, &done);
     }
-    __ Move(rbx, ExternalReference::re_word_character_map(isolate()));
+    __ Move(rbx, ExternalReference::re_word_character_map());
     DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
     __ testb(Operand(rbx, current_character(), times_1, 0),
              current_character());
@@ -1023,8 +1022,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ PrepareCallCFunction(kNumArguments);
     __ LoadAddress(arg_reg_1, ExternalReference::isolate_address(isolate()));
 
-    ExternalReference grow_stack =
-        ExternalReference::re_grow_stack(isolate());
+    ExternalReference grow_stack = ExternalReference::re_grow_stack();
     __ CallCFunction(grow_stack, kNumArguments);
     // If nullptr is returned, we have failed to grow the stack, and must exit
     // with a stack-overflow exception.
@@ -1229,7 +1227,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   __ leaq(rdi, Operand(rsp, -kSystemPointerSize));
 #endif
   ExternalReference stack_check =
-      ExternalReference::re_check_stack_guard_state(isolate());
+      ExternalReference::re_check_stack_guard_state();
   __ CallCFunction(stack_check, num_arguments);
 }
 

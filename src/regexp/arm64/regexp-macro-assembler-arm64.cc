@@ -425,10 +425,9 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     {
       AllowExternalCallThatCantCauseGC scope(masm_.get());
       ExternalReference function =
-          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
-                        isolate())
-                  : ExternalReference::re_case_insensitive_compare_non_unicode(
-                        isolate());
+          unicode
+              ? ExternalReference::re_case_insensitive_compare_unicode()
+              : ExternalReference::re_case_insensitive_compare_non_unicode();
       __ CallCFunction(function, argument_count);
     }
 
@@ -663,7 +662,7 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(base::uc16 type,
       // Table is 256 entries, so all Latin1 characters can be tested.
       CompareAndBranchOrBacktrack(current_character(), 'z', hi, on_no_match);
     }
-    ExternalReference map = ExternalReference::re_word_character_map(isolate());
+    ExternalReference map = ExternalReference::re_word_character_map();
     __ Mov(x10, map);
     __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
     CompareAndBranchOrBacktrack(w10, 0, eq, on_no_match);
@@ -676,7 +675,7 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(base::uc16 type,
       __ Cmp(current_character(), 'z');
       __ B(hi, &done);
     }
-    ExternalReference map = ExternalReference::re_word_character_map(isolate());
+    ExternalReference map = ExternalReference::re_word_character_map();
     __ Mov(x10, map);
     __ Ldrb(w10, MemOperand(x10, current_character(), UXTW));
     CompareAndBranchOrBacktrack(w10, 0, ne, on_no_match);
@@ -1121,8 +1120,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
     // Call GrowStack(isolate)
     static constexpr int kNumArguments = 1;
     __ Mov(x0, ExternalReference::isolate_address(isolate()));
-    __ CallCFunction(ExternalReference::re_grow_stack(isolate()),
-                     kNumArguments);
+    __ CallCFunction(ExternalReference::re_grow_stack(), kNumArguments);
     // If return nullptr, we have failed to grow the stack, and must exit with
     // a stack-overflow exception.  Returning from the regexp code restores the
     // stack (sp <- fp) so we don't need to drop the link register from it
@@ -1447,7 +1445,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
 
   DCHECK_EQ(scratch, x10);
   ExternalReference check_stack_guard_state =
-      ExternalReference::re_check_stack_guard_state(isolate());
+      ExternalReference::re_check_stack_guard_state();
   __ Mov(scratch, check_stack_guard_state);
 
   __ CallBuiltin(Builtin::kDirectCEntry);

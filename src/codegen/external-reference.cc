@@ -296,12 +296,6 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
     return ExternalReference(Redirect(FUNCTION_ADDR(Target)));             \
   }
 
-#define FUNCTION_REFERENCE_WITH_ISOLATE(Name, Target)                      \
-  ExternalReference ExternalReference::Name(Isolate* isolate) {            \
-    STATIC_ASSERT(IsValidExternalReferenceType<decltype(&Target)>::value); \
-    return ExternalReference(Redirect(FUNCTION_ADDR(Target)));             \
-  }
-
 #define FUNCTION_REFERENCE_WITH_TYPE(Name, Target, Type)                   \
   ExternalReference ExternalReference::Name() {                            \
     STATIC_ASSERT(IsValidExternalReferenceType<decltype(&Target)>::value); \
@@ -719,11 +713,10 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 UNREACHABLE();
 #endif
 
-FUNCTION_REFERENCE_WITH_ISOLATE(re_check_stack_guard_state, re_stack_check_func)
+FUNCTION_REFERENCE(re_check_stack_guard_state, re_stack_check_func)
 #undef re_stack_check_func
 
-FUNCTION_REFERENCE_WITH_ISOLATE(re_grow_stack,
-                                NativeRegExpMacroAssembler::GrowStack)
+FUNCTION_REFERENCE(re_grow_stack, NativeRegExpMacroAssembler::GrowStack)
 
 FUNCTION_REFERENCE(re_match_for_call_from_js,
                    IrregexpInterpreter::MatchForCallFromJs)
@@ -731,15 +724,13 @@ FUNCTION_REFERENCE(re_match_for_call_from_js,
 FUNCTION_REFERENCE(re_experimental_match_for_call_from_js,
                    ExperimentalRegExp::MatchForCallFromJs)
 
-FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_unicode,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
+FUNCTION_REFERENCE(re_case_insensitive_compare_unicode,
+                   NativeRegExpMacroAssembler::CaseInsensitiveCompareUnicode)
 
-FUNCTION_REFERENCE_WITH_ISOLATE(
-    re_case_insensitive_compare_non_unicode,
-    NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
+FUNCTION_REFERENCE(re_case_insensitive_compare_non_unicode,
+                   NativeRegExpMacroAssembler::CaseInsensitiveCompareNonUnicode)
 
-ExternalReference ExternalReference::re_word_character_map(Isolate* isolate) {
+ExternalReference ExternalReference::re_word_character_map() {
   return ExternalReference(
       NativeRegExpMacroAssembler::word_character_map_address());
 }
@@ -1380,7 +1371,6 @@ void abort_with_reason(int reason) {
 }
 
 #undef FUNCTION_REFERENCE
-#undef FUNCTION_REFERENCE_WITH_ISOLATE
 #undef FUNCTION_REFERENCE_WITH_TYPE
 
 }  // namespace internal
