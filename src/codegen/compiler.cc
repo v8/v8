@@ -1636,6 +1636,7 @@ void BackgroundCompileTask::Run() {
           &isolate, isolate.factory()->empty_string(), kNullMaybeHandle,
           ScriptOriginOptions(false, false, false, info_->flags().is_module()));
 
+      parser_->UpdateStatistics(script, use_counts_, &total_preparse_skipped_);
       parser_->HandleSourceURLComments(&isolate, script);
 
       MaybeHandle<SharedFunctionInfo> maybe_result;
@@ -3150,6 +3151,15 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
       scripts = WeakArrayList::Append(isolate, scripts,
                                       MaybeObjectHandle::Weak(script));
       isolate->heap()->SetRootScriptList(*scripts);
+
+      for (int i = 0;
+           i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount); ++i) {
+        v8::Isolate::UseCounterFeature feature =
+            static_cast<v8::Isolate::UseCounterFeature>(i);
+        isolate->CountUsage(feature, task->use_count(feature));
+      }
+      isolate->counters()->total_preparse_skipped()->Increment(
+          task->total_preparse_skipped());
     } else {
       ParseInfo* parse_info = task->info();
       DCHECK_EQ(parse_info->flags().is_module(), origin_options.IsModule());

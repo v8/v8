@@ -525,6 +525,11 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
     return &finalize_unoptimized_compilation_data_;
   }
 
+  int use_count(v8::Isolate::UseCounterFeature feature) const {
+    return use_counts_[static_cast<int>(feature)];
+  }
+  int total_preparse_skipped() const { return total_preparse_skipped_; }
+
   // Jobs which could not be finalized in the background task, and need to be
   // finalized on the main thread.
   DeferredFinalizationJobDataList* jobs_to_retry_finalization_on_main_thread() {
@@ -559,6 +564,8 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   IsCompiledScope is_compiled_scope_;
   FinalizeUnoptimizedCompilationDataList finalize_unoptimized_compilation_data_;
   DeferredFinalizationJobDataList jobs_to_retry_finalization_on_main_thread_;
+  int use_counts_[v8::Isolate::kUseCounterFeatureCount] = {0};
+  int total_preparse_skipped_ = 0;
 
   // Single function data for top-level function compilation.
   int start_position_;

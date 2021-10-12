@@ -4715,6 +4715,12 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
   }
 }
 
+void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature, int count) {
+  for (int i = 0; i < count; ++i) {
+    CountUsage(feature);
+  }
+}
+
 int Isolate::GetNextScriptId() { return heap()->NextScriptId(); }
 
 // static

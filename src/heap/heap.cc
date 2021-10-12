@@ -711,12 +711,9 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
 void Heap::ReportStatisticsAfterGC() {
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
        ++i) {
-    int count = deferred_counters_[i];
+    isolate()->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(i),
+                          deferred_counters_[i]);
     deferred_counters_[i] = 0;
-    while (count > 0) {
-      count--;
-      isolate()->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(i));
-    }
   }
 }
 
