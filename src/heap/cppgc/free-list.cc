@@ -25,6 +25,9 @@ uint32_t BucketIndexForSize(uint32_t size) {
 class FreeList::Entry : public HeapObjectHeader {
  public:
   static Entry& CreateAt(void* memory, size_t size) {
+    // Make sure the freelist header is writable. SET_MEMORY_ACCESSIBLE is not
+    // needed as we write the whole payload of Entry.
+    ASAN_UNPOISON_MEMORY_REGION(memory, sizeof(Entry));
     return *new (memory) Entry(size);
   }
 
@@ -64,7 +67,9 @@ FreeList& FreeList::operator=(FreeList&& other) V8_NOEXCEPT {
   return *this;
 }
 
-Address FreeList::Add(FreeList::Block block) {
+void FreeList::Add(FreeList::Block block) { AddReturningUnusedBounds(block); }
+
+std::pair<Address, Address> FreeList::AddReturningUnusedBounds(Block block) {
   const size_t size = block.size;
   DCHECK_GT(kPageSize, size);
   DCHECK_LE(sizeof(HeapObjectHeader), size);
@@ -79,12 +84,11 @@ Address FreeList::Add(FreeList::Block block) {
     USE(filler);
     DCHECK_EQ(reinterpret_cast<Address>(block.address) + size,
               filler.ObjectEnd());
-    return reinterpret_cast<Address>(block.address) + size;
+    DCHECK_EQ(reinterpret_cast<Address>(&filler + 1), filler.ObjectEnd());
+    return {reinterpret_cast<Address>(&filler + 1),
+            reinterpret_cast<Address>(&filler + 1)};
   }
 
-  // Make sure the freelist header is writable. SET_MEMORY_ACCESSIBLE is not
-  // needed as we write the whole payload of Entry.
-  ASAN_UNPOISON_MEMORY_REGION(block.address, sizeof(Entry));
   Entry& entry = Entry::CreateAt(block.address, size);
   const size_t index = BucketIndexForSize(static_cast<uint32_t>(size));
   entry.Link(&free_list_heads_[index]);
@@ -92,7 +96,9 @@ Address FreeList::Add(FreeList::Block block) {
   if (!entry.Next()) {
     free_list_tails_[index] = &entry;
   }
-  return reinterpret_cast<Address>(block.address) + sizeof(Entry);
+  DCHECK_EQ(entry.ObjectEnd(), reinterpret_cast<Address>(&entry) + size);
+  return {reinterpret_cast<Address>(&entry + 1),
+          reinterpret_cast<Address>(&entry) + size};
 }
 
 void FreeList::Append(FreeList&& other) {
