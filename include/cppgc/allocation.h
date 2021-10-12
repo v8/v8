@@ -27,6 +27,9 @@ class AllocationHandle;
 
 namespace internal {
 
+// Similar to C++17 std::align_val_t;
+enum class AlignVal : size_t {};
+
 class V8_EXPORT MakeGarbageCollectedTraitInternal {
  protected:
   static inline void MarkObjectAsFullyConstructed(const void* payload) {
@@ -45,24 +48,58 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
     atomic_mutable_bitfield->store(value, std::memory_order_release);
   }
 
-  template <typename U, typename CustomSpace>
-  struct SpacePolicy {
-    static void* Allocate(AllocationHandle& handle, size_t size) {
-      // Custom space.
+  // Dispatch based on compile-time information.
+  //
+  // Default implementation is for a custom space with >`kDefaultAlignment` byte
+  // alignment.
+  template <typename GCInfoType, typename CustomSpace, size_t alignment>
+  struct AllocationDispatcher final {
+    static void* Invoke(AllocationHandle& handle, size_t size) {
       static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
                     "Custom space must inherit from CustomSpaceBase.");
+      static_assert(
+          !CustomSpace::kSupportsCompaction,
+          "Custom spaces that support compaction do not support allocating "
+          "objects with non-default (i.e. word-sized) alignment.");
       return MakeGarbageCollectedTraitInternal::Allocate(
-          handle, size, internal::GCInfoTrait<U>::Index(),
-          CustomSpace::kSpaceIndex);
+          handle, size, static_cast<AlignVal>(alignment),
+          internal::GCInfoTrait<GCInfoType>::Index(), CustomSpace::kSpaceIndex);
     }
   };
 
-  template <typename U>
-  struct SpacePolicy<U, void> {
-    static void* Allocate(AllocationHandle& handle, size_t size) {
-      // Default space.
+  // Fast path for regular allocations for the default space with
+  // `kDefaultAlignment` byte alignment.
+  template <typename GCInfoType>
+  struct AllocationDispatcher<GCInfoType, void,
+                              api_constants::kDefaultAlignment>
+      final {
+    static void* Invoke(AllocationHandle& handle, size_t size) {
       return MakeGarbageCollectedTraitInternal::Allocate(
-          handle, size, internal::GCInfoTrait<U>::Index());
+          handle, size, internal::GCInfoTrait<GCInfoType>::Index());
+    }
+  };
+
+  // Default space with >`kDefaultAlignment` byte alignment.
+  template <typename GCInfoType, size_t alignment>
+  struct AllocationDispatcher<GCInfoType, void, alignment> final {
+    static void* Invoke(AllocationHandle& handle, size_t size) {
+      return MakeGarbageCollectedTraitInternal::Allocate(
+          handle, size, static_cast<AlignVal>(alignment),
+          internal::GCInfoTrait<GCInfoType>::Index());
+    }
+  };
+
+  // Custom space with `kDefaultAlignment` byte alignment.
+  template <typename GCInfoType, typename CustomSpace>
+  struct AllocationDispatcher<GCInfoType, CustomSpace,
+                              api_constants::kDefaultAlignment>
+      final {
+    static void* Invoke(AllocationHandle& handle, size_t size) {
+      static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
+                    "Custom space must inherit from CustomSpaceBase.");
+      return MakeGarbageCollectedTraitInternal::Allocate(
+          handle, size, internal::GCInfoTrait<GCInfoType>::Index(),
+          CustomSpace::kSpaceIndex);
     }
   };
 
@@ -70,7 +107,12 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
                         GCInfoIndex index);
   static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
+                        AlignVal alignment, GCInfoIndex index);
+  static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
                         GCInfoIndex index, CustomSpaceIndex space_index);
+  static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
+                        AlignVal alignment, GCInfoIndex index,
+                        CustomSpaceIndex space_index);
 
   friend class HeapObjectHeader;
 };
@@ -109,10 +151,18 @@ class MakeGarbageCollectedTraitBase
         std::is_base_of<typename T::ParentMostGarbageCollectedType, T>::value,
         "U of GarbageCollected<U> must be a base of T. Check "
         "GarbageCollected<T> base class inheritance.");
-    return SpacePolicy<
+    static constexpr size_t kWantedAlignment =
+        alignof(T) < internal::api_constants::kDefaultAlignment
+            ? internal::api_constants::kDefaultAlignment
+            : alignof(T);
+    static_assert(
+        kWantedAlignment <= internal::api_constants::kMaxSupportedAlignment,
+        "Requested alignment larger than alignof(std::max_align_t) bytes. "
+        "Please file a bug to possibly get this restriction lifted.");
+    return AllocationDispatcher<
         typename internal::GCInfoFolding<
             T, typename T::ParentMostGarbageCollectedType>::ResultType,
-        typename SpaceTrait<T>::Space>::Allocate(handle, size);
+        typename SpaceTrait<T>::Space, kWantedAlignment>::Invoke(handle, size);
   }
 
   /**

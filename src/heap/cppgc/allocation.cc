@@ -33,10 +33,30 @@ CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
 // fast path.
 // static
 CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
+    cppgc::AllocationHandle& handle, size_t size, AlignVal alignment,
+    GCInfoIndex index) {
+  return static_cast<ObjectAllocator&>(handle).AllocateObject(size, alignment,
+                                                              index);
+}
+
+// Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
+// fast path.
+// static
+CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
     cppgc::AllocationHandle& handle, size_t size, GCInfoIndex index,
     CustomSpaceIndex space_index) {
   return static_cast<ObjectAllocator&>(handle).AllocateObject(size, index,
                                                               space_index);
+}
+
+// Using CPPGC_FORCE_ALWAYS_INLINE to guide LTO for inlining the allocation
+// fast path.
+// static
+CPPGC_FORCE_ALWAYS_INLINE void* MakeGarbageCollectedTraitInternal::Allocate(
+    cppgc::AllocationHandle& handle, size_t size, AlignVal alignment,
+    GCInfoIndex index, CustomSpaceIndex space_index) {
+  return static_cast<ObjectAllocator&>(handle).AllocateObject(
+      size, alignment, index, space_index);
 }
 
 }  // namespace internal

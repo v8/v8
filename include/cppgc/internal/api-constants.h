@@ -39,6 +39,14 @@ constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
 #endif
 
+static constexpr size_t kDefaultAlignment = sizeof(void*);
+
+// Maximum support alignment for a type as in `alignof(T)`.
+static constexpr size_t kMaxSupportedAlignment = 2 * kDefaultAlignment;
+static_assert(kMaxSupportedAlignment >= alignof(std::max_align_t),
+              "Maximum support alignment must at least cover "
+              "alignof(std::max_align_t).");
+
 }  // namespace api_constants
 
 }  // namespace internal

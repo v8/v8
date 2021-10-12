@@ -9,11 +9,25 @@
 
 #include "include/cppgc/heap-statistics.h"
 #include "src/base/macros.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 
 namespace cppgc {
 namespace internal {
+
+class Filler : public HeapObjectHeader {
+ public:
+  static Filler& CreateAt(void* memory, size_t size) {
+    // The memory area only needs to unpoisoned when running with ASAN. Zapped
+    // values (DEBUG) or uninitialized values (MSAN) are overwritten below.
+    ASAN_UNPOISON_MEMORY_REGION(memory, sizeof(Filler));
+    return *new (memory) Filler(size);
+  }
+
+ protected:
+  explicit Filler(size_t size) : HeapObjectHeader(size, kFreeListGCInfoIndex) {}
+};
 
 class V8_EXPORT_PRIVATE FreeList {
  public:
