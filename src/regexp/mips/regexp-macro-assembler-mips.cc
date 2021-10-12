@@ -491,107 +491,105 @@ void RegExpMacroAssemblerMIPS::CheckBitInTable(
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
 }
 
-bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(base::uc16 type,
-                                                          Label* on_no_match) {
+bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(
+    StandardCharacterSet type, Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check.
+  // TODO(jgruber): No custom implementation (yet): s(UC16), S(UC16).
   switch (type) {
-  case 's':
-    // Match space-characters.
-    if (mode_ == LATIN1) {
-      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
-      Label success;
-      __ Branch(&success, eq, current_character(), Operand(' '));
-      // Check range 0x09..0x0D.
-      __ Subu(a0, current_character(), Operand('\t'));
-      __ Branch(&success, ls, a0, Operand('\r' - '\t'));
-      // \u00a0 (NBSP).
-      BranchOrBacktrack(on_no_match, ne, a0, Operand(0x00A0 - '\t'));
-      __ bind(&success);
+    case StandardCharacterSet::kWhitespace:
+      // Match space-characters.
+      if (mode_ == LATIN1) {
+        // One byte space characters are '\t'..'\r', ' ' and \u00a0.
+        Label success;
+        __ Branch(&success, eq, current_character(), Operand(' '));
+        // Check range 0x09..0x0D.
+        __ Subu(a0, current_character(), Operand('\t'));
+        __ Branch(&success, ls, a0, Operand('\r' - '\t'));
+        // \u00a0 (NBSP).
+        BranchOrBacktrack(on_no_match, ne, a0, Operand(0x00A0 - '\t'));
+        __ bind(&success);
+        return true;
+      }
+      return false;
+    case StandardCharacterSet::kNotWhitespace:
+      // The emitted code for generic character classes is good enough.
+      return false;
+    case StandardCharacterSet::kDigit:
+      // Match Latin1 digits ('0'..'9').
+      __ Subu(a0, current_character(), Operand('0'));
+      BranchOrBacktrack(on_no_match, hi, a0, Operand('9' - '0'));
+      return true;
+    case StandardCharacterSet::kNotDigit:
+      // Match non Latin1-digits.
+      __ Subu(a0, current_character(), Operand('0'));
+      BranchOrBacktrack(on_no_match, ls, a0, Operand('9' - '0'));
+      return true;
+    case StandardCharacterSet::kNotLineTerminator: {
+      // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
+      __ Xor(a0, current_character(), Operand(0x01));
+      // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
+      __ Subu(a0, a0, Operand(0x0B));
+      BranchOrBacktrack(on_no_match, ls, a0, Operand(0x0C - 0x0B));
+      if (mode_ == UC16) {
+        // Compare original value to 0x2028 and 0x2029, using the already
+        // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+        // 0x201D (0x2028 - 0x0B) or 0x201E.
+        __ Subu(a0, a0, Operand(0x2028 - 0x0B));
+        BranchOrBacktrack(on_no_match, ls, a0, Operand(1));
+      }
       return true;
     }
-    return false;
-  case 'S':
-    // The emitted code for generic character classes is good enough.
-    return false;
-  case 'd':
-    // Match Latin1 digits ('0'..'9').
-    __ Subu(a0, current_character(), Operand('0'));
-    BranchOrBacktrack(on_no_match, hi, a0, Operand('9' - '0'));
-    return true;
-  case 'D':
-    // Match non Latin1-digits.
-    __ Subu(a0, current_character(), Operand('0'));
-    BranchOrBacktrack(on_no_match, ls, a0, Operand('9' - '0'));
-    return true;
-  case '.': {
-    // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
-    __ Xor(a0, current_character(), Operand(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
-    __ Subu(a0, a0, Operand(0x0B));
-    BranchOrBacktrack(on_no_match, ls, a0, Operand(0x0C - 0x0B));
-    if (mode_ == UC16) {
-      // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
-      // 0x201D (0x2028 - 0x0B) or 0x201E.
-      __ Subu(a0, a0, Operand(0x2028 - 0x0B));
-      BranchOrBacktrack(on_no_match, ls, a0, Operand(1));
+    case StandardCharacterSet::kLineTerminator: {
+      // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
+      __ Xor(a0, current_character(), Operand(0x01));
+      // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
+      __ Subu(a0, a0, Operand(0x0B));
+      if (mode_ == LATIN1) {
+        BranchOrBacktrack(on_no_match, hi, a0, Operand(0x0C - 0x0B));
+      } else {
+        Label done;
+        BranchOrBacktrack(&done, ls, a0, Operand(0x0C - 0x0B));
+        // Compare original value to 0x2028 and 0x2029, using the already
+        // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+        // 0x201D (0x2028 - 0x0B) or 0x201E.
+        __ Subu(a0, a0, Operand(0x2028 - 0x0B));
+        BranchOrBacktrack(on_no_match, hi, a0, Operand(1));
+        __ bind(&done);
+      }
+      return true;
     }
-    return true;
-  }
-  case 'n': {
-    // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
-    __ Xor(a0, current_character(), Operand(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
-    __ Subu(a0, a0, Operand(0x0B));
-    if (mode_ == LATIN1) {
-      BranchOrBacktrack(on_no_match, hi, a0, Operand(0x0C - 0x0B));
-    } else {
+    case StandardCharacterSet::kWord: {
+      if (mode_ != LATIN1) {
+        // Table is 256 entries, so all Latin1 characters can be tested.
+        BranchOrBacktrack(on_no_match, hi, current_character(), Operand('z'));
+      }
+      ExternalReference map = ExternalReference::re_word_character_map();
+      __ li(a0, Operand(map));
+      __ Addu(a0, a0, current_character());
+      __ lbu(a0, MemOperand(a0, 0));
+      BranchOrBacktrack(on_no_match, eq, a0, Operand(zero_reg));
+      return true;
+    }
+    case StandardCharacterSet::kNotWord: {
       Label done;
-      BranchOrBacktrack(&done, ls, a0, Operand(0x0C - 0x0B));
-      // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
-      // 0x201D (0x2028 - 0x0B) or 0x201E.
-      __ Subu(a0, a0, Operand(0x2028 - 0x0B));
-      BranchOrBacktrack(on_no_match, hi, a0, Operand(1));
-      __ bind(&done);
+      if (mode_ != LATIN1) {
+        // Table is 256 entries, so all Latin1 characters can be tested.
+        __ Branch(&done, hi, current_character(), Operand('z'));
+      }
+      ExternalReference map = ExternalReference::re_word_character_map();
+      __ li(a0, Operand(map));
+      __ Addu(a0, a0, current_character());
+      __ lbu(a0, MemOperand(a0, 0));
+      BranchOrBacktrack(on_no_match, ne, a0, Operand(zero_reg));
+      if (mode_ != LATIN1) {
+        __ bind(&done);
+      }
+      return true;
     }
-    return true;
-  }
-  case 'w': {
-    if (mode_ != LATIN1) {
-      // Table is 256 entries, so all Latin1 characters can be tested.
-      BranchOrBacktrack(on_no_match, hi, current_character(), Operand('z'));
-    }
-    ExternalReference map = ExternalReference::re_word_character_map();
-    __ li(a0, Operand(map));
-    __ Addu(a0, a0, current_character());
-    __ lbu(a0, MemOperand(a0, 0));
-    BranchOrBacktrack(on_no_match, eq, a0, Operand(zero_reg));
-    return true;
-  }
-  case 'W': {
-    Label done;
-    if (mode_ != LATIN1) {
-      // Table is 256 entries, so all Latin1 characters can be tested.
-      __ Branch(&done, hi, current_character(), Operand('z'));
-    }
-    ExternalReference map = ExternalReference::re_word_character_map();
-    __ li(a0, Operand(map));
-    __ Addu(a0, a0, current_character());
-    __ lbu(a0, MemOperand(a0, 0));
-    BranchOrBacktrack(on_no_match, ne, a0, Operand(zero_reg));
-    if (mode_ != LATIN1) {
-      __ bind(&done);
-    }
-    return true;
-  }
-  case '*':
-    // Match any character.
-    return true;
-  // No custom implementation (yet): s(UC16), S(UC16).
-  default:
-    return false;
+    case StandardCharacterSet::kEverything:
+      // Match any character.
+      return true;
   }
 }
 
