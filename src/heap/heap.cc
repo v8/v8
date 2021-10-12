@@ -1322,12 +1322,13 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
     ReduceNewSpaceSize();
   }
 
-  // Set main thread state back to Running from CollectionRequested.
+  // Remove CollectionRequested flag from main thread state, as the collection
+  // was just performed.
+  safepoint()->AssertActive();
   LocalHeap::ThreadState old_state =
-      main_thread_local_heap()->state_.exchange(LocalHeap::kRunning);
+      main_thread_local_heap()->state_.ClearCollectionRequested();
 
-  CHECK(old_state == LocalHeap::kRunning ||
-        old_state == LocalHeap::kSafepointRequested);
+  CHECK(old_state.IsRunning());
 
   // Resume all threads waiting for the GC.
   collection_barrier_->ResumeThreadsAwaitingCollection();

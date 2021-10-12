@@ -28,8 +28,7 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                  alignment == AllocationAlignment::kWordAligned);
   Heap::HeapState state = heap()->gc_state();
   DCHECK(state == Heap::TEAR_DOWN || state == Heap::NOT_IN_GC);
-  ThreadState current = state_.load(std::memory_order_relaxed);
-  DCHECK(current == kRunning || current == kSafepointRequested);
+  DCHECK(IsRunning());
 #endif
 
   // Each allocation is supposed to be a safepoint.

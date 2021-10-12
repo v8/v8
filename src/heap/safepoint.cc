@@ -46,23 +46,13 @@ void IsolateSafepoint::EnterSafepointScope(StopMainThread stop_main_thread) {
       continue;
     }
 
-    LocalHeap::ThreadState expected = local_heap->state_relaxed();
+    const LocalHeap::ThreadState old_state =
+        local_heap->state_.SetSafepointRequested();
 
-    while (true) {
-      CHECK(expected == LocalHeap::kParked || expected == LocalHeap::kRunning);
-      LocalHeap::ThreadState new_state =
-          expected == LocalHeap::kParked ? LocalHeap::kParkedSafepointRequested
-                                         : LocalHeap::kSafepointRequested;
-
-      if (local_heap->state_.compare_exchange_strong(expected, new_state)) {
-        if (expected == LocalHeap::kRunning) {
-          running++;
-        } else {
-          CHECK_EQ(expected, LocalHeap::kParked);
-        }
-        break;
-      }
-    }
+    if (old_state.IsRunning()) running++;
+    CHECK_IMPLIES(old_state.IsCollectionRequested(),
+                  local_heap->is_main_thread());
+    CHECK(!old_state.IsSafepointRequested());
   }
 
   barrier_.WaitUntilRunningThreadsInSafepoint(running);
@@ -83,17 +73,13 @@ void IsolateSafepoint::LeaveSafepointScope(StopMainThread stop_main_thread) {
       continue;
     }
 
-    // We transition both ParkedSafepointRequested and Safepoint states to
-    // Parked. While this is probably intuitive for ParkedSafepointRequested,
-    // this might be surprising for Safepoint though. SafepointSlowPath() will
-    // later unpark that thread again. Going through Parked means that a
-    // background thread doesn't need to be waked up before the main thread can
-    // start the next safepoint.
+    const LocalHeap::ThreadState old_state =
+        local_heap->state_.ClearSafepointRequested();
 
-    LocalHeap::ThreadState old_state =
-        local_heap->state_.exchange(LocalHeap::kParked);
-    CHECK(old_state == LocalHeap::kParkedSafepointRequested ||
-          old_state == LocalHeap::kSafepoint);
+    CHECK(old_state.IsParked());
+    CHECK(old_state.IsSafepointRequested());
+    CHECK_IMPLIES(old_state.IsCollectionRequested(),
+                  local_heap->is_main_thread());
   }
 
   barrier_.Disarm();

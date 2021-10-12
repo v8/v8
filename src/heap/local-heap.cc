@@ -45,7 +45,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
                      std::unique_ptr<PersistentHandles> persistent_handles)
     : heap_(heap),
       is_main_thread_(kind == ThreadKind::kMain),
-      state_(kParked),
+      state_(ThreadState::Parked()),
       allocation_failed_(false),
       main_thread_parked_(false),
       prev_(nullptr),
@@ -125,8 +125,7 @@ bool LocalHeap::IsHandleDereferenceAllowed() {
 #ifdef DEBUG
   VerifyCurrent();
 #endif
-  ThreadState state = state_relaxed();
-  return state == kRunning || state == kSafepointRequested;
+  return IsRunning();
 }
 #endif
 
@@ -134,45 +133,60 @@ bool LocalHeap::IsParked() {
 #ifdef DEBUG
   VerifyCurrent();
 #endif
-  ThreadState state = state_relaxed();
-  return state == kParked || state == kParkedSafepointRequested;
+  return state_.load_relaxed().IsParked();
 }
 
-void LocalHeap::ParkSlowPath(ThreadState current_state) {
-  if (is_main_thread()) {
-    while (true) {
-      CHECK_EQ(current_state, kSafepointRequested);
-      heap_->CollectGarbageForBackground(this);
+bool LocalHeap::IsRunning() {
+#ifdef DEBUG
+  VerifyCurrent();
+#endif
+  return state_.load_relaxed().IsRunning();
+}
 
-      current_state = kRunning;
-      if (state_.compare_exchange_strong(current_state, kParked)) {
-        return;
-      }
+void LocalHeap::ParkSlowPath() {
+  while (true) {
+    ThreadState current_state = ThreadState::Running();
+    if (state_.CompareExchangeStrong(current_state, ThreadState::Parked()))
+      return;
+
+    // CAS above failed, so state is Running with some additional flag.
+    DCHECK(current_state.IsRunning());
+
+    if (is_main_thread()) {
+      DCHECK(current_state.IsCollectionRequested());
+      heap_->CollectGarbageForBackground(this);
+    } else {
+      DCHECK(current_state.IsSafepointRequested());
+      DCHECK(!current_state.IsCollectionRequested());
+      CHECK(state_.CompareExchangeStrong(current_state,
+                                         current_state.SetParked()));
+      heap_->safepoint()->NotifyPark();
+      return;
     }
-  } else {
-    CHECK_EQ(current_state, kSafepointRequested);
-    CHECK(state_.compare_exchange_strong(current_state,
-                                         kParkedSafepointRequested));
-    heap_->safepoint()->NotifyPark();
   }
 }
 
 void LocalHeap::UnparkSlowPath() {
-  if (is_main_thread()) {
-    ThreadState expected = kParkedSafepointRequested;
-    CHECK(state_.compare_exchange_strong(expected, kSafepointRequested));
-    heap_->CollectGarbageForBackground(this);
-  } else {
-    while (true) {
-      ThreadState expected = kParked;
-      if (!state_.compare_exchange_strong(expected, kRunning)) {
-        CHECK_EQ(expected, kParkedSafepointRequested);
-        TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_UNPARK,
-                  ThreadKind::kBackground);
-        heap_->safepoint()->WaitInUnpark();
-      } else {
-        return;
-      }
+  while (true) {
+    ThreadState current_state = ThreadState::Parked();
+    if (state_.CompareExchangeStrong(current_state, ThreadState::Running()))
+      return;
+
+    // CAS above failed, so state is Parked with some additional flag.
+    DCHECK(current_state.IsParked());
+
+    if (is_main_thread()) {
+      DCHECK(current_state.IsCollectionRequested());
+      CHECK(state_.CompareExchangeStrong(current_state,
+                                         current_state.SetRunning()));
+      heap_->CollectGarbageForBackground(this);
+      return;
+    } else {
+      DCHECK(current_state.IsSafepointRequested());
+      DCHECK(!current_state.IsCollectionRequested());
+      TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_UNPARK,
+                ThreadKind::kBackground);
+      heap_->safepoint()->WaitInUnpark();
     }
   }
 }
@@ -182,18 +196,30 @@ void LocalHeap::EnsureParkedBeforeDestruction() {
 }
 
 void LocalHeap::SafepointSlowPath() {
+#ifdef DEBUG
+  ThreadState current_state = state_.load_relaxed();
+  DCHECK(current_state.IsRunning());
+#endif
+
   if (is_main_thread()) {
-    CHECK_EQ(kSafepointRequested, state_relaxed());
+    DCHECK(current_state.IsCollectionRequested());
     heap_->CollectGarbageForBackground(this);
   } else {
+    DCHECK(current_state.IsSafepointRequested());
+    DCHECK(!current_state.IsCollectionRequested());
+
     TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_SAFEPOINT,
               ThreadKind::kBackground);
-    ThreadState expected = kSafepointRequested;
-    CHECK(state_.compare_exchange_strong(expected, kSafepoint));
+
+    // Parking the running thread here is an optimization. We do not need to
+    // wake this thread up to reach the next safepoint.
+    ThreadState old_state = state_.SetParked();
+    CHECK(old_state.IsRunning());
+    CHECK(old_state.IsSafepointRequested());
+    CHECK(!old_state.IsCollectionRequested());
+
     heap_->safepoint()->WaitInSafepoint();
-    // This might be a bit surprising, IsolateSafepoint transitions the state
-    // from Safepoint (--> Running) --> Parked when returning from the
-    // safepoint.
+
     Unpark();
   }
 }
@@ -219,36 +245,20 @@ bool LocalHeap::TryPerformCollection() {
     heap_->CollectGarbageForBackground(this);
     return true;
   } else {
+    DCHECK(IsRunning());
     heap_->collection_barrier_->RequestGC();
 
     LocalHeap* main_thread = heap_->main_thread_local_heap();
-    ThreadState current = main_thread->state_relaxed();
 
-    while (true) {
-      switch (current) {
-        case kRunning:
-          if (main_thread->state_.compare_exchange_strong(
-                  current, kSafepointRequested)) {
-            return heap_->collection_barrier_->AwaitCollectionBackground(this);
-          }
-          break;
+    const ThreadState old_state = main_thread->state_.SetCollectionRequested();
 
-        case kSafepointRequested:
-          return heap_->collection_barrier_->AwaitCollectionBackground(this);
-
-        case kParked:
-          if (main_thread->state_.compare_exchange_strong(
-                  current, kParkedSafepointRequested)) {
-            return false;
-          }
-          break;
-
-        case kParkedSafepointRequested:
-          return false;
-
-        case kSafepoint:
-          UNREACHABLE();
-      }
+    if (old_state.IsRunning()) {
+      const bool performed_gc =
+          heap_->collection_barrier_->AwaitCollectionBackground(this);
+      return performed_gc;
+    } else {
+      DCHECK(old_state.IsParked());
+      return false;
     }
   }
 }
