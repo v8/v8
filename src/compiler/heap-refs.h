@@ -911,6 +911,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
 
   Builtin builtin_id() const;
   int context_header_size() const;
+  int context_parameters_start() const;
   BytecodeArrayRef GetBytecodeArray() const;
   SharedFunctionInfo::Inlineability GetInlineability() const;
   base::Optional<FunctionTemplateInfoRef> function_template_info() const;

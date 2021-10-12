@@ -2488,10 +2488,10 @@ void Scope::AllocateVariablesRecursively() {
     // Allocate variables for this scope.
     // Parameters must be allocated first, if any.
     if (scope->is_declaration_scope()) {
+      scope->AsDeclarationScope()->AllocateReceiver();
       if (scope->is_function_scope()) {
         scope->AsDeclarationScope()->AllocateParameterLocals();
       }
-      scope->AsDeclarationScope()->AllocateReceiver();
     }
     scope->AllocateNonParameterLocalsAndDeclaredGlobals();
 

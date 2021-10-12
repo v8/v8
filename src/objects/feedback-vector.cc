@@ -1445,8 +1445,8 @@ void FeedbackNexus::ResetTypeProfile() {
 
 FeedbackIterator::FeedbackIterator(const FeedbackNexus* nexus)
     : done_(false), index_(-1), state_(kOther) {
-  DCHECK(IsLoadICKind(nexus->kind()) ||
-         IsStoreICKind(nexus->kind()) || IsKeyedLoadICKind(nexus->kind()) ||
+  DCHECK(IsLoadICKind(nexus->kind()) || IsStoreICKind(nexus->kind()) ||
+         IsKeyedLoadICKind(nexus->kind()) ||
          IsKeyedStoreICKind(nexus->kind()) || IsStoreOwnICKind(nexus->kind()) ||
          IsStoreDataPropertyInLiteralKind(nexus->kind()) ||
          IsStoreInArrayLiteralICKind(nexus->kind()) ||
