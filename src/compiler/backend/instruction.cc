@@ -1182,10 +1182,10 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
     Constant constant = code.immediates_[i];
     os << "IMM#" << i << ": " << constant << "\n";
   }
-  int i = 0;
+  int n = 0;
   for (ConstantMap::const_iterator it = code.constants_.begin();
-       it != code.constants_.end(); ++i, ++it) {
-    os << "CST#" << i << ": v" << it->first << " = " << it->second << "\n";
+       it != code.constants_.end(); ++n, ++it) {
+    os << "CST#" << n << ": v" << it->first << " = " << it->second << "\n";
   }
   for (int i = 0; i < code.InstructionBlockCount(); i++) {
     auto* block = code.InstructionBlockAt(RpoNumber::FromInt(i));
