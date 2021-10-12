@@ -5069,11 +5069,11 @@ class LiftoffCompiler {
     int elem_size = element_size_bytes(elem_kind);
     // Allocate the array.
     {
+      LiftoffRegister elem_size_reg = __ GetUnusedRegister(kGpReg, {});
       LiftoffAssembler::VarState rtt_var =
           __ cache_state()->stack_state.end()[-1];
       LiftoffAssembler::VarState length_var =
           __ cache_state()->stack_state.end()[-2];
-      LiftoffRegister elem_size_reg = __ GetUnusedRegister(kGpReg, {});
       __ LoadConstant(elem_size_reg, WasmValue(elem_size));
       LiftoffAssembler::VarState elem_size_var(kI32, elem_size_reg, 0);
 
@@ -5214,13 +5214,13 @@ class LiftoffCompiler {
     ValueKind elem_kind = imm.array_type->element_type().kind();
     // Allocate the array.
     {
+      LiftoffRegList pinned;
+      LiftoffRegister elem_size_reg =
+          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
       LiftoffAssembler::VarState rtt_var =
           __ cache_state()->stack_state.end()[-1];
 
-      LiftoffRegList pinned;
-
-      LiftoffRegister elem_size_reg =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       __ LoadConstant(elem_size_reg, WasmValue(element_size_bytes(elem_kind)));
       LiftoffAssembler::VarState elem_size_var(kI32, elem_size_reg, 0);
 
@@ -5309,9 +5309,9 @@ class LiftoffCompiler {
               Value* result, WasmRttSubMode mode) {
     ValueKind parent_value_kind = parent.type.kind();
     ValueKind rtt_value_kind = kRttWithDepth;
+    LiftoffRegister type_reg = __ GetUnusedRegister(kGpReg, {});
     LiftoffAssembler::VarState parent_var =
         __ cache_state()->stack_state.end()[-1];
-    LiftoffRegister type_reg = __ GetUnusedRegister(kGpReg, {});
     __ LoadConstant(type_reg, WasmValue(type_index));
     LiftoffAssembler::VarState type_var(kI32, type_reg, 0);
     WasmCode::RuntimeStubId target = mode == WasmRttSubMode::kCanonicalize
@@ -5935,10 +5935,10 @@ class LiftoffCompiler {
       ValueKind kIntPtrKind = kPointerKind;
 
       LiftoffRegList pinned;
+      LiftoffRegister vector = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       LiftoffAssembler::VarState funcref =
           __ cache_state()->stack_state.end()[-1];
       if (funcref.is_reg()) pinned.set(funcref.reg());
-      LiftoffRegister vector = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       __ Fill(vector, liftoff::kFeedbackVectorOffset, kPointerKind);
       LiftoffAssembler::VarState vector_var(kPointerKind, vector, 0);
       LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
