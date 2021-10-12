@@ -627,14 +627,14 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 
-  ModuleResult result = GetWasmEngine()->SyncValidateResult(
-      i_isolate, enabled_features, wire_bytes);
+  std::string error_message;
+  bool result = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
+                                              wire_bytes, &error_message);
 
-  CHECK_EQ(compiles, result.ok());
+  CHECK_EQ(compiles, result);
   CHECK_WITH_MSG(
-      !require_valid || result.ok(),
-      ("Generated module should validate, but got: " + result.error().message())
-          .c_str());
+      !require_valid || result,
+      ("Generated module should validate, but got: " + error_message).c_str());
 
   if (!compiles) return;
 

@@ -45,11 +45,8 @@ class GdbServer;
 class AsyncCompileJob;
 class ErrorThrower;
 struct ModuleWireBytes;
-template <typename T>
-class Result;
 class StreamingDecoder;
 class WasmFeatures;
-using ModuleResult = Result<std::shared_ptr<WasmModule>>;
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
@@ -151,13 +148,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   ~WasmEngine();
 
   // Synchronously validates the given bytes that represent an encoded Wasm
-  // module.
+  // module. If validation fails and {error_msg} is present, it is set to the
+  // validation error.
   bool SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
-                    const ModuleWireBytes& bytes);
-  // Synchronously validates the given bytes that represent an encoded Wasm
-  // module.
-  ModuleResult SyncValidateResult(Isolate* isolate, const WasmFeatures& enabled,
-                                  const ModuleWireBytes& bytes);
+                    const ModuleWireBytes& bytes,
+                    std::string* error_message = nullptr);
 
   // Synchronously compiles the given bytes that represent a translated
   // asm.js module.
