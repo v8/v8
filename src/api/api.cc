@@ -2093,16 +2093,16 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
 }
 
 Local<Value> ScriptOrModule::GetResourceName() {
-  i::Handle<i::Script> obj = Utils::OpenHandle(this);
-  i::Isolate* isolate = obj->GetIsolate();
+  i::Handle<i::ScriptOrModule> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = i::GetIsolateFromWritableObject(*obj);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::Handle<i::Object> val(obj->name(), isolate);
+  i::Handle<i::Object> val(obj->resource_name(), isolate);
   return ToApiHandle<Value>(val);
 }
 
 Local<PrimitiveArray> ScriptOrModule::GetHostDefinedOptions() {
-  i::Handle<i::Script> obj = Utils::OpenHandle(this);
-  i::Isolate* isolate = obj->GetIsolate();
+  i::Handle<i::ScriptOrModule> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = i::GetIsolateFromWritableObject(*obj);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::FixedArray> val(obj->host_defined_options(), isolate);
   return ToApiHandle<PrimitiveArray>(val);
@@ -2646,16 +2646,26 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     RETURN_ON_FAILED_EXECUTION(Function);
     result = handle_scope.Escape(Utils::CallableToLocal(scoped_result));
   }
-
+  // TODO(cbruni): remove script_or_module_out paramater
   if (script_or_module_out != nullptr) {
     i::Handle<i::JSFunction> function =
         i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*result));
     i::Isolate* isolate = function->GetIsolate();
     i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
     i::Handle<i::Script> script(i::Script::cast(shared->script()), isolate);
-    *script_or_module_out = v8::Utils::ScriptOrModuleToLocal(script);
+    // TODO(cbruni, v8:12302): Avoid creating tempory ScriptOrModule objects.
+    auto script_or_module = i::Handle<i::ScriptOrModule>::cast(
+        isolate->factory()->NewStruct(i::SCRIPT_OR_MODULE_TYPE));
+    script_or_module->set_resource_name(script->name());
+    script_or_module->set_host_defined_options(script->host_defined_options());
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+    i::Handle<i::ArrayList> list =
+        i::handle(script->script_or_modules(), isolate);
+    list = i::ArrayList::Add(isolate, list, script_or_module);
+    script->set_script_or_modules(*list);
+#endif  // V8_SCRIPTORMODULE_LEGACY_LIFETIME
+    *script_or_module_out = v8::Utils::ToLocal(script_or_module);
   }
-
   return result;
 }
 

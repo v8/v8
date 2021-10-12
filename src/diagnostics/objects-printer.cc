@@ -2079,6 +2079,12 @@ void AllocationMemento::AllocationMementoPrint(std::ostream& os) {
   }
 }
 
+void ScriptOrModule::ScriptOrModulePrint(std::ostream& os) {
+  PrintHeader(os, "ScriptOrModule");
+  os << "\n - host_defined_options: " << Brief(host_defined_options());
+  os << "\n - resource_name: " << Brief(resource_name());
+}
+
 void Script::ScriptPrint(std::ostream& os) {
   PrintHeader(os, "Script");
   os << "\n - source: " << Brief(source());

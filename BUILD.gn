@@ -343,6 +343,12 @@ declare_args() {
   # Enable global allocation site tracking.
   v8_allocation_site_tracking = true
 
+  # TODO(cbruni, v8:12302): Remove once API is migrated
+  # Enable legacy mode for ScriptOrModule's lifetime. By default it's a
+  # temporary object, if enabled it will be kept alive by the parent Script.
+  # This is only used by nodejs.
+  v8_scriptormodule_legacy_lifetime = false
+
   # If enabled, the receiver is always included in the actual and formal
   # parameter count of function with JS linkage.
   # TODO(v8:11112): Remove once all architectures support the flag and it is
@@ -961,6 +967,9 @@ config("features") {
   }
   if (v8_allocation_site_tracking) {
     defines += [ "V8_ALLOCATION_SITE_TRACKING" ]
+  }
+  if (v8_scriptormodule_legacy_lifetime) {
+    defines += [ "V8_SCRIPTORMODULE_LEGACY_LIFETIME" ]
   }
   if (v8_advanced_bigint_algorithms) {
     defines += [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]

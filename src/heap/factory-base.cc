@@ -228,6 +228,9 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
   DCHECK(source->IsString() || source->IsUndefined());
   // Create and initialize script object.
   ReadOnlyRoots roots = read_only_roots();
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+  Handle<ArrayList> list = NewArrayList(0);
+#endif
   Handle<Script> script = handle(
       NewStructInternal<Script>(SCRIPT_TYPE, AllocationType::kOld), isolate());
   {
@@ -248,6 +251,9 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
                                   SKIP_WRITE_BARRIER);
     raw.set_flags(0);
     raw.set_host_defined_options(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+    raw.set_script_or_modules(*list);
+#endif
   }
 
   if (script_id != Script::kTemporaryScriptId) {
@@ -256,6 +262,15 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
   return script;
+}
+
+template <typename Impl>
+Handle<ArrayList> FactoryBase<Impl>::NewArrayList(int size) {
+  Handle<FixedArray> fixed_array = NewFixedArray(size + ArrayList::kFirstIndex);
+  fixed_array->set_map_no_write_barrier(read_only_roots().array_list_map());
+  Handle<ArrayList> result = Handle<ArrayList>::cast(fixed_array);
+  result->SetLength(0);
+  return result;
 }
 
 template <typename Impl>

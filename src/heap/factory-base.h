@@ -153,6 +153,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<Script> NewScriptWithId(Handle<PrimitiveHeapObject> source,
                                  int script_id);
 
+  Handle<ArrayList> NewArrayList(int size);
+
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);
 

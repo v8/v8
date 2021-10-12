@@ -1300,6 +1300,9 @@ void Factory::AddToScriptList(Handle<Script> script) {
 Handle<Script> Factory::CloneScript(Handle<Script> script) {
   Heap* heap = isolate()->heap();
   int script_id = isolate()->GetNextScriptId();
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+  Handle<ArrayList> list = ArrayList::New(isolate(), 0);
+#endif
   Handle<Script> new_script_handle =
       Handle<Script>::cast(NewStruct(SCRIPT_TYPE, AllocationType::kOld));
   {
@@ -1321,7 +1324,11 @@ Handle<Script> Factory::CloneScript(Handle<Script> script) {
     new_script.set_eval_from_position(old_script.eval_from_position());
     new_script.set_flags(old_script.flags());
     new_script.set_host_defined_options(old_script.host_defined_options());
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+    new_script.set_script_or_modules(*list);
+#endif
   }
+
   Handle<WeakArrayList> scripts = script_list();
   scripts = WeakArrayList::AddToEnd(isolate(), scripts,
                                     MaybeObjectHandle::Weak(new_script_handle));

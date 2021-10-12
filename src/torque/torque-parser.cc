@@ -50,6 +50,11 @@ class BuildFlags : public ContextualClass<BuildFlags> {
     build_flags_["TAGGED_SIZE_8_BYTES"] = TAGGED_SIZE_8_BYTES;
     build_flags_["TRUE_FOR_TESTING"] = true;
     build_flags_["FALSE_FOR_TESTING"] = false;
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
+    build_flags_["V8_SCRIPTORMODULE_LEGACY_LIFETIME"] = true;
+#else
+    build_flags_["V8_SCRIPTORMODULE_LEGACY_LIFETIME"] = false;
+#endif
   }
   static bool GetFlag(const std::string& name, const char* production) {
     auto it = Get().build_flags_.find(name);

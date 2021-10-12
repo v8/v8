@@ -659,7 +659,7 @@ TEST(CompileFunctionInContextScriptOrigin) {
   LocalContext env;
   v8::ScriptOrigin origin(isolate, v8_str("test"), 22, 41);
   v8::ScriptCompiler::Source script_source(v8_str("throw new Error()"), origin);
-  Local<ScriptOrModule> script;
+  Local<v8::ScriptOrModule> script;
   v8::Local<v8::Function> fun =
       v8::ScriptCompiler::CompileFunctionInContext(
           env.local(), &script_source, 0, nullptr, 0, nullptr,

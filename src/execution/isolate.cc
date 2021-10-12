@@ -4338,7 +4338,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     Handle<Script> referrer, Handle<Object> specifier,
     MaybeHandle<Object> maybe_import_assertions_argument) {
   v8::Local<v8::Context> api_context =
-      v8::Utils::ToLocal(Handle<Context>(native_context()));
+      v8::Utils::ToLocal(Handle<Context>::cast(native_context()));
   if (host_import_module_dynamically_with_import_assertions_callback_ ==
       nullptr) {
     Handle<Object> exception =
@@ -4357,21 +4357,25 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
 
   v8::Local<v8::Promise> promise;
   Handle<FixedArray> import_assertions_array;
-  if (GetImportAssertionsFromArgument(maybe_import_assertions_argument)
-          .ToHandle(&import_assertions_array)) {
-    ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
-        this, promise,
-        host_import_module_dynamically_with_import_assertions_callback_(
-            api_context, v8::Utils::ScriptOrModuleToLocal(referrer),
-            v8::Utils::ToLocal(specifier_str),
-            ToApiHandle<v8::FixedArray>(import_assertions_array)),
-        MaybeHandle<JSPromise>());
-    return v8::Utils::OpenHandle(*promise);
-  } else {
+  if (!GetImportAssertionsFromArgument(maybe_import_assertions_argument)
+           .ToHandle(&import_assertions_array)) {
     Handle<Object> exception(pending_exception(), this);
     clear_pending_exception();
     return NewRejectedPromise(this, api_context, exception);
   }
+  // TODO(cbruni, v8:12302): Avoid creating tempory ScriptOrModule objects.
+  auto script_or_module = i::Handle<i::ScriptOrModule>::cast(
+      this->factory()->NewStruct(i::SCRIPT_OR_MODULE_TYPE));
+  script_or_module->set_resource_name(referrer->name());
+  script_or_module->set_host_defined_options(referrer->host_defined_options());
+  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+      this, promise,
+      host_import_module_dynamically_with_import_assertions_callback_(
+          api_context, v8::Utils::ToLocal(script_or_module),
+          v8::Utils::ToLocal(specifier_str),
+          ToApiHandle<v8::FixedArray>(import_assertions_array)),
+      MaybeHandle<JSPromise>());
+  return v8::Utils::OpenHandle(*promise);
 }
 
 MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(

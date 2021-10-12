@@ -480,12 +480,13 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
 
   static const int kHeaderFields = 1;
 
- private:
-  static Handle<ArrayList> EnsureSpace(Isolate* isolate,
-                                       Handle<ArrayList> array, int length);
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
   STATIC_ASSERT(kHeaderFields == kFirstIndex);
+
+ private:
+  static Handle<ArrayList> EnsureSpace(Isolate* isolate,
+                                       Handle<ArrayList> array, int length);
   TQ_OBJECT_CONSTRUCTORS(ArrayList)
 };
 
