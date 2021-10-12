@@ -338,10 +338,9 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     {
       AllowExternalCallThatCantCauseGC scope(masm_.get());
       ExternalReference function =
-          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
-                        isolate())
-                  : ExternalReference::re_case_insensitive_compare_non_unicode(
-                        isolate());
+          unicode
+              ? ExternalReference::re_case_insensitive_compare_unicode()
+              : ExternalReference::re_case_insensitive_compare_non_unicode();
       __ CallCFunction(function, argument_count);
     }
 
@@ -564,7 +563,7 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(base::uc16 type,
       // Table is 256 entries, so all Latin1 characters can be tested.
       BranchOrBacktrack(on_no_match, hi, current_character(), Operand('z'));
     }
-    ExternalReference map = ExternalReference::re_word_character_map(isolate());
+    ExternalReference map = ExternalReference::re_word_character_map();
     __ li(a0, Operand(map));
     __ Addu(a0, a0, current_character());
     __ lbu(a0, MemOperand(a0, 0));
@@ -577,7 +576,7 @@ bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(base::uc16 type,
       // Table is 256 entries, so all Latin1 characters can be tested.
       __ Branch(&done, hi, current_character(), Operand('z'));
     }
-    ExternalReference map = ExternalReference::re_word_character_map(isolate());
+    ExternalReference map = ExternalReference::re_word_character_map();
     __ li(a0, Operand(map));
     __ Addu(a0, a0, current_character());
     __ lbu(a0, MemOperand(a0, 0));
@@ -921,8 +920,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       static constexpr int kNumArguments = 1;
       __ PrepareCallCFunction(kNumArguments, a0);
       __ li(a0, Operand(ExternalReference::isolate_address(masm_->isolate())));
-      ExternalReference grow_stack =
-          ExternalReference::re_grow_stack(masm_->isolate());
+      ExternalReference grow_stack = ExternalReference::re_grow_stack();
       __ CallCFunction(grow_stack, kNumArguments);
       // Restore regexp registers.
       __ MultiPop(regexp_registers);
@@ -1122,10 +1120,7 @@ void RegExpMacroAssemblerMIPS::ClearRegisters(int reg_from, int reg_to) {
   }
 }
 
-bool RegExpMacroAssemblerMIPS::CanReadUnaligned() {
-  return false;
-}
-
+bool RegExpMacroAssemblerMIPS::CanReadUnaligned() const { return false; }
 
 // Private methods:
 
@@ -1164,7 +1159,7 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
   __ mov(a0, sp);
 
   ExternalReference stack_guard_check =
-      ExternalReference::re_check_stack_guard_state(masm_->isolate());
+      ExternalReference::re_check_stack_guard_state();
   __ li(t9, Operand(stack_guard_check));
 
   EmbeddedData d = EmbeddedData::FromBlob();
