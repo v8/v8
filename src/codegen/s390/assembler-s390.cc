@@ -486,7 +486,7 @@ int Assembler::target_at(int pos) {
              BRASL == opcode || LGRL == opcode) {
     int32_t imm32 =
         static_cast<int32_t>(instr & (static_cast<uint64_t>(0xFFFFFFFF)));
-    if (LLILF != opcode && LGRL != opcode)
+    if (LLILF != opcode)
       imm32 <<= 1;  // BR* + LARL treat immediate in # of halfwords
     if (imm32 == 0) return kEndOfChain;
     return pos + imm32;
@@ -521,17 +521,12 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     DCHECK(is_int16(imm16));
     instr_at_put<FourByteInstr>(pos, instr | (imm16 >> 1));
     return;
-  } else if (BRCL == opcode || LARL == opcode || BRASL == opcode) {
+  } else if (BRCL == opcode || LARL == opcode || BRASL == opcode ||
+             LGRL == opcode) {
     // Immediate is in # of halfwords
     int32_t imm32 = target_pos - pos;
     instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
     instr_at_put<SixByteInstr>(pos, instr | (imm32 >> 1));
-    return;
-  } else if (LGRL == opcode) {
-    // Immediate is in # of bytes
-    int32_t imm32 = target_pos - pos;
-    instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
-    instr_at_put<SixByteInstr>(pos, instr | imm32);
     return;
   } else if (LLILF == opcode) {
     DCHECK(target_pos == kEndOfChain || target_pos >= 0);
