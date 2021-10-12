@@ -598,6 +598,7 @@ filegroup(
             "src/base/platform/platform-macos.cc",
         ],
     }),
+    visibility = ["//visibility:public"],
 )
 
 filegroup(
@@ -2290,6 +2291,7 @@ filegroup(
         ],
         "//conditions:default": [],
     }),
+    visibility = ["//visibility:public"],
 )
 
 filegroup(
@@ -3008,6 +3010,30 @@ v8_mksnapshot(
 # =================================================
 # Libraries rules
 # =================================================
+cc_library(
+    name = "torque_base",
+    srcs = [
+        ":torque_base_files",
+    ],
+    copts = ["-fexceptions"],
+    features = ["-use_header_modules"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":torque_base_headers",
+        ":v8_libbase",
+    ],
+)
+
+cc_library(
+    name = "torque_base_headers",
+    hdrs = [
+        "src/torque/kythe-data.h",
+        "src/torque/torque-compiler.h",
+    ],
+    include_prefix = "third_party/v8",
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
 
 v8_library(
     name = "v8_libbase",
