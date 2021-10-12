@@ -183,6 +183,9 @@ void V8::InitializeOncePerProcessImpl() {
 
   if (FLAG_print_flag_values) FlagList::PrintValues();
 
+  // Initialize the default FlagList::Hash
+  FlagList::Hash();
+
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) TrackEvent::Register();
 #endif
