@@ -406,7 +406,6 @@ void V8Debugger::handleProgramBreak(
     v8::debug::PrepareStep(m_isolate, v8::debug::StepOut);
     return;
   }
-  const bool forScheduledBreak = hasScheduledBreakOnNextFunctionCall();
   m_targetContextGroupId = 0;
   m_pauseOnNextCallRequested = false;
   m_pauseOnAsyncCall = false;
@@ -435,77 +434,83 @@ void V8Debugger::handleProgramBreak(
   DCHECK(contextGroupId);
   m_pausedContextGroupId = contextGroupId;
 
-  // First pass is for any instrumentation breakpoints. This effectively does
-  // nothing if none of the breakpoints are instrumentation breakpoints.
-  // `sessionToInstrumentationBreakpoints` is only created if there is at least
-  // one session with an instrumentation breakpoint.
-  std::unique_ptr<
-      std::map<V8InspectorSessionImpl*, std::vector<v8::debug::BreakpointId>>>
-      sessionToInstrumentationBreakpoints;
-  if (forScheduledBreak) {
+  // Collect all instrumentation breakpoints.
+  std::set<v8::debug::BreakpointId> instrumentationBreakpointIdSet;
+  m_inspector->forEachSession(
+      contextGroupId, [&breakpointIds, &instrumentationBreakpointIdSet](
+                          V8InspectorSessionImpl* session) {
+        if (!session->debuggerAgent()->acceptsPause(false)) return;
+
+        const std::vector<v8::debug::BreakpointId>
+            sessionInstrumentationBreakpoints =
+                session->debuggerAgent()->instrumentationBreakpointIdsMatching(
+                    breakpointIds);
+
+        instrumentationBreakpointIdSet.insert(
+            sessionInstrumentationBreakpoints.begin(),
+            sessionInstrumentationBreakpoints.end());
+      });
+  std::vector<v8::debug::BreakpointId> instrumentationBreakpointIds(
+      instrumentationBreakpointIdSet.begin(),
+      instrumentationBreakpointIdSet.end());
+
+  const bool regularBreakpointHit =
+      instrumentationBreakpointIds.size() < breakpointIds.size();
+  const bool hasNonInstrumentationBreakReason =
+      regularBreakpointHit || hasScheduledBreakOnNextFunctionCall() ||
+      scheduledAssertBreak || scheduledOOMBreak || !exception.IsEmpty();
+
+  std::vector<v8::debug::BreakpointId> regularBreakpointIds = breakpointIds;
+  if (hasNonInstrumentationBreakReason &&
+      !instrumentationBreakpointIds.empty()) {
+    // Send out pause events for instrumentation breakpoints.
     m_inspector->forEachSession(
-        contextGroupId,
-        [&pausedContext, &breakpointIds, &sessionToInstrumentationBreakpoints](
-            V8InspectorSessionImpl* session) {
+        contextGroupId, [&pausedContext, &instrumentationBreakpointIds](
+                            V8InspectorSessionImpl* session) {
           if (!session->debuggerAgent()->acceptsPause(false)) return;
-
-          const std::vector<v8::debug::BreakpointId>
-              instrumentationBreakpointIds =
-                  session->debuggerAgent()
-                      ->instrumentationBreakpointIdsMatching(breakpointIds);
-          if (instrumentationBreakpointIds.empty()) return;
-
-          if (!sessionToInstrumentationBreakpoints) {
-            sessionToInstrumentationBreakpoints = std::make_unique<
-                std::map<V8InspectorSessionImpl*,
-                         std::vector<v8::debug::BreakpointId>>>();
-          }
-          (*sessionToInstrumentationBreakpoints)[session] =
-              instrumentationBreakpointIds;
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), {},
               instrumentationBreakpointIds,
               v8::debug::ExceptionType::kException, false, false, false);
         });
-    if (sessionToInstrumentationBreakpoints) {
+    {
       v8::Context::Scope scope(pausedContext);
       m_inspector->client()->runMessageLoopOnPause(contextGroupId);
+    }
+    m_inspector->forEachSession(contextGroupId,
+                                [](V8InspectorSessionImpl* session) {
+                                  if (session->debuggerAgent()->enabled()) {
+                                    session->debuggerAgent()->didContinue();
+                                  }
+                                });
 
-      m_inspector->forEachSession(
-          contextGroupId, [&sessionToInstrumentationBreakpoints](
-                              V8InspectorSessionImpl* session) {
-            if (session->debuggerAgent()->enabled() &&
-                sessionToInstrumentationBreakpoints->count(session)) {
-              session->debuggerAgent()->didContinue();
-            }
-          });
+    // Remove instrumentation breakpoints from regular breakpoints, as they
+    // have already been reported.
+    for (const v8::debug::BreakpointId& breakpointId :
+         instrumentationBreakpointIds) {
+      auto iter = std::find(regularBreakpointIds.begin(),
+                            regularBreakpointIds.end(), breakpointId);
+      if (iter != regularBreakpointIds.end()) {
+        regularBreakpointIds.erase(iter);
+      }
     }
   }
 
-  // Second pass is for other breakpoints (which may include instrumentation
-  // breakpoints in certain scenarios).
+  // If instrumentation breakpoints did coincide with other known reasons, then
+  // the remaining reasons are summarized in the following pause event.
+  // If we, however, do NOT know whether instrumentation breakpoints coincided
+  // with other reasons (hasNonInstrumentationBreakReason == false), then send
+  // instrumentation breakpoints here. The reason for this is that we do not
+  // want to trigger two pause events if we only break because of an
+  // instrumentation.
   m_inspector->forEachSession(
-      contextGroupId,
-      [&pausedContext, &exception, &breakpointIds, &exceptionType, &isUncaught,
-       &scheduledOOMBreak, &scheduledAssertBreak,
-       &sessionToInstrumentationBreakpoints](V8InspectorSessionImpl* session) {
+      contextGroupId, [&pausedContext, &exception, &regularBreakpointIds,
+                       &exceptionType, &isUncaught, &scheduledOOMBreak,
+                       &scheduledAssertBreak](V8InspectorSessionImpl* session) {
         if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
-          std::vector<v8::debug::BreakpointId> sessionBreakpointIds =
-              breakpointIds;
-          if (sessionToInstrumentationBreakpoints) {
-            const std::vector<v8::debug::BreakpointId>
-                instrumentationBreakpointIds =
-                    (*sessionToInstrumentationBreakpoints)[session];
-            for (const v8::debug::BreakpointId& breakpointId :
-                 instrumentationBreakpointIds) {
-              auto iter = std::find(sessionBreakpointIds.begin(),
-                                    sessionBreakpointIds.end(), breakpointId);
-              sessionBreakpointIds.erase(iter);
-            }
-          }
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), exception,
-              sessionBreakpointIds, exceptionType, isUncaught,
+              regularBreakpointIds, exceptionType, isUncaught,
               scheduledOOMBreak, scheduledAssertBreak);
         }
       });
