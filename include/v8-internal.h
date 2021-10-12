@@ -494,13 +494,13 @@ constexpr bool VirtualMemoryCageIsEnabled() {
 #endif
 }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
-
-#define GB (1ULL << 30)
-#define TB (1ULL << 40)
-
+#ifdef V8_VIRTUAL_MEMORY_CAGE
 // Size of the virtual memory cage, excluding the guard regions surrounding it.
-constexpr size_t kVirtualMemoryCageSize = 1ULL * TB;
+constexpr size_t kVirtualMemoryCageSize = size_t{1} << 40;  // 1 TB
+
+static_assert(kVirtualMemoryCageSize > Internals::kPtrComprCageReservationSize,
+              "The virtual memory cage must be larger than the pointer "
+              "compression cage contained within it.");
 
 // Required alignment of the virtual memory cage. For simplicity, we require the
 // size of the guard regions to be a multiple of this, so that this specifies
@@ -513,7 +513,7 @@ constexpr size_t kVirtualMemoryCageAlignment =
 // Size of the guard regions surrounding the virtual memory cage. This assumes a
 // worst-case scenario of a 32-bit unsigned index being used to access an array
 // of 64-bit values.
-constexpr size_t kVirtualMemoryCageGuardRegionSize = 32ULL * GB;
+constexpr size_t kVirtualMemoryCageGuardRegionSize = size_t{32} << 30;  // 32 GB
 
 static_assert((kVirtualMemoryCageGuardRegionSize %
                kVirtualMemoryCageAlignment) == 0,
@@ -525,31 +525,7 @@ static_assert((kVirtualMemoryCageGuardRegionSize %
 // until either the reservation succeeds or the minimum size is reached. A
 // minimum of 32GB allows the 4GB pointer compression region as well as the
 // ArrayBuffer partition and two 10GB WASM memory cages to fit into the cage.
-constexpr size_t kVirtualMemoryCageMinimumSize = 32ULL * GB;
-
-static_assert(kVirtualMemoryCageMinimumSize <= kVirtualMemoryCageSize,
-              "The minimal size of the virtual memory cage must be smaller or "
-              "equal to the regular size.");
-
-// On OSes where reservation virtual memory is too expensive to create a real
-// cage, notably Windows pre 8.1, we create a fake cage that doesn't actually
-// reserve most of the memory, and so doesn't have the desired security
-// properties, but still ensures that objects that should be located inside the
-// cage are allocated within kVirtualMemoryCageSize bytes from the start of the
-// cage, and so appear to be inside the cage. The minimum size of the virtual
-// memory range that is actually reserved for a fake cage is specified by this
-// constant and should be big enough to contain the pointer compression region
-// as well as the ArrayBuffer partition.
-constexpr size_t kFakeVirtualMemoryCageMinReservationSize = 8ULL * GB;
-
-static_assert(kVirtualMemoryCageMinimumSize >
-                  Internals::kPtrComprCageReservationSize,
-              "The virtual memory cage must be larger than the pointer "
-              "compression cage contained within it.");
-static_assert(kFakeVirtualMemoryCageMinReservationSize >
-                  Internals::kPtrComprCageReservationSize,
-              "The reservation for a fake virtual memory cage must be larger "
-              "than the pointer compression cage contained within it.");
+constexpr size_t kVirtualMemoryCageMinimumSize = size_t{32} << 30;  // 32 GB
 
 // For now, even if the virtual memory cage is enabled, we still allow backing
 // stores to be allocated outside of it as fallback. This will simplify the
@@ -561,10 +537,7 @@ constexpr bool kAllowBackingStoresOutsideCage = false;
 constexpr bool kAllowBackingStoresOutsideCage = true;
 #endif  // V8_HEAP_SANDBOX
 
-#undef GB
-#undef TB
-
-#endif  // V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
+#endif  // V8_VIRTUAL_MEMORY_CAGE
 
 // Only perform cast check for types derived from v8::Data since
 // other types do not implement the Cast method.
