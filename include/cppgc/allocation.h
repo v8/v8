@@ -18,6 +18,23 @@
 #include "cppgc/type-traits.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
+#if defined(__has_attribute)
+#if __has_attribute(assume_aligned)
+#define CPPGC_DEFAULT_ALIGNED \
+  __attribute__((assume_aligned(api_constants::kDefaultAlignment)))
+#define CPPGC_DOUBLE_WORD_ALIGNED \
+  __attribute__((assume_aligned(2 * api_constants::kDefaultAlignment)))
+#endif  // __has_attribute(assume_aligned)
+#endif  // defined(__has_attribute)
+
+#if !defined(CPPGC_DEFAULT_ALIGNED)
+#define CPPGC_DEFAULT_ALIGNED
+#endif
+
+#if !defined(CPPGC_DOUBLE_WORD_ALIGNED)
+#define CPPGC_DOUBLE_WORD_ALIGNED
+#endif
+
 namespace cppgc {
 
 /**
@@ -104,15 +121,16 @@ class V8_EXPORT MakeGarbageCollectedTraitInternal {
   };
 
  private:
-  static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
-                        GCInfoIndex index);
-  static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
-                        AlignVal alignment, GCInfoIndex index);
-  static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
-                        GCInfoIndex index, CustomSpaceIndex space_index);
-  static void* Allocate(cppgc::AllocationHandle& handle, size_t size,
-                        AlignVal alignment, GCInfoIndex index,
-                        CustomSpaceIndex space_index);
+  static void* CPPGC_DEFAULT_ALIGNED Allocate(cppgc::AllocationHandle&, size_t,
+                                              GCInfoIndex);
+  static void* CPPGC_DOUBLE_WORD_ALIGNED Allocate(cppgc::AllocationHandle&,
+                                                  size_t, AlignVal,
+                                                  GCInfoIndex);
+  static void* CPPGC_DEFAULT_ALIGNED Allocate(cppgc::AllocationHandle&, size_t,
+                                              GCInfoIndex, CustomSpaceIndex);
+  static void* CPPGC_DOUBLE_WORD_ALIGNED Allocate(cppgc::AllocationHandle&,
+                                                  size_t, AlignVal, GCInfoIndex,
+                                                  CustomSpaceIndex);
 
   friend class HeapObjectHeader;
 };
@@ -285,5 +303,8 @@ V8_INLINE T* MakeGarbageCollected(AllocationHandle& handle,
 }
 
 }  // namespace cppgc
+
+#undef CPPGC_DEFAULT_ALIGNED
+#undef CPPGC_DOUBLE_WORD_ALIGNED
 
 #endif  // INCLUDE_CPPGC_ALLOCATION_H_
