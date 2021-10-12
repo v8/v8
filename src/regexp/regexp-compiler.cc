@@ -2073,7 +2073,8 @@ namespace {
 void EmitWordCheck(RegExpMacroAssembler* assembler, Label* word,
                    Label* non_word, bool fall_through_on_word) {
   if (assembler->CheckSpecialCharacterClass(
-          fall_through_on_word ? 'w' : 'W',
+          fall_through_on_word ? StandardCharacterSet::kWord
+                               : StandardCharacterSet::kNotWord,
           fall_through_on_word ? non_word : word)) {
     // Optimized implementation available.
     return;
@@ -2119,7 +2120,8 @@ void EmitHat(RegExpCompiler* compiler, RegExpNode* on_success, Trace* trace) {
   const bool can_skip_bounds_check = !may_be_at_or_before_subject_string_start;
   assembler->LoadCurrentCharacter(new_trace.cp_offset() - 1,
                                   new_trace.backtrack(), can_skip_bounds_check);
-  if (!assembler->CheckSpecialCharacterClass('n', new_trace.backtrack())) {
+  if (!assembler->CheckSpecialCharacterClass(
+          StandardCharacterSet::kLineTerminator, new_trace.backtrack())) {
     // Newline means \n, \r, 0x2028 or 0x2029.
     if (!compiler->one_byte()) {
       assembler->CheckCharacterAfterAnd(0x2028, 0xFFFE, &ok);
@@ -3882,7 +3884,8 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
     // Add a .*? at the beginning, outside the body capture, unless
     // this expression is anchored at the beginning or sticky.
     RegExpNode* loop_node = RegExpQuantifier::ToNode(
-        0, RegExpTree::kInfinity, false, zone()->New<RegExpCharacterClass>('*'),
+        0, RegExpTree::kInfinity, false,
+        zone()->New<RegExpCharacterClass>(StandardCharacterSet::kEverything),
         this, captured_body, data->contains_anchor);
 
     if (data->contains_anchor) {
@@ -3891,7 +3894,8 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
       ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, zone());
       first_step_node->AddAlternative(GuardedAlternative(captured_body));
       first_step_node->AddAlternative(GuardedAlternative(zone()->New<TextNode>(
-          zone()->New<RegExpCharacterClass>('*'), false, loop_node)));
+          zone()->New<RegExpCharacterClass>(StandardCharacterSet::kEverything),
+          false, loop_node)));
       node = first_step_node;
     } else {
       node = loop_node;

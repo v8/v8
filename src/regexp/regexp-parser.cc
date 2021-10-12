@@ -671,10 +671,12 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
 
         if (builder->dotall()) {
           // Everything.
-          CharacterRange::AddClassEscape('*', ranges, false, zone());
+          CharacterRange::AddClassEscape(StandardCharacterSet::kEverything,
+                                         ranges, false, zone());
         } else {
-          // Everything except \x0A, \x0D, \u2028 and \u2029
-          CharacterRange::AddClassEscape('.', ranges, false, zone());
+          // Everything except \x0A, \x0D, \u2028 and \u2029.
+          CharacterRange::AddClassEscape(
+              StandardCharacterSet::kNotLineTerminator, ranges, false, zone());
         }
 
         RegExpCharacterClass* cc =
@@ -1950,8 +1952,9 @@ bool RegExpParserImpl<CharT>::TryParseCharacterClassEscape(
     case 'S':
     case 'w':
     case 'W':
-      CharacterRange::AddClassEscape(static_cast<char>(next), ranges,
-                                     add_unicode_case_equivalents, zone);
+      CharacterRange::AddClassEscape(static_cast<StandardCharacterSet>(next),
+                                     ranges, add_unicode_case_equivalents,
+                                     zone);
       Advance(2);
       return true;
     case 'p':

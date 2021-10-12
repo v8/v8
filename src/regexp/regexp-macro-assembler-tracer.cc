@@ -354,12 +354,11 @@ void RegExpMacroAssemblerTracer::CheckPosition(int cp_offset,
 }
 
 bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
-    base::uc16 type, Label* on_no_match) {
+    StandardCharacterSet type, Label* on_no_match) {
   bool supported = assembler_->CheckSpecialCharacterClass(type,
                                                           on_no_match);
   PrintF(" CheckSpecialCharacterClass(type='%c', label[%08x]): %s;\n",
-         type,
-         LabelToInt(on_no_match),
+         static_cast<char>(type), LabelToInt(on_no_match),
          supported ? "true" : "false");
   return supported;
 }

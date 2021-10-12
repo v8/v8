@@ -101,29 +101,29 @@ bool RegExpCharacterClass::is_standard(Zone* zone) {
     return true;
   }
   if (CompareRanges(set_.ranges(zone), kSpaceRanges, kSpaceRangeCount)) {
-    set_.set_standard_set_type('s');
+    set_.set_standard_set_type(StandardCharacterSet::kWhitespace);
     return true;
   }
   if (CompareInverseRanges(set_.ranges(zone), kSpaceRanges, kSpaceRangeCount)) {
-    set_.set_standard_set_type('S');
+    set_.set_standard_set_type(StandardCharacterSet::kNotWhitespace);
     return true;
   }
   if (CompareInverseRanges(set_.ranges(zone), kLineTerminatorRanges,
                            kLineTerminatorRangeCount)) {
-    set_.set_standard_set_type('.');
+    set_.set_standard_set_type(StandardCharacterSet::kNotLineTerminator);
     return true;
   }
   if (CompareRanges(set_.ranges(zone), kLineTerminatorRanges,
                     kLineTerminatorRangeCount)) {
-    set_.set_standard_set_type('n');
+    set_.set_standard_set_type(StandardCharacterSet::kLineTerminator);
     return true;
   }
   if (CompareRanges(set_.ranges(zone), kWordRanges, kWordRangeCount)) {
-    set_.set_standard_set_type('w');
+    set_.set_standard_set_type(StandardCharacterSet::kWord);
     return true;
   }
   if (CompareInverseRanges(set_.ranges(zone), kWordRanges, kWordRangeCount)) {
-    set_.set_standard_set_type('W');
+    set_.set_standard_set_type(StandardCharacterSet::kNotWord);
     return true;
   }
   return false;
@@ -423,7 +423,8 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
           zone->New<RegExpCharacterClass>(zone, ranges);
       return zone->New<TextNode>(fail, compiler->read_backward(), on_success);
     }
-    if (standard_type() == '*') {
+    if (set_.is_standard() &&
+        standard_type() == StandardCharacterSet::kEverything) {
       return UnanchoredAdvance(compiler, on_success);
     } else {
       ChoiceNode* result = zone->New<ChoiceNode>(2, zone);
@@ -748,7 +749,8 @@ RegExpNode* BoundaryAssertionAsLookaround(RegExpCompiler* compiler,
   Zone* zone = compiler->zone();
   ZoneList<CharacterRange>* word_range =
       zone->New<ZoneList<CharacterRange>>(2, zone);
-  CharacterRange::AddClassEscape('w', word_range, true, zone);
+  CharacterRange::AddClassEscape(StandardCharacterSet::kWord, word_range, true,
+                                 zone);
   int stack_register = compiler->UnicodeLookaroundStackRegister();
   int position_register = compiler->UnicodeLookaroundPositionRegister();
   ChoiceNode* result = zone->New<ChoiceNode>(2, zone);
@@ -808,8 +810,10 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
       // Create a newline atom.
       ZoneList<CharacterRange>* newline_ranges =
           zone->New<ZoneList<CharacterRange>>(3, zone);
-      CharacterRange::AddClassEscape('n', newline_ranges, false, zone);
-      RegExpCharacterClass* newline_atom = zone->New<RegExpCharacterClass>('n');
+      CharacterRange::AddClassEscape(StandardCharacterSet::kLineTerminator,
+                                     newline_ranges, false, zone);
+      RegExpCharacterClass* newline_atom = zone->New<RegExpCharacterClass>(
+          StandardCharacterSet::kLineTerminator);
       TextNode* newline_matcher =
           zone->New<TextNode>(newline_atom, false,
                               ActionNode::PositiveSubmatchSuccess(
@@ -1057,10 +1061,13 @@ static void AddClassNegated(const int* elmv, int elmc,
   ranges->Add(CharacterRange::Range(last, kMaxCodePoint), zone);
 }
 
-void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
+void CharacterRange::AddClassEscape(StandardCharacterSet standard_character_set,
+                                    ZoneList<CharacterRange>* ranges,
                                     bool add_unicode_case_equivalents,
                                     Zone* zone) {
-  if (add_unicode_case_equivalents && (type == 'w' || type == 'W')) {
+  if (add_unicode_case_equivalents &&
+      (standard_character_set == StandardCharacterSet::kWord ||
+       standard_character_set == StandardCharacterSet::kNotWord)) {
     // See #sec-runtime-semantics-wordcharacters-abstract-operation
     // In case of unicode and ignore_case, we need to create the closure over
     // case equivalent characters before negating.
@@ -1068,7 +1075,7 @@ void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
         zone->New<ZoneList<CharacterRange>>(2, zone);
     AddClass(kWordRanges, kWordRangeCount, new_ranges, zone);
     AddUnicodeCaseEquivalents(new_ranges, zone);
-    if (type == 'W') {
+    if (standard_character_set == StandardCharacterSet::kNotWord) {
       ZoneList<CharacterRange>* negated =
           zone->New<ZoneList<CharacterRange>>(2, zone);
       CharacterRange::Negate(new_ranges, negated, zone);
@@ -1077,47 +1084,46 @@ void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
     ranges->AddAll(*new_ranges, zone);
     return;
   }
-  AddClassEscape(type, ranges, zone);
+  AddClassEscape(standard_character_set, ranges, zone);
 }
 
-void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
+void CharacterRange::AddClassEscape(StandardCharacterSet standard_character_set,
+                                    ZoneList<CharacterRange>* ranges,
                                     Zone* zone) {
-  switch (type) {
-    case 's':
+  switch (standard_character_set) {
+    case StandardCharacterSet::kWhitespace:
       AddClass(kSpaceRanges, kSpaceRangeCount, ranges, zone);
       break;
-    case 'S':
+    case StandardCharacterSet::kNotWhitespace:
       AddClassNegated(kSpaceRanges, kSpaceRangeCount, ranges, zone);
       break;
-    case 'w':
+    case StandardCharacterSet::kWord:
       AddClass(kWordRanges, kWordRangeCount, ranges, zone);
       break;
-    case 'W':
+    case StandardCharacterSet::kNotWord:
       AddClassNegated(kWordRanges, kWordRangeCount, ranges, zone);
       break;
-    case 'd':
+    case StandardCharacterSet::kDigit:
       AddClass(kDigitRanges, kDigitRangeCount, ranges, zone);
       break;
-    case 'D':
+    case StandardCharacterSet::kNotDigit:
       AddClassNegated(kDigitRanges, kDigitRangeCount, ranges, zone);
       break;
-    case '.':
+    // This is the set of characters matched by the $ and ^ symbols
+    // in multiline mode.
+    case StandardCharacterSet::kLineTerminator:
+      AddClass(kLineTerminatorRanges, kLineTerminatorRangeCount, ranges, zone);
+      break;
+    case StandardCharacterSet::kNotLineTerminator:
       AddClassNegated(kLineTerminatorRanges, kLineTerminatorRangeCount, ranges,
                       zone);
       break;
     // This is not a character range as defined by the spec but a
     // convenient shorthand for a character class that matches any
     // character.
-    case '*':
+    case StandardCharacterSet::kEverything:
       ranges->Add(CharacterRange::Everything(), zone);
       break;
-    // This is the set of characters matched by the $ and ^ symbols
-    // in multiline mode.
-    case 'n':
-      AddClass(kLineTerminatorRanges, kLineTerminatorRangeCount, ranges, zone);
-      break;
-    default:
-      UNREACHABLE();
   }
 }
 
@@ -1256,7 +1262,8 @@ bool CharacterRange::IsCanonical(ZoneList<CharacterRange>* ranges) {
 ZoneList<CharacterRange>* CharacterSet::ranges(Zone* zone) {
   if (ranges_ == nullptr) {
     ranges_ = zone->New<ZoneList<CharacterRange>>(2, zone);
-    CharacterRange::AddClassEscape(standard_set_type_, ranges_, false, zone);
+    CharacterRange::AddClassEscape(standard_set_type_.value(), ranges_, false,
+                                   zone);
   }
   return ranges_;
 }

@@ -505,7 +505,8 @@ static bool NotLineTerminator(base::uc32 c) {
   return !unibrow::IsLineTerminator(c);
 }
 
-static void TestCharacterClassEscapes(base::uc32 c, bool(pred)(base::uc32 c)) {
+static void TestCharacterClassEscapes(StandardCharacterSet c,
+                                      bool(pred)(base::uc32 c)) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   ZoneList<CharacterRange>* ranges =
       zone.New<ZoneList<CharacterRange>>(2, &zone);
@@ -521,13 +522,16 @@ static void TestCharacterClassEscapes(base::uc32 c, bool(pred)(base::uc32 c)) {
 }
 
 TEST(CharacterClassEscapes) {
-  TestCharacterClassEscapes('.', NotLineTerminator);
-  TestCharacterClassEscapes('d', IsDigit);
-  TestCharacterClassEscapes('D', NotDigit);
-  TestCharacterClassEscapes('s', IsWhiteSpaceOrLineTerminator);
-  TestCharacterClassEscapes('S', NotWhiteSpaceNorLineTermiantor);
-  TestCharacterClassEscapes('w', IsRegExpWord);
-  TestCharacterClassEscapes('W', NotWord);
+  TestCharacterClassEscapes(StandardCharacterSet::kNotLineTerminator,
+                            NotLineTerminator);
+  TestCharacterClassEscapes(StandardCharacterSet::kDigit, IsDigit);
+  TestCharacterClassEscapes(StandardCharacterSet::kNotDigit, NotDigit);
+  TestCharacterClassEscapes(StandardCharacterSet::kWhitespace,
+                            IsWhiteSpaceOrLineTerminator);
+  TestCharacterClassEscapes(StandardCharacterSet::kNotWhitespace,
+                            NotWhiteSpaceNorLineTermiantor);
+  TestCharacterClassEscapes(StandardCharacterSet::kWord, IsRegExpWord);
+  TestCharacterClassEscapes(StandardCharacterSet::kNotWord, NotWord);
 }
 
 static RegExpNode* Compile(const char* input, bool multiline, bool unicode,

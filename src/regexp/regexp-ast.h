@@ -71,6 +71,19 @@ class Interval {
   int to_;
 };
 
+// Named standard character sets.
+enum class StandardCharacterSet : char {
+  kWhitespace = 's',         // Like /\s/.
+  kNotWhitespace = 'S',      // Like /\S/.
+  kWord = 'w',               // Like /\w/.
+  kNotWord = 'W',            // Like /\W/.
+  kDigit = 'd',              // Like /\d/.
+  kNotDigit = 'D',           // Like /\D/.
+  kLineTerminator = 'n',     // The inverse of /./.
+  kNotLineTerminator = '.',  // Like /./.
+  kEverything = '*',         // Matches every character, like /./s.
+};
+
 // Represents code points (with values up to 0x10FFFF) in the range from from_
 // to to_, both ends are inclusive.
 class CharacterRange {
@@ -99,13 +112,14 @@ class CharacterRange {
     return list;
   }
 
-  V8_EXPORT_PRIVATE static void AddClassEscape(char type,
-                                               ZoneList<CharacterRange>* ranges,
-                                               Zone* zone);
+  V8_EXPORT_PRIVATE static void AddClassEscape(
+      StandardCharacterSet standard_character_set,
+      ZoneList<CharacterRange>* ranges, Zone* zone);
   // Add class escapes. Add case equivalent closure for \w and \W if necessary.
   V8_EXPORT_PRIVATE static void AddClassEscape(
-      char type, ZoneList<CharacterRange>* ranges,
-      bool add_unicode_case_equivalents, Zone* zone);
+      StandardCharacterSet standard_character_set,
+      ZoneList<CharacterRange>* ranges, bool add_unicode_case_equivalents,
+      Zone* zone);
   V8_EXPORT_PRIVATE static void AddCaseEquivalents(
       Isolate* isolate, Zone* zone, ZoneList<CharacterRange>* ranges,
       bool is_one_byte);
@@ -238,24 +252,23 @@ class RegExpAssertion final : public RegExpTree {
 
 class CharacterSet final {
  public:
-  explicit CharacterSet(base::uc16 standard_set_type)
+  explicit CharacterSet(StandardCharacterSet standard_set_type)
       : standard_set_type_(standard_set_type) {}
   explicit CharacterSet(ZoneList<CharacterRange>* ranges) : ranges_(ranges) {}
 
   ZoneList<CharacterRange>* ranges(Zone* zone);
-  base::uc16 standard_set_type() const { return standard_set_type_; }
-  void set_standard_set_type(base::uc16 special_set_type) {
-    standard_set_type_ = special_set_type;
+  StandardCharacterSet standard_set_type() const {
+    return standard_set_type_.value();
   }
-  bool is_standard() const { return standard_set_type_ != 0; }
+  void set_standard_set_type(StandardCharacterSet standard_set_type) {
+    standard_set_type_ = standard_set_type;
+  }
+  bool is_standard() const { return standard_set_type_.has_value(); }
   V8_EXPORT_PRIVATE void Canonicalize();
 
  private:
   ZoneList<CharacterRange>* ranges_ = nullptr;
-  // If non-zero, the value represents a standard set (e.g., all whitespace
-  // characters) without having to expand the ranges. See the comment on top of
-  // `standard_type` below.
-  base::uc16 standard_set_type_ = 0;
+  base::Optional<StandardCharacterSet> standard_set_type_;
 };
 
 class RegExpCharacterClass final : public RegExpTree {
@@ -280,8 +293,8 @@ class RegExpCharacterClass final : public RegExpTree {
       character_class_flags_ ^= NEGATED;
     }
   }
-  explicit RegExpCharacterClass(base::uc16 type)
-      : set_(type), character_class_flags_(CharacterClassFlags()) {}
+  explicit RegExpCharacterClass(StandardCharacterSet standard_set_type)
+      : set_(standard_set_type), character_class_flags_() {}
 
   DECL_BOILERPLATE(CharacterClass);
 
@@ -299,16 +312,9 @@ class RegExpCharacterClass final : public RegExpTree {
   bool is_standard(Zone* zone);
   // Returns a value representing the standard character set if is_standard()
   // returns true.
-  // Currently used values are:
-  // s : unicode whitespace
-  // S : unicode non-whitespace
-  // w : ASCII word character (digit, letter, underscore)
-  // W : non-ASCII word character
-  // d : ASCII digit
-  // D : non-ASCII digit
-  // . : non-newline
-  // * : All characters, for advancing unanchored regexp
-  base::uc16 standard_type() const { return set_.standard_set_type(); }
+  StandardCharacterSet standard_type() const {
+    return set_.standard_set_type();
+  }
 
   CharacterSet character_set() const { return set_; }
   ZoneList<CharacterRange>* ranges(Zone* zone) { return set_.ranges(zone); }
@@ -322,7 +328,6 @@ class RegExpCharacterClass final : public RegExpTree {
   CharacterSet set_;
   CharacterClassFlags character_class_flags_;
 };
-
 
 class RegExpAtom final : public RegExpTree {
  public:
