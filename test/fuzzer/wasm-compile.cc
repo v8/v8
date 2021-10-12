@@ -106,14 +106,21 @@ bool DataRange::get() {
 ValueType GetValueType(DataRange* data, bool liftoff_as_reference,
                        uint32_t num_types, bool include_packed_types = false) {
   constexpr ValueType types[] = {
-      kWasmI8,      kWasmI16,
-      kWasmI32,     kWasmI64,
-      kWasmF32,     kWasmF64,
-      kWasmS128,    kWasmExternRef,
-      kWasmFuncRef, kWasmEqRef,
-      kWasmAnyRef,  ValueType::Ref(HeapType(HeapType::kData), kNullable)};
+      kWasmI8,
+      kWasmI16,
+      kWasmI32,
+      kWasmI64,
+      kWasmF32,
+      kWasmF64,
+      kWasmS128,
+      kWasmExternRef,
+      kWasmFuncRef,
+      kWasmEqRef,
+      ValueType::Ref(HeapType(HeapType::kI31), kNullable),
+      kWasmAnyRef,
+      ValueType::Ref(HeapType(HeapType::kData), kNullable)};
 
-  constexpr int kLiftoffOnlyTypeCount = 3;  // at the end of {types}.
+  constexpr int kLiftoffOnlyTypeCount = 4;  // at the end of {types}.
   constexpr int kPackedOnlyTypeCount = 2;   // at the begining of {types}.
 
   if (liftoff_as_reference) {
@@ -1000,6 +1007,20 @@ class WasmGenerator {
     }
   }
 
+  void i31_get(DataRange* data) {
+    if (!liftoff_as_reference_) {
+      Generate(kWasmI32, data);
+      return;
+    }
+    GenerateOptRef(HeapType(HeapType::kI31), data);
+    builder_->Emit(kExprRefAsNonNull);
+    if (data->get<bool>()) {
+      builder_->EmitWithPrefix(kExprI31GetS);
+    } else {
+      builder_->EmitWithPrefix(kExprI31GetU);
+    }
+  }
+
   void array_len(DataRange* data) {
     if (num_arrays_ > 1) {
       int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
@@ -1450,6 +1471,8 @@ void WasmGenerator::Generate<kI32>(DataRange* data) {
       &WasmGenerator::call_indirect<kI32>,
       &WasmGenerator::call_ref<kI32>,
       &WasmGenerator::try_block<kI32>,
+
+      &WasmGenerator::i31_get,
 
       &WasmGenerator::struct_get<kI32>,
       &WasmGenerator::array_get<kI32>,
@@ -1991,9 +2014,8 @@ void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
     // default case.
     case HeapType::kAny: {
       // Weighed according to the types in the module.
-      // TODO(11954): Generate i31ref.
       uint32_t num_types = builder_->builder()->NumTypes();
-      uint8_t random = data->get<uint8_t>() % (num_types + 2);
+      uint8_t random = data->get<uint8_t>() % (num_types + 3);
       if (random < num_structs_ + num_arrays_) {
         GenerateOptRef(HeapType(HeapType::kData), data);
         return;
@@ -2002,6 +2024,9 @@ void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
         return;
       } else if (random == num_types) {
         GenerateOptRef(HeapType(HeapType::kExtern), data);
+        return;
+      } else if (random == num_types + 1) {
+        GenerateOptRef(HeapType(HeapType::kI31), data);
         return;
       }
       // Else fall back to the default case outside the switch.
@@ -2028,7 +2053,15 @@ void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
       // Else fall back to the default case outside the switch.
       break;
     }
-    // TODO(11954): Add i31ref case.
+    case HeapType::kI31: {
+      if (data->get<bool>()) {
+        Generate(kWasmI32, data);
+        builder_->EmitWithPrefix(kExprI31New);
+        return;
+      }
+      // Else fall back to the default case outside the switch.
+      break;
+    }
     default:
       break;
   }
