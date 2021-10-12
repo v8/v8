@@ -590,15 +590,16 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
         Comment("indexed string");
         TNode<String> string_holder = CAST(holder);
-        TNode<UintPtrT> index = Unsigned(TryToIntptr(p->name(), miss));
+        TNode<IntPtrT> index = TryToIntptr(p->name(), miss);
         TNode<UintPtrT> length =
             Unsigned(LoadStringLengthAsWord(string_holder));
         GotoIf(UintPtrGreaterThanOrEqual(index, length), &if_oob_string);
-        TNode<Int32T> code = StringCharCodeAt(string_holder, index);
+        TNode<Int32T> code = StringCharCodeAt(string_holder, Unsigned(index));
         TNode<String> result = StringFromSingleCharCode(code);
         Return(result);
 
         BIND(&if_oob_string);
+        GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), miss);
         TNode<BoolT> allow_out_of_bounds =
             IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
         GotoIfNot(allow_out_of_bounds, miss);
