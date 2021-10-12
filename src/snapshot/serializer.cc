@@ -965,8 +965,8 @@ class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
       : serializer_(serializer) {}
 
   void VisitEmbeddedPointer(Code host, RelocInfo* target) {
-    Object object = target->target_object();
-    serializer_->SerializeObject(handle(HeapObject::cast(object), isolate()));
+    HeapObject object = target->target_object(isolate());
+    serializer_->SerializeObject(handle(object, isolate()));
     num_serialized_objects_++;
   }
   void VisitCodeTarget(Code host, RelocInfo* target) {

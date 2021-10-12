@@ -512,7 +512,7 @@ void ScavengeVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
 }
 
 void ScavengeVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
-  HeapObject heap_object = rinfo->target_object();
+  HeapObject heap_object = rinfo->target_object(cage_base());
 #ifdef DEBUG
   HeapObject old_heap_object = heap_object;
 #endif

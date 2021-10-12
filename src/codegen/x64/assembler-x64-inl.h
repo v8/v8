@@ -314,24 +314,15 @@ int RelocInfo::target_address_size() {
   }
 }
 
-HeapObject RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
-  if (IsCompressedEmbeddedObject(rmode_)) {
-    CHECK(!host_.is_null());
-    Object o = static_cast<Object>(DecompressTaggedPointer(
-        host_.ptr(), ReadUnalignedValue<Tagged_t>(pc_)));
-    return HeapObject::cast(o);
-  }
-  DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));
-  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
-}
-
-HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
+HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed = ReadUnalignedValue<Tagged_t>(pc_);
     DCHECK(!HAS_SMI_TAG(compressed));
     Object obj(DecompressTaggedPointer(cage_base, compressed));
+    // Embedding of compressed Code objects must not happen when external code
+    // space is enabled, because CodeDataContainers must be used instead.
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !obj.IsCode(cage_base));
     return HeapObject::cast(obj);
   }
   DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));

@@ -1269,14 +1269,14 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
   DCHECK(code->is_optimized_code());
   {
     DisallowGarbageCollection no_gc;
+    PtrComprCageBase cage_base(isolate);
     int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
     for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      if (code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
-        Handle<HeapObject> object(HeapObject::cast(it.rinfo()->target_object()),
-                                  isolate);
-        if (object->IsMap()) {
-          maps.push_back(Handle<Map>::cast(object));
+      HeapObject target_object = it.rinfo()->target_object(cage_base);
+      if (code->IsWeakObjectInOptimizedCode(target_object)) {
+        if (target_object.IsMap(cage_base)) {
+          maps.push_back(handle(Map::cast(target_object), isolate));
         }
       }
     }

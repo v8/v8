@@ -111,7 +111,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
     Code host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
-      rinfo->target_object_no_host(ObjectVisitorWithCageBases::cage_base());
+      rinfo->target_object(ObjectVisitorWithCageBases::cage_base());
   if (!concrete_visitor()->marking_state()->IsBlackOrGrey(object)) {
     if (host.IsWeakObject(object)) {
       weak_objects_->weak_objects_in_code.Push(task_id_,

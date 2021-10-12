@@ -80,14 +80,10 @@ Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
-HeapObject RelocInfo::target_object() {
+HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_) ||
          IsDataEmbeddedObject(rmode_));
   return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
-}
-
-HeapObject RelocInfo::target_object_no_host(PtrComprCageBase cage_base) {
-  return target_object();
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {

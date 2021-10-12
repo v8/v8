@@ -256,7 +256,7 @@ class FullMarkingVerifier : public MarkingVerifier {
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-    HeapObject target_object = rinfo->target_object_no_host(cage_base());
+    HeapObject target_object = rinfo->target_object(cage_base());
     if (!host.IsWeakObject(target_object)) {
       VerifyHeapObjectImpl(target_object);
     }
@@ -431,7 +431,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     VerifyHeapObjectImpl(target);
   }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VerifyHeapObjectImpl(rinfo->target_object_no_host(cage_base()));
+    VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
@@ -1110,7 +1110,7 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     MarkObject(host, target);
   }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    MarkObject(host, rinfo->target_object_no_host(cage_base()));
+    MarkObject(host, rinfo->target_object(cage_base()));
   }
 
  private:
@@ -1306,8 +1306,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   inline void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-    HeapObject object =
-        HeapObject::cast(rinfo->target_object_no_host(cage_base()));
+    HeapObject object = rinfo->target_object(cage_base());
     GenerationalBarrierForCode(host, rinfo, object);
     collector_->RecordRelocSlot(host, rinfo, object);
   }
@@ -4482,7 +4481,8 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     VerifyHeapObjectImpl(target);
   }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VerifyHeapObjectImpl(rinfo->target_object());
+    PtrComprCageBase cage_base = host.main_cage_base();
+    VerifyHeapObjectImpl(rinfo->target_object(cage_base));
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);
@@ -4556,7 +4556,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
     VerifyHeapObjectImpl(target);
   }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    VerifyHeapObjectImpl(rinfo->target_object_no_host(cage_base()));
+    VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
   }
   void VerifyRootPointers(FullObjectSlot start, FullObjectSlot end) override {
     VerifyPointersImpl(start, end);

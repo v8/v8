@@ -180,12 +180,15 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   CHECK(String::cast(*print_string).IsOneByteEqualTo(base::CStrVector(string)));
 }
 
-void CheckEmbeddedObjectsAreEqual(Handle<Code> lhs, Handle<Code> rhs) {
+void CheckEmbeddedObjectsAreEqual(Isolate* isolate, Handle<Code> lhs,
+                                  Handle<Code> rhs) {
   int mode_mask = RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT);
+  PtrComprCageBase cage_base(isolate);
   RelocIterator lhs_it(*lhs, mode_mask);
   RelocIterator rhs_it(*rhs, mode_mask);
   while (!lhs_it.done() && !rhs_it.done()) {
-    CHECK(lhs_it.rinfo()->target_object() == rhs_it.rinfo()->target_object());
+    CHECK_EQ(lhs_it.rinfo()->target_object(cage_base),
+             rhs_it.rinfo()->target_object(cage_base));
 
     lhs_it.next();
     rhs_it.next();
@@ -228,9 +231,9 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
     copy = factory->CopyCode(code);
   }
 
-  CheckEmbeddedObjectsAreEqual(code, copy);
+  CheckEmbeddedObjectsAreEqual(isolate, code, copy);
   CcTest::CollectAllAvailableGarbage();
-  CheckEmbeddedObjectsAreEqual(code, copy);
+  CheckEmbeddedObjectsAreEqual(isolate, code, copy);
 }
 
 static void CheckFindCodeObject(Isolate* isolate) {

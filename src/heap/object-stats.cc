@@ -1039,9 +1039,10 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
     }
   }
   int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
+  PtrComprCageBase cage_base(heap_->isolate());
   for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-    Object target = it.rinfo()->target_object();
+    Object target = it.rinfo()->target_object(cage_base);
     if (target.IsFixedArrayExact()) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);

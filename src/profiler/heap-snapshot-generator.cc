@@ -758,11 +758,11 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    HeapObject object = rinfo->target_object_no_host(cage_base());
+    HeapObject object = rinfo->target_object(cage_base());
     if (host.IsWeakObject(object)) {
       generator_->SetWeakReference(parent_, next_index_++, object, {});
     } else {
-      VisitHeapObjectImpl(rinfo->target_object(), -1);
+      VisitHeapObjectImpl(object, -1);
     }
   }
 

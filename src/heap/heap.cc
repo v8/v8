@@ -4461,7 +4461,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    Object target = rinfo->target_object_no_host(cage_base());
+    Object target = rinfo->target_object(cage_base());
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(
           InTypedSet(FULL_EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
@@ -6381,7 +6381,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       MarkHeapObject(target);
     }
     void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
-      MarkHeapObject(rinfo->target_object_no_host(cage_base()));
+      MarkHeapObject(rinfo->target_object(cage_base()));
     }
 
     void VisitRootPointers(Root root, const char* description,
@@ -6916,7 +6916,7 @@ void VerifyPointersVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
 }
 
 void VerifyPointersVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
-  VerifyHeapObjectImpl(rinfo->target_object_no_host(cage_base()));
+  VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
 }
 
 void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,
@@ -7063,10 +7063,12 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
 }
 
 void Heap::WriteBarrierForCodeSlow(Code code) {
+  PtrComprCageBase cage_base = code.main_cage_base();
   for (RelocIterator it(code, RelocInfo::EmbeddedObjectModeMask()); !it.done();
        it.next()) {
-    GenerationalBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
-    WriteBarrier::Marking(code, it.rinfo(), it.rinfo()->target_object());
+    HeapObject target_object = it.rinfo()->target_object(cage_base);
+    GenerationalBarrierForCode(code, it.rinfo(), target_object);
+    WriteBarrier::Marking(code, it.rinfo(), target_object);
   }
 }
 

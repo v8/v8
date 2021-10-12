@@ -54,7 +54,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     HandleSlot(host, FullHeapObjectSlot(&target), target);
   }
   V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
-    HeapObject heap_object = rinfo->target_object();
+    PtrComprCageBase cage_base = host.main_cage_base();
+    HeapObject heap_object = rinfo->target_object(cage_base);
     HandleSlot(host, FullHeapObjectSlot(&heap_object), heap_object);
   }
 
