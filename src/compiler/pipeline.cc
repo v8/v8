@@ -3208,6 +3208,10 @@ void Pipeline::GenerateCodeForWasmFunction(
     const wasm::WasmModule* module, int function_index,
     std::vector<compiler::WasmLoopInfo>* loop_info) {
   auto* wasm_engine = wasm::GetWasmEngine();
+  base::TimeTicks start_time;
+  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+    start_time = base::TimeTicks::Now();
+  }
   ZoneStats zone_stats(wasm_engine->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(function_body, module, info, &zone_stats));
@@ -3303,6 +3307,19 @@ void Pipeline::GenerateCodeForWasmFunction(
         << "---------------------------------------------------\n"
         << "Finished compiling method " << data.info()->GetDebugName().get()
         << " using TurboFan" << std::endl;
+  }
+
+  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+    base::TimeDelta time = base::TimeTicks::Now() - start_time;
+    int codesize = result->code_desc.body_size();
+    StdoutStream{} << "Compiled function "
+                   << reinterpret_cast<const void*>(module) << "#"
+                   << function_index << " using TurboFan, took "
+                   << time.InMilliseconds() << " ms and "
+                   << zone_stats.GetMaxAllocatedBytes() << " / "
+                   << zone_stats.GetTotalAllocatedBytes()
+                   << " max/total bytes, codesize " << codesize << " name "
+                   << data.info()->GetDebugName().get() << std::endl;
   }
 
   DCHECK(result->succeeded());

@@ -226,6 +226,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Prints the gathered compilation statistics, then resets them.
   void DumpAndResetTurboStatistics();
+  // Same, but no reset.
+  void DumpTurboStatistics();
 
   // Used to redirect tracing output from {stdout} to a file.
   CodeTracer* GetCodeTracer();

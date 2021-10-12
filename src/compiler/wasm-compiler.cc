@@ -7970,6 +7970,11 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
           zone_bytes);
     }
   }
+  // If we tiered up only one function for debugging, dump statistics
+  // immediately.
+  if (V8_UNLIKELY(FLAG_turbo_stats_wasm && FLAG_wasm_tier_up_filter >= 0)) {
+    wasm::GetWasmEngine()->DumpTurboStatistics();
+  }
   auto result = info.ReleaseWasmCompilationResult();
   CHECK_NOT_NULL(result);  // Compilation expected to succeed.
   DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result->result_tier);

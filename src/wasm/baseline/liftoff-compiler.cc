@@ -6346,6 +6346,10 @@ constexpr base::EnumSet<ValueKind> LiftoffCompiler::kUnconditionallySupported;
 WasmCompilationResult ExecuteLiftoffCompilation(
     CompilationEnv* env, const FunctionBody& func_body, int func_index,
     ForDebugging for_debugging, const LiftoffOptions& compiler_options) {
+  base::TimeTicks start_time;
+  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+    start_time = base::TimeTicks::Now();
+  }
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileBaseline", "funcIndex", func_index, "bodySize",
@@ -6407,6 +6411,17 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }
   result.feedback_vector_slots = compiler->GetFeedbackVectorSlots();
+
+  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+    base::TimeDelta time = base::TimeTicks::Now() - start_time;
+    int codesize = result.code_desc.body_size();
+    StdoutStream{} << "Compiled function "
+                   << reinterpret_cast<const void*>(env->module) << "#"
+                   << func_index << " using Liftoff, took "
+                   << time.InMilliseconds() << " ms and "
+                   << zone.allocation_size() << " bytes; bodysize "
+                   << func_body_size << " codesize " << codesize << std::endl;
+  }
 
   DCHECK(result.succeeded());
   return result;

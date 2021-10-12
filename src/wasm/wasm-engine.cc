@@ -893,6 +893,14 @@ void WasmEngine::DumpAndResetTurboStatistics() {
   compilation_stats_.reset();
 }
 
+void WasmEngine::DumpTurboStatistics() {
+  base::MutexGuard guard(&mutex_);
+  if (compilation_stats_ != nullptr) {
+    StdoutStream os;
+    os << AsPrintableStatistics{*compilation_stats_.get(), false} << std::endl;
+  }
+}
+
 CodeTracer* WasmEngine::GetCodeTracer() {
   base::MutexGuard guard(&mutex_);
   if (code_tracer_ == nullptr) code_tracer_.reset(new CodeTracer(-1));

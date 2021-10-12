@@ -952,7 +952,10 @@ ExecutionTierPair GetRequestedExecutionTiers(
       Impl(native_module->compilation_state())->dynamic_tiering() ==
       DynamicTiering::kEnabled;
   bool tier_up_enabled = !dynamic_tiering && FLAG_wasm_tier_up;
-  if (module->origin != kWasmOrigin || !tier_up_enabled) {
+  if (module->origin != kWasmOrigin || !tier_up_enabled ||
+      V8_UNLIKELY(FLAG_wasm_tier_up_filter >= 0 &&
+                  func_index !=
+                      static_cast<uint32_t>(FLAG_wasm_tier_up_filter))) {
     result.top_tier = result.baseline_tier;
     return result;
   }
