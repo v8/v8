@@ -478,12 +478,12 @@ void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
   BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
 }
 
-bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(base::uc16 type,
-                                                           Label* on_no_match) {
+bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(
+    StandardCharacterSet type, Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check.
   switch (type) {
-    case 's':
+    case StandardCharacterSet::kWhitespace:
       // Match space-characters.
       if (mode_ == LATIN1) {
         // One byte space characters are '\t'..'\r', ' ' and \u00a0.
@@ -498,20 +498,20 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(base::uc16 type,
         return true;
       }
       return false;
-    case 'S':
+    case StandardCharacterSet::kNotWhitespace:
       // The emitted code for generic character classes is good enough.
       return false;
-    case 'd':
+    case StandardCharacterSet::kDigit:
       // Match Latin1 digits ('0'..'9').
       __ Sub64(a0, current_character(), Operand('0'));
       BranchOrBacktrack(on_no_match, Ugreater, a0, Operand('9' - '0'));
       return true;
-    case 'D':
+    case StandardCharacterSet::kNotDigit:
       // Match non Latin1-digits.
       __ Sub64(a0, current_character(), Operand('0'));
       BranchOrBacktrack(on_no_match, Uless_equal, a0, Operand('9' - '0'));
       return true;
-    case '.': {
+    case StandardCharacterSet::kNotLineTerminator: {
       // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
       __ Xor(a0, current_character(), Operand(0x01));
       // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
@@ -526,7 +526,7 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(base::uc16 type,
       }
       return true;
     }
-    case 'n': {
+    case StandardCharacterSet::kLineTerminator: {
       // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
       __ Xor(a0, current_character(), Operand(0x01));
       // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
@@ -545,7 +545,7 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(base::uc16 type,
       }
       return true;
     }
-    case 'w': {
+    case StandardCharacterSet::kWord: {
       if (mode_ != LATIN1) {
         // Table is 256 entries, so all Latin1 characters can be tested.
         BranchOrBacktrack(on_no_match, Ugreater, current_character(),
@@ -558,7 +558,7 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(base::uc16 type,
       BranchOrBacktrack(on_no_match, eq, a0, Operand(zero_reg));
       return true;
     }
-    case 'W': {
+    case StandardCharacterSet::kNotWord: {
       Label done;
       if (mode_ != LATIN1) {
         // Table is 256 entries, so all Latin1 characters can be tested.
@@ -574,7 +574,7 @@ bool RegExpMacroAssemblerRISCV::CheckSpecialCharacterClass(base::uc16 type,
       }
       return true;
     }
-    case '*':
+    case StandardCharacterSet::kEverything:
       // Match any character.
       return true;
     // No custom implementation (yet): s(UC16), S(UC16).
