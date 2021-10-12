@@ -959,6 +959,9 @@ FactoryBase<Impl>::RefineAllocationTypeForInPlaceInternalizableString(
   DCHECK(InstanceTypeChecker::IsInternalizedString(instance_type) ||
          String::IsInPlaceInternalizable(instance_type));
 #endif
+  if (FLAG_single_generation && allocation == AllocationType::kYoung) {
+    allocation = AllocationType::kOld;
+  }
   if (allocation != AllocationType::kOld) return allocation;
   return impl()->AllocationTypeForInPlaceInternalizableString();
 }

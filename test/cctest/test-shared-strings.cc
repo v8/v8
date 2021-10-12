@@ -64,6 +64,7 @@ class MultiClientIsolateTest {
 };
 
 UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
+  if (FLAG_single_generation) return;
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
 
@@ -176,6 +177,7 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
 UNINITIALIZED_TEST(YoungInternalization) {
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+  if (FLAG_single_generation) return;
 
   FLAG_shared_string_table = true;
 
