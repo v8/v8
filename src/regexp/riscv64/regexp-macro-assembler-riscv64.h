@@ -78,7 +78,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
-  virtual bool CanReadUnaligned();
+  virtual bool CanReadUnaligned() const;
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
