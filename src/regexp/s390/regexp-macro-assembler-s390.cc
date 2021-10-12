@@ -353,10 +353,9 @@ void RegExpMacroAssemblerS390::CheckNotBackReferenceIgnoreCase(
     {
       AllowExternalCallThatCantCauseGC scope(masm_.get());
       ExternalReference function =
-          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
-                        isolate())
-                  : ExternalReference::re_case_insensitive_compare_non_unicode(
-                        isolate());
+          unicode
+              ? ExternalReference::re_case_insensitive_compare_unicode()
+              : ExternalReference::re_case_insensitive_compare_non_unicode();
       __ CallCFunction(function, argument_count);
     }
 
@@ -587,8 +586,7 @@ bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(base::uc16 type,
         __ CmpS64(current_character(), Operand('z'));
         BranchOrBacktrack(gt, on_no_match);
       }
-      ExternalReference map =
-          ExternalReference::re_word_character_map(isolate());
+      ExternalReference map = ExternalReference::re_word_character_map();
       __ mov(r2, Operand(map));
       __ LoadU8(r2, MemOperand(r2, current_character()));
       __ CmpU64(r2, Operand::Zero());
@@ -602,8 +600,7 @@ bool RegExpMacroAssemblerS390::CheckSpecialCharacterClass(base::uc16 type,
         __ CmpU64(current_character(), Operand('z'));
         __ bgt(&done);
       }
-      ExternalReference map =
-          ExternalReference::re_word_character_map(isolate());
+      ExternalReference map = ExternalReference::re_word_character_map();
       __ mov(r2, Operand(map));
       __ LoadU8(r2, MemOperand(r2, current_character()));
       __ CmpU64(r2, Operand::Zero());
@@ -1003,7 +1000,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     static constexpr int kNumArguments = 1;
     __ PrepareCallCFunction(kNumArguments, r2);
     __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
-    ExternalReference grow_stack = ExternalReference::re_grow_stack(isolate());
+    ExternalReference grow_stack = ExternalReference::re_grow_stack();
     __ CallCFunction(grow_stack, kNumArguments);
     // If nullptr is returned, we have failed to grow the stack, and must exit
     // with a stack-overflow exception.
@@ -1176,7 +1173,7 @@ void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
   // r2 becomes return address pointer.
   __ lay(r2, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
   ExternalReference stack_guard_check =
-      ExternalReference::re_check_stack_guard_state(isolate());
+      ExternalReference::re_check_stack_guard_state();
 
   __ mov(ip, Operand(stack_guard_check));
   __ StoreReturnAddressAndCall(ip);
