@@ -189,7 +189,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
    private:
     constexpr explicit ThreadState(uint8_t value) : raw_state_(value) {}
 
-    uint8_t raw() const { return raw_state_; }
+    constexpr uint8_t raw() const { return raw_state_; }
 
     uint8_t raw_state_;
 
