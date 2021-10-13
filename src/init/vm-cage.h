@@ -15,7 +15,7 @@ class PageAllocator;
 
 namespace internal {
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
+#ifdef V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
 
 /**
  * V8 Virtual Memory Cage.
@@ -70,11 +70,12 @@ class V8_EXPORT_PRIVATE V8VirtualMemoryCage {
   bool is_initialized() const { return initialized_; }
   bool is_disabled() const { return disabled_; }
   bool is_enabled() const { return !disabled_; }
+  bool is_fake_cage() const { return is_fake_cage_; }
 
   Address base() const { return base_; }
   size_t size() const { return size_; }
 
-  base::BoundedPageAllocator* page_allocator() const {
+  v8::PageAllocator* page_allocator() const {
     return cage_page_allocator_.get();
   }
 
@@ -91,27 +92,48 @@ class V8_EXPORT_PRIVATE V8VirtualMemoryCage {
   // cage without guard regions, which would otherwise consume too much memory.
   friend class SequentialUnmapperTest;
 
+  // These tests call the private Initialize methods below.
+  FRIEND_TEST(VirtualMemoryCageTest, InitializationWithSize);
+  FRIEND_TEST(VirtualMemoryCageTest, InitializationAsFakeCage);
+  FRIEND_TEST(VirtualMemoryCageTest, FakeCagePageAllocation);
+
   // We allow tests to disable the guard regions around the cage. This is useful
   // for example for tests like the SequentialUnmapperTest which track page
   // allocations and so would incur a large overhead from the guard regions.
-  bool Initialize(v8::PageAllocator* page_allocator, size_t total_size,
+  bool Initialize(v8::PageAllocator* page_allocator, size_t size,
                   bool use_guard_regions);
+
+  // Used on OSes where reserving virtual memory is too expensive. A fake cage
+  // does not reserve all of the virtual memory and so doesn't have the desired
+  // security properties.
+  bool InitializeAsFakeCage(v8::PageAllocator* page_allocator, size_t size,
+                            size_t size_to_reserve);
 
   Address base_ = kNullAddress;
   size_t size_ = 0;
-  bool has_guard_regions_ = false;
+
+  // Base and size of the virtual memory reservation backing this cage. These
+  // can be different from the cage base and size due to guard regions or when a
+  // fake cage is used.
+  Address reservation_base_ = kNullAddress;
+  size_t reservation_size_ = 0;
+
   bool initialized_ = false;
   bool disabled_ = false;
-  // The PageAllocator through which the virtual memory of the cage was
-  // allocated.
+  bool is_fake_cage_ = false;
+
+  // The allocator through which the virtual memory of the cage was allocated.
   v8::PageAllocator* page_allocator_ = nullptr;
-  // The BoundedPageAllocator to allocate pages inside the cage.
-  std::unique_ptr<base::BoundedPageAllocator> cage_page_allocator_;
+  // The allocator to allocate pages inside the cage.
+  std::unique_ptr<v8::PageAllocator> cage_page_allocator_;
 };
 
-V8_EXPORT_PRIVATE V8VirtualMemoryCage* GetProcessWideVirtualMemoryCage();
+#endif  // V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
 
-#endif  // V8_VIRTUAL_MEMORY_CAGE
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+// This function is only available when the cage is actually used.
+V8_EXPORT_PRIVATE V8VirtualMemoryCage* GetProcessWideVirtualMemoryCage();
+#endif
 
 V8_INLINE bool IsValidBackingStorePointer(void* ptr) {
 #ifdef V8_VIRTUAL_MEMORY_CAGE
