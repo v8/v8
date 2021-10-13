@@ -2162,6 +2162,13 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)
 
+// Web snapshots
+// TODO(v8:11525): Remove this flag once proper embedder integration is done.
+DEFINE_BOOL(
+    experimental_web_snapshots, false,
+    "interpret scripts as web snapshots if they start with a magic number")
+DEFINE_NEG_IMPLICATION(experimental_web_snapshots, script_streaming)
+
 #undef FLAG
 
 #ifdef VERIFY_PREDICTABLE

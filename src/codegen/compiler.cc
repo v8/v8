@@ -60,6 +60,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/utils/ostreams.h"
+#include "src/web-snapshot/web-snapshot.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 namespace v8 {
@@ -2855,6 +2856,27 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
+  if (V8_UNLIKELY(
+          i::FLAG_experimental_web_snapshots &&
+          (source->IsExternalOneByteString() || source->IsSeqOneByteString()) &&
+          source_length > 4)) {
+    // Experimental: Treat the script as a web snapshot if it starts with the
+    // magic byte sequence. TODO(v8:11525): Remove this once proper embedder
+    // integration is done.
+    bool magic_matches = true;
+    for (size_t i = 0;
+         i < sizeof(WebSnapshotSerializerDeserializer::kMagicNumber); ++i) {
+      if (source->Get(static_cast<int>(i)) !=
+          WebSnapshotSerializerDeserializer::kMagicNumber[i]) {
+        magic_matches = false;
+        break;
+      }
+    }
+    if (magic_matches) {
+      return Compiler::GetSharedFunctionInfoForWebSnapshot(isolate, source);
+    }
+  }
+
   LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
@@ -3221,6 +3243,23 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
                "V8.StreamingFinalization.Release");
   streaming_data->Release();
   return maybe_result;
+}
+
+// static
+Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForWebSnapshot(
+    Isolate* isolate, Handle<String> source) {
+  // This script won't hold the functions created from the web snapshot;
+  // reserving space only for the top-level SharedFunctionInfo is enough.
+  Handle<WeakFixedArray> shared_function_infos =
+      isolate->factory()->NewWeakFixedArray(1, AllocationType::kOld);
+  Handle<Script> script = isolate->factory()->NewScript(source);
+  script->set_type(Script::TYPE_WEB_SNAPSHOT);
+  script->set_shared_function_infos(*shared_function_infos);
+
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForWebSnapshot();
+  shared->SetScript(isolate->factory()->read_only_roots(), *script, 0, false);
+  return shared;
 }
 
 // static

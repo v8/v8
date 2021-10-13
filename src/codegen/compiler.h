@@ -207,6 +207,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, ScriptStreamingData* streaming_data);
 
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForWebSnapshot(
+      Isolate* isolate, Handle<String> source);
+
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).
   template <typename IsolateT>

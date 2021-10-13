@@ -200,6 +200,7 @@ class V8_EXPORT WebSnapshotDeserializer
   explicit WebSnapshotDeserializer(v8::Isolate* v8_isolate);
   ~WebSnapshotDeserializer();
   bool UseWebSnapshot(const uint8_t* data, size_t buffer_size);
+  bool UseWebSnapshot(Handle<Script> snapshot_as_script);
 
   // For inspecting the state after deserializing a snapshot.
   uint32_t string_count() const { return string_count_; }
@@ -211,6 +212,8 @@ class V8_EXPORT WebSnapshotDeserializer
   uint32_t object_count() const { return object_count_; }
 
  private:
+  bool Deserialize();
+
   WebSnapshotDeserializer(const WebSnapshotDeserializer&) = delete;
   WebSnapshotDeserializer& operator=(const WebSnapshotDeserializer&) = delete;
 

@@ -767,19 +767,51 @@ void WebSnapshotDeserializer::Throw(const char* message) {
 
 bool WebSnapshotDeserializer::UseWebSnapshot(const uint8_t* data,
                                              size_t buffer_size) {
+  deserializer_.reset(new ValueDeserializer(isolate_, data, buffer_size));
+  return Deserialize();
+}
+
+bool WebSnapshotDeserializer::UseWebSnapshot(
+    Handle<Script> snapshot_as_script) {
+  Handle<String> source =
+      handle(String::cast(snapshot_as_script->source()), isolate_);
+  if (source->IsExternalOneByteString()) {
+    const v8::String::ExternalOneByteStringResource* resource =
+        ExternalOneByteString::cast(*source).resource();
+    deserializer_.reset(new ValueDeserializer(
+        isolate_, reinterpret_cast<const uint8_t*>(resource->data()),
+        resource->length()));
+    return Deserialize();
+  }
+  DCHECK(source->IsSeqOneByteString());
+  SeqOneByteString source_as_seq = SeqOneByteString::cast(*source);
+  auto length = source_as_seq.length();
+  uint8_t* data_copy = new uint8_t[length];
+  {
+    DisallowGarbageCollection no_gc;
+    uint8_t* data = source_as_seq.GetChars(no_gc);
+    memcpy(data_copy, data, length);
+  }
+  deserializer_.reset(new ValueDeserializer(isolate_, data_copy, length));
+  bool return_value = Deserialize();
+  delete[] data_copy;
+  return return_value;
+}
+
+bool WebSnapshotDeserializer::Deserialize() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize);
   if (deserialized_) {
     Throw("Web snapshot: Can't reuse WebSnapshotDeserializer");
     return false;
   }
   deserialized_ = true;
+  auto buffer_size = deserializer_->end_ - deserializer_->position_;
 
   base::ElapsedTimer timer;
   if (FLAG_trace_web_snapshot) {
     timer.Start();
   }
 
-  deserializer_.reset(new ValueDeserializer(isolate_, data, buffer_size));
   deferred_references_ = ArrayList::New(isolate_, 30);
 
   const void* magic_bytes;

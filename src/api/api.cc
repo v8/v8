@@ -120,6 +120,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/detachable-vector.h"
 #include "src/utils/version.h"
+#include "src/web-snapshot/web-snapshot.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
@@ -2044,7 +2045,8 @@ Local<Value> UnboundScript::GetSourceMappingURL() {
 }
 
 MaybeLocal<Value> Script::Run(Local<Context> context) {
-  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  auto v8_isolate = context->GetIsolate();
+  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
   ENTER_V8(isolate, context, Script, Run, MaybeLocal<Value>(),
            InternalEscapableScope);
@@ -2071,6 +2073,19 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
     timer.Start();
     while (timer.Elapsed() < delta) {
       // Busy wait.
+    }
+  }
+
+  if (V8_UNLIKELY(i::FLAG_experimental_web_snapshots)) {
+    i::Handle<i::HeapObject> maybe_script =
+        handle(fun->shared().script(), isolate);
+    if (maybe_script->IsScript() &&
+        i::Script::cast(*maybe_script).type() == i::Script::TYPE_WEB_SNAPSHOT) {
+      i::WebSnapshotDeserializer deserializer(v8_isolate);
+      deserializer.UseWebSnapshot(i::Handle<i::Script>::cast(maybe_script));
+      RETURN_ON_FAILED_EXECUTION(Value);
+      Local<Value> result = v8::Undefined(v8_isolate);
+      RETURN_ESCAPED(result);
     }
   }
 

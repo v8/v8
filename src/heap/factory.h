@@ -726,6 +726,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       MaybeHandle<String> name, Builtin builtin,
       FunctionKind kind = kNormalFunction);
 
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForWebSnapshot();
+
   static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
     return (function_mode & kWithPrototypeBits) != 0;
   }

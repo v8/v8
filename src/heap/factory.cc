@@ -2992,6 +2992,12 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
   return shared;
 }
 
+Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWebSnapshot() {
+  return NewSharedFunctionInfo(empty_string(), MaybeHandle<Code>(),
+                               Builtin::kNoBuiltinId,
+                               FunctionKind::kNormalFunction);
+}
+
 namespace {
 V8_INLINE int NumberToStringCacheHash(Handle<FixedArray> cache, Smi number) {
   int mask = (cache->length() >> 1) - 1;
