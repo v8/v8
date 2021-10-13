@@ -614,14 +614,144 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
-  bailout(kAtomics, "AtomicExchange");
+#if defined(V8_OS_AIX)
+  bailout(kUnsupportedArchitecture, "atomic");
+#else
+  Register offset = r0;
+  if (offset_imm != 0) {
+    mov(ip, Operand(offset_imm));
+    if (offset_reg != no_reg) {
+      add(ip, ip, offset_reg);
+    }
+    offset = ip;
+  } else {
+    if (offset_reg != no_reg) {
+      offset = offset_reg;
+    }
+  }
+  MemOperand dst = MemOperand(offset, dst_addr);
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8: {
+      TurboAssembler::AtomicExchange<uint8_t>(dst, value.gp(), result.gp());
+      break;
+    }
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16: {
+      if (is_be) {
+        ByteReverseU16(r0, value.gp());
+        TurboAssembler::AtomicExchange<uint16_t>(dst, r0, result.gp());
+        ByteReverseU16(result.gp(), result.gp());
+      } else {
+        TurboAssembler::AtomicExchange<uint16_t>(dst, value.gp(), result.gp());
+      }
+      break;
+    }
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32: {
+      if (is_be) {
+        ByteReverseU32(r0, value.gp());
+        TurboAssembler::AtomicExchange<uint32_t>(dst, r0, result.gp());
+        ByteReverseU32(result.gp(), result.gp());
+      } else {
+        TurboAssembler::AtomicExchange<uint32_t>(dst, value.gp(), result.gp());
+      }
+      break;
+    }
+    case StoreType::kI64Store: {
+      if (is_be) {
+        ByteReverseU64(r0, value.gp());
+        TurboAssembler::AtomicExchange<uint64_t>(dst, r0, result.gp());
+        ByteReverseU64(result.gp(), result.gp());
+      } else {
+        TurboAssembler::AtomicExchange<uint64_t>(dst, value.gp(), result.gp());
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+#endif
 }
 
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  bailout(kAtomics, "AtomicCompareExchange");
+#if defined(V8_OS_AIX)
+  bailout(kUnsupportedArchitecture, "atomic");
+#else
+  Register offset = r0;
+  if (offset_imm != 0) {
+    mov(ip, Operand(offset_imm));
+    if (offset_reg != no_reg) {
+      add(ip, ip, offset_reg);
+    }
+    offset = ip;
+  } else {
+    if (offset_reg != no_reg) {
+      offset = offset_reg;
+    }
+  }
+  MemOperand dst = MemOperand(offset, dst_addr);
+  switch (type.value()) {
+    case StoreType::kI32Store8:
+    case StoreType::kI64Store8: {
+      TurboAssembler::AtomicCompareExchange<uint8_t>(
+          dst, expected.gp(), new_value.gp(), result.gp(), r0);
+      break;
+    }
+    case StoreType::kI32Store16:
+    case StoreType::kI64Store16: {
+      if (is_be) {
+        Push(r3, r4);
+        ByteReverseU16(r3, new_value.gp());
+        ByteReverseU16(r4, expected.gp());
+        TurboAssembler::AtomicCompareExchange<uint16_t>(dst, r4, r3,
+                                                        result.gp(), r0);
+        ByteReverseU16(result.gp(), result.gp());
+        Pop(r3, r4);
+      } else {
+        TurboAssembler::AtomicCompareExchange<uint16_t>(
+            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+      }
+      break;
+    }
+    case StoreType::kI32Store:
+    case StoreType::kI64Store32: {
+      if (is_be) {
+        Push(r3, r4);
+        ByteReverseU32(r3, new_value.gp());
+        ByteReverseU32(r4, expected.gp());
+        TurboAssembler::AtomicCompareExchange<uint32_t>(dst, r4, r3,
+                                                        result.gp(), r0);
+        ByteReverseU32(result.gp(), result.gp());
+        Pop(r3, r4);
+      } else {
+        TurboAssembler::AtomicCompareExchange<uint32_t>(
+            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+      }
+      break;
+    }
+    case StoreType::kI64Store: {
+      if (is_be) {
+        Push(r3, r4);
+        ByteReverseU64(r3, new_value.gp());
+        ByteReverseU64(r4, expected.gp());
+        TurboAssembler::AtomicCompareExchange<uint64_t>(dst, r4, r3,
+                                                        result.gp(), r0);
+        ByteReverseU64(result.gp(), result.gp());
+        Pop(r3, r4);
+      } else {
+        TurboAssembler::AtomicCompareExchange<uint64_t>(
+            dst, expected.gp(), new_value.gp(), result.gp(), r0);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+#endif
 }
 
 void LiftoffAssembler::AtomicFence() { sync(); }
