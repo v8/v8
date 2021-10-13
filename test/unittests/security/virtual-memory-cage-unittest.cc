@@ -128,10 +128,6 @@ TEST(VirtualMemoryCageTest, PageAllocation) {
   cage.TearDown();
 }
 
-// This test doesn't yet work on Fuchsia as the PageAllocator does not respect
-// hints there, but the fake cage's page allocator relies on them.
-// TODO(saelo) enable this test once the PageAllocator respects hints.
-#if !V8_OS_FUCHSIA
 TEST(VirtualMemoryCageTest, FakeCagePageAllocation) {
   base::PageAllocator page_allocator;
   V8VirtualMemoryCage cage;
@@ -145,7 +141,6 @@ TEST(VirtualMemoryCageTest, FakeCagePageAllocation) {
 
   cage.TearDown();
 }
-#endif  // !V8_OS_FUCHSIA
 
 }  // namespace internal
 }  // namespace v8

@@ -17,7 +17,7 @@ namespace base {
 
 namespace {
 
-uint32_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
+zx_vm_option_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
     case OS::MemoryPermission::kNoAccessWillJitLater:
@@ -66,10 +66,24 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
     return nullptr;
   }
 
+  zx_vm_option_t options = GetProtectionFromMemoryPermission(access);
+
+  uint64_t vmar_offset = 0;
+  if (address) {
+    vmar_offset = reinterpret_cast<uint64_t>(address);
+    options |= ZX_VM_SPECIFIC;
+  }
+
   zx_vaddr_t reservation;
-  uint32_t prot = GetProtectionFromMemoryPermission(access);
-  if (zx::vmar::root_self()->map(prot, 0, vmo, 0, request_size, &reservation) !=
-      ZX_OK) {
+  zx_status_t status = zx::vmar::root_self()->map(options, vmar_offset, vmo, 0,
+                                                  request_size, &reservation);
+  if (status != ZX_OK && address != nullptr) {
+    // Retry without the hint, if we supplied one.
+    options &= ~(ZX_VM_SPECIFIC);
+    status = zx::vmar::root_self()->map(options, 0, vmo, 0, request_size,
+                                        &reservation);
+  }
+  if (status != ZX_OK) {
     return nullptr;
   }
 
