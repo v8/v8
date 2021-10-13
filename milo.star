@@ -35,3 +35,5 @@ console_view(
 )
 
 list_view("tryserver", "Tryserver")
+
+list_view("tools", "Tools")

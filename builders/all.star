@@ -12,3 +12,5 @@ exec("/official.star")
 
 exec("/try_ng.star")
 exec("/try.star")
+
+exec("/tools.star")
