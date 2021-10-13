@@ -4347,11 +4347,12 @@ UNINITIALIZED_TEST(NoStackFrameCacheSerialization) {
 
 namespace {
 void CheckObjectsAreInSharedHeap(Isolate* isolate) {
-  HeapObjectIterator iterator(isolate->heap());
+  Heap* heap = isolate->heap();
+  HeapObjectIterator iterator(heap);
   DisallowGarbageCollection no_gc;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (SharedHeapSerializer::ShouldBeInSharedOldSpace(isolate, obj)) {
+    if (heap->ShouldBeInSharedOldSpace(obj)) {
       CHECK(obj.InSharedHeap());
     }
   }

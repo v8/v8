@@ -43,7 +43,9 @@ class V8_EXPORT_PRIVATE SharedHeapSerializer : public RootsSerializer {
   bool SerializeUsingSharedHeapObjectCache(SnapshotByteSink* sink,
                                            Handle<HeapObject> obj);
 
-  static bool ShouldBeInSharedOldSpace(Isolate* isolate, HeapObject obj);
+  static bool CanBeInSharedOldSpace(HeapObject obj);
+
+  static bool ShouldBeInSharedHeapObjectCache(HeapObject obj);
 
  private:
   void SerializeStringTable(StringTable* string_table);

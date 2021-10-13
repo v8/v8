@@ -4293,6 +4293,17 @@ bool Heap::SharedHeapContains(HeapObject value) const {
   return false;
 }
 
+bool Heap::ShouldBeInSharedOldSpace(HeapObject value) {
+  if (isolate()->OwnsStringTable()) return false;
+  if (ReadOnlyHeap::Contains(value)) return false;
+  if (Heap::InYoungGeneration(value)) return false;
+  if (value.IsString()) {
+    return value.IsInternalizedString() ||
+           String::IsInPlaceInternalizable(String::cast(value));
+  }
+  return false;
+}
+
 bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
     return third_party_heap::Heap::InSpace(value.address(), space);

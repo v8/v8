@@ -13,12 +13,23 @@ namespace v8 {
 namespace internal {
 
 // static
-bool SharedHeapSerializer::ShouldBeInSharedOldSpace(Isolate* isolate,
-                                                    HeapObject obj) {
+bool SharedHeapSerializer::CanBeInSharedOldSpace(HeapObject obj) {
   if (ReadOnlyHeap::Contains(obj)) return false;
   if (obj.IsString()) {
     return obj.IsInternalizedString() ||
            String::IsInPlaceInternalizable(String::cast(obj));
+  }
+  return false;
+}
+
+// static
+bool SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(HeapObject obj) {
+  // To keep the shared heap object cache lean, only include objects that should
+  // not be duplicated. Currently, that is only internalized strings. In-place
+  // internalizable strings will still be allocated in the shared heap by the
+  // deserializer, but do not need to be kept alive forever in the cache.
+  if (CanBeInSharedOldSpace(obj)) {
+    if (obj.IsInternalizedString()) return true;
   }
   return false;
 }
@@ -64,7 +75,7 @@ void SharedHeapSerializer::FinalizeSerialization() {
       &serialized_objects_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     HeapObject obj = HeapObject::cast(it.key());
-    CHECK(ShouldBeInSharedOldSpace(isolate(), obj));
+    CHECK(CanBeInSharedOldSpace(obj));
     CHECK(!ReadOnlyHeap::Contains(obj));
   }
 #endif
@@ -77,7 +88,7 @@ bool SharedHeapSerializer::SerializeUsingReadOnlyObjectCache(
 
 bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
     SnapshotByteSink* sink, Handle<HeapObject> obj) {
-  if (!ShouldBeInSharedOldSpace(isolate(), *obj)) return false;
+  if (!ShouldBeInSharedHeapObjectCache(*obj)) return false;
   int cache_index = SerializeInObjectCache(obj);
   sink->Put(kSharedHeapObjectCache, "SharedHeapObjectCache");
   sink->PutInt(cache_index, "shared_heap_object_cache_index");
@@ -138,8 +149,7 @@ void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
 void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // Objects in the shared heap cannot depend on per-Isolate roots but can
   // depend on RO roots since sharing objects requires sharing the RO space.
-  DCHECK(ShouldBeInSharedOldSpace(isolate(), *obj) ||
-         ReadOnlyHeap::Contains(*obj));
+  DCHECK(CanBeInSharedOldSpace(*obj) || ReadOnlyHeap::Contains(*obj));
 
   if (SerializeHotObject(obj)) return;
   if (IsRootAndHasBeenSerialized(*obj) && SerializeRoot(obj)) return;

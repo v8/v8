@@ -979,8 +979,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       // shared_heap_object_cache entry as a Handle backing?
       HeapObject heap_object = HeapObject::cast(
           main_thread_isolate()->shared_heap_object_cache()->at(cache_index));
-      DCHECK(SharedHeapSerializer::ShouldBeInSharedOldSpace(
-          main_thread_isolate(), heap_object));
+      DCHECK(
+          SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(heap_object));
       return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
     }
 

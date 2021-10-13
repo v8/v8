@@ -268,10 +268,7 @@ class FullMarkingVerifier : public MarkingVerifier {
         BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
       return;
 
-    if (!heap_->isolate()->OwnsStringTable() &&
-        !Heap::InYoungGeneration(heap_object) &&
-        SharedHeapSerializer::ShouldBeInSharedOldSpace(heap_->isolate(),
-                                                       heap_object)) {
+    if (heap_->ShouldBeInSharedOldSpace(heap_object)) {
       CHECK(heap_->SharedHeapContains(heap_object));
     }
 
