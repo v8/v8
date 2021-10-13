@@ -2009,64 +2009,7 @@ void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
     return;
   }
 
-  switch (type.representation()) {
-    // For abstract types, generate one of their subtypes, or fall back to the
-    // default case.
-    case HeapType::kAny: {
-      // Weighed according to the types in the module.
-      uint32_t num_types = builder_->builder()->NumTypes();
-      uint8_t random = data->get<uint8_t>() % (num_types + 3);
-      if (random < num_structs_ + num_arrays_) {
-        GenerateOptRef(HeapType(HeapType::kData), data);
-        return;
-      } else if (random < num_types) {
-        GenerateOptRef(HeapType(HeapType::kFunc), data);
-        return;
-      } else if (random == num_types) {
-        GenerateOptRef(HeapType(HeapType::kExtern), data);
-        return;
-      } else if (random == num_types + 1) {
-        GenerateOptRef(HeapType(HeapType::kI31), data);
-        return;
-      }
-      // Else fall back to the default case outside the switch.
-      break;
-    }
-    case HeapType::kData:
-    case HeapType::kEq: {
-      uint8_t random = data->get<uint8_t>() % (num_structs_ + num_arrays_ + 1);
-      if (random > 0) {
-        GenerateOptRef(HeapType(random - 1), data);
-        return;
-      }
-      // Else fall back to the default case outside the switch.
-      break;
-    }
-    case HeapType::kFunc: {
-      uint32_t random = data->get<uint32_t>() % (functions_.size() + 1);
-      if (random > 0) {
-        uint32_t signature_index = functions_[random - 1];
-        DCHECK(builder_->builder()->IsSignature(signature_index));
-        GenerateOptRef(HeapType(signature_index), data);
-        return;
-      }
-      // Else fall back to the default case outside the switch.
-      break;
-    }
-    case HeapType::kI31: {
-      if (data->get<bool>()) {
-        Generate(kWasmI32, data);
-        builder_->EmitWithPrefix(kExprI31New);
-        return;
-      }
-      // Else fall back to the default case outside the switch.
-      break;
-    }
-    default:
-      break;
-  }
-
-  constexpr GenerateFnWithHeap alternatives_with_index[] = {
+  constexpr GenerateFnWithHeap alternatives_indexed_type[] = {
       &WasmGenerator::new_object, &WasmGenerator::get_local_opt_ref,
       &WasmGenerator::array_get_opt_ref, &WasmGenerator::struct_get_opt_ref,
       &WasmGenerator::ref_null};
@@ -2076,17 +2019,113 @@ void WasmGenerator::GenerateOptRef(HeapType type, DataRange* data) {
       &WasmGenerator::array_get_opt_ref, &WasmGenerator::struct_get_opt_ref,
       &WasmGenerator::ref_null};
 
-  constexpr GenerateFnWithHeap alternatives_null[] = {
+  constexpr GenerateFnWithHeap alternatives_other[] = {
       &WasmGenerator::array_get_opt_ref, &WasmGenerator::ref_null,
       &WasmGenerator::get_local_opt_ref, &WasmGenerator::struct_get_opt_ref};
 
-  if (liftoff_as_reference_ && type.is_index()) {
-    GenerateOneOf(alternatives_with_index, type, data);
-  } else if (type == HeapType::kFunc || type == HeapType::kExtern) {
-    GenerateOneOf(alternatives_func_extern, type, data);
-  } else {
-    GenerateOneOf(alternatives_null, type, data);
+  switch (type.representation()) {
+    // For abstract types, sometimes generate one of their subtypes.
+    case HeapType::kAny: {
+      // Note: It is possible we land here even without {liftoff_as_reference_},
+      // because we use anyref as a supertype of all reference types. Therefore,
+      // we have to generate the correct subtypes based on the value of
+      // {liftoff_as_reference_}.
+      // Weighed according to the types in the module. If there are D data types
+      // and F function types, the relative frequencies for dataref is D, for
+      // funcref F, for externref 1, for i31ref 2 if {liftoff_as_reference_}
+      // otherwise 0, and for falling back to anyref 2 or 0.
+      const uint8_t num_data_types = num_structs_ + num_arrays_;
+      const uint8_t num_function_types = functions_.size();
+      constexpr uint8_t emit_externref = 1;
+      const uint8_t emit_i31ref = liftoff_as_reference_ ? 2 : 0;
+      const uint8_t fallback_to_anyref = liftoff_as_reference_ ? 2 : 0;
+      uint8_t random = data->get<uint8_t>() %
+                       (num_data_types + num_function_types + emit_externref +
+                        emit_i31ref + fallback_to_anyref);
+      if (random < num_data_types) {
+        DCHECK(liftoff_as_reference_);
+        GenerateOptRef(HeapType(HeapType::kData), data);
+      } else if (random < num_data_types + num_function_types) {
+        GenerateOptRef(HeapType(HeapType::kFunc), data);
+      } else if (random <
+                 num_data_types + num_function_types + emit_externref) {
+        GenerateOptRef(HeapType(HeapType::kExtern), data);
+      } else if (random < num_data_types + num_function_types + emit_externref +
+                              emit_i31ref) {
+        DCHECK(liftoff_as_reference_);
+        GenerateOptRef(HeapType(HeapType::kI31), data);
+      } else {
+        DCHECK(liftoff_as_reference_);
+        GenerateOneOf(alternatives_other, type, data);
+      }
+      return;
+    }
+    case HeapType::kData: {
+      DCHECK(liftoff_as_reference_);
+      constexpr uint8_t fallback_to_dataref = 2;
+      uint8_t random = data->get<uint8_t>() %
+                       (num_arrays_ + num_structs_ + fallback_to_dataref);
+      if (random < num_arrays_ + num_structs_) {
+        GenerateOptRef(HeapType(random), data);
+      } else {
+        GenerateOneOf(alternatives_other, type, data);
+      }
+      return;
+    }
+    case HeapType::kEq: {
+      DCHECK(liftoff_as_reference_);
+      const uint8_t num_types = num_arrays_ + num_structs_;
+      constexpr uint8_t emit_i31ref = 2;
+      constexpr uint8_t fallback_to_eqref = 1;
+      uint8_t random =
+          data->get<uint8_t>() % (num_types + emit_i31ref + fallback_to_eqref);
+      if (random < num_types) {
+        GenerateOptRef(HeapType(random), data);
+      } else if (random < num_types + emit_i31ref) {
+        GenerateOptRef(HeapType(HeapType::kI31), data);
+      } else {
+        GenerateOneOf(alternatives_other, type, data);
+      }
+      return;
+    }
+    case HeapType::kExtern: {
+      GenerateOneOf(alternatives_func_extern, type, data);
+      return;
+    }
+    case HeapType::kFunc: {
+      uint32_t random = data->get<uint32_t>() % (functions_.size() + 1);
+      if (random < functions_.size()) {
+        if (liftoff_as_reference_) {
+          // Only reduce to indexed type with liftoff as reference.
+          uint32_t signature_index = functions_[random];
+          DCHECK(builder_->builder()->IsSignature(signature_index));
+          GenerateOptRef(HeapType(signature_index), data);
+        } else {
+          // If interpreter is used as reference, generate a ref.func directly.
+          builder_->EmitWithU32V(kExprRefFunc, random);
+        }
+      } else {
+        GenerateOneOf(alternatives_func_extern, type, data);
+      }
+      return;
+    }
+    case HeapType::kI31: {
+      DCHECK(liftoff_as_reference_);
+      if (data->get<bool>()) {
+        Generate(kWasmI32, data);
+        builder_->EmitWithPrefix(kExprI31New);
+      } else {
+        GenerateOneOf(alternatives_other, type, data);
+      }
+      return;
+    }
+    default:
+      // Indexed type.
+      DCHECK(liftoff_as_reference_);
+      GenerateOneOf(alternatives_indexed_type, type, data);
+      return;
   }
+  UNREACHABLE();
 }
 
 std::vector<ValueType> WasmGenerator::GenerateTypes(DataRange* data) {
