@@ -23,7 +23,7 @@ namespace v8_inspector {
 
 namespace {
 
-static const int kMaxAsyncTaskStacks = 8 * 1024;
+static const size_t kMaxAsyncTaskStacks = 8 * 1024;
 static const int kNoBreakpointId = 0;
 
 template <typename Map>
@@ -914,7 +914,6 @@ V8StackTraceId V8Debugger::storeCurrentStackTrace(
   uintptr_t id = AsyncStackTrace::store(this, asyncStack);
 
   m_allAsyncStacks.push_back(std::move(asyncStack));
-  ++m_asyncStacksCount;
   collectOldAsyncStacksIfNeeded();
 
   bool shouldPause =
@@ -993,7 +992,6 @@ void V8Debugger::asyncTaskScheduledForStack(const String16& taskName,
     m_asyncTaskStacks[task] = asyncStack;
     if (recurring) m_recurringTasks.insert(task);
     m_allAsyncStacks.push_back(std::move(asyncStack));
-    ++m_asyncStacksCount;
     collectOldAsyncStacksIfNeeded();
   }
 }
@@ -1080,7 +1078,6 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_currentTasks.clear();
 
   m_allAsyncStacks.clear();
-  m_asyncStacksCount = 0;
 }
 
 void V8Debugger::muteScriptParsedEvents() {
@@ -1120,12 +1117,11 @@ int V8Debugger::currentContextGroupId() {
 }
 
 void V8Debugger::collectOldAsyncStacksIfNeeded() {
-  if (m_asyncStacksCount <= m_maxAsyncCallStacks) return;
-  int halfOfLimitRoundedUp =
+  if (m_allAsyncStacks.size() <= m_maxAsyncCallStacks) return;
+  size_t halfOfLimitRoundedUp =
       m_maxAsyncCallStacks / 2 + m_maxAsyncCallStacks % 2;
-  while (m_asyncStacksCount > halfOfLimitRoundedUp) {
+  while (m_allAsyncStacks.size() > halfOfLimitRoundedUp) {
     m_allAsyncStacks.pop_front();
-    --m_asyncStacksCount;
   }
   cleanupExpiredWeakPointers(m_asyncTaskStacks);
   cleanupExpiredWeakPointers(m_storedStackTraces);
@@ -1169,7 +1165,7 @@ bool V8Debugger::addInternalObject(v8::Local<v8::Context> context,
 }
 
 void V8Debugger::dumpAsyncTaskStacksStateForTest() {
-  fprintf(stdout, "Async stacks count: %d\n", m_asyncStacksCount);
+  fprintf(stdout, "Async stacks count: %zu\n", m_allAsyncStacks.size());
   fprintf(stdout, "Scheduled async tasks: %zu\n", m_asyncTaskStacks.size());
   fprintf(stdout, "Recurring async tasks: %zu\n", m_recurringTasks.size());
   fprintf(stdout, "\n");
