@@ -45,8 +45,10 @@ RegExpNode* RegExpText::ToNode(RegExpCompiler* compiler,
                                          on_success);
 }
 
-static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
-                                 const int* special_class, int length) {
+namespace {
+
+bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
+                          const int* special_class, int length) {
   length--;  // Remove final marker.
   DCHECK_EQ(kRangeEndMarker, special_class[length]);
   DCHECK_NE(0, ranges->length());
@@ -74,8 +76,8 @@ static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
   return true;
 }
 
-static bool CompareRanges(ZoneList<CharacterRange>* ranges,
-                          const int* special_class, int length) {
+bool CompareRanges(ZoneList<CharacterRange>* ranges, const int* special_class,
+                   int length) {
   length--;  // Remove final marker.
   DCHECK_EQ(kRangeEndMarker, special_class[length]);
   if (ranges->length() * 2 != length) {
@@ -90,6 +92,8 @@ static bool CompareRanges(ZoneList<CharacterRange>* ranges,
   }
   return true;
 }
+
+}  // namespace
 
 bool RegExpCharacterClass::is_standard(Zone* zone) {
   // TODO(lrn): Remove need for this function, by not throwing away information
@@ -442,6 +446,8 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
   }
 }
 
+namespace {
+
 int CompareFirstChar(RegExpTree* const* a, RegExpTree* const* b) {
   RegExpAtom* atom1 = (*a)->AsAtom();
   RegExpAtom* atom2 = (*b)->AsAtom();
@@ -464,7 +470,7 @@ int CompareFirstCharCaseInsensitve(RegExpTree* const* a, RegExpTree* const* b) {
 
 #else
 
-static unibrow::uchar Canonical(
+unibrow::uchar Canonical(
     unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize,
     unibrow::uchar c) {
   unibrow::uchar chars[unibrow::Ecma262Canonicalize::kMaxWidth];
@@ -490,6 +496,8 @@ int CompareFirstCharCaseIndependent(
   return static_cast<int>(character1) - static_cast<int>(character2);
 }
 #endif  // V8_INTL_SUPPORT
+
+}  // namespace
 
 // We can stable sort runs of atoms, since the order does not matter if they
 // start with different characters.
@@ -1035,8 +1043,10 @@ RegExpNode* RegExpAlternative::ToNode(RegExpCompiler* compiler,
   return current;
 }
 
-static void AddClass(const int* elmv, int elmc,
-                     ZoneList<CharacterRange>* ranges, Zone* zone) {
+namespace {
+
+void AddClass(const int* elmv, int elmc, ZoneList<CharacterRange>* ranges,
+              Zone* zone) {
   elmc--;
   DCHECK_EQ(kRangeEndMarker, elmv[elmc]);
   for (int i = 0; i < elmc; i += 2) {
@@ -1045,8 +1055,8 @@ static void AddClass(const int* elmv, int elmc,
   }
 }
 
-static void AddClassNegated(const int* elmv, int elmc,
-                            ZoneList<CharacterRange>* ranges, Zone* zone) {
+void AddClassNegated(const int* elmv, int elmc,
+                     ZoneList<CharacterRange>* ranges, Zone* zone) {
   elmc--;
   DCHECK_EQ(kRangeEndMarker, elmv[elmc]);
   DCHECK_NE(0x0000, elmv[0]);
@@ -1060,6 +1070,8 @@ static void AddClassNegated(const int* elmv, int elmc,
   }
   ranges->Add(CharacterRange::Range(last, kMaxCodePoint), zone);
 }
+
+}  // namespace
 
 void CharacterRange::AddClassEscape(StandardCharacterSet standard_character_set,
                                     ZoneList<CharacterRange>* ranges,
@@ -1268,10 +1280,11 @@ ZoneList<CharacterRange>* CharacterSet::ranges(Zone* zone) {
   return ranges_;
 }
 
+namespace {
+
 // Move a number of elements in a zonelist to another position
 // in the same list. Handles overlapping source and target areas.
-static void MoveRanges(ZoneList<CharacterRange>* list, int from, int to,
-                       int count) {
+void MoveRanges(ZoneList<CharacterRange>* list, int from, int to, int count) {
   // Ranges are potentially overlapping.
   if (from < to) {
     for (int i = count - 1; i >= 0; i--) {
@@ -1284,8 +1297,8 @@ static void MoveRanges(ZoneList<CharacterRange>* list, int from, int to,
   }
 }
 
-static int InsertRangeInCanonicalList(ZoneList<CharacterRange>* list, int count,
-                                      CharacterRange insert) {
+int InsertRangeInCanonicalList(ZoneList<CharacterRange>* list, int count,
+                               CharacterRange insert) {
   // Inserts a range into list[0..count[, which must be sorted
   // by from value and non-overlapping and non-adjacent, using at most
   // list[0..count] for the result. Returns the number of resulting
@@ -1339,6 +1352,8 @@ static int InsertRangeInCanonicalList(ZoneList<CharacterRange>* list, int count,
   list->at(start_pos) = CharacterRange::Range(new_from, new_to);
   return count - (end_pos - start_pos) + 1;
 }
+
+}  // namespace
 
 void CharacterSet::Canonicalize() {
   // Special/default classes are always considered canonical. The result
@@ -1405,6 +1420,8 @@ void CharacterRange::Negate(ZoneList<CharacterRange>* ranges,
   }
 }
 
+namespace {
+
 // Scoped object to keep track of how much we unroll quantifier loops in the
 // regexp graph generator.
 class RegExpExpansionLimiter {
@@ -1441,6 +1458,8 @@ class RegExpExpansionLimiter {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpExpansionLimiter);
 };
+
+}  // namespace
 
 RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
                                      RegExpTree* body, RegExpCompiler* compiler,

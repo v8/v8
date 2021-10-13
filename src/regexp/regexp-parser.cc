@@ -971,8 +971,9 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
 }
 
 #ifdef DEBUG
-// Currently only used in an DCHECK.
-static bool IsSpecialClassEscape(base::uc32 c) {
+namespace {
+
+bool IsSpecialClassEscape(base::uc32 c) {
   switch (c) {
     case 'd':
     case 'D':
@@ -985,6 +986,8 @@ static bool IsSpecialClassEscape(base::uc32 c) {
       return false;
   }
 }
+
+}  // namespace
 #endif
 
 // In order to know whether an escape is a backreference or not we have to scan
