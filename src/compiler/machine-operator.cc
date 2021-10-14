@@ -601,7 +601,11 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I8x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)              \
   V(I16x8RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)              \
   V(I32x4RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)              \
-  V(I64x2RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)
+  V(I64x2RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)              \
+  V(F32x4RelaxedMin, Operator::kNoProperties, 2, 0, 1)                     \
+  V(F32x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)                     \
+  V(F64x2RelaxedMin, Operator::kNoProperties, 2, 0, 1)                     \
+  V(F64x2RelaxedMax, Operator::kNoProperties, 2, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)

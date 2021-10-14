@@ -372,6 +372,8 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I16x8_OP(RelaxedLaneSelect, "relaxed_laneselect");
     CASE_I32x4_OP(RelaxedLaneSelect, "relaxed_laneselect");
     CASE_I64x2_OP(RelaxedLaneSelect, "relaxed_laneselect");
+    CASE_SIMDF_OP(RelaxedMin, "relaxed_min");
+    CASE_SIMDF_OP(RelaxedMax, "relaxed_max");
 
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")

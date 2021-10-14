@@ -2864,11 +2864,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    kScratchDoubleReg);
       break;
     }
-    case kX64F32x4Pmin: {
+    case kX64Minps: {
       ASSEMBLE_SIMD_BINOP(minps);
       break;
     }
-    case kX64F32x4Pmax: {
+    case kX64Maxps: {
       ASSEMBLE_SIMD_BINOP(maxps);
       break;
     }
@@ -2884,11 +2884,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Roundpd(i.OutputSimd128Register(), i.InputSimd128Register(0), mode);
       break;
     }
-    case kX64F64x2Pmin: {
+    case kX64Minpd: {
       ASSEMBLE_SIMD_BINOP(minpd);
       break;
     }
-    case kX64F64x2Pmax: {
+    case kX64Maxpd: {
       ASSEMBLE_SIMD_BINOP(maxpd);
       break;
     }

@@ -520,6 +520,10 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I16x8RelaxedLaneSelect, 0xfdb3, s_sss) \
   V(I32x4RelaxedLaneSelect, 0xfdd2, s_sss) \
   V(I64x2RelaxedLaneSelect, 0xfdd3, s_sss) \
+  V(F32x4RelaxedMin, 0xfdb4, s_ss)         \
+  V(F32x4RelaxedMax, 0xfde2, s_ss)         \
+  V(F64x2RelaxedMin, 0xfdd4, s_ss)         \
+  V(F64x2RelaxedMax, 0xfdee, s_ss)         \
   V(F32x4Qfma, 0xfdaf, s_sss)              \
   V(F32x4Qfms, 0xfdb0, s_sss)              \
   V(F64x2Qfma, 0xfdcf, s_sss)              \

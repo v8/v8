@@ -86,16 +86,6 @@ T Mul(T a, T b) {
 }
 
 template <typename T>
-T Minimum(T a, T b) {
-  return std::min(a, b);
-}
-
-template <typename T>
-T Maximum(T a, T b) {
-  return std::max(a, b);
-}
-
-template <typename T>
 T UnsignedMinimum(T a, T b) {
   using UnsignedT = typename std::make_unsigned<T>::type;
   return static_cast<UnsignedT>(a) <= static_cast<UnsignedT>(b) ? a : b;

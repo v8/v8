@@ -192,8 +192,8 @@ namespace compiler {
   V(X64F64x2Le)                                      \
   V(X64F64x2Qfma)                                    \
   V(X64F64x2Qfms)                                    \
-  V(X64F64x2Pmin)                                    \
-  V(X64F64x2Pmax)                                    \
+  V(X64Minpd)                                        \
+  V(X64Maxpd)                                        \
   V(X64F64x2Round)                                   \
   V(X64F64x2ConvertLowI32x4S)                        \
   V(X64F64x2ConvertLowI32x4U)                        \
@@ -219,8 +219,8 @@ namespace compiler {
   V(X64F32x4Le)                                      \
   V(X64F32x4Qfma)                                    \
   V(X64F32x4Qfms)                                    \
-  V(X64F32x4Pmin)                                    \
-  V(X64F32x4Pmax)                                    \
+  V(X64Minps)                                        \
+  V(X64Maxps)                                        \
   V(X64F32x4Round)                                   \
   V(X64F32x4DemoteF64x2Zero)                         \
   V(X64I64x2Splat)                                   \

@@ -987,6 +987,10 @@
   V(I16x8RelaxedLaneSelect)     \
   V(I32x4RelaxedLaneSelect)     \
   V(I64x2RelaxedLaneSelect)     \
+  V(F32x4RelaxedMin)            \
+  V(F32x4RelaxedMax)            \
+  V(F64x2RelaxedMin)            \
+  V(F64x2RelaxedMax)            \
   V(I8x16Shuffle)               \
   V(V128AnyTrue)                \
   V(I64x2AllTrue)               \

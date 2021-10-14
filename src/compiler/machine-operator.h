@@ -919,6 +919,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8RelaxedLaneSelect();
   const Operator* I32x4RelaxedLaneSelect();
   const Operator* I64x2RelaxedLaneSelect();
+  const Operator* F32x4RelaxedMin();
+  const Operator* F32x4RelaxedMax();
+  const Operator* F64x2RelaxedMin();
+  const Operator* F64x2RelaxedMax();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);

@@ -5128,6 +5128,18 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI64x2RelaxedLaneSelect:
       return graph()->NewNode(mcgraph()->machine()->I64x2RelaxedLaneSelect(),
                               inputs[0], inputs[1], inputs[2]);
+    case wasm::kExprF32x4RelaxedMin:
+      return graph()->NewNode(mcgraph()->machine()->F32x4RelaxedMin(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprF32x4RelaxedMax:
+      return graph()->NewNode(mcgraph()->machine()->F32x4RelaxedMax(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprF64x2RelaxedMin:
+      return graph()->NewNode(mcgraph()->machine()->F64x2RelaxedMin(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprF64x2RelaxedMax:
+      return graph()->NewNode(mcgraph()->machine()->F64x2RelaxedMax(),
+                              inputs[0], inputs[1]);
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }
