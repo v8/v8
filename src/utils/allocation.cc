@@ -54,7 +54,6 @@ class PageAllocatorInitializer {
       page_allocator_ = default_page_allocator.get();
     }
 #if defined(LEAK_SANITIZER)
-    static_assert(!V8_VIRTUAL_MEMORY_CAGE_BOOL, "Not currently supported");
     static base::LeakyObject<base::LsanPageAllocator> lsan_allocator(
         page_allocator_);
     page_allocator_ = lsan_allocator.get();
