@@ -918,6 +918,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
 
   const byte type_index = tester.DefineArray(wasm::kWasmI32, true);
   const byte fp_type_index = tester.DefineArray(wasm::kWasmF64, true);
+  const byte immut_type_index = tester.DefineArray(wasm::kWasmI32, false);
   ValueType kRefTypes[] = {ref(type_index)};
   FunctionSig sig_q_v(1, 0, kRefTypes);
   ValueType kOptRefType = optref(type_index);
@@ -961,6 +962,15 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
                        WASM_I32V(30), WASM_RTT_CANON(type_index)),
        kExprEnd});
 
+  const byte kImmutable = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_ARRAY_GET(
+           immut_type_index,
+           WASM_ARRAY_INIT(immut_type_index, 2, WASM_I32V(42), WASM_I32V(43),
+                           WASM_RTT_CANON(immut_type_index)),
+           WASM_I32V(0)),
+       kExprEnd});
+
   const uint32_t kLongLength = 1u << 16;
   const byte kAllocateLarge = tester.DefineFunction(
       &sig_q_v, {},
@@ -998,6 +1008,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   tester.CheckHasThrown(kGetElem, 3);
   tester.CheckHasThrown(kGetElem, -1);
   tester.CheckResult(kGetLength, 42);
+  tester.CheckResult(kImmutable, 42);
   tester.CheckResult(kTestFpArray, static_cast<int32_t>(result_value));
 
   Handle<Object> h_result = tester.GetResultObject(kAllocate).ToHandleChecked();

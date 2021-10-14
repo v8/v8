@@ -1926,9 +1926,6 @@ class ModuleDecoderImpl : public Decoder {
     ValueType field = consume_storage_type();
     if (failed()) return nullptr;
     bool mutability = consume_mutability();
-    if (!V8_LIKELY(mutability)) {
-      error(this->pc() - 1, "immutable arrays are not supported yet");
-    }
     return zone->New<ArrayType>(field, mutability);
   }
 
