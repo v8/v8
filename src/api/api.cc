@@ -6110,7 +6110,9 @@ const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE
 PageAllocator* v8::V8::GetVirtualMemoryCagePageAllocator() {
-  CHECK(i::GetProcessWideVirtualMemoryCage()->is_initialized());
+  Utils::ApiCheck(i::GetProcessWideVirtualMemoryCage()->is_initialized(),
+                  "v8::V8::GetVirtualMemoryCagePageAllocator",
+                  "The virtual memory cage must be initialized first.");
   return i::GetProcessWideVirtualMemoryCage()->page_allocator();
 }
 
@@ -6120,6 +6122,17 @@ size_t v8::V8::GetVirtualMemoryCageSizeInBytes() {
   } else {
     return i::GetProcessWideVirtualMemoryCage()->size();
   }
+}
+
+bool v8::V8::IsUsingSecureVirtualMemoryCage() {
+  Utils::ApiCheck(i::GetProcessWideVirtualMemoryCage()->is_initialized(),
+                  "v8::V8::IsUsingSecureVirtualMemoryCage",
+                  "The virtual memory cage must be initialized first.");
+  // TODO(saelo) For now, we only treat a fake cage as insecure. Once we use
+  // caged pointers that assume that the cage has a constant size, we'll also
+  // treat cages smaller than the default size as insecure because caged
+  // pointers can then access memory outside of them.
+  return !i::GetProcessWideVirtualMemoryCage()->is_fake_cage();
 }
 #endif
 
