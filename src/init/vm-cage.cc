@@ -7,6 +7,7 @@
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
+#include "src/base/cpu.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/flags/flags.h"
@@ -176,28 +177,74 @@ class FakeBoundedPageAllocator : public v8::PageAllocator {
   const Address end_of_reserved_region_;
 };
 
-static uintptr_t DetermineAddressSpaceLimit() {
-  // TODO(saelo) should this also take things like rlimits into account?
-#ifdef V8_TARGET_ARCH_64_BIT
-  // TODO(saelo) this should be deteremined based on the CPU model being used
-  // and its number of virtual address bits.
-  uintptr_t virtual_address_bits = 48;
-  // Virtual address space is split 50/50 between userspace and kernel
-  uintptr_t userspace_virtual_address_bits = virtual_address_bits / 2;
-  uintptr_t address_space_limit = 1UL << userspace_virtual_address_bits;
-  return address_space_limit;
-#else
+// Best-effort helper function to determine the size of the userspace virtual
+// address space. Used to determine appropriate cage size and placement.
+static Address DetermineAddressSpaceLimit() {
+#ifndef V8_TARGET_ARCH_64_BIT
 #error Unsupported target architecture.
 #endif
+
+  // Assume 48 bits by default, which seems to be the most common configuration.
+  constexpr unsigned kDefaultVirtualAddressBits = 48;
+  // 36 bits should realistically be the lowest value we could ever see.
+  constexpr unsigned kMinVirtualAddressBits = 36;
+  constexpr unsigned kMaxVirtualAddressBits = 64;
+
+  constexpr size_t kMinVirtualAddressSpaceSize = 1ULL << kMinVirtualAddressBits;
+  static_assert(kMinVirtualAddressSpaceSize >= kVirtualMemoryCageMinimumSize,
+                "The minimum cage size should be smaller or equal to the "
+                "smallest possible userspace address space. Otherwise, larger "
+                "parts of the cage will not be usable on those platforms.");
+
+#ifdef V8_TARGET_ARCH_X64
+  base::CPU cpu;
+  Address virtual_address_bits = kDefaultVirtualAddressBits;
+  if (cpu.exposes_num_virtual_address_bits()) {
+    virtual_address_bits = cpu.num_virtual_address_bits();
+  }
+#else
+  // TODO(saelo) support ARM and possibly other CPUs as well.
+  Address virtual_address_bits = kDefaultVirtualAddressBits;
+#endif
+
+  // Guard against nonsensical values.
+  if (virtual_address_bits < kMinVirtualAddressBits ||
+      virtual_address_bits > kMaxVirtualAddressBits) {
+    virtual_address_bits = kDefaultVirtualAddressBits;
+  }
+
+  // Assume virtual address space is split 50/50 between userspace and kernel.
+  Address userspace_virtual_address_bits = virtual_address_bits - 1;
+  Address address_space_limit = 1ULL << userspace_virtual_address_bits;
+
+  // TODO(saelo) we could try allocating memory in the upper half of the address
+  // space to see if it is really usable.
+  return address_space_limit;
 }
 
 bool V8VirtualMemoryCage::Initialize(PageAllocator* page_allocator) {
-  // TODO(saelo) We need to take the number of virtual address bits of the CPU
-  // into account when deteriming the size of the cage. For example, if there
-  // are only 39 bits available (some older Intel CPUs), split evenly between
-  // userspace and kernel, then userspace can only address 256GB and so the
-  // maximum cage size should probably be something around 64GB to 128GB.
-  const size_t size = kVirtualMemoryCageSize;
+  // Take the number of virtual address bits into account when determining the
+  // size of the cage. For example, if there are only 39 bits available, split
+  // evenly between userspace and kernel, then userspace can only address 256GB
+  // and so we use a quarter of that, 64GB, as maximum cage size.
+  Address address_space_limit = DetermineAddressSpaceLimit();
+  size_t max_cage_size = address_space_limit / 4;
+  size_t cage_size = std::min(kVirtualMemoryCageSize, max_cage_size);
+  size_t size_to_reserve = cage_size;
+
+  // If the size is less than the minimum cage size though, we fall back to
+  // creating a fake cage. This happens for CPUs with only 36 virtual address
+  // bits, in which case the cage size would end up being only 8GB.
+  bool create_fake_cage = false;
+  if (cage_size < kVirtualMemoryCageMinimumSize) {
+    static_assert((8ULL * GB) >= kFakeVirtualMemoryCageMinReservationSize,
+                  "Minimum reservation size for a fake cage must be at most "
+                  "8GB to support CPUs with only 36 virtual address bits");
+    size_to_reserve = cage_size;
+    cage_size = kVirtualMemoryCageMinimumSize;
+    create_fake_cage = true;
+  }
+
 #if defined(V8_OS_WIN)
   if (!IsWindows8Point1OrGreater()) {
     // On Windows pre 8.1, reserving virtual memory is an expensive operation,
@@ -207,14 +254,22 @@ bool V8VirtualMemoryCage::Initialize(PageAllocator* page_allocator) {
     // virtual memory cage there and so a fake cage is created which doesn't
     // reserve most of the virtual memory, and so doesn't incur the cost, but
     // also doesn't provide the desired security benefits.
-    const size_t size_to_reserve = kFakeVirtualMemoryCageMinReservationSize;
-    return InitializeAsFakeCage(page_allocator, size, size_to_reserve);
+    size_to_reserve = kFakeVirtualMemoryCageMinReservationSize;
+    create_fake_cage = true;
   }
 #endif
-  // TODO(saelo) if this fails, we could still fall back to creating a fake
-  // cage.
-  const bool use_guard_regions = true;
-  return Initialize(page_allocator, size, use_guard_regions);
+
+  // In any case, the (fake) cage must be at most as large as our address space.
+  DCHECK_LE(cage_size, address_space_limit);
+
+  if (create_fake_cage) {
+    return InitializeAsFakeCage(page_allocator, cage_size, size_to_reserve);
+  } else {
+    // TODO(saelo) if this fails, we could still fall back to creating a fake
+    // cage. Decide if that would make sense.
+    const bool use_guard_regions = true;
+    return Initialize(page_allocator, cage_size, use_guard_regions);
+  }
 }
 
 bool V8VirtualMemoryCage::Initialize(v8::PageAllocator* page_allocator,
@@ -293,22 +348,18 @@ bool V8VirtualMemoryCage::InitializeAsFakeCage(
     rng.SetSeed(FLAG_random_seed);
   }
 
-  // We try to ensure that base + size is still fully within the process'
-  // address space, even though we only reserve a fraction of the memory.
+  // We try to ensure that base + size is still (mostly) within the process'
+  // address space, even though we only reserve a fraction of the memory. For
+  // that, we attempt to map the cage into the first half of the usable address
+  // space. This keeps the implementation simple and should, In any realistic
+  // scenario, leave plenty of space after the cage reservation.
   Address address_space_end = DetermineAddressSpaceLimit();
-  DCHECK(base::bits::IsPowerOfTwo(address_space_end));
-  Address highest_possible_address = address_space_end - size;
+  Address highest_allowed_address = address_space_end / 2;
+  DCHECK(base::bits::IsPowerOfTwo(highest_allowed_address));
   constexpr int kMaxAttempts = 10;
   for (int i = 1; i <= kMaxAttempts; i++) {
-    // The size of the cage is small relative to the size of the usable address
-    // space, so we can just retry until we get a usable hint.
-    Address hint;
-    do {
-      hint = rng.NextInt64() % address_space_end;
-    } while (hint > highest_possible_address);
-
-    // Align to page size.
-    hint = RoundDown(hint, page_allocator->AllocatePageSize());
+    Address hint = rng.NextInt64() % highest_allowed_address;
+    hint = RoundDown(hint, kVirtualMemoryCageAlignment);
 
     reservation_base_ = reinterpret_cast<Address>(page_allocator->AllocatePages(
         reinterpret_cast<void*>(hint), size_to_reserve,
@@ -318,12 +369,12 @@ bool V8VirtualMemoryCage::InitializeAsFakeCage(
 
     // Take this base if it meets the requirements or if this is the last
     // attempt.
-    if (reservation_base_ <= highest_possible_address || i == kMaxAttempts)
+    if (reservation_base_ <= highest_allowed_address || i == kMaxAttempts)
       break;
 
     // Can't use this base, so free the reservation and try again
-    page_allocator_->FreePages(reinterpret_cast<void*>(reservation_base_),
-                               size_to_reserve);
+    page_allocator->FreePages(reinterpret_cast<void*>(reservation_base_),
+                              size_to_reserve);
     reservation_base_ = kNullAddress;
   }
   DCHECK(reservation_base_);

@@ -525,6 +525,8 @@ static_assert((kVirtualMemoryCageGuardRegionSize %
 // until either the reservation succeeds or the minimum size is reached. A
 // minimum of 32GB allows the 4GB pointer compression region as well as the
 // ArrayBuffer partition and two 10GB WASM memory cages to fit into the cage.
+// 32GB should also be the minimum possible size of the userspace address space
+// as there are some machine configurations with only 36 virtual address bits.
 constexpr size_t kVirtualMemoryCageMinimumSize = 32ULL * GB;
 
 static_assert(kVirtualMemoryCageMinimumSize <= kVirtualMemoryCageSize,
