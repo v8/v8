@@ -1832,6 +1832,40 @@ void DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
   *value = (static_cast<uint64_t>(msb) << 32) | static_cast<uint64_t>(lsb);
 }
 
+// static
+Handle<WasmContinuationObject> WasmContinuationObject::New(
+    Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
+    HeapObject parent) {
+  Handle<WasmContinuationObject> result = Handle<WasmContinuationObject>::cast(
+      isolate->factory()->NewStruct(WASM_CONTINUATION_OBJECT_TYPE));
+  auto jmpbuf = std::make_unique<wasm::JumpBuffer>();
+  jmpbuf->stack_limit = stack->limit();
+  jmpbuf->fp = stack->base();
+  jmpbuf->sp = stack->base();
+  Handle<Foreign> managed_stack = Managed<wasm::StackMemory>::FromUniquePtr(
+      isolate, stack->owned_size(), std::move(stack));
+  Handle<Foreign> managed_jmpbuf = Managed<wasm::JumpBuffer>::FromUniquePtr(
+      isolate, sizeof(wasm::JumpBuffer), std::move(jmpbuf));
+  result->set_stack(*managed_stack);
+  result->set_jmpbuf(*managed_jmpbuf);
+  result->set_parent(parent);
+  return result;
+}
+
+// static
+Handle<WasmContinuationObject> WasmContinuationObject::New(
+    Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack) {
+  auto parent = ReadOnlyRoots(isolate).undefined_value();
+  return New(isolate, std::move(stack), parent);
+}
+
+// static
+Handle<WasmContinuationObject> WasmContinuationObject::New(
+    Isolate* isolate, WasmContinuationObject parent) {
+  auto stack = std::unique_ptr<wasm::StackMemory>(wasm::StackMemory::New());
+  return New(isolate, std::move(stack), parent);
+}
+
 #ifdef DEBUG
 
 namespace {
