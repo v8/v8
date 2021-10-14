@@ -2769,14 +2769,17 @@ TNode<IntPtrT> AccessorAssembler::StubCachePrimaryOffset(TNode<Name> name,
   return Signed(result);
 }
 
-TNode<IntPtrT> AccessorAssembler::StubCacheSecondaryOffset(
-    TNode<Name> name, TNode<IntPtrT> seed) {
+TNode<IntPtrT> AccessorAssembler::StubCacheSecondaryOffset(TNode<Name> name,
+                                                           TNode<Map> map) {
   // See v8::internal::StubCache::SecondaryOffset().
 
   // Use the seed from the primary cache in the secondary cache.
   TNode<Int32T> name32 = TruncateIntPtrToInt32(BitcastTaggedToWord(name));
-  TNode<Int32T> hash = Int32Sub(TruncateIntPtrToInt32(seed), name32);
-  hash = Int32Add(hash, Int32Constant(StubCache::kSecondaryMagic));
+  TNode<Int32T> map32 = TruncateIntPtrToInt32(BitcastTaggedToWord(map));
+  // Base the offset on a simple combination of name and map.
+  TNode<Word32T> hash_a = Int32Add(map32, name32);
+  TNode<Word32T> hash_b = Word32Shr(hash_a, StubCache::kSecondaryKeyShift);
+  TNode<Word32T> hash = Int32Add(hash_a, hash_b);
   int32_t mask = (StubCache::kSecondaryTableSize - 1)
                  << StubCache::kCacheIndexShift;
   TNode<UintPtrT> result =
@@ -2846,7 +2849,7 @@ void AccessorAssembler::TryProbeStubCache(StubCache* stub_cache,
   {
     // Probe the secondary table.
     TNode<IntPtrT> secondary_offset =
-        StubCacheSecondaryOffset(name, primary_offset);
+        StubCacheSecondaryOffset(name, lookup_start_object_map);
     TryProbeStubCacheTable(stub_cache, kSecondary, secondary_offset, name,
                            lookup_start_object_map, if_handler, var_handler,
                            &miss);

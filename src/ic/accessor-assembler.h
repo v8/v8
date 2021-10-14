@@ -83,8 +83,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     return StubCachePrimaryOffset(name, map);
   }
   TNode<IntPtrT> StubCacheSecondaryOffsetForTesting(TNode<Name> name,
-                                                    TNode<IntPtrT> seed) {
-    return StubCacheSecondaryOffset(name, seed);
+                                                    TNode<Map> map) {
+    return StubCacheSecondaryOffset(name, map);
   }
 
   struct LoadICParameters {
@@ -512,8 +512,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   enum StubCacheTable : int;
 
   TNode<IntPtrT> StubCachePrimaryOffset(TNode<Name> name, TNode<Map> map);
-  TNode<IntPtrT> StubCacheSecondaryOffset(TNode<Name> name,
-                                          TNode<IntPtrT> seed);
+  TNode<IntPtrT> StubCacheSecondaryOffset(TNode<Name> name, TNode<Map> map);
 
   void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
                               TNode<IntPtrT> entry_offset, TNode<Object> name,
