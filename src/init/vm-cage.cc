@@ -217,6 +217,14 @@ static Address DetermineAddressSpaceLimit() {
   Address userspace_virtual_address_bits = virtual_address_bits - 1;
   Address address_space_limit = 1ULL << userspace_virtual_address_bits;
 
+#if defined(V8_OS_WIN_X64)
+  if (!IsWindows8Point1OrGreater()) {
+    // On Windows pre 8.1 userspace is limited to 8TB on X64. See
+    // https://docs.microsoft.com/en-us/windows/win32/memory/memory-limits-for-windows-releases
+    address_space_limit = 8ULL * TB;
+  }
+#endif  // V8_OS_WIN_X64
+
   // TODO(saelo) we could try allocating memory in the upper half of the address
   // space to see if it is really usable.
   return address_space_limit;
@@ -257,7 +265,7 @@ bool V8VirtualMemoryCage::Initialize(PageAllocator* page_allocator) {
     size_to_reserve = kFakeVirtualMemoryCageMinReservationSize;
     create_fake_cage = true;
   }
-#endif
+#endif  // V8_OS_WIN
 
   // In any case, the (fake) cage must be at most as large as our address space.
   DCHECK_LE(cage_size, address_space_limit);
