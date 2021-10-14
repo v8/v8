@@ -500,7 +500,10 @@ v8_source_set("unittests_sources") {
     }
 
     if (is_win) {
-      sources += [ "wasm/trap-handler-win-unittest.cc" ]
+      sources += [
+        "wasm/trap-handler-win-unittest.cc",
+        "avoid-windows-h-includes.cc",
+      ]
     }
 
     # Include this test only on arm64 simulator builds on x64 on Linux, Mac and
