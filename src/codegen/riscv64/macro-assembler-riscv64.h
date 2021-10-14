@@ -1252,6 +1252,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     And(scratch, value, Operand(kSmiTagMask));
   }
 
+  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
+  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
+  void DropArguments(Register count, ArgumentsCountType type,
+                     ArgumentsCountMode mode, Register scratch = no_reg);
+  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
+                                       ArgumentsCountType type,
+                                       ArgumentsCountMode mode,
+                                       Register scratch = no_reg);
+
   // Jump if the register contains a non-smi.
   void JumpIfNotSmi(Register value, Label* not_smi_label);
 

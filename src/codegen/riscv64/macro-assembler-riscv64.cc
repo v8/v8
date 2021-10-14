@@ -3751,7 +3751,11 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     Sub64(t0, t0, Operand(1));
     Add64(src, src, Operand(kSystemPointerSize));
     Add64(dest, dest, Operand(kSystemPointerSize));
-    Branch(&copy, ge, t0, Operand(zero_reg));
+    if (kJSArgcIncludesReceiver) {
+      Branch(&copy, gt, t0, Operand(zero_reg));
+    } else {
+      Branch(&copy, ge, t0, Operand(zero_reg));
+    }
   }
 
   // Fill remaining expected arguments with undefined values.
@@ -5029,6 +5033,46 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
   Lwu(destination, field_operand);
   Add64(destination, kPtrComprCageBaseRegister, destination);
   RecordComment("]");
+}
+
+void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
+                                   ArgumentsCountMode mode, Register scratch) {
+  switch (type) {
+    case kCountIsInteger: {
+      CalcScaledAddress(sp, sp, count, kPointerSizeLog2);
+      break;
+    }
+    case kCountIsSmi: {
+      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      DCHECK_NE(scratch, no_reg);
+      SmiScale(scratch, count, kPointerSizeLog2);
+      Add64(sp, sp, scratch);
+      break;
+    }
+    case kCountIsBytes: {
+      Add64(sp, sp, count);
+      break;
+    }
+  }
+  if (mode == kCountExcludesReceiver) {
+    Add64(sp, sp, kSystemPointerSize);
+  }
+}
+
+void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Register receiver,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode,
+                                                     Register scratch) {
+  DCHECK(!AreAliased(argc, receiver));
+  if (mode == kCountExcludesReceiver) {
+    // Drop arguments without receiver and override old receiver.
+    DropArguments(argc, type, kCountIncludesReceiver, scratch);
+    Sd(receiver, MemOperand(sp));
+  } else {
+    DropArguments(argc, type, mode, scratch);
+    push(receiver);
+  }
 }
 
 }  // namespace internal
