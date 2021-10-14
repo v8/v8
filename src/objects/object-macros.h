@@ -401,16 +401,6 @@
 #define BIT_FIELD_ACCESSORS(holder, field, name, BitField) \
   BIT_FIELD_ACCESSORS2(holder, field, field, name, BitField)
 
-#define INSTANCE_TYPE_CHECKER(type, forinstancetype)    \
-  V8_INLINE bool Is##type(InstanceType instance_type) { \
-    return instance_type == forinstancetype;            \
-  }
-
-#define TYPE_CHECKER(type, ...)                                           \
-  DEF_GETTER(HeapObject, Is##type, bool) {                                \
-    return InstanceTypeChecker::Is##type(map(cage_base).instance_type()); \
-  }
-
 #define RELAXED_INT16_ACCESSORS(holder, name, offset) \
   int16_t holder::name() const {                      \
     return RELAXED_READ_INT16_FIELD(*this, offset);   \

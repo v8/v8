@@ -272,11 +272,6 @@ bool Object::IsNumeric(PtrComprCageBase cage_base) const {
   return IsNumber(cage_base) || IsBigInt(cage_base);
 }
 
-DEF_GETTER(HeapObject, IsFreeSpaceOrFiller, bool) {
-  InstanceType instance_type = map(cage_base).instance_type();
-  return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
-}
-
 DEF_GETTER(HeapObject, IsArrayList, bool) {
   ReadOnlyRoots roots = GetReadOnlyRoots(cage_base);
   return *this == roots.empty_fixed_array() ||

@@ -19,7 +19,13 @@ namespace internal {
 namespace InstanceTypeChecker {
 
 // Define type checkers for classes with single instance type.
+#define INSTANCE_TYPE_CHECKER(type, forinstancetype)              \
+  V8_INLINE constexpr bool Is##type(InstanceType instance_type) { \
+    return instance_type == forinstancetype;                      \
+  }
+
 INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER)
+#undef INSTANCE_TYPE_CHECKER
 
 // Checks if value is in range [lower_limit, higher_limit] using a single
 // branch. Assumes that the input instance type is valid.
@@ -47,28 +53,34 @@ struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
 // Define type checkers for classes with ranges of instance types.
 #define INSTANCE_TYPE_CHECKER_RANGE(type, first_instance_type,             \
                                     last_instance_type)                    \
-  V8_INLINE bool Is##type(InstanceType instance_type) {                    \
+  V8_INLINE constexpr bool Is##type(InstanceType instance_type) {          \
     return InstanceRangeChecker<first_instance_type,                       \
                                 last_instance_type>::Check(instance_type); \
   }
 INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE)
 #undef INSTANCE_TYPE_CHECKER_RANGE
 
-V8_INLINE bool IsHeapObject(InstanceType instance_type) { return true; }
+V8_INLINE constexpr bool IsHeapObject(InstanceType instance_type) {
+  return true;
+}
 
-V8_INLINE bool IsInternalizedString(InstanceType instance_type) {
+V8_INLINE constexpr bool IsInternalizedString(InstanceType instance_type) {
   STATIC_ASSERT(kNotInternalizedTag != 0);
   return (instance_type & (kIsNotStringMask | kIsNotInternalizedMask)) ==
          (kStringTag | kInternalizedTag);
 }
 
-V8_INLINE bool IsExternalString(InstanceType instance_type) {
+V8_INLINE constexpr bool IsExternalString(InstanceType instance_type) {
   return (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
          kExternalStringTag;
 }
 
-V8_INLINE bool IsThinString(InstanceType instance_type) {
+V8_INLINE constexpr bool IsThinString(InstanceType instance_type) {
   return (instance_type & kStringRepresentationMask) == kThinStringTag;
+}
+
+V8_INLINE constexpr bool IsFreeSpaceOrFiller(InstanceType instance_type) {
+  return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
 }  // namespace InstanceTypeChecker
@@ -76,7 +88,13 @@ V8_INLINE bool IsThinString(InstanceType instance_type) {
 // TODO(v8:7786): For instance types that have a single map instance on the
 // roots, and when that map is a embedded in the binary, compare against the map
 // pointer rather than looking up the instance type.
+#define TYPE_CHECKER(type, ...)                                           \
+  DEF_GETTER(HeapObject, Is##type, bool) {                                \
+    return InstanceTypeChecker::Is##type(map(cage_base).instance_type()); \
+  }
+
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
+#undef TYPE_CHECKER
 
 }  // namespace internal
 }  // namespace v8
