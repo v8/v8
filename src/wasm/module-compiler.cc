@@ -3737,6 +3737,7 @@ class CompileJSToWasmWrapperJob final : public JobTask {
 
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray>* export_wrappers_out) {
+  TRACE_EVENT0("v8.wasm", "wasm.CompileJsToWasmWrappers");
   *export_wrappers_out = isolate->factory()->NewFixedArray(
       MaxNumExportWrappers(module), AllocationType::kOld);
 
@@ -3757,16 +3758,22 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     }
   }
 
-  auto job =
-      std::make_unique<CompileJSToWasmWrapperJob>(&queue, &compilation_units);
-  if (FLAG_wasm_num_compilation_tasks > 0) {
-    auto job_handle = V8::GetCurrentPlatform()->PostJob(
-        TaskPriority::kUserVisible, std::move(job));
+  {
+    // This is nested inside the event above, so the name can be less
+    // descriptive. It's mainly to log the number of wrappers.
+    TRACE_EVENT1("v8.wasm", "wasm.JsToWasmWrapperCompilation", "num_wrappers",
+                 compilation_units.size());
+    auto job =
+        std::make_unique<CompileJSToWasmWrapperJob>(&queue, &compilation_units);
+    if (FLAG_wasm_num_compilation_tasks > 0) {
+      auto job_handle = V8::GetCurrentPlatform()->PostJob(
+          TaskPriority::kUserVisible, std::move(job));
 
-    // Wait for completion, while contributing to the work.
-    job_handle->Join();
-  } else {
-    job->Run(nullptr);
+      // Wait for completion, while contributing to the work.
+      job_handle->Join();
+    } else {
+      job->Run(nullptr);
+    }
   }
 
   // Finalize compilation jobs in the main thread.

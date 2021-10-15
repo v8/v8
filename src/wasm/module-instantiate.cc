@@ -66,6 +66,7 @@ class CompileImportWrapperJob final : public JobTask {
   }
 
   void Run(JobDelegate* delegate) override {
+    TRACE_EVENT0("v8.wasm", "wasm.CompileImportWrapperJob.Run");
     while (base::Optional<WasmImportWrapperCache::CacheKey> key =
                queue_->pop()) {
       // TODO(wasm): Batch code publishing, to avoid repeated locking and
@@ -1493,6 +1494,8 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
 void InstanceBuilder::CompileImportWrappers(
     Handle<WasmInstanceObject> instance) {
   int num_imports = static_cast<int>(module_->import_table.size());
+  TRACE_EVENT1("v8.wasm", "wasm.CompileImportWrappers", "num_imports",
+               num_imports);
   NativeModule* native_module = instance->module_object().native_module();
   WasmImportWrapperCache::ModificationScope cache_scope(
       native_module->import_wrapper_cache());
