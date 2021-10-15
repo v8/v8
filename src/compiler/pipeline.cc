@@ -1685,28 +1685,6 @@ struct WasmLoopUnrollingPhase {
     }
   }
 };
-
-struct WasmInliningPhase {
-  DECL_PIPELINE_PHASE_CONSTANTS(WasmInlining)
-
-  void Run(PipelineData* data, Zone* temp_zone, wasm::CompilationEnv* env,
-           const wasm::WireBytesStorage* wire_bytes) {
-    GraphReducer graph_reducer(
-        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
-        data->jsgraph()->Dead(), data->observe_node_manager());
-    DeadCodeElimination dead(&graph_reducer, data->graph(),
-                             data->mcgraph()->common(), temp_zone);
-    // For now, inline the first few functions;
-    InlineFirstFew heuristics(FLAG_wasm_inlining_budget);
-    WasmInliner inliner(&graph_reducer, env, data->source_positions(),
-                        data->node_origins(), data->mcgraph(), wire_bytes,
-                        &heuristics);
-    AddReducer(data, &graph_reducer, &dead);
-    AddReducer(data, &graph_reducer, &inliner);
-
-    graph_reducer.ReduceGraph();
-  }
-};
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 struct LoopExitEliminationPhase {
@@ -2010,12 +1988,14 @@ struct ScheduledEffectControlLinearizationPhase {
 struct WasmOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmOptimization)
 
-  void Run(PipelineData* data, Zone* temp_zone, bool allow_signalling_nan) {
+  void Run(PipelineData* data, Zone* temp_zone, bool allow_signalling_nan,
+           wasm::CompilationEnv* env, uint32_t function_index,
+           const wasm::WireBytesStorage* wire_bytes) {
     // Run optimizations in two rounds: First one around load elimination and
     // then one around branch elimination. This is because those two
     // optimizations sometimes display quadratic complexity when run together.
     // We only need load elimination for managed objects.
-    if (FLAG_experimental_wasm_gc) {
+    if (FLAG_experimental_wasm_gc || FLAG_wasm_inlining) {
       GraphReducer graph_reducer(temp_zone, data->graph(),
                                  &data->info()->tick_counter(), data->broker(),
                                  data->jsgraph()->Dead(),
@@ -2030,11 +2010,20 @@ struct WasmOptimizationPhase {
       ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
       CsaLoadElimination load_elimination(&graph_reducer, data->jsgraph(),
                                           temp_zone);
+      WasmInliner inliner(&graph_reducer, env, function_index,
+                          data->source_positions(), data->node_origins(),
+                          data->mcgraph(), wire_bytes);
       AddReducer(data, &graph_reducer, &machine_reducer);
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &common_reducer);
       AddReducer(data, &graph_reducer, &value_numbering);
-      AddReducer(data, &graph_reducer, &load_elimination);
+      if (FLAG_experimental_wasm_gc) {
+        AddReducer(data, &graph_reducer, &load_elimination);
+      }
+      if (FLAG_wasm_inlining &&
+          !WasmInliner::any_inlining_impossible(data->graph()->NodeCount())) {
+        AddReducer(data, &graph_reducer, &inliner);
+      }
       graph_reducer.ReduceGraph();
     }
     {
@@ -3236,14 +3225,11 @@ void Pipeline::GenerateCodeForWasmFunction(
     pipeline.Run<WasmLoopUnrollingPhase>(loop_info);
     pipeline.RunPrintAndVerify(WasmLoopUnrollingPhase::phase_name(), true);
   }
-  if (FLAG_wasm_inlining) {
-    pipeline.Run<WasmInliningPhase>(env, wire_bytes_storage);
-    pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
-  }
   const bool is_asm_js = is_asmjs_module(module);
 
   if (FLAG_wasm_opt || is_asm_js) {
-    pipeline.Run<WasmOptimizationPhase>(is_asm_js);
+    pipeline.Run<WasmOptimizationPhase>(is_asm_js, env, function_index,
+                                        wire_bytes_storage);
     pipeline.RunPrintAndVerify(WasmOptimizationPhase::phase_name(), true);
   } else {
     pipeline.Run<WasmBaseOptimizationPhase>();

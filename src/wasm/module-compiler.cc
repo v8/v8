@@ -1241,14 +1241,13 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   return true;
 }
 
-std::vector<int> ProcessTypeFeedback(Isolate* isolate,
-                                     Handle<WasmInstanceObject> instance,
-                                     int func_index) {
+std::vector<CallSiteFeedback> ProcessTypeFeedback(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index) {
   int which_vector = declared_function_index(instance->module(), func_index);
   Object maybe_feedback = instance->feedback_vectors().get(which_vector);
   if (!maybe_feedback.IsFixedArray()) return {};
   FixedArray feedback = FixedArray::cast(maybe_feedback);
-  std::vector<int> result(feedback.length() / 2);
+  std::vector<CallSiteFeedback> result(feedback.length() / 2);
   int imported_functions =
       static_cast<int>(instance->module()->num_imported_functions);
   for (int i = 0; i < feedback.length(); i += 2) {
@@ -1263,7 +1262,9 @@ std::vector<int> ProcessTypeFeedback(Isolate* isolate,
           PrintF("[Function #%d call_ref #%d inlineable (monomorphic)]\n",
                  func_index, i / 2);
         }
-        result[i / 2] = target.function_index();
+        CallRefData data = CallRefData::cast(feedback.get(i + 1));
+        result[i / 2] = {target.function_index(),
+                         static_cast<int>(data.count())};
         continue;
       }
     } else if (value.IsFixedArray()) {
@@ -1276,6 +1277,7 @@ std::vector<int> ProcessTypeFeedback(Isolate* isolate,
         total_count += CallRefData::cast(polymorphic.get(j + 1)).count();
       }
       int found_target = -1;
+      int found_count = -1;
       double best_frequency = 0;
       for (int j = 0; j < polymorphic.length(); j += 2) {
         uint32_t this_count = CallRefData::cast(polymorphic.get(j + 1)).count();
@@ -1293,6 +1295,7 @@ std::vector<int> ProcessTypeFeedback(Isolate* isolate,
           continue;
         }
         found_target = target.function_index();
+        found_count = static_cast<int>(this_count);
         if (FLAG_trace_wasm_speculative_inlining) {
           PrintF("[Function #%d call_ref #%d inlineable (polymorphic %f)]\n",
                  func_index, i / 2, frequency);
@@ -1300,7 +1303,7 @@ std::vector<int> ProcessTypeFeedback(Isolate* isolate,
         break;
       }
       if (found_target >= 0) {
-        result[i / 2] = found_target;
+        result[i / 2] = {found_target, found_count};
         continue;
       } else if (FLAG_trace_wasm_speculative_inlining) {
         PrintF("[Function #%d call_ref #%d: best frequency %f]\n", func_index,
@@ -1310,7 +1313,7 @@ std::vector<int> ProcessTypeFeedback(Isolate* isolate,
     // If we fall through to here, then this call isn't eligible for inlining.
     // Possible reasons: uninitialized or megamorphic feedback; or monomorphic
     // or polymorphic that didn't meet our requirements.
-    result[i / 2] = -1;
+    result[i / 2] = {-1, -1};
   }
   return result;
 }
@@ -1329,7 +1332,7 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
     // TODO(jkummerow): we could have collisions here if two different instances
     // of the same module schedule tier-ups of the same function at the same
     // time. If that ever becomes a problem, figure out a solution.
-    module->type_feedback.feedback_for_function[func_index] =
+    module->type_feedback.feedback_for_function[func_index].feedback_vector =
         std::move(feedback);
   }
 

@@ -5945,6 +5945,12 @@ class LiftoffCompiler {
       LiftoffAssembler::VarState vector_var(kPointerKind, vector, 0);
       LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       uintptr_t vector_slot = num_call_ref_instructions_ * 2;
+      {
+        base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
+        decoder->module_->type_feedback.feedback_for_function[func_index_]
+            .positions[decoder->position()] =
+            static_cast<int>(num_call_ref_instructions_);
+      }
       num_call_ref_instructions_++;
       __ LoadConstant(index, WasmValue::ForUintPtr(vector_slot));
       LiftoffAssembler::VarState index_var(kIntPtrKind, index, 0);

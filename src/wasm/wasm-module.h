@@ -262,8 +262,16 @@ struct V8_EXPORT_PRIVATE WasmDebugSymbols {
   WireBytesRef external_url;
 };
 
+struct CallSiteFeedback {
+  int function_index;
+  int absolute_call_frequency;
+};
+struct FunctionTypeFeedback {
+  std::vector<CallSiteFeedback> feedback_vector;
+  std::map<WasmCodePosition, int> positions;
+};
 struct TypeFeedbackStorage {
-  std::map<uint32_t, std::vector<int>> feedback_for_function;
+  std::map<uint32_t, FunctionTypeFeedback> feedback_for_function;
   // Accesses to {feedback_for_function} are guarded by this mutex.
   base::Mutex mutex;
 };

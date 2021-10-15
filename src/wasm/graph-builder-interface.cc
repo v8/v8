@@ -127,13 +127,10 @@ class WasmGraphBuildingInterface {
       base::MutexGuard mutex_guard(&feedbacks.mutex);
       auto feedback = feedbacks.feedback_for_function.find(func_index_);
       if (feedback != feedbacks.feedback_for_function.end()) {
-        type_feedback_ = std::move(feedback->second);
-        // Erasing the map entry means that if the same function later gets
-        // inlined, its inlined copy won't have any type feedback available.
-        // However, if we don't erase the entry now, we'll be stuck with it
-        // forever.
+        type_feedback_ = feedback->second.feedback_vector;
+        // We need to keep the feedback in the module to inline later. However,
+        // this means we are stuck with it forever.
         // TODO(jkummerow): Reconsider our options here.
-        feedbacks.feedback_for_function.erase(func_index_);
       }
     }
     // The first '+ 1' is needed by TF Start node, the second '+ 1' is for the
@@ -675,7 +672,8 @@ class WasmGraphBuildingInterface {
     // we won't have any for inlined functions. Figure out how to change that.
     if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
       DCHECK_LT(feedback_instruction_index_, type_feedback_.size());
-      maybe_feedback = type_feedback_[feedback_instruction_index_];
+      maybe_feedback =
+          type_feedback_[feedback_instruction_index_].function_index;
       feedback_instruction_index_++;
     }
     if (maybe_feedback == -1) {
@@ -742,9 +740,10 @@ class WasmGraphBuildingInterface {
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
     int maybe_feedback = -1;
-    if (FLAG_wasm_speculative_inlining) {
-      DCHECK_LE(feedback_instruction_index_, type_feedback_.size());
-      maybe_feedback = type_feedback_[feedback_instruction_index_];
+    if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
+      DCHECK_LT(feedback_instruction_index_, type_feedback_.size());
+      maybe_feedback =
+          type_feedback_[feedback_instruction_index_].function_index;
       feedback_instruction_index_++;
     }
     if (maybe_feedback == -1) {
@@ -1291,7 +1290,7 @@ class WasmGraphBuildingInterface {
   // The entries in {type_feedback_} are indexed by the position of feedback-
   // consuming instructions (currently only call_ref).
   int feedback_instruction_index_ = 0;
-  std::vector<int> type_feedback_;
+  std::vector<CallSiteFeedback> type_feedback_;
 
   TFNode* effect() { return builder_->effect(); }
 
