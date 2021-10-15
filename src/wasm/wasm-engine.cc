@@ -1186,10 +1186,13 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
     Isolate* isolate) {
+  TRACE_EVENT1("v8.wasm", "wasm.GetNativeModuleFromCache", "wire_bytes",
+               wire_bytes.size());
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
   bool recompile_module = false;
   if (native_module) {
+    TRACE_EVENT0("v8.wasm", "CacheHit");
     base::MutexGuard guard(&mutex_);
     auto& native_module_info = native_modules_[native_module.get()];
     if (!native_module_info) {
@@ -1236,7 +1239,15 @@ bool WasmEngine::UpdateNativeModuleCache(
 }
 
 bool WasmEngine::GetStreamingCompilationOwnership(size_t prefix_hash) {
-  return native_module_cache_.GetStreamingCompilationOwnership(prefix_hash);
+  TRACE_EVENT0("v8.wasm", "wasm.GetStreamingCompilationOwnership");
+  if (native_module_cache_.GetStreamingCompilationOwnership(prefix_hash)) {
+    return true;
+  }
+  // This is only a marker, not for tracing execution time. There should be a
+  // later "wasm.GetNativeModuleFromCache" event for trying to get the module
+  // from the cache.
+  TRACE_EVENT0("v8.wasm", "CacheHit");
+  return false;
 }
 
 void WasmEngine::StreamingCompilationFailed(size_t prefix_hash) {
