@@ -22,7 +22,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+#ifdef V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
 
 // A PageAllocator that allocates pages inside a given virtual address range
 // like the BoundedPageAllocator, except that only a (small) part of the range
