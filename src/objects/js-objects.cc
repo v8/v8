@@ -230,6 +230,9 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     return Just(false);
   }
 
+  // We should never try to copy properties from an object itself.
+  CHECK_IMPLIES(!use_set, !target.is_identical_to(from));
+
   Handle<DescriptorArray> descriptors(map->instance_descriptors(isolate),
                                       isolate);
 
