@@ -5218,9 +5218,6 @@ class LiftoffCompiler {
       LiftoffRegister elem_size_reg =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
-      LiftoffAssembler::VarState rtt_var =
-          __ cache_state()->stack_state.end()[-1];
-
       __ LoadConstant(elem_size_reg, WasmValue(element_size_bytes(elem_kind)));
       LiftoffAssembler::VarState elem_size_var(kI32, elem_size_reg, 0);
 
@@ -5229,6 +5226,9 @@ class LiftoffCompiler {
       __ LoadConstant(length_reg,
                       WasmValue(static_cast<int32_t>(elements.size())));
       LiftoffAssembler::VarState length_var(kI32, length_reg, 0);
+
+      LiftoffAssembler::VarState rtt_var =
+          __ cache_state()->stack_state.end()[-1];
 
       CallRuntimeStub(WasmCode::kWasmAllocateArray_Uninitialized,
                       MakeSig::Returns(kRef).Params(rtt_kind, kI32, kI32),
