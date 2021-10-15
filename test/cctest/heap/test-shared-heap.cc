@@ -173,12 +173,12 @@ void AllocateInSharedHeap(Isolate* shared_isolate) {
         const int kKeptAliveArrays = 1000;
 
         for (int i = 0; i < kNumIterations * 100; i++) {
-          HandleScope scope(i_client_isolate);
+          HandleScope new_scope(i_client_isolate);
           Handle<FixedArray> array = i_client_isolate->factory()->NewFixedArray(
               100, AllocationType::kSharedOld);
           if (i < kKeptAliveArrays) {
             // Keep some of those arrays alive across GCs.
-            arrays.push_back(scope.CloseAndEscape(array));
+            arrays.push_back(new_scope.CloseAndEscape(array));
           }
         }
 

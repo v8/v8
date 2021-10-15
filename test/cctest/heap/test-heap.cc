@@ -1131,7 +1131,7 @@ TEST(TestBytecodeFlushing) {
 
     // This compile will add the code to the compilation cache.
     {
-      v8::HandleScope scope(isolate);
+      v8::HandleScope new_scope(isolate);
       CompileRun(source);
     }
 
@@ -1350,7 +1350,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  v8::HandleScope scope(CcTest::isolate());
+  v8::HandleScope outer_scope(CcTest::isolate());
   const char* source =
       "function foo() {"
       "  var x = 42;"
@@ -1476,7 +1476,7 @@ TEST(CompilationCacheCachingBehavior) {
   CompilationCache* compilation_cache = isolate->compilation_cache();
   LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
 
-  v8::HandleScope scope(CcTest::isolate());
+  v8::HandleScope outer_scope(CcTest::isolate());
   const char* raw_source =
       "function foo() {"
       "  var x = 42;"
@@ -1595,7 +1595,7 @@ TEST(TestInternalWeakLists) {
 
     // Create a handle scope so no function objects get stuck in the outer
     // handle scope.
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     OptimizeEmptyFunction("f1");
     OptimizeEmptyFunction("f2");
     OptimizeEmptyFunction("f3");
@@ -3459,7 +3459,7 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
   v8::HandleScope scope(isolate);
   SourceResource* resource = new SourceResource(i::StrDup(source));
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope new_scope(isolate);
     v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
     v8::Local<v8::String> source_string =
         v8::String::NewExternalOneByte(isolate, resource).ToLocalChecked();
@@ -4490,7 +4490,7 @@ TEST(WeakFunctionInConstructor) {
 
   v8::Persistent<v8::Object> garbage;
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope new_scope(isolate);
     const char* source =
         " (function() {"
         "   function hat() { this.x = 5; }"
@@ -4543,7 +4543,7 @@ void CheckWeakness(const char* source) {
   v8::HandleScope scope(isolate);
   v8::Persistent<v8::Object> garbage;
   {
-    v8::HandleScope scope(isolate);
+    v8::HandleScope new_scope(isolate);
     garbage.Reset(isolate, CompileRun(env.local(), source)
                                .ToLocalChecked()
                                ->ToObject(env.local())
@@ -4763,13 +4763,13 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
       "};");
   Handle<JSFunction> loadIC = GetFunctionByName(isolate, "loadIC");
   {
-    v8::HandleScope scope(CcTest::isolate());
+    v8::HandleScope new_scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
   CcTest::CollectAllGarbage();
   CheckIC(loadIC, 0, MONOMORPHIC);
   {
-    v8::HandleScope scope(CcTest::isolate());
+    v8::HandleScope new_scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
   CheckIC(loadIC, 0, MONOMORPHIC);
@@ -4802,13 +4802,13 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
       "};");
   Handle<JSFunction> loadIC = GetFunctionByName(isolate, "loadIC");
   {
-    v8::HandleScope scope(CcTest::isolate());
+    v8::HandleScope new_scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
   CcTest::CollectAllGarbage();
   CheckIC(loadIC, 0, POLYMORPHIC);
   {
-    v8::HandleScope scope(CcTest::isolate());
+    v8::HandleScope new_scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
   CheckIC(loadIC, 0, POLYMORPHIC);
@@ -5625,7 +5625,7 @@ TEST(Regress598319) {
       root = isolate->factory()->NewFixedArray(1, AllocationType::kOld);
       {
         // Temporary scope to avoid getting any other objects into the root set.
-        v8::HandleScope scope(CcTest::isolate());
+        v8::HandleScope new_scope(CcTest::isolate());
         Handle<FixedArray> tmp = isolate->factory()->NewFixedArray(
             number_of_objects, AllocationType::kOld);
         root->set(0, *tmp);
@@ -5695,7 +5695,7 @@ TEST(Regress598319) {
       {
         // Shift by 1, effectively moving one white object across the progress
         // bar, meaning that we will miss marking it.
-        v8::HandleScope scope(CcTest::isolate());
+        v8::HandleScope new_scope(CcTest::isolate());
         Handle<JSArray> js_array = isolate->factory()->NewJSArrayWithElements(
             Handle<FixedArray>(arr.get(), isolate));
         js_array->GetElementsAccessor()->Shift(js_array).Check();
@@ -5711,7 +5711,7 @@ TEST(Regress598319) {
                   i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
-      SafepointScope scope(heap);
+      SafepointScope safepoint_scope(heap);
       marking->FinalizeIncrementally();
     }
   }
@@ -5801,7 +5801,7 @@ TEST(Regress615489) {
     marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
-      SafepointScope scope(heap);
+      SafepointScope safepoint_scope(heap);
       marking->FinalizeIncrementally();
     }
   }
@@ -5864,7 +5864,7 @@ TEST(Regress631969) {
     marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                   StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
-      SafepointScope scope(heap);
+      SafepointScope safepoint_scope(heap);
       marking->FinalizeIncrementally();
     }
   }
@@ -6044,7 +6044,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
     for (int j = 0; j < 10; j++) {
       previous -= kTaggedSize * i;
       isolate->heap()->RightTrimFixedArray(*array, i);
-      HeapObject filler = HeapObject::FromAddress(previous);
+      filler = HeapObject::FromAddress(previous);
       CHECK(filler.IsFreeSpaceOrFiller());
       CHECK(marking_state->IsWhite(filler));
     }
@@ -6142,7 +6142,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
   if (!isolate->serializer_enabled()) return;
 
   {
-    HandleScope scope(isolate);
+    HandleScope new_scope(isolate);
     for (int i = 0; i < 10; i++) {
       Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
@@ -6458,7 +6458,7 @@ HEAP_TEST(Regress670675) {
   }
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
-    SafepointScope scope(heap);
+    SafepointScope safepoint_scope(heap);
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
   size_t array_length = 128 * KB;
@@ -6677,7 +6677,7 @@ HEAP_TEST(Regress779503) {
     }
 
     {
-      HandleScope handle_scope(isolate);
+      HandleScope new_scope(isolate);
       // The FixedArray in old space serves as space for slots.
       Handle<FixedArray> fixed_array =
           isolate->factory()->NewFixedArray(kArraySize, AllocationType::kOld);
