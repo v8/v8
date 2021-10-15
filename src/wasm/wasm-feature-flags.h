@@ -39,6 +39,7 @@
   V(skip_null_checks,                                                          \
     "skip null checks for call.ref and array and struct operations (unsafe)",  \
     false)                                                                     \
+  V(skip_bounds_checks, "skip array bounds checks (unsafe)", false)            \
                                                                                \
   /* Typed function references proposal. */                                    \
   /* Official proposal: https://github.com/WebAssembly/function-references */  \

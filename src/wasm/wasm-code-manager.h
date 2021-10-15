@@ -118,6 +118,7 @@ struct WasmModule;
   V(WasmAllocateArray_Uninitialized)      \
   V(WasmAllocateArray_InitNull)           \
   V(WasmAllocateArray_InitZero)           \
+  V(WasmArrayCopy)                        \
   V(WasmArrayCopyWithChecks)              \
   V(WasmAllocateRtt)                      \
   V(WasmAllocateFreshRtt)                 \

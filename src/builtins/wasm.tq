@@ -370,6 +370,15 @@ builtin WasmArrayCopyWithChecks(
       SmiFromUint32(srcIndex), SmiFromUint32(length));
 }
 
+builtin WasmArrayCopy(
+    dstIndex: uint32, srcIndex: uint32, length: uint32, dstArray: WasmArray,
+    srcArray: WasmArray): JSAny {
+  if (length == 0) return Undefined;
+  tail runtime::WasmArrayCopy(
+      LoadContextFromFrame(), dstArray, SmiFromUint32(dstIndex), srcArray,
+      SmiFromUint32(srcIndex), SmiFromUint32(length));
+}
+
 // Redeclaration with different typing (value is an Object, not JSAny).
 extern transitioning runtime
 CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, Object): void;

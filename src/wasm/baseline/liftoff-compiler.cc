@@ -5143,7 +5143,7 @@ class LiftoffCompiler {
     LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
-    BoundsCheck(decoder, array, index, pinned);
+    BoundsCheckArray(decoder, array, index, pinned);
     ValueKind elem_kind = imm.array_type->element_type().kind();
     if (!CheckSupportedType(decoder, elem_kind, "array load")) return;
     int elem_size_shift = element_size_log2(elem_kind);
@@ -5168,7 +5168,7 @@ class LiftoffCompiler {
     LiftoffRegister index = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister array = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, array.gp(), pinned, array_obj.type);
-    BoundsCheck(decoder, array, index, pinned);
+    BoundsCheckArray(decoder, array, index, pinned);
     ValueKind elem_kind = imm.array_type->element_type().kind();
     int elem_size_shift = element_size_log2(elem_kind);
     if (elem_size_shift != 0) {
@@ -5194,7 +5194,9 @@ class LiftoffCompiler {
                  const Value& length) {
     // TODO(7748): Unify implementation with TF: Implement this with
     // GenerateCCall. Remove runtime function and builtin in wasm.tq.
-    CallRuntimeStub(WasmCode::kWasmArrayCopyWithChecks,
+    CallRuntimeStub(FLAG_experimental_wasm_skip_bounds_checks
+                        ? WasmCode::kWasmArrayCopy
+                        : WasmCode::kWasmArrayCopyWithChecks,
                     MakeSig::Params(kI32, kI32, kI32, kOptRef, kOptRef),
                     // Builtin parameter order:
                     // [dst_index, src_index, length, dst, src].
@@ -6098,8 +6100,9 @@ class LiftoffCompiler {
                       null.gp());
   }
 
-  void BoundsCheck(FullDecoder* decoder, LiftoffRegister array,
-                   LiftoffRegister index, LiftoffRegList pinned) {
+  void BoundsCheckArray(FullDecoder* decoder, LiftoffRegister array,
+                        LiftoffRegister index, LiftoffRegList pinned) {
+    if (V8_UNLIKELY(FLAG_experimental_wasm_skip_bounds_checks)) return;
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayOutOfBounds);
     LiftoffRegister length = __ GetUnusedRegister(kGpReg, pinned);
