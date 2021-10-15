@@ -91,10 +91,11 @@ InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate, Name name,
 }
 
 ObjectSlot DescriptorArray::GetFirstPointerSlot() {
-  static_assert(kEnumCacheOffset + kTaggedSize == kHeaderSize,
-                "The strong field for enum_cache is contiguous with the "
-                "variable-size portion.");
-  return RawField(DescriptorArray::kEnumCacheOffset);
+  static_assert(kEndOfStrongFieldsOffset == kStartOfWeakFieldsOffset,
+                "Weak and strong fields are continuous.");
+  static_assert(kEndOfWeakFieldsOffset == kHeaderSize,
+                "Weak fields extend up to the end of the header.");
+  return RawField(DescriptorArray::kStartOfStrongFieldsOffset);
 }
 
 ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
