@@ -45,7 +45,11 @@ function WriteToTypedArray(array, index, value) {
 function ToNumbers(array) {
   let result = [];
   for (let item of array) {
-    result.push(Number(item));
+    if (typeof item == 'bigint') {
+      result.push(Number(item));
+    } else {
+      result.push(item);
+    }
   }
   return result;
 }
