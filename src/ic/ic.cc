@@ -2418,10 +2418,12 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   DCHECK(store_handle.is_null());
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), store_handle,
-      Runtime::SetObjectProperty(isolate(), object, key, value,
-                                 StoreOrigin::kMaybeKeyed),
+      IsDefineOwnIC()
+          ? Runtime::DefineClassField(isolate(), object, key, value,
+                                      StoreOrigin::kMaybeKeyed)
+          : Runtime::SetObjectProperty(isolate(), object, key, value,
+                                       StoreOrigin::kMaybeKeyed),
       Object);
-
   if (use_ic) {
     if (!old_receiver_map.is_null()) {
       if (is_arguments) {
