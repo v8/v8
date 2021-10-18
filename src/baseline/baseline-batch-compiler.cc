@@ -365,6 +365,8 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
+class ConcurrentBaselineCompiler {};
+
 BaselineBatchCompiler::BaselineBatchCompiler(Isolate* isolate)
     : isolate_(isolate),
       compilation_queue_(Handle<WeakFixedArray>::null()),
@@ -378,6 +380,8 @@ BaselineBatchCompiler::~BaselineBatchCompiler() {
     compilation_queue_ = Handle<WeakFixedArray>::null();
   }
 }
+
+void BaselineBatchCompiler::InstallBatch() { UNREACHABLE(); }
 
 }  // namespace baseline
 }  // namespace internal

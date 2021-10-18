@@ -709,6 +709,8 @@ DEFINE_NEG_IMPLICATION(concurrent_sparkplug, write_protect_code_memory)
 #endif
 #else
 DEFINE_BOOL(baseline_batch_compilation, false, "batch compile Sparkplug code")
+DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
+                     "compile Sparkplug code in a background thread")
 #endif
 DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
 DEFINE_BOOL(sparkplug_needs_short_builtins, false,
