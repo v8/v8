@@ -71,12 +71,23 @@
 #include "src/wasm/wasm-value.h"
 #endif
 
+#include "src/heap/local-heap-inl.h"
+
 namespace v8 {
 namespace internal {
 
 Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
                                   CodeKind kind)
     : isolate_(isolate),
+      local_isolate_(isolate_->main_thread_local_isolate()),
+      code_desc_(desc),
+      kind_(kind),
+      position_table_(isolate_->factory()->empty_byte_array()) {}
+
+Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
+                                  const CodeDesc& desc, CodeKind kind)
+    : isolate_(local_isolate->GetMainThreadIsolateUnsafe()),
+      local_isolate_(local_isolate),
       code_desc_(desc),
       kind_(kind),
       position_table_(isolate_->factory()->empty_byte_array()) {}
@@ -86,7 +97,10 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   const auto factory = isolate_->factory();
   // Allocate objects needed for code initialization.
   Handle<ByteArray> reloc_info =
-      factory->NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
+      CompiledWithConcurrentBaseline()
+          ? local_isolate_->factory()->NewByteArray(code_desc_.reloc_size,
+                                                    AllocationType::kOld)
+          : factory->NewByteArray(code_desc_.reloc_size, AllocationType::kOld);
   Handle<CodeDataContainer> data_container;
 
   // Use a canonical off-heap trampoline CodeDataContainer if possible.
@@ -104,9 +118,14 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
               kind_specific_flags_);
     data_container = canonical_code_data_container;
   } else {
-    data_container = factory->NewCodeDataContainer(
-        0, read_only_data_container_ ? AllocationType::kReadOnly
-                                     : AllocationType::kOld);
+    if (CompiledWithConcurrentBaseline()) {
+      data_container = local_isolate_->factory()->NewCodeDataContainer(
+          0, AllocationType::kOld);
+    } else {
+      data_container = factory->NewCodeDataContainer(
+          0, read_only_data_container_ ? AllocationType::kReadOnly
+                                       : AllocationType::kOld);
+    }
     data_container->set_kind_specific_flags(kind_specific_flags_,
                                             kRelaxedStore);
   }
@@ -132,7 +151,12 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   CodePageCollectionMemoryModificationScope code_allocation(heap);
 
   Handle<Code> code;
-  if (!AllocateCode(retry_allocation_or_fail).ToHandle(&code)) {
+  if (CompiledWithConcurrentBaseline()) {
+    if (!AllocateConcurrentSparkplugCode(retry_allocation_or_fail)
+             .ToHandle(&code)) {
+      return MaybeHandle<Code>();
+    }
+  } else if (!AllocateCode(retry_allocation_or_fail).ToHandle(&code)) {
     return MaybeHandle<Code>();
   }
 
@@ -235,6 +259,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
   return code;
 }
 
+// TODO(victorgomes): Unify the two AllocateCodes
 MaybeHandle<Code> Factory::CodeBuilder::AllocateCode(
     bool retry_allocation_or_fail) {
   Heap* heap = isolate_->heap();
@@ -265,6 +290,27 @@ MaybeHandle<Code> Factory::CodeBuilder::AllocateCode(
         !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
         heap->code_region().contains(code->address()));
   }
+  return code;
+}
+
+MaybeHandle<Code> Factory::CodeBuilder::AllocateConcurrentSparkplugCode(
+    bool retry_allocation_or_fail) {
+  LocalHeap* heap = local_isolate_->heap();
+  AllocationType allocation_type = V8_EXTERNAL_CODE_SPACE_BOOL || is_executable_
+                                       ? AllocationType::kCode
+                                       : AllocationType::kReadOnly;
+  const int object_size = Code::SizeFor(code_desc_.body_size());
+  HeapObject result =
+      heap->AllocateRaw(object_size, allocation_type).ToObject();
+  CHECK(!result.is_null());
+
+  // The code object has not been fully initialized yet.  We rely on the
+  // fact that no allocation will happen from this point on.
+  DisallowGarbageCollection no_gc;
+  result.set_map_after_allocation(*isolate_->factory()->code_map(),
+                                  SKIP_WRITE_BARRIER);
+  Handle<Code> code = handle(Code::cast(result), local_isolate_);
+  DCHECK_IMPLIES(is_executable_, IsAligned(code->address(), kCodeAlignment));
   return code;
 }
 
@@ -1297,6 +1343,14 @@ void Factory::AddToScriptList(Handle<Script> script) {
   isolate()->heap()->set_script_list(*scripts);
 }
 
+void Factory::SetExternalCodeSpaceInDataContainer(
+    CodeDataContainer data_container) {
+  DCHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  data_container.AllocateExternalPointerEntries(isolate());
+  data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
+  data_container.set_code_entry_point(isolate(), kNullAddress);
+}
+
 Handle<Script> Factory::CloneScript(Handle<Script> script) {
   Heap* heap = isolate()->heap();
   int script_id = isolate()->GetNextScriptId();
@@ -2088,23 +2142,6 @@ Handle<JSObject> Factory::NewExternal(void* value) {
   Handle<JSObject> external = NewJSObjectFromMap(external_map());
   external->SetEmbedderField(0, *foreign);
   return external;
-}
-
-Handle<CodeDataContainer> Factory::NewCodeDataContainer(
-    int flags, AllocationType allocation) {
-  CodeDataContainer data_container =
-      CodeDataContainer::cast(New(code_data_container_map(), allocation));
-  DisallowGarbageCollection no_gc;
-  data_container.set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
-  data_container.set_kind_specific_flags(flags, kRelaxedStore);
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    data_container.AllocateExternalPointerEntries(isolate());
-    data_container.set_code_cage_base(isolate()->code_cage_base());
-    data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
-    data_container.set_code_entry_point(isolate(), kNullAddress);
-  }
-  data_container.clear_padding();
-  return handle(data_container, isolate());
 }
 
 Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,

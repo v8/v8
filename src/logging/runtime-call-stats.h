@@ -392,6 +392,9 @@ class RuntimeCallTimer final {
   V(CompileBaseline)                           \
   V(CompileBaselinePreVisit)                   \
   V(CompileBaselineVisit)                      \
+  V(CompileBackgroundBaselinePreVisit)         \
+  V(CompileBackgroundBaselineVisit)            \
+  V(CompileBaselineFinalization)               \
   V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \
   V(CompileEnqueueOnDispatcher)                \
