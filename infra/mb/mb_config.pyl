@@ -181,8 +181,8 @@
       'V8 Android Arm - builder': 'release_android_arm',
       'V8 Linux - arm - sim': 'release_simulate_arm',
       'V8 Linux - arm - sim - debug': 'debug_simulate_arm',
-      'V8 Linux - arm - sim - lite - builder': 'release_simulate_arm_lite',
-      'V8 Linux - arm - sim - lite - debug builder': 'debug_simulate_arm_lite',
+      'V8 Linux - arm - sim - lite': 'release_simulate_arm_lite',
+      'V8 Linux - arm - sim - lite - debug': 'debug_simulate_arm_lite',
       # Arm64.
       'V8 Android Arm64 - builder': 'release_android_arm64',
       'V8 Android Arm64 - debug builder': 'debug_android_arm64',
