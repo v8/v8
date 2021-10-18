@@ -93,8 +93,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
   Heap* AsHeap() { return heap(); }
 
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
-  ConcurrentAllocator* old_space_allocator() { return &old_space_allocator_; }
-  ConcurrentAllocator* code_space_allocator() { return &code_space_allocator_; }
+  ConcurrentAllocator* old_space_allocator() {
+    return old_space_allocator_.get();
+  }
+  ConcurrentAllocator* code_space_allocator() {
+    return code_space_allocator_.get();
+  }
 
   // Mark/Unmark linear allocation areas black. Used for black allocation.
   void MarkLinearAllocationAreaBlack();
@@ -149,6 +153,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // can trigger GC.
   void AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
   void RemoveGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
+
+  // Used to make SetupMainThread() available to unit tests.
+  void SetUpMainThreadForTesting();
 
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;
@@ -248,7 +255,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
                                             AllocationAlignment alignment);
 
   void Park() {
-    DCHECK(AllowGarbageCollection::IsAllowed());
+    DCHECK(AllowSafepoints::IsAllowed());
     ThreadState expected = ThreadState::Running();
     if (!state_.CompareExchangeWeak(expected, ThreadState::Parked())) {
       ParkSlowPath();
@@ -256,7 +263,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   }
 
   void Unpark() {
-    DCHECK(AllowGarbageCollection::IsAllowed());
+    DCHECK(AllowSafepoints::IsAllowed());
     ThreadState expected = ThreadState::Parked();
     if (!state_.CompareExchangeWeak(expected, ThreadState::Running())) {
       UnparkSlowPath();
@@ -271,6 +278,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void EnsurePersistentHandles();
 
   void InvokeGCEpilogueCallbacksInSafepoint();
+
+  void SetUpMainThread();
+  void SetUp();
 
   Heap* heap_;
   bool is_main_thread_;
@@ -289,8 +299,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   std::vector<std::pair<GCEpilogueCallback*, void*>> gc_epilogue_callbacks_;
 
-  ConcurrentAllocator old_space_allocator_;
-  ConcurrentAllocator code_space_allocator_;
+  std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
+  std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
 
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;

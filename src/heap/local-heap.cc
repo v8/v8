@@ -13,6 +13,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/local-handles.h"
 #include "src/heap/collection-barrier.h"
+#include "src/heap/concurrent-allocator.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -51,10 +52,8 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       prev_(nullptr),
       next_(nullptr),
       handles_(new LocalHandles),
-      persistent_handles_(std::move(persistent_handles)),
-      marking_barrier_(new MarkingBarrier(this)),
-      old_space_allocator_(this, heap->old_space()),
-      code_space_allocator_(this, heap->code_space()) {
+      persistent_handles_(std::move(persistent_handles)) {
+  if (!is_main_thread()) SetUp();
   heap_->safepoint()->AddLocalHeap(this, [this] {
     if (!is_main_thread()) {
       WriteBarrier::SetForThread(marking_barrier_.get());
@@ -77,8 +76,7 @@ LocalHeap::~LocalHeap() {
   EnsureParkedBeforeDestruction();
 
   heap_->safepoint()->RemoveLocalHeap(this, [this] {
-    old_space_allocator_.FreeLinearAllocationArea();
-    code_space_allocator_.FreeLinearAllocationArea();
+    FreeLinearAllocationArea();
 
     if (!is_main_thread()) {
       marking_barrier_->Publish();
@@ -92,6 +90,26 @@ LocalHeap::~LocalHeap() {
   }
 
   DCHECK(gc_epilogue_callbacks_.empty());
+}
+
+void LocalHeap::SetUpMainThreadForTesting() { SetUpMainThread(); }
+
+void LocalHeap::SetUpMainThread() {
+  DCHECK(is_main_thread());
+  SetUp();
+}
+
+void LocalHeap::SetUp() {
+  DCHECK_NULL(old_space_allocator_);
+  old_space_allocator_ =
+      std::make_unique<ConcurrentAllocator>(this, heap_->old_space());
+
+  DCHECK_NULL(code_space_allocator_);
+  code_space_allocator_ =
+      std::make_unique<ConcurrentAllocator>(this, heap_->code_space());
+
+  DCHECK_NULL(marking_barrier_);
+  marking_barrier_ = std::make_unique<MarkingBarrier>(this);
 }
 
 void LocalHeap::EnsurePersistentHandles() {
@@ -227,23 +245,23 @@ void LocalHeap::SafepointSlowPath() {
 }
 
 void LocalHeap::FreeLinearAllocationArea() {
-  old_space_allocator_.FreeLinearAllocationArea();
-  code_space_allocator_.FreeLinearAllocationArea();
+  old_space_allocator_->FreeLinearAllocationArea();
+  code_space_allocator_->FreeLinearAllocationArea();
 }
 
 void LocalHeap::MakeLinearAllocationAreaIterable() {
-  old_space_allocator_.MakeLinearAllocationAreaIterable();
-  code_space_allocator_.MakeLinearAllocationAreaIterable();
+  old_space_allocator_->MakeLinearAllocationAreaIterable();
+  code_space_allocator_->MakeLinearAllocationAreaIterable();
 }
 
 void LocalHeap::MarkLinearAllocationAreaBlack() {
-  old_space_allocator_.MarkLinearAllocationAreaBlack();
-  code_space_allocator_.MarkLinearAllocationAreaBlack();
+  old_space_allocator_->MarkLinearAllocationAreaBlack();
+  code_space_allocator_->MarkLinearAllocationAreaBlack();
 }
 
 void LocalHeap::UnmarkLinearAllocationArea() {
-  old_space_allocator_.UnmarkLinearAllocationArea();
-  code_space_allocator_.UnmarkLinearAllocationArea();
+  old_space_allocator_->UnmarkLinearAllocationArea();
+  code_space_allocator_->UnmarkLinearAllocationArea();
 }
 
 bool LocalHeap::TryPerformCollection() {

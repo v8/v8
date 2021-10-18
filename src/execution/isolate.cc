@@ -3125,6 +3125,7 @@ bool Isolate::LogObjectRelocation() {
 
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
+  DisallowHeapAllocation no_allocation;
 
   tracing_cpu_profiler_.reset();
   if (FLAG_stress_sampling_allocation_profiler > 0) {
@@ -3210,9 +3211,7 @@ void Isolate::Deinit() {
 
   main_thread_local_isolate_->heap()->FreeLinearAllocationArea();
 
-  if (shared_isolate_) {
-    DetachFromSharedIsolate();
-  }
+  DetachFromSharedIsolate();
 
   heap_.TearDown();
 
@@ -3659,12 +3658,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   date_cache_ = new DateCache();
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
-  if (OwnsStringTable()) {
-    string_table_ = std::make_shared<StringTable>(this);
-  } else {
-    DCHECK_NOT_NULL(shared_isolate_);
-    string_table_ = shared_isolate_->string_table_;
-  }
   bigint_processor_ = bigint::Processor::New(new BigIntPlatform(this));
 
   compiler_dispatcher_ = new LazyCompileDispatcher(
@@ -3684,11 +3677,32 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     stack_guard()->InitThread(lock);
   }
 
+  // Create LocalIsolate/LocalHeap for the main thread and set state to Running.
+  main_thread_local_isolate_.reset(new LocalIsolate(this, ThreadKind::kMain));
+  main_thread_local_heap()->Unpark();
+
+  // The main thread LocalHeap needs to be set up when attaching to the shared
+  // isolate. Otherwise a global safepoint would find an isolate without
+  // LocalHeaps and not wait until this thread is ready for a GC.
+  AttachToSharedIsolate();
+
+  // We need to ensure that we do not let a shared GC run before this isolate is
+  // fully set up.
+  DisallowSafepoints no_shared_gc;
+
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
-  heap_.SetUp();
+  heap_.SetUp(main_thread_local_heap());
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
   heap_.SetUpSpaces();
+
+  if (OwnsStringTable()) {
+    string_table_ = std::make_shared<StringTable>(this);
+  } else {
+    // Only refer to shared string table after attaching to the shared isolate.
+    DCHECK_NOT_NULL(shared_isolate());
+    string_table_ = shared_isolate()->string_table_;
+  }
 
   if (V8_SHORT_BUILTIN_CALLS_BOOL && FLAG_short_builtin_calls) {
     // Check if the system has more than 4GB of physical memory by comparing the
@@ -3713,14 +3727,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
           GetShortBuiltinsCallRegion().contains(heap_.code_region());
     }
   }
-
-  // Create LocalIsolate/LocalHeap for the main thread and set state to Running.
-  main_thread_local_isolate_.reset(new LocalIsolate(this, ThreadKind::kMain));
-  main_thread_local_heap()->Unpark();
-
-  heap_.InitializeMainThreadLocalHeap(main_thread_local_heap());
-
-  if (shared_isolate_) heap()->InitSharedSpaces();
 
   isolate_data_.external_reference_table()->Init(this);
 
@@ -5163,19 +5169,30 @@ Address Isolate::store_to_stack_count_address(const char* function_name) {
   return reinterpret_cast<Address>(&map[name].second);
 }
 
-void Isolate::AttachToSharedIsolate(Isolate* shared) {
-  DCHECK(shared->is_shared());
-  DCHECK_NULL(shared_isolate_);
-  DCHECK(!heap_.HasBeenSetUp());
-  shared->AppendAsClientIsolate(this);
-  shared_isolate_ = shared;
+void Isolate::AttachToSharedIsolate() {
+  DCHECK(!attached_to_shared_isolate_);
+
+  if (shared_isolate_) {
+    DCHECK(shared_isolate_->is_shared());
+    shared_isolate_->AppendAsClientIsolate(this);
+  }
+
+#if DEBUG
+  attached_to_shared_isolate_ = true;
+#endif  // DEBUG
 }
 
 void Isolate::DetachFromSharedIsolate() {
-  DCHECK_NOT_NULL(shared_isolate_);
-  shared_isolate_->RemoveAsClientIsolate(this);
-  shared_isolate_ = nullptr;
-  heap()->DeinitSharedSpaces();
+  DCHECK(attached_to_shared_isolate_);
+
+  if (shared_isolate_) {
+    shared_isolate_->RemoveAsClientIsolate(this);
+    shared_isolate_ = nullptr;
+  }
+
+#if DEBUG
+  attached_to_shared_isolate_ = false;
+#endif  // DEBUG
 }
 
 void Isolate::AppendAsClientIsolate(Isolate* client) {

@@ -840,7 +840,7 @@ class Heap {
   void ConfigureHeapDefault();
 
   // Prepares the heap, setting up for deserialization.
-  void SetUp();
+  void SetUp(LocalHeap* main_thread_local_heap);
 
   // Sets read-only heap and space.
   void SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap);
@@ -871,12 +871,6 @@ class Heap {
 
   // Returns whether SetUp has been called.
   bool HasBeenSetUp() const;
-
-  // Initialializes shared spaces.
-  void InitSharedSpaces();
-
-  // Removes shared spaces again.
-  void DeinitSharedSpaces();
 
   // ===========================================================================
   // Getters for spaces. =======================================================
