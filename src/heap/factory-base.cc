@@ -70,6 +70,24 @@ Handle<AccessorPair> FactoryBase<Impl>::NewAccessorPair() {
 }
 
 template <typename Impl>
+Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
+    int flags, AllocationType allocation) {
+  Map map = read_only_roots().code_data_container_map();
+  int size = map.instance_size();
+  CodeDataContainer data_container = CodeDataContainer::cast(
+      AllocateRawWithImmortalMap(size, allocation, map));
+  DisallowGarbageCollection no_gc;
+  data_container.set_next_code_link(read_only_roots().undefined_value(),
+                                    SKIP_WRITE_BARRIER);
+  data_container.set_kind_specific_flags(flags, kRelaxedStore);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    impl()->SetExternalCodeSpaceInDataContainer(data_container);
+  }
+  data_container.clear_padding();
+  return handle(data_container, isolate());
+}
+
+template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
                                                     AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();

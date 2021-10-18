@@ -60,9 +60,10 @@ MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
                                        Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileBaseline);
   Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate), isolate);
-  baseline::BaselineCompiler compiler(isolate, shared, bytecode);
+  LocalIsolate* local_isolate = isolate->main_thread_local_isolate();
+  baseline::BaselineCompiler compiler(local_isolate, shared, bytecode);
   compiler.GenerateCode();
-  MaybeHandle<Code> code = compiler.Build(isolate);
+  MaybeHandle<Code> code = compiler.Build(local_isolate);
   if (FLAG_print_code && !code.is_null()) {
     code.ToHandleChecked()->Print();
   }

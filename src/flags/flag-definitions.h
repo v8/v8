@@ -694,6 +694,19 @@ DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
 #if ENABLE_SPARKPLUG
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
+#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
+// M1 requires W^X.
+DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
+                     "compile Sparkplug code in a background thread")
+#else
+DEFINE_BOOL(concurrent_sparkplug, false,
+            "compile Sparkplug code in a background thread")
+#endif
+#if !MUST_WRITE_PROTECT_CODE_MEMORY
+// TODO(victorgomes): Currently concurrent compilation only works if we assume
+// no write protect in code space.
+DEFINE_NEG_IMPLICATION(concurrent_sparkplug, write_protect_code_memory)
+#endif
 #else
 DEFINE_BOOL(baseline_batch_compilation, false, "batch compile Sparkplug code")
 #endif
@@ -706,7 +719,8 @@ DEFINE_INT(baseline_batch_compilation_threshold, 4 * KB,
 DEFINE_BOOL(trace_baseline, false, "trace baseline compilation")
 DEFINE_BOOL(trace_baseline_batch_compilation, false,
             "trace baseline batch compilation")
-
+DEFINE_BOOL(trace_baseline_concurrent_compilation, false,
+            "trace baseline concurrent compilation")
 #undef FLAG
 #define FLAG FLAG_FULL
 

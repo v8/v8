@@ -24,6 +24,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -258,16 +259,18 @@ std::unique_ptr<AssemblerBuffer> AllocateBuffer(
 }  // namespace
 
 BaselineCompiler::BaselineCompiler(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_function_info,
+    LocalIsolate* local_isolate,
+    Handle<SharedFunctionInfo> shared_function_info,
     Handle<BytecodeArray> bytecode)
-    : local_isolate_(isolate->AsLocalIsolate()),
-      stats_(isolate->counters()->runtime_call_stats()),
+    : local_isolate_(local_isolate),
+      stats_(local_isolate->runtime_call_stats()),
       shared_function_info_(shared_function_info),
       bytecode_(bytecode),
-      masm_(isolate, CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
+      masm_(local_isolate->GetMainThreadIsolateUnsafe(),
+            CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
-      zone_(isolate->allocator(), ZONE_NAME),
+      zone_(local_isolate->allocator(), ZONE_NAME),
       labels_(zone_.NewArray<BaselineLabels*>(bytecode_->length())) {
   MemsetPointer(labels_, nullptr, bytecode_->length());
 
@@ -281,9 +284,15 @@ BaselineCompiler::BaselineCompiler(
 
 #define __ basm_.
 
+#define RCS_BASELINE_SCOPE(rcs)                               \
+  RCS_SCOPE(stats_,                                           \
+            local_isolate_->is_main_thread()                  \
+                ? RuntimeCallCounterId::kCompileBaseline##rcs \
+                : RuntimeCallCounterId::kCompileBackgroundBaseline##rcs)
+
 void BaselineCompiler::GenerateCode() {
   {
-    RCS_SCOPE(stats_, RuntimeCallCounterId::kCompileBaselinePreVisit);
+    RCS_BASELINE_SCOPE(PreVisit);
     for (; !iterator_.done(); iterator_.Advance()) {
       PreVisitSingleBytecode();
     }
@@ -295,7 +304,7 @@ void BaselineCompiler::GenerateCode() {
   __ CodeEntry();
 
   {
-    RCS_SCOPE(stats_, RuntimeCallCounterId::kCompileBaselineVisit);
+    RCS_BASELINE_SCOPE(Visit);
     Prologue();
     AddPosition();
     for (; !iterator_.done(); iterator_.Advance()) {
@@ -305,18 +314,19 @@ void BaselineCompiler::GenerateCode() {
   }
 }
 
-MaybeHandle<Code> BaselineCompiler::Build(Isolate* isolate) {
+MaybeHandle<Code> BaselineCompiler::Build(LocalIsolate* local_isolate) {
   CodeDesc desc;
-  __ GetCode(isolate, &desc);
+  __ GetCode(local_isolate->GetMainThreadIsolateUnsafe(), &desc);
+
   // Allocate the bytecode offset table.
   Handle<ByteArray> bytecode_offset_table =
-      bytecode_offset_table_builder_.ToBytecodeOffsetTable(isolate);
+      bytecode_offset_table_builder_.ToBytecodeOffsetTable(local_isolate);
 
-  Factory::CodeBuilder code_builder(isolate, desc, CodeKind::BASELINE);
+  Factory::CodeBuilder code_builder(local_isolate, desc, CodeKind::BASELINE);
   code_builder.set_bytecode_offset_table(bytecode_offset_table);
   if (shared_function_info_->HasInterpreterData()) {
     code_builder.set_interpreter_data(
-        handle(shared_function_info_->interpreter_data(), isolate));
+        handle(shared_function_info_->interpreter_data(), local_isolate));
   } else {
     code_builder.set_interpreter_data(bytecode_);
   }

@@ -28,6 +28,10 @@ class BytecodeArray;
 class CodeDataContainer;
 class CodeDesc;
 
+class LocalFactory;
+template <typename Impl>
+class FactoryBase;
+
 namespace interpreter {
 class Register;
 }  // namespace interpreter
@@ -118,6 +122,8 @@ class CodeDataContainer : public HeapObject {
   inline void set_code_entry_point(Isolate* isolate, Address value);
 
   friend Factory;
+  friend FactoryBase<Factory>;
+  friend FactoryBase<LocalFactory>;
 
   OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
 };

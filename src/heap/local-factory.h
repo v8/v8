@@ -72,6 +72,10 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   // ------
 
   void AddToScriptList(Handle<Script> shared);
+
+  void SetExternalCodeSpaceInDataContainer(CodeDataContainer data_container) {
+    UNREACHABLE();
+  }
   // ------
 
   ReadOnlyRoots roots_;
