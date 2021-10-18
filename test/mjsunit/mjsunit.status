@@ -1370,6 +1370,7 @@
   # Investigate (IsScript).
   'harmony/import-from-compilation-errored': [SKIP],
   'harmony/private-fields-special-object': [SKIP],
+  'regress/regress-676025': [SKIP],
   # Skip, since import errors since they refer to the script via debug symbols
   'harmony/import-from-instantiation-errored': [SKIP],
   # The entire snapshotting code assumes that the snapshot size fits
