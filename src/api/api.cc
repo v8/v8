@@ -2090,9 +2090,12 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   }
 
   i::Handle<i::Object> receiver = isolate->global_proxy();
+  i::Handle<i::FixedArray> host_defined_options(
+      i::Script::cast(fun->shared().script()).host_defined_options(), isolate);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
-      i::Execution::Call(isolate, fun, receiver, 0, nullptr), &result);
+      i::Execution::CallScript(isolate, fun, receiver, host_defined_options),
+      &result);
 
   if (i::FLAG_script_delay_fraction > 0.0) {
     delta = v8::base::TimeDelta::FromMillisecondsD(

@@ -72,9 +72,13 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
     isolate->debug()->StartSideEffectCheckMode();
   }
-  MaybeHandle<Object> result = Execution::Call(
-      isolate, function, Handle<JSObject>(context->global_proxy(), isolate), 0,
-      nullptr);
+  // TODO(cbruni, 1244145): Use host-defined options from script context.
+  Handle<FixedArray> host_defined_options(
+      Script::cast(function->shared().script()).host_defined_options(),
+      isolate);
+  MaybeHandle<Object> result = Execution::CallScript(
+      isolate, function, Handle<JSObject>(context->global_proxy(), isolate),
+      host_defined_options);
   if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
     isolate->debug()->StopSideEffectCheckMode();
   }

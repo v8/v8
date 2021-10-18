@@ -1757,7 +1757,9 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
           .Build();
   Handle<JSObject> global(isolate->context().global_object(), isolate);
   Handle<Object> copy_result =
-      Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
+      Execution::CallScript(isolate, copy_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
   CHECK_EQ(2, Handle<Smi>::cast(copy_result)->value());
 
   if (verify_builtins_count) CHECK_EQ(builtins_count, CountBuiltins());
@@ -1854,7 +1856,7 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   }
 
   {
-    // Lookup with different string should fail:
+    // Lookup with different name string should fail:
     ScriptDetails script_details(
         isolate->factory()->NewStringFromAsciiChecked("other"));
     MaybeHandle<SharedFunctionInfo> shared =
@@ -1945,7 +1947,9 @@ TEST(CodeSerializerInternalizedString) {
       Factory::JSFunctionBuilder{isolate, orig, isolate->native_context()}
           .Build();
   Handle<Object> orig_result =
-      Execution::Call(isolate, orig_fun, global, 0, nullptr).ToHandleChecked();
+      Execution::CallScript(isolate, orig_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
   CHECK(orig_result->IsInternalizedString());
 
   int builtins_count = CountBuiltins();
@@ -1964,7 +1968,9 @@ TEST(CodeSerializerInternalizedString) {
           .Build();
   CHECK_NE(*orig_fun, *copy_fun);
   Handle<Object> copy_result =
-      Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
+      Execution::CallScript(isolate, copy_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
   CHECK(orig_result.is_identical_to(copy_result));
   Handle<String> expected =
       isolate->factory()->NewStringFromAsciiChecked("string1");
@@ -2017,7 +2023,9 @@ TEST(CodeSerializerLargeCodeObject) {
           .Build();
 
   Handle<Object> copy_result =
-      Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
+      Execution::CallScript(isolate, copy_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
 
   int result_int;
   CHECK(copy_result->ToInt32(&result_int));
@@ -2097,7 +2105,9 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
           .Build();
 
   Handle<Object> copy_result =
-      Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
+      Execution::CallScript(isolate, copy_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
 
   int result_int;
   CHECK(copy_result->ToInt32(&result_int));
@@ -2147,7 +2157,9 @@ TEST(CodeSerializerLargeStrings) {
           .Build();
 
   Handle<Object> copy_result =
-      Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
+      Execution::CallScript(isolate, copy_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
 
   CHECK_EQ(6 * 1999999, Handle<String>::cast(copy_result)->length());
   Handle<Object> property = JSReceiver::GetDataProperty(
@@ -2220,7 +2232,8 @@ TEST(CodeSerializerThreeBigStrings) {
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
 
-  USE(Execution::Call(isolate, copy_fun, global, 0, nullptr));
+  USE(Execution::CallScript(isolate, copy_fun, global,
+                            isolate->factory()->empty_fixed_array()));
 
   v8::Maybe<int32_t> result =
       CompileRun("(a + b).length")
@@ -2340,7 +2353,9 @@ TEST(CodeSerializerExternalString) {
           .Build();
 
   Handle<Object> copy_result =
-      Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
+      Execution::CallScript(isolate, copy_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
 
   CHECK_EQ(15.0, copy_result->Number());
 
@@ -2404,7 +2419,9 @@ TEST(CodeSerializerLargeExternalString) {
           .Build();
 
   Handle<Object> copy_result =
-      Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
+      Execution::CallScript(isolate, copy_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
 
   CHECK_EQ(42.0, copy_result->Number());
 
@@ -2458,7 +2475,9 @@ TEST(CodeSerializerExternalScriptName) {
           .Build();
 
   Handle<Object> copy_result =
-      Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
+      Execution::CallScript(isolate, copy_fun, global,
+                            isolate->factory()->empty_fixed_array())
+          .ToHandleChecked();
 
   CHECK_EQ(10.0, copy_result->Number());
 

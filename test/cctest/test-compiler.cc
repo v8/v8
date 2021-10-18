@@ -93,7 +93,9 @@ static double Inc(Isolate* isolate, int x) {
   if (fun.is_null()) return -1;
 
   Handle<JSObject> global(isolate->context().global_object(), isolate);
-  Execution::Call(isolate, fun, global, 0, nullptr).Check();
+  Execution::CallScript(isolate, fun, global,
+                        isolate->factory()->empty_fixed_array())
+      .Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -112,7 +114,9 @@ static double Add(Isolate* isolate, int x, int y) {
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
   Handle<JSObject> global(isolate->context().global_object(), isolate);
-  Execution::Call(isolate, fun, global, 0, nullptr).Check();
+  Execution::CallScript(isolate, fun, global,
+                        isolate->factory()->empty_fixed_array())
+      .Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -130,7 +134,9 @@ static double Abs(Isolate* isolate, int x) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   Handle<JSObject> global(isolate->context().global_object(), isolate);
-  Execution::Call(isolate, fun, global, 0, nullptr).Check();
+  Execution::CallScript(isolate, fun, global,
+                        isolate->factory()->empty_fixed_array())
+      .Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -149,7 +155,9 @@ static double Sum(Isolate* isolate, int n) {
 
   SetGlobalProperty("n", Smi::FromInt(n));
   Handle<JSObject> global(isolate->context().global_object(), isolate);
-  Execution::Call(isolate, fun, global, 0, nullptr).Check();
+  Execution::CallScript(isolate, fun, global,
+                        isolate->factory()->empty_fixed_array())
+      .Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -168,9 +176,11 @@ TEST(Print) {
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
-  Handle<JSObject> global(CcTest::i_isolate()->context().global_object(),
-                          fun->GetIsolate());
-  Execution::Call(CcTest::i_isolate(), fun, global, 0, nullptr).Check();
+  auto isolate = CcTest::i_isolate();
+  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Execution::CallScript(isolate, fun, global,
+                        isolate->factory()->empty_fixed_array())
+      .Check();
 }
 
 
@@ -200,9 +210,11 @@ TEST(Stuff) {
 
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
-  Handle<JSObject> global(CcTest::i_isolate()->context().global_object(),
-                          fun->GetIsolate());
-  Execution::Call(CcTest::i_isolate(), fun, global, 0, nullptr).Check();
+  auto isolate = CcTest::i_isolate();
+  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Execution::CallScript(isolate, fun, global,
+                        isolate->factory()->empty_fixed_array())
+      .Check();
   CHECK_EQ(511.0, GetGlobalProperty("r")->Number());
 }
 
@@ -216,7 +228,9 @@ TEST(UncaughtThrow) {
   CHECK(!fun.is_null());
   Isolate* isolate = fun->GetIsolate();
   Handle<JSObject> global(isolate->context().global_object(), isolate);
-  CHECK(Execution::Call(isolate, fun, global, 0, nullptr).is_null());
+  CHECK(Execution::CallScript(isolate, fun, global,
+                              isolate->factory()->empty_fixed_array())
+            .is_null());
   CHECK_EQ(42.0, isolate->pending_exception().Number());
 }
 
@@ -242,7 +256,9 @@ TEST(C2JSFrames) {
 
   // Run the generated code to populate the global object with 'foo'.
   Handle<JSObject> global(isolate->context().global_object(), isolate);
-  Execution::Call(isolate, fun0, global, 0, nullptr).Check();
+  Execution::CallScript(isolate, fun0, global,
+                        isolate->factory()->empty_fixed_array())
+      .Check();
 
   Handle<Object> fun1 =
       JSReceiver::GetProperty(isolate, isolate->global_object(), "foo")

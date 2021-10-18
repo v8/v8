@@ -4122,8 +4122,11 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   // Call function using either the runtime object or the global
   // object as the receiver. Provide no parameters.
   Handle<Object> receiver = isolate->global_object();
-  return !Execution::TryCall(isolate, fun, receiver, 0, nullptr,
-                             Execution::MessageHandling::kKeepPending, nullptr)
+  Handle<FixedArray> host_defined_options =
+      isolate->factory()->empty_fixed_array();
+  return !Execution::TryCallScript(isolate, fun, receiver, host_defined_options,
+                                   Execution::MessageHandling::kKeepPending,
+                                   nullptr)
               .is_null();
 }
 
