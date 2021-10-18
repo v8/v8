@@ -500,10 +500,7 @@ v8_source_set("unittests_sources") {
     }
 
     if (is_win) {
-      sources += [
-        "wasm/trap-handler-win-unittest.cc",
-        "avoid-windows-h-includes.cc",
-      ]
+      sources += [ "wasm/trap-handler-win-unittest.cc" ]
     }
 
     # Include this test only on arm64 simulator builds on x64 on Linux, Mac and
@@ -541,5 +538,7 @@ v8_source_set("unittests_sources") {
     # bytecode-utils.h.
     # C4309: 'static_cast': truncation of constant value
     cflags = [ "/wd4309" ]
+
+    sources += [ "avoid-windows-h-includes.cc" ]
   }
 }
