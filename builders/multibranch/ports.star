@@ -46,20 +46,7 @@ in_category(
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder(
-        name = "V8 Linux - arm - sim - lite - builder",
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.ports"},
-        use_goma = GOMA.DEFAULT,
-        close_tree = False,
-    ),
-    multibranch_builder(
         name = "V8 Linux - arm - sim - lite",
-        parent_builder = "V8 Linux - arm - sim - lite - builder",
-        close_tree = False,
-    ),
-    multibranch_builder(
-        name = "V8 Linux - arm - sim - lite - debug builder",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
@@ -68,7 +55,10 @@ in_category(
     ),
     multibranch_builder(
         name = "V8 Linux - arm - sim - lite - debug",
-        parent_builder = "V8 Linux - arm - sim - lite - debug builder",
+        triggered_by_gitiles = True,
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8.ports"},
+        use_goma = GOMA.DEFAULT,
         close_tree = False,
     ),
     multibranch_builder(
