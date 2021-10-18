@@ -39,9 +39,6 @@ void IsolateSafepoint::EnterSafepointScope(StopMainThread stop_main_thread) {
 
   int running = 0;
 
-  // There needs to be at least one LocalHeap for the main thread.
-  DCHECK_NOT_NULL(local_heaps_head_);
-
   for (LocalHeap* local_heap = local_heaps_head_; local_heap;
        local_heap = local_heap->next_) {
     if (local_heap->is_main_thread() &&

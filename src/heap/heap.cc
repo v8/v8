@@ -2240,7 +2240,6 @@ size_t Heap::PerformGarbageCollection(
 }
 
 void Heap::CollectSharedGarbage(GarbageCollectionReason gc_reason) {
-  CHECK(deserialization_complete());
   DCHECK(!IsShared());
   DCHECK_NOT_NULL(isolate()->shared_isolate());
 
@@ -2267,7 +2266,6 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
                             : IsolateSafepoint::StopMainThread::kYes;
 
     client_heap->safepoint()->EnterSafepointScope(stop_main_thread);
-    DCHECK(client_heap->deserialization_complete());
 
     client_heap->shared_old_allocator_->FreeLinearAllocationArea();
     client_heap->shared_map_allocator_->FreeLinearAllocationArea();
@@ -5505,10 +5503,7 @@ HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
   FatalProcessOutOfMemory("CALL_AND_RETRY_LAST");
 }
 
-void Heap::SetUp(LocalHeap* main_thread_local_heap) {
-  DCHECK_NULL(main_thread_local_heap_);
-  main_thread_local_heap_ = main_thread_local_heap;
-
+void Heap::SetUp() {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   allocation_timeout_ = NextAllocationTimeout();
 #endif
@@ -5701,18 +5696,11 @@ void Heap::SetUpSpaces() {
   }
 
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
+}
 
-  if (isolate()->shared_isolate()) {
-    shared_old_space_ = isolate()->shared_isolate()->heap()->old_space();
-    shared_old_allocator_.reset(
-        new ConcurrentAllocator(main_thread_local_heap(), shared_old_space_));
-
-    shared_map_space_ = isolate()->shared_isolate()->heap()->map_space();
-    shared_map_allocator_.reset(
-        new ConcurrentAllocator(main_thread_local_heap(), shared_map_space_));
-  }
-
-  main_thread_local_heap()->SetUpAllocators();
+void Heap::InitializeMainThreadLocalHeap(LocalHeap* main_thread_local_heap) {
+  DCHECK_NULL(main_thread_local_heap_);
+  main_thread_local_heap_ = main_thread_local_heap;
 }
 
 void Heap::InitializeHashSeed() {
@@ -5995,12 +5983,6 @@ void Heap::TearDown() {
 
   allocation_sites_to_pretenure_.reset();
 
-  shared_old_space_ = nullptr;
-  shared_old_allocator_.reset();
-
-  shared_map_space_ = nullptr;
-  shared_map_allocator_.reset();
-
   for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
     delete space_[i];
     space_[i] = nullptr;
@@ -6020,6 +6002,24 @@ void Heap::TearDown() {
   strong_roots_head_ = nullptr;
 
   memory_allocator_.reset();
+}
+
+void Heap::InitSharedSpaces() {
+  shared_old_space_ = isolate()->shared_isolate()->heap()->old_space();
+  shared_old_allocator_.reset(
+      new ConcurrentAllocator(main_thread_local_heap(), shared_old_space_));
+
+  shared_map_space_ = isolate()->shared_isolate()->heap()->map_space();
+  shared_map_allocator_.reset(
+      new ConcurrentAllocator(main_thread_local_heap(), shared_map_space_));
+}
+
+void Heap::DeinitSharedSpaces() {
+  shared_old_space_ = nullptr;
+  shared_old_allocator_.reset();
+
+  shared_map_space_ = nullptr;
+  shared_map_allocator_.reset();
 }
 
 void Heap::AddGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,

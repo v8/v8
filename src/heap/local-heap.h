@@ -93,9 +93,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   Heap* AsHeap() { return heap(); }
 
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
-  ConcurrentAllocator* old_space_allocator() {
-    return old_space_allocator_.get();
-  }
+  ConcurrentAllocator* old_space_allocator() { return &old_space_allocator_; }
 
   // Mark/Unmark linear allocation areas black. Used for black allocation.
   void MarkLinearAllocationAreaBlack();
@@ -249,7 +247,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
                                             AllocationAlignment alignment);
 
   void Park() {
-    DCHECK(AllowSafepoints::IsAllowed());
+    DCHECK(AllowGarbageCollection::IsAllowed());
     ThreadState expected = ThreadState::Running();
     if (!state_.CompareExchangeWeak(expected, ThreadState::Parked())) {
       ParkSlowPath();
@@ -257,7 +255,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   }
 
   void Unpark() {
-    DCHECK(AllowSafepoints::IsAllowed());
+    DCHECK(AllowGarbageCollection::IsAllowed());
     ThreadState expected = ThreadState::Parked();
     if (!state_.CompareExchangeWeak(expected, ThreadState::Running())) {
       UnparkSlowPath();
@@ -272,8 +270,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void EnsurePersistentHandles();
 
   void InvokeGCEpilogueCallbacksInSafepoint();
-
-  void SetUpAllocators();
 
   Heap* heap_;
   bool is_main_thread_;
@@ -292,7 +288,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   std::vector<std::pair<GCEpilogueCallback*, void*>> gc_epilogue_callbacks_;
 
-  std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
+  ConcurrentAllocator old_space_allocator_;
 
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;

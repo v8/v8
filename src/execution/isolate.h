@@ -1822,18 +1822,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     using IsDebugActive = HasAsyncEventDelegate::Next<bool, 1>;
   };
 
-  bool is_shared() const { return is_shared_; }
-  Isolate* shared_isolate() const {
-    DCHECK(attached_to_shared_isolate_);
-    return shared_isolate_;
-  }
+  bool is_shared() { return is_shared_; }
+  Isolate* shared_isolate() { return shared_isolate_; }
 
-  void set_shared_isolate(Isolate* shared_isolate) {
-    DCHECK(shared_isolate->is_shared());
-    DCHECK_NULL(shared_isolate_);
-    DCHECK(!attached_to_shared_isolate_);
-    shared_isolate_ = shared_isolate;
-  }
+  void AttachToSharedIsolate(Isolate* shared);
+  void DetachFromSharedIsolate();
 
   bool HasClientIsolates() const { return client_isolate_head_; }
 
@@ -1968,12 +1961,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Returns the Exception sentinel.
   Object ThrowInternal(Object exception, MessageLocation* location);
-
-  // These methods add/remove the isolate to/from the list of clients in the
-  // shared isolate. Isolates in the client list need to participate in a global
-  // safepoint.
-  void AttachToSharedIsolate();
-  void DetachFromSharedIsolate();
 
   // Methods for appending and removing to/from client isolates list.
   void AppendAsClientIsolate(Isolate* client);
@@ -2269,13 +2256,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Stores the shared isolate for this client isolate. nullptr for shared
   // isolates or when no shared isolate is used.
   Isolate* shared_isolate_ = nullptr;
-
-#if DEBUG
-  // Set to true once during isolate initialization right when attaching to the
-  // shared isolate. If there was no shared isolate given it will still be set
-  // to true. After this point invocations of shared_isolate() are valid.
-  bool attached_to_shared_isolate_ = false;
-#endif  // DEBUG
 
   // A shared isolate will use these two fields to track all its client
   // isolates.

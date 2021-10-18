@@ -159,14 +159,15 @@ class TestSerializer {
     SnapshotData shared_space_snapshot(blobs.shared_space);
     const bool kEnableSerializer = false;
     const bool kGenerateHeap = false;
-    CHECK_IMPLIES(is_shared, !shared_isolate);
+    if (is_shared) CHECK_NULL(shared_isolate);
     v8::Isolate* v8_isolate =
         NewIsolate(kEnableSerializer, kGenerateHeap, is_shared);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
     if (shared_isolate) {
       CHECK(!is_shared);
-      isolate->set_shared_isolate(reinterpret_cast<Isolate*>(shared_isolate));
+      isolate->AttachToSharedIsolate(
+          reinterpret_cast<Isolate*>(shared_isolate));
     }
     isolate->Init(&startup_snapshot, &read_only_snapshot,
                   &shared_space_snapshot, false);
