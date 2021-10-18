@@ -134,8 +134,9 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
 #endif  // DEBUG
 
 void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
+  PtrComprCageBase cage_base(isolate());
 #ifdef DEBUG
-  if (obj->IsJSFunction()) {
+  if (obj->IsJSFunction(cage_base)) {
     v8::base::OS::PrintError("Reference stack:\n");
     PrintStack(std::cerr);
     obj->Print(std::cerr);
@@ -157,7 +158,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   use_simulator = true;
 #endif
 
-  if (use_simulator && obj->IsAccessorInfo()) {
+  if (use_simulator && obj->IsAccessorInfo(cage_base)) {
     // Wipe external reference redirects in the accessor info.
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(obj);
     Address original_address =
@@ -165,17 +166,18 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     Foreign::cast(info->js_getter())
         .set_foreign_address(isolate(), original_address);
     accessor_infos_.Push(*info);
-  } else if (use_simulator && obj->IsCallHandlerInfo()) {
+  } else if (use_simulator && obj->IsCallHandlerInfo(cage_base)) {
     Handle<CallHandlerInfo> info = Handle<CallHandlerInfo>::cast(obj);
     Address original_address =
         Foreign::cast(info->callback()).foreign_address(isolate());
     Foreign::cast(info->js_callback())
         .set_foreign_address(isolate(), original_address);
     call_handler_infos_.Push(*info);
-  } else if (obj->IsScript() && Handle<Script>::cast(obj)->IsUserJavaScript()) {
+  } else if (obj->IsScript(cage_base) &&
+             Handle<Script>::cast(obj)->IsUserJavaScript()) {
     Handle<Script>::cast(obj)->set_context_data(
         ReadOnlyRoots(isolate()).uninitialized_symbol());
-  } else if (obj->IsSharedFunctionInfo()) {
+  } else if (obj->IsSharedFunctionInfo(cage_base)) {
     // Clear inferred name for native functions.
     Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(obj);
     if (!shared->IsSubjectToDebugging() && shared->HasUncompiledData()) {

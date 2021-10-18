@@ -1890,6 +1890,7 @@ filegroup(
         "src/snapshot/serializer-deserializer.h",
         "src/snapshot/serializer.cc",
         "src/snapshot/serializer.h",
+        "src/snapshot/serializer-inl.h",
         "src/snapshot/snapshot-compression.cc",
         "src/snapshot/snapshot-compression.h",
         "src/snapshot/snapshot-data.cc",

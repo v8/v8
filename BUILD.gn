@@ -3334,6 +3334,7 @@ v8_header_set("v8_internal_headers") {
     "src/snapshot/references.h",
     "src/snapshot/roots-serializer.h",
     "src/snapshot/serializer-deserializer.h",
+    "src/snapshot/serializer-inl.h",
     "src/snapshot/serializer.h",
     "src/snapshot/shared-heap-deserializer.h",
     "src/snapshot/shared-heap-serializer.h",

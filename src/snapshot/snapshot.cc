@@ -222,6 +222,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
 void Snapshot::ClearReconstructableDataForSerialization(
     Isolate* isolate, bool clear_recompilable_data) {
   // Clear SFIs and JSRegExps.
+  PtrComprCageBase cage_base(isolate);
 
   if (clear_recompilable_data) {
     HandleScope scope(isolate);
@@ -231,16 +232,17 @@ void Snapshot::ClearReconstructableDataForSerialization(
       DisallowGarbageCollection disallow_gc;
       i::HeapObjectIterator it(isolate->heap());
       for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-        if (o.IsSharedFunctionInfo()) {
+        if (o.IsSharedFunctionInfo(cage_base)) {
           i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(o);
-          if (shared.script().IsScript() &&
-              Script::cast(shared.script()).type() == Script::TYPE_EXTENSION) {
+          if (shared.script(cage_base).IsScript(cage_base) &&
+              Script::cast(shared.script(cage_base)).type() ==
+                  Script::TYPE_EXTENSION) {
             continue;  // Don't clear extensions, they cannot be recompiled.
           }
           if (shared.CanDiscardCompiled()) {
             sfis_to_clear.emplace_back(shared, isolate);
           }
-        } else if (o.IsJSRegExp()) {
+        } else if (o.IsJSRegExp(cage_base)) {
           i::JSRegExp regexp = i::JSRegExp::cast(o);
           if (regexp.HasCompiledCode()) {
             regexp.DiscardCompiledCodeForSerialization();
@@ -261,14 +263,15 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
   i::HeapObjectIterator it(isolate->heap());
   for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-    if (!o.IsJSFunction()) continue;
+    if (!o.IsJSFunction(cage_base)) continue;
 
     i::JSFunction fun = i::JSFunction::cast(o);
     fun.CompleteInobjectSlackTrackingIfActive();
 
     i::SharedFunctionInfo shared = fun.shared();
-    if (shared.script().IsScript() &&
-        Script::cast(shared.script()).type() == Script::TYPE_EXTENSION) {
+    if (shared.script(cage_base).IsScript(cage_base) &&
+        Script::cast(shared.script(cage_base)).type() ==
+            Script::TYPE_EXTENSION) {
       continue;  // Don't clear extensions, they cannot be recompiled.
     }
 
@@ -276,8 +279,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
     if (fun.CanDiscardCompiled()) {
       fun.set_code(*BUILTIN_CODE(isolate, CompileLazy));
     }
-    if (!fun.raw_feedback_cell().value().IsUndefined()) {
-      fun.raw_feedback_cell().set_value(
+    if (!fun.raw_feedback_cell(cage_base).value(cage_base).IsUndefined()) {
+      fun.raw_feedback_cell(cage_base).set_value(
           i::ReadOnlyRoots(isolate).undefined_value());
     }
 #ifdef DEBUG
