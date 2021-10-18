@@ -37,6 +37,7 @@
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
+#include "src/heap/cppgc/unmarker.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/marking-worklist.h"
@@ -416,6 +417,10 @@ bool ShouldReduceMemory(CppHeap::TraceFlags flags) {
 
 void CppHeap::TracePrologue(TraceFlags flags) {
   CHECK(!sweeper_.IsSweepingInProgress());
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  cppgc::internal::SequentialUnmarker unmarker(raw_heap());
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   current_flags_ = flags;
   const UnifiedHeapMarker::MarkingConfig marking_config{
