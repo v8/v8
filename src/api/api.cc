@@ -8481,7 +8481,7 @@ void Isolate::Initialize(Isolate* isolate,
   }
 
   if (params.experimental_attach_to_shared_isolate != nullptr) {
-    i_isolate->AttachToSharedIsolate(reinterpret_cast<i::Isolate*>(
+    i_isolate->set_shared_isolate(reinterpret_cast<i::Isolate*>(
         params.experimental_attach_to_shared_isolate));
   }
 

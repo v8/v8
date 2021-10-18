@@ -13,6 +13,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/local-handles.h"
 #include "src/heap/collection-barrier.h"
+#include "src/heap/concurrent-allocator.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -52,8 +53,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       next_(nullptr),
       handles_(new LocalHandles),
       persistent_handles_(std::move(persistent_handles)),
-      marking_barrier_(new MarkingBarrier(this)),
-      old_space_allocator_(this, heap->old_space()) {
+      marking_barrier_(new MarkingBarrier(this)) {
   heap_->safepoint()->AddLocalHeap(this, [this] {
     if (!is_main_thread()) {
       WriteBarrier::SetForThread(marking_barrier_.get());
@@ -69,6 +69,8 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
   }
   DCHECK_NULL(current_local_heap);
   if (!is_main_thread()) current_local_heap = this;
+
+  SetUpAllocators();
 }
 
 LocalHeap::~LocalHeap() {
@@ -76,7 +78,7 @@ LocalHeap::~LocalHeap() {
   EnsureParkedBeforeDestruction();
 
   heap_->safepoint()->RemoveLocalHeap(this, [this] {
-    old_space_allocator_.FreeLinearAllocationArea();
+    old_space_allocator_->FreeLinearAllocationArea();
 
     if (!is_main_thread()) {
       marking_barrier_->Publish();
@@ -90,6 +92,19 @@ LocalHeap::~LocalHeap() {
   }
 
   DCHECK(gc_epilogue_callbacks_.empty());
+}
+
+void LocalHeap::SetUpAllocators() {
+  DCHECK_NULL(old_space_allocator_);
+
+  if (!heap_->old_space()) {
+    DCHECK(is_main_thread());
+    DCHECK(!heap_->deserialization_complete());
+    return;
+  }
+
+  old_space_allocator_ =
+      std::make_unique<ConcurrentAllocator>(this, heap_->old_space());
 }
 
 void LocalHeap::EnsurePersistentHandles() {
@@ -225,19 +240,19 @@ void LocalHeap::SafepointSlowPath() {
 }
 
 void LocalHeap::FreeLinearAllocationArea() {
-  old_space_allocator_.FreeLinearAllocationArea();
+  old_space_allocator_->FreeLinearAllocationArea();
 }
 
 void LocalHeap::MakeLinearAllocationAreaIterable() {
-  old_space_allocator_.MakeLinearAllocationAreaIterable();
+  old_space_allocator_->MakeLinearAllocationAreaIterable();
 }
 
 void LocalHeap::MarkLinearAllocationAreaBlack() {
-  old_space_allocator_.MarkLinearAllocationAreaBlack();
+  old_space_allocator_->MarkLinearAllocationAreaBlack();
 }
 
 void LocalHeap::UnmarkLinearAllocationArea() {
-  old_space_allocator_.UnmarkLinearAllocationArea();
+  old_space_allocator_->UnmarkLinearAllocationArea();
 }
 
 bool LocalHeap::TryPerformCollection() {
