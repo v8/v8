@@ -171,8 +171,6 @@ class OldLargeObjectSpace : public LargeObjectSpace {
   explicit OldLargeObjectSpace(Heap* heap, AllocationSpace id);
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
                                                      Executability executable);
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRawBackground(
-      LocalHeap* local_heap, int object_size, Executability executable);
 };
 
 class NewLargeObjectSpace : public LargeObjectSpace {
@@ -201,9 +199,6 @@ class CodeLargeObjectSpace : public OldLargeObjectSpace {
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
   AllocateRaw(int object_size);
-
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawBackground(LocalHeap* local_heap, int object_size);
 
   // Finds a large object page containing the given address, returns nullptr if
   // such a page doesn't exist.

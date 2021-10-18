@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 
 namespace v8 {

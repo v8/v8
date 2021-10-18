@@ -74,8 +74,6 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     return (v8::internal::LocalFactory*)this;
   }
 
-  AccountingAllocator* allocator() { return isolate_->allocator(); }
-
   bool has_pending_exception() const { return false; }
 
   void RegisterDeserializerStarted();
@@ -114,10 +112,6 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     return isolate_;
   }
   LocalIsolate* AsLocalIsolate() { return this; }
-
-  // TODO(victorgomes): Remove this when/if MacroAssembler supports LocalIsolate
-  // only constructor.
-  Isolate* GetMainThreadIsolateUnsafe() const { return isolate_; }
 
   Object* pending_message_address() {
     return isolate_->pending_message_address();

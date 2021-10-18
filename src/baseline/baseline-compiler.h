@@ -14,7 +14,6 @@
 #include "src/base/threaded-list.h"
 #include "src/base/vlq.h"
 #include "src/baseline/baseline-assembler.h"
-#include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-register.h"
@@ -52,12 +51,12 @@ class BytecodeOffsetTableBuilder {
 
 class BaselineCompiler {
  public:
-  explicit BaselineCompiler(LocalIsolate* local_isolate,
+  explicit BaselineCompiler(Isolate* isolate,
                             Handle<SharedFunctionInfo> shared_function_info,
                             Handle<BytecodeArray> bytecode);
 
   void GenerateCode();
-  MaybeHandle<Code> Build(LocalIsolate* local_isolate);
+  MaybeHandle<Code> Build(Isolate* isolate);
   static int EstimateInstructionSize(BytecodeArray bytecode);
 
  private:

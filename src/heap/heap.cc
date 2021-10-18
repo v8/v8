@@ -4632,15 +4632,6 @@ void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #endif
 }
 
-void Heap::RegisterCodeObject(Handle<Code> code) {
-  Address addr = code->address();
-  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL && code_space()->Contains(addr)) {
-    MemoryChunk::FromHeapObject(*code)
-        ->GetCodeObjectRegistry()
-        ->RegisterNewlyAllocatedCodeObject(addr);
-  }
-}
-
 // TODO(ishell): move builtin accessors out from Heap.
 Code Heap::builtin(Builtin builtin) {
   DCHECK(Builtins::IsBuiltinId(builtin));

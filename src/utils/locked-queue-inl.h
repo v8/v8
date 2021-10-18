@@ -23,7 +23,6 @@ inline LockedQueue<Record>::LockedQueue() {
   head_ = new Node();
   CHECK_NOT_NULL(head_);
   tail_ = head_;
-  size_ = 0;
 }
 
 template <typename Record>
@@ -47,7 +46,6 @@ inline void LockedQueue<Record>::Enqueue(Record record) {
     base::MutexGuard guard(&tail_mutex_);
     tail_->next.SetValue(n);
     tail_ = n;
-    size_++;
   }
 }
 
@@ -61,8 +59,6 @@ inline bool LockedQueue<Record>::Dequeue(Record* record) {
     if (next_node == nullptr) return false;
     *record = std::move(next_node->value);
     head_ = next_node;
-    DCHECK_GT(size_.load(), 0);
-    size_--;
   }
   delete old_head;
   return true;
@@ -81,11 +77,6 @@ inline bool LockedQueue<Record>::Peek(Record* record) const {
   if (next_node == nullptr) return false;
   *record = next_node->value;
   return true;
-}
-
-template <typename Record>
-inline size_t LockedQueue<Record>::size() const {
-  return size_;
 }
 
 }  // namespace internal

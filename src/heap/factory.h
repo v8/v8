@@ -655,6 +655,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
 
+  // Creates a new CodeDataContainer for a Code object.
+  Handle<CodeDataContainer> NewCodeDataContainer(int flags,
+                                                 AllocationType allocation);
+
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
   Handle<Code> NewOffHeapTrampolineFor(Handle<Code> code,
@@ -840,10 +844,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
    public:
     CodeBuilder(Isolate* isolate, const CodeDesc& desc, CodeKind kind);
 
-    // TODO(victorgomes): Remove Isolate dependency from CodeBuilder.
-    CodeBuilder(LocalIsolate* local_isolate, const CodeDesc& desc,
-                CodeKind kind);
-
     // Builds a new code object (fully initialized). All header fields of the
     // returned object are immutable and the code object is write protected.
     V8_WARN_UNUSED_RESULT Handle<Code> Build();
@@ -934,18 +934,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
-    bool CompiledWithConcurrentBaseline() const {
-      return FLAG_concurrent_sparkplug && kind_ == CodeKind::BASELINE;
-    }
-
    private:
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
     MaybeHandle<Code> AllocateCode(bool retry_allocation_or_fail);
-    MaybeHandle<Code> AllocateConcurrentSparkplugCode(
-        bool retry_allocation_or_fail);
 
     Isolate* const isolate_;
-    LocalIsolate* local_isolate_;
     const CodeDesc& code_desc_;
     const CodeKind kind_;
 
@@ -986,7 +979,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   AllocationType AllocationTypeForInPlaceInternalizableString();
 
   void AddToScriptList(Handle<Script> shared);
-  void SetExternalCodeSpaceInDataContainer(CodeDataContainer data_container);
   // ------
 
   HeapObject AllocateRawWithAllocationSite(
