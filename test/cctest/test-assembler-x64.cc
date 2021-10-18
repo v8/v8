@@ -2536,6 +2536,7 @@ TEST(AssemblerX64Regmove256bit) {
   __ vmovdqu(ymm10, ymm11);
   __ vmovdqu(ymm9, Operand(rbx, rcx, times_4, 10000));
   __ vmovdqu(Operand(rbx, rcx, times_4, 10000), ymm0);
+  __ vbroadcastss(ymm7, Operand(rbx, rcx, times_4, 10000));
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2558,11 +2559,15 @@ TEST(AssemblerX64Regmove256bit) {
                      // vmovdqu ymm9,YMMWORD PTR [rbx+rcx*4+0x2710]
                      0xC5, 0x7E, 0x6F, 0x8C, 0x8B, 0x10, 0x27, 0x00, 0x00,
                      // vmovdqu YMMWORD PTR [rbx+rcx*4+0x2710],ymm0
-                     0xC5, 0xFE, 0x7F, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00};
+                     0xC5, 0xFE, 0x7F, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00,
+
+                     // vbroadcastss ymm7, DWORD PTR [rbx+rcx*4+0x2710]
+                     0xc4, 0xe2, 0x7d, 0x18, 0xbc, 0x8b, 0x10, 0x27, 0x00,
+                     0x00};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
-TEST(AssemblerX64LaneOp256bit) {
+TEST(AssemblerX64AVX2Op256bit) {
   if (!CpuFeatures::IsSupported(AVX2)) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -2581,6 +2586,11 @@ TEST(AssemblerX64LaneOp256bit) {
   __ vpblendw(ymm2, ymm3, Operand(rbx, rcx, times_4, 10000), 23);
   __ vpalignr(ymm10, ymm11, ymm12, 4);
   __ vpalignr(ymm10, ymm11, Operand(rbx, rcx, times_4, 10000), 4);
+  __ vbroadcastss(ymm7, xmm0);
+  __ vpbroadcastb(ymm2, xmm1);
+  __ vpbroadcastb(ymm3, Operand(rbx, rcx, times_4, 10000));
+  __ vpbroadcastw(ymm15, xmm4);
+  __ vpbroadcastw(ymm5, Operand(rbx, rcx, times_4, 10000));
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2611,7 +2621,17 @@ TEST(AssemblerX64LaneOp256bit) {
       // vpalignr ymm10, ymm11, ymm12, 4
       0xC4, 0x43, 0x25, 0x0F, 0xD4, 0x04,
       // vpalignr ymm10, ymm11, YMMWORD PTR [rbx+rcx*4+0x2710], 4
-      0xC4, 0x63, 0x25, 0x0F, 0x94, 0x8B, 0x10, 0x27, 0x00, 0x00, 0x04};
+      0xC4, 0x63, 0x25, 0x0F, 0x94, 0x8B, 0x10, 0x27, 0x00, 0x00, 0x04,
+      // vbroadcastss ymm7, xmm0
+      0xc4, 0xe2, 0x7d, 0x18, 0xf8,
+      // vpbroadcastb ymm2, xmm1
+      0xc4, 0xe2, 0x7d, 0x78, 0xd1,
+      // vpbroadcastb ymm3, BYTE PTR [rbx+rcx*4+0x2710]
+      0xc4, 0xe2, 0x7d, 0x78, 0x9c, 0x8b, 0x10, 0x27, 0x00, 0x00,
+      // vpbroadcastw ymm15, xmm4
+      0xc4, 0x62, 0x7d, 0x79, 0xfc,
+      // vpbroadcastw ymm5, WORD PTR [rbx+rcx*4+0x2710]
+      0xc4, 0xe2, 0x7d, 0x79, 0xac, 0x8b, 0x10, 0x27, 0x00, 0x00};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

@@ -891,7 +891,7 @@ int DisassemblerX64::AVXInstruction(byte* data) {
     switch (opcode) {
       case 0x18:
         AppendToBuffer("vbroadcastss %s,", NameOfAVXRegister(regop));
-        current += PrintRightAVXOperand(current);
+        current += PrintRightXMMOperand(current);
         break;
       case 0x98:
         AppendToBuffer("vfmadd132p%c %s,%s,", float_size_code(),
@@ -1017,7 +1017,7 @@ int DisassemblerX64::AVXInstruction(byte* data) {
 #define DISASSEMBLE_AVX2_BROADCAST(instruction, _1, _2, _3, code)     \
   case 0x##code:                                                      \
     AppendToBuffer("" #instruction " %s,", NameOfAVXRegister(regop)); \
-    current += PrintRightAVXOperand(current);                         \
+    current += PrintRightXMMOperand(current);                         \
     break;
         AVX2_BROADCAST_LIST(DISASSEMBLE_AVX2_BROADCAST)
 #undef DISASSEMBLE_AVX2_BROADCAST

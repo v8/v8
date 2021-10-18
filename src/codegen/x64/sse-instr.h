@@ -186,7 +186,7 @@
 
 #define SSE4_2_INSTRUCTION_LIST(V) V(pcmpgtq, 66, 0F, 38, 37)
 
-// These require AVX2, and we only define the VEX-128 versions.
+// These require AVX2.
 #define AVX2_BROADCAST_LIST(V)    \
   V(vpbroadcastd, 66, 0F, 38, 58) \
   V(vpbroadcastb, 66, 0F, 38, 78) \

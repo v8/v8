@@ -3441,21 +3441,24 @@ void Assembler::vmovshdup(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::vbroadcastss(XMMRegister dst, Operand src) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, k66, k0F38, kW0);
-  emit(0x18);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::vbroadcastss(XMMRegister dst, XMMRegister src) {
-  DCHECK(IsEnabled(AVX2));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, k66, k0F38, kW0);
-  emit(0x18);
-  emit_sse_operand(dst, src);
-}
+#define BROADCASTSS(SIMDRegister, length)                           \
+  void Assembler::vbroadcastss(SIMDRegister dst, Operand src) {     \
+    DCHECK(IsEnabled(AVX));                                         \
+    EnsureSpace ensure_space(this);                                 \
+    emit_vex_prefix(dst, xmm0, src, k##length, k66, k0F38, kW0);    \
+    emit(0x18);                                                     \
+    emit_sse_operand(dst, src);                                     \
+  }                                                                 \
+  void Assembler::vbroadcastss(SIMDRegister dst, XMMRegister src) { \
+    DCHECK(IsEnabled(AVX2));                                        \
+    EnsureSpace ensure_space(this);                                 \
+    emit_vex_prefix(dst, xmm0, src, k##length, k66, k0F38, kW0);    \
+    emit(0x18);                                                     \
+    emit_sse_operand(dst, src);                                     \
+  }
+BROADCASTSS(XMMRegister, L128)
+BROADCASTSS(YMMRegister, L256)
+#undef BROADCASTSS
 
 void Assembler::fma_instr(byte op, XMMRegister dst, XMMRegister src1,
                           XMMRegister src2, VectorLength l, SIMDPrefix pp,
@@ -3652,17 +3655,6 @@ void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
   emit_sse_operand(dst, src2);
 }
 
-void Assembler::vinstr(byte op, YMMRegister dst, YMMRegister src1,
-                       YMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
-                       CpuFeature feature) {
-  DCHECK(IsEnabled(feature));
-  DCHECK(feature == AVX || feature == AVX2);
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL256, pp, m, w);
-  emit(op);
-  emit_sse_operand(dst, src2);
-}
-
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
                        SIMDPrefix pp, LeadingOpcode m, VexW w,
                        CpuFeature feature) {
@@ -3674,9 +3666,9 @@ void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
   emit_sse_operand(dst, src2);
 }
 
-void Assembler::vinstr(byte op, YMMRegister dst, YMMRegister src1, Operand src2,
-                       SIMDPrefix pp, LeadingOpcode m, VexW w,
-                       CpuFeature feature) {
+template <typename Reg1, typename Reg2, typename Op>
+void Assembler::vinstr(byte op, Reg1 dst, Reg2 src1, Op src2, SIMDPrefix pp,
+                       LeadingOpcode m, VexW w, CpuFeature feature) {
   DCHECK(IsEnabled(feature));
   DCHECK(feature == AVX || feature == AVX2);
   EnsureSpace ensure_space(this);
@@ -3684,6 +3676,19 @@ void Assembler::vinstr(byte op, YMMRegister dst, YMMRegister src1, Operand src2,
   emit(op);
   emit_sse_operand(dst, src2);
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::vinstr(
+    byte op, YMMRegister dst, YMMRegister src1, YMMRegister src2, SIMDPrefix pp,
+    LeadingOpcode m, VexW w, CpuFeature feature);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::vinstr(
+    byte op, YMMRegister dst, XMMRegister src1, XMMRegister src2, SIMDPrefix pp,
+    LeadingOpcode m, VexW w, CpuFeature feature);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::vinstr(
+    byte op, YMMRegister dst, YMMRegister src1, Operand src2, SIMDPrefix pp,
+    LeadingOpcode m, VexW w, CpuFeature feature);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Assembler::vinstr(
+    byte op, YMMRegister dst, XMMRegister src1, Operand src2, SIMDPrefix pp,
+    LeadingOpcode m, VexW w, CpuFeature feature);
 
 void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1,
                     XMMRegister src2) {

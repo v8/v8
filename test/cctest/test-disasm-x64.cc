@@ -1312,14 +1312,36 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputAVX) {
 UNINITIALIZED_TEST(DisasmX64YMMRegister) {
   if (!CpuFeatures::IsSupported(AVX)) return;
   DisassemblerTester t;
-  CpuFeatureScope fscope(t.assm(), AVX);
 
-  // Short immediate instructions
-  COMPARE("c5fd6fc1             vmovdqa ymm0,ymm1", vmovdqa(ymm0, ymm1));
-  COMPARE("c5f77cc2             vhaddps ymm0,ymm1,ymm2",
-          vhaddps(ymm0, ymm1, ymm2));
-  COMPARE("c5f77c848b10270000   vhaddps ymm0,ymm1,[rbx+rcx*4+0x2710]",
-          vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000)));
+  {
+    CpuFeatureScope fscope(t.assm(), AVX);
+
+    // Short immediate instructions
+    COMPARE("c5fd6fc1             vmovdqa ymm0,ymm1", vmovdqa(ymm0, ymm1));
+    COMPARE("c5f77cc2             vhaddps ymm0,ymm1,ymm2",
+            vhaddps(ymm0, ymm1, ymm2));
+    COMPARE("c5f77c848b10270000   vhaddps ymm0,ymm1,[rbx+rcx*4+0x2710]",
+            vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4e27d18bc8b10270000 vbroadcastss ymm7,[rbx+rcx*4+0x2710]",
+            vbroadcastss(ymm7, Operand(rbx, rcx, times_4, 10000)));
+  }
+
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  {
+    CpuFeatureScope fscope(t.assm(), AVX2);
+
+    // Short immediate instructions
+    COMPARE("c4e27d18d1           vbroadcastss ymm2,xmm1",
+            vbroadcastss(ymm2, xmm1));
+    COMPARE("c4e27d789c8b10270000 vpbroadcastb ymm3,[rbx+rcx*4+0x2710]",
+            vpbroadcastb(ymm3, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4e27d79d3           vpbroadcastw ymm2,xmm3",
+            vpbroadcastw(ymm2, xmm3));
+    COMPARE("c4c27d58f8           vpbroadcastd ymm7,xmm8",
+            vpbroadcastd(ymm7, xmm8));
+    COMPARE("c4627d588c8b10270000 vpbroadcastd ymm9,[rbx+rcx*4+0x2710]",
+            vpbroadcastd(ymm9, Operand(rbx, rcx, times_4, 10000)));
+  }
 }
 
 #undef __
