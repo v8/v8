@@ -762,15 +762,13 @@ struct SlotTraits {
   using TMaybeObjectSlot = CompressedMaybeObjectSlot;
   using THeapObjectSlot = CompressedHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapCompressedObjectSlot;
-  // TODO(v8:11880): switch to OffHeapCompressedObjectSlot.
-  using TCodeObjectSlot = CompressedObjectSlot;
+  using TCodeObjectSlot = OffHeapCompressedObjectSlot;
 #else
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
-  // TODO(v8:11880): switch to OffHeapFullObjectSlot.
-  using TCodeObjectSlot = FullObjectSlot;
+  using TCodeObjectSlot = OffHeapFullObjectSlot;
 #endif
 };
 

@@ -44,6 +44,7 @@ namespace heap_internals {
 struct MemoryChunk {
   static constexpr uintptr_t kFlagsOffset = kSizetSize;
   static constexpr uintptr_t kHeapOffset = kSizetSize + kUIntptrSize;
+  static constexpr uintptr_t kIsExecutableBit = uintptr_t{1} << 0;
   static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 18;
   static constexpr uintptr_t kFromPageBit = uintptr_t{1} << 3;
   static constexpr uintptr_t kToPageBit = uintptr_t{1} << 4;
@@ -78,6 +79,8 @@ struct MemoryChunk {
   V8_INLINE bool InReadOnlySpace() const {
     return GetFlags() & kReadOnlySpaceBit;
   }
+
+  V8_INLINE bool InCodeSpace() const { return GetFlags() & kIsExecutableBit; }
 };
 
 inline void GenerationalBarrierInternal(HeapObject object, Address slot,
@@ -202,6 +205,12 @@ inline bool IsReadOnlyHeapObject(HeapObject object) {
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->InReadOnlySpace();
+}
+
+inline bool IsCodeObject(HeapObject object) {
+  heap_internals::MemoryChunk* chunk =
+      heap_internals::MemoryChunk::FromHeapObject(object);
+  return chunk->InCodeSpace();
 }
 
 base::Optional<Heap*> WriteBarrier::GetHeapIfMarking(HeapObject object) {

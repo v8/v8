@@ -32,8 +32,8 @@ HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
     const int obj_size = obj.Size();
     cur_addr_ += obj_size;
     DCHECK_LE(cur_addr_, cur_end_);
-    if (!obj.IsFreeSpaceOrFiller()) {
-      if (obj.IsCode()) {
+    if (!obj.IsFreeSpaceOrFiller(cage_base())) {
+      if (obj.IsCode(cage_base())) {
         DCHECK_EQ(space_->identity(), CODE_SPACE);
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);
       } else {

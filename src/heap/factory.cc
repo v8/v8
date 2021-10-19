@@ -230,7 +230,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       data_container->SetCodeAndEntryPoint(isolate_, raw_code);
     }
 #ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) raw_code.ObjectVerify(isolate_);
+    if (FLAG_verify_heap) HeapObject::VerifyCodePointer(isolate_, raw_code);
 #endif
 
     // Flush the instruction cache before changing the permissions.

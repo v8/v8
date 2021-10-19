@@ -9,7 +9,6 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/slots-inl.h"
-#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {

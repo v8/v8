@@ -769,7 +769,8 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
  private:
   template <typename TSlot>
   V8_INLINE void VisitSlotImpl(PtrComprCageBase cage_base, TSlot slot) {
-    int field_index = static_cast<int>(MaybeObjectSlot(slot) - parent_start_);
+    int field_index =
+        static_cast<int>(MaybeObjectSlot(slot.address()) - parent_start_);
     if (generator_->visited_fields_[field_index]) {
       generator_->visited_fields_[field_index] = false;
     } else {
@@ -1665,8 +1666,9 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 }
 
 bool V8HeapExplorer::IsEssentialObject(Object object) {
-  ReadOnlyRoots roots(heap_);
-  return object.IsHeapObject() && !object.IsOddball() &&
+  Isolate* isolate = heap_->isolate();
+  ReadOnlyRoots roots(isolate);
+  return object.IsHeapObject() && !object.IsOddball(isolate) &&
          object != roots.empty_byte_array() &&
          object != roots.empty_fixed_array() &&
          object != roots.empty_weak_fixed_array() &&

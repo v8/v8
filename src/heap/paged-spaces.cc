@@ -31,7 +31,12 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       cur_end_(kNullAddress),
       space_(space),
       page_range_(space->first_page(), nullptr),
-      current_page_(page_range_.begin()) {
+      current_page_(page_range_.begin())
+#if V8_COMPRESS_POINTERS
+      ,
+      cage_base_(heap->isolate())
+#endif  // V8_COMPRESS_POINTERS
+{
   space_->MakeLinearAllocationAreaIterable();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
 }
@@ -43,7 +48,12 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       cur_end_(kNullAddress),
       space_(space),
       page_range_(page),
-      current_page_(page_range_.begin()) {
+      current_page_(page_range_.begin())
+#if V8_COMPRESS_POINTERS
+      ,
+      cage_base_(heap->isolate())
+#endif  // V8_COMPRESS_POINTERS
+{
   space_->MakeLinearAllocationAreaIterable();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
 #ifdef DEBUG

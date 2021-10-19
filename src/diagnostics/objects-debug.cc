@@ -124,7 +124,8 @@ void Object::ObjectVerify(Isolate* isolate) {
   } else {
     HeapObject::cast(*this).HeapObjectVerify(isolate);
   }
-  CHECK(!IsConstructor() || IsCallable());
+  PtrComprCageBase cage_base(isolate);
+  CHECK(!IsConstructor(cage_base) || IsCallable(cage_base));
 }
 
 void Object::VerifyPointer(Isolate* isolate, Object p) {
@@ -322,7 +323,8 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
 void HeapObject::VerifyCodePointer(Isolate* isolate, Object p) {
   CHECK(p.IsHeapObject());
   CHECK(IsValidCodeObject(isolate->heap(), HeapObject::cast(p)));
-  CHECK(HeapObject::cast(p).IsCode());
+  PtrComprCageBase cage_base(isolate);
+  CHECK(HeapObject::cast(p).IsCode(cage_base));
 }
 
 void Symbol::SymbolVerify(Isolate* isolate) {

@@ -743,7 +743,24 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots(PtrComprCageBase cage_base) const {
 #endif
 }
 
-DEF_GETTER(HeapObject, map, Map) {
+Map HeapObject::map() const {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // TODO(v8:11880): Ensure that cage friendly version is used for the cases
+    // when this could be a Code object. Replace this with
+    // DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeObject(*this));
+    Isolate* isolate;
+    if (GetIsolateFromHeapObject(*this, &isolate)) {
+      PtrComprCageBase cage_base(isolate);
+      return HeapObject::map(cage_base);
+    }
+    // If the Isolate can't be obtained then the heap object is a read-only
+    // one and therefore not a Code object, so fallback to auto-computing cage
+    // base value.
+  }
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::map(cage_base);
+}
+Map HeapObject::map(PtrComprCageBase cage_base) const {
   return map_word(cage_base, kRelaxedLoad).ToMap();
 }
 
@@ -819,7 +836,25 @@ ObjectSlot HeapObject::map_slot() const {
   return ObjectSlot(MapField::address(*this));
 }
 
-DEF_RELAXED_GETTER(HeapObject, map_word, MapWord) {
+MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // TODO(v8:11880): Ensure that cage friendly version is used for the cases
+    // when this could be a Code object. Replace this with
+    // DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeObject(*this));
+    Isolate* isolate;
+    if (GetIsolateFromHeapObject(*this, &isolate)) {
+      PtrComprCageBase cage_base(isolate);
+      return HeapObject::map_word(cage_base, tag);
+    }
+    // If the Isolate can't be obtained then the heap object is a read-only
+    // one and therefore not a Code object, so fallback to auto-computing cage
+    // base value.
+  }
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::map_word(cage_base, tag);
+}
+MapWord HeapObject::map_word(PtrComprCageBase cage_base,
+                             RelaxedLoadTag tag) const {
   return MapField::Relaxed_Load_Map_Word(cage_base, *this);
 }
 
@@ -827,7 +862,15 @@ void HeapObject::set_map_word(MapWord map_word, RelaxedStoreTag) {
   MapField::Relaxed_Store_Map_Word(*this, map_word);
 }
 
-DEF_ACQUIRE_GETTER(HeapObject, map_word, MapWord) {
+MapWord HeapObject::map_word(AcquireLoadTag tag) const {
+  // This method is never used for Code objects and thus it is fine to use
+  // auto-computed cage base value.
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeObject(*this));
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::map_word(cage_base, tag);
+}
+MapWord HeapObject::map_word(PtrComprCageBase cage_base,
+                             AcquireLoadTag tag) const {
   return MapField::Acquire_Load_No_Unpack(cage_base, *this);
 }
 

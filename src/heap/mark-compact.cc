@@ -345,7 +345,7 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
   Address current = start;
   while (current < end) {
     HeapObject object = HeapObject::FromAddress(current);
-    if (!object.IsFreeSpaceOrFiller()) object.Iterate(this);
+    if (!object.IsFreeSpaceOrFiller(cage_base())) object.Iterate(this);
     current += object.Size();
   }
 }
@@ -1945,21 +1945,22 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
   size_t objects_processed = 0;
   bool is_per_context_mode = local_marking_worklists()->IsPerContextMode();
   Isolate* isolate = heap()->isolate();
+  PtrComprCageBase cage_base(isolate);
   while (local_marking_worklists()->Pop(&object) ||
          local_marking_worklists()->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
     // worklist. Ignore these objects.
-    if (object.IsFreeSpaceOrFiller()) {
+    if (object.IsFreeSpaceOrFiller(cage_base)) {
       // Due to copying mark bits and the fact that grey and black have their
       // first bit set, one word fillers are always black.
-      DCHECK_IMPLIES(
-          object.map() == ReadOnlyRoots(heap()).one_pointer_filler_map(),
-          marking_state()->IsBlack(object));
+      DCHECK_IMPLIES(object.map(cage_base) ==
+                         ReadOnlyRoots(isolate).one_pointer_filler_map(),
+                     marking_state()->IsBlack(object));
       // Other fillers may be black or grey depending on the color of the object
       // that was trimmed.
-      DCHECK_IMPLIES(
-          object.map() != ReadOnlyRoots(heap()).one_pointer_filler_map(),
-          marking_state()->IsBlackOrGrey(object));
+      DCHECK_IMPLIES(object.map(cage_base) !=
+                         ReadOnlyRoots(isolate).one_pointer_filler_map(),
+                     marking_state()->IsBlackOrGrey(object));
       continue;
     }
     DCHECK(object.IsHeapObject());
@@ -1969,7 +1970,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
                     kTrackNewlyDiscoveredObjects) {
       AddNewlyDiscovered(object);
     }
-    Map map = object.map(isolate);
+    Map map = object.map(cage_base);
     if (is_per_context_mode) {
       Address context;
       if (native_context_inferrer_.Infer(isolate, map, object, &context)) {
@@ -4060,7 +4061,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
                   slot.address() - CodeDataContainer::kCodeOffset);
               DCHECK(host.IsCodeDataContainer(cage_base));
               return UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
-                  host, cage_base, code_cage_base, CodeObjectSlot(slot));
+                  host, cage_base, code_cage_base,
+                  CodeObjectSlot(slot.address()));
             },
             SlotSet::FREE_EMPTY_BUCKETS);
         chunk_->ReleaseSlotSet<OLD_TO_CODE>();
@@ -5344,9 +5346,10 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
 void MinorMarkCompactCollector::DrainMarkingWorklist() {
   MarkingWorklist::View marking_worklist(worklist(), kMainMarker);
+  PtrComprCageBase cage_base(isolate());
   HeapObject object;
   while (marking_worklist.Pop(&object)) {
-    DCHECK(!object.IsFreeSpaceOrFiller());
+    DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
     DCHECK(object.IsHeapObject());
     DCHECK(heap()->Contains(object));
     DCHECK(non_atomic_marking_state()->IsGrey(object));
@@ -5357,6 +5360,7 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
 
 void MinorMarkCompactCollector::TraceFragmentation() {
   NewSpace* new_space = heap()->new_space();
+  PtrComprCageBase cage_base(isolate());
   const std::array<size_t, 4> free_size_class_limits = {0, 1024, 2048, 4096};
   size_t free_bytes_of_class[free_size_class_limits.size()] = {0};
   size_t live_bytes = 0;
@@ -5378,7 +5382,7 @@ void MinorMarkCompactCollector::TraceFragmentation() {
           free_bytes_index++;
         }
       }
-      Map map = object.map(kAcquireLoad);
+      Map map = object.map(cage_base, kAcquireLoad);
       int size = object.SizeFromMap(map);
       live_bytes += size;
       free_start = free_end + size;
