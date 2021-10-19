@@ -2714,6 +2714,7 @@ filegroup(
         "src/heap/cppgc/task-handle.h",
         "src/heap/cppgc/trace-event.h",
         "src/heap/cppgc/trace-trait.cc",
+        "src/heap/cppgc/unmarker.h",
         "src/heap/cppgc/virtual-memory.cc",
         "src/heap/cppgc/virtual-memory.h",
         "src/heap/cppgc/visitor.cc",
