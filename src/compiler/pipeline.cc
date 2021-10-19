@@ -3553,19 +3553,32 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   bool run_verifier = FLAG_turbo_verify_allocation;
 
   // Allocate registers.
+
+  // This limit is chosen somewhat arbitrarily, by looking at a few bigger
+  // WebAssembly programs, and chosing the limit such that functions that take
+  // >100ms in register allocation are switched to mid-tier.
+  static int kTopTierVirtualRegistersLimit = 8192;
+
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
+  std::unique_ptr<const RegisterConfiguration> restricted_config;
+  bool use_mid_tier_register_allocator =
+      (data->info()->IsTurboprop() && FLAG_turboprop_mid_tier_reg_alloc) ||
+      (FLAG_turbo_use_mid_tier_regalloc_for_huge_functions &&
+       data->sequence()->VirtualRegisterCount() >
+           kTopTierVirtualRegistersLimit);
+
   if (call_descriptor->HasRestrictedAllocatableRegisters()) {
     RegList registers = call_descriptor->AllocatableRegisters();
     DCHECK_LT(0, NumRegs(registers));
-    std::unique_ptr<const RegisterConfiguration> config;
-    config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
-    AllocateRegistersForTopTier(config.get(), call_descriptor, run_verifier);
+    restricted_config.reset(
+        RegisterConfiguration::RestrictGeneralRegisters(registers));
+    config = restricted_config.get();
+    use_mid_tier_register_allocator = false;
+  }
+  if (use_mid_tier_register_allocator) {
+    AllocateRegistersForMidTier(config, call_descriptor, run_verifier);
   } else {
-    const RegisterConfiguration* config = RegisterConfiguration::Default();
-    if (data->info()->IsTurboprop() && FLAG_turboprop_mid_tier_reg_alloc) {
-      AllocateRegistersForMidTier(config, call_descriptor, run_verifier);
-    } else {
-      AllocateRegistersForTopTier(config, call_descriptor, run_verifier);
-    }
+    AllocateRegistersForTopTier(config, call_descriptor, run_verifier);
   }
 
   // Verify the instruction sequence has the same hash in two stages.
