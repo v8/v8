@@ -2627,7 +2627,7 @@ void Assembler::fmov(const VRegister& vd, float imm) {
     DCHECK(vd.Is1S());
     Emit(FMOV_s_imm | Rd(vd) | ImmFP(imm));
   } else {
-    DCHECK(vd.Is2S() | vd.Is4S());
+    DCHECK(vd.Is2S() || vd.Is4S());
     Instr op = NEONModifiedImmediate_MOVI;
     Instr q = vd.Is4S() ? NEON_Q : 0;
     Emit(q | op | ImmNEONFP(imm) | NEONCmode(0xF) | Rd(vd));
