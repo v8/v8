@@ -124,10 +124,13 @@ namespace compiler {
   V(OtherInternal,            1u << 24)  \
   V(ExternalPointer,          1u << 25)  \
   V(Array,                    1u << 26)  \
-  V(BigInt,                   1u << 27)  \
+  V(UnsignedBigInt63,         1u << 27)  \
+  V(OtherUnsignedBigInt64,    1u << 28)  \
+  V(NegativeBigInt63,         1u << 29)  \
+  V(OtherBigInt,              1u << 30)  \
   /* TODO(v8:10391): Remove this type once all ExternalPointer usages are */ \
   /* sandbox-ready. */                   \
-  V(SandboxedExternalPointer, 1u << 28)  \
+  V(SandboxedExternalPointer, 1u << 31)  \
   \
   V(Signed31,                     kUnsigned30 | kNegative31) \
   V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
@@ -147,6 +150,10 @@ namespace compiler {
   V(OrderedNumber,                kPlainNumber | kMinusZero) \
   V(MinusZeroOrNaN,               kMinusZero | kNaN) \
   V(Number,                       kOrderedNumber | kNaN) \
+  V(SignedBigInt64,               kUnsignedBigInt63 | kNegativeBigInt63) \
+  V(UnsignedBigInt64,             kUnsignedBigInt63 | kOtherUnsignedBigInt64) \
+  V(BigInt,                       kSignedBigInt64 | kOtherUnsignedBigInt64 | \
+                                  kOtherBigInt) \
   V(Numeric,                      kNumber | kBigInt) \
   V(String,                       kInternalizedString | kOtherString) \
   V(UniqueName,                   kSymbol | kInternalizedString) \

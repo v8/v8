@@ -114,8 +114,9 @@ class EffectControlLinearizer {
   Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
+  Node* LowerChangeInt64ToBigInt(Node* node);
   Node* LowerChangeUint64ToBigInt(Node* node);
-  Node* LowerTruncateBigIntToUint64(Node* node);
+  Node* LowerTruncateBigIntToWord64(Node* node);
   Node* LowerChangeTaggedToFloat64(Node* node);
   void TruncateTaggedPointerToBit(Node* node, GraphAssemblerLabel<1>* done);
   Node* LowerTruncateTaggedToBit(Node* node);
@@ -300,6 +301,10 @@ class EffectControlLinearizer {
   Node* BuildStrongReferenceFromWeakReference(Node* value);
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
+
+  // Pass {bitfield} = {digit} = nullptr to construct the canoncial 0n BigInt.
+  Node* BuildAllocateBigInt(Node* bitfield, Node* digit);
+
   void TransitionElementsTo(Node* node, Node* array, ElementsKind from,
                             ElementsKind to);
 
@@ -1076,11 +1081,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedTaggedToTaggedPointer:
       result = LowerCheckedTaggedToTaggedPointer(node, frame_state);
       break;
+    case IrOpcode::kChangeInt64ToBigInt:
+      result = LowerChangeInt64ToBigInt(node);
+      break;
     case IrOpcode::kChangeUint64ToBigInt:
       result = LowerChangeUint64ToBigInt(node);
       break;
-    case IrOpcode::kTruncateBigIntToUint64:
-      result = LowerTruncateBigIntToUint64(node);
+    case IrOpcode::kTruncateBigIntToWord64:
+      result = LowerTruncateBigIntToWord64(node);
       break;
     case IrOpcode::kTruncateTaggedToWord32:
       result = LowerTruncateTaggedToWord32(node);
@@ -2942,58 +2950,50 @@ Node* EffectControlLinearizer::LowerCheckBigInt(Node* node, Node* frame_state) {
   return value;
 }
 
-Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
+Node* EffectControlLinearizer::LowerChangeInt64ToBigInt(Node* node) {
   DCHECK(machine()->Is64());
 
-  Node* value = node->InputAt(0);
-  Node* map = __ HeapConstant(factory()->bigint_map());
-  // BigInts with value 0 must be of size 0 (canonical form).
-  auto if_zerodigits = __ MakeLabel();
-  auto if_onedigit = __ MakeLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
+  Node* value = node->InputAt(0);
 
-  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &if_zerodigits);
-  __ Goto(&if_onedigit);
+  // BigInts with value 0 must be of size 0 (canonical form).
+  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &done,
+            BuildAllocateBigInt(nullptr, nullptr));
 
-  __ Bind(&if_onedigit);
-  {
-    Node* result = __ Allocate(AllocationType::kYoung,
-                               __ IntPtrConstant(BigInt::SizeFor(1)));
-    const auto bitfield = BigInt::LengthBits::update(0, 1);
-    __ StoreField(AccessBuilder::ForMap(), result, map);
-    __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
-                  __ IntPtrConstant(bitfield));
-    // BigInts have no padding on 64 bit architectures with pointer compression.
-    if (BigInt::HasOptionalPadding()) {
-      __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
-                    __ IntPtrConstant(0));
-    }
-    __ StoreField(AccessBuilder::ForBigIntLeastSignificantDigit64(), result,
-                  value);
-    __ Goto(&done, result);
-  }
+  // Shift sign bit into BigInt's sign bit position.
+  Node* sign =
+      __ Word64Shr(value, __ IntPtrConstant(63 - BigInt::SignBits::kShift));
+  Node* bitfield =
+      __ Word32Or(__ Int32Constant(BigInt::LengthBits::encode(1)), sign);
 
-  __ Bind(&if_zerodigits);
-  {
-    Node* result = __ Allocate(AllocationType::kYoung,
-                               __ IntPtrConstant(BigInt::SizeFor(0)));
-    const auto bitfield = BigInt::LengthBits::update(0, 0);
-    __ StoreField(AccessBuilder::ForMap(), result, map);
-    __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
-                  __ IntPtrConstant(bitfield));
-    // BigInts have no padding on 64 bit architectures with pointer compression.
-    if (BigInt::HasOptionalPadding()) {
-      __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
-                    __ IntPtrConstant(0));
-    }
-    __ Goto(&done, result);
-  }
+  // We use (value XOR (value >>> 63)) - (value >>> 63) to compute the
+  // absolute value, in a branchless fashion.
+  Node* sign_mask = __ Word64Sar(value, __ Int64Constant(63));
+  Node* absolute_value = __ Int64Sub(__ Word64Xor(value, sign_mask), sign_mask);
+  __ Goto(&done, BuildAllocateBigInt(bitfield, absolute_value));
 
   __ Bind(&done);
   return done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerTruncateBigIntToUint64(Node* node) {
+Node* EffectControlLinearizer::LowerChangeUint64ToBigInt(Node* node) {
+  DCHECK(machine()->Is64());
+
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+  Node* value = node->InputAt(0);
+
+  // BigInts with value 0 must be of size 0 (canonical form).
+  __ GotoIf(__ Word64Equal(value, __ IntPtrConstant(0)), &done,
+            BuildAllocateBigInt(nullptr, nullptr));
+
+  const auto bitfield = BigInt::LengthBits::encode(1);
+  __ Goto(&done, BuildAllocateBigInt(__ Int32Constant(bitfield), value));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerTruncateBigIntToWord64(Node* node) {
   DCHECK(machine()->Is64());
 
   auto done = __ MakeLabel(MachineRepresentation::kWord64);
@@ -6785,6 +6785,34 @@ Node* EffectControlLinearizer::BuildIsClearedWeakReference(Node* maybe_object) {
   return __ Word32Equal(
       TruncateWordToInt32(__ BitcastMaybeObjectToWord(maybe_object)),
       __ Int32Constant(kClearedWeakHeapObjectLower32));
+}
+
+// Pass {bitfield} = {digit} = nullptr to construct the canoncial 0n BigInt.
+Node* EffectControlLinearizer::BuildAllocateBigInt(Node* bitfield,
+                                                   Node* digit) {
+  DCHECK(machine()->Is64());
+  DCHECK_EQ(bitfield == nullptr, digit == nullptr);
+  static constexpr auto zero_bitfield =
+      BigInt::SignBits::update(BigInt::LengthBits::encode(0), 0);
+
+  Node* map = __ HeapConstant(factory()->bigint_map());
+
+  Node* result = __ Allocate(AllocationType::kYoung,
+                             __ IntPtrConstant(BigInt::SizeFor(digit ? 1 : 0)));
+  __ StoreField(AccessBuilder::ForMap(), result, map);
+  __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
+                bitfield ? bitfield : __ Int32Constant(zero_bitfield));
+
+  // BigInts have no padding on 64 bit architectures with pointer compression.
+  if (BigInt::HasOptionalPadding()) {
+    __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
+                  __ IntPtrConstant(0));
+  }
+  if (digit) {
+    __ StoreField(AccessBuilder::ForBigIntLeastSignificantDigit64(), result,
+                  digit);
+  }
+  return result;
 }
 
 #undef __

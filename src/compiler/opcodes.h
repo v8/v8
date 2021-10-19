@@ -263,8 +263,9 @@
   V(ChangeFloat64ToTaggedPointer)    \
   V(ChangeTaggedToBit)               \
   V(ChangeBitToTagged)               \
+  V(ChangeInt64ToBigInt)             \
   V(ChangeUint64ToBigInt)            \
-  V(TruncateBigIntToUint64)          \
+  V(TruncateBigIntToWord64)          \
   V(TruncateTaggedToWord32)          \
   V(TruncateTaggedToFloat64)         \
   V(TruncateTaggedToBit)             \
@@ -500,6 +501,7 @@
   V(SpeculativeBigIntSubtract)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \
+  V(SpeculativeBigIntAsIntN)                       \
   V(SpeculativeBigIntAsUintN)                      \
   V(SpeculativeBigIntNegate)
 

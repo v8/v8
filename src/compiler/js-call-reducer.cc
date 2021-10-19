@@ -4820,8 +4820,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceDateNow(node);
     case Builtin::kNumberConstructor:
       return ReduceNumberConstructor(node);
+    case Builtin::kBigIntAsIntN:
     case Builtin::kBigIntAsUintN:
-      return ReduceBigIntAsUintN(node);
+      return ReduceBigIntAsN(node, builtin);
     default:
       break;
   }
@@ -8029,7 +8030,10 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   return Changed(node);
 }
 
-Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
+Reduction JSCallReducer::ReduceBigIntAsN(Node* node, Builtin builtin) {
+  DCHECK(builtin == Builtin::kBigIntAsIntN ||
+         builtin == Builtin::kBigIntAsUintN);
+
   if (!jsgraph()->machine()->Is64()) return NoChange();
 
   JSCallNode n(node);
@@ -8050,8 +8054,11 @@ Reduction JSCallReducer::ReduceBigIntAsUintN(Node* node) {
   if (matcher.IsInteger() && matcher.IsInRange(0, 64)) {
     const int bits_value = static_cast<int>(matcher.ResolvedValue());
     value = effect = graph()->NewNode(
-        simplified()->SpeculativeBigIntAsUintN(bits_value, p.feedback()), value,
-        effect, control);
+        (builtin == Builtin::kBigIntAsIntN
+             ? simplified()->SpeculativeBigIntAsIntN(bits_value, p.feedback())
+             : simplified()->SpeculativeBigIntAsUintN(bits_value,
+                                                      p.feedback())),
+        value, effect, control);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }

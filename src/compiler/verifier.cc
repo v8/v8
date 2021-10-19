@@ -970,6 +970,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kSpeculativeBigIntNegate:
       CheckTypeIs(node, Type::BigInt());
       break;
+    case IrOpcode::kSpeculativeBigIntAsIntN:
     case IrOpcode::kSpeculativeBigIntAsUintN:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::BigInt());
@@ -1409,13 +1410,17 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
-    case IrOpcode::kTruncateBigIntToUint64:
+    case IrOpcode::kTruncateBigIntToWord64:
       CheckValueInputIs(node, 0, Type::BigInt());
       CheckTypeIs(node, Type::BigInt());
       break;
+    case IrOpcode::kChangeInt64ToBigInt:
+      CheckValueInputIs(node, 0, Type::SignedBigInt64());
+      CheckTypeIs(node, Type::SignedBigInt64());
+      break;
     case IrOpcode::kChangeUint64ToBigInt:
-      CheckValueInputIs(node, 0, Type::BigInt());
-      CheckTypeIs(node, Type::BigInt());
+      CheckValueInputIs(node, 0, Type::UnsignedBigInt64());
+      CheckTypeIs(node, Type::UnsignedBigInt64());
       break;
     case IrOpcode::kTruncateTaggedToBit:
     case IrOpcode::kTruncateTaggedPointerToBit:

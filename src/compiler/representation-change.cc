@@ -164,8 +164,13 @@ Node* RepresentationChanger::GetRepresentationFor(
   if (output_type.Is(Type::BigInt()) &&
       output_rep == MachineRepresentation::kWord64 &&
       use_info.type_check() != TypeCheckKind::kBigInt) {
-    node =
-        InsertConversion(node, simplified()->ChangeUint64ToBigInt(), use_node);
+    if (output_type.Is(Type::UnsignedBigInt64())) {
+      node = InsertConversion(node, simplified()->ChangeUint64ToBigInt(),
+                              use_node);
+    } else {
+      node =
+          InsertConversion(node, simplified()->ChangeInt64ToBigInt(), use_node);
+    }
     output_rep = MachineRepresentation::kTaggedPointer;
   }
 
@@ -448,7 +453,10 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
       op = machine()->ChangeInt64ToFloat64();
       node = jsgraph()->graph()->NewNode(op, node);
       op = simplified()->ChangeFloat64ToTaggedPointer();
-    } else if (output_type.Is(Type::BigInt()) &&
+    } else if (output_type.Is(Type::SignedBigInt64()) &&
+               use_info.type_check() == TypeCheckKind::kBigInt) {
+      op = simplified()->ChangeInt64ToBigInt();
+    } else if (output_type.Is(Type::UnsignedBigInt64()) &&
                use_info.type_check() == TypeCheckKind::kBigInt) {
       op = simplified()->ChangeUint64ToBigInt();
     } else {
@@ -566,7 +574,10 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
     } else if (output_type.Is(cache_->kSafeInteger)) {
       // int64 -> tagged
       op = simplified()->ChangeInt64ToTagged();
-    } else if (output_type.Is(Type::BigInt())) {
+    } else if (output_type.Is(Type::SignedBigInt64())) {
+      // int64 -> BigInt
+      op = simplified()->ChangeInt64ToBigInt();
+    } else if (output_type.Is(Type::UnsignedBigInt64())) {
       // uint64 -> BigInt
       op = simplified()->ChangeUint64ToBigInt();
     } else {
@@ -1208,7 +1219,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
               output_type.Is(Type::BigInt()))) {
     node = GetTaggedPointerRepresentationFor(node, output_rep, output_type,
                                              use_node, use_info);
-    op = simplified()->TruncateBigIntToUint64();
+    op = simplified()->TruncateBigIntToWord64();
   } else if (CanBeTaggedPointer(output_rep)) {
     if (output_type.Is(cache_->kDoubleRepresentableInt64)) {
       op = simplified()->ChangeTaggedToInt64();
