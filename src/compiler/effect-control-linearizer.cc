@@ -5341,8 +5341,11 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   MachineType return_type = MachineTypeFor(c_signature->ReturnInfo().GetType());
   builder.AddReturn(return_type);
   for (int i = 0; i < c_arg_count; ++i) {
+    CTypeInfo type = c_signature->ArgumentInfo(i);
     MachineType machine_type =
-        MachineTypeFor(c_signature->ArgumentInfo(i).GetType());
+        type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
+            ? MachineTypeFor(type.GetType())
+            : MachineType::AnyTagged();
     builder.AddParam(machine_type);
   }
   if (c_signature->HasOptions()) {

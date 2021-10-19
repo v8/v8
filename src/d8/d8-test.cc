@@ -576,6 +576,26 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             SideEffectType::kHasSideEffect,
             &add_all_uint32_typed_array_c_func));
 
+    CFunction add_all_float32_typed_array_c_func =
+        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<float>);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_float32_typed_array",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllTypedArraySlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect,
+            &add_all_float32_typed_array_c_func));
+
+    CFunction add_all_float64_typed_array_c_func =
+        CFunction::Make(FastCApiObject::AddAllTypedArrayFastCallback<double>);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "add_all_float64_typed_array",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AddAllTypedArraySlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect,
+            &add_all_float64_typed_array_c_func));
+
     const CFunction add_all_overloads[] = {
         add_all_uint32_typed_array_c_func,
         add_all_seq_c_func,

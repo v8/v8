@@ -1150,7 +1150,8 @@ void LinearScanAllocator::PrintRangeRow(std::ostream& os,
   os << '\n';
 }
 
-void LinearScanAllocator::PrintRangeOverview(std::ostream& os) {
+void LinearScanAllocator::PrintRangeOverview() {
+  std::ostringstream os;
   PrintBlockRow(os, code()->instruction_blocks());
   for (auto const toplevel : data()->fixed_live_ranges()) {
     if (toplevel == nullptr) continue;
@@ -1162,6 +1163,7 @@ void LinearScanAllocator::PrintRangeOverview(std::ostream& os) {
     if (rowcount++ % 10 == 0) PrintBlockRow(os, code()->instruction_blocks());
     PrintRangeRow(os, toplevel);
   }
+  PrintF("%s\n", os.str().c_str());
 }
 
 SpillRange::SpillRange(TopLevelLiveRange* parent, Zone* zone)
@@ -3512,7 +3514,7 @@ void LinearScanAllocator::AllocateRegisters() {
   data()->ResetSpillState();
 
   if (data()->is_trace_alloc()) {
-    PrintRangeOverview(std::cout);
+    PrintRangeOverview();
   }
 
   const size_t live_ranges_size = data()->live_ranges().size();
@@ -3756,7 +3758,7 @@ void LinearScanAllocator::AllocateRegisters() {
   }
 
   if (data()->is_trace_alloc()) {
-    PrintRangeOverview(std::cout);
+    PrintRangeOverview();
   }
 }
 
