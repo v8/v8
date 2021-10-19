@@ -95,6 +95,7 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
                   "--stress-concurrent-inlining"],
   "dict_property_const_tracking": [
                   "--concurrent-inlining",
+                  "--turboprop",
                   "--stress-concurrent-inlining"],
 }
 
