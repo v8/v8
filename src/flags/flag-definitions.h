@@ -745,7 +745,7 @@ DEFINE_INT(concurrent_recompilation_queue_length, 8,
            "the length of the concurrent compilation queue")
 DEFINE_INT(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
-DEFINE_BOOL(concurrent_inlining, true,
+DEFINE_BOOL(concurrent_inlining, !V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
             "run optimizing compiler's inlining phase on a separate thread")
 DEFINE_BOOL(
     stress_concurrent_inlining, false,

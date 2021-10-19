@@ -93,6 +93,9 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
                   "--concurrent-recompilation",
                   "--stress-concurrent-allocation",
                   "--stress-concurrent-inlining"],
+  "dict_property_const_tracking": [
+                  "--concurrent-inlining",
+                  "--stress-concurrent-inlining"],
 }
 
 # Flags that lead to a contradiction when a certain extra-flag is present.

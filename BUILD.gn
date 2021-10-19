@@ -2210,6 +2210,7 @@ action("v8_dump_build_config") {
     "v8_enable_virtual_memory_cage=$v8_enable_virtual_memory_cage",
     "v8_enable_third_party_heap=$v8_enable_third_party_heap",
     "v8_enable_webassembly=$v8_enable_webassembly",
+    "v8_dict_property_const_tracking=$v8_dict_property_const_tracking",
     "v8_control_flow_integrity=$v8_control_flow_integrity",
     "v8_target_cpu=\"$v8_target_cpu\"",
   ]
