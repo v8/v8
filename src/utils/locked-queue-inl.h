@@ -45,9 +45,9 @@ inline void LockedQueue<Record>::Enqueue(Record record) {
   n->value = std::move(record);
   {
     base::MutexGuard guard(&tail_mutex_);
+    size_++;
     tail_->next.SetValue(n);
     tail_ = n;
-    size_++;
   }
 }
 
@@ -61,8 +61,9 @@ inline bool LockedQueue<Record>::Dequeue(Record* record) {
     if (next_node == nullptr) return false;
     *record = std::move(next_node->value);
     head_ = next_node;
-    DCHECK_GT(size_.load(), 0);
-    size_--;
+    size_t old_size = size_.fetch_sub(1);
+    USE(old_size);
+    DCHECK_GT(old_size, 0);
   }
   delete old_head;
   return true;
