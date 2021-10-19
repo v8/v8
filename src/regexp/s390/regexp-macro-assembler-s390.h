@@ -48,6 +48,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
                              Label* on_in_range) override;
   void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
                                 Label* on_not_in_range) override;
+  bool CheckCharacterInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                  Label* on_in_range) override;
+  bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                     Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
 
   // Checks whether the given offset from the current position is before
@@ -130,8 +134,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   void CheckStackLimit();
   void CallCFunctionUsingStub(ExternalReference function, int num_arguments);
 
-  // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch);
+  void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // The ebp-relative location of a regexp register.
   MemOperand register_location(int register_index);

@@ -512,6 +512,41 @@ void RegExpMacroAssemblerPPC::CheckCharacterNotInRange(base::uc16 from,
   BranchOrBacktrack(gt, on_not_in_range);  // Unsigned higher condition.
 }
 
+void RegExpMacroAssemblerPPC::CallIsCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  static const int kNumArguments = 3;
+  __ PrepareCallCFunction(kNumArguments, r0);
+
+  __ mr(r3, current_character());
+  __ mov(r4, Operand(GetOrAddRangeArray(ranges)));
+  __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
+
+  {
+    // We have a frame (set up in GetCode), but the assembler doesn't know.
+    FrameScope scope(masm_.get(), StackFrame::MANUAL);
+    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
+                     kNumArguments);
+  }
+
+  __ mov(code_pointer(), Operand(masm_->CodeObject()));
+}
+
+bool RegExpMacroAssemblerPPC::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ cmpi(r3, Operand::Zero());
+  BranchOrBacktrack(ne, on_in_range);
+  return true;
+}
+
+bool RegExpMacroAssemblerPPC::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ cmpi(r3, Operand::Zero());
+  BranchOrBacktrack(eq, on_not_in_range);
+  return true;
+}
+
 void RegExpMacroAssemblerPPC::CheckBitInTable(Handle<ByteArray> table,
                                               Label* on_bit_set) {
   __ mov(r3, Operand(table));
