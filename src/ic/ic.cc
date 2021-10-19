@@ -995,7 +995,13 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         // We found the accessor, so the entry must exist.
         DCHECK(entry.is_found());
         int value_index = ObjectHashTable::EntryToValueIndex(entry);
-        return LoadHandler::LoadModuleExport(isolate(), value_index);
+        Handle<Smi> smi_handler =
+            LoadHandler::LoadModuleExport(isolate(), value_index);
+        if (holder_is_lookup_start_object) {
+          return smi_handler;
+        }
+        return LoadHandler::LoadFromPrototype(isolate(), map, holder,
+                                              smi_handler);
       }
 
       Handle<Object> accessors = lookup->GetAccessors();
