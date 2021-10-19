@@ -95,6 +95,11 @@ class RegExpMacroAssembler {
   virtual void CheckCharacterNotInRange(base::uc16 from,
                                         base::uc16 to,  // Both inclusive.
                                         Label* on_not_in_range) = 0;
+  // Returns true if the check was emitted, false otherwise.
+  virtual bool CheckCharacterInRangeArray(
+      const ZoneList<CharacterRange>* ranges, Label* on_in_range) = 0;
+  virtual bool CheckCharacterNotInRangeArray(
+      const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) = 0;
 
   // The current character (modulus the kTableSize) is looked up in the byte
   // array, and if the found byte is non-zero, we jump to the on_bit_set label.
@@ -196,6 +201,19 @@ class RegExpMacroAssembler {
                                            size_t byte_length,
                                            Isolate* isolate);
 
+  // `raw_byte_array` is a ByteArray containing a set of character ranges,
+  // where ranges are encoded as uint16_t elements:
+  //
+  //  [from0, to0, from1, to1, ..., fromN, toN], or
+  //  [from0, to0, from1, to1, ..., fromN]  (open-ended last interval).
+  //
+  // fromN is inclusive, toN is exclusive. Returns zero if not in a range,
+  // non-zero otherwise.
+  //
+  // Called from generated code.
+  static uint32_t IsCharacterInRangeArray(uint32_t current_char,
+                                          Address raw_byte_array,
+                                          Isolate* isolate);
 
   // Controls the generation of large inlined constants in the code.
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
@@ -323,11 +341,15 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   // Used by generated RegExp code.
   static const byte word_character_map[256];
 
+  Handle<ByteArray> GetOrAddRangeArray(const ZoneList<CharacterRange>* ranges);
+
  private:
   // Returns a {Result} sentinel, or the number of successful matches.
   static int Execute(String input, int start_offset, const byte* input_start,
                      const byte* input_end, int* output, int output_size,
                      Isolate* isolate, JSRegExp regexp);
+
+  std::unordered_map<uint32_t, Handle<ByteArray>> range_array_cache_;
 };
 
 }  // namespace internal

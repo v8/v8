@@ -288,6 +288,8 @@ class StatsCounter;
     "RegExpMacroAssembler::CaseInsensitiveCompareUnicode()")                   \
   V(re_case_insensitive_compare_non_unicode,                                   \
     "RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode()")                \
+  V(re_is_character_in_range_array,                                            \
+    "RegExpMacroAssembler::IsCharacterInRangeArray()")                         \
   V(re_check_stack_guard_state,                                                \
     "RegExpMacroAssembler*::CheckStackGuardState()")                           \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \

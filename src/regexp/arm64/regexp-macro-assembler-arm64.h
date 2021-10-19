@@ -52,6 +52,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
                              Label* on_in_range) override;
   void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
                                 Label* on_not_in_range) override;
+  bool CheckCharacterInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                  Label* on_in_range) override;
+  bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                     Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
 
   // Checks whether the given offset from the current position is before
@@ -130,6 +134,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
 
+  // Registers x0 to x7 are used to store the first captures, they need to be
+  // retained over calls to C++ code.
+  void PushCachedRegisters();
+  void PopCachedRegisters();
+
   // When initializing registers to a non-position value we can unroll
   // the loop. Set the limit of registers to unroll.
   static const int kNumRegistersToUnroll = 16;
@@ -145,8 +154,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-  // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch);
+  void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // Location of a 32 bit position register.
   MemOperand register_location(int register_index);

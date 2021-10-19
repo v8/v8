@@ -104,6 +104,121 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUnicode(Address byte_offset1,
 #endif  // V8_INTL_SUPPORT
 }
 
+namespace {
+
+uint32_t Hash(const ZoneList<CharacterRange>* ranges) {
+  size_t seed = 0;
+  for (int i = 0; i < ranges->length(); i++) {
+    const CharacterRange& r = ranges->at(i);
+    seed = base::hash_combine(seed, r.from(), r.to());
+  }
+  return static_cast<uint32_t>(seed);
+}
+
+int RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
+  const int ranges_length = ranges->length();
+  return ranges->at(ranges_length - 1).to() == kMaxUInt16
+             ? ranges_length * 2 - 1
+             : ranges_length * 2;
+}
+
+bool Equals(const ZoneList<CharacterRange>* lhs, const Handle<ByteArray>& rhs) {
+  if (rhs->length() != RangeArrayLengthFor(lhs) * kUInt16Size) return false;
+  for (int i = 0; i < lhs->length(); i++) {
+    const CharacterRange& r = lhs->at(i);
+    if (rhs->get_uint16(i * 2 + 0) != r.from()) return false;
+    if (i == lhs->length() - 1 && r.to() == kMaxUInt16) {
+      break;  // Avoid overflow by leaving the last range open-ended.
+    }
+    if (rhs->get_uint16(i * 2 + 1) != r.to() + 1) return false;
+  }
+  return true;
+}
+
+Handle<ByteArray> MakeRangeArray(Isolate* isolate,
+                                 const ZoneList<CharacterRange>* ranges) {
+  const int ranges_length = ranges->length();
+  const int byte_array_length = RangeArrayLengthFor(ranges);
+  const int size_in_bytes = byte_array_length * kUInt16Size;
+  Handle<ByteArray> range_array =
+      isolate->factory()->NewByteArray(size_in_bytes);
+  for (int i = 0; i < ranges_length; i++) {
+    const CharacterRange& r = ranges->at(i);
+    DCHECK_NE(r.from(), kMaxUInt16);
+    range_array->set_uint16(i * 2 + 0, r.from());
+    if (i == ranges_length - 1 && r.to() == kMaxUInt16) {
+      break;  // Avoid overflow by leaving the last range open-ended.
+    }
+    DCHECK_NE(r.to(), kMaxUInt16);
+    range_array->set_uint16(i * 2 + 1, r.to() + 1);  // Exclusive.
+  }
+  return range_array;
+}
+
+}  // namespace
+
+Handle<ByteArray> NativeRegExpMacroAssembler::GetOrAddRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  const uint32_t hash = Hash(ranges);
+
+  if (range_array_cache_.count(hash) != 0) {
+    Handle<ByteArray> range_array = range_array_cache_[hash];
+    if (Equals(ranges, range_array)) return range_array;
+  }
+
+  Handle<ByteArray> range_array = MakeRangeArray(isolate(), ranges);
+  range_array_cache_[hash] = range_array;
+  return range_array;
+}
+
+// static
+uint32_t RegExpMacroAssembler::IsCharacterInRangeArray(uint32_t current_char,
+                                                       Address raw_byte_array,
+                                                       Isolate* isolate) {
+  // Use uint32_t to avoid complexity around bool return types (which may be
+  // optimized to use only the least significant byte).
+  static constexpr uint32_t kTrue = 1;
+  static constexpr uint32_t kFalse = 0;
+
+  ByteArray ranges = ByteArray::cast(Object(raw_byte_array));
+
+  DCHECK_EQ(ranges.length() % kUInt16Size, 0);  // uc16 elements.
+  const int length = ranges.length() / kUInt16Size;
+  DCHECK_GE(length, 1);
+
+  // Shortcut for fully out of range chars.
+  if (current_char < ranges.get_uint16(0)) return kFalse;
+  if (current_char >= ranges.get_uint16(length - 1)) {
+    // The last range may be open-ended.
+    return (length % 2) == 0 ? kFalse : kTrue;
+  }
+
+  // Binary search for the matching range. `ranges` is encoded as
+  // [from0, to0, from1, to1, ..., fromN, toN], or
+  // [from0, to0, from1, to1, ..., fromN] (open-ended last interval).
+
+  int mid, lower = 0, upper = length;
+  do {
+    mid = lower + (upper - lower) / 2;
+    const base::uc16 elem = ranges.get_uint16(mid);
+    if (current_char < elem) {
+      upper = mid;
+    } else if (current_char > elem) {
+      lower = mid + 1;
+    } else {
+      DCHECK_EQ(current_char, elem);
+      break;
+    }
+  } while (lower < upper);
+
+  const bool current_char_ge_last_elem = current_char >= ranges.get_uint16(mid);
+  const int current_range_start_index =
+      current_char_ge_last_elem ? mid : mid - 1;
+
+  // Ranges start at even indices and end at odd indices.
+  return (current_range_start_index % 2) == 0 ? kTrue : kFalse;
+}
+
 void RegExpMacroAssembler::CheckNotInSurrogatePair(int cp_offset,
                                                    Label* on_failure) {
   Label ok;

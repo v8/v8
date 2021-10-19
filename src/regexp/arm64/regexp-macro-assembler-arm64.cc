@@ -293,6 +293,18 @@ void RegExpMacroAssemblerARM64::CheckGreedyLoop(Label* on_equal) {
   BranchOrBacktrack(eq, on_equal);
 }
 
+void RegExpMacroAssemblerARM64::PushCachedRegisters() {
+  CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
+  DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
+  __ PushCPURegList(cached_registers);
+}
+
+void RegExpMacroAssemblerARM64::PopCachedRegisters() {
+  CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
+  DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
+  __ PopCPURegList(cached_registers);
+}
+
 void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
@@ -398,10 +410,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     DCHECK(mode_ == UC16);
     int argument_count = 4;
 
-    // The cached registers need to be retained.
-    CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
-    DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
-    __ PushCPURegList(cached_registers);
+    PushCachedRegisters();
 
     // Put arguments into arguments registers.
     // Parameters are
@@ -435,7 +444,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     // x0 is one of the registers used as a cache so it must be tested before
     // the cache is restored.
     __ Cmp(x0, 0);
-    __ PopCPURegList(cached_registers);
+    PopCachedRegisters();
     BranchOrBacktrack(eq, on_no_match);
 
     // On success, advance position by length of capture.
@@ -572,6 +581,49 @@ void RegExpMacroAssemblerARM64::CheckCharacterNotInRange(
   __ Sub(w10, current_character(), from);
   // Unsigned higher condition.
   CompareAndBranchOrBacktrack(w10, to - from, hi, on_not_in_range);
+}
+
+void RegExpMacroAssemblerARM64::CallIsCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  static const int kNumArguments = 3;
+  __ Mov(w0, current_character());
+  __ Mov(x1, GetOrAddRangeArray(ranges));
+  __ Mov(x2, ExternalReference::isolate_address(isolate()));
+
+  {
+    // We have a frame (set up in GetCode), but the assembler doesn't know.
+    FrameScope scope(masm_.get(), StackFrame::MANUAL);
+    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
+                     kNumArguments);
+  }
+
+  __ Mov(code_pointer(), Operand(masm_->CodeObject()));
+}
+
+bool RegExpMacroAssemblerARM64::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  // Note: due to the arm64 oddity of x0 being a 'cached register',
+  // pushing/popping registers must happen outside of CallIsCharacterInRange
+  // s.t. we can compare the return value to 0 before popping x0.
+  PushCachedRegisters();
+  CallIsCharacterInRangeArray(ranges);
+  __ Cmp(x0, 0);
+  PopCachedRegisters();
+  BranchOrBacktrack(ne, on_in_range);
+  return true;
+}
+
+bool RegExpMacroAssemblerARM64::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  // Note: due to the arm64 oddity of x0 being a 'cached register',
+  // pushing/popping registers must happen outside of CallIsCharacterInRange
+  // s.t. we can compare the return value to 0 before popping x0.
+  PushCachedRegisters();
+  CallIsCharacterInRangeArray(ranges);
+  __ Cmp(x0, 0);
+  PopCachedRegisters();
+  BranchOrBacktrack(eq, on_not_in_range);
+  return true;
 }
 
 void RegExpMacroAssemblerARM64::CheckBitInTable(
@@ -1081,25 +1133,19 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   __ Ret();
 
   Label exit_with_exception;
-  // Registers x0 to x7 are used to store the first captures, they need to be
-  // retained over calls to C++ code.
-  CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
-  DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
-
   if (check_preempt_label_.is_linked()) {
     __ Bind(&check_preempt_label_);
 
     StoreRegExpStackPointerToMemory(backtrack_stackpointer(), x10);
 
     SaveLinkRegister();
-    // The cached registers need to be retained.
-    __ PushCPURegList(cached_registers);
+    PushCachedRegisters();
     CallCheckStackGuardState(x10);
     // Returning from the regexp code restores the stack (sp <- fp)
     // so we don't need to drop the link register from it before exiting.
     __ Cbnz(w0, &return_w0);
     // Reset the cached registers.
-    __ PopCPURegList(cached_registers);
+    PopCachedRegisters();
 
     LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
 
@@ -1113,9 +1159,8 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
     StoreRegExpStackPointerToMemory(backtrack_stackpointer(), x10);
 
     SaveLinkRegister();
-    // The cached registers need to be retained.
-    __ PushCPURegList(cached_registers);
-    // Call GrowStack(isolate)
+    PushCachedRegisters();
+    // Call GrowStack(isolate).
     static constexpr int kNumArguments = 1;
     __ Mov(x0, ExternalReference::isolate_address(isolate()));
     __ CallCFunction(ExternalReference::re_grow_stack(), kNumArguments);
@@ -1126,8 +1171,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
     __ Cbz(w0, &exit_with_exception);
     // Otherwise use return value as new stack pointer.
     __ Mov(backtrack_stackpointer(), x0);
-    // Reset the cached registers.
-    __ PopCPURegList(cached_registers);
+    PopCachedRegisters();
     RestoreLinkRegister();
     __ Ret();
   }

@@ -556,12 +556,12 @@ void ArrayList::Clear(int index, Object undefined) {
 int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
 
 byte ByteArray::get(int index) const {
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < length());
   return ReadField<byte>(kHeaderSize + index * kCharSize);
 }
 
 void ByteArray::set(int index, byte value) {
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < length());
   WriteField<byte>(kHeaderSize + index * kCharSize, value);
 }
 
@@ -580,33 +580,43 @@ void ByteArray::copy_out(int index, byte* buffer, int length) {
 }
 
 int ByteArray::get_int(int index) const {
-  DCHECK(index >= 0 && index < this->length() / kIntSize);
+  DCHECK(index >= 0 && index < length() / kIntSize);
   return ReadField<int>(kHeaderSize + index * kIntSize);
 }
 
 void ByteArray::set_int(int index, int value) {
-  DCHECK(index >= 0 && index < this->length() / kIntSize);
+  DCHECK(index >= 0 && index < length() / kIntSize);
   WriteField<int>(kHeaderSize + index * kIntSize, value);
 }
 
 uint32_t ByteArray::get_uint32(int index) const {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  DCHECK(index >= 0 && index < length() / kUInt32Size);
   return ReadField<uint32_t>(kHeaderSize + index * kUInt32Size);
 }
 
 void ByteArray::set_uint32(int index, uint32_t value) {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  DCHECK(index >= 0 && index < length() / kUInt32Size);
   WriteField<uint32_t>(kHeaderSize + index * kUInt32Size, value);
 }
 
 uint32_t ByteArray::get_uint32_relaxed(int index) const {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  DCHECK(index >= 0 && index < length() / kUInt32Size);
   return RELAXED_READ_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size);
 }
 
 void ByteArray::set_uint32_relaxed(int index, uint32_t value) {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  DCHECK(index >= 0 && index < length() / kUInt32Size);
   RELAXED_WRITE_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size, value);
+}
+
+uint16_t ByteArray::get_uint16(int index) const {
+  DCHECK(index >= 0 && index < length() / kUInt16Size);
+  return ReadField<uint16_t>(kHeaderSize + index * kUInt16Size);
+}
+
+void ByteArray::set_uint16(int index, uint16_t value) {
+  DCHECK(index >= 0 && index < length() / kUInt16Size);
+  WriteField<uint16_t>(kHeaderSize + index * kUInt16Size, value);
 }
 
 void ByteArray::clear_padding() {
@@ -621,7 +631,7 @@ ByteArray ByteArray::FromDataStartAddress(Address address) {
 
 int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
 
-int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
+int ByteArray::ByteArraySize() { return SizeFor(length()); }
 
 byte* ByteArray::GetDataStartAddress() {
   return reinterpret_cast<byte*>(address() + kHeaderSize);

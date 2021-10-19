@@ -216,6 +216,24 @@ void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
   __ bind(&fallthrough);
 }
 
+// Push (pop) caller-saved registers used by irregexp.
+void RegExpMacroAssemblerX64::PushCallerSavedRegisters() {
+#ifndef V8_TARGET_OS_WIN
+  // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
+  __ pushq(rsi);
+  __ pushq(rdi);
+#endif
+  __ pushq(rcx);
+}
+
+void RegExpMacroAssemblerX64::PopCallerSavedRegisters() {
+  __ popq(rcx);
+#ifndef V8_TARGET_OS_WIN
+  __ popq(rdi);
+  __ popq(rsi);
+#endif
+}
+
 void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
@@ -307,13 +325,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     }
   } else {
     DCHECK(mode_ == UC16);
-    // Save important/volatile registers before calling C function.
-#ifndef V8_TARGET_OS_WIN
-    // Caller save on Linux and callee save in Windows.
-    __ pushq(rsi);
-    __ pushq(rdi);
-#endif
-    __ pushq(backtrack_stackpointer());
+    PushCallerSavedRegisters();
 
     static const int num_arguments = 4;
     __ PrepareCallCFunction(num_arguments);
@@ -363,11 +375,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 
     // Restore original values before reacting on result value.
     __ Move(code_object_pointer(), masm_.CodeObject());
-    __ popq(backtrack_stackpointer());
-#ifndef V8_TARGET_OS_WIN
-    __ popq(rdi);
-    __ popq(rsi);
-#endif
+    PopCallerSavedRegisters();
 
     // Check if function returned non-zero for success or zero for failure.
     __ testq(rax, rax);
@@ -515,6 +523,44 @@ void RegExpMacroAssemblerX64::CheckCharacterNotInRange(base::uc16 from,
   __ leal(rax, Operand(current_character(), -from));
   __ cmpl(rax, Immediate(to - from));
   BranchOrBacktrack(above, on_not_in_range);
+}
+
+void RegExpMacroAssemblerX64::CallIsCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  PushCallerSavedRegisters();
+
+  static const int kNumArguments = 3;
+  __ PrepareCallCFunction(kNumArguments);
+
+  __ Move(arg_reg_1, current_character());
+  __ Move(arg_reg_2, GetOrAddRangeArray(ranges));
+  __ LoadAddress(arg_reg_3, ExternalReference::isolate_address(isolate()));
+
+  {
+    // We have a frame (set up in GetCode), but the assembler doesn't know.
+    FrameScope scope(&masm_, StackFrame::MANUAL);
+    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
+                     kNumArguments);
+  }
+
+  PopCallerSavedRegisters();
+  __ Move(code_object_pointer(), masm_.CodeObject());
+}
+
+bool RegExpMacroAssemblerX64::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ testq(rax, rax);
+  BranchOrBacktrack(not_zero, on_in_range);
+  return true;
+}
+
+bool RegExpMacroAssemblerX64::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ testq(rax, rax);
+  BranchOrBacktrack(zero, on_not_in_range);
+  return true;
 }
 
 void RegExpMacroAssemblerX64::CheckBitInTable(
@@ -1007,12 +1053,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     SafeCallTarget(&stack_overflow_label_);
     // Reached if the backtrack-stack limit has been hit.
 
-    // Save registers before calling C function
-#ifndef V8_TARGET_OS_WIN
-    // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
-    __ pushq(rsi);
-    __ pushq(rdi);
-#endif
+    PushCallerSavedRegisters();
 
     // Call GrowStack(isolate).
 
@@ -1028,14 +1069,11 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // with a stack-overflow exception.
     __ testq(rax, rax);
     __ j(equal, &exit_with_exception);
+    PopCallerSavedRegisters();
     // Otherwise use return value as new stack pointer.
     __ movq(backtrack_stackpointer(), rax);
     // Restore saved registers and continue.
     __ Move(code_object_pointer(), masm_.CodeObject());
-#ifndef V8_TARGET_OS_WIN
-    __ popq(rdi);
-    __ popq(rsi);
-#endif
     SafeReturn();
   }
 

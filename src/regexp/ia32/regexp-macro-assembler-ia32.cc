@@ -205,6 +205,18 @@ void RegExpMacroAssemblerIA32::CheckGreedyLoop(Label* on_equal) {
   __ bind(&fallthrough);
 }
 
+void RegExpMacroAssemblerIA32::PushCallerSavedRegisters() {
+  STATIC_ASSERT(backtrack_stackpointer() == ecx);
+  STATIC_ASSERT(current_character() == edx);
+  __ push(ecx);
+  __ push(edx);
+}
+
+void RegExpMacroAssemblerIA32::PopCallerSavedRegisters() {
+  __ pop(edx);
+  __ pop(ecx);
+}
+
 void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
@@ -500,6 +512,44 @@ void RegExpMacroAssemblerIA32::CheckCharacterNotInRange(
   __ lea(eax, Operand(current_character(), -from));
   __ cmp(eax, to - from);
   BranchOrBacktrack(above, on_not_in_range);
+}
+
+void RegExpMacroAssemblerIA32::CallIsCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  PushCallerSavedRegisters();
+
+  static const int kNumArguments = 3;
+  __ PrepareCallCFunction(kNumArguments, ecx);
+
+  __ mov(Operand(esp, 0 * kSystemPointerSize), current_character());
+  __ mov(Operand(esp, 1 * kSystemPointerSize), GetOrAddRangeArray(ranges));
+  __ mov(Operand(esp, 2 * kSystemPointerSize),
+         Immediate(ExternalReference::isolate_address(isolate())));
+
+  {
+    // We have a frame (set up in GetCode), but the assembler doesn't know.
+    FrameScope scope(masm_.get(), StackFrame::MANUAL);
+    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
+                     kNumArguments);
+  }
+
+  PopCallerSavedRegisters();
+}
+
+bool RegExpMacroAssemblerIA32::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ or_(eax, eax);
+  BranchOrBacktrack(not_zero, on_in_range);
+  return true;
+}
+
+bool RegExpMacroAssemblerIA32::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ or_(eax, eax);
+  BranchOrBacktrack(zero, on_not_in_range);
+  return true;
 }
 
 void RegExpMacroAssemblerIA32::CheckBitInTable(

@@ -1223,16 +1223,18 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   CharacterRange::Canonicalize(ranges);
 
   const base::uc32 max_char = MaxCodeUnit(one_byte);
-  int range_count = ranges->length();
 
-  int last_valid_range = range_count - 1;
-  while (last_valid_range >= 0) {
-    CharacterRange& range = ranges->at(last_valid_range);
+  // Determine the 'interesting' set of ranges; may be a subset of the given
+  // range set if it contains ranges not representable by the current string
+  // representation.
+  int ranges_length = ranges->length();
+  while (ranges_length > 0) {
+    CharacterRange& range = ranges->at(ranges_length - 1);
     if (range.from() <= max_char) break;
-    last_valid_range--;
+    ranges_length--;
   }
 
-  if (last_valid_range < 0) {
+  if (ranges_length == 0) {
     if (!cc->is_negated()) {
       macro_assembler->GoTo(on_failure);
     }
@@ -1242,7 +1244,7 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     return;
   }
 
-  if (last_valid_range == 0 && ranges->at(0).IsEverything(max_char)) {
+  if (ranges_length == 1 && ranges->at(0).IsEverything(max_char)) {
     if (cc->is_negated()) {
       macro_assembler->GoTo(on_failure);
     } else {
@@ -1263,15 +1265,33 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     return;
   }
 
+  static constexpr int kMaxRangesForInlineBranchGeneration = 16;
+  if (ranges_length > kMaxRangesForInlineBranchGeneration) {
+    // For large range sets, emit a more compact instruction sequence to avoid
+    // a potentially problematic increase in code size.
+    // Note the flipped logic below (we check InRange if negated, NotInRange if
+    // not negated); this is necessary since the method falls through on
+    // failure whereas we want to fall through on success.
+    if (cc->is_negated()) {
+      if (macro_assembler->CheckCharacterInRangeArray(ranges, on_failure)) {
+        return;
+      }
+    } else {
+      if (macro_assembler->CheckCharacterNotInRangeArray(ranges, on_failure)) {
+        return;
+      }
+    }
+  }
+
   // Generate a flat list of range boundaries for consumption by
   // GenerateBranches. See the comment on that function for how the list should
   // be structured
   ZoneList<base::uc32>* range_boundaries =
-      zone->New<ZoneList<base::uc32>>(last_valid_range * 2, zone);
+      zone->New<ZoneList<base::uc32>>(ranges_length * 2, zone);
 
   bool zeroth_entry_is_failure = !cc->is_negated();
 
-  for (int i = 0; i <= last_valid_range; i++) {
+  for (int i = 0; i < ranges_length; i++) {
     CharacterRange& range = ranges->at(i);
     if (range.from() == 0) {
       DCHECK_EQ(i, 0);
@@ -1280,6 +1300,7 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
       range_boundaries->Add(range.from(), zone);
     }
     // `+ 1` to convert from inclusive to exclusive `to`.
+    // [from, to] == [from, to+1[.
     range_boundaries->Add(range.to() + 1, zone);
   }
   int end_index = range_boundaries->length() - 1;
@@ -2410,11 +2431,23 @@ TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
                              read_backward, on_success);
 }
 
-TextNode* TextNode::CreateForSurrogatePair(Zone* zone, CharacterRange lead,
-                                           CharacterRange trail,
-                                           bool read_backward,
-                                           RegExpNode* on_success) {
+TextNode* TextNode::CreateForSurrogatePair(
+    Zone* zone, CharacterRange lead, ZoneList<CharacterRange>* trail_ranges,
+    bool read_backward, RegExpNode* on_success) {
   ZoneList<CharacterRange>* lead_ranges = CharacterRange::List(zone, lead);
+  ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(2, zone);
+  elms->Add(TextElement::CharClass(
+                zone->New<RegExpCharacterClass>(zone, lead_ranges)),
+            zone);
+  elms->Add(TextElement::CharClass(
+                zone->New<RegExpCharacterClass>(zone, trail_ranges)),
+            zone);
+  return zone->New<TextNode>(elms, read_backward, on_success);
+}
+
+TextNode* TextNode::CreateForSurrogatePair(
+    Zone* zone, ZoneList<CharacterRange>* lead_ranges, CharacterRange trail,
+    bool read_backward, RegExpNode* on_success) {
   ZoneList<CharacterRange>* trail_ranges = CharacterRange::List(zone, trail);
   ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(2, zone);
   elms->Add(TextElement::CharClass(

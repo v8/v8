@@ -215,14 +215,60 @@ void AddBmpCharacters(RegExpCompiler* compiler, ChoiceNode* result,
       compiler->zone(), bmp, compiler->read_backward(), on_success)));
 }
 
+using UC16Range = uint32_t;  // {from, to} packed into one uint32_t.
+constexpr UC16Range ToUC16Range(base::uc16 from, base::uc16 to) {
+  return (static_cast<uint32_t>(from) << 16) | to;
+}
+constexpr base::uc16 ExtractFrom(UC16Range r) {
+  return static_cast<base::uc16>(r >> 16);
+}
+constexpr base::uc16 ExtractTo(UC16Range r) {
+  return static_cast<base::uc16>(r);
+}
+
 void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
                              RegExpNode* on_success,
                              UnicodeRangeSplitter* splitter) {
-  ZoneList<CharacterRange>* non_bmp =
-      ToCanonicalZoneList(splitter->non_bmp(), compiler->zone());
-  if (non_bmp == nullptr) return;
   DCHECK(!compiler->one_byte());
-  Zone* zone = compiler->zone();
+  Zone* const zone = compiler->zone();
+  ZoneList<CharacterRange>* non_bmp =
+      ToCanonicalZoneList(splitter->non_bmp(), zone);
+  if (non_bmp == nullptr) return;
+
+  // Translate each 32-bit code point range into the corresponding 16-bit code
+  // unit representation consisting of the lead- and trail surrogate.
+  //
+  // The generated alternatives are grouped by the leading surrogate to avoid
+  // emitting excessive code. For example, for
+  //
+  //  { \ud800[\udc00-\udc01]
+  //  , \ud800[\udc05-\udc06]
+  //  }
+  //
+  // there's no need to emit matching code for the leading surrogate \ud800
+  // twice. We also create a dedicated grouping for full trailing ranges, i.e.
+  // [dc00-dfff].
+  ZoneUnorderedMap<UC16Range, ZoneList<CharacterRange>*> grouped_by_leading(
+      zone);
+  ZoneList<CharacterRange>* leading_with_full_trailing_range =
+      zone->New<ZoneList<CharacterRange>>(1, zone);
+  const auto AddRange = [&](base::uc16 from_l, base::uc16 to_l,
+                            base::uc16 from_t, base::uc16 to_t) {
+    const UC16Range leading_range = ToUC16Range(from_l, to_l);
+    if (grouped_by_leading.count(leading_range) == 0) {
+      if (from_t == kTrailSurrogateStart && to_t == kTrailSurrogateEnd) {
+        leading_with_full_trailing_range->Add(
+            CharacterRange::Range(from_l, to_l), zone);
+        return;
+      }
+      grouped_by_leading[leading_range] =
+          zone->New<ZoneList<CharacterRange>>(2, zone);
+    }
+    grouped_by_leading[leading_range]->Add(CharacterRange::Range(from_t, to_t),
+                                           zone);
+  };
+
+  // First, create the grouped ranges.
   CharacterRange::Canonicalize(non_bmp);
   for (int i = 0; i < non_bmp->length(); i++) {
     // Match surrogate pair.
@@ -236,41 +282,45 @@ void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
     base::uc16 from_t = unibrow::Utf16::TrailSurrogate(from);
     base::uc16 to_l = unibrow::Utf16::LeadSurrogate(to);
     base::uc16 to_t = unibrow::Utf16::TrailSurrogate(to);
+
     if (from_l == to_l) {
       // The lead surrogate is the same.
-      result->AddAlternative(
-          GuardedAlternative(TextNode::CreateForSurrogatePair(
-              zone, CharacterRange::Singleton(from_l),
-              CharacterRange::Range(from_t, to_t), compiler->read_backward(),
-              on_success)));
-    } else {
-      if (from_t != kTrailSurrogateStart) {
-        // Add [from_l][from_t-\udfff]
-        result->AddAlternative(
-            GuardedAlternative(TextNode::CreateForSurrogatePair(
-                zone, CharacterRange::Singleton(from_l),
-                CharacterRange::Range(from_t, kTrailSurrogateEnd),
-                compiler->read_backward(), on_success)));
-        from_l++;
-      }
-      if (to_t != kTrailSurrogateEnd) {
-        // Add [to_l][\udc00-to_t]
-        result->AddAlternative(
-            GuardedAlternative(TextNode::CreateForSurrogatePair(
-                zone, CharacterRange::Singleton(to_l),
-                CharacterRange::Range(kTrailSurrogateStart, to_t),
-                compiler->read_backward(), on_success)));
-        to_l--;
-      }
-      if (from_l <= to_l) {
-        // Add [from_l-to_l][\udc00-\udfff]
-        result->AddAlternative(
-            GuardedAlternative(TextNode::CreateForSurrogatePair(
-                zone, CharacterRange::Range(from_l, to_l),
-                CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd),
-                compiler->read_backward(), on_success)));
-      }
+      AddRange(from_l, to_l, from_t, to_t);
+      continue;
     }
+
+    if (from_t != kTrailSurrogateStart) {
+      // Add [from_l][from_t-\udfff].
+      AddRange(from_l, from_l, from_t, kTrailSurrogateEnd);
+      from_l++;
+    }
+    if (to_t != kTrailSurrogateEnd) {
+      // Add [to_l][\udc00-to_t].
+      AddRange(to_l, to_l, kTrailSurrogateStart, to_t);
+      to_l--;
+    }
+    if (from_l <= to_l) {
+      // Add [from_l-to_l][\udc00-\udfff].
+      AddRange(from_l, to_l, kTrailSurrogateStart, kTrailSurrogateEnd);
+    }
+  }
+
+  // Create the actual TextNode now that ranges are fully grouped.
+  if (!leading_with_full_trailing_range->is_empty()) {
+    CharacterRange::Canonicalize(leading_with_full_trailing_range);
+    result->AddAlternative(GuardedAlternative(TextNode::CreateForSurrogatePair(
+        zone, leading_with_full_trailing_range,
+        CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd),
+        compiler->read_backward(), on_success)));
+  }
+  for (const auto& it : grouped_by_leading) {
+    CharacterRange leading_range =
+        CharacterRange::Range(ExtractFrom(it.first), ExtractTo(it.first));
+    ZoneList<CharacterRange>* trailing_ranges = it.second;
+    CharacterRange::Canonicalize(trailing_ranges);
+    result->AddAlternative(GuardedAlternative(TextNode::CreateForSurrogatePair(
+        zone, leading_range, trailing_ranges, compiler->read_backward(),
+        on_success)));
   }
 }
 
@@ -409,41 +459,52 @@ void AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges, Zone* zone) {
 RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
                                          RegExpNode* on_success) {
   set_.Canonicalize();
-  Zone* zone = compiler->zone();
+  Zone* const zone = compiler->zone();
   ZoneList<CharacterRange>* ranges = this->ranges(zone);
+
   if (NeedsUnicodeCaseEquivalents(compiler->flags())) {
     AddUnicodeCaseEquivalents(ranges, zone);
   }
-  if (IsUnicode(compiler->flags()) && !compiler->one_byte() &&
-      !contains_split_surrogate()) {
-    if (is_negated()) {
-      ZoneList<CharacterRange>* negated =
-          zone->New<ZoneList<CharacterRange>>(2, zone);
-      CharacterRange::Negate(ranges, negated, zone);
-      ranges = negated;
-    }
-    if (ranges->length() == 0) {
-      RegExpCharacterClass* fail =
-          zone->New<RegExpCharacterClass>(zone, ranges);
-      return zone->New<TextNode>(fail, compiler->read_backward(), on_success);
-    }
-    if (set_.is_standard() &&
-        standard_type() == StandardCharacterSet::kEverything) {
-      return UnanchoredAdvance(compiler, on_success);
-    } else {
-      ChoiceNode* result = zone->New<ChoiceNode>(2, zone);
-      UnicodeRangeSplitter splitter(ranges);
-      AddBmpCharacters(compiler, result, on_success, &splitter);
-      AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter);
-      AddLoneLeadSurrogates(compiler, result, on_success, &splitter);
-      AddLoneTrailSurrogates(compiler, result, on_success, &splitter);
-      static constexpr int kMaxRangesToInline = 32;  // Arbitrary.
-      if (ranges->length() > kMaxRangesToInline) result->SetDoNotInline();
-      return result;
-    }
-  } else {
+
+  if (!IsUnicode(compiler->flags()) || compiler->one_byte() ||
+      contains_split_surrogate()) {
     return zone->New<TextNode>(this, compiler->read_backward(), on_success);
   }
+
+  if (is_negated()) {
+    ZoneList<CharacterRange>* negated =
+        zone->New<ZoneList<CharacterRange>>(2, zone);
+    CharacterRange::Negate(ranges, negated, zone);
+    ranges = negated;
+  }
+
+  if (ranges->length() == 0) {
+    // The empty character class is used as a 'fail' node.
+    RegExpCharacterClass* fail = zone->New<RegExpCharacterClass>(zone, ranges);
+    return zone->New<TextNode>(fail, compiler->read_backward(), on_success);
+  }
+
+  if (set_.is_standard() &&
+      standard_type() == StandardCharacterSet::kEverything) {
+    return UnanchoredAdvance(compiler, on_success);
+  }
+
+  // Split ranges in order to handle surrogates correctly:
+  // - Surrogate pairs: translate the 32-bit code point into two uc16 code
+  //   units (irregexp operates only on code units).
+  // - Lone surrogates: these require lookarounds to ensure we don't match in
+  //   the middle of a surrogate pair.
+  ChoiceNode* result = zone->New<ChoiceNode>(2, zone);
+  UnicodeRangeSplitter splitter(ranges);
+  AddBmpCharacters(compiler, result, on_success, &splitter);
+  AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter);
+  AddLoneLeadSurrogates(compiler, result, on_success, &splitter);
+  AddLoneTrailSurrogates(compiler, result, on_success, &splitter);
+
+  static constexpr int kMaxRangesToInline = 32;  // Arbitrary.
+  if (ranges->length() > kMaxRangesToInline) result->SetDoNotInline();
+
+  return result;
 }
 
 namespace {
