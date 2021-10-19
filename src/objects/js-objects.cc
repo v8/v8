@@ -500,36 +500,46 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
     }
   }
 
-  LookupIterator it_tag(isolate, receiver,
-                        isolate->factory()->to_string_tag_symbol(), receiver,
-                        LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  Handle<Object> maybe_tag = JSReceiver::GetDataProperty(
-      &it_tag, AllocationPolicy::kAllocationDisallowed);
-  if (maybe_tag->IsString()) {
-    return std::make_pair(MaybeHandle<JSFunction>(),
-                          Handle<String>::cast(maybe_tag));
-  }
+  for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
+       it.AdvanceIgnoringProxies()) {
+    auto current = PrototypeIterator::GetCurrent<JSReceiver>(it);
 
-  PrototypeIterator iter(isolate, receiver);
-  if (iter.IsAtEnd()) {
-    return std::make_pair(MaybeHandle<JSFunction>(),
-                          handle(receiver->class_name(), isolate));
-  }
+    LookupIterator it_to_string_tag(
+        isolate, receiver, isolate->factory()->to_string_tag_symbol(), current,
+        LookupIterator::OWN_SKIP_INTERCEPTOR);
+    auto maybe_to_string_tag = JSReceiver::GetDataProperty(
+        &it_to_string_tag, AllocationPolicy::kAllocationDisallowed);
+    if (maybe_to_string_tag->IsString()) {
+      return std::make_pair(MaybeHandle<JSFunction>(),
+                            Handle<String>::cast(maybe_to_string_tag));
+    }
 
-  Handle<JSReceiver> start = PrototypeIterator::GetCurrent<JSReceiver>(iter);
-  LookupIterator it(isolate, receiver, isolate->factory()->constructor_string(),
-                    start, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  Handle<Object> maybe_constructor =
-      JSReceiver::GetDataProperty(&it, AllocationPolicy::kAllocationDisallowed);
-  if (maybe_constructor->IsJSFunction()) {
-    Handle<JSFunction> constructor =
-        Handle<JSFunction>::cast(maybe_constructor);
-    Handle<String> name =
-        SharedFunctionInfo::DebugName(handle(constructor->shared(), isolate));
+    // Consider the following example:
+    //
+    //   function A() {}
+    //   function B() {}
+    //   B.prototype = new A();
+    //   B.prototype.constructor = B;
+    //
+    // The constructor name for `B.prototype` must yield "A", so we don't take
+    // "constructor" into account for the receiver itself, but only starting
+    // on the prototype chain.
+    if (!receiver.is_identical_to(current)) {
+      LookupIterator it_constructor(
+          isolate, receiver, isolate->factory()->constructor_string(), current,
+          LookupIterator::OWN_SKIP_INTERCEPTOR);
+      auto maybe_constructor = JSReceiver::GetDataProperty(
+          &it_constructor, AllocationPolicy::kAllocationDisallowed);
+      if (maybe_constructor->IsJSFunction()) {
+        auto constructor = Handle<JSFunction>::cast(maybe_constructor);
+        auto name = SharedFunctionInfo::DebugName(
+            handle(constructor->shared(), isolate));
 
-    if (name->length() != 0 &&
-        !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
-      return std::make_pair(constructor, name);
+        if (name->length() != 0 &&
+            !name->Equals(ReadOnlyRoots(isolate).Object_string())) {
+          return std::make_pair(constructor, name);
+        }
+      }
     }
   }
 
