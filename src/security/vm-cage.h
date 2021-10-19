@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INIT_VM_CAGE_H_
-#define V8_INIT_VM_CAGE_H_
+#ifndef V8_SECURITY_VM_CAGE_H_
+#define V8_SECURITY_VM_CAGE_H_
 
 #include "include/v8-internal.h"
 #include "src/base/bounded-page-allocator.h"
@@ -148,4 +148,4 @@ V8_INLINE bool IsValidBackingStorePointer(void* ptr) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_INIT_VM_CAGE_H_
+#endif  // V8_SECURITY_VM_CAGE_H_

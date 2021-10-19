@@ -17,7 +17,7 @@
 #include "src/base/vector.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
-#include "src/init/vm-cage.h"
+#include "src/security/vm-cage.h"
 #include "src/utils/memcopy.h"
 
 #if V8_LIBC_BIONIC

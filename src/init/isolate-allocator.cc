@@ -8,7 +8,7 @@
 #include "src/common/ptr-compr.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
-#include "src/init/vm-cage.h"
+#include "src/security/vm-cage.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
 

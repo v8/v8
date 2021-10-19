@@ -6,8 +6,6 @@
 #define V8_OBJECTS_STRING_INL_H_
 
 #include "src/common/assert-scope.h"
-#include "src/common/external-pointer-inl.h"
-#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate-utils.h"
 #include "src/handles/handles-inl.h"
@@ -17,6 +15,8 @@
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
 #include "src/objects/string.h"
+#include "src/security/external-pointer-inl.h"
+#include "src/security/external-pointer.h"
 #include "src/strings/string-hasher-inl.h"
 #include "src/utils/utils.h"
 

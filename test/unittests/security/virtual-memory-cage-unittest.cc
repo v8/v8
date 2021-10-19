@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "src/init/vm-cage.h"
+#include "src/security/vm-cage.h"
 #include "test/unittests/test-utils.h"
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
