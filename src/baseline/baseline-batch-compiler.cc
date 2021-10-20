@@ -279,7 +279,7 @@ void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
     }
     if (FLAG_concurrent_sparkplug) {
       Enqueue(shared);
-      concurrent_compiler_->CompileBatch(compilation_queue_, last_index_ + 1);
+      concurrent_compiler_->CompileBatch(compilation_queue_, last_index_);
       ClearBatch();
     } else {
       CompileBatch(function);
