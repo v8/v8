@@ -32,7 +32,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/common/assert-scope.h"
-#include "src/common/ptr-compr.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/date/date.h"
@@ -3612,6 +3612,10 @@ class BigIntPlatform : public bigint::Platform {
 };
 }  // namespace
 
+VirtualMemoryCage* Isolate::GetPtrComprCodeCageForTesting() {
+  return V8_EXTERNAL_CODE_SPACE_BOOL ? heap_.code_range() : GetPtrComprCage();
+}
+
 bool Isolate::Init(SnapshotData* startup_snapshot_data,
                    SnapshotData* read_only_snapshot_data,
                    SnapshotData* shared_heap_snapshot_data, bool can_rehash) {
@@ -3727,6 +3731,13 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
           GetShortBuiltinsCallRegion().contains(heap_.code_region());
     }
   }
+#if V8_EXTERNAL_CODE_SPACE
+  if (heap_.code_range()) {
+    code_cage_base_ = GetPtrComprCageBaseAddress(heap_.code_range()->base());
+  } else {
+    code_cage_base_ = cage_base();
+  }
+#endif  // V8_EXTERNAL_CODE_SPACE
 
   isolate_data_.external_reference_table()->Init(this);
 

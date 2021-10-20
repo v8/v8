@@ -1081,7 +1081,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return isolate_data()->cage_base();
   }
 
-  Address code_cage_base() const { return cage_base(); }
+  // When pointer compression and external code space are on, this is the base
+  // address of the cage where the code space is allocated. Otherwise, it
+  // defaults to cage_base().
+  Address code_cage_base() const {
+#if V8_EXTERNAL_CODE_SPACE
+    return code_cage_base_;
+#else
+    return cage_base();
+#endif  // V8_EXTERNAL_CODE_SPACE
+  }
 
   // When pointer compression is on, the PtrComprCage used by this
   // Isolate. Otherwise nullptr.
@@ -1091,6 +1100,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   const VirtualMemoryCage* GetPtrComprCage() const {
     return isolate_allocator_->GetPtrComprCage();
   }
+  VirtualMemoryCage* GetPtrComprCodeCageForTesting();
 
   // Generated code can embed this address to get access to the isolate-specific
   // data (for example, roots, external references, builtins, etc.).
@@ -2115,6 +2125,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // True if the isolate is in memory savings mode. This flag is used to
   // favor memory over runtime performance.
   bool memory_savings_mode_active_ = false;
+
+#if V8_EXTERNAL_CODE_SPACE
+  // Base address of the pointer compression cage containing external code
+  // space, when external code space is enabled.
+  Address code_cage_base_ = 0;
+#endif
 
   // Time stamp at initialization.
   double time_millis_at_init_ = 0;

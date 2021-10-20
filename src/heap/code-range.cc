@@ -4,10 +4,12 @@
 
 #include "src/heap/code-range.h"
 
+#include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -85,6 +87,9 @@ CodeRange::~CodeRange() { Free(); }
 bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
                                 size_t requested) {
   DCHECK_NE(requested, 0);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    page_allocator = GetPlatformPageAllocator();
+  }
 
   if (requested <= kMinimumCodeRangeSize) {
     requested = kMinimumCodeRangeSize;
@@ -107,13 +112,25 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   // is enabled so that InitReservation would not break the alignment in
   // GetAddressHint().
   params.base_alignment =
-      VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
+      V8_EXTERNAL_CODE_SPACE_BOOL
+          ? base::bits::RoundUpToPowerOfTwo(requested)
+          : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
   params.base_bias_size = reserved_area;
   params.page_size = MemoryChunk::kPageSize;
   params.requested_start_hint = GetCodeRangeAddressHint()->GetAddressHint(
       requested, page_allocator->AllocatePageSize());
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
+
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // Ensure that the code range does not cross the 4Gb boundary and thus
+    // default compression scheme of truncating the Code pointers to 32-bit
+    // still work.
+    Address base = page_allocator_->begin();
+    Address last = base + page_allocator_->size() - 1;
+    CHECK_EQ(GetPtrComprCageBaseAddress(base),
+             GetPtrComprCageBaseAddress(last));
+  }
 
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space. See
