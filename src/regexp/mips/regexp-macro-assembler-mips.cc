@@ -223,6 +223,21 @@ void RegExpMacroAssemblerMIPS::CheckGreedyLoop(Label* on_equal) {
   BranchOrBacktrack(on_equal, eq, current_input_offset(), Operand(a0));
 }
 
+// Push (pop) caller-saved registers used by irregexp.
+void RegExpMacroAssemblerMIPS::PushCallerSavedRegisters() {
+  RegList caller_saved_regexp =
+      current_input_offset().bit() | current_character().bit() |
+      end_of_input_address().bit() | backtrack_stackpointer().bit();
+  __ MultiPush(caller_saved_regexp);
+}
+
+void RegExpMacroAssemblerMIPS::PopCallerSavedRegisters() {
+  RegList caller_saved_regexp =
+      current_input_offset().bit() | current_character().bit() |
+      end_of_input_address().bit() | backtrack_stackpointer().bit();
+  __ MultiPop(caller_saved_regexp);
+}
+
 void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
@@ -303,10 +318,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     }
   } else {
     DCHECK_EQ(UC16, mode_);
-    // Put regexp engine registers on stack.
-    RegList regexp_registers_to_retain = current_input_offset().bit() |
-        current_character().bit() | backtrack_stackpointer().bit();
-    __ MultiPush(regexp_registers_to_retain);
+    PushCallerSavedRegisters();
 
     int argument_count = 4;
     __ PrepareCallCFunction(argument_count, a2);
@@ -345,7 +357,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     }
 
     // Restore regexp engine registers.
-    __ MultiPop(regexp_registers_to_retain);
+    PopCallerSavedRegisters();
     __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
     __ lw(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
 
@@ -474,6 +486,41 @@ void RegExpMacroAssemblerMIPS::CheckCharacterNotInRange(
   __ Subu(a0, current_character(), Operand(from));
   // Unsigned higher condition.
   BranchOrBacktrack(on_not_in_range, hi, a0, Operand(to - from));
+}
+
+void RegExpMacroAssemblerMIPS::CallIsCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  static const int kNumArguments = 3;
+  PushCallerSavedRegisters();
+  __ PrepareCallCFunction(kNumArguments, a0);
+
+  __ mov(a0, current_character());
+  __ li(a1, Operand(GetOrAddRangeArray(ranges)));
+  __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
+
+  {
+    // We have a frame (set up in GetCode), but the assembler doesn't know.
+    FrameScope scope(masm_.get(), StackFrame::MANUAL);
+    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
+                     kNumArguments);
+  }
+
+  PopCallerSavedRegisters();
+  __ li(code_pointer(), Operand(masm_->CodeObject()));
+}
+
+bool RegExpMacroAssemblerMIPS::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  BranchOrBacktrack(on_in_range, ne, v0, Operand(zero_reg));
+  return true;
+}
+
+bool RegExpMacroAssemblerMIPS::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  BranchOrBacktrack(on_not_in_range, eq, v0, Operand(zero_reg));
+  return true;
 }
 
 void RegExpMacroAssemblerMIPS::CheckBitInTable(
@@ -886,12 +933,9 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     if (check_preempt_label_.is_linked()) {
       SafeCallTarget(&check_preempt_label_);
       StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a0);
-      // Put regexp engine registers on stack.
-      RegList regexp_registers_to_retain = current_input_offset().bit() |
-          current_character().bit() | backtrack_stackpointer().bit();
-      __ MultiPush(regexp_registers_to_retain);
+      PushCallerSavedRegisters();
       CallCheckStackGuardState(a0);
-      __ MultiPop(regexp_registers_to_retain);
+      PopCallerSavedRegisters();
       // If returning non-zero, we should end execution with the given
       // result as return value.
       __ Branch(&return_v0, ne, v0, Operand(zero_reg));

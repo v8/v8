@@ -216,6 +216,21 @@ void RegExpMacroAssemblerLOONG64::CheckGreedyLoop(Label* on_equal) {
   BranchOrBacktrack(on_equal, eq, current_input_offset(), Operand(a0));
 }
 
+// Push (pop) caller-saved registers used by irregexp.
+void RegExpMacroAssemblerLOONG64::PushCallerSavedRegisters() {
+  RegList caller_saved_regexp =
+      current_input_offset().bit() | current_character().bit() |
+      end_of_input_address().bit() | backtrack_stackpointer().bit();
+  __ MultiPush(caller_saved_regexp);
+}
+
+void RegExpMacroAssemblerLOONG64::PopCallerSavedRegisters() {
+  RegList caller_saved_regexp =
+      current_input_offset().bit() | current_character().bit() |
+      end_of_input_address().bit() | backtrack_stackpointer().bit();
+  __ MultiPop(caller_saved_regexp);
+}
+
 void RegExpMacroAssemblerLOONG64::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
@@ -297,11 +312,7 @@ void RegExpMacroAssemblerLOONG64::CheckNotBackReferenceIgnoreCase(
     }
   } else {
     DCHECK(mode_ == UC16);
-    // Put regexp engine registers on stack.
-    RegList regexp_registers_to_retain = current_input_offset().bit() |
-                                         current_character().bit() |
-                                         backtrack_stackpointer().bit();
-    __ MultiPush(regexp_registers_to_retain);
+    PushCallerSavedRegisters();
 
     int argument_count = 4;
     __ PrepareCallCFunction(argument_count, a2);
@@ -339,8 +350,7 @@ void RegExpMacroAssemblerLOONG64::CheckNotBackReferenceIgnoreCase(
       __ CallCFunction(function, argument_count);
     }
 
-    // Restore regexp engine registers.
-    __ MultiPop(regexp_registers_to_retain);
+    PopCallerSavedRegisters();
     __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
     __ Ld_d(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
 
@@ -459,6 +469,41 @@ void RegExpMacroAssemblerLOONG64::CheckCharacterNotInRange(
   __ Sub_d(a0, current_character(), Operand(from));
   // Unsigned higher condition.
   BranchOrBacktrack(on_not_in_range, hi, a0, Operand(to - from));
+}
+
+void RegExpMacroAssemblerLOONG64::CallIsCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  static const int kNumArguments = 3;
+  PushCallerSavedRegisters();
+  __ PrepareCallCFunction(kNumArguments, a0);
+
+  __ mov(a0, current_character());
+  __ li(a1, Operand(GetOrAddRangeArray(ranges)));
+  __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
+
+  {
+    // We have a frame (set up in GetCode), but the assembler doesn't know.
+    FrameScope scope(masm_.get(), StackFrame::MANUAL);
+    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
+                     kNumArguments);
+  }
+
+  PopCallerSavedRegisters();
+  __ li(code_pointer(), Operand(masm_->CodeObject()));
+}
+
+bool RegExpMacroAssemblerLOONG64::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  BranchOrBacktrack(on_in_range, ne, a0, Operand(zero_reg));
+  return true;
+}
+
+bool RegExpMacroAssemblerLOONG64::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  BranchOrBacktrack(on_not_in_range, eq, a0, Operand(zero_reg));
+  return true;
 }
 
 void RegExpMacroAssemblerLOONG64::CheckBitInTable(Handle<ByteArray> table,
@@ -878,12 +923,9 @@ Handle<HeapObject> RegExpMacroAssemblerLOONG64::GetCode(Handle<String> source) {
       // Put regexp engine registers on stack.
       StoreRegExpStackPointerToMemory(backtrack_stackpointer(), a1);
 
-      RegList regexp_registers_to_retain = current_input_offset().bit() |
-                                           current_character().bit() |
-                                           backtrack_stackpointer().bit();
-      __ MultiPush(regexp_registers_to_retain);
+      PushCallerSavedRegisters();
       CallCheckStackGuardState(a0);
-      __ MultiPop(regexp_registers_to_retain);
+      PopCallerSavedRegisters();
       // If returning non-zero, we should end execution with the given
       // result as return value.
       __ Branch(&return_v0, ne, a0, Operand(zero_reg));
