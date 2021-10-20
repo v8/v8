@@ -508,8 +508,8 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   inline void set(int index, byte value);
 
   // Copy in / copy out whole byte slices.
-  inline void copy_out(int index, byte* buffer, int length);
-  inline void copy_in(int index, const byte* buffer, int length);
+  inline void copy_out(int index, byte* buffer, int slice_length);
+  inline void copy_in(int index, const byte* buffer, int slice_length);
 
   // Treat contents as an int array.
   inline int get_int(int index) const;
