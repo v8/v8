@@ -2375,7 +2375,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // -----------------------------------
 
   StackArgumentsAccessor args(rax);
-  __ AssertFunction(rdi);
+  __ AssertCallableFunction(rdi);
 
   __ LoadTaggedPointerField(
       rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));

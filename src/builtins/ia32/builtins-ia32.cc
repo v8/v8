@@ -2445,7 +2445,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- edi : the function to call (checked to be a JSFunction)
   // -----------------------------------
   StackArgumentsAccessor args(eax);
-  __ AssertFunction(edi, edx);
+  __ AssertCallableFunction(edi, edx);
 
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
 

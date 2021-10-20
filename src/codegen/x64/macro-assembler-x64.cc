@@ -2418,6 +2418,19 @@ void MacroAssembler::AssertFunction(Register object) {
   Check(below_equal, AbortReason::kOperandIsNotAFunction);
 }
 
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (!FLAG_debug_code) return;
+  ASM_CODE_COMMENT(this);
+  testb(object, Immediate(kSmiTagMask));
+  Check(not_equal, AbortReason::kOperandIsASmiAndNotAFunction);
+  Push(object);
+  LoadMap(object, object);
+  CmpInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE,
+                       LAST_CALLABLE_JS_FUNCTION_TYPE);
+  Pop(object);
+  Check(below_equal, AbortReason::kOperandIsNotACallableFunction);
+}
+
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
