@@ -934,9 +934,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
-    bool CompiledWithConcurrentBaseline() const {
-      return FLAG_concurrent_sparkplug && kind_ == CodeKind::BASELINE;
-    }
+    inline bool CompiledWithConcurrentBaseline() const;
 
    private:
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
