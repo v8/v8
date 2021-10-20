@@ -80,8 +80,8 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_fuchsia_rel",
-    cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.BLOCK,
+    cq_properties = CQ.EXP_100_PERCENT,
+    cq_branch_properties = CQ.EXP_100_PERCENT,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"target_platform": "fuchsia"},
     use_goma = GOMA.DEFAULT,
