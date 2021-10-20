@@ -5223,6 +5223,9 @@ class YoungGenerationMarkingJob : public v8::JobTask {
     size_t items = remaining_marking_items_.load(std::memory_order_relaxed);
     size_t num_tasks = std::max((items + 1) / kPagesPerTask,
                                 global_worklist_->GlobalPoolSize());
+    if (!FLAG_parallel_marking) {
+      num_tasks = std::min<size_t>(1, num_tasks);
+    }
     return std::min<size_t>(
         num_tasks, MinorMarkCompactCollector::MarkingWorklist::kMaxNumTasks);
   }
