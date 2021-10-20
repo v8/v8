@@ -11,7 +11,7 @@
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.
-// Flags: --no-stress-flush-bytecode --no-flush-bytecode
+// Flags: --no-stress-flush-code --no-flush-bytecode
 
 // Some of the tests rely on optimizing/deoptimizing at predictable moments, so
 // this is not suitable for deoptimization fuzzing.

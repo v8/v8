@@ -11,7 +11,7 @@
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.
-// Flags: --no-stress-flush-bytecode --no-flush-bytecode
+// Flags: --no-stress-flush-code --no-flush-bytecode
 
 // Tests for optimization of CallWithSpread and CallWithArrayLike.
 // This test is in a separate file because it invalidates protectors.
