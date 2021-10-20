@@ -187,7 +187,7 @@ class ConcurrentBaselineCompiler {
   }
 
   ~ConcurrentBaselineCompiler() {
-    if (FLAG_concurrent_sparkplug && job_handle_->IsValid()) {
+    if (job_handle_ && job_handle_->IsValid()) {
       // Wait for the job handle to complete, so that we know the queue
       // pointers are safe.
       job_handle_->Cancel();
@@ -212,7 +212,7 @@ class ConcurrentBaselineCompiler {
 
  private:
   Isolate* isolate_;
-  std::unique_ptr<JobHandle> job_handle_;
+  std::unique_ptr<JobHandle> job_handle_ = nullptr;
   LockedQueue<std::unique_ptr<BaselineBatchCompilerJob>> incoming_queue_;
   LockedQueue<std::unique_ptr<BaselineBatchCompilerJob>> outgoing_queue_;
 };
