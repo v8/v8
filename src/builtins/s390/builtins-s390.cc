@@ -2089,7 +2089,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- r2 : the number of arguments (not including the receiver)
   //  -- r3 : the function to call (checked to be a JSFunction)
   // -----------------------------------
-  __ AssertFunction(r3);
+  __ AssertCallableFunction(r3);
 
   __ LoadTaggedPointerField(
       r4, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
