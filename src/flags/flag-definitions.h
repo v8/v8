@@ -520,6 +520,12 @@ DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 DEFINE_WEAK_VALUE_IMPLICATION(future, write_protect_code_memory, false)
 #endif
 
+DEFINE_BOOL_READONLY(dict_property_const_tracking,
+                     V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+                     "Use const tracking on dictionary properties")
+DEFINE_NEG_IMPLICATION(dict_property_const_tracking, concurrent_inlining)
+DEFINE_NEG_IMPLICATION(dict_property_const_tracking, turboprop)
+
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
             "Disable runtime allocation of executable memory.")
@@ -747,7 +753,7 @@ DEFINE_INT(concurrent_recompilation_queue_length, 8,
            "the length of the concurrent compilation queue")
 DEFINE_INT(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
-DEFINE_BOOL(concurrent_inlining, !V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
+DEFINE_BOOL(concurrent_inlining, true,
             "run optimizing compiler's inlining phase on a separate thread")
 DEFINE_BOOL(
     stress_concurrent_inlining, false,
