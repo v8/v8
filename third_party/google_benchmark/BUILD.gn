@@ -8,6 +8,10 @@ import("../../gni/v8.gni")
 if (v8_enable_google_benchmark) {
   config("benchmark_config") {
     include_dirs = [ "src/include" ]
+
+    # Temporarily allow deprecated declarations until fixes are upstreamed, see
+    # https://github.com/google/benchmark/pull/1256.
+    cflags = [ "-Wno-deprecated-declarations" ]
   }
 
   source_set("google_benchmark") {
