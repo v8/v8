@@ -666,6 +666,8 @@ AccessorPair* AccessorPair::Cast(v8::Value* value) {
 
 MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
 
+bool isExperimentalAsyncStackTaggingApiEnabled();
+
 }  // namespace debug
 }  // namespace v8
 

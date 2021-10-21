@@ -1241,6 +1241,10 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> p) {
       i::Handle<i::JSMessageObject>::cast(maybeMessage));
 }
 
+bool isExperimentalAsyncStackTaggingApiEnabled() {
+  return v8::internal::FLAG_experimental_async_stack_tagging_api;
+}
+
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(
     Local<Context> context, Local<Object> object, bool skip_indices) {
   internal::Isolate* isolate =
