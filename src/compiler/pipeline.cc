@@ -3562,7 +3562,8 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   std::unique_ptr<const RegisterConfiguration> restricted_config;
   bool use_mid_tier_register_allocator =
-      (data->info()->IsTurboprop() && FLAG_turboprop_mid_tier_reg_alloc) ||
+      FLAG_turbo_force_mid_tier_regalloc ||
+      (FLAG_turboprop_mid_tier_reg_alloc && data->info()->IsTurboprop()) ||
       (FLAG_turbo_use_mid_tier_regalloc_for_huge_functions &&
        data->sequence()->VirtualRegisterCount() >
            kTopTierVirtualRegistersLimit);
