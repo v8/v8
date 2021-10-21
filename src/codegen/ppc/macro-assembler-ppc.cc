@@ -2170,7 +2170,7 @@ void MacroAssembler::AssertCallableFunction(Register object) {
   ASM_CODE_COMMENT(this);
   STATIC_ASSERT(kSmiTag == 0);
   TestIfSmi(object, r0);
-  Check(ne, AbortReason::kOperandIsASmiAndNotAFunction);
+  Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
   push(object);
   LoadMap(object, object);
   CompareInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE,
