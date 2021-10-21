@@ -1066,22 +1066,22 @@ int DisassemblerX64::AVXInstruction(byte* data) {
       case 0x14:
         AppendToBuffer("vpextrb ");
         current += PrintRightByteOperand(current);
-        AppendToBuffer(",%s,0x%x,", NameOfAVXRegister(regop), *current++);
+        AppendToBuffer(",%s,0x%x", NameOfAVXRegister(regop), *current++);
         break;
       case 0x15:
         AppendToBuffer("vpextrw ");
         current += PrintRightOperand(current);
-        AppendToBuffer(",%s,0x%x,", NameOfAVXRegister(regop), *current++);
+        AppendToBuffer(",%s,0x%x", NameOfAVXRegister(regop), *current++);
         break;
       case 0x16:
         AppendToBuffer("vpextr%c ", rex_w() ? 'q' : 'd');
         current += PrintRightOperand(current);
-        AppendToBuffer(",%s,0x%x,", NameOfAVXRegister(regop), *current++);
+        AppendToBuffer(",%s,0x%x", NameOfAVXRegister(regop), *current++);
         break;
       case 0x17:
         AppendToBuffer("vextractps ");
         current += PrintRightOperand(current);
-        AppendToBuffer(",%s,0x%x,", NameOfAVXRegister(regop), *current++);
+        AppendToBuffer(",%s,0x%x", NameOfAVXRegister(regop), *current++);
         break;
       case 0x20:
         AppendToBuffer("vpinsrb %s,%s,", NameOfAVXRegister(regop),

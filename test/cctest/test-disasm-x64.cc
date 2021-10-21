@@ -232,16 +232,8 @@ TEST(DisasmX64) {
 
       __ vinsertps(xmm1, xmm2, xmm3, 1);
       __ vinsertps(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 1);
-      __ vextractps(rax, xmm1, 1);
 
       __ vlddqu(xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vpextrb(rax, xmm2, 12);
-      __ vpextrb(Operand(rbx, rcx, times_4, 10000), xmm2, 12);
-      __ vpextrw(rax, xmm2, 5);
-      __ vpextrw(Operand(rbx, rcx, times_4, 10000), xmm2, 5);
-      __ vpextrd(rax, xmm2, 2);
-      __ vpextrd(Operand(rbx, rcx, times_4, 10000), xmm2, 2);
-      __ vpextrq(rax, xmm2, 2);
 
       __ vpinsrb(xmm1, xmm2, rax, 12);
       __ vpinsrb(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 12);
@@ -1306,6 +1298,17 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputAVX) {
   exp = "v" #instruction " xmm9,xmm2,21";                \
   COMPARE_INSTR(exp, v##instruction(xmm9, xmm2, 21));
   SSE2_INSTRUCTION_LIST_SHIFT_IMM(COMPARE_AVX_INSTR)
+#undef COMPARE_AVX_INSTR
+
+#define COMPARE_AVX_INSTR(instruction, reg)          \
+  exp = "v" #instruction " " #reg ",xmm15,0x3";      \
+  COMPARE_INSTR(exp, v##instruction(rbx, xmm15, 3)); \
+  exp = "v" #instruction " [rax+0xa],xmm15,0x3";     \
+  COMPARE_INSTR(exp, v##instruction(Operand(rax, 10), xmm15, 3));
+  COMPARE_AVX_INSTR(extractps, rbx)
+  COMPARE_AVX_INSTR(pextrb, bl)
+  COMPARE_AVX_INSTR(pextrw, rbx)
+  COMPARE_INSTR("vpextrq rbx,xmm15,0x3", vpextrq(rbx, xmm15, 3));
 #undef COMPARE_AVX_INSTR
 }
 
