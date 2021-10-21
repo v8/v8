@@ -4926,11 +4926,7 @@ Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
   // Class constructors are callable, but [[Call]] will raise an exception.
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
   if (TargetIsClassConstructor(node, broker())) {
-    NodeProperties::ReplaceValueInputs(node, n.target());
-    NodeProperties::ChangeOp(
-        node, javascript()->CallRuntime(
-                  Runtime::kThrowConstructorNonCallableError, 1));
-    return Changed(node);
+    return NoChange();
   }
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, n.ArgumentCount(), n.LastArgumentIndex(), p.frequency(),
@@ -4945,11 +4941,7 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
   // Class constructors are callable, but [[Call]] will raise an exception.
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
   if (TargetIsClassConstructor(node, broker())) {
-    NodeProperties::ReplaceValueInputs(node, n.target());
-    NodeProperties::ChangeOp(
-        node, javascript()->CallRuntime(
-                  Runtime::kThrowConstructorNonCallableError, 1));
-    return Changed(node);
+    return NoChange();
   }
   return ReduceCallOrConstructWithArrayLikeOrSpread(
       node, n.ArgumentCount(), n.LastArgumentIndex(), p.frequency(),
