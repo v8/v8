@@ -112,160 +112,6 @@ TEST(DisasmX64) {
   __ j(less_equal, &Ljcc);
   __ j(greater, &Ljcc);
 
-  // AVX instruction
-  {
-    if (CpuFeatures::IsSupported(AVX)) {
-      CpuFeatureScope scope(&assm, AVX);
-      __ vmovss(xmm6, xmm14, xmm2);
-      __ vmovss(xmm9, Operand(rbx, rcx, times_4, 10000));
-      __ vmovss(Operand(rbx, rcx, times_4, 10000), xmm0);
-
-      __ vmovss(xmm9, Operand(r11, rcx, times_8, -10000));
-      __ vmovss(Operand(rbx, r9, times_4, 10000), xmm1);
-      __ vucomiss(xmm9, xmm1);
-      __ vucomiss(xmm8, Operand(rbx, rdx, times_2, 10981));
-
-      __ vmovd(xmm5, rdi);
-      __ vmovd(xmm9, Operand(rbx, rcx, times_4, 10000));
-      __ vmovd(r9, xmm6);
-      __ vmovq(xmm5, rdi);
-      __ vmovq(xmm9, Operand(rbx, rcx, times_4, 10000));
-      __ vmovq(r9, xmm6);
-
-      __ vmovsd(xmm6, xmm14, xmm2);
-      __ vmovsd(xmm9, Operand(rbx, rcx, times_4, 10000));
-      __ vmovsd(Operand(rbx, rcx, times_4, 10000), xmm0);
-
-      __ vmovdqa(xmm4, xmm5);
-      __ vmovdqa(xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vmovdqa(ymm4, ymm5);
-      __ vmovdqa(xmm4, Operand(rbx, rcx, times_4, 10000));
-
-      __ vmovdqu(xmm9, Operand(rbx, rcx, times_4, 10000));
-      __ vmovdqu(Operand(rbx, rcx, times_4, 10000), xmm0);
-      __ vmovdqu(xmm4, xmm5);
-      __ vmovdqu(ymm9, Operand(rbx, rcx, times_4, 10000));
-      __ vmovdqu(Operand(rbx, rcx, times_4, 10000), ymm0);
-      __ vmovdqu(ymm4, ymm5);
-
-      __ vmovhlps(xmm1, xmm3, xmm5);
-      __ vmovlps(xmm8, xmm9, Operand(rbx, rcx, times_4, 10000));
-      __ vmovlps(Operand(rbx, rcx, times_4, 10000), xmm9);
-      __ vmovlhps(xmm1, xmm3, xmm5);
-      __ vmovhps(xmm8, xmm9, Operand(rbx, rcx, times_4, 10000));
-      __ vmovhps(Operand(rbx, rcx, times_4, 10000), xmm12);
-
-      __ vroundps(xmm9, xmm2, kRoundUp);
-      __ vroundpd(xmm9, xmm2, kRoundToNearest);
-      __ vroundss(xmm9, xmm1, xmm2, kRoundDown);
-      __ vroundsd(xmm8, xmm3, xmm0, kRoundDown);
-      __ vucomisd(xmm9, xmm1);
-      __ vucomisd(xmm8, Operand(rbx, rdx, times_2, 10981));
-
-      __ vcvtdq2pd(xmm9, xmm11);
-      __ vcvtss2sd(xmm4, xmm9, xmm11);
-      __ vcvtss2sd(xmm4, xmm9, Operand(rbx, rcx, times_1, 10000));
-      __ vcvttps2dq(xmm4, xmm11);
-      __ vcvtlsi2sd(xmm5, xmm9, rcx);
-      __ vcvtlsi2sd(xmm9, xmm3, Operand(rbx, r9, times_4, 10000));
-      __ vcvtqsi2sd(xmm5, xmm9, r11);
-      __ vcvttsd2si(r9, xmm6);
-      __ vcvttsd2si(rax, Operand(rbx, r9, times_4, 10000));
-      __ vcvttsd2siq(rdi, xmm9);
-      __ vcvttsd2siq(r8, Operand(r9, rbx, times_4, 10000));
-      __ vcvtsd2si(rdi, xmm9);
-
-      __ vmovaps(xmm10, xmm11);
-      __ vmovaps(xmm0, Operand(rbx, rcx, times_4, 10000));
-      __ vmovapd(xmm7, xmm0);
-      __ vmovupd(xmm0, Operand(rbx, rcx, times_4, 10000));
-      __ vmovupd(Operand(rbx, rcx, times_4, 10000), xmm0);
-      __ vmovmskpd(r9, xmm4);
-      __ vpmovmskb(r10, xmm9);
-
-      __ vmovups(xmm5, xmm1);
-      __ vmovups(xmm5, Operand(rdx, 4));
-      __ vmovups(Operand(rdx, 4), xmm5);
-
-      __ vhaddps(xmm0, xmm1, xmm9);
-      __ vhaddps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vhaddps(ymm0, ymm1, ymm2);
-      __ vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vpcmpeqd(xmm0, xmm15, xmm5);
-      __ vpcmpeqd(xmm15, xmm0, Operand(rbx, rcx, times_4, 10000));
-
-      __ vcmpps(xmm5, xmm4, xmm1, 1);
-      __ vcmpps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1);
-      __ vcmpeqps(xmm5, xmm4, xmm1);
-      __ vcmpeqps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpltps(xmm5, xmm4, xmm1);
-      __ vcmpltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpleps(xmm5, xmm4, xmm1);
-      __ vcmpleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpunordps(xmm5, xmm4, xmm1);
-      __ vcmpunordps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpneqps(xmm5, xmm4, xmm1);
-      __ vcmpneqps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpnltps(xmm5, xmm4, xmm1);
-      __ vcmpnltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpnleps(xmm5, xmm4, xmm1);
-      __ vcmpnleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpgeps(xmm5, xmm4, xmm1);
-      __ vcmpgeps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmppd(xmm5, xmm4, xmm1, 1);
-      __ vcmppd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1);
-      __ vcmpeqpd(xmm5, xmm4, xmm1);
-      __ vcmpeqpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpltpd(xmm5, xmm4, xmm1);
-      __ vcmpltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmplepd(xmm5, xmm4, xmm1);
-      __ vcmplepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpunordpd(xmm5, xmm4, xmm1);
-      __ vcmpunordpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpneqpd(xmm5, xmm4, xmm1);
-      __ vcmpneqpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpnltpd(xmm5, xmm4, xmm1);
-      __ vcmpnltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-      __ vcmpnlepd(xmm5, xmm4, xmm1);
-      __ vcmpnlepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000));
-
-      __ vinsertps(xmm1, xmm2, xmm3, 1);
-      __ vinsertps(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 1);
-
-      __ vlddqu(xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vpinsrb(xmm1, xmm2, rax, 12);
-      __ vpinsrb(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 12);
-      __ vpinsrw(xmm1, xmm2, rax, 5);
-      __ vpinsrw(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 5);
-      __ vpinsrd(xmm1, xmm2, rax, 2);
-      __ vpinsrd(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 2);
-      __ vpinsrq(xmm1, xmm2, rax, 9);
-      __ vpinsrq(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 9);
-      __ vpshufd(xmm1, xmm2, 85);
-      __ vpshufd(xmm1, Operand(rbx, rcx, times_4, 10000), 85);
-      __ vpshuflw(xmm1, xmm2, 85);
-      __ vpshuflw(xmm1, Operand(rbx, rcx, times_4, 10000), 85);
-      __ vpshufhw(xmm1, xmm2, 85);
-      __ vpshufhw(xmm1, Operand(rbx, rcx, times_4, 10000), 85);
-      __ vshufps(xmm3, xmm2, xmm3, 3);
-      __ vpblendw(xmm1, xmm2, xmm3, 23);
-      __ vpblendw(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 23);
-      __ vpalignr(xmm1, xmm2, xmm3, 4);
-      __ vpalignr(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 4);
-
-      __ vpblendvb(xmm1, xmm2, xmm3, xmm4);
-      __ vblendvps(xmm1, xmm2, xmm3, xmm4);
-      __ vblendvpd(xmm1, xmm2, xmm3, xmm4);
-
-      __ vmovddup(xmm1, xmm2);
-      __ vmovddup(xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vmovshdup(xmm1, xmm2);
-      __ vbroadcastss(xmm1, Operand(rbx, rcx, times_4, 10000));
-    }
-  }
-
   // AVX2 instruction
   {
     if (CpuFeatures::IsSupported(AVX2)) {
@@ -1310,6 +1156,244 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputAVX) {
   COMPARE_AVX_INSTR(pextrw, rbx)
   COMPARE_INSTR("vpextrq rbx,xmm15,0x3", vpextrq(rbx, xmm15, 3));
 #undef COMPARE_AVX_INSTR
+
+  COMPARE("c58a10f2             vmovss xmm6,xmm14,xmm2",
+          vmovss(xmm6, xmm14, xmm2));
+  COMPARE("c57a108c8b10270000   vmovss xmm9,[rbx+rcx*4+0x2710]",
+          vmovss(xmm9, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5fa11848b10270000   vmovss [rbx+rcx*4+0x2710],xmm0",
+          vmovss(Operand(rbx, rcx, times_4, 10000), xmm0));
+  COMPARE("c4417a108ccbf0d8ffff vmovss xmm9,[r11+rcx*8-0x2710]",
+          vmovss(xmm9, Operand(r11, rcx, times_8, -10000)));
+  COMPARE("c4a17a118c8b10270000 vmovss [rbx+r9*4+0x2710],xmm1",
+          vmovss(Operand(rbx, r9, times_4, 10000), xmm1));
+  COMPARE("c5782ec9             vucomiss xmm9,xmm1", vucomiss(xmm9, xmm1));
+  COMPARE("c5782e8453e52a0000   vucomiss xmm8,[rbx+rdx*2+0x2ae5]",
+          vucomiss(xmm8, Operand(rbx, rdx, times_2, 10981)));
+  COMPARE("c5f96eef             vmovd xmm5,rdi", vmovd(xmm5, rdi));
+  COMPARE("c5796e8c8b10270000   vmovd xmm9,[rbx+rcx*4+0x2710]",
+          vmovd(xmm9, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c4c1797ef1           vmovd r9,xmm6", vmovd(r9, xmm6));
+  COMPARE("c4e1f96eef           vmovq xmm5,rdi", vmovq(xmm5, rdi));
+  COMPARE("c461f96e8c8b10270000 vmovq xmm9,[rbx+rcx*4+0x2710]",
+          vmovq(xmm9, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c4c1f97ef1           vmovq r9,xmm6", vmovq(r9, xmm6));
+  COMPARE("c58b10f2             vmovsd xmm6,xmm14,xmm2",
+          vmovsd(xmm6, xmm14, xmm2));
+  COMPARE("c57b108c8b10270000   vmovsd xmm9,[rbx+rcx*4+0x2710]",
+          vmovsd(xmm9, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5fb11848b10270000   vmovsd [rbx+rcx*4+0x2710],xmm0",
+          vmovsd(Operand(rbx, rcx, times_4, 10000), xmm0));
+  COMPARE("c5f96fe5             vmovdqa xmm4,xmm5", vmovdqa(xmm4, xmm5));
+  COMPARE("c5f96fa48b10270000   vmovdqa xmm4,[rbx+rcx*4+0x2710]",
+          vmovdqa(xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5fd6fe5             vmovdqa ymm4,ymm5", vmovdqa(ymm4, ymm5));
+  COMPARE("c5f96fa48b10270000   vmovdqa xmm4,[rbx+rcx*4+0x2710]",
+          vmovdqa(xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c57a6f8c8b10270000   vmovdqu xmm9,[rbx+rcx*4+0x2710]",
+          vmovdqu(xmm9, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5fa7f848b10270000   vmovdqu [rbx+rcx*4+0x2710],xmm0",
+          vmovdqu(Operand(rbx, rcx, times_4, 10000), xmm0));
+  COMPARE("c5fa7fec             vmovdqu xmm4,xmm5", vmovdqu(xmm4, xmm5));
+  COMPARE("c57e6f8c8b10270000   vmovdqu ymm9,[rbx+rcx*4+0x2710]",
+          vmovdqu(ymm9, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5fe7f848b10270000   vmovdqu [rbx+rcx*4+0x2710],ymm0",
+          vmovdqu(Operand(rbx, rcx, times_4, 10000), ymm0));
+  COMPARE("c5fe7fec             vmovdqu ymm4,ymm5", vmovdqu(ymm4, ymm5));
+  COMPARE("c5e012cd             vmovhlps xmm1,xmm3,xmm5",
+          vmovhlps(xmm1, xmm3, xmm5));
+  COMPARE("c53012848b10270000   vmovlps xmm8,xmm9,[rbx+rcx*4+0x2710]",
+          vmovlps(xmm8, xmm9, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c578138c8b10270000   vmovlps [rbx+rcx*4+0x2710],xmm9",
+          vmovlps(Operand(rbx, rcx, times_4, 10000), xmm9));
+  COMPARE("c5e016cd             vmovlhps xmm1,xmm3,xmm5",
+          vmovlhps(xmm1, xmm3, xmm5));
+  COMPARE("c53016848b10270000   vmovhps xmm8,xmm9,[rbx+rcx*4+0x2710]",
+          vmovhps(xmm8, xmm9, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c57817a48b10270000   vmovhps [rbx+rcx*4+0x2710],xmm12",
+          vmovhps(Operand(rbx, rcx, times_4, 10000), xmm12));
+  COMPARE("c4637908ca0a         vroundps xmm9,xmm2,0xa",
+          vroundps(xmm9, xmm2, kRoundUp));
+  COMPARE("c4637909ca08         vroundpd xmm9,xmm2,0x8",
+          vroundpd(xmm9, xmm2, kRoundToNearest));
+  COMPARE("c463710aca09         vroundss xmm9,xmm1,xmm2,0x9",
+          vroundss(xmm9, xmm1, xmm2, kRoundDown));
+  COMPARE("c463610bc009         vroundsd xmm8,xmm3,xmm0,0x9",
+          vroundsd(xmm8, xmm3, xmm0, kRoundDown));
+  COMPARE("c5792ec9             vucomisd xmm9,xmm1", vucomisd(xmm9, xmm1));
+  COMPARE("c5792e8453e52a0000   vucomisd xmm8,[rbx+rdx*2+0x2ae5]",
+          vucomisd(xmm8, Operand(rbx, rdx, times_2, 10981)));
+  COMPARE("c4417ae6cb           vcvtdq2pd xmm9,xmm11", vcvtdq2pd(xmm9, xmm11));
+  COMPARE("c4c1325ae3           vcvtss2sd xmm4,xmm9,xmm11",
+          vcvtss2sd(xmm4, xmm9, xmm11));
+  COMPARE("c5b25aa40b10270000   vcvtss2sd xmm4,xmm9,[rbx+rcx*1+0x2710]",
+          vcvtss2sd(xmm4, xmm9, Operand(rbx, rcx, times_1, 10000)));
+  COMPARE("c4c17a5be3           vcvttps2dq xmm4,xmm11",
+          vcvttps2dq(xmm4, xmm11));
+  COMPARE("c5b32ae9             vcvtlsi2sd xmm5,xmm9,rcx",
+          vcvtlsi2sd(xmm5, xmm9, rcx));
+  COMPARE("c421632a8c8b10270000 vcvtlsi2sd xmm9,xmm3,[rbx+r9*4+0x2710]",
+          vcvtlsi2sd(xmm9, xmm3, Operand(rbx, r9, times_4, 10000)));
+  COMPARE("c4c1b32aeb           vcvtqsi2sd xmm5,xmm9,r11",
+          vcvtqsi2sd(xmm5, xmm9, r11));
+  COMPARE("c57b2cce             vcvttsd2si r9,xmm6", vcvttsd2si(r9, xmm6));
+  COMPARE("c4a17b2c848b10270000 vcvttsd2si rax,[rbx+r9*4+0x2710]",
+          vcvttsd2si(rax, Operand(rbx, r9, times_4, 10000)));
+  COMPARE("c4c1fb2cf9           vcvttsd2siq rdi,xmm9", vcvttsd2siq(rdi, xmm9));
+  COMPARE("c441fb2c849910270000 vcvttsd2siq r8,[r9+rbx*4+0x2710]",
+          vcvttsd2siq(r8, Operand(r9, rbx, times_4, 10000)));
+  COMPARE("c4c17b2df9           vcvtsd2si rdi,xmm9", vcvtsd2si(rdi, xmm9));
+  COMPARE("c4417828d3           vmovaps xmm10,xmm11", vmovaps(xmm10, xmm11));
+  COMPARE("c5f828848b10270000   vmovaps xmm0,[rbx+rcx*4+0x2710]",
+          vmovaps(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5f928f8             vmovapd xmm7,xmm0", vmovapd(xmm7, xmm0));
+  COMPARE("c5f910848b10270000   vmovupd xmm0,[rbx+rcx*4+0x2710]",
+          vmovupd(xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5f911848b10270000   vmovupd [rbx+rcx*4+0x2710],xmm0",
+          vmovupd(Operand(rbx, rcx, times_4, 10000), xmm0));
+  COMPARE("c57950cc             vmovmskpd r9,xmm4", vmovmskpd(r9, xmm4));
+  COMPARE("c44179d7d1           vpmovmskb r10,xmm9", vpmovmskb(r10, xmm9));
+  COMPARE("c5f810e9             vmovups xmm5,xmm1", vmovups(xmm5, xmm1));
+  COMPARE("c5f8106a04           vmovups xmm5,[rdx+0x4]",
+          vmovups(xmm5, Operand(rdx, 4)));
+  COMPARE("c5f8116a04           vmovups [rdx+0x4],xmm5",
+          vmovups(Operand(rdx, 4), xmm5));
+  COMPARE("c4c1737cc1           vhaddps xmm0,xmm1,xmm9",
+          vhaddps(xmm0, xmm1, xmm9));
+  COMPARE("c5f37c848b10270000   vhaddps xmm0,xmm1,[rbx+rcx*4+0x2710]",
+          vhaddps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5f77cc2             vhaddps ymm0,ymm1,ymm2",
+          vhaddps(ymm0, ymm1, ymm2));
+  COMPARE("c5f77c848b10270000   vhaddps ymm0,ymm1,[rbx+rcx*4+0x2710]",
+          vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c58176c5             vpcmpeqd xmm0,xmm15,xmm5",
+          vpcmpeqd(xmm0, xmm15, xmm5));
+  COMPARE("c57976bc8b10270000   vpcmpeqd xmm15,xmm0,[rbx+rcx*4+0x2710]",
+          vpcmpeqd(xmm15, xmm0, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d8c2e901           vcmpps xmm5,xmm4,xmm1, (lt)",
+          vcmpps(xmm5, xmm4, xmm1, 1));
+  COMPARE("c5d8c2ac8b1027000001 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (lt)",
+          vcmpps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1));
+  COMPARE("c5d8c2e900           vcmpps xmm5,xmm4,xmm1, (eq)",
+          vcmpeqps(xmm5, xmm4, xmm1));
+  COMPARE("c5d8c2ac8b1027000000 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (eq)",
+          vcmpeqps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d8c2e901           vcmpps xmm5,xmm4,xmm1, (lt)",
+          vcmpltps(xmm5, xmm4, xmm1));
+  COMPARE("c5d8c2ac8b1027000001 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (lt)",
+          vcmpltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d8c2e902           vcmpps xmm5,xmm4,xmm1, (le)",
+          vcmpleps(xmm5, xmm4, xmm1));
+  COMPARE("c5d8c2ac8b1027000002 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (le)",
+          vcmpleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d8c2e903           vcmpps xmm5,xmm4,xmm1, (unord)",
+          vcmpunordps(xmm5, xmm4, xmm1));
+  COMPARE("c5d8c2ac8b1027000003 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (unord)",
+          vcmpunordps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d8c2e904           vcmpps xmm5,xmm4,xmm1, (neq)",
+          vcmpneqps(xmm5, xmm4, xmm1));
+  COMPARE("c5d8c2ac8b1027000004 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (neq)",
+          vcmpneqps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d8c2e905           vcmpps xmm5,xmm4,xmm1, (nlt)",
+          vcmpnltps(xmm5, xmm4, xmm1));
+  COMPARE("c5d8c2ac8b1027000005 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (nlt)",
+          vcmpnltps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d8c2e906           vcmpps xmm5,xmm4,xmm1, (nle)",
+          vcmpnleps(xmm5, xmm4, xmm1));
+  COMPARE("c5d8c2ac8b1027000006 vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (nle)",
+          vcmpnleps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d8c2e90d           vcmpps xmm5,xmm4,xmm1, (ge)",
+          vcmpgeps(xmm5, xmm4, xmm1));
+  COMPARE("c5d8c2ac8b102700000d vcmpps xmm5,xmm4,[rbx+rcx*4+0x2710], (ge)",
+          vcmpgeps(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d9c2e901           vcmppd xmm5,xmm4,xmm1, (lt)",
+          vcmppd(xmm5, xmm4, xmm1, 1));
+  COMPARE("c5d9c2ac8b1027000001 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (lt)",
+          vcmppd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000), 1));
+  COMPARE("c5d9c2e900           vcmppd xmm5,xmm4,xmm1, (eq)",
+          vcmpeqpd(xmm5, xmm4, xmm1));
+  COMPARE("c5d9c2ac8b1027000000 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (eq)",
+          vcmpeqpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d9c2e901           vcmppd xmm5,xmm4,xmm1, (lt)",
+          vcmpltpd(xmm5, xmm4, xmm1));
+  COMPARE("c5d9c2ac8b1027000001 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (lt)",
+          vcmpltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d9c2e902           vcmppd xmm5,xmm4,xmm1, (le)",
+          vcmplepd(xmm5, xmm4, xmm1));
+  COMPARE("c5d9c2ac8b1027000002 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (le)",
+          vcmplepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d9c2e903           vcmppd xmm5,xmm4,xmm1, (unord)",
+          vcmpunordpd(xmm5, xmm4, xmm1));
+  COMPARE("c5d9c2ac8b1027000003 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (unord)",
+          vcmpunordpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d9c2e904           vcmppd xmm5,xmm4,xmm1, (neq)",
+          vcmpneqpd(xmm5, xmm4, xmm1));
+  COMPARE("c5d9c2ac8b1027000004 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (neq)",
+          vcmpneqpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d9c2e905           vcmppd xmm5,xmm4,xmm1, (nlt)",
+          vcmpnltpd(xmm5, xmm4, xmm1));
+  COMPARE("c5d9c2ac8b1027000005 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (nlt)",
+          vcmpnltpd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5d9c2e906           vcmppd xmm5,xmm4,xmm1, (nle)",
+          vcmpnlepd(xmm5, xmm4, xmm1));
+  COMPARE("c5d9c2ac8b1027000006 vcmppd xmm5,xmm4,[rbx+rcx*4+0x2710], (nle)",
+          vcmpnlepd(xmm5, xmm4, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c4e36921cb01         vinsertps xmm1,xmm2,xmm3,0x1",
+          vinsertps(xmm1, xmm2, xmm3, 1));
+  COMPARE("c4e369218c8b1027000001 vinsertps xmm1,xmm2,[rbx+rcx*4+0x2710],0x1",
+          vinsertps(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 1));
+  COMPARE("c5fbf08c8b10270000   vlddqu xmm1,[rbx+rcx*4+0x2710]",
+          vlddqu(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c4e36920c80c         vpinsrb xmm1,xmm2,al,0xc",
+          vpinsrb(xmm1, xmm2, rax, 12));
+  COMPARE("c4e369208c8b102700000c vpinsrb xmm1,xmm2,[rbx+rcx*4+0x2710],0xc",
+          vpinsrb(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 12));
+  COMPARE("c5e9c4c805           vpinsrw xmm1,xmm2,rax,0x5",
+          vpinsrw(xmm1, xmm2, rax, 5));
+  COMPARE("c5e9c48c8b1027000005 vpinsrw xmm1,xmm2,[rbx+rcx*4+0x2710],0x5",
+          vpinsrw(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 5));
+  COMPARE("c4e36922c802         vpinsrd xmm1,xmm2,rax,0x2",
+          vpinsrd(xmm1, xmm2, rax, 2));
+  COMPARE("c4e369228c8b1027000002 vpinsrd xmm1,xmm2,[rbx+rcx*4+0x2710],0x2",
+          vpinsrd(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 2));
+  COMPARE("c4e3e922c809         vpinsrq xmm1,xmm2,rax,0x9",
+          vpinsrq(xmm1, xmm2, rax, 9));
+  COMPARE("c4e3e9228c8b1027000009 vpinsrq xmm1,xmm2,[rbx+rcx*4+0x2710],0x9",
+          vpinsrq(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 9));
+  COMPARE("c5f970ca55           vpshufd xmm1,xmm2,0x55",
+          vpshufd(xmm1, xmm2, 85));
+  COMPARE("c5f9708c8b1027000055 vpshufd xmm1,[rbx+rcx*4+0x2710],0x55",
+          vpshufd(xmm1, Operand(rbx, rcx, times_4, 10000), 85));
+  COMPARE("c5fb70ca55           vpshuflw xmm1,xmm2,0x55",
+          vpshuflw(xmm1, xmm2, 85));
+  COMPARE("c5fb708c8b1027000055 vpshuflw xmm1,[rbx+rcx*4+0x2710],0x55",
+          vpshuflw(xmm1, Operand(rbx, rcx, times_4, 10000), 85));
+  COMPARE("c5fa70ca55           vpshufhw xmm1,xmm2,0x55",
+          vpshufhw(xmm1, xmm2, 85));
+  COMPARE("c5fa708c8b1027000055 vpshufhw xmm1,[rbx+rcx*4+0x2710],0x55",
+          vpshufhw(xmm1, Operand(rbx, rcx, times_4, 10000), 85));
+  COMPARE("c5e8c6db03           vshufps xmm3,xmm2,xmm3,0x3",
+          vshufps(xmm3, xmm2, xmm3, 3));
+  COMPARE("c4e3690ecb17         vpblendw xmm1,xmm2,xmm3,0x17",
+          vpblendw(xmm1, xmm2, xmm3, 23));
+  COMPARE("c4e3690e8c8b1027000017 vpblendw xmm1,xmm2,[rbx+rcx*4+0x2710],0x17",
+          vpblendw(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 23));
+  COMPARE("c4e3690fcb04         vpalignr xmm1,xmm2,xmm3,0x4",
+          vpalignr(xmm1, xmm2, xmm3, 4));
+  COMPARE("c4e3690f8c8b1027000004 vpalignr xmm1,xmm2,[rbx+rcx*4+0x2710],0x4",
+          vpalignr(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 4));
+  COMPARE("c4e3694ccb40         vpblendvb xmm1,xmm2,xmm3,xmm4",
+          vpblendvb(xmm1, xmm2, xmm3, xmm4));
+  COMPARE("c4e3694acb40         vblendvps xmm1,xmm2,xmm3,xmm4",
+          vblendvps(xmm1, xmm2, xmm3, xmm4));
+  COMPARE("c4e3694bcb40         vblendvpd xmm1,xmm2,xmm3,xmm4",
+          vblendvpd(xmm1, xmm2, xmm3, xmm4));
+  COMPARE("c5fb12ca             vmovddup xmm1,xmm2", vmovddup(xmm1, xmm2));
+  COMPARE("c5fb128c8b10270000   vmovddup xmm1,[rbx+rcx*4+0x2710]",
+          vmovddup(xmm1, Operand(rbx, rcx, times_4, 10000)));
+  COMPARE("c5fa16ca             vmovshdup xmm1,xmm2", vmovshdup(xmm1, xmm2));
+  COMPARE("c4e279188c8b10270000 vbroadcastss xmm1,[rbx+rcx*4+0x2710]",
+          vbroadcastss(xmm1, Operand(rbx, rcx, times_4, 10000)));
 }
 
 UNINITIALIZED_TEST(DisasmX64YMMRegister) {
