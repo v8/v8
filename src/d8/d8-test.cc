@@ -120,8 +120,7 @@ class FastCApiObject {
 
     Type buffer[1024];
     bool result = TryToCopyAndConvertArrayToCppBuffer<
-        i::CTypeInfoBuilder<Type>::Build().GetId(), Type>(seq_arg, buffer,
-                                                          1024);
+        CTypeInfoBuilder<Type>::Build().GetId(), Type>(seq_arg, buffer, 1024);
     if (!result) {
       options.fallback = 1;
       return 0;
