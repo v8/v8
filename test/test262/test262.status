@@ -331,6 +331,12 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12209
   'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12335
+  'language/identifiers/part-unicode-14.0.0': [FAIL],
+  'language/identifiers/part-unicode-14.0.0-escaped': [FAIL],
+  'language/identifiers/start-unicode-14.0.0': [FAIL],
+  'language/identifiers/start-unicode-14.0.0-escaped': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
