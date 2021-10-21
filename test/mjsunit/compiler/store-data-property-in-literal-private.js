@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --opt --trace-opt --trace-deopt
 let privateSymbol = %CreatePrivateSymbol("private");
 let privateName = %CreatePrivateNameSymbol("privateName");
 
