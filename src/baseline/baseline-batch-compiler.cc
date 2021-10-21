@@ -43,6 +43,10 @@ class BaselineCompilerTask {
     compiler.GenerateCode();
     maybe_code_ = local_isolate->heap()->NewPersistentMaybeHandle(
         compiler.Build(local_isolate));
+    Handle<Code> code;
+    if (maybe_code_.ToHandle(&code)) {
+      local_isolate->heap()->RegisterCodeObject(code);
+    }
   }
 
   // Executed in the main thread.
@@ -52,7 +56,6 @@ class BaselineCompilerTask {
     if (FLAG_print_code) {
       code->Print();
     }
-    isolate->heap()->RegisterCodeObject(code);
     shared_function_info_->set_baseline_code(*code, kReleaseStore);
     if (V8_LIKELY(FLAG_use_osr)) {
       // Arm back edges for OSR

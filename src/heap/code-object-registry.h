@@ -33,6 +33,7 @@ class V8_EXPORT_PRIVATE CodeObjectRegistry {
   // that it can be lazily sorted during GetCodeObjectStartFromInnerAddress.
   mutable std::vector<Address> code_object_registry_;
   mutable bool is_sorted_ = true;
+  mutable base::Mutex code_object_registry_mutex_;
 };
 
 }  // namespace internal
