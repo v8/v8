@@ -4074,6 +4074,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1), i.InputSimd128Register(2));
       break;
     }
+    case kX64I32x4TruncF64x2UZero: {
+      __ I32x4TruncF64x2UZero(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0), kScratchRegister,
+                              kScratchDoubleReg);
+      break;
+    }
+    case kX64I32x4TruncF32x4U: {
+      __ I32x4TruncF32x4U(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          kScratchRegister, kScratchDoubleReg);
+      break;
+    }
+    case kX64Cvttps2dq: {
+      __ Cvttps2dq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kX64Cvttpd2dq: {
+      __ Cvttpd2dq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kAtomicStoreWord8: {
       ASSEMBLE_SEQ_CST_STORE(MachineRepresentation::kWord8);
       break;

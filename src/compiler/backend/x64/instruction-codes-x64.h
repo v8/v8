@@ -174,6 +174,10 @@ namespace compiler {
   V(X64Push)                                         \
   V(X64Poke)                                         \
   V(X64Peek)                                         \
+  V(X64Cvttps2dq)                                    \
+  V(X64Cvttpd2dq)                                    \
+  V(X64I32x4TruncF64x2UZero)                         \
+  V(X64I32x4TruncF32x4U)                             \
   V(X64F64x2Splat)                                   \
   V(X64F64x2ExtractLane)                             \
   V(X64F64x2ReplaceLane)                             \

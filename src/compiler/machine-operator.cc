@@ -605,7 +605,11 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F32x4RelaxedMin, Operator::kNoProperties, 2, 0, 1)                     \
   V(F32x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)                     \
   V(F64x2RelaxedMin, Operator::kNoProperties, 2, 0, 1)                     \
-  V(F64x2RelaxedMax, Operator::kNoProperties, 2, 0, 1)
+  V(F64x2RelaxedMax, Operator::kNoProperties, 2, 0, 1)                     \
+  V(I32x4RelaxedTruncF32x4S, Operator::kNoProperties, 1, 0, 1)             \
+  V(I32x4RelaxedTruncF32x4U, Operator::kNoProperties, 1, 0, 1)             \
+  V(I32x4RelaxedTruncF64x2SZero, Operator::kNoProperties, 1, 0, 1)         \
+  V(I32x4RelaxedTruncF64x2UZero, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)

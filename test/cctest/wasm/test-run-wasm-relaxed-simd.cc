@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <type_traits>
+
 #include "src/base/overflowing-math.h"
+#include "src/base/safe_conversions.h"
 #include "src/common/globals.h"
 #include "src/wasm/compilation-environment.h"
 #include "test/cctest/cctest.h"
@@ -347,6 +350,62 @@ WASM_RELAXED_SIMD_TEST(F64x2RelaxedMin) {
 
 WASM_RELAXED_SIMD_TEST(F64x2RelaxedMax) {
   RunF64x2BinOpTest(execution_tier, kExprF64x2RelaxedMax, Maximum);
+}
+
+namespace {
+// For relaxed trunc instructions, don't test out of range values.
+// FloatType comes later so caller can rely on template argument deduction and
+// just pass IntType.
+template <typename IntType, typename FloatType>
+typename std::enable_if<std::is_floating_point<FloatType>::value, bool>::type
+ShouldSkipTestingConstant(FloatType x) {
+  return std::isnan(x) || !base::IsValueInRangeForNumericType<IntType>(x) ||
+         !PlatformCanRepresent(x);
+}
+
+template <typename IntType, typename FloatType>
+void IntRelaxedTruncFloatTest(TestExecutionTier execution_tier,
+                              WasmOpcode trunc_op, WasmOpcode splat_op) {
+  WasmRunner<int, FloatType> r(execution_tier);
+  IntType* g0 = r.builder().template AddGlobal<IntType>(kWasmS128);
+  constexpr int lanes = kSimd128Size / sizeof(FloatType);
+
+  // global[0] = trunc(splat(local[0])).
+  BUILD(r,
+        WASM_GLOBAL_SET(
+            0, WASM_SIMD_UNOP(trunc_op,
+                              WASM_SIMD_UNOP(splat_op, WASM_LOCAL_GET(0)))),
+        WASM_ONE);
+
+  for (FloatType x : compiler::ValueHelper::GetVector<FloatType>()) {
+    if (ShouldSkipTestingConstant<IntType>(x)) continue;
+    CHECK_EQ(1, r.Call(x));
+    IntType expected = base::checked_cast<IntType>(x);
+    for (int i = 0; i < lanes; i++) {
+      CHECK_EQ(expected, LANE(g0, i));
+    }
+  }
+}
+}  // namespace
+
+WASM_RELAXED_SIMD_TEST(I32x4RelaxedTruncF64x2SZero) {
+  IntRelaxedTruncFloatTest<int32_t, double>(
+      execution_tier, kExprI32x4RelaxedTruncF64x2SZero, kExprF64x2Splat);
+}
+
+WASM_RELAXED_SIMD_TEST(I32x4RelaxedTruncF64x2UZero) {
+  IntRelaxedTruncFloatTest<uint32_t, double>(
+      execution_tier, kExprI32x4RelaxedTruncF64x2UZero, kExprF64x2Splat);
+}
+
+WASM_RELAXED_SIMD_TEST(I32x4RelaxedTruncF32x4S) {
+  IntRelaxedTruncFloatTest<int32_t, float>(
+      execution_tier, kExprI32x4RelaxedTruncF32x4S, kExprF32x4Splat);
+}
+
+WASM_RELAXED_SIMD_TEST(I32x4RelaxedTruncF32x4U) {
+  IntRelaxedTruncFloatTest<uint32_t, float>(
+      execution_tier, kExprI32x4RelaxedTruncF32x4U, kExprF32x4Splat);
 }
 #endif  // V8_TARGET_ARCH_X64
 
