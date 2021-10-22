@@ -3854,6 +3854,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       int32_t res = _rs << sa;
       res += _rt;
       DCHECK_EQ(res, (rs() << (lsa_sa() + 1)) + rt());
+      USE(res);
       SetResult(rd_reg(), (rs() << (lsa_sa() + 1)) + rt());
       break;
     }
