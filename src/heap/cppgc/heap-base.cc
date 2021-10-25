@@ -77,6 +77,10 @@ HeapBase::HeapBase(
       object_allocator_(raw_heap_, *page_backend_, *stats_collector_,
                         *prefinalizer_handler_),
       sweeper_(*this),
+      strong_persistent_region_(*oom_handler_.get()),
+      weak_persistent_region_(*oom_handler_.get()),
+      strong_cross_thread_persistent_region_(*oom_handler_.get()),
+      weak_cross_thread_persistent_region_(*oom_handler_.get()),
       stack_support_(stack_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
