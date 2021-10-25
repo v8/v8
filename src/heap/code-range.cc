@@ -35,16 +35,19 @@ Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
                                              size_t alignment) {
   base::MutexGuard guard(&mutex_);
 
+  // Try to allocate code range in the preferred region where we can use
+  // short instructions for calling/jumping to embedded builtins.
+  base::AddressRegion preferred_region = Isolate::GetShortBuiltinsCallRegion();
+
   Address result = 0;
   auto it = recently_freed_.find(code_range_size);
   // No recently freed region has been found, try to provide a hint for placing
-  // a code region
+  // a code region.
   if (it == recently_freed_.end() || it->second.empty()) {
-    if (V8_ENABLE_NEAR_CODE_RANGE_BOOL) {
-      base::AddressRegion region = Isolate::GetShortBuiltinsCallRegion();
-      DCHECK_LT(region.begin(), region.end());
+    if (V8_ENABLE_NEAR_CODE_RANGE_BOOL && !preferred_region.is_empty()) {
       auto memory_ranges = base::OS::GetFreeMemoryRangesWithin(
-          region.begin(), region.end(), code_range_size, alignment);
+          preferred_region.begin(), preferred_region.end(), code_range_size,
+          alignment);
       if (!memory_ranges.empty()) {
         result = memory_ranges.front().start;
         CHECK(IsAligned(result, alignment));
@@ -56,13 +59,12 @@ Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size,
   }
 
   // Try to reuse near code range first.
-  if (V8_ENABLE_NEAR_CODE_RANGE_BOOL) {
-    base::AddressRegion region = Isolate::GetShortBuiltinsCallRegion();
+  if (V8_ENABLE_NEAR_CODE_RANGE_BOOL && !preferred_region.is_empty()) {
     auto freed_regions_for_size = it->second;
     for (auto it_freed = freed_regions_for_size.rbegin();
          it_freed != freed_regions_for_size.rend(); ++it_freed) {
       Address code_range_start = *it_freed;
-      if (region.contains(code_range_start, code_range_size)) {
+      if (preferred_region.contains(code_range_start, code_range_size)) {
         CHECK(IsAligned(code_range_start, alignment));
         freed_regions_for_size.erase((it_freed + 1).base());
         return code_range_start;

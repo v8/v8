@@ -364,10 +364,13 @@ uint32_t Isolate::CurrentEmbeddedBlobDataSize() {
 }
 
 base::AddressRegion Isolate::GetShortBuiltinsCallRegion() {
-  DCHECK(V8_ENABLE_NEAR_CODE_RANGE_BOOL);
   DCHECK_LT(CurrentEmbeddedBlobCodeSize(), kShortBuiltinCallsBoundary);
   Address embedded_blob_code_start =
       reinterpret_cast<Address>(CurrentEmbeddedBlobCode());
+  if (embedded_blob_code_start == kNullAddress) {
+    // Return empty region if there's no embedded blob.
+    return base::AddressRegion(kNullAddress, 0);
+  }
   Address embedded_blob_code_end =
       embedded_blob_code_start + CurrentEmbeddedBlobCodeSize();
   Address region_start =

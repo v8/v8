@@ -104,7 +104,8 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
                   kStackLimitSlackForDeoptimizationInBytes <=
               MB);
 
-#if defined(V8_SHORT_BUILTIN_CALLS) && !defined(V8_COMPRESS_POINTERS)
+#if defined(V8_SHORT_BUILTIN_CALLS) && \
+    (!defined(V8_COMPRESS_POINTERS) || defined(V8_EXTERNAL_CODE_SPACE))
 #define V8_ENABLE_NEAR_CODE_RANGE_BOOL true
 #else
 #define V8_ENABLE_NEAR_CODE_RANGE_BOOL false
