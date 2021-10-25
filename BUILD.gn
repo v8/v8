@@ -3412,6 +3412,7 @@ v8_header_set("v8_internal_headers") {
       "src/asmjs/asm-types.h",
       "src/compiler/int64-lowering.h",
       "src/compiler/wasm-compiler.h",
+      "src/compiler/wasm-escape-analysis.h",
       "src/compiler/wasm-inlining.h",
       "src/debug/debug-wasm-objects-inl.h",
       "src/debug/debug-wasm-objects.h",
@@ -3881,6 +3882,7 @@ if (v8_enable_webassembly) {
   v8_compiler_sources += [
     "src/compiler/int64-lowering.cc",
     "src/compiler/wasm-compiler.cc",
+    "src/compiler/wasm-escape-analysis.cc",
     "src/compiler/wasm-inlining.cc",
   ]
 }

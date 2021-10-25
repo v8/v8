@@ -293,6 +293,24 @@ class WasmGraphAssembler : public GraphAssembler {
   }
 
   // Maps and their contents.
+  Node* LoadMap(Node* object) {
+    Node* map_word = LoadFromObject(MachineType::TaggedPointer(), object,
+                                    HeapObject::kMapOffset - kHeapObjectTag);
+#ifdef V8_MAP_PACKING
+    return UnpackMapWord(map_word);
+#else
+    return map_word;
+#endif
+  }
+
+  void StoreMap(Node* heap_object, Node* map) {
+    ObjectAccess access(MachineType::TaggedPointer(), kMapWriteBarrier);
+#ifdef V8_MAP_PACKING
+    map = PackMapWord(map);
+#endif
+    StoreToObject(access, heap_object, HeapObject::kMapOffset - kHeapObjectTag,
+                  map);
+  }
 
   Node* LoadInstanceType(Node* map) {
     return LoadFromObject(
@@ -5573,7 +5591,7 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
                                          base::Vector<Node*> fields) {
   int size = WasmStruct::Size(type);
   Node* s = gasm_->Allocate(size);
-  gasm_->StoreMap(s, TNode<Map>::UncheckedCast(rtt));
+  gasm_->StoreMap(s, rtt);
   gasm_->StoreToObject(
       ObjectAccess(MachineType::TaggedPointer(), kNoWriteBarrier), s,
       wasm::ObjectAccess::ToTagged(JSReceiver::kPropertiesOrHashOffset),

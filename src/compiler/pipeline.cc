@@ -96,6 +96,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
+#include "src/compiler/wasm-escape-analysis.h"
 #include "src/compiler/wasm-inlining.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -2013,12 +2014,14 @@ struct WasmOptimizationPhase {
       WasmInliner inliner(&graph_reducer, env, function_index,
                           data->source_positions(), data->node_origins(),
                           data->mcgraph(), wire_bytes);
+      WasmEscapeAnalysis escape(&graph_reducer, data->mcgraph());
       AddReducer(data, &graph_reducer, &machine_reducer);
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &common_reducer);
       AddReducer(data, &graph_reducer, &value_numbering);
       if (FLAG_experimental_wasm_gc) {
         AddReducer(data, &graph_reducer, &load_elimination);
+        AddReducer(data, &graph_reducer, &escape);
       }
       if (FLAG_wasm_inlining &&
           !WasmInliner::any_inlining_impossible(data->graph()->NodeCount())) {
