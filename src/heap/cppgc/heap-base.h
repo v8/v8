@@ -163,7 +163,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   std::set<void*>& remembered_slots() { return remembered_slots_; }
-#endif
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   size_t ObjectPayloadSize() const;
 
@@ -217,6 +217,10 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   // Returns amount of bytes allocated while executing prefinalizers.
   size_t ExecutePreFinalizers();
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  void ResetRememberedSet();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
   PageAllocator* page_allocator() const;
 

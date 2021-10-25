@@ -82,15 +82,6 @@ void VisitRememberedSlots(HeapBase& heap,
 #endif
 }
 
-// Assumes that all spaces have their LABs reset.
-void ResetRememberedSet(HeapBase& heap) {
-#if defined(CPPGC_YOUNG_GENERATION)
-  auto& local_data = heap.caged_heap().local_data();
-  local_data.age_table.Reset(&heap.caged_heap().allocator());
-  heap.remembered_slots().clear();
-#endif
-}
-
 static constexpr size_t kDefaultDeadlineCheckInterval = 150u;
 
 template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
@@ -294,7 +285,6 @@ void MarkerBase::LeaveAtomicPause() {
     StatsCollector::EnabledScope stats_scope(
         heap().stats_collector(), StatsCollector::kMarkAtomicEpilogue);
     DCHECK(!incremental_marking_handle_);
-    ResetRememberedSet(heap());
     heap().stats_collector()->NotifyMarkingCompleted(
         // GetOverallMarkedBytes also includes concurrently marked bytes.
         schedule_.GetOverallMarkedBytes());

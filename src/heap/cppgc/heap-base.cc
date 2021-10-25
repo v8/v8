@@ -108,6 +108,31 @@ size_t HeapBase::ExecutePreFinalizers() {
   return prefinalizer_handler_->ExtractBytesAllocatedInPrefinalizers();
 }
 
+#if defined(CPPGC_YOUNG_GENERATION)
+void HeapBase::ResetRememberedSet() {
+  class AllLABsAreEmpty final : protected HeapVisitor<AllLABsAreEmpty> {
+    friend class HeapVisitor<AllLABsAreEmpty>;
+
+   public:
+    explicit AllLABsAreEmpty(RawHeap& raw_heap) { Traverse(raw_heap); }
+
+    bool value() const { return !some_lab_is_set_; }
+
+   protected:
+    bool VisitNormalPageSpace(NormalPageSpace& space) {
+      some_lab_is_set_ |= space.linear_allocation_buffer().size();
+      return true;
+    }
+
+   private:
+    bool some_lab_is_set_ = false;
+  };
+  DCHECK(AllLABsAreEmpty(raw_heap()).value());
+  caged_heap().local_data().age_table.Reset(&caged_heap().allocator());
+  remembered_slots().clear();
+}
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
 void HeapBase::Terminate() {
   DCHECK(!IsMarking());
   CHECK(!in_disallow_gc_scope());
