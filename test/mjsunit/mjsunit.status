@@ -424,6 +424,7 @@
   # Desugaring regexp property class relies on ICU. Anything goes as long as we
   # don't crash.
   'harmony/regexp-property-*': [PASS,FAIL],
+  'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
 
   # noi18n build cannot parse characters in supplementary plane.
