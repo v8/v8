@@ -398,9 +398,6 @@
   # http://crbug/v8/11533
   'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11690
-  'language/module-code/export-expname-binding-index': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=11111
   'built-ins/ArrayBuffer/prototype/transfer/*': [FAIL],
   'built-ins/ArrayBuffer/prototype/transfer/this-is-sharedarraybuffer': [PASS],

@@ -360,10 +360,6 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   Handle<Object> object = args.at(0);
 
   if (object->IsJSModuleNamespace()) {
-    if (key.is_element()) {
-      // Namespace objects can't have indexed properties.
-      return ReadOnlyRoots(isolate).false_value();
-    }
     LookupIterator it(isolate, object, key, LookupIterator::OWN);
     PropertyDescriptor desc;
     Maybe<bool> result = JSReceiver::GetOwnPropertyDescriptor(&it, &desc);

@@ -2581,6 +2581,20 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
   }
 }
 
+void JSObject::SetNormalizedElement(Handle<JSObject> object, uint32_t index,
+                                    Handle<Object> value,
+                                    PropertyDetails details) {
+  DCHECK_EQ(object->GetElementsKind(), DICTIONARY_ELEMENTS);
+
+  Isolate* isolate = object->GetIsolate();
+
+  Handle<NumberDictionary> dictionary =
+      handle(NumberDictionary::cast(object->elements()), isolate);
+  dictionary =
+      NumberDictionary::Set(isolate, dictionary, index, value, object, details);
+  object->set_elements(*dictionary);
+}
+
 void JSObject::JSObjectShortPrint(StringStream* accumulator) {
   switch (map().instance_type()) {
     case JS_ARRAY_TYPE: {
