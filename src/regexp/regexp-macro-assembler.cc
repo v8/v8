@@ -144,12 +144,12 @@ Handle<ByteArray> MakeRangeArray(Isolate* isolate,
       isolate->factory()->NewByteArray(size_in_bytes);
   for (int i = 0; i < ranges_length; i++) {
     const CharacterRange& r = ranges->at(i);
-    DCHECK_NE(r.from(), kMaxUInt16);
+    DCHECK_LT(r.from(), kMaxUInt16);
     range_array->set_uint16(i * 2 + 0, r.from());
     if (i == ranges_length - 1 && r.to() == kMaxUInt16) {
       break;  // Avoid overflow by leaving the last range open-ended.
     }
-    DCHECK_NE(r.to(), kMaxUInt16);
+    DCHECK_LT(r.to(), kMaxUInt16);
     range_array->set_uint16(i * 2 + 1, r.to() + 1);  // Exclusive.
   }
   return range_array;

@@ -1234,6 +1234,8 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     ranges_length--;
   }
 
+  ranges->Rewind(ranges_length);  // Drop all uninteresting ranges.
+
   if (ranges_length == 0) {
     if (!cc->is_negated()) {
       macro_assembler->GoTo(on_failure);
