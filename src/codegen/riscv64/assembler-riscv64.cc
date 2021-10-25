@@ -3305,12 +3305,10 @@ int Assembler::li_estimate(int64_t imm, bool is_get_temp_reg) {
     // plus the number of zeros between the parts. Each part is added after the
     // left shift.
     uint32_t mask = 0x80000000;
-    int32_t shift_val = 0;
     int32_t i;
     for (i = 0; i < 32; i++) {
       if ((low_32 & mask) == 0) {
         mask >>= 1;
-        shift_val++;
         if (i == 31) {
           // rest is zero
           count++;
@@ -3318,21 +3316,17 @@ int Assembler::li_estimate(int64_t imm, bool is_get_temp_reg) {
         continue;
       }
       // The first 1 seen
-      int32_t part;
       if ((i + 11) < 32) {
         // Pick 11 bits
-        part = ((uint32_t)(low_32 << i) >> i) >> (32 - (i + 11));
         count++;
         count++;
         i += 10;
         mask >>= 11;
       } else {
-        part = (uint32_t)(low_32 << i) >> i;
         count++;
         count++;
         break;
       }
-      shift_val = 0;
     }
   }
   return count;
