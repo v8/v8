@@ -2257,7 +2257,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         StructType::Builder struct_builder(zone, num_fields);
         for (int field_index = 0; field_index < num_fields; field_index++) {
           ValueType type = GetValueType(&range, true, num_types, true);
-          bool mutability = range.get<uint8_t>() < 127;
+          bool mutability = range.get<bool>();
           struct_builder.AddField(type, mutability);
         }
         StructType* struct_fuz = struct_builder.Build();
@@ -2266,7 +2266,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
       for (int array_index = 0; array_index < num_arrays; array_index++) {
         ValueType type = GetValueType(&range, true, num_types, true);
-        ArrayType* array_fuz = zone->New<ArrayType>(type, true);
+        bool mutability = range.get<bool>();
+        ArrayType* array_fuz = zone->New<ArrayType>(type, mutability);
         builder.AddArrayType(array_fuz);
       }
     }
