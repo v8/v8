@@ -141,21 +141,17 @@ class V8_EXPORT PersistentRegion final : public PersistentRegionBase {
   PersistentRegion& operator=(const PersistentRegion&) = delete;
 
   V8_INLINE PersistentNode* AllocateNode(void* owner, TraceCallback trace) {
-#if V8_ENABLE_CHECKS
-    CheckIsCreationThread();
-#endif  // V8_ENABLE_CHECKS
+    CPPGC_DCHECK(IsCreationThread());
     return PersistentRegionBase::AllocateNode(owner, trace);
   }
 
   V8_INLINE void FreeNode(PersistentNode* node) {
-#if V8_ENABLE_CHECKS
-    CheckIsCreationThread();
-#endif  // V8_ENABLE_CHECKS
+    CPPGC_DCHECK(IsCreationThread());
     PersistentRegionBase::FreeNode(node);
   }
 
  private:
-  void CheckIsCreationThread();
+  bool IsCreationThread();
 
   int creation_thread_id_;
 };

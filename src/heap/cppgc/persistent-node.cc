@@ -109,8 +109,8 @@ PersistentRegion::PersistentRegion(const FatalOutOfMemoryHandler& oom_handler)
   USE(creation_thread_id_);
 }
 
-void PersistentRegion::CheckIsCreationThread() {
-  DCHECK_EQ(creation_thread_id_, v8::base::OS::GetCurrentThreadId());
+bool PersistentRegion::IsCreationThread() {
+  return creation_thread_id_ == v8::base::OS::GetCurrentThreadId();
 }
 
 PersistentRegionLock::PersistentRegionLock() {
