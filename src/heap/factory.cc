@@ -71,6 +71,7 @@
 #include "src/wasm/wasm-value.h"
 #endif
 
+#include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
 
 namespace v8 {
@@ -300,14 +301,16 @@ MaybeHandle<Code> Factory::CodeBuilder::AllocateConcurrentSparkplugCode(
                                        ? AllocationType::kCode
                                        : AllocationType::kReadOnly;
   const int object_size = Code::SizeFor(code_desc_.body_size());
-  HeapObject result =
-      heap->AllocateRaw(object_size, allocation_type).ToObject();
+  HeapObject result;
+  if (!heap->AllocateRaw(object_size, allocation_type).To(&result)) {
+    return MaybeHandle<Code>();
+  }
   CHECK(!result.is_null());
 
   // The code object has not been fully initialized yet.  We rely on the
   // fact that no allocation will happen from this point on.
   DisallowGarbageCollection no_gc;
-  result.set_map_after_allocation(*isolate_->factory()->code_map(),
+  result.set_map_after_allocation(*local_isolate_->factory()->code_map(),
                                   SKIP_WRITE_BARRIER);
   Handle<Code> code = handle(Code::cast(result), local_isolate_);
   DCHECK_IMPLIES(is_executable_, IsAligned(code->address(), kCodeAlignment));
