@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "greedy_batching_of_1", "in_branch_console", "multibranch_builder", "v8_builder")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "greedy_batching_of_1", "in_branch_console", "multibranch_builder", "v8_builder", "ci_pair_factory")
 
 def main_multibranch_builder(**kwargs):
     props = kwargs.pop("properties", {})
@@ -10,23 +10,8 @@ def main_multibranch_builder(**kwargs):
     kwargs["properties"] = props
     return multibranch_builder(**kwargs)
 
-def main_multibranch_builder_pair(name, dimensions, builder_group = "client.v8", use_goma = GOMA.DEFAULT):
-    return (
-        main_multibranch_builder(
-            name = name + " - builder",
-            dimensions = dimensions,
-            properties = {"builder_group": builder_group},
-            use_goma = use_goma,
-        ) +
-        main_multibranch_builder(
-            name = name,
-            parent_builder = name + " - builder",
-            dimensions = {"host_class": "multibot"},
-            properties = {"builder_group": builder_group},
-        )
-    )
-
 in_category = in_branch_console("main")
+main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
 
 in_category(
     "Linux",

@@ -83,6 +83,14 @@ branch_descriptors = [
     ),
 ]
 
+NAMING_CONVENTION_EXCLUDED_BUILDERS = [
+    'V8 Linux64 - arm64 - sim - heap sandbox - debug',
+    'V8 Linux64 - cppgc-non-default - debug',
+    'V8 Linux64 - dict tracking - debug',
+    'V8 Linux64 - external code space - debug',
+    'V8 Linux64 - heap sandbox - debug'
+]
+
 def cq_on_files(*regexp_list):
   return { "location_regexp": list(regexp_list), "cancel_stale": False }
 
@@ -414,12 +422,15 @@ def in_branch_console(console_name, *builder_sets):
     def in_category(category_name, *builder_sets):
         for builder_set in builder_sets:
             for builder in builder_set:
-                branch_name = builder.split("/")[0]
-                luci.console_view_entry(
-                    console_view = branch_by_name(branch_name).console_id_by_name(console_name),
-                    builder = builder,
-                    category = category_name,
-                )
+                if not type(builder) == 'list':
+                    builder = [builder]
+                for sub_builder in builder:
+                    branch_name = sub_builder.split("/")[0]
+                    luci.console_view_entry(
+                        console_view = branch_by_name(branch_name).console_id_by_name(console_name),
+                        builder = sub_builder,
+                        category = category_name,
+                    )
 
     return in_category
 
@@ -431,21 +442,55 @@ def branch_by_name(name):
 def in_console(console_id, *builders):
     def in_category(category_name, *builders):
         for builder in builders:
-            if type(builder) == 'list':
-                for sub_builder in builder:
-                    luci.console_view_entry(
-                        console_view = console_id,
-                        builder = sub_builder,
-                        category = category_name,
-                    )
-            else:
+            if not type(builder) == 'list':
+                builder = [builder]
+            for sub_builder in builder:
                 luci.console_view_entry(
                     console_view = console_id,
-                    builder = builder,
+                    builder = sub_builder,
                     category = category_name,
                 )
 
     return in_category
+
+def is_ci_debug(builder_name):
+    return (
+        builder_name.endswith(' debug') and
+        builder_name not in NAMING_CONVENTION_EXCLUDED_BUILDERS
+    )
+
+def ci_pair_factory(func):
+    def pair_func(**kwargs):
+        tester_name = kwargs['name']
+        builder_name = tester_name + ('' if is_ci_debug(tester_name) else ' -') + ' builder'
+
+        to_notify = kwargs.pop("to_notify", None)
+        if to_notify:
+            v8_notifier(
+                name = "notification for %s" % tester_name,
+                notify_emails = to_notify,
+                notified_by = [builder_name, tester_name],
+            )
+
+        builder_kwargs = dict(kwargs)
+        builder_kwargs['name'] = builder_name
+
+        tester_included_args = [
+            'name',
+            'bucket',
+            'properties',
+            'experiments',
+            'close_tree'
+        ]
+        tester_kwargs = {k: v for k, v in kwargs.items() if k in tester_included_args}
+        tester_kwargs['parent_builder'] = builder_name
+
+        return [
+            func(**builder_kwargs),
+            func(**tester_kwargs)
+        ]
+
+    return pair_func
 
 FAILED_STEPS_EXCLUDE = [
     "bot_update",

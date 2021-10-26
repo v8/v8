@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "in_console", "v8_builder", "v8_notifier")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "in_console", "v8_builder", "v8_notifier", "ci_pair_factory")
 
 RECLIENT = struct(
     DEFAULT = {
@@ -35,41 +35,8 @@ def experiment_builder(**kwargs):
         **kwargs
     )
 
-def experiment_builder_pair(name, **kwargs):
-    properties = kwargs.pop("properties", None)
-    dimensions = kwargs.pop("dimensions", None)
-    triggered_by = kwargs.pop("triggered_by", None)
-    use_goma = kwargs.pop("use_goma", None)
-    use_rbe = kwargs.pop("use_rbe", None)
-
-    to_notify = kwargs.pop("to_notify", None)
-    if to_notify:
-        builder_name = name
-        v8_notifier(
-            name = "notification for %s" % builder_name,
-            notify_emails = to_notify,
-            notified_by = [builder_name, builder_name + " - builder"],
-        )
-
-    return [
-        v8_builder(
-            name = name + " - builder",
-            properties = properties,
-            dimensions = dimensions,
-            triggered_by = triggered_by,
-            use_goma = use_goma,
-            use_rbe = use_rbe,
-            **kwargs
-        ),
-        v8_builder(
-            name = name,
-            parent_builder = name + " - builder",
-            properties = properties,
-            **kwargs
-        )
-    ]
-
 in_category = in_console("experiments")
+experiment_builder_pair = ci_pair_factory(experiment_builder)
 
 in_category(
     "Features",
