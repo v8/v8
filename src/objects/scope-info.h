@@ -101,6 +101,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Is this scope the scope of a named function expression?
   V8_EXPORT_PRIVATE bool HasFunctionName() const;
 
+  bool HasContextAllocatedFunctionName() const;
+
   // See SharedFunctionInfo::HasSharedName.
   V8_EXPORT_PRIVATE bool HasSharedFunctionName() const;
 

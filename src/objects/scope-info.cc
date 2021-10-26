@@ -644,26 +644,22 @@ bool ScopeInfo::is_declaration_scope() const {
 }
 
 int ScopeInfo::ContextLength() const {
-  if (!IsEmpty()) {
-    int context_locals = ContextLocalCount();
-    bool function_name_context_slot = FunctionVariableBits::decode(Flags()) ==
-                                      VariableAllocationInfo::CONTEXT;
-    bool force_context = ForceContextAllocationBit::decode(Flags());
-    bool has_context =
-        context_locals > 0 || force_context || function_name_context_slot ||
-        scope_type() == WITH_SCOPE || scope_type() == CLASS_SCOPE ||
-        (scope_type() == BLOCK_SCOPE && SloppyEvalCanExtendVars() &&
-         is_declaration_scope()) ||
-        (scope_type() == FUNCTION_SCOPE && SloppyEvalCanExtendVars()) ||
-        (scope_type() == FUNCTION_SCOPE && IsAsmModule()) ||
-        scope_type() == MODULE_SCOPE;
+  if (IsEmpty()) return 0;
+  int context_locals = ContextLocalCount();
+  bool function_name_context_slot = HasContextAllocatedFunctionName();
+  bool force_context = ForceContextAllocationBit::decode(Flags());
+  bool has_context =
+      context_locals > 0 || force_context || function_name_context_slot ||
+      scope_type() == WITH_SCOPE || scope_type() == CLASS_SCOPE ||
+      (scope_type() == BLOCK_SCOPE && SloppyEvalCanExtendVars() &&
+       is_declaration_scope()) ||
+      (scope_type() == FUNCTION_SCOPE && SloppyEvalCanExtendVars()) ||
+      (scope_type() == FUNCTION_SCOPE && IsAsmModule()) ||
+      scope_type() == MODULE_SCOPE;
 
-    if (has_context) {
-      return ContextHeaderLength() + context_locals +
-             (function_name_context_slot ? 1 : 0);
-    }
-  }
-  return 0;
+  if (!has_context) return 0;
+  return ContextHeaderLength() + context_locals +
+         (function_name_context_slot ? 1 : 0);
 }
 
 bool ScopeInfo::HasContextExtensionSlot() const {
@@ -701,6 +697,11 @@ bool ScopeInfo::HasFunctionName() const {
   return VariableAllocationInfo::NONE != FunctionVariableBits::decode(Flags());
 }
 
+bool ScopeInfo::HasContextAllocatedFunctionName() const {
+  return VariableAllocationInfo::CONTEXT ==
+         FunctionVariableBits::decode(Flags());
+}
+
 bool ScopeInfo::HasInferredFunctionName() const {
   return HasInferredFunctionNameBit::decode(Flags());
 }
@@ -723,6 +724,8 @@ bool ScopeInfo::HasSharedFunctionName() const {
 void ScopeInfo::SetFunctionName(Object name) {
   DCHECK(HasFunctionName());
   DCHECK(name.IsString() || name == SharedFunctionInfo::kNoSharedNameSentinel);
+  DCHECK_IMPLIES(HasContextAllocatedFunctionName(),
+                 name.IsInternalizedString());
   set_function_variable_info_name(name);
 }
 
@@ -942,10 +945,11 @@ int ScopeInfo::ParametersStartIndex() const {
 
 int ScopeInfo::FunctionContextSlotIndex(String name) const {
   DCHECK(name.IsInternalizedString());
-  if (FunctionVariableBits::decode(Flags()) ==
-          VariableAllocationInfo::CONTEXT &&
-      FunctionName() == name) {
-    return function_variable_info_context_or_stack_slot_index();
+  if (HasContextAllocatedFunctionName()) {
+    DCHECK_IMPLIES(HasFunctionName(), FunctionName().IsInternalizedString());
+    if (FunctionName() == name) {
+      return function_variable_info_context_or_stack_slot_index();
+    }
   }
   return -1;
 }

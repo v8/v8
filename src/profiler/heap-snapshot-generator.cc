@@ -1038,7 +1038,7 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
       SetContextReference(entry, local_name, context.get(idx),
                           Context::OffsetOfElementAt(idx));
     }
-    if (scope_info.HasFunctionName()) {
+    if (scope_info.HasContextAllocatedFunctionName()) {
       String name = String::cast(scope_info.FunctionName());
       int idx = scope_info.FunctionContextSlotIndex(name);
       if (idx >= 0) {
