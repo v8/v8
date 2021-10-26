@@ -33,7 +33,7 @@ NativeContext Isolate::raw_native_context() {
 }
 
 Object Isolate::pending_exception() {
-  DCHECK(has_pending_exception());
+  CHECK(has_pending_exception());
   DCHECK(!thread_local_top()->pending_exception_.IsException(this));
   return thread_local_top()->pending_exception_;
 }
