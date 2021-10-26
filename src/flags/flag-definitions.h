@@ -925,8 +925,8 @@ DEFINE_BOOL(turbo_compress_translation_arrays, false,
 DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
 DEFINE_BOOL(turbo_inline_js_wasm_calls, false, "inline JS->Wasm calls")
 DEFINE_BOOL(turbo_use_mid_tier_regalloc_for_huge_functions, false,
-            "fall back to the mid-tier register allocator for huge functions "
-            "(experimental)")
+            "fall back to the mid-tier register allocator for huge functions")
+DEFINE_WEAK_IMPLICATION(future, turbo_use_mid_tier_regalloc_for_huge_functions)
 DEFINE_BOOL(turbo_force_mid_tier_regalloc, false,
             "always use the mid-tier register allocator (for testing)")
 
