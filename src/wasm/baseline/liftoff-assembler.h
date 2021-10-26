@@ -148,6 +148,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     int offset() const { return spill_offset_; }
+    void set_offset(int offset) { spill_offset_ = offset; }
 
     Register gp_reg() const { return reg().gp(); }
     DoubleRegister fp_reg() const { return reg().fp(); }
@@ -491,12 +492,16 @@ class LiftoffAssembler : public TurboAssembler {
   // stack, so that we can merge different values on the back-edge.
   void PrepareLoopArgs(int num);
 
-  int NextSpillOffset(ValueKind kind) {
-    int offset = TopSpillOffset() + SlotSizeForType(kind);
+  V8_INLINE static int NextSpillOffset(ValueKind kind, int top_spill_offset) {
+    int offset = top_spill_offset + SlotSizeForType(kind);
     if (NeedsAlignment(kind)) {
       offset = RoundUp(offset, SlotSizeForType(kind));
     }
     return offset;
+  }
+
+  int NextSpillOffset(ValueKind kind) {
+    return NextSpillOffset(kind, TopSpillOffset());
   }
 
   int TopSpillOffset() const {
