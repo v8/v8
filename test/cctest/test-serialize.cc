@@ -4255,7 +4255,7 @@ TEST(WeakArraySerializationInCodeCache) {
   delete cache;
 }
 
-TEST(CachedCompileFunctionInContext) {
+TEST(CachedCompileFunction) {
   DisableAlwaysOpt();
   LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
@@ -4270,9 +4270,9 @@ TEST(CachedCompileFunctionInContext) {
   {
     v8::ScriptCompiler::Source script_source(source);
     v8::Local<v8::Function> fun =
-        v8::ScriptCompiler::CompileFunctionInContext(
-            env.local(), &script_source, 1, &arg_str, 0, nullptr,
-            v8::ScriptCompiler::kEagerCompile)
+        v8::ScriptCompiler::CompileFunction(env.local(), &script_source, 1,
+                                            &arg_str, 0, nullptr,
+                                            v8::ScriptCompiler::kEagerCompile)
             .ToLocalChecked();
     cache = v8::ScriptCompiler::CreateCodeCacheForFunction(fun);
   }
@@ -4281,7 +4281,7 @@ TEST(CachedCompileFunctionInContext) {
     DisallowCompilation no_compile_expected(isolate);
     v8::ScriptCompiler::Source script_source(source, cache);
     v8::Local<v8::Function> fun =
-        v8::ScriptCompiler::CompileFunctionInContext(
+        v8::ScriptCompiler::CompileFunction(
             env.local(), &script_source, 1, &arg_str, 0, nullptr,
             v8::ScriptCompiler::kConsumeCodeCache)
             .ToLocalChecked();

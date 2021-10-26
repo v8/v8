@@ -2127,10 +2127,21 @@ Local<PrimitiveArray> ScriptOrModule::GetHostDefinedOptions() {
 }
 
 Local<UnboundScript> Script::GetUnboundScript() {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::SharedFunctionInfo sfi = i::JSFunction::cast(*obj).shared();
+  i::DisallowGarbageCollection no_gc;
+  i::Handle<i::JSFunction> obj = Utils::OpenHandle(this);
+  i::SharedFunctionInfo sfi = (*obj).shared();
   i::Isolate* isolate = sfi.GetIsolate();
   return ToApiHandle<UnboundScript>(i::handle(sfi, isolate));
+}
+
+Local<Value> Script::GetResourceName() {
+  i::DisallowGarbageCollection no_gc;
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  i::SharedFunctionInfo sfi = (*func).shared();
+  i::Isolate* isolate = func->GetIsolate();
+  CHECK(sfi.script().IsScript());
+  return ToApiHandle<Value>(
+      i::handle(i::Script::cast(sfi.script()).name(), isolate));
 }
 
 // static
@@ -2594,9 +2605,32 @@ bool IsIdentifier(i::Isolate* isolate, i::Handle<i::String> string) {
   }
   return true;
 }
-}  // anonymous namespace
+}  // namespace
 
+// static
+V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
+    Local<Context> context, Source* source, size_t arguments_count,
+    Local<String> arguments[], size_t context_extension_count,
+    Local<Object> context_extensions[], CompileOptions options,
+    NoCacheReason no_cache_reason) {
+  return CompileFunctionInternal(context, source, arguments_count, arguments,
+                                 context_extension_count, context_extensions,
+                                 options, no_cache_reason, nullptr);
+}
+
+// static
 MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
+    Local<Context> context, Source* source, size_t arguments_count,
+    Local<String> arguments[], size_t context_extension_count,
+    Local<Object> context_extensions[], CompileOptions options,
+    NoCacheReason no_cache_reason,
+    Local<ScriptOrModule>* script_or_module_out) {
+  return CompileFunctionInternal(
+      context, source, arguments_count, arguments, context_extension_count,
+      context_extensions, options, no_cache_reason, script_or_module_out);
+}
+
+MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
     Local<Context> v8_context, Source* source, size_t arguments_count,
     Local<String> arguments[], size_t context_extension_count,
     Local<Object> context_extensions[], CompileOptions options,
@@ -2605,7 +2639,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
   Local<Function> result;
 
   {
-    PREPARE_FOR_EXECUTION(v8_context, ScriptCompiler, CompileFunctionInContext,
+    PREPARE_FOR_EXECUTION(v8_context, ScriptCompiler, CompileFunction,
                           Function);
     TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
 
@@ -5286,6 +5320,14 @@ int Function::GetScriptColumnNumber() const {
     return i::Script::GetColumnNumber(script, func->shared().StartPosition());
   }
   return kLineOffsetNotFound;
+}
+
+MaybeLocal<UnboundScript> Function::GetUnboundScript() const {
+  i::Handle<i::Object> self = Utils::OpenHandle(this);
+  if (!self->IsJSFunction()) return MaybeLocal<UnboundScript>();
+  i::SharedFunctionInfo sfi = i::JSFunction::cast(*self).shared();
+  i::Isolate* isolate = sfi.GetIsolate();
+  return ToApiHandle<UnboundScript>(i::handle(sfi, isolate));
 }
 
 int Function::ScriptId() const {

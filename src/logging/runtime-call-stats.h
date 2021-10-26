@@ -245,7 +245,7 @@ class RuntimeCallTimer final {
   V(RegExp_Exec)                                           \
   V(RegExp_New)                                            \
   V(ScriptCompiler_Compile)                                \
-  V(ScriptCompiler_CompileFunctionInContext)               \
+  V(ScriptCompiler_CompileFunction)                        \
   V(ScriptCompiler_CompileUnbound)                         \
   V(Script_Run)                                            \
   V(Set_Add)                                               \
