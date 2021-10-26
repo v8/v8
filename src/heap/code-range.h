@@ -68,7 +68,11 @@ class CodeRangeAddressHint {
 // 4) |base()| is CommitPageSize()-aligned
 class CodeRange final : public VirtualMemoryCage {
  public:
-  V8_EXPORT_PRIVATE ~CodeRange();
+  V8_EXPORT_PRIVATE ~CodeRange() override;
+
+  // Returns the size of the initial area of a code-range, which is marked
+  // writable and reserved to contain unwind information.
+  static size_t GetWritableReservedAreaSize();
 
   uint8_t* embedded_blob_code_copy() const {
     // remap_embedded_builtins_mutex_ is designed to protect write contention to

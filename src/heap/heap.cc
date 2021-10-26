@@ -3045,7 +3045,7 @@ int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
 }
 
 size_t Heap::GetCodeRangeReservedAreaSize() {
-  return kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
+  return CodeRange::GetWritableReservedAreaSize();
 }
 
 HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {

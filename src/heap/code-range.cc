@@ -86,6 +86,11 @@ void CodeRangeAddressHint::NotifyFreedCodeRange(Address code_range_start,
 
 CodeRange::~CodeRange() { Free(); }
 
+// static
+size_t CodeRange::GetWritableReservedAreaSize() {
+  return kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
+}
+
 bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
                                 size_t requested) {
   DCHECK_NE(requested, 0);
@@ -96,8 +101,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   if (requested <= kMinimumCodeRangeSize) {
     requested = kMinimumCodeRangeSize;
   }
-  const size_t reserved_area =
-      kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
+  const size_t reserved_area = GetWritableReservedAreaSize();
   if (requested < (kMaximalCodeRangeSize - reserved_area)) {
     requested += RoundUp(reserved_area, MemoryChunk::kPageSize);
     // Fullfilling both reserved pages requirement and huge code area
@@ -113,14 +117,15 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   // base_alignment should be kAnyBaseAlignment when V8_ENABLE_NEAR_CODE_RANGE
   // is enabled so that InitReservation would not break the alignment in
   // GetAddressHint().
+  const size_t allocate_page_size = page_allocator->AllocatePageSize();
   params.base_alignment =
       V8_EXTERNAL_CODE_SPACE_BOOL
           ? base::bits::RoundUpToPowerOfTwo(requested)
           : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
-  params.base_bias_size = reserved_area;
+  params.base_bias_size = RoundUp(reserved_area, allocate_page_size);
   params.page_size = MemoryChunk::kPageSize;
-  params.requested_start_hint = GetCodeRangeAddressHint()->GetAddressHint(
-      requested, page_allocator->AllocatePageSize());
+  params.requested_start_hint =
+      GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 

@@ -507,6 +507,9 @@ assert(!v8_enable_map_packing || !v8_enable_pointer_compression,
 assert(!v8_enable_map_packing || v8_current_cpu == "x64",
        "Map packing is only supported on x64")
 
+assert(!v8_enable_external_code_space || v8_enable_pointer_compression,
+       "External code space feature requires pointer compression")
+
 assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
        "V8 Heap Sandbox requires pointer compression")
 
