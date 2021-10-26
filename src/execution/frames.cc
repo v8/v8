@@ -718,7 +718,7 @@ void NativeFrame::ComputeCallerState(State* state) const {
 }
 
 Code EntryFrame::unchecked_code() const {
-  return isolate()->heap()->builtin(Builtin::kJSEntry);
+  return isolate()->builtins()->code(Builtin::kJSEntry);
 }
 
 void EntryFrame::ComputeCallerState(State* state) const {
@@ -740,7 +740,7 @@ StackFrame::Type CWasmEntryFrame::GetCallerState(State* state) const {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Code ConstructEntryFrame::unchecked_code() const {
-  return isolate()->heap()->builtin(Builtin::kJSConstructEntry);
+  return isolate()->builtins()->code(Builtin::kJSConstructEntry);
 }
 
 void ExitFrame::ComputeCallerState(State* state) const {

@@ -393,7 +393,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   // Hash data sections of builtin code objects.
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = heap_.builtin(builtin);
+    Code code = builtins()->code(builtin);
 
     DCHECK(Internals::HasHeapObjectTag(code.ptr()));
     uint8_t* const code_ptr =
@@ -3787,7 +3787,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     // this at mksnapshot-time, but not at runtime.
     // See also: https://crbug.com/v8/8713.
     heap_.SetInterpreterEntryTrampolineForProfiling(
-        heap_.builtin(Builtin::kInterpreterEntryTrampoline));
+        builtins()->code(Builtin::kInterpreterEntryTrampoline));
 #endif
 
     builtins_constants_table_builder_->Finalize();

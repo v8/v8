@@ -1492,7 +1492,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result.set_serialized_signature(*serialized_sig);
   // Default value, will be overwritten by the caller.
   result.set_wasm_to_js_wrapper_code(
-      isolate()->heap()->builtin(Builtin::kAbort));
+      isolate()->builtins()->code(Builtin::kAbort));
   return handle(result, isolate());
 }
 

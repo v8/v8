@@ -111,11 +111,7 @@ base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   return code_flush_mode;
 }
 
-Isolate* Heap::isolate() {
-  return reinterpret_cast<Isolate*>(
-      reinterpret_cast<intptr_t>(this) -
-      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
-}
+Isolate* Heap::isolate() { return Isolate::FromHeap(this); }
 
 int64_t Heap::external_memory() { return external_memory_.total(); }
 

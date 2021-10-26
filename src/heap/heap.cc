@@ -4643,35 +4643,6 @@ void Heap::RegisterCodeObject(Handle<Code> code) {
   }
 }
 
-// TODO(ishell): move builtin accessors out from Heap.
-Code Heap::builtin(Builtin builtin) {
-  DCHECK(Builtins::IsBuiltinId(builtin));
-  return Code::cast(
-      Object(isolate()->builtin_table()[static_cast<int>(builtin)]));
-}
-
-Address Heap::builtin_address(Builtin builtin) {
-  const int index = Builtins::ToInt(builtin);
-  DCHECK(Builtins::IsBuiltinId(builtin) || index == Builtins::kBuiltinCount);
-  // Note: Must return an address within the full builtin_table for
-  // IterateBuiltins to work.
-  return reinterpret_cast<Address>(&isolate()->builtin_table()[index]);
-}
-
-Address Heap::builtin_tier0_address(Builtin builtin) {
-  const int index = static_cast<int>(builtin);
-  DCHECK(Builtins::IsBuiltinId(builtin) || index == Builtins::kBuiltinCount);
-  return reinterpret_cast<Address>(
-      &isolate()->isolate_data()->builtin_tier0_table()[index]);
-}
-
-void Heap::set_builtin(Builtin builtin, Code code) {
-  DCHECK(Builtins::IsBuiltinId(builtin));
-  DCHECK(Internals::HasHeapObjectTag(code.ptr()));
-  // The given builtin may be uninitialized thus we cannot check its type here.
-  isolate()->builtin_table()[Builtins::ToInt(builtin)] = code.ptr();
-}
-
 void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   DCHECK(!options.contains(SkipRoot::kWeak));
 
@@ -4910,16 +4881,17 @@ void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
 }
 
 void Heap::IterateBuiltins(RootVisitor* v) {
+  Builtins* builtins = isolate()->builtins();
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     v->VisitRootPointer(Root::kBuiltins, Builtins::name(builtin),
-                        FullObjectSlot(builtin_address(builtin)));
+                        builtins->builtin_slot(builtin));
   }
 
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLastTier0;
        ++builtin) {
     v->VisitRootPointer(Root::kBuiltins, Builtins::name(builtin),
-                        FullObjectSlot(builtin_tier0_address(builtin)));
+                        builtins->builtin_tier0_slot(builtin));
   }
 
   // The entry table doesn't need to be updated since all builtins are embedded.
@@ -7035,7 +7007,7 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   Builtin maybe_builtin =
       InstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (Builtins::IsBuiltinId(maybe_builtin)) {
-    return builtin(maybe_builtin);
+    return isolate()->builtins()->code(maybe_builtin);
   }
 
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {

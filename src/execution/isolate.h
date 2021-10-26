@@ -1141,6 +1141,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Address* builtin_entry_table() { return isolate_data_.builtin_entry_table(); }
   V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
+  V8_INLINE Address* builtin_tier0_table() {
+    return isolate_data_.builtin_tier0_table();
+  }
 
   bool IsBuiltinTableHandleLocation(Address* handle_location);
 
