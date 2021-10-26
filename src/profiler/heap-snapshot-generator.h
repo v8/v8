@@ -570,8 +570,8 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   HeapEntriesMap entries_map_;
   SmiEntriesMap smis_map_;
   // Used during snapshot generation.
-  int progress_counter_;
-  int progress_total_;
+  uint32_t progress_counter_;
+  uint32_t progress_total_;
   Heap* heap_;
 };
 
