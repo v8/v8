@@ -1669,12 +1669,14 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           details->positions(characters_filled_in);
       RegExpCharacterClass* tree = elm.char_class();
       ZoneList<CharacterRange>* ranges = tree->ranges(zone());
-      DCHECK(!ranges->is_empty());
-      if (tree->is_negated()) {
+      if (tree->is_negated() || ranges->is_empty()) {
         // A quick check uses multi-character mask and compare.  There is no
         // useful way to incorporate a negative char class into this scheme
         // so we just conservatively create a mask and value that will always
         // succeed.
+        // Likewise for empty ranges (empty ranges can occur e.g. when
+        // compiling for one-byte subjects and impossible (non-one-byte) ranges
+        // have been removed).
         pos->mask = 0;
         pos->value = 0;
       } else {

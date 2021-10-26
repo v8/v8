@@ -688,9 +688,11 @@ void JSPromise::JSPromisePrint(std::ostream& os) {
 }
 
 void JSRegExp::JSRegExpPrint(std::ostream& os) {
+  Isolate* isolate = GetIsolate();
   JSObjectPrintHeader(os, *this, "JSRegExp");
   os << "\n - data: " << Brief(data());
   os << "\n - source: " << Brief(source());
+  os << "\n - flags: " << Brief(*JSRegExp::StringFromFlags(isolate, flags()));
   JSObjectPrintBody(os, *this);
 }
 
