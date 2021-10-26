@@ -460,12 +460,6 @@ class V8_EXPORT CFunction {
     return ArgUnwrap<F*>::Make(func);
   }
 
-  template <typename F>
-  V8_DEPRECATED("Use CFunctionBuilder instead.")
-  static CFunction MakeWithFallbackSupport(F* func) {
-    return ArgUnwrap<F*>::Make(func);
-  }
-
   CFunction(const void* address, const CFunctionInfo* type_info);
 
  private:
@@ -485,7 +479,7 @@ class V8_EXPORT CFunction {
   };
 };
 
-struct V8_DEPRECATE_SOON("Use v8::Local<v8::Value> instead.") ApiObject {
+struct V8_DEPRECATED("Use v8::Local<v8::Value> instead.") ApiObject {
   uintptr_t address;
 };
 

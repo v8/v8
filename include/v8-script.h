@@ -173,14 +173,14 @@ class V8_EXPORT Module : public Data {
   /**
    * Returns the number of modules requested by this module.
    */
-  V8_DEPRECATE_SOON("Use Module::GetModuleRequests() and FixedArray::Length().")
+  V8_DEPRECATED("Use Module::GetModuleRequests() and FixedArray::Length().")
   int GetModuleRequestsLength() const;
 
   /**
    * Returns the ith module specifier in this module.
    * i must be < GetModuleRequestsLength() and >= 0.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use Module::GetModuleRequests() and ModuleRequest::GetSpecifier().")
   Local<String> GetModuleRequest(int i) const;
 
@@ -188,7 +188,7 @@ class V8_EXPORT Module : public Data {
    * Returns the source location (line number and column number) of the ith
    * module specifier's first occurrence in this module.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use Module::GetModuleRequests(), ModuleRequest::GetSourceOffset(), and "
       "Module::SourceOffsetToLocation().")
   Location GetModuleRequestLocation(int i) const;
@@ -209,7 +209,7 @@ class V8_EXPORT Module : public Data {
    */
   int GetIdentityHash() const;
 
-  using ResolveCallback V8_DEPRECATE_SOON("Use ResolveModuleCallback") =
+  using ResolveCallback V8_DEPRECATED("Use ResolveModuleCallback") =
       MaybeLocal<Module> (*)(Local<Context> context, Local<String> specifier,
                              Local<Module> referrer);
   using ResolveModuleCallback = MaybeLocal<Module> (*)(
@@ -223,7 +223,7 @@ class V8_EXPORT Module : public Data {
    * instantiation. (In the case where the callback throws an exception, that
    * exception is propagated.)
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use the version of InstantiateModule that takes a ResolveModuleCallback "
       "parameter")
   V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(Local<Context> context,
