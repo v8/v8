@@ -225,6 +225,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, hook_on_function_call_address, Address,
                     kHookOnFunctionCallAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, num_liftoff_function_calls_array,
                     uint32_t*, kNumLiftoffFunctionCallsArrayOffset)
+ACCESSORS(WasmInstanceObject, active_continuation, WasmContinuationObject,
+          kActiveContinuationOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, break_on_entry, uint8_t,
                     kBreakOnEntryOffset)
 

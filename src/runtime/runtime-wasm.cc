@@ -16,6 +16,7 @@
 #include "src/runtime/runtime-utils.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/stacks.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-constants.h"
@@ -678,6 +679,17 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
     }
   }
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
+  CHECK(FLAG_experimental_wasm_stack_switching);
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  auto parent = instance->active_continuation();
+  auto target = WasmContinuationObject::New(isolate, parent);
+  instance->set_active_continuation(*target);
+  return *target;
 }
 
 }  // namespace internal

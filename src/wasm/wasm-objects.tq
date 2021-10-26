@@ -64,8 +64,9 @@ extern class WasmIndirectFunctionTable extends Struct {
 }
 
 extern class WasmContinuationObject extends Struct {
-  stack: Foreign;
-  jmpbuf: Foreign;
+  managed_stack: Foreign;
+  managed_jmpbuf: Foreign;
+  jmpbuf: Foreign;  // Direct access to managed_jmpbuf's underlying pointer.
   parent: WasmContinuationObject|Undefined;
 }
 
