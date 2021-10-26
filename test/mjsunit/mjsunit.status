@@ -1649,4 +1649,63 @@
   'wasm/stack-switching': [SKIP],
 }],  # arch != x64
 
+##############################################################################
+# Skip failing tests in google3
+['variant == google3_noicu or variant == google3_icu', {
+  # timeouts on Google3:
+  'compiler/division-by-constant': [PASS, SLOW],
+  'compiler/expression-trees': [SKIP],
+  'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
+  'math-floor-part1': [SKIP],
+  'compiler/regress-1125145': [SKIP],
+
+  # TODO(victorgomes):
+  'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
+  'wasm/bulk-memory': [SKIP],
+
+  # TODO(b/201757247):
+  'array-constructor-feedback': [FAIL],
+  'const-dict-tracking': [FAIL],
+  'compiler/deopt-pretenure': [FAIL],
+  'compiler/fast-api-sequences-x64': [FAIL],
+  'compiler/native-context-specialization-hole-check': [FAIL],
+  'compiler/test-literal-map-migration': [FAIL],
+  'regress/regress-4121': [FAIL],
+  'regress/regress-crbug-1052647': [FAIL],
+  'regress/regress-trap-allocation-memento': [FAIL],
+}], # variant == google3_nociu or variant == google3_icu
+
+# Specific failures for no_icu builds
+['variant == google3_noicu', {
+  'es6/unicode-regexp-ignore-case': [FAIL],
+  'es7/regexp-ui-word': [FAIL],
+  'harmony/regexp-named-captures': [FAIL],
+  'harmony/regexp-property-binary': [FAIL],
+  'harmony/regexp-property-char-class': [FAIL],
+  'harmony/regexp-property-enumerated': [FAIL],
+  'harmony/regexp-property-exact-match': [FAIL],
+  'harmony/regexp-property-general-category': [FAIL],
+  'harmony/regexp-property-lu-ui0': [FAIL],
+  'harmony/regexp-property-lu-ui1': [FAIL],
+  'harmony/regexp-property-lu-ui2': [FAIL],
+  'harmony/regexp-property-lu-ui3': [FAIL],
+  'harmony/regexp-property-lu-ui4': [FAIL],
+  'harmony/regexp-property-lu-ui5': [FAIL],
+  'harmony/regexp-property-lu-ui6': [FAIL],
+  'harmony/regexp-property-lu-ui7': [FAIL],
+  'harmony/regexp-property-lu-ui8': [FAIL],
+  'harmony/regexp-property-lu-ui9': [FAIL],
+  'harmony/regexp-property-lu-ui': [FAIL],
+  'harmony/regexp-property-script-extensions': [FAIL],
+  'harmony/regexp-property-scripts': [FAIL],
+  'harmony/regexp-property-special': [FAIL],
+  'icu-date-lord-howe': [FAIL],
+  'icu-date-to-string': [FAIL],
+  'regress/regress-5036': [FAIL],
+  'regress/regress-793588': [FAIL],
+  'tzoffset-transition-apia': [FAIL],
+  'tzoffset-transition-lord-howe': [FAIL],
+  'tzoffset-transition-moscow': [FAIL],
+}], # variant == google3_nociu
+
 ]
