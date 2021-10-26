@@ -2,9 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "greedy_batching_of_1", "in_branch_console", "multibranch_builder")
+load("//lib/lib.star","ci_pair_factory", "GOMA", "greedy_batching_of_1", "in_branch_console", "multibranch_builder")
 
 in_category = in_branch_console("ports")
+multibranch_builder_pair = ci_pair_factory(multibranch_builder)
 
 in_category(
     "Arm",
@@ -45,7 +46,7 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - arm - sim - lite",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -53,7 +54,7 @@ in_category(
         use_goma = GOMA.DEFAULT,
         close_tree = False,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - arm - sim - lite - debug",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
