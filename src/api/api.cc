@@ -5024,8 +5024,15 @@ MaybeLocal<v8::Context> v8::Object::GetCreationContext() {
   if (self->GetCreationContext().ToHandle(&context)) {
     return Utils::ToLocal(context);
   }
-
   return MaybeLocal<v8::Context>();
+}
+
+Local<v8::Context> v8::Object::GetCreationContextChecked() {
+  Local<Context> context;
+  Utils::ApiCheck(GetCreationContext().ToLocal(&context),
+                  "v8::Object::GetCreationContextChecked",
+                  "No creation context available");
+  return context;
 }
 
 int v8::Object::GetIdentityHash() {

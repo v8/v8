@@ -19265,16 +19265,22 @@ THREADED_TEST(CreationContext) {
     Local<Context> other_context = Context::New(isolate);
     Context::Scope scope(other_context);
     CHECK(object1->GetCreationContext().ToLocalChecked() == context1);
+    CHECK(object1->GetCreationContextChecked() == context1);
     CheckContextId(object1, 1);
     CHECK(func1->GetCreationContext().ToLocalChecked() == context1);
+    CHECK(func1->GetCreationContextChecked() == context1);
     CheckContextId(func1, 1);
     CHECK(instance1->GetCreationContext().ToLocalChecked() == context1);
+    CHECK(instance1->GetCreationContextChecked() == context1);
     CheckContextId(instance1, 1);
     CHECK(object2->GetCreationContext().ToLocalChecked() == context2);
+    CHECK(object2->GetCreationContextChecked() == context2);
     CheckContextId(object2, 2);
     CHECK(func2->GetCreationContext().ToLocalChecked() == context2);
+    CHECK(func2->GetCreationContextChecked() == context2);
     CheckContextId(func2, 2);
     CHECK(instance2->GetCreationContext().ToLocalChecked() == context2);
+    CHECK(instance2->GetCreationContextChecked() == context2);
     CheckContextId(instance2, 2);
   }
 
