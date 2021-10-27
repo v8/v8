@@ -499,6 +499,8 @@
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-multiple-different-realms': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-proto-from-caller-realm': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-proxied-observes-boundary': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-throws-typeerror-on-non-primitive-arguments': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-throws-typeerror-on-non-primitive-returns': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/nested-realms': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/descriptor': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/exportName-tostring': [FAIL],
