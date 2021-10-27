@@ -693,7 +693,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSCreateKeyValueArray:
-      CheckTypeIs(node, Type::Array());
+      CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSCreateObject:
       CheckTypeIs(node, Type::OtherObject());

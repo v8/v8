@@ -202,12 +202,9 @@ Macro* Declarations::DeclareMacro(
     base::Optional<std::string> external_assembler_name,
     const Signature& signature, base::Optional<Statement*> body,
     base::Optional<std::string> op, bool is_user_defined) {
-  if (Macro* existing_macro =
-          TryLookupMacro(name, signature.GetExplicitTypes())) {
-    if (existing_macro->ParentScope() == CurrentScope::Get()) {
-      ReportError("cannot redeclare macro ", name,
-                  " with identical explicit parameters");
-    }
+  if (TryLookupMacro(name, signature.GetExplicitTypes())) {
+    ReportError("cannot redeclare macro ", name,
+                " with identical explicit parameters");
   }
   Macro* macro;
   if (external_assembler_name) {

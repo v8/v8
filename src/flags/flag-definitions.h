@@ -549,9 +549,6 @@ DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
-// TODO(tebbi): Support allocating types from background thread.
-DEFINE_NEG_IMPLICATION(assert_types, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(assert_types, concurrent_inlining)
 
 DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.

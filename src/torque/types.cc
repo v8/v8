@@ -1137,8 +1137,8 @@ std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
     return *optional;
   }
   Error("fields of type ", *name_and_type.type, " are not (yet) supported")
-      .Position(pos)
-      .Throw();
+      .Position(pos);
+  return std::make_tuple(0, "#no size");
 }
 
 size_t Type::AlignmentLog2() const {

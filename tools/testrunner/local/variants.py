@@ -62,8 +62,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "slow_path": ["--no-force-slow-path"],
   "stress_concurrent_allocation": ["--single-threaded-gc", "--predictable"],
   "stress_concurrent_inlining": ["--single-threaded", "--predictable",
-                                 "--turboprop", "--lazy-feedback-allocation",
-                                 "--assert-types"],
+                                 "--turboprop", "--lazy-feedback-allocation"],
   "turboprop": ["--stress_concurrent_inlining"],
   # The fast API tests initialize an embedder object that never needs to be
   # serialized to the snapshot, so we don't have a
@@ -82,7 +81,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   # There is a negative implication: --perf-prof disables
   # --wasm-write-protect-code-memory.
   "wasm_write_protect_code": ["--perf-prof"],
-  "assert_types": ["--concurrent-recompilation", "--concurrent-inlining", "--stress_concurrent_inlining", "--no-assert-types"],
 }
 
 # Flags that lead to a contradiction under certain build variables.

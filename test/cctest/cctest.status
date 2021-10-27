@@ -1241,18 +1241,4 @@
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 }],
-
-##############################################################################
-['variant == assert_types', {
-  # Type assertions add strong pointers, breaking these test.
-  'test-heap/ObjectsInOptimizedCodeAreWeak': [SKIP],
-  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [SKIP],
-  'test-heap/NewSpaceObjectsInOptimizedCode': [SKIP],
-  'test-heap/LeakNativeContextViaMapKeyed': [SKIP],
-  'test-heap/CellsInOptimizedCodeAreWeak': [SKIP],
-  # Type assertions only work without concurrent compilation, but this test
-  # always triggers a concurrent compilation.
-  'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
-}],  # variant == assert_types
-
 ]

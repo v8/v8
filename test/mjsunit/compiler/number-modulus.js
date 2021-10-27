@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt --no-assert-types
+// Flags: --allow-natives-syntax --opt --noalways-opt
 
 
 // Test that NumberModulus passes kIdentifiesZero to the

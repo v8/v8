@@ -10,7 +10,6 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/turbofan-types.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -1142,40 +1141,6 @@ std::ostream& operator<<(std::ostream& os, Type type) {
   type.PrintTo(os);
   return os;
 }
-
-Handle<TurbofanType> Type::AllocateOnHeap(Factory* factory) {
-  DCHECK(CanBeAsserted());
-  if (IsBitset()) {
-    return factory->NewTurbofanBitsetType(AsBitset(), AllocationType::kYoung);
-  } else if (IsUnion()) {
-    const UnionType* union_type = AsUnion();
-    Handle<TurbofanType> result = union_type->Get(0).AllocateOnHeap(factory);
-    for (int i = 1; i < union_type->Length(); ++i) {
-      result = factory->NewTurbofanUnionType(
-          result, union_type->Get(i).AllocateOnHeap(factory),
-          AllocationType::kYoung);
-    }
-    return result;
-  } else if (IsHeapConstant()) {
-    return factory->NewTurbofanHeapConstantType(AsHeapConstant()->Value(),
-                                                AllocationType::kYoung);
-  } else if (IsOtherNumberConstant()) {
-    return factory->NewTurbofanOtherNumberConstantType(
-        AsOtherNumberConstant()->Value(), AllocationType::kYoung);
-  } else if (IsRange()) {
-    return factory->NewTurbofanRangeType(AsRange()->Min(), AsRange()->Max(),
-                                         AllocationType::kYoung);
-  } else {
-    // Other types are not supported for type assertions.
-    UNREACHABLE();
-  }
-}
-
-#define VERIFY_TORQUE_BITSET_AGREEMENT(Name, _) \
-  STATIC_ASSERT(BitsetType::k##Name == TurbofanTypeBits::k##Name);
-INTERNAL_BITSET_TYPE_LIST(VERIFY_TORQUE_BITSET_AGREEMENT)
-PROPER_ATOMIC_BITSET_TYPE_LIST(VERIFY_TORQUE_BITSET_AGREEMENT)
-#undef VERIFY_TORQUE_BITSET_AGREEMENT
 
 }  // namespace compiler
 }  // namespace internal

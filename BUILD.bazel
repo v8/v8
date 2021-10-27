@@ -836,7 +836,6 @@ filegroup(
         "src/objects/template-objects.tq",
         "src/objects/templates.tq",
         "src/objects/torque-defined-classes.tq",
-        "src/objects/turbofan-types.tq",
         "test/torque/test-torque.tq",
         "third_party/v8/builtins/array-sort.tq",
     ] + select({
@@ -1708,8 +1707,6 @@ filegroup(
         "src/objects/transitions-inl.h",
         "src/objects/transitions.cc",
         "src/objects/transitions.h",
-        "src/objects/turbofan-types-inl.h",
-        "src/objects/turbofan-types.h",
         "src/objects/type-hints.cc",
         "src/objects/type-hints.h",
         "src/objects/value-serializer.cc",
