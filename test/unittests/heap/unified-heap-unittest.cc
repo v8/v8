@@ -60,11 +60,9 @@ TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
 TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
   v8::HandleScope scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
   uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
   v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
-      context, &wrappable_type,
+      context(), &wrappable_type,
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle()));
   Wrappable::destructor_callcount = 0;
   EXPECT_FALSE(api_object.IsEmpty());
@@ -78,12 +76,11 @@ TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
 
 TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
   if (!FLAG_incremental_marking) return;
+
   v8::HandleScope scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
   void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
   v8::Local<v8::Object> api_object =
-      WrapperHelper::CreateWrapper(context, nullptr, nullptr);
+      WrapperHelper::CreateWrapper(context(), nullptr, nullptr);
   Wrappable::destructor_callcount = 0;
   WrapperHelper::ResetWrappableConnection(api_object);
   SimulateIncrementalMarking();
@@ -105,9 +102,8 @@ TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
 
 TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
   if (!FLAG_incremental_marking) return;
+
   v8::HandleScope scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
   cppgc::Persistent<Wrappable> wrappable =
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
   Wrappable::destructor_callcount = 0;
@@ -119,7 +115,7 @@ TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
     // setter for C++ to JS references.
     v8::HandleScope nested_scope(v8_isolate());
     v8::Local<v8::Object> api_object =
-        WrapperHelper::CreateWrapper(context, nullptr, nullptr);
+        WrapperHelper::CreateWrapper(context(), nullptr, nullptr);
     // Setting only one field to avoid treating this as wrappable backref, see
     // `LocalEmbedderHeapTracer::ExtractWrapperInfo`.
     api_object->SetAlignedPointerInInternalField(1, kMagicAddress);
@@ -148,8 +144,6 @@ class Unreferenced : public cppgc::GarbageCollected<Unreferenced> {
 
 TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
   v8::HandleScope handle_scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
   auto* unreferenced = cppgc::MakeGarbageCollected<Unreferenced>(
       allocation_handle(),
       cppgc::AdditionalBytes(cppgc::internal::api_constants::kMB));
@@ -178,8 +172,6 @@ TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
 #if !V8_OS_FUCHSIA
 TEST_F(UnifiedHeapTest, TracedReferenceRetainsFromStack) {
   v8::HandleScope handle_scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
   TracedReference<v8::Object> holder;
   {
     v8::HandleScope inner_handle_scope(v8_isolate());
