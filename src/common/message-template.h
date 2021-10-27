@@ -445,7 +445,7 @@ namespace internal {
   T(InvalidPrivateBrand, "Object must be an instance of class %")              \
   T(InvalidPrivateBrandReinitialization,                                       \
     "Cannot initialize private methods of class % twice on the same object")   \
-  T(InvalidPrivateFieldReitialization,                                         \
+  T(InvalidPrivateFieldReinitialization,                                       \
     "Cannot initialize % twice on the same object")                            \
   T(InvalidPrivateFieldResolution,                                             \
     "Private field '%' must be declared in an enclosing class")                \

@@ -926,10 +926,11 @@ void BaselineCompiler::VisitStaNamedProperty() {
 }
 
 void BaselineCompiler::VisitStaNamedOwnProperty() {
-  // TODO(v8:11429,ishell): Currently we use StoreOwnIC only for storing
-  // properties that already exist in the boilerplate therefore we can use
-  // StoreIC.
-  VisitStaNamedProperty();
+  CallBuiltin<Builtin::kStoreOwnICBaseline>(
+      RegisterOperand(0),               // object
+      Constant<Name>(1),                // name
+      kInterpreterAccumulatorRegister,  // value
+      IndexAsTagged(2));                // slot
 }
 
 void BaselineCompiler::VisitStaKeyedProperty() {
