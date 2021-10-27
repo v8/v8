@@ -34,7 +34,7 @@ class StackMemory {
   // Returns a non-owning view of the current stack.
   static StackMemory* GetCurrentStackView(Isolate* isolate) {
     byte* limit =
-        *reinterpret_cast<byte**>(isolate->stack_guard()->address_of_jslimit());
+        reinterpret_cast<byte*>(isolate->stack_guard()->real_jslimit());
     return new StackMemory(limit);
   }
 
