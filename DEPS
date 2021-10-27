@@ -531,13 +531,13 @@ hooks = [
     'pattern': '.',
     # clang not supported on aix
     'condition': 'host_os != "aix"',
-    'action': ['python', 'tools/clang/scripts/update.py'],
+    'action': ['python3', 'tools/clang/scripts/update.py'],
   },
   {
     'name': 'clang_tidy',
     'pattern': '.',
     'condition': 'checkout_clang_tidy',
-    'action': ['python', 'tools/clang/scripts/update.py',
+    'action': ['python3', 'tools/clang/scripts/update.py',
                '--package=clang-tidy'],
   },
   {
@@ -567,11 +567,11 @@ hooks = [
     ],
   },
   {
-      # Mac does not have llvm-objdump, download it for cross builds in Fuchsia.
+    # Mac does not have llvm-objdump, download it for cross builds in Fuchsia.
     'name': 'llvm-objdump',
     'pattern': '.',
     'condition': 'host_os == "mac" and checkout_fuchsia',
-    'action': ['python', 'tools/clang/scripts/update.py',
+    'action': ['python3', 'tools/clang/scripts/update.py',
                '--package=objdump'],
   },
   # Download and initialize "vpython" VirtualEnv environment packages.
