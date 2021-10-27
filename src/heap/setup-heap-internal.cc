@@ -506,6 +506,8 @@ bool Heap::CreateInitialMaps() {
             WasmCapiFunctionData::kSize, wasm_capi_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_EXPORTED_FUNCTION_DATA_TYPE,
             WasmExportedFunctionData::kSize, wasm_exported_function_data)
+    IF_WASM(ALLOCATE_MAP, WASM_API_FUNCTION_REF_TYPE, WasmApiFunctionRef::kSize,
+            wasm_api_function_ref)
     IF_WASM(ALLOCATE_MAP, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData::kSize,
             wasm_js_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize,

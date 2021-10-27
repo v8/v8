@@ -234,6 +234,7 @@ class ZoneForwardList;
   IF_WASM(V, WasmGlobalObject)                 \
   IF_WASM(V, WasmInstanceObject)               \
   IF_WASM(V, WasmJSFunctionData)               \
+  IF_WASM(V, WasmApiFunctionRef)               \
   IF_WASM(V, WasmMemoryObject)                 \
   IF_WASM(V, WasmModuleObject)                 \
   IF_WASM(V, WasmObject)                       \

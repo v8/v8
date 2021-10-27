@@ -1929,6 +1929,14 @@ void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
+  PrintHeader(os, "WasmApiFunctionRef");
+  os << "\n - isolate_root: " << reinterpret_cast<void*>(foreign_address());
+  os << "\n - native_context: " << Brief(native_context());
+  os << "\n - callable: " << Brief(callable());
+  os << "\n";
+}
+
 void WasmCapiFunctionData::WasmCapiFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmCapiFunctionData");
   WasmFunctionDataPrint(os);

@@ -733,6 +733,17 @@ class WasmExportedFunctionData
   TQ_OBJECT_CONSTRUCTORS(WasmExportedFunctionData)
 };
 
+class WasmApiFunctionRef
+    : public TorqueGeneratedWasmApiFunctionRef<WasmApiFunctionRef, Foreign> {
+ public:
+  // Dispatched behavior.
+  DECL_PRINTER(WasmApiFunctionRef)
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(WasmApiFunctionRef)
+};
+
 // Information for a WasmJSFunction which is referenced as the function data of
 // the SharedFunctionInfo underlying the function. For details please see the
 // {SharedFunctionInfo::HasWasmJSFunctionData} predicate.
