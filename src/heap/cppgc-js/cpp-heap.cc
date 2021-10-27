@@ -460,6 +460,7 @@ bool CppHeap::AdvanceTracing(double deadline_in_ms) {
       in_atomic_pause_ ? v8::base::TimeDelta::Max()
                        : v8::base::TimeDelta::FromMillisecondsD(deadline_in_ms);
   const size_t marked_bytes_limit = in_atomic_pause_ ? SIZE_MAX : 0;
+  DCHECK_NOT_NULL(marker_);
   // TODO(chromium:1056170): Replace when unified heap transitions to
   // bytes-based deadline.
   marking_done_ =
