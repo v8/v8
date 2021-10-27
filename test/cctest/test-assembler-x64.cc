@@ -2644,6 +2644,8 @@ TEST(AssemblerX64FloatingPoint256bit) {
   Assembler masm(AssemblerOptions{}, buffer->CreateView());
   CpuFeatureScope fscope(&masm, AVX);
 
+  __ vandpd(ymm1, ymm3, ymm5);
+  __ vminpd(ymm2, ymm3, Operand(r8, r9, times_4, 10000));
   __ vsqrtps(ymm0, ymm1);
   __ vunpcklps(ymm2, ymm3, ymm14);
   __ vsubps(ymm10, ymm11, ymm12);
@@ -2661,7 +2663,11 @@ TEST(AssemblerX64FloatingPoint256bit) {
   code->Print(os);
 #endif
 
-  byte expected[] = {// VSQRTPS
+  byte expected[] = {// vandpd ymm1, ymm3, ymm5
+                     0xC5, 0xE5, 0x54, 0xCD,
+                     // vminpd ymm2, ymm3, YMMWORD PTR [r8+r9*4+0x2710]
+                     0xC4, 0x81, 0x65, 0x5D, 0x94, 0x88, 0x10, 0x27, 0x00, 0x00,
+                     // VSQRTPS
                      0xC5, 0xFC, 0x51, 0xC1,
                      // VUNPCKLPS
                      0xC4, 0xC1, 0x64, 0x14, 0xD6,
@@ -2675,6 +2681,54 @@ TEST(AssemblerX64FloatingPoint256bit) {
                      0xC5, 0xEF, 0x7C, 0xCB,
                      // VHADDPS ymm0, ymm1, YMMWORD PTR [rbx+rcx*4+0x2710]
                      0xc5, 0xf7, 0x7c, 0x84, 0x8b, 0x10, 0x27, 0x00, 0x00};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
+TEST(AssemblerX64Integer256bit) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = CcTest::i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX2);
+
+  // SSE2_AVX_INSTRUCTION
+  __ vpunpcklbw(ymm9, ymm2, ymm0);
+  __ vpacksswb(ymm8, ymm3, ymm1);
+  __ vpcmpgtw(ymm2, ymm7, ymm9);
+  __ vpand(ymm2, ymm3, ymm4);
+  __ vpmaxsw(ymm10, ymm11, Operand(rbx, rcx, times_4, 10000));
+  __ vpaddb(ymm1, ymm2, ymm3);
+  __ vpsraw(ymm7, ymm1, xmm4);
+  __ vpsllq(ymm3, ymm2, xmm1);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+
+  byte expected[] = {// SSE2_AVX_INSTRUCTION
+                     // vpunpcklbw ymm9, ymm2, ymm0
+                     0xC5, 0x6D, 0x60, 0xC8,
+                     // vpacksswb ymm8, ymm3, ymm1
+                     0xC5, 0x65, 0x63, 0xC1,
+                     // vpcmpgtw ymm2, ymm7, ymm9
+                     0xC4, 0xC1, 0x45, 0x65, 0xD1,
+                     // vpand ymm2, ymm3, ymm4
+                     0xC5, 0xE5, 0xDB, 0xD4,
+                     // vpmaxsw ymm10, ymm11, YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xC5, 0x25, 0xEE, 0x94, 0x8B, 0x10, 0x27, 0x00, 0x00,
+                     // vpaddb ymm1, ymm2, ymm3
+                     0xC5, 0xED, 0xFC, 0xCB,
+                     // vpsraw ymm7, ymm1, xmm4
+                     0xC5, 0xF5, 0xE1, 0xFC,
+                     // vpsllq ymm3, ymm2, xmm1
+                     0xC5, 0xED, 0xF3, 0xD9};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
