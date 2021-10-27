@@ -308,10 +308,12 @@ bool V8VirtualMemoryCage::Initialize(v8::PageAllocator* page_allocator,
     // PA anyway uses MAP_JIT for V8 mappings. Further, we want to eventually
     // move JIT pages out of the cage, at which point we'd like to forbid
     // making pages inside the cage executable, and so don't want MAP_JIT.
-    void* hint = page_allocator->GetRandomMmapAddr();
+    Address hint = RoundDown(
+        reinterpret_cast<Address>(page_allocator->GetRandomMmapAddr()),
+        kVirtualMemoryCageAlignment);
     reservation_base_ = reinterpret_cast<Address>(page_allocator->AllocatePages(
-        hint, reservation_size, kVirtualMemoryCageAlignment,
-        PageAllocator::kNoAccess));
+        reinterpret_cast<void*>(hint), reservation_size,
+        kVirtualMemoryCageAlignment, PageAllocator::kNoAccess));
     if (!reservation_base_) {
       size /= 2;
     }
