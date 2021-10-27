@@ -1993,8 +1993,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   DCHECK(
       CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
       (export_wrapper->is_builtin() &&
-           export_wrapper->builtin_id() == Builtin::kGenericJSToWasmWrapper ||
-       export_wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend));
+       (export_wrapper->builtin_id() == Builtin::kGenericJSToWasmWrapper ||
+        export_wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
   int num_imported_functions = instance->module()->num_imported_functions;
   Handle<Object> ref =
       func_index >= num_imported_functions
