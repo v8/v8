@@ -333,7 +333,7 @@ namespace internal {
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
   F(SetDataProperties, 2, 1)                                    \
   F(SetKeyedProperty, 3, 1)                                     \
-  F(DefineClassField, 3, 1)                                     \
+  F(DefineObjectOwnProperty, 3, 1)                              \
   F(SetNamedProperty, 3, 1)                                     \
   F(SetOwnPropertyIgnoreAttributes, 4, 1)                       \
   F(StoreDataPropertyInLiteral, 3, 1)                           \
@@ -794,15 +794,22 @@ class Runtime : public AllStatic {
   DeleteObjectProperty(Isolate* isolate, Handle<JSReceiver> receiver,
                        Handle<Object> key, LanguageMode language_mode);
 
+  // Perform a property store on object. If the key is a private name (i.e. this
+  // is a private field assignment), this method throws if the private field
+  // does not exist on object.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   SetObjectProperty(Isolate* isolate, Handle<Object> object, Handle<Object> key,
                     Handle<Object> value, StoreOrigin store_origin,
                     Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
+  // Defines a property on object. If the key is a private name (i.e. this is a
+  // private field definition), this method throws if the field already exists
+  // on object.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  DefineClassField(Isolate* isolate, Handle<Object> object, Handle<Object> key,
-                   Handle<Object> value, StoreOrigin store_origin,
-                   Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
+  DefineObjectOwnProperty(
+      Isolate* isolate, Handle<Object> object, Handle<Object> key,
+      Handle<Object> value, StoreOrigin store_origin,
+      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
   // When "receiver" is not passed, it defaults to "lookup_start_object".
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>

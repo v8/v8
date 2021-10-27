@@ -552,12 +552,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
   return value;
 }
 
-MaybeHandle<Object> Runtime::DefineClassField(Isolate* isolate,
-                                              Handle<Object> object,
-                                              Handle<Object> key,
-                                              Handle<Object> value,
-                                              StoreOrigin store_origin,
-                                              Maybe<ShouldThrow> should_throw) {
+MaybeHandle<Object> Runtime::DefineObjectOwnProperty(
+    Isolate* isolate, Handle<Object> object, Handle<Object> key,
+    Handle<Object> value, StoreOrigin store_origin,
+    Maybe<ShouldThrow> should_throw) {
   if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR(
         isolate,
@@ -857,7 +855,7 @@ RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
                                           StoreOrigin::kMaybeKeyed));
 }
 
-RUNTIME_FUNCTION(Runtime_DefineClassField) {
+RUNTIME_FUNCTION(Runtime_DefineObjectOwnProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
@@ -866,8 +864,8 @@ RUNTIME_FUNCTION(Runtime_DefineClassField) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, Runtime::DefineClassField(isolate, object, key, value,
-                                         StoreOrigin::kMaybeKeyed));
+      isolate, Runtime::DefineObjectOwnProperty(isolate, object, key, value,
+                                                StoreOrigin::kMaybeKeyed));
 }
 
 RUNTIME_FUNCTION(Runtime_SetNamedProperty) {

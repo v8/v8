@@ -2351,8 +2351,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
         IsDefineOwnIC()
-            ? Runtime::DefineClassField(isolate(), object, key, value,
-                                        StoreOrigin::kMaybeKeyed)
+            ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
+                                               StoreOrigin::kMaybeKeyed)
             : Runtime::SetObjectProperty(isolate(), object, key, value,
                                          StoreOrigin::kMaybeKeyed),
         Object);
@@ -2419,8 +2419,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), store_handle,
       IsDefineOwnIC()
-          ? Runtime::DefineClassField(isolate(), object, key, value,
-                                      StoreOrigin::kMaybeKeyed)
+          ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
+                                             StoreOrigin::kMaybeKeyed)
           : Runtime::SetObjectProperty(isolate(), object, key, value,
                                        StoreOrigin::kMaybeKeyed),
       Object);
