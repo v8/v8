@@ -38,6 +38,9 @@ namespace internal {
     "await is only valid in async functions and the top level bodies of "      \
     "modules")                                                                 \
   T(AwaitNotInAsyncFunction, "await is only valid in async function")          \
+  T(AwaitNotInDebugEvaluate,                                                   \
+    "await can not be used when evaluating code "                              \
+    "while paused in the debugger")                                            \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
   T(BadSortComparisonFunction,                                                 \
     "The comparison function must be either a function or undefined")          \

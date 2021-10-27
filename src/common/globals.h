@@ -921,6 +921,12 @@ inline REPLMode construct_repl_mode(bool is_repl_mode) {
   return is_repl_mode ? REPLMode::kYes : REPLMode::kNo;
 }
 
+// Indicates whether a script is parsed during debugging.
+enum class ParsingWhileDebugging {
+  kYes,
+  kNo,
+};
+
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, INSPECTOR_CODE };
 

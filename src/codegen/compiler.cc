@@ -2156,7 +2156,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> context, LanguageMode language_mode,
     ParseRestriction restriction, int parameters_end_pos,
-    int eval_scope_position, int eval_position) {
+    int eval_scope_position, int eval_position,
+    ParsingWhileDebugging parsing_while_debugging) {
   Isolate* isolate = context->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
@@ -2199,6 +2200,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
         isolate, true, language_mode, REPLMode::kNo, ScriptType::kClassic,
         FLAG_lazy_eval);
     flags.set_is_eval(true);
+    flags.set_parsing_while_debugging(parsing_while_debugging);
     DCHECK(!flags.is_module());
     flags.set_parse_restriction(restriction);
 

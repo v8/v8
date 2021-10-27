@@ -26,7 +26,8 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
     : flags_(0),
       script_id_(script_id),
       function_kind_(FunctionKind::kNormalFunction),
-      function_syntax_kind_(FunctionSyntaxKind::kDeclaration) {
+      function_syntax_kind_(FunctionSyntaxKind::kDeclaration),
+      parsing_while_debugging_(ParsingWhileDebugging::kNo) {
   set_collect_type_profile(isolate->is_collecting_type_profile());
   set_coverage_enabled(!isolate->is_best_effort_code_coverage());
   set_block_coverage_enabled(isolate->is_block_code_coverage());

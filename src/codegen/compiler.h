@@ -131,7 +131,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
       Handle<Context> context, LanguageMode language_mode,
       ParseRestriction restriction, int parameters_end_pos,
-      int eval_scope_position, int eval_position);
+      int eval_scope_position, int eval_position,
+      ParsingWhileDebugging parsing_while_debugging =
+          ParsingWhileDebugging::kNo);
 
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.
