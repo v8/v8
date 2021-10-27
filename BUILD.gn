@@ -1784,6 +1784,7 @@ torque_files = [
   "src/objects/template-objects.tq",
   "src/objects/templates.tq",
   "src/objects/torque-defined-classes.tq",
+  "src/objects/turbofan-types.tq",
   "test/torque/test-torque.tq",
   "third_party/v8/builtins/array-sort.tq",
 ]
@@ -3253,6 +3254,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/torque-defined-classes.h",
     "src/objects/transitions-inl.h",
     "src/objects/transitions.h",
+    "src/objects/turbofan-types-inl.h",
+    "src/objects/turbofan-types.h",
     "src/objects/type-hints.h",
     "src/objects/value-serializer.h",
     "src/objects/visitors-inl.h",

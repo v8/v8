@@ -4205,13 +4205,16 @@ void CppClassGenerator::GenerateClass() {
 }
 
 void CppClassGenerator::GenerateClassCasts() {
-  cpp::Function f("cast");
+  cpp::Class owner({cpp::TemplateParameter("D"), cpp::TemplateParameter("P")},
+                   gen_name_);
+  cpp::Function f(&owner, "cast");
   f.SetFlags(cpp::Function::kV8Inline | cpp::Function::kStatic);
   f.SetReturnType("D");
   f.AddParameter("Object", "object");
 
   // V8_INLINE static D cast(Object)
-  f.PrintInlineDefinition(hdr_, [](std::ostream& stream) {
+  f.PrintDeclaration(hdr_);
+  f.PrintDefinition(inl_, [](std::ostream& stream) {
     stream << "    return D(object.ptr());\n";
   });
   // V8_INLINE static D unchecked_cast(Object)
@@ -4731,9 +4734,10 @@ void ImplementationVisitor::GenerateClassDefinitions(
         factory_impl << "  HeapObject result =\n";
         factory_impl << "    factory()->AllocateRawWithImmortalMap(size, "
                         "allocation_type, map);\n";
-        factory_impl << "    WriteBarrierMode write_barrier_mode =\n"
-                     << "       allocation_type == AllocationType::kYoung\n"
-                     << "       ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;\n";
+        factory_impl << "  WriteBarrierMode write_barrier_mode =\n"
+                     << "     allocation_type == AllocationType::kYoung\n"
+                     << "     ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;\n"
+                     << "  USE(write_barrier_mode);\n";
         factory_impl << "  " << type->HandlifiedCppTypeName()
                      << " result_handle(" << type->name()
                      << "::cast(result), factory()->isolate());\n";
@@ -5280,32 +5284,9 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     h_contents << "#include \"src/compiler/code-assembler.h\"\n";
     h_contents << "#include \"src/execution/frames.h\"\n";
     h_contents << "#include \"torque-generated/csa-types.h\"\n";
-    cc_contents << "#include \"src/objects/fixed-array-inl.h\"\n";
-    cc_contents << "#include \"src/objects/free-space.h\"\n";
-    cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
-    cc_contents << "#include \"src/objects/js-temporal-objects.h\"\n";
-    cc_contents << "#include \"src/objects/js-weak-refs.h\"\n";
-    cc_contents << "#include \"src/objects/ordered-hash-table.h\"\n";
-    cc_contents << "#include \"src/objects/property-descriptor-object.h\"\n";
-    cc_contents << "#include \"src/objects/stack-frame-info.h\"\n";
-    cc_contents << "#include \"src/objects/swiss-name-dictionary.h\"\n";
-    cc_contents << "#include \"src/objects/synthetic-module.h\"\n";
-    cc_contents << "#include \"src/objects/template-objects.h\"\n";
-    cc_contents << "#include \"src/objects/torque-defined-classes.h\"\n";
-    {
-      IfDefScope intl_scope(cc_contents, "V8_INTL_SUPPORT");
-      cc_contents << "#include \"src/objects/js-break-iterator.h\"\n";
-      cc_contents << "#include \"src/objects/js-collator.h\"\n";
-      cc_contents << "#include \"src/objects/js-date-time-format.h\"\n";
-      cc_contents << "#include \"src/objects/js-display-names.h\"\n";
-      cc_contents << "#include \"src/objects/js-list-format.h\"\n";
-      cc_contents << "#include \"src/objects/js-locale.h\"\n";
-      cc_contents << "#include \"src/objects/js-number-format.h\"\n";
-      cc_contents << "#include \"src/objects/js-plural-rules.h\"\n";
-      cc_contents << "#include \"src/objects/js-relative-time-format.h\"\n";
-      cc_contents << "#include \"src/objects/js-segment-iterator.h\"\n";
-      cc_contents << "#include \"src/objects/js-segmenter.h\"\n";
-      cc_contents << "#include \"src/objects/js-segments.h\"\n";
+
+    for (const std::string& include_path : GlobalContext::CppIncludes()) {
+      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
     }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
 

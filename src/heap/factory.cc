@@ -3135,10 +3135,15 @@ Handle<String> Factory::HeapNumberToString(Handle<HeapNumber> number,
     if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
   }
 
-  char arr[kNumberToStringBufferSize];
-  base::Vector<char> buffer(arr, arraysize(arr));
-  const char* string = DoubleToCString(value, buffer);
-  Handle<String> result = CharToString(this, string, mode);
+  Handle<String> result;
+  if (value == 0) {
+    result = zero_string();
+  } else {
+    char arr[kNumberToStringBufferSize];
+    base::Vector<char> buffer(arr, arraysize(arr));
+    const char* string = DoubleToCString(value, buffer);
+    result = CharToString(this, string, mode);
+  }
   if (mode != NumberCacheMode::kIgnore) {
     NumberToStringCacheSet(number, hash, result);
   }
@@ -3152,10 +3157,15 @@ inline Handle<String> Factory::SmiToString(Smi number, NumberCacheMode mode) {
     if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
   }
 
-  char arr[kNumberToStringBufferSize];
-  base::Vector<char> buffer(arr, arraysize(arr));
-  const char* string = IntToCString(number.value(), buffer);
-  Handle<String> result = CharToString(this, string, mode);
+  Handle<String> result;
+  if (number == Smi::zero()) {
+    result = zero_string();
+  } else {
+    char arr[kNumberToStringBufferSize];
+    base::Vector<char> buffer(arr, arraysize(arr));
+    const char* string = IntToCString(number.value(), buffer);
+    result = CharToString(this, string, mode);
+  }
   if (mode != NumberCacheMode::kIgnore) {
     NumberToStringCacheSet(handle(number, isolate()), hash, result);
   }

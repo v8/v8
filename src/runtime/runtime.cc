@@ -222,8 +222,10 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kGetOptimizationStatus:
     case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
-    case Runtime::kVerifyType:
       return !FLAG_allow_natives_for_differential_fuzzing;
+    case Runtime::kVerifyType:
+      return !FLAG_allow_natives_for_differential_fuzzing &&
+             !FLAG_concurrent_recompilation;
     case Runtime::kBaselineOsr:
     case Runtime::kCompileBaseline:
       return ENABLE_SPARKPLUG;
