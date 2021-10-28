@@ -3435,6 +3435,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
       break;
     }
+    case kIA32Pblendvb: {
+      __ Pblendvb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.InputSimd128Register(2));
+      break;
+    }
     case kIA32Word32AtomicPairLoad: {
       __ movq(kScratchDoubleReg, i.MemoryOperand());
       __ Pextrd(i.OutputRegister(0), kScratchDoubleReg, 0);

@@ -89,6 +89,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kFloat32Neg:
     case kIA32BitcastFI:
     case kIA32BitcastIF:
+    case kIA32Pblendvb:
     case kIA32F64x2Splat:
     case kF64x2ExtractLane:
     case kF64x2ReplaceLane:

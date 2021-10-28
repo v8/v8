@@ -2790,18 +2790,6 @@ void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
 #if !V8_TARGET_ARCH_X64
-void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
-  UNIMPLEMENTED();
-}
 void InstructionSelector::VisitF32x4RelaxedMin(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4RelaxedMax(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2RelaxedMin(Node* node) { UNIMPLEMENTED(); }
@@ -2819,6 +2807,21 @@ void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_X64
+
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

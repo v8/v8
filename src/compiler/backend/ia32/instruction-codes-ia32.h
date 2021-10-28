@@ -102,6 +102,7 @@ namespace compiler {
   V(IA32BitcastFI)                 \
   V(IA32BitcastIF)                 \
   V(IA32Lea)                       \
+  V(IA32Pblendvb)                  \
   V(IA32Push)                      \
   V(IA32Poke)                      \
   V(IA32Peek)                      \

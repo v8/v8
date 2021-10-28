@@ -3189,6 +3189,40 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
   VisitRR(this, node, code);
 }
 
+namespace {
+// pblendvb is a correct implementation for all the various relaxed lane select,
+// see https://github.com/WebAssembly/relaxed-simd/issues/17.
+void VisitRelaxedLaneSelect(InstructionSelector* selector, Node* node) {
+  IA32OperandGenerator g(selector);
+  // pblendvb copies src2 when mask is set, opposite from Wasm semantics.
+  if (selector->IsSupported(AVX)) {
+    selector->Emit(kIA32Pblendvb, g.DefineAsRegister(node),
+                   g.UseRegister(node->InputAt(1)),
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(2)));
+  } else {
+    // SSE4.1 pblendvb requires xmm0 to hold the mask as an implicit operand.
+    selector->Emit(kIA32Pblendvb, g.DefineSameAsFirst(node),
+                   g.UseRegister(node->InputAt(1)),
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseFixed(node->InputAt(2), xmm0));
+  }
+}
+}  // namespace
+
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  VisitRelaxedLaneSelect(this, node);
+}
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  VisitRelaxedLaneSelect(this, node);
+}
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  VisitRelaxedLaneSelect(this, node);
+}
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  VisitRelaxedLaneSelect(this, node);
+}
+
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
                                                         int first_input_index,
                                                         Node* node) {
