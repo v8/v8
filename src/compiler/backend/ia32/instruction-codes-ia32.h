@@ -120,8 +120,8 @@ namespace compiler {
   V(IA32F64x2Ne)                   \
   V(IA32F64x2Lt)                   \
   V(IA32F64x2Le)                   \
-  V(IA32F64x2Pmin)                 \
-  V(IA32F64x2Pmax)                 \
+  V(IA32Minpd)                     \
+  V(IA32Maxpd)                     \
   V(IA32F64x2Round)                \
   V(IA32F64x2ConvertLowI32x4S)     \
   V(IA32F64x2ConvertLowI32x4U)     \
@@ -167,8 +167,8 @@ namespace compiler {
   V(IA32F32x4Ne)                   \
   V(IA32F32x4Lt)                   \
   V(IA32F32x4Le)                   \
-  V(IA32F32x4Pmin)                 \
-  V(IA32F32x4Pmax)                 \
+  V(IA32Minps)                     \
+  V(IA32Maxps)                     \
   V(IA32F32x4Round)                \
   V(IA32F32x4DemoteF64x2Zero)      \
   V(IA32I32x4Splat)                \

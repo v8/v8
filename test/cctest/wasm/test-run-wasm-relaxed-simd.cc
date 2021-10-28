@@ -313,6 +313,22 @@ WASM_RELAXED_SIMD_TEST(I64x2RelaxedLaneSelect) {
   RelaxedLaneSelectTest<uint64_t, kElems>(execution_tier, v1, v2, s, expected,
                                           kExprI64x2RelaxedLaneSelect);
 }
+
+WASM_RELAXED_SIMD_TEST(F32x4RelaxedMin) {
+  RunF32x4BinOpTest(execution_tier, kExprF32x4RelaxedMin, Minimum);
+}
+
+WASM_RELAXED_SIMD_TEST(F32x4RelaxedMax) {
+  RunF32x4BinOpTest(execution_tier, kExprF32x4RelaxedMax, Maximum);
+}
+
+WASM_RELAXED_SIMD_TEST(F64x2RelaxedMin) {
+  RunF64x2BinOpTest(execution_tier, kExprF64x2RelaxedMin, Minimum);
+}
+
+WASM_RELAXED_SIMD_TEST(F64x2RelaxedMax) {
+  RunF64x2BinOpTest(execution_tier, kExprF64x2RelaxedMax, Maximum);
+}
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 
 #if V8_TARGET_ARCH_X64
@@ -336,22 +352,6 @@ WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
   for (int i = 0; i < kElems; i++) {
     CHECK_EQ(LANE(dst, i), i);
   }
-}
-
-WASM_RELAXED_SIMD_TEST(F32x4RelaxedMin) {
-  RunF32x4BinOpTest(execution_tier, kExprF32x4RelaxedMin, Minimum);
-}
-
-WASM_RELAXED_SIMD_TEST(F32x4RelaxedMax) {
-  RunF32x4BinOpTest(execution_tier, kExprF32x4RelaxedMax, Maximum);
-}
-
-WASM_RELAXED_SIMD_TEST(F64x2RelaxedMin) {
-  RunF64x2BinOpTest(execution_tier, kExprF64x2RelaxedMin, Minimum);
-}
-
-WASM_RELAXED_SIMD_TEST(F64x2RelaxedMax) {
-  RunF64x2BinOpTest(execution_tier, kExprF64x2RelaxedMax, Maximum);
 }
 
 namespace {
