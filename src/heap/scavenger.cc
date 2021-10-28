@@ -4,6 +4,7 @@
 
 #include "src/heap/scavenger.h"
 
+#include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/barrier.h"
 #include "src/heap/gc-tracer.h"

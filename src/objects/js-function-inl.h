@@ -10,7 +10,6 @@
 // Include other inline headers *after* including js-function.h, such that e.g.
 // the definition of JSFunction is available (and this comment prevents
 // clang-format from merging that include into the following ones).
-#include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
