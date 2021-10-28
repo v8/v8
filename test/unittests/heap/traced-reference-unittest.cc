@@ -216,7 +216,9 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnConstruction) {
     SimulateIncrementalMarking();
     MarkCompactCollector::MarkingState state;
     ASSERT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
-    std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
+    auto ref =
+        std::make_unique<v8::TracedReference<v8::Object>>(v8_isolate(), local);
+    USE(ref);
     EXPECT_TRUE(state.IsWhite(HeapObject::cast(*Utils::OpenHandle(*local))));
   }
 }
