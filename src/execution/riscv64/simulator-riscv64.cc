@@ -59,6 +59,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
+#include "src/utils/utils.h"
 
 // The following code about RVV was based from:
 //   https://github.com/riscv/riscv-isa-sim
@@ -470,31 +471,31 @@
   }                         \
   set_rvv_vstart(0);
 
-#define RVV_VI_VFP_VF_LOOP(BODY16, BODY32, BODY64)                   \
-  RVV_VI_VFP_LOOP_BASE                                               \
-  switch (rvv_vsew()) {                                              \
-    case E16: {                                                      \
-      UNIMPLEMENTED();                                               \
-    }                                                                \
-    case E32: {                                                      \
-      float& vd = Rvvelt<float>(rvv_vd_reg(), i, true);              \
-      float fs1 = static_cast<float>(get_fpu_register(rs1_reg()));   \
-      float vs2 = Rvvelt<float>(rvv_vs2_reg(), i);                   \
-      BODY32;                                                        \
-      break;                                                         \
-    }                                                                \
-    case E64: {                                                      \
-      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true);            \
-      double fs1 = static_cast<double>(get_fpu_register(rs1_reg())); \
-      double vs2 = Rvvelt<double>(rvv_vs2_reg(), i);                 \
-      BODY64;                                                        \
-      break;                                                         \
-    }                                                                \
-    default:                                                         \
-      UNREACHABLE();                                                 \
-      break;                                                         \
-  }                                                                  \
-  RVV_VI_VFP_LOOP_END                                                \
+#define RVV_VI_VFP_VF_LOOP(BODY16, BODY32, BODY64)        \
+  RVV_VI_VFP_LOOP_BASE                                    \
+  switch (rvv_vsew()) {                                   \
+    case E16: {                                           \
+      UNIMPLEMENTED();                                    \
+    }                                                     \
+    case E32: {                                           \
+      float& vd = Rvvelt<float>(rvv_vd_reg(), i, true);   \
+      float fs1 = get_fpu_register_float(rs1_reg());      \
+      float vs2 = Rvvelt<float>(rvv_vs2_reg(), i);        \
+      BODY32;                                             \
+      break;                                              \
+    }                                                     \
+    case E64: {                                           \
+      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true); \
+      double fs1 = get_fpu_register_double(rs1_reg());    \
+      double vs2 = Rvvelt<double>(rvv_vs2_reg(), i);      \
+      BODY64;                                             \
+      break;                                              \
+    }                                                     \
+    default:                                              \
+      UNREACHABLE();                                      \
+      break;                                              \
+  }                                                       \
+  RVV_VI_VFP_LOOP_END                                     \
   rvv_trace_vd();
 
 #define RVV_VI_VFP_VV_LOOP(BODY16, BODY32, BODY64)        \
@@ -514,6 +515,64 @@
     case E64: {                                           \
       double& vd = Rvvelt<double>(rvv_vd_reg(), i, true); \
       double vs1 = Rvvelt<double>(rvv_vs1_reg(), i);      \
+      double vs2 = Rvvelt<double>(rvv_vs2_reg(), i);      \
+      BODY64;                                             \
+      break;                                              \
+    }                                                     \
+    default:                                              \
+      require(0);                                         \
+      break;                                              \
+  }                                                       \
+  RVV_VI_VFP_LOOP_END                                     \
+  rvv_trace_vd();
+
+#define RVV_VI_VFP_FMA(type, _f1, _f2, _a)                                \
+  auto fn = [](type f1, type f2, type a) { return std::fma(f1, f2, a); }; \
+  vd = CanonicalizeFPUOpFMA<type>(fn, _f1, _f2, _a);
+
+#define RVV_VI_VFP_FMA_VV_LOOP(BODY32, BODY64)            \
+  RVV_VI_VFP_LOOP_BASE                                    \
+  switch (rvv_vsew()) {                                   \
+    case E16: {                                           \
+      UNIMPLEMENTED();                                    \
+    }                                                     \
+    case E32: {                                           \
+      float& vd = Rvvelt<float>(rvv_vd_reg(), i, true);   \
+      float vs1 = Rvvelt<float>(rvv_vs1_reg(), i);        \
+      float vs2 = Rvvelt<float>(rvv_vs2_reg(), i);        \
+      BODY32;                                             \
+      break;                                              \
+    }                                                     \
+    case E64: {                                           \
+      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true); \
+      double vs1 = Rvvelt<double>(rvv_vs1_reg(), i);      \
+      double vs2 = Rvvelt<double>(rvv_vs2_reg(), i);      \
+      BODY64;                                             \
+      break;                                              \
+    }                                                     \
+    default:                                              \
+      require(0);                                         \
+      break;                                              \
+  }                                                       \
+  RVV_VI_VFP_LOOP_END                                     \
+  rvv_trace_vd();
+
+#define RVV_VI_VFP_FMA_VF_LOOP(BODY32, BODY64)            \
+  RVV_VI_VFP_LOOP_BASE                                    \
+  switch (rvv_vsew()) {                                   \
+    case E16: {                                           \
+      UNIMPLEMENTED();                                    \
+    }                                                     \
+    case E32: {                                           \
+      float& vd = Rvvelt<float>(rvv_vd_reg(), i, true);   \
+      float fs1 = get_fpu_register_float(rs1_reg());      \
+      float vs2 = Rvvelt<float>(rvv_vs2_reg(), i);        \
+      BODY32;                                             \
+      break;                                              \
+    }                                                     \
+    case E64: {                                           \
+      double& vd = Rvvelt<double>(rvv_vd_reg(), i, true); \
+      float fs1 = get_fpu_register_float(rs1_reg());      \
       double vs2 = Rvvelt<double>(rvv_vs2_reg(), i);      \
       BODY64;                                             \
       break;                                              \
@@ -569,7 +628,7 @@
     default:                                                \
       UNREACHABLE();                                        \
       break;                                                \
-  }                                                        \
+  }                                                         \
   RVV_VI_VFP_LOOP_CMP_END
 
 // reduction loop - signed
@@ -740,6 +799,103 @@
       require(0);                                                             \
       break;                                                                  \
   }                                                                           \
+  rvv_trace_vd();
+
+// calculate the value of r used in rounding
+static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
+  uint8_t d = v8::internal::unsigned_bitextract_64(shift, shift, v);
+  uint8_t d1;
+  uint64_t D1, D2;
+
+  if (shift == 0 || shift > 64) {
+    return 0;
+  }
+
+  d1 = v8::internal::unsigned_bitextract_64(shift - 1, shift - 1, v);
+  D1 = v8::internal::unsigned_bitextract_64(shift - 1, 0, v);
+  if (vxrm == 0) { /* round-to-nearest-up (add +0.5 LSB) */
+    return d1;
+  } else if (vxrm == 1) { /* round-to-nearest-even */
+    if (shift > 1) {
+      D2 = v8::internal::unsigned_bitextract_64(shift - 2, 0, v);
+      return d1 & ((D2 != 0) | d);
+    } else {
+      return d1 & d;
+    }
+  } else if (vxrm == 3) { /* round-to-odd (OR bits into LSB, aka "jam") */
+    return !d & (D1 != 0);
+  }
+  return 0; /* round-down (truncate) */
+}
+
+template <typename Src, typename Dst>
+inline Dst signed_saturation(Src v, uint n) {
+  Dst smax = (Dst)(INT64_MAX >> (64 - n));
+  Dst smin = (Dst)(INT64_MIN >> (64 - n));
+  return (v > smax) ? smax : ((v < smin) ? smin : (Dst)v);
+}
+
+template <typename Src, typename Dst>
+inline Dst unsigned_saturation(Src v, uint n) {
+  Dst umax = (Dst)(UINT64_MAX >> (64 - n));
+  return (v > umax) ? umax : ((v < 0) ? 0 : (Dst)v);
+}
+
+#define RVV_VN_CLIPU_VI_LOOP()                                   \
+  RVV_VI_GENERAL_LOOP_BASE                                       \
+  RVV_VI_LOOP_MASK_SKIP()                                        \
+  if (rvv_vsew() == E8) {                                        \
+    UNREACHABLE();                                               \
+    VN_UPARAMS(16);                                              \
+    vd = unsigned_saturation<uint16_t, uint8_t>(                 \
+        (static_cast<uint16_t>(vs2) >> uimm5) +                  \
+            get_round(static_cast<int>(rvv_vxrm()), vs2, uimm5), \
+        8);                                                      \
+  } else if (rvv_vsew() == E16) {                                \
+    VN_UPARAMS(32);                                              \
+    vd = unsigned_saturation<uint32_t, uint16_t>(                \
+        (static_cast<uint32_t>(vs2) >> uimm5) +                  \
+            get_round(static_cast<int>(rvv_vxrm()), vs2, uimm5), \
+        16);                                                     \
+  } else if (rvv_vsew() == E32) {                                \
+    VN_UPARAMS(64);                                              \
+    vd = unsigned_saturation<uint64_t, uint32_t>(                \
+        (static_cast<uint64_t>(vs2) >> uimm5) +                  \
+            get_round(static_cast<int>(rvv_vxrm()), vs2, uimm5), \
+        32);                                                     \
+  } else if (rvv_vsew() == E64) {                                \
+    UNREACHABLE();                                               \
+  } else {                                                       \
+    UNREACHABLE();                                               \
+  }                                                              \
+  RVV_VI_LOOP_END                                                \
+  rvv_trace_vd();
+
+#define RVV_VN_CLIP_VI_LOOP()                                                 \
+  RVV_VI_GENERAL_LOOP_BASE                                                    \
+  RVV_VI_LOOP_MASK_SKIP()                                                     \
+  if (rvv_vsew() == E8) {                                                     \
+    UNREACHABLE();                                                            \
+    VN_PARAMS(16);                                                            \
+    vd = signed_saturation<int16_t, int8_t>(                                  \
+        (vs2 >> uimm5) + get_round(static_cast<int>(rvv_vxrm()), vs2, uimm5), \
+        8);                                                                   \
+  } else if (rvv_vsew() == E16) {                                             \
+    VN_PARAMS(32);                                                            \
+    vd = signed_saturation<int32_t, int16_t>(                                 \
+        (vs2 >> uimm5) + get_round(static_cast<int>(rvv_vxrm()), vs2, uimm5), \
+        16);                                                                  \
+  } else if (rvv_vsew() == E32) {                                             \
+    VN_PARAMS(64);                                                            \
+    vd = signed_saturation<int64_t, int32_t>(                                 \
+        (vs2 >> uimm5) + get_round(static_cast<int>(rvv_vxrm()), vs2, uimm5), \
+        32);                                                                  \
+  } else if (rvv_vsew() == E64) {                                             \
+    UNREACHABLE();                                                            \
+  } else {                                                                    \
+    UNREACHABLE();                                                            \
+  }                                                                           \
+  RVV_VI_LOOP_END                                                             \
   rvv_trace_vd();
 
 namespace v8 {
@@ -3560,7 +3716,11 @@ bool Simulator::DecodeRvvVL() {
           break;
         }
         case 16: {
-          UNIMPLEMENTED_RISCV();
+          RVV_VI_LD(0, (i * nf + fn), int16, false);
+          break;
+        }
+        case 32: {
+          RVV_VI_LD(0, (i * nf + fn), int32, false);
           break;
         }
         default:
@@ -3617,7 +3777,11 @@ bool Simulator::DecodeRvvVS() {
           break;
         }
         case 16: {
-          UNIMPLEMENTED_RISCV();
+          RVV_VI_ST(0, (i * nf + fn), uint16, false);
+          break;
+        }
+        case 32: {
+          RVV_VI_ST(0, (i * nf + fn), uint32, false);
           break;
         }
         default:
@@ -4561,7 +4725,7 @@ void Simulator::DecodeRvvIVI() {
       RVV_VI_LOOP_END
       break;
     }
-    case RO_V_VSADDU_VI:{
+    case RO_V_VSADDU_VI: {
       RVV_VI_VI_ULOOP({
         vd = vs2 + uimm5;
         vd |= -(vd < vs2);
@@ -4663,6 +4827,12 @@ void Simulator::DecodeRvvIVI() {
       } else {
         UNREACHABLE();
       }
+      break;
+    case RO_V_VNCLIP_WI:
+      RVV_VN_CLIP_VI_LOOP()
+      break;
+    case RO_V_VNCLIPU_WI:
+      RVV_VN_CLIPU_VI_LOOP()
       break;
     default:
       UNIMPLEMENTED_RISCV();
@@ -4990,13 +5160,13 @@ void Simulator::DecodeRvvFVV() {
               if (is_invalid_fdiv(vs1, vs2)) {
                 this->set_fflags(kInvalidOperation);
                 return std::numeric_limits<float>::quiet_NaN();
-              } else if (vs2 == 0.0f) {
+              } else if (vs1 == 0.0f) {
                 this->set_fflags(kDivideByZero);
                 return (std::signbit(vs1) == std::signbit(vs2)
                             ? std::numeric_limits<float>::infinity()
                             : -std::numeric_limits<float>::infinity());
               } else {
-                return vs1 / vs2;
+                return vs2 / vs1;
               }
             };
             auto alu_out = fn(vs1, vs2);
@@ -5316,6 +5486,59 @@ void Simulator::DecodeRvvFVV() {
             vd = alu_out;
           })
       break;
+    case RO_V_VFMADD_VV:
+      RVV_VI_VFP_FMA_VV_LOOP({RVV_VI_VFP_FMA(float, vd, vs1, vs2)},
+                             {RVV_VI_VFP_FMA(double, vd, vs1, vs2)})
+      break;
+    case RO_V_VFNMADD_VV:
+      RVV_VI_VFP_FMA_VV_LOOP({RVV_VI_VFP_FMA(float, -vd, vs1, -vs2)},
+                             {RVV_VI_VFP_FMA(double, -vd, vs1, -vs2)})
+      break;
+    case RO_V_VFMSUB_VV:
+      RVV_VI_VFP_FMA_VV_LOOP({RVV_VI_VFP_FMA(float, vd, vs1, -vs2)},
+                             {RVV_VI_VFP_FMA(double, vd, vs1, -vs2)})
+      break;
+    case RO_V_VFNMSUB_VV:
+      RVV_VI_VFP_FMA_VV_LOOP({RVV_VI_VFP_FMA(float, -vd, vs1, +vs2)},
+                             {RVV_VI_VFP_FMA(double, -vd, vs1, +vs2)})
+      break;
+    case RO_V_VFMACC_VV:
+      RVV_VI_VFP_FMA_VV_LOOP({RVV_VI_VFP_FMA(float, vs2, vs1, vd)},
+                             {RVV_VI_VFP_FMA(double, vs2, vs1, vd)})
+      break;
+    case RO_V_VFNMACC_VV:
+      RVV_VI_VFP_FMA_VV_LOOP({RVV_VI_VFP_FMA(float, -vs2, vs1, -vd)},
+                             {RVV_VI_VFP_FMA(double, -vs2, vs1, -vd)})
+      break;
+    case RO_V_VFMSAC_VV:
+      RVV_VI_VFP_FMA_VV_LOOP({RVV_VI_VFP_FMA(float, vs2, vs1, -vd)},
+                             {RVV_VI_VFP_FMA(double, vs2, vs1, -vd)})
+      break;
+    case RO_V_VFNMSAC_VV:
+      RVV_VI_VFP_FMA_VV_LOOP({RVV_VI_VFP_FMA(float, -vs2, vs1, +vd)},
+                             {RVV_VI_VFP_FMA(double, -vs2, vs1, +vd)})
+      break;
+    case RO_V_VFMV_FS:
+      switch (rvv_vsew()) {
+        case E16: {
+          UNIMPLEMENTED();
+        }
+        case E32: {
+          float fs2 = Rvvelt<float>(rvv_vs2_reg(), 0);
+          set_fpu_register_float(rd_reg(), fs2);
+          break;
+        }
+        case E64: {
+          double fs2 = Rvvelt<double>(rvv_vs2_reg(), 0);
+          set_fpu_register_double(rd_reg(), fs2);
+          break;
+        }
+        default:
+          require(0);
+          break;
+      }
+      rvv_trace_vd();
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
@@ -5340,6 +5563,50 @@ void Simulator::DecodeRvvFVF() {
           {}, { vd = fsgnj32(vs2, fs1, false, true); },
           { vd = fsgnj64(vs2, fs1, false, true); })
       break;
+    case RO_V_VFMV_VF:
+      RVV_VI_VFP_VF_LOOP(
+          {},
+          {
+            vd = fs1;
+            USE(vs2);
+          },
+          {
+            vd = fs1;
+            USE(vs2);
+          })
+      break;
+    case RO_V_VFMADD_VF:
+      RVV_VI_VFP_FMA_VF_LOOP({RVV_VI_VFP_FMA(float, vd, fs1, vs2)},
+                             {RVV_VI_VFP_FMA(double, vd, fs1, vs2)})
+      break;
+    case RO_V_VFNMADD_VF:
+      RVV_VI_VFP_FMA_VF_LOOP({RVV_VI_VFP_FMA(float, -vd, fs1, -vs2)},
+                             {RVV_VI_VFP_FMA(double, -vd, fs1, -vs2)})
+      break;
+    case RO_V_VFMSUB_VF:
+      RVV_VI_VFP_FMA_VF_LOOP({RVV_VI_VFP_FMA(float, vd, fs1, -vs2)},
+                             {RVV_VI_VFP_FMA(double, vd, fs1, -vs2)})
+      break;
+    case RO_V_VFNMSUB_VF:
+      RVV_VI_VFP_FMA_VF_LOOP({RVV_VI_VFP_FMA(float, -vd, fs1, vs2)},
+                             {RVV_VI_VFP_FMA(double, -vd, fs1, vs2)})
+      break;
+    case RO_V_VFMACC_VF:
+      RVV_VI_VFP_FMA_VF_LOOP({RVV_VI_VFP_FMA(float, vs2, fs1, vd)},
+                             {RVV_VI_VFP_FMA(double, vs2, fs1, vd)})
+      break;
+    case RO_V_VFNMACC_VF:
+      RVV_VI_VFP_FMA_VF_LOOP({RVV_VI_VFP_FMA(float, -vs2, fs1, -vd)},
+                             {RVV_VI_VFP_FMA(double, -vs2, fs1, -vd)})
+      break;
+    case RO_V_VFMSAC_VF:
+      RVV_VI_VFP_FMA_VF_LOOP({RVV_VI_VFP_FMA(float, vs2, fs1, -vd)},
+                             {RVV_VI_VFP_FMA(double, vs2, fs1, -vd)})
+      break;
+    case RO_V_VFNMSAC_VF:
+      RVV_VI_VFP_FMA_VF_LOOP({RVV_VI_VFP_FMA(float, -vs2, fs1, vd)},
+                             {RVV_VI_VFP_FMA(double, -vs2, fs1, vd)})
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
@@ -5363,7 +5630,7 @@ void Simulator::DecodeVType() {
       DecodeRvvIVX();
       return;
     case OP_FVF:
-      UNIMPLEMENTED_RISCV();
+      DecodeRvvFVF();
       return;
     case OP_MVX:
       DecodeRvvMVX();
@@ -5398,9 +5665,9 @@ void Simulator::DecodeVType() {
         } else {
           avl = rvv_vl();
         }
-        avl = avl <= rvv_vlmax()        ? avl
-              : avl < (rvv_vlmax() * 2) ? avl / 2
-                                        : rvv_vlmax();
+        avl = avl <= rvv_vlmax()
+                  ? avl
+                  : avl < (rvv_vlmax() * 2) ? avl / 2 : rvv_vlmax();
         set_rvv_vl(avl);
         set_rd(rvv_vl());
         rvv_trace_status();
@@ -5411,9 +5678,9 @@ void Simulator::DecodeVType() {
         uint64_t avl;
         set_rvv_vtype(rvv_zimm());
         avl = instr_.Rvvuimm();
-        avl = avl <= rvv_vlmax()        ? avl
-              : avl < (rvv_vlmax() * 2) ? avl / 2
-                                        : rvv_vlmax();
+        avl = avl <= rvv_vlmax()
+                  ? avl
+                  : avl < (rvv_vlmax() * 2) ? avl / 2 : rvv_vlmax();
         set_rvv_vl(avl);
         set_rd(rvv_vl());
         rvv_trace_status();

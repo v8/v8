@@ -1172,6 +1172,17 @@ void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, Register rd,
   emit(instr);
 }
 
+// OPFVV
+void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, FPURegister fd,
+                          VRegister vs1, VRegister vs2, MaskType mask) {
+  DCHECK(opcode == OP_FVV);
+  Instr instr = (funct6 << kRvvFunct6Shift) | opcode | (mask << kRvvVmShift) |
+                ((fd.code() & 0x1F) << kRvvVdShift) |
+                ((vs1.code() & 0x1F) << kRvvVs1Shift) |
+                ((vs2.code() & 0x1F) << kRvvVs2Shift);
+  emit(instr);
+}
+
 // OPIVX OPMVX
 void Assembler::GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd,
                           Register rs1, VRegister vs2, MaskType mask) {
@@ -2561,6 +2572,26 @@ void Assembler::vrgather_vx(VRegister vd, VRegister vs2, Register rs1,
     GenInstrV(funct6, OP_FVF, vd, fs1, vs2, mask);                        \
   }
 
+#define DEFINE_OPFVV_FMA(name, funct6)                                  \
+  void Assembler::name##_vv(VRegister vd, VRegister vs1, VRegister vs2, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_FVV, vd, vs1, vs2, mask);                      \
+  }
+
+#define DEFINE_OPFVF_FMA(name, funct6)                                    \
+  void Assembler::name##_vf(VRegister vd, FPURegister fs1, VRegister vs2, \
+                            MaskType mask) {                              \
+    GenInstrV(funct6, OP_FVF, vd, fs1, vs2, mask);                        \
+  }
+
+void Assembler::vfmv_vf(VRegister vd, FPURegister fs1, MaskType mask) {
+  GenInstrV(VMV_FUNCT6, OP_FVF, vd, fs1, v0, mask);
+}
+
+void Assembler::vfmv_fs(FPURegister fd, VRegister vs2, MaskType mask) {
+  GenInstrV(VWFUNARY0_FUNCT6, OP_FVV, fd, v0, vs2, mask);
+}
+
 DEFINE_OPIVV(vadd, VADD_FUNCT6)
 DEFINE_OPIVX(vadd, VADD_FUNCT6)
 DEFINE_OPIVI(vadd, VADD_FUNCT6)
@@ -2663,11 +2694,40 @@ DEFINE_OPFVV(vfsngjn, VFSGNJN_FUNCT6)
 DEFINE_OPFVF(vfsngjn, VFSGNJN_FUNCT6)
 DEFINE_OPFVV(vfsngjx, VFSGNJX_FUNCT6)
 DEFINE_OPFVF(vfsngjx, VFSGNJX_FUNCT6)
+
+// Vector Single-Width Floating-Point Fused Multiply-Add Instructions
+DEFINE_OPFVV_FMA(vfmadd, VFMADD_FUNCT6)
+DEFINE_OPFVF_FMA(vfmadd, VFMADD_FUNCT6)
+DEFINE_OPFVV_FMA(vfmsub, VFMSUB_FUNCT6)
+DEFINE_OPFVF_FMA(vfmsub, VFMSUB_FUNCT6)
+DEFINE_OPFVV_FMA(vfmacc, VFMACC_FUNCT6)
+DEFINE_OPFVF_FMA(vfmacc, VFMACC_FUNCT6)
+DEFINE_OPFVV_FMA(vfmsac, VFMSAC_FUNCT6)
+DEFINE_OPFVF_FMA(vfmsac, VFMSAC_FUNCT6)
+DEFINE_OPFVV_FMA(vfnmadd, VFNMADD_FUNCT6)
+DEFINE_OPFVF_FMA(vfnmadd, VFNMADD_FUNCT6)
+DEFINE_OPFVV_FMA(vfnmsub, VFNMSUB_FUNCT6)
+DEFINE_OPFVF_FMA(vfnmsub, VFNMSUB_FUNCT6)
+DEFINE_OPFVV_FMA(vfnmacc, VFNMACC_FUNCT6)
+DEFINE_OPFVF_FMA(vfnmacc, VFNMACC_FUNCT6)
+DEFINE_OPFVV_FMA(vfnmsac, VFNMSAC_FUNCT6)
+DEFINE_OPFVF_FMA(vfnmsac, VFNMSAC_FUNCT6)
+
+// Vector Narrowing Fixed-Point Clip Instructions
+DEFINE_OPIVV(vnclip, VNCLIP_FUNCT6)
+DEFINE_OPIVX(vnclip, VNCLIP_FUNCT6)
+DEFINE_OPIVI(vnclip, VNCLIP_FUNCT6)
+DEFINE_OPIVV(vnclipu, VNCLIPU_FUNCT6)
+DEFINE_OPIVX(vnclipu, VNCLIPU_FUNCT6)
+DEFINE_OPIVI(vnclipu, VNCLIPU_FUNCT6)
+
 #undef DEFINE_OPIVI
 #undef DEFINE_OPIVV
 #undef DEFINE_OPIVX
 #undef DEFINE_OPFVV
 #undef DEFINE_OPFVF
+#undef DEFINE_OPFVV_FMA
+#undef DEFINE_OPFVF_FMA
 
 void Assembler::vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
                         TailAgnosticType tail, MaskAgnosticType mask) {

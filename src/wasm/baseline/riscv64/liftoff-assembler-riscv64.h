@@ -2767,13 +2767,39 @@ void LiftoffAssembler::emit_i8x16_uconvert_i16x8(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_sconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i16x8_sconvert_i32x4");
+  VRegister dst_v = dst.fp().toV();
+  VRegister lhs_v = lhs.fp().toV();
+  VRegister rhs_v = rhs.fp().toV();
+  VU.set(kScratchReg, E32, m2);
+  VRegister tmp_lo =
+      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(lhs, rhs)).fp().toV();
+  VRegister tmp_hi = VRegister::from_code(tmp_lo.code() + 1);
+  VU.set(kScratchReg, E32, m1);
+  vmv_vv(tmp_lo, rhs_v);
+  vmv_vv(tmp_hi, lhs_v);
+  VU.set(kScratchReg, E16, m1);
+  VU.set(RoundingMode::RNE);
+  vnclip_vi(dst_v, tmp_lo, 0);
 }
 
 void LiftoffAssembler::emit_i16x8_uconvert_i32x4(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i16x8_uconvert_i32x4");
+  VRegister dst_v = dst.fp().toV();
+  VRegister lhs_v = lhs.fp().toV();
+  VRegister rhs_v = rhs.fp().toV();
+  VU.set(kScratchReg, E32, m2);
+  VRegister tmp_lo =
+      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(lhs, rhs)).fp().toV();
+  VRegister tmp_hi = VRegister::from_code(tmp_lo.code() + 1);
+  VU.set(kScratchReg, E32, m1);
+  vmv_vv(tmp_lo, rhs_v);
+  vmv_vv(tmp_hi, lhs_v);
+  VU.set(kScratchReg, E32, m2);
+  vmax_vx(tmp_lo, tmp_lo, zero_reg);
+  VU.set(kScratchReg, E16, m1);
+  VU.set(RoundingMode::RNE);
+  vnclipu_vi(dst_v, tmp_lo, 0);
 }
 
 void LiftoffAssembler::emit_i16x8_sconvert_i8x16_low(LiftoffRegister dst,
@@ -2862,7 +2888,6 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
                                                           LiftoffRegister src) {
   bailout(kSimd, "i16x8.extadd_pairwise_i8x16_u");
 }
-
 
 void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
