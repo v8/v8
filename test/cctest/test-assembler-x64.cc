@@ -2703,6 +2703,24 @@ TEST(AssemblerX64Integer256bit) {
   __ vpsraw(ymm7, ymm1, xmm4);
   __ vpsllq(ymm3, ymm2, xmm1);
 
+  // SSSE3_AVX_INSTRUCTION
+  __ vpshufb(ymm1, ymm2, ymm3);
+  __ vphaddw(ymm8, ymm9, Operand(rbx, rcx, times_4, 10000));
+  __ vpmaddubsw(ymm5, ymm7, ymm9);
+  __ vpsignd(ymm7, ymm0, ymm1);
+  __ vpmulhrsw(ymm4, ymm3, ymm1);
+
+  // SSE4_AVX_INSTRUCTION
+  __ vpmuldq(ymm1, ymm5, ymm6);
+  __ vpcmpeqq(ymm0, ymm2, ymm3);
+  __ vpackusdw(ymm4, ymm2, ymm0);
+  __ vpminud(ymm8, ymm9, Operand(rbx, rcx, times_4, 10000));
+  __ vpmaxsb(ymm3, ymm4, ymm7);
+  __ vpmulld(ymm6, ymm5, ymm3);
+
+  // SSE4_2_AVX_INSTRUCTION
+  __ vpcmpgtq(ymm3, ymm2, ymm0);
+
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
 #ifdef OBJECT_PRINT
@@ -2728,7 +2746,37 @@ TEST(AssemblerX64Integer256bit) {
                      // vpsraw ymm7, ymm1, xmm4
                      0xC5, 0xF5, 0xE1, 0xFC,
                      // vpsllq ymm3, ymm2, xmm1
-                     0xC5, 0xED, 0xF3, 0xD9};
+                     0xC5, 0xED, 0xF3, 0xD9,
+
+                     // SSSE3_AVX_INSTRUCTION
+                     // vpshufb ymm1, ymm2, ymm3
+                     0xC4, 0xE2, 0x6D, 0x00, 0xCB,
+                     // vphaddw ymm8, ymm9, YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xC4, 0x62, 0x35, 0x01, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00,
+                     // vpmaddubsw ymm5, ymm7, ymm9
+                     0xC4, 0xC2, 0x45, 0x04, 0xE9,
+                     // vpsignd ymm7, ymm0, ymm1
+                     0xC4, 0xE2, 0x7D, 0x0A, 0xF9,
+                     // vpmulhrsw ymm4, ymm3, ymm1
+                     0xC4, 0xE2, 0x65, 0x0B, 0xE1,
+
+                     // SSE4_AVX_INSTRUCTION
+                     // vpmuldq ymm1, ymm5, ymm6
+                     0xC4, 0xE2, 0x55, 0x28, 0xCE,
+                     // vpcmpeqq ymm0, ymm2, ymm3
+                     0xC4, 0xE2, 0x6D, 0x29, 0xC3,
+                     // vpackusdw ymm4, ymm2, ymm0
+                     0xC4, 0xE2, 0x6D, 0x2B, 0xE0,
+                     // vpminud ymm8, ymm9, YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xC4, 0x62, 0x35, 0x3B, 0x84, 0x8B, 0x10, 0x27, 0x0, 0x0,
+                     // vpmaxsb ymm3, ymm4, ymm7
+                     0xC4, 0xE2, 0x5D, 0x3C, 0xDF,
+                     // vpmulld ymm6, ymm5, ymm3
+                     0xC4, 0xE2, 0x55, 0x40, 0xF3,
+
+                     // SSE4_2_AVX_INSTRUCTION
+                     // vpcmpgtq ymm3, ymm2, ymm0
+                     0xC4, 0xE2, 0x6D, 0x37, 0xD8};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
