@@ -463,6 +463,10 @@ TEST(TracedGlobalInStdUnorderedMap) {
 }
 
 TEST(TracedGlobalToUnmodifiedJSObjectDiesOnMarkSweep) {
+  // When stressing incremental marking, a write barrier may keep the object
+  // alive.
+  if (FLAG_stress_incremental_marking) return;
+
   CcTest::InitializeVM();
   TracedGlobalTest(
       CcTest::isolate(), ConstructJSObject,

@@ -262,6 +262,19 @@ void WriteBarrier::Marking(DescriptorArray descriptor_array,
   MarkingSlow(*heap, descriptor_array, number_of_own_descriptors);
 }
 
+// static
+void WriteBarrier::MarkingFromGlobalHandle(Object value) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+  if (!value.IsHeapObject()) return;
+
+  HeapObject heap_value = HeapObject::cast(value);
+  // Value may be in read only space but the chunk should never be marked
+  // as marking which would result in a bail out.
+  auto heap = GetHeapIfMarking(heap_value);
+  if (!heap) return;
+  MarkingSlowFromGlobalHandle(*heap, heap_value);
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -40,6 +40,11 @@ void WriteBarrier::MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot slot,
   marking_barrier->Write(host, slot, value);
 }
 
+// static
+void WriteBarrier::MarkingSlowFromGlobalHandle(Heap* heap, HeapObject value) {
+  heap->marking_barrier()->WriteWithoutHost(value);
+}
+
 void WriteBarrier::MarkingSlow(Heap* heap, Code host, RelocInfo* reloc_info,
                                HeapObject value) {
   MarkingBarrier* marking_barrier = current_marking_barrier
