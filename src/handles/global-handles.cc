@@ -802,6 +802,12 @@ bool GlobalHandles::OnStackTracedNodeSpace::IsOnStack(uintptr_t slot) const {
     return true;
   }
 #endif  // V8_USE_ADDRESS_SANITIZER
+#if __has_feature(safe_stack)
+  if (reinterpret_cast<uintptr_t>(__builtin___get_unsafe_stack_top()) >= slot &&
+      slot > reinterpret_cast<uintptr_t>(__builtin___get_unsafe_stack_ptr())) {
+    return true;
+  }
+#endif  // __has_feature(safe_stack)
   return stack_start_ >= slot && slot > base::Stack::GetCurrentStackPosition();
 }
 
