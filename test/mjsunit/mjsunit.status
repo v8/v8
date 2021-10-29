@@ -1674,7 +1674,6 @@
   'compiler/native-context-specialization-hole-check': [FAIL],
   'compiler/test-literal-map-migration': [FAIL],
   'regress/regress-4121': [FAIL],
-  'regress/regress-crbug-1052647': [FAIL],
   'regress/regress-trap-allocation-memento': [FAIL],
 }], # variant == google3_nociu or variant == google3_icu
 
