@@ -18570,7 +18570,17 @@ TEST(RunTwoIsolatesOnSingleThread) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+
+  CHECK(CcTest::isolate()->IsCurrent());
+  CHECK(!isolate1->IsCurrent());
+
   isolate1->Enter();
+  CHECK(!CcTest::isolate()->IsCurrent());
+  CHECK(isolate1->IsCurrent());
+
+  CHECK_EQ(isolate1, v8::Isolate::GetCurrent());
+  CHECK_EQ(isolate1, v8::Isolate::TryGetCurrent());
+
   v8::Persistent<v8::Context> context1;
   {
     v8::HandleScope scope(isolate1);
@@ -18591,8 +18601,16 @@ TEST(RunTwoIsolatesOnSingleThread) {
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   v8::Persistent<v8::Context> context2;
 
+  CHECK(!CcTest::isolate()->IsCurrent());
+  CHECK(isolate1->IsCurrent());
+  CHECK(!isolate2->IsCurrent());
   {
     v8::Isolate::Scope iscope(isolate2);
+    CHECK(!isolate1->IsCurrent());
+    CHECK(isolate2->IsCurrent());
+    CHECK_EQ(isolate2, v8::Isolate::GetCurrent());
+    CHECK_EQ(isolate2, v8::Isolate::TryGetCurrent());
+
     v8::HandleScope scope(isolate2);
     context2.Reset(isolate2, Context::New(isolate2));
     v8::Local<v8::Context> context =
@@ -18604,6 +18622,10 @@ TEST(RunTwoIsolatesOnSingleThread) {
     ExpectString("function f() { return foo; }; f()", "isolate 2");
   }
 
+  CHECK(!CcTest::isolate()->IsCurrent());
+  CHECK(isolate1->IsCurrent());
+  CHECK(!isolate2->IsCurrent());
+
   {
     v8::HandleScope scope(isolate1);
     v8::Local<v8::Context> context =
@@ -18614,11 +18636,16 @@ TEST(RunTwoIsolatesOnSingleThread) {
   }
 
   isolate1->Exit();
+  CHECK(CcTest::isolate()->IsCurrent());
+  CHECK(!isolate1->IsCurrent());
+  CHECK(!isolate2->IsCurrent());
 
   // Run some stuff in default isolate.
   v8::Persistent<v8::Context> context_default;
   {
     v8::Isolate* isolate = CcTest::isolate();
+    CHECK_EQ(isolate, v8::Isolate::GetCurrent());
+    CHECK_EQ(isolate, v8::Isolate::TryGetCurrent());
     v8::Isolate::Scope iscope(isolate);
     v8::HandleScope scope(isolate);
     context_default.Reset(isolate, Context::New(isolate));

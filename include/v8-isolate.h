@@ -592,6 +592,11 @@ class V8_EXPORT Isolate {
   static Isolate* TryGetCurrent();
 
   /**
+   * Return true if this isolate is currently active.
+   **/
+  bool IsCurrent() const;
+
+  /**
    * Clears the set of objects held strongly by the heap. This set of
    * objects are originally built when a WeakRef is created or
    * successfully dereferenced.
