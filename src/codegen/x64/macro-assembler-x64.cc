@@ -376,6 +376,43 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 }
 
+void TurboAssembler::EncodeCagedPointer(Register value) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_CAGED_POINTERS
+  subq(value, kPtrComprCageBaseRegister);
+  shlq(value, Immediate(kCagedPointerShift));
+#else
+  UNREACHABLE();
+#endif
+}
+
+void TurboAssembler::DecodeCagedPointer(Register value) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_CAGED_POINTERS
+  shrq(value, Immediate(kCagedPointerShift));
+  addq(value, kPtrComprCageBaseRegister);
+#else
+  UNREACHABLE();
+#endif
+}
+
+void TurboAssembler::LoadCagedPointerField(Register destination,
+                                           Operand field_operand) {
+  ASM_CODE_COMMENT(this);
+  movq(destination, field_operand);
+  DecodeCagedPointer(destination);
+}
+
+void TurboAssembler::StoreCagedPointerField(Operand dst_field_operand,
+                                            Register value) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(value, kScratchRegister));
+  DCHECK(!dst_field_operand.AddressUsesRegister(kScratchRegister));
+  movq(kScratchRegister, value);
+  EncodeCagedPointer(kScratchRegister);
+  movq(dst_field_operand, kScratchRegister);
+}
+
 void TurboAssembler::LoadExternalPointerField(
     Register destination, Operand field_operand, ExternalPointerTag tag,
     Register scratch, IsolateRootLocation isolateRootLocation) {

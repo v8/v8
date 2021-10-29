@@ -560,6 +560,12 @@ V8 shared library set USING_V8_SHARED.
 #define V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
 #endif
 
+// CagedPointers are currently only used if the heap sandbox is enabled.
+// In the future, they will be enabled when the virtual memory cage is enabled.
+#if defined(V8_HEAP_SANDBOX)
+#define V8_CAGED_POINTERS
+#endif
+
 // clang-format on
 
 #undef V8_HAS_CPP_ATTRIBUTE

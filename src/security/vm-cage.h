@@ -73,7 +73,12 @@ class V8_EXPORT_PRIVATE V8VirtualMemoryCage {
   bool is_fake_cage() const { return is_fake_cage_; }
 
   Address base() const { return base_; }
+  Address end() const { return end_; }
   size_t size() const { return size_; }
+
+  Address base_address() const { return reinterpret_cast<Address>(&base_); }
+  Address end_address() const { return reinterpret_cast<Address>(&end_); }
+  Address size_address() const { return reinterpret_cast<Address>(&size_); }
 
   v8::PageAllocator* page_allocator() const {
     return cage_page_allocator_.get();
@@ -110,6 +115,7 @@ class V8_EXPORT_PRIVATE V8VirtualMemoryCage {
                             size_t size_to_reserve);
 
   Address base_ = kNullAddress;
+  Address end_ = kNullAddress;
   size_t size_ = 0;
 
   // Base and size of the virtual memory reservation backing this cage. These

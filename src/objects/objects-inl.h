@@ -42,6 +42,7 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
+#include "src/security/caged-pointer-inl.h"
 #include "src/security/external-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -633,6 +634,24 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
       SetProperty(&it, value, StoreOrigin::kMaybeKeyed, Just(should_throw)));
   return value;
 }
+
+#ifdef V8_CAGED_POINTERS
+Address Object::ReadCagedPointerField(size_t offset,
+                                      PtrComprCageBase cage_base) const {
+  return i::ReadCagedPointerField(field_address(offset), cage_base);
+}
+
+void Object::WriteCagedPointerField(size_t offset, PtrComprCageBase cage_base,
+                                    Address value) {
+  i::WriteCagedPointerField(field_address(offset), cage_base, value);
+}
+
+void Object::WriteCagedPointerField(size_t offset, Isolate* isolate,
+                                    Address value) {
+  i::WriteCagedPointerField(field_address(offset), PtrComprCageBase(isolate),
+                            value);
+}
+#endif  // V8_CAGED_POINTERS
 
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
   i::InitExternalPointerField(field_address(offset), isolate);

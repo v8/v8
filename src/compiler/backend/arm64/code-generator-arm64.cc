@@ -1894,6 +1894,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AtomicDecompressAnyTagged(i.OutputRegister(), i.InputRegister(0),
                                    i.InputRegister(1), i.TempRegister(0));
       break;
+    case kArm64LdrDecodeCagedPointer:
+      __ LoadCagedPointerField(i.OutputRegister(), i.MemoryOperand());
+      break;
     case kArm64Str:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Str(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
@@ -1906,6 +1909,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // the 3rd input register instead of the 1st.
       __ AtomicStoreTaggedField(i.InputRegister(2), i.InputRegister(0),
                                 i.InputRegister(1), i.TempRegister(0));
+      break;
+    case kArm64StrEncodeCagedPointer:
+      __ StoreCagedPointerField(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64LdrS:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());

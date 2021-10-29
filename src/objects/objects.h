@@ -699,6 +699,18 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   }
 
   //
+  // CagedPointer field accessors.
+  //
+#ifdef V8_CAGED_POINTERS
+  inline Address ReadCagedPointerField(size_t offset,
+                                       PtrComprCageBase cage_base) const;
+  inline void WriteCagedPointerField(size_t offset, PtrComprCageBase cage_base,
+                                     Address value);
+  inline void WriteCagedPointerField(size_t offset, Isolate* isolate,
+                                     Address value);
+#endif  // V8_CAGED_POINTERS
+
+  //
   // ExternalPointer_t field accessors.
   //
   inline void InitExternalPointerField(size_t offset, Isolate* isolate);

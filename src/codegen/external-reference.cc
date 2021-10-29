@@ -207,6 +207,16 @@ ExternalReference ExternalReference::handle_scope_implementer_address(
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+ExternalReference ExternalReference::virtual_memory_cage_base_address() {
+  return ExternalReference(GetProcessWideVirtualMemoryCage()->base_address());
+}
+
+ExternalReference ExternalReference::virtual_memory_cage_end_address() {
+  return ExternalReference(GetProcessWideVirtualMemoryCage()->end_address());
+}
+#endif
+
 #ifdef V8_HEAP_SANDBOX
 ExternalReference ExternalReference::external_pointer_table_address(
     Isolate* isolate) {

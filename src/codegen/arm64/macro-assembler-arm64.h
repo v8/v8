@@ -1441,6 +1441,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // ---------------------------------------------------------------------------
   // V8 Heap sandbox support
 
+  // Transform a CagedPointer from/to its encoded form, which is used when the
+  // pointer is stored on the heap and ensures that the pointer will always
+  // point into the virtual memory cage.
+  void EncodeCagedPointer(const Register& value);
+  void DecodeCagedPointer(const Register& value);
+
+  // Load and decode a CagedPointer from the heap.
+  void LoadCagedPointerField(const Register& destination,
+                             const MemOperand& field_operand);
+  // Encode and store a CagedPointer to the heap.
+  void StoreCagedPointerField(const Register& value,
+                              const MemOperand& dst_field_operand);
+
   // Loads a field containing off-heap pointer and does necessary decoding
   // if V8 heap sandbox is enabled.
   void LoadExternalPointerField(Register destination, MemOperand field_operand,

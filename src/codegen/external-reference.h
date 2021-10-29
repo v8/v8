@@ -298,6 +298,7 @@ class StatsCounter;
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
+  EXTERNAL_REFERENCE_LIST_VIRTUAL_MEMORY_CAGE(V)                               \
   EXTERNAL_REFERENCE_LIST_HEAP_SANDBOX(V)
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
@@ -306,6 +307,14 @@ class StatsCounter;
 #else
 #define EXTERNAL_REFERENCE_LIST_INTL(V)
 #endif  // V8_INTL_SUPPORT
+
+#ifdef V8_VIRTUAL_MEMORY_CAGE
+#define EXTERNAL_REFERENCE_LIST_VIRTUAL_MEMORY_CAGE(V)               \
+  V(virtual_memory_cage_base_address, "V8VirtualMemoryCage::base()") \
+  V(virtual_memory_cage_end_address, "V8VirtualMemoryCage::end()")
+#else
+#define EXTERNAL_REFERENCE_LIST_VIRTUAL_MEMORY_CAGE(V)
+#endif  // V8_VIRTUAL_MEMORY_CAGE
 
 #ifdef V8_HEAP_SANDBOX
 #define EXTERNAL_REFERENCE_LIST_HEAP_SANDBOX(V) \

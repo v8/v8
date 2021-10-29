@@ -3325,6 +3325,8 @@ v8_header_set("v8_internal_headers") {
     "src/roots/roots.h",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime.h",
+    "src/security/caged-pointer-inl.h",
+    "src/security/caged-pointer.h",
     "src/security/external-pointer-inl.h",
     "src/security/external-pointer-table.h",
     "src/security/external-pointer.h",

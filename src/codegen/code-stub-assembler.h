@@ -1042,6 +1042,33 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Works only with V8_ENABLE_FORCE_SLOW_PATH compile time flag. Nop otherwise.
   void GotoIfForceSlowPath(Label* if_true);
 
+#ifdef V8_CAGED_POINTERS
+
+  //
+  // Caged pointer related functionality.
+  //
+
+  // Load a caged pointer value from an object.
+  TNode<CagedPtrT> LoadCagedPointerFromObject(TNode<HeapObject> object,
+                                              int offset) {
+    return LoadCagedPointerFromObject(object, IntPtrConstant(offset));
+  }
+
+  TNode<CagedPtrT> LoadCagedPointerFromObject(TNode<HeapObject> object,
+                                              TNode<IntPtrT> offset);
+
+  // Stored a caged pointer value to an object.
+  void StoreCagedPointerToObject(TNode<HeapObject> object, int offset,
+                                 TNode<CagedPtrT> pointer) {
+    StoreCagedPointerToObject(object, IntPtrConstant(offset), pointer);
+  }
+
+  void StoreCagedPointerToObject(TNode<HeapObject> object,
+                                 TNode<IntPtrT> offset,
+                                 TNode<CagedPtrT> pointer);
+
+#endif  // V8_CAGED_POINTERS
+
   //
   // ExternalPointerT-related functionality.
   //

@@ -163,6 +163,8 @@ namespace compiler {
   V(X64MovqDecompressTaggedPointer)                  \
   V(X64MovqDecompressAnyTagged)                      \
   V(X64MovqCompressTagged)                           \
+  V(X64MovqEncodeCagedPointer)                       \
+  V(X64MovqDecodeCagedPointer)                       \
   V(X64BitcastFI)                                    \
   V(X64BitcastDL)                                    \
   V(X64BitcastIF)                                    \

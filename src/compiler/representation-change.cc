@@ -242,6 +242,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       return node;
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCagedPointer:
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
@@ -1245,6 +1246,13 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       return jsgraph()->graph()->NewNode(
           jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
           unreachable);
+    }
+  } else if (output_rep == MachineRepresentation::kCagedPointer) {
+    if (output_type.Is(Type::CagedPointer())) {
+      return node;
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord64);
     }
   } else {
     return TypeError(node, output_rep, output_type,

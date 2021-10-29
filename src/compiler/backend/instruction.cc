@@ -259,6 +259,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kCompressed:
           os << "|c";
           break;
+        case MachineRepresentation::kCagedPointer:
+          os << "|cg";
+          break;
         case MachineRepresentation::kMapWord:
           UNREACHABLE();
       }
@@ -928,6 +931,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kCagedPointer:
       return rep;
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
