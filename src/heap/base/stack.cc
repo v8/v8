@@ -32,12 +32,14 @@ bool Stack::IsOnStack(void* slot) const {
   // Fall through as there is still a regular stack present even when running
   // with ASAN fake stacks.
 #endif  // V8_USE_ADDRESS_SANITIZER
+#if defined(__has_feature)
 #if __has_feature(safe_stack)
   if (__builtin___get_unsafe_stack_top() >= slot &&
       slot > __builtin___get_unsafe_stack_ptr()) {
     return true;
   }
 #endif  // __has_feature(safe_stack)
+#endif  // defined(__has_feature)
   return v8::base::Stack::GetCurrentStackPosition() <= slot &&
          slot <= stack_start_;
 }
