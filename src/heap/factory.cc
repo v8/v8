@@ -3138,6 +3138,8 @@ Handle<String> Factory::HeapNumberToString(Handle<HeapNumber> number,
   Handle<String> result;
   if (value == 0) {
     result = zero_string();
+  } else if (std::isnan(value)) {
+    result = NaN_string();
   } else {
     char arr[kNumberToStringBufferSize];
     base::Vector<char> buffer(arr, arraysize(arr));
