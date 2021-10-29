@@ -3864,11 +3864,11 @@ void ImplementationVisitor::GenerateBitFields(
 
       // If every field is one bit, we can also generate a convenient enum.
       if (all_single_bits) {
-        header << "  enum Flag { \\\n";
+        header << "  enum Flag: " << type_name << " { \\\n";
         header << "    kNone = 0, \\\n";
         for (const auto& field : type->fields()) {
-          header << "    k" << CamelifyString(field.name_and_type.name)
-                 << " = 1 << " << field.offset << ", \\\n";
+          header << "    k" << CamelifyString(field.name_and_type.name) << " = "
+                 << type_name << "{1} << " << field.offset << ", \\\n";
         }
         header << "  }; \\\n";
         header << "  using Flags = base::Flags<Flag>; \\\n";
