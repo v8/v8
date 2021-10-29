@@ -714,33 +714,6 @@ ExecuteSingleUnoptimizedCompilationJob(
   return job;
 }
 
-bool RecursivelyExecuteUnoptimizedCompilationJobs(
-    ParseInfo* parse_info, FunctionLiteral* literal,
-    AccountingAllocator* allocator,
-    UnoptimizedCompilationJobList* function_jobs) {
-  std::vector<FunctionLiteral*> eager_inner_literals;
-
-  // We need to pass nullptr here because we are on the background
-  // thread but don't have a LocalIsolate.
-  DCHECK_NULL(LocalHeap::Current());
-  std::unique_ptr<UnoptimizedCompilationJob> job =
-      ExecuteSingleUnoptimizedCompilationJob(parse_info, literal, allocator,
-                                             &eager_inner_literals, nullptr);
-
-  if (!job) return false;
-
-  // Recursively compile eager inner literals.
-  for (FunctionLiteral* inner_literal : eager_inner_literals) {
-    if (!RecursivelyExecuteUnoptimizedCompilationJobs(
-            parse_info, inner_literal, allocator, function_jobs)) {
-      return false;
-    }
-  }
-
-  function_jobs->emplace_front(std::move(job));
-  return true;
-}
-
 template <typename IsolateT>
 bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
     IsolateT* isolate, Handle<SharedFunctionInfo> outer_shared_info,
