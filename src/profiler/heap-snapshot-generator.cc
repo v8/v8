@@ -711,10 +711,15 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject object) {
   }
 }
 
-int V8HeapExplorer::EstimateObjectsCount() {
+uint32_t V8HeapExplorer::EstimateObjectsCount() {
   CombinedHeapObjectIterator it(heap_, HeapObjectIterator::kFilterUnreachable);
-  int objects_count = 0;
-  while (!it.Next().is_null()) ++objects_count;
+  uint32_t objects_count = 0;
+  // Avoid overflowing the objects count. In worst case, we will show the same
+  // progress for a longer period of time, but we do not expect to have that
+  // many objects.
+  while (!it.Next().is_null() &&
+         objects_count != std::numeric_limits<uint32_t>::max())
+    ++objects_count;
   return objects_count;
 }
 
@@ -2260,7 +2265,17 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 }
 
 void HeapSnapshotGenerator::ProgressStep() {
-  ++progress_counter_;
+  // Only increment the progress_counter_ until
+  // equal to progress_total -1 == progress_counter.
+  // This ensures that intermediate ProgressReport calls will never signal
+  // that the work is finished (i.e. progress_counter_ == progress_total_).
+  // Only the forced ProgressReport() at the end of GenerateSnapshot() should,
+  // after setting progress_counter_ = progress_total_, signal that the
+  // work is finished because signalling finished twice
+  // breaks the DevTools frontend.
+  if (control_ != nullptr && progress_total_ > progress_counter_ + 1) {
+    ++progress_counter_;
+  }
 }
 
 bool HeapSnapshotGenerator::ProgressReport(bool force) {
@@ -2275,12 +2290,7 @@ bool HeapSnapshotGenerator::ProgressReport(bool force) {
 
 void HeapSnapshotGenerator::InitProgressCounter() {
   if (control_ == nullptr) return;
-  // The +1 ensures that intermediate ProgressReport calls will never signal
-  // that the work is finished (i.e. progress_counter_ == progress_total_).
-  // Only the forced ProgressReport() at the end of GenerateSnapshot()
-  // should signal that the work is finished because signalling finished twice
-  // breaks the DevTools frontend.
-  progress_total_ = v8_heap_explorer_.EstimateObjectsCount() + 1;
+  progress_total_ = v8_heap_explorer_.EstimateObjectsCount();
   progress_counter_ = 0;
 }
 
