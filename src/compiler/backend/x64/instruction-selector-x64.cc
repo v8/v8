@@ -3358,7 +3358,7 @@ void InstructionSelector::VisitI64x2ShrS(Node* node) {
 void InstructionSelector::VisitI64x2Mul(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kX64I64x2Mul, g.DefineSameAsFirst(node),
+  Emit(kX64I64x2Mul, g.DefineAsRegister(node),
        g.UseUniqueRegister(node->InputAt(0)),
        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
