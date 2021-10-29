@@ -722,6 +722,7 @@ class LiftoffCompiler {
 
   void TierupCheck(FullDecoder* decoder, WasmCodePosition position,
                    int budget_used) {
+    if (for_debugging_ == kNoDebugging) return;
     CODE_COMMENT("tierup check");
     // We never want to blow the entire budget at once.
     const int kMax = FLAG_wasm_tiering_budget / 4;
@@ -917,7 +918,8 @@ class LiftoffCompiler {
     // is never a position of any instruction in the function.
     StackCheck(decoder, 0);
 
-    if (env_->dynamic_tiering == DynamicTiering::kEnabled) {
+    if (env_->dynamic_tiering == DynamicTiering::kEnabled &&
+        for_debugging_ == kNoDebugging) {
       // TODO(arobin): Avoid spilling registers unconditionally.
       __ SpillAllRegisters();
       CODE_COMMENT("dynamic tiering");
