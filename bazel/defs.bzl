@@ -105,7 +105,7 @@ def _default_args():
         linkopts = [
             "-pthread",
         ] + select({
-            "@v8//bazel/config:is_macos": [],
+            "@config//:is_macos": [],
             "//conditions:default": ["-Wl,--no-as-needed -ldl"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],
