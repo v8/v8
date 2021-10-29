@@ -170,7 +170,7 @@ UnoptimizedCompileState::UnoptimizedCompileState(Isolate* isolate)
       ast_string_constants_(isolate->ast_string_constants()),
       logger_(isolate->logger()),
       parallel_tasks_(
-          isolate->lazy_compile_dispatcher()->IsEnabled()
+          isolate->lazy_compile_dispatcher()
               ? new ParallelTasks(isolate->lazy_compile_dispatcher())
               : nullptr) {}
 

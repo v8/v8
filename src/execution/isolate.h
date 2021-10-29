@@ -1676,7 +1676,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   AccountingAllocator* allocator() { return allocator_; }
 
   LazyCompileDispatcher* lazy_compile_dispatcher() const {
-    return compiler_dispatcher_;
+    return lazy_compile_dispatcher_.get();
   }
 
   baseline::BaselineBatchCompiler* baseline_batch_compiler() const {
@@ -2161,7 +2161,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // through all compilations (and thus all JSHeapBroker instances).
   Zone* compiler_zone_ = nullptr;
 
-  LazyCompileDispatcher* compiler_dispatcher_ = nullptr;
+  std::unique_ptr<LazyCompileDispatcher> lazy_compile_dispatcher_;
   baseline::BaselineBatchCompiler* baseline_batch_compiler_ = nullptr;
 
   using InterruptEntry = std::pair<InterruptCallback, void*>;

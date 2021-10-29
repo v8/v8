@@ -1894,7 +1894,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
 
   // Check if the compiler dispatcher has shared_info enqueued for compile.
   LazyCompileDispatcher* dispatcher = isolate->lazy_compile_dispatcher();
-  if (dispatcher->IsEnqueued(shared_info)) {
+  if (dispatcher && dispatcher->IsEnqueued(shared_info)) {
     if (!dispatcher->FinishNow(shared_info)) {
       return FailWithPendingException(isolate, script, &parse_info, flag);
     }
