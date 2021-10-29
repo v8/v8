@@ -569,7 +569,11 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
       }
       value = isolate_->factory()->undefined_value();
     }
-    JSObject::AddProperty(isolate_, scope, name, value, NONE);
+    // Overwrite properties. Sometimes names in the same scope can collide, e.g.
+    // with extension objects introduced via local eval.
+    JSObject::SetPropertyOrElement(isolate_, scope, name, value,
+                                   Just(ShouldThrow::kDontThrow))
+        .Check();
     return false;
   };
 
