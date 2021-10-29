@@ -48,6 +48,7 @@
 #include "include/v8-regexp.h"
 #include "include/v8-util.h"
 #include "src/api/api-inl.h"
+#include "src/base/bounds.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
@@ -28905,14 +28906,36 @@ TEST(FastApiCalls) {
 
 #ifndef V8_LITE_MODE
 namespace {
+static Trivial* UnwrapTrivialObject(Local<Object> object) {
+  i::Address addr = *reinterpret_cast<i::Address*>(*object);
+  auto instance_type = i::Internals::GetInstanceType(addr);
+  bool is_valid =
+      (v8::base::IsInRange(instance_type, i::Internals::kFirstJSApiObjectType,
+                           i::Internals::kLastJSApiObjectType) ||
+       instance_type == i::Internals::kJSSpecialApiObjectType);
+  if (!is_valid) {
+    return nullptr;
+  }
+  Trivial* wrapped = static_cast<Trivial*>(
+      object->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
+  CHECK_NOT_NULL(wrapped);
+  return wrapped;
+}
+
 void FastCallback1TypedArray(v8::Local<v8::Object> receiver, int arg0,
-                             const v8::FastApiTypedArray<double>& arg1) {
-  // TODO(mslekova): Use the TypedArray parameter
+                             const v8::FastApiTypedArray<int32_t>& arg1) {
+  Trivial* self = UnwrapTrivialObject(receiver);
+  CHECK_NOT_NULL(self);
+  CHECK_EQ(arg0, arg1.length());
+  self->set_x(arg0);
 }
 
 void FastCallback2JSArray(v8::Local<v8::Object> receiver, int arg0,
                           v8::Local<v8::Array> arg1) {
-  // TODO(mslekova): Use the JSArray parameter
+  Trivial* self = UnwrapTrivialObject(receiver);
+  CHECK_NOT_NULL(self);
+  CHECK_EQ(arg0, arg1->Length());
+  self->set_x(arg0);
 }
 
 void FastCallback3SwappedParams(v8::Local<v8::Object> receiver,
@@ -28923,6 +28946,40 @@ void FastCallback4Scalar(v8::Local<v8::Object> receiver, int arg0, float arg1) {
 
 void FastCallback5DifferentArity(v8::Local<v8::Object> receiver, int arg0,
                                  v8::Local<v8::Array> arg1, float arg2) {}
+
+void SequenceSlowCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  Trivial* self = UnwrapTrivialObject(args.This());
+  if (!self) {
+    isolate->ThrowError("This method is not defined on the given receiver.");
+    return;
+  }
+  self->set_x(1337);
+
+  HandleScope handle_scope(isolate);
+
+  if (args.Length() < 2 || !args[0]->IsNumber()) {
+    isolate->ThrowError(
+        "This method expects at least 2 arguments,"
+        " first one a number.");
+    return;
+  }
+  int64_t len = args[0]->IntegerValue(isolate->GetCurrentContext()).FromJust();
+  if (args[1]->IsTypedArray()) {
+    v8::Local<v8::TypedArray> typed_array_arg = args[1].As<v8::TypedArray>();
+    size_t length = typed_array_arg->Length();
+    CHECK_EQ(len, length);
+    return;
+  }
+  if (!args[1]->IsArray()) {
+    isolate->ThrowError("This method expects an array as a second argument.");
+    return;
+  }
+  v8::Local<v8::Array> seq_arg = args[1].As<v8::Array>();
+  uint32_t length = seq_arg->Length();
+  CHECK_EQ(len, length);
+  return;
+}
 }  // namespace
 #endif  // V8_LITE_MODE
 
@@ -28938,24 +28995,49 @@ TEST(FastApiSequenceOverloads) {
   v8::internal::FLAG_always_opt = false;
   v8::internal::FlagList::EnforceFlagImplications();
 
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
+  LocalContext env;
+
   v8::CFunction typed_array_callback =
-      v8::CFunctionBuilder()
-          .Fn(FastCallback1TypedArray)
-          .Arg<0, v8::CTypeInfo::Flags::kNone>()
-          .Arg<1, v8::CTypeInfo::Flags::kNone>()
-          .Arg<2, v8::CTypeInfo::Flags::kAllowSharedBit>()
-          .Build();
-  v8::CFunction js_array_callback = v8::CFunctionBuilder()
-                                        .Fn(FastCallback2JSArray)
-                                        .Arg<0, v8::CTypeInfo::Flags::kNone>()
-                                        .Arg<1, v8::CTypeInfo::Flags::kNone>()
-                                        .Arg<2, v8::CTypeInfo::Flags::kNone>()
-                                        .Build();
+      v8::CFunctionBuilder().Fn(FastCallback1TypedArray).Build();
+  v8::CFunction js_array_callback =
+      v8::CFunctionBuilder().Fn(FastCallback2JSArray).Build();
+  const v8::CFunction sequece_overloads[] = {
+      typed_array_callback,
+      js_array_callback,
+  };
 
-  // TODO(mslekova): Create a FunctionTemplate with the 2 overloads.
-  USE(typed_array_callback);
-  USE(js_array_callback);
+  Local<v8::FunctionTemplate> sequence_callback_templ =
+      v8::FunctionTemplate::NewWithCFunctionOverloads(
+          isolate, SequenceSlowCallback, v8::Number::New(isolate, 42),
+          v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+          v8::SideEffectType::kHasSideEffect, {sequece_overloads, 2});
 
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetInternalFieldCount(kV8WrapperObjectIndex + 1);
+  object_template->Set(isolate, "api_func", sequence_callback_templ);
+
+  std::unique_ptr<Trivial> rcv(new Trivial(42));
+  v8::Local<v8::Object> object =
+      object_template->NewInstance(env.local()).ToLocalChecked();
+  object->SetAlignedPointerInInternalField(kV8WrapperObjectIndex, rcv.get());
+
+  CHECK(
+      (env)->Global()->Set(env.local(), v8_str("receiver"), object).FromJust());
+  USE(CompileRun(
+      "function func(num, arr) { return receiver.api_func(num, arr); }"
+      "%PrepareFunctionForOptimization(func);"
+      "func(3, [1,2,3]);"
+      "%OptimizeFunctionOnNextCall(func);"
+      "func(3, [1,2,3]);"));
+  CHECK_EQ(3, rcv->x());
+
+  USE(
+      CompileRun("const ta = new Int32Array([1, 2, 3, 4]);"
+                 "func(4, ta);"));
+  CHECK_EQ(4, rcv->x());
 #endif  // V8_LITE_MODE
 }
 
