@@ -46,7 +46,7 @@ namespace internal {
 
 TEST(DisasmX64) {
   Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
+  HandleScope handle_scope(isolate);
   v8::internal::byte buffer[8192];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
