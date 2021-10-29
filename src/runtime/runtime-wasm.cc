@@ -681,6 +681,25 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+// Synchronize the stack limit with the active continuation for stack-switching.
+// This can be done before or after changing the stack pointer itself, as long
+// as we update both before the next stack check.
+// {StackGuard::SetStackLimit} doesn't update the value of the jslimit if it
+// contains a sentinel value, and it is also thread-safe. So if an interrupt is
+// requested before, during or after this call, it will be preserved and handled
+// at the next stack check.
+void SyncStackLimit(Isolate* isolate, Handle<WasmInstanceObject> instance) {
+  auto jmpbuf = Managed<wasm::JumpBuffer>::cast(
+                    instance->active_continuation().managed_jmpbuf())
+                    .get();
+  uintptr_t limit = reinterpret_cast<uintptr_t>(jmpbuf->stack_limit);
+  isolate->stack_guard()->SetStackLimit(limit);
+}
+}  // namespace
+
+// Allocate a new continuation, and prepare for stack switching by updating the
+// active continuation and setting the stack limit.
 RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   CHECK(FLAG_experimental_wasm_stack_switching);
   DCHECK_EQ(1, args.length());
@@ -689,7 +708,17 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   auto parent = instance->active_continuation();
   auto target = WasmContinuationObject::New(isolate, parent);
   instance->set_active_continuation(*target);
+  SyncStackLimit(isolate, instance);
   return *target;
+}
+
+// Update the stack limit after a stack switch, and preserve pending interrupts.
+RUNTIME_FUNCTION(Runtime_WasmSyncStackLimit) {
+  CHECK(FLAG_experimental_wasm_stack_switching);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  SyncStackLimit(isolate, instance);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

@@ -3642,11 +3642,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
 namespace {
 // Helper function for WasmReturnPromiseOnSuspend.
-void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf,
-                    Register stack_limit_address, Register stack_limit_tmp) {
+void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf) {
   __ movq(rsp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
-  __ movq(stack_limit_tmp, MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset));
-  __ movq(MemOperand(stack_limit_address, 0), stack_limit_tmp);
+  // The stack limit is set separately under the ExecutionAccess lock.
   // TODO(thibaudm): Reload live registers.
 }
 }  // namespace
@@ -3712,7 +3710,7 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   Register stack_limit_address = rcx;
   __ movq(stack_limit_address,
           FieldOperand(wasm_instance,
-                       WasmInstanceObject::kStackLimitAddressOffset));
+                       WasmInstanceObject::kRealStackLimitAddressOffset));
   Register stack_limit = rdx;
   __ movq(stack_limit, MemOperand(stack_limit_address, 0));
   __ movq(MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset), stack_limit);
@@ -3720,7 +3718,7 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   foreign_jmpbuf = no_reg;
   stack_limit = no_reg;
   stack_limit_address = no_reg;
-  // live: [rsi, rdi, rax, rcx]
+  // live: [rsi, rdi, rax]
 
   // -------------------------------------------
   // Allocate a new continuation.
@@ -3749,16 +3747,11 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
       target_jmpbuf,
       FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
       kForeignForeignAddressTag, r8);
-  stack_limit_address = rcx;
-  __ movq(stack_limit_address,
-          FieldOperand(wasm_instance,
-                       WasmInstanceObject::kStackLimitAddressOffset));
   // Switch stack!
-  LoadJumpBuffer(masm, target_jmpbuf, stack_limit_address, rdx);
+  LoadJumpBuffer(masm, target_jmpbuf);
   __ movq(rbp, rsp);  // New stack, there is no frame yet.
   foreign_jmpbuf = no_reg;
   target_jmpbuf = no_reg;
-  stack_limit_address = no_reg;
   // live: [rsi, rdi]
 
   // -------------------------------------------
@@ -3766,6 +3759,12 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // TODO(thibaudm): Handle arguments.
   // TODO(thibaudm): Handle GC.
+  // Set thread_in_wasm_flag.
+  Register thread_in_wasm_flag_addr = rax;
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
   Register function_entry = function_data;
   __ LoadExternalPointerField(
       function_entry,
@@ -3775,6 +3774,12 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   __ Push(wasm_instance);
   __ call(function_entry);
   __ Pop(wasm_instance);
+  // Unset thread_in_wasm_flag.
+  __ movq(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
+  thread_in_wasm_flag_addr = no_reg;
   function_entry = no_reg;
   function_data = no_reg;
   // live: [rsi]
@@ -3819,16 +3824,16 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   __ LoadExternalPointerField(
       jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
       kForeignForeignAddressTag, r8);
-  stack_limit_address = rcx;
-  __ movq(stack_limit_address,
-          FieldOperand(wasm_instance,
-                       WasmInstanceObject::kStackLimitAddressOffset));
   // Switch stack!
-  LoadJumpBuffer(masm, jmpbuf, stack_limit_address, rdx);
+  LoadJumpBuffer(masm, jmpbuf);
   __ leaq(rbp, Operand(rsp, (kNumSpillSlots + 1) * kSystemPointerSize));
+  __ Push(wasm_instance);  // Spill.
+  __ Push(wasm_instance);  // First arg.
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Pop(wasm_instance);
   parent = no_reg;
   active_continuation = no_reg;
-  stack_limit_address = no_reg;
   foreign_jmpbuf = no_reg;
   wasm_instance = no_reg;
 
