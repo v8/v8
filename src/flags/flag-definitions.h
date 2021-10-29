@@ -445,8 +445,8 @@ DEFINE_NEG_IMPLICATION(enable_third_party_heap, allocation_site_pretenuring)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, turbo_allocation_folding)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_inlining)
-DEFINE_NEG_IMPLICATION(enable_third_party_heap,
-                       finalize_streaming_on_background)
+DEFINE_NEG_IMPLICATION(enable_third_party_heap, script_streaming)
+DEFINE_NEG_IMPLICATION(enable_third_party_heap, parallel_compile_tasks)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, use_marking_progress_bar)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, move_object_start)
 DEFINE_NEG_IMPLICATION(enable_third_party_heap, concurrent_marking)
@@ -1474,14 +1474,8 @@ DEFINE_BOOL(enable_regexp_unaligned_accesses, true,
 DEFINE_BOOL(script_streaming, true, "enable parsing on background")
 DEFINE_BOOL(stress_background_compile, false,
             "stress test parsing on background")
-DEFINE_BOOL(
-    finalize_streaming_on_background, true,
-    "perform the script streaming finalization on the background thread")
 DEFINE_BOOL(concurrent_cache_deserialization, true,
             "enable deserializing code caches on background")
-// TODO(leszeks): Parallel compile tasks currently don't support off-thread
-// finalization.
-DEFINE_NEG_IMPLICATION(parallel_compile_tasks, finalize_streaming_on_background)
 DEFINE_BOOL(disable_old_api_accessors, false,
             "Disable old-style API accessors whose setters trigger through the "
             "prototype chain")

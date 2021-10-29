@@ -80,18 +80,9 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
             shared->function_literal_id(), nullptr);
 
     return new BackgroundCompileTask(
-        outer_parse_info.get(), function_name, function_literal,
+        isolate, outer_parse_info.get(), function_name, function_literal,
         isolate->counters()->worker_thread_runtime_call_stats(),
         isolate->counters()->compile_function_on_background(), FLAG_stack_size);
-  }
-
- protected:
-  void SetUp() override {
-    // TODO(leszeks): Support background finalization in compiler dispatcher.
-    if (FLAG_finalize_streaming_on_background) {
-      GTEST_SKIP_(
-          "Parallel compile tasks don't yet support background finalization");
-    }
   }
 
  private:

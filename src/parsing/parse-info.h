@@ -225,10 +225,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<Script> CreateScript(IsolateT* isolate, Handle<String> source,
-                              MaybeHandle<FixedArray> maybe_wrapped_arguments,
-                              ScriptOriginOptions origin_options,
-                              NativesFlag natives = NOT_NATIVES_CODE);
+  void InitializeScript(IsolateT* isolate, Handle<String> source,
+                        MaybeHandle<FixedArray> maybe_wrapped_arguments,
+                        ScriptOriginOptions origin_options,
+                        NativesFlag natives = NOT_NATIVES_CODE);
 
   // Either returns the ast-value-factory associcated with this ParseInfo, or
   // creates and returns a new factory if none exists.
@@ -273,6 +273,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   LanguageMode language_mode() const { return language_mode_; }
   void set_language_mode(LanguageMode value) { language_mode_ = value; }
+
+  Handle<Script> script() const { return script_; }
+  void set_script(Handle<Script> script) { script_ = script; }
 
   Utf16CharacterStream* character_stream() const {
     return character_stream_.get();
@@ -352,6 +355,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int max_function_literal_id_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
+  Handle<Script> script_;
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ConsumedPreparseData> consumed_preparse_data_;
   std::unique_ptr<AstValueFactory> ast_value_factory_;

@@ -668,8 +668,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
     i::ParseInfo parse_info(i_isolate, flags, &compile_state);
 
-    i::Handle<i::Script> script = parse_info.CreateScript(
-        i_isolate, str, i::kNullMaybeHandle, ScriptOriginOptions());
+    parse_info.InitializeScript(i_isolate, str, i::kNullMaybeHandle,
+                                ScriptOriginOptions());
+    i::Handle<i::Script> script = parse_info.script();
     if (!i::parsing::ParseProgram(&parse_info, script, i_isolate,
                                   i::parsing::ReportStatisticsMode::kYes)) {
       parse_info.pending_error_handler()->PrepareErrors(
