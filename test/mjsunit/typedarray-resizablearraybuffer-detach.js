@@ -775,3 +775,33 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals([6, undefined], ReduceRightHelper(lengthTrackingWithOffset));
   }
 })();
+
+(function IncludesParameterConversionDetaches() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertFalse(IncludesHelper(fixedLength, undefined));
+    // The TA is detached so it includes only "undefined".
+    assertTrue(IncludesHelper(fixedLength, undefined, evil));
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertTrue(IncludesHelper(fixedLength, 0));
+    // The TA is detached so it includes only "undefined".
+    assertFalse(IncludesHelper(fixedLength, 0, evil));
+  }
+})();

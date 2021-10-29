@@ -425,8 +425,6 @@
   'built-ins/DataView/prototype/setUint16/resizable-buffer': [FAIL],
   'built-ins/DataView/prototype/setUint32/resizable-buffer': [FAIL],
   'built-ins/DataView/prototype/setUint8/resizable-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/includes/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/includes/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/indexOf/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/indexOf/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/join/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
