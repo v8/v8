@@ -1045,6 +1045,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     lay(sp, MemOperand(sp, -bytes));
   }
 
+  void AllocateStackSpace(Register bytes) { SubS64(sp, sp, bytes); }
+
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 

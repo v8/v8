@@ -106,6 +106,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     AddS64(sp, sp, Operand(-bytes), r0);
   }
 
+  void AllocateStackSpace(Register bytes) { sub(sp, sp, bytes); }
+
   // Push a fixed frame, consisting of lr, fp, constant pool.
   void PushCommonFrame(Register marker_reg = no_reg);
 
