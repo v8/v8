@@ -318,6 +318,11 @@ namespace cppgc {
 
 template <typename T>
 struct TraceTrait<v8::TracedReference<T>> {
+  static cppgc::TraceDescriptor GetTraceDescriptor(
+      const v8::TracedReference<T>* ref) {
+    return {nullptr, Trace};
+  }
+
   static void Trace(Visitor* visitor, const v8::TracedReference<T>* self) {
     static_cast<v8::JSVisitor*>(visitor)->Trace(*self);
   }
