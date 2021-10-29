@@ -4496,21 +4496,21 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   Branch(not_smi_label, ne, scratch, Operand(zero_reg));
 }
 
-void TurboAssembler::AssertNotSmi(Register object) {
+void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
-    Check(ne, AbortReason::kOperandIsASmi, kScratchReg, Operand(zero_reg));
+    Check(ne, reason, kScratchReg, Operand(zero_reg));
   }
 }
 
-void TurboAssembler::AssertSmi(Register object) {
+void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
-    Check(eq, AbortReason::kOperandIsASmi, kScratchReg, Operand(zero_reg));
+    Check(eq, reason, kScratchReg, Operand(zero_reg));
   }
 }
 
@@ -4548,6 +4548,22 @@ void MacroAssembler::AssertFunction(Register object) {
           Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
     pop(object);
   }
+}
+
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (!FLAG_debug_code) return;
+  ASM_CODE_COMMENT(this);
+  STATIC_ASSERT(kSmiTag == 0);
+  AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
+  push(object);
+  LoadMap(object, object);
+  UseScratchRegisterScope temps(this);
+  Register range = temps.Acquire();
+  GetInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE, range);
+  Check(Uless_equal, AbortReason::kOperandIsNotACallableFunction, range,
+        Operand(LAST_CALLABLE_JS_FUNCTION_TYPE -
+                FIRST_CALLABLE_JS_FUNCTION_TYPE));
+  pop(object);
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
