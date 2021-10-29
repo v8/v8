@@ -617,8 +617,14 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
           (offset_reg != no_reg)
               ? MemOperand(src, offset_imm + liftoff::kHighWordOffset)
               : MemOperand(src_addr, offset_imm + liftoff::kHighWordOffset);
-      TurboAssembler::Ulw(dst.low_gp(), src_op);
-      TurboAssembler::Ulw(dst.high_gp(), src_op_upper);
+      {
+        UseScratchRegisterScope temps(this);
+        Register temp = dst.low_gp();
+        if (dst.low_gp() == src_op_upper.rm()) temp = temps.Acquire();
+        TurboAssembler::Ulw(temp, src_op);
+        TurboAssembler::Ulw(dst.high_gp(), src_op_upper);
+        if (dst.low_gp() == src_op_upper.rm()) mov(dst.low_gp(), temp);
+      }
       break;
     }
     case LoadType::kF32Load:
