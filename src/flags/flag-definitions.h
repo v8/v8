@@ -994,6 +994,12 @@ DEFINE_BOOL(wasm_tier_up, true,
             "have an effect)")
 DEFINE_BOOL(wasm_dynamic_tiering, false,
             "enable dynamic tier up to the optimizing compiler")
+DEFINE_BOOL(new_wasm_dynamic_tiering, false, "dynamic tier up (new impl)")
+// For dynamic tiering to have an effect, we have to turn off eager tierup.
+// This is handled in module-compiler.cc for --wasm-dynamic-tiering.
+DEFINE_NEG_IMPLICATION(new_wasm_dynamic_tiering, wasm_tier_up)
+DEFINE_INT(wasm_tiering_budget, 1800000,
+           "budget for dynamic tiering (rough approximation of bytes executed")
 DEFINE_INT(
     wasm_caching_threshold, 1000000,
     "the amount of wasm top tier code that triggers the next caching event")
@@ -1100,7 +1106,6 @@ DEFINE_BOOL(trace_wasm_speculative_inlining, false,
             "trace wasm speculative inlining")
 DEFINE_IMPLICATION(wasm_speculative_inlining, experimental_wasm_typed_funcref)
 DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_inlining)
-DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_dynamic_tiering)
 DEFINE_NEG_IMPLICATION(wasm_speculative_inlining, wasm_tier_up)
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")

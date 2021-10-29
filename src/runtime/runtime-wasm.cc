@@ -292,6 +292,16 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
 
+  if (FLAG_new_wasm_dynamic_tiering) {
+    // We're reusing this interrupt mechanism to interrupt long-running loops.
+    StackLimitCheck check(isolate);
+    DCHECK(!check.JsHasOverflowed());
+    if (check.InterruptRequested()) {
+      Object result = isolate->stack_guard()->HandleInterrupts();
+      if (result.IsException()) return result;
+    }
+  }
+
   FrameFinder<WasmFrame> frame_finder(isolate);
   int func_index = frame_finder.frame()->function_index();
   auto* native_module = instance->module_object().native_module();

@@ -129,6 +129,12 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
              : call_desc;
 }
 
+constexpr LiftoffRegList GetGpParamRegisters() {
+  LiftoffRegList registers;
+  for (auto reg : kGpParamRegisters) registers.set(reg);
+  return registers;
+}
+
 constexpr LiftoffCondition GetCompareCondition(WasmOpcode opcode) {
   switch (opcode) {
     case kExprI32Eq:
@@ -454,6 +460,24 @@ class LiftoffCompiler {
           debug_sidetable_entry_builder  // debug_side_table_entry_builder
       };
     }
+    static OutOfLineCode TierupCheck(
+        WasmCodePosition pos, LiftoffRegList regs_to_save,
+        Register cached_instance, SpilledRegistersForInspection* spilled_regs,
+        OutOfLineSafepointInfo* safepoint_info,
+        DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
+      return {
+          {},                            // label
+          {},                            // continuation,
+          WasmCode::kWasmTriggerTierUp,  // stub
+          pos,                           // position
+          regs_to_save,                  // regs_to_save
+          cached_instance,               // cached_instance
+          safepoint_info,                // safepoint_info
+          0,                             // pc
+          spilled_regs,                  // spilled_registers
+          debug_sidetable_entry_builder  // debug_side_table_entry_builder
+      };
+    }
   };
 
   LiftoffCompiler(compiler::CallDescriptor* call_descriptor,
@@ -696,6 +720,52 @@ class LiftoffCompiler {
     __ bind(ool.continuation.get());
   }
 
+  void TierupCheck(FullDecoder* decoder, WasmCodePosition position,
+                   int budget_used) {
+    CODE_COMMENT("tierup check");
+    // We never want to blow the entire budget at once.
+    const int kMax = FLAG_wasm_tiering_budget / 4;
+    if (budget_used > kMax) budget_used = kMax;
+
+    LiftoffRegister budget_reg = __ GetUnusedRegister(kGpReg, {});
+    __ Fill(budget_reg, liftoff::kTierupBudgetOffset, ValueKind::kI32);
+    LiftoffRegList regs_to_save = __ cache_state()->used_registers;
+    // The cached instance will be reloaded separately.
+    if (__ cache_state()->cached_instance != no_reg) {
+      DCHECK(regs_to_save.has(__ cache_state()->cached_instance));
+      regs_to_save.clear(__ cache_state()->cached_instance);
+    }
+    SpilledRegistersForInspection* spilled_regs = nullptr;
+
+    OutOfLineSafepointInfo* safepoint_info =
+        compilation_zone_->New<OutOfLineSafepointInfo>(compilation_zone_);
+    __ cache_state()->GetTaggedSlotsForOOLCode(
+        &safepoint_info->slots, &safepoint_info->spills,
+        for_debugging_
+            ? LiftoffAssembler::CacheState::SpillLocation::kStackSlots
+            : LiftoffAssembler::CacheState::SpillLocation::kTopOfStack);
+    if (V8_UNLIKELY(for_debugging_)) {
+      // When debugging, we do not just push all registers to the stack, but we
+      // spill them to their proper stack locations such that we can inspect
+      // them.
+      // The only exception is the cached memory start, which we just push
+      // before the tierup check and pop afterwards.
+      regs_to_save = {};
+      if (__ cache_state()->cached_mem_start != no_reg) {
+        regs_to_save.set(__ cache_state()->cached_mem_start);
+      }
+      spilled_regs = GetSpilledRegistersForInspection();
+    }
+    out_of_line_code_.push_back(OutOfLineCode::TierupCheck(
+        position, regs_to_save, __ cache_state()->cached_instance, spilled_regs,
+        safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
+    OutOfLineCode& ool = out_of_line_code_.back();
+    __ emit_i32_subi_jump_negative(budget_reg.gp(), budget_used,
+                                   ool.label.get());
+    __ Spill(liftoff::kTierupBudgetOffset, budget_reg, ValueKind::kI32);
+    __ bind(ool.continuation.get());
+  }
+
   bool SpillLocalsInitially(FullDecoder* decoder, uint32_t num_params) {
     int actual_locals = __ num_locals() - num_params;
     DCHECK_LE(0, actual_locals);
@@ -759,12 +829,12 @@ class LiftoffCompiler {
                       .AsRegister()));
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
     // Load the feedback vector and cache it in a stack slot.
+    constexpr LiftoffRegList parameter_registers = GetGpParamRegisters();
     if (FLAG_wasm_speculative_inlining) {
       int declared_func_index =
           func_index_ - env_->module->num_imported_functions;
       DCHECK_GE(declared_func_index, 0);
-      LiftoffRegList pinned;
-      for (auto reg : kGpParamRegisters) pinned.set(reg);
+      LiftoffRegList pinned = parameter_registers;
       LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       __ LoadTaggedPointerFromInstance(
           tmp.gp(), kWasmInstanceRegister,
@@ -776,6 +846,18 @@ class LiftoffCompiler {
       __ Spill(liftoff::kFeedbackVectorOffset, tmp, kPointerKind);
     } else {
       __ Spill(liftoff::kFeedbackVectorOffset, WasmValue::ForUintPtr(0));
+    }
+    if (FLAG_new_wasm_dynamic_tiering) {
+      LiftoffRegList pinned = parameter_registers;
+      LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      LOAD_INSTANCE_FIELD(tmp.gp(), NumLiftoffFunctionCallsArray,
+                          kSystemPointerSize, pinned);
+      uint32_t offset =
+          kInt32Size * declared_function_index(env_->module, func_index_);
+      __ Load(tmp, tmp.gp(), no_reg, offset, LoadType::kI32Load, pinned);
+      __ Spill(liftoff::kTierupBudgetOffset, tmp, ValueKind::kI32);
+    } else {
+      __ Spill(liftoff::kTierupBudgetOffset, WasmValue::ForUintPtr(0));
     }
     if (for_debugging_) __ ResetOSRTarget();
 
@@ -885,6 +967,7 @@ class LiftoffCompiler {
         (std::string("OOL: ") + GetRuntimeStubName(ool->stub)).c_str());
     __ bind(ool->label.get());
     const bool is_stack_check = ool->stub == WasmCode::kWasmStackGuard;
+    const bool is_tierup = ool->stub == WasmCode::kWasmTriggerTierUp;
 
     // Only memory OOB traps need a {pc}, but not unconditionally. Static OOB
     // accesses do not need protected instruction information, hence they also
@@ -945,17 +1028,22 @@ class LiftoffCompiler {
       __ RecordSpillsInSafepoint(safepoint, gp_regs,
                                  ool->safepoint_info->spills, index);
     }
+    if (is_tierup) {
+      // Reset the budget.
+      __ Spill(liftoff::kTierupBudgetOffset,
+               WasmValue(FLAG_wasm_tiering_budget));
+    }
 
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
     if (V8_UNLIKELY(ool->debug_sidetable_entry_builder)) {
       ool->debug_sidetable_entry_builder->set_pc_offset(__ pc_offset());
     }
-    DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check);
+    DCHECK_EQ(ool->continuation.get()->is_bound(), is_stack_check || is_tierup);
     if (is_stack_check) {
       MaybeOSR();
     }
     if (!ool->regs_to_save.is_empty()) __ PopRegisters(ool->regs_to_save);
-    if (is_stack_check) {
+    if (is_stack_check || is_tierup) {
       if (V8_UNLIKELY(ool->spilled_registers != nullptr)) {
         DCHECK(for_debugging_);
         for (auto& entry : ool->spilled_registers->entries) {
@@ -1139,8 +1227,12 @@ class LiftoffCompiler {
 
     PushControl(loop);
 
-    // Execute a stack check in the loop header.
-    StackCheck(decoder, decoder->position());
+    if (!FLAG_new_wasm_dynamic_tiering) {
+      // When the budget-based tiering mechanism is enabled, use that to
+      // check for interrupt requests; otherwise execute a stack check in the
+      // loop header.
+      StackCheck(decoder, decoder->position());
+    }
   }
 
   void Try(FullDecoder* decoder, Control* block) {
@@ -2186,8 +2278,23 @@ class LiftoffCompiler {
     __ DeallocateStackSlot(sizeof(int64_t));
   }
 
+  void TierupCheckOnExit(FullDecoder* decoder) {
+    if (!FLAG_new_wasm_dynamic_tiering) return;
+    TierupCheck(decoder, decoder->position(), __ pc_offset());
+    LiftoffRegList pinned;
+    LiftoffRegister budget = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister array = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LOAD_INSTANCE_FIELD(array.gp(), NumLiftoffFunctionCallsArray,
+                        kSystemPointerSize, pinned);
+    uint32_t offset =
+        kInt32Size * declared_function_index(env_->module, func_index_);
+    __ Fill(budget, liftoff::kTierupBudgetOffset, ValueKind::kI32);
+    __ Store(array.gp(), no_reg, offset, budget, StoreType::kI32Store, pinned);
+  }
+
   void DoReturn(FullDecoder* decoder, uint32_t /* drop_values */) {
     if (FLAG_trace_wasm) TraceFunctionExit(decoder);
+    TierupCheckOnExit(decoder);
     size_t num_returns = decoder->sig_->return_count();
     if (num_returns > 0) __ MoveToReturnLocations(decoder->sig_, descriptor_);
     __ LeaveFrame(StackFrame::WASM);
@@ -2518,11 +2625,23 @@ class LiftoffCompiler {
     __ PushRegister(kind, dst);
   }
 
-  void BrImpl(Control* target) {
+  void BrImpl(FullDecoder* decoder, Control* target) {
     if (!target->br_merge()->reached) {
       target->label_state.InitMerge(
           *__ cache_state(), __ num_locals(), target->br_merge()->arity,
           target->stack_depth + target->num_exceptions);
+    }
+    if (FLAG_new_wasm_dynamic_tiering) {
+      if (target->is_loop()) {
+        DCHECK(target->label.get()->is_bound());
+        int jump_distance = __ pc_offset() - target->label.get()->pos();
+        TierupCheck(decoder, decoder->position(), jump_distance);
+      } else {
+        // To estimate time spent in this function more accurately, we could
+        // increment the tiering budget on forward jumps. However, we don't
+        // know the jump distance yet; using a blanket value has been tried
+        // and found to not make a difference.
+      }
     }
     __ MergeStackWith(target->label_state, target->br_merge()->arity,
                       target->is_loop() ? LiftoffAssembler::kBackwardJump
@@ -2535,7 +2654,7 @@ class LiftoffCompiler {
     if (depth == decoder->control_depth() - 1) {
       DoReturn(decoder, 0);
     } else {
-      BrImpl(decoder->control_at(depth));
+      BrImpl(decoder, decoder->control_at(depth));
     }
   }
 
@@ -3259,18 +3378,21 @@ class LiftoffCompiler {
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
+    TierupCheckOnExit(decoder);
     CallDirect(decoder, imm, args, nullptr, kTailCall);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index_val,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
+    TierupCheckOnExit(decoder);
     CallIndirect(decoder, index_val, imm, kTailCall);
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
+    TierupCheckOnExit(decoder);
     CallRef(decoder, func_ref.type, sig, kTailCall);
   }
 

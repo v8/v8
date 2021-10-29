@@ -1012,6 +1012,8 @@ class LiftoffAssembler : public TurboAssembler {
                              Register lhs, Register rhs = no_reg);
   inline void emit_i32_cond_jumpi(LiftoffCondition, Label*, Register lhs,
                                   int imm);
+  inline void emit_i32_subi_jump_negative(Register value, int subtrahend,
+                                          Label* result_negative);
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_eqz(Register dst, Register src);
   inline void emit_i32_set_cond(LiftoffCondition, Register dst, Register lhs,

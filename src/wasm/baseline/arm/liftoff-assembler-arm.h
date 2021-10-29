@@ -56,13 +56,14 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //   0   | previous frame (fp)|
 //  -----+--------------------+  <-- frame ptr (fp)
 //  -1   | 0xa: WASM          |
-//  -2   |     instance       |
+//  -2   |    instance        |
 //  -3   |    feedback vector |
+//  -4   |    tiering budget  |
 //  -----+--------------------+---------------------------
-//  -4   |    slot 0 (high)   |   ^
-//  -5   |    slot 0 (low)    |   |
-//  -6   |    slot 1 (high)   | Frame slots
-//  -7   |    slot 1 (low)    |   |
+//  -5   |    slot 0 (high)   |   ^
+//  -6   |    slot 0 (low)    |   |
+//  -7   |    slot 1 (high)   | Frame slots
+//  -8   |    slot 1 (low)    |   |
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
@@ -70,6 +71,7 @@ static_assert(2 * kSystemPointerSize == LiftoffAssembler::kStackSlotSize,
               "Slot size should be twice the size of the 32 bit pointer.");
 constexpr int kInstanceOffset = 2 * kSystemPointerSize;
 constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
+constexpr int kTierupBudgetOffset = 4 * kSystemPointerSize;
 // kPatchInstructionsRequired sets a maximum limit of how many instructions that
 // PatchPrepareStackFrame will use in order to increase the stack appropriately.
 // Three instructions are required to sub a large constant, movw + movt + sub.
@@ -559,7 +561,7 @@ void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kFeedbackVectorOffset;
+  return liftoff::kTierupBudgetOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
@@ -2237,6 +2239,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   cmp(lhs, Operand(imm));
   b(label, cond);
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(Register value,
+                                                   int subtrahend,
+                                                   Label* result_negative) {
+  sub(value, value, Operand(subtrahend), SetCC);
+  b(result_negative, mi);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {

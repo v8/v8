@@ -1000,10 +1000,15 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
     num_liftoff_function_calls_ =
         std::make_unique<uint32_t[]>(module_->num_declared_functions);
 
-    // Start counter at 4 to avoid runtime calls for smaller numbers.
-    constexpr int kCounterStart = 4;
-    std::fill_n(num_liftoff_function_calls_.get(),
-                module_->num_declared_functions, kCounterStart);
+    if (FLAG_new_wasm_dynamic_tiering) {
+      std::fill_n(num_liftoff_function_calls_.get(),
+                  module_->num_declared_functions, FLAG_wasm_tiering_budget);
+    } else {
+      // Start counter at 4 to avoid runtime calls for smaller numbers.
+      constexpr int kCounterStart = 4;
+      std::fill_n(num_liftoff_function_calls_.get(),
+                  module_->num_declared_functions, kCounterStart);
+    }
   }
   // Even though there cannot be another thread using this object (since we are
   // just constructing it), we need to hold the mutex to fulfill the

@@ -269,6 +269,7 @@ struct CallSiteFeedback {
 struct FunctionTypeFeedback {
   std::vector<CallSiteFeedback> feedback_vector;
   std::map<WasmCodePosition, int> positions;
+  int tierup_priority = 0;
 };
 struct TypeFeedbackStorage {
   std::map<uint32_t, FunctionTypeFeedback> feedback_for_function;

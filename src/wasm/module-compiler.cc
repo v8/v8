@@ -1326,6 +1326,23 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
                                    kNoDebugging};
 
   const WasmModule* module = native_module->module();
+  size_t priority;
+  if (FLAG_new_wasm_dynamic_tiering) {
+    base::MutexGuard mutex_guard(&module->type_feedback.mutex);
+    int saved_priority =
+        module->type_feedback.feedback_for_function[func_index].tierup_priority;
+    saved_priority++;
+    module->type_feedback.feedback_for_function[func_index].tierup_priority =
+        saved_priority;
+    // Continue to creating a compilation unit if this is the first time
+    // we detect this function as hot, and create a new higher-priority unit
+    // if the number of tierup checks is a power of two (at least 4).
+    if (saved_priority > 1 &&
+        (saved_priority < 4 || (saved_priority & (saved_priority - 1)) != 0)) {
+      return;
+    }
+    priority = saved_priority;
+  }
   if (FLAG_wasm_speculative_inlining) {
     auto feedback = ProcessTypeFeedback(isolate, instance, func_index);
     base::MutexGuard mutex_guard(&module->type_feedback.mutex);
@@ -1336,11 +1353,11 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
         std::move(feedback);
   }
 
-  uint32_t* call_array = native_module->num_liftoff_function_calls_array();
-  int offset = wasm::declared_function_index(module, func_index);
-
-  size_t priority =
-      base::Relaxed_Load(reinterpret_cast<int*>(&call_array[offset]));
+  if (!FLAG_new_wasm_dynamic_tiering) {
+    uint32_t* call_array = native_module->num_liftoff_function_calls_array();
+    int offset = wasm::declared_function_index(module, func_index);
+    priority = base::Relaxed_Load(reinterpret_cast<int*>(&call_array[offset]));
+  }
   compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);
 }
 
