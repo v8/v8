@@ -918,6 +918,7 @@ void TurboAssembler::Pextrq(Register dst, XMMRegister src, int8_t imm8) {
     } else if (dst == src3) {                 \
       vfmadd213##ps_or_pd(dst, src2, src1);   \
     } else {                                  \
+      CpuFeatureScope avx_scope(this, AVX);   \
       vmovups(dst, src1);                     \
       vfmadd231##ps_or_pd(dst, src2, src3);   \
     }                                         \
@@ -957,6 +958,7 @@ void TurboAssembler::Pextrq(Register dst, XMMRegister src, int8_t imm8) {
     } else if (dst == src3) {                 \
       vfnmadd213##ps_or_pd(dst, src2, src1);  \
     } else {                                  \
+      CpuFeatureScope avx_scope(this, AVX);   \
       vmovups(dst, src1);                     \
       vfnmadd231##ps_or_pd(dst, src2, src3);  \
     }                                         \
