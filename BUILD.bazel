@@ -3277,11 +3277,6 @@ v8_binary(
     noicu_deps = [":noicu/v8"],
 )
 
-alias(
-    name = "d8",
-    actual = ":icu/d8",
-)
-
 # This target forces torque to be compiled without pointer compression.
 v8_binary_non_pointer_compression(
     name = "torque_non_pointer_compression",
