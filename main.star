@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-lucicfg.check_version("1.23.3", "Please update depot_tools")
+lucicfg.check_version("1.29.1", "Please update depot_tools")
 
 load(
     "//lib/lib.star",
