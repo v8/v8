@@ -34,11 +34,12 @@ namespace liftoff {
 //  -1   | 0xa: WASM          |
 //  -2   |     instance       |
 //  -3   |    feedback vector |
+//  -4   |    tiering budget  |
 //  -----+--------------------+---------------------------
-//  -4   |    slot 0 (high)   |   ^
-//  -5   |    slot 0 (low)    |   |
-//  -6   |    slot 1 (high)   | Frame slots
-//  -7   |    slot 1 (low)    |   |
+//  -5   |    slot 0 (high)   |   ^
+//  -6   |    slot 0 (low)    |   |
+//  -7   |    slot 1 (high)   | Frame slots
+//  -8   |    slot 1 (low)    |   |
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
@@ -48,6 +49,8 @@ constexpr int32_t kInstanceOffset =
     (FLAG_enable_embedded_constant_pool ? 3 : 2) * kSystemPointerSize;
 constexpr int kFeedbackVectorOffset =
     (FLAG_enable_embedded_constant_pool ? 4 : 3) * kSystemPointerSize;
+constexpr int kTierupBudgetOffset =
+    (FLAG_enable_embedded_constant_pool ? 5 : 4) * kSystemPointerSize;
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
@@ -219,7 +222,7 @@ void LiftoffAssembler::AbortCompilation() { FinishCode(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kFeedbackVectorOffset;
+  return liftoff::kTierupBudgetOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
@@ -1593,6 +1596,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
     CmpU32(lhs, Operand(imm), r0);
   }
   b(cond, label);
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(Register value,
+                                                   int subtrahend,
+                                                   Label* result_negative) {
+  SubS64(value, value, Operand(subtrahend), r0, LeaveOE, SetRC);
+  blt(result_negative, cr0);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
