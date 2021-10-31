@@ -18,6 +18,7 @@
       'arm64.debug': 'default_debug_arm64',
       'arm64.optdebug': 'default_optdebug_arm64',
       'arm64.release': 'default_release_arm64',
+      'arm64.release.sample': 'release_arm64_sample',
       'ia32.debug': 'default_debug_x86',
       'ia32.optdebug': 'default_optdebug_x86',
       'ia32.release': 'default_release_x86',
@@ -321,6 +322,8 @@
       'debug', 'simulate_arm64', 'v8_enable_slow_dchecks'],
     'default_release_arm64': [
       'release', 'simulate_arm64'],
+    'release_arm64_sample': [
+      'release', 'arm64', 'sample'],
     'default_debug_mipsel': [
       'debug', 'simulate_mipsel', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_mipsel': [
