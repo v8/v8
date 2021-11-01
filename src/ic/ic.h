@@ -122,13 +122,17 @@ class IC {
   bool IsStoreIC() const { return IsStoreICKind(kind_); }
   bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
   bool IsDefineOwnIC() const { return IsDefineOwnICKind(kind_); }
+  bool IsStoreInArrayLiteralIC() const {
+    return IsStoreInArrayLiteralICKind(kind_);
+  }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
   bool IsKeyedHasIC() const { return IsKeyedHasICKind(kind_); }
+  bool IsKeyedDefineOwnIC() const { return IsKeyedDefineOwnICKind(kind_); }
   bool is_keyed() const {
-    return IsKeyedLoadIC() || IsKeyedStoreIC() ||
-           IsStoreInArrayLiteralICKind(kind_) || IsKeyedHasIC() ||
-           IsKeyedDefineOwnICKind(kind_);
+    return IsKeyedLoadIC() || IsKeyedStoreIC() || IsStoreInArrayLiteralIC() ||
+           IsKeyedHasIC() || IsKeyedDefineOwnIC();
   }
+  bool is_any_store_own() const { return IsStoreOwnIC() || IsDefineOwnIC(); }
   bool ShouldRecomputeHandler(Handle<String> name);
 
   Handle<Map> lookup_start_object_map() { return lookup_start_object_map_; }

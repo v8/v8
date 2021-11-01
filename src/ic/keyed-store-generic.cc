@@ -154,8 +154,13 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   bool ShouldCallSetter() const { return IsKeyedStore() || IsKeyedStoreOwn(); }
   bool ShouldCheckPrototypeValidity() const {
     // We don't do this for "in-literal" stores, because it is impossible for
-    // the target object to be a "prototype"
-    return !IsStoreInLiteral() && !IsKeyedStoreOwn();
+    // the target object to be a "prototype".
+    // We don't need the prototype validity check for "own" stores, because
+    // we don't care about the prototype chain.
+    // Thus, we need the prototype check only for ordinary stores.
+    DCHECK_IMPLIES(!IsKeyedStore(), IsStoreInLiteral() || IsKeyedStoreOwn() ||
+                                        IsKeyedDefineOwn());
+    return IsKeyedStore();
   }
 };
 
@@ -813,7 +818,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&descriptor_found);
     {
       if (IsKeyedDefineOwn()) {
-        // Take slow path to throw if a private name already exists
+        // Take slow path to throw if a private name already exists.
         GotoIf(IsPrivateSymbol(name), slow);
       }
       TNode<IntPtrT> name_index = var_name_index.value();
@@ -875,6 +880,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     {
       Label check_const(this), overwrite(this), done(this);
       if (IsKeyedDefineOwn()) {
+        // Take slow path to throw if a private name already exists.
         GotoIf(IsPrivateSymbol(name), slow);
       }
       TNode<Uint32T> details =
@@ -1071,6 +1077,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   BIND(&slow);
   {
     if (IsKeyedStore() || IsKeyedStoreOwn()) {
+      CSA_DCHECK(this, BoolConstant(!IsKeyedStoreOwn()));
       Comment("KeyedStoreGeneric_slow");
       TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
                       value);

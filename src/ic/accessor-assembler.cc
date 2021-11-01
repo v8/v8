@@ -15,6 +15,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/logging/counters.h"
 #include "src/objects/cell.h"
+#include "src/objects/feedback-vector.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/megadom-handler.h"
@@ -1223,6 +1224,10 @@ void AccessorAssembler::HandleStoreICHandlerCase(
         properties, CAST(p->name()), &dictionary_found, &var_name_index, miss);
     BIND(&dictionary_found);
     {
+      if (p->IsDefineOwn()) {
+        // Take slow path to throw if a private name already exists.
+        GotoIf(IsPrivateSymbol(CAST(p->name())), &if_slow);
+      }
       Label if_constant(this), done(this);
       TNode<Uint32T> details =
           LoadDetailsByKeyIndex(properties, var_name_index.value());
@@ -1340,6 +1345,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     {
       TNode<PropertyCell> property_cell = CAST(map_or_property_cell);
       ExitPoint direct_exit(this);
+      // StoreGlobalIC_PropertyCellCase doesn't properly handle private names
+      // but they are not expected here anyway.
+      CSA_DCHECK(this, BoolConstant(!p->IsDefineOwn()));
       StoreGlobalIC_PropertyCellCase(property_cell, p->value(), &direct_exit,
                                      miss);
     }
@@ -1347,7 +1355,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     {
       TNode<Map> map = CAST(map_or_property_cell);
       HandleStoreICTransitionMapHandlerCase(p, map, miss,
-                                            kCheckPrototypeValidity);
+                                            p->IsAnyStoreOwn()
+                                                ? kDontCheckPrototypeValidity
+                                                : kCheckPrototypeValidity);
       Return(p->value());
     }
   }
@@ -1771,6 +1781,11 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       if (ic_mode == ICMode::kGlobalIC) {
         TailCallRuntime(Runtime::kStoreGlobalIC_Slow, p->context(), p->value(),
                         p->slot(), p->vector(), p->receiver(), p->name());
+      } else if (p->IsAnyStoreOwn()) {
+        // DefineOwnIC and StoreOwnIC shouldn't be using slow proto handlers,
+        // otherwise proper slow function must be called.
+        CSA_DCHECK(this, BoolConstant(!p->IsAnyStoreOwn()));
+        Unreachable();
       } else {
         TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
                         p->receiver(), p->name());
@@ -1850,6 +1865,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     BIND(&if_store_global_proxy);
     {
       ExitPoint direct_exit(this);
+      // StoreGlobalIC_PropertyCellCase doesn't properly handle private names
+      // but they are not expected here anyway.
+      CSA_DCHECK(this, BoolConstant(!p->IsDefineOwn()));
       StoreGlobalIC_PropertyCellCase(CAST(holder), p->value(), &direct_exit,
                                      miss);
     }

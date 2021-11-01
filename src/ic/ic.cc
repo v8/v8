@@ -114,13 +114,12 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   } else if (IsKeyedLoadIC()) {
     KeyedAccessLoadMode mode = nexus()->GetKeyedAccessLoadMode();
     modifier = GetModifier(mode);
-  } else if (IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind()) ||
-             IsDefineOwnIC()) {
+  } else if (IsKeyedStoreIC() || IsStoreInArrayLiteralIC() || IsDefineOwnIC()) {
     KeyedAccessStoreMode mode = nexus()->GetKeyedAccessStoreMode();
     modifier = GetModifier(mode);
   }
 
-  bool keyed_prefix = is_keyed() && !IsStoreInArrayLiteralICKind(kind());
+  bool keyed_prefix = is_keyed() && !IsStoreInArrayLiteralIC();
 
   if (!(TracingFlags::ic_stats.load(std::memory_order_relaxed) &
         v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
@@ -831,7 +830,10 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
 }
 
 StubCache* IC::stub_cache() {
+  // HasICs and each of the store own ICs require its own stub cache.
+  // Until we create them, don't allow accessing the load/store stub caches.
   DCHECK(!IsAnyHas());
+  DCHECK(!is_any_store_own());
   if (IsAnyLoad()) {
     return isolate()->load_stub_cache();
   } else {
@@ -842,7 +844,7 @@ StubCache* IC::stub_cache() {
 
 void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                                 const MaybeObjectHandle& handler) {
-  if (!IsAnyHas()) {
+  if (!IsAnyHas() && !is_any_store_own()) {
     stub_cache()->Set(*name, *map, *handler);
   }
 }
@@ -1833,6 +1835,13 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 #endif
           return StoreHandler::StoreGlobal(lookup->transition_cell());
         }
+        if (IsDefineOwnIC()) {
+          // Private field can't be deleted from this global object and can't
+          // be overwritten, so install slow handler in order to make store IC
+          // throw if a private name already exists.
+          TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+          return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+        }
 
         Handle<Smi> smi_handler = StoreHandler::StoreGlobalProxy(isolate());
         Handle<Object> handler = StoreHandler::StoreThroughPrototype(
@@ -1845,7 +1854,10 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
                      !lookup_start_object_map()->is_dictionary_map());
 
       DCHECK(lookup->IsCacheableTransition());
-
+      if (IsAnyStoreOwn()) {
+        return StoreHandler::StoreOwnTransition(isolate(),
+                                                lookup->transition_map());
+      }
       return StoreHandler::StoreTransition(isolate(), lookup->transition_map());
     }
 
@@ -2072,7 +2084,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   for (const MapAndHandler& map_and_handler : target_maps_and_handlers) {
     Handle<Map> map = map_and_handler.first;
     if (!map.is_null() && map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
-      DCHECK(!IsStoreInArrayLiteralICKind(kind()));
+      DCHECK(!IsStoreInArrayLiteralIC());
       set_slow_stub_reason("JSPrimitiveWrapper");
       return;
     }
@@ -2163,13 +2175,13 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
         return;
 
       } else if (map->has_typed_array_or_rab_gsab_typed_array_elements()) {
-        DCHECK(!IsStoreInArrayLiteralICKind(kind()));
+        DCHECK(!IsStoreInArrayLiteralIC());
         external_arrays++;
       }
     }
     if (external_arrays != 0 &&
         external_arrays != target_maps_and_handlers.size()) {
-      DCHECK(!IsStoreInArrayLiteralICKind(kind()));
+      DCHECK(!IsStoreInArrayLiteralIC());
       set_slow_stub_reason(
           "unsupported combination of external and normal arrays");
       return;
@@ -2197,7 +2209,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   DCHECK_IMPLIES(
       !receiver_map->has_dictionary_elements() &&
           receiver_map->MayHaveReadOnlyElementsInPrototypeChain(isolate()),
-      IsStoreInArrayLiteralICKind(kind()));
+      IsStoreInArrayLiteralIC());
 
   if (receiver_map->IsJSProxyMap()) {
     return StoreHandler::StoreProxy(isolate());
@@ -2218,7 +2230,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     if (receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
       return code;
     }
-  } else if (IsStoreInArrayLiteralICKind(kind())) {
+  } else if (IsStoreInArrayLiteralIC()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
     return StoreHandler::StoreSlow(isolate(), store_mode);
@@ -2230,7 +2242,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     code = StoreHandler::StoreSlow(isolate(), store_mode);
   }
 
-  if (IsStoreInArrayLiteralICKind(kind())) return code;
+  if (is_any_store_own() || IsStoreInArrayLiteralIC()) return code;
   Handle<Object> validity_cell;
   if (!prev_validity_cell.ToHandle(&validity_cell)) {
     validity_cell =
