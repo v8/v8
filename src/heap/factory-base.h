@@ -162,9 +162,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);
 
-  Handle<SharedFunctionInfo> NewPlaceholderSharedFunctionInfoForLazyLiteral(
-      FunctionLiteral* literal, Handle<Script> script);
-
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 
   Handle<UncompiledDataWithoutPreparseData>

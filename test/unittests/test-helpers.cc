@@ -67,8 +67,6 @@ std::unique_ptr<ParseInfo> OuterParseInfoForShared(
       ScannerStream::For(isolate, source));
   result->set_character_stream(std::move(stream));
 
-  result->set_script(handle(script, isolate));
-
   return result;
 }
 

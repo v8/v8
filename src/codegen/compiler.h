@@ -8,7 +8,6 @@
 #include <forward_list>
 #include <memory>
 
-#include "src/ast/ast-value-factory.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
@@ -496,7 +495,8 @@ using DeferredFinalizationJobDataList =
 class V8_EXPORT_PRIVATE BackgroundCompileTask {
  public:
   // Creates a new task that when run will parse and compile the streamed
-  // script associated with |data| and can be finalized with FinalizeScript.
+  // script associated with |data| and can be finalized with
+  // Compiler::GetSharedFunctionInfoForStreamedScript.
   // Note: does not take ownership of |data|.
   BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate,
                         v8::ScriptType type);
@@ -505,44 +505,68 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   ~BackgroundCompileTask();
 
   // Creates a new task that when run will parse and compile the
-  // |function_literal| and can be finalized with FinalizeFunction
+  // |function_literal| and can be finalized with
   // Compiler::FinalizeBackgroundCompileTask.
   BackgroundCompileTask(
-      Isolate* isolate, const ParseInfo* outer_parse_info,
-      const AstRawString* function_name,
+      const ParseInfo* outer_parse_info, const AstRawString* function_name,
       const FunctionLiteral* function_literal,
       WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
       TimedHistogram* timer, int max_stack_size);
 
   void Run();
 
-  MaybeHandle<SharedFunctionInfo> FinalizeScript(
-      Isolate* isolate, Handle<String> source,
-      const ScriptDetails& script_details);
-
-  bool FinalizeFunction(Isolate* isolate,
-                        Handle<SharedFunctionInfo> shared_info,
-                        Compiler::ClearExceptionFlag flag);
-
+  ParseInfo* info() {
+    DCHECK_NOT_NULL(info_);
+    return info_.get();
+  }
+  Parser* parser() { return parser_.get(); }
+  UnoptimizedCompilationJobList* compilation_jobs() {
+    return &compilation_jobs_;
+  }
   UnoptimizedCompileFlags flags() const { return flags_; }
-  LanguageMode language_mode() const { return language_mode_; }
+  UnoptimizedCompileState* compile_state() { return &compile_state_; }
+  LanguageMode language_mode() { return language_mode_; }
+  FinalizeUnoptimizedCompilationDataList*
+  finalize_unoptimized_compilation_data() {
+    return &finalize_unoptimized_compilation_data_;
+  }
+
+  int use_count(v8::Isolate::UseCounterFeature feature) const {
+    return use_counts_[static_cast<int>(feature)];
+  }
+  int total_preparse_skipped() const { return total_preparse_skipped_; }
+
+  // Jobs which could not be finalized in the background task, and need to be
+  // finalized on the main thread.
+  DeferredFinalizationJobDataList* jobs_to_retry_finalization_on_main_thread() {
+    return &jobs_to_retry_finalization_on_main_thread_;
+  }
+
+  // Getters for the off-thread finalization results, that create main-thread
+  // handles to the objects.
+  MaybeHandle<SharedFunctionInfo> GetOuterFunctionSfi(Isolate* isolate);
+  Handle<Script> GetScript(Isolate* isolate);
 
  private:
-  void ReportStatistics(Isolate* isolate);
-
-  // Data needed for parsing and compilation. These need to be initialized
-  // before the compilation starts.
-  Isolate* isolate_for_local_isolate_;
+  // Data needed for parsing, and data needed to to be passed between thread
+  // between parsing and compilation. These need to be initialized before the
+  // compilation starts.
   UnoptimizedCompileFlags flags_;
   UnoptimizedCompileState compile_state_;
   std::unique_ptr<ParseInfo> info_;
-  int stack_size_;
-  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
-  TimedHistogram* timer_;
+  std::unique_ptr<Parser> parser_;
 
-  // Data needed for merging onto the main thread.
+  // Data needed for finalizing compilation after background compilation.
+  UnoptimizedCompilationJobList compilation_jobs_;
+
+  // Data needed for merging onto the main thread after background finalization.
+  // TODO(leszeks): When these are available, the above fields are not. We
+  // should add some stricter type-safety or DCHECKs to ensure that the user of
+  // the task knows this.
+  Isolate* isolate_for_local_isolate_;
   std::unique_ptr<PersistentHandles> persistent_handles_;
   MaybeHandle<SharedFunctionInfo> outer_function_sfi_;
+  Handle<Script> script_;
   IsCompiledScope is_compiled_scope_;
   FinalizeUnoptimizedCompilationDataList finalize_unoptimized_compilation_data_;
   DeferredFinalizationJobDataList jobs_to_retry_finalization_on_main_thread_;
@@ -550,11 +574,13 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int total_preparse_skipped_ = 0;
 
   // Single function data for top-level function compilation.
-  Handle<Script> script_;
   int start_position_;
   int end_position_;
   int function_literal_id_;
 
+  int stack_size_;
+  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
+  TimedHistogram* timer_;
   LanguageMode language_mode_;
 };
 

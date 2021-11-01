@@ -88,10 +88,9 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
     parse_info()->ast_value_factory()->Internalize(local_isolate());
     DeclarationScope::AllocateScopeInfos(parse_info(), local_isolate());
 
-    parse_info_.InitializeScript(local_isolate(),
-                                 local_factory()->empty_string(),
-                                 kNullMaybeHandle, ScriptOriginOptions());
-    script_ = parse_info_.script();
+    script_ = parse_info_.CreateScript(local_isolate(),
+                                       local_factory()->empty_string(),
+                                       kNullMaybeHandle, ScriptOriginOptions());
 
     // Create the SFI list on the script so that SFI SetScript works.
     Handle<WeakFixedArray> infos = local_factory()->NewWeakFixedArray(

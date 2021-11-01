@@ -86,7 +86,7 @@ base::Optional<LazyCompileDispatcher::JobId> LazyCompileDispatcher::Enqueue(
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
 
   std::unique_ptr<Job> job = std::make_unique<Job>(new BackgroundCompileTask(
-      isolate_, outer_parse_info, function_name, function_literal,
+      outer_parse_info, function_name, function_literal,
       worker_thread_runtime_call_stats_, background_compile_timer_,
       static_cast<int>(max_stack_size_)));
   JobMap::const_iterator it = InsertJob(std::move(job));

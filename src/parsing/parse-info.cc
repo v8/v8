@@ -240,7 +240,7 @@ ParseInfo::~ParseInfo() = default;
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 template <typename IsolateT>
-void ParseInfo::InitializeScript(
+Handle<Script> ParseInfo::CreateScript(
     IsolateT* isolate, Handle<String> source,
     MaybeHandle<FixedArray> maybe_wrapped_arguments,
     ScriptOriginOptions origin_options, NativesFlag natives) {
@@ -271,18 +271,19 @@ void ParseInfo::InitializeScript(
 
   CheckFlagsForToplevelCompileFromScript(*script,
                                          isolate->is_collecting_type_profile());
-
-  script_ = script;
+  return script;
 }
 
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void ParseInfo::
-    InitializeScript(Isolate* isolate, Handle<String> source,
-                     MaybeHandle<FixedArray> maybe_wrapped_arguments,
-                     ScriptOriginOptions origin_options, NativesFlag natives);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void ParseInfo::
-    InitializeScript(LocalIsolate* isolate, Handle<String> source,
-                     MaybeHandle<FixedArray> maybe_wrapped_arguments,
-                     ScriptOriginOptions origin_options, NativesFlag natives);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<Script> ParseInfo::CreateScript(
+        Isolate* isolate, Handle<String> source,
+        MaybeHandle<FixedArray> maybe_wrapped_arguments,
+        ScriptOriginOptions origin_options, NativesFlag natives);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<Script> ParseInfo::CreateScript(
+        LocalIsolate* isolate, Handle<String> source,
+        MaybeHandle<FixedArray> maybe_wrapped_arguments,
+        ScriptOriginOptions origin_options, NativesFlag natives);
 
 AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
   if (!ast_value_factory_.get()) {

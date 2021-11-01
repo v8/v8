@@ -306,24 +306,6 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
 }
 
 template <typename Impl>
-Handle<SharedFunctionInfo>
-FactoryBase<Impl>::NewPlaceholderSharedFunctionInfoForLazyLiteral(
-    FunctionLiteral* literal, Handle<Script> script) {
-  FunctionKind kind = literal->kind();
-  Handle<SharedFunctionInfo> shared =
-      NewSharedFunctionInfo(literal->GetName(isolate()), MaybeHandle<Code>(),
-                            Builtin::kCompileLazy, kind);
-  // Don't fully initialise the SFI from the function literal, since we e.g.
-  // might not have the scope info, but initialise just enough to work for
-  // compilation/finalization.
-  shared->set_function_literal_id(literal->function_literal_id());
-  // Set the script on the SFI, but don't make the script's SFI list point back
-  // to this SFI.
-  shared->set_script(*script);
-  return shared;
-}
-
-template <typename Impl>
 Handle<PreparseData> FactoryBase<Impl>::NewPreparseData(int data_length,
                                                         int children_length) {
   int size = PreparseData::SizeFor(data_length, children_length);
