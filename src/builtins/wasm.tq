@@ -254,6 +254,14 @@ builtin WasmRethrow(exception: Object): JSAny {
   tail runtime::WasmReThrow(LoadContextFromFrame(), exception);
 }
 
+// We need this for frames that do not have the instance in the parameters.
+// Currently, this is CapiCallWrapper frames.
+builtin WasmRethrowExplicitContext(
+    exception: Object, explicitContext: Context): JSAny {
+  if (exception == Null) tail ThrowWasmTrapRethrowNull();
+  tail runtime::WasmReThrow(explicitContext, exception);
+}
+
 builtin WasmTriggerTierUp(): JSAny {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   tail runtime::WasmTriggerTierUp(LoadContextFromFrame(), instance);
@@ -282,11 +290,6 @@ builtin WasmTraceExit(info: Smi): JSAny {
 builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   const map: Map = GetFastPackedElementsJSArrayMap();
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
-}
-
-builtin WasmAllocatePair(first: Object, second: Object): Tuple2 {
-  const tuple2Map: Map = %GetClassMapConstant<Tuple2>();
-  return new Tuple2{map: tuple2Map, value1: first, value2: second};
 }
 
 builtin WasmAllocateRtt(typeIndex: intptr, parent: Map): Map {
@@ -469,7 +472,7 @@ extern macro GetCodeEntry(CodeDataContainer): RawPtr;
 
 struct TargetAndInstance {
   target: RawPtr;
-  instance: HeapObject;  // WasmInstanceObject or Tuple2
+  instance: HeapObject;  // WasmInstanceObject or WasmApiFunctionRef
 }
 
 macro GetTargetAndInstance(funcref: JSFunction): TargetAndInstance {
@@ -477,10 +480,6 @@ macro GetTargetAndInstance(funcref: JSFunction): TargetAndInstance {
   dcheck(Is<WasmFunctionData>(sfi.function_data));
   const funcData = UnsafeCast<WasmFunctionData>(sfi.function_data);
   const ref = funcData.ref;
-  if (Is<Tuple2>(ref)) {
-    const instance: WasmInstanceObject = LoadInstanceFromFrame();
-    UnsafeCast<Tuple2>(ref).value1 = instance;
-  }
   let target = funcData.foreign_address_ptr;
   if (Signed(target) == IntPtrConstant(0)) {
     const wrapper =

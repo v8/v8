@@ -23,13 +23,12 @@ extern class WasmApiFunctionRef extends Foreign {
 
 extern class WasmFunctionData extends Foreign {
   // This is the "reference" value that must be passed along in the "instance"
-  // register when calling the given function. It is either the target instance,
-  // or a pair holding the target instance and the callable; currently the
-  // latter is the case when the function being called is defined in JavaScript
-  // or via the C-API.
+  // register when calling the given function. It is either the target instance
+  // (for wasm functions), or a WasmApiFunctionRef object (for functions defined
+  // through the JS or C APIs).
   // For imported functions, this value equals the respective entry in
   // the module's imported_function_refs array.
-  ref: WasmInstanceObject|Tuple2;
+  ref: WasmInstanceObject|WasmApiFunctionRef;
   // Used for calling this function from JavaScript.
   @if(V8_EXTERNAL_CODE_SPACE) wrapper_code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) wrapper_code: Code;

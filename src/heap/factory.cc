@@ -1493,7 +1493,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Address opt_call_target, Handle<JSReceiver> callable, int return_count,
     int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
     Handle<Code> wrapper_code) {
-  Handle<Tuple2> pair = NewTuple2(null_value(), callable, AllocationType::kOld);
+  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(callable);
   Map map = *wasm_js_function_data_map();
   WasmJSFunctionData result =
       WasmJSFunctionData::cast(AllocateRawWithImmortalMap(
@@ -1501,7 +1501,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   DisallowGarbageCollection no_gc;
   result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), opt_call_target);
-  result.set_ref(*pair);
+  result.set_ref(*ref);
   result.set_wrapper_code(*wrapper_code);
   result.set_serialized_return_count(return_count);
   result.set_serialized_parameter_count(parameter_count);
@@ -1524,6 +1524,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   DisallowGarbageCollection no_gc;
   result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), call_target);
+  DCHECK(ref->IsWasmInstanceObject() || ref->IsWasmApiFunctionRef());
   result.set_ref(*ref);
   result.set_wrapper_code(*export_wrapper);
   result.set_instance(*instance);
@@ -1540,8 +1541,7 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, Handle<Foreign> embedder_data,
     Handle<Code> wrapper_code,
     Handle<PodArray<wasm::ValueType>> serialized_sig) {
-  Handle<Tuple2> pair =
-      NewTuple2(null_value(), null_value(), AllocationType::kOld);
+  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(Handle<JSReceiver>());
   Map map = *wasm_capi_function_data_map();
   WasmCapiFunctionData result =
       WasmCapiFunctionData::cast(AllocateRawWithImmortalMap(
@@ -1549,7 +1549,7 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   DisallowGarbageCollection no_gc;
   result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), call_target);
-  result.set_ref(*pair);
+  result.set_ref(*ref);
   result.set_wrapper_code(*wrapper_code);
   result.set_embedder_data(*embedder_data);
   result.set_serialized_signature(*serialized_sig);

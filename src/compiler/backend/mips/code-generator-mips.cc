@@ -3972,23 +3972,14 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall()) {
+      if (call_descriptor->IsWasmFunctionCall() ||
+          call_descriptor->IsWasmImportWrapper() ||
+          call_descriptor->IsWasmCapiFunction()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper() ||
-                 call_descriptor->IsWasmCapiFunction()) {
-        // Wasm import wrappers are passed a tuple in the place of the instance.
-        // Unpack the tuple into the instance and the target callable.
-        // This must be done here in the codegen because it cannot be expressed
-        // properly in the graph.
-        __ lw(kJSFunctionRegister,
-              FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
-        __ lw(kWasmInstanceRegister,
-              FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
-        __ Push(kWasmInstanceRegister);
-        if (call_descriptor->IsWasmCapiFunction()) {
-          // Reserve space for saving the PC later.
-          __ Subu(sp, sp, Operand(kSystemPointerSize));
-        }
+      }
+      if (call_descriptor->IsWasmCapiFunction()) {
+        // Reserve space for saving the PC later.
+        __ Subu(sp, sp, Operand(kSystemPointerSize));
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     }

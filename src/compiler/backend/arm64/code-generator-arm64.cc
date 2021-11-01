@@ -3138,7 +3138,8 @@ void CodeGenerator::AssembleConstructFrame() {
         // {required_slots} to be odd.
         DCHECK_GE(required_slots, 1);
         __ Claim(required_slots - 1);
-      } break;
+        break;
+      }
 #if V8_ENABLE_WEBASSEMBLY
       case CallDescriptor::kCallWasmFunction: {
         UseScratchRegisterScope temps(tasm());
@@ -3147,16 +3148,11 @@ void CodeGenerator::AssembleConstructFrame() {
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
         __ Push(scratch, kWasmInstanceRegister);
         __ Claim(required_slots);
-      } break;
+        break;
+      }
       case CallDescriptor::kCallWasmImportWrapper:
       case CallDescriptor::kCallWasmCapiFunction: {
         UseScratchRegisterScope temps(tasm());
-        __ LoadTaggedPointerField(
-            kJSFunctionRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
-        __ LoadTaggedPointerField(
-            kWasmInstanceRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         Register scratch = temps.AcquireX();
         __ Mov(scratch,
                StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
@@ -3166,7 +3162,8 @@ void CodeGenerator::AssembleConstructFrame() {
                 ? 0   // Import wrapper: none.
                 : 1;  // C-API function: PC.
         __ Claim(required_slots + extra_slots);
-      } break;
+        break;
+      }
 #endif  // V8_ENABLE_WEBASSEMBLY
       case CallDescriptor::kCallAddress:
 #if V8_ENABLE_WEBASSEMBLY

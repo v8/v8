@@ -96,7 +96,7 @@ class V8_EXPORT_PRIVATE IndirectFunctionTableEntry {
 // call imported functions at runtime.
 // Each entry is either:
 //   - Wasm to JS, which has fields
-//      - object = a Tuple2 of the importing instance and the callable
+//      - object = a WasmApiFunctionRef
 //      - target = entrypoint to import wrapper code
 //   - Wasm to Wasm, which has fields
 //      - object = target instance
@@ -112,7 +112,6 @@ class ImportedFunctionEntry {
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(WasmInstanceObject target_instance, Address call_target);
 
-  WasmInstanceObject instance();
   JSReceiver callable();
   Object maybe_callable();
   Object object_ref();

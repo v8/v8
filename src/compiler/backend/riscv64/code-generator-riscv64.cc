@@ -3040,25 +3040,14 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Prologue();
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
-      if (call_descriptor->IsWasmFunctionCall()) {
+      if (call_descriptor->IsWasmFunctionCall() ||
+          call_descriptor->IsWasmImportWrapper() ||
+          call_descriptor->IsWasmCapiFunction()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper() ||
-                 call_descriptor->IsWasmCapiFunction()) {
-        // Wasm import wrappers are passed a tuple in the place of the instance.
-        // Unpack the tuple into the instance and the target callable.
-        // This must be done here in the codegen because it cannot be expressed
-        // properly in the graph.
-        __ LoadTaggedPointerField(
-            kJSFunctionRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
-        __ LoadTaggedPointerField(
-            kWasmInstanceRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
-        __ Push(kWasmInstanceRegister);
-        if (call_descriptor->IsWasmCapiFunction()) {
-          // Reserve space for saving the PC later.
-          __ Sub64(sp, sp, Operand(kSystemPointerSize));
-        }
+      }
+      if (call_descriptor->IsWasmCapiFunction()) {
+        // Reserve space for saving the PC later.
+        __ Sub64(sp, sp, Operand(kSystemPointerSize));
       }
     }
   }

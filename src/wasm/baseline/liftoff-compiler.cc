@@ -6120,39 +6120,10 @@ class LiftoffCompiler {
           wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFunctionDataOffset),
           pinned);
 
-      // Load "ref" (instance or <instance, callable> pair) and target.
+      // Load "ref" (instance or WasmApiFunctionRef) and target.
       __ LoadTaggedPointer(
           instance.gp(), func_data.gp(), no_reg,
           wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset), pinned);
-
-      Label load_target, perform_call;
-
-      // Check if "ref" is a Tuple2.
-      {
-        LiftoffRegister pair_map = temp;
-        LiftoffRegister ref_map = target;
-        __ LoadMap(ref_map.gp(), instance.gp());
-        LOAD_INSTANCE_FIELD(pair_map.gp(), IsolateRoot, kSystemPointerSize,
-                            pinned);
-        __ LoadTaggedPointer(
-            pair_map.gp(), pair_map.gp(), no_reg,
-            IsolateData::root_slot_offset(RootIndex::kTuple2Map), pinned);
-        __ emit_cond_jump(kUnequal, &load_target, kRef, ref_map.gp(),
-                          pair_map.gp());
-
-        // Overwrite the tuple's "instance" entry with the current instance.
-        // TODO(jkummerow): Can we figure out a way to guarantee that the
-        // instance field is always precomputed?
-        LiftoffRegister current_instance = temp;
-        __ FillInstanceInto(current_instance.gp());
-        __ StoreTaggedPointer(
-            instance.gp(), no_reg,
-            wasm::ObjectAccess::ToTagged(Tuple2::kValue1Offset),
-            current_instance, pinned);
-        // Fall through to {load_target}.
-      }
-      // Load the call target.
-      __ bind(&load_target);
 
 #ifdef V8_HEAP_SANDBOX
       LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
@@ -6165,6 +6136,8 @@ class LiftoffCompiler {
           wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset),
           kPointerLoadType, pinned);
 #endif
+
+      Label perform_call;
 
       LiftoffRegister null_address = temp;
       __ LoadConstant(null_address, WasmValue::ForUintPtr(0));

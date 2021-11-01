@@ -653,8 +653,8 @@ class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
                                                         v);
-    IteratePointers(obj, WasmFunctionData::kStartOfStrongFieldsOffset,
-                    kEndOfStrongFieldsOffset, v);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
