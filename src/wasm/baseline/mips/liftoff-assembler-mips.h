@@ -56,11 +56,12 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //  -1   | 0xa: WASM          |
 //  -2   |     instance       |
 //  -3   |    feedback vector |
+//  -4   |    tiering budget  |
 //  -----+--------------------+---------------------------
-//  -4   |    slot 0 (high)   |   ^
-//  -5   |    slot 0 (low)    |   |
-//  -6   |    slot 1 (high)   | Frame slots
-//  -7   |    slot 1 (low)    |   |
+//  -5   |    slot 0 (high)   |   ^
+//  -6   |    slot 0 (low)    |   |
+//  -7   |    slot 1 (high)   | Frame slots
+//  -8   |    slot 1 (low)    |   |
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
@@ -74,6 +75,7 @@ constexpr int32_t kHighWordOffset = 4;
 
 constexpr int kInstanceOffset = 2 * kSystemPointerSize;
 constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
+constexpr int kTierupBudgetOffset = 4 * kSystemPointerSize;
 
 inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
@@ -422,7 +424,7 @@ void LiftoffAssembler::AbortCompilation() {}
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kFeedbackVectorOffset;
+  return liftoff::kTierupBudgetOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
@@ -1604,6 +1606,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
                                            int32_t imm) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
   TurboAssembler::Branch(label, cond, lhs, Operand(imm));
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(Register value,
+                                                   int subtrahend,
+                                                   Label* result_negative) {
+  TurboAssembler::Subu(value, value, Operand(subtrahend));
+  TurboAssembler::Branch(result_negative, less, value, Operand(zero_reg));
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
