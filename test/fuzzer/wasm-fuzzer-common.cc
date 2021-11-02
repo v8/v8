@@ -236,6 +236,24 @@ std::string ValueTypeToConstantName(ValueType type) {
         default:
           return "wasmOptRefType(" + std::to_string(type.ref_index()) + ")";
       }
+    case kRef:
+      switch (type.heap_representation()) {
+        case HeapType::kExtern:
+          return "wasmRefType(kWasmExternRef)";
+        case HeapType::kFunc:
+          return "wasmRefType(kWasmFuncRef)";
+        case HeapType::kEq:
+          return "wasmRefType(kWasmEqRef)";
+        case HeapType::kAny:
+          return "wasmRefType(kWasmAnyRef)";
+        case HeapType::kData:
+          return "wasmRefType(kWasmDataRef)";
+        case HeapType::kI31:
+          return "wasmRefType(kWasmI31Ref)";
+        case HeapType::kBottom:
+        default:
+          return "wasmRefType(" + std::to_string(type.ref_index()) + ")";
+      }
     default:
       UNREACHABLE();
   }
@@ -348,6 +366,10 @@ void AppendInitExpr(std::ostream& os, ModuleWireBytes wire_bytes,
       os << "RefNull(" << HeapTypeToConstantName(heap_type);
       break;
     }
+    case kExprStructNew:
+      UNIMPLEMENTED();
+    case kExprArrayInit:
+      UNIMPLEMENTED();
     default:
       UNREACHABLE();
   }
