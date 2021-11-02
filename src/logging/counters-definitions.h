@@ -130,7 +130,9 @@ namespace internal {
   HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
   /* Time for lazily compiling Wasm functions. */                             \
   HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,   \
-     MICROSECOND)
+     MICROSECOND)                                                             \
+  /* Total time to decompress snapshots. */                                   \
+  HT(snapshot_decompress, V8.SnapshotDecompress, 10000000, MICROSECOND)
 
 #define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                               \
   /* Total V8 time (including JS and runtime calls, exluding callbacks) */ \

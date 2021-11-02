@@ -11,6 +11,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
+#include "src/logging/counters-scopes.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/js-regexp-inl.h"
@@ -173,9 +174,18 @@ bool Snapshot::Initialize(Isolate* isolate) {
   base::Vector<const byte> shared_heap_data =
       SnapshotImpl::ExtractSharedHeapData(blob);
 
+#ifdef V8_SNAPSHOT_COMPRESSION
+  base::Optional<NestedTimedHistogramScope> decompress_histogram;
+  if (base::TimeTicks::IsHighResolution()) {
+    decompress_histogram.emplace(isolate->counters()->snapshot_decompress());
+  }
+#endif
   SnapshotData startup_snapshot_data(MaybeDecompress(startup_data));
   SnapshotData read_only_snapshot_data(MaybeDecompress(read_only_data));
   SnapshotData shared_heap_snapshot_data(MaybeDecompress(shared_heap_data));
+#ifdef V8_SNAPSHOT_COMPRESSION
+  decompress_histogram.reset();
+#endif
 
   bool success = isolate->InitWithSnapshot(
       &startup_snapshot_data, &read_only_snapshot_data,
