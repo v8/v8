@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --opt --trace-opt --trace-deopt
+// Flags: --no-stress-flush-code --no-flush-bytecode
 let privateSymbol = %CreatePrivateSymbol("private");
 let privateName = %CreatePrivateNameSymbol("privateName");
 
