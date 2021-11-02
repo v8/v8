@@ -566,13 +566,14 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(
   LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
 
   if (it.IsFound() && key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
-    Handle<Object> name_string(Symbol::cast(*key).description(), isolate);
+    Handle<Symbol> private_symbol = Handle<Symbol>::cast(key);
+    Handle<Object> name_string(private_symbol->description(), isolate);
     DCHECK(name_string->IsString());
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateFieldReinitialization,
-                     name_string),
-        Object);
+    MessageTemplate message =
+        private_symbol->is_private_brand()
+            ? MessageTemplate::kInvalidPrivateBrandReinitialization
+            : MessageTemplate::kInvalidPrivateFieldReinitialization;
+    THROW_NEW_ERROR(isolate, NewTypeError(message, name_string), Object);
   }
 
   MAYBE_RETURN_NULL(
@@ -1440,54 +1441,6 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
   Handle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
   pair->SetComponents(args[0], args[1]);
   return *pair;
-}
-
-RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, brand, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Context, context, 2);
-  DCHECK(brand->is_private_name());
-
-  LookupIterator it(isolate, receiver, brand, LookupIterator::OWN);
-
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateBrandReinitialization,
-                     brand));
-  }
-
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  CHECK(Object::AddDataProperty(&it, context, attributes, Just(kDontThrow),
-                                StoreOrigin::kMaybeKeyed)
-            .FromJust());
-  return *receiver;
-}
-
-RUNTIME_FUNCTION(Runtime_AddPrivateField) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, o, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  DCHECK(key->is_private_name());
-
-  LookupIterator it(isolate, o, key, LookupIterator::OWN);
-
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateFieldReinitialization,
-                     key));
-  }
-
-  CHECK(Object::AddDataProperty(&it, value, NONE, Just(kDontThrow),
-                                StoreOrigin::kMaybeKeyed)
-            .FromJust());
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // TODO(v8:11330) This is only here while the CSA/Torque implementaton of

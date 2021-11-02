@@ -2843,17 +2843,17 @@ void BytecodeGenerator::BuildInvalidPropertyAccess(MessageTemplate tmpl,
 }
 
 void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver) {
-  RegisterList brand_args = register_allocator()->NewRegisterList(3);
   Variable* brand = info()->scope()->outer_scope()->AsClassScope()->brand();
   int depth = execution_context()->ContextChainDepth(brand->scope());
   ContextScope* class_context = execution_context()->Previous(depth);
 
   BuildVariableLoad(brand, HoleCheckMode::kElided);
+  Register brand_reg = register_allocator()->NewRegister();
+  FeedbackSlot slot = feedback_spec()->AddKeyedDefineOwnICSlot();
   builder()
-      ->StoreAccumulatorInRegister(brand_args[1])
-      .MoveRegister(receiver, brand_args[0])
-      .MoveRegister(class_context->reg(), brand_args[2])
-      .CallRuntime(Runtime::kAddPrivateBrand, brand_args);
+      ->StoreAccumulatorInRegister(brand_reg)
+      .LoadAccumulatorWithRegister(class_context->reg())
+      .DefineKeyedProperty(receiver, brand_reg, feedback_index(slot));
 }
 
 void BytecodeGenerator::BuildInstanceMemberInitialization(Register constructor,

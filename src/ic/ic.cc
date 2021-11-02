@@ -451,10 +451,11 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
   LookupForRead(&it, IsAnyHas());
 
   if (name->IsPrivate()) {
-    if (!IsAnyHas() && name->IsPrivateName() && !it.IsFound()) {
-      Handle<String> name_string(
-          String::cast(Symbol::cast(*name).description()), isolate());
-      if (name->IsPrivateBrand()) {
+    Handle<Symbol> private_symbol = Handle<Symbol>::cast(name);
+    if (!IsAnyHas() && private_symbol->is_private_name() && !it.IsFound()) {
+      Handle<String> name_string(String::cast(private_symbol->description()),
+                                 isolate());
+      if (private_symbol->is_private_brand()) {
         Handle<String> class_name =
             (name_string->length() == 0)
                 ? isolate()->factory()->anonymous_string()
@@ -1767,8 +1768,11 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       Handle<String> name_string(
           String::cast(Symbol::cast(*name).description()), isolate());
       if (exists) {
-        return TypeError(MessageTemplate::kInvalidPrivateFieldReinitialization,
-                         object, name_string);
+        MessageTemplate message =
+            name->IsPrivateBrand()
+                ? MessageTemplate::kInvalidPrivateBrandReinitialization
+                : MessageTemplate::kInvalidPrivateFieldReinitialization;
+        return TypeError(message, object, name_string);
       } else {
         return TypeError(MessageTemplate::kInvalidPrivateMemberWrite, object,
                          name_string);
