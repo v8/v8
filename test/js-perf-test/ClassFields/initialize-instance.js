@@ -6,53 +6,53 @@
 d8.file.execute('classes.js');
 
 function CreateBenchmark(name, optimize) {
-  let factory;
+  let klass;
   let array;
 
   switch (name) {
-    case "EvaluateSinglePublicFieldClass":
-      factory = EvaluateSinglePublicFieldClass;
+    case "InitializeSinglePublicFieldClass":
+      klass = EvaluateSinglePublicFieldClass();
       break;
-    case "EvaluateMultiPublicFieldClass":
-      factory = EvaluateMultiPublicFieldClass;
+    case "InitializeMultiPublicFieldClass":
+      klass = EvaluateMultiPublicFieldClass();
       break;
-    case "EvaluateSinglePrivateFieldClass":
-      factory = EvaluateSinglePrivateFieldClass;
+    case "InitializeSinglePrivateFieldClass":
+      klass = EvaluateSinglePrivateFieldClass();
       break;
-    case "EvaluateMultiPrivateFieldClass":
-      factory = EvaluateMultiPrivateFieldClass;
+    case "InitializeMultiPrivateFieldClass":
+      klass = EvaluateMultiPrivateFieldClass();
       break;
-    case "EvaluateSingleComputedFieldClass":
-      factory = EvaluateSingleComputedFieldClass;
+    case "InitializeSingleComputedFieldClass":
+      klass = EvaluateSingleComputedFieldClass();
       break;
-    case "EvaluateMultiComputedFieldClass":
-      factory = EvaluateMultiComputedFieldClass;
+    case "InitializeMultiComputedFieldClass":
+      klass = EvaluateMultiComputedFieldClass();
       break;
     default:
       throw new Error("Unknown optimization configuration " + arguments.join(' '));
   }
 
   if (optimize) {
-    %PrepareFunctionForOptimization(factory);
+    %PrepareFunctionForOptimization(klass);
   } else {
-    %NeverOptimizeFunction(factory);
+    %NeverOptimizeFunction(klass);
   }
 
   function setUp() {
-    array = [factory(), factory()];
+    array = [new klass(), new klass()];
     // Populate the array first to reduce the impact of
     // array allocations.
     for (let i = 0; i < LOCAL_ITERATIONS - 2; ++i) {
       array.push(array[0]);
     }
     if (optimize) {
-      %OptimizeFunctionOnNextCall(factory);
+      %OptimizeFunctionOnNextCall(klass);
     }
   }
 
   function runBenchmark() {
     for (let i = 0; i < LOCAL_ITERATIONS; ++i) {
-      array[i] = factory();
+      array[i] = new klass();
     }
   }
 
@@ -61,15 +61,14 @@ function CreateBenchmark(name, optimize) {
       throw new Error(`Check failed, array length ${array.length}`);
     }
 
-    for (const klass of array) {
-      const instance = new klass();
+    for (const instance of array) {
       if (!instance.check())
         throw new Error(`instance.check() failed`);
     }
   }
 
   const DETERMINISTIC_RUNS = 1;
-  const LOCAL_ITERATIONS = 100;
+  const LOCAL_ITERATIONS = 10000;
 
   const benchName = `${name}${optimize ? "Opt" : "NoOpt"}`
   new BenchmarkSuite(benchName, [1000], [
@@ -91,9 +90,9 @@ switch (arguments[1]) {
     throw new Error("Unknown optimization configuration " + arguments.join(' '));
 }
 
-CreateBenchmark("EvaluateSinglePublicFieldClass", optimize);
-CreateBenchmark("EvaluateMultiPublicFieldClass", optimize);
-CreateBenchmark("EvaluateSinglePrivateFieldClass", optimize);
-CreateBenchmark("EvaluateMultiPrivateFieldClass", optimize);
-CreateBenchmark("EvaluateSingleComputedFieldClass", optimize);
-CreateBenchmark("EvaluateMultiComputedFieldClass", optimize);
+CreateBenchmark("InitializeSinglePublicFieldClass", optimize);
+CreateBenchmark("InitializeMultiPublicFieldClass", optimize);
+CreateBenchmark("InitializeSinglePrivateFieldClass", optimize);
+CreateBenchmark("InitializeMultiPrivateFieldClass", optimize);
+CreateBenchmark("InitializeSingleComputedFieldClass", optimize);
+CreateBenchmark("InitializeMultiComputedFieldClass", optimize);
