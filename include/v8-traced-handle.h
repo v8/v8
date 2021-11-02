@@ -233,7 +233,7 @@ class TracedGlobal : public BasicTracedReference<T> {
   /**
    * Move constructor initializing TracedGlobal from an existing one.
    */
-  V8_INLINE TracedGlobal(TracedGlobal&& other) {
+  V8_INLINE TracedGlobal(TracedGlobal&& other) noexcept {
     // Forward to operator=.
     *this = std::move(other);
   }
@@ -242,7 +242,7 @@ class TracedGlobal : public BasicTracedReference<T> {
    * Move constructor initializing TracedGlobal from an existing one.
    */
   template <typename S>
-  V8_INLINE TracedGlobal(TracedGlobal<S>&& other) {
+  V8_INLINE TracedGlobal(TracedGlobal<S>&& other) noexcept {
     // Forward to operator=.
     *this = std::move(other);
   }
@@ -267,13 +267,13 @@ class TracedGlobal : public BasicTracedReference<T> {
   /**
    * Move assignment operator initializing TracedGlobal from an existing one.
    */
-  V8_INLINE TracedGlobal& operator=(TracedGlobal&& rhs);
+  V8_INLINE TracedGlobal& operator=(TracedGlobal&& rhs) noexcept;
 
   /**
    * Move assignment operator initializing TracedGlobal from an existing one.
    */
   template <class S>
-  V8_INLINE TracedGlobal& operator=(TracedGlobal<S>&& rhs);
+  V8_INLINE TracedGlobal& operator=(TracedGlobal<S>&& rhs) noexcept;
 
   /**
    * Copy assignment operator initializing TracedGlobal from an existing one.
@@ -359,7 +359,7 @@ class TracedReference : public BasicTracedReference<T> {
    * Move constructor initializing TracedReference from an
    * existing one.
    */
-  V8_INLINE TracedReference(TracedReference&& other) {
+  V8_INLINE TracedReference(TracedReference&& other) noexcept {
     // Forward to operator=.
     *this = std::move(other);
   }
@@ -369,7 +369,7 @@ class TracedReference : public BasicTracedReference<T> {
    * existing one.
    */
   template <typename S>
-  V8_INLINE TracedReference(TracedReference<S>&& other) {
+  V8_INLINE TracedReference(TracedReference<S>&& other) noexcept {
     // Forward to operator=.
     *this = std::move(other);
   }
@@ -396,13 +396,13 @@ class TracedReference : public BasicTracedReference<T> {
   /**
    * Move assignment operator initializing TracedGlobal from an existing one.
    */
-  V8_INLINE TracedReference& operator=(TracedReference&& rhs);
+  V8_INLINE TracedReference& operator=(TracedReference&& rhs) noexcept;
 
   /**
    * Move assignment operator initializing TracedGlobal from an existing one.
    */
   template <class S>
-  V8_INLINE TracedReference& operator=(TracedReference<S>&& rhs);
+  V8_INLINE TracedReference& operator=(TracedReference<S>&& rhs) noexcept;
 
   /**
    * Copy assignment operator initializing TracedGlobal from an existing one.
