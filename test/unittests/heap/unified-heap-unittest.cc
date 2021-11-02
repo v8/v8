@@ -103,6 +103,8 @@ TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
 }
 
+#if !defined(_MSC_VER) || defined(__clang__)
+
 TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
 // TODO(v8:12165): Remove test when fully removing the deprecated API.
 #pragma GCC diagnostic push
@@ -142,6 +144,8 @@ TEST_F(UnifiedHeapTest, WriteBarrierCppToV8Reference) {
             wrappable->wrapper()->GetAlignedPointerFromInternalField(1));
 #pragma GCC diagnostic pop
 }
+
+#endif  // !_MSC_VER || __clang__
 
 #if DEBUG
 namespace {

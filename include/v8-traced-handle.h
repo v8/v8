@@ -503,7 +503,7 @@ void TracedGlobal<T>::Reset(Isolate* isolate, const Local<S>& other) {
 
 template <class T>
 template <class S>
-TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) {
+TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) noexcept {
   static_assert(std::is_base_of<T, S>::value, "type check");
   *this = std::move(rhs.template As<T>());
   return *this;
@@ -518,7 +518,7 @@ TracedGlobal<T>& TracedGlobal<T>::operator=(const TracedGlobal<S>& rhs) {
 }
 
 template <class T>
-TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal&& rhs) {
+TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal&& rhs) noexcept {
   if (this != &rhs) {
     internal::MoveTracedGlobalReference(
         reinterpret_cast<internal::Address**>(&rhs.val_),
@@ -554,7 +554,8 @@ void TracedReference<T>::Reset(Isolate* isolate, const Local<S>& other) {
 
 template <class T>
 template <class S>
-TracedReference<T>& TracedReference<T>::operator=(TracedReference<S>&& rhs) {
+TracedReference<T>& TracedReference<T>::operator=(
+    TracedReference<S>&& rhs) noexcept {
   static_assert(std::is_base_of<T, S>::value, "type check");
   *this = std::move(rhs.template As<T>());
   return *this;
@@ -570,7 +571,8 @@ TracedReference<T>& TracedReference<T>::operator=(
 }
 
 template <class T>
-TracedReference<T>& TracedReference<T>::operator=(TracedReference&& rhs) {
+TracedReference<T>& TracedReference<T>::operator=(
+    TracedReference&& rhs) noexcept {
   if (this != &rhs) {
     internal::MoveTracedGlobalReference(
         reinterpret_cast<internal::Address**>(&rhs.val_),
