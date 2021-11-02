@@ -472,6 +472,9 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static const int kScopeInfoOffset = kElementsOffset;
   static const int kPreviousOffset = kScopeInfoOffset + kTaggedSize;
 
+  // All fields are tagged.
+  static const int kStartOfStrongFieldsOffset = HeapObject::kHeaderSize;
+
   /* Header size. */                                                  \
   /* TODO(ishell): use this as header size once MIN_CONTEXT_SLOTS */  \
   /* is removed in favour of offset-based access to common fields. */ \

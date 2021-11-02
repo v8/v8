@@ -488,14 +488,14 @@ template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
                                                                 Map map) {
   if (!concrete_visitor()->ShouldVisit(map)) return 0;
-  int size = Map::BodyDescriptor::SizeOf(meta_map, map);
-  size += VisitDescriptorsForMap(map);
+  int map_size = Map::BodyDescriptor::SizeOf(meta_map, map);
+  int marked_size = map_size + VisitDescriptorsForMap(map);
 
   // Mark the pointer fields of the Map. If there is a transitions array, it has
   // been marked already, so it is fine that one of these fields contains a
   // pointer to it.
-  Map::BodyDescriptor::IterateBody(meta_map, map, size, this);
-  return size;
+  Map::BodyDescriptor::IterateBody(meta_map, map, map_size, this);
+  return marked_size;
 }
 
 template <typename ConcreteVisitor, typename MarkingState>

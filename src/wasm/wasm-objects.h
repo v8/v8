@@ -697,7 +697,8 @@ class WasmIndirectFunctionTable
 
   DECL_PRINTER(WasmIndirectFunctionTable)
 
-  STATIC_ASSERT(kStartOfStrongFieldsOffset == kManagedNativeAllocationsOffset);
+  static constexpr int kStartOfStrongFieldsOffset =
+      kManagedNativeAllocationsOffset;
   using BodyDescriptor = FlexibleBodyDescriptor<kStartOfStrongFieldsOffset>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmIndirectFunctionTable)
@@ -710,6 +711,9 @@ class WasmFunctionData
   DECL_ACCESSORS(wrapper_code, Code)
 
   DECL_PRINTER(WasmFunctionData)
+
+  // All fields after those inherited from Foreign are tagged.
+  static constexpr int kStartOfStrongFieldsOffset = Foreign::kHeaderSize;
 
   TQ_OBJECT_CONSTRUCTORS(WasmFunctionData)
 };
@@ -729,6 +733,8 @@ class WasmExportedFunctionData
 
   class BodyDescriptor;
 
+  static constexpr int kEndOfStrongFieldsOffset = kHeaderSize;
+
   TQ_OBJECT_CONSTRUCTORS(WasmExportedFunctionData)
 };
 
@@ -739,6 +745,9 @@ class WasmApiFunctionRef
   DECL_PRINTER(WasmApiFunctionRef)
 
   class BodyDescriptor;
+
+  static constexpr int kStartOfStrongFieldsOffset = Foreign::kHeaderSize;
+  static constexpr int kEndOfStrongFieldsOffset = kHeaderSize;
 
   TQ_OBJECT_CONSTRUCTORS(WasmApiFunctionRef)
 };
@@ -757,6 +766,8 @@ class WasmJSFunctionData
 
   class BodyDescriptor;
 
+  static constexpr int kEndOfStrongFieldsOffset = kHeaderSize;
+
  private:
   DECL_ACCESSORS(raw_wasm_to_js_wrapper_code, CodeT)
 
@@ -770,6 +781,8 @@ class WasmCapiFunctionData
   DECL_PRINTER(WasmCapiFunctionData)
 
   class BodyDescriptor;
+
+  static constexpr int kEndOfStrongFieldsOffset = kHeaderSize;
 
   TQ_OBJECT_CONSTRUCTORS(WasmCapiFunctionData)
 };

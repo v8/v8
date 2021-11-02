@@ -603,6 +603,7 @@ void ComputeSlotKindsHelper(std::vector<ObjectSlotKind>* slots,
   size_t offset = start_offset;
   for (const Field& field : fields) {
     size_t field_size = std::get<0>(field.GetFieldSizeInformation());
+    if (field_size == 0) continue;
     size_t slot_index = offset / TargetArchitecture::TaggedSize();
     // Rounding-up division to find the number of slots occupied by all the
     // fields up to and including the current one.
