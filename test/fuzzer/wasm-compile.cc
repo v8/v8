@@ -40,6 +40,7 @@ constexpr int kMaxReturns = 15;
 constexpr int kMaxExceptions = 4;
 constexpr int kMaxTableSize = 32;
 constexpr int kMaxTables = 4;
+constexpr int kMaxArraySize = 20;
 
 class DataRange {
   base::Vector<const uint8_t> data_;
@@ -855,6 +856,8 @@ class WasmGenerator {
     } else if (builder_->builder()->IsArrayType(index)) {
       if (new_default) {
         Generate(kWasmI32, data);
+        builder_->EmitI32Const(kMaxArraySize);
+        builder_->Emit(kExprI32RemS);
         builder_->EmitWithPrefix(kExprRttCanon);
         builder_->EmitU32V(index);
         builder_->EmitWithPrefix(kExprArrayNewDefaultWithRtt);
@@ -864,6 +867,8 @@ class WasmGenerator {
             builder_->builder()->GetArrayType(index)->element_type().Unpacked(),
             data);
         Generate(kWasmI32, data);
+        builder_->EmitI32Const(kMaxArraySize);
+        builder_->Emit(kExprI32RemS);
         builder_->EmitWithPrefix(kExprRttCanon);
         builder_->EmitU32V(index);
         builder_->EmitWithPrefix(kExprArrayNewWithRtt);
