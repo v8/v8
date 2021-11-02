@@ -600,7 +600,15 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
         Return(result);
 
         BIND(&if_oob_string);
-        GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), miss);
+        if (Is64()) {
+          // Indices >= 4294967295 are stored as named properties; handle them
+          // in the runtime.
+          GotoIfNot(UintPtrLessThanOrEqual(
+                        index, IntPtrConstant(JSObject::kMaxElementIndex)),
+                    miss);
+        } else {
+          GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), miss);
+        }
         TNode<BoolT> allow_out_of_bounds =
             IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
         GotoIfNot(allow_out_of_bounds, miss);
