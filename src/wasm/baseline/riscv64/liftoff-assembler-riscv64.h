@@ -58,9 +58,10 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //  -1   | 0xa: WASM          |
 //  -2   |     instance       |
 //  -3   |     feedback vector|
+//  -4   |     tiering budget |
 //  -----+--------------------+---------------------------
-//  -4   |     slot 0         |   ^
-//  -5   |     slot 1         |   |
+//  -5   |     slot 0         |   ^
+//  -6   |     slot 1         |   |
 //       |                    | Frame slots
 //       |                    |   |
 //       |                    |   v
@@ -71,6 +72,7 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 // fp-8 holds the stack marker, fp-16 is the instance parameter.
 constexpr int kInstanceOffset = 2 * kSystemPointerSize;
 constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
+constexpr int kTierupBudgetOffset = 4 * kSystemPointerSize;
 
 inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
@@ -1603,6 +1605,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
                                            int32_t imm) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
   TurboAssembler::Branch(label, cond, lhs, Operand(imm));
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(Register value,
+                                                   int subtrahend,
+                                                   Label* result_negative) {
+  Sub64(value, value, Operand(subtrahend));
+  TurboAssembler::Branch(result_negative, lt, value, Operand(zero_reg));
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
