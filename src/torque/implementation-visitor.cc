@@ -3767,10 +3767,13 @@ class FieldOffsetsGenerator {
   }
   void Begin(FieldSectionType type) {
     DCHECK(type != FieldSectionType::kNoSection);
+    if (!IsPointerSection(type)) return;
+    WriteMarker("kStartOf" + ToString(type) + "Offset");
   }
   void End(FieldSectionType type) {
     if (!IsPointerSection(type)) return;
     completed_sections_ |= type;
+    WriteMarker("kEndOf" + ToString(type) + "Offset");
   }
 
   FieldSectionType current_section_ = FieldSectionType::kNoSection;

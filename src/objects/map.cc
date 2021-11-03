@@ -170,6 +170,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case FEEDBACK_METADATA_TYPE:
       return kVisitFeedbackMetadata;
 
+    case MAP_TYPE:
+      return kVisitMap;
+
     case CODE_TYPE:
       return kVisitCode;
 
