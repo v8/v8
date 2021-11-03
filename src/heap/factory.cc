@@ -2309,12 +2309,10 @@ Handle<JSObject> Factory::NewSlowJSObjectWithNullProto() {
 }
 
 Handle<JSObject> Factory::NewJSObjectWithNullProto() {
-  Handle<JSObject> result = NewJSObject(isolate()->object_function());
-  Handle<Map> new_map = Map::Copy(
-      isolate(), Handle<Map>(result->map(), isolate()), "ObjectWithNullProto");
-  Map::SetPrototype(isolate(), new_map, null_value());
-  JSObject::MigrateToMap(isolate(), result, new_map);
-  return result;
+  Handle<Map> map(isolate()->object_function()->initial_map(), isolate());
+  Handle<Map> map_with_null_proto =
+      Map::TransitionToPrototype(isolate(), map, null_value());
+  return NewJSObjectFromMap(map_with_null_proto);
 }
 
 Handle<JSGlobalObject> Factory::NewJSGlobalObject(
