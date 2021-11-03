@@ -169,8 +169,8 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileState {
       DCHECK_NOT_NULL(dispatcher_);
     }
 
-    void Enqueue(ParseInfo* outer_parse_info, const AstRawString* function_name,
-                 FunctionLiteral* literal);
+    void Enqueue(ParseInfo* outer_parse_info, Handle<Script> script,
+                 const AstRawString* function_name, FunctionLiteral* literal);
 
     using EnqueuedJobsIterator =
         std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator;

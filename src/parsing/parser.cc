@@ -419,12 +419,13 @@ Expression* Parser::NewV8RuntimeFunctionForFuzzing(
   return factory()->NewCallRuntime(function, permissive_args, pos);
 }
 
-Parser::Parser(ParseInfo* info)
+Parser::Parser(ParseInfo* info, Handle<Script> script)
     : ParserBase<Parser>(
           info->zone(), &scanner_, info->stack_limit(),
           info->GetOrCreateAstValueFactory(), info->pending_error_handler(),
           info->runtime_call_stats(), info->logger(), info->flags(), true),
       info_(info),
+      script_(script),
       scanner_(info->character_stream(), flags()),
       preparser_zone_(info->zone()->allocator(), "pre-parser-zone"),
       reusable_preparser_(nullptr),
@@ -2694,7 +2695,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   if (should_post_parallel_task) {
     // Start a parallel parse / compile task on the compiler dispatcher.
-    info()->parallel_tasks()->Enqueue(info(), function_name, function_literal);
+    info()->parallel_tasks()->Enqueue(info(), script_, function_name,
+                                      function_literal);
   }
 
   if (should_infer_name) {

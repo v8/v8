@@ -39,7 +39,6 @@ class LazyCompilerDispatcherTestFlags {
     FLAG_single_threaded = true;
     FlagList::EnforceFlagImplications();
     FLAG_lazy_compile_dispatcher = true;
-    FLAG_finalize_streaming_on_background = false;
   }
 
   static void RestoreFlags() {
@@ -104,17 +103,9 @@ class LazyCompilerDispatcherTest : public TestWithNativeContext {
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
             shared->function_literal_id(), nullptr);
 
-    return dispatcher->Enqueue(outer_parse_info.get(), function_name,
-                               function_literal);
-  }
-
- protected:
-  void SetUp() override {
-    // TODO(leszeks): Support background finalization in compiler dispatcher.
-    if (FLAG_finalize_streaming_on_background) {
-      GTEST_SKIP_(
-          "Parallel compile tasks don't yet support background finalization");
-    }
+    return dispatcher->Enqueue(outer_parse_info.get(),
+                               handle(Script::cast(shared->script()), isolate),
+                               function_name, function_literal);
   }
 };
 

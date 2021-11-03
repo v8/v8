@@ -82,6 +82,7 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   ~LazyCompileDispatcher();
 
   base::Optional<JobId> Enqueue(const ParseInfo* outer_parse_info,
+                                Handle<Script> script,
                                 const AstRawString* function_name,
                                 const FunctionLiteral* function_literal);
 

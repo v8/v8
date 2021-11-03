@@ -79,14 +79,15 @@ LazyCompileDispatcher::~LazyCompileDispatcher() {
 }
 
 base::Optional<LazyCompileDispatcher::JobId> LazyCompileDispatcher::Enqueue(
-    const ParseInfo* outer_parse_info, const AstRawString* function_name,
+    const ParseInfo* outer_parse_info, Handle<Script> script,
+    const AstRawString* function_name,
     const FunctionLiteral* function_literal) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompilerDispatcherEnqueue");
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
 
   std::unique_ptr<Job> job = std::make_unique<Job>(new BackgroundCompileTask(
-      outer_parse_info, function_name, function_literal,
+      isolate_, outer_parse_info, script, function_name, function_literal,
       worker_thread_runtime_call_stats_, background_compile_timer_,
       static_cast<int>(max_stack_size_)));
   JobMap::const_iterator it = InsertJob(std::move(job));

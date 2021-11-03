@@ -52,7 +52,7 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
       ScannerStream::For(isolate, source));
   info->set_character_stream(std::move(stream));
 
-  Parser parser(info);
+  Parser parser(info, script);
 
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
@@ -83,7 +83,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
                          shared_info->EndPosition()));
   info->set_character_stream(std::move(stream));
 
-  Parser parser(info);
+  Parser parser(info, script);
 
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);

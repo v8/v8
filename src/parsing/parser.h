@@ -130,7 +130,7 @@ struct ParserTypes<Parser> {
 
 class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
  public:
-  explicit Parser(ParseInfo* info);
+  explicit Parser(ParseInfo* info, Handle<Script> script);
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = nullptr;
@@ -1057,6 +1057,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class PreparseDataBuilder;  // Uses preparse_data_buffer()
 
   ParseInfo* info_;
+  Handle<Script> script_;
   Scanner scanner_;
   Zone preparser_zone_;
   PreParser* reusable_preparser_;

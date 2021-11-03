@@ -194,6 +194,11 @@ class SharedFunctionInfo
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data = true);
 
+  // Copy the data from another SharedFunctionInfo. Used for copying from a
+  // placeholder SharedFunctionInfo after an off-thread compilation into the
+  // actual SharedFunctionInfo.
+  void CopyFrom(SharedFunctionInfo other);
+
   // Layout description of the optimized code map.
   static const int kEntriesStart = 0;
   static const int kContextOffset = 0;

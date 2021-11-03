@@ -10,6 +10,7 @@
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
+#include "src/execution/isolate-utils.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -223,6 +224,23 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 
   // Finally set new script.
   set_script(script_object);
+}
+
+void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
+  DCHECK_EQ(script(), other.script());
+  DCHECK_EQ(function_literal_id(), other.function_literal_id());
+  DCHECK_EQ(Script::cast(script())
+                .shared_function_infos()
+                .Get(function_literal_id())
+                .GetHeapObject(),
+            *this);
+
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  set_raw_scope_info(other.scope_info(cage_base, kAcquireLoad));
+  set_function_data(other.function_data(cage_base, kAcquireLoad),
+                    kReleaseStore);
+  set_feedback_metadata(other.feedback_metadata(cage_base, kAcquireLoad),
+                        kReleaseStore);
 }
 
 bool SharedFunctionInfo::HasBreakInfo() const {

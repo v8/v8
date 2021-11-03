@@ -414,16 +414,16 @@ bool SharedFunctionInfo::IsDontAdaptArguments() const {
 
 bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
 
-ScopeInfo SharedFunctionInfo::scope_info(AcquireLoadTag tag) const {
-  Object maybe_scope_info = name_or_scope_info(tag);
-  if (maybe_scope_info.IsScopeInfo()) {
+DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, ScopeInfo) {
+  Object maybe_scope_info = name_or_scope_info(cage_base, kAcquireLoad);
+  if (maybe_scope_info.IsScopeInfo(cage_base)) {
     return ScopeInfo::cast(maybe_scope_info);
   }
   return GetReadOnlyRoots().empty_scope_info();
 }
 
-ScopeInfo SharedFunctionInfo::scope_info() const {
-  return scope_info(kAcquireLoad);
+DEF_GETTER(SharedFunctionInfo, scope_info, ScopeInfo) {
+  return scope_info(cage_base, kAcquireLoad);
 }
 
 void SharedFunctionInfo::SetScopeInfo(ScopeInfo scope_info,

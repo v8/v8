@@ -73,6 +73,10 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
                          ->NewStringFromUtf8(base::CStrVector(source))
                          .ToHandleChecked();
 
+    script_ = parse_info_.CreateScript(local_isolate(),
+                                       local_factory()->empty_string(),
+                                       kNullMaybeHandle, ScriptOriginOptions());
+
     parse_info_.set_character_stream(
         ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
 
@@ -80,17 +84,13 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
       DisallowGarbageCollection no_gc;
       DisallowHeapAccess no_heap_access;
 
-      Parser parser(parse_info());
+      Parser parser(parse_info(), script_);
       parser.InitializeEmptyScopeChain(parse_info());
       parser.ParseOnBackground(parse_info(), 0, 0, kFunctionLiteralIdTopLevel);
     }
 
     parse_info()->ast_value_factory()->Internalize(local_isolate());
     DeclarationScope::AllocateScopeInfos(parse_info(), local_isolate());
-
-    script_ = parse_info_.CreateScript(local_isolate(),
-                                       local_factory()->empty_string(),
-                                       kNullMaybeHandle, ScriptOriginOptions());
 
     // Create the SFI list on the script so that SFI SetScript works.
     Handle<WeakFixedArray> infos = local_factory()->NewWeakFixedArray(

@@ -332,10 +332,10 @@ void ParseInfo::CheckFlagsForFunctionFromScript(Script script) {
 }
 
 void UnoptimizedCompileState::ParallelTasks::Enqueue(
-    ParseInfo* outer_parse_info, const AstRawString* function_name,
-    FunctionLiteral* literal) {
+    ParseInfo* outer_parse_info, Handle<Script> script,
+    const AstRawString* function_name, FunctionLiteral* literal) {
   base::Optional<LazyCompileDispatcher::JobId> job_id =
-      dispatcher_->Enqueue(outer_parse_info, function_name, literal);
+      dispatcher_->Enqueue(outer_parse_info, script, function_name, literal);
   if (job_id) {
     enqueued_jobs_.emplace_front(std::make_pair(literal, *job_id));
   }
