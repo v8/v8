@@ -234,17 +234,18 @@ class RegExpParserImpl final {
   RegExpTree* ReportError(RegExpError error);
   void Advance();
   void Advance(int dist);
+  void RewindByOneCodepoint();  // Rewinds to before the previous Advance().
   void Reset(int pos);
 
   // Reports whether the pattern might be used as a literal search string.
   // Only use if the result of the parse is a single atom node.
-  bool simple();
-  bool contains_anchor() { return contains_anchor_; }
+  bool simple() const { return simple_; }
+  bool contains_anchor() const { return contains_anchor_; }
   void set_contains_anchor() { contains_anchor_ = true; }
-  int captures_started() { return captures_started_; }
-  int position() { return next_pos_ - 1; }
-  bool failed() { return failed_; }
-  bool unicode() const { return IsUnicode(top_level_flags_); }
+  int captures_started() const { return captures_started_; }
+  int position() const { return next_pos_ - 1; }
+  bool failed() const { return failed_; }
+  bool unicode() const { return IsUnicode(top_level_flags_) || force_unicode_; }
 
   static bool IsSyntaxCharacterOrSlash(base::uc32 c);
 
@@ -280,9 +281,9 @@ class RegExpParserImpl final {
 
   Zone* zone() const { return zone_; }
 
-  base::uc32 current() { return current_; }
-  bool has_more() { return has_more_; }
-  bool has_next() { return next_pos_ < input_length(); }
+  base::uc32 current() const { return current_; }
+  bool has_more() const { return has_more_; }
+  bool has_next() const { return next_pos_ < input_length(); }
   base::uc32 Next();
   template <bool update_position>
   base::uc32 ReadNext();
@@ -301,6 +302,22 @@ class RegExpParserImpl final {
     }
   };
 
+  class ForceUnicodeScope final {
+   public:
+    explicit ForceUnicodeScope(RegExpParserImpl<CharT>* parser)
+        : parser_(parser) {
+      DCHECK(!parser_->force_unicode_);
+      parser_->force_unicode_ = true;
+    }
+    ~ForceUnicodeScope() {
+      DCHECK(parser_->force_unicode_);
+      parser_->force_unicode_ = false;
+    }
+
+   private:
+    RegExpParserImpl<CharT>* const parser_;
+  };
+
   const DisallowGarbageCollection no_gc_;
   Zone* const zone_;
   RegExpError error_ = RegExpError::kNone;
@@ -312,6 +329,7 @@ class RegExpParserImpl final {
   const int input_length_;
   base::uc32 current_;
   const RegExpFlags top_level_flags_;
+  bool force_unicode_ = false;  // Force parser to act as if unicode were set.
   int next_pos_;
   int captures_started_;
   int capture_count_;  // Only valid after we have scanned for captures.
@@ -423,6 +441,17 @@ void RegExpParserImpl<CharT>::Advance() {
 }
 
 template <class CharT>
+void RegExpParserImpl<CharT>::RewindByOneCodepoint() {
+  if (current() == kEndMarker) return;
+  // Rewinds by one code point, i.e.: two code units if `current` is outside
+  // the basic multilingual plane (= composed of a lead and trail surrogate),
+  // or one code unit otherwise.
+  const int rewind_by =
+      current() > unibrow::Utf16::kMaxNonSurrogateCharCode ? -2 : -1;
+  Advance(rewind_by);  // Undo the last Advance.
+}
+
+template <class CharT>
 void RegExpParserImpl<CharT>::Reset(int pos) {
   next_pos_ = pos;
   has_more_ = (pos < input_length());
@@ -433,11 +462,6 @@ template <class CharT>
 void RegExpParserImpl<CharT>::Advance(int dist) {
   next_pos_ += dist - 1;
   Advance();
-}
-
-template <class CharT>
-bool RegExpParserImpl<CharT>::simple() {
-  return simple_;
 }
 
 template <class CharT>
@@ -1048,48 +1072,73 @@ void push_code_unit(ZoneVector<base::uc16>* v, uint32_t code_unit) {
 
 template <class CharT>
 const ZoneVector<base::uc16>* RegExpParserImpl<CharT>::ParseCaptureGroupName() {
+  // Due to special Advance requirements (see the next comment), rewind by one
+  // such that names starting with a surrogate pair are parsed correctly for
+  // patterns where the unicode flag is unset.
+  //
+  // Note that we use this odd pattern of rewinding the last advance in order
+  // to adhere to the common parser behavior of expecting `current` to point at
+  // the first candidate character for a function (e.g. when entering ParseFoo,
+  // `current` should point at the first character of Foo).
+  RewindByOneCodepoint();
+
   ZoneVector<base::uc16>* name =
       zone()->template New<ZoneVector<base::uc16>>(zone());
 
-  bool at_start = true;
-  while (true) {
-    base::uc32 c = current();
-    Advance();
+  {
+    // Advance behavior inside this function is tricky since
+    // RegExpIdentifierName explicitly enables unicode (in spec terms, sets +U)
+    // and thus allows surrogate pairs and \u{}-style escapes even in
+    // non-unicode patterns. Therefore Advance within the capture group name
+    // has to force-enable unicode, and outside the name revert to default
+    // behavior.
+    ForceUnicodeScope force_unicode(this);
 
-    // Convert unicode escapes.
-    if (c == '\\' && current() == 'u') {
+    bool at_start = true;
+    while (true) {
       Advance();
-      if (!ParseUnicodeEscape(&c)) {
-        ReportError(RegExpError::kInvalidUnicodeEscape);
-        return nullptr;
+      base::uc32 c = current();
+
+      // Convert unicode escapes.
+      if (c == '\\' && Next() == 'u') {
+        Advance(2);
+        if (!ParseUnicodeEscape(&c)) {
+          ReportError(RegExpError::kInvalidUnicodeEscape);
+          return nullptr;
+        }
+        RewindByOneCodepoint();
       }
-    }
 
-    // The backslash char is misclassified as both ID_Start and ID_Continue.
-    if (c == '\\') {
-      ReportError(RegExpError::kInvalidCaptureGroupName);
-      return nullptr;
-    }
-
-    if (at_start) {
-      if (!IsIdentifierStart(c)) {
+      // The backslash char is misclassified as both ID_Start and ID_Continue.
+      if (c == '\\') {
         ReportError(RegExpError::kInvalidCaptureGroupName);
         return nullptr;
       }
-      push_code_unit(name, c);
-      at_start = false;
-    } else {
-      if (c == '>') {
-        break;
-      } else if (IsIdentifierPart(c)) {
+
+      if (at_start) {
+        if (!IsIdentifierStart(c)) {
+          ReportError(RegExpError::kInvalidCaptureGroupName);
+          return nullptr;
+        }
         push_code_unit(name, c);
+        at_start = false;
       } else {
-        ReportError(RegExpError::kInvalidCaptureGroupName);
-        return nullptr;
+        if (c == '>') {
+          break;
+        } else if (IsIdentifierPart(c)) {
+          push_code_unit(name, c);
+        } else {
+          ReportError(RegExpError::kInvalidCaptureGroupName);
+          return nullptr;
+        }
       }
     }
   }
 
+  // This final advance goes back into the state of pointing at the next
+  // relevant char, which the rest of the parser expects. See also the previous
+  // comments in this function.
+  Advance();
   return name;
 }
 
@@ -2045,7 +2094,6 @@ void RegExpBuilder::FlushPendingSurrogate() {
   }
 }
 
-
 void RegExpBuilder::FlushCharacters() {
   FlushPendingSurrogate();
   pending_empty_ = false;
@@ -2056,7 +2104,6 @@ void RegExpBuilder::FlushCharacters() {
     LAST(ADD_ATOM);
   }
 }
-
 
 void RegExpBuilder::FlushText() {
   FlushCharacters();
@@ -2113,7 +2160,6 @@ void RegExpBuilder::AddEscapedUnicodeCharacter(base::uc32 character) {
 
 void RegExpBuilder::AddEmpty() { pending_empty_ = true; }
 
-
 void RegExpBuilder::AddCharacterClass(RegExpCharacterClass* cc) {
   if (NeedsDesugaringForUnicode(cc)) {
     // With /u, character class needs to be desugared, so it
@@ -2144,13 +2190,11 @@ void RegExpBuilder::AddAtom(RegExpTree* term) {
   LAST(ADD_ATOM);
 }
 
-
 void RegExpBuilder::AddTerm(RegExpTree* term) {
   FlushText();
   terms_.Add(term, zone());
   LAST(ADD_ATOM);
 }
-
 
 void RegExpBuilder::AddAssertion(RegExpTree* assert) {
   FlushText();
@@ -2158,9 +2202,7 @@ void RegExpBuilder::AddAssertion(RegExpTree* assert) {
   LAST(ADD_ASSERT);
 }
 
-
 void RegExpBuilder::NewAlternative() { FlushTerms(); }
-
 
 void RegExpBuilder::FlushTerms() {
   FlushText();
@@ -2178,7 +2220,6 @@ void RegExpBuilder::FlushTerms() {
   terms_.Rewind(0);
   LAST(ADD_NONE);
 }
-
 
 bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
   if (!unicode()) return false;

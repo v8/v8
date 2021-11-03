@@ -73,9 +73,6 @@
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10379
-  'built-ins/RegExp/named-groups/non-unicode-property-names-valid': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
   'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
@@ -534,10 +531,10 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
   #
-  # Test262 needs to expose CanBlock
+  # Test262 needs to expose CanBlock.
   'built-ins/Atomics/wait/bigint/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
-  # Flaky
+  # Flaky.
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
@@ -564,7 +561,7 @@
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
   'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
 
-  # Test against internals of harness; we plug in differently
+  # Test against internals of harness; we plug in differently.
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
 
@@ -606,7 +603,7 @@
   # Unicode regexp case mapping is not available with i18n turned off.
   'language/literals/regexp/u-case-mapping': [SKIP],
 
-  # Unicode in capture group
+  # Unicode in capture group.
   'built-ins/RegExp/prototype/Symbol.replace/named-groups': [FAIL],
 
   # BUG(v8:4437).
@@ -632,13 +629,14 @@
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
 
-  # Unicode features unavaible without i18n, ie property escapes.
+  # Unicode features unavaible without i18n, e.g. property escapes.
   'built-ins/RegExp/property-escapes/*': [SKIP],
   'built-ins/RegExp/named-groups/unicode-property-names': [SKIP],
   'built-ins/RegExp/named-groups/unicode-property-names-valid': [SKIP],
+  'built-ins/RegExp/named-groups/non-unicode-property-names-valid': [FAIL],
   'built-ins/RegExp/match-indices/indices-array-unicode-property-names': [SKIP],
 
-  # Unicode in identifiers
+  # Unicode in identifiers.
   'language/identifiers/part-unicode-*': [FAIL],
   'language/identifiers/start-unicode-1*': [FAIL],
   'language/identifiers/start-unicode-5*': [FAIL],
@@ -646,7 +644,6 @@
   'language/identifiers/start-unicode-7*': [FAIL],
   'language/identifiers/start-unicode-8*': [FAIL],
   'language/identifiers/start-unicode-9*': [FAIL],
-
 }],  # no_i18n == True
 
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64 or arch == mips64el', {

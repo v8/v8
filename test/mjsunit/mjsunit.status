@@ -421,8 +421,8 @@
 ['no_i18n', {
   # Case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [FAIL],
-  'regress/regress-5036': [FAIL],
   'es7/regexp-ui-word': [FAIL],
+  'regress/regress-5036': [FAIL],
 
   # Desugaring regexp property class relies on ICU. Anything goes as long as we
   # don't crash.
@@ -430,8 +430,9 @@
   'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
 
-  # noi18n build cannot parse characters in supplementary plane.
+  # The noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [FAIL],
+  'regress/regress-v8-10384': [FAIL],
 
   # noi18n cannot turn on ICU backend for Date. Anything goes as long as we
   # don't crash.
