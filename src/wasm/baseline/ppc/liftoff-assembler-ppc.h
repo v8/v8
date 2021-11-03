@@ -617,9 +617,6 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
                                       uintptr_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
-#if defined(V8_OS_AIX)
-  bailout(kUnsupportedArchitecture, "atomic");
-#else
   Register offset = r0;
   if (offset_imm != 0) {
     mov(ip, Operand(offset_imm));
@@ -674,16 +671,12 @@ void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
-#endif
 }
 
 void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-#if defined(V8_OS_AIX)
-  bailout(kUnsupportedArchitecture, "atomic");
-#else
   Register offset = r0;
   if (offset_imm != 0) {
     mov(ip, Operand(offset_imm));
@@ -707,13 +700,13 @@ void LiftoffAssembler::AtomicCompareExchange(
     case StoreType::kI32Store16:
     case StoreType::kI64Store16: {
       if (is_be) {
-        Push(r3, r4);
-        ByteReverseU16(r3, new_value.gp());
-        ByteReverseU16(r4, expected.gp());
-        TurboAssembler::AtomicCompareExchange<uint16_t>(dst, r4, r3,
-                                                        result.gp(), r0);
+        Push(new_value.gp(), expected.gp());
+        ByteReverseU16(new_value.gp(), new_value.gp());
+        ByteReverseU16(expected.gp(), expected.gp());
+        TurboAssembler::AtomicCompareExchange<uint16_t>(
+            dst, expected.gp(), new_value.gp(), result.gp(), r0);
         ByteReverseU16(result.gp(), result.gp());
-        Pop(r3, r4);
+        Pop(new_value.gp(), expected.gp());
       } else {
         TurboAssembler::AtomicCompareExchange<uint16_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
@@ -723,13 +716,13 @@ void LiftoffAssembler::AtomicCompareExchange(
     case StoreType::kI32Store:
     case StoreType::kI64Store32: {
       if (is_be) {
-        Push(r3, r4);
-        ByteReverseU32(r3, new_value.gp());
-        ByteReverseU32(r4, expected.gp());
-        TurboAssembler::AtomicCompareExchange<uint32_t>(dst, r4, r3,
-                                                        result.gp(), r0);
+        Push(new_value.gp(), expected.gp());
+        ByteReverseU32(new_value.gp(), new_value.gp());
+        ByteReverseU32(expected.gp(), expected.gp());
+        TurboAssembler::AtomicCompareExchange<uint32_t>(
+            dst, expected.gp(), new_value.gp(), result.gp(), r0);
         ByteReverseU32(result.gp(), result.gp());
-        Pop(r3, r4);
+        Pop(new_value.gp(), expected.gp());
       } else {
         TurboAssembler::AtomicCompareExchange<uint32_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
@@ -738,13 +731,13 @@ void LiftoffAssembler::AtomicCompareExchange(
     }
     case StoreType::kI64Store: {
       if (is_be) {
-        Push(r3, r4);
-        ByteReverseU64(r3, new_value.gp());
-        ByteReverseU64(r4, expected.gp());
-        TurboAssembler::AtomicCompareExchange<uint64_t>(dst, r4, r3,
-                                                        result.gp(), r0);
+        Push(new_value.gp(), expected.gp());
+        ByteReverseU64(new_value.gp(), new_value.gp());
+        ByteReverseU64(expected.gp(), expected.gp());
+        TurboAssembler::AtomicCompareExchange<uint64_t>(
+            dst, expected.gp(), new_value.gp(), result.gp(), r0);
         ByteReverseU64(result.gp(), result.gp());
-        Pop(r3, r4);
+        Pop(new_value.gp(), expected.gp());
       } else {
         TurboAssembler::AtomicCompareExchange<uint64_t>(
             dst, expected.gp(), new_value.gp(), result.gp(), r0);
@@ -754,7 +747,6 @@ void LiftoffAssembler::AtomicCompareExchange(
     default:
       UNREACHABLE();
   }
-#endif
 }
 
 void LiftoffAssembler::AtomicFence() { sync(); }
