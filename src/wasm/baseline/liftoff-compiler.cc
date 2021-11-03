@@ -722,7 +722,7 @@ class LiftoffCompiler {
 
   void TierupCheck(FullDecoder* decoder, WasmCodePosition position,
                    int budget_used) {
-    if (for_debugging_ == kNoDebugging) return;
+    if (for_debugging_ != kNoDebugging) return;
     CODE_COMMENT("tierup check");
     // We never want to blow the entire budget at once.
     const int kMax = FLAG_wasm_tiering_budget / 4;
@@ -742,21 +742,7 @@ class LiftoffCompiler {
         compilation_zone_->New<OutOfLineSafepointInfo>(compilation_zone_);
     __ cache_state()->GetTaggedSlotsForOOLCode(
         &safepoint_info->slots, &safepoint_info->spills,
-        for_debugging_
-            ? LiftoffAssembler::CacheState::SpillLocation::kStackSlots
-            : LiftoffAssembler::CacheState::SpillLocation::kTopOfStack);
-    if (V8_UNLIKELY(for_debugging_)) {
-      // When debugging, we do not just push all registers to the stack, but we
-      // spill them to their proper stack locations such that we can inspect
-      // them.
-      // The only exception is the cached memory start, which we just push
-      // before the tierup check and pop afterwards.
-      regs_to_save = {};
-      if (__ cache_state()->cached_mem_start != no_reg) {
-        regs_to_save.set(__ cache_state()->cached_mem_start);
-      }
-      spilled_regs = GetSpilledRegistersForInspection();
-    }
+        LiftoffAssembler::CacheState::SpillLocation::kTopOfStack);
     out_of_line_code_.push_back(OutOfLineCode::TierupCheck(
         position, regs_to_save, __ cache_state()->cached_instance, spilled_regs,
         safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
