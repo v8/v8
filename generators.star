@@ -15,7 +15,7 @@ def aggregate_builder_tester_console(ctx):
     build_bucket = ctx.output["cr-buildbucket.cfg"]
     categories = {}
     for bucket in build_bucket.buckets:
-        if bucket.name == 'ci':
+        if bucket.name == "ci":
             for builder in bucket.swarming.builders:
                 if builder.properties:
                     properties = json.decode(builder.properties)
@@ -28,14 +28,14 @@ def aggregate_builder_tester_console(ctx):
                             categories[parent] = [parent, builder.name]
     milo = ctx.output["luci-milo.cfg"]
     for console in milo.consoles:
-        if console.name == 'builder-tester':
+        if console.name == "builder-tester":
             for category, contents in categories.items():
                 for builder in contents:
                     cbuilder = dict(
-                            name="buildbucket/luci.v8.ci/" + builder,
-                            category=category)
+                        name = "buildbucket/luci.v8.ci/" + builder,
+                        category = category,
+                    )
                     console.builders.append(cbuilder)
-
 
 def ensure_forward_triggering_properties(ctx):
     """

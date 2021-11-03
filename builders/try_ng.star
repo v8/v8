@@ -13,8 +13,11 @@ load(
 )
 
 #TODO(almuthanna): get rid of kwargs and specify default values
-def try_ng_pair(name, cq_properties = CQ.NONE,
-                cq_branch_properties = CQ.NONE, **kwargs):
+def try_ng_pair(
+        name,
+        cq_properties = CQ.NONE,
+        cq_branch_properties = CQ.NONE,
+        **kwargs):
     triggered_timeout = kwargs.pop("triggered_timeout", None)
     kwargs.setdefault("properties", {})["triggers"] = [
         "%s_ng_triggered" % name,
@@ -237,8 +240,10 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_linux64_tsan_no_cm_rel",
-    cq_properties = CQ.on_files(".+/[+]/src/compiler/js-heap-broker.(h|cc)",
-                                ".+/[+]/src/compiler/heap-refs.(h|cc)"),
+    cq_properties = CQ.on_files(
+        ".+/[+]/src/compiler/js-heap-broker.(h|cc)",
+        ".+/[+]/src/compiler/heap-refs.(h|cc)",
+    ),
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.DEFAULT,

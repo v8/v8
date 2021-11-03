@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "greedy_batching_of_1", "in_branch_console", "multibranch_builder", "v8_builder", "ci_pair_factory")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "multibranch_builder", "v8_builder")
 
 def main_multibranch_builder(**kwargs):
     props = kwargs.pop("properties", {})

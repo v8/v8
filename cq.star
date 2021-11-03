@@ -99,4 +99,3 @@ luci.cq_group(
         timeout_weight = 4,
     ),
 )
-

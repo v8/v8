@@ -1,4 +1,4 @@
-#!/usr/bin/env lucicfg
+#!/usr/bin/env -S bash -xc 'lucicfg format && lucicfg "$0"'
 # Copyright 2020 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -30,6 +30,7 @@ lucicfg.config(
         "realms.cfg",
     ],
     fail_on_warnings = True,
+    lint_checks = ["none", "+formatting"],
 )
 
 luci.project(

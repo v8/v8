@@ -4,9 +4,12 @@
 
 load("//lib/lib.star", "CQ", "GCLIENT_VARS", "GOMA", "GOMA_JOBS", "v8_builder")
 
-def try_builder(name, bucket = "try", cq_properties = CQ.NONE,
-                cq_branch_properties = CQ.NONE, **kwargs):
-
+def try_builder(
+        name,
+        bucket = "try",
+        cq_properties = CQ.NONE,
+        cq_branch_properties = CQ.NONE,
+        **kwargs):
     # All unspecified branch trybots are per default optional.
     if (cq_properties != CQ.NONE and cq_branch_properties == CQ.NONE):
         cq_branch_properties = CQ.OPTIONAL

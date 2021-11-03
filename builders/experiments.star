@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "in_console", "v8_builder", "v8_notifier", "ci_pair_factory")
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "ci_pair_factory", "in_console", "v8_builder", "v8_notifier")
 
 RECLIENT = struct(
     DEFAULT = {

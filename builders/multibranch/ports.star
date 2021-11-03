@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star","ci_pair_factory", "GOMA", "greedy_batching_of_1", "in_branch_console", "multibranch_builder")
+load("//lib/lib.star", "GOMA", "ci_pair_factory", "greedy_batching_of_1", "in_branch_console", "multibranch_builder")
 
 in_category = in_branch_console("ports")
 multibranch_builder_pair = ci_pair_factory(multibranch_builder)

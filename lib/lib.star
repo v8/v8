@@ -84,24 +84,24 @@ branch_descriptors = [
 ]
 
 NAMING_CONVENTION_EXCLUDED_BUILDERS = [
-    'V8 Linux64 - arm64 - sim - heap sandbox - debug',
-    'V8 Linux64 - cppgc-non-default - debug',
-    'V8 Linux64 - dict tracking - debug',
-    'V8 Linux64 - external code space - debug',
-    'V8 Linux64 - heap sandbox - debug'
+    "V8 Linux64 - arm64 - sim - heap sandbox - debug",
+    "V8 Linux64 - cppgc-non-default - debug",
+    "V8 Linux64 - dict tracking - debug",
+    "V8 Linux64 - external code space - debug",
+    "V8 Linux64 - heap sandbox - debug",
 ]
 
 def cq_on_files(*regexp_list):
-  return { "location_regexp": list(regexp_list), "cancel_stale": False }
+    return {"location_regexp": list(regexp_list), "cancel_stale": False}
 
 CQ = struct(
-    BLOCK = { "cancel_stale": False },
-    BLOCK_NO_REUSE = { "disable_reuse": "true", "cancel_stale": False },
-    EXP_5_PERCENT = { "experiment_percentage": 5, "cancel_stale": False },
-    EXP_50_PERCENT = { "experiment_percentage": 50, "cancel_stale": False },
-    EXP_100_PERCENT = { "experiment_percentage": 100, "cancel_stale": False },
+    BLOCK = {"cancel_stale": False},
+    BLOCK_NO_REUSE = {"disable_reuse": "true", "cancel_stale": False},
+    EXP_5_PERCENT = {"experiment_percentage": 5, "cancel_stale": False},
+    EXP_50_PERCENT = {"experiment_percentage": 50, "cancel_stale": False},
+    EXP_100_PERCENT = {"experiment_percentage": 100, "cancel_stale": False},
     NONE = None,
-    OPTIONAL = { "includable_only": "true", "cancel_stale": False },
+    OPTIONAL = {"includable_only": "true", "cancel_stale": False},
     on_files = cq_on_files,
 )
 
@@ -422,7 +422,7 @@ def in_branch_console(console_name, *builder_sets):
     def in_category(category_name, *builder_sets):
         for builder_set in builder_sets:
             for builder in builder_set:
-                if not type(builder) == 'list':
+                if not type(builder) == "list":
                     builder = [builder]
                 for sub_builder in builder:
                     branch_name = sub_builder.split("/")[0]
@@ -442,7 +442,7 @@ def branch_by_name(name):
 def in_console(console_id, *builders):
     def in_category(category_name, *builders):
         for builder in builders:
-            if not type(builder) == 'list':
+            if not type(builder) == "list":
                 builder = [builder]
             for sub_builder in builder:
                 luci.console_view_entry(
@@ -455,14 +455,14 @@ def in_console(console_id, *builders):
 
 def is_ci_debug(builder_name):
     return (
-        builder_name.endswith(' debug') and
+        builder_name.endswith(" debug") and
         builder_name not in NAMING_CONVENTION_EXCLUDED_BUILDERS
     )
 
 def ci_pair_factory(func):
     def pair_func(**kwargs):
-        tester_name = kwargs['name']
-        builder_name = tester_name + ('' if is_ci_debug(tester_name) else ' -') + ' builder'
+        tester_name = kwargs["name"]
+        builder_name = tester_name + ("" if is_ci_debug(tester_name) else " -") + " builder"
         tester_close = kwargs.pop("tester_close", None)
 
         to_notify = kwargs.pop("to_notify", None)
@@ -474,24 +474,24 @@ def ci_pair_factory(func):
             )
 
         builder_kwargs = dict(kwargs)
-        builder_kwargs['name'] = builder_name
+        builder_kwargs["name"] = builder_name
 
         tester_included_args = [
-            'name',
-            'bucket',
-            'properties',
-            'experiments',
-            'close_tree'
+            "name",
+            "bucket",
+            "properties",
+            "experiments",
+            "close_tree",
         ]
         tester_kwargs = {k: v for k, v in kwargs.items() if k in tester_included_args}
-        tester_kwargs['parent_builder'] = builder_name
+        tester_kwargs["parent_builder"] = builder_name
 
-        if not type(tester_close) == 'NoneType':
-            tester_kwargs['close_tree'] = tester_close
+        if not type(tester_close) == "NoneType":
+            tester_kwargs["close_tree"] = tester_close
 
         return [
             func(**builder_kwargs),
-            func(**tester_kwargs)
+            func(**tester_kwargs),
         ]
 
     return pair_func
