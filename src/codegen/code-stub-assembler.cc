@@ -14332,24 +14332,30 @@ TNode<BoolT> CodeStubAssembler::NeedsAnyPromiseHooks(TNode<Uint32T> flags) {
   return Word32NotEqual(flags, Int32Constant(0));
 }
 
-TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
+TNode<CodeT> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   CSA_DCHECK(this, SmiBelow(builtin_id, SmiConstant(Builtins::kBuiltinCount)));
 
   TNode<IntPtrT> offset =
       ElementOffsetFromIndex(SmiToBInt(builtin_id), SYSTEM_POINTER_ELEMENTS);
 
-  return CAST(BitcastWordToTagged(Load<RawPtrT>(
-      ExternalConstant(ExternalReference::builtins_address(isolate())),
-      offset)));
+  TNode<ExternalReference> table = ExternalConstant(
+#ifdef V8_EXTERNAL_CODE_SPACE
+      ExternalReference::builtins_code_data_container_table(isolate())
+#else
+      ExternalReference::builtins_table(isolate())
+#endif  // V8_EXTERNAL_CODE_SPACE
+  );    // NOLINT(whitespace/parens)
+
+  return CAST(BitcastWordToTagged(Load<RawPtrT>(table, offset)));
 }
 
-TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
+TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
     TNode<SharedFunctionInfo> shared_info, TVariable<Uint16T>* data_type_out,
     Label* if_compile_lazy) {
   TNode<Object> sfi_data =
       LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
 
-  TVARIABLE(Code, sfi_code);
+  TVARIABLE(CodeT, sfi_code);
 
   Label done(this);
   Label check_instance_type(this);
@@ -14413,14 +14419,14 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsBytecodeArray: Interpret bytecode
   BIND(&check_is_bytecode_array);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
+  sfi_code = HeapConstant(BUILTIN_CODET(isolate(), InterpreterEntryTrampoline));
   Goto(&done);
 
   // IsBaselineData: Execute baseline code
   BIND(&check_is_baseline_data);
   {
     TNode<CodeT> baseline_code = CAST(sfi_data);
-    sfi_code = FromCodeT(baseline_code);
+    sfi_code = baseline_code;
     Goto(&done);
   }
 
@@ -14429,12 +14435,12 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   BIND(&check_is_uncompiled_data_with_preparse_data);
   Goto(&check_is_uncompiled_data_without_preparse_data);
   BIND(&check_is_uncompiled_data_without_preparse_data);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
+  sfi_code = HeapConstant(BUILTIN_CODET(isolate(), CompileLazy));
   Goto(if_compile_lazy ? if_compile_lazy : &done);
 
   // IsFunctionTemplateInfo: API call
   BIND(&check_is_function_template_info);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), HandleApiCall));
+  sfi_code = HeapConstant(BUILTIN_CODET(isolate(), HandleApiCall));
   Goto(&done);
 
   // IsInterpreterData: Interpret bytecode
@@ -14445,7 +14451,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   {
     TNode<CodeT> trampoline =
         LoadInterpreterDataInterpreterTrampoline(CAST(sfi_data));
-    sfi_code = FromCodeT(trampoline);
+    sfi_code = trampoline;
   }
   Goto(&done);
 
@@ -14458,7 +14464,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsAsmWasmData: Instantiate using AsmWasmData
   BIND(&check_is_asm_wasm_data);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));
+  sfi_code = HeapConstant(BUILTIN_CODET(isolate(), InstantiateAsmJs));
   Goto(&done);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -14482,8 +14488,7 @@ TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<CodeT> code) {
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
     TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
     TNode<Context> context) {
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  const TNode<Code> code = GetSharedFunctionInfoCode(shared_info);
+  const TNode<CodeT> code = GetSharedFunctionInfoCode(shared_info);
 
   // TODO(ishell): All the callers of this function pass map loaded from
   // Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX. So we can remove
@@ -14502,7 +14507,7 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
-  StoreObjectField(fun, JSFunction::kCodeOffset, ToCodeT(code));
+  StoreObjectField(fun, JSFunction::kCodeOffset, code);
   return CAST(fun);
 }
 

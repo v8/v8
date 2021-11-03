@@ -110,8 +110,9 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
 
   BIND(&tailcall_to_shared);
   // Tail call into code object on the SharedFunctionInfo.
-  TNode<Code> code = GetSharedFunctionInfoCode(shared);
-  TailCallJSCode(code, context, function, new_target, arg_count);
+  TNode<CodeT> code = GetSharedFunctionInfoCode(shared);
+  // TODO(v8:11880): call CodeT directly.
+  TailCallJSCode(FromCodeT(code), context, function, new_target, arg_count);
 }
 
 class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
@@ -1325,7 +1326,7 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   // On failure, tail call back to regular JavaScript by re-calling the given
   // function which has been reset to the compile lazy builtin.
 
-  // TODO(v8:11880): call CodeT instead.
+  // TODO(v8:11880): call CodeT directly.
   TNode<Code> code = FromCodeT(LoadJSFunctionCode(function));
   TailCallJSCode(code, context, function, new_target, arg_count);
 }

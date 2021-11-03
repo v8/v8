@@ -120,7 +120,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
   TVARIABLE(Uint16T, sfi_data_type);
-  TNode<Code> sfi_code =
+  TNode<CodeT> sfi_code =
       GetSharedFunctionInfoCode(shared, &sfi_data_type, &compile_function);
 
   TNode<HeapObject> feedback_cell_value = LoadFeedbackCellValue(function);
@@ -144,14 +144,14 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // optimized Code object (we'd have tail-called it above). A usual case would
   // be the InterpreterEntryTrampoline to start executing existing bytecode.
   BIND(&maybe_use_sfi_code);
-  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
+  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODET(
                                                 isolate(), CompileLazy))));
-  StoreObjectField(function, JSFunction::kCodeOffset, ToCodeT(sfi_code));
+  StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
 
   Label tailcall_code(this);
   Label baseline(this);
 
-  TVARIABLE(Code, code);
+  TVARIABLE(CodeT, code);
 
   // Check if we have baseline code.
   GotoIf(InstanceTypeEqual(sfi_data_type.value(), CODET_TYPE), &baseline);
@@ -161,17 +161,19 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
 
   BIND(&baseline);
   // Ensure we have a feedback vector.
-  code = Select<Code>(
+  code = Select<CodeT>(
       IsFeedbackVector(feedback_cell_value), [=]() { return sfi_code; },
       [=]() {
-        return CAST(CallRuntime(Runtime::kInstallBaselineCode,
-                                Parameter<Context>(Descriptor::kContext),
-                                function));
+        // TODO(v8:11880): avoid roundtrips between cdc and code.
+        return ToCodeT(CAST(
+            CallRuntime(Runtime::kInstallBaselineCode,
+                        Parameter<Context>(Descriptor::kContext), function)));
       });
   Goto(&tailcall_code);
   BIND(&tailcall_code);
   // Jump to the selected code entry.
-  GenerateTailCallToJSCode(code.value(), function);
+  // TODO(v8:11880): call CodeT directly.
+  GenerateTailCallToJSCode(FromCodeT(code.value()), function);
 
   BIND(&compile_function);
   GenerateTailCallToReturnedCode(Runtime::kCompileLazy, function);

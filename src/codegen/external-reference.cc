@@ -198,9 +198,16 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
 }
 
-ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
+ExternalReference ExternalReference::builtins_table(Isolate* isolate) {
   return ExternalReference(isolate->builtin_table());
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+ExternalReference ExternalReference::builtins_code_data_container_table(
+    Isolate* isolate) {
+  return ExternalReference(isolate->builtin_code_data_container_table());
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 ExternalReference ExternalReference::handle_scope_implementer_address(
     Isolate* isolate) {
