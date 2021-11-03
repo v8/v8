@@ -78,14 +78,13 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
         feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset);
 
     // Optimized code slot is a weak reference to CodeT object.
-    TNode<CodeT> code_t = CAST(GetHeapObjectAssumeWeak(
+    TNode<CodeT> optimized_code = CAST(GetHeapObjectAssumeWeak(
         maybe_optimized_code_entry, &heal_optimized_code_slot));
-    TNode<Code> optimized_code = FromCodeT(code_t);
 
     // Check if the optimized code is marked for deopt. If it is, call the
     // runtime to clear it.
     TNode<CodeDataContainer> code_data_container =
-        CodeDataContainerFromCodeT(code_t);
+        CodeDataContainerFromCodeT(optimized_code);
     TNode<Int32T> code_kind_specific_flags = LoadObjectField<Int32T>(
         code_data_container, CodeDataContainer::kKindSpecificFlagsOffset);
     GotoIf(IsSetWord32<Code::MarkedForDeoptimizationField>(
@@ -94,11 +93,10 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
 
     // Optimized code is good, get it into the closure and link the closure into
     // the optimized functions list, then tail call the optimized code.
-    StoreObjectField(function, JSFunction::kCodeOffset,
-                     ToCodeT(optimized_code, code_data_container));
+    StoreObjectField(function, JSFunction::kCodeOffset, optimized_code);
     Comment("MaybeTailCallOptimizedCodeSlot:: GenerateTailCallToJSCode");
     // TODO(v8:11880): call CodeT directly.
-    GenerateTailCallToJSCode(optimized_code, function);
+    GenerateTailCallToJSCode(FromCodeT(optimized_code), function);
 
     // Optimized code slot contains deoptimized code or code is cleared and
     // optimized code marker isn't updated. Evict the code, update the marker
@@ -188,13 +186,11 @@ TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
 TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
 
-  Handle<Code> compile_lazy = BUILTIN_CODE(isolate(), CompileLazy);
-  TNode<Code> code = HeapConstant(compile_lazy);
+  TNode<CodeT> code = HeapConstant(BUILTIN_CODET(isolate(), CompileLazy));
   // Set the code slot inside the JSFunction to CompileLazy.
-  // TODO(v8:11880): support embedding of CodeDataContainer constants.
-  StoreObjectField(function, JSFunction::kCodeOffset, ToCodeT(code));
+  StoreObjectField(function, JSFunction::kCodeOffset, code);
   // TODO(v8:11880): call CodeT directly.
-  GenerateTailCallToJSCode(code, function);
+  GenerateTailCallToJSCode(FromCodeT(code), function);
 }
 
 }  // namespace internal

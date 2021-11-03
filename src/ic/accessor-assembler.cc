@@ -225,7 +225,7 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
   BIND(&call_handler);
   {
-    // TODO(v8:11880): avoid roundtrips between cdc and code.
+    // TODO(v8:11880): call CodeT directly.
     TNode<Code> code_handler = FromCodeT(CAST(handler));
     exit_point->ReturnCallStub(LoadWithVectorDescriptor{}, code_handler,
                                p->context(), p->lookup_start_object(),
@@ -988,8 +988,7 @@ TNode<Object> AccessorAssembler::HandleProtoHandler(
     if (on_code_handler) {
       Label if_smi_handler(this);
       GotoIf(TaggedIsSmi(smi_or_code_handler), &if_smi_handler);
-      // TODO(v8:11880): avoid roundtrips between cdc and code.
-      TNode<Code> code = FromCodeT(CAST(smi_or_code_handler));
+      TNode<CodeT> code = CAST(smi_or_code_handler);
       on_code_handler(code);
 
       BIND(&if_smi_handler);
@@ -1323,7 +1322,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     // |handler| is a heap object. Must be code, call it.
     BIND(&call_handler);
     {
-      // TODO(v8:11880): avoid roundtrips between cdc and code.
+      // TODO(v8:11880): call CodeT directly.
       TNode<Code> code_handler = FromCodeT(CAST(strong_handler));
       TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                    p->receiver(), p->name(), p->value(), p->slot(),
@@ -1693,16 +1692,17 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   OnCodeHandler on_code_handler;
   if (support_elements == kSupportElements) {
     // Code sub-handlers are expected only in KeyedStoreICs.
-    on_code_handler = [=](TNode<Code> code_handler) {
+    on_code_handler = [=](TNode<CodeT> code_handler) {
       // This is either element store or transitioning element store.
       Label if_element_store(this), if_transitioning_element_store(this);
       Branch(IsStoreHandler0Map(LoadMap(handler)), &if_element_store,
              &if_transitioning_element_store);
       BIND(&if_element_store);
       {
-        TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
-                     p->receiver(), p->name(), p->value(), p->slot(),
-                     p->vector());
+        // TODO(v8:11880): call CodeT directly.
+        TailCallStub(StoreWithVectorDescriptor{}, FromCodeT(code_handler),
+                     p->context(), p->receiver(), p->name(), p->value(),
+                     p->slot(), p->vector());
       }
 
       BIND(&if_transitioning_element_store);
@@ -1714,9 +1714,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
         GotoIf(IsDeprecatedMap(transition_map), miss);
 
-        TailCallStub(StoreTransitionDescriptor{}, code_handler, p->context(),
-                     p->receiver(), p->name(), transition_map, p->value(),
-                     p->slot(), p->vector());
+        // TODO(v8:11880): call CodeT directly.
+        TailCallStub(StoreTransitionDescriptor{}, FromCodeT(code_handler),
+                     p->context(), p->receiver(), p->name(), transition_map,
+                     p->value(), p->slot(), p->vector());
       }
     };
   }
@@ -3963,7 +3964,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
 
       {
         // Call the handler.
-        // TODO(v8:11880): avoid roundtrips between cdc and code.
+        // TODO(v8:11880): call CodeT directly.
         TNode<Code> code_handler = FromCodeT(CAST(handler));
         TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                      p->receiver(), p->name(), p->value(), p->slot(),
@@ -3977,7 +3978,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TNode<Map> transition_map =
             CAST(GetHeapObjectAssumeWeak(maybe_transition_map, &miss));
         GotoIf(IsDeprecatedMap(transition_map), &miss);
-        // TODO(v8:11880): avoid roundtrips between cdc and code.
+        // TODO(v8:11880): call CodeT directly.
         TNode<Code> code = FromCodeT(
             CAST(LoadObjectField(handler, StoreHandler::kSmiHandlerOffset)));
         TailCallStub(StoreTransitionDescriptor{}, code, p->context(),
