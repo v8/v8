@@ -141,8 +141,8 @@ try_builder(
 try_builder(
     name = "v8_linux_arm_lite_compile_dbg",
     bucket = "try",
-    cq_properties = CQ.EXP_100_PERCENT,
-    cq_branch_properties = CQ.EXP_100_PERCENT,
+    cq_properties = CQ.BLOCK,
+    cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )

@@ -463,6 +463,7 @@ def ci_pair_factory(func):
     def pair_func(**kwargs):
         tester_name = kwargs['name']
         builder_name = tester_name + ('' if is_ci_debug(tester_name) else ' -') + ' builder'
+        tester_close = kwargs.pop("tester_close", None)
 
         to_notify = kwargs.pop("to_notify", None)
         if to_notify:
@@ -484,6 +485,9 @@ def ci_pair_factory(func):
         ]
         tester_kwargs = {k: v for k, v in kwargs.items() if k in tester_included_args}
         tester_kwargs['parent_builder'] = builder_name
+
+        if not type(tester_close) == 'NoneType':
+            tester_kwargs['close_tree'] = tester_close
 
         return [
             func(**builder_kwargs),

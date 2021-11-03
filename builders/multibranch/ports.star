@@ -52,7 +52,8 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
-        close_tree = False,
+        close_tree = True,
+        tester_close = False,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim - lite - debug",
@@ -60,7 +61,8 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
-        close_tree = False,
+        close_tree = True,
+        tester_close = False,
     ),
     multibranch_builder(
         name = "V8 Arm",
