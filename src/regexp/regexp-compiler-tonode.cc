@@ -50,17 +50,17 @@ namespace {
 bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
                           const int* special_class, int length) {
   length--;  // Remove final marker.
+
   DCHECK_EQ(kRangeEndMarker, special_class[length]);
   DCHECK_NE(0, ranges->length());
   DCHECK_NE(0, length);
   DCHECK_NE(0, special_class[0]);
-  if (ranges->length() != (length >> 1) + 1) {
-    return false;
-  }
+
+  if (ranges->length() != (length >> 1) + 1) return false;
+
   CharacterRange range = ranges->at(0);
-  if (range.from() != 0) {
-    return false;
-  }
+  if (range.from() != 0) return false;
+
   for (int i = 0; i < length; i += 2) {
     if (static_cast<base::uc32>(special_class[i]) != (range.to() + 1)) {
       return false;
@@ -70,19 +70,17 @@ bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
       return false;
     }
   }
-  if (range.to() != kMaxCodePoint) {
-    return false;
-  }
-  return true;
+
+  return range.to() == kMaxCodePoint;
 }
 
 bool CompareRanges(ZoneList<CharacterRange>* ranges, const int* special_class,
                    int length) {
   length--;  // Remove final marker.
+
   DCHECK_EQ(kRangeEndMarker, special_class[length]);
-  if (ranges->length() * 2 != length) {
-    return false;
-  }
+  if (ranges->length() * 2 != length) return false;
+
   for (int i = 0; i < length; i += 2) {
     CharacterRange range = ranges->at(i >> 1);
     if (range.from() != static_cast<base::uc32>(special_class[i]) ||
@@ -1157,12 +1155,7 @@ void CharacterRange::AddClassEscape(StandardCharacterSet standard_character_set,
     ranges->AddAll(*new_ranges, zone);
     return;
   }
-  AddClassEscape(standard_character_set, ranges, zone);
-}
 
-void CharacterRange::AddClassEscape(StandardCharacterSet standard_character_set,
-                                    ZoneList<CharacterRange>* ranges,
-                                    Zone* zone) {
   switch (standard_character_set) {
     case StandardCharacterSet::kWhitespace:
       AddClass(kSpaceRanges, kSpaceRangeCount, ranges, zone);

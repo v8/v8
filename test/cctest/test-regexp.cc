@@ -510,7 +510,7 @@ static void TestCharacterClassEscapes(StandardCharacterSet c,
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   ZoneList<CharacterRange>* ranges =
       zone.New<ZoneList<CharacterRange>>(2, &zone);
-  CharacterRange::AddClassEscape(c, ranges, &zone);
+  CharacterRange::AddClassEscape(c, ranges, false, &zone);
   for (base::uc32 i = 0; i < (1 << 16); i++) {
     bool in_class = false;
     for (int j = 0; !in_class && j < ranges->length(); j++) {

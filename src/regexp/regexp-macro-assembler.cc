@@ -115,9 +115,16 @@ uint32_t Hash(const ZoneList<CharacterRange>* ranges) {
   return static_cast<uint32_t>(seed);
 }
 
+constexpr base::uc32 MaskEndOfRangeMarker(base::uc32 c) {
+  // CharacterRanges may use 0x10ffff as the end-of-range marker irrespective
+  // of whether the regexp IsUnicode or not; translate the marker value here.
+  DCHECK_IMPLIES(c > kMaxUInt16, c == String::kMaxCodePoint);
+  return c & 0xffff;
+}
+
 int RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
   const int ranges_length = ranges->length();
-  return ranges->at(ranges_length - 1).to() == kMaxUInt16
+  return MaskEndOfRangeMarker(ranges->at(ranges_length - 1).to()) == kMaxUInt16
              ? ranges_length * 2 - 1
              : ranges_length * 2;
 }
@@ -146,11 +153,13 @@ Handle<ByteArray> MakeRangeArray(Isolate* isolate,
     const CharacterRange& r = ranges->at(i);
     DCHECK_LE(r.from(), kMaxUInt16);
     range_array->set_uint16(i * 2 + 0, r.from());
-    if (i == ranges_length - 1 && r.to() == kMaxUInt16) {
+    const base::uc32 to = MaskEndOfRangeMarker(r.to());
+    if (i == ranges_length - 1 && to == kMaxUInt16) {
+      DCHECK_EQ(byte_array_length, ranges_length * 2 - 1);
       break;  // Avoid overflow by leaving the last range open-ended.
     }
-    DCHECK_LT(r.to(), kMaxUInt16);
-    range_array->set_uint16(i * 2 + 1, r.to() + 1);  // Exclusive.
+    DCHECK_LT(to, kMaxUInt16);
+    range_array->set_uint16(i * 2 + 1, to + 1);  // Exclusive.
   }
   return range_array;
 }

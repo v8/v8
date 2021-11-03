@@ -112,9 +112,6 @@ class CharacterRange {
     return list;
   }
 
-  V8_EXPORT_PRIVATE static void AddClassEscape(
-      StandardCharacterSet standard_character_set,
-      ZoneList<CharacterRange>* ranges, Zone* zone);
   // Add class escapes. Add case equivalent closure for \w and \W if necessary.
   V8_EXPORT_PRIVATE static void AddClassEscape(
       StandardCharacterSet standard_character_set,
