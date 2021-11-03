@@ -142,14 +142,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void MaybeEmitOutOfLineConstantPool() {}
 
   // Loong64 uses BlockTrampolinePool to prevent generating trampoline inside a
-  // continuous instruction block. In the destructor of
-  // BlockTrampolinePool, it must check if it needs to generate trampoline
-  // immediately, if it does not do this, the branch range will go beyond the
-  // max branch offset, that means the pc_offset after call CheckTrampolinePool
-  // may be not the Call instruction's location. So we use last_call_pc here for
-  // safepoint record.
+  // continuous instruction block. In the destructor of BlockTrampolinePool, it
+  // must check if it needs to generate trampoline immediately, if it does not
+  // do this, the branch range will go beyond the max branch offset, that means
+  // the pc_offset after call CheckTrampolinePool may have changed. So we use
+  // pc_for_safepoint_ here for safepoint record.
   int pc_offset_for_safepoint() {
-    return static_cast<int>(last_call_pc_ - buffer_start_);
+    return static_cast<int>(pc_for_safepoint_ - buffer_start_);
   }
 
   // TODO(LOONG_dev): LOONG64 Check this comment
@@ -890,7 +889,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     }
   }
 
-  void set_last_call_pc_(byte* pc) { last_call_pc_ = pc; }
+  void set_pc_for_safepoint() { pc_for_safepoint_ = pc_; }
 
  private:
   // Avoid overflows for displacements etc.
@@ -1062,7 +1061,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Keep track of the last Call's position to ensure that safepoint can get the
   // correct information even if there is a trampoline immediately after the
   // Call.
-  byte* last_call_pc_;
+  byte* pc_for_safepoint_;
 
   RegList scratch_register_list_;
 
