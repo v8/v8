@@ -176,27 +176,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // BlockTrampolinePool, it must check if it needs to generate trampoline
   // immediately, if it does not do this, the branch range will go beyond the
   // max branch offset, that means the pc_offset after call CheckTrampolinePool
-  // may be not the Call instruction's location. So we use last_call_pc here for
-  // safepoint record.
+  // may have changed. So we use pc_for_safepoint_ here for safepoint record.
   int pc_offset_for_safepoint() {
-#ifdef DEBUG
-    Instr instr1 =
-        instr_at(static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize));
-    Instr instr2 = instr_at(
-        static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize * 2));
-    if (GetOpcodeField(instr1) != SPECIAL) {  // instr1 == jialc.
-      DCHECK(IsMipsArchVariant(kMips32r6) && GetOpcodeField(instr1) == POP76 &&
-             GetRs(instr1) == 0);
-    } else {
-      if (GetFunctionField(instr1) == SLL) {  // instr1 == nop, instr2 == jalr.
-        DCHECK(GetOpcodeField(instr2) == SPECIAL &&
-               GetFunctionField(instr2) == JALR);
-      } else {  // instr1 == jalr.
-        DCHECK(GetFunctionField(instr1) == JALR);
-      }
-    }
-#endif
-    return static_cast<int>(last_call_pc_ - buffer_start_);
+    return static_cast<int>(pc_for_safepoint_ - buffer_start_);
   }
 
   // Label operations & relative jumps (PPUM Appendix D).
@@ -1625,7 +1607,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenPCRelativeJumpAndLink(Register t, int32_t imm32,
                                 RelocInfo::Mode rmode, BranchDelaySlot bdslot);
 
-  void set_last_call_pc_(byte* pc) { last_call_pc_ = pc; }
+  void set_pc_for_safepoint() { pc_for_safepoint_ = pc_; }
 
  private:
   // Avoid overflows for displacements etc.
@@ -1893,7 +1875,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Keep track of the last Call's position to ensure that safepoint can get the
   // correct information even if there is a trampoline immediately after the
   // Call.
-  byte* last_call_pc_;
+  byte* pc_for_safepoint_;
 
  private:
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);

@@ -2653,7 +2653,7 @@ void TurboAssembler::Call(Register target, Condition cond, Register rj,
     jirl(ra, target, 0);
     bind(&skip);
   }
-  set_last_call_pc_(pc_);
+  set_pc_for_safepoint();
 }
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
@@ -2708,7 +2708,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     RecordCommentForOffHeapTrampoline(builtin);
     RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
     bl(code_target_index);
-    set_last_call_pc_(pc_);
+    set_pc_for_safepoint();
     bind(&skip);
     RecordComment("]");
     return;
@@ -4010,15 +4010,17 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
       St_d(zero_reg, MemOperand(scratch, 0));
     }
-  }
 
-  int stack_passed_arguments =
-      CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
+    int stack_passed_arguments =
+        CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
 
-  if (base::OS::ActivationFrameAlignment() > kPointerSize) {
-    Ld_d(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else {
-    Add_d(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+    if (base::OS::ActivationFrameAlignment() > kPointerSize) {
+      Ld_d(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
+    } else {
+      Add_d(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+    }
+
+    set_pc_for_safepoint();
   }
 }
 

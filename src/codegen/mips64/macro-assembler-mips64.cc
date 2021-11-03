@@ -4384,7 +4384,7 @@ void TurboAssembler::Call(Register target, Condition cond, Register rs,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
-  set_last_call_pc_(pc_);
+  set_pc_for_safepoint();
 }
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
@@ -6030,15 +6030,17 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
       Sd(zero_reg, MemOperand(scratch));
     }
-  }
 
-  int stack_passed_arguments =
-      CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
+    int stack_passed_arguments =
+        CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
 
-  if (base::OS::ActivationFrameAlignment() > kPointerSize) {
-    Ld(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else {
-    Daddu(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+    if (base::OS::ActivationFrameAlignment() > kPointerSize) {
+      Ld(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
+    } else {
+      Daddu(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+    }
+
+    set_pc_for_safepoint();
   }
 }
 

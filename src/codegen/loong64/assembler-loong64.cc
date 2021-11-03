@@ -2137,7 +2137,7 @@ void Assembler::GrowBuffer() {
   buffer_ = std::move(new_buffer);
   buffer_start_ = new_start;
   pc_ += pc_delta;
-  last_call_pc_ += pc_delta;
+  pc_for_safepoint_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 

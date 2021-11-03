@@ -703,7 +703,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {
         __ bind(&start_call);
-        __ pcaddi(t7, -4);
+        __ pcaddi(t7, offset >> kInstrSizeLog2);
         __ St_d(t7, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2216,7 +2216,7 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmImportWrapper() ||
+      if (call_descriptor->IsWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
         __ Push(kWasmInstanceRegister);
