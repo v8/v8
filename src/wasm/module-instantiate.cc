@@ -668,11 +668,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
   {
     Handle<FixedArray> tables = isolate_->factory()->NewFixedArray(table_count);
-    // Table 0 is handled specially. See {InitializeIndirectFunctionTable} for
-    // the initilization. All generated and runtime code will use this optimized
-    // shortcut in the instance. Hence it is safe to start with table 1 in the
-    // iteration below.
-    for (int i = 1; i < table_count; ++i) {
+    for (int i = 0; i < table_count; ++i) {
       const WasmTable& table = module_->tables[i];
       if (IsSubtypeOf(table.type, kWasmFuncRef, module_)) {
         Handle<WasmIndirectFunctionTable> table_obj =
@@ -682,6 +678,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     }
     instance->set_indirect_function_tables(*tables);
   }
+
+  instance->SetIndirectFunctionTableShortcuts(isolate_);
 
   //--------------------------------------------------------------------------
   // Process the imports for the module.

@@ -86,7 +86,6 @@ class V8_EXPORT_PRIVATE IndirectFunctionTableEntry {
   Address target() const;
 
  private:
-  Handle<WasmInstanceObject> const instance_;
   Handle<WasmIndirectFunctionTable> const table_;
   int const index_;
 };
@@ -478,6 +477,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>);
 
   Address GetCallTarget(uint32_t func_index);
+
+  void SetIndirectFunctionTableShortcuts(Isolate* isolate);
 
   static int IndirectFunctionTableSize(Isolate* isolate,
                                        Handle<WasmInstanceObject> instance,
