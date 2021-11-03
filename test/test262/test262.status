@@ -453,6 +453,18 @@
   'intl402/DateTimeFormat/prototype/format/temporal-objects-resolved-time-zone': [FAIL],
   'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-resolved-time-zone': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10776
+  'intl402/NumberFormat/constructor-options-roundingMode-invalid': [FAIL],
+  'intl402/NumberFormat/constructor-options-throwing-getters-rounding-mode': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-ceil': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-expand': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-floor': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-ceil': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-even': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-floor': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-trunc': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-trunc': [FAIL],
+  'intl402/NumberFormat/prototype/resolvedOptions/roundingMode': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11989
   'built-ins/ShadowRealm/constructor': [FAIL],
@@ -494,6 +506,7 @@
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-multiple-different-realms': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-proto-from-caller-realm': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-proxied-observes-boundary': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-throws-typeerror-from-caller-realm': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-throws-typeerror-on-non-primitive-arguments': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-throws-typeerror-on-non-primitive-returns': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/nested-realms': [FAIL],
