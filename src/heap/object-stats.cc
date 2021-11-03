@@ -1053,8 +1053,11 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
 void ObjectStatsCollectorImpl::RecordVirtualContext(Context context) {
   if (context.IsNativeContext()) {
     RecordObjectStats(context, NATIVE_CONTEXT_TYPE, context.Size());
-    RecordSimpleVirtualObjectStats(context, context.retained_maps(),
-                                   ObjectStats::RETAINED_MAPS_TYPE);
+    if (context.retained_maps().IsWeakArrayList()) {
+      RecordSimpleVirtualObjectStats(
+          context, WeakArrayList::cast(context.retained_maps()),
+          ObjectStats::RETAINED_MAPS_TYPE);
+    }
 
   } else if (context.IsFunctionContext()) {
     RecordObjectStats(context, FUNCTION_CONTEXT_TYPE, context.Size());

@@ -357,7 +357,7 @@ enum ContextLookupFlags {
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKMAP_DELETE_INDEX, JSFunction, weakmap_delete)                          \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
-  V(RETAINED_MAPS, WeakArrayList, retained_maps)                               \
+  V(RETAINED_MAPS, Object, retained_maps)                                      \
   V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
