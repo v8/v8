@@ -1216,7 +1216,8 @@ void V8HeapExplorer::ExtractAccessorPairReferences(HeapEntry* entry,
                        AccessorPair::kSetterOffset);
 }
 
-void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
+void V8HeapExplorer::TagBuiltinCodeObject(Object code, const char* name) {
+  DCHECK(code.IsCode() || (V8_EXTERNAL_CODE_SPACE_BOOL && code.IsCodeT()));
   TagObject(code, names_->GetFormatted("(%s builtin)", name));
 }
 
@@ -1577,7 +1578,7 @@ class RootsReferencesExtractor : public RootVisitor {
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot object) override {
     if (root == Root::kBuiltins) {
-      explorer_->TagBuiltinCodeObject(Code::cast(*object), description);
+      explorer_->TagBuiltinCodeObject(*object, description);
     }
     explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
                                      *object);

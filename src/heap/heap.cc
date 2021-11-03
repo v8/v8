@@ -4886,8 +4886,12 @@ void Heap::IterateBuiltins(RootVisitor* v) {
   Builtins* builtins = isolate()->builtins();
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    v->VisitRootPointer(Root::kBuiltins, Builtins::name(builtin),
-                        builtins->builtin_slot(builtin));
+    const char* name = Builtins::name(builtin);
+    v->VisitRootPointer(Root::kBuiltins, name, builtins->builtin_slot(builtin));
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+      v->VisitRootPointer(Root::kBuiltins, name,
+                          builtins->builtin_code_data_container_slot(builtin));
+    }
   }
 
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLastTier0;

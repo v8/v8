@@ -358,7 +358,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
   void CollectGlobalObjectsTags();
   void MakeGlobalObjectTagMap(const SafepointScope& safepoint_scope);
-  void TagBuiltinCodeObject(Code code, const char* name);
+  void TagBuiltinCodeObject(Object code, const char* name);
   HeapEntry* AddEntry(Address address,
                       HeapEntry::Type type,
                       const char* name,

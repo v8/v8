@@ -3426,6 +3426,9 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
     // From this point onwards, the old builtin code object is unreachable and
     // will be collected by the next GC.
     builtins->set_code(builtin, *trampoline);
+    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+      builtins->set_codet(builtin, ToCodeT(*trampoline));
+    }
   }
 }
 

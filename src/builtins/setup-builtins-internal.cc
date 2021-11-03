@@ -199,6 +199,9 @@ void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, Builtin builtin,
                                       Code code) {
   DCHECK_EQ(builtin, code.builtin_id());
   builtins->set_code(builtin, code);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    builtins->set_codet(builtin, ToCodeT(code));
+  }
 }
 
 // static

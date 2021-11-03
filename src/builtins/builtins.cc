@@ -194,6 +194,37 @@ Handle<Code> Builtins::code_handle(Builtin builtin) {
   return Handle<Code>(location);
 }
 
+FullObjectSlot Builtins::builtin_code_data_container_slot(Builtin builtin) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  Address* location =
+      &isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)];
+  return FullObjectSlot(location);
+}
+
+void Builtins::set_codet(Builtin builtin, CodeT code) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  // TODO(v8:11880): add DCHECK_EQ(builtin, code.builtin_id()); once CodeT
+  // has respective field.
+  DCHECK(Internals::HasHeapObjectTag(code.ptr()));
+  // The given builtin may be uninitialized thus we cannot check its type here.
+  isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)] =
+      code.ptr();
+}
+
+CodeT Builtins::codet(Builtin builtin) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  Address ptr =
+      isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)];
+  return CodeT::cast(Object(ptr));
+}
+
+Handle<CodeT> Builtins::codet_handle(Builtin builtin) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  Address* location =
+      &isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)];
+  return Handle<CodeT>(location);
+}
+
 // static
 int Builtins::GetStackParameterCount(Builtin builtin) {
   DCHECK(Builtins::KindOf(builtin) == TFJ);
@@ -289,6 +320,17 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
                                Builtin* builtin) const {
   Address* handle_location = maybe_code.location();
   Address* builtins_table = isolate_->builtin_table();
+  if (handle_location < builtins_table) return false;
+  Address* builtins_table_end = &builtins_table[Builtins::kBuiltinCount];
+  if (handle_location >= builtins_table_end) return false;
+  *builtin = FromInt(static_cast<int>(handle_location - builtins_table));
+  return true;
+}
+
+bool Builtins::IsBuiltinCodeDataContainerHandle(Handle<HeapObject> maybe_code,
+                                                Builtin* builtin) const {
+  Address* handle_location = maybe_code.location();
+  Address* builtins_table = isolate_->builtin_code_data_container_table();
   if (handle_location < builtins_table) return false;
   Address* builtins_table_end = &builtins_table[Builtins::kBuiltinCount];
   if (handle_location >= builtins_table_end) return false;
