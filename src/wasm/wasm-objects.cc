@@ -1793,7 +1793,7 @@ Handle<Object> WasmExceptionPackage::GetExceptionValues(
           isolate, exception_package,
           isolate->factory()->wasm_exception_values_symbol())
           .ToHandle(&values)) {
-    DCHECK(values->IsFixedArray());
+    DCHECK_IMPLIES(!values->IsUndefined(), values->IsFixedArray());
     return values;
   }
   return ReadOnlyRoots(isolate).undefined_value_handle();
