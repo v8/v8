@@ -548,6 +548,7 @@ class WasmGraphBuilder {
 
   Node* GetInstance();
   Node* BuildLoadIsolateRoot();
+  Node* UndefinedValue();
 
   // MemBuffer is only called with valid offsets (after bounds checking), so the
   // offset fits in a platform-dependent uintptr_t.

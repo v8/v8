@@ -518,6 +518,9 @@ void WasmGraphBuilder::Start(unsigned params) {
               Param(Linkage::kJSCallClosureParamIndex, "%closure")));
       break;
     case kWasmApiFunctionRefMode:
+      // We need an instance node anyway, because FromJS() needs to pass it to
+      // the  WasmIsValidRefValue runtime function.
+      instance_node_ = UndefinedValue();
       break;
   }
   graph()->SetEnd(graph()->NewNode(mcgraph()->common()->End(0)));
@@ -648,10 +651,7 @@ Node* WasmGraphBuilder::NoContextConstant() {
   return mcgraph()->IntPtrConstant(0);
 }
 
-Node* WasmGraphBuilder::GetInstance() {
-  DCHECK_NE(parameter_mode_, kWasmApiFunctionRefMode);
-  return instance_node_.get();
-}
+Node* WasmGraphBuilder::GetInstance() { return instance_node_.get(); }
 
 Node* WasmGraphBuilder::BuildLoadIsolateRoot() {
   switch (parameter_mode_) {
@@ -674,6 +674,10 @@ Node* WasmGraphBuilder::Int32Constant(int32_t value) {
 
 Node* WasmGraphBuilder::Int64Constant(int64_t value) {
   return mcgraph()->Int64Constant(value);
+}
+
+Node* WasmGraphBuilder::UndefinedValue() {
+  return LOAD_ROOT(UndefinedValue, undefined_value);
 }
 
 void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position) {
@@ -6207,8 +6211,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                : gasm_->GetBuiltinPointerTarget(builtin);
   }
 
-  Node* UndefinedValue() { return LOAD_ROOT(UndefinedValue, undefined_value); }
-
   Node* BuildChangeInt32ToNumber(Node* value) {
     // We expect most integers at runtime to be Smis, so it is important for
     // wrapper performance that Smi conversion be inlined.
@@ -6486,6 +6488,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                wasm::ValueType type) {
     // Make sure ValueType fits in a Smi.
     STATIC_ASSERT(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+    // The instance node is always defined: if an instance is not available, it
+    // is the undefined value.
     Node* inputs[] = {GetInstance(), input,
                       mcgraph()->IntPtrConstant(
                           IntToSmi(static_cast<int>(type.raw_bit_field())))};

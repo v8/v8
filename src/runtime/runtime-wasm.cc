@@ -100,17 +100,23 @@ RUNTIME_FUNCTION(Runtime_WasmIsValidRefValue) {
                  !trap_handler::IsThreadInWasm());
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0)
+  // 'raw_instance' can be either a WasmInstanceObject or undefined.
+  CONVERT_ARG_HANDLE_CHECKED(Object, raw_instance, 0)
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   // Make sure ValueType fits properly in a Smi.
   STATIC_ASSERT(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
   CONVERT_SMI_ARG_CHECKED(raw_type, 2);
 
+  const wasm::WasmModule* module =
+      raw_instance->IsWasmInstanceObject()
+          ? Handle<WasmInstanceObject>::cast(raw_instance)->module()
+          : nullptr;
+
   wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
   const char* error_message;
 
-  bool result = internal::wasm::TypecheckJSObject(isolate, instance->module(),
-                                                  value, type, &error_message);
+  bool result = internal::wasm::TypecheckJSObject(isolate, module, value, type,
+                                                  &error_message);
   return Smi::FromInt(result);
 }
 
