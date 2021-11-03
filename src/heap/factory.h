@@ -489,6 +489,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
   // JSObject without a prototype.
   Handle<JSObject> NewJSObjectWithNullProto();
+  // JSObject without a prototype, in dictionary mode.
+  Handle<JSObject> NewSlowJSObjectWithNullProto();
 
   // Global objects are pretenured and initialized based on a constructor.
   Handle<JSGlobalObject> NewJSGlobalObject(Handle<JSFunction> constructor);

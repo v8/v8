@@ -556,7 +556,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
     return WithContextExtension();
   }
 
-  Handle<JSObject> scope = isolate_->factory()->NewJSObjectWithNullProto();
+  Handle<JSObject> scope = isolate_->factory()->NewSlowJSObjectWithNullProto();
   auto visitor = [=](Handle<String> name, Handle<Object> value,
                      ScopeType scope_type) {
     if (value->IsTheHole(isolate_)) {
@@ -901,7 +901,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
 Handle<JSObject> ScopeIterator::WithContextExtension() {
   DCHECK(context_->IsWithContext());
   if (context_->extension_receiver().IsJSProxy()) {
-    return isolate_->factory()->NewJSObjectWithNullProto();
+    return isolate_->factory()->NewSlowJSObjectWithNullProto();
   }
   return handle(JSObject::cast(context_->extension_receiver()), isolate_);
 }
