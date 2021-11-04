@@ -231,8 +231,6 @@ extern class ObjectBoilerplateDescription extends FixedArray;
 extern class ClosureFeedbackCellArray extends FixedArray;
 extern class ScriptContextTable extends FixedArray;
 
-type LayoutDescriptor extends ByteArray
-    generates 'TNode<LayoutDescriptor>';
 extern class TransitionArray extends WeakFixedArray;
 
 extern operator '.length_intptr' macro LoadAndUntagWeakFixedArrayLength(
