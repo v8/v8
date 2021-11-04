@@ -162,29 +162,6 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileState {
   explicit UnoptimizedCompileState(Isolate*);
   UnoptimizedCompileState(const UnoptimizedCompileState& other) V8_NOEXCEPT;
 
-  class ParallelTasks {
-   public:
-    explicit ParallelTasks(LazyCompileDispatcher* lazy_compile_dispatcher)
-        : dispatcher_(lazy_compile_dispatcher) {
-      DCHECK_NOT_NULL(dispatcher_);
-    }
-
-    void Enqueue(ParseInfo* outer_parse_info, Handle<Script> script,
-                 const AstRawString* function_name, FunctionLiteral* literal);
-
-    using EnqueuedJobsIterator =
-        std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator;
-
-    EnqueuedJobsIterator begin() { return enqueued_jobs_.begin(); }
-    EnqueuedJobsIterator end() { return enqueued_jobs_.end(); }
-
-    LazyCompileDispatcher* dispatcher() { return dispatcher_; }
-
-   private:
-    LazyCompileDispatcher* dispatcher_;
-    std::forward_list<std::pair<FunctionLiteral*, uintptr_t>> enqueued_jobs_;
-  };
-
   uint64_t hash_seed() const { return hash_seed_; }
   AccountingAllocator* allocator() const { return allocator_; }
   const AstStringConstants* ast_string_constants() const {
@@ -197,7 +174,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileState {
   const PendingCompilationErrorHandler* pending_error_handler() const {
     return &pending_error_handler_;
   }
-  ParallelTasks* parallel_tasks() const { return parallel_tasks_.get(); }
+  LazyCompileDispatcher* dispatcher() const { return dispatcher_; }
 
  private:
   uint64_t hash_seed_;
@@ -205,7 +182,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileState {
   const AstStringConstants* ast_string_constants_;
   PendingCompilationErrorHandler pending_error_handler_;
   Logger* logger_;
-  std::unique_ptr<ParallelTasks> parallel_tasks_;
+  LazyCompileDispatcher* dispatcher_;
 };
 
 // A container for the inputs, configuration options, and outputs of parsing.
@@ -213,13 +190,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
  public:
   ParseInfo(Isolate* isolate, const UnoptimizedCompileFlags flags,
             UnoptimizedCompileState* state);
-
-  // Creates a new parse info based on parent top-level |outer_parse_info| for
-  // function |literal|.
-  static std::unique_ptr<ParseInfo> ForToplevelFunction(
-      const UnoptimizedCompileFlags flags,
-      UnoptimizedCompileState* compile_state, const FunctionLiteral* literal,
-      const AstRawString* function_name);
+  ParseInfo(LocalIsolate* isolate, const UnoptimizedCompileFlags flags,
+            UnoptimizedCompileState* state);
 
   ~ParseInfo();
 
@@ -248,9 +220,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   PendingCompilationErrorHandler* pending_error_handler() {
     return state_->pending_error_handler();
   }
-  UnoptimizedCompileState::ParallelTasks* parallel_tasks() const {
-    return state_->parallel_tasks();
-  }
+  LazyCompileDispatcher* dispatcher() const { return state_->dispatcher(); }
   const UnoptimizedCompileState* state() const { return state_; }
 
   // Accessors for per-thread state.

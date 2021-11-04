@@ -338,25 +338,17 @@ const AstRawString* AstValueFactory::GetTwoByteStringInternal(
                    base::Vector<const byte>::cast(literal));
 }
 
-const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
+const AstRawString* AstValueFactory::GetString(
+    String literal, const SharedStringAccessGuardIfNeeded& access_guard) {
   const AstRawString* result = nullptr;
   DisallowGarbageCollection no_gc;
-  String::FlatContent content = literal->GetFlatContent(no_gc);
+  String::FlatContent content = literal.GetFlatContent(no_gc, access_guard);
   if (content.IsOneByte()) {
     result = GetOneByteStringInternal(content.ToOneByteVector());
   } else {
     DCHECK(content.IsTwoByte());
     result = GetTwoByteStringInternal(content.ToUC16Vector());
   }
-  return result;
-}
-
-const AstRawString* AstValueFactory::CloneFromOtherFactory(
-    const AstRawString* raw_string) {
-  const AstRawString* result =
-      GetString(raw_string->raw_hash_field(), raw_string->is_one_byte(),
-                base::Vector<const byte>(raw_string->raw_data(),
-                                         raw_string->byte_length()));
   return result;
 }
 

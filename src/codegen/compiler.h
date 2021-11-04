@@ -105,9 +105,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                      Isolate* isolate);
 
   // Finalize and install code from previously run background compile task.
-  static bool FinalizeBackgroundCompileTask(
-      BackgroundCompileTask* task, Handle<SharedFunctionInfo> shared_info,
-      Isolate* isolate, ClearExceptionFlag flag);
+  static bool FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
+                                            Isolate* isolate,
+                                            ClearExceptionFlag flag);
 
   // Finalize and install optimized code from previously run job.
   static bool FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
@@ -504,12 +504,12 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   BackgroundCompileTask& operator=(const BackgroundCompileTask&) = delete;
   ~BackgroundCompileTask();
 
-  // Creates a new task that when run will parse and compile the
+  // Creates a new task that when run will parse and compile the top-level
   // |function_literal| and can be finalized with FinalizeFunction
   // Compiler::FinalizeBackgroundCompileTask.
   BackgroundCompileTask(
       Isolate* isolate, const ParseInfo* outer_parse_info,
-      Handle<Script> script, const AstRawString* function_name,
+      Handle<SharedFunctionInfo> shared_info,
       const FunctionLiteral* function_literal,
       WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
       TimedHistogram* timer, int max_stack_size);
@@ -520,9 +520,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details);
 
-  bool FinalizeFunction(Isolate* isolate,
-                        Handle<SharedFunctionInfo> shared_info,
-                        Compiler::ClearExceptionFlag flag);
+  bool FinalizeFunction(Isolate* isolate, Compiler::ClearExceptionFlag flag);
 
   UnoptimizedCompileFlags flags() const { return flags_; }
   LanguageMode language_mode() const { return language_mode_; }
@@ -540,7 +538,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   TimedHistogram* timer_;
 
-  // Data needed for merging onto the main thread.
+  // Data needed for merging onto the main thread after background finalization.
   std::unique_ptr<PersistentHandles> persistent_handles_;
   MaybeHandle<SharedFunctionInfo> outer_function_sfi_;
   Handle<Script> script_;
@@ -551,6 +549,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int total_preparse_skipped_ = 0;
 
   // Single function data for top-level function compilation.
+  MaybeHandle<SharedFunctionInfo> input_shared_info_;
   int start_position_;
   int end_position_;
   int function_literal_id_;

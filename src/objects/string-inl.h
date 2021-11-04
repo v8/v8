@@ -643,19 +643,20 @@ Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
 // static
 base::Optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
     PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc,
-    String string, int offset, int length) {
+    String string, int offset, int length,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
   DCHECK_GE(offset, 0);
   DCHECK_GE(length, 0);
   DCHECK_LE(offset + length, string.length());
   switch (StringShape{string, cage_base}.full_representation_tag()) {
     case kSeqOneByteStringTag:
       return FlatContent(
-          SeqOneByteString::cast(string).GetChars(no_gc) + offset, length,
-          no_gc);
+          SeqOneByteString::cast(string).GetChars(no_gc, access_guard) + offset,
+          length, no_gc);
     case kSeqTwoByteStringTag:
       return FlatContent(
-          SeqTwoByteString::cast(string).GetChars(no_gc) + offset, length,
-          no_gc);
+          SeqTwoByteString::cast(string).GetChars(no_gc, access_guard) + offset,
+          length, no_gc);
     case kExternalOneByteStringTag:
       return FlatContent(
           ExternalOneByteString::cast(string).GetChars(cage_base) + offset,
@@ -672,11 +673,27 @@ base::Optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
 
 String::FlatContent String::GetFlatContent(
     const DisallowGarbageCollection& no_gc) {
+#if DEBUG
+  // Check that this method is called only from the main thread.
+  {
+    Isolate* isolate;
+    // We don't have to check read only strings as those won't move.
+    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate),
+                   ThreadId::Current() == isolate->thread_id());
+  }
+#endif
+
+  return GetFlatContent(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
+String::FlatContent String::GetFlatContent(
+    const DisallowGarbageCollection& no_gc,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  base::Optional<FlatContent> flat_content =
-      TryGetFlatContentFromDirectString(cage_base, no_gc, *this, 0, length());
+  base::Optional<FlatContent> flat_content = TryGetFlatContentFromDirectString(
+      cage_base, no_gc, *this, 0, length(), access_guard);
   if (flat_content.has_value()) return flat_content.value();
-  return SlowGetFlatContent(no_gc);
+  return SlowGetFlatContent(no_gc, access_guard);
 }
 
 uint16_t String::Get(int index) const {

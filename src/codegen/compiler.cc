@@ -36,6 +36,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
@@ -1161,7 +1162,12 @@ bool PreparePendingException(IsolateT* isolate, ParseInfo* parse_info) {
 
 bool FailWithPreparedPendingException(
     Isolate* isolate, Handle<Script> script,
-    const PendingCompilationErrorHandler* pending_error_handler) {
+    const PendingCompilationErrorHandler* pending_error_handler,
+    Compiler::ClearExceptionFlag flag = Compiler::KEEP_EXCEPTION) {
+  if (flag == Compiler::CLEAR_EXCEPTION) {
+    return FailAndClearPendingException(isolate);
+  }
+
   if (!isolate->has_pending_exception()) {
     if (pending_error_handler->has_pending_error()) {
       pending_error_handler->ReportErrors(isolate, script);
@@ -1175,13 +1181,9 @@ bool FailWithPreparedPendingException(
 bool FailWithPendingException(Isolate* isolate, Handle<Script> script,
                               ParseInfo* parse_info,
                               Compiler::ClearExceptionFlag flag) {
-  if (flag == Compiler::CLEAR_EXCEPTION) {
-    return FailAndClearPendingException(isolate);
-  }
-
   PreparePendingException(isolate, parse_info);
-  return FailWithPreparedPendingException(isolate, script,
-                                          parse_info->pending_error_handler());
+  return FailWithPreparedPendingException(
+      isolate, script, parse_info->pending_error_handler(), flag);
 }
 
 void FinalizeUnoptimizedCompilation(
@@ -1242,24 +1244,6 @@ void FinalizeUnoptimizedScriptCompilation(
                                  finalize_unoptimized_compilation_data_list);
 
   script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
-
-  UnoptimizedCompileState::ParallelTasks* parallel_tasks =
-      compile_state->parallel_tasks();
-  if (parallel_tasks) {
-    LazyCompileDispatcher* dispatcher = parallel_tasks->dispatcher();
-    for (auto& it : *parallel_tasks) {
-      FunctionLiteral* literal = it.first;
-      LazyCompileDispatcher::JobId job_id = it.second;
-      MaybeHandle<SharedFunctionInfo> maybe_shared_for_task =
-          Script::FindSharedFunctionInfo(script, isolate, literal);
-      Handle<SharedFunctionInfo> shared_for_task;
-      if (maybe_shared_for_task.ToHandle(&shared_for_task)) {
-        dispatcher->RegisterSharedFunctionInfo(job_id, *shared_for_task);
-      } else {
-        dispatcher->AbortJob(job_id);
-      }
-    }
-  }
 
   if (isolate->NeedsSourcePositionsForProfiling()) {
     Script::InitLineEnds(isolate, script);
@@ -1420,19 +1404,20 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
 }
 
 BackgroundCompileTask::BackgroundCompileTask(
-    Isolate* isolate, const ParseInfo* outer_parse_info, Handle<Script> script,
-    const AstRawString* function_name, const FunctionLiteral* function_literal,
+    Isolate* isolate, const ParseInfo* outer_parse_info,
+    Handle<SharedFunctionInfo> shared_info,
+    const FunctionLiteral* function_literal,
     WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
     TimedHistogram* timer, int max_stack_size)
     : isolate_for_local_isolate_(isolate),
       flags_(UnoptimizedCompileFlags::ForToplevelFunction(
           outer_parse_info->flags(), function_literal)),
       compile_state_(*outer_parse_info->state()),
-      info_(ParseInfo::ForToplevelFunction(flags_, &compile_state_,
-                                           function_literal, function_name)),
+      info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
       stack_size_(max_stack_size),
       worker_thread_runtime_call_stats_(worker_thread_runtime_stats),
       timer_(timer),
+      input_shared_info_(shared_info),
       start_position_(function_literal->start_position()),
       end_position_(function_literal->end_position()),
       function_literal_id_(function_literal->function_literal_id()),
@@ -1451,7 +1436,7 @@ BackgroundCompileTask::BackgroundCompileTask(
   // Get the script out of the outer ParseInfo and turn it into a persistent
   // handle we can transfer to the background thread.
   persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
-  script_ = persistent_handles_->NewHandle(script);
+  input_shared_info_ = persistent_handles_->NewHandle(shared_info);
 
   // Get preparsed scope data from the function literal.
   if (function_literal->produced_preparse_data()) {
@@ -1460,6 +1445,8 @@ BackgroundCompileTask::BackgroundCompileTask(
     info_->set_consumed_preparse_data(
         ConsumedPreparseData::For(info_->zone(), serialized_data));
   }
+
+  info_->CheckFlagsForFunctionFromScript(Script::cast(shared_info->script()));
 }
 
 BackgroundCompileTask::~BackgroundCompileTask() = default;
@@ -1513,6 +1500,7 @@ void BackgroundCompileTask::Run() {
 
   if (toplevel_script_compilation) {
     DCHECK_NULL(persistent_handles_);
+    DCHECK(input_shared_info_.is_null());
     UnparkedScope unparked_scope(&isolate);
     LocalHandleScope handle_scope(&isolate);
 
@@ -1525,13 +1513,16 @@ void BackgroundCompileTask::Run() {
   } else {
     DCHECK_NOT_NULL(persistent_handles_);
     isolate.heap()->AttachPersistentHandles(std::move(persistent_handles_));
+    UnparkedScope unparked_scope(&isolate);
 
-#ifdef DEBUG
-    {
-      UnparkedScope unparked_scope(&isolate);
-      DCHECK(!script_->is_null());
-    }
-#endif
+    Handle<SharedFunctionInfo> shared_info =
+        input_shared_info_.ToHandleChecked();
+    script_ = isolate.heap()->NewPersistentHandle(
+        Script::cast(shared_info->script()));
+
+    SharedStringAccessGuardIfNeeded access_guard(&isolate);
+    info_->set_function_name(info_->GetOrCreateAstValueFactory()->GetString(
+        shared_info->Name(), access_guard));
   }
 
   // Update the character stream's runtime call stats.
@@ -1540,7 +1531,7 @@ void BackgroundCompileTask::Run() {
 
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
-  Parser parser(info_.get(), script_);
+  Parser parser(&isolate, info_.get(), script_);
   parser.InitializeEmptyScopeChain(info_.get());
 
   parser.ParseOnBackground(info_.get(), start_position_, end_position_,
@@ -1595,6 +1586,7 @@ void BackgroundCompileTask::Run() {
 
     outer_function_sfi_ =
         isolate.heap()->NewPersistentMaybeHandle(maybe_result);
+    script_ = isolate.heap()->NewPersistentHandle(script_);
 
     parser.UpdateStatistics(script_, use_counts_, &total_preparse_skipped_);
   }
@@ -1657,11 +1649,12 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
 }
 
 bool BackgroundCompileTask::FinalizeFunction(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
-    Compiler::ClearExceptionFlag flag) {
+    Isolate* isolate, Compiler::ClearExceptionFlag flag) {
   DCHECK(!flags_.is_toplevel());
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
+  Handle<SharedFunctionInfo> input_shared_info =
+      input_shared_info_.ToHandleChecked();
 
   // We might not have been able to finalize all jobs on the background
   // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
@@ -1676,10 +1669,8 @@ bool BackgroundCompileTask::FinalizeFunction(
 
   Handle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
-    if (flag == Compiler::KEEP_EXCEPTION) {
-      FailWithPreparedPendingException(isolate, script_,
-                                       compile_state_.pending_error_handler());
-    }
+    FailWithPreparedPendingException(
+        isolate, script_, compile_state_.pending_error_handler(), flag);
     return false;
   }
 
@@ -1687,7 +1678,7 @@ bool BackgroundCompileTask::FinalizeFunction(
                                  finalize_unoptimized_compilation_data_);
 
   // Move the compiled data from the placeholder SFI to the real SFI.
-  shared_info->CopyFrom(*result);
+  input_shared_info->CopyFrom(*result);
 
 #ifdef DEBUG
   {
@@ -1699,17 +1690,17 @@ bool BackgroundCompileTask::FinalizeFunction(
     for (int offset = SharedFunctionInfo::kStartOfWeakFieldsOffset;
          offset < SharedFunctionInfo::kEndOfStrongFieldsOffset;
          offset += kTaggedSize) {
-      DCHECK_EQ(TaggedField<Object>::load(isolate, *shared_info, offset),
+      DCHECK_EQ(TaggedField<Object>::load(isolate, *input_shared_info, offset),
                 TaggedField<Object>::load(isolate, *result, offset));
     }
 
     // Validate that untagged fields are equal.
     for (int offset = SharedFunctionInfo::kEndOfStrongFieldsOffset;
          offset < SharedFunctionInfo::kSize; offset += kInt32Size) {
-      DCHECK_EQ(base::ReadUnalignedValue<int32_t>(shared_info->ptr() + offset -
-                                                  kHeapObjectTag),
-                base::ReadUnalignedValue<int32_t>(shared_info->ptr() + offset -
-                                                  kHeapObjectTag));
+      DCHECK_EQ(base::ReadUnalignedValue<int32_t>(input_shared_info->ptr() +
+                                                  offset - kHeapObjectTag),
+                base::ReadUnalignedValue<int32_t>(input_shared_info->ptr() +
+                                                  offset - kHeapObjectTag));
     }
   }
 #endif
@@ -2096,21 +2087,19 @@ MaybeHandle<SharedFunctionInfo> Compiler::CompileToplevel(
 }
 
 // static
-bool Compiler::FinalizeBackgroundCompileTask(
-    BackgroundCompileTask* task, Handle<SharedFunctionInfo> shared_info,
-    Isolate* isolate, ClearExceptionFlag flag) {
+bool Compiler::FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
+                                             Isolate* isolate,
+                                             ClearExceptionFlag flag) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.FinalizeBackgroundCompileTask");
   RCS_SCOPE(isolate,
             RuntimeCallCounterId::kCompileFinalizeBackgroundCompileTask);
 
   HandleScope scope(isolate);
-  DCHECK(!shared_info->is_compiled());
 
-  if (!task->FinalizeFunction(isolate, shared_info, flag)) return false;
+  if (!task->FinalizeFunction(isolate, flag)) return false;
 
   DCHECK(!isolate->has_pending_exception());
-  DCHECK(shared_info->is_compiled());
   return true;
 }
 

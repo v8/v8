@@ -569,17 +569,9 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
 }
 
 String::FlatContent String::SlowGetFlatContent(
-    const DisallowGarbageCollection& no_gc) {
-#if DEBUG
-  // Check that this method is called only from the main thread.
-  {
-    Isolate* isolate;
-    // We don't have to check read only strings as those won't move.
-    DCHECK_IMPLIES(GetIsolateFromHeapObject(*this, &isolate),
-                   ThreadId::Current() == isolate->thread_id());
-  }
-#endif
-
+    const DisallowGarbageCollection& no_gc,
+    const SharedStringAccessGuardIfNeeded& access_guard) {
+  USE(no_gc);
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   String string = *this;
   StringShape shape(string, cage_base);
@@ -610,7 +602,7 @@ String::FlatContent String::SlowGetFlatContent(
 
   DCHECK(shape.IsDirect());
   return TryGetFlatContentFromDirectString(cage_base, no_gc, string, offset,
-                                           length())
+                                           length(), access_guard)
       .value();
 }
 

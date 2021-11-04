@@ -125,6 +125,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
  private:
   friend class v8::internal::LocalFactory;
+  friend class LocalIsolateFactory;
 
   void InitializeBigIntProcessor();
 

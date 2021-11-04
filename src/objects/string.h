@@ -263,8 +263,13 @@ class String : public TorqueGeneratedString<String, Name> {
   // If the string isn't flat, and therefore doesn't have flat content, the
   // returned structure will report so, and can't provide a vector of either
   // kind.
+  // When using a SharedStringAccessGuard, the guard's must outlive the
+  // returned FlatContent.
   V8_EXPORT_PRIVATE V8_INLINE FlatContent
   GetFlatContent(const DisallowGarbageCollection& no_gc);
+  V8_EXPORT_PRIVATE V8_INLINE FlatContent
+  GetFlatContent(const DisallowGarbageCollection& no_gc,
+                 const SharedStringAccessGuardIfNeeded&);
 
   // Returns the parent of a sliced string or first part of a flat cons string.
   // Requires: StringShape(this).IsIndirect() && this->IsFlat()
@@ -589,9 +594,11 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_EXPORT_PRIVATE V8_INLINE static base::Optional<FlatContent>
   TryGetFlatContentFromDirectString(PtrComprCageBase cage_base,
                                     const DisallowGarbageCollection& no_gc,
-                                    String string, int offset, int length);
+                                    String string, int offset, int length,
+                                    const SharedStringAccessGuardIfNeeded&);
   V8_EXPORT_PRIVATE FlatContent
-  SlowGetFlatContent(const DisallowGarbageCollection& no_gc);
+  SlowGetFlatContent(const DisallowGarbageCollection& no_gc,
+                     const SharedStringAccessGuardIfNeeded&);
 
   static Handle<String> SlowCopy(Isolate* isolate, Handle<SeqString> source,
                                  AllocationType allocation);

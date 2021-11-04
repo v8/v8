@@ -81,16 +81,9 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   LazyCompileDispatcher& operator=(const LazyCompileDispatcher&) = delete;
   ~LazyCompileDispatcher();
 
-  base::Optional<JobId> Enqueue(const ParseInfo* outer_parse_info,
-                                Handle<Script> script,
-                                const AstRawString* function_name,
-                                const FunctionLiteral* function_literal);
-
-  // Registers the given |function| with the compilation job |job_id|.
-  void RegisterSharedFunctionInfo(JobId job_id, SharedFunctionInfo function);
-
-  // Returns true if there is a pending job with the given id.
-  bool IsEnqueued(JobId job_id) const;
+  void Enqueue(const ParseInfo* outer_parse_info,
+               Handle<SharedFunctionInfo> shared_info,
+               const FunctionLiteral* function_literal);
 
   // Returns true if there is a pending job registered for the given function.
   bool IsEnqueued(Handle<SharedFunctionInfo> function) const;
@@ -99,56 +92,54 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   // possible). Returns true if the compile job was successful.
   bool FinishNow(Handle<SharedFunctionInfo> function);
 
-  // Aborts compilation job |job_id|.
-  void AbortJob(JobId job_id);
+  // Aborts compilation job for the given function.
+  void AbortJob(Handle<SharedFunctionInfo> function);
 
   // Aborts all jobs, blocking until all jobs are aborted.
   void AbortAll();
 
  private:
-  FRIEND_TEST(LazyCompilerDispatcherTest, IdleTaskNoIdleTime);
-  FRIEND_TEST(LazyCompilerDispatcherTest, IdleTaskSmallIdleTime);
-  FRIEND_TEST(LazyCompilerDispatcherTest, FinishNowWithWorkerTask);
-  FRIEND_TEST(LazyCompilerDispatcherTest, AbortJobNotStarted);
-  FRIEND_TEST(LazyCompilerDispatcherTest, AbortJobAlreadyStarted);
-  FRIEND_TEST(LazyCompilerDispatcherTest, AsyncAbortAllPendingWorkerTask);
-  FRIEND_TEST(LazyCompilerDispatcherTest, AsyncAbortAllRunningWorkerTask);
-  FRIEND_TEST(LazyCompilerDispatcherTest, CompileMultipleOnBackgroundThread);
+  FRIEND_TEST(LazyCompileDispatcherTest, IdleTaskNoIdleTime);
+  FRIEND_TEST(LazyCompileDispatcherTest, IdleTaskSmallIdleTime);
+  FRIEND_TEST(LazyCompileDispatcherTest, FinishNowWithWorkerTask);
+  FRIEND_TEST(LazyCompileDispatcherTest, AbortJobNotStarted);
+  FRIEND_TEST(LazyCompileDispatcherTest, AbortJobAlreadyStarted);
+  FRIEND_TEST(LazyCompileDispatcherTest, AsyncAbortAllPendingWorkerTask);
+  FRIEND_TEST(LazyCompileDispatcherTest, AsyncAbortAllRunningWorkerTask);
+  FRIEND_TEST(LazyCompileDispatcherTest, CompileMultipleOnBackgroundThread);
 
   // JobTask for PostJob API.
   class JobTask;
 
   struct Job {
-    explicit Job(BackgroundCompileTask* task_arg);
+    enum class State {
+      kPending,
+      kRunning,
+      kReadyToFinalize,
+      kFinalized,
+      kAbortRequested,
+      kAborted,
+      kPendingToRunOnForeground
+    };
+
+    explicit Job(std::unique_ptr<BackgroundCompileTask> task);
     ~Job();
 
-    bool IsReadyToFinalize(const base::MutexGuard&) {
-      return has_run && (!function.is_null() || aborted);
-    }
-
-    bool IsReadyToFinalize(base::Mutex* mutex) {
-      base::MutexGuard lock(mutex);
-      return IsReadyToFinalize(lock);
+    bool is_running_on_background() const {
+      return state == State::kRunning || state == State::kAbortRequested;
     }
 
     std::unique_ptr<BackgroundCompileTask> task;
-    MaybeHandle<SharedFunctionInfo> function;
-    bool has_run;
-    bool aborted;
+    State state = State::kPending;
   };
 
-  using JobMap = std::map<JobId, std::unique_ptr<Job>>;
-  using SharedToJobIdMap = IdentityMap<JobId, FreeStoreAllocationPolicy>;
+  using SharedToJobMap = IdentityMap<Job*, FreeStoreAllocationPolicy>;
 
   void WaitForJobIfRunningOnBackground(Job* job);
-  JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
+  Job* GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ScheduleIdleTaskFromAnyThread(const base::MutexGuard&);
   void DoBackgroundWork(JobDelegate* delegate);
   void DoIdleWork(double deadline_in_seconds);
-  // Returns iterator to the inserted job.
-  JobMap::const_iterator InsertJob(std::unique_ptr<Job> job);
-  // Returns iterator following the removed job.
-  JobMap::const_iterator RemoveJob(JobMap::const_iterator job);
 
 #ifdef DEBUG
   void VerifyBackgroundTaskCount(const base::MutexGuard&);
@@ -170,15 +161,9 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
 
   std::unique_ptr<CancelableTaskManager> idle_task_manager_;
 
-  // Id for next job to be added
-  JobId next_job_id_;
-
-  // Mapping from job_id to job.
-  JobMap jobs_;
-
   // Mapping from SharedFunctionInfo to the corresponding unoptimized
-  // compilation's JobId;
-  SharedToJobIdMap shared_to_unoptimized_job_id_;
+  // compilation job.
+  SharedToJobMap shared_to_unoptimized_job_;
 
   // The following members can be accessed from any thread. Methods need to hold
   // the mutex |mutex_| while accessing them.
@@ -189,9 +174,6 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
 
   // The set of jobs that can be run on a background thread.
   std::unordered_set<Job*> pending_background_jobs_;
-
-  // The set of jobs currently being run on background threads.
-  std::unordered_set<Job*> running_background_jobs_;
 
   // The total number of jobs, pending and running.
   std::atomic<size_t> num_jobs_for_background_;

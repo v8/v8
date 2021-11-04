@@ -212,7 +212,9 @@ ClassScope::ClassScope(Isolate* isolate, Zone* zone,
     DCHECK_EQ(scope_info->ContextLocalMaybeAssignedFlag(index),
               MaybeAssignedFlag::kMaybeAssigned);
     Variable* var = DeclareClassVariable(
-        ast_value_factory, ast_value_factory->GetString(handle(name, isolate)),
+        ast_value_factory,
+        ast_value_factory->GetString(name,
+                                     SharedStringAccessGuardIfNeeded(isolate)),
         kNoSourcePosition);
     var->AllocateTo(VariableLocation::CONTEXT,
                     Context::MIN_CONTEXT_SLOTS + index);
@@ -460,9 +462,11 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       String name = scope_info.ContextLocalName(0);
       MaybeAssignedFlag maybe_assigned =
           scope_info.ContextLocalMaybeAssignedFlag(0);
-      outer_scope = zone->New<Scope>(
-          zone, ast_value_factory->GetString(handle(name, isolate)),
-          maybe_assigned, handle(scope_info, isolate));
+      outer_scope =
+          zone->New<Scope>(zone,
+                           ast_value_factory->GetString(
+                               name, SharedStringAccessGuardIfNeeded(isolate)),
+                           maybe_assigned, handle(scope_info, isolate));
     }
     if (deserialization_mode == DeserializationMode::kScopesOnly) {
       outer_scope->scope_info_ = Handle<ScopeInfo>::null();

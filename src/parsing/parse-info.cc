@@ -169,10 +169,7 @@ UnoptimizedCompileState::UnoptimizedCompileState(Isolate* isolate)
       allocator_(isolate->allocator()),
       ast_string_constants_(isolate->ast_string_constants()),
       logger_(isolate->logger()),
-      parallel_tasks_(
-          isolate->lazy_compile_dispatcher()
-              ? new ParallelTasks(isolate->lazy_compile_dispatcher())
-              : nullptr) {}
+      dispatcher_(isolate->lazy_compile_dispatcher()) {}
 
 UnoptimizedCompileState::UnoptimizedCompileState(
     const UnoptimizedCompileState& other) V8_NOEXCEPT
@@ -180,8 +177,7 @@ UnoptimizedCompileState::UnoptimizedCompileState(
       allocator_(other.allocator()),
       ast_string_constants_(other.ast_string_constants()),
       logger_(other.logger()),
-      // TODO(leszeks): Should this create a new ParallelTasks instance?
-      parallel_tasks_(nullptr) {}
+      dispatcher_(other.dispatcher()) {}
 
 ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
                      UnoptimizedCompileState* state)
@@ -216,23 +212,10 @@ ParseInfo::ParseInfo(Isolate* isolate, const UnoptimizedCompileFlags flags,
                     isolate->counters()->runtime_call_stats());
 }
 
-// static
-std::unique_ptr<ParseInfo> ParseInfo::ForToplevelFunction(
-    const UnoptimizedCompileFlags flags, UnoptimizedCompileState* compile_state,
-    const FunctionLiteral* literal, const AstRawString* function_name) {
-  std::unique_ptr<ParseInfo> result(new ParseInfo(flags, compile_state));
-
-  // Clone the function_name AstRawString into the ParseInfo's own
-  // AstValueFactory.
-  const AstRawString* cloned_function_name =
-      result->GetOrCreateAstValueFactory()->CloneFromOtherFactory(
-          function_name);
-
-  // Setup function specific details.
-  DCHECK(!literal->is_toplevel());
-  result->set_function_name(cloned_function_name);
-
-  return result;
+ParseInfo::ParseInfo(LocalIsolate* isolate, const UnoptimizedCompileFlags flags,
+                     UnoptimizedCompileState* state)
+    : ParseInfo(flags, state) {
+  SetPerThreadState(0, nullptr);
 }
 
 ParseInfo::~ParseInfo() = default;
@@ -329,16 +312,6 @@ void ParseInfo::CheckFlagsForFunctionFromScript(Script script) {
   DCHECK_EQ(flags().is_module(), script.origin_options().IsModule());
   DCHECK_IMPLIES(flags().block_coverage_enabled() && script.IsUserJavaScript(),
                  source_range_map() != nullptr);
-}
-
-void UnoptimizedCompileState::ParallelTasks::Enqueue(
-    ParseInfo* outer_parse_info, Handle<Script> script,
-    const AstRawString* function_name, FunctionLiteral* literal) {
-  base::Optional<LazyCompileDispatcher::JobId> job_id =
-      dispatcher_->Enqueue(outer_parse_info, script, function_name, literal);
-  if (job_id) {
-    enqueued_jobs_.emplace_front(std::make_pair(literal, *job_id));
-  }
 }
 
 }  // namespace internal

@@ -84,7 +84,8 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
       DisallowGarbageCollection no_gc;
       DisallowHeapAccess no_heap_access;
 
-      Parser parser(parse_info(), script_);
+      Parser parser(isolate()->main_thread_local_isolate(), parse_info(),
+                    script_);
       parser.InitializeEmptyScopeChain(parse_info());
       parser.ParseOnBackground(parse_info(), 0, 0, kFunctionLiteralIdTopLevel);
     }
