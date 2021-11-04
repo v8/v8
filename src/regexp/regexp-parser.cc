@@ -4,6 +4,7 @@
 
 #include "src/regexp/regexp-parser.h"
 
+#include "src/base/small-vector.h"
 #include "src/execution/isolate.h"
 #include "src/objects/string-inl.h"
 #include "src/regexp/property-sequences.h"
@@ -13,6 +14,7 @@
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
+#include "src/zone/zone-allocator.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -37,9 +39,9 @@ class RegExpBuilder {
   RegExpBuilder(Zone* zone, RegExpFlags flags)
       : zone_(zone),
         flags_(flags),
-        terms_(2, zone),
-        text_(2, zone),
-        alternatives_(2, zone) {}
+        terms_(ZoneAllocator<RegExpTree*>{zone}),
+        text_(ZoneAllocator<RegExpTree*>{zone}),
+        alternatives_(ZoneAllocator<RegExpTree*>{zone}) {}
   void AddCharacter(base::uc16 character);
   void AddUnicodeCharacter(base::uc32 character);
   void AddEscapedUnicodeCharacter(base::uc32 character);
@@ -79,9 +81,12 @@ class RegExpBuilder {
   const RegExpFlags flags_;
   ZoneList<base::uc16>* characters_ = nullptr;
   base::uc16 pending_surrogate_ = kNoPendingSurrogate;
-  ZoneList<RegExpTree*> terms_;
-  ZoneList<RegExpTree*> text_;
-  ZoneList<RegExpTree*> alternatives_;
+
+  using SmallRegExpTreeVector =
+      base::SmallVector<RegExpTree*, 8, ZoneAllocator<RegExpTree*>>;
+  SmallRegExpTreeVector terms_;
+  SmallRegExpTreeVector text_;
+  SmallRegExpTreeVector alternatives_;
 #ifdef DEBUG
   enum {
     ADD_NONE,
@@ -2100,26 +2105,26 @@ void RegExpBuilder::FlushCharacters() {
   if (characters_ != nullptr) {
     RegExpTree* atom = zone()->New<RegExpAtom>(characters_->ToConstVector());
     characters_ = nullptr;
-    text_.Add(atom, zone());
+    text_.emplace_back(atom);
     LAST(ADD_ATOM);
   }
 }
 
 void RegExpBuilder::FlushText() {
   FlushCharacters();
-  int num_text = text_.length();
+  size_t num_text = text_.size();
   if (num_text == 0) {
     return;
   } else if (num_text == 1) {
-    terms_.Add(text_.last(), zone());
+    terms_.emplace_back(text_.back());
   } else {
     RegExpText* text = zone()->New<RegExpText>(zone());
-    for (int i = 0; i < num_text; i++) {
+    for (size_t i = 0; i < num_text; i++) {
       text_[i]->AppendToText(text, zone());
     }
-    terms_.Add(text, zone());
+    terms_.emplace_back(text);
   }
-  text_.Rewind(0);
+  text_.clear();
 }
 
 void RegExpBuilder::AddCharacter(base::uc16 c) {
@@ -2182,23 +2187,23 @@ void RegExpBuilder::AddAtom(RegExpTree* term) {
   }
   if (term->IsTextElement()) {
     FlushCharacters();
-    text_.Add(term, zone());
+    text_.emplace_back(term);
   } else {
     FlushText();
-    terms_.Add(term, zone());
+    terms_.emplace_back(term);
   }
   LAST(ADD_ATOM);
 }
 
 void RegExpBuilder::AddTerm(RegExpTree* term) {
   FlushText();
-  terms_.Add(term, zone());
+  terms_.emplace_back(term);
   LAST(ADD_ATOM);
 }
 
 void RegExpBuilder::AddAssertion(RegExpTree* assert) {
   FlushText();
-  terms_.Add(assert, zone());
+  terms_.emplace_back(assert);
   LAST(ADD_ASSERT);
 }
 
@@ -2206,18 +2211,19 @@ void RegExpBuilder::NewAlternative() { FlushTerms(); }
 
 void RegExpBuilder::FlushTerms() {
   FlushText();
-  int num_terms = terms_.length();
+  size_t num_terms = terms_.size();
   RegExpTree* alternative;
   if (num_terms == 0) {
     alternative = zone()->New<RegExpEmpty>();
   } else if (num_terms == 1) {
-    alternative = terms_.last();
+    alternative = terms_.back();
   } else {
-    alternative = zone()->New<RegExpAlternative>(
-        zone()->New<ZoneList<RegExpTree*>>(terms_, zone()));
+    alternative =
+        zone()->New<RegExpAlternative>(zone()->New<ZoneList<RegExpTree*>>(
+            base::VectorOf(terms_.begin(), terms_.size()), zone()));
   }
-  alternatives_.Add(alternative, zone());
-  terms_.Rewind(0);
+  alternatives_.emplace_back(alternative);
+  terms_.clear();
   LAST(ADD_NONE);
 }
 
@@ -2256,11 +2262,11 @@ bool RegExpBuilder::NeedsDesugaringForIgnoreCase(base::uc32 c) {
 
 RegExpTree* RegExpBuilder::ToRegExp() {
   FlushTerms();
-  int num_alternatives = alternatives_.length();
+  size_t num_alternatives = alternatives_.size();
   if (num_alternatives == 0) return zone()->New<RegExpEmpty>();
-  if (num_alternatives == 1) return alternatives_.last();
-  return zone()->New<RegExpDisjunction>(
-      zone()->New<ZoneList<RegExpTree*>>(alternatives_, zone()));
+  if (num_alternatives == 1) return alternatives_.back();
+  return zone()->New<RegExpDisjunction>(zone()->New<ZoneList<RegExpTree*>>(
+      base::VectorOf(alternatives_.begin(), alternatives_.size()), zone()));
 }
 
 bool RegExpBuilder::AddQuantifierToAtom(
@@ -2279,19 +2285,21 @@ bool RegExpBuilder::AddQuantifierToAtom(
     if (num_chars > 1) {
       base::Vector<const base::uc16> prefix =
           char_vector.SubVector(0, num_chars - 1);
-      text_.Add(zone()->New<RegExpAtom>(prefix), zone());
+      text_.emplace_back(zone()->New<RegExpAtom>(prefix));
       char_vector = char_vector.SubVector(num_chars - 1, num_chars);
     }
     characters_ = nullptr;
     atom = zone()->New<RegExpAtom>(char_vector);
     FlushText();
-  } else if (text_.length() > 0) {
+  } else if (text_.size() > 0) {
     DCHECK(last_added_ == ADD_ATOM);
-    atom = text_.RemoveLast();
+    atom = text_.back();
+    text_.pop_back();
     FlushText();
-  } else if (terms_.length() > 0) {
+  } else if (terms_.size() > 0) {
     DCHECK(last_added_ == ADD_ATOM);
-    atom = terms_.RemoveLast();
+    atom = terms_.back();
+    terms_.pop_back();
     if (atom->IsLookaround()) {
       // With /u, lookarounds are not quantifiable.
       if (unicode()) return false;
@@ -2306,15 +2314,15 @@ bool RegExpBuilder::AddQuantifierToAtom(
       if (min == 0) {
         return true;
       }
-      terms_.Add(atom, zone());
+      terms_.emplace_back(atom);
       return true;
     }
   } else {
     // Only call immediately after adding an atom or character!
     UNREACHABLE();
   }
-  terms_.Add(zone()->New<RegExpQuantifier>(min, max, quantifier_type, atom),
-             zone());
+  terms_.emplace_back(
+      zone()->New<RegExpQuantifier>(min, max, quantifier_type, atom));
   LAST(ADD_TERM);
   return true;
 }
