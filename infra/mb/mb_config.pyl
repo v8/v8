@@ -58,9 +58,9 @@
       # Linux.
       'V8 Linux - builder': 'release_x86_gcmole',
       'V8 Linux - debug builder': 'debug_x86',
-      'V8 Linux - shared': 'release_x86_shared_verify_heap',
-      'V8 Linux - noi18n - debug': 'debug_x86_no_i18n',
-      'V8 Linux - verify csa': 'release_x86_verify_csa',
+      'V8 Linux - shared - builder': 'release_x86_shared_verify_heap',
+      'V8 Linux - noi18n - debug builder': 'debug_x86_no_i18n',
+      'V8 Linux - verify csa - builder': 'release_x86_verify_csa',
       # Linux64.
       'V8 Linux64 - builder': 'release_x64',
       'V8 Linux64 - builder (goma cache silo)': 'release_x64',
@@ -127,7 +127,7 @@
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
       'V8 Linux64 - Fuzzilli': 'release_x64_fuzzilli',
       'V8 Linux - predictable': 'release_x86_predictable',
-      'V8 Linux - full debug': 'full_debug_x86',
+      'V8 Linux - full debug builder': 'full_debug_x86',
       'V8 Mac64 - full debug': 'full_debug_x64',
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
     },
