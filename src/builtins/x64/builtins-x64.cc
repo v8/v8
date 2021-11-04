@@ -78,7 +78,7 @@ static void GenerateTailCallToReturnedCode(
     __ Pop(kJavaScriptCallTargetRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  __ JumpCodeObject(rcx, jump_mode);
+  __ JumpCodeTObject(rcx, jump_mode);
 }
 
 namespace {

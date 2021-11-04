@@ -15,18 +15,18 @@ namespace v8 {
 namespace internal {
 
 void LazyBuiltinsAssembler::GenerateTailCallToJSCode(
-    TNode<Code> code, TNode<JSFunction> function) {
+    TNode<CodeT> code, TNode<JSFunction> function) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-
-  TailCallJSCode(code, context, function, new_target, argc);
+  // TODO(v8:11880): call CodeT directly.
+  TailCallJSCode(FromCodeT(code), context, function, new_target, argc);
 }
 
 void LazyBuiltinsAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id, TNode<JSFunction> function) {
   auto context = Parameter<Context>(Descriptor::kContext);
-  TNode<Code> code = CAST(CallRuntime(function_id, context, function));
+  TNode<CodeT> code = CAST(CallRuntime(function_id, context, function));
   GenerateTailCallToJSCode(code, function);
 }
 
@@ -95,8 +95,7 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
     // the optimized functions list, then tail call the optimized code.
     StoreObjectField(function, JSFunction::kCodeOffset, optimized_code);
     Comment("MaybeTailCallOptimizedCodeSlot:: GenerateTailCallToJSCode");
-    // TODO(v8:11880): call CodeT directly.
-    GenerateTailCallToJSCode(FromCodeT(optimized_code), function);
+    GenerateTailCallToJSCode(optimized_code, function);
 
     // Optimized code slot contains deoptimized code or code is cleared and
     // optimized code marker isn't updated. Evict the code, update the marker
@@ -164,16 +163,14 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   code = Select<CodeT>(
       IsFeedbackVector(feedback_cell_value), [=]() { return sfi_code; },
       [=]() {
-        // TODO(v8:11880): avoid roundtrips between cdc and code.
-        return ToCodeT(CAST(
-            CallRuntime(Runtime::kInstallBaselineCode,
-                        Parameter<Context>(Descriptor::kContext), function)));
+        return CAST(CallRuntime(Runtime::kInstallBaselineCode,
+                                Parameter<Context>(Descriptor::kContext),
+                                function));
       });
   Goto(&tailcall_code);
   BIND(&tailcall_code);
   // Jump to the selected code entry.
-  // TODO(v8:11880): call CodeT directly.
-  GenerateTailCallToJSCode(FromCodeT(code.value()), function);
+  GenerateTailCallToJSCode(code.value(), function);
 
   BIND(&compile_function);
   GenerateTailCallToReturnedCode(Runtime::kCompileLazy, function);
@@ -191,8 +188,7 @@ TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
   TNode<CodeT> code = HeapConstant(BUILTIN_CODET(isolate(), CompileLazy));
   // Set the code slot inside the JSFunction to CompileLazy.
   StoreObjectField(function, JSFunction::kCodeOffset, code);
-  // TODO(v8:11880): call CodeT directly.
-  GenerateTailCallToJSCode(FromCodeT(code), function);
+  GenerateTailCallToJSCode(code, function);
 }
 
 }  // namespace internal

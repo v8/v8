@@ -75,7 +75,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
-  __ JumpCodeObject(x2);
+  __ JumpCodeTObject(x2);
 }
 
 namespace {
