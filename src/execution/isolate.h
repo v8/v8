@@ -95,6 +95,7 @@ class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
 class HeapProfiler;
 class GlobalHandles;
+class GlobalSafepoint;
 class InnerPointerToCodeCache;
 class LazyCompileDispatcher;
 class LocalIsolate;
@@ -1860,17 +1861,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     shared_isolate_ = shared_isolate;
   }
 
-  bool HasClientIsolates() const { return client_isolate_head_; }
-
-  template <typename Callback>
-  void IterateClientIsolates(Callback callback) {
-    for (Isolate* current = client_isolate_head_; current;
-         current = current->next_client_isolate_) {
-      callback(current);
-    }
-  }
-
-  base::Mutex* client_isolate_mutex() { return &client_isolate_mutex_; }
+  GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
 
   bool OwnsStringTable() { return !FLAG_shared_string_table || is_shared(); }
 
@@ -1999,10 +1990,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // safepoint.
   void AttachToSharedIsolate();
   void DetachFromSharedIsolate();
-
-  // Methods for appending and removing to/from client isolates list.
-  void AppendAsClientIsolate(Isolate* client);
-  void RemoveAsClientIsolate(Isolate* client);
 
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
@@ -2308,15 +2295,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool attached_to_shared_isolate_ = false;
 #endif  // DEBUG
 
-  // A shared isolate will use these two fields to track all its client
-  // isolates.
-  base::Mutex client_isolate_mutex_;
-  Isolate* client_isolate_head_ = nullptr;
-
-  // Used to form a linked list of all client isolates. Protected by
-  // client_isolate_mutex_.
-  Isolate* prev_client_isolate_ = nullptr;
-  Isolate* next_client_isolate_ = nullptr;
+  // Used to track and safepoint all client isolates attached to this shared
+  // isolate.
+  std::unique_ptr<GlobalSafepoint> global_safepoint_;
+  // Client isolates list managed by GlobalSafepoint.
+  Isolate* global_safepoint_prev_client_isolate_ = nullptr;
+  Isolate* global_safepoint_next_client_isolate_ = nullptr;
 
   // A signal-safe vector of heap pages containing code. Used with the
   // v8::Unwinder API.
@@ -2336,6 +2320,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void* operator new(size_t, void* ptr) { return ptr; }
 
   friend class heap::HeapTester;
+  friend class GlobalSafepoint;
   friend class TestSerializer;
 };
 

@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
 #include "src/base/flags.h"
@@ -2251,36 +2252,28 @@ void Heap::CollectSharedGarbage(GarbageCollectionReason gc_reason) {
 void Heap::PerformSharedGarbageCollection(Isolate* initiator,
                                           GarbageCollectionReason gc_reason) {
   DCHECK(IsShared());
-  base::MutexGuard guard(isolate()->client_isolate_mutex());
+
+  // Stop all client isolates attached to this isolate
+  GlobalSafepointScope global_safepoint(initiator);
+
+  // Migrate shared isolate to the main thread of the initiator isolate.
+  v8::Locker locker(reinterpret_cast<v8::Isolate*>(isolate()));
+  v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate()));
 
   const char* collector_reason = nullptr;
   GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
 
   tracer()->Start(collector, gc_reason, collector_reason);
 
-  isolate()->IterateClientIsolates([initiator](Isolate* client) {
-    DCHECK_NOT_NULL(client->shared_isolate());
+  DCHECK_NOT_NULL(isolate()->global_safepoint());
+
+  isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
     Heap* client_heap = client->heap();
-
-    IsolateSafepoint::StopMainThread stop_main_thread =
-        initiator == client ? IsolateSafepoint::StopMainThread::kNo
-                            : IsolateSafepoint::StopMainThread::kYes;
-
-    client_heap->safepoint()->EnterSafepointScope(stop_main_thread);
-    DCHECK(client_heap->deserialization_complete());
-
     client_heap->shared_old_allocator_->FreeLinearAllocationArea();
     client_heap->shared_map_allocator_->FreeLinearAllocationArea();
   });
 
   PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR);
-
-  isolate()->IterateClientIsolates([initiator](Isolate* client) {
-    IsolateSafepoint::StopMainThread stop_main_thread =
-        initiator == client ? IsolateSafepoint::StopMainThread::kNo
-                            : IsolateSafepoint::StopMainThread::kYes;
-    client->heap()->safepoint()->LeaveSafepointScope(stop_main_thread);
-  });
 
   tracer()->Stop(collector);
 }
@@ -4873,9 +4866,12 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
                                         base::EnumSet<SkipRoot> options) {
   IterateRoots(v, options);
 
-  isolate()->IterateClientIsolates([v, options](Isolate* client) {
-    client->heap()->IterateRoots(v, options);
-  });
+  if (isolate()->global_safepoint()) {
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [v, options](Isolate* client) {
+          client->heap()->IterateRoots(v, options);
+        });
+  }
 }
 
 void Heap::IterateWeakGlobalHandles(RootVisitor* v) {

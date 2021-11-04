@@ -14,6 +14,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/logging/counters-scopes.h"
 
 namespace v8 {
@@ -178,6 +179,93 @@ void IsolateSafepoint::Iterate(RootVisitor* visitor) {
        current = current->next_) {
     current->handles()->Iterate(visitor);
   }
+}
+
+GlobalSafepoint::GlobalSafepoint(Isolate* isolate)
+    : shared_isolate_(isolate), shared_heap_(isolate->heap()) {}
+
+void GlobalSafepoint::AppendClient(Isolate* client) {
+  base::MutexGuard guard(&clients_mutex_);
+
+  DCHECK_NULL(client->global_safepoint_prev_client_isolate_);
+  DCHECK_NULL(client->global_safepoint_next_client_isolate_);
+  DCHECK_NE(clients_head_, client);
+
+  if (clients_head_) {
+    clients_head_->global_safepoint_prev_client_isolate_ = client;
+  }
+
+  client->global_safepoint_prev_client_isolate_ = nullptr;
+  client->global_safepoint_next_client_isolate_ = clients_head_;
+
+  clients_head_ = client;
+  client->shared_isolate_ = shared_isolate_;
+}
+
+void GlobalSafepoint::RemoveClient(Isolate* client) {
+  DCHECK_EQ(client->heap()->gc_state(), Heap::TEAR_DOWN);
+  base::MutexGuard guard(&clients_mutex_);
+
+  if (client->global_safepoint_next_client_isolate_) {
+    client->global_safepoint_next_client_isolate_
+        ->global_safepoint_prev_client_isolate_ =
+        client->global_safepoint_prev_client_isolate_;
+  }
+
+  if (client->global_safepoint_prev_client_isolate_) {
+    client->global_safepoint_prev_client_isolate_
+        ->global_safepoint_next_client_isolate_ =
+        client->global_safepoint_next_client_isolate_;
+  } else {
+    DCHECK_EQ(clients_head_, client);
+    clients_head_ = client->global_safepoint_next_client_isolate_;
+  }
+
+  client->shared_isolate_ = nullptr;
+}
+
+void GlobalSafepoint::AssertNoClients() { DCHECK_NULL(clients_head_); }
+
+void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
+  if (!clients_mutex_.TryLock()) {
+    ParkedScope parked_scope(initiator->main_thread_local_heap());
+    clients_mutex_.Lock();
+  }
+
+  TimedHistogramScope timer(
+      initiator->counters()->gc_time_to_global_safepoint());
+  TRACE_GC(initiator->heap()->tracer(),
+           GCTracer::Scope::TIME_TO_GLOBAL_SAFEPOINT);
+
+  IterateClientIsolates([this, initiator](Isolate* client) {
+    Heap* client_heap = client->heap();
+    CHECK_EQ(initiator, client);
+    client_heap->safepoint()->EnterSafepointScope(
+        IsolateSafepoint::StopMainThread::kNo);
+
+    USE(this);
+    DCHECK_EQ(client->shared_isolate(), shared_isolate_);
+    DCHECK(client_heap->deserialization_complete());
+  });
+}
+
+void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
+  IterateClientIsolates([](Isolate* client) {
+    Heap* client_heap = client->heap();
+    client_heap->safepoint()->LeaveSafepointScope(
+        IsolateSafepoint::StopMainThread::kNo);
+  });
+
+  clients_mutex_.Unlock();
+}
+
+GlobalSafepointScope::GlobalSafepointScope(Isolate* initiator)
+    : initiator_(initiator), shared_isolate_(initiator->shared_isolate()) {
+  shared_isolate_->global_safepoint()->EnterGlobalSafepointScope(initiator_);
+}
+
+GlobalSafepointScope::~GlobalSafepointScope() {
+  shared_isolate_->global_safepoint()->LeaveGlobalSafepointScope(initiator_);
 }
 
 }  // namespace internal

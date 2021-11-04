@@ -1724,10 +1724,12 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
   // Custom marking for top optimized frame.
   ProcessTopOptimizedFrame(custom_root_body_visitor, isolate());
 
-  isolate()->IterateClientIsolates(
-      [this, custom_root_body_visitor](Isolate* client) {
-        ProcessTopOptimizedFrame(custom_root_body_visitor, client);
-      });
+  if (isolate()->global_safepoint()) {
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [this, custom_root_body_visitor](Isolate* client) {
+          ProcessTopOptimizedFrame(custom_root_body_visitor, client);
+        });
+  }
 }
 
 void MarkCompactCollector::VisitObject(HeapObject obj) {

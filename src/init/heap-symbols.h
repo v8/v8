@@ -589,6 +589,7 @@
   F(SCAVENGER_SCAVENGE_WEAK)                         \
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
   F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
+  F(TIME_TO_GLOBAL_SAFEPOINT)                        \
   F(TIME_TO_SAFEPOINT)                               \
   F(UNMAPPER)
 

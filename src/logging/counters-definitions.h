@@ -160,6 +160,8 @@ namespace internal {
   HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
+  HT(gc_time_to_global_safepoint, V8.GC.TimeToGlobalSafepoint, 10000000,       \
+     MICROSECOND)                                                              \
   HT(gc_time_to_safepoint, V8.GC.TimeToSafepoint, 10000000, MICROSECOND)       \
   HT(gc_time_to_collection_on_background, V8.GC.TimeToCollectionOnBackground,  \
      10000000, MICROSECOND)                                                    \

@@ -56,6 +56,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/safepoint.h"
 #include "src/ic/stub-cache.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/setup-isolate.h"
@@ -3075,6 +3076,10 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
   InitializeDefaultEmbeddedBlob();
 
   MicrotaskQueue::SetUpDefaultMicrotaskQueue(this);
+
+  if (is_shared_) {
+    global_safepoint_ = std::make_unique<GlobalSafepoint>(this);
+  }
 }
 
 void Isolate::CheckIsolateLayout() {
@@ -3165,7 +3170,7 @@ void Isolate::Deinit() {
   }
 
   // All client isolates should already be detached.
-  DCHECK_NULL(client_isolate_head_);
+  if (is_shared()) global_safepoint()->AssertNoClients();
 
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
@@ -5195,7 +5200,7 @@ void Isolate::AttachToSharedIsolate() {
 
   if (shared_isolate_) {
     DCHECK(shared_isolate_->is_shared());
-    shared_isolate_->AppendAsClientIsolate(this);
+    shared_isolate_->global_safepoint()->AppendClient(this);
   }
 
 #if DEBUG
@@ -5207,47 +5212,13 @@ void Isolate::DetachFromSharedIsolate() {
   DCHECK(attached_to_shared_isolate_);
 
   if (shared_isolate_) {
-    shared_isolate_->RemoveAsClientIsolate(this);
+    shared_isolate_->global_safepoint()->RemoveClient(this);
     shared_isolate_ = nullptr;
   }
 
 #if DEBUG
   attached_to_shared_isolate_ = false;
 #endif  // DEBUG
-}
-
-void Isolate::AppendAsClientIsolate(Isolate* client) {
-  base::MutexGuard guard(&client_isolate_mutex_);
-
-  DCHECK_NULL(client->prev_client_isolate_);
-  DCHECK_NULL(client->next_client_isolate_);
-  DCHECK_NE(client_isolate_head_, client);
-
-  if (client_isolate_head_) {
-    client_isolate_head_->prev_client_isolate_ = client;
-  }
-
-  client->prev_client_isolate_ = nullptr;
-  client->next_client_isolate_ = client_isolate_head_;
-
-  client_isolate_head_ = client;
-}
-
-void Isolate::RemoveAsClientIsolate(Isolate* client) {
-  base::MutexGuard guard(&client_isolate_mutex_);
-
-  if (client->next_client_isolate_) {
-    client->next_client_isolate_->prev_client_isolate_ =
-        client->prev_client_isolate_;
-  }
-
-  if (client->prev_client_isolate_) {
-    client->prev_client_isolate_->next_client_isolate_ =
-        client->next_client_isolate_;
-  } else {
-    DCHECK_EQ(client_isolate_head_, client);
-    client_isolate_head_ = client->next_client_isolate_;
-  }
 }
 
 }  // namespace internal
