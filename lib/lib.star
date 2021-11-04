@@ -483,8 +483,20 @@ def ci_pair_factory(func):
             "experiments",
             "close_tree",
         ]
-        tester_kwargs = {k: v for k, v in kwargs.items() if k in tester_included_args}
+
+        tester_excluded_properties = [
+            "binary_size_tracking",
+        ]
+
+        tester_kwargs = {}
+        for k, v in kwargs.items():
+            if k in tester_included_args:
+                tester_kwargs[k] = dict(v) if type(v) == "dict" else v
+
         tester_kwargs["parent_builder"] = builder_name
+        if "properties" in tester_kwargs:
+            for prop in tester_excluded_properties:
+                tester_kwargs["properties"].pop(prop, None)
 
         if not type(tester_close) == "NoneType":
             tester_kwargs["close_tree"] = tester_close

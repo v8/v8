@@ -15,26 +15,18 @@ main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
 
 in_category(
     "Linux",
-    main_multibranch_builder(
-        name = "V8 Linux - builder",
+    main_multibranch_builder_pair(
+        name = "V8 Linux",
         triggering_policy = greedy_batching_of_1,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "d8"}},
         gclient_vars = [GCLIENT_VARS.GCMOLE],
         use_goma = GOMA.DEFAULT,
     ),
-    main_multibranch_builder(
-        name = "V8 Linux - debug builder",
+    main_multibranch_builder_pair(
+        name = "V8 Linux - debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
-    ),
-    main_multibranch_builder(
-        name = "V8 Linux",
-        parent_builder = "V8 Linux - builder",
-    ),
-    main_multibranch_builder(
-        name = "V8 Linux - debug",
-        parent_builder = "V8 Linux - debug builder",
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux - full debug",
