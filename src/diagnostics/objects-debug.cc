@@ -803,27 +803,27 @@ void String::StringVerify(Isolate* isolate) {
 
 void ConsString::ConsStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ConsStringVerify(*this, isolate);
-  CHECK_GE(this->length(), ConsString::kMinLength);
-  CHECK(this->length() == this->first().length() + this->second().length());
-  if (this->IsFlat()) {
+  CHECK_GE(length(), ConsString::kMinLength);
+  CHECK(length() == first().length() + second().length());
+  if (IsFlat(isolate)) {
     // A flat cons can only be created by String::SlowFlatten.
     // Afterwards, the first part may be externalized or internalized.
-    CHECK(this->first().IsSeqString() || this->first().IsExternalString() ||
-          this->first().IsThinString());
+    CHECK(first().IsSeqString() || first().IsExternalString() ||
+          first().IsThinString());
   }
 }
 
 void ThinString::ThinStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ThinStringVerify(*this, isolate);
-  CHECK(this->actual().IsInternalizedString());
-  CHECK(this->actual().IsSeqString() || this->actual().IsExternalString());
+  CHECK(actual().IsInternalizedString());
+  CHECK(actual().IsSeqString() || actual().IsExternalString());
 }
 
 void SlicedString::SlicedStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::SlicedStringVerify(*this, isolate);
-  CHECK(!this->parent().IsConsString());
-  CHECK(!this->parent().IsSlicedString());
-  CHECK_GE(this->length(), SlicedString::kMinLength);
+  CHECK(!parent().IsConsString());
+  CHECK(!parent().IsSlicedString());
+  CHECK_GE(length(), SlicedString::kMinLength);
 }
 
 USE_TORQUE_VERIFIER(ExternalString)

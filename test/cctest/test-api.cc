@@ -18152,7 +18152,7 @@ void AssertOneByteConsContainsTwoByteExternal(i::Handle<i::String> maybe_cons,
   CHECK(maybe_cons->IsOneByteRepresentation());
   CHECK(maybe_cons->IsConsString());
   i::ConsString cons = i::ConsString::cast(*maybe_cons);
-  CHECK(cons.IsFlat());
+  CHECK(cons.IsFlat(GetPtrComprCageBase(cons)));
   CHECK(cons.first() == *external);
   CHECK(cons.first().IsTwoByteRepresentation());
   CHECK(cons.first().IsExternalString());

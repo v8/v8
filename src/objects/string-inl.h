@@ -158,6 +158,8 @@ bool StringShape::IsIndirect() const {
   return (type_ & kIsIndirectStringMask) == kIsIndirectStringTag;
 }
 
+bool StringShape::IsDirect() const { return !IsIndirect(); }
+
 bool StringShape::IsExternal() const {
   return (type_ & kStringRepresentationMask) == kExternalStringTag;
 }
@@ -604,20 +606,31 @@ const Char* String::GetChars(
 
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
                                AllocationType allocation) {
-  if (string->IsConsString()) {
-    DCHECK(!string->InSharedHeap());
-    Handle<ConsString> cons = Handle<ConsString>::cast(string);
-    if (cons->IsFlat()) {
-      string = handle(cons->first(), isolate);
-    } else {
-      return SlowFlatten(isolate, cons, allocation);
+  DisallowGarbageCollection no_gc;  // Unhandlified code.
+  PtrComprCageBase cage_base(isolate);
+  String s = *string;
+  StringShape shape(s, cage_base);
+
+  // Shortcut already-flat strings.
+  if (V8_LIKELY(shape.IsDirect())) return string;
+
+  if (shape.IsCons()) {
+    DCHECK(!s.InSharedHeap());
+    ConsString cons = ConsString::cast(s);
+    if (!cons.IsFlat(isolate)) {
+      AllowGarbageCollection yes_gc;
+      return SlowFlatten(isolate, handle(cons, isolate), allocation);
     }
+    s = cons.first(cage_base);
+    shape = StringShape(s, cage_base);
   }
-  if (string->IsThinString()) {
-    string = handle(Handle<ThinString>::cast(string)->actual(), isolate);
-    DCHECK(!string->IsConsString());
+
+  if (shape.IsThin()) {
+    s = ThinString::cast(s).actual(cage_base);
+    DCHECK(!s.IsConsString());
   }
-  return string;
+
+  return handle(s, isolate);
 }
 
 Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
@@ -680,7 +693,7 @@ void String::Set(int index, uint16_t value) {
   DCHECK(index >= 0 && index < length());
   DCHECK(StringShape(*this).IsSequential());
 
-  return this->IsOneByteRepresentation()
+  return IsOneByteRepresentation()
              ? SeqOneByteString::cast(*this).SeqOneByteStringSet(index, value)
              : SeqTwoByteString::cast(*this).SeqTwoByteStringSet(index, value);
 }
@@ -689,13 +702,13 @@ bool String::IsFlat() const { return IsFlat(GetPtrComprCageBase(*this)); }
 
 bool String::IsFlat(PtrComprCageBase cage_base) const {
   if (!StringShape(*this, cage_base).IsCons()) return true;
-  return ConsString::cast(*this).second(cage_base).length() == 0;
+  return ConsString::cast(*this).IsFlat(cage_base);
 }
 
 String String::GetUnderlying() const {
   // Giving direct access to underlying string only makes sense if the
   // wrapping string is already flattened.
-  DCHECK(this->IsFlat());
+  DCHECK(IsFlat());
   DCHECK(StringShape(*this).IsIndirect());
   STATIC_ASSERT(static_cast<int>(ConsString::kFirstOffset) ==
                 static_cast<int>(SlicedString::kParentOffset));
@@ -876,12 +889,16 @@ void SlicedString::set_parent(String parent, WriteBarrierMode mode) {
   TorqueGeneratedSlicedString<SlicedString, Super>::set_parent(parent, mode);
 }
 
-Object ConsString::unchecked_first() {
+Object ConsString::unchecked_first() const {
   return TaggedField<Object, kFirstOffset>::load(*this);
 }
 
-Object ConsString::unchecked_second() {
+Object ConsString::unchecked_second() const {
   return RELAXED_READ_FIELD(*this, kSecondOffset);
+}
+
+bool ConsString::IsFlat(PtrComprCageBase cage_base) const {
+  return second(cage_base).length() == 0;
 }
 
 DEF_GETTER(ThinString, unchecked_actual, HeapObject) {

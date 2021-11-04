@@ -42,25 +42,26 @@ enum RobustnessFlag { ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL };
 // concrete performance benefit at that particular point in the code.
 class StringShape {
  public:
-  inline explicit StringShape(const String s);
-  inline explicit StringShape(const String s, PtrComprCageBase cage_base);
-  inline explicit StringShape(Map s);
-  inline explicit StringShape(InstanceType t);
-  inline bool IsSequential() const;
-  inline bool IsExternal() const;
-  inline bool IsCons() const;
-  inline bool IsSliced() const;
-  inline bool IsThin() const;
-  inline bool IsIndirect() const;
-  inline bool IsUncachedExternal() const;
-  inline bool IsExternalOneByte() const;
-  inline bool IsExternalTwoByte() const;
-  inline bool IsSequentialOneByte() const;
-  inline bool IsSequentialTwoByte() const;
-  inline bool IsInternalized() const;
-  inline StringRepresentationTag representation_tag() const;
-  inline uint32_t encoding_tag() const;
-  inline uint32_t full_representation_tag() const;
+  V8_INLINE explicit StringShape(const String s);
+  V8_INLINE explicit StringShape(const String s, PtrComprCageBase cage_base);
+  V8_INLINE explicit StringShape(Map s);
+  V8_INLINE explicit StringShape(InstanceType t);
+  V8_INLINE bool IsSequential() const;
+  V8_INLINE bool IsExternal() const;
+  V8_INLINE bool IsCons() const;
+  V8_INLINE bool IsSliced() const;
+  V8_INLINE bool IsThin() const;
+  V8_INLINE bool IsDirect() const;
+  V8_INLINE bool IsIndirect() const;
+  V8_INLINE bool IsUncachedExternal() const;
+  V8_INLINE bool IsExternalOneByte() const;
+  V8_INLINE bool IsExternalTwoByte() const;
+  V8_INLINE bool IsSequentialOneByte() const;
+  V8_INLINE bool IsSequentialTwoByte() const;
+  V8_INLINE bool IsInternalized() const;
+  V8_INLINE StringRepresentationTag representation_tag() const;
+  V8_INLINE uint32_t encoding_tag() const;
+  V8_INLINE uint32_t full_representation_tag() const;
 #ifdef DEBUG
   inline uint32_t type() const { return type_; }
   inline void invalidate() { valid_ = false; }
@@ -250,10 +251,10 @@ class String : public TorqueGeneratedString<String, Name> {
   // Degenerate cons strings are handled specially by the garbage
   // collector (see IsShortcutCandidate).
 
-  static inline Handle<String> Flatten(
+  static V8_INLINE Handle<String> Flatten(
       Isolate* isolate, Handle<String> string,
       AllocationType allocation = AllocationType::kYoung);
-  static inline Handle<String> Flatten(
+  static V8_INLINE Handle<String> Flatten(
       LocalIsolate* isolate, Handle<String> string,
       AllocationType allocation = AllocationType::kYoung);
 
@@ -770,11 +771,13 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
  public:
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
-  inline Object unchecked_first();
+  inline Object unchecked_first() const;
 
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
-  inline Object unchecked_second();
+  inline Object unchecked_second() const;
+
+  V8_INLINE bool IsFlat(PtrComprCageBase cage_base) const;
 
   // Dispatched behavior.
   V8_EXPORT_PRIVATE uint16_t

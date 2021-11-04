@@ -5,6 +5,7 @@
 #include "src/regexp/regexp-parser.h"
 
 #include "src/execution/isolate.h"
+#include "src/objects/string-inl.h"
 #include "src/regexp/property-sequences.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
