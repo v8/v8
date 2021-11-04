@@ -505,12 +505,12 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   ~BackgroundCompileTask();
 
   // Creates a new task that when run will parse and compile the top-level
-  // |function_literal| and can be finalized with FinalizeFunction
+  // |shared_info| and can be finalized with FinalizeFunction in
   // Compiler::FinalizeBackgroundCompileTask.
   BackgroundCompileTask(
-      Isolate* isolate, const ParseInfo* outer_parse_info,
-      Handle<SharedFunctionInfo> shared_info,
-      const FunctionLiteral* function_literal,
+      Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+      std::unique_ptr<Utf16CharacterStream> character_stream,
+      ProducedPreparseData* preparse_data,
       WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
       TimedHistogram* timer, int max_stack_size);
 

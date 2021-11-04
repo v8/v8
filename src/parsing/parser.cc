@@ -2701,7 +2701,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Handle<SharedFunctionInfo> shared_info =
         local_isolate_->factory()->NewSharedFunctionInfoForLiteral(
             function_literal, script_, false);
-    info()->dispatcher()->Enqueue(info(), shared_info, function_literal);
+    info()->dispatcher()->Enqueue(shared_info,
+                                  info()->character_stream()->Clone(),
+                                  function_literal->produced_preparse_data());
   }
 
   if (should_infer_name) {

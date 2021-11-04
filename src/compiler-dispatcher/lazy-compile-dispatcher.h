@@ -37,8 +37,10 @@ class UnoptimizedCompileJob;
 class FunctionLiteral;
 class Isolate;
 class ParseInfo;
+class ProducedPreparseData;
 class SharedFunctionInfo;
 class TimedHistogram;
+class Utf16CharacterStream;
 class WorkerThreadRuntimeCallStats;
 class Zone;
 
@@ -81,9 +83,9 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   LazyCompileDispatcher& operator=(const LazyCompileDispatcher&) = delete;
   ~LazyCompileDispatcher();
 
-  void Enqueue(const ParseInfo* outer_parse_info,
-               Handle<SharedFunctionInfo> shared_info,
-               const FunctionLiteral* function_literal);
+  void Enqueue(Handle<SharedFunctionInfo> shared_info,
+               std::unique_ptr<Utf16CharacterStream> character_stream,
+               ProducedPreparseData* preparse_data);
 
   // Returns true if there is a pending job registered for the given function.
   bool IsEnqueued(Handle<SharedFunctionInfo> function) const;

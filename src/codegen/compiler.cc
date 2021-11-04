@@ -1404,32 +1404,27 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
 }
 
 BackgroundCompileTask::BackgroundCompileTask(
-    Isolate* isolate, const ParseInfo* outer_parse_info,
-    Handle<SharedFunctionInfo> shared_info,
-    const FunctionLiteral* function_literal,
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    std::unique_ptr<Utf16CharacterStream> character_stream,
+    ProducedPreparseData* preparse_data,
     WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
     TimedHistogram* timer, int max_stack_size)
     : isolate_for_local_isolate_(isolate),
-      flags_(UnoptimizedCompileFlags::ForToplevelFunction(
-          outer_parse_info->flags(), function_literal)),
-      compile_state_(*outer_parse_info->state()),
+      flags_(
+          UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info)),
+      compile_state_(isolate),
       info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
       stack_size_(max_stack_size),
       worker_thread_runtime_call_stats_(worker_thread_runtime_stats),
       timer_(timer),
       input_shared_info_(shared_info),
-      start_position_(function_literal->start_position()),
-      end_position_(function_literal->end_position()),
-      function_literal_id_(function_literal->function_literal_id()),
+      start_position_(shared_info->StartPosition()),
+      end_position_(shared_info->EndPosition()),
+      function_literal_id_(shared_info->function_literal_id()),
       language_mode_(info_->language_mode()) {
-  DCHECK_EQ(outer_parse_info->parameters_end_pos(), kNoSourcePosition);
-  DCHECK_NULL(outer_parse_info->extension());
-
-  DCHECK(!function_literal->is_toplevel());
+  DCHECK(!shared_info->is_toplevel());
 
   // Clone the character stream so both can be accessed independently.
-  std::unique_ptr<Utf16CharacterStream> character_stream =
-      outer_parse_info->character_stream()->Clone();
   character_stream->Seek(start_position_);
   info_->set_character_stream(std::move(character_stream));
 
@@ -1439,9 +1434,8 @@ BackgroundCompileTask::BackgroundCompileTask(
   input_shared_info_ = persistent_handles_->NewHandle(shared_info);
 
   // Get preparsed scope data from the function literal.
-  if (function_literal->produced_preparse_data()) {
-    ZonePreparseData* serialized_data =
-        function_literal->produced_preparse_data()->Serialize(info_->zone());
+  if (preparse_data) {
+    ZonePreparseData* serialized_data = preparse_data->Serialize(info_->zone());
     info_->set_consumed_preparse_data(
         ConsumedPreparseData::For(info_->zone(), serialized_data));
   }

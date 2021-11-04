@@ -2174,6 +2174,7 @@ DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
 DEFINE_IMPLICATION(predictable, single_threaded_gc)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(predictable, lazy_compile_dispatcher)
+DEFINE_NEG_IMPLICATION(predictable, parallel_compile_tasks)
 DEFINE_NEG_IMPLICATION(predictable, stress_concurrent_inlining)
 
 DEFINE_BOOL(predictable_gc_schedule, false,
@@ -2192,6 +2193,7 @@ DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
 DEFINE_IMPLICATION(single_threaded, single_threaded_gc)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(single_threaded, lazy_compile_dispatcher)
+DEFINE_NEG_IMPLICATION(single_threaded, parallel_compile_tasks)
 DEFINE_NEG_IMPLICATION(single_threaded, stress_concurrent_inlining)
 
 //

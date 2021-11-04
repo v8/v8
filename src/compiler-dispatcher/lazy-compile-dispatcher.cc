@@ -77,16 +77,17 @@ LazyCompileDispatcher::~LazyCompileDispatcher() {
   CHECK(!job_handle_->IsValid());
 }
 
-void LazyCompileDispatcher::Enqueue(const ParseInfo* outer_parse_info,
-                                    Handle<SharedFunctionInfo> shared_info,
-                                    const FunctionLiteral* function_literal) {
+void LazyCompileDispatcher::Enqueue(
+    Handle<SharedFunctionInfo> shared_info,
+    std::unique_ptr<Utf16CharacterStream> character_stream,
+    ProducedPreparseData* preparse_data) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompilerDispatcherEnqueue");
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
 
   std::unique_ptr<Job> job =
       std::make_unique<Job>(std::make_unique<BackgroundCompileTask>(
-          isolate_, outer_parse_info, shared_info, function_literal,
+          isolate_, shared_info, std::move(character_stream), preparse_data,
           worker_thread_runtime_call_stats_, background_compile_timer_,
           static_cast<int>(max_stack_size_)));
 
@@ -95,10 +96,7 @@ void LazyCompileDispatcher::Enqueue(const ParseInfo* outer_parse_info,
   {
     base::MutexGuard lock(&mutex_);
     if (trace_compiler_dispatcher_) {
-      PrintF(
-          "LazyCompileDispatcher: enqueued job for function literal id %d "
-          "and ",
-          function_literal->function_literal_id());
+      PrintF("LazyCompileDispatcher: enqueued job for  ");
       shared_info->ShortPrint();
       PrintF("\n");
     }

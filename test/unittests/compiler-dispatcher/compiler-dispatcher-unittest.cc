@@ -77,32 +77,8 @@ class LazyCompileDispatcherTest : public TestWithNativeContext {
     UnoptimizedCompileState state(isolate);
     std::unique_ptr<ParseInfo> outer_parse_info =
         test::OuterParseInfoForShared(isolate, shared, &state);
-    AstValueFactory* ast_value_factory =
-        outer_parse_info->GetOrCreateAstValueFactory();
-    AstNodeFactory ast_node_factory(ast_value_factory,
-                                    outer_parse_info->zone());
-
-    const AstRawString* function_name =
-        ast_value_factory->GetOneByteString("f");
-    DeclarationScope* script_scope =
-        outer_parse_info->zone()->New<DeclarationScope>(
-            outer_parse_info->zone(), ast_value_factory);
-    DeclarationScope* function_scope =
-        outer_parse_info->zone()->New<DeclarationScope>(
-            outer_parse_info->zone(), script_scope, FUNCTION_SCOPE);
-    function_scope->set_start_position(shared->StartPosition());
-    function_scope->set_end_position(shared->EndPosition());
-    std::vector<void*> pointer_buffer;
-    ScopedPtrList<Statement> statements(&pointer_buffer);
-    const FunctionLiteral* function_literal =
-        ast_node_factory.NewFunctionLiteral(
-            function_name, function_scope, statements, -1, -1, -1,
-            FunctionLiteral::kNoDuplicateParameters,
-            FunctionSyntaxKind::kAnonymousExpression,
-            FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
-            shared->function_literal_id(), nullptr);
-
-    dispatcher->Enqueue(outer_parse_info.get(), shared, function_literal);
+    dispatcher->Enqueue(shared, outer_parse_info->character_stream()->Clone(),
+                        nullptr);
   }
 };
 
