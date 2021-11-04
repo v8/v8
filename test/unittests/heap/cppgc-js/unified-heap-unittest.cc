@@ -24,8 +24,8 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/sweeper.h"
 #include "src/objects/objects-inl.h"
+#include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
-#include "test/unittests/heap/unified-heap-utils.h"
 
 namespace v8 {
 namespace internal {

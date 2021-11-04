@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/unittests/heap/unified-heap-utils.h"
+#include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 
 #include "include/cppgc/platform.h"
 #include "include/v8-cppgc.h"

@@ -108,7 +108,8 @@
       'filepath': 'src/heap/cppgc/' \
                   '|src/heap/cppgc-js/' \
                   '|include/cppgc/' \
-                  '|test/unittests/heap/',
+                  '|test/unittests/heap/cppgc/' \
+                  '|test/unittests/heap/cppgc-js/',
     },
   },
 

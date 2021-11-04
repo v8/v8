@@ -20,8 +20,8 @@
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/heap-snapshot-generator.h"
+#include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
-#include "test/unittests/heap/unified-heap-utils.h"
 
 namespace v8 {
 namespace internal {

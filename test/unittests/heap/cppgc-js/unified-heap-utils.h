@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNITTESTS_HEAP_UNIFIED_HEAP_UTILS_H_
-#define V8_UNITTESTS_HEAP_UNIFIED_HEAP_UTILS_H_
+#ifndef V8_UNITTESTS_HEAP_CPPGC_JS_UNIFIED_HEAP_UTILS_H_
+#define V8_UNITTESTS_HEAP_CPPGC_JS_UNIFIED_HEAP_UTILS_H_
 
 #include "include/cppgc/heap.h"
 #include "include/v8-cppgc.h"
@@ -72,4 +72,4 @@ class WrapperHelper {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_UNITTESTS_HEAP_UNIFIED_HEAP_UTILS_H_
+#endif  // V8_UNITTESTS_HEAP_CPPGC_JS_UNIFIED_HEAP_UTILS_H_
