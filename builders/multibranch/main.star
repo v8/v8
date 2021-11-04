@@ -36,13 +36,13 @@ in_category(
         name = "V8 Linux - debug",
         parent_builder = "V8 Linux - debug builder",
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux - full debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
         close_tree = False,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux - shared",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "linux32", "binary": "libv8.so"}},
@@ -55,16 +55,17 @@ in_category(
         use_goma = GOMA.DEFAULT,
         first_branch_version = "9.2",
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux - noi18n - debug",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux - verify csa",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
     ),
+    # this is only a builder
     main_multibranch_builder(
         name = "V8 Linux - vtunejit",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
