@@ -110,7 +110,7 @@ void ConcurrentAllocator::UnmarkLinearAllocationArea() {
 AllocationResult ConcurrentAllocator::AllocateInLabSlow(
     int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
   if (!EnsureLab(origin)) {
-    return AllocationResult::Retry(OLD_SPACE);
+    return AllocationResult::Retry(space_->identity());
   }
 
   AllocationResult allocation = lab_.AllocateRawAligned(object_size, alignment);
@@ -145,7 +145,7 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
     int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
   auto result = space_->RawRefillLabBackground(local_heap_, object_size,
                                                object_size, alignment, origin);
-  if (!result) return AllocationResult::Retry(OLD_SPACE);
+  if (!result) return AllocationResult::Retry(space_->identity());
 
   HeapObject object = HeapObject::FromAddress(result->first);
 
