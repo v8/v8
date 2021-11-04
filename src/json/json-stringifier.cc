@@ -102,7 +102,6 @@ class JsonStringifier {
   V8_INLINE static bool DoNotEscape(Char c);
 
   V8_INLINE void NewLine();
-  V8_NOINLINE void NewLineOutline();
   V8_INLINE void Indent() { indent_++; }
   V8_INLINE void Unindent() { indent_--; }
   V8_INLINE void Separator(bool first);
@@ -384,10 +383,8 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
 
   {
     DisallowGarbageCollection no_gc;
-    Object raw_obj = *object;
-    size_t size = stack_.size();
-    for (size_t i = 0; i < size; ++i) {
-      if (*stack_[i].second == raw_obj) {
+    for (size_t i = 0; i < stack_.size(); ++i) {
+      if (*stack_[i].second == *object) {
         AllowGarbageCollection allow_to_return_error;
         Handle<String> circle_description =
             ConstructCircularStructureErrorMessage(key, i);
@@ -525,14 +522,9 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
       isolate_->stack_guard()->HandleInterrupts().IsException(isolate_)) {
     return EXCEPTION;
   }
-  if (!object->IsSmi()) {
-    InstanceType instance_type =
-        HeapObject::cast(*object).map().instance_type();
-    if (InstanceTypeChecker::IsJSReceiver(instance_type) ||
-        InstanceTypeChecker::IsBigInt(instance_type)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate_, object, ApplyToJsonFunction(object, key), EXCEPTION);
-    }
+  if (object->IsJSReceiver() || object->IsBigInt()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, object, ApplyToJsonFunction(object, key), EXCEPTION);
   }
   if (!replacer_function_.is_null()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -545,8 +537,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     return SerializeSmi(Smi::cast(*object));
   }
 
-  InstanceType instance_type = HeapObject::cast(*object).map().instance_type();
-  switch (instance_type) {
+  switch (HeapObject::cast(*object).map().instance_type()) {
     case HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeHeapNumber(Handle<HeapNumber>::cast(object));
@@ -581,16 +572,16 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     case SYMBOL_TYPE:
       return UNCHANGED;
     default:
-      if (InstanceTypeChecker::IsString(instance_type)) {
+      if (object->IsString()) {
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         SerializeString(Handle<String>::cast(object));
         return SUCCESS;
       } else {
         DCHECK(object->IsJSReceiver());
-        if (HeapObject::cast(*object).IsCallable()) return UNCHANGED;
+        if (object->IsCallable()) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
         if (deferred_string_key) SerializeDeferredKey(comma, key);
-        if (InstanceTypeChecker::IsJSProxy(instance_type)) {
+        if (object->IsJSProxy()) {
           return SerializeJSProxy(Handle<JSProxy>::cast(object), key);
         }
         return SerializeJSObject(Handle<JSObject>::cast(object), key);
@@ -658,55 +649,45 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
   builder_.AppendCharacter('[');
   Indent();
   uint32_t i = 0;
-  if (replacer_function_.is_null() && length > 0) {
-    StackLimitCheck interrupt_check(isolate_);
-    const uint32_t kInterruptLength = 4000;
-    uint32_t limit = std::min(length, kInterruptLength);
-    const uint32_t kMaxAllowedFastPackedLength =
-        std::numeric_limits<uint32_t>::max() - kInterruptLength;
-    STATIC_ASSERT(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
+  if (replacer_function_.is_null()) {
     switch (object->GetElementsKind()) {
       case PACKED_SMI_ELEMENTS: {
         Handle<FixedArray> elements(FixedArray::cast(object->elements()),
                                     isolate_);
-        while (true) {
-          for (; i < limit; i++) {
-            Separator(i == 0);
-            SerializeSmi(Smi::cast(elements->get(i)));
-          }
-          if (i >= length) break;
-          DCHECK_LT(limit, kMaxAllowedFastPackedLength);
-          limit = std::min(length, limit + kInterruptLength);
+        StackLimitCheck interrupt_check(isolate_);
+        while (i < length) {
           if (interrupt_check.InterruptRequested() &&
               isolate_->stack_guard()->HandleInterrupts().IsException(
                   isolate_)) {
             return EXCEPTION;
           }
+          Separator(i == 0);
+          SerializeSmi(Smi::cast(elements->get(i)));
+          i++;
         }
         break;
       }
       case PACKED_DOUBLE_ELEMENTS: {
+        // Empty array is FixedArray but not FixedDoubleArray.
+        if (length == 0) break;
         Handle<FixedDoubleArray> elements(
             FixedDoubleArray::cast(object->elements()), isolate_);
-        while (true) {
-          for (; i < limit; i++) {
-            Separator(i == 0);
-            SerializeDouble(elements->get_scalar(i));
-          }
-          if (i >= length) break;
-          DCHECK_LT(limit, kMaxAllowedFastPackedLength);
-          limit = std::min(length, limit + kInterruptLength);
+        StackLimitCheck interrupt_check(isolate_);
+        while (i < length) {
           if (interrupt_check.InterruptRequested() &&
               isolate_->stack_guard()->HandleInterrupts().IsException(
                   isolate_)) {
             return EXCEPTION;
           }
+          Separator(i == 0);
+          SerializeDouble(elements->get_scalar(i));
+          i++;
         }
         break;
       }
       case PACKED_ELEMENTS: {
         Handle<Object> old_length(object->length(), isolate_);
-        for (i = 0; i < length; i++) {
+        while (i < length) {
           if (object->length() != *old_length ||
               object->GetElementsKind() != PACKED_ELEMENTS) {
             // Fall back to slow path.
@@ -715,15 +696,20 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
           Separator(i == 0);
           Result result = SerializeElement(
               isolate_,
-              handle(FixedArray::cast(object->elements()).get(i), isolate_), i);
+              Handle<Object>(FixedArray::cast(object->elements()).get(i),
+                             isolate_),
+              i);
           if (result == UNCHANGED) {
             builder_.AppendCString("null");
           } else if (result != SUCCESS) {
             return result;
           }
+          i++;
         }
         break;
       }
+      // The FAST_HOLEY_* cases could be handled in a faster way. They resemble
+      // the non-holey cases except that a lookup is necessary for holes.
       default:
         break;
     }
@@ -767,43 +753,39 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
   return SUCCESS;
 }
 
-namespace {
-V8_INLINE bool CanFastSerializeJSObject(JSObject raw_object, Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  if (raw_object.map().IsCustomElementsReceiverMap()) return false;
-  if (!raw_object.HasFastProperties()) return false;
-  auto roots = ReadOnlyRoots(isolate);
-  return raw_object.elements() == roots.empty_fixed_array() ||
-         raw_object.elements() == roots.empty_slow_element_dictionary();
-}
-}  // namespace
-
 JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Handle<JSObject> object, Handle<Object> key) {
   HandleScope handle_scope(isolate_);
   Result stack_push = StackPush(object, key);
   if (stack_push != SUCCESS) return stack_push;
-  if (property_list_.is_null() && CanFastSerializeJSObject(*object, isolate_)) {
+
+  if (property_list_.is_null() &&
+      !object->map().IsCustomElementsReceiverMap() &&
+      object->HasFastProperties() &&
+      (object->elements() == ReadOnlyRoots(isolate_).empty_fixed_array() ||
+       object->elements() ==
+           ReadOnlyRoots(isolate_).empty_slow_element_dictionary())) {
     DCHECK(!object->IsJSGlobalProxy());
     DCHECK(!object->HasIndexedInterceptor());
     DCHECK(!object->HasNamedInterceptor());
-    Map map = object->map();
+    Handle<Map> map(object->map(), isolate_);
     builder_.AppendCharacter('{');
     Indent();
     bool comma = false;
-    for (InternalIndex i : map.IterateOwnDescriptors()) {
-      Handle<Name> name(map.instance_descriptors(isolate_).GetKey(i), isolate_);
+    for (InternalIndex i : map->IterateOwnDescriptors()) {
+      Handle<Name> name(map->instance_descriptors(isolate_).GetKey(i),
+                        isolate_);
       // TODO(rossberg): Should this throw?
       if (!name->IsString()) continue;
       Handle<String> key_name = Handle<String>::cast(name);
       PropertyDetails details =
-          map.instance_descriptors(isolate_).GetDetails(i);
+          map->instance_descriptors(isolate_).GetDetails(i);
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
       if (details.location() == PropertyLocation::kField &&
-          map == object->map()) {
+          *map == object->map()) {
         DCHECK_EQ(kData, details.kind());
-        FieldIndex field_index = FieldIndex::ForDescriptor(map, i);
+        FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
         property = JSObject::FastPropertyAt(object, details.representation(),
                                             field_index);
       } else {
@@ -1029,10 +1011,6 @@ bool JsonStringifier::DoNotEscape(uint16_t c) {
 
 void JsonStringifier::NewLine() {
   if (gap_ == nullptr) return;
-  NewLineOutline();
-}
-
-void JsonStringifier::NewLineOutline() {
   builder_.AppendCharacter('\n');
   for (int i = 0; i < indent_; i++) builder_.AppendCString(gap_);
 }

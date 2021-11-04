@@ -413,8 +413,7 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
   }
 
   DCHECK(object->IsHeapObject());
-  InstanceType instance_type = HeapObject::cast(*object).map().instance_type();
-  switch (instance_type) {
+  switch (HeapObject::cast(*object).map().instance_type()) {
     case ODDBALL_TYPE:
       WriteOddball(Oddball::cast(*object));
       return ThrowIfOutOfMemory();
@@ -434,7 +433,7 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
       Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(object);
       if (!id_map_.Find(view) && !treat_array_buffer_views_as_host_objects_) {
         Handle<JSArrayBuffer> buffer(
-            InstanceTypeChecker::IsJSTypedArray(instance_type)
+            view->IsJSTypedArray()
                 ? Handle<JSTypedArray>::cast(view)->GetBuffer()
                 : handle(JSArrayBuffer::cast(view->buffer()), isolate_));
         if (!WriteJSReceiver(buffer).FromMaybe(false)) return Nothing<bool>();
@@ -442,10 +441,10 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
       return WriteJSReceiver(view);
     }
     default:
-      if (InstanceTypeChecker::IsString(instance_type)) {
+      if (object->IsString()) {
         WriteString(Handle<String>::cast(object));
         return ThrowIfOutOfMemory();
-      } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
+      } else if (object->IsJSReceiver()) {
         return WriteJSReceiver(Handle<JSReceiver>::cast(object));
       } else {
         ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
@@ -688,20 +687,20 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     // structure of the elements changing.
     switch (array->GetElementsKind()) {
       case PACKED_SMI_ELEMENTS: {
-        DisallowGarbageCollection no_gc;
-        FixedArray elements = FixedArray::cast(array->elements());
-        for (i = 0; i < length; i++) WriteSmi(Smi::cast(elements.get(i)));
+        Handle<FixedArray> elements(FixedArray::cast(array->elements()),
+                                    isolate_);
+        for (; i < length; i++) WriteSmi(Smi::cast(elements->get(i)));
         break;
       }
       case PACKED_DOUBLE_ELEMENTS: {
         // Elements are empty_fixed_array, not a FixedDoubleArray, if the array
         // is empty. No elements to encode in this case anyhow.
         if (length == 0) break;
-        DisallowGarbageCollection no_gc;
-        FixedDoubleArray elements = FixedDoubleArray::cast(array->elements());
-        for (i = 0; i < length; i++) {
+        Handle<FixedDoubleArray> elements(
+            FixedDoubleArray::cast(array->elements()), isolate_);
+        for (; i < length; i++) {
           WriteTag(SerializationTag::kDouble);
-          WriteDouble(elements.get_scalar(i));
+          WriteDouble(elements->get_scalar(i));
         }
         break;
       }

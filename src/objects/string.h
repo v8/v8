@@ -988,12 +988,12 @@ class V8_EXPORT_PRIVATE FlatStringReader : public Relocatable {
   inline base::uc32 Get(int index) const;
   template <typename Char>
   inline Char Get(int index) const;
-  int length() const { return length_; }
+  int length() { return length_; }
 
  private:
   Handle<String> str_;
   bool is_one_byte_;
-  int const length_;
+  int length_;
   const void* start_;
 };
 
