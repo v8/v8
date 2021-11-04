@@ -227,20 +227,32 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 }
 
 void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
-  DCHECK_EQ(script(), other.script());
-  DCHECK_EQ(function_literal_id(), other.function_literal_id());
-  DCHECK_EQ(Script::cast(script())
-                .shared_function_infos()
-                .Get(function_literal_id())
-                .GetHeapObject(),
-            *this);
-
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  set_raw_scope_info(other.scope_info(cage_base, kAcquireLoad));
   set_function_data(other.function_data(cage_base, kAcquireLoad),
                     kReleaseStore);
-  set_feedback_metadata(other.feedback_metadata(cage_base, kAcquireLoad),
-                        kReleaseStore);
+  set_name_or_scope_info(other.name_or_scope_info(cage_base, kAcquireLoad),
+                         kReleaseStore);
+  set_outer_scope_info_or_feedback_metadata(
+      other.outer_scope_info_or_feedback_metadata(cage_base));
+  set_script_or_debug_info(other.script_or_debug_info(cage_base, kAcquireLoad),
+                           kReleaseStore);
+
+  set_length(other.length());
+  set_formal_parameter_count(other.formal_parameter_count());
+  set_function_token_offset(other.function_token_offset());
+  set_expected_nof_properties(other.expected_nof_properties());
+  set_flags2(other.flags2());
+  set_flags(other.flags(kRelaxedLoad), kRelaxedStore);
+  set_function_literal_id(other.function_literal_id());
+#if V8_SFI_HAS_UNIQUE_ID
+  set_unique_id(other.unique_id());
+#endif
+
+  // This should now be byte-for-byte identical to the input.
+  DCHECK_EQ(memcmp(reinterpret_cast<void*>(address()),
+                   reinterpret_cast<void*>(other.address()),
+                   SharedFunctionInfo::kSize),
+            0);
 }
 
 bool SharedFunctionInfo::HasBreakInfo() const {
@@ -517,8 +529,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
   // For lazy parsed functions, the following flags will be inaccurate since we
   // don't have the information yet. They're set later in
-  // SetSharedFunctionFlagsFromLiteral (compiler.cc), when the function is
-  // really parsed and compiled.
+  // UpdateSharedFunctionFlagsAfterCompilation (compiler.cc), when the function
+  // is really parsed and compiled.
   if (lit->ShouldEagerCompile()) {
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
     shared_info->UpdateAndFinalizeExpectedNofPropertiesFromEstimate(lit);

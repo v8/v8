@@ -162,8 +162,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script, bool is_toplevel);
 
-  Handle<SharedFunctionInfo> NewPlaceholderSharedFunctionInfoForLazyLiteral(
-      FunctionLiteral* literal, Handle<Script> script);
+  // Create a copy of a given SharedFunctionInfo for use as a placeholder in
+  // off-thread compilation
+  Handle<SharedFunctionInfo> CloneSharedFunctionInfo(
+      Handle<SharedFunctionInfo> other);
 
   Handle<PreparseData> NewPreparseData(int data_length, int children_length);
 

@@ -1565,10 +1565,9 @@ void BackgroundCompileTask::Run() {
         shared_info =
             CreateTopLevelSharedFunctionInfo(info_.get(), script_, &isolate);
       } else {
-        // Create a second, placeholder SFI for storing the results.
-        shared_info =
-            isolate.factory()->NewPlaceholderSharedFunctionInfoForLazyLiteral(
-                info_->literal(), script_);
+        // Clone into a placeholder SFI for storing the results.
+        shared_info = isolate.factory()->CloneSharedFunctionInfo(
+            input_shared_info_.ToHandleChecked());
       }
 
       if (IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
@@ -1677,33 +1676,8 @@ bool BackgroundCompileTask::FinalizeFunction(
   FinalizeUnoptimizedCompilation(isolate, script_, flags_, &compile_state_,
                                  finalize_unoptimized_compilation_data_);
 
-  // Move the compiled data from the placeholder SFI to the real SFI.
+  // Move the compiled data from the placeholder SFI back to the real SFI.
   input_shared_info->CopyFrom(*result);
-
-#ifdef DEBUG
-  {
-    // Validate that tagged fields are equal.
-    STATIC_ASSERT(HeapObject::kHeaderSize ==
-                  SharedFunctionInfo::kStartOfWeakFieldsOffset);
-    STATIC_ASSERT(SharedFunctionInfo::kEndOfWeakFieldsOffset ==
-                  SharedFunctionInfo::kStartOfStrongFieldsOffset);
-    for (int offset = SharedFunctionInfo::kStartOfWeakFieldsOffset;
-         offset < SharedFunctionInfo::kEndOfStrongFieldsOffset;
-         offset += kTaggedSize) {
-      DCHECK_EQ(TaggedField<Object>::load(isolate, *input_shared_info, offset),
-                TaggedField<Object>::load(isolate, *result, offset));
-    }
-
-    // Validate that untagged fields are equal.
-    for (int offset = SharedFunctionInfo::kEndOfStrongFieldsOffset;
-         offset < SharedFunctionInfo::kSize; offset += kInt32Size) {
-      DCHECK_EQ(base::ReadUnalignedValue<int32_t>(input_shared_info->ptr() +
-                                                  offset - kHeapObjectTag),
-                base::ReadUnalignedValue<int32_t>(input_shared_info->ptr() +
-                                                  offset - kHeapObjectTag));
-    }
-  }
-#endif
 
   return true;
 }

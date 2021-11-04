@@ -306,21 +306,18 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
 }
 
 template <typename Impl>
-Handle<SharedFunctionInfo>
-FactoryBase<Impl>::NewPlaceholderSharedFunctionInfoForLazyLiteral(
-    FunctionLiteral* literal, Handle<Script> script) {
-  FunctionKind kind = literal->kind();
-  Handle<SharedFunctionInfo> shared =
-      NewSharedFunctionInfo(literal->GetName(isolate()), MaybeHandle<Code>(),
-                            Builtin::kCompileLazy, kind);
-  // Don't fully initialise the SFI from the function literal, since we e.g.
-  // might not have the scope info, but initialise just enough to work for
-  // compilation/finalization.
-  shared->set_function_literal_id(literal->function_literal_id());
-  // Set the script on the SFI, but don't make the script's SFI list point back
-  // to this SFI.
-  shared->set_script(*script);
-  return shared;
+Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
+    Handle<SharedFunctionInfo> other) {
+  Map map = read_only_roots().shared_function_info_map();
+
+  SharedFunctionInfo shared =
+      SharedFunctionInfo::cast(NewWithImmortalMap(map, AllocationType::kOld));
+  DisallowGarbageCollection no_gc;
+
+  shared.CopyFrom(*other);
+  shared.clear_padding();
+
+  return handle(shared, isolate());
 }
 
 template <typename Impl>

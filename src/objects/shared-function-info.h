@@ -194,9 +194,9 @@ class SharedFunctionInfo
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data = true);
 
-  // Copy the data from another SharedFunctionInfo. Used for copying from a
-  // placeholder SharedFunctionInfo after an off-thread compilation into the
-  // actual SharedFunctionInfo.
+  // Copy the data from another SharedFunctionInfo. Used for copying data into
+  // and out of a placeholder SharedFunctionInfo, for off-thread compilation
+  // which is not allowed to touch a main-thread-visible SharedFunctionInfo.
   void CopyFrom(SharedFunctionInfo other);
 
   // Layout description of the optimized code map.
@@ -559,7 +559,8 @@ class SharedFunctionInfo
   // TODO(caitp): make this a flag set during parsing
   inline bool has_simple_parameters();
 
-  // Initialize a SharedFunctionInfo from a parsed function literal.
+  // Initialize a SharedFunctionInfo from a parsed or preparsed function
+  // literal.
   template <typename IsolateT>
   static void InitFromFunctionLiteral(IsolateT* isolate,
                                       Handle<SharedFunctionInfo> shared_info,
