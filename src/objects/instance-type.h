@@ -46,6 +46,16 @@ const uint32_t kStringEncodingMask = 1 << 3;
 const uint32_t kTwoByteStringTag = 0;
 const uint32_t kOneByteStringTag = 1 << 3;
 
+// Combined tags for convenience (add more if needed).
+constexpr uint32_t kStringRepresentationAndEncodingMask =
+    kStringRepresentationMask | kStringEncodingMask;
+constexpr uint32_t kSeqOneByteStringTag = kSeqStringTag | kOneByteStringTag;
+constexpr uint32_t kSeqTwoByteStringTag = kSeqStringTag | kTwoByteStringTag;
+constexpr uint32_t kExternalOneByteStringTag =
+    kExternalStringTag | kOneByteStringTag;
+constexpr uint32_t kExternalTwoByteStringTag =
+    kExternalStringTag | kTwoByteStringTag;
+
 // For strings, bit 4 indicates whether the data pointer of an external string
 // is cached. Note that the string representation is expected to be
 // kExternalStringTag.

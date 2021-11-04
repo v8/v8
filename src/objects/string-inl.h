@@ -182,37 +182,37 @@ uint32_t StringShape::encoding_tag() const {
 }
 
 uint32_t StringShape::full_representation_tag() const {
-  return (type_ & (kStringRepresentationMask | kStringEncodingMask));
+  return (type_ & (kStringRepresentationAndEncodingMask));
 }
 
-STATIC_ASSERT((kStringRepresentationMask | kStringEncodingMask) ==
+STATIC_ASSERT((kStringRepresentationAndEncodingMask) ==
               Internals::kFullStringRepresentationMask);
 
 STATIC_ASSERT(static_cast<uint32_t>(kStringEncodingMask) ==
               Internals::kStringEncodingMask);
 
 bool StringShape::IsSequentialOneByte() const {
-  return full_representation_tag() == (kSeqStringTag | kOneByteStringTag);
+  return full_representation_tag() == kSeqOneByteStringTag;
 }
 
 bool StringShape::IsSequentialTwoByte() const {
-  return full_representation_tag() == (kSeqStringTag | kTwoByteStringTag);
+  return full_representation_tag() == kSeqTwoByteStringTag;
 }
 
 bool StringShape::IsExternalOneByte() const {
-  return full_representation_tag() == (kExternalStringTag | kOneByteStringTag);
+  return full_representation_tag() == kExternalOneByteStringTag;
 }
 
-STATIC_ASSERT((kExternalStringTag | kOneByteStringTag) ==
+STATIC_ASSERT(kExternalOneByteStringTag ==
               Internals::kExternalOneByteRepresentationTag);
 
 STATIC_ASSERT(v8::String::ONE_BYTE_ENCODING == kOneByteStringTag);
 
 bool StringShape::IsExternalTwoByte() const {
-  return full_representation_tag() == (kExternalStringTag | kTwoByteStringTag);
+  return full_representation_tag() == kExternalTwoByteStringTag;
 }
 
-STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
+STATIC_ASSERT(kExternalTwoByteStringTag ==
               Internals::kExternalTwoByteRepresentationTag);
 
 STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
@@ -501,23 +501,23 @@ bool String::IsEqualToImpl(
   const Char* data = str.data();
   while (true) {
     int32_t type = string.map(cage_base).instance_type();
-    switch (type & (kStringRepresentationMask | kStringEncodingMask)) {
-      case kSeqStringTag | kOneByteStringTag:
+    switch (type & kStringRepresentationAndEncodingMask) {
+      case kSeqOneByteStringTag:
         return CompareCharsEqual(
             SeqOneByteString::cast(string).GetChars(no_gc, access_guard) +
                 slice_offset,
             data, len);
-      case kSeqStringTag | kTwoByteStringTag:
+      case kSeqTwoByteStringTag:
         return CompareCharsEqual(
             SeqTwoByteString::cast(string).GetChars(no_gc, access_guard) +
                 slice_offset,
             data, len);
-      case kExternalStringTag | kOneByteStringTag:
+      case kExternalOneByteStringTag:
         return CompareCharsEqual(
             ExternalOneByteString::cast(string).GetChars(cage_base) +
                 slice_offset,
             data, len);
-      case kExternalStringTag | kTwoByteStringTag:
+      case kExternalTwoByteStringTag:
         return CompareCharsEqual(
             ExternalTwoByteString::cast(string).GetChars(cage_base) +
                 slice_offset,
@@ -640,6 +640,45 @@ Handle<String> String::Flatten(LocalIsolate* isolate, Handle<String> string,
   return string;
 }
 
+// static
+base::Optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
+    PtrComprCageBase cage_base, const DisallowGarbageCollection& no_gc,
+    String string, int offset, int length) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GE(length, 0);
+  DCHECK_LE(offset + length, string.length());
+  switch (StringShape{string, cage_base}.full_representation_tag()) {
+    case kSeqOneByteStringTag:
+      return FlatContent(
+          SeqOneByteString::cast(string).GetChars(no_gc) + offset, length,
+          no_gc);
+    case kSeqTwoByteStringTag:
+      return FlatContent(
+          SeqTwoByteString::cast(string).GetChars(no_gc) + offset, length,
+          no_gc);
+    case kExternalOneByteStringTag:
+      return FlatContent(
+          ExternalOneByteString::cast(string).GetChars(cage_base) + offset,
+          length, no_gc);
+    case kExternalTwoByteStringTag:
+      return FlatContent(
+          ExternalTwoByteString::cast(string).GetChars(cage_base) + offset,
+          length, no_gc);
+    default:
+      return {};
+  }
+  UNREACHABLE();
+}
+
+String::FlatContent String::GetFlatContent(
+    const DisallowGarbageCollection& no_gc) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  base::Optional<FlatContent> flat_content =
+      TryGetFlatContentFromDirectString(cage_base, no_gc, *this, 0, length());
+  if (flat_content.has_value()) return flat_content.value();
+  return SlowGetFlatContent(no_gc);
+}
+
 uint16_t String::Get(int index) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return GetImpl(index, GetPtrComprCageBase(*this),
@@ -738,28 +777,28 @@ ConsString String::VisitFlat(
   while (true) {
     int32_t tag = StringShape(string, cage_base).full_representation_tag();
     switch (tag) {
-      case kSeqStringTag | kOneByteStringTag:
+      case kSeqOneByteStringTag:
         visitor->VisitOneByteString(
             SeqOneByteString::cast(string).GetChars(no_gc, access_guard) +
                 slice_offset,
             length - offset);
         return ConsString();
 
-      case kSeqStringTag | kTwoByteStringTag:
+      case kSeqTwoByteStringTag:
         visitor->VisitTwoByteString(
             SeqTwoByteString::cast(string).GetChars(no_gc, access_guard) +
                 slice_offset,
             length - offset);
         return ConsString();
 
-      case kExternalStringTag | kOneByteStringTag:
+      case kExternalOneByteStringTag:
         visitor->VisitOneByteString(
             ExternalOneByteString::cast(string).GetChars(cage_base) +
                 slice_offset,
             length - offset);
         return ConsString();
 
-      case kExternalStringTag | kTwoByteStringTag:
+      case kExternalTwoByteStringTag:
         visitor->VisitTwoByteString(
             ExternalTwoByteString::cast(string).GetChars(cage_base) +
                 slice_offset,

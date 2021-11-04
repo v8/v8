@@ -568,7 +568,7 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
   return isolate->factory()->NewNumber(StringToDouble(isolate, subject, flags));
 }
 
-String::FlatContent String::GetFlatContent(
+String::FlatContent String::SlowGetFlatContent(
     const DisallowGarbageCollection& no_gc) {
 #if DEBUG
   // Check that this method is called only from the main thread.
@@ -579,52 +579,39 @@ String::FlatContent String::GetFlatContent(
                    ThreadId::Current() == isolate->thread_id());
   }
 #endif
-  USE(no_gc);
+
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  int length = this->length();
-  StringShape shape(*this, cage_base);
   String string = *this;
+  StringShape shape(string, cage_base);
   int offset = 0;
-  if (shape.representation_tag() == kConsStringTag) {
+
+  // Extract cons- and sliced strings.
+  if (shape.IsCons()) {
     ConsString cons = ConsString::cast(string);
-    if (cons.second(cage_base).length() != 0) {
-      return FlatContent(no_gc);
-    }
+    if (!cons.IsFlat(cage_base)) return FlatContent(no_gc);
     string = cons.first(cage_base);
     shape = StringShape(string, cage_base);
-  } else if (shape.representation_tag() == kSlicedStringTag) {
+  } else if (shape.IsSliced()) {
     SlicedString slice = SlicedString::cast(string);
     offset = slice.offset();
     string = slice.parent(cage_base);
     shape = StringShape(string, cage_base);
-    DCHECK(shape.representation_tag() != kConsStringTag &&
-           shape.representation_tag() != kSlicedStringTag);
   }
-  if (shape.representation_tag() == kThinStringTag) {
+
+  DCHECK(!shape.IsCons());
+  DCHECK(!shape.IsSliced());
+
+  // Extract thin strings.
+  if (shape.IsThin()) {
     ThinString thin = ThinString::cast(string);
     string = thin.actual(cage_base);
     shape = StringShape(string, cage_base);
-    DCHECK(!shape.IsCons());
-    DCHECK(!shape.IsSliced());
   }
-  if (shape.encoding_tag() == kOneByteStringTag) {
-    const uint8_t* start;
-    if (shape.representation_tag() == kSeqStringTag) {
-      start = SeqOneByteString::cast(string).GetChars(no_gc);
-    } else {
-      start = ExternalOneByteString::cast(string).GetChars(cage_base);
-    }
-    return FlatContent(start + offset, length, no_gc);
-  } else {
-    DCHECK_EQ(shape.encoding_tag(), kTwoByteStringTag);
-    const base::uc16* start;
-    if (shape.representation_tag() == kSeqStringTag) {
-      start = SeqTwoByteString::cast(string).GetChars(no_gc);
-    } else {
-      start = ExternalTwoByteString::cast(string).GetChars(cage_base);
-    }
-    return FlatContent(start + offset, length, no_gc);
-  }
+
+  DCHECK(shape.IsDirect());
+  return TryGetFlatContentFromDirectString(cage_base, no_gc, string, offset,
+                                           length())
+      .value();
 }
 
 std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
@@ -919,17 +906,19 @@ bool String::SlowEquals(
 bool String::SlowEquals(Isolate* isolate, Handle<String> one,
                         Handle<String> two) {
   // Fast check: negative check with lengths.
-  int one_length = one->length();
+  const int one_length = one->length();
   if (one_length != two->length()) return false;
   if (one_length == 0) return true;
 
   // Fast check: if at least one ThinString is involved, dereference it/them
   // and restart.
   if (one->IsThinString() || two->IsThinString()) {
-    if (one->IsThinString())
+    if (one->IsThinString()) {
       one = handle(ThinString::cast(*one).actual(), isolate);
-    if (two->IsThinString())
+    }
+    if (two->IsThinString()) {
       two = handle(ThinString::cast(*two).actual(), isolate);
+    }
     return String::Equals(isolate, one, two);
   }
 
@@ -967,12 +956,17 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
   if (flat1.IsOneByte() && flat2.IsOneByte()) {
     return CompareCharsEqual(flat1.ToOneByteVector().begin(),
                              flat2.ToOneByteVector().begin(), one_length);
-  } else {
-    for (int i = 0; i < one_length; i++) {
-      if (flat1.Get(i) != flat2.Get(i)) return false;
-    }
-    return true;
+  } else if (flat1.IsTwoByte() && flat2.IsTwoByte()) {
+    return CompareCharsEqual(flat1.ToUC16Vector().begin(),
+                             flat2.ToUC16Vector().begin(), one_length);
+  } else if (flat1.IsOneByte() && flat2.IsTwoByte()) {
+    return CompareCharsEqual(flat1.ToOneByteVector().begin(),
+                             flat2.ToUC16Vector().begin(), one_length);
+  } else if (flat1.IsTwoByte() && flat2.IsOneByte()) {
+    return CompareCharsEqual(flat1.ToUC16Vector().begin(),
+                             flat2.ToOneByteVector().begin(), one_length);
   }
+  UNREACHABLE();
 }
 
 // static

@@ -6362,8 +6362,8 @@ TNode<BoolT> CodeStubAssembler::IsSeqOneByteStringInstanceType(
   CSA_DCHECK(this, IsStringInstanceType(instance_type));
   return Word32Equal(
       Word32And(instance_type,
-                Int32Constant(kStringRepresentationMask | kStringEncodingMask)),
-      Int32Constant(kSeqStringTag | kOneByteStringTag));
+                Int32Constant(kStringRepresentationAndEncodingMask)),
+      Int32Constant(kSeqOneByteStringTag));
 }
 
 TNode<BoolT> CodeStubAssembler::IsConsStringInstanceType(
