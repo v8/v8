@@ -1445,11 +1445,15 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     Address type_address, Handle<Map> opt_parent, int instance_size_bytes,
     Handle<WasmInstanceObject> instance) {
-  // We pretenure WasmTypeInfo objects because they are refererenced by Maps,
-  // which are assumed to be long-lived. The supertypes list is constant
-  // after initialization, so we pretenure that too.
-  // The subtypes list, however, is expected to grow (and hence be replaced),
-  // so we don't pretenure it.
+  // We pretenure WasmTypeInfo objects for two reasons:
+  // (1) They are referenced by Maps, which are assumed to be long-lived,
+  //     so pretenuring the WTI is a bit more efficient.
+  // (2) The object visitors need to read the WasmTypeInfo to find tagged
+  //     fields in Wasm structs; in the middle of a GC cycle that's only
+  //     safe to do if the WTI is in old space.
+  // The supertypes list is constant after initialization, so we pretenure
+  // that too. The subtypes list, however, is expected to grow (and hence be
+  // replaced), so we don't pretenure it.
   Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
   Handle<FixedArray> supertypes;
   if (opt_parent.is_null()) {

@@ -548,10 +548,10 @@ wasm::StructType* WasmStruct::type(Map map) {
 wasm::StructType* WasmStruct::GcSafeType(Map map) {
   DCHECK_EQ(WASM_STRUCT_TYPE, map.instance_type());
   HeapObject raw = HeapObject::cast(map.constructor_or_back_pointer());
-  MapWord map_word = raw.map_word(kRelaxedLoad);
-  HeapObject forwarded =
-      map_word.IsForwardingAddress() ? map_word.ToForwardingAddress() : raw;
-  Foreign foreign = Foreign::cast(forwarded);
+  // The {Foreign} might be in the middle of being moved, which is why we
+  // can't read its map for a checked cast. But we can rely on its payload
+  // being intact in the old location.
+  Foreign foreign = Foreign::unchecked_cast(raw);
   return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
 }
 
@@ -624,10 +624,10 @@ wasm::ArrayType* WasmArray::type(Map map) {
 wasm::ArrayType* WasmArray::GcSafeType(Map map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map.instance_type());
   HeapObject raw = HeapObject::cast(map.constructor_or_back_pointer());
-  MapWord map_word = raw.map_word(kRelaxedLoad);
-  HeapObject forwarded =
-      map_word.IsForwardingAddress() ? map_word.ToForwardingAddress() : raw;
-  Foreign foreign = Foreign::cast(forwarded);
+  // The {Foreign} might be in the middle of being moved, which is why we
+  // can't read its map for a checked cast. But we can rely on its payload
+  // being intact in the old location.
+  Foreign foreign = Foreign::unchecked_cast(raw);
   return reinterpret_cast<wasm::ArrayType*>(foreign.foreign_address());
 }
 

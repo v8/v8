@@ -1035,9 +1035,6 @@
   # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
   'compiler/concurrent-inlining-1': [SKIP],
   'compiler/inlined-call-polymorphic': [SKIP],
-
-  # BUG(v8:12185).
-  'wasm/wasm-struct-js-interop': [SKIP],
 }],  # 'deopt_fuzzer'
 
 ##############################################################################
