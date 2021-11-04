@@ -638,16 +638,18 @@ void UpdateSharedFunctionFlagsAfterCompilation(FunctionLiteral* literal,
                                                SharedFunctionInfo shared_info) {
   DCHECK_EQ(shared_info.language_mode(), literal->language_mode());
 
+  // These fields are all initialised in ParseInfo from the SharedFunctionInfo,
+  // and then set back on the literal after parse. Hence, they should already
+  // match.
+  DCHECK_EQ(shared_info.requires_instance_members_initializer(),
+            literal->requires_instance_members_initializer());
+  DCHECK_EQ(shared_info.class_scope_has_private_brand(),
+            literal->class_scope_has_private_brand());
+  DCHECK_EQ(shared_info.has_static_private_methods_or_accessors(),
+            literal->has_static_private_methods_or_accessors());
+
   shared_info.set_has_duplicate_parameters(literal->has_duplicate_parameters());
   shared_info.UpdateAndFinalizeExpectedNofPropertiesFromEstimate(literal);
-  if (literal->dont_optimize_reason() != BailoutReason::kNoReason) {
-    shared_info.DisableOptimization(literal->dont_optimize_reason());
-  }
-
-  shared_info.set_class_scope_has_private_brand(
-      literal->class_scope_has_private_brand());
-  shared_info.set_has_static_private_methods_or_accessors(
-      literal->has_static_private_methods_or_accessors());
 
   shared_info.SetScopeInfo(*literal->scope()->scope_info());
 }

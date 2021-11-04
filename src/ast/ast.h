@@ -2205,16 +2205,6 @@ class FunctionLiteral final : public Expression {
   }
   FunctionKind kind() const;
 
-  bool dont_optimize() {
-    return dont_optimize_reason() != BailoutReason::kNoReason;
-  }
-  BailoutReason dont_optimize_reason() {
-    return DontOptimizeReasonField::decode(bit_field_);
-  }
-  void set_dont_optimize_reason(BailoutReason reason) {
-    bit_field_ = DontOptimizeReasonField::update(bit_field_, reason);
-  }
-
   bool IsAnonymousFunctionDefinition() const {
     return is_anonymous_expression();
   }
@@ -2290,7 +2280,6 @@ class FunctionLiteral final : public Expression {
                   Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
-                  DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
                   RequiresInstanceMembersInitializer::encode(false) |
                   HasBracesField::encode(has_braces);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
@@ -2300,10 +2289,8 @@ class FunctionLiteral final : public Expression {
       Expression::NextBitField<FunctionSyntaxKind, 3>;
   using Pretenure = FunctionSyntaxKindBits::Next<bool, 1>;
   using HasDuplicateParameters = Pretenure::Next<bool, 1>;
-  using DontOptimizeReasonField =
-      HasDuplicateParameters::Next<BailoutReason, 8>;
   using RequiresInstanceMembersInitializer =
-      DontOptimizeReasonField::Next<bool, 1>;
+      HasDuplicateParameters::Next<bool, 1>;
   using ClassScopeHasPrivateBrandField =
       RequiresInstanceMembersInitializer::Next<bool, 1>;
   using HasStaticPrivateMethodsOrAccessorsField =
