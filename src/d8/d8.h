@@ -462,7 +462,7 @@ class Shell : public i::AllStatic {
   enum class CodeType { kFileName, kString, kFunction, kInvalid, kNone };
 
   static bool ExecuteString(Isolate* isolate, Local<String> source,
-                            Local<Value> name, PrintResult print_result,
+                            Local<String> name, PrintResult print_result,
                             ReportExceptions report_exceptions,
                             ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
