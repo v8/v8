@@ -644,39 +644,9 @@ MaybeLocal<T> Shell::CompileString(Isolate* isolate, Local<Context> context,
   return result;
 }
 
-namespace {
-// For testing.
-const int kHostDefinedOptionsLength = 2;
-const uint32_t kHostDefinedOptionsMagicConstant = 0xF1F2F3F0;
-
-ScriptOrigin CreateScriptOrigin(Isolate* isolate, Local<String> resource_name,
-                                v8::ScriptType type) {
-  Local<PrimitiveArray> options =
-      PrimitiveArray::New(isolate, kHostDefinedOptionsLength);
-  options->Set(isolate, 0,
-               v8::Uint32::New(isolate, kHostDefinedOptionsMagicConstant));
-  options->Set(isolate, 1, resource_name);
-  return ScriptOrigin(isolate, resource_name, 0, 0, false, -1, Local<Value>(),
-                      false, false, type == v8::ScriptType::kModule, options);
-}
-
-bool IsValidHostDefinedOptions(Local<Context> context,
-                               Local<PrimitiveArray> options,
-                               Local<ScriptOrModule> script_or_module) {
-  Isolate* isolate = context->GetIsolate();
-  if (options->Length() != kHostDefinedOptionsLength) return false;
-  uint32_t magic = 0;
-  if (!options->Get(isolate, 0)->Uint32Value(context).To(&magic)) return false;
-  if (magic != kHostDefinedOptionsMagicConstant) return false;
-  return options->Get(isolate, 1)
-      .As<String>()
-      ->StrictEquals(script_or_module->GetResourceName());
-}
-}  // namespace
-
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
-                          Local<String> name, PrintResult print_result,
+                          Local<Value> name, PrintResult print_result,
                           ReportExceptions report_exceptions,
                           ProcessMessageQueue process_message_queue) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -732,9 +702,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> realm =
         Local<Context>::New(isolate, data->realms_[data->realm_current_]);
     Context::Scope context_scope(realm);
+    MaybeLocal<Script> maybe_script;
     Local<Context> context(isolate->GetCurrentContext());
-    ScriptOrigin origin =
-        CreateScriptOrigin(isolate, name, ScriptType::kClassic);
+    ScriptOrigin origin(isolate, name);
 
     for (int i = 1; i < options.repeat_compile; ++i) {
       HandleScope handle_scope_for_compiling(isolate);
@@ -1035,11 +1005,9 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
         v8::String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked());
     return MaybeLocal<Module>();
   }
-
-  Local<String> resource_name =
-      String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked();
-  ScriptOrigin origin =
-      CreateScriptOrigin(isolate, resource_name, ScriptType::kModule);
+  ScriptOrigin origin(
+      isolate, String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
+      0, 0, false, -1, Local<Value>(), false, false, true);
 
   Local<Module> module;
   if (module_type == ModuleType::kJavaScript) {
@@ -1224,24 +1192,16 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   MaybeLocal<Promise::Resolver> maybe_resolver =
       Promise::Resolver::New(context);
   Local<Promise::Resolver> resolver;
-  if (!maybe_resolver.ToLocal(&resolver)) return MaybeLocal<Promise>();
-
-  Local<PrimitiveArray> host_defined_options =
-      script_or_module->GetHostDefinedOptions();
-  if (!IsValidHostDefinedOptions(context, host_defined_options,
-                                 script_or_module)) {
-    resolver
-        ->Reject(context, v8::Exception::TypeError(String::NewFromUtf8Literal(
-                              isolate, "Invalid host defined options")))
-        .ToChecked();
-  } else {
+  if (maybe_resolver.ToLocal(&resolver)) {
     DynamicImportData* data = new DynamicImportData(
         isolate, script_or_module->GetResourceName().As<String>(), specifier,
         import_assertions, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
+    return resolver->GetPromise();
   }
-  return resolver->GetPromise();
+
+  return MaybeLocal<Promise>();
 }
 
 void Shell::HostInitializeImportMetaObject(Local<Context> context,
@@ -1870,10 +1830,9 @@ void Shell::RealmEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
     isolate->ThrowError("Invalid argument");
     return;
   }
-  ScriptOrigin origin =
-      CreateScriptOrigin(isolate, String::NewFromUtf8Literal(isolate, "(d8)"),
-                         ScriptType::kClassic);
-
+  ScriptOrigin origin(isolate,
+                      String::NewFromUtf8Literal(isolate, "(d8)",
+                                                 NewStringType::kInternalized));
   ScriptCompiler::Source script_source(source, origin);
   Local<UnboundScript> script;
   if (!ScriptCompiler::CompileUnboundScript(isolate, &script_source)
