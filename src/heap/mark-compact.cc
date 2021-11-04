@@ -4260,6 +4260,11 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     CollectRememberedSetUpdatingItems(&updating_items, heap()->map_space(),
                                       RememberedSetUpdatingMode::ALL);
 
+    // In order to update pointers in map space at the same time as other spaces
+    // we need to ensure that young generation is empty. Otherwise, iterating
+    // to space may require a valid body descriptor for e.g. WasmStruct which
+    // races with updating a slot in Map.
+    CHECK(FLAG_always_promote_young_mc);
     CollectToSpaceUpdatingItems(&updating_items);
     updating_items.push_back(
         std::make_unique<EphemeronTableUpdatingItem>(heap()));
