@@ -195,7 +195,7 @@ class V8_EXPORT JSHeapConsistency final {
    * \returns whether a write barrier is needed and which barrier to invoke.
    */
   template <typename HeapHandleCallback>
-  V8_DEPRECATE_SOON("Write barriers automatically emitted by TracedReference.")
+  V8_DEPRECATED("Write barriers automatically emitted by TracedReference.")
   static V8_INLINE WriteBarrierType
       GetWriteBarrierType(const TracedReferenceBase& ref,
                           WriteBarrierParams& params,
@@ -253,7 +253,7 @@ class V8_EXPORT JSHeapConsistency final {
    * \param params The parameters retrieved from `GetWriteBarrierType()`.
    * \param ref The reference being written to.
    */
-  V8_DEPRECATE_SOON("Write barriers automatically emitted by TracedReference.")
+  V8_DEPRECATED("Write barriers automatically emitted by TracedReference.")
   static V8_INLINE void DijkstraMarkingBarrier(const WriteBarrierParams& params,
                                                cppgc::HeapHandle& heap_handle,
                                                const TracedReferenceBase& ref) {
@@ -283,7 +283,7 @@ class V8_EXPORT JSHeapConsistency final {
    * \param params The parameters retrieved from `GetWriteBarrierType()`.
    * \param ref The reference being written to.
    */
-  V8_DEPRECATE_SOON("Write barriers automatically emitted by TracedReference.")
+  V8_DEPRECATED("Write barriers automatically emitted by TracedReference.")
   static V8_INLINE void GenerationalBarrier(const WriteBarrierParams& params,
                                             const TracedReferenceBase& ref) {}
 
