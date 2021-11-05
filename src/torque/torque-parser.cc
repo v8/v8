@@ -1974,7 +1974,8 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   AnnotationSet annotations(
       child_results,
       {ANNOTATION_CPP_RELAXED_STORE, ANNOTATION_CPP_RELAXED_LOAD,
-       ANNOTATION_CPP_RELEASE_STORE, ANNOTATION_CPP_ACQUIRE_LOAD},
+       ANNOTATION_CPP_RELEASE_STORE, ANNOTATION_CPP_ACQUIRE_LOAD,
+       ANNOTATION_CUSTOM_WEAK_MARKING},
       {ANNOTATION_IF, ANNOTATION_IFNOT});
   FieldSynchronization write_synchronization = FieldSynchronization::kNone;
   if (annotations.Contains(ANNOTATION_CPP_RELEASE_STORE)) {
@@ -2000,7 +2001,16 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
     conditions.push_back(
         {*ifnot_condition, ConditionalAnnotationType::kNegative});
   }
-  auto weak = child_results->NextAs<bool>();
+  bool custom_weak_marking =
+      annotations.Contains(ANNOTATION_CUSTOM_WEAK_MARKING);
+  auto deprecated_weak = child_results->NextAs<bool>();
+  if (deprecated_weak) {
+    Error(
+        "The keyword 'weak' is deprecated. For a field that can contain a "
+        "normal weak pointer, use type Weak<T>. For a field that should be "
+        "marked in some custom way, use @customWeakMarking.");
+    custom_weak_marking = true;
+  }
   auto const_qualified = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
   auto optional = child_results->NextAs<bool>();
@@ -2025,7 +2035,7 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   return ParseResult{ClassFieldExpression{{name, type},
                                           index_info,
                                           std::move(conditions),
-                                          weak,
+                                          custom_weak_marking,
                                           const_qualified,
                                           read_synchronization,
                                           write_synchronization}};

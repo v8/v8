@@ -3728,7 +3728,18 @@ class FieldOffsetsGenerator {
     if (auto field_as_struct = field_type->StructSupertype()) {
       struct_contents = (*field_as_struct)->ClassifyContents();
     }
-    if (struct_contents == StructType::ClassificationFlag::kMixed) {
+    if ((struct_contents & StructType::ClassificationFlag::kStrongTagged) &&
+        (struct_contents & StructType::ClassificationFlag::kWeakTagged)) {
+      // It's okay for a struct to contain both strong and weak data. We'll just
+      // treat the whole thing as weak. This is required for DescriptorEntry.
+      struct_contents &= ~StructType::Classification(
+          StructType::ClassificationFlag::kStrongTagged);
+    }
+    bool struct_contains_tagged_fields =
+        (struct_contents & StructType::ClassificationFlag::kStrongTagged) ||
+        (struct_contents & StructType::ClassificationFlag::kWeakTagged);
+    if (struct_contains_tagged_fields &&
+        (struct_contents & StructType::ClassificationFlag::kUntagged)) {
       // We can't declare what section a struct goes in if it has multiple
       // categories of data within.
       Error(
@@ -3736,15 +3747,13 @@ class FieldOffsetsGenerator {
           "tagged and untagged data.")
           .Position(f.pos);
     }
-    // Currently struct-valued fields are only allowed to have tagged data; see
-    // TypeVisitor::VisitClassFieldsAndMethods.
-    if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType()) ||
-        struct_contents == StructType::ClassificationFlag::kTagged) {
-      if (f.is_weak) {
-        return FieldSectionType::kWeakSection;
-      } else {
-        return FieldSectionType::kStrongSection;
-      }
+    if ((field_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType()) ||
+         struct_contents == StructType::ClassificationFlag::kStrongTagged) &&
+        !f.custom_weak_marking) {
+      return FieldSectionType::kStrongSection;
+    } else if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType()) ||
+               struct_contains_tagged_fields) {
+      return FieldSectionType::kWeakSection;
     } else {
       return FieldSectionType::kScalarSection;
     }

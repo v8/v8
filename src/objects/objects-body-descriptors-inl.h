@@ -562,7 +562,7 @@ class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     IteratePointers(obj, HeapObject::kHeaderSize, kObjectCreateMapOffset, v);
     IterateMaybeWeakPointer(obj, kObjectCreateMapOffset, v);
-    IteratePointers(obj, kObjectCreateMapOffset + kTaggedSize, object_size, v);
+    STATIC_ASSERT(kObjectCreateMapOffset + kTaggedSize == kHeaderSize);
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {

@@ -427,8 +427,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
             "found type ",
             *field_type);
       }
-      if (field_expression.weak) {
-        ReportError("in-object properties cannot be weak");
+      if (field_expression.custom_weak_marking) {
+        ReportError("in-object properties cannot use @customWeakMarking");
       }
     }
     base::Optional<ClassFieldIndexInfo> array_length = field_expression.index;
@@ -438,7 +438,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          array_length,
          {field_expression.name_and_type.name->value, field_type},
          class_offset.SingleValue(),
-         field_expression.weak,
+         field_expression.custom_weak_marking,
          field_expression.const_qualified,
          field_expression.read_synchronization,
          field_expression.write_synchronization});

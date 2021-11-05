@@ -115,6 +115,8 @@ static const char* const ANNOTATION_CPP_RELAXED_LOAD = "@cppRelaxedLoad";
 static const char* const ANNOTATION_CPP_RELEASE_STORE = "@cppReleaseStore";
 // Generate C++ accessors with acquire load semantics.
 static const char* const ANNOTATION_CPP_ACQUIRE_LOAD = "@cppAcquireLoad";
+// Generate BodyDescriptor using IterateCustomWeakPointers.
+static const char* const ANNOTATION_CUSTOM_WEAK_MARKING = "@customWeakMarking";
 
 inline bool IsConstexprName(const std::string& name) {
   return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==
