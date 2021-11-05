@@ -235,9 +235,13 @@ class V8_EXPORT JSHeapConsistency final {
    * \returns whether a write barrier is needed and which barrier to invoke.
    */
   template <typename HeapHandleCallback>
-  static V8_INLINE WriteBarrierType GetWriteBarrierType(
-      v8::Local<v8::Object>& wrapper, int wrapper_index, const void* wrappable,
-      WriteBarrierParams& params, HeapHandleCallback callback) {
+  V8_DEPRECATE_SOON(
+      "Write barriers automatically emitted when using "
+      "`SetAlignedPointerInInternalFields()`.")
+  static V8_INLINE WriteBarrierType
+      GetWriteBarrierType(v8::Local<v8::Object>& wrapper, int wrapper_index,
+                          const void* wrappable, WriteBarrierParams& params,
+                          HeapHandleCallback callback) {
 #if V8_ENABLE_CHECKS
     CheckWrapper(wrapper, wrapper_index, wrappable);
 #endif  // V8_ENABLE_CHECKS
@@ -270,6 +274,9 @@ class V8_EXPORT JSHeapConsistency final {
    * \param object The pointer to the object. May be an interior pointer to a
    *   an interface of the actual object.
    */
+  V8_DEPRECATE_SOON(
+      "Write barriers automatically emitted when using "
+      "`SetAlignedPointerInInternalFields()`.")
   static V8_INLINE void DijkstraMarkingBarrier(const WriteBarrierParams& params,
                                                cppgc::HeapHandle& heap_handle,
                                                const void* object) {
