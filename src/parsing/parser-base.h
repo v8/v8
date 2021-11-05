@@ -3446,7 +3446,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
       // async () => ...
       if (!args.length()) return factory()->NewEmptyParentheses(pos);
       // async ( Arguments ) => ...
-      ExpressionT result = impl()->ExpressionListToExpression(args);
+      result = impl()->ExpressionListToExpression(args);
       result->mark_parenthesized();
       return result;
     }
@@ -4581,8 +4581,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           if (has_error()) return impl()->FailureExpression();
 
           DeclarationScope* function_scope = next_arrow_function_info_.scope;
-          FunctionState function_state(&function_state_, &scope_,
-                                       function_scope);
+          FunctionState inner_function_state(&function_state_, &scope_,
+                                             function_scope);
           Scanner::Location loc(function_scope->start_position(),
                                 end_position());
           FormalParametersT parameters(function_scope);
@@ -4934,7 +4934,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
     Next();
     pos = position();
 
-    bool is_valid = CheckTemplateEscapes(forbid_illegal_escapes);
+    is_valid = CheckTemplateEscapes(forbid_illegal_escapes);
     impl()->AddTemplateSpan(&ts, is_valid, next == Token::TEMPLATE_TAIL);
   } while (next == Token::TEMPLATE_SPAN);
 

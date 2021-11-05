@@ -74,28 +74,28 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 // Helpers for parsing and checking that the result has no error, implemented as
 // macros to report the correct test error location.
-#define FAIL_WITH_PENDING_PARSER_ERROR(info, script, isolate)              \
-  do {                                                                     \
-    (info)->pending_error_handler()->PrepareErrors(                        \
-        (isolate), (info)->ast_value_factory());                           \
-    (info)->pending_error_handler()->ReportErrors((isolate), (script));    \
-                                                                           \
-    i::Handle<i::JSObject> exception_handle(                               \
-        i::JSObject::cast((isolate)->pending_exception()), (isolate));     \
-    i::Handle<i::String> message_string = i::Handle<i::String>::cast(      \
-        i::JSReceiver::GetProperty((isolate), exception_handle, "message") \
-            .ToHandleChecked());                                           \
-    (isolate)->clear_pending_exception();                                  \
-                                                                           \
-    String source = String::cast((script)->source());                      \
-                                                                           \
-    FATAL(                                                                 \
-        "Parser failed on:\n"                                              \
-        "\t%s\n"                                                           \
-        "with error:\n"                                                    \
-        "\t%s\n"                                                           \
-        "However, we expected no error.",                                  \
-        source.ToCString().get(), message_string->ToCString().get());      \
+#define FAIL_WITH_PENDING_PARSER_ERROR(info, script, isolate)                \
+  do {                                                                       \
+    (info)->pending_error_handler()->PrepareErrors(                          \
+        (isolate), (info)->ast_value_factory());                             \
+    (info)->pending_error_handler()->ReportErrors((isolate), (script));      \
+                                                                             \
+    i::Handle<i::JSObject> exception_handle(                                 \
+        i::JSObject::cast((isolate)->pending_exception()), (isolate));       \
+    i::Handle<i::String> message_string = i::Handle<i::String>::cast(        \
+        i::JSReceiver::GetProperty((isolate), exception_handle, "message")   \
+            .ToHandleChecked());                                             \
+    (isolate)->clear_pending_exception();                                    \
+                                                                             \
+    String script_source = String::cast((script)->source());                 \
+                                                                             \
+    FATAL(                                                                   \
+        "Parser failed on:\n"                                                \
+        "\t%s\n"                                                             \
+        "with error:\n"                                                      \
+        "\t%s\n"                                                             \
+        "However, we expected no error.",                                    \
+        script_source.ToCString().get(), message_string->ToCString().get()); \
   } while (false)
 
 #define CHECK_PARSE_PROGRAM(info, script, isolate)                        \
@@ -1666,8 +1666,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                            isolate->counters()->runtime_call_stats(),
                            isolate->logger(), compile_flags);
     scanner.Initialize();
-    i::PreParser::PreParseResult result = preparser.PreParseProgram();
-    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+    i::PreParser::PreParseResult pre_parse_result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, pre_parse_result);
   }
 
   // Parse the data
@@ -3417,7 +3417,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 TEST(InnerAssignment) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
-  i::HandleScope scope(isolate);
+  i::HandleScope handle_scope(isolate);
   LocalContext env;
 
   const char* prefix = "function f() {";
@@ -3594,7 +3594,7 @@ TEST(InnerAssignment) {
 
 TEST(MaybeAssignedParameters) {
   i::Isolate* isolate = CcTest::i_isolate();
-  i::HandleScope scope(isolate);
+  i::HandleScope handle_scope(isolate);
   LocalContext env;
 
   struct {
@@ -9114,36 +9114,35 @@ TEST(DestructuringPositiveTests) {
 
   // clang-format on
   RunParserSyncTest(context_data, data, kSuccess);
-
-  // v8:5201
-  {
-    // clang-format off
-    const char* sloppy_context_data[][2] = {
-      {"var ", " = {};"},
-      {"function f(", ") {}"},
-      {"function f(argument1, ", ") {}"},
-      {"var f = (", ") => {};"},
-      {"var f = (argument1,", ") => {};"},
-      {"try {} catch(", ") {}"},
-      {nullptr, nullptr}
-    };
-
-    const char* data[] = {
-      "{arguments}",
-      "{eval}",
-      "{x: arguments}",
-      "{x: eval}",
-      "{arguments = false}",
-      "{eval = false}",
-      "{...arguments}",
-      "{...eval}",
-      nullptr
-    };
-    // clang-format on
-    RunParserSyncTest(sloppy_context_data, data, kSuccess);
-  }
 }
 
+// v8:5201
+TEST(SloppyContextDestructuringPositiveTests) {
+  // clang-format off
+  const char* sloppy_context_data[][2] = {
+    {"var ", " = {};"},
+    {"function f(", ") {}"},
+    {"function f(argument1, ", ") {}"},
+    {"var f = (", ") => {};"},
+    {"var f = (argument1,", ") => {};"},
+    {"try {} catch(", ") {}"},
+    {nullptr, nullptr}
+  };
+
+  const char* data[] = {
+    "{arguments}",
+    "{eval}",
+    "{x: arguments}",
+    "{x: eval}",
+    "{arguments = false}",
+    "{eval = false}",
+    "{...arguments}",
+    "{...eval}",
+    nullptr
+  };
+  // clang-format on
+  RunParserSyncTest(sloppy_context_data, data, kSuccess);
+}
 
 TEST(DestructuringNegativeTests) {
   {  // All modes.
@@ -11233,7 +11232,7 @@ TEST(ArgumentsRedeclaration) {
 TEST(NoPessimisticContextAllocation) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
-  i::HandleScope scope(isolate);
+  i::HandleScope handle_scope(isolate);
   LocalContext env;
 
   const char* prefix = "(function outer() { var my_var; ";

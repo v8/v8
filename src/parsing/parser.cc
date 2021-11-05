@@ -954,14 +954,14 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Enter arrow function
         // scope for formal parameter parsing.
-        BlockState block_state(&scope_, scope);
+        BlockState inner_block_state(&scope_, scope);
         if (Check(Token::LPAREN)) {
           // '(' StrictFormalParameters ')'
           ParseFormalParameterList(&formals);
           Expect(Token::RPAREN);
         } else {
           // BindingIdentifier
-          ParameterParsingScope scope(impl(), &formals);
+          ParameterParsingScope parameter_parsing_scope(impl(), &formals);
           ParseFormalParameter(&formals);
           DeclareFormalParameters(&formals);
         }
