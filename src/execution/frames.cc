@@ -1124,10 +1124,15 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
           // We don't need to update smi values or full pointers.
           *spill_slot.location() =
               DecompressTaggedPointer(cage_base, static_cast<Tagged_t>(value));
-          // Ensure that the spill slot contains correct heap object.
-          DCHECK(HeapObject::cast(Object(*spill_slot.location()))
-                     .map(cage_base)
-                     .IsMap());
+          if (DEBUG_BOOL) {
+            // Ensure that the spill slot contains correct heap object.
+            HeapObject raw = HeapObject::cast(Object(*spill_slot.location()));
+            MapWord map_word = raw.map_word(cage_base, kRelaxedLoad);
+            HeapObject forwarded = map_word.IsForwardingAddress()
+                                       ? map_word.ToForwardingAddress()
+                                       : raw;
+            CHECK(forwarded.map(cage_base).IsMap());
+          }
         }
       } else {
         Tagged_t compressed_value =
