@@ -2696,7 +2696,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   RecordFunctionLiteralSourceRange(function_literal);
 
-  if (should_post_parallel_task) {
+  if (should_post_parallel_task && !has_error()) {
     // Start a parallel parse / compile task on the compiler dispatcher.
     Handle<SharedFunctionInfo> shared_info =
         local_isolate_->factory()->NewSharedFunctionInfoForLiteral(
