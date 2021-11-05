@@ -183,7 +183,7 @@ void ShiftModFn(digit_t* result, const digit_t* input, int power_of_two, int K,
   // The modulo-reduction amounts to a subtraction, which we combine
   // with the shift as follows:
   //   input  =  [ iK ][iK-1] ....  .... [ i1 ][ i0 ]
-  //   result =        [iX-1] .... [ i0 ] <<<<<<<<<<< shift by {power_of_two}
+  //   result =        [iX-1] .... [ i0 ] <---------- shift by {power_of_two}
   //            -                  [ iK ] .... [ iX ]
   // where "X" is the index "K - digit_shift".
   int digit_shift = power_of_two / kDigitBits;
