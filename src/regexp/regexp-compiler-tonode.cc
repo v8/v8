@@ -637,16 +637,16 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
     while (i < length) {
       alternative = alternatives->at(i);
       if (!alternative->IsAtom()) break;
-      RegExpAtom* const atom = alternative->AsAtom();
+      RegExpAtom* const alt_atom = alternative->AsAtom();
 #ifdef V8_INTL_SUPPORT
-      icu::UnicodeString new_prefix(atom->data().at(0));
+      icu::UnicodeString new_prefix(alt_atom->data().at(0));
       if (new_prefix != common_prefix) {
         if (!IsIgnoreCase(compiler->flags())) break;
         if (common_prefix.caseCompare(new_prefix, U_FOLD_CASE_DEFAULT) != 0)
           break;
       }
 #else
-      unibrow::uchar new_prefix = atom->data().at(0);
+      unibrow::uchar new_prefix = alt_atom->data().at(0);
       if (new_prefix != common_prefix) {
         if (!IsIgnoreCase(compiler->flags())) break;
         unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
@@ -656,7 +656,7 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
         if (new_prefix != common_prefix) break;
       }
 #endif  // V8_INTL_SUPPORT
-      prefix_length = std::min(prefix_length, atom->length());
+      prefix_length = std::min(prefix_length, alt_atom->length());
       i++;
     }
     if (i > first_with_prefix + 2) {
@@ -666,19 +666,20 @@ void RegExpDisjunction::RationalizeConsecutiveAtoms(RegExpCompiler* compiler) {
       // common prefix if the terms were similar or presorted in the input.
       // Find out how long the common prefix is.
       int run_length = i - first_with_prefix;
-      RegExpAtom* const atom = alternatives->at(first_with_prefix)->AsAtom();
+      RegExpAtom* const alt_atom =
+          alternatives->at(first_with_prefix)->AsAtom();
       for (int j = 1; j < run_length && prefix_length > 1; j++) {
         RegExpAtom* old_atom =
             alternatives->at(j + first_with_prefix)->AsAtom();
         for (int k = 1; k < prefix_length; k++) {
-          if (atom->data().at(k) != old_atom->data().at(k)) {
+          if (alt_atom->data().at(k) != old_atom->data().at(k)) {
             prefix_length = k;
             break;
           }
         }
       }
       RegExpAtom* prefix =
-          zone->New<RegExpAtom>(atom->data().SubVector(0, prefix_length));
+          zone->New<RegExpAtom>(alt_atom->data().SubVector(0, prefix_length));
       ZoneList<RegExpTree*>* pair = zone->New<ZoneList<RegExpTree*>>(2, zone);
       pair->Add(prefix, zone);
       ZoneList<RegExpTree*>* suffixes =
@@ -741,12 +742,12 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
     while (i < length) {
       alternative = alternatives->at(i);
       if (!alternative->IsAtom()) break;
-      RegExpAtom* const atom = alternative->AsAtom();
-      if (atom->length() != 1) break;
+      RegExpAtom* const alt_atom = alternative->AsAtom();
+      if (alt_atom->length() != 1) break;
       DCHECK_IMPLIES(IsUnicode(flags),
-                     !unibrow::Utf16::IsLeadSurrogate(atom->data().at(0)));
+                     !unibrow::Utf16::IsLeadSurrogate(alt_atom->data().at(0)));
       contains_trail_surrogate |=
-          unibrow::Utf16::IsTrailSurrogate(atom->data().at(0));
+          unibrow::Utf16::IsTrailSurrogate(alt_atom->data().at(0));
       i++;
     }
     if (i > first_in_run + 1) {
