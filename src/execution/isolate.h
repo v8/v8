@@ -1693,6 +1693,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyWithImportAssertionsCallback callback);
+  void SetHostImportModuleDynamicallyCallback(
+      HostImportModuleDynamicallyCallback callback);
   MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
       Handle<Script> referrer, Handle<Object> specifier,
       MaybeHandle<Object> maybe_import_assertions_argument);
@@ -2063,6 +2065,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::Isolate::AtomicsWaitCallback atomics_wait_callback_ = nullptr;
   void* atomics_wait_callback_data_ = nullptr;
   PromiseHook promise_hook_ = nullptr;
+  HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_ =
+      nullptr;
   HostImportModuleDynamicallyWithImportAssertionsCallback
       host_import_module_dynamically_with_import_assertions_callback_ = nullptr;
   std::atomic<debug::CoverageMode> code_coverage_mode_{

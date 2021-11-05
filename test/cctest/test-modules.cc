@@ -937,12 +937,12 @@ void DoHostImportModuleDynamically(void* import_data) {
 }
 
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
-    Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier, Local<FixedArray> import_assertions) {
+    Local<Context> context, Local<Data> host_defined_options,
+    Local<Value> resource_name, Local<String> specifier,
+    Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
-
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, true);
   isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);
@@ -950,12 +950,12 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
 }
 
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
-    Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier, Local<FixedArray> import_assertions) {
+    Local<Context> context, Local<Data> host_defined_options,
+    Local<Value> resource_name, Local<String> specifier,
+    Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
-
   DynamicImportData* data =
       new DynamicImportData(isolate, resolver, context, false);
   isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);

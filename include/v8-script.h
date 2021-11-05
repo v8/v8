@@ -340,6 +340,8 @@ class V8_EXPORT Script {
    * UnboundScript::BindToCurrentContext()).
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Run(Local<Context> context);
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Run(Local<Context> context,
+                                              Local<Data> host_defined_options);
 
   /**
    * Returns the corresponding context-unbound script.

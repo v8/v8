@@ -660,17 +660,17 @@ ScriptOrigin CreateScriptOrigin(Isolate* isolate, Local<String> resource_name,
                       false, false, type == v8::ScriptType::kModule, options);
 }
 
-bool IsValidHostDefinedOptions(Local<Context> context,
-                               Local<PrimitiveArray> options,
-                               Local<ScriptOrModule> script_or_module) {
-  Isolate* isolate = context->GetIsolate();
-  if (options->Length() != kHostDefinedOptionsLength) return false;
+bool IsValidHostDefinedOptions(Local<Context> context, Local<Data> options,
+                               Local<Value> resource_name) {
+  if (!options->IsFixedArray()) return false;
+  Local<FixedArray> array = options.As<FixedArray>();
+  if (array->Length() != kHostDefinedOptionsLength) return false;
   uint32_t magic = 0;
-  if (!options->Get(isolate, 0)->Uint32Value(context).To(&magic)) return false;
+  if (!array->Get(context, 0).As<Value>()->Uint32Value(context).To(&magic)) {
+    return false;
+  }
   if (magic != kHostDefinedOptionsMagicConstant) return false;
-  return options->Get(isolate, 1)
-      .As<String>()
-      ->StrictEquals(script_or_module->GetResourceName());
+  return array->Get(context, 1).As<String>()->StrictEquals(resource_name);
 }
 }  // namespace
 
@@ -1223,8 +1223,9 @@ void Shell::ModuleResolutionFailureCallback(
 }
 
 MaybeLocal<Promise> Shell::HostImportModuleDynamically(
-    Local<Context> context, Local<ScriptOrModule> script_or_module,
-    Local<String> specifier, Local<FixedArray> import_assertions) {
+    Local<Context> context, Local<Data> host_defined_options,
+    Local<Value> resource_name, Local<String> specifier,
+    Local<FixedArray> import_assertions) {
   Isolate* isolate = context->GetIsolate();
 
   MaybeLocal<Promise::Resolver> maybe_resolver =
@@ -1232,18 +1233,16 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   Local<Promise::Resolver> resolver;
   if (!maybe_resolver.ToLocal(&resolver)) return MaybeLocal<Promise>();
 
-  Local<PrimitiveArray> host_defined_options =
-      script_or_module->GetHostDefinedOptions();
   if (!IsValidHostDefinedOptions(context, host_defined_options,
-                                 script_or_module)) {
+                                 resource_name)) {
     resolver
         ->Reject(context, v8::Exception::TypeError(String::NewFromUtf8Literal(
                               isolate, "Invalid host defined options")))
         .ToChecked();
   } else {
-    DynamicImportData* data = new DynamicImportData(
-        isolate, script_or_module->GetResourceName().As<String>(), specifier,
-        import_assertions, resolver);
+    DynamicImportData* data =
+        new DynamicImportData(isolate, resource_name.As<String>(), specifier,
+                              import_assertions, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
   }

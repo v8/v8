@@ -26380,13 +26380,13 @@ TEST(CorrectEnteredContext) {
 const int kCustomHostDefinedOptionsLengthForTesting = 7;
 
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
-    Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier, Local<FixedArray> import_assertions) {
-  CHECK(!referrer.IsEmpty());
-  String::Utf8Value referrer_utf8(
-      context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
+    Local<v8::Context> context, Local<v8::Data> host_defined_options,
+    Local<v8::Value> resource_name, Local<v8::String> specifier,
+    Local<v8::FixedArray> import_assertions) {
+  String::Utf8Value referrer_utf8(context->GetIsolate(),
+                                  resource_name.As<String>());
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+  CHECK_EQ(host_defined_options.As<v8::FixedArray>()->Length(),
            kCustomHostDefinedOptionsLengthForTesting);
   CHECK(!specifier.IsEmpty());
   String::Utf8Value specifier_utf8(context->GetIsolate(), specifier);
@@ -26428,13 +26428,13 @@ TEST(DynamicImport) {
 
 v8::MaybeLocal<v8::Promise>
 HostImportModuleDynamicallyWithAssertionsCallbackResolve(
-    Local<Context> context, Local<v8::ScriptOrModule> referrer,
-    Local<String> specifier, Local<v8::FixedArray> import_assertions) {
-  CHECK(!referrer.IsEmpty());
-  String::Utf8Value referrer_utf8(
-      context->GetIsolate(), Local<String>::Cast(referrer->GetResourceName()));
+    Local<v8::Context> context, Local<v8::Data> host_defined_options,
+    Local<v8::Value> resource_name, Local<v8::String> specifier,
+    Local<v8::FixedArray> import_assertions) {
+  String::Utf8Value referrer_utf8(context->GetIsolate(),
+                                  resource_name.As<String>());
   CHECK_EQ(0, strcmp("www.google.com", *referrer_utf8));
-  CHECK_EQ(referrer->GetHostDefinedOptions()->Length(),
+  CHECK_EQ(host_defined_options.As<v8::FixedArray>()->Length(),
            kCustomHostDefinedOptionsLengthForTesting);
 
   CHECK(!specifier.IsEmpty());

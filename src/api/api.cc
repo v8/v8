@@ -1033,6 +1033,9 @@ void SealHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
 void SealHandleScope::operator delete[](void*, size_t) { base::OS::Abort(); }
 
 bool Data::IsModule() const { return Utils::OpenHandle(this)->IsModule(); }
+bool Data::IsFixedArray() const {
+  return Utils::OpenHandle(this)->IsFixedArray();
+}
 
 bool Data::IsValue() const {
   i::DisallowGarbageCollection no_gc;
@@ -2051,6 +2054,11 @@ Local<Value> UnboundScript::GetSourceMappingURL() {
 }
 
 MaybeLocal<Value> Script::Run(Local<Context> context) {
+  return Run(context, Local<Data>());
+}
+
+MaybeLocal<Value> Script::Run(Local<Context> context,
+                              Local<Data> host_defined_options) {
   auto v8_isolate = context->GetIsolate();
   auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
@@ -2096,12 +2104,12 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   }
 
   i::Handle<i::Object> receiver = isolate->global_proxy();
-  i::Handle<i::FixedArray> host_defined_options(
+  // TODO(cbruni, chromium:1244145): Remove once migrated to the context.
+  i::Handle<i::FixedArray> options(
       i::Script::cast(fun->shared().script()).host_defined_options(), isolate);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
-      i::Execution::CallScript(isolate, fun, receiver, host_defined_options),
-      &result);
+      i::Execution::CallScript(isolate, fun, receiver, options), &result);
 
   if (i::FLAG_script_delay_fraction > 0.0) {
     delta = v8::base::TimeDelta::FromMillisecondsD(
@@ -3888,6 +3896,12 @@ void v8::Private::CheckCast(v8::Data* that) {
   Utils::ApiCheck(
       obj->IsSymbol() && i::Handle<i::Symbol>::cast(obj)->is_private(),
       "v8::Private::Cast", "Value is not a Private");
+}
+
+void v8::FixedArray::CheckCast(v8::Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsFixedArray(), "v8::FixedArray::Cast",
+                  "Value is not a FixedArray");
 }
 
 void v8::ModuleRequest::CheckCast(v8::Data* that) {
@@ -8643,6 +8657,12 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
 
 void Isolate::SetHostImportModuleDynamicallyCallback(
     HostImportModuleDynamicallyWithImportAssertionsCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetHostImportModuleDynamicallyCallback(callback);
+}
+
+void Isolate::SetHostImportModuleDynamicallyCallback(
+    HostImportModuleDynamicallyCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->SetHostImportModuleDynamicallyCallback(callback);
 }
