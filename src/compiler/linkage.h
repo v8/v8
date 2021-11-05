@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/operator.h"
+#include "src/execution/encoded-c-signature.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
 
@@ -433,6 +434,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool HasRestrictedAllocatableRegisters() const {
     return allocatable_registers_ != 0;
   }
+
+  EncodedCSignature ToEncodedCSignature() const;
 
  private:
   void ComputeParamCounts() const;

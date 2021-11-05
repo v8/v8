@@ -20,6 +20,7 @@
 #include "src/codegen/arm64/decoder-arm64.h"
 #include "src/codegen/assembler.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
+#include "src/execution/encoded-c-signature.h"
 #include "src/execution/simulator-base.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -1438,6 +1439,28 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
                                            PACKey key, PointerType type);
   V8_EXPORT_PRIVATE static uint64_t StripPAC(uint64_t ptr, PointerType type);
 
+  // Calls AddSignatureForTarget for each function and signature, registering
+  // an encoded version of the signature within a mapping maintained by the
+  // simulator (from function address -> encoded signature). The function
+  // is supposed to be called whenever one compiles a fast API function with
+  // possibly multiple overloads.
+  // Note that this function is called from one or more compiler threads,
+  // while the main thread might be reading at the same time from the map, so
+  // both Register* and Get* are guarded with a single mutex.
+  void RegisterFunctionsAndSignatures(Address* c_functions,
+                                      const CFunctionInfo* const* c_signatures,
+                                      unsigned num_functions);
+  // The following method is used by the simulator itself to query
+  // whether a signature is registered for the call target and use this
+  // information to address arguments correctly (load them from either GP or
+  // FP registers, or from the stack).
+  const EncodedCSignature& GetSignatureForTarget(Address target);
+  // This method is exposed only for tests, which don't need synchronisation.
+  void AddSignatureForTargetForTesting(Address target,
+                                       const EncodedCSignature& signature) {
+    AddSignatureForTarget(target, signature);
+  }
+
  protected:
   // Simulation helpers ------------------------------------
   bool ConditionPassed(Condition cond) {
@@ -2449,6 +2472,9 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   V8_EXPORT_PRIVATE void CallImpl(Address entry, CallArgument* args);
 
+  void CallAnyCTypeFunction(Address target_address,
+                            const EncodedCSignature& signature);
+
   // Read floating point return values.
   template <typename T>
   typename std::enable_if<std::is_floating_point<T>::value, T>::type
@@ -2510,10 +2536,17 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     }
   }
 
+  void AddSignatureForTarget(Address target,
+                             const EncodedCSignature& signature);
+
   int log_parameters_;
   // Instruction counter only valid if FLAG_stop_sim_at isn't 0.
   int icount_for_stop_sim_at_;
   Isolate* isolate_;
+
+  v8::base::Mutex signature_map_mutex_;
+  typedef std::unordered_map<Address, EncodedCSignature> TargetToSignatureTable;
+  TargetToSignatureTable target_to_signature_table_;
 };
 
 template <>

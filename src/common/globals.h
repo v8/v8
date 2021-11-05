@@ -90,6 +90,13 @@ constexpr int64_t TB = static_cast<int64_t>(GB) * 1024;
 #define V8_DEFAULT_STACK_SIZE_KB 984
 #endif
 
+#if defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_ARM64)
+#define USE_SIMULATOR_WITH_GENERIC_C_CALLS
+#define IF_USE_SIMULATOR(V) , V
+#else
+#define IF_USE_SIMULATOR(V)
+#endif
+
 // Minimum stack size in KB required by compilers.
 constexpr int kStackSpaceRequiredForCompilation = 40;
 

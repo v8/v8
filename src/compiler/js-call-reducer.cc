@@ -956,7 +956,10 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
                                        CallDescriptor::kNeedsFrameState);
     ApiFunction api_function(call_handler_info.callback());
     ExternalReference function_reference = ExternalReference::Create(
-        &api_function, ExternalReference::DIRECT_API_CALL);
+        isolate(), &api_function, ExternalReference::DIRECT_API_CALL,
+        function_template_info_.c_functions().data(),
+        function_template_info_.c_signatures().data(),
+        static_cast<unsigned>(function_template_info_.c_functions().size()));
 
     Node* continuation_frame_state =
         CreateGenericLazyDeoptContinuationFrameState(

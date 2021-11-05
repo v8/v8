@@ -7,6 +7,9 @@
 
 #include <type_traits>
 
+#ifdef V8_TARGET_ARCH_ARM64
+#include "include/v8-fast-api-calls.h"
+#endif  // V8_TARGET_ARCH_ARM64
 #include "src/base/hashmap.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -68,6 +71,16 @@ class SimulatorBase {
     return Object(ret);
   }
 
+#ifdef V8_TARGET_ARCH_ARM64
+  template <typename T>
+  static typename std::enable_if<std::is_same<T, v8::AnyCType>::value, T>::type
+  ConvertReturn(intptr_t ret) {
+    v8::AnyCType result;
+    result.int64_value = static_cast<int64_t>(ret);
+    return result;
+  }
+#endif  // V8_TARGET_ARCH_ARM64
+
   // Convert back void return type (i.e. no return).
   template <typename T>
   static typename std::enable_if<std::is_void<T>::value, T>::type ConvertReturn(
@@ -105,6 +118,13 @@ class SimulatorBase {
   static typename std::enable_if<std::is_pointer<T>::value, intptr_t>::type
   ConvertArg(T arg) {
     return reinterpret_cast<intptr_t>(arg);
+  }
+
+  template <typename T>
+  static
+      typename std::enable_if<std::is_floating_point<T>::value, intptr_t>::type
+      ConvertArg(T arg) {
+    UNREACHABLE();
   }
 };
 

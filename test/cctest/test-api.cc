@@ -27867,6 +27867,81 @@ UNINITIALIZED_TEST(NestedIsolates) {
 #ifndef V8_LITE_MODE
 namespace {
 
+#ifdef USE_SIMULATOR_WITH_GENERIC_C_CALLS
+template <typename Value>
+Value PrimitiveFromMixedType(v8::AnyCType argument);
+
+template <>
+bool PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.bool_value;
+}
+template <>
+int32_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.int32_value;
+}
+template <>
+uint32_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.uint32_value;
+}
+template <>
+int64_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.int64_value;
+}
+template <>
+uint64_t PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.uint64_value;
+}
+template <>
+float PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.float_value;
+}
+template <>
+double PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.double_value;
+}
+template <>
+v8::Local<v8::Value> PrimitiveFromMixedType(v8::AnyCType argument) {
+  return argument.object_value;
+}
+
+template <typename T>
+v8::AnyCType PrimitiveToMixedType(T value) {
+  return v8::AnyCType();
+}
+
+template <>
+v8::AnyCType PrimitiveToMixedType(bool value) {
+  v8::AnyCType ret;
+  ret.bool_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(int32_t value) {
+  v8::AnyCType ret;
+  ret.int32_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(uint32_t value) {
+  v8::AnyCType ret;
+  ret.uint32_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(float value) {
+  v8::AnyCType ret;
+  ret.float_value = value;
+  return ret;
+}
+template <>
+v8::AnyCType PrimitiveToMixedType(double value) {
+  v8::AnyCType ret;
+  ret.double_value = value;
+  return ret;
+}
+
+#endif  // USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
 template <typename Value, typename Impl, typename Ret>
 struct BasicApiChecker {
   static Ret FastCallback(v8::Local<v8::Object> receiver, Value argument,
@@ -27882,6 +27957,7 @@ struct BasicApiChecker {
     v8::FastApiCallbackOptions options = {false, {0}};
     return Impl::FastCallback(receiver, argument, options);
   }
+
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     Impl::SlowCallback(info);
   }
@@ -27897,6 +27973,44 @@ struct BasicApiChecker {
  private:
   ApiCheckerResultFlags result_ = ApiCheckerResult::kNotCalled;
 };
+
+#ifdef USE_SIMULATOR_WITH_GENERIC_C_CALLS
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<!std::is_void<Ret>::value>>
+static v8::AnyCType FastCallbackPatch(v8::AnyCType receiver,
+                                      v8::AnyCType argument,
+                                      v8::AnyCType options) {
+  v8::AnyCType ret = PrimitiveToMixedType<Ret>(Impl::FastCallback(
+      receiver.object_value, PrimitiveFromMixedType<Value>(argument),
+      *(options.options_value)));
+  return ret;
+}
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<!std::is_void<Ret>::value>>
+static v8::AnyCType FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
+                                                  v8::AnyCType argument) {
+  v8::FastApiCallbackOptions options = {false, {0}};
+  v8::AnyCType ret = PrimitiveToMixedType<Ret>(Impl::FastCallback(
+      receiver.object_value, PrimitiveFromMixedType<Value>(argument), options));
+  return ret;
+}
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<std::is_void<Ret>::value>>
+static void FastCallbackPatch(v8::AnyCType receiver, v8::AnyCType argument,
+                              v8::AnyCType options) {
+  return Impl::FastCallback(receiver.object_value,
+                            PrimitiveFromMixedType<Value>(argument),
+                            *(options.options_value));
+}
+template <typename Value, typename Impl, typename Ret,
+          typename = std::enable_if_t<std::is_void<Ret>::value>>
+static void FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
+                                          v8::AnyCType argument) {
+  v8::FastApiCallbackOptions options = {false, {0}};
+  return Impl::FastCallback(receiver.object_value,
+                            PrimitiveFromMixedType<Value>(argument), options);
+}
+#endif  // USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
 enum class Behavior {
   kNoException,
@@ -28042,11 +28156,23 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 
   v8::CFunction c_func;
   if (supports_fallback) {
+#ifdef USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    c_func =
+        v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback,
+                            FastCallbackPatch<Value, Impl, Ret>);
+#else   // USE_SIMULATOR_WITH_GENERIC_C_CALLS
     c_func =
         v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback);
+#endif  // USE_SIMULATOR_WITH_GENERIC_C_CALLS
   } else {
+#ifdef USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    c_func = v8::CFunction::Make(
+        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoFallback,
+        FastCallbackNoFallbackWrapper<Value, Impl, Ret>);
+#else   // USE_SIMULATOR_WITH_GENERIC_C_CALLS
     c_func = v8::CFunction::Make(
         BasicApiChecker<Value, Impl, Ret>::FastCallbackNoFallback);
+#endif  // USE_SIMULATOR_WITH_GENERIC_C_CALLS
   }
   CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
 

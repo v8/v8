@@ -5,6 +5,10 @@
 #ifndef V8_COMPILER_C_SIGNATURE_H_
 #define V8_COMPILER_C_SIGNATURE_H_
 
+#ifdef USE_SIMULATOR_WITH_GENERIC_C_CALLS
+#include "include/v8-fast-api-calls.h"
+#endif  // USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
 #include "src/codegen/machine-type.h"
 
 namespace v8 {
@@ -42,6 +46,12 @@ inline constexpr MachineType MachineTypeForC() {
 FOREACH_CTYPE_MACHINE_TYPE_MAPPING(DECLARE_TEMPLATE_SPECIALIZATION)
 #undef DECLARE_TEMPLATE_SPECIALIZATION
 
+#ifdef USE_SIMULATOR_WITH_GENERIC_C_CALLS
+template <>
+inline MachineType constexpr MachineTypeForC<v8::AnyCType>() {
+  return MachineType::Int64();
+}
+#endif  // USE_SIMULATOR_WITH_GENERIC_C_CALLS
 // Helper for building machine signatures from C types.
 class CSignature : public MachineSignature {
  protected:
