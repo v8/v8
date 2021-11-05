@@ -310,10 +310,10 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
-  return disable_optimization_reason() != BailoutReason::kNoReason;
+  return disabled_optimization_reason() != BailoutReason::kNoReason;
 }
 
-BailoutReason SharedFunctionInfo::disable_optimization_reason() const {
+BailoutReason SharedFunctionInfo::disabled_optimization_reason() const {
   return DisabledOptimizationReasonBits::decode(flags(kRelaxedLoad));
 }
 

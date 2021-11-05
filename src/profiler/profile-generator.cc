@@ -208,7 +208,7 @@ void CodeEntry::FillFunctionInfo(SharedFunctionInfo shared) {
   set_script_id(script.id());
   set_position(shared.StartPosition());
   if (shared.optimization_disabled()) {
-    set_bailout_reason(GetBailoutReason(shared.disable_optimization_reason()));
+    set_bailout_reason(GetBailoutReason(shared.disabled_optimization_reason()));
   }
 }
 

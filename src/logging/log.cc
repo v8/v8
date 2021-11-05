@@ -1513,7 +1513,7 @@ void Logger::CodeDisableOptEvent(Handle<AbstractCode> code,
   MSG_BUILDER();
   msg << kLogEventsNames[CodeEventListener::CODE_DISABLE_OPT_EVENT] << kNext
       << shared->DebugNameCStr().get() << kNext
-      << GetBailoutReason(shared->disable_optimization_reason());
+      << GetBailoutReason(shared->disabled_optimization_reason());
   msg.WriteToLogFile();
 }
 

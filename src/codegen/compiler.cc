@@ -1053,7 +1053,7 @@ MaybeHandle<Code> GetOptimizedCode(
   if (function->HasOptimizationMarker()) function->ClearOptimizationMarker();
 
   if (shared->optimization_disabled() &&
-      shared->disable_optimization_reason() == BailoutReason::kNeverOptimize) {
+      shared->disabled_optimization_reason() == BailoutReason::kNeverOptimize) {
     return {};
   }
 

@@ -315,7 +315,8 @@ void ProfilerListener::CodeDisableOptEvent(Handle<AbstractCode> code,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
   CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->bailout_reason = GetBailoutReason(shared->disable_optimization_reason());
+  rec->bailout_reason =
+      GetBailoutReason(shared->disabled_optimization_reason());
   DispatchCodeEvent(evt_rec);
 }
 

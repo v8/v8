@@ -250,7 +250,7 @@ bool CanOptimizeFunction(Handle<JSFunction> function, Isolate* isolate,
   if (!FLAG_opt) return false;
 
   if (function->shared().optimization_disabled() &&
-      function->shared().disable_optimization_reason() ==
+      function->shared().disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
@@ -430,7 +430,7 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   // If optimization is disabled for the function, return without making it
   // pending optimize for test.
   if (function->shared().optimization_disabled() &&
-      function->shared().disable_optimization_reason() ==
+      function->shared().disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -499,7 +499,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
 
   if (function->shared().optimization_disabled() &&
-      function->shared().disable_optimization_reason() ==
+      function->shared().disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
     return CrashUnlessFuzzing(isolate);
   }
