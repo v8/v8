@@ -2537,6 +2537,9 @@ TEST(AssemblerX64Regmove256bit) {
   __ vmovdqu(ymm9, Operand(rbx, rcx, times_4, 10000));
   __ vmovdqu(Operand(rbx, rcx, times_4, 10000), ymm0);
   __ vbroadcastss(ymm7, Operand(rbx, rcx, times_4, 10000));
+  __ vmovddup(ymm3, ymm2);
+  __ vmovddup(ymm4, Operand(rbx, rcx, times_4, 10000));
+  __ vmovshdup(ymm1, ymm2);
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2562,8 +2565,15 @@ TEST(AssemblerX64Regmove256bit) {
                      0xC5, 0xFE, 0x7F, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00,
 
                      // vbroadcastss ymm7, DWORD PTR [rbx+rcx*4+0x2710]
-                     0xc4, 0xe2, 0x7d, 0x18, 0xbc, 0x8b, 0x10, 0x27, 0x00,
-                     0x00};
+                     0xc4, 0xe2, 0x7d, 0x18, 0xbc, 0x8b, 0x10, 0x27, 0x00, 0x00,
+
+                     // vmovddup ymm3, ymm2
+                     0xc5, 0xff, 0x12, 0xda,
+                     // vmovddup ymm4, YMMWORD PTR [rbx+rcx*4+0x2710]
+                     0xc5, 0xff, 0x12, 0xa4, 0x8b, 0x10, 0x27, 0x00, 0x00,
+                     // vmovshdup ymm1, ymm2
+                     0xc5, 0xfe, 0x16, 0xca};
+
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

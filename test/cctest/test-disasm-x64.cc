@@ -1411,6 +1411,10 @@ UNINITIALIZED_TEST(DisasmX64YMMRegister) {
             vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000)));
     COMPARE("c4e27d18bc8b10270000 vbroadcastss ymm7,[rbx+rcx*4+0x2710]",
             vbroadcastss(ymm7, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c5ff12da             vmovddup ymm3,ymm2", vmovddup(ymm3, ymm2));
+    COMPARE("c5ff12a48b10270000   vmovddup ymm4,[rbx+rcx*4+0x2710]",
+            vmovddup(ymm4, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c5fe16ca             vmovshdup ymm1,ymm2", vmovshdup(ymm1, ymm2));
   }
 
   if (!CpuFeatures::IsSupported(AVX2)) return;

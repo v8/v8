@@ -3416,30 +3416,33 @@ void Assembler::pmovmskb(Register dst, XMMRegister src) {
 }
 
 // AVX instructions
-
-void Assembler::vmovddup(XMMRegister dst, XMMRegister src) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, kF2, k0F, kWIG);
-  emit(0x12);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::vmovddup(XMMRegister dst, Operand src) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, kF2, k0F, kWIG);
-  emit(0x12);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::vmovshdup(XMMRegister dst, XMMRegister src) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL128, kF3, k0F, kWIG);
-  emit(0x16);
-  emit_sse_operand(dst, src);
-}
+#define VMOV_DUP(SIMDRegister, length)                            \
+  void Assembler::vmovddup(SIMDRegister dst, SIMDRegister src) {  \
+    DCHECK(IsEnabled(AVX));                                       \
+    EnsureSpace ensure_space(this);                               \
+    emit_vex_prefix(dst, xmm0, src, k##length, kF2, k0F, kWIG);   \
+    emit(0x12);                                                   \
+    emit_sse_operand(dst, src);                                   \
+  }                                                               \
+                                                                  \
+  void Assembler::vmovddup(SIMDRegister dst, Operand src) {       \
+    DCHECK(IsEnabled(AVX));                                       \
+    EnsureSpace ensure_space(this);                               \
+    emit_vex_prefix(dst, xmm0, src, k##length, kF2, k0F, kWIG);   \
+    emit(0x12);                                                   \
+    emit_sse_operand(dst, src);                                   \
+  }                                                               \
+                                                                  \
+  void Assembler::vmovshdup(SIMDRegister dst, SIMDRegister src) { \
+    DCHECK(IsEnabled(AVX));                                       \
+    EnsureSpace ensure_space(this);                               \
+    emit_vex_prefix(dst, xmm0, src, k##length, kF3, k0F, kWIG);   \
+    emit(0x16);                                                   \
+    emit_sse_operand(dst, src);                                   \
+  }
+VMOV_DUP(XMMRegister, L128)
+VMOV_DUP(YMMRegister, L256)
+#undef VMOV_DUP
 
 #define BROADCASTSS(SIMDRegister, length)                           \
   void Assembler::vbroadcastss(SIMDRegister dst, Operand src) {     \
