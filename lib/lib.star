@@ -29,6 +29,8 @@ def main_console_builder():
     def builder():
         console_view("main")
         console_view("ports")
+        console_view("main-dev")
+        console_view("ports-dev")
 
     return builder
 
