@@ -474,7 +474,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionForTopTier) {
 }
 
 RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
-  HandleScope scope(isolate);
+  HandleScope handle_scope(isolate);
   DCHECK(args.length() == 0 || args.length() == 1);
 
   Handle<JSFunction> function;

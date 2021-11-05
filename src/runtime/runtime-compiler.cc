@@ -298,7 +298,7 @@ BytecodeOffset DetermineEntryAndDisarmOSRForUnoptimized(
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
-  HandleScope scope(isolate);
+  HandleScope handle_scope(isolate);
   DCHECK_EQ(0, args.length());
 
   // Only reachable when OST is enabled.
