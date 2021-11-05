@@ -1469,7 +1469,7 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
 
 #define CREATE_DATA(Name)                                             \
   if (object->Is##Name()) {                                           \
-    RefsMap::Entry* entry = refs_->LookupOrInsert(object.address());  \
+    entry = refs_->LookupOrInsert(object.address());                  \
     object_data = zone()->New<ref_traits<Name>::data_type>(           \
         this, &entry->value, Handle<Name>::cast(object),              \
         ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind)); \

@@ -4198,7 +4198,7 @@ TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
     WeakData* data =
         new WeakData{heap_profiler->TakeHeapSnapshot(), &gc_calls, &handle};
 
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope inner_scope(env->GetIsolate());
     handle.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
     handle.SetWeak(
         data,
