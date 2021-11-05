@@ -275,6 +275,14 @@ void WriteBarrier::MarkingFromGlobalHandle(Object value) {
   MarkingSlowFromGlobalHandle(*heap, heap_value);
 }
 
+// static
+void WriteBarrier::MarkingFromInternalFields(JSObject host) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+  auto heap = GetHeapIfMarking(host);
+  if (!heap) return;
+  MarkingSlowFromInternalFields(*heap, host);
+}
+
 }  // namespace internal
 }  // namespace v8
 

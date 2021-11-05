@@ -87,6 +87,23 @@ TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
   Wrappable::destructor_callcount = 0;
   WrapperHelper::ResetWrappableConnection(api_object);
   SimulateIncrementalMarking();
+  uint16_t type_info = WrapperHelper::kTracedEmbedderId;
+  WrapperHelper::SetWrappableConnection(api_object, &type_info, wrappable);
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  EXPECT_EQ(0u, Wrappable::destructor_callcount);
+}
+
+TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReferenceWithExplicitAPI) {
+  if (!FLAG_incremental_marking) return;
+  v8::HandleScope scope(v8_isolate());
+  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
+  v8::Context::Scope context_scope(context);
+  void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
+  v8::Local<v8::Object> api_object =
+      WrapperHelper::CreateWrapper(context, nullptr, nullptr);
+  Wrappable::destructor_callcount = 0;
+  WrapperHelper::ResetWrappableConnection(api_object);
+  SimulateIncrementalMarking();
   {
     // The following snippet shows the embedder code for implementing a GC-safe
     // setter for JS to C++ references.
