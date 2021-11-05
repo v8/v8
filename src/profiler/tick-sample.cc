@@ -159,7 +159,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
                                    bool update_stats,
                                    bool use_simulator_reg_state,
                                    base::TimeDelta sampling_interval) {
-  this->update_stats = update_stats;
+  update_stats_ = update_stats;
   SampleInfo info;
   RegisterState regs = reg_state;
   if (!GetStackSample(v8_isolate, &regs, record_c_entry_frame, stack,
@@ -196,7 +196,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   } else {
     tos = nullptr;
   }
-  this->sampling_interval = sampling_interval;
+  sampling_interval_ = sampling_interval;
   timestamp = base::TimeTicks::HighResolutionNow();
 }
 
@@ -352,9 +352,9 @@ void TickSample::print() const {
   PrintF(" - has_external_callback: %d\n", has_external_callback);
   PrintF(" - %s: %p\n",
          has_external_callback ? "external_callback_entry" : "tos", tos);
-  PrintF(" - update_stats: %d\n", update_stats);
+  PrintF(" - update_stats: %d\n", update_stats_);
   PrintF(" - sampling_interval: %" PRId64 "\n",
-         sampling_interval.InMicroseconds());
+         sampling_interval_.InMicroseconds());
   PrintF("\n");
 }
 

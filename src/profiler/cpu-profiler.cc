@@ -234,7 +234,7 @@ void SamplingEventsProcessor::SymbolizeAndAddToProfiles(
       symbolizer_->SymbolizeTickSample(record->sample);
   profiles_->AddPathToCurrentProfiles(
       record->sample.timestamp, symbolized.stack_trace, symbolized.src_line,
-      record->sample.update_stats, record->sample.sampling_interval,
+      record->sample.update_stats_, record->sample.sampling_interval_,
       reinterpret_cast<Address>(record->sample.context));
 }
 

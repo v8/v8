@@ -132,11 +132,11 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   AllocationNode* node = &profile_root_;
 
   std::vector<SharedFunctionInfo> stack;
-  JavaScriptFrameIterator it(isolate_);
+  JavaScriptFrameIterator frame_it(isolate_);
   int frames_captured = 0;
   bool found_arguments_marker_frames = false;
-  while (!it.done() && frames_captured < stack_depth_) {
-    JavaScriptFrame* frame = it.frame();
+  while (!frame_it.done() && frames_captured < stack_depth_) {
+    JavaScriptFrame* frame = frame_it.frame();
     // If we are materializing objects during deoptimization, inlined
     // closures may not yet be materialized, and this includes the
     // closure on the stack. Skip over any such frames (they'll be
@@ -149,7 +149,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
     } else {
       found_arguments_marker_frames = true;
     }
-    it.Advance();
+    frame_it.Advance();
   }
 
   if (frames_captured == 0) {

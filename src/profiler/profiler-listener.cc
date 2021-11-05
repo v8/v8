@@ -177,7 +177,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
           if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
           if (pos_info.script.is_null()) continue;
 
-          int line_number =
+          line_number =
               pos_info.script->GetLineNumber(pos_info.position.ScriptOffset()) +
               1;
 

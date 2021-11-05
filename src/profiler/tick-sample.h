@@ -27,7 +27,7 @@ struct V8_EXPORT TickSample {
         external_callback_entry(nullptr),
         frames_count(0),
         has_external_callback(false),
-        update_stats(true) {}
+        update_stats_(true) {}
 
   /**
    * Initialize a tick sample from the isolate.
@@ -93,10 +93,10 @@ struct V8_EXPORT TickSample {
   void* context = nullptr;          // Address of the incumbent native context.
   unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
-  bool update_stats : 1;  // Whether the sample should update aggregated stats.
+  bool update_stats_ : 1;  // Whether the sample should update aggregated stats.
 
   base::TimeTicks timestamp;
-  base::TimeDelta sampling_interval;  // Sampling interval used to capture.
+  base::TimeDelta sampling_interval_;  // Sampling interval used to capture.
 };
 
 }  // namespace internal
