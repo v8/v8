@@ -102,6 +102,9 @@ static const char* const ANNOTATION_IF = "@if";
 static const char* const ANNOTATION_IFNOT = "@ifnot";
 static const char* const ANNOTATION_GENERATE_BODY_DESCRIPTOR =
     "@generateBodyDescriptor";
+static const char* const ANNOTATION_GENERATE_UNIQUE_MAP = "@generateUniqueMap";
+static const char* const ANNOTATION_GENERATE_FACTORY_FUNCTION =
+    "@generateFactoryFunction";
 static const char* const ANNOTATION_EXPORT = "@export";
 static const char* const ANNOTATION_DO_NOT_GENERATE_CAST = "@doNotGenerateCast";
 static const char* const ANNOTATION_USE_PARENT_TYPE_CHECKER =
@@ -149,14 +152,14 @@ enum class ClassFlag {
   kIsShape = 1 << 3,
   kHasSameInstanceTypeAsParent = 1 << 4,
   kGenerateCppClassDefinitions = 1 << 5,
-  kCustomCppClass = 1 << 6,
-  kHighestInstanceTypeWithinParent = 1 << 7,
-  kLowestInstanceTypeWithinParent = 1 << 8,
-  kUndefinedLayout = 1 << 9,
-  kGenerateBodyDescriptor = 1 << 10,
-  kExport = 1 << 11,
-  kDoNotGenerateCast = 1 << 12,
-  kCustomMap = 1 << 13,
+  kHighestInstanceTypeWithinParent = 1 << 6,
+  kLowestInstanceTypeWithinParent = 1 << 7,
+  kUndefinedLayout = 1 << 8,
+  kGenerateBodyDescriptor = 1 << 9,
+  kExport = 1 << 10,
+  kDoNotGenerateCast = 1 << 11,
+  kGenerateUniqueMap = 1 << 12,
+  kGenerateFactoryFunction = 1 << 13,
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

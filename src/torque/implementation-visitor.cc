@@ -4697,8 +4697,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
           structs_used_in_classes.insert(*field_as_struct);
         }
       }
-      if (type->ShouldExport() && !type->IsAbstract() &&
-          !type->HasCustomMap()) {
+      if (type->ShouldGenerateFactoryFunction()) {
         std::string return_type = type->HandlifiedCppTypeName();
         std::string function_name = "New" + type->name();
         std::stringstream parameters;
