@@ -834,9 +834,36 @@ bool WebSnapshotDeserializer::Deserialize() {
   ProcessDeferredReferences();
   DeserializeExports();
   DCHECK_EQ(deferred_references_->Length(), 0);
-  if (deserializer_->position_ != deserializer_->end_) {
-    Throw("Web snapshot: Snapshot length mismatch");
-    return false;
+
+  // If there is more data, treat it as normal JavaScript.
+  DCHECK_LE(deserializer_->position_, deserializer_->end_);
+  auto remaining_bytes = deserializer_->end_ - deserializer_->position_;
+  if (remaining_bytes > 0 && remaining_bytes < v8::String::kMaxLength) {
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+    v8::Local<v8::String> source =
+        v8::String::NewFromUtf8(
+            v8_isolate, reinterpret_cast<const char*>(deserializer_->position_),
+            NewStringType::kNormal, static_cast<int>(remaining_bytes))
+            .ToLocalChecked();
+
+    ScriptOrigin origin(v8_isolate, v8::String::NewFromUtf8Literal(
+                                        v8_isolate, "(web snapshot)",
+                                        NewStringType::kInternalized));
+
+    ScriptCompiler::Source script_source(source, origin);
+    Local<UnboundScript> script;
+    if (!ScriptCompiler::CompileUnboundScript(v8_isolate, &script_source)
+             .ToLocal(&script)) {
+      DCHECK(isolate_->has_pending_exception());
+      return false;
+    }
+    Local<Value> result;
+    if (!script->BindToCurrentContext()
+             ->Run(v8_isolate->GetCurrentContext())
+             .ToLocal(&result)) {
+      DCHECK(isolate_->has_pending_exception());
+      return false;
+    }
   }
 
   if (FLAG_trace_web_snapshot) {
