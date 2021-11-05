@@ -585,6 +585,14 @@ hooks = [
     ],
   },
   {
+    'name': 'vpython3_common',
+    'pattern': '.',
+    'action': [ 'vpython3',
+                '-vpython-spec', '.vpython3',
+                '-vpython-tool', 'install',
+    ],
+  },
+  {
     'name': 'check_v8_header_includes',
     'pattern': '.',
     'condition': 'check_v8_header_includes',
