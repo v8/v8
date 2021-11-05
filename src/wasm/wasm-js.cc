@@ -180,9 +180,7 @@ Local<String> v8_str(Isolate* isolate, const char* str) {
       thrower->TypeError("Argument 0 must be a WebAssembly." #Type); \
       return {};                                                     \
     }                                                                \
-    Local<Object> obj = Local<Object>::Cast(args[0]);                \
-    return i::Handle<i::Wasm##Type##Object>::cast(                   \
-        v8::Utils::OpenHandle(*obj));                                \
+    return i::Handle<i::Wasm##Type##Object>::cast(arg0);             \
   }
 
 GET_FIRST_ARGUMENT_AS(Module)
@@ -229,6 +227,16 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
   }
   if (thrower->error()) return i::wasm::ModuleWireBytes(nullptr, nullptr);
   return i::wasm::ModuleWireBytes(start, start + length);
+}
+
+i::MaybeHandle<i::JSFunction> GetFirstArgumentAsJSFunction(
+    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
+  i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
+  if (!arg0->IsJSFunction()) {
+    thrower->TypeError("Argument 0 must be a function");
+    return {};
+  }
+  return i::Handle<i::JSFunction>::cast(arg0);
 }
 
 i::MaybeHandle<i::JSReceiver> GetValueAsImports(Local<Value> arg,
@@ -2493,6 +2501,39 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
+// WebAssembly.Suspender.returnPromiseOnSuspend(WebAssembly.Function) ->
+// WebAssembly.Function
+void WebAssemblySuspenderReturnPromiseOnSuspend(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ScheduledErrorThrower thrower(
+      i_isolate, "WebAssembly.Suspender.returnPromiseOnSuspend()");
+  if (args.Length() == 0) {
+    thrower.TypeError("Argument 0 is required");
+    return;
+  }
+  auto maybe_function = GetFirstArgumentAsJSFunction(args, &thrower);
+  if (thrower.error()) return;
+  i::Handle<i::JSFunction> function = maybe_function.ToHandleChecked();
+  i::SharedFunctionInfo sfi = function->shared();
+  if (!sfi.HasWasmExportedFunctionData()) {
+    thrower.TypeError("Argument 0 must be a wasm function");
+  }
+  i::WasmExportedFunctionData data = sfi.wasm_exported_function_data();
+  int index = data.function_index();
+  i::Handle<i::WasmInstanceObject> instance(
+      i::WasmInstanceObject::cast(data.ref()), i_isolate);
+  i::Handle<i::Code> wrapper = i_isolate->builtins()->code_handle(
+      i::Builtin::kWasmReturnPromiseOnSuspend);
+  i::Handle<i::JSObject> result =
+      i::Handle<i::WasmExternalFunction>::cast(i::WasmExportedFunction::New(
+          i_isolate, instance, index,
+          static_cast<int>(data.sig()->parameter_count()), wrapper));
+  args.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
 }  // namespace
 
 // TODO(titzer): we use the API to create the function template because the
@@ -2784,9 +2825,11 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     Handle<JSFunction> suspender_constructor = InstallConstructorFunc(
         isolate, webassembly, "Suspender", WebAssemblySuspender);
     context->set_wasm_suspender_constructor(*suspender_constructor);
-    SetupConstructor(isolate, suspender_constructor,
-                     i::WASM_SUSPENDER_OBJECT_TYPE,
-                     WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
+    Handle<JSObject> suspender_proto = SetupConstructor(
+        isolate, suspender_constructor, i::WASM_SUSPENDER_OBJECT_TYPE,
+        WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
+    InstallFunc(isolate, suspender_proto, "returnPromiseOnSuspend",
+                WebAssemblySuspenderReturnPromiseOnSuspend, 1);
   }
 
   // Setup Function

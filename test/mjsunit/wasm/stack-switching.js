@@ -21,7 +21,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("test", kSig_v_v)
       .addBody([kExprI32Const, 42, kExprGlobalSet, 0]).exportFunc();
   let instance = builder.instantiate();
-  let wrapper = %WasmReturnPromiseOnSuspend(instance.exports.test);
+  let suspender = new WebAssembly.Suspender();
+  let wrapper = suspender.returnPromiseOnSuspend(instance.exports.test);
   wrapper();
   assertEquals(42, instance.exports.g.value);
 })();
