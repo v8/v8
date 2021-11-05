@@ -79,6 +79,10 @@ extern class WasmContinuationObject extends Struct {
   parent: WasmContinuationObject|Undefined;
 }
 
+extern class WasmSuspenderObject extends JSObject {
+  continuation: WasmContinuationObject|Undefined;
+}
+
 extern class WasmExceptionTag extends Struct {
   // Note that this index is only useful for debugging purposes and it is not
   // unique across modules. The GC however does not allow objects without at

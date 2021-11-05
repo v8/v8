@@ -1603,6 +1603,34 @@ void WebAssemblyTag(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(tag_object));
 }
 
+// WebAssembly.Suspender
+void WebAssemblySuspender(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Suspender()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Suspender must be invoked with 'new'");
+    return;
+  }
+
+  i::Handle<i::JSObject> suspender = i::WasmSuspenderObject::New(i_isolate);
+
+  // The infrastructure for `new Foo` calls allocates an object, which is
+  // available here as {args.This()}. We're going to discard this object
+  // and use {suspender} instead, but it does have the correct prototype,
+  // which we must harvest from it. This makes a difference when the JS
+  // constructor function wasn't {WebAssembly.Suspender} directly, but some
+  // subclass: {suspender} has {WebAssembly.Suspender}'s prototype at this
+  // point, so we must overwrite that with the correct prototype for {Foo}.
+  if (!TransferPrototype(i_isolate, suspender,
+                         Utils::OpenHandle(*args.This()))) {
+    return;
+  }
+  args.GetReturnValue().Set(Utils::ToLocal(suspender));
+}
+
 namespace {
 
 uint32_t GetEncodedSize(i::Handle<i::WasmTagObject> tag_object) {
@@ -2749,6 +2777,16 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     context->set_wasm_exception_constructor(*exception_constructor);
     JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
                               exception_proto);
+  }
+
+  // Setup Suspender.
+  if (enabled_features.has_stack_switching()) {
+    Handle<JSFunction> suspender_constructor = InstallConstructorFunc(
+        isolate, webassembly, "Suspender", WebAssemblySuspender);
+    context->set_wasm_suspender_constructor(*suspender_constructor);
+    SetupConstructor(isolate, suspender_constructor,
+                     i::WASM_SUSPENDER_OBJECT_TYPE,
+                     WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
   }
 
   // Setup Function

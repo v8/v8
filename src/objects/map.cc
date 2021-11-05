@@ -374,6 +374,8 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitWasmExportedFunctionData;
     case WASM_CAPI_FUNCTION_DATA_TYPE:
       return kVisitWasmCapiFunctionData;
+    case WASM_SUSPENDER_OBJECT_TYPE:
+      return kVisitWasmSuspenderObject;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #define MAKE_TQ_CASE(TYPE, Name) \

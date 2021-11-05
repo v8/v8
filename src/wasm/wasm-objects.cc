@@ -1864,6 +1864,18 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
   return New(isolate, std::move(stack), parent);
 }
 
+// static
+Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
+  Handle<JSFunction> suspender_cons(
+      isolate->native_context()->wasm_suspender_constructor(), isolate);
+  // Suspender objects should be at least as long-lived as the instances of
+  // which it will wrap the imports/exports, allocate in old space too.
+  auto suspender = Handle<WasmSuspenderObject>::cast(
+      isolate->factory()->NewJSObject(suspender_cons, AllocationType::kOld));
+  suspender->set_continuation(ReadOnlyRoots(isolate).undefined_value());
+  return suspender;
+}
+
 #ifdef DEBUG
 
 namespace {

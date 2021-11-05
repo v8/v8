@@ -96,6 +96,7 @@
 //         - WasmMemoryObject
 //         - WasmModuleObject
 //         - WasmTableObject
+//         - WasmSuspenderObject
 //       - JSProxy
 //     - FixedArrayBase
 //       - ByteArray

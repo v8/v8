@@ -1852,6 +1852,12 @@ void WasmContinuationObject::WasmContinuationObjectPrint(std::ostream& os) {
   os << "\n";
 }
 
+void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
+  PrintHeader(os, "WasmSuspenderObject");
+  os << "\n - continuation: " << continuation();
+  os << "\n";
+}
+
 void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "WasmInstanceObject");
   os << "\n - module_object: " << Brief(module_object());

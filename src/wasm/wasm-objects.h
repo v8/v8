@@ -973,6 +973,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   TQ_OBJECT_CONSTRUCTORS(WasmArray)
 };
 
+// A wasm delimited continuation.
 class WasmContinuationObject
     : public TorqueGeneratedWasmContinuationObject<WasmContinuationObject,
                                                    Struct> {
@@ -989,6 +990,17 @@ class WasmContinuationObject
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
       HeapObject parent);
+};
+
+// The suspender object provides an API to suspend and resume wasm code using
+// promises. See: https://github.com/WebAssembly/js-promise-integration.
+class WasmSuspenderObject
+    : public TorqueGeneratedWasmSuspenderObject<WasmSuspenderObject, JSObject> {
+ public:
+  static Handle<WasmSuspenderObject> New(Isolate* isolate);
+  // TODO(thibaudm): returnPromiseOnSuspend & suspendOnReturnedPromise.
+  DECL_PRINTER(WasmSuspenderObject)
+  TQ_OBJECT_CONSTRUCTORS(WasmSuspenderObject)
 };
 
 #undef DECL_OPTIONAL_ACCESSORS

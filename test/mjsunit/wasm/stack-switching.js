@@ -6,6 +6,14 @@
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
+(function TestSuspender() {
+  print(arguments.callee.name);
+  let suspender = new WebAssembly.Suspender();
+  assertTrue(suspender.toString() == "[object WebAssembly.Suspender]");
+  assertThrows(() => WebAssembly.Suspender(), TypeError,
+      /WebAssembly.Suspender must be invoked with 'new'/);
+})();
+
 (function TestStackSwitchNoSuspend() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
