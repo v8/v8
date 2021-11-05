@@ -224,12 +224,7 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-
-  Handle<Code> copy;
-  {
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-    copy = factory->CopyCode(code);
-  }
+  Handle<Code> copy = factory->CopyCode(code);
 
   CheckEmbeddedObjectsAreEqual(isolate, code, copy);
   CcTest::CollectAllAvailableGarbage();
@@ -7289,9 +7284,10 @@ TEST(Regress10900) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   {
-    // Generate multiple code pages.
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     for (int i = 0; i < 100; i++) {
+      // Generate multiple code pages.
+      CodePageCollectionMemoryModificationScope modification_scope(
+          isolate->heap());
       factory->CopyCode(code);
     }
   }
