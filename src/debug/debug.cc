@@ -1179,14 +1179,14 @@ void Debug::PrepareStep(StepAction step_action) {
           return;
         }
 #endif  // V8_ENABLE_WEBASSEMBLY
-        JavaScriptFrame* frame = JavaScriptFrame::cast(frames_it.frame());
+        JavaScriptFrame* js_frame = JavaScriptFrame::cast(frames_it.frame());
         if (last_step_action() == StepInto) {
           // Deoptimize frame to ensure calls are checked for step-in.
-          Deoptimizer::DeoptimizeFunction(frame->function());
+          Deoptimizer::DeoptimizeFunction(js_frame->function());
         }
-        HandleScope scope(isolate_);
+        HandleScope inner_scope(isolate_);
         std::vector<Handle<SharedFunctionInfo>> infos;
-        frame->GetFunctions(&infos);
+        js_frame->GetFunctions(&infos);
         for (; !infos.empty(); current_frame_count--) {
           Handle<SharedFunctionInfo> info = infos.back();
           infos.pop_back();

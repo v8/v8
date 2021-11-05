@@ -1085,7 +1085,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     FixedArray constants = sfi->GetBytecodeArray(isolate).constant_pool();
     for (int i = 0; i < constants.length(); ++i) {
       if (!constants.get(i).IsSharedFunctionInfo()) continue;
-      FunctionData* data = nullptr;
+      data = nullptr;
       if (!function_data_map.Lookup(SharedFunctionInfo::cast(constants.get(i)),
                                     &data)) {
         continue;
@@ -1158,11 +1158,12 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     // unique.
     DisallowGarbageCollection no_gc;
 
-    SharedFunctionInfo::ScriptIterator it(isolate, *new_script);
+    SharedFunctionInfo::ScriptIterator script_it(isolate, *new_script);
     std::set<int> start_positions;
-    for (SharedFunctionInfo sfi = it.Next(); !sfi.is_null(); sfi = it.Next()) {
+    for (SharedFunctionInfo sfi = script_it.Next(); !sfi.is_null();
+         sfi = script_it.Next()) {
       DCHECK_EQ(sfi.script(), *new_script);
-      DCHECK_EQ(sfi.function_literal_id(), it.CurrentIndex());
+      DCHECK_EQ(sfi.function_literal_id(), script_it.CurrentIndex());
       // Don't check the start position of the top-level function, as it can
       // overlap with a function in the script.
       if (sfi.is_toplevel()) {
