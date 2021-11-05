@@ -3543,6 +3543,7 @@ void TurboAssembler::LoadAddress(Register dst, Label* target,
     CHECK(is_int32(offset + 0x800));
     int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
     int32_t Lo12 = (int32_t)offset << 20 >> 20;
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     auipc(dst, Hi20);
     addi(dst, dst, Lo12);
   } else {
