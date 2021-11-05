@@ -2297,7 +2297,8 @@ FunctionSig* GenerateSig(Zone* zone, DataRange* data, SigKind sig_kind,
   return builder.Build();
 }
 
-WasmInitExpr GenerateInitExpr(WasmModuleBuilder* builder, ValueType type,
+WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
+                              ValueType type,
                               uint32_t num_struct_and_array_types) {
   switch (type.kind()) {
     case kOptRef:
@@ -2329,26 +2330,29 @@ WasmInitExpr GenerateInitExpr(WasmModuleBuilder* builder, ValueType type,
         // We materialize all these types with a struct because they are all its
         // supertypes.
         DCHECK(builder->IsStructType(index));
-        std::vector<WasmInitExpr> elements;
+        ZoneVector<WasmInitExpr>* elements =
+            zone->New<ZoneVector<WasmInitExpr>>(zone);
         int field_count = builder->GetStructType(index)->field_count();
         for (int field_index = 0; field_index < field_count; field_index++) {
-          elements.push_back(GenerateInitExpr(
-              builder, builder->GetStructType(index)->field(field_index),
+          elements->push_back(GenerateInitExpr(
+              zone, builder, builder->GetStructType(index)->field(field_index),
               num_struct_and_array_types));
         }
-        return WasmInitExpr::StructNew(index, std::move(elements));
+        elements->push_back(WasmInitExpr::RttCanon(index));
+        return WasmInitExpr::StructNewWithRtt(index, elements);
       }
       DCHECK(type.has_index());
       if (representation == HeapType::kFunc) {
         return WasmInitExpr::RefFuncConst(index);
       }
       if (builder->IsArrayType(index)) {
-        std::vector<WasmInitExpr> elements;
-        elements.push_back(GenerateInitExpr(
-            builder, builder->GetArrayType(index)->element_type(),
+        ZoneVector<WasmInitExpr>* elements =
+            zone->New<ZoneVector<WasmInitExpr>>(zone);
+        elements->push_back(GenerateInitExpr(
+            zone, builder, builder->GetArrayType(index)->element_type(),
             num_struct_and_array_types));
-        elements.push_back(WasmInitExpr::RttCanon(index));
-        return WasmInitExpr::ArrayInit(index, std::move(elements));
+        elements->push_back(WasmInitExpr::RttCanon(index));
+        return WasmInitExpr::ArrayInit(index, elements);
       }
       if (builder->IsSignature(index)) {
         // Transform from signature index to function specific index.
@@ -2460,7 +2464,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
       builder.AddGlobal(
           type, mutability,
-          GenerateInitExpr(&builder, type,
+          GenerateInitExpr(zone, &builder, type,
                            static_cast<uint32_t>(num_structs + num_arrays)));
       globals.push_back(type);
       if (mutability) mutable_globals.push_back(static_cast<uint8_t>(i));

@@ -462,7 +462,8 @@ int GetNearestWasmFunction(const WasmModule* module, uint32_t byte_offset);
 // Returns 0 if the type has no explicit supertype.
 // The result is capped to {kV8MaxRttSubtypingDepth + 1}.
 // Invalid cyclic hierarchies will return -1.
-int GetSubtypingDepth(const WasmModule* module, uint32_t type_index);
+V8_EXPORT_PRIVATE int GetSubtypingDepth(const WasmModule* module,
+                                        uint32_t type_index);
 
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based

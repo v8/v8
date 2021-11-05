@@ -50,7 +50,7 @@ class WasmGCTester {
   }
 
   byte AddGlobal(ValueType type, bool mutability, WasmInitExpr init) {
-    return builder_.AddGlobal(type, mutability, std::move(init));
+    return builder_.AddGlobal(type, mutability, init);
   }
 
   byte DefineFunction(FunctionSig* sig, std::initializer_list<ValueType> locals,
@@ -1425,7 +1425,8 @@ WASM_COMPILED_EXEC_TEST(RttFreshSub) {
 
   const byte kRtt = tester.AddGlobal(
       ValueType::Rtt(kType, 1), false,
-      WasmInitExpr::RttFreshSub(type_repr, WasmInitExpr::RttCanon(type_repr)));
+      WasmInitExpr::RttFreshSub(tester.zone(), type_repr,
+                                WasmInitExpr::RttCanon(type_repr)));
 
   // A struct allocated with a fresh RTT does not match other fresh RTTs
   // created for the same type.
@@ -2082,7 +2083,8 @@ WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
       WasmInitExpr::RttCanon(static_cast<HeapType::Representation>(SuperType)));
   const byte RttSub = tester.AddGlobal(
       ValueType::Rtt(SubType, 1), false,
-      WasmInitExpr::RttSub(static_cast<HeapType::Representation>(SubType),
+      WasmInitExpr::RttSub(tester.zone(),
+                           static_cast<HeapType::Representation>(SubType),
                            WasmInitExpr::GlobalGet(RttSuper)));
   const byte RttList = tester.AddGlobal(
       ValueType::Rtt(ListType, 0), false,
