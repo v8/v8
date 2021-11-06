@@ -1180,6 +1180,8 @@ filegroup(
         "src/execution/arguments-inl.h",
         "src/execution/arguments.cc",
         "src/execution/arguments.h",
+        "src/execution/encoded-c-signature.cc",
+        "src/execution/encoded-c-signature.h",
         "src/execution/execution.cc",
         "src/execution/execution.h",
         "src/execution/frame-constants.h",
