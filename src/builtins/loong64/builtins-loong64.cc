@@ -871,7 +871,8 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           OptimizationMarker expected_marker,
                                           Runtime::FunctionId function_id) {
   Label no_match;
-  __ Branch(&no_match, ne, actual_marker, Operand(expected_marker));
+  __ Branch(&no_match, ne, actual_marker,
+            Operand(static_cast<int>(expected_marker)));
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }

@@ -34,7 +34,9 @@ void LazyBuiltinsAssembler::TailCallRuntimeIfMarkerEquals(
     TNode<Uint32T> marker, OptimizationMarker expected_marker,
     Runtime::FunctionId function_id, TNode<JSFunction> function) {
   Label no_match(this);
-  GotoIfNot(Word32Equal(marker, Uint32Constant(expected_marker)), &no_match);
+  GotoIfNot(Word32Equal(marker,
+                        Uint32Constant(static_cast<uint32_t>(expected_marker))),
+            &no_match);
   GenerateTailCallToReturnedCode(function_id, function);
   BIND(&no_match);
 }

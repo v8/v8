@@ -1083,7 +1083,8 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           Runtime::FunctionId function_id) {
   ASM_CODE_COMMENT(masm);
   Label no_match;
-  __ CompareAndBranch(actual_marker, Operand(expected_marker), ne, &no_match);
+  __ CompareAndBranch(actual_marker, Operand(static_cast<int>(expected_marker)),
+                      ne, &no_match);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }

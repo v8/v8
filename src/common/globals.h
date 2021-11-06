@@ -1620,7 +1620,7 @@ inline std::ostream& operator<<(std::ostream& os,
 
 using FileAndLine = std::pair<const char*, int>;
 
-enum OptimizationMarker : int32_t {
+enum class OptimizationMarker : int32_t {
   // These values are set so that it is easy to check if there is a marker where
   // some processing needs to be done.
   kNone = 0b000,
@@ -1633,8 +1633,11 @@ enum OptimizationMarker : int32_t {
 // For kNone or kInOptimizationQueue we don't need any special processing.
 // To check both cases using a single mask, we expect the kNone to be 0 and
 // kInOptimizationQueue to be 1 so that we can mask off the lsb for checking.
-STATIC_ASSERT(kNone == 0b000 && kInOptimizationQueue == 0b001);
-STATIC_ASSERT(kLastOptimizationMarker <= 0b111);
+STATIC_ASSERT(static_cast<int>(OptimizationMarker::kNone) == 0b000 &&
+              static_cast<int>(OptimizationMarker::kInOptimizationQueue) ==
+                  0b001);
+STATIC_ASSERT(static_cast<int>(OptimizationMarker::kLastOptimizationMarker) <=
+              0b111);
 static constexpr uint32_t kNoneOrInOptimizationQueueMask = 0b110;
 
 inline bool IsInOptimizationQueueMarker(OptimizationMarker marker) {
