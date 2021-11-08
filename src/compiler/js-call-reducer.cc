@@ -2855,11 +2855,11 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
 
 // ES #sec-object.prototype.hasownproperty
 Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
-  JSCallNode n(node);
-  Node* receiver = n.receiver();
-  Node* name = n.ArgumentOrUndefined(0, jsgraph());
-  Effect effect = n.effect();
-  Control control = n.control();
+  JSCallNode call_node(node);
+  Node* receiver = call_node.receiver();
+  Node* name = call_node.ArgumentOrUndefined(0, jsgraph());
+  Effect effect = call_node.effect();
+  Control control = call_node.control();
 
   // We can optimize a call to Object.prototype.hasOwnProperty if it's being
   // used inside a fast-mode for..in, so for code like this:
@@ -4364,8 +4364,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   // the {target} must have the same native context as the call site.
   // Same if the {target} is the result of a CheckClosure operation.
   if (target->opcode() == IrOpcode::kJSCreateClosure) {
-    CreateClosureParameters const& p = JSCreateClosureNode{target}.Parameters();
-    return ReduceJSCall(node, p.shared_info(broker()));
+    CreateClosureParameters const& params =
+        JSCreateClosureNode{target}.Parameters();
+    return ReduceJSCall(node, params.shared_info(broker()));
   } else if (target->opcode() == IrOpcode::kCheckClosure) {
     FeedbackCellRef cell = MakeRef(broker(), FeedbackCellOf(target->op()));
     base::Optional<SharedFunctionInfoRef> shared = cell.shared_function_info();
@@ -5518,8 +5519,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
 
     // Collect the value inputs to push.
     std::vector<Node*> values(num_values);
-    for (int i = 0; i < num_values; ++i) {
-      values[i] = n.Argument(i);
+    for (int j = 0; j < num_values; ++j) {
+      values[j] = n.Argument(j);
     }
 
     for (auto& value : values) {
@@ -5572,10 +5573,10 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
           receiver, new_length, effect, control);
 
       // Append the {values} to the {elements}.
-      for (int i = 0; i < num_values; ++i) {
-        Node* value = values[i];
+      for (int j = 0; j < num_values; ++j) {
+        Node* value = values[j];
         Node* index = graph()->NewNode(simplified()->NumberAdd(), length,
-                                       jsgraph()->Constant(i));
+                                       jsgraph()->Constant(j));
         effect =
             graph()->NewNode(simplified()->StoreElement(
                                  AccessBuilder::ForFixedArrayElement(kind)),
@@ -5866,22 +5867,22 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
           if_true1 = graph()->NewNode(common()->IfFalse(), branch2);
           etrue1 = eloop;
 
-          Node* control = graph()->NewNode(common()->IfTrue(), branch2);
-          Node* effect = etrue1;
+          Node* control2 = graph()->NewNode(common()->IfTrue(), branch2);
+          Node* effect2 = etrue1;
 
           ElementAccess const access =
               AccessBuilder::ForFixedArrayElement(kind);
-          Node* value = effect =
+          Node* value2 = effect2 =
               graph()->NewNode(simplified()->LoadElement(access), elements,
-                               index, effect, control);
-          effect = graph()->NewNode(
+                               index, effect2, control2);
+          effect2 = graph()->NewNode(
               simplified()->StoreElement(access), elements,
               graph()->NewNode(simplified()->NumberSubtract(), index,
                                jsgraph()->OneConstant()),
-              value, effect, control);
+              value2, effect2, control2);
 
-          loop->ReplaceInput(1, control);
-          eloop->ReplaceInput(1, effect);
+          loop->ReplaceInput(1, control2);
+          eloop->ReplaceInput(1, effect2);
           index->ReplaceInput(1,
                               graph()->NewNode(simplified()->NumberAdd(), index,
                                                jsgraph()->OneConstant()));
@@ -7098,9 +7099,9 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
   NodeVector effects(graph()->zone());
   NodeVector controls(graph()->zone());
 
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
-  control =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+  Node* smi_check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+  control = graph()->NewNode(common()->Branch(BranchHint::kFalse), smi_check,
+                             control);
 
   values.push_back(jsgraph()->UndefinedConstant());
   effects.push_back(effect);
@@ -7507,7 +7508,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     Node* iloop = graph()->NewNode(
         common()->Phi(MachineRepresentation::kTagged, 2), index, index, loop);
 
-    Node* index = effect = graph()->NewNode(
+    index = effect = graph()->NewNode(
         common()->TypeGuard(TypeCache::Get()->kFixedArrayLengthType), iloop,
         eloop, control);
     {
@@ -7560,8 +7561,8 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
 
         {
           // Abort loop with resulting value.
-          Node* control = graph()->NewNode(common()->IfFalse(), branch1);
-          Node* effect = etrue0;
+          control = graph()->NewNode(common()->IfFalse(), branch1);
+          effect = etrue0;
           Node* value = effect =
               graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
                                entry_key, effect, control);
