@@ -2674,7 +2674,7 @@ void Heap::ProtectUnprotectedMemoryChunks() {
   DCHECK_EQ(code_page_collection_memory_modification_scope_depth_, 0);
   for (auto chunk = unprotected_memory_chunks_.begin();
        chunk != unprotected_memory_chunks_.end(); chunk++) {
-    DCHECK(memory_allocator()->IsMemoryChunkExecutable(*chunk));
+    CHECK(memory_allocator()->IsMemoryChunkExecutable(*chunk));
     (*chunk)->SetDefaultCodePermissions();
   }
   unprotected_memory_chunks_.clear();

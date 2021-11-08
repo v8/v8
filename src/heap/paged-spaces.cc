@@ -499,7 +499,7 @@ void PagedSpace::ReleasePage(Page* page) {
 void PagedSpace::SetReadable() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
-    DCHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
+    CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
     page->SetReadable();
   }
 }
@@ -507,7 +507,7 @@ void PagedSpace::SetReadable() {
 void PagedSpace::SetReadAndExecutable() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
-    DCHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
+    CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
     page->SetReadAndExecutable();
   }
 }
@@ -515,7 +515,7 @@ void PagedSpace::SetReadAndExecutable() {
 void PagedSpace::SetCodeModificationPermissions() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
-    DCHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
+    CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
     page->SetCodeModificationPermissions();
   }
 }
