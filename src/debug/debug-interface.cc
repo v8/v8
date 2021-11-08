@@ -85,9 +85,9 @@ Local<String> GetFunctionDescription(Local<Function> function) {
         auto debug_name =
             i::GetWasmFunctionDebugName(isolate, instance, func_index);
         i::IncrementalStringBuilder builder(isolate);
-        builder.AppendCString("function ");
+        builder.AppendCStringLiteral("function ");
         builder.AppendString(debug_name);
-        builder.AppendCString("() { [native code] }");
+        builder.AppendCStringLiteral("() { [native code] }");
         return Utils::ToLocal(builder.Finish().ToHandleChecked());
       }
     }

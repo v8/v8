@@ -411,26 +411,26 @@ class CircularStructureMessageBuilder {
 
   void AppendStartLine(Handle<Object> start_object) {
     builder_.AppendCString(kStartPrefix);
-    builder_.AppendCString("starting at object with constructor ");
+    builder_.AppendCStringLiteral("starting at object with constructor ");
     AppendConstructorName(start_object);
   }
 
   void AppendNormalLine(Handle<Object> key, Handle<Object> object) {
     builder_.AppendCString(kLinePrefix);
     AppendKey(key);
-    builder_.AppendCString(" -> object with constructor ");
+    builder_.AppendCStringLiteral(" -> object with constructor ");
     AppendConstructorName(object);
   }
 
   void AppendClosingLine(Handle<Object> closing_key) {
     builder_.AppendCString(kEndPrefix);
     AppendKey(closing_key);
-    builder_.AppendCString(" closes the circle");
+    builder_.AppendCStringLiteral(" closes the circle");
   }
 
   void AppendEllipsis() {
     builder_.AppendCString(kLinePrefix);
-    builder_.AppendCString("...");
+    builder_.AppendCStringLiteral("...");
   }
 
   MaybeHandle<String> Finish() { return builder_.Finish(); }
@@ -447,7 +447,7 @@ class CircularStructureMessageBuilder {
   // A key can either be a string, the empty string or a Smi.
   void AppendKey(Handle<Object> key) {
     if (key->IsSmi()) {
-      builder_.AppendCString("index ");
+      builder_.AppendCStringLiteral("index ");
       AppendSmi(Smi::cast(*key));
       return;
     }
@@ -455,9 +455,9 @@ class CircularStructureMessageBuilder {
     CHECK(key->IsString());
     Handle<String> key_as_string = Handle<String>::cast(key);
     if (key_as_string->length() == 0) {
-      builder_.AppendCString("<anonymous>");
+      builder_.AppendCStringLiteral("<anonymous>");
     } else {
-      builder_.AppendCString("property '");
+      builder_.AppendCStringLiteral("property '");
       builder_.AppendString(key_as_string);
       builder_.AppendCharacter('\'');
     }
@@ -520,12 +520,13 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
                                                     bool comma,
                                                     Handle<Object> key) {
   StackLimitCheck interrupt_check(isolate_);
-  Handle<Object> initial_value = object;
-  PtrComprCageBase cage_base(isolate_);
   if (interrupt_check.InterruptRequested() &&
       isolate_->stack_guard()->HandleInterrupts().IsException(isolate_)) {
     return EXCEPTION;
   }
+
+  Handle<Object> initial_value = object;
+  PtrComprCageBase cage_base(isolate_);
   if (!object->IsSmi()) {
     InstanceType instance_type =
         HeapObject::cast(*object).map(cage_base).instance_type();
@@ -560,15 +561,15 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
       switch (Oddball::cast(*object).kind()) {
         case Oddball::kFalse:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
-          builder_.AppendCString("false");
+          builder_.AppendCStringLiteral("false");
           return SUCCESS;
         case Oddball::kTrue:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
-          builder_.AppendCString("true");
+          builder_.AppendCStringLiteral("true");
           return SUCCESS;
         case Oddball::kNull:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
-          builder_.AppendCString("null");
+          builder_.AppendCStringLiteral("null");
           return SUCCESS;
         default:
           return UNCHANGED;
@@ -621,7 +622,11 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
         *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
     return EXCEPTION;
   } else if (raw.IsBoolean()) {
-    builder_.AppendCString(raw.IsTrue(isolate_) ? "true" : "false");
+    if (raw.IsTrue(isolate_)) {
+      builder_.AppendCStringLiteral("true");
+    } else {
+      builder_.AppendCStringLiteral("false");
+    }
   } else {
     // ES6 24.3.2.1 step 10.c, serialize as an ordinary JSObject.
     return SerializeJSObject(object, key);
@@ -639,7 +644,7 @@ JsonStringifier::Result JsonStringifier::SerializeSmi(Smi object) {
 
 JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
   if (std::isinf(number) || std::isnan(number)) {
-    builder_.AppendCString("null");
+    builder_.AppendCStringLiteral("null");
     return SUCCESS;
   }
   static const int kBufferSize = 100;
@@ -651,16 +656,22 @@ JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
 
 JsonStringifier::Result JsonStringifier::SerializeJSArray(
     Handle<JSArray> object, Handle<Object> key) {
-  PtrComprCageBase cage_base(isolate_);
-  Result stack_push = StackPush(object, key);
-  if (stack_push != SUCCESS) return stack_push;
   uint32_t length = 0;
   CHECK(object->length().ToArrayLength(&length));
   DCHECK(!object->IsAccessCheckNeeded());
+  if (length == 0) {
+    builder_.AppendCStringLiteral("[]");
+    return SUCCESS;
+  }
+
+  PtrComprCageBase cage_base(isolate_);
+  Result stack_push = StackPush(object, key);
+  if (stack_push != SUCCESS) return stack_push;
+
   builder_.AppendCharacter('[');
   Indent();
   uint32_t i = 0;
-  if (replacer_function_.is_null() && length > 0) {
+  if (replacer_function_.is_null()) {
     StackLimitCheck interrupt_check(isolate_);
     const uint32_t kInterruptLength = 4000;
     uint32_t limit = std::min(length, kInterruptLength);
@@ -722,7 +733,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
                      isolate_),
               i);
           if (result == UNCHANGED) {
-            builder_.AppendCString("null");
+            builder_.AppendCStringLiteral("null");
           } else if (result != SUCCESS) {
             return result;
           }
@@ -739,7 +750,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
     if (result != SUCCESS) return result;
   }
   Unindent();
-  if (length > 0) NewLine();
+  NewLine();
   builder_.AppendCharacter(']');
   StackPop();
   return SUCCESS;
@@ -765,7 +776,7 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
     if (result == UNCHANGED) {
       // Detect overflow sooner for large sparse arrays.
       if (builder_.HasOverflowed()) return EXCEPTION;
-      builder_.AppendCString("null");
+      builder_.AppendCStringLiteral("null");
     } else {
       return result;
     }
@@ -788,56 +799,66 @@ V8_INLINE bool CanFastSerializeJSObject(PtrComprCageBase cage_base,
 
 JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Handle<JSObject> object, Handle<Object> key) {
-  Result stack_push = StackPush(object, key);
-  if (stack_push != SUCCESS) return stack_push;
   PtrComprCageBase cage_base(isolate_);
   HandleScope handle_scope(isolate_);
-  if (property_list_.is_null() &&
-      CanFastSerializeJSObject(cage_base, *object, isolate_)) {
-    DCHECK(!object->IsJSGlobalProxy());
-    DCHECK(!object->HasIndexedInterceptor());
-    DCHECK(!object->HasNamedInterceptor());
-    builder_.AppendCharacter('{');
-    Indent();
-    bool comma = false;
-    Handle<Map> map(object->map(cage_base), isolate_);
-    for (InternalIndex i : map->IterateOwnDescriptors()) {
-      Handle<String> key_name;
-      PropertyDetails details = PropertyDetails::Empty();
-      {
-        DisallowGarbageCollection no_gc;
-        DescriptorArray descriptors = map->instance_descriptors(cage_base);
-        Name name = descriptors.GetKey(i);
-        // TODO(rossberg): Should this throw?
-        if (!name.IsString(cage_base)) continue;
-        key_name = handle(String::cast(name), isolate_);
-        details = descriptors.GetDetails(i);
-      }
-      if (details.IsDontEnum()) continue;
-      Handle<Object> property;
-      if (details.location() == PropertyLocation::kField &&
-          *map == object->map(cage_base)) {
-        DCHECK_EQ(kData, details.kind());
-        FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-        property = JSObject::FastPropertyAt(object, details.representation(),
-                                            field_index);
-      } else {
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate_, property,
-            Object::GetPropertyOrElement(isolate_, object, key_name),
-            EXCEPTION);
-      }
-      Result result = SerializeProperty(property, comma, key_name);
-      if (!comma && result == SUCCESS) comma = true;
-      if (result == EXCEPTION) return result;
-    }
-    Unindent();
-    if (comma) NewLine();
-    builder_.AppendCharacter('}');
-  } else {
+
+  if (!property_list_.is_null() ||
+      !CanFastSerializeJSObject(cage_base, *object, isolate_)) {
+    Result stack_push = StackPush(object, key);
+    if (stack_push != SUCCESS) return stack_push;
     Result result = SerializeJSReceiverSlow(object);
     if (result != SUCCESS) return result;
+    StackPop();
+    return SUCCESS;
   }
+
+  DCHECK(!object->IsJSGlobalProxy());
+  DCHECK(!object->HasIndexedInterceptor());
+  DCHECK(!object->HasNamedInterceptor());
+
+  Handle<Map> map(object->map(cage_base), isolate_);
+  if (map->NumberOfOwnDescriptors() == 0) {
+    builder_.AppendCStringLiteral("{}");
+    return SUCCESS;
+  }
+
+  Result stack_push = StackPush(object, key);
+  if (stack_push != SUCCESS) return stack_push;
+  builder_.AppendCharacter('{');
+  Indent();
+  bool comma = false;
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    Handle<String> key_name;
+    PropertyDetails details = PropertyDetails::Empty();
+    {
+      DisallowGarbageCollection no_gc;
+      DescriptorArray descriptors = map->instance_descriptors(cage_base);
+      Name name = descriptors.GetKey(i);
+      // TODO(rossberg): Should this throw?
+      if (!name.IsString(cage_base)) continue;
+      key_name = handle(String::cast(name), isolate_);
+      details = descriptors.GetDetails(i);
+    }
+    if (details.IsDontEnum()) continue;
+    Handle<Object> property;
+    if (details.location() == PropertyLocation::kField &&
+        *map == object->map(cage_base)) {
+      DCHECK_EQ(kData, details.kind());
+      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+      property = JSObject::FastPropertyAt(object, details.representation(),
+                                          field_index);
+    } else {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate_, property,
+          Object::GetPropertyOrElement(isolate_, object, key_name), EXCEPTION);
+    }
+    Result result = SerializeProperty(property, comma, key_name);
+    if (!comma && result == SUCCESS) comma = true;
+    if (result == EXCEPTION) return result;
+  }
+  Unindent();
+  if (comma) NewLine();
+  builder_.AppendCharacter('}');
   StackPop();
   return SUCCESS;
 }
@@ -1005,7 +1026,7 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
             } else {
               // The next character is not a trailing surrogate. Thus, the
               // current character is a lone leading surrogate.
-              builder_.AppendCString("\\u");
+              builder_.AppendCStringLiteral("\\u");
               char* const hex = DoubleToRadixCString(c, 16);
               builder_.AppendCString(hex);
               DeleteArray(hex);
@@ -1013,7 +1034,7 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
           } else {
             // There is no next character. Thus, the current character is a
             // lone leading surrogate.
-            builder_.AppendCString("\\u");
+            builder_.AppendCStringLiteral("\\u");
             char* const hex = DoubleToRadixCString(c, 16);
             builder_.AppendCString(hex);
             DeleteArray(hex);
@@ -1023,7 +1044,7 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
           // been preceded by a leading surrogate, we would've ended up in the
           // other branch earlier on, and the current character would've been
           // handled as part of the surrogate pair already.)
-          builder_.AppendCString("\\u");
+          builder_.AppendCStringLiteral("\\u");
           char* const hex = DoubleToRadixCString(c, 16);
           builder_.AppendCString(hex);
           DeleteArray(hex);

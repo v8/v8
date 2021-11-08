@@ -452,12 +452,12 @@ Handle<String> NoSideEffectsErrorToString(Isolate* isolate,
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(name_str);
-  builder.AppendCString(": ");
+  builder.AppendCStringLiteral(": ");
 
   if (builder.Length() + msg_str->length() <= String::kMaxLength) {
     builder.AppendString(msg_str);
   } else {
-    builder.AppendCString("<a very large string>");
+    builder.AppendCStringLiteral("<a very large string>");
   }
 
   return builder.Finish().ToHandleChecked();
@@ -501,7 +501,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     if (fun_str->length() > 128) {
       IncrementalStringBuilder builder(isolate);
       builder.AppendString(isolate->factory()->NewSubString(fun_str, 0, 111));
-      builder.AppendCString("...<omitted>...");
+      builder.AppendCStringLiteral("...<omitted>...");
       builder.AppendString(isolate->factory()->NewSubString(
           fun_str, fun_str->length() - 2, fun_str->length()));
 
@@ -517,7 +517,7 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     }
 
     IncrementalStringBuilder builder(isolate);
-    builder.AppendCString("Symbol(");
+    builder.AppendCStringLiteral("Symbol(");
     if (symbol->description().IsString()) {
       builder.AppendString(
           handle(String::cast(symbol->description()), isolate));
@@ -555,9 +555,9 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
 
         if (ctor_name->length() != 0) {
           IncrementalStringBuilder builder(isolate);
-          builder.AppendCString("#<");
+          builder.AppendCStringLiteral("#<");
           builder.AppendString(ctor_name);
-          builder.AppendCString(">");
+          builder.AppendCharacter('>');
 
           return builder.Finish().ToHandleChecked();
         }
@@ -603,9 +603,9 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
       tag_obj->IsString() ? Handle<String>::cast(tag_obj) : builtin_tag;
 
   IncrementalStringBuilder builder(isolate);
-  builder.AppendCString("[object ");
+  builder.AppendCStringLiteral("[object ");
   builder.AppendString(tag);
-  builder.AppendCString("]");
+  builder.AppendCharacter(']');
 
   return builder.Finish().ToHandleChecked();
 }

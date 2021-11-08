@@ -876,8 +876,20 @@ uint8_t SeqOneByteString::Get(
 }
 
 void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
-  DCHECK(index >= 0 && index < length() && value <= kMaxOneByteCharCode);
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, length());
+  DCHECK_LE(value, kMaxOneByteCharCode);
   WriteField<byte>(kHeaderSize + index * kCharSize, static_cast<byte>(value));
+}
+
+void SeqOneByteString::SeqOneByteStringSetChars(int index,
+                                                const uint8_t* string,
+                                                int string_length) {
+  DCHECK_LE(0, index);
+  DCHECK_LT(index + string_length, length());
+  void* address =
+      reinterpret_cast<void*>(field_address(kHeaderSize + index * kCharSize));
+  memcpy(address, string, string_length);
 }
 
 Address SeqOneByteString::GetCharsAddress() const {
