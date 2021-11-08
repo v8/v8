@@ -1603,6 +1603,32 @@ class RootsReferencesExtractor : public RootVisitor {
     }
   }
 
+  void VisitRunningCode(FullObjectSlot p) override {
+    // Must match behavior in
+    // MarkCompactCollector::RootMarkingVisitor::VisitRunningCode, which treats
+    // deoptimization literals in running code as stack roots.
+    Code code = Code::cast(*p);
+    if (code.kind() != CodeKind::BASELINE) {
+      DeoptimizationData deopt_data =
+          DeoptimizationData::cast(code.deoptimization_data());
+      if (deopt_data.length() > 0) {
+        DeoptimizationLiteralArray literals = deopt_data.LiteralArray();
+        int literals_length = literals.length();
+        for (int i = 0; i < literals_length; ++i) {
+          MaybeObject maybe_literal = literals.Get(i);
+          HeapObject heap_literal;
+          if (maybe_literal.GetHeapObject(&heap_literal)) {
+            VisitRootPointer(Root::kStackRoots, nullptr,
+                             FullObjectSlot(&heap_literal));
+          }
+        }
+      }
+    }
+
+    // Finally visit the Code itself.
+    VisitRootPointer(Root::kStackRoots, nullptr, p);
+  }
+
  private:
   V8HeapExplorer* explorer_;
   bool visiting_weak_roots_;

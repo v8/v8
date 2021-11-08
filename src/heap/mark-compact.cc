@@ -1046,6 +1046,36 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     }
   }
 
+  void VisitRunningCode(FullObjectSlot p) final {
+    Code code = Code::cast(*p);
+
+    // If Code is currently executing, then we must not remove its
+    // deoptimization literals, which it might need in order to successfully
+    // deoptimize.
+    //
+    // Must match behavior in RootsReferencesExtractor::VisitRunningCode, so
+    // that heap snapshots accurately describe the roots.
+    if (code.kind() != CodeKind::BASELINE) {
+      DeoptimizationData deopt_data =
+          DeoptimizationData::cast(code.deoptimization_data());
+      if (deopt_data.length() > 0) {
+        DeoptimizationLiteralArray literals = deopt_data.LiteralArray();
+        int literals_length = literals.length();
+        for (int i = 0; i < literals_length; ++i) {
+          MaybeObject maybe_literal = literals.Get(i);
+          HeapObject heap_literal;
+          if (maybe_literal.GetHeapObject(&heap_literal)) {
+            MarkObjectByPointer(Root::kStackRoots,
+                                FullObjectSlot(&heap_literal));
+          }
+        }
+      }
+    }
+
+    // And then mark the Code itself.
+    VisitRootPointer(Root::kStackRoots, nullptr, p);
+  }
+
  private:
   V8_INLINE void MarkObjectByPointer(Root root, FullObjectSlot p) {
     Object object = *p;

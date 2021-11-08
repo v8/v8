@@ -28,10 +28,9 @@ using base::ReadUnalignedValue;
 
 namespace internal {
 
-void TranslationArrayPrintSingleFrame(std::ostream& os,
-                                      TranslationArray translation_array,
-                                      int translation_index,
-                                      FixedArray literal_array) {
+void TranslationArrayPrintSingleFrame(
+    std::ostream& os, TranslationArray translation_array, int translation_index,
+    DeoptimizationLiteralArray literal_array) {
   DisallowGarbageCollection gc_oh_noes;
   TranslationArrayIterator iterator(translation_array, translation_index);
   disasm::NameConverter converter;
@@ -725,8 +724,8 @@ void TranslatedFrame::Handlify() {
 }
 
 TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
-    TranslationArrayIterator* iterator, FixedArray literal_array, Address fp,
-    FILE* trace_file) {
+    TranslationArrayIterator* iterator,
+    DeoptimizationLiteralArray literal_array, Address fp, FILE* trace_file) {
   TranslationOpcode opcode = TranslationOpcodeFromInt(iterator->Next());
   switch (opcode) {
     case TranslationOpcode::INTERPRETED_FRAME: {
@@ -959,8 +958,8 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 // TranslationArrayIterator.
 int TranslatedState::CreateNextTranslatedValue(
     int frame_index, TranslationArrayIterator* iterator,
-    FixedArray literal_array, Address fp, RegisterValues* registers,
-    FILE* trace_file) {
+    DeoptimizationLiteralArray literal_array, Address fp,
+    RegisterValues* registers, FILE* trace_file) {
   disasm::NameConverter converter;
 
   TranslatedFrame& frame = frames_[frame_index];
@@ -1299,8 +1298,9 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame)
 void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
                            Address stack_frame_pointer,
                            TranslationArrayIterator* iterator,
-                           FixedArray literal_array, RegisterValues* registers,
-                           FILE* trace_file, int formal_parameter_count,
+                           DeoptimizationLiteralArray literal_array,
+                           RegisterValues* registers, FILE* trace_file,
+                           int formal_parameter_count,
                            int actual_argument_count) {
   DCHECK(frames_.empty());
 
@@ -2118,9 +2118,9 @@ bool TranslatedState::DoUpdateFeedback() {
   return false;
 }
 
-void TranslatedState::ReadUpdateFeedback(TranslationArrayIterator* iterator,
-                                         FixedArray literal_array,
-                                         FILE* trace_file) {
+void TranslatedState::ReadUpdateFeedback(
+    TranslationArrayIterator* iterator,
+    DeoptimizationLiteralArray literal_array, FILE* trace_file) {
   CHECK_EQ(TranslationOpcode::UPDATE_FEEDBACK,
            TranslationOpcodeFromInt(iterator->Next()));
   feedback_vector_ = FeedbackVector::cast(literal_array.get(iterator->Next()));

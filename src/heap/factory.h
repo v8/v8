@@ -658,6 +658,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
 
+  Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
+
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
   Handle<Code> NewOffHeapTrampolineFor(Handle<Code> code,

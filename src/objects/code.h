@@ -992,6 +992,24 @@ class BytecodeArray
   TQ_OBJECT_CONSTRUCTORS(BytecodeArray)
 };
 
+// This class holds data required during deoptimization. It does not have its
+// own instance type.
+class DeoptimizationLiteralArray : public WeakFixedArray {
+ public:
+  // Getters for literals. These include runtime checks that the pointer was not
+  // cleared, if the literal was held weakly.
+  inline Object get(int index) const;
+  inline Object get(PtrComprCageBase cage_base, int index) const;
+
+  // Setter for literals. This will set the object as strong or weak depending
+  // on Code::IsWeakObjectInOptimizedCode.
+  inline void set(int index, Object value);
+
+  DECL_CAST(DeoptimizationLiteralArray)
+
+  OBJECT_CONSTRUCTORS(DeoptimizationLiteralArray, WeakFixedArray);
+};
+
 // DeoptimizationData is a fixed array used to hold the deoptimization data for
 // optimized code.  It also contains information about functions that were
 // inlined.  If N different functions were inlined then the first N elements of
@@ -1032,7 +1050,7 @@ class DeoptimizationData : public FixedArray {
 
   DECL_ELEMENT_ACCESSORS(TranslationByteArray, TranslationArray)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
-  DECL_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
+  DECL_ELEMENT_ACCESSORS(LiteralArray, DeoptimizationLiteralArray)
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)

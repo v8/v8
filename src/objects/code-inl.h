@@ -44,6 +44,7 @@ CAST_ACCESSOR(Code)
 CAST_ACCESSOR(CodeDataContainer)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
+CAST_ACCESSOR(DeoptimizationLiteralArray)
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
@@ -1156,7 +1157,7 @@ int BytecodeArray::SizeIncludingMetadata() {
 
 DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, TranslationArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, DeoptimizationLiteralArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
@@ -1182,6 +1183,42 @@ void DeoptimizationData::SetBytecodeOffset(int i, BytecodeOffset value) {
 
 int DeoptimizationData::DeoptCount() {
   return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
+}
+
+inline DeoptimizationLiteralArray::DeoptimizationLiteralArray(Address ptr)
+    : WeakFixedArray(ptr) {
+  // No type check is possible beyond that for WeakFixedArray.
+}
+
+inline Object DeoptimizationLiteralArray::get(int index) const {
+  return get(GetPtrComprCageBase(*this), index);
+}
+
+inline Object DeoptimizationLiteralArray::get(PtrComprCageBase cage_base,
+                                              int index) const {
+  MaybeObject maybe = Get(cage_base, index);
+
+  // Slots in the DeoptimizationLiteralArray should only be cleared when there
+  // is no possible code path that could need that slot. This works because the
+  // weakly-held deoptimization literals are basically local variables that
+  // TurboFan has decided not to keep on the stack. Thus, if the deoptimization
+  // literal goes away, then whatever code needed it should be unreachable. The
+  // exception is currently running Code: in that case, the deoptimization
+  // literals array might be the only thing keeping the target object alive.
+  // Thus, when a Code is running, we strongly mark all of its deoptimization
+  // literals.
+  CHECK(!maybe.IsCleared());
+
+  return maybe.GetHeapObjectOrSmi();
+}
+
+inline void DeoptimizationLiteralArray::set(int index, Object value) {
+  MaybeObject maybe = MaybeObject::FromObject(value);
+  if (value.IsHeapObject() &&
+      Code::IsWeakObjectInOptimizedCode(HeapObject::cast(value))) {
+    maybe = MaybeObject::MakeWeak(maybe);
+  }
+  Set(index, maybe);
 }
 
 }  // namespace internal

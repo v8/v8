@@ -89,6 +89,13 @@ class RootVisitor {
     UNREACHABLE();
   }
 
+  // Visits a single pointer which is Code from the execution stack.
+  virtual void VisitRunningCode(FullObjectSlot p) {
+    // For most visitors, currently running Code is no different than any other
+    // on-stack pointer.
+    VisitRootPointer(Root::kStackRoots, nullptr, p);
+  }
+
   // Intended for serialization/deserialization checking: insert, or
   // check for the presence of, a tag at this position in the stream.
   // Also used for marking up GC roots in heap snapshots.

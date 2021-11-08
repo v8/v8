@@ -543,7 +543,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
          holder.GetHeap()->GcSafeCodeContains(holder, old_pc));
   unsigned pc_offset = holder.GetOffsetFromInstructionStart(isolate_, old_pc);
   Object code = holder;
-  v->VisitRootPointer(Root::kStackRoots, nullptr, FullObjectSlot(&code));
+  v->VisitRunningCode(FullObjectSlot(&code));
   if (code == holder) return;
   holder = Code::unchecked_cast(code);
   Address pc = holder.InstructionStart(isolate_, old_pc) + pc_offset;
@@ -1775,7 +1775,7 @@ void OptimizedFrame::GetFunctions(
   DeoptimizationData const data = GetDeoptimizationData(&deopt_index);
   DCHECK(!data.is_null());
   DCHECK_NE(Safepoint::kNoDeoptimizationIndex, deopt_index);
-  FixedArray const literal_array = data.LiteralArray();
+  DeoptimizationLiteralArray const literal_array = data.LiteralArray();
 
   TranslationArrayIterator it(data.TranslationByteArray(),
                               data.TranslationIndex(deopt_index).value());
