@@ -61,33 +61,16 @@ class Managed;
   DECL_GETTER(has_##name, bool)             \
   DECL_ACCESSORS(name, type)
 
-// A helper for an entry in an indirect function table (IFT).
-// The underlying storage in the instance is used by generated code to
-// call functions indirectly at runtime.
-// Each entry has the following fields:
-// - object = target instance, if a Wasm function, tuple if imported
-// - sig_id = signature id of function
-// - target = entrypoint to Wasm code or import wrapper code
-class V8_EXPORT_PRIVATE IndirectFunctionTableEntry {
+class V8_EXPORT_PRIVATE FunctionTargetAndRef {
  public:
-  inline IndirectFunctionTableEntry(Handle<WasmInstanceObject>, int table_index,
-                                    int entry_index);
-
-  inline IndirectFunctionTableEntry(Handle<WasmIndirectFunctionTable> table,
-                                    int entry_index);
-
-  void clear();
-  void Set(int sig_id, Handle<WasmInstanceObject> target_instance,
-           int target_func_index);
-  void Set(int sig_id, Address call_target, Object ref);
-
-  Object object_ref() const;
-  int sig_id() const;
-  Address target() const;
+  FunctionTargetAndRef(Handle<WasmInstanceObject> target_instance,
+                       int target_func_index);
+  Handle<Object> ref() { return ref_; }
+  Address call_target() { return call_target_; }
 
  private:
-  Handle<WasmIndirectFunctionTable> const table_;
-  int const index_;
+  Handle<Object> ref_;
+  Address call_target_;
 };
 
 // A helper for an entry for an imported function, indexed statically.
@@ -478,11 +461,10 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 
   Address GetCallTarget(uint32_t func_index);
 
-  void SetIndirectFunctionTableShortcuts(Isolate* isolate);
+  Handle<WasmIndirectFunctionTable> GetIndirectFunctionTable(
+      Isolate*, uint32_t table_index);
 
-  static int IndirectFunctionTableSize(Isolate* isolate,
-                                       Handle<WasmInstanceObject> instance,
-                                       uint32_t table_index);
+  void SetIndirectFunctionTableShortcuts(Isolate* isolate);
 
   // Copies table entries. Returns {false} if the ranges are out-of-bounds.
   static bool CopyTableEntries(Isolate* isolate,
@@ -695,6 +677,9 @@ class WasmIndirectFunctionTable
       Isolate* isolate, uint32_t size);
   static void Resize(Isolate* isolate, Handle<WasmIndirectFunctionTable> table,
                      uint32_t new_size);
+  V8_EXPORT_PRIVATE void Set(uint32_t index, int sig_id, Address call_target,
+                             Object ref);
+  void Clear(uint32_t index);
 
   DECL_PRINTER(WasmIndirectFunctionTable)
 

@@ -4094,21 +4094,20 @@ class WasmInterpreterInternals {
     uint32_t expected_sig_id = module()->canonicalized_type_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
               module()->signature_map.Find(*module()->signature(sig_index)));
-    // Bounds check against table size.
-    if (entry_index >=
-        static_cast<uint32_t>(WasmInstanceObject::IndirectFunctionTableSize(
-            isolate_, instance_object_, table_index))) {
-      return {CallResult::INVALID_FUNC};
-    }
 
-    IndirectFunctionTableEntry entry(instance_object_, table_index,
-                                     entry_index);
+    Handle<WasmIndirectFunctionTable> table =
+        instance_object_->GetIndirectFunctionTable(isolate_, table_index);
+
+    // Bounds check against table size.
+    if (entry_index >= table->size()) return {CallResult::INVALID_FUNC};
+
     // Signature check.
-    if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
+    if (table->sig_ids()[entry_index] != expected_sig_id) {
       return {CallResult::SIGNATURE_MISMATCH};
     }
 
-    Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
+    Handle<Object> object_ref =
+        handle(table->refs().get(entry_index), isolate_);
     // Check that this is an internal call (within the same instance).
     CHECK(object_ref->IsWasmInstanceObject() &&
           instance_object_.is_identical_to(object_ref));
@@ -4118,13 +4117,14 @@ class WasmInterpreterInternals {
 #ifdef DEBUG
     {
       WasmCodeRefScope code_ref_scope;
-      WasmCode* wasm_code = native_module->Lookup(entry.target());
+      WasmCode* wasm_code =
+          native_module->Lookup(table->targets()[entry_index]);
       DCHECK_EQ(native_module, wasm_code->native_module());
       DCHECK_EQ(WasmCode::kJumpTable, wasm_code->kind());
     }
 #endif
-    uint32_t func_index =
-        native_module->GetFunctionIndexFromJumpTableSlot(entry.target());
+    uint32_t func_index = native_module->GetFunctionIndexFromJumpTableSlot(
+        table->targets()[entry_index]);
 
     return {CallResult::INTERNAL, codemap_.GetCode(func_index)};
   }
