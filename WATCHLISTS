@@ -60,7 +60,7 @@
     'feature_shipping_status': {
       'filepath': 'src/flags/flag-definitions.h',
     },
-    'gc_changes': {
+    'heap_changes': {
       'filepath': 'src/heap/',
     },
     'arm': {
@@ -133,8 +133,9 @@
     'feature_shipping_status': [
       'hablich@chromium.org',
     ],
-    'gc_changes': [
+    'heap_changes': [
       'hpayer@chromium.org',
+      'mlippautz+watch@chromium.org',
     ],
     'arm': [
       'v8-mips-ports@googlegroups.com',
