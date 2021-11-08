@@ -130,13 +130,13 @@ int RangeArrayLengthFor(const ZoneList<CharacterRange>* ranges) {
 }
 
 bool Equals(const ZoneList<CharacterRange>* lhs, const Handle<ByteArray>& rhs) {
-  if (rhs->length() != RangeArrayLengthFor(lhs) * kUInt16Size) return false;
+  DCHECK_EQ(rhs->length() % kUInt16Size, 0);  // uc16 elements.
+  const int rhs_length = rhs->length() / kUInt16Size;
+  if (rhs_length != RangeArrayLengthFor(lhs)) return false;
   for (int i = 0; i < lhs->length(); i++) {
     const CharacterRange& r = lhs->at(i);
     if (rhs->get_uint16(i * 2 + 0) != r.from()) return false;
-    if (i == lhs->length() - 1 && r.to() == kMaxUInt16) {
-      break;  // Avoid overflow by leaving the last range open-ended.
-    }
+    if (i * 2 + 1 == rhs_length) break;
     if (rhs->get_uint16(i * 2 + 1) != r.to() + 1) return false;
   }
   return true;
