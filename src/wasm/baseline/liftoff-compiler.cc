@@ -2246,8 +2246,12 @@ class LiftoffCompiler {
       ValueKind return_kind = decoder->sig_->GetReturn(0).kind();
       LiftoffRegister return_reg =
           __ LoadToRegister(__ cache_state()->stack_state.back(), pinned);
-      __ Store(info.gp(), no_reg, 0, return_reg,
-               StoreType::ForValueKind(return_kind), pinned);
+      if (is_reference(return_kind)) {
+        __ StoreTaggedPointer(info.gp(), no_reg, 0, return_reg, pinned);
+      } else {
+        __ Store(info.gp(), no_reg, 0, return_reg,
+                 StoreType::ForValueKind(return_kind), pinned);
+      }
     }
     // Put the parameter in its place.
     WasmTraceExitDescriptor descriptor;
