@@ -88,25 +88,40 @@ v8_config = rule(
 def _default_args():
     return struct(
         deps = [":define_flags"],
-        copts = [
-            "-fPIC",
-            "-Werror",
-            "-Wextra",
-            "-Wno-bitwise-instead-of-logical",
-            "-Wno-builtin-assume-aligned-alignment",
-            "-Wno-unused-parameter",
-            "-Wno-implicit-int-float-conversion",
-            "-Wno-deprecated-copy",
-            "-Wno-non-virtual-dtor",
-            "-std=c++17",
-            "-isystem .",
-        ],
+        defines = select({
+            "@v8//bazel/config:is_windows": [
+                "UNICODE",
+                "_UNICODE",
+                "_CRT_RAND_S",
+                "_WIN32_WINNT=0x0602", # Override bazel default to Windows 8
+            ],
+            "//conditions:default": [],
+        }),
+        copts = select({
+            "@v8//bazel/config:is_posix": [
+                "-fPIC",
+                "-Werror",
+                "-Wextra",
+                "-Wno-bitwise-instead-of-logical",
+                "-Wno-builtin-assume-aligned-alignment",
+                "-Wno-unused-parameter",
+                "-Wno-implicit-int-float-conversion",
+                "-Wno-deprecated-copy",
+                "-Wno-non-virtual-dtor",
+                "-std=c++17",
+                "-isystem .",
+            ],
+            "//conditions:default": [],
+        }),
         includes = ["include"],
-        linkopts = [
-            "-pthread",
-        ] + select({
-            "@config//:is_macos": [],
-            "//conditions:default": ["-Wl,--no-as-needed -ldl"],
+        linkopts = select({
+            "@v8//bazel/config:is_windows": [
+                "Winmm.lib",
+                "DbgHelp.lib",
+                "Advapi32.lib",
+            ],
+            "@v8//bazel/config:is_macos": ["-pthread"],
+            "//conditions:default": ["-Wl,--no-as-needed -ldl -pthread"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],
             "//conditions:default": [],
@@ -184,7 +199,7 @@ def v8_library(
     default = _default_args()
     if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, icu_srcs, icu_deps):
         native.cc_library(
-            name = "noicu/" + name,
+            name = name + "_noicu",
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
             includes = includes + default.includes,
@@ -193,8 +208,15 @@ def v8_library(
             alwayslink = 1,
             **kwargs
         )
+        # Alias target used because of cc_library bug in bazel on windows
+        # https://github.com/bazelbuild/bazel/issues/14237
+        # TODO(victorgomes): Remove alias once bug is fixed
+        native.alias(
+            name = "noicu/" + name,
+            actual = name + "_noicu",
+        )
         native.cc_library(
-            name = "icu/" + name,
+            name = name + "_icu",
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
             includes = includes + default.includes,
@@ -202,6 +224,13 @@ def v8_library(
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
             **kwargs
+        )
+        # Alias target used because of cc_library bug in bazel on windows
+        # https://github.com/bazelbuild/bazel/issues/14237
+        # TODO(victorgomes): Remove alias once bug is fixed
+        native.alias(
+            name = "icu/" + name,
+            actual = name + "_icu",
         )
     else:
         native.cc_library(

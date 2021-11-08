@@ -322,6 +322,14 @@ v8_config(
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_MACOSX",
         ],
+        "@config//:is_windows": [
+            "V8_HAVE_TARGET_OS",
+            "V8_TARGET_OS_WIN",
+            "UNICODE",
+            "_UNICODE",
+            "_CRT_RAND_S",
+            "_WIN32_WINNT=0x0602",
+        ],
     }) + select({
         ":is_v8_enable_pointer_compression": [
             "V8_COMPRESS_POINTERS",
@@ -614,6 +622,11 @@ filegroup(
         "@config//:is_macos": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-macos.cc",
+        ],
+        "@config//:is_windows": [
+            "src/base/win32-headers.h",
+            "src/base/debug/stack_trace_win.cc",
+            "src/base/platform/platform-win32.cc",
         ],
     }),
     visibility = ["//visibility:public"],
@@ -1196,6 +1209,7 @@ filegroup(
         "src/execution/isolate-utils-inl.h",
         "src/snapshot/embedded/platform-embedded-file-writer-base.h",
         "src/snapshot/embedded/embedded-file-writer.h",
+        "src/execution/encoded-c-signature.h",
         "src/execution/isolate.cc",
         "src/execution/isolate.h",
         "src/execution/local-isolate-inl.h",
@@ -2163,7 +2177,7 @@ filegroup(
         ],
     }) + select({
         # Only for x64 builds and for arm64 with x64 host simulator.
-        "@config//:is_x64": [
+        "@config//:is_posix_64bit": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
@@ -2172,6 +2186,22 @@ filegroup(
         "@config//:v8_arm64_simulator": [
             "src/trap-handler/trap-handler-simulator.h",
             "src/trap-handler/handler-outside-simulator.cc",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "@config//:is_windows": [
+            "src/trap-handler/handler-inside-win.cc",
+            "src/trap-handler/handler-outside-win.cc",
+            "src/trap-handler/handler-inside-win.h",
+            # Needed on windows to work around https://github.com/bazelbuild/bazel/issues/6337
+            "third_party/zlib/zlib.h",
+            "third_party/zlib/zconf.h",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        "@config//:is_windows_64bit": [
+            "src/diagnostics/unwinding-info-win64.cc",
+            "src/diagnostics/unwinding-info-win64.h",
         ],
         "//conditions:default": [],
     }) + select({
@@ -2770,10 +2800,13 @@ filegroup(
         # Note these cannot be v8_target_is_* selects because these contain
         # inline assembly that runs inside the executable. Since these are
         # linked directly into mksnapshot, they must use the actual target cpu.
-        "@config//:is_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
-        "@config//:is_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
-        "@config//:is_arm": ["src/heap/base/asm/arm/push_registers_asm.cc"],
-        "@config//:is_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
+        "@config//:is_inline_asm_ia32": ["src/heap/base/asm/ia32/push_registers_asm.cc"],
+        "@config//:is_inline_asm_x64": ["src/heap/base/asm/x64/push_registers_asm.cc"],
+        "@config//:is_inline_asm_arm": ["src/heap/base/asm/arm/push_registers_asm.cc"],
+        "@config//:is_inline_asm_arm64": ["src/heap/base/asm/arm64/push_registers_asm.cc"],
+        "@config//:is_msvc_asm_ia32": ["src/heap/base/asm/ia32/push_registers_masm.S"],
+        "@config//:is_msvc_asm_x64": ["src/heap/base/asm/x64/push_registers_masm.S"],
+        "@config//:is_msvc_asm_arm64": ["src/heap/base/asm/arm64/push_registers_masm.S"],
     }),
 )
 
@@ -3038,6 +3071,7 @@ genrule(
         "src/inspector/protocol/Schema.h",
     ],
     cmd = "bazel/generate-inspector-files.sh $(@D)",
+    cmd_bat = "bazel\\generate-inspector-files.cmd $(@D)",
     local = 1,
     message = "Generating inspector files",
 )
@@ -3076,6 +3110,7 @@ genrule(
     srcs = [],
     outs = ["builtins-generated/bytecodes-builtins-list.h"],
     cmd = "$(location :bytecode_builtins_list_generator) $@",
+    cmd_bat = "$(location :bytecode_builtins_list_generator) $@",
     tools = [":bytecode_builtins_list_generator"],
 )
 
@@ -3084,6 +3119,7 @@ genrule(
     srcs = [],
     outs = ["src/regexp/special-case.cc"],
     cmd = "$(location :regexp_special_case_generator) $@",
+    cmd_bat = "$(location :regexp_special_case_generator) $@",
     tools = [":regexp_special_case_generator"],
 )
 
@@ -3149,7 +3185,10 @@ cc_library(
     srcs = [
         ":torque_base_files",
     ],
-    copts = ["-fexceptions"],
+    copts = select({
+        "@config//:is_posix": [ "-fexceptions" ],
+        "//conditions:default": [],
+    }),
     features = ["-use_header_modules"],
     deps = [
         ":torque_base_headers",
@@ -3253,7 +3292,10 @@ v8_binary(
         "src/torque/torque.cc",
         ":torque_base_files",
     ],
-    copts = ["-fexceptions"],
+    copts = select({
+        "@config//:is_posix": [ "-fexceptions" ],
+        "//conditions:default": [],
+    }),
     features = ["-use_header_modules"],
     linkopts = select({
         "@config//:is_android": ["-llog"],
@@ -3270,7 +3312,7 @@ v8_binary(
         "@config//:is_android": ["-llog"],
         "//conditions:default": [],
     }),
-    noicu_deps = [":noicu/v8_libshared"],
+    noicu_deps = [":v8_libshared_noicu"],
 )
 
 v8_binary(
