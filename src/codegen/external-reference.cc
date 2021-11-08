@@ -184,10 +184,8 @@ ExternalReference ExternalReference::Create(
     Isolate* isolate, ApiFunction* fun, Type type, Address* c_functions,
     const CFunctionInfo* const* c_signatures, unsigned num_functions) {
 #ifdef USE_SIMULATOR_WITH_GENERIC_C_CALLS
-  isolate->CurrentPerIsolateThreadData()
-      ->simulator()
-      ->RegisterFunctionsAndSignatures(c_functions, c_signatures,
-                                       num_functions);
+  Simulator::current(isolate)->RegisterFunctionsAndSignatures(
+      c_functions, c_signatures, num_functions);
 #endif  //  USE_SIMULATOR_WITH_GENERIC_C_CALLS
   return ExternalReference(Redirect(fun->address(), type));
 }

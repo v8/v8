@@ -6706,9 +6706,7 @@ TEST(RunCallCFunction9) {
 #ifdef USE_SIMULATOR_WITH_GENERIC_C_CALLS
 #define IF_SIMULATOR_ADD_SIGNATURE                                    \
   EncodedCSignature sig = m.call_descriptor()->ToEncodedCSignature(); \
-  m.main_isolate()                                                    \
-      ->CurrentPerIsolateThreadData()                                 \
-      ->simulator()                                                   \
+  Simulator::current(m.main_isolate())                                \
       ->AddSignatureForTargetForTesting(func_address, sig);
 #else
 #define IF_SIMULATOR_ADD_SIGNATURE

@@ -424,9 +424,7 @@ MachineType machine_type = MachineType::Int64();
 
 #define IF_SIMULATOR_ADD_SIGNATURE                                    \
   EncodedCSignature sig = m.call_descriptor()->ToEncodedCSignature(); \
-  m.main_isolate()                                                    \
-      ->CurrentPerIsolateThreadData()                                 \
-      ->simulator()                                                   \
+  Simulator::current(m.main_isolate())                                \
       ->AddSignatureForTargetForTesting(func_address, sig);
 #else  // def USE_SIMULATOR_WITH_GENERIC_C_CALLS
 #define IF_SIMULATOR_ADD_SIGNATURE
