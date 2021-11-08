@@ -1088,7 +1088,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // address of the cage where the code space is allocated. Otherwise, it
   // defaults to cage_base().
   Address code_cage_base() const {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
     return code_cage_base_;
 #else
     return cage_base();
@@ -2127,7 +2127,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // favor memory over runtime performance.
   bool memory_savings_mode_active_ = false;
 
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   // Base address of the pointer compression cage containing external code
   // space, when external code space is enabled.
   Address code_cage_base_ = 0;

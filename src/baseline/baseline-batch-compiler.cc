@@ -56,7 +56,7 @@ class BaselineCompilerTask {
     if (FLAG_print_code) {
       code->Print();
     }
-    shared_function_info_->set_baseline_code(*code, kReleaseStore);
+    shared_function_info_->set_baseline_code(ToCodeT(*code), kReleaseStore);
     if (V8_LIKELY(FLAG_use_osr)) {
       // Arm back edges for OSR
       shared_function_info_->GetBytecodeArray(isolate)

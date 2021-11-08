@@ -144,11 +144,7 @@ class UncompiledDataWithPreparseData
 class InterpreterData
     : public TorqueGeneratedInterpreterData<InterpreterData, Struct> {
  public:
-  DECL_ACCESSORS(interpreter_trampoline, Code)
-
  private:
-  DECL_ACCESSORS(raw_interpreter_trampoline, CodeT)
-
   TQ_OBJECT_CONSTRUCTORS(InterpreterData)
 };
 
@@ -176,7 +172,7 @@ class SharedFunctionInfo
   inline void SetName(String name);
 
   // Get the code object which represents the execution of this function.
-  V8_EXPORT_PRIVATE Code GetCode() const;
+  V8_EXPORT_PRIVATE CodeT GetCode() const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -308,13 +304,13 @@ class SharedFunctionInfo
   inline BytecodeArray GetBytecodeArray(IsolateT* isolate) const;
 
   inline void set_bytecode_array(BytecodeArray bytecode);
-  inline Code InterpreterTrampoline() const;
+  inline CodeT InterpreterTrampoline() const;
   inline bool HasInterpreterData() const;
   inline InterpreterData interpreter_data() const;
   inline void set_interpreter_data(InterpreterData interpreter_data);
   inline bool HasBaselineCode() const;
-  inline Code baseline_code(AcquireLoadTag) const;
-  inline void set_baseline_code(Code baseline_code, ReleaseStoreTag);
+  inline CodeT baseline_code(AcquireLoadTag) const;
+  inline void set_baseline_code(CodeT baseline_code, ReleaseStoreTag);
   inline void FlushBaselineCode();
   inline BytecodeArray GetActiveBytecodeArray() const;
   inline void SetActiveBytecodeArray(BytecodeArray bytecode);

@@ -2245,13 +2245,14 @@ void ExistingCodeLogger::LogCompiledFunctions() {
       LogExistingFunction(
           shared,
           Handle<AbstractCode>(
-              AbstractCode::cast(shared->InterpreterTrampoline()), isolate_));
+              AbstractCode::cast(FromCodeT(shared->InterpreterTrampoline())),
+              isolate_));
     }
     if (shared->HasBaselineCode()) {
-      LogExistingFunction(
-          shared, Handle<AbstractCode>(
-                      AbstractCode::cast(shared->baseline_code(kAcquireLoad)),
-                      isolate_));
+      LogExistingFunction(shared, Handle<AbstractCode>(
+                                      AbstractCode::cast(FromCodeT(
+                                          shared->baseline_code(kAcquireLoad))),
+                                      isolate_));
     }
     if (pair.second.is_identical_to(BUILTIN_CODE(isolate_, CompileLazy)))
       continue;

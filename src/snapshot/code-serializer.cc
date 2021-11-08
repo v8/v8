@@ -259,7 +259,7 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
             INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
     interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
-    interpreter_data->set_interpreter_trampoline(*code);
+    interpreter_data->set_interpreter_trampoline(ToCodeT(*code));
 
     info->set_interpreter_data(*interpreter_data);
 

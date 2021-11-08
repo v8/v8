@@ -212,16 +212,18 @@ void Builtins::set_codet(Builtin builtin, CodeT code) {
 }
 
 CodeT Builtins::codet(Builtin builtin) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  Address ptr =
-      isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)];
+  Address* table = V8_EXTERNAL_CODE_SPACE_BOOL
+                       ? isolate_->builtin_code_data_container_table()
+                       : isolate_->builtin_table();
+  Address ptr = table[Builtins::ToInt(builtin)];
   return CodeT::cast(Object(ptr));
 }
 
 Handle<CodeT> Builtins::codet_handle(Builtin builtin) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  Address* location =
-      &isolate_->builtin_code_data_container_table()[Builtins::ToInt(builtin)];
+  Address* table = V8_EXTERNAL_CODE_SPACE_BOOL
+                       ? isolate_->builtin_code_data_container_table()
+                       : isolate_->builtin_table();
+  Address* location = &table[Builtins::ToInt(builtin)];
   return Handle<CodeT>(location);
 }
 

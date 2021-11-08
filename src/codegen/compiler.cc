@@ -553,7 +553,7 @@ void InstallInterpreterTrampolineCopy(
           INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
   interpreter_data->set_bytecode_array(*bytecode_array);
-  interpreter_data->set_interpreter_trampoline(*code);
+  interpreter_data->set_interpreter_trampoline(ToCodeT(*code));
 
   shared_info->set_interpreter_data(*interpreter_data);
 
@@ -1023,9 +1023,9 @@ Handle<Code> ContinuationForConcurrentOptimization(
     }
     return handle(function->code(), isolate);
   } else if (function->shared().HasBaselineCode()) {
-    Code baseline_code = function->shared().baseline_code(kAcquireLoad);
+    CodeT baseline_code = function->shared().baseline_code(kAcquireLoad);
     function->set_code(baseline_code);
-    return handle(baseline_code, isolate);
+    return handle(FromCodeT(baseline_code), isolate);
   }
   DCHECK(function->ActiveTierIsIgnition());
   return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
@@ -1921,7 +1921,7 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   }
 
   DCHECK(is_compiled_scope->is_compiled());
-  Handle<Code> code = handle(shared_info->GetCode(), isolate);
+  Handle<Code> code = handle(FromCodeT(shared_info->GetCode()), isolate);
 
   // Initialize the feedback cell for this JSFunction and reset the interrupt
   // budget for feedback vector allocation even if there is a closure feedback
@@ -2005,7 +2005,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
       // report these somehow, or silently ignore them?
       return false;
     }
-    shared->set_baseline_code(*code, kReleaseStore);
+    shared->set_baseline_code(ToCodeT(*code), kReleaseStore);
 
     if (V8_LIKELY(FLAG_use_osr)) {
       // Arm back edges for OSR
@@ -2039,7 +2039,7 @@ bool Compiler::CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
   // Baseline code needs a feedback vector.
   JSFunction::EnsureFeedbackVector(function, is_compiled_scope);
 
-  Code baseline_code = shared->baseline_code(kAcquireLoad);
+  CodeT baseline_code = shared->baseline_code(kAcquireLoad);
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
   function->set_code(baseline_code);
 

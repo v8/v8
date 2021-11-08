@@ -4053,7 +4053,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           (chunk_->slot_set<OLD_TO_CODE, AccessMode::NON_ATOMIC>() !=
            nullptr)) {
         PtrComprCageBase cage_base = heap_->isolate();
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
         PtrComprCageBase code_cage_base(heap_->isolate()->code_cage_base());
 #else
         PtrComprCageBase code_cage_base = cage_base;

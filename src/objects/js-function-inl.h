@@ -155,6 +155,15 @@ void JSFunction::set_code(Code code, ReleaseStoreTag, WriteBarrierMode mode) {
   set_raw_code(ToCodeT(code), kReleaseStore, mode);
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+void JSFunction::set_code(CodeT code, WriteBarrierMode mode) {
+  set_raw_code(code, mode);
+}
+void JSFunction::set_code(CodeT code, ReleaseStoreTag, WriteBarrierMode mode) {
+  set_raw_code(code, kReleaseStore, mode);
+}
+#endif
+
 Address JSFunction::code_entry_point() const {
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     return CodeDataContainer::cast(raw_code()).code_entry_point();

@@ -3797,7 +3797,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
           GetShortBuiltinsCallRegion().contains(heap_.code_region());
     }
   }
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   if (heap_.code_range()) {
     code_cage_base_ = GetPtrComprCageBaseAddress(heap_.code_range()->base());
   } else {

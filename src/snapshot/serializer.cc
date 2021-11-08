@@ -900,7 +900,7 @@ void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
   HandleScope scope(isolate());
   DisallowGarbageCollection no_gc;
 
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   PtrComprCageBase code_cage_base(isolate()->code_cage_base());
 #else
   PtrComprCageBase code_cage_base(isolate());

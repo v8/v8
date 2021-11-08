@@ -36,7 +36,7 @@ static constexpr T FirstFromVarArgs(T x, ...) noexcept {
 #define BUILTIN_CODE(isolate, name) \
   (isolate)->builtins()->code_handle(i::Builtin::k##name)
 
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
 #define BUILTIN_CODET(isolate, name) \
   (isolate)->builtins()->codet_handle(i::Builtin::k##name)
 #else

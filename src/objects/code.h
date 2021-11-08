@@ -85,6 +85,24 @@ class CodeDataContainer : public HeapObject {
   // Alias for code_entry_point to make it API compatible with Code.
   inline Address InstructionStart() const;
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+  //
+  // A collection of getters and predicates that forward queries to associated
+  // Code object.
+  //
+
+  inline CodeKind kind() const;
+  inline Builtin builtin_id() const;
+  inline bool is_builtin() const;
+  inline bool is_interpreter_trampoline_builtin() const;
+
+  DECL_GETTER(deoptimization_data, FixedArray)
+  DECL_GETTER(bytecode_or_interpreter_data, HeapObject)
+  DECL_GETTER(source_position_table, ByteArray)
+  DECL_GETTER(bytecode_offset_table, ByteArray)
+
+#endif  // V8_EXTERNAL_CODE_SPACE
+
   DECL_CAST(CodeDataContainer)
 
   // Dispatched behavior.

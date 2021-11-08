@@ -91,10 +91,9 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   DCHECK(!function->HasOptimizationMarker());
   DCHECK(!function->has_feedback_vector());
   JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
-  Code baseline_code = sfi->baseline_code(kAcquireLoad);
+  CodeT baseline_code = sfi->baseline_code(kAcquireLoad);
   function->set_code(baseline_code);
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  return ToCodeT(baseline_code);
+  return baseline_code;
 }
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {

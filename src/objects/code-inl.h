@@ -292,7 +292,7 @@ CodeDataContainer Code::GCSafeCodeDataContainer(AcquireLoadTag) const {
 // Helper functions for converting Code objects to CodeDataContainer and back
 // when V8_EXTERNAL_CODE_SPACE is enabled.
 inline CodeT ToCodeT(Code code) {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   return code.code_data_container(kAcquireLoad);
 #else
   return code;
@@ -300,7 +300,7 @@ inline CodeT ToCodeT(Code code) {
 }
 
 inline Code FromCodeT(CodeT code) {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   return code.code();
 #else
   return code;
@@ -308,7 +308,7 @@ inline Code FromCodeT(CodeT code) {
 }
 
 inline Code FromCodeT(CodeT code, RelaxedLoadTag) {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   return code.code(kRelaxedLoad);
 #else
   return code;
@@ -316,7 +316,7 @@ inline Code FromCodeT(CodeT code, RelaxedLoadTag) {
 }
 
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
   return code;
 #else
   return code.code_data_container(kAcquireLoad);
@@ -993,6 +993,35 @@ void CodeDataContainer::clear_padding() {
   memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
          kSize - kUnalignedSize);
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+//
+// A collection of getters and predicates that forward queries to associated
+// Code object.
+//
+
+#define DEF_PRIMITIVE_FORWARDING_CDC_GETTER(name, type) \
+  type CodeDataContainer::name() const { return FromCodeT(*this).name(); }
+
+#define DEF_FORWARDING_CDC_GETTER(name, type) \
+  DEF_GETTER(CodeDataContainer, name, type) { \
+    return FromCodeT(*this).name(cage_base);  \
+  }
+
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(kind, CodeKind)
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(builtin_id, Builtin)
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_builtin, bool)
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_interpreter_trampoline_builtin, bool)
+
+DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray)
+DEF_FORWARDING_CDC_GETTER(bytecode_or_interpreter_data, HeapObject)
+DEF_FORWARDING_CDC_GETTER(source_position_table, ByteArray)
+DEF_FORWARDING_CDC_GETTER(bytecode_offset_table, ByteArray)
+
+#undef DEF_PRIMITIVE_FORWARDING_CDC_GETTER
+#undef DEF_FORWARDING_CDC_GETTER
+
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 byte BytecodeArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());

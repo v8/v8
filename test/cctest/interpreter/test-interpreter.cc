@@ -5047,11 +5047,11 @@ TEST(InterpreterWithNativeStack) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
 
   CHECK(f->shared().HasBytecodeArray());
-  i::Code code = f->shared().GetCode();
-  i::Handle<i::Code> interpreter_entry_trampoline =
-      BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+  i::CodeT code = f->shared().GetCode();
+  i::Handle<i::CodeT> interpreter_entry_trampoline =
+      BUILTIN_CODET(isolate, InterpreterEntryTrampoline);
 
-  CHECK(code.IsCode());
+  CHECK(code.IsCodeT());
   CHECK(code.is_interpreter_trampoline_builtin());
   CHECK_NE(code.address(), interpreter_entry_trampoline->address());
 }
