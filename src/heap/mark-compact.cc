@@ -240,6 +240,7 @@ class FullMarkingVerifier : public MarkingVerifier {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     Object maybe_code = slot.load(code_cage_base());
     HeapObject code;
+    // The slot might contain smi during CodeDataContainer creation, so skip it.
     if (maybe_code.GetHeapObject(&code)) {
       VerifyHeapObjectImpl(code);
     }
@@ -419,6 +420,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
     Object maybe_code = slot.load(code_cage_base());
     HeapObject code;
+    // The slot might contain smi during CodeDataContainer creation, so skip it.
     if (maybe_code.GetHeapObject(&code)) {
       VerifyHeapObjectImpl(code);
     }
@@ -4554,8 +4556,12 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   }
   void VerifyCodePointer(CodeObjectSlot slot) override {
     CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    Code code = Code::unchecked_cast(slot.load(code_cage_base()));
-    VerifyHeapObjectImpl(code);
+    Object maybe_code = slot.load(code_cage_base());
+    HeapObject code;
+    // The slot might contain smi during CodeDataContainer creation, so skip it.
+    if (maybe_code.GetHeapObject(&code)) {
+      VerifyHeapObjectImpl(code);
+    }
   }
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
