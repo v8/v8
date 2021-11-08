@@ -920,14 +920,17 @@ void JsonStringifier::SerializeStringUnchecked_(
     SrcChar c = src[i];
     if (DoNotEscape(c)) {
       dest->Append(c);
-    } else if (c >= 0xD800 && c <= 0xDFFF) {
+    } else if (sizeof(SrcChar) != 1 &&
+               base::IsInRange(c, static_cast<SrcChar>(0xD800),
+                               static_cast<SrcChar>(0xDFFF))) {
       // The current character is a surrogate.
       if (c <= 0xDBFF) {
         // The current character is a leading surrogate.
         if (i + 1 < src.length()) {
           // There is a next character.
           SrcChar next = src[i + 1];
-          if (next >= 0xDC00 && next <= 0xDFFF) {
+          if (base::IsInRange(next, static_cast<SrcChar>(0xDC00),
+                              static_cast<SrcChar>(0xDFFF))) {
             // The next character is a trailing surrogate, meaning this is a
             // surrogate pair.
             dest->Append(c);
@@ -983,14 +986,17 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
       SrcChar c = reader.Get<SrcChar>(i);
       if (DoNotEscape(c)) {
         builder_.Append<SrcChar, DestChar>(c);
-      } else if (c >= 0xD800 && c <= 0xDFFF) {
+      } else if (sizeof(SrcChar) != 1 &&
+                 base::IsInRange(c, static_cast<SrcChar>(0xD800),
+                                 static_cast<SrcChar>(0xDFFF))) {
         // The current character is a surrogate.
         if (c <= 0xDBFF) {
           // The current character is a leading surrogate.
           if (i + 1 < reader.length()) {
             // There is a next character.
             SrcChar next = reader.Get<SrcChar>(i + 1);
-            if (next >= 0xDC00 && next <= 0xDFFF) {
+            if (base::IsInRange(next, static_cast<SrcChar>(0xDC00),
+                                static_cast<SrcChar>(0xDFFF))) {
               // The next character is a trailing surrogate, meaning this is a
               // surrogate pair.
               builder_.Append<SrcChar, DestChar>(c);
@@ -1033,7 +1039,9 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
 template <>
 bool JsonStringifier::DoNotEscape(uint8_t c) {
   // https://tc39.github.io/ecma262/#table-json-single-character-escapes
-  return c >= 0x23 && c <= 0x7E && c != 0x5C;
+  return base::IsInRange(c, static_cast<uint8_t>(0x23),
+                         static_cast<uint8_t>(0x7E)) &&
+         c != 0x5C;
 }
 
 template <>
