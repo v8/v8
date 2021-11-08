@@ -680,6 +680,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case WASM_EXIT:
     case WASM_DEBUG_BREAK:
     case JS_TO_WASM:
+    case RETURN_PROMISE_ON_SUSPEND:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return candidate;
     case OPTIMIZED:
@@ -1036,6 +1037,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
       case CONSTRUCT:
 #if V8_ENABLE_WEBASSEMBLY
       case JS_TO_WASM:
+      case RETURN_PROMISE_ON_SUSPEND:
       case C_WASM_ENTRY:
       case WASM_DEBUG_BREAK:
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2084,10 +2086,29 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
     IterateCompiledFrame(v);
     return;
   }
-  // The [fp - 2*kSystemPointerSize] on the stack is a value indicating how
-  // many values should be scanned from the top.
-  intptr_t scan_count =
-      *reinterpret_cast<intptr_t*>(fp() - 2 * kSystemPointerSize);
+  // The [fp + BuiltinFrameConstants::kGCScanSlotCount] on the stack is a value
+  // indicating how many values should be scanned from the top.
+  intptr_t scan_count = *reinterpret_cast<intptr_t*>(
+      fp() + BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+
+  FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
+  FullObjectSlot spill_slot_limit(
+      &Memory<Address>(sp() + scan_count * kSystemPointerSize));
+  v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
+                       spill_slot_limit);
+}
+
+void ReturnPromiseOnSuspendFrame::Iterate(RootVisitor* v) const {
+  //  See JsToWasmFrame layout.
+#ifdef DEBUG
+  Code code = GetContainingCode(isolate(), pc());
+  DCHECK(code.is_builtin() &&
+         code.builtin_id() == Builtin::kWasmReturnPromiseOnSuspend);
+#endif
+  // The [fp + BuiltinFrameConstants::kGCScanSlotCountOffset] on the stack is a
+  // value indicating how many values should be scanned from the top.
+  intptr_t scan_count = *reinterpret_cast<intptr_t*>(
+      fp() + BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
 
   FullObjectSlot spill_slot_base(&Memory<Address>(sp()));
   FullObjectSlot spill_slot_limit(

@@ -204,6 +204,14 @@ class BuiltinFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(2);
 };
 
+class BuiltinWasmWrapperConstants : public TypedFrameConstants {
+ public:
+  // This slot contains the number of slots at the top of the frame that need to
+  // be scanned by the GC.
+  static constexpr int kGCScanSlotCountOffset =
+      kFrameTypeOffset - kSystemPointerSize;
+};
+
 class ConstructFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.

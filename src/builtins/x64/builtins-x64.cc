@@ -2962,15 +2962,9 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // -------------------------------------------
   // Compute offsets and prepare for GC.
   // -------------------------------------------
-  // We will have to save a value indicating the GC the number
-  // of values on the top of the stack that have to be scanned before calling
-  // the Wasm function.
-  constexpr int kFrameMarkerOffset = -kSystemPointerSize;
-  constexpr int kGCScanSlotCountOffset =
-      kFrameMarkerOffset - kSystemPointerSize;
   // The number of parameters passed to this function.
   constexpr int kInParamCountOffset =
-      kGCScanSlotCountOffset - kSystemPointerSize;
+      BuiltinWasmWrapperConstants::kGCScanSlotCountOffset - kSystemPointerSize;
   // The number of parameters according to the signature.
   constexpr int kParamCountOffset = kInParamCountOffset - kSystemPointerSize;
   constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
@@ -3387,7 +3381,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   // We set the indicating value for the GC to the proper one for Wasm call.
   constexpr int kWasmCallGCScanSlotCount = 0;
-  __ Move(MemOperand(rbp, kGCScanSlotCountOffset), kWasmCallGCScanSlotCount);
+  __ Move(MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset),
+          kWasmCallGCScanSlotCount);
 
   // -------------------------------------------
   // Call the Wasm function.
@@ -3470,10 +3465,12 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // The builtin expects the parameter to be in register param = rax.
 
   constexpr int kBuiltinCallGCScanSlotCount = 2;
-  PrepareForBuiltinCall(masm, MemOperand(rbp, kGCScanSlotCountOffset),
-                        kBuiltinCallGCScanSlotCount, current_param, param_limit,
-                        current_int_param_slot, current_float_param_slot,
-                        valuetypes_array_ptr, wasm_instance, function_data);
+  PrepareForBuiltinCall(
+      masm,
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset),
+      kBuiltinCallGCScanSlotCount, current_param, param_limit,
+      current_int_param_slot, current_float_param_slot, valuetypes_array_ptr,
+      wasm_instance, function_data);
 
   Label param_kWasmI32_not_smi;
   Label param_kWasmI64;
@@ -3620,7 +3617,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // -------------------------------------------
   __ bind(&compile_wrapper);
   // Enable GC.
-  MemOperand GCScanSlotPlace = MemOperand(rbp, kGCScanSlotCountOffset);
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 4);
   // Save registers to the stack.
   __ pushq(wasm_instance);
@@ -3651,7 +3649,7 @@ void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf) {
 
 void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // Set up the stackframe.
-  __ EnterFrame(StackFrame::JS_TO_WASM);
+  __ EnterFrame(StackFrame::RETURN_PROMISE_ON_SUSPEND);
 
   // Parameters.
   Register closure = kJSFunctionRegister;                  // rdi
@@ -3661,7 +3659,10 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   }
 
   constexpr int kFrameMarkerOffset = -kSystemPointerSize;
-  constexpr int kParamCountOffset = kFrameMarkerOffset - kSystemPointerSize;
+  // This slot contains the number of slots at the top of the frame that need to
+  // be scanned by the GC.
+  constexpr int kParamCountOffset =
+      BuiltinWasmWrapperConstants::kGCScanSlotCountOffset - kSystemPointerSize;
   // The frame marker is not included in the slot count.
   constexpr int kNumSpillSlots =
       -(kParamCountOffset - kFrameMarkerOffset) / kSystemPointerSize;
@@ -3723,11 +3724,13 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Allocate a new continuation.
   // -------------------------------------------
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 3);
   __ Push(wasm_instance);
   __ Push(function_data);
   __ Push(wasm_instance);
   __ Move(kContextRegister, Smi::zero());
-  // TODO(thibaudm): Handle GC.
   __ CallRuntime(Runtime::kWasmAllocateContinuation);
   __ Pop(function_data);
   __ Pop(wasm_instance);
@@ -3750,6 +3753,14 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // Switch stack!
   LoadJumpBuffer(masm, target_jmpbuf);
   __ movq(rbp, rsp);  // New stack, there is no frame yet.
+  __ Move(GCScanSlotPlace, 3);
+  __ Push(wasm_instance);
+  __ Push(function_data);
+  __ Push(wasm_instance);
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Pop(function_data);
+  __ Pop(wasm_instance);
   foreign_jmpbuf = no_reg;
   target_jmpbuf = no_reg;
   // live: [rsi, rdi]
@@ -3827,6 +3838,7 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // Switch stack!
   LoadJumpBuffer(masm, jmpbuf);
   __ leaq(rbp, Operand(rsp, (kNumSpillSlots + 1) * kSystemPointerSize));
+  __ Move(GCScanSlotPlace, 2);
   __ Push(wasm_instance);  // Spill.
   __ Push(wasm_instance);  // First arg.
   __ Move(kContextRegister, Smi::zero());
@@ -3841,7 +3853,7 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // Epilogue.
   // -------------------------------------------
   __ movq(param_count, MemOperand(rbp, kParamCountOffset));
-  __ LeaveFrame(StackFrame::JS_TO_WASM);
+  __ LeaveFrame(StackFrame::RETURN_PROMISE_ON_SUSPEND);
   __ DropArguments(param_count, r8, TurboAssembler::kCountIsInteger,
                    TurboAssembler::kCountExcludesReceiver);
   __ ret(0);

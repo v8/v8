@@ -100,6 +100,7 @@ class StackHandler {
   IF_WASM(V, WASM, WasmFrame)                                             \
   IF_WASM(V, WASM_TO_JS, WasmToJsFrame)                                   \
   IF_WASM(V, JS_TO_WASM, JsToWasmFrame)                                   \
+  IF_WASM(V, RETURN_PROMISE_ON_SUSPEND, ReturnPromiseOnSuspendFrame)      \
   IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
   IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
   IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
@@ -1040,6 +1041,19 @@ class JsToWasmFrame : public StubFrame {
 
  protected:
   inline explicit JsToWasmFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class ReturnPromiseOnSuspendFrame : public StubFrame {
+ public:
+  Type type() const override { return RETURN_PROMISE_ON_SUSPEND; }
+
+  void Iterate(RootVisitor* v) const override;
+
+ protected:
+  inline explicit ReturnPromiseOnSuspendFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;
