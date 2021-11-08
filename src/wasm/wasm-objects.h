@@ -733,7 +733,7 @@ class WasmExportedFunctionData
 };
 
 class WasmApiFunctionRef
-    : public TorqueGeneratedWasmApiFunctionRef<WasmApiFunctionRef, Foreign> {
+    : public TorqueGeneratedWasmApiFunctionRef<WasmApiFunctionRef, HeapObject> {
  public:
   // Dispatched behavior.
   DECL_PRINTER(WasmApiFunctionRef)

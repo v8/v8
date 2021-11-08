@@ -1939,7 +1939,7 @@ void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
 
 void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
   PrintHeader(os, "WasmApiFunctionRef");
-  os << "\n - isolate_root: " << reinterpret_cast<void*>(foreign_address());
+  os << "\n - isolate_root: " << reinterpret_cast<void*>(isolate_root());
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - callable: " << Brief(callable());
   os << "\n";

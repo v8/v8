@@ -660,9 +660,12 @@ Node* WasmGraphBuilder::BuildLoadIsolateRoot() {
       // that the generated code is Isolate independent.
       return LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
     case kWasmApiFunctionRefMode:
-      return gasm_->Load(MachineType::Pointer(), Param(0),
-                         wasm::ObjectAccess::ToTagged(
-                             WasmApiFunctionRef::kForeignAddressOffset));
+      // Note: Even if V8_HEAP_SANDBOX, the pointer to the isolate root is not
+      // encoded, much like the case above. TODO(manoskouk): Decode the pointer
+      // here if that changes.
+      return gasm_->Load(
+          MachineType::Pointer(), Param(0),
+          wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kIsolateRootOffset));
     case kNoSpecialParameterMode:
       return mcgraph()->IntPtrConstant(isolate_->isolate_root());
   }

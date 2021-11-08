@@ -651,8 +651,6 @@ class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
-                                                        v);
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
   }
