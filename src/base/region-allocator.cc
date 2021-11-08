@@ -41,6 +41,8 @@ RegionAllocator::RegionAllocator(Address memory_region_begin,
 }
 
 RegionAllocator::~RegionAllocator() {
+  // TODO(chromium:1218005) either (D)CHECK that all allocated regions have
+  // been freed again (and thus merged into a single region) or do that now.
   for (Region* region : all_regions_) {
     delete region;
   }
@@ -87,6 +89,8 @@ RegionAllocator::Region* RegionAllocator::Split(Region* region,
   DCHECK_NE(new_size, 0);
   DCHECK_GT(region->size(), new_size);
 
+  if (on_split_) on_split_(region->begin(), new_size);
+
   // Create new region and put it to the lists after the |region|.
   DCHECK(!region->is_excluded());
   RegionState state = region->state();
@@ -112,6 +116,9 @@ void RegionAllocator::Merge(AllRegionsSet::iterator prev_iter,
   Region* prev = *prev_iter;
   Region* next = *next_iter;
   DCHECK_EQ(prev->end(), next->begin());
+
+  if (on_merge_) on_merge_(prev->begin(), prev->size() + next->size());
+
   prev->set_size(prev->size() + next->size());
 
   all_regions_.erase(next_iter);  // prev_iter stays valid.
