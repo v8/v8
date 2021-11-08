@@ -3017,6 +3017,56 @@ v8::PageAllocator* Isolate::page_allocator() const {
   return isolate_allocator_->page_allocator();
 }
 
+namespace {
+
+// These flags are all related to --jitless and *must not change within the
+// same process*. See also: crbug.com/v8/9019.
+enum class CheckedFlag {
+  kInitialized = 1 << 0,  // Whether initial_checked_flag_values_ has been set.
+  kJitless = 1 << 1,
+  kRegexpInterpretAll = 1 << 2,
+  kExposeWasm = 1 << 3,
+  kOpt = 1 << 4,
+};
+using CheckedFlags = base::Flags<CheckedFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(CheckedFlags)
+
+// The first isolate sets these, all following isolates read and verify against
+// initial values.
+std::atomic<uint32_t> initial_checked_flag_values_;
+
+void VerifyCheckedFlags() {
+  // TODO(all): While jitless flags are especially sensitive and cause
+  // hard-to-debug failures if misused, it may be good to check all V8 flags in
+  // a similar fashion - or at least have a systematic way of defining flags
+  // that must not change. For now, this ad-hoc check for jitless-related flags
+  // is intended to avoid trivial and accidental misuses.
+  CheckedFlags current = CheckedFlag::kInitialized;
+  if (FLAG_jitless) current |= CheckedFlag::kJitless;
+  if (FLAG_regexp_interpret_all) current |= CheckedFlag::kRegexpInterpretAll;
+#if V8_ENABLE_WEBASSEMBLY
+  if (FLAG_expose_wasm) current |= CheckedFlag::kExposeWasm;
+#endif
+  if (FLAG_opt) current |= CheckedFlag::kOpt;
+
+  uint32_t initial_flags = 0;
+  const bool is_initial_isolate =
+      initial_checked_flag_values_.compare_exchange_strong(
+          initial_flags, static_cast<uint32_t>(current),
+          std::memory_order_relaxed, std::memory_order_relaxed);
+
+  if (is_initial_isolate) return;  // Nothing to check.
+
+  if (static_cast<uint32_t>(current) != initial_flags) {
+    FATAL(
+        "An Isolate was spawned with different flag values than another "
+        "Isolate in the same process. Flags must remain unchanged within one "
+        "process.");
+  }
+}
+
+}  // namespace
+
 Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
                  bool is_shared)
     : isolate_data_(this, isolate_allocator->GetPtrComprCageBase()),
@@ -3041,6 +3091,8 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
       cancelable_task_manager_(new CancelableTaskManager()) {
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();
+
+  VerifyCheckedFlags();
 
   // ThreadManager is initialized early to support locking an isolate
   // before it is entered.
