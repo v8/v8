@@ -2968,6 +2968,11 @@ filegroup(
     ],
 )
 
+filegroup(
+    name = "kythe_torque_headers",
+    srcs = glob(["src/torque/*.h"]),
+)
+
 # =================================================
 # Generated files
 # =================================================
@@ -3137,17 +3142,15 @@ cc_library(
     ],
     include_prefix = "third_party/v8",
     includes = ["."],
-    visibility = ["//visibility:public"],
 )
 
 cc_library(
-    name = "torque_base",
+    name = "kythe_torque_base",
     srcs = [
         ":torque_base_files",
     ],
     copts = ["-fexceptions"],
     features = ["-use_header_modules"],
-    visibility = ["//visibility:public"],
     deps = [
         ":torque_base_headers",
         ":v8_libbase",
