@@ -736,16 +736,26 @@ void WasmIndirectFunctionTable::Resize(Isolate* isolate,
   uint32_t old_size = table->size();
   if (old_size >= new_size) return;  // Nothing to do.
 
+  table->set_size(new_size);
+
+  // Grow table exponentially to guarantee amortized constant allocation and gc
+  // time.
+  Handle<FixedArray> old_refs(table->refs(), isolate);
+  // Since we might have overallocated, {old_capacity} might be different than
+  // {old_size}.
+  uint32_t old_capacity = old_refs->length();
+  // If we have enough capacity, there is no need to reallocate.
+  if (new_size <= old_capacity) return;
+  uint32_t new_capacity = std::max(2 * old_capacity, new_size);
+
   Managed<IftNativeAllocations>::cast(table->managed_native_allocations())
       .raw()
-      ->resize(table, new_size);
+      ->resize(table, new_capacity);
 
-  Handle<FixedArray> old_refs(table->refs(), isolate);
   Handle<FixedArray> new_refs = isolate->factory()->CopyFixedArrayAndGrow(
-      old_refs, static_cast<int>(new_size - old_size));
+      old_refs, static_cast<int>(new_capacity - old_capacity));
   table->set_refs(*new_refs);
-  table->set_size(new_size);
-  for (uint32_t i = old_size; i < new_size; ++i) {
+  for (uint32_t i = old_capacity; i < new_capacity; ++i) {
     table->Clear(i);
   }
 }
