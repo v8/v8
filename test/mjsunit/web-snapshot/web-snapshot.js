@@ -234,7 +234,7 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   assertEquals([5, 6, 7], foo.array);
 })();
 
-(function TestArray() {
+(function TestEmptyArray() {
   function createObjects() {
     globalThis.foo = {
       array: []
@@ -254,7 +254,6 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
   assertEquals([[2, 3], [4, 5]], foo.array);
 })();
-
 
 (function TestArrayContainingObject() {
   function createObjects() {

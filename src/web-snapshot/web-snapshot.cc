@@ -219,6 +219,8 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
     return false;
   }
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  std::unique_ptr<Handle<JSObject>[]> export_objects(
+      new Handle<JSObject>[exports->Length()]);
   for (int i = 0, length = exports->Length(); i < length; ++i) {
     v8::Local<v8::String> str =
         exports->Get(v8_isolate, i)->ToString(context).ToLocalChecked();
@@ -236,27 +238,48 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
       return false;
     }
 
-    auto object = Handle<JSObject>::cast(Utils::OpenHandle(*v8_object));
-    SerializeExport(object, Handle<String>::cast(Utils::OpenHandle(*str)));
+    export_objects[i] = Handle<JSObject>::cast(Utils::OpenHandle(*v8_object));
+    Discovery(export_objects[i]);
   }
+
+  for (int i = 0, length = exports->Length(); i < length; ++i) {
+    v8::Local<v8::String> str =
+        exports->Get(v8_isolate, i)->ToString(context).ToLocalChecked();
+    SerializeExport(export_objects[i],
+                    Handle<String>::cast(Utils::OpenHandle(*str)));
+  }
+
   WriteSnapshot(data_out.buffer, data_out.buffer_size);
   return !has_error();
 }
 
 void WebSnapshotSerializer::SerializePendingItems() {
-  while (!pending_objects_.empty() || !pending_arrays_.empty()) {
-    while (!pending_objects_.empty()) {
-      const Handle<JSObject>& object = pending_objects_.front();
-      SerializePendingObject(object);
-      pending_objects_.pop();
-    }
-
-    while (!pending_arrays_.empty()) {
-      const Handle<JSArray>& array = pending_arrays_.front();
-      SerializePendingArray(array);
-      pending_arrays_.pop();
-    }
+  for (int i = 0; i < contexts_->Length(); ++i) {
+    Handle<Context> context =
+        handle(Context::cast(contexts_->Get(i)), isolate_);
+    SerializeContext(context);
   }
+  for (int i = 0; i < functions_->Length(); ++i) {
+    Handle<JSFunction> function =
+        handle(JSFunction::cast(functions_->Get(i)), isolate_);
+    SerializeFunction(function);
+  }
+  for (int i = 0; i < classes_->Length(); ++i) {
+    Handle<JSFunction> function =
+        handle(JSFunction::cast(classes_->Get(i)), isolate_);
+    SerializeClass(function);
+  }
+  for (int i = 0; i < arrays_->Length(); ++i) {
+    Handle<JSArray> array = handle(JSArray::cast(arrays_->Get(i)), isolate_);
+    SerializeArray(array);
+  }
+  for (int i = 0; i < objects_->Length(); ++i) {
+    Handle<JSObject> object =
+        handle(JSObject::cast(objects_->Get(i)), isolate_);
+    SerializeObject(object);
+  }
+  // Maps and strings get serialized when they're encountered; we don't need to
+  // serialize them explicitly.
 }
 
 // Format (full snapshot):
@@ -457,8 +480,7 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
     serializer->WriteUint32(0);
   } else {
     DCHECK(context->IsFunctionContext() || context->IsBlockContext());
-    uint32_t context_id = 0;
-    SerializeContext(context, context_id);
+    uint32_t context_id = GetContextId(context);
     serializer->WriteUint32(context_id + 1);
   }
 
@@ -466,6 +488,167 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
 
   serializer->WriteUint32(
       FunctionKindToFunctionFlags(function->shared().kind()));
+}
+
+void WebSnapshotSerializer::Discovery(Handle<Object> start_object) {
+  // The object discovery phase assigns IDs for objects / functions / classes /
+  // arrays and discovers outgoing references from them. This is needed so that
+  // e.g., we know all functions upfront and can construct the source code that
+  // covers them before serializing the functions.
+
+  // TODO(v8:11525): Serialize leaf objects first.
+
+  contexts_ = ArrayList::New(isolate_, 30);
+  functions_ = ArrayList::New(isolate_, 30);
+  classes_ = ArrayList::New(isolate_, 30);
+  arrays_ = ArrayList::New(isolate_, 30);
+  objects_ = ArrayList::New(isolate_, 30);
+
+  discovery_queue_.push(start_object);
+
+  while (!discovery_queue_.empty()) {
+    const Handle<Object>& object = discovery_queue_.front();
+    if (object->IsHeapObject()) {
+      switch (HeapObject::cast(*object).map().instance_type()) {
+        case JS_FUNCTION_TYPE:
+          DiscoverFunction(Handle<JSFunction>::cast(object));
+          break;
+        case JS_CLASS_CONSTRUCTOR_TYPE:
+          DiscoverClass(Handle<JSFunction>::cast(object));
+          break;
+        case JS_OBJECT_TYPE:
+          DiscoverObject(Handle<JSObject>::cast(object));
+          break;
+        case JS_ARRAY_TYPE:
+          DiscoverArray(Handle<JSArray>::cast(object));
+          break;
+        case ODDBALL_TYPE:
+        case HEAP_NUMBER_TYPE:
+        case JS_PRIMITIVE_WRAPPER_TYPE:
+        case JS_REG_EXP_TYPE:
+          // Can't contain references to other objects.
+          break;
+        default:
+          if (object->IsString()) {
+            // Can't contain references to other objects.
+            break;
+          } else {
+            Throw("Web snapshot: Unsupported object");
+          }
+      }
+    }
+    discovery_queue_.pop();
+  }
+}
+
+void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
+  uint32_t id;
+  if (InsertIntoIndexMap(function_ids_, function, id)) {
+    return;
+  }
+
+  DCHECK_EQ(id, functions_->Length());
+  functions_ = ArrayList::Add(isolate_, functions_, function);
+
+  Handle<Context> context(function->context(), isolate_);
+  if (context->IsFunctionContext() || context->IsBlockContext()) {
+    DiscoverContext(context);
+  }
+
+  // TODO(v8:11525): Serialize .prototype.
+  // TODO(v8:11525): Support properties in functions.
+}
+
+void WebSnapshotSerializer::DiscoverClass(Handle<JSFunction> function) {
+  uint32_t id;
+  if (InsertIntoIndexMap(class_ids_, function, id)) {
+    return;
+  }
+
+  DCHECK_EQ(id, classes_->Length());
+  classes_ = ArrayList::Add(isolate_, classes_, function);
+
+  Handle<Context> context(function->context(), isolate_);
+  if (context->IsFunctionContext() || context->IsBlockContext()) {
+    DiscoverContext(context);
+  }
+
+  Handle<JSObject> prototype =
+      Handle<JSObject>::cast(handle(function->prototype(), isolate_));
+  discovery_queue_.push(prototype);
+  // TODO(v8:11525): Support properties in classes.
+  // TODO(v8:11525): Support class members.
+}
+
+void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
+  // Ensure that parent contexts get a lower ID.
+  if (!context->previous().IsNativeContext() &&
+      !context->previous().IsScriptContext()) {
+    DiscoverContext(handle(context->previous(), isolate_));
+  }
+
+  uint32_t id;
+  if (InsertIntoIndexMap(context_ids_, context, id)) {
+    return;
+  }
+
+  DCHECK_EQ(id, contexts_->Length());
+  contexts_ = ArrayList::Add(isolate_, contexts_, context);
+
+  Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
+  int count = scope_info->ContextLocalCount();
+
+  for (int i = 0; i < count; ++i) {
+    // TODO(v8:11525): support parameters
+    // TODO(v8:11525): distinguish variable modes
+    Handle<Object> value(context->get(scope_info->ContextHeaderLength() + i),
+                         isolate_);
+    discovery_queue_.push(value);
+  }
+}
+
+void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
+  uint32_t id;
+  if (InsertIntoIndexMap(array_ids_, array, id)) {
+    return;
+  }
+
+  DCHECK_EQ(id, arrays_->Length());
+  arrays_ = ArrayList::Add(isolate_, arrays_, array);
+
+  auto elements_kind = array->GetElementsKind();
+  if (elements_kind != PACKED_SMI_ELEMENTS &&
+      elements_kind != PACKED_ELEMENTS) {
+    Throw("Web Snapshot: Unsupported array");
+    return;
+  }
+  // TODO(v8:11525): Support sparse arrays & arrays with holes.
+  uint32_t length = static_cast<uint32_t>(array->length().ToSmi().value());
+  Handle<FixedArray> elements =
+      handle(FixedArray::cast(array->elements()), isolate_);
+  for (uint32_t i = 0; i < length; ++i) {
+    discovery_queue_.push(handle(elements->get(i), isolate_));
+  }
+}
+
+void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
+  uint32_t id;
+  if (InsertIntoIndexMap(object_ids_, object, id)) {
+    return;
+  }
+
+  DCHECK_EQ(id, objects_->Length());
+  objects_ = ArrayList::Add(isolate_, objects_, object);
+
+  Handle<Map> map(object->map(), isolate_);
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    PropertyDetails details =
+        map->instance_descriptors(kRelaxedLoad).GetDetails(i);
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+    Handle<Object> value =
+        JSObject::FastPropertyAt(object, details.representation(), field_index);
+    discovery_queue_.push(value);
+  }
 }
 
 // Format (serialized function):
@@ -476,12 +659,7 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
 // - Flags (see FunctionFlags)
 // TODO(v8:11525): Investigate whether the length is really needed.
 // TODO(v8:11525): Serialize the formal parameter count.
-void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
-                                              uint32_t& id) {
-  if (InsertIntoIndexMap(function_ids_, function, id)) {
-    return;
-  }
-
+void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
   SerializeFunctionInfo(&function_serializer_, function);
 
   // TODO(v8:11525): Serialize .prototype.
@@ -497,18 +675,12 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function,
 // - Length in the source snippet
 // - Flags (see FunctionFlags)
 // - Object id (function prototype)
-void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function,
-                                           uint32_t& id) {
-  if (InsertIntoIndexMap(class_ids_, function, id)) {
-    return;
-  }
-
+void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function) {
   SerializeFunctionInfo(&class_serializer_, function);
 
   Handle<JSObject> prototype =
       Handle<JSObject>::cast(handle(function->prototype(), isolate_));
-  uint32_t prototype_id;
-  SerializeObject(prototype, prototype_id);
+  uint32_t prototype_id = GetObjectId(prototype);
   class_serializer_.WriteUint32(prototype_id);
 
   // TODO(v8:11525): Support properties in classes.
@@ -523,26 +695,12 @@ void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function,
 // - For each variable:
 //   - String id (name)
 //   - Serialized value
-void WebSnapshotSerializer::SerializeContext(Handle<Context> context,
-                                             uint32_t& id) {
-  // Invariant: parent context is serialized first.
-
-  // Can't use InsertIntoIndexMap here, because it might reserve a lower id
-  // for the context than its parent.
-  int index_out = 0;
-  if (context_ids_.Lookup(context, &index_out)) {
-    id = static_cast<uint32_t>(index_out);
-    return;
-  }
-
+void WebSnapshotSerializer::SerializeContext(Handle<Context> context) {
   uint32_t parent_context_id = 0;
   if (!context->previous().IsNativeContext() &&
       !context->previous().IsScriptContext()) {
-    SerializeContext(handle(context->previous(), isolate_), parent_context_id);
-    ++parent_context_id;
+    parent_context_id = GetContextId(handle(context->previous(), isolate_)) + 1;
   }
-
-  InsertIntoIndexMap(context_ids_, context, id);
 
   // TODO(v8:11525): Use less space for encoding the context type.
   if (context->IsFunctionContext()) {
@@ -571,34 +729,13 @@ void WebSnapshotSerializer::SerializeContext(Handle<Context> context,
                          isolate_);
     WriteValue(value, context_serializer_);
   }
-  // TODO(v8:11525): Support context referencing a context indirectly (e.g.,
-  // context -> array -> function -> context).
-}
-
-void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object,
-                                            uint32_t& id) {
-  // TODO(v8:11525): Serialize the leaf objects first.
-  DCHECK(!object->IsJSFunction());
-  if (InsertIntoIndexMap(object_ids_, object, id)) {
-    return;
-  }
-  pending_objects_.push(object);
-}
-
-void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array,
-                                           uint32_t& id) {
-  // TODO(v8:11525): Serialize the leaf objects first.
-  if (InsertIntoIndexMap(array_ids_, array, id)) {
-    return;
-  }
-  pending_arrays_.push(array);
 }
 
 // Format (serialized object):
 // - Shape id
 // - For each property:
 //   - Serialized value
-void WebSnapshotSerializer::SerializePendingObject(Handle<JSObject> object) {
+void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
   Handle<Map> map(object->map(), isolate_);
   uint32_t map_id = 0;
   SerializeMap(map, map_id);
@@ -624,7 +761,7 @@ void WebSnapshotSerializer::SerializePendingObject(Handle<JSObject> object) {
 // - Length
 // - For each element:
 //   - Serialized value
-void WebSnapshotSerializer::SerializePendingArray(Handle<JSArray> array) {
+void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
   auto elements_kind = array->GetElementsKind();
   if (elements_kind != PACKED_SMI_ELEMENTS &&
       elements_kind != PACKED_ELEMENTS) {
@@ -698,24 +835,20 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       serializer.WriteDouble(HeapNumber::cast(*object).value());
       break;
     case JS_FUNCTION_TYPE:
-      SerializeFunction(Handle<JSFunction>::cast(object), id);
       serializer.WriteUint32(ValueType::FUNCTION_ID);
-      serializer.WriteUint32(id);
+      serializer.WriteUint32(GetFunctionId(Handle<JSFunction>::cast(object)));
       break;
     case JS_CLASS_CONSTRUCTOR_TYPE:
-      SerializeClass(Handle<JSFunction>::cast(object), id);
       serializer.WriteUint32(ValueType::CLASS_ID);
-      serializer.WriteUint32(id);
+      serializer.WriteUint32(GetClassId(Handle<JSFunction>::cast(object)));
       break;
     case JS_OBJECT_TYPE:
-      SerializeObject(Handle<JSObject>::cast(object), id);
       serializer.WriteUint32(ValueType::OBJECT_ID);
-      serializer.WriteUint32(id);
+      serializer.WriteUint32(GetObjectId(Handle<JSObject>::cast(object)));
       break;
     case JS_ARRAY_TYPE:
-      SerializeArray(Handle<JSArray>::cast(object), id);
       serializer.WriteUint32(ValueType::ARRAY_ID);
-      serializer.WriteUint32(id);
+      serializer.WriteUint32(GetArrayId(Handle<JSArray>::cast(object)));
       break;
     case JS_REG_EXP_TYPE: {
       Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(object);
@@ -744,6 +877,46 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       }
   }
   // TODO(v8:11525): Support more types.
+}
+
+uint32_t WebSnapshotSerializer::GetFunctionId(Handle<JSFunction> function) {
+  int id;
+  bool return_value = function_ids_.Lookup(function, &id);
+  DCHECK(return_value);
+  USE(return_value);
+  return static_cast<uint32_t>(id);
+}
+
+uint32_t WebSnapshotSerializer::GetClassId(Handle<JSFunction> function) {
+  int id;
+  bool return_value = class_ids_.Lookup(function, &id);
+  DCHECK(return_value);
+  USE(return_value);
+  return static_cast<uint32_t>(id);
+}
+
+uint32_t WebSnapshotSerializer::GetContextId(Handle<Context> context) {
+  int id;
+  bool return_value = context_ids_.Lookup(context, &id);
+  DCHECK(return_value);
+  USE(return_value);
+  return static_cast<uint32_t>(id);
+}
+
+uint32_t WebSnapshotSerializer::GetArrayId(Handle<JSArray> array) {
+  int id;
+  bool return_value = array_ids_.Lookup(array, &id);
+  DCHECK(return_value);
+  USE(return_value);
+  return static_cast<uint32_t>(id);
+}
+
+uint32_t WebSnapshotSerializer::GetObjectId(Handle<JSObject> object) {
+  int id;
+  bool return_value = object_ids_.Lookup(object, &id);
+  DCHECK(return_value);
+  USE(return_value);
+  return static_cast<uint32_t>(id);
 }
 
 WebSnapshotDeserializer::WebSnapshotDeserializer(v8::Isolate* isolate)
@@ -1618,6 +1791,12 @@ void WebSnapshotDeserializer::AddDeferredReference(Handle<Object> container,
 }
 
 void WebSnapshotDeserializer::ProcessDeferredReferences() {
+  // Check for error now, since the FixedArrays below might not have been
+  // created if there was an error.
+  if (has_error()) {
+    return;
+  }
+
   DisallowGarbageCollection no_gc;
   ArrayList raw_deferred_references = *deferred_references_;
   FixedArray raw_functions = *functions_;
