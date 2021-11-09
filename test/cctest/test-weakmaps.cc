@@ -166,9 +166,7 @@ TEST(WeakMapPromotionMarkCompact) {
 
   CcTest::CollectAllGarbage();
 
-  CHECK(FLAG_always_promote_young_mc
-            ? !ObjectInYoungGeneration(weakmap->table())
-            : ObjectInYoungGeneration(weakmap->table()));
+  CHECK(!ObjectInYoungGeneration(weakmap->table()));
 
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> object = factory->NewJSObjectFromMap(map);
@@ -180,8 +178,7 @@ TEST(WeakMapPromotionMarkCompact) {
       EphemeronHashTable::cast(weakmap->table()), *object));
   CcTest::CollectAllGarbage();
 
-  CHECK(FLAG_always_promote_young_mc ? !ObjectInYoungGeneration(*object)
-                                     : ObjectInYoungGeneration(*object));
+  CHECK(!ObjectInYoungGeneration(*object));
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
       EphemeronHashTable::cast(weakmap->table()), *object));

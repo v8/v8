@@ -6685,8 +6685,7 @@ HEAP_TEST(Regress779503) {
     // currently scavenging.
     heap->delay_sweeper_tasks_for_testing_ = true;
     CcTest::CollectGarbage(OLD_SPACE);
-    CHECK(FLAG_always_promote_young_mc ? !Heap::InYoungGeneration(*byte_array)
-                                       : Heap::InYoungGeneration(*byte_array));
+    CHECK(!Heap::InYoungGeneration(*byte_array));
   }
   // Scavenging and sweeping the same page will crash as slots will be
   // overridden.

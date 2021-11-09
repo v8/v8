@@ -73,33 +73,6 @@ TEST(Promotion) {
   }
 }
 
-HEAP_TEST(NoPromotion) {
-  if (FLAG_always_promote_young_mc) return;
-  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  // Page promotion allows pages to be moved to old space even in the case of
-  // OOM scenarios.
-  FLAG_page_promotion = false;
-
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  {
-    v8::HandleScope sc(CcTest::isolate());
-    Heap* heap = isolate->heap();
-
-    heap::SealCurrentObjects(heap);
-
-    int array_length = heap::FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
-    Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
-
-    heap->set_force_oom(true);
-    // Array should be in the new space.
-    CHECK(heap->InSpace(*array, NEW_SPACE));
-    CcTest::CollectAllGarbage();
-    CcTest::CollectAllGarbage();
-    CHECK(heap->InSpace(*array, NEW_SPACE));
-  }
-}
-
 // This is the same as Factory::NewMap, except it doesn't retry on
 // allocation failure.
 AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {

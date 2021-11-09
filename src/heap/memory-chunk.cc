@@ -390,7 +390,7 @@ void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
     RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
   }
 
-  if (!FLAG_always_promote_young_mc || slot_set_[OLD_TO_NEW] != nullptr)
+  if (slot_set_[OLD_TO_NEW] != nullptr)
     RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
 }
 

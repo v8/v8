@@ -184,6 +184,7 @@ class LiveObjectVisitor : AllStatic {
   static void RecomputeLiveBytes(MemoryChunk* chunk, MarkingState* state);
 };
 
+enum class AlwaysPromoteYoung { kYes, kNo };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 enum MarkingTreatmentMode { KEEP, CLEAR };
 enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
@@ -215,8 +216,6 @@ class MarkCompactCollectorBase {
   virtual void Evacuate() = 0;
   virtual void EvacuatePagesInParallel() = 0;
   virtual void UpdatePointersAfterEvacuation() = 0;
-  virtual std::unique_ptr<UpdatingItem> CreateToSpaceUpdatingItem(
-      MemoryChunk* chunk, Address start, Address end) = 0;
   virtual std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) = 0;
 
@@ -228,10 +227,9 @@ class MarkCompactCollectorBase {
       MigrationObserver* migration_observer);
 
   // Returns whether this page should be moved according to heuristics.
-  bool ShouldMovePage(Page* p, intptr_t live_bytes, bool promote_young);
+  bool ShouldMovePage(Page* p, intptr_t live_bytes,
+                      AlwaysPromoteYoung promote_young);
 
-  int CollectToSpaceUpdatingItems(
-      std::vector<std::unique_ptr<UpdatingItem>>* items);
   template <typename IterateableSpace>
   int CollectRememberedSetUpdatingItems(
       std::vector<std::unique_ptr<UpdatingItem>>* items,
@@ -712,9 +710,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void EvacuatePagesInParallel() override;
   void UpdatePointersAfterEvacuation() override;
 
-  std::unique_ptr<UpdatingItem> CreateToSpaceUpdatingItem(MemoryChunk* chunk,
-                                                          Address start,
-                                                          Address end) override;
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) override;
 
@@ -870,9 +865,12 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
   std::unique_ptr<UpdatingItem> CreateToSpaceUpdatingItem(MemoryChunk* chunk,
                                                           Address start,
-                                                          Address end) override;
+                                                          Address end);
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) override;
+
+  int CollectToSpaceUpdatingItems(
+      std::vector<std::unique_ptr<UpdatingItem>>* items);
 
   void SweepArrayBufferExtensions();
 
