@@ -329,30 +329,6 @@ WASM_RELAXED_SIMD_TEST(F64x2RelaxedMin) {
 WASM_RELAXED_SIMD_TEST(F64x2RelaxedMax) {
   RunF64x2BinOpTest(execution_tier, kExprF64x2RelaxedMax, Maximum);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
-
-#if V8_TARGET_ARCH_X64
-WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
-  // Output is only defined for indices in the range [0,15].
-  WasmRunner<int32_t> r(execution_tier);
-  static const int kElems = kSimd128Size / sizeof(uint8_t);
-  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* src = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* indices = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  BUILD(r,
-        WASM_GLOBAL_SET(
-            0, WASM_SIMD_BINOP(kExprI8x16RelaxedSwizzle, WASM_GLOBAL_GET(1),
-                               WASM_GLOBAL_GET(2))),
-        WASM_ONE);
-  for (int i = 0; i < kElems; i++) {
-    LANE(src, i) = kElems - i - 1;
-    LANE(indices, i) = kElems - i - 1;
-  }
-  CHECK_EQ(1, r.Call());
-  for (int i = 0; i < kElems; i++) {
-    CHECK_EQ(LANE(dst, i), i);
-  }
-}
 
 namespace {
 // For relaxed trunc instructions, don't test out of range values.
@@ -408,6 +384,30 @@ WASM_RELAXED_SIMD_TEST(I32x4RelaxedTruncF32x4S) {
 WASM_RELAXED_SIMD_TEST(I32x4RelaxedTruncF32x4U) {
   IntRelaxedTruncFloatTest<uint32_t, float>(
       execution_tier, kExprI32x4RelaxedTruncF32x4U, kExprF32x4Splat);
+}
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+
+#if V8_TARGET_ARCH_X64
+WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
+  // Output is only defined for indices in the range [0,15].
+  WasmRunner<int32_t> r(execution_tier);
+  static const int kElems = kSimd128Size / sizeof(uint8_t);
+  uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* src = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  uint8_t* indices = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  BUILD(r,
+        WASM_GLOBAL_SET(
+            0, WASM_SIMD_BINOP(kExprI8x16RelaxedSwizzle, WASM_GLOBAL_GET(1),
+                               WASM_GLOBAL_GET(2))),
+        WASM_ONE);
+  for (int i = 0; i < kElems; i++) {
+    LANE(src, i) = kElems - i - 1;
+    LANE(indices, i) = kElems - i - 1;
+  }
+  CHECK_EQ(1, r.Call());
+  for (int i = 0; i < kElems; i++) {
+    CHECK_EQ(LANE(dst, i), i);
+  }
 }
 #endif  // V8_TARGET_ARCH_X64
 

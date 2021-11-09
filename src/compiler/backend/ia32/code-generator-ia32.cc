@@ -3440,6 +3440,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1), i.InputSimd128Register(2));
       break;
     }
+    case kIA32I32x4TruncF64x2UZero: {
+      __ I32x4TruncF64x2UZero(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0), i.TempRegister(0),
+                              kScratchDoubleReg);
+      break;
+    }
+    case kIA32I32x4TruncF32x4U: {
+      __ I32x4TruncF32x4U(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.TempRegister(0), kScratchDoubleReg);
+      break;
+    }
+    case kIA32Cvttps2dq: {
+      __ Cvttps2dq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kIA32Cvttpd2dq: {
+      __ Cvttpd2dq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kIA32Word32AtomicPairLoad: {
       __ movq(kScratchDoubleReg, i.MemoryOperand());
       __ Pextrd(i.OutputRegister(0), kScratchDoubleReg, 0);

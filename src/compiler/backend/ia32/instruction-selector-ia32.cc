@@ -330,10 +330,14 @@ void VisitRROFloat(InstructionSelector* selector, Node* node,
   }
 }
 
+// For float unary operations. Also allocates a temporary general register for
+// used in external operands. If a temp is not required, use VisitRRSimd (since
+// float and SIMD registers are the same on IA32.
 void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
                     ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand temps[] = {g.TempRegister()};
+  // No need for unique because inputs are float but temp is general.
   if (selector->IsSupported(AVX)) {
     selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(input),
                    arraysize(temps), temps);
@@ -3156,6 +3160,22 @@ void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
   Emit(kIA32I32x4TruncSatF64x2UZero, dst, g.UseRegister(node->InputAt(0)),
        arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2SZero(Node* node) {
+  VisitRRSimd(this, node, kIA32Cvttpd2dq);
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF64x2UZero(Node* node) {
+  VisitFloatUnop(this, node, node->InputAt(0), kIA32I32x4TruncF64x2UZero);
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF32x4S(Node* node) {
+  VisitRRSimd(this, node, kIA32Cvttps2dq);
+}
+
+void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
+  VisitFloatUnop(this, node, node->InputAt(0), kIA32I32x4TruncF32x4U);
 }
 
 void InstructionSelector::VisitI64x2GtS(Node* node) {

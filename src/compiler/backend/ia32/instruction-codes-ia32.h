@@ -106,6 +106,10 @@ namespace compiler {
   V(IA32Push)                      \
   V(IA32Poke)                      \
   V(IA32Peek)                      \
+  V(IA32Cvttps2dq)                 \
+  V(IA32Cvttpd2dq)                 \
+  V(IA32I32x4TruncF32x4U)          \
+  V(IA32I32x4TruncF64x2UZero)      \
   V(IA32F64x2Splat)                \
   V(F64x2ExtractLane)              \
   V(F64x2ReplaceLane)              \
