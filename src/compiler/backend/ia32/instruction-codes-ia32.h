@@ -111,8 +111,8 @@ namespace compiler {
   V(IA32I32x4TruncF32x4U)          \
   V(IA32I32x4TruncF64x2UZero)      \
   V(IA32F64x2Splat)                \
-  V(F64x2ExtractLane)              \
-  V(F64x2ReplaceLane)              \
+  V(IA32F64x2ExtractLane)          \
+  V(IA32F64x2ReplaceLane)          \
   V(IA32F64x2Sqrt)                 \
   V(IA32F64x2Add)                  \
   V(IA32F64x2Sub)                  \

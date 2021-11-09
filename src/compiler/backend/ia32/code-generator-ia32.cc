@@ -1759,12 +1759,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movddup(i.OutputSimd128Register(), i.InputDoubleRegister(0));
       break;
     }
-    case kF64x2ExtractLane: {
+    case kIA32F64x2ExtractLane: {
       __ F64x2ExtractLane(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                           i.InputUint8(1));
       break;
     }
-    case kF64x2ReplaceLane: {
+    case kIA32F64x2ReplaceLane: {
       __ F64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
                           i.InputDoubleRegister(2), i.InputInt8(1));
       break;

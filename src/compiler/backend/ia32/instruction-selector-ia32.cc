@@ -2449,7 +2449,7 @@ void InstructionSelector::VisitF64x2Splat(Node* node) {
 }
 
 void InstructionSelector::VisitF64x2ExtractLane(Node* node) {
-  VisitRRISimd(this, node, kF64x2ExtractLane, kF64x2ExtractLane);
+  VisitRRISimd(this, node, kIA32F64x2ExtractLane, kIA32F64x2ExtractLane);
 }
 
 void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
@@ -2625,7 +2625,7 @@ void InstructionSelector::VisitF64x2ReplaceLane(Node* node) {
   // When no-AVX, define dst == src to save a move.
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  Emit(kF64x2ReplaceLane, dst, g.UseRegister(node->InputAt(0)),
+  Emit(kIA32F64x2ReplaceLane, dst, g.UseRegister(node->InputAt(0)),
        g.UseImmediate(lane), g.UseRegister(node->InputAt(1)));
 }
 
