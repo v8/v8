@@ -210,10 +210,20 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   bool can_rehash = ExtractRehashability(blob);
   base::Vector<const byte> context_data = SnapshotImpl::ExtractContextData(
       blob, static_cast<uint32_t>(context_index));
-  SnapshotData snapshot_data(MaybeDecompress(context_data));
+  base::Optional<SnapshotData> snapshot_data;
+  {
+#ifdef V8_SNAPSHOT_COMPRESSION
+    base::Optional<NestedTimedHistogramScope> decompress_histogram;
+    if (base::TimeTicks::IsHighResolution()) {
+      decompress_histogram.emplace(
+          isolate->counters()->context_snapshot_decompress());
+    }
+#endif
+    snapshot_data.emplace(MaybeDecompress(context_data));
+  }
 
   MaybeHandle<Context> maybe_result = ContextDeserializer::DeserializeContext(
-      isolate, &snapshot_data, can_rehash, global_proxy,
+      isolate, &(*snapshot_data), can_rehash, global_proxy,
       embedder_fields_deserializer);
 
   Handle<Context> result;
