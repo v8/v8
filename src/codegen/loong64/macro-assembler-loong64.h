@@ -1062,7 +1062,7 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
                                          Func GetLabelFunction) {
   UseScratchRegisterScope scope(this);
   Register scratch = scope.Acquire();
-  BlockTrampolinePoolFor((3 + case_count) * kInstrSize);
+  BlockTrampolinePoolFor(3 + case_count);
 
   pcaddi(scratch, 3);
   alsl_d(scratch, index, scratch, kInstrSizeLog2);

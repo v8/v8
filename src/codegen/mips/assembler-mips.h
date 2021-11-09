@@ -1515,6 +1515,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
+  bool is_trampoline_emitted() const { return trampoline_emitted_; }
+
  protected:
   // Load Scaled Address instruction.
   void lsa(Register rd, Register rt, Register rs, uint8_t sa);
@@ -1569,8 +1571,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   bool has_exception() const { return internal_trampoline_exception_; }
-
-  bool is_trampoline_emitted() const { return trampoline_emitted_; }
 
   // Temporarily block automatic assembly buffer growth.
   void StartBlockGrowBuffer() {
