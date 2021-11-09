@@ -47,7 +47,9 @@ class V8_EXPORT ScriptOrModule {
    * The options that were passed by the embedder as HostDefinedOptions to
    * the ScriptOrigin.
    */
+  V8_DEPRECATE_SOON("Use HostDefinedOptions")
   Local<PrimitiveArray> GetHostDefinedOptions();
+  Local<Data> HostDefinedOptions();
 };
 
 /**
@@ -432,7 +434,7 @@ class V8_EXPORT ScriptCompiler {
     int resource_column_offset;
     ScriptOriginOptions resource_options;
     Local<Value> source_map_url;
-    Local<PrimitiveArray> host_defined_options;
+    Local<Data> host_defined_options;
 
     // Cached data from previous compilation (if a kConsume*Cache flag is
     // set), or hold newly generated cache data (kProduce*Cache flags) are
@@ -750,7 +752,7 @@ ScriptCompiler::Source::Source(Local<String> string, const ScriptOrigin& origin,
       resource_column_offset(origin.ColumnOffset()),
       resource_options(origin.Options()),
       source_map_url(origin.SourceMapUrl()),
-      host_defined_options(origin.HostDefinedOptions()),
+      host_defined_options(origin.GetHostDefinedOptions()),
       cached_data(data),
       consume_cache_task(consume_cache_task) {}
 

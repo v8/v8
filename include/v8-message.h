@@ -70,24 +70,26 @@ class V8_EXPORT ScriptOrigin {
       Local<Boolean> resource_is_opaque = Local<Boolean>(),
       Local<Boolean> is_wasm = Local<Boolean>(),
       Local<Boolean> is_module = Local<Boolean>(),
-      Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
+      Local<Data> host_defined_options = Local<Data>());
   V8_DEPRECATED("Use constructor that takes an isolate")
-  explicit ScriptOrigin(
-      Local<Value> resource_name, int resource_line_offset = 0,
-      int resource_column_offset = 0,
-      bool resource_is_shared_cross_origin = false, int script_id = -1,
-      Local<Value> source_map_url = Local<Value>(),
-      bool resource_is_opaque = false, bool is_wasm = false,
-      bool is_module = false,
-      Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>());
-  V8_INLINE ScriptOrigin(
-      Isolate* isolate, Local<Value> resource_name,
-      int resource_line_offset = 0, int resource_column_offset = 0,
-      bool resource_is_shared_cross_origin = false, int script_id = -1,
-      Local<Value> source_map_url = Local<Value>(),
-      bool resource_is_opaque = false, bool is_wasm = false,
-      bool is_module = false,
-      Local<PrimitiveArray> host_defined_options = Local<PrimitiveArray>())
+  explicit ScriptOrigin(Local<Value> resource_name,
+                        int resource_line_offset = 0,
+                        int resource_column_offset = 0,
+                        bool resource_is_shared_cross_origin = false,
+                        int script_id = -1,
+                        Local<Value> source_map_url = Local<Value>(),
+                        bool resource_is_opaque = false, bool is_wasm = false,
+                        bool is_module = false,
+                        Local<Data> host_defined_options = Local<Data>());
+  V8_INLINE ScriptOrigin(Isolate* isolate, Local<Value> resource_name,
+                         int resource_line_offset = 0,
+                         int resource_column_offset = 0,
+                         bool resource_is_shared_cross_origin = false,
+                         int script_id = -1,
+                         Local<Value> source_map_url = Local<Value>(),
+                         bool resource_is_opaque = false, bool is_wasm = false,
+                         bool is_module = false,
+                         Local<Data> host_defined_options = Local<Data>())
       : isolate_(isolate),
         resource_name_(resource_name),
         resource_line_offset_(resource_line_offset),
@@ -96,7 +98,9 @@ class V8_EXPORT ScriptOrigin {
                  is_module),
         script_id_(script_id),
         source_map_url_(source_map_url),
-        host_defined_options_(host_defined_options) {}
+        host_defined_options_(host_defined_options) {
+    VerifyHostDefinedOptions();
+  }
 
   V8_INLINE Local<Value> ResourceName() const;
   V8_DEPRECATED("Use getter with primitive C++ types.")
@@ -109,10 +113,13 @@ class V8_EXPORT ScriptOrigin {
   V8_INLINE int ColumnOffset() const;
   V8_INLINE int ScriptId() const;
   V8_INLINE Local<Value> SourceMapUrl() const;
-  V8_INLINE Local<PrimitiveArray> HostDefinedOptions() const;
+  V8_DEPRECATE_SOON("Use GetHostDefinedOptions")
+  Local<PrimitiveArray> HostDefinedOptions() const;
+  V8_INLINE Local<Data> GetHostDefinedOptions() const;
   V8_INLINE ScriptOriginOptions Options() const { return options_; }
 
  private:
+  void VerifyHostDefinedOptions() const;
   Isolate* isolate_;
   Local<Value> resource_name_;
   int resource_line_offset_;
@@ -120,7 +127,7 @@ class V8_EXPORT ScriptOrigin {
   ScriptOriginOptions options_;
   int script_id_;
   Local<Value> source_map_url_;
-  Local<PrimitiveArray> host_defined_options_;
+  Local<Data> host_defined_options_;
 };
 
 /**
@@ -220,7 +227,7 @@ class V8_EXPORT Message {
 
 Local<Value> ScriptOrigin::ResourceName() const { return resource_name_; }
 
-Local<PrimitiveArray> ScriptOrigin::HostDefinedOptions() const {
+Local<Data> ScriptOrigin::GetHostDefinedOptions() const {
   return host_defined_options_;
 }
 

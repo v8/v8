@@ -519,14 +519,15 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
 }
 
 // static
-MaybeHandle<Object> Execution::CallScript(
-    Isolate* isolate, Handle<JSFunction> script_function,
-    Handle<Object> receiver, Handle<FixedArray> host_defined_options) {
+MaybeHandle<Object> Execution::CallScript(Isolate* isolate,
+                                          Handle<JSFunction> script_function,
+                                          Handle<Object> receiver,
+                                          Handle<Object> host_defined_options) {
   DCHECK(script_function->shared().is_script());
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsJSGlobalObject());
-  Handle<Object> argument = host_defined_options;
-  return Invoke(isolate, InvokeParams::SetUpForCall(isolate, script_function,
-                                                    receiver, 1, &argument));
+  return Invoke(
+      isolate, InvokeParams::SetUpForCall(isolate, script_function, receiver, 1,
+                                          &host_defined_options));
 }
 
 MaybeHandle<Object> Execution::CallBuiltin(Isolate* isolate,

@@ -171,8 +171,8 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
                                              i::Handle<i::Script> script) {
   i::Handle<i::Object> scriptName(script->GetNameOrSourceURL(), isolate);
   i::Handle<i::Object> source_map_url(script->source_mapping_url(), isolate);
-  i::Handle<i::FixedArray> host_defined_options(script->host_defined_options(),
-                                                isolate);
+  i::Handle<i::Object> host_defined_options(script->host_defined_options(),
+                                            isolate);
   ScriptOriginOptions options(script->origin_options());
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY
@@ -183,7 +183,7 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
       script->line_offset(), script->column_offset(),
       options.IsSharedCrossOrigin(), script->id(),
       Utils::ToLocal(source_map_url), options.IsOpaque(), is_wasm,
-      options.IsModule(), Utils::PrimitiveArrayToLocal(host_defined_options));
+      options.IsModule(), Utils::ToLocal(host_defined_options));
   return origin;
 }
 
@@ -192,7 +192,7 @@ ScriptOrigin::ScriptOrigin(
     Local<Integer> column_offset, Local<Boolean> is_shared_cross_origin,
     Local<Integer> script_id, Local<Value> source_map_url,
     Local<Boolean> is_opaque, Local<Boolean> is_wasm, Local<Boolean> is_module,
-    Local<PrimitiveArray> host_defined_options)
+    Local<Data> host_defined_options)
     : ScriptOrigin(
           Isolate::GetCurrent(), resource_name,
           line_offset.IsEmpty() ? 0 : static_cast<int>(line_offset->Value()),
@@ -208,7 +208,7 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name, int line_offset,
                            int column_offset, bool is_shared_cross_origin,
                            int script_id, Local<Value> source_map_url,
                            bool is_opaque, bool is_wasm, bool is_module,
-                           Local<PrimitiveArray> host_defined_options)
+                           Local<Data> host_defined_options)
     : isolate_(Isolate::GetCurrent()),
       resource_name_(resource_name),
       resource_line_offset_(line_offset),
@@ -228,6 +228,17 @@ Local<Integer> ScriptOrigin::ResourceColumnOffset() const {
 
 Local<Integer> ScriptOrigin::ScriptID() const {
   return v8::Integer::New(isolate_, script_id_);
+}
+
+Local<PrimitiveArray> ScriptOrigin::HostDefinedOptions() const {
+  // TODO(cbruni, chromium:1244145): remove once migrated to the context.
+  Utils::ApiCheck(!host_defined_options_->IsFixedArray(),
+                  "ScriptOrigin::HostDefinedOptions",
+                  "HostDefinedOptions is not a PrimitiveArray, please use "
+                  "ScriptOrigin::GetHostDefinedOptions()");
+  i::Handle<i::FixedArray> options =
+      Utils::OpenHandle(*host_defined_options_.As<FixedArray>());
+  return Utils::PrimitiveArrayToLocal(options);
 }
 
 // --- E x c e p t i o n   B e h a v i o r ---
@@ -2106,7 +2117,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
 
   i::Handle<i::Object> receiver = isolate->global_proxy();
   // TODO(cbruni, chromium:1244145): Remove once migrated to the context.
-  i::Handle<i::FixedArray> options(
+  i::Handle<i::Object> options(
       i::Script::cast(fun->shared().script()).host_defined_options(), isolate);
   Local<Value> result;
   has_pending_exception = !ToLocal<Value>(
@@ -2134,11 +2145,15 @@ Local<Value> ScriptOrModule::GetResourceName() {
 }
 
 Local<PrimitiveArray> ScriptOrModule::GetHostDefinedOptions() {
+  return HostDefinedOptions().As<PrimitiveArray>();
+}
+
+Local<Data> ScriptOrModule::HostDefinedOptions() {
   i::Handle<i::ScriptOrModule> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = i::GetIsolateFromWritableObject(*obj);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::Handle<i::FixedArray> val(obj->host_defined_options(), isolate);
-  return ToApiHandle<PrimitiveArray>(val);
+  i::Handle<i::Object> val(obj->host_defined_options(), isolate);
+  return ToApiHandle<Data>(val);
 }
 
 Local<UnboundScript> Script::GetUnboundScript() {
@@ -2197,6 +2212,14 @@ Local<Primitive> PrimitiveArray::Get(Isolate* v8_isolate, int index) {
                   "array length");
   i::Handle<i::Object> i_item(array->get(index), isolate);
   return ToApiHandle<Primitive>(i_item);
+}
+
+void v8::PrimitiveArray::CheckCast(v8::Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(
+      obj->IsFixedArray(), "v8::PrimitiveArray::Cast",
+      "Value is not a PrimitiveArray. This is a temporary issue, v8::Data and "
+      "v8::PrimitiveArray will not be compatible in the future.");
 }
 
 int FixedArray::Length() const {
@@ -2478,13 +2501,10 @@ Maybe<bool> Module::SetSyntheticModuleExport(Isolate* isolate,
 
 namespace {
 
-i::ScriptDetails GetScriptDetails(i::Isolate* isolate,
-                                  Local<Value> resource_name,
-                                  int resource_line_offset,
-                                  int resource_column_offset,
-                                  Local<Value> source_map_url,
-                                  Local<PrimitiveArray> host_defined_options,
-                                  ScriptOriginOptions origin_options) {
+i::ScriptDetails GetScriptDetails(
+    i::Isolate* isolate, Local<Value> resource_name, int resource_line_offset,
+    int resource_column_offset, Local<Value> source_map_url,
+    Local<Data> host_defined_options, ScriptOriginOptions origin_options) {
   i::ScriptDetails script_details(Utils::OpenHandle(*(resource_name), true),
                                   origin_options);
   script_details.line_offset = resource_line_offset;
@@ -2776,7 +2796,7 @@ i::MaybeHandle<i::SharedFunctionInfo> CompileStreamedSource(
   i::ScriptDetails script_details =
       GetScriptDetails(isolate, origin.ResourceName(), origin.LineOffset(),
                        origin.ColumnOffset(), origin.SourceMapUrl(),
-                       origin.HostDefinedOptions(), origin.Options());
+                       origin.GetHostDefinedOptions(), origin.Options());
   i::ScriptStreamingData* data = v8_source->impl();
   return i::Compiler::GetSharedFunctionInfoForStreamedScript(
       isolate, str, script_details, data);
@@ -3028,6 +3048,20 @@ ScriptOrigin Message::GetScriptOrigin() const {
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::Script> script(self->script(), isolate);
   return GetScriptOriginForScript(isolate, script);
+}
+
+void ScriptOrigin::VerifyHostDefinedOptions() const {
+  // TODO(cbruni, chromium:1244145): Remove checks once we allow arbitrary
+  // host-defined options.
+  if (host_defined_options_.IsEmpty()) return;
+  Utils::ApiCheck(host_defined_options_->IsFixedArray(), "ScriptOrigin()",
+                  "Host-defined options has to be a PrimitiveArray");
+  i::Handle<i::FixedArray> options =
+      Utils::OpenHandle(*host_defined_options_.As<FixedArray>());
+  for (int i = 0; i < options->length(); i++) {
+    Utils::ApiCheck(options->get(i).IsPrimitive(), "ScriptOrigin()",
+                    "PrimitiveArray can only contain primtive values");
+  }
 }
 
 v8::Local<Value> Message::GetScriptResourceName() const {
