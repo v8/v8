@@ -2306,7 +2306,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       }
     } else {
       if (!value.IsNaN()) {
-        double search_value = value.Number();
+        double search_number = value.Number();
         if (IsDoubleElementsKind(Subclass::kind())) {
           // Search for non-NaN Number in PACKED_DOUBLE_ELEMENTS or
           // HOLEY_DOUBLE_ELEMENTS --- Skip TheHole, and trust UCOMISD or
@@ -2316,7 +2316,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             if (elements.is_the_hole(static_cast<int>(k))) continue;
-            if (elements.get_scalar(static_cast<int>(k)) == search_value) {
+            if (elements.get_scalar(static_cast<int>(k)) == search_number) {
               return Just(true);
             }
           }
@@ -2329,7 +2329,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             Object element_k = elements.get(static_cast<int>(k));
-            if (element_k.IsNumber() && element_k.Number() == search_value) {
+            if (element_k.IsNumber() && element_k.Number() == search_number) {
               return Just(true);
             }
           }

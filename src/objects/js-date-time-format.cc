@@ -1081,7 +1081,7 @@ class CalendarCache {
         icu::GregorianCalendar::getStaticClassID()) {
       icu::GregorianCalendar* gc =
           static_cast<icu::GregorianCalendar*>(calendar.get());
-      UErrorCode status = U_ZERO_ERROR;
+      status = U_ZERO_ERROR;
       // The beginning of ECMAScript time, namely -(2**53)
       const double start_of_time = -9007199254740992;
       gc->setGregorianChange(start_of_time, status);
@@ -1726,7 +1726,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
   // 29. Let matcher be ? GetOption(options, "formatMatcher", "string", «
   // "basic", "best fit" », "best fit").
-  enum FormatMatcherOption { kBestFit, kBasic };
   // We implement only best fit algorithm, but still need to check
   // if the formatMatcher values are in range.
   // c. Let matcher be ? GetOption(options, "formatMatcher", "string",
@@ -1870,7 +1869,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       if (dateTimeFormatHourCycle !=
           ToHourCycle(hc_extension_it->second.c_str())) {
         // Remove -hc- if it does not agree with what we used.
-        UErrorCode status = U_ZERO_ERROR;
+        status = U_ZERO_ERROR;
         resolved_locale.setUnicodeKeywordValue("hc", nullptr, status);
         DCHECK(U_SUCCESS(status));
       }

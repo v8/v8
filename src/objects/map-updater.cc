@@ -859,7 +859,6 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     PropertyLocation next_location = old_details.location();
     Representation next_representation = old_details.representation();
 
-    Descriptor d;
     if (next_location == PropertyLocation::kField) {
       Handle<FieldType> next_field_type =
           GetOrComputeFieldType(i, old_details.location(), next_representation);
@@ -889,6 +888,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       DCHECK_EQ(PropertyConstness::kConst, next_constness);
 
       Handle<Object> value(GetValue(i), isolate_);
+      Descriptor d;
       if (next_kind == kData) {
         d = Descriptor::DataConstant(key, value, next_attributes);
       } else {
@@ -1121,7 +1121,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
       backlog.push(target);
     }
     DescriptorArray descriptors = current.instance_descriptors(isolate);
-    PropertyDetails details = descriptors.GetDetails(descriptor);
+    details = descriptors.GetDetails(descriptor);
 
     // It is allowed to change representation here only from None
     // to something or from Smi or HeapObject to Tagged.

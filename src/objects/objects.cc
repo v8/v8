@@ -2972,7 +2972,7 @@ Maybe<bool> JSProxy::IsArray(Handle<JSProxy> proxy) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<JSReceiver> object = Handle<JSReceiver>::cast(proxy);
   for (int i = 0; i < JSProxy::kMaxIterationLimit; i++) {
-    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
+    proxy = Handle<JSProxy>::cast(object);
     if (proxy->IsRevoked()) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kProxyRevoked,
@@ -3391,9 +3391,9 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
   if (!new_writable) {
     PropertyDescriptor readonly;
     readonly.set_writable(false);
-    Maybe<bool> success = OrdinaryDefineOwnProperty(
-        isolate, a, isolate->factory()->length_string(), &readonly,
-        should_throw);
+    success = OrdinaryDefineOwnProperty(isolate, a,
+                                        isolate->factory()->length_string(),
+                                        &readonly, should_throw);
     DCHECK(success.FromJust());
     USE(success);
   }
@@ -4376,12 +4376,12 @@ void DescriptorArray::CopyFrom(InternalIndex index, DescriptorArray src) {
 
 void DescriptorArray::Sort() {
   // In-place heap sort.
-  int len = number_of_descriptors();
+  const int len = number_of_descriptors();
   // Reset sorting since the descriptor array might contain invalid pointers.
   for (int i = 0; i < len; ++i) SetSortedKey(i, i);
   // Bottom-up max-heap construction.
   // Index of the last node with children.
-  const int max_parent_index = (len / 2) - 1;
+  int max_parent_index = (len / 2) - 1;
   for (int i = max_parent_index; i >= 0; --i) {
     int parent_index = i;
     const uint32_t parent_hash = GetSortedKey(i).hash();
@@ -4409,7 +4409,7 @@ void DescriptorArray::Sort() {
     // Shift down the new top element.
     int parent_index = 0;
     const uint32_t parent_hash = GetSortedKey(parent_index).hash();
-    const int max_parent_index = (i / 2) - 1;
+    max_parent_index = (i / 2) - 1;
     while (parent_index <= max_parent_index) {
       int child_index = parent_index * 2 + 1;
       uint32_t child_hash = GetSortedKey(child_index).hash();
@@ -5964,15 +5964,15 @@ int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
     // Iterate over the dictionary using the enumeration order and update
     // the dictionary with new enumeration indices.
     for (int i = 0; i < length; i++) {
-      InternalIndex index(Smi::ToInt(iteration_order->get(i)));
+      InternalIndex internal_index(Smi::ToInt(iteration_order->get(i)));
       DCHECK(dictionary->IsKey(dictionary->GetReadOnlyRoots(),
-                               dictionary->KeyAt(isolate, index)));
+                               dictionary->KeyAt(isolate, internal_index)));
 
       int enum_index = PropertyDetails::kInitialIndex + i;
 
-      PropertyDetails details = dictionary->DetailsAt(index);
+      PropertyDetails details = dictionary->DetailsAt(internal_index);
       PropertyDetails new_details = details.set_index(enum_index);
-      dictionary->DetailsAtPut(index, new_details);
+      dictionary->DetailsAtPut(internal_index, new_details);
     }
 
     index = PropertyDetails::kInitialIndex + length;

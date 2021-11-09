@@ -95,7 +95,7 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(IsolateT* isolate,
     FeedbackSlotKind kind = spec->GetKind(FeedbackSlot(i));
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
     for (int j = 1; j < entry_size; j++) {
-      FeedbackSlotKind kind = spec->GetKind(FeedbackSlot(i + j));
+      kind = spec->GetKind(FeedbackSlot(i + j));
       DCHECK_EQ(FeedbackSlotKind::kInvalid, kind);
     }
     i += entry_size;

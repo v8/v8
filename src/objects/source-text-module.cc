@@ -576,15 +576,15 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
     // the name to undefined instead of a Cell.
     Handle<ObjectHashTable> requested_exports(requested_module->exports(),
                                               isolate);
-    for (InternalIndex i : requested_exports->IterateEntries()) {
+    for (InternalIndex index : requested_exports->IterateEntries()) {
       Object key;
-      if (!requested_exports->ToKey(roots, i, &key)) continue;
+      if (!requested_exports->ToKey(roots, index, &key)) continue;
       Handle<String> name(String::cast(key), isolate);
 
       if (name->Equals(roots.default_string())) continue;
       if (!exports->Lookup(name).IsTheHole(roots)) continue;
 
-      Handle<Cell> cell(Cell::cast(requested_exports->ValueAt(i)), isolate);
+      Handle<Cell> cell(Cell::cast(requested_exports->ValueAt(index)), isolate);
       auto insert_result = more_exports.insert(std::make_pair(name, cell));
       if (!insert_result.second) {
         auto it = insert_result.first;

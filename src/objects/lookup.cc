@@ -1132,8 +1132,8 @@ void LookupIterator::WriteDataValueToWasmObject(Handle<Object> value) {
   } else {
     // WasmArrays don't have writable properties.
     DCHECK(holder->IsWasmStruct());
-    Handle<WasmStruct> holder = GetHolder<WasmStruct>();
-    WasmStruct::SetField(isolate_, holder, property_details_.field_index(),
+    Handle<WasmStruct> wasm_holder = GetHolder<WasmStruct>();
+    WasmStruct::SetField(isolate_, wasm_holder, property_details_.field_index(),
                          value);
   }
 }

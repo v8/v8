@@ -1582,9 +1582,6 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
 
     // 15. Else If mnfd is not undefined or mxfd is not undefined, then
     if (!mnfd_obj->IsUndefined(isolate) || !mxfd_obj->IsUndefined(isolate)) {
-      Handle<String> mxfd_str = factory->maximumFractionDigits_string();
-      Handle<String> mnfd_str = factory->minimumFractionDigits_string();
-
       int specified_mnfd;
       int specified_mxfd;
 
