@@ -947,8 +947,9 @@ Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
   // The actual conditions are verified in debug builds in
   // CollatorAllowsFastComparison.
   static const char* const kFastLocales[] = {
-      "en-US", "en",    "fr", "es", "de", "pt", "it", "ca", "de-AT", "fi",
-      "id",    "id-ID", "ms", "nl", "pl", "ro", "sl", "sv", "sw",    "vi",
+      "en-US", "en", "fr", "es",    "de",    "pt",    "it", "ca",
+      "de-AT", "fi", "id", "id-ID", "ms",    "nl",    "pl", "ro",
+      "sl",    "sv", "sw", "vi",    "en-DE", "en-GB",
   };
 
   if (locales->IsUndefined(isolate)) {
