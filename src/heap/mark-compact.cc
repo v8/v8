@@ -533,7 +533,9 @@ bool MarkCompactCollector::StartCompaction() {
 
     CollectEvacuationCandidates(heap()->old_space());
 
-    if (FLAG_compact_code_space) {
+    if (FLAG_compact_code_space &&
+        (heap()->IsGCWithoutStack() ||
+         !FLAG_never_compact_code_space_with_stack)) {
       CollectEvacuationCandidates(heap()->code_space());
     } else if (FLAG_trace_fragmentation) {
       TraceFragmentation(heap()->code_space());
@@ -917,7 +919,9 @@ void MarkCompactCollector::Prepare() {
       heap_->local_embedder_heap_tracer()->TracePrologue(
           heap_->flags_for_embedder_tracer());
     }
-    if (!FLAG_never_compact) {
+    const bool should_compact =
+        heap()->IsGCWithoutStack() || !FLAG_never_compact_with_stack;
+    if (!FLAG_never_compact && should_compact) {
       StartCompaction();
     }
     StartMarking();
@@ -3124,7 +3128,8 @@ void MarkCompactCollector::EvacuatePrologue() {
 }
 
 void MarkCompactCollector::EvacuateEpilogue() {
-  aborted_evacuation_candidates_.clear();
+  aborted_evacuation_candidates_due_to_oom_.clear();
+  aborted_evacuation_candidates_due_to_flags_.clear();
 
   // New space.
   if (heap()->new_space()) {
@@ -3390,8 +3395,8 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
         } else {
           // Aborted compaction page. Actual processing happens on the main
           // thread for simplicity reasons.
-          collector_->ReportAbortedEvacuationCandidate(failed_object.address(),
-                                                       chunk);
+          collector_->ReportAbortedEvacuationCandidateDueToOOM(
+              failed_object.address(), static_cast<Page*>(chunk));
         }
       }
       break;
@@ -3547,7 +3552,24 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
+  if (!heap()->IsGCWithoutStack()) {
+    if (FLAG_never_compact_with_stack ||
+        FLAG_never_compact_code_space_with_stack) {
+      for (Page* page : old_space_evacuation_pages_) {
+        if (FLAG_never_compact_with_stack ||
+            page->owner_identity() == CODE_SPACE) {
+          ReportAbortedEvacuationCandidateDueToFlags(page->area_start(), page);
+          // Set this flag early on in this case to allow filtering such pages
+          // below.
+          page->SetFlag(Page::COMPACTION_WAS_ABORTED);
+        }
+      }
+    }
+  }
+
   for (Page* page : old_space_evacuation_pages_) {
+    if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) continue;
+
     live_bytes += non_atomic_marking_state()->live_bytes(page);
     evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
@@ -4294,52 +4316,71 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   }
 }
 
-void MarkCompactCollector::ReportAbortedEvacuationCandidate(
-    Address failed_start, MemoryChunk* chunk) {
+void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
+    Address failed_start, Page* page) {
   base::MutexGuard guard(&mutex_);
-
-  aborted_evacuation_candidates_.push_back(
-      std::make_pair(failed_start, static_cast<Page*>(chunk)));
+  aborted_evacuation_candidates_due_to_oom_.push_back(
+      std::make_pair(failed_start, page));
 }
+
+void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
+    Address failed_start, Page* page) {
+  base::MutexGuard guard(&mutex_);
+  aborted_evacuation_candidates_due_to_flags_.push_back(
+      std::make_pair(failed_start, page));
+}
+
+namespace {
+
+void ReRecordPage(
+    Heap* heap,
+    v8::internal::MarkCompactCollector::NonAtomicMarkingState* marking_state,
+    Address failed_start, Page* page) {
+  page->SetFlag(Page::COMPACTION_WAS_ABORTED);
+  // Aborted compaction page. We have to record slots here, since we
+  // might not have recorded them in first place.
+
+  // Remove outdated slots.
+  RememberedSetSweeping::RemoveRange(page, page->address(), failed_start,
+                                     SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(), failed_start,
+                                         SlotSet::FREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
+                                              failed_start);
+
+  // Remove invalidated slots.
+  if (failed_start > page->area_start()) {
+    InvalidatedSlotsCleanup old_to_new_cleanup =
+        InvalidatedSlotsCleanup::OldToNew(page);
+    old_to_new_cleanup.Free(page->area_start(), failed_start);
+  }
+
+  // Recompute live bytes.
+  LiveObjectVisitor::RecomputeLiveBytes(page, marking_state);
+  // Re-record slots.
+  EvacuateRecordOnlyVisitor record_visitor(heap);
+  LiveObjectVisitor::VisitBlackObjectsNoFail(
+      page, marking_state, &record_visitor, LiveObjectVisitor::kKeepMarking);
+  // Array buffers will be processed during pointer updating.
+}
+
+}  // namespace
 
 size_t MarkCompactCollector::PostProcessEvacuationCandidates() {
   CHECK_IMPLIES(FLAG_crash_on_aborted_evacuation,
-                aborted_evacuation_candidates_.empty());
-
-  for (auto start_and_page : aborted_evacuation_candidates_) {
-    Address failed_start = start_and_page.first;
-    Page* page = start_and_page.second;
-    page->SetFlag(Page::COMPACTION_WAS_ABORTED);
-    // Aborted compaction page. We have to record slots here, since we
-    // might not have recorded them in first place.
-
-    // Remove outdated slots.
-    RememberedSetSweeping::RemoveRange(page, page->address(), failed_start,
-                                       SlotSet::FREE_EMPTY_BUCKETS);
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(), failed_start,
-                                           SlotSet::FREE_EMPTY_BUCKETS);
-    RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
-                                                failed_start);
-
-    // Remove invalidated slots.
-    if (failed_start > page->area_start()) {
-      InvalidatedSlotsCleanup old_to_new_cleanup =
-          InvalidatedSlotsCleanup::OldToNew(page);
-      old_to_new_cleanup.Free(page->area_start(), failed_start);
-    }
-
-    // Recompute live bytes.
-    LiveObjectVisitor::RecomputeLiveBytes(page, non_atomic_marking_state());
-    // Re-record slots.
-    EvacuateRecordOnlyVisitor record_visitor(heap());
-    LiveObjectVisitor::VisitBlackObjectsNoFail(page, non_atomic_marking_state(),
-                                               &record_visitor,
-                                               LiveObjectVisitor::kKeepMarking);
-    // Array buffers will be processed during pointer updating.
+                aborted_evacuation_candidates_due_to_oom_.empty());
+  for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
+    ReRecordPage(heap(), non_atomic_marking_state(), start_and_page.first,
+                 start_and_page.second);
   }
-  const int aborted_pages =
-      static_cast<int>(aborted_evacuation_candidates_.size());
-  int aborted_pages_verified = 0;
+  for (auto start_and_page : aborted_evacuation_candidates_due_to_flags_) {
+    ReRecordPage(heap(), non_atomic_marking_state(), start_and_page.first,
+                 start_and_page.second);
+  }
+  const size_t aborted_pages =
+      aborted_evacuation_candidates_due_to_oom_.size() +
+      aborted_evacuation_candidates_due_to_flags_.size();
+  size_t aborted_pages_verified = 0;
   for (Page* p : old_space_evacuation_pages_) {
     if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
       // After clearing the evacuation candidate flag the page is again in a

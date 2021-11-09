@@ -1340,6 +1340,11 @@ DEFINE_BOOL(allocation_buffer_parking, true, "allocation buffer parking")
 DEFINE_BOOL(always_compact, false, "Perform compaction on every full GC")
 DEFINE_BOOL(never_compact, false,
             "Never perform compaction on full GC - testing only")
+DEFINE_BOOL(never_compact_with_stack, false,
+            "Never perform compaction when finalizing a full GC with stack")
+DEFINE_BOOL(
+    never_compact_code_space_with_stack, false,
+    "Never perform code space compaction when finalizing a full GC with stack")
 DEFINE_BOOL(compact_code_space, true, "Compact code space on full collections")
 DEFINE_BOOL(flush_baseline_code, false,
             "flush of baseline code when it has not been executed recently")

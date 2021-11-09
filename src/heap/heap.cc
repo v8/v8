@@ -497,6 +497,11 @@ void Heap::SetGCState(HeapState state) {
   gc_state_.store(state, std::memory_order_relaxed);
 }
 
+bool Heap::IsGCWithoutStack() const {
+  return local_embedder_heap_tracer()->embedder_stack_state() ==
+         cppgc::EmbedderStackState::kNoHeapPointers;
+}
+
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
   PrintIsolate(isolate_,

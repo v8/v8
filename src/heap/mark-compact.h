@@ -8,6 +8,7 @@
 #include <atomic>
 #include <vector>
 
+#include "include/v8-internal.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
@@ -720,8 +721,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void ReleaseEvacuationCandidates();
   // Returns number of aborted pages.
   size_t PostProcessEvacuationCandidates();
-  void ReportAbortedEvacuationCandidate(Address failed_start,
-                                        MemoryChunk* chunk);
+  void ReportAbortedEvacuationCandidateDueToOOM(Address failed_start,
+                                                Page* page);
+  void ReportAbortedEvacuationCandidateDueToFlags(Address failed_start,
+                                                  Page* page);
 
   static const int kEphemeronChunkSize = 8 * KB;
 
@@ -774,7 +777,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Pages that are actually processed during evacuation.
   std::vector<Page*> old_space_evacuation_pages_;
   std::vector<Page*> new_space_evacuation_pages_;
-  std::vector<std::pair<Address, Page*>> aborted_evacuation_candidates_;
+  std::vector<std::pair<Address, Page*>>
+      aborted_evacuation_candidates_due_to_oom_;
+  std::vector<std::pair<Address, Page*>>
+      aborted_evacuation_candidates_due_to_flags_;
 
   Sweeper* sweeper_;
 

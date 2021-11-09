@@ -135,6 +135,10 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   void NotifyEmptyEmbedderStack();
 
+  EmbedderHeapTracer::EmbedderStackState embedder_stack_state() const {
+    return embedder_stack_state_;
+  }
+
  private:
   static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
 
