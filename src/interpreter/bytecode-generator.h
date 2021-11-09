@@ -98,7 +98,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                            const AstRawString* name);
     static AssignmentLhsData KeyedProperty(Register object, Register key);
     static AssignmentLhsData PrivateMethodOrAccessor(AssignType type,
-                                                     Property* property);
+                                                     Property* property,
+                                                     Register object,
+                                                     Register key);
     static AssignmentLhsData NamedSuperProperty(
         RegisterList super_property_args);
     static AssignmentLhsData KeyedSuperProperty(
@@ -117,11 +119,17 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       return object_expr_;
     }
     Register object() const {
-      DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == KEYED_PROPERTY);
+      DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == KEYED_PROPERTY ||
+             assign_type_ == PRIVATE_METHOD ||
+             assign_type_ == PRIVATE_GETTER_ONLY ||
+             assign_type_ == PRIVATE_SETTER_ONLY ||
+             assign_type_ == PRIVATE_GETTER_AND_SETTER);
       return object_;
     }
     Register key() const {
-      DCHECK(assign_type_ == KEYED_PROPERTY);
+      DCHECK(assign_type_ == KEYED_PROPERTY ||
+             assign_type_ == PRIVATE_SETTER_ONLY ||
+             assign_type_ == PRIVATE_GETTER_AND_SETTER);
       return key_;
     }
     const AstRawString* name() const {
@@ -311,8 +319,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
   void BuildInvalidPropertyAccess(MessageTemplate tmpl, Property* property);
-  void BuildPrivateBrandCheck(Property* property, Register object,
-                              MessageTemplate tmpl);
+  void BuildPrivateBrandCheck(Property* property, Register object);
   void BuildPrivateMethodIn(Variable* private_name,
                             Expression* object_expression);
   void BuildPrivateGetterAccess(Register obj, Register access_pair);

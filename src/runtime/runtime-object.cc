@@ -49,9 +49,10 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
 
   if (!it.IsFound() && key->IsSymbol() &&
       Symbol::cast(*key).is_private_name()) {
-    MessageTemplate message = Symbol::cast(*key).IsPrivateBrand()
-                                  ? MessageTemplate::kInvalidPrivateBrand
-                                  : MessageTemplate::kInvalidPrivateMemberRead;
+    MessageTemplate message =
+        Symbol::cast(*key).IsPrivateBrand()
+            ? MessageTemplate::kInvalidPrivateBrandInstance
+            : MessageTemplate::kInvalidPrivateMemberRead;
     THROW_NEW_ERROR(isolate, NewTypeError(message, key, lookup_start_object),
                     Object);
   }

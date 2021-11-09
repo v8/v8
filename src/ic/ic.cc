@@ -460,7 +460,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
             (name_string->length() == 0)
                 ? isolate()->factory()->anonymous_string()
                 : name_string;
-        return TypeError(MessageTemplate::kInvalidPrivateBrand, object,
+        return TypeError(MessageTemplate::kInvalidPrivateBrandInstance, object,
                          class_name);
       }
       return TypeError(MessageTemplate::kInvalidPrivateMemberRead, object,

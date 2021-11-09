@@ -442,7 +442,8 @@ namespace internal {
     "Invalid module export name: contains unpaired surrogate")                 \
   T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \
   T(InvalidOrUnexpectedToken, "Invalid or unexpected token")                   \
-  T(InvalidPrivateBrand, "Object must be an instance of class %")              \
+  T(InvalidPrivateBrandInstance, "Receiver must be an instance of class %")    \
+  T(InvalidPrivateBrandStatic, "Receiver must be class %")                     \
   T(InvalidPrivateBrandReinitialization,                                       \
     "Cannot initialize private methods of class % twice on the same object")   \
   T(InvalidPrivateFieldReinitialization,                                       \
