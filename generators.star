@@ -38,33 +38,63 @@ def aggregate_builder_tester_console(ctx):
                     console.builders.append(cbuilder)
 
 def is_artifact_builder(builder):
-    return builder.endswith("builder")
+    return builder.name.endswith("builder")
 
-def add_builder_with_category(builders, builder, category, add_sub_cat):
-    subcat = "|builder" if is_artifact_builder(builder) else "|tester"
+def is_release_builder(builder):
+    return "debug" not in builder.name
+
+BUILDER_TESTER_SPLICER = struct(
+    decision_func = is_artifact_builder,
+    left_category = "builder",
+    right_category = "tester",
+)
+
+RELEASE_DEBUG_SPLICER = struct(
+    decision_func = is_release_builder,
+    left_category = "rel",
+    right_category = "dbg",
+)
+
+def builder_with_category(builder, add_sub_cat, splicer):
+    category = builder.category
+    if splicer.decision_func(builder):
+        subcat = splicer.left_category
+    else:
+        subcat = splicer.right_category
     if add_sub_cat:
-        category += subcat
-    cbuilder = dict(
-        name = builder,
+        category += ("|" + subcat)
+    return dict(
+        name = builder.name,
         category = category,
     )
-    builders.append(cbuilder)
 
-def mirror_console(original_console, dev_console):
+def splice_by_categories(builders, splicer):
     # Key builder lists by categories.
     categories = dict()
-    for builder in original_console.builders:
-        categories.setdefault(builder.category, []).append(builder.name)
+    for builder in builders:
+        categories.setdefault(builder.category, []).append(builder)
 
     # Analyze each category separately for subcategories.
+    result = []
     for category, contents in categories.items():
-        builders = [b for b in contents if is_artifact_builder(b)]
-        testers = [b for b in contents if not is_artifact_builder(b)]
+        left_builders = [b for b in contents if splicer.decision_func(b)]
+        right_builders = [b for b in contents if not splicer.decision_func(b)]
 
         # Create subcategories only with enough builders of each kind.
-        add_sub_cat = len(builders) > 1 and len(testers) > 1
-        for builder in builders + testers:
-            add_builder_with_category(dev_console.builders, builder, category, add_sub_cat)
+        add_sub_cat = len(left_builders) > 1 and len(right_builders) > 1
+        for builder in left_builders + right_builders:
+            result.append(builder_with_category(builder, add_sub_cat, splicer))
+    return result
+
+def mirror_console(original_console, dev_console):
+    dev_console.builders = splice_by_categories(
+        original_console.builders,
+        BUILDER_TESTER_SPLICER,
+    )
+    dev_console.builders = splice_by_categories(
+        dev_console.builders,
+        RELEASE_DEBUG_SPLICER,
+    )
 
 def mirror_dev_consoles(ctx):
     """
