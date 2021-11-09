@@ -800,7 +800,7 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
       DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      DCHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
       page->SetCodeModificationPermissions();
       page = page->next_page();
     }
@@ -814,7 +814,7 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
     LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
       DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      DCHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
       page->SetDefaultCodePermissions();
       page = page->next_page();
     }

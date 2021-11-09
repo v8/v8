@@ -409,7 +409,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   MemoryChunk* chunk =
       MemoryChunk::Initialize(basic_chunk, isolate_->heap(), executable);
 
+#ifdef DEBUG
   if (chunk->executable()) RegisterExecutableMemoryChunk(chunk);
+#endif  // DEBUG
   return chunk;
 }
 
@@ -458,7 +460,11 @@ void MemoryAllocator::UnregisterMemory(BasicMemoryChunk* chunk,
   if (executable == EXECUTABLE) {
     DCHECK_GE(size_executable_, size);
     size_executable_ -= size;
+#ifdef DEBUG
     UnregisterExecutableMemoryChunk(static_cast<MemoryChunk*>(chunk));
+#endif  // DEBUG
+    chunk->heap()->UnregisterUnprotectedMemoryChunk(
+        static_cast<MemoryChunk*>(chunk));
   }
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }
