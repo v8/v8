@@ -118,7 +118,7 @@ static inline digit_t digit_div(digit_t high, digit_t low, digit_t divisor,
                                 digit_t* remainder) {
 #if defined(DCHECK)
   DCHECK(high < divisor);
-  DCHECK(divisor != 0);  // NOLINT(readability/check)
+  DCHECK(divisor != 0);
 #endif
 #if __x86_64__ && (__GNUC__ || __clang__)
   digit_t quotient;

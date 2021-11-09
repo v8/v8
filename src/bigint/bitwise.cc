@@ -33,8 +33,8 @@ void BitwiseAnd_NegNeg(RWDigits Z, Digits X, Digits Y) {
   // (At least) one of the next two loops will perform zero iterations:
   for (; i < X.len(); i++) Z[i] = digit_sub(X[i], x_borrow, &x_borrow);
   for (; i < Y.len(); i++) Z[i] = digit_sub(Y[i], y_borrow, &y_borrow);
-  DCHECK(x_borrow == 0);  // NOLINT(readability/check)
-  DCHECK(y_borrow == 0);  // NOLINT(readability/check)
+  DCHECK(x_borrow == 0);
+  DCHECK(y_borrow == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
   Add(Z, 1);
 }
@@ -83,7 +83,7 @@ void BitwiseOr_PosNeg(RWDigits Z, Digits X, Digits Y) {
   int i = 0;
   for (; i < pairs; i++) Z[i] = digit_sub(Y[i], borrow, &borrow) & ~X[i];
   for (; i < Y.len(); i++) Z[i] = digit_sub(Y[i], borrow, &borrow);
-  DCHECK(borrow == 0);  // NOLINT(readability/check)
+  DCHECK(borrow == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
   Add(Z, 1);
 }
@@ -114,8 +114,8 @@ void BitwiseXor_NegNeg(RWDigits Z, Digits X, Digits Y) {
   // (At least) one of the next two loops will perform zero iterations:
   for (; i < X.len(); i++) Z[i] = digit_sub(X[i], x_borrow, &x_borrow);
   for (; i < Y.len(); i++) Z[i] = digit_sub(Y[i], y_borrow, &y_borrow);
-  DCHECK(x_borrow == 0);  // NOLINT(readability/check)
-  DCHECK(y_borrow == 0);  // NOLINT(readability/check)
+  DCHECK(x_borrow == 0);
+  DCHECK(y_borrow == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
 }
 
@@ -128,7 +128,7 @@ void BitwiseXor_PosNeg(RWDigits Z, Digits X, Digits Y) {
   // (At least) one of the next two loops will perform zero iterations:
   for (; i < X.len(); i++) Z[i] = X[i];
   for (; i < Y.len(); i++) Z[i] = digit_sub(Y[i], borrow, &borrow);
-  DCHECK(borrow == 0);  // NOLINT(readability/check)
+  DCHECK(borrow == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
   Add(Z, 1);
 }
@@ -175,7 +175,7 @@ void TruncateAndSubFromPowerOfTwo(RWDigits Z, Digits X, int n) {
     msd = (msd << drop) >> drop;
     digit_t minuend_msd = static_cast<digit_t>(1) << bits;
     digit_t result_msd = digit_sub2(minuend_msd, msd, borrow, &borrow);
-    DCHECK(borrow == 0);  // result < 2^n.  NOLINT(readability/check)
+    DCHECK(borrow == 0);  // result < 2^n.
     // If all subtracted bits were zero, we have to get rid of the
     // materialized minuend_msd again.
     Z[last] = result_msd & (minuend_msd - 1);
@@ -203,9 +203,8 @@ int AsIntNResultLength(Digits X, bool x_negative, int n) {
 }
 
 bool AsIntN(RWDigits Z, Digits X, bool x_negative, int n) {
-  DCHECK(X.len() > 0);  // NOLINT(readability/check)
-  DCHECK(n > 0);        // NOLINT(readability/check)
-                        // NOLINTNEXTLINE(readability/check)
+  DCHECK(X.len() > 0);
+  DCHECK(n > 0);
   DCHECK(AsIntNResultLength(X, x_negative, n) > 0);
   int needed_digits = DIV_CEIL(n, kDigitBits);
   digit_t top_digit = X[needed_digits - 1];
@@ -250,7 +249,7 @@ int AsUintN_Pos_ResultLength(Digits X, int n) {
 }
 
 void AsUintN_Pos(RWDigits Z, Digits X, int n) {
-  DCHECK(AsUintN_Pos_ResultLength(X, n) > 0);  // NOLINT(readability/check)
+  DCHECK(AsUintN_Pos_ResultLength(X, n) > 0);
   TruncateToNBits(Z, X, n);
 }
 
