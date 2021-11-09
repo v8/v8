@@ -61,8 +61,7 @@ class SemiSpace;
 // collection. The large object space is paged. Pages in large object space
 // may be larger than the page size.
 //
-// A store-buffer based write barrier is used to keep track of intergenerational
-// references.  See heap/store-buffer.h.
+// A remembered set is used to keep track of intergenerational references.
 //
 // During scavenges and mark-sweep collections we sometimes (after a store
 // buffer overflow) iterate intergenerational pointers without decoding heap

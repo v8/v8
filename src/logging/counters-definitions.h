@@ -303,9 +303,7 @@ namespace internal {
   SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)   \
   /* Number of code objects found from pc. */                      \
   SC(pc_to_code, V8.PcToCode)                                      \
-  SC(pc_to_code_cached, V8.PcToCodeCached)                         \
-  /* The store-buffer implementation of the write barrier. */      \
-  SC(store_buffer_overflows, V8.StoreBufferOverflows)
+  SC(pc_to_code_cached, V8.PcToCodeCached)
 
 #define STATS_COUNTER_LIST_2(SC)                                               \
   /* Amount of (JS) compiled code. */                                          \
