@@ -5688,3 +5688,32 @@ TEST(TerminateOnResumeAtInterruptFromOtherThread) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
 }
+
+namespace {
+
+class NoopDelegate : public v8::debug::DebugDelegate {};
+
+}  // namespace
+
+// Tests that the Isolate::Pop/Push leaves an empty stack for `await` when
+// the Debugger is active but the AsyncEventDelegate is not set.
+// Regression test for https://crbug.com/1225905
+TEST(AwaitCleansUpGlobalPromiseStack) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  NoopDelegate delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  v8::debug::SetAsyncEventDelegate(env->GetIsolate(), nullptr);
+
+  v8::Local<v8::String> source = v8_str(
+      "(async () => {\n"
+      "  await Promise.resolve();\n"
+      "})();\n");
+  CompileRun(source);
+
+  CHECK_EQ(CcTest::i_isolate()->thread_local_top()->promise_on_stack_, nullptr);
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}

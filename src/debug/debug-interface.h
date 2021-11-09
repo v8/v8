@@ -259,7 +259,8 @@ class AsyncEventDelegate {
                                   bool is_blackboxed) = 0;
 };
 
-void SetAsyncEventDelegate(Isolate* isolate, AsyncEventDelegate* delegate);
+V8_EXPORT_PRIVATE void SetAsyncEventDelegate(Isolate* isolate,
+                                             AsyncEventDelegate* delegate);
 
 void ResetBlackboxedStateCache(Isolate* isolate,
                                v8::Local<debug::Script> script);
