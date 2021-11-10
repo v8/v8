@@ -1199,7 +1199,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return descriptor_lookup_cache_;
   }
 
-  HandleScopeData* handle_scope_data() { return &handle_scope_data_; }
+  V8_INLINE HandleScopeData* handle_scope_data() { return &handle_scope_data_; }
 
   HandleScopeImplementer* handle_scope_implementer() const {
     DCHECK(handle_scope_implementer_);
