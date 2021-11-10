@@ -180,23 +180,23 @@
       'V8 Arm - builder': 'release_arm',
       'V8 Arm - debug builder': 'debug_arm',
       'V8 Android Arm - builder': 'release_android_arm',
-      'V8 Linux - arm - sim': 'release_simulate_arm',
-      'V8 Linux - arm - sim - debug': 'debug_simulate_arm',
+      'V8 Linux - arm - sim - builder': 'release_simulate_arm',
+      'V8 Linux - arm - sim - debug builder': 'debug_simulate_arm',
       'V8 Linux - arm - sim - lite - builder': 'release_simulate_arm_lite',
       'V8 Linux - arm - sim - lite - debug builder': 'debug_simulate_arm_lite',
       # Arm64.
       'V8 Android Arm64 - builder': 'release_android_arm64',
       'V8 Android Arm64 - debug builder': 'debug_android_arm64',
       'V8 Arm64 - builder': 'release_arm64_hard_float',
-      'V8 Linux - arm64 - sim': 'release_simulate_arm64',
-      'V8 Linux - arm64 - sim - debug': 'debug_simulate_arm64',
-      'V8 Linux - arm64 - sim - gc stress': 'debug_simulate_arm64',
+      'V8 Linux - arm64 - sim - builder': 'release_simulate_arm64',
+      'V8 Linux - arm64 - sim - debug builder': 'debug_simulate_arm64',
+      'V8 Linux - arm64 - sim - gc stress - builder': 'debug_simulate_arm64',
       # Mips.
       'V8 Linux - mipsel - sim - builder': 'release_simulate_mipsel',
       'V8 Linux - mips64el - sim - builder': 'release_simulate_mips64el',
       # IBM.
-      'V8 Linux - ppc64 - sim': 'release_simulate_ppc64',
-      'V8 Linux - s390x - sim': 'release_simulate_s390x',
+      'V8 Linux - ppc64 - sim - builder': 'release_simulate_ppc64',
+      'V8 Linux - s390x - sim - builder': 'release_simulate_s390x',
       # RISC-V
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
       # Loongson
