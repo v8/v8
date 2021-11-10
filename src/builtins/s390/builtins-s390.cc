@@ -240,6 +240,45 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ b(&start);
 }
 
+void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
+  ASM_CODE_COMMENT(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement);
+  }
+
+  // If the code object is null, just return to the caller.
+  Label skip;
+  __ CmpSmiLiteral(r2, Smi::zero(), r0);
+  __ bne(&skip);
+  __ Ret();
+
+  __ bind(&skip);
+
+  if (is_interpreter) {
+    // Drop the handler frame that is be sitting on top of the actual
+    // JavaScript frame. This is the case then OSR is triggered from bytecode.
+    __ LeaveFrame(StackFrame::STUB);
+  }
+
+  // Load deoptimization data from the code object.
+  // <deopt_data> = <code>[#deoptimization_data_offset]
+  __ LoadTaggedPointerField(
+      r3,
+      FieldMemOperand(r2, Code::kDeoptimizationDataOrInterpreterDataOffset));
+
+  // Load the OSR entrypoint offset from the deoptimization data.
+  // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
+  __ SmiUntagField(
+      r3, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(
+                                  DeoptimizationData::kOsrPcOffsetIndex)));
+
+  // Compute the target address = code_obj + header_size + osr_offset
+  // <entry_addr> = <code_obj> + #header_size + <osr_offset>
+  __ AddS64(r2, r3);
+  Generate_OSREntry(masm, r2, Code::kHeaderSize - kHeapObjectTag);
+}
+
 }  // namespace
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
@@ -1881,46 +1920,6 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), r2.code());
   __ pop(r2);
-  __ Ret();
-}
-
-void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement);
-  }
-
-  // If the code object is null, just return to the caller.
-  Label skip;
-  __ CmpSmiLiteral(r2, Smi::zero(), r0);
-  __ bne(&skip);
-  __ Ret();
-
-  __ bind(&skip);
-
-  // Drop the handler frame that is be sitting on top of the actual
-  // JavaScript frame. This is the case then OSR is triggered from bytecode.
-  __ LeaveFrame(StackFrame::STUB);
-
-  // Load deoptimization data from the code object.
-  // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ LoadTaggedPointerField(
-      r3,
-      FieldMemOperand(r2, Code::kDeoptimizationDataOrInterpreterDataOffset));
-
-  // Load the OSR entrypoint offset from the deoptimization data.
-  // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-  __ SmiUntagField(
-      r3, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(
-                                  DeoptimizationData::kOsrPcOffsetIndex)));
-
-  // Compute the target address = code_obj + header_size + osr_offset
-  // <entry_addr> = <code_obj> + #header_size + <osr_offset>
-  __ AddS64(r2, r3);
-  __ AddS64(r0, r2, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ mov(r14, r0);
-
-  // And "return" to the OSR entry point of the function.
   __ Ret();
 }
 
@@ -3656,6 +3655,18 @@ void Builtins::Generate_DeoptimizationEntry_Bailout(MacroAssembler* masm) {
 void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
 }
+
+void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
+  return OnStackReplacement(masm, true);
+}
+
+#if ENABLE_SPARKPLUG
+void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
+  __ LoadU64(kContextRegister,
+         MemOperand(fp, BaselineFrameConstants::kContextOffset));
+  return OnStackReplacement(masm, false);
+}
+#endif
 
 void Builtins::Generate_BaselineOrInterpreterEnterAtBytecode(
     MacroAssembler* masm) {
