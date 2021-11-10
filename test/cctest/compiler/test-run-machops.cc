@@ -7308,6 +7308,20 @@ TEST(Regression12330) {
   m.Return(ovf);
   m.GenerateCode();
 }
+
+TEST(Regression12373) {
+  FOR_INT64_INPUTS(i) {
+    RawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
+                                         MachineType::Int64());
+    RawMachineAssemblerTester<int64_t> n(MachineType::Int64());
+
+    Node* mul_rr = m.Int64Mul(m.Parameter(0), m.Parameter(1));
+    Node* mul_ri = n.Int64Mul(n.Parameter(0), n.Int64Constant(i));
+    m.Return(mul_rr);
+    n.Return(mul_ri);
+    FOR_INT64_INPUTS(j) { CHECK_EQ(m.Call(j, i), n.Call(j)); }
+  }
+}
 #endif  // V8_TARGET_ARCH_64_BIT
 
 }  // namespace compiler

@@ -1097,13 +1097,16 @@ void TurboAssembler::Lsa(Register rd, Register rt, Register rs, uint8_t sa,
 
 void TurboAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
                           Register scratch) {
-  DCHECK(sa >= 1 && sa <= 31);
+  DCHECK(sa >= 1 && sa <= 63);
   if (kArchVariant == kMips64r6 && sa <= 4) {
     dlsa(rd, rt, rs, sa - 1);
   } else {
     Register tmp = rd == rt ? scratch : rd;
     DCHECK(tmp != rt);
-    dsll(tmp, rs, sa);
+    if (sa <= 31)
+      dsll(tmp, rs, sa);
+    else
+      dsll32(tmp, rs, sa - 32);
     Daddu(rd, rt, tmp);
   }
 }

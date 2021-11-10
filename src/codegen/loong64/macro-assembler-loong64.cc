@@ -865,7 +865,7 @@ void TurboAssembler::Alsl_w(Register rd, Register rj, Register rk, uint8_t sa,
 
 void TurboAssembler::Alsl_d(Register rd, Register rj, Register rk, uint8_t sa,
                             Register scratch) {
-  DCHECK(sa >= 1 && sa <= 31);
+  DCHECK(sa >= 1 && sa <= 63);
   if (sa <= 4) {
     alsl_d(rd, rj, rk, sa);
   } else {
