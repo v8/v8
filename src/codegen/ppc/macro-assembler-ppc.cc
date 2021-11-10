@@ -3734,12 +3734,80 @@ void TurboAssembler::CountLeadingZerosU64(Register dst, Register src, RCBit r) {
 
 void TurboAssembler::CountTrailingZerosU32(Register dst, Register src,
                                            RCBit r) {
-  cnttzw(dst, src, r);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    cnttzw(dst, src, r);
+  } else {
+    Register scratch1 = GetRegisterThatIsNotOneOf(dst, src, sp);
+    Register scratch2 = GetRegisterThatIsNotOneOf(dst, src, sp, scratch1);
+    Push(scratch1, scratch2);
+    ReverseBitsU32(dst, src, scratch1, scratch2);
+    Pop(scratch1, scratch2);
+    cntlzw(dst, dst, r);
+  }
 }
 
 void TurboAssembler::CountTrailingZerosU64(Register dst, Register src,
                                            RCBit r) {
-  cnttzd(dst, src, r);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    cnttzd(dst, src, r);
+  } else {
+    Register scratch1 = GetRegisterThatIsNotOneOf(dst, src, sp);
+    Register scratch2 = GetRegisterThatIsNotOneOf(dst, src, sp, scratch1);
+    Push(scratch1, scratch2);
+    ReverseBitsU64(dst, src, scratch1, scratch2);
+    Pop(scratch1, scratch2);
+    cntlzd(dst, dst, r);
+  }
+}
+
+void TurboAssembler::ClearByteU64(Register dst, int byte_idx) {
+  CHECK(0 <= byte_idx && byte_idx <= 7);
+  int shift = byte_idx*8;
+  rldicl(dst, dst, shift, 8);
+  rldicl(dst, dst, 64-shift, 0);
+}
+
+void TurboAssembler::ReverseBitsU64(Register dst, Register src,
+                                    Register scratch1, Register scratch2) {
+  ByteReverseU64(dst, src);
+  for (int i = 0; i < 8; i++) {
+    ReverseBitsInSingleByteU64(dst, dst, scratch1, scratch2, i);
+  }
+}
+
+void TurboAssembler::ReverseBitsU32(Register dst, Register src,
+                                    Register scratch1, Register scratch2) {
+  ByteReverseU32(dst, src);
+  for (int i = 4; i < 8; i++) {
+    ReverseBitsInSingleByteU64(dst, dst, scratch1, scratch2, i);
+  }
+}
+
+// byte_idx=7 refers to least significant byte
+void TurboAssembler::ReverseBitsInSingleByteU64(Register dst, Register src,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                int byte_idx) {
+  CHECK(0 <= byte_idx && byte_idx <= 7);
+  int j = byte_idx;
+  // zero all bits of scratch1
+  li(scratch2, Operand(0));
+  for (int i = 0; i <= 7; i++) {
+    // zero all bits of scratch1
+    li(scratch1, Operand(0));
+    // move bit (j+1)*8-i-1 of src to bit j*8+i of scratch1, erase bits
+    // (j*8+i+1):end of scratch1
+    int shift = 7 - (2*i);
+    if (shift < 0) shift += 64;
+    rldicr(scratch1, src, shift, j*8+i);
+    // erase bits start:(j*8-1+i) of scratch1 (inclusive)
+    rldicl(scratch1, scratch1, 0, j*8+i);
+    // scratch2 = scratch2|scratch1
+    orx(scratch2, scratch2, scratch1);
+  }
+  // clear jth byte of dst and insert jth byte of scratch2
+  ClearByteU64(dst, j);
+  orx(dst, dst, scratch2);
 }
 
 }  // namespace internal
