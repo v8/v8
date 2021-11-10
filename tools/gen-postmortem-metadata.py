@@ -447,7 +447,8 @@ def load_objects_from_file(objfilename, checktypes):
         in_torque_fulldef = False
         continue
 
-    line = re.sub('//.*', '', line.strip());
+    pre = line.strip()
+    line = re.sub('// .*', '', line.strip());
 
     if (in_insttype):
       typestr += line;
