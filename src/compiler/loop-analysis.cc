@@ -662,7 +662,6 @@ bool LoopFinder::HasMarkedExits(LoopTree* loop_tree,
         }
         if (unmarked_exit) {
           if (FLAG_trace_turbo_loop) {
-            Node* loop_node = loop_tree->GetLoopControl(loop);
             PrintF(
                 "Cannot peel loop %i. Loop exit without explicit mark: Node %i "
                 "(%s) is inside loop, but its use %i (%s) is outside.\n",
