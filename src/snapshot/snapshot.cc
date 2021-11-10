@@ -121,6 +121,7 @@ class SnapshotImpl : public AllStatic {
 }  // namespace
 
 SnapshotData MaybeDecompress(const base::Vector<const byte>& snapshot_data) {
+  TRACE_EVENT0("v8", "V8.SnapshotDecompress");
 #ifdef V8_SNAPSHOT_COMPRESSION
   return SnapshotCompression::Decompress(snapshot_data);
 #else
@@ -158,6 +159,7 @@ bool Snapshot::VersionIsValid(const v8::StartupData* data) {
 
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
+  TRACE_EVENT0("v8", "V8.DeserializeIsolate");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeIsolate);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
@@ -202,6 +204,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
+  TRACE_EVENT0("v8", "V8.DeserializeContext");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeContext);
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
@@ -376,6 +379,7 @@ v8::StartupData Snapshot::Create(
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
     const DisallowGarbageCollection& no_gc, SerializerFlags flags) {
+  TRACE_EVENT0("v8", "V8.SnapshotCreate");
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
@@ -473,6 +477,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
     const SnapshotData* shared_heap_snapshot_in,
     const std::vector<SnapshotData*>& context_snapshots_in,
     bool can_be_rehashed) {
+  TRACE_EVENT0("v8", "V8.SnapshotCompress");
   // Have these separate from snapshot_in for compression, since we need to
   // access the compressed data as well as the uncompressed reservations.
   const SnapshotData* startup_snapshot;
