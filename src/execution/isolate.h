@@ -1636,8 +1636,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return V8_SHORT_BUILTIN_CALLS_BOOL && is_short_builtin_calls_enabled_;
   }
 
-  // Returns a region from which it's possible to make short calls/jumps to
-  // embedded builtins or empty region if there's no embedded blob.
+  // Returns a region from which it's possible to make pc-relative (short)
+  // calls/jumps to embedded builtins or empty region if there's no embedded
+  // blob or if pc-relative calls are not supported.
   static base::AddressRegion GetShortBuiltinsCallRegion();
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {

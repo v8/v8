@@ -104,8 +104,15 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
                   kStackLimitSlackForDeoptimizationInBytes <=
               MB);
 
-#if defined(V8_SHORT_BUILTIN_CALLS) && \
-    (!defined(V8_COMPRESS_POINTERS) || defined(V8_EXTERNAL_CODE_SPACE))
+// The V8_ENABLE_NEAR_CODE_RANGE_BOOL enables logic that tries to allocate
+// code range within a pc-relative call/jump proximity from embedded builtins.
+// This machinery could help only when we have an opportunity to choose where
+// to allocate code range and could benefit from it. This is the case for the
+// following configurations:
+// - external code space AND pointer compression are enabled,
+// - short builtin calls feature is enabled while pointer compression is not.
+#if (defined(V8_SHORT_BUILTIN_CALLS) && !defined(V8_COMPRESS_POINTERS)) || \
+    defined(V8_EXTERNAL_CODE_SPACE)
 #define V8_ENABLE_NEAR_CODE_RANGE_BOOL true
 #else
 #define V8_ENABLE_NEAR_CODE_RANGE_BOOL false
@@ -114,11 +121,6 @@ STATIC_ASSERT(V8_DEFAULT_STACK_SIZE_KB* KB +
 // This constant is used for detecting whether the machine has >= 4GB of
 // physical memory by checking the max old space size.
 const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
-
-// This constant is used for detecting whether code range could be
-// allocated within the +/- 2GB boundary to builtins' embedded blob
-// to use short builtin calls.
-const size_t kShortBuiltinCallsBoundary = size_t{2} * GB;
 
 // Determine whether dict mode prototypes feature is enabled.
 #ifdef V8_ENABLE_SWISS_NAME_DICTIONARY

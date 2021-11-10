@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include <atomic>
+#include <cstdint>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -367,8 +368,22 @@ uint32_t Isolate::CurrentEmbeddedBlobDataSize() {
       std::memory_order::memory_order_relaxed);
 }
 
+// static
 base::AddressRegion Isolate::GetShortBuiltinsCallRegion() {
-  DCHECK_LT(CurrentEmbeddedBlobCodeSize(), kShortBuiltinCallsBoundary);
+  // Update calculations below if the assert fails.
+  STATIC_ASSERT(kMaxPCRelativeCodeRangeInMB <= 4096);
+  if (kMaxPCRelativeCodeRangeInMB == 0) {
+    // Return empty region if pc-relative calls/jumps are not supported.
+    return base::AddressRegion(kNullAddress, 0);
+  }
+  constexpr size_t max_size = std::numeric_limits<size_t>::max();
+  if (uint64_t{kMaxPCRelativeCodeRangeInMB} * MB > max_size) {
+    // The whole addressable space is reachable with pc-relative calls/jumps.
+    return base::AddressRegion(kNullAddress, max_size);
+  }
+  constexpr size_t radius = kMaxPCRelativeCodeRangeInMB * MB;
+
+  DCHECK_LT(CurrentEmbeddedBlobCodeSize(), radius);
   Address embedded_blob_code_start =
       reinterpret_cast<Address>(CurrentEmbeddedBlobCode());
   if (embedded_blob_code_start == kNullAddress) {
@@ -378,10 +393,11 @@ base::AddressRegion Isolate::GetShortBuiltinsCallRegion() {
   Address embedded_blob_code_end =
       embedded_blob_code_start + CurrentEmbeddedBlobCodeSize();
   Address region_start =
-      (embedded_blob_code_end > kShortBuiltinCallsBoundary)
-          ? (embedded_blob_code_end - kShortBuiltinCallsBoundary)
-          : 0;
-  Address region_end = embedded_blob_code_start + kShortBuiltinCallsBoundary;
+      (embedded_blob_code_end > radius) ? (embedded_blob_code_end - radius) : 0;
+  Address region_end = embedded_blob_code_start + radius;
+  if (region_end < embedded_blob_code_start) {
+    region_end = static_cast<Address>(-1);
+  }
   return base::AddressRegion(region_start, region_end - region_start);
 }
 
@@ -3518,8 +3534,13 @@ void Isolate::CreateAndSetEmbeddedBlob() {
 }
 
 void Isolate::MaybeRemapEmbeddedBuiltinsIntoCodeRange() {
-  if (!is_short_builtin_calls_enabled() || V8_ENABLE_NEAR_CODE_RANGE_BOOL ||
-      !RequiresCodeRange()) {
+  if (!is_short_builtin_calls_enabled() || !RequiresCodeRange()) {
+    return;
+  }
+  if (V8_ENABLE_NEAR_CODE_RANGE_BOOL &&
+      GetShortBuiltinsCallRegion().contains(heap_.code_region())) {
+    // The embedded builtins are within the pc-relative reach from the code
+    // range, so there's no need to remap embedded builtins.
     return;
   }
 
@@ -3752,10 +3773,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
       }
     }
     if (V8_ENABLE_NEAR_CODE_RANGE_BOOL) {
-      // When enable short builtin calls by near code range, the
-      // code range should be close (<2GB) to the embedded blob to use
-      // pc-relative calls.
-      is_short_builtin_calls_enabled_ =
+      // The short builtin calls could still be enabled if allocated code range
+      // is close enough to embedded builtins so that the latter could be
+      // reached using pc-relative (short) calls/jumps.
+      is_short_builtin_calls_enabled_ |=
           GetShortBuiltinsCallRegion().contains(heap_.code_region());
     }
   }
