@@ -5198,7 +5198,7 @@ int Shell::Main(int argc, char* argv[]) {
     Isolate::CreateParams shared_create_params;
     shared_create_params.array_buffer_allocator = Shell::array_buffer_allocator;
     shared_isolate =
-        reinterpret_cast<Isolate*>(i::Isolate::NewShared(create_params));
+        reinterpret_cast<Isolate*>(i::Isolate::NewShared(shared_create_params));
     create_params.experimental_attach_to_shared_isolate = shared_isolate;
   }
 
