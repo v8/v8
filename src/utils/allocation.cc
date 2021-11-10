@@ -424,10 +424,11 @@ bool VirtualMemoryCage::InitReservation(
 
         // The reservation could still be somewhere else but we can accept it
         // if it has the required alignment.
-        Address address = VirtualMemoryCageStart(reservation.address(), params);
-        if (reservation.address() == address) {
+        Address start_address =
+            VirtualMemoryCageStart(reservation.address(), params);
+        if (reservation.address() == start_address) {
           reservation_ = std::move(reservation);
-          base_ = address + params.base_bias_size;
+          base_ = start_address + params.base_bias_size;
           CHECK_EQ(reservation_.size(), params.reservation_size);
           break;
         }
