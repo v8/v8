@@ -325,14 +325,7 @@ void LocalAllocationBuffer::MakeIterable() {
 LocalAllocationBuffer::LocalAllocationBuffer(
     Heap* heap, LinearAllocationArea allocation_info) V8_NOEXCEPT
     : heap_(heap),
-      allocation_info_(allocation_info) {
-  if (IsValid()) {
-    heap_->CreateFillerObjectAtBackground(
-        allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
-        ClearFreedMemoryMode::kDontClearFreedMemory);
-  }
-}
+      allocation_info_(allocation_info) {}
 
 LocalAllocationBuffer::LocalAllocationBuffer(LocalAllocationBuffer&& other)
     V8_NOEXCEPT {
