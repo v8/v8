@@ -604,6 +604,10 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
 #else
     UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef DEBUG
+    shared_info->set_finalized(true);
+#endif
   }
 }
 

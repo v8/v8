@@ -228,6 +228,9 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 
 void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+#ifdef DEBUG
+  set_finalized(false);
+#endif
   set_function_data(other.function_data(cage_base, kAcquireLoad),
                     kReleaseStore);
   set_name_or_scope_info(other.name_or_scope_info(cage_base, kAcquireLoad),
@@ -246,6 +249,10 @@ void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
   set_function_literal_id(other.function_literal_id());
 #if V8_SFI_HAS_UNIQUE_ID
   set_unique_id(other.unique_id());
+#endif
+
+#ifdef DEBUG
+  set_finalized(other.finalized());
 #endif
 
   // This should now be byte-for-byte identical to the input.
@@ -465,9 +472,7 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
 
 void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   DCHECK_NE(reason, BailoutReason::kNoReason);
-
-  set_flags(DisabledOptimizationReasonBits::update(flags(kRelaxedLoad), reason),
-            kRelaxedStore);
+  set_flags2(DisabledOptimizationReasonBits::update(flags2(), reason));
   // Code should be the lazy compilation stub or else interpreted.
   Isolate* isolate = GetIsolate();
   DCHECK(abstract_code(isolate).kind() == CodeKind::INTERPRETED_FUNCTION ||

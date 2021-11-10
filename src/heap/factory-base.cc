@@ -361,6 +361,9 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo();
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo raw = *shared;
+#ifdef DEBUG
+  raw.set_finalized(false);
+#endif
   // Function names are assumed to be flat elsewhere.
   Handle<String> shared_name;
   bool has_shared_name = maybe_name.ToHandle(&shared_name);

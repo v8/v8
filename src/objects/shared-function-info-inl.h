@@ -144,6 +144,8 @@ int32_t SharedFunctionInfo::relaxed_flags() const {
   return flags(kRelaxedLoad);
 }
 void SharedFunctionInfo::set_relaxed_flags(int32_t flags) {
+  // These flags should be read only, once SFI is finalized.
+  DCHECK(!finalized());
   return set_flags(flags, kRelaxedStore);
 }
 
@@ -256,10 +258,11 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
   return kIsInlineable;
 }
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, class_scope_has_private_brand,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
+                    class_scope_has_private_brand,
                     SharedFunctionInfo::ClassScopeHasPrivateBrandBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
 
@@ -268,21 +271,20 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, syntax_kind,
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, allows_lazy_compilation,
                     SharedFunctionInfo::AllowLazyCompilationBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, has_duplicate_parameters,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, has_duplicate_parameters,
                     SharedFunctionInfo::HasDuplicateParametersBit)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, native,
                     SharedFunctionInfo::IsNativeBit)
 #if V8_ENABLE_WEBASSEMBLY
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, is_asm_wasm_broken,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
 #endif  // V8_ENABLE_WEBASSEMBLY
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     requires_instance_members_initializer,
                     SharedFunctionInfo::RequiresInstanceMembersInitializerBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
-                    name_should_print_as_anonymous,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, name_should_print_as_anonymous,
                     SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     has_reported_binary_coverage,
@@ -296,12 +298,21 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     private_name_lookup_skips_outer_class,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 
+bool SharedFunctionInfo::available_baseline_code() const {
+  return AvailableBaselineCodeBit::decode(flags(kRelaxedLoad));
+}
+
+void SharedFunctionInfo::set_available_baseline_code(bool value) {
+  set_flags(AvailableBaselineCodeBit::update(flags(kRelaxedLoad), value),
+            kRelaxedStore);
+}
+
 bool SharedFunctionInfo::optimization_disabled() const {
   return disabled_optimization_reason() != BailoutReason::kNoReason;
 }
 
 BailoutReason SharedFunctionInfo::disabled_optimization_reason() const {
-  return DisabledOptimizationReasonBits::decode(flags(kRelaxedLoad));
+  return DisabledOptimizationReasonBits::decode(flags2());
 }
 
 LanguageMode SharedFunctionInfo::language_mode() const {
