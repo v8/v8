@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
+// Flags: --experimental-wasm-gc --no-liftoff
 
 // This tests are meant to examine if Turbofan CsaLoadElimination works
 // correctly for wasm. The TurboFan graphs can be examined with --trace-turbo.
@@ -316,4 +316,59 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate({});
   assertEquals(value_0 + value_1, instance.exports.main());
+})();
+
+(function EscapeAnalysis() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let struct1 = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct2 = builder.addStruct([makeField(wasmOptRefType(struct1), true)]);
+
+  // TF should eliminate both allocations in this function.
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRttCanon, struct1,
+      kGCPrefix, kExprStructNewWithRtt, struct1,
+
+      kGCPrefix, kExprRttCanon, struct2,
+      kGCPrefix, kExprStructNewWithRtt, struct2,
+
+      kGCPrefix, kExprStructGet, struct2, 0,
+      kGCPrefix, kExprStructGet, struct1, 0])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertEquals(42, instance.exports.main(42));
+})();
+
+(function AllocationFolding() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+
+  let struct_index = builder.addStructSubtype([makeField(kWasmI32, true)]);
+  let struct_2 = builder.addStructSubtype([
+    makeField(wasmRefType(struct_index), false),
+    makeField(wasmRefType(struct_index), false)
+  ]);
+
+  let global = builder.addGlobal(
+      wasmOptRefType(struct_2), true, WasmInitExpr.RefNull(struct_2));
+
+  // The three alocations should be folded.
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStructNew, struct_index,
+      kExprI32Const, 43,
+      kGCPrefix, kExprStructNew, struct_index,
+      kGCPrefix, kExprStructNew, struct_2,
+      kExprGlobalSet, global.index,
+      kExprLocalGet, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+  assertEquals(10, instance.exports.main(10));
 })();

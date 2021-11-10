@@ -8000,6 +8000,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     info.set_wasm_runtime_exception_support();
   }
 
+  if (FLAG_experimental_wasm_gc) info.set_allocation_folding();
+
   if (info.trace_turbo_json()) {
     TurboCfgFile tcf;
     tcf << AsC1VCompilation(&info);
