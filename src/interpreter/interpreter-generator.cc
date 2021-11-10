@@ -2586,7 +2586,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
   TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
       closure, JSFunction::kSharedFunctionInfoOffset);
   TNode<Uint32T> flags =
-      LoadObjectField<Uint32T>(shared_info, SharedFunctionInfo::kFlags2Offset);
+      LoadObjectField<Uint32T>(shared_info, SharedFunctionInfo::kFlagsOffset);
   TNode<BoolT> has_duplicate_parameters =
       IsSetWord32<SharedFunctionInfo::HasDuplicateParametersBit>(flags);
   Branch(has_duplicate_parameters, &if_duplicate_parameters,

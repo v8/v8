@@ -399,9 +399,6 @@ class SharedFunctionInfo
   using TorqueGeneratedSharedFunctionInfo::set_function_token_offset;
 
  public:
-  inline bool available_baseline_code() const;
-  inline void set_available_baseline_code(bool value);
-
   // The position of the 'function' token in the script source. Can return
   // kNoSourcePosition if raw_function_token_offset() returns
   // kFunctionTokenOutOfRange.
@@ -409,6 +406,10 @@ class SharedFunctionInfo
 
   // Returns true if the function has shared name.
   inline bool HasSharedName() const;
+
+  // [flags] Bit field containing various flags about the function.
+  DECL_RELAXED_INT32_ACCESSORS(flags)
+  DECL_UINT8_ACCESSORS(flags2)
 
   // True if the outer class scope contains a private brand for
   // private instance methdos.
@@ -668,10 +669,6 @@ class SharedFunctionInfo
   inline void set_kind(FunctionKind kind);
 
   inline uint16_t get_property_estimate_from_literal(FunctionLiteral* literal);
-
-  // [flags] Bit field containing various flags about the function.
-  DECL_RELAXED_INT32_ACCESSORS(flags)
-  DECL_UINT8_ACCESSORS(flags2)
 
   // For ease of use of the BITFIELD macro.
   inline int32_t relaxed_flags() const;
