@@ -1883,13 +1883,13 @@ enum PropertiesEnumerationMode {
   kPropertyAdditionOrder,
 };
 
-enum class StringInternalizationStrategy {
-  // The string must be internalized by first copying.
+enum class StringTransitionStrategy {
+  // The string must be transitioned to a new representation by first copying.
   kCopy,
-  // The string can be internalized in-place by changing its map.
+  // The string can be transitioned in-place by changing its map.
   kInPlace,
-  // The string is already internalized.
-  kAlreadyInternalized
+  // The string is already transitioned to the desired representation.
+  kAlreadyTransitioned
 };
 
 }  // namespace internal

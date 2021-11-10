@@ -219,6 +219,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
       Handle<String> left, Handle<String> right, int length, bool one_byte,
       AllocationType allocation = AllocationType::kYoung);
 
+  V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawSharedOneByteString(
+      int length);
+  V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawSharedTwoByteString(
+      int length);
+
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.
   Handle<FreshlyAllocatedBigInt> NewBigInt(
@@ -278,6 +283,10 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
       FunctionKind kind = kNormalFunction);
 
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
+
+  template <typename SeqStringT>
+  MaybeHandle<SeqStringT> NewRawStringWithMap(int length, Map map,
+                                              AllocationType allocation);
 
  private:
   friend class WebSnapshotDeserializer;

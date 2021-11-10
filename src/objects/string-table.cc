@@ -364,13 +364,13 @@ class InternalizedStringKey final : public StringTableKey {
   Handle<String> AsHandle(Isolate* isolate) {
     // Internalize the string in-place if possible.
     MaybeHandle<Map> maybe_internalized_map;
-    StringInternalizationStrategy strategy =
+    StringTransitionStrategy strategy =
         isolate->factory()->ComputeInternalizationStrategyForString(
             string_, &maybe_internalized_map);
     switch (strategy) {
-      case StringInternalizationStrategy::kCopy:
+      case StringTransitionStrategy::kCopy:
         break;
-      case StringInternalizationStrategy::kInPlace:
+      case StringTransitionStrategy::kInPlace:
         // A relaxed write is sufficient here even with concurrent
         // internalization. Though it is not synchronizing, a thread that does
         // not see the relaxed write will wait on the string table write
@@ -381,7 +381,7 @@ class InternalizedStringKey final : public StringTableKey {
             *maybe_internalized_map.ToHandleChecked());
         DCHECK(string_->IsInternalizedString());
         return string_;
-      case StringInternalizationStrategy::kAlreadyInternalized:
+      case StringTransitionStrategy::kAlreadyTransitioned:
         // We can see already internalized strings here only when sharing the
         // string table and allowing concurrent internalization.
         DCHECK(FLAG_shared_string_table);
@@ -505,7 +505,7 @@ Handle<String> StringTable::LookupKey(IsolateT* isolate, StringTableKey* key) {
   InternalIndex entry = data->FindEntry(isolate, key, key->hash());
   if (entry.is_found()) {
     Handle<String> result(String::cast(data->Get(isolate, entry)), isolate);
-    DCHECK_IMPLIES(FLAG_shared_string_table, result->InSharedHeap());
+    DCHECK_IMPLIES(FLAG_shared_string_table, result->IsShared());
     return result;
   }
 
@@ -516,7 +516,7 @@ Handle<String> StringTable::LookupKey(IsolateT* isolate, StringTableKey* key) {
   // allocates the same string, the insert will fail, the lookup above will
   // succeed, and this string will be discarded.
   Handle<String> new_string = key->AsHandle(isolate);
-  DCHECK_IMPLIES(FLAG_shared_string_table, new_string->InSharedHeap());
+  DCHECK_IMPLIES(FLAG_shared_string_table, new_string->IsShared());
 
   {
     base::MutexGuard table_write_guard(&write_mutex_);

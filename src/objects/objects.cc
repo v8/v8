@@ -2197,7 +2197,8 @@ int HeapObject::SizeFromMap(Map map) const {
     return Context::SizeFor(Context::unchecked_cast(*this).length());
   }
   if (instance_type == ONE_BYTE_STRING_TYPE ||
-      instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
+      instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE ||
+      instance_type == SHARED_ONE_BYTE_STRING_TYPE) {
     // Strings may get concurrently truncated, hence we have to access its
     // length synchronized.
     return SeqOneByteString::SizeFor(
@@ -2215,7 +2216,8 @@ int HeapObject::SizeFromMap(Map map) const {
     return FreeSpace::unchecked_cast(*this).size(kRelaxedLoad);
   }
   if (instance_type == STRING_TYPE ||
-      instance_type == INTERNALIZED_STRING_TYPE) {
+      instance_type == INTERNALIZED_STRING_TYPE ||
+      instance_type == SHARED_STRING_TYPE) {
     // Strings may get concurrently truncated, hence we have to access its
     // length synchronized.
     return SeqTwoByteString::SizeFor(

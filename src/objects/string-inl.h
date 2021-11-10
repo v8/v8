@@ -172,6 +172,13 @@ bool StringShape::IsUncachedExternal() const {
   return (type_ & kUncachedExternalStringMask) == kUncachedExternalStringTag;
 }
 
+bool StringShape::IsShared() const {
+  // TODO(v8:12007): Set is_shared to true on internalized string when
+  // FLAG_shared_string_table is removed.
+  return (type_ & kSharedStringMask) == kSharedStringTag ||
+         (FLAG_shared_string_table && IsInternalized());
+}
+
 StringRepresentationTag StringShape::representation_tag() const {
   uint32_t tag = (type_ & kStringRepresentationMask);
   return static_cast<StringRepresentationTag>(tag);
@@ -696,6 +703,24 @@ String::FlatContent String::GetFlatContent(
   return SlowGetFlatContent(no_gc, access_guard);
 }
 
+Handle<String> String::Share(Isolate* isolate, Handle<String> string) {
+  DCHECK(FLAG_shared_string_table);
+  MaybeHandle<Map> new_map;
+  switch (
+      isolate->factory()->ComputeSharingStrategyForString(string, &new_map)) {
+    case StringTransitionStrategy::kCopy:
+      return SlowShare(isolate, string);
+    case StringTransitionStrategy::kInPlace:
+      // A relaxed write is sufficient here, because at this point the string
+      // has not yet escaped the current thread.
+      DCHECK(string->InSharedHeap());
+      string->set_map_no_write_barrier(*new_map.ToHandleChecked());
+      return string;
+    case StringTransitionStrategy::kAlreadyTransitioned:
+      return string;
+  }
+}
+
 uint16_t String::Get(int index) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
   return GetImpl(index, GetPtrComprCageBase(*this),
@@ -759,6 +784,14 @@ bool String::IsFlat() const { return IsFlat(GetPtrComprCageBase(*this)); }
 bool String::IsFlat(PtrComprCageBase cage_base) const {
   if (!StringShape(*this, cage_base).IsCons()) return true;
   return ConsString::cast(*this).IsFlat(cage_base);
+}
+
+bool String::IsShared() const { return IsShared(GetPtrComprCageBase(*this)); }
+
+bool String::IsShared(PtrComprCageBase cage_base) const {
+  const bool result = StringShape(*this, cage_base).IsShared();
+  DCHECK_IMPLIES(result, InSharedHeap());
+  return result;
 }
 
 String String::GetUnderlying() const {
@@ -950,6 +983,17 @@ inline int SeqOneByteString::AllocatedSize() {
 }
 inline int SeqTwoByteString::AllocatedSize() {
   return SizeFor(length(kAcquireLoad));
+}
+
+// static
+bool SeqOneByteString::IsCompatibleMap(Map map, ReadOnlyRoots roots) {
+  return map == roots.one_byte_string_map() ||
+         map == roots.shared_one_byte_string_map();
+}
+
+// static
+bool SeqTwoByteString::IsCompatibleMap(Map map, ReadOnlyRoots roots) {
+  return map == roots.string_map() || map == roots.shared_string_map();
 }
 
 void SlicedString::set_parent(String parent, WriteBarrierMode mode) {

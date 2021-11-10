@@ -877,12 +877,12 @@ namespace {
 
 }  // namespace
 
-StringInternalizationStrategy Factory::ComputeInternalizationStrategyForString(
+StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
     Handle<String> string, MaybeHandle<Map>* internalized_map) {
   // Do not internalize young strings in-place: This allows us to ignore both
   // string table and stub cache on scavenges.
   if (Heap::InYoungGeneration(*string)) {
-    return StringInternalizationStrategy::kCopy;
+    return StringTransitionStrategy::kCopy;
   }
   DCHECK_NOT_NULL(internalized_map);
   DisallowGarbageCollection no_gc;
@@ -892,12 +892,12 @@ StringInternalizationStrategy Factory::ComputeInternalizationStrategyForString(
   Map map = string->map();
   *internalized_map = GetInPlaceInternalizedStringMap(map);
   if (!internalized_map->is_null()) {
-    return StringInternalizationStrategy::kInPlace;
+    return StringTransitionStrategy::kInPlace;
   }
   if (InstanceTypeChecker::IsInternalizedString(map.instance_type())) {
-    return StringInternalizationStrategy::kAlreadyInternalized;
+    return StringTransitionStrategy::kAlreadyTransitioned;
   }
-  return StringInternalizationStrategy::kCopy;
+  return StringTransitionStrategy::kCopy;
 }
 
 template <class StringClass>
@@ -920,6 +920,31 @@ template Handle<ExternalOneByteString>
     Factory::InternalizeExternalString<ExternalOneByteString>(Handle<String>);
 template Handle<ExternalTwoByteString>
     Factory::InternalizeExternalString<ExternalTwoByteString>(Handle<String>);
+
+StringTransitionStrategy Factory::ComputeSharingStrategyForString(
+    Handle<String> string, MaybeHandle<Map>* shared_map) {
+  DCHECK(FLAG_shared_string_table);
+  // Do not share young strings in-place: there is no shared young space.
+  if (Heap::InYoungGeneration(*string)) {
+    return StringTransitionStrategy::kCopy;
+  }
+  DCHECK_NOT_NULL(shared_map);
+  DisallowGarbageCollection no_gc;
+  InstanceType instance_type = string->map().instance_type();
+  if (StringShape(instance_type).IsShared()) {
+    return StringTransitionStrategy::kAlreadyTransitioned;
+  }
+  switch (instance_type) {
+    case STRING_TYPE:
+      *shared_map = read_only_roots().shared_string_map_handle();
+      return StringTransitionStrategy::kInPlace;
+    case ONE_BYTE_STRING_TYPE:
+      *shared_map = read_only_roots().shared_one_byte_string_map_handle();
+      return StringTransitionStrategy::kInPlace;
+    default:
+      return StringTransitionStrategy::kCopy;
+  }
+}
 
 Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
   if (code <= unibrow::Latin1::kMaxChar) {

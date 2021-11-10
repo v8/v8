@@ -104,6 +104,42 @@ Handle<String> String::SlowCopy(Isolate* isolate, Handle<SeqString> source,
   return copy;
 }
 
+Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
+  DCHECK(FLAG_shared_string_table);
+  Handle<String> flat = Flatten(isolate, source, AllocationType::kSharedOld);
+
+  // Do not recursively call Share, so directly compute the sharing strategy for
+  // the flat string, which could already be a copy or an existing string from
+  // e.g. a shortcut ConsString.
+  MaybeHandle<Map> new_map;
+  switch (isolate->factory()->ComputeSharingStrategyForString(flat, &new_map)) {
+    case StringTransitionStrategy::kCopy:
+      break;
+    case StringTransitionStrategy::kInPlace:
+      // A relaxed write is sufficient here, because at this point the string
+      // has not yet escaped the current thread.
+      DCHECK(flat->InSharedHeap());
+      flat->set_map_no_write_barrier(*new_map.ToHandleChecked());
+      return flat;
+    case StringTransitionStrategy::kAlreadyTransitioned:
+      return flat;
+  }
+
+  int length = flat->length();
+  if (flat->IsOneByteRepresentation()) {
+    Handle<SeqOneByteString> copy =
+        isolate->factory()->NewRawSharedOneByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    WriteToFlat(*flat, copy->GetChars(no_gc), 0, length);
+    return copy;
+  }
+  Handle<SeqTwoByteString> copy =
+      isolate->factory()->NewRawSharedTwoByteString(length).ToHandleChecked();
+  DisallowGarbageCollection no_gc;
+  WriteToFlat(*flat, copy->GetChars(no_gc), 0, length);
+  return copy;
+}
+
 namespace {
 
 template <class StringClass>
@@ -149,6 +185,7 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   DCHECK_NE(*this, internalized);
   DCHECK(internalized.IsInternalizedString());
   // TODO(v8:12007): Make this method threadsafe.
+  DCHECK(!IsShared());
   DCHECK_IMPLIES(
       InSharedWritableHeap(),
       ThreadId::Current() == GetIsolateFromWritableObject(*this)->thread_id());

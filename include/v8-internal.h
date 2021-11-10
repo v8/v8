@@ -268,9 +268,9 @@ class Internals {
   static const int kNodeStateIsWeakValue = 2;
   static const int kNodeStateIsPendingValue = 3;
 
-  static const int kFirstNonstringType = 0x40;
-  static const int kOddballType = 0x43;
-  static const int kForeignType = 0x46;
+  static const int kFirstNonstringType = 0x80;
+  static const int kOddballType = 0x83;
+  static const int kForeignType = 0xcc;
   static const int kJSSpecialApiObjectType = 0x410;
   static const int kJSObjectType = 0x421;
   static const int kFirstJSApiObjectType = 0x422;

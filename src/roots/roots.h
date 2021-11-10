@@ -142,6 +142,8 @@ class Symbol;
     UncachedExternalOneByteInternalizedStringMap)                              \
   V(Map, uncached_external_one_byte_string_map,                                \
     UncachedExternalOneByteStringMap)                                          \
+  V(Map, shared_one_byte_string_map, SharedOneByteStringMap)                   \
+  V(Map, shared_string_map, SharedStringMap)                                   \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 @generateBodyDescriptor
-@apiExposedInstanceTypeValue(0x43)
+@apiExposedInstanceTypeValue(0x83)
 @highestInstanceTypeWithinParentClassRange
 extern class Oddball extends PrimitiveHeapObject {
   to_number_raw: float64;

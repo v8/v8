@@ -278,15 +278,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Compute the internalization strategy for the input string.
   //
-  // Old-generation flat strings can be internalized by mutating their map
-  // return kInPlace, along with the matching internalized string map for string
-  // is stored in internalized_map.
+  // Old-generation sequential strings can be internalized by mutating their map
+  // and return kInPlace, along with the matching internalized string map for
+  // string stored in internalized_map.
   //
-  // Internalized strings return kAlreadyInternalized.
+  // Internalized strings return kAlreadyTransitioned.
   //
   // All other strings are internalized by flattening and copying and return
   // kCopy.
-  V8_WARN_UNUSED_RESULT StringInternalizationStrategy
+  V8_WARN_UNUSED_RESULT StringTransitionStrategy
   ComputeInternalizationStrategyForString(Handle<String> string,
                                           MaybeHandle<Map>* internalized_map);
 
@@ -294,6 +294,20 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // of type StringClass.
   template <class StringClass>
   Handle<StringClass> InternalizeExternalString(Handle<String> string);
+
+  // Compute the sharing strategy for the input string.
+  //
+  // Old-generation sequential and thin strings can be shared by mutating their
+  // map and return kInPlace, along with the matching shared string map for the
+  // string stored in shared_map.
+  //
+  // Already-shared strings return kAlreadyTransitioned.
+  //
+  // All other strings are shared by flattening and copying into a sequential
+  // string then sharing that sequential string, and return kCopy.
+  V8_WARN_UNUSED_RESULT StringTransitionStrategy
+  ComputeSharingStrategyForString(Handle<String> string,
+                                  MaybeHandle<Map>* shared_map);
 
   // Creates a single character string where the character has given code.
   // A cache is used for Latin1 codes.

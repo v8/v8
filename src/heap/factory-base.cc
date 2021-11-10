@@ -593,19 +593,22 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
 }
 
 template <typename Impl>
-MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
-    int length, AllocationType allocation) {
+template <typename SeqStringT>
+MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
+    int length, Map map, AllocationType allocation) {
+  DCHECK(SeqStringT::IsCompatibleMap(map, read_only_roots()));
+  DCHECK_IMPLIES(!StringShape(map).IsShared(),
+                 RefineAllocationTypeForInPlaceInternalizableString(
+                     allocation, map) == allocation);
   if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqOneByteString);
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqStringT);
   }
   DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
-  int size = SeqOneByteString::SizeFor(length);
-  DCHECK_GE(SeqOneByteString::kMaxSize, size);
+  int size = SeqStringT::SizeFor(length);
+  DCHECK_GE(SeqStringT::kMaxSize, size);
 
-  Map map = read_only_roots().one_byte_string_map();
-  SeqOneByteString string = SeqOneByteString::cast(AllocateRawWithImmortalMap(
-      size, RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
-      map));
+  SeqStringT string =
+      SeqStringT::cast(AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
   string.set_length(length);
   string.set_raw_hash_field(String::kEmptyHashField);
@@ -614,24 +617,37 @@ MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
 }
 
 template <typename Impl>
+MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
+    int length, AllocationType allocation) {
+  Map map = read_only_roots().one_byte_string_map();
+  return NewRawStringWithMap<SeqOneByteString>(
+      length, map,
+      RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
+}
+
+template <typename Impl>
 MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
     int length, AllocationType allocation) {
-  if (length > String::kMaxLength || length < 0) {
-    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqTwoByteString);
-  }
-  DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
-  int size = SeqTwoByteString::SizeFor(length);
-  DCHECK_GE(SeqTwoByteString::kMaxSize, size);
-
   Map map = read_only_roots().string_map();
-  SeqTwoByteString string = SeqTwoByteString::cast(AllocateRawWithImmortalMap(
-      size, RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
-      map));
-  DisallowGarbageCollection no_gc;
-  string.set_length(length);
-  string.set_raw_hash_field(String::kEmptyHashField);
-  DCHECK_EQ(size, string.Size());
-  return handle(string, isolate());
+  return NewRawStringWithMap<SeqTwoByteString>(
+      length, map,
+      RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
+}
+
+template <typename Impl>
+MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawSharedOneByteString(
+    int length) {
+  return NewRawStringWithMap<SeqOneByteString>(
+      length, read_only_roots().shared_one_byte_string_map(),
+      AllocationType::kSharedOld);
+}
+
+template <typename Impl>
+MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawSharedTwoByteString(
+    int length) {
+  return NewRawStringWithMap<SeqTwoByteString>(
+      length, read_only_roots().shared_string_map(),
+      AllocationType::kSharedOld);
 }
 
 template <typename Impl>

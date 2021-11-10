@@ -219,9 +219,9 @@ UNINITIALIZED_TEST(YoungInternalization) {
   // Allocate two young strings with the same contents in isolate2 then intern
   // them. They should be the same as the interned strings from isolate1.
   Handle<String> young_one_byte_seq2 =
-      factory2->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
+      factory2->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kYoung);
   Handle<String> young_two_byte_seq2 =
-      factory2->NewStringFromTwoByte(two_byte, AllocationType::kOld)
+      factory2->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
           .ToHandleChecked();
   Handle<String> one_byte_intern2 =
       factory2->InternalizeString(young_one_byte_seq2);
@@ -327,6 +327,146 @@ UNINITIALIZED_TEST(ConcurrentInternalization) {
 
   for (auto& thread : threads) {
     thread->Join();
+  }
+}
+
+namespace {
+void CheckSharedStringIsEqualCopy(Handle<String> shared,
+                                  Handle<String> original) {
+  CHECK(shared->IsShared());
+  CHECK(shared->Equals(*original));
+  CHECK_NE(*shared, *original);
+}
+
+Handle<String> ShareAndVerify(Isolate* isolate, Handle<String> string) {
+  Handle<String> shared = String::Share(isolate, string);
+  CHECK(shared->IsShared());
+#ifdef VERIFY_HEAP
+  shared->ObjectVerify(isolate);
+  string->ObjectVerify(isolate);
+#endif  // VERIFY_HEAP
+  return shared;
+}
+}  // namespace
+
+UNINITIALIZED_TEST(StringShare) {
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+
+  FLAG_shared_string_table = true;
+
+  MultiClientIsolateTest test;
+  v8::Isolate* isolate = test.NewClientIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+
+  HandleScope scope(i_isolate);
+
+  // A longer string so that concatenated to itself, the result is >
+  // ConsString::kMinLength.
+  const char raw_one_byte[] =
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit";
+  base::uc16 raw_two_byte[] = {2001, 2002, 2003};
+  base::Vector<const base::uc16> two_byte(raw_two_byte, 3);
+
+  {
+    // Old-generation sequential strings are shared in-place.
+    Handle<String> one_byte_seq =
+        factory->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
+    Handle<String> two_byte_seq =
+        factory->NewStringFromTwoByte(two_byte, AllocationType::kOld)
+            .ToHandleChecked();
+    CHECK(!one_byte_seq->IsShared());
+    CHECK(!two_byte_seq->IsShared());
+    Handle<String> shared_one_byte = ShareAndVerify(i_isolate, one_byte_seq);
+    Handle<String> shared_two_byte = ShareAndVerify(i_isolate, two_byte_seq);
+    CHECK_EQ(*one_byte_seq, *shared_one_byte);
+    CHECK_EQ(*two_byte_seq, *shared_two_byte);
+  }
+
+  {
+    // Internalized strings are always shared.
+    Handle<String> one_byte_seq =
+        factory->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
+    Handle<String> two_byte_seq =
+        factory->NewStringFromTwoByte(two_byte, AllocationType::kOld)
+            .ToHandleChecked();
+    CHECK(!one_byte_seq->IsShared());
+    CHECK(!two_byte_seq->IsShared());
+    Handle<String> one_byte_intern = factory->InternalizeString(one_byte_seq);
+    Handle<String> two_byte_intern = factory->InternalizeString(two_byte_seq);
+    CHECK(one_byte_intern->IsShared());
+    CHECK(two_byte_intern->IsShared());
+    Handle<String> shared_one_byte_intern =
+        ShareAndVerify(i_isolate, one_byte_intern);
+    Handle<String> shared_two_byte_intern =
+        ShareAndVerify(i_isolate, two_byte_intern);
+    CHECK_EQ(*one_byte_intern, *shared_one_byte_intern);
+    CHECK_EQ(*two_byte_intern, *shared_two_byte_intern);
+  }
+
+  // All other strings are flattened then copied if the flatten didn't already
+  // create a new copy.
+
+  {
+    // Young strings
+    Handle<String> young_one_byte_seq = factory->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+    Handle<String> young_two_byte_seq =
+        factory->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
+            .ToHandleChecked();
+    CHECK(!young_one_byte_seq->IsShared());
+    CHECK(!young_two_byte_seq->IsShared());
+    Handle<String> shared_one_byte =
+        ShareAndVerify(i_isolate, young_one_byte_seq);
+    Handle<String> shared_two_byte =
+        ShareAndVerify(i_isolate, young_two_byte_seq);
+    CheckSharedStringIsEqualCopy(shared_one_byte, young_one_byte_seq);
+    CheckSharedStringIsEqualCopy(shared_two_byte, young_two_byte_seq);
+  }
+
+  {
+    // Thin strings
+    Handle<String> one_byte_seq1 =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    Handle<String> one_byte_seq2 =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    CHECK(!one_byte_seq1->IsShared());
+    CHECK(!one_byte_seq2->IsShared());
+    factory->InternalizeString(one_byte_seq1);
+    factory->InternalizeString(one_byte_seq2);
+    CHECK(StringShape(*one_byte_seq2).IsThin());
+    Handle<String> shared = ShareAndVerify(i_isolate, one_byte_seq2);
+    CheckSharedStringIsEqualCopy(shared, one_byte_seq2);
+  }
+
+  {
+    // Cons strings
+    Handle<String> one_byte_seq1 =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    Handle<String> one_byte_seq2 =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    CHECK(!one_byte_seq1->IsShared());
+    CHECK(!one_byte_seq2->IsShared());
+    Handle<String> cons =
+        factory->NewConsString(one_byte_seq1, one_byte_seq2).ToHandleChecked();
+    CHECK(!cons->IsShared());
+    CHECK(cons->IsConsString());
+    Handle<String> shared = ShareAndVerify(i_isolate, cons);
+    CheckSharedStringIsEqualCopy(shared, cons);
+  }
+
+  {
+    // Sliced strings
+    Handle<String> one_byte_seq =
+        factory->NewStringFromAsciiChecked(raw_one_byte);
+    CHECK(!one_byte_seq->IsShared());
+    Handle<String> sliced =
+        factory->NewSubString(one_byte_seq, 1, one_byte_seq->length());
+    CHECK(!sliced->IsShared());
+    CHECK(sliced->IsSlicedString());
+    Handle<String> shared = ShareAndVerify(i_isolate, sliced);
+    CheckSharedStringIsEqualCopy(shared, sliced);
   }
 }
 
