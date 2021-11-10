@@ -2861,23 +2861,6 @@ void Assembler::pd(byte opcode, XMMRegister dst, Operand src) {
 }
 
 // AVX instructions
-void Assembler::vfmasd(byte op, XMMRegister dst, XMMRegister src1,
-                       Operand src2) {
-  DCHECK(IsEnabled(FMA3));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(src1, kLIG, k66, k0F38, kW1);
-  EMIT(op);
-  emit_sse_operand(dst, src2);
-}
-
-void Assembler::vfmass(byte op, XMMRegister dst, XMMRegister src1,
-                       Operand src2) {
-  DCHECK(IsEnabled(FMA3));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(src1, kLIG, k66, k0F38, kW0);
-  EMIT(op);
-  emit_sse_operand(dst, src2);
-}
 
 void Assembler::vss(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
   vinstr(op, dst, src1, src2, kF3, k0F, kWIG);
@@ -3235,6 +3218,26 @@ void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
   DCHECK(IsEnabled(feature));
   EnsureSpace ensure_space(this);
   emit_vex_prefix(src1, kL128, pp, m, w);
+  EMIT(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::fma_instr(byte op, XMMRegister dst, XMMRegister src1,
+                          XMMRegister src2, VectorLength l, SIMDPrefix pp,
+                          LeadingOpcode m, VexW w) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(src1, l, pp, m, w);
+  EMIT(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::fma_instr(byte op, XMMRegister dst, XMMRegister src1,
+                          Operand src2, VectorLength l, SIMDPrefix pp,
+                          LeadingOpcode m, VexW w) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(src1, l, pp, m, w);
   EMIT(op);
   emit_sse_operand(dst, src2);
 }

@@ -432,6 +432,14 @@ void VisitRROSimdShift(InstructionSelector* selector, Node* node,
   }
 }
 
+void VisitRRRR(InstructionSelector* selector, Node* node,
+               InstructionCode opcode) {
+  IA32OperandGenerator g(selector);
+  selector->Emit(
+      opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+}
+
 void VisitI8x16Shift(InstructionSelector* selector, Node* node,
                      ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
@@ -3269,6 +3277,22 @@ void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
 }
 void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
   VisitRelaxedLaneSelect(this, node);
+}
+
+void InstructionSelector::VisitF64x2Qfma(Node* node) {
+  VisitRRRR(this, node, kIA32F64x2Qfma);
+}
+
+void InstructionSelector::VisitF64x2Qfms(Node* node) {
+  VisitRRRR(this, node, kIA32F64x2Qfms);
+}
+
+void InstructionSelector::VisitF32x4Qfma(Node* node) {
+  VisitRRRR(this, node, kIA32F32x4Qfma);
+}
+
+void InstructionSelector::VisitF32x4Qfms(Node* node) {
+  VisitRRRR(this, node, kIA32F32x4Qfms);
 }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,

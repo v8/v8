@@ -34,7 +34,7 @@ namespace test_run_wasm_relaxed_simd {
   void RunWasm_##name##_Impl(TestExecutionTier execution_tier)
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC64
+    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32
 // Only used for qfma and qfms tests below.
 
 // FMOperation holds the params (a, b, c) for a Multiply-Add or
@@ -112,20 +112,20 @@ static constexpr base::Vector<const FMOperation<T>> qfms_vector() {
 // Fused results only when fma3 feature is enabled, and running on TurboFan or
 // Liftoff (which can fall back to TurboFan if FMA is not implemented).
 bool ExpectFused(TestExecutionTier tier) {
-#ifdef V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   return CpuFeatures::IsSupported(FMA3) &&
          (tier == TestExecutionTier::kTurbofan ||
           tier == TestExecutionTier::kLiftoff);
 #else
   return (tier == TestExecutionTier::kTurbofan ||
           tier == TestExecutionTier::kLiftoff);
-#endif
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
-        // V8_TARGET_ARCH_PPC64
+        // V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC64
+    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32
 WASM_RELAXED_SIMD_TEST(F32x4Qfma) {
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold mask output.
@@ -222,7 +222,7 @@ WASM_RELAXED_SIMD_TEST(F64x2Qfms) {
   }
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
-        // V8_TARGET_ARCH_PPC64
+        // V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_IA32
 
 WASM_RELAXED_SIMD_TEST(F32x4RecipApprox) {
   RunF32x4UnOpTest(execution_tier, kExprF32x4RecipApprox, base::Recip,

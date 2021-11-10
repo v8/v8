@@ -42,6 +42,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/ia32/constants-ia32.h"
+#include "src/codegen/ia32/fma-instr.h"
 #include "src/codegen/ia32/register-ia32.h"
 #include "src/codegen/ia32/sse-instr.h"
 #include "src/codegen/label.h"
@@ -1071,154 +1072,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   // AVX instructions
-  void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmadd132sd(dst, src1, Operand(src2));
-  }
-  void vfmadd213sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmadd213sd(dst, src1, Operand(src2));
-  }
-  void vfmadd231sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmadd231sd(dst, src1, Operand(src2));
-  }
-  void vfmadd132sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0x99, dst, src1, src2);
-  }
-  void vfmadd213sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0xa9, dst, src1, src2);
-  }
-  void vfmadd231sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0xb9, dst, src1, src2);
-  }
-  void vfmsub132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmsub132sd(dst, src1, Operand(src2));
-  }
-  void vfmsub213sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmsub213sd(dst, src1, Operand(src2));
-  }
-  void vfmsub231sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmsub231sd(dst, src1, Operand(src2));
-  }
-  void vfmsub132sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0x9b, dst, src1, src2);
-  }
-  void vfmsub213sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0xab, dst, src1, src2);
-  }
-  void vfmsub231sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0xbb, dst, src1, src2);
-  }
-  void vfnmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmadd132sd(dst, src1, Operand(src2));
-  }
-  void vfnmadd213sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmadd213sd(dst, src1, Operand(src2));
-  }
-  void vfnmadd231sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmadd231sd(dst, src1, Operand(src2));
-  }
-  void vfnmadd132sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0x9d, dst, src1, src2);
-  }
-  void vfnmadd213sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0xad, dst, src1, src2);
-  }
-  void vfnmadd231sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0xbd, dst, src1, src2);
-  }
-  void vfnmsub132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmsub132sd(dst, src1, Operand(src2));
-  }
-  void vfnmsub213sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmsub213sd(dst, src1, Operand(src2));
-  }
-  void vfnmsub231sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmsub231sd(dst, src1, Operand(src2));
-  }
-  void vfnmsub132sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0x9f, dst, src1, src2);
-  }
-  void vfnmsub213sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0xaf, dst, src1, src2);
-  }
-  void vfnmsub231sd(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmasd(0xbf, dst, src1, src2);
-  }
-  void vfmasd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
-
-  void vfmadd132ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmadd132ss(dst, src1, Operand(src2));
-  }
-  void vfmadd213ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmadd213ss(dst, src1, Operand(src2));
-  }
-  void vfmadd231ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmadd231ss(dst, src1, Operand(src2));
-  }
-  void vfmadd132ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0x99, dst, src1, src2);
-  }
-  void vfmadd213ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0xa9, dst, src1, src2);
-  }
-  void vfmadd231ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0xb9, dst, src1, src2);
-  }
-  void vfmsub132ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmsub132ss(dst, src1, Operand(src2));
-  }
-  void vfmsub213ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmsub213ss(dst, src1, Operand(src2));
-  }
-  void vfmsub231ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfmsub231ss(dst, src1, Operand(src2));
-  }
-  void vfmsub132ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0x9b, dst, src1, src2);
-  }
-  void vfmsub213ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0xab, dst, src1, src2);
-  }
-  void vfmsub231ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0xbb, dst, src1, src2);
-  }
-  void vfnmadd132ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmadd132ss(dst, src1, Operand(src2));
-  }
-  void vfnmadd213ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmadd213ss(dst, src1, Operand(src2));
-  }
-  void vfnmadd231ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmadd231ss(dst, src1, Operand(src2));
-  }
-  void vfnmadd132ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0x9d, dst, src1, src2);
-  }
-  void vfnmadd213ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0xad, dst, src1, src2);
-  }
-  void vfnmadd231ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0xbd, dst, src1, src2);
-  }
-  void vfnmsub132ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmsub132ss(dst, src1, Operand(src2));
-  }
-  void vfnmsub213ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmsub213ss(dst, src1, Operand(src2));
-  }
-  void vfnmsub231ss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
-    vfnmsub231ss(dst, src1, Operand(src2));
-  }
-  void vfnmsub132ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0x9f, dst, src1, src2);
-  }
-  void vfnmsub213ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0xaf, dst, src1, src2);
-  }
-  void vfnmsub231ss(XMMRegister dst, XMMRegister src1, Operand src2) {
-    vfmass(0xbf, dst, src1, src2);
-  }
-  void vfmass(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
-
   void vaddss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vaddss(dst, src1, Operand(src2));
   }
@@ -1755,6 +1608,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   AVX2_BROADCAST_LIST(AVX2_INSTRUCTION)
 #undef AVX2_INSTRUCTION
 
+#define FMA(instr, length, prefix, escape1, escape2, extension, opcode) \
+  void instr(XMMRegister dst, XMMRegister src1, XMMRegister src2) {     \
+    fma_instr(0x##opcode, dst, src1, src2, k##length, k##prefix,        \
+              k##escape1##escape2, k##extension);                       \
+  }                                                                     \
+  void instr(XMMRegister dst, XMMRegister src1, Operand src2) {         \
+    fma_instr(0x##opcode, dst, src1, src2, k##length, k##prefix,        \
+              k##escape1##escape2, k##extension);                       \
+  }
+  FMA_INSTRUCTION_LIST(FMA)
+#undef FMA
+
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
   // non-temporal
@@ -1886,6 +1751,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Most BMI instructions are similar.
   void bmi1(byte op, Register reg, Register vreg, Operand rm);
   void bmi2(SIMDPrefix pp, byte op, Register reg, Register vreg, Operand rm);
+  void fma_instr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w);
+  void fma_instr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
+                 VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w);
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);

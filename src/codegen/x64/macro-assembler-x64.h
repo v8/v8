@@ -177,15 +177,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
               uint32_t* load_pc_offset = nullptr);
 
-  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-
   void Lzcntq(Register dst, Register src);
   void Lzcntq(Register dst, Operand src);
   void Lzcntl(Register dst, Register src);
