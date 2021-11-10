@@ -2818,19 +2818,55 @@ void TurboAssembler::DivU32(Register dst, Register src, Register value, OEBit s,
 }
 
 void TurboAssembler::ModS64(Register dst, Register src, Register value) {
-  modsd(dst, src, value);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    modsd(dst, src, value);
+  } else {
+    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
+    Push(scratch);
+    divd(scratch, src, value);
+    mulld(scratch, scratch, value);
+    sub(dst, src, scratch);
+    Pop(scratch);
+  }
 }
 
 void TurboAssembler::ModU64(Register dst, Register src, Register value) {
-  modud(dst, src, value);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    modud(dst, src, value);
+  } else {
+    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
+    Push(scratch);
+    divdu(scratch, src, value);
+    mulld(scratch, scratch, value);
+    sub(dst, src, scratch);
+    Pop(scratch);
+  }
 }
 
 void TurboAssembler::ModS32(Register dst, Register src, Register value) {
-  modsw(dst, src, value);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    modsw(dst, src, value);
+  } else {
+    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
+    Push(scratch);
+    divw(scratch, src, value);
+    mullw(scratch, scratch, value);
+    sub(dst, src, scratch);
+    Pop(scratch);
+  }
   extsw(dst, dst);
 }
 void TurboAssembler::ModU32(Register dst, Register src, Register value) {
-  moduw(dst, src, value);
+  if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
+    moduw(dst, src, value);
+  } else {
+    Register scratch = GetRegisterThatIsNotOneOf(dst, src, value);
+    Push(scratch);
+    divwu(scratch, src, value);
+    mullw(scratch, scratch, value);
+    sub(dst, src, scratch);
+    Pop(scratch);
+  }
   ZeroExtWord32(dst, dst);
 }
 
