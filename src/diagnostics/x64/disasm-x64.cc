@@ -1956,7 +1956,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     } else if (opcode == 0xD7) {
       current += PrintOperands("pmovmskb", OPER_XMMREG_OP_ORDER, current);
     } else {
-      const char* mnemonic;
 #define SSE2_CASE(instruction, notUsed1, notUsed2, opcode) \
   case 0x##opcode:                                         \
     mnemonic = "" #instruction;                            \
