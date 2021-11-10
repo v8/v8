@@ -1741,21 +1741,15 @@ DEFINE_BOOL(experimental_flush_embedded_blob_icache, true,
             "Used in an experiment to evaluate icache flushing on certain CPUs")
 
 // Flags for short builtin calls feature
-#undef FLAG
 #if V8_SHORT_BUILTIN_CALLS
-#define FLAG FLAG_FULL
 #define V8_SHORT_BUILTIN_CALLS_BOOL true
 #else
-#define FLAG FLAG_READONLY
 #define V8_SHORT_BUILTIN_CALLS_BOOL false
 #endif
 
 DEFINE_BOOL(short_builtin_calls, V8_SHORT_BUILTIN_CALLS_BOOL,
             "Put embedded builtins code into the code range for shorter "
             "builtin calls/jumps if system has >=4GB memory")
-
-#undef FLAG
-#define FLAG FLAG_FULL
 
 // runtime.cc
 DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
