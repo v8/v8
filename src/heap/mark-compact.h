@@ -451,6 +451,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     kTrackNewlyDiscoveredObjects
   };
 
+  enum class StartCompactionMode {
+    kIncremental,
+    kAtomic,
+  };
+
   MarkingState* marking_state() { return &marking_state_; }
 
   NonAtomicMarkingState* non_atomic_marking_state() {
@@ -474,7 +479,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // it to complete as requested by |stop_request|).
   void FinishConcurrentMarking();
 
-  bool StartCompaction();
+  // Returns whether compaction is running.
+  bool StartCompaction(StartCompactionMode mode);
 
   void AbortCompaction();
 
@@ -728,7 +734,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void RightTrimDescriptorArray(DescriptorArray array, int descriptors_to_trim);
 
   base::Mutex mutex_;
-  base::Semaphore page_parallel_job_semaphore_;
+  base::Semaphore page_parallel_job_semaphore_{0};
 
 #ifdef DEBUG
   enum CollectorState{IDLE,
@@ -745,17 +751,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   const bool is_shared_heap_;
 
-  bool was_marked_incrementally_;
-
-  bool evacuation_;
-
+  bool was_marked_incrementally_ = false;
+  bool evacuation_ = false;
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.
-  bool compacting_;
-
-  bool black_allocation_;
-
-  bool have_code_to_deoptimize_;
+  bool compacting_ = false;
+  bool black_allocation_ = false;
+  bool have_code_to_deoptimize_ = false;
 
   MarkingWorklists marking_worklists_;
 

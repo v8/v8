@@ -1335,15 +1335,23 @@ DEFINE_INT(heap_growing_percent, 0,
            "specifies heap growing factor as (1 + heap_growing_percent/100)")
 DEFINE_INT(v8_os_page_size, 0, "override OS page size (in KBytes)")
 DEFINE_BOOL(allocation_buffer_parking, true, "allocation buffer parking")
-DEFINE_BOOL(always_compact, false, "Perform compaction on every full GC")
-DEFINE_BOOL(never_compact, false,
-            "Never perform compaction on full GC - testing only")
-DEFINE_BOOL(never_compact_with_stack, false,
-            "Never perform compaction when finalizing a full GC with stack")
+DEFINE_BOOL(compact, true,
+            "Perform compaction on full GCs based on V8's default heuristics")
+DEFINE_BOOL(compact_code_space, true,
+            "Perform code space compaction on full collections.")
+DEFINE_BOOL(compact_on_every_full_gc, false,
+            "Perform compaction on every full GC")
+DEFINE_BOOL(compact_with_stack, true,
+            "Perform compaction when finalizing a full GC with stack")
 DEFINE_BOOL(
-    never_compact_code_space_with_stack, false,
-    "Never perform code space compaction when finalizing a full GC with stack")
-DEFINE_BOOL(compact_code_space, true, "Compact code space on full collections")
+    compact_code_space_with_stack, true,
+    "Perform code space compaction when finalizing a full GC with stack")
+DEFINE_BOOL(stress_compaction, false,
+            "Stress GC compaction to flush out bugs (implies "
+            "--force_marking_deque_overflows)")
+DEFINE_BOOL(stress_compaction_random, false,
+            "Stress GC compaction by selecting random percent of pages as "
+            "evacuation candidates. Overrides stress_compaction.")
 DEFINE_BOOL(flush_baseline_code, false,
             "flush of baseline code when it has not been executed recently")
 DEFINE_BOOL(flush_bytecode, true,
@@ -1358,12 +1366,6 @@ DEFINE_BOOL(stress_per_context_marking_worklist, false,
 DEFINE_BOOL(force_marking_deque_overflows, false,
             "force overflows of marking deque by reducing it's size "
             "to 64 words")
-DEFINE_BOOL(stress_compaction, false,
-            "stress the GC compactor to flush out bugs (implies "
-            "--force_marking_deque_overflows)")
-DEFINE_BOOL(stress_compaction_random, false,
-            "Stress GC compaction by selecting random percent of pages as "
-            "evacuation candidates. It overrides stress_compaction.")
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
 

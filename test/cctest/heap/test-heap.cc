@@ -625,7 +625,7 @@ TEST(DeleteWeakGlobalHandle) {
 }
 
 TEST(BytecodeArray) {
-  if (FLAG_never_compact) return;
+  if (!FLAG_compact) return;
   static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int32_t kFrameSize = 32;
@@ -1231,7 +1231,7 @@ UNINITIALIZED_TEST(Regress10843) {
   FLAG_max_semi_space_size = 2;
   FLAG_min_semi_space_size = 2;
   FLAG_max_old_space_size = 8;
-  FLAG_always_compact = true;
+  FLAG_compact_on_every_full_gc = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -3113,7 +3113,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
 
 
 TEST(ReleaseOverReservedPages) {
-  if (FLAG_never_compact) return;
+  if (!FLAG_compact) return;
   FLAG_trace_gc = true;
   // The optimizer can allocate stuff, messing up the test.
 #ifndef V8_LITE_MODE
@@ -3744,7 +3744,7 @@ TEST(Regress169928) {
 
 TEST(LargeObjectSlotRecording) {
   if (!FLAG_incremental_marking) return;
-  if (FLAG_never_compact) return;
+  if (!FLAG_compact) return;
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
@@ -6947,7 +6947,7 @@ TEST(AllocateExternalBackingStore) {
 
 TEST(CodeObjectRegistry) {
   // We turn off compaction to ensure that code is not moving.
-  FLAG_never_compact = true;
+  FLAG_compact = false;
 
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -7260,7 +7260,7 @@ TEST(IsPendingAllocationLOSpace) {
 }
 
 TEST(Regress10900) {
-  FLAG_always_compact = true;
+  FLAG_compact_on_every_full_gc = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -7308,7 +7308,7 @@ void GenerateGarbage() {
 }  // anonymous namespace
 
 TEST(Regress11181) {
-  FLAG_always_compact = true;
+  FLAG_compact_on_every_full_gc = true;
   CcTest::InitializeVM();
   TracingFlags::runtime_stats.store(
       v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE,

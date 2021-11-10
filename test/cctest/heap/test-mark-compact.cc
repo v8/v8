@@ -183,9 +183,9 @@ HEAP_TEST(MarkCompactCollector) {
 }
 
 HEAP_TEST(DoNotEvacuatePinnedPages) {
-  if (FLAG_never_compact || !FLAG_single_generation) return;
+  if (!FLAG_compact || !FLAG_single_generation) return;
 
-  FLAG_always_compact = true;
+  FLAG_compact_on_every_full_gc = true;
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -217,8 +217,8 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   CcTest::CollectAllGarbage();
   heap->mark_compact_collector()->EnsureSweepingCompleted();
 
-  // always_compact ensures that this page is an evacuation candidate, so with
-  // the pin flag cleared compaction should now move it.
+  // `compact_on_every_full_gc` ensures that this page is an evacuation
+  // candidate, so with the pin flag cleared compaction should now move it.
   for (Handle<FixedArray> object : handles) {
     CHECK_NE(page, Page::FromHeapObject(*object));
   }

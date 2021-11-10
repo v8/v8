@@ -231,7 +231,8 @@ void IncrementalMarking::StartMarking() {
 
   heap_->InvokeIncrementalMarkingPrologueCallbacks();
 
-  is_compacting_ = !FLAG_never_compact && collector_->StartCompaction();
+  is_compacting_ = collector_->StartCompaction(
+      MarkCompactCollector::StartCompactionMode::kIncremental);
   collector_->StartMarking();
 
   SetState(MARKING);

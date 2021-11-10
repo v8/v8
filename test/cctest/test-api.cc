@@ -13888,7 +13888,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
 #if ENABLE_SPARKPLUG
   i::FLAG_baseline_batch_compilation = false;
 #endif
-  if (i::FLAG_never_compact) return;
+  if (!i::FLAG_compact) return;
   const char* script =
       "function bar() {"
       "  var sum = 0;"
@@ -21748,7 +21748,7 @@ class RegExpInterruptTest {
 
 TEST(RegExpInterruptAndCollectAllGarbage) {
   // Move all movable objects on GC.
-  i::FLAG_always_compact = true;
+  i::FLAG_compact_on_every_full_gc = true;
   // We want to be stuck regexp execution, so no fallback to linear-time
   // engine.
   // TODO(mbid,v8:10765): Find a way to test interrupt support of the

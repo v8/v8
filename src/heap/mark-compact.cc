@@ -6,6 +6,7 @@
 
 #include <unordered_map>
 
+#include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compilation-cache.h"
@@ -468,16 +469,10 @@ int MarkCompactCollectorBase::NumberOfParallelCompactionTasks() {
 
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
     : MarkCompactCollectorBase(heap),
-      page_parallel_job_semaphore_(0),
 #ifdef DEBUG
       state_(IDLE),
 #endif
       is_shared_heap_(heap->IsShared()),
-      was_marked_incrementally_(false),
-      evacuation_(false),
-      compacting_(false),
-      black_allocation_(false),
-      have_code_to_deoptimize_(false),
       sweeper_(new Sweeper(heap, non_atomic_marking_state())) {
 }
 
@@ -524,30 +519,32 @@ static void TraceFragmentation(PagedSpace* space) {
          static_cast<int>(free), static_cast<double>(free) * 100 / reserved);
 }
 
-bool MarkCompactCollector::StartCompaction() {
-  if (!compacting_) {
-    DCHECK(evacuation_candidates_.empty());
+bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
+  DCHECK(!compacting_);
+  DCHECK(evacuation_candidates_.empty());
 
-    if (FLAG_gc_experiment_less_compaction && !heap_->ShouldReduceMemory())
-      return false;
-
-    CollectEvacuationCandidates(heap()->old_space());
-
-    if (FLAG_compact_code_space &&
-        (heap()->IsGCWithoutStack() ||
-         !FLAG_never_compact_code_space_with_stack)) {
-      CollectEvacuationCandidates(heap()->code_space());
-    } else if (FLAG_trace_fragmentation) {
-      TraceFragmentation(heap()->code_space());
-    }
-
-    if (FLAG_trace_fragmentation) {
-      TraceFragmentation(heap()->map_space());
-    }
-
-    compacting_ = !evacuation_candidates_.empty();
+  // Bailouts for completely disabled compaction.
+  if (!FLAG_compact ||
+      (mode == StartCompactionMode::kAtomic && !heap()->IsGCWithoutStack() &&
+       !FLAG_compact_with_stack) ||
+      (FLAG_gc_experiment_less_compaction && !heap_->ShouldReduceMemory())) {
+    return false;
   }
 
+  CollectEvacuationCandidates(heap()->old_space());
+
+  if (FLAG_compact_code_space &&
+      (heap()->IsGCWithoutStack() || FLAG_compact_code_space_with_stack)) {
+    CollectEvacuationCandidates(heap()->code_space());
+  } else if (FLAG_trace_fragmentation) {
+    TraceFragmentation(heap()->code_space());
+  }
+
+  if (FLAG_trace_fragmentation) {
+    TraceFragmentation(heap()->map_space());
+  }
+
+  compacting_ = !evacuation_candidates_.empty();
   return compacting_;
 }
 
@@ -735,7 +732,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   const bool in_standard_path =
       !(FLAG_manual_evacuation_candidates_selection ||
         FLAG_stress_compaction_random || FLAG_stress_compaction ||
-        FLAG_always_compact);
+        FLAG_compact_on_every_full_gc);
   // Those variables will only be initialized if |in_standard_path|, and are not
   // used otherwise.
   size_t max_evacuated_bytes;
@@ -847,7 +844,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     for (size_t i = 0; i < pages.size(); i++) {
       size_t live_bytes = pages[i].first;
       DCHECK_GE(area_size, live_bytes);
-      if (FLAG_always_compact ||
+      if (FLAG_compact_on_every_full_gc ||
           ((total_live_bytes + live_bytes) <= max_evacuated_bytes)) {
         candidate_count++;
         total_live_bytes += live_bytes;
@@ -870,7 +867,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     DCHECK_LE(estimated_new_pages, candidate_count);
     int estimated_released_pages = candidate_count - estimated_new_pages;
     // Avoid (compact -> expand) cycles.
-    if ((estimated_released_pages == 0) && !FLAG_always_compact) {
+    if ((estimated_released_pages == 0) && !FLAG_compact_on_every_full_gc) {
       candidate_count = 0;
     }
     for (int i = 0; i < candidate_count; i++) {
@@ -910,7 +907,6 @@ void MarkCompactCollector::Prepare() {
   state_ = PREPARE_GC;
 #endif
 
-  DCHECK(!FLAG_never_compact || !FLAG_always_compact);
   DCHECK(!sweeping_in_progress());
 
   if (!was_marked_incrementally_) {
@@ -919,11 +915,7 @@ void MarkCompactCollector::Prepare() {
       heap_->local_embedder_heap_tracer()->TracePrologue(
           heap_->flags_for_embedder_tracer());
     }
-    const bool should_compact =
-        heap()->IsGCWithoutStack() || !FLAG_never_compact_with_stack;
-    if (!FLAG_never_compact && should_compact) {
-      StartCompaction();
-    }
+    StartCompaction(StartCompactionMode::kAtomic);
     StartMarking();
   }
 
@@ -3578,11 +3570,9 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   if (!heap()->IsGCWithoutStack()) {
-    if (FLAG_never_compact_with_stack ||
-        FLAG_never_compact_code_space_with_stack) {
+    if (!FLAG_compact_with_stack || !FLAG_compact_code_space_with_stack) {
       for (Page* page : old_space_evacuation_pages_) {
-        if (FLAG_never_compact_with_stack ||
-            page->owner_identity() == CODE_SPACE) {
+        if (!FLAG_compact_with_stack || page->owner_identity() == CODE_SPACE) {
           ReportAbortedEvacuationCandidateDueToFlags(page->area_start(), page);
           // Set this flag early on in this case to allow filtering such pages
           // below.
