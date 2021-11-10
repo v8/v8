@@ -2250,7 +2250,8 @@ class Heap {
   uintptr_t code_space_memory_modification_scope_depth_ = 0;
 
   // Holds the number of open CodePageCollectionMemoryModificationScopes.
-  uintptr_t code_page_collection_memory_modification_scope_depth_ = 0;
+  std::atomic<uintptr_t> code_page_collection_memory_modification_scope_depth_{
+      0};
 
   std::atomic<HeapState> gc_state_{NOT_IN_GC};
 

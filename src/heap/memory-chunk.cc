@@ -93,10 +93,9 @@ void MemoryChunk::SetCodeModificationPermissions() {
     // We may use RWX pages to write code. Some CPUs have optimisations to push
     // updates to code to the icache through a fast path, and they may filter
     // updates based on the written memory being executable.
-    CHECK(reservation_.SetPermissions(unprotect_start, unprotect_size,
-                                      FLAG_write_code_using_rwx
-                                          ? PageAllocator::kReadWriteExecute
-                                          : PageAllocator::kReadWrite));
+    CHECK(reservation_.SetPermissions(
+        unprotect_start, unprotect_size,
+        MemoryChunk::GetCodeModificationPermission()));
   }
 }
 

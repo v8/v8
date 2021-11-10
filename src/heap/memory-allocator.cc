@@ -685,7 +685,7 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
                            PageAllocator::kNoAccess)) {
       // Commit the executable code body.
       if (vm->SetPermissions(code_area, commit_size - pre_guard_offset,
-                             PageAllocator::kReadWrite)) {
+                             MemoryChunk::GetCodeModificationPermission())) {
         // Create the post-code guard page.
         if (vm->SetPermissions(post_guard_page, page_size,
                                PageAllocator::kNoAccess)) {

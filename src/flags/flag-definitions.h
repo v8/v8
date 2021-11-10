@@ -715,11 +715,6 @@ DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
 DEFINE_BOOL(concurrent_sparkplug, false,
             "compile Sparkplug code in a background thread")
 #endif
-#if !MUST_WRITE_PROTECT_CODE_MEMORY
-// TODO(victorgomes): Currently concurrent compilation only works if we assume
-// no write protect in code space.
-DEFINE_NEG_IMPLICATION(concurrent_sparkplug, write_protect_code_memory)
-#endif
 #else
 DEFINE_BOOL(baseline_batch_compilation, false, "batch compile Sparkplug code")
 DEFINE_BOOL_READONLY(concurrent_sparkplug, false,

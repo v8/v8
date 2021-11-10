@@ -47,6 +47,8 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
     }
     HeapObject object;
     if (alloc.To(&object) && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+      heap()->UnprotectAndRegisterMemoryChunk(
+          object, UnprotectMemoryOrigin::kMaybeOffMainThread);
       heap()->ZapCodeObject(object.address(), size_in_bytes);
     }
     return alloc;
