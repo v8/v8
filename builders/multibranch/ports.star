@@ -32,14 +32,14 @@ in_category(
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "binary_size_tracking": {"category": "android_arm32", "binary": "d8"}},
         use_goma = GOMA.DEFAULT,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - arm - sim",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - arm - sim - debug",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -116,21 +116,21 @@ in_category(
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - debug",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - gc stress",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -189,7 +189,7 @@ in_category(
 
 in_category(
     "IBM",
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - ppc64 - sim",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -198,7 +198,7 @@ in_category(
         use_goma = GOMA.DEFAULT,
         close_tree = False,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - s390x - sim",
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
