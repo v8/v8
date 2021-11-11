@@ -1550,7 +1550,6 @@ TEST(InterpreterJumps) {
 
   FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
   FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
-  FeedbackSlot slot2 = feedback_spec.AddBinaryOpICSlot();
 
   Handle<i::FeedbackMetadata> metadata =
       NewFeedbackMetadata(isolate, &feedback_spec);
@@ -1562,13 +1561,11 @@ TEST(InterpreterJumps) {
   builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
       .Jump(&label[0]);
-  SetRegister(&builder, reg, 1024, scratch).Bind(&loop_header);
+  SetRegister(&builder, reg, 1024, scratch).Bind(&label[0]).Bind(&loop_header);
   IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[1]);
-  SetRegister(&builder, reg, 2048, scratch).Bind(&label[0]);
-  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot1))
-      .JumpLoop(&loop_header, 0, 0);
+  SetRegister(&builder, reg, 2048, scratch).JumpLoop(&loop_header, 0, 0);
   SetRegister(&builder, reg, 4096, scratch).Bind(&label[1]);
-  IncrementRegister(&builder, reg, 4, scratch, GetIndex(slot2))
+  IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot1))
       .LoadAccumulatorWithRegister(reg)
       .Return();
 
@@ -1576,7 +1573,7 @@ TEST(InterpreterJumps) {
   InterpreterTester tester(isolate, bytecode_array, metadata);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
-  CHECK_EQ(Smi::ToInt(*return_value), 7);
+  CHECK_EQ(Smi::ToInt(*return_value), 3);
 }
 
 TEST(InterpreterConditionalJumps) {
