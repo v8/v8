@@ -900,7 +900,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
       vpshufb(dst, tmp1, dst);
       vpshufb(tmp2, tmp1, tmp2);
       vpaddb(dst, dst, tmp2);
-    } else if (CpuFeatures::IsSupported(ATOM)) {
+    } else if (CpuFeatures::IsSupported(INTEL_ATOM)) {
       // Pre-Goldmont low-power Intel microarchitectures have very slow
       // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
       // algorithm on these processors. ATOM CPU feature captures exactly

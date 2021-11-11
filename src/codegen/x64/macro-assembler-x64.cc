@@ -1933,7 +1933,7 @@ void TurboAssembler::Call(ExternalReference ext) {
 }
 
 void TurboAssembler::Call(Operand op) {
-  if (!CpuFeatures::IsSupported(ATOM)) {
+  if (!CpuFeatures::IsSupported(INTEL_ATOM)) {
     call(op);
   } else {
     movq(kScratchRegister, op);

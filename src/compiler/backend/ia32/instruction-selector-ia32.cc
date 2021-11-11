@@ -1461,7 +1461,7 @@ void InstructionSelector::EmitPrepareArguments(
       stack_decrement = 0;
       if (g.CanBeImmediate(input.node)) {
         Emit(kIA32Push, g.NoOutput(), decrement, g.UseImmediate(input.node));
-      } else if (IsSupported(ATOM) ||
+      } else if (IsSupported(INTEL_ATOM) ||
                  sequence()->IsFP(GetVirtualRegister(input.node))) {
         // TODO(bbudge): IA32Push cannot handle stack->stack double moves
         // because there is no way to encode fixed double slots.

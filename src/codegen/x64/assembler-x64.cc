@@ -103,9 +103,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_lzcnt() && FLAG_enable_lzcnt) SetSupported(LZCNT);
   if (cpu.has_popcnt() && FLAG_enable_popcnt) SetSupported(POPCNT);
   if (strcmp(FLAG_mcpu, "auto") == 0) {
-    if (cpu.is_atom()) SetSupported(ATOM);
+    if (cpu.is_atom()) SetSupported(INTEL_ATOM);
   } else if (strcmp(FLAG_mcpu, "atom") == 0) {
-    SetSupported(ATOM);
+    SetSupported(INTEL_ATOM);
   }
 
   // Ensure that supported cpu features make sense. E.g. it is wrong to support
@@ -141,7 +141,7 @@ void CpuFeatures::PrintFeatures() {
       CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(FMA3),
       CpuFeatures::IsSupported(BMI1), CpuFeatures::IsSupported(BMI2),
       CpuFeatures::IsSupported(LZCNT), CpuFeatures::IsSupported(POPCNT),
-      CpuFeatures::IsSupported(ATOM));
+      CpuFeatures::IsSupported(INTEL_ATOM));
 }
 
 // -----------------------------------------------------------------------------
