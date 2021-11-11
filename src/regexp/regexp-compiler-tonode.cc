@@ -811,7 +811,7 @@ namespace {
 //         \B to (?<=\w)(?=\w)|(?<=\W)(?=\W)
 RegExpNode* BoundaryAssertionAsLookaround(RegExpCompiler* compiler,
                                           RegExpNode* on_success,
-                                          RegExpAssertion::AssertionType type,
+                                          RegExpAssertion::Type type,
                                           RegExpFlags flags) {
   CHECK(NeedsUnicodeCaseEquivalents(flags));
   Zone* zone = compiler->zone();
@@ -827,7 +827,7 @@ RegExpNode* BoundaryAssertionAsLookaround(RegExpCompiler* compiler,
   for (int i = 0; i < 2; i++) {
     bool lookbehind_for_word = i == 0;
     bool lookahead_for_word =
-        (type == RegExpAssertion::BOUNDARY) ^ lookbehind_for_word;
+        (type == RegExpAssertion::Type::BOUNDARY) ^ lookbehind_for_word;
     // Look to the left.
     RegExpLookaround::Builder lookbehind(lookbehind_for_word, on_success,
                                          stack_register, position_register);
@@ -851,23 +851,24 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
   Zone* zone = compiler->zone();
 
   switch (assertion_type()) {
-    case START_OF_LINE:
+    case Type::START_OF_LINE:
       return AssertionNode::AfterNewline(on_success);
-    case START_OF_INPUT:
+    case Type::START_OF_INPUT:
       return AssertionNode::AtStart(on_success);
-    case BOUNDARY:
-      return NeedsUnicodeCaseEquivalents(compiler->flags())
-                 ? BoundaryAssertionAsLookaround(compiler, on_success, BOUNDARY,
-                                                 compiler->flags())
-                 : AssertionNode::AtBoundary(on_success);
-    case NON_BOUNDARY:
+    case Type::BOUNDARY:
       return NeedsUnicodeCaseEquivalents(compiler->flags())
                  ? BoundaryAssertionAsLookaround(
-                       compiler, on_success, NON_BOUNDARY, compiler->flags())
+                       compiler, on_success, Type::BOUNDARY, compiler->flags())
+                 : AssertionNode::AtBoundary(on_success);
+    case Type::NON_BOUNDARY:
+      return NeedsUnicodeCaseEquivalents(compiler->flags())
+                 ? BoundaryAssertionAsLookaround(compiler, on_success,
+                                                 Type::NON_BOUNDARY,
+                                                 compiler->flags())
                  : AssertionNode::AtNonBoundary(on_success);
-    case END_OF_INPUT:
+    case Type::END_OF_INPUT:
       return AssertionNode::AtEnd(on_success);
-    case END_OF_LINE: {
+    case Type::END_OF_LINE: {
       // Compile $ in multiline regexps as an alternation with a positive
       // lookahead in one side and an end-of-input on the other side.
       // We need two registers for the lookahead.
@@ -1038,11 +1039,12 @@ class AssertionSequenceRewriter final {
 
     // Bitfield of all seen assertions.
     uint32_t seen_assertions = 0;
-    STATIC_ASSERT(RegExpAssertion::LAST_TYPE < kUInt32Size * kBitsPerByte);
+    STATIC_ASSERT(static_cast<int>(RegExpAssertion::Type::LAST_ASSERTION_TYPE) <
+                  kUInt32Size * kBitsPerByte);
 
     for (int i = from; i < to; i++) {
       RegExpAssertion* t = terms_->at(i)->AsAssertion();
-      const uint32_t bit = 1 << t->assertion_type();
+      const uint32_t bit = 1 << static_cast<int>(t->assertion_type());
 
       if (seen_assertions & bit) {
         // Fold duplicates.
@@ -1054,7 +1056,8 @@ class AssertionSequenceRewriter final {
 
     // Collapse failures.
     const uint32_t always_fails_mask =
-        1 << RegExpAssertion::BOUNDARY | 1 << RegExpAssertion::NON_BOUNDARY;
+        1 << static_cast<int>(RegExpAssertion::Type::BOUNDARY) |
+        1 << static_cast<int>(RegExpAssertion::Type::NON_BOUNDARY);
     if ((seen_assertions & always_fails_mask) == always_fails_mask) {
       ReplaceSequenceWithFailure(from, to);
     }

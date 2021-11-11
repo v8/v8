@@ -611,16 +611,16 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
       case '^': {
         Advance();
         builder->AddAssertion(zone()->template New<RegExpAssertion>(
-            builder->multiline() ? RegExpAssertion::START_OF_LINE
-                                 : RegExpAssertion::START_OF_INPUT));
+            builder->multiline() ? RegExpAssertion::Type::START_OF_LINE
+                                 : RegExpAssertion::Type::START_OF_INPUT));
         set_contains_anchor();
         continue;
       }
       case '$': {
         Advance();
-        RegExpAssertion::AssertionType assertion_type =
-            builder->multiline() ? RegExpAssertion::END_OF_LINE
-                                 : RegExpAssertion::END_OF_INPUT;
+        RegExpAssertion::Type assertion_type =
+            builder->multiline() ? RegExpAssertion::Type::END_OF_LINE
+                                 : RegExpAssertion::Type::END_OF_INPUT;
         builder->AddAssertion(
             zone()->template New<RegExpAssertion>(assertion_type));
         continue;
@@ -728,12 +728,12 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
           case 'b':
             Advance(2);
             builder->AddAssertion(zone()->template New<RegExpAssertion>(
-                RegExpAssertion::BOUNDARY));
+                RegExpAssertion::Type::BOUNDARY));
             continue;
           case 'B':
             Advance(2);
             builder->AddAssertion(zone()->template New<RegExpAssertion>(
-                RegExpAssertion::NON_BOUNDARY));
+                RegExpAssertion::Type::NON_BOUNDARY));
             continue;
           // AtomEscape ::
           //   CharacterClassEscape
