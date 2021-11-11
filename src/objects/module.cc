@@ -378,11 +378,13 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
     if (name->AsArrayIndex(&index)) {
       JSObject::SetNormalizedElement(
           ns, index, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
-          PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
+          PropertyDetails(PropertyKind::kAccessor, attr,
+                          PropertyCellType::kMutable));
     } else {
       JSObject::SetNormalizedProperty(
           ns, name, Accessors::MakeModuleNamespaceEntryInfo(isolate, name),
-          PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
+          PropertyDetails(PropertyKind::kAccessor, attr,
+                          PropertyCellType::kMutable));
     }
   }
   JSObject::PreventExtensions(ns, kThrowOnError).ToChecked();

@@ -652,7 +652,7 @@ Map SearchMigrationTarget(Isolate* isolate, Map old_map) {
   for (InternalIndex i : old_map.IterateOwnDescriptors()) {
     PropertyDetails old_details = old_descriptors.GetDetails(i);
     if (old_details.location() == PropertyLocation::kField &&
-        old_details.kind() == kData) {
+        old_details.kind() == PropertyKind::kData) {
       FieldType old_type = old_descriptors.GetFieldType(i);
       if (Map::FieldTypeIsCleared(old_details.representation(), old_type)) {
         return Map();
@@ -726,14 +726,14 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
       return Map();
     }
     if (new_details.location() == PropertyLocation::kField) {
-      if (new_details.kind() == kData) {
+      if (new_details.kind() == PropertyKind::kData) {
         FieldType new_type = new_descriptors.GetFieldType(i);
         // Cleared field types need special treatment. They represent lost
         // knowledge, so we must first generalize the new_type to "Any".
         if (FieldTypeIsCleared(new_details.representation(), new_type)) {
           return Map();
         }
-        DCHECK_EQ(kData, old_details.kind());
+        DCHECK_EQ(PropertyKind::kData, old_details.kind());
         DCHECK_EQ(PropertyLocation::kField, old_details.location());
         FieldType old_type = old_descriptors.GetFieldType(i);
         if (FieldTypeIsCleared(old_details.representation(), old_type) ||
@@ -741,7 +741,7 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
           return Map();
         }
       } else {
-        DCHECK_EQ(kAccessor, new_details.kind());
+        DCHECK_EQ(PropertyKind::kAccessor, new_details.kind());
 #ifdef DEBUG
         FieldType new_type = new_descriptors.GetFieldType(i);
         DCHECK(new_type.IsAny());
@@ -1730,19 +1730,19 @@ bool CanHoldValue(DescriptorArray descriptors, InternalIndex descriptor,
                   PropertyConstness constness, Object value) {
   PropertyDetails details = descriptors.GetDetails(descriptor);
   if (details.location() == PropertyLocation::kField) {
-    if (details.kind() == kData) {
+    if (details.kind() == PropertyKind::kData) {
       return IsGeneralizableTo(constness, details.constness()) &&
              value.FitsRepresentation(details.representation()) &&
              descriptors.GetFieldType(descriptor).NowContains(value);
     } else {
-      DCHECK_EQ(kAccessor, details.kind());
+      DCHECK_EQ(PropertyKind::kAccessor, details.kind());
       return false;
     }
 
   } else {
     DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
     DCHECK_EQ(PropertyConstness::kConst, details.constness());
-    DCHECK_EQ(kAccessor, details.kind());
+    DCHECK_EQ(PropertyKind::kAccessor, details.kind());
     return false;
   }
   UNREACHABLE();
@@ -1798,8 +1798,9 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
   // Migrate to the newest map before storing the property.
   map = Update(isolate, map);
 
-  Map maybe_transition = TransitionsAccessor(isolate, map)
-                             .SearchTransition(*name, kData, attributes);
+  Map maybe_transition =
+      TransitionsAccessor(isolate, map)
+          .SearchTransition(*name, PropertyKind::kData, attributes);
   if (!maybe_transition.is_null()) {
     Handle<Map> transition(maybe_transition, isolate);
     InternalIndex descriptor = transition->LastAdded();
@@ -1893,15 +1894,17 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                        ? KEEP_INOBJECT_PROPERTIES
                                        : CLEAR_INOBJECT_PROPERTIES;
 
-  Map maybe_transition = TransitionsAccessor(isolate, map)
-                             .SearchTransition(*name, kAccessor, attributes);
+  Map maybe_transition =
+      TransitionsAccessor(isolate, map)
+          .SearchTransition(*name, PropertyKind::kAccessor, attributes);
   if (!maybe_transition.is_null()) {
     Handle<Map> transition(maybe_transition, isolate);
     DescriptorArray descriptors = transition->instance_descriptors(isolate);
     InternalIndex descriptor = transition->LastAdded();
     DCHECK(descriptors.GetKey(descriptor).Equals(*name));
 
-    DCHECK_EQ(kAccessor, descriptors.GetDetails(descriptor).kind());
+    DCHECK_EQ(PropertyKind::kAccessor,
+              descriptors.GetDetails(descriptor).kind());
     DCHECK_EQ(attributes, descriptors.GetDetails(descriptor).attributes());
 
     Handle<Object> maybe_pair(descriptors.GetStrongValue(descriptor), isolate);
@@ -1926,7 +1929,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
       return Map::Normalize(isolate, map, mode, "AccessorsOverwritingNonLast");
     }
     PropertyDetails old_details = old_descriptors.GetDetails(descriptor);
-    if (old_details.kind() != kAccessor) {
+    if (old_details.kind() != PropertyKind::kAccessor) {
       return Map::Normalize(isolate, map, mode,
                             "AccessorsOverwritingNonAccessors");
     }

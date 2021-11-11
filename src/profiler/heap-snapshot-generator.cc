@@ -1833,7 +1833,7 @@ void V8HeapExplorer::SetWeakReference(HeapEntry* parent_entry, int index,
 void V8HeapExplorer::SetDataOrAccessorPropertyReference(
     PropertyKind kind, HeapEntry* parent_entry, Name reference_name,
     Object child_obj, const char* name_format_string, int field_offset) {
-  if (kind == kAccessor) {
+  if (kind == PropertyKind::kAccessor) {
     ExtractAccessorPairProperty(parent_entry, reference_name, child_obj,
                                 field_offset);
   } else {

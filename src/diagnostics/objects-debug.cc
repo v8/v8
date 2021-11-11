@@ -425,7 +425,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
     for (InternalIndex i : map().IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(i);
       if (details.location() == PropertyLocation::kField) {
-        DCHECK_EQ(kData, details.kind());
+        DCHECK_EQ(PropertyKind::kData, details.kind());
         Representation r = details.representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
         if (COMPRESS_POINTERS_BOOL && index.is_inobject()) {
@@ -1972,7 +1972,7 @@ bool DescriptorArray::IsSortedNoDuplicates() {
 
 bool TransitionArray::IsSortedNoDuplicates() {
   Name prev_key;
-  PropertyKind prev_kind = kData;
+  PropertyKind prev_kind = PropertyKind::kData;
   PropertyAttributes prev_attributes = NONE;
   uint32_t prev_hash = 0;
 
@@ -1980,7 +1980,7 @@ bool TransitionArray::IsSortedNoDuplicates() {
     Name key = GetSortedKey(i);
     CHECK(key.HasHashCode());
     uint32_t hash = key.hash();
-    PropertyKind kind = kData;
+    PropertyKind kind = PropertyKind::kData;
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(key.GetReadOnlyRoots(),
                                                   key)) {

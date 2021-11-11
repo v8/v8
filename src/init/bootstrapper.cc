@@ -5872,7 +5872,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     for (InternalIndex i : from->map().IterateOwnDescriptors()) {
       PropertyDetails details = descs->GetDetails(i);
       if (details.location() == PropertyLocation::kField) {
-        if (details.kind() == kData) {
+        if (details.kind() == PropertyKind::kData) {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i), isolate());
           // If the property is already there we skip it.
@@ -5883,13 +5883,13 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           JSObject::AddProperty(isolate(), to, key, value,
                                 details.attributes());
         } else {
-          DCHECK_EQ(kAccessor, details.kind());
+          DCHECK_EQ(PropertyKind::kAccessor, details.kind());
           UNREACHABLE();
         }
 
       } else {
         DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
-        DCHECK_EQ(kAccessor, details.kind());
+        DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         Handle<Name> key(descs->GetKey(i), isolate());
         // If the property is already there we skip it.
         if (PropertyAlreadyExists(isolate(), to, key)) continue;
@@ -5897,7 +5897,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         DCHECK(!to->HasFastProperties());
         // Add to dictionary.
         Handle<Object> value(descs->GetStrongValue(i), isolate());
-        PropertyDetails d(kAccessor, details.attributes(),
+        PropertyDetails d(PropertyKind::kAccessor, details.attributes(),
                           PropertyCellType::kMutable);
         JSObject::SetNormalizedProperty(to, key, value, d);
       }
@@ -5918,7 +5918,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       Handle<Object> value(cell->value(), isolate());
       if (value->IsTheHole(isolate())) continue;
       PropertyDetails details = cell->property_details();
-      if (details.kind() != kData) continue;
+      if (details.kind() != PropertyKind::kData) continue;
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());
     }
 
@@ -5941,7 +5941,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       DCHECK(!value->IsCell());
       DCHECK(!value->IsTheHole(isolate()));
       PropertyDetails details = properties->DetailsAt(entry);
-      DCHECK_EQ(kData, details.kind());
+      DCHECK_EQ(PropertyKind::kData, details.kind());
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());
     }
   } else {
@@ -5965,7 +5965,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       DCHECK(!value->IsCell());
       DCHECK(!value->IsTheHole(isolate()));
       PropertyDetails details = properties->DetailsAt(key_index);
-      DCHECK_EQ(kData, details.kind());
+      DCHECK_EQ(PropertyKind::kData, details.kind());
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());
     }
   }

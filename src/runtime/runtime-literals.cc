@@ -111,7 +111,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       for (InternalIndex i : copy->map(isolate).IterateOwnDescriptors()) {
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(PropertyLocation::kField, details.location());
-        DCHECK_EQ(kData, details.kind());
+        DCHECK_EQ(PropertyKind::kData, details.kind());
         FieldIndex index = FieldIndex::ForPropertyIndex(
             copy->map(isolate), details.field_index(),
             details.representation());

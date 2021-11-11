@@ -8561,7 +8561,9 @@ TNode<Object> CodeStubAssembler::BasicLoadNumberDictionaryElement(
   TNode<Uint32T> details = LoadDetailsByKeyIndex(dictionary, index);
   TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
   // TODO(jkummerow): Support accessors without missing?
-  GotoIfNot(Word32Equal(kind, Int32Constant(kData)), not_data);
+  GotoIfNot(
+      Word32Equal(kind, Int32Constant(static_cast<int>(PropertyKind::kData))),
+      not_data);
   // Finally, load the value.
   return LoadValueByKeyIndex(dictionary, index);
 }
@@ -8607,7 +8609,7 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(
   StoreValueByKeyIndex<NameDictionary>(dictionary, index, value);
 
   // Prepare details of the new property.
-  PropertyDetails d(kData, NONE,
+  PropertyDetails d(PropertyKind::kData, NONE,
                     PropertyDetails::kConstIfDictConstnessTracking);
 
   enum_index =
@@ -8677,10 +8679,10 @@ template <>
 void CodeStubAssembler::Add(TNode<SwissNameDictionary> dictionary,
                             TNode<Name> key, TNode<Object> value,
                             Label* bailout) {
-  PropertyDetails d(kData, NONE,
+  PropertyDetails d(PropertyKind::kData, NONE,
                     PropertyDetails::kConstIfDictConstnessTracking);
 
-  PropertyDetails d_dont_enum(kData, DONT_ENUM,
+  PropertyDetails d_dont_enum(PropertyKind::kData, DONT_ENUM,
                               PropertyDetails::kConstIfDictConstnessTracking);
   TNode<Uint8T> details_byte_enum =
       UncheckedCast<Uint8T>(Uint32Constant(d.ToByte()));
@@ -9517,7 +9519,9 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
   Label done(this), if_accessor_info(this, Label::kDeferred);
 
   TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
-  GotoIf(Word32Equal(kind, Int32Constant(kData)), &done);
+  GotoIf(
+      Word32Equal(kind, Int32Constant(static_cast<int>(PropertyKind::kData))),
+      &done);
 
   // Accessor case.
   GotoIfNot(IsAccessorPair(CAST(value)), &if_accessor_info);

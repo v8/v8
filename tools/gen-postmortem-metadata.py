@@ -122,9 +122,9 @@ consts_misc = [
       'value': 'kRuntimeCallFunctionRegister.code()' },
 
     { 'name': 'prop_kind_Data',
-  'value': 'kData' },
+  'value': 'static_cast<int>(PropertyKind::kData)' },
     { 'name': 'prop_kind_Accessor',
-  'value': 'kAccessor' },
+  'value': 'static_cast<int>(PropertyKind::kAccessor)' },
     { 'name': 'prop_kind_mask',
   'value': 'PropertyDetails::KindField::kMask' },
     { 'name': 'prop_location_Descriptor',

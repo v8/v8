@@ -1116,7 +1116,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
 
     case LookupIterator::DATA: {
       Handle<JSReceiver> holder = lookup->GetHolder<JSReceiver>();
-      DCHECK_EQ(kData, lookup->property_details().kind());
+      DCHECK_EQ(PropertyKind::kData, lookup->property_details().kind());
       Handle<Smi> smi_handler;
       if (lookup->is_dictionary_holder()) {
         if (holder->IsJSGlobalObject(isolate())) {
@@ -2005,7 +2005,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
       DCHECK(!receiver->IsAccessCheckNeeded() || lookup->name()->IsPrivate());
 
-      DCHECK_EQ(kData, lookup->property_details().kind());
+      DCHECK_EQ(PropertyKind::kData, lookup->property_details().kind());
       if (lookup->is_dictionary_holder()) {
         if (holder->IsJSGlobalObject()) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalDH);
@@ -3024,7 +3024,7 @@ static bool CanFastCloneObject(Handle<Map> map) {
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descriptors.GetDetails(i);
     Name key = descriptors.GetKey(i);
-    if (details.kind() != kData || !details.IsEnumerable() ||
+    if (details.kind() != PropertyKind::kData || !details.IsEnumerable() ||
         key.IsPrivateName()) {
       return false;
     }

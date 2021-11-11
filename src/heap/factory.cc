@@ -2383,8 +2383,8 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     // Only accessors are expected.
-    DCHECK_EQ(kAccessor, details.kind());
-    PropertyDetails d(kAccessor, details.attributes(),
+    DCHECK_EQ(PropertyKind::kAccessor, details.kind());
+    PropertyDetails d(PropertyKind::kAccessor, details.attributes(),
                       PropertyCellType::kMutable);
     Handle<Name> name(descs->GetKey(i), isolate());
     Handle<Object> value(descs->GetStrongValue(i), isolate());

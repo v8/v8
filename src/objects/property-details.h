@@ -79,7 +79,7 @@ class TypeInfo;
 
 // Order of kinds is significant.
 // Must fit in the BitField PropertyDetails::KindField.
-enum PropertyKind { kData = 0, kAccessor = 1 };
+enum class PropertyKind { kData = 0, kAccessor = 1 };
 
 // Order of modes is significant.
 // Must fit in the BitField PropertyDetails::LocationField.
@@ -298,7 +298,7 @@ class PropertyDetails {
 
   static constexpr PropertyDetails Empty(
       PropertyCellType cell_type = PropertyCellType::kNoCell) {
-    return PropertyDetails(kData, NONE, cell_type);
+    return PropertyDetails(PropertyKind::kData, NONE, cell_type);
   }
 
   bool operator==(PropertyDetails const& other) {

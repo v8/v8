@@ -790,7 +790,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
   PropertyDetails property_details = property_cell.property_details();
   PropertyCellType property_cell_type = property_details.cell_type();
-  DCHECK_EQ(kData, property_details.kind());
+  DCHECK_EQ(PropertyKind::kData, property_details.kind());
 
   Node* control = NodeProperties::GetControlInput(node);
   if (effect == nullptr) {

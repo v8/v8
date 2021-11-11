@@ -654,7 +654,7 @@ bool Map::CanBeDeprecated() const {
   for (InternalIndex i : IterateOwnDescriptors()) {
     PropertyDetails details = instance_descriptors(kRelaxedLoad).GetDetails(i);
     if (details.representation().MightCauseMapDeprecation()) return true;
-    if (details.kind() == kData &&
+    if (details.kind() == PropertyKind::kData &&
         details.location() == PropertyLocation::kDescriptor) {
       return true;
     }

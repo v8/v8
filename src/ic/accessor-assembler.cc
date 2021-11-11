@@ -1168,7 +1168,9 @@ void AccessorAssembler::JumpIfDataProperty(TNode<Uint32T> details,
                                     PropertyDetails::kAttributesReadOnlyMask));
   }
   TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
-  GotoIf(Word32Equal(kind, Int32Constant(kData)), writable);
+  GotoIf(
+      Word32Equal(kind, Int32Constant(static_cast<int>(PropertyKind::kData))),
+      writable);
   // Fall through if it's an accessor property.
 }
 
@@ -1241,7 +1243,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
       // Check that the property is a writable data property (no accessor).
       const int kTypeAndReadOnlyMask = PropertyDetails::KindField::kMask |
                                        PropertyDetails::kAttributesReadOnlyMask;
-      STATIC_ASSERT(kData == 0);
+      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
       GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
       if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
@@ -1413,7 +1415,7 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
         PropertyDetails::KindField::kMask |
         PropertyDetails::kAttributesDontDeleteMask |
         PropertyDetails::kAttributesReadOnlyMask;
-    STATIC_ASSERT(kData == 0);
+    STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
     // Both DontDelete and ReadOnly attributes must not be set and it has to be
     // a kData property.
     GotoIf(IsSetWord32(details, kKindAndAttributesDontDeleteReadOnlyMask),
@@ -1504,7 +1506,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
   CSA_DCHECK(this,
              Word32Equal(DecodeWord32<PropertyDetails::KindField>(details),
-                         Int32Constant(kData)));
+                         Int32Constant(static_cast<int>(PropertyKind::kData))));
 
   Branch(Word32Equal(
              DecodeWord32<PropertyDetails::LocationField>(details),
@@ -1742,7 +1744,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         const int kTypeAndReadOnlyMask =
             PropertyDetails::KindField::kMask |
             PropertyDetails::kAttributesReadOnlyMask;
-        STATIC_ASSERT(kData == 0);
+        STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
         GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
         StoreValueByKeyIndex<PropertyDictionary>(properties, name_index,
@@ -3744,7 +3746,7 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(
   GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask), miss);
   CSA_DCHECK(this,
              Word32Equal(DecodeWord32<PropertyDetails::KindField>(details),
-                         Int32Constant(kData)));
+                         Int32Constant(static_cast<int>(PropertyKind::kData))));
 
   TNode<Uint32T> type =
       DecodeWord32<PropertyDetails::PropertyCellTypeField>(details);

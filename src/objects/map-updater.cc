@@ -186,7 +186,7 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
       isolate_->map_updater_access());
 
   modified_descriptor_ = descriptor;
-  new_kind_ = kData;
+  new_kind_ = PropertyKind::kData;
   new_attributes_ = attributes;
   new_location_ = PropertyLocation::kField;
 
@@ -588,8 +588,8 @@ MapUpdater::State MapUpdater::FindRootMap() {
       return Normalize("Normalize_RootModification4");
     }
 
-    DCHECK_EQ(kData, old_details.kind());
-    DCHECK_EQ(kData, new_kind_);
+    DCHECK_EQ(PropertyKind::kData, old_details.kind());
+    DCHECK_EQ(PropertyKind::kData, new_kind_);
     DCHECK_EQ(PropertyLocation::kField, new_location_);
 
     // Modify root map in-place. The GeneralizeField method is a no-op
@@ -625,7 +625,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
     DCHECK_EQ(old_details.kind(), tmp_details.kind());
     DCHECK_EQ(old_details.attributes(), tmp_details.attributes());
-    if (old_details.kind() == kAccessor &&
+    if (old_details.kind() == PropertyKind::kAccessor &&
         !EqualImmutableValues(GetValue(i),
                               tmp_descriptors->GetStrongValue(i))) {
       // TODO(ishell): mutable accessors are not implemented yet.
@@ -723,7 +723,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     DCHECK_EQ(old_details.kind(), tmp_details.kind());
     DCHECK_EQ(old_details.attributes(), tmp_details.attributes());
 #endif
-    if (old_details.kind() == kAccessor &&
+    if (old_details.kind() == PropertyKind::kAccessor &&
         !EqualImmutableValues(GetValue(i),
                               tmp_descriptors->GetStrongValue(i))) {
       return Normalize("Normalize_Incompatible");
@@ -826,7 +826,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       MaybeObjectHandle wrapped_type(
           Map::WrapFieldType(isolate_, next_field_type));
       Descriptor d;
-      if (next_kind == kData) {
+      if (next_kind == PropertyKind::kData) {
         d = Descriptor::DataField(key, current_offset, next_attributes,
                                   next_constness, next_representation,
                                   wrapped_type);
@@ -841,7 +841,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       DCHECK_EQ(PropertyConstness::kConst, next_constness);
 
       Handle<Object> value(GetValue(i), isolate_);
-      DCHECK_EQ(kAccessor, next_kind);
+      DCHECK_EQ(PropertyKind::kAccessor, next_kind);
       Descriptor d = Descriptor::AccessorConstant(key, value, next_attributes);
       new_descriptors->Set(i, &d);
     }
@@ -873,7 +873,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       MaybeObjectHandle wrapped_type(
           Map::WrapFieldType(isolate_, next_field_type));
       Descriptor d;
-      if (next_kind == kData) {
+      if (next_kind == PropertyKind::kData) {
         d = Descriptor::DataField(key, current_offset, next_attributes,
                                   next_constness, next_representation,
                                   wrapped_type);
@@ -889,10 +889,10 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
       Handle<Object> value(GetValue(i), isolate_);
       Descriptor d;
-      if (next_kind == kData) {
+      if (next_kind == PropertyKind::kData) {
         d = Descriptor::DataConstant(key, value, next_attributes);
       } else {
-        DCHECK_EQ(kAccessor, next_kind);
+        DCHECK_EQ(PropertyKind::kAccessor, next_kind);
         d = Descriptor::AccessorConstant(key, value, next_attributes);
       }
       new_descriptors->Set(i, &d);
@@ -1056,7 +1056,8 @@ void PrintReconfiguration(Isolate* isolate, Handle<Map> map, FILE* file,
   } else {
     os << "{symbol " << reinterpret_cast<void*>(name.ptr()) << "}";
   }
-  os << ": " << (kind == kData ? "kData" : "ACCESSORS") << ", attrs: ";
+  os << ": " << (kind == PropertyKind::kData ? "kData" : "ACCESSORS")
+     << ", attrs: ";
   os << attributes << " [";
   JavaScriptFrame::PrintTop(isolate, file, false, true);
   os << "]\n";
@@ -1071,7 +1072,7 @@ Handle<Map> MapUpdater::ReconfigureExistingProperty(
     PropertyConstness constness) {
   // Dictionaries have to be reconfigured in-place.
   DCHECK(!map->is_dictionary_map());
-  DCHECK_EQ(kData, kind);  // Only kData case is supported so far.
+  DCHECK_EQ(PropertyKind::kData, kind);  // Only kData case is supported so far.
 
   if (!map->GetBackPointer().IsMap()) {
     // There is no benefit from reconstructing transition tree for maps without
@@ -1101,7 +1102,7 @@ void MapUpdater::UpdateFieldType(Isolate* isolate, Handle<Map> map,
   PropertyDetails details =
       map->instance_descriptors(isolate).GetDetails(descriptor);
   if (details.location() != PropertyLocation::kField) return;
-  DCHECK_EQ(kData, details.kind());
+  DCHECK_EQ(PropertyKind::kData, details.kind());
 
   if (new_constness != details.constness() && map->is_prototype_map()) {
     JSObject::InvalidatePrototypeChains(*map);

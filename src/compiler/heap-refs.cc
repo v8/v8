@@ -1273,7 +1273,7 @@ bool JSObjectData::SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
   for (InternalIndex i : boilerplate->map().IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != PropertyLocation::kField) continue;
-    DCHECK_EQ(kData, details.kind());
+    DCHECK_EQ(PropertyKind::kData, details.kind());
 
     FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
     // Make sure {field_index} agrees with {inobject_properties} on the index of

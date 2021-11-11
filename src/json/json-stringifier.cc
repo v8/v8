@@ -843,7 +843,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     Handle<Object> property;
     if (details.location() == PropertyLocation::kField &&
         *map == object->map(cage_base)) {
-      DCHECK_EQ(kData, details.kind());
+      DCHECK_EQ(PropertyKind::kData, details.kind());
       FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
       property = JSObject::FastPropertyAt(object, details.representation(),
                                           field_index);

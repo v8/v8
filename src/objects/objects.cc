@@ -2438,7 +2438,7 @@ void DescriptorArray::GeneralizeAllFields() {
     PropertyDetails details = GetDetails(i);
     details = details.CopyWithRepresentation(Representation::Tagged());
     if (details.location() == PropertyLocation::kField) {
-      DCHECK_EQ(kData, details.kind());
+      DCHECK_EQ(PropertyKind::kData, details.kind());
       details = details.CopyWithConstness(PropertyConstness::kMutable);
       SetValue(i, MaybeObject::FromObject(FieldType::Any()));
     }
@@ -3570,7 +3570,8 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
     return Just(true);
   }
 
-  PropertyDetails details(kData, DONT_ENUM, PropertyConstness::kMutable);
+  PropertyDetails details(PropertyKind::kData, DONT_ENUM,
+                          PropertyConstness::kMutable);
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     Handle<SwissNameDictionary> dict(proxy->property_dictionary_swiss(),
                                      isolate);
@@ -3829,7 +3830,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
         int mask = DONT_DELETE | DONT_ENUM;
         // READ_ONLY is an invalid attribute for JS setters/getters.
         HeapObject heap_object;
-        if (details.kind() != kAccessor ||
+        if (details.kind() != PropertyKind::kAccessor ||
             !(value_or_field_type->GetHeapObjectIfStrong(&heap_object) &&
               heap_object.IsAccessorPair())) {
           mask |= READ_ONLY;
@@ -3870,7 +3871,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
 
     DCHECK(!key.IsPrivateName());
     DCHECK(details.IsEnumerable());
-    DCHECK_EQ(details.kind(), kData);
+    DCHECK_EQ(details.kind(), PropertyKind::kData);
     // If the new representation is an in-place changeable field, make it
     // generic as possible (under in-place changes) to avoid type confusion if
     // the source representation changes after this feedback has been collected.
@@ -3887,7 +3888,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
 
     // Ensure the ObjectClone property details are NONE, and that all source
     // details did not contain DONT_ENUM.
-    PropertyDetails new_details(kData, NONE, details.location(),
+    PropertyDetails new_details(PropertyKind::kData, NONE, details.location(),
                                 details.constness(), new_representation,
                                 details.field_index());
 
@@ -6543,8 +6544,8 @@ Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
   CHECK(!cell->value().IsTheHole(isolate));
   const PropertyDetails original_details = cell->property_details();
   // Data accesses could be cached in ics or optimized code.
-  bool invalidate =
-      original_details.kind() == kData && details.kind() == kAccessor;
+  bool invalidate = original_details.kind() == PropertyKind::kData &&
+                    details.kind() == PropertyKind::kAccessor;
   int index = original_details.dictionary_index();
   DCHECK_LT(0, index);
   details = details.set_index(index);
@@ -6592,7 +6593,7 @@ bool PropertyCell::CheckDataIsCompatible(PropertyDetails details,
     CHECK_EQ(cell_type, PropertyCellType::kConstant);
   } else {
     CHECK_EQ(value.IsAccessorInfo() || value.IsAccessorPair(),
-             details.kind() == kAccessor);
+             details.kind() == PropertyKind::kAccessor);
     DCHECK_IMPLIES(cell_type == PropertyCellType::kUndefined,
                    value.IsUndefined());
   }

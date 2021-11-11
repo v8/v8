@@ -398,7 +398,7 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object value,
 void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
                             Object value) {
   DCHECK_EQ(PropertyLocation::kField, details.location());
-  DCHECK_EQ(kData, details.kind());
+  DCHECK_EQ(PropertyKind::kData, details.kind());
   DisallowGarbageCollection no_gc;
   FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {

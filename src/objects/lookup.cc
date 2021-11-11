@@ -374,7 +374,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
   PropertyConstness new_constness = PropertyConstness::kConst;
   if (constness() == PropertyConstness::kConst) {
-    DCHECK_EQ(kData, property_details_.kind());
+    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
     // Check that current value matches new value otherwise we should make
     // the property mutable.
     if (holder->HasFastProperties(isolate_)) {
@@ -484,8 +484,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
     Handle<Map> new_map = MapUpdater::ReconfigureExistingProperty(
-        isolate_, old_map, descriptor_number(), i::kData, attributes,
-        PropertyConstness::kMutable);
+        isolate_, old_map, descriptor_number(), i::PropertyKind::kData,
+        attributes, PropertyConstness::kMutable);
     if (!new_map->is_dictionary_map()) {
       // Make sure that the data property has a compatible representation.
       // TODO(leszeks): Do this as part of ReconfigureExistingProperty.
@@ -511,7 +511,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       JSObject::InvalidatePrototypeChains(holder->map(isolate_));
     }
     if (holder_obj->IsJSGlobalObject(isolate_)) {
-      PropertyDetails details(kData, attributes, PropertyCellType::kMutable);
+      PropertyDetails details(PropertyKind::kData, attributes,
+                              PropertyCellType::kMutable);
       Handle<GlobalDictionary> dictionary(
           JSGlobalObject::cast(*holder_obj)
               .global_dictionary(isolate_, kAcquireLoad),
@@ -522,7 +523,8 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       property_details_ = cell->property_details();
       DCHECK_EQ(cell->value(), *value);
     } else {
-      PropertyDetails details(kData, attributes, PropertyConstness::kMutable);
+      PropertyDetails details(PropertyKind::kData, attributes,
+                              PropertyConstness::kMutable);
       if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         Handle<SwissNameDictionary> dictionary(
             holder_obj->property_dictionary_swiss(isolate_), isolate());
@@ -582,15 +584,17 @@ void LookupIterator::PrepareTransitionToDataProperty(
     if (map->IsJSGlobalObjectMap()) {
       DCHECK(!value->IsTheHole(isolate_));
       // Don't set enumeration index (it will be set during value store).
-      property_details_ = PropertyDetails(
-          kData, attributes, PropertyCell::InitialType(isolate_, value));
+      property_details_ =
+          PropertyDetails(PropertyKind::kData, attributes,
+                          PropertyCell::InitialType(isolate_, value));
       transition_ = isolate_->factory()->NewPropertyCell(
           name(), property_details_, value);
       has_property_ = true;
     } else {
       // Don't set enumeration index (it will be set during value store).
-      property_details_ = PropertyDetails(
-          kData, attributes, PropertyDetails::kConstIfDictConstnessTracking);
+      property_details_ =
+          PropertyDetails(PropertyKind::kData, attributes,
+                          PropertyDetails::kConstIfDictConstnessTracking);
       transition_ = map;
     }
     return;
@@ -605,8 +609,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
   if (transition->is_dictionary_map()) {
     DCHECK(!transition->IsJSGlobalObjectMap());
     // Don't set enumeration index (it will be set during value store).
-    property_details_ = PropertyDetails(
-        kData, attributes, PropertyDetails::kConstIfDictConstnessTracking);
+    property_details_ =
+        PropertyDetails(PropertyKind::kData, attributes,
+                        PropertyDetails::kConstIfDictConstnessTracking);
   } else {
     property_details_ = transition->GetLastDescriptorDetails(isolate_);
     has_property_ = true;
@@ -799,7 +804,8 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
   Handle<JSObject> receiver = GetStoreTarget<JSObject>();
   holder_ = receiver;
 
-  PropertyDetails details(kAccessor, attributes, PropertyCellType::kMutable);
+  PropertyDetails details(PropertyKind::kAccessor, attributes,
+                          PropertyCellType::kMutable);
 
   if (IsElement(*receiver)) {
     // TODO(verwaest): Move code into the element accessor.
@@ -890,7 +896,7 @@ Handle<Object> LookupIterator::FetchValue(
           isolate_, dictionary_entry());
     }
   } else if (property_details_.location() == PropertyLocation::kField) {
-    DCHECK_EQ(kData, property_details_.kind());
+    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
 #if V8_ENABLE_WEBASSEMBLY
     if (V8_UNLIKELY(holder_->IsWasmObject(isolate_))) {
       if (allocation_policy == AllocationPolicy::kAllocationDisallowed) {
@@ -1005,7 +1011,7 @@ int LookupIterator::GetFieldDescriptorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
-  DCHECK_EQ(kData, property_details_.kind());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
   // TODO(jkummerow): Propagate InternalIndex further.
   return descriptor_number().as_int();
 }
@@ -1014,7 +1020,7 @@ int LookupIterator::GetAccessorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kDescriptor, property_details_.location());
-  DCHECK_EQ(kAccessor, property_details_.kind());
+  DCHECK_EQ(PropertyKind::kAccessor, property_details_.kind());
   return descriptor_number().as_int();
 }
 
@@ -1236,9 +1242,9 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
         property_details_ = cell.property_details();
         has_property_ = true;
         switch (property_details_.kind()) {
-          case v8::internal::kData:
+          case v8::internal::PropertyKind::kData:
             return DATA;
-          case v8::internal::kAccessor:
+          case v8::internal::PropertyKind::kAccessor:
             return ACCESSOR;
         }
       }
@@ -1271,9 +1277,10 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
         number_ = index_ < wasm_array.length() ? InternalIndex(index_)
                                                : InternalIndex::NotFound();
         wasm::ArrayType* wasm_array_type = wasm_array.type();
-        property_details_ = PropertyDetails(
-            kData, wasm_array_type->mutability() ? SEALED : FROZEN,
-            PropertyCellType::kNoCell);
+        property_details_ =
+            PropertyDetails(PropertyKind::kData,
+                            wasm_array_type->mutability() ? SEALED : FROZEN,
+                            PropertyCellType::kNoCell);
 
       } else {
         DCHECK(holder.IsWasmStruct(isolate_));
@@ -1319,9 +1326,9 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
   }
   has_property_ = true;
   switch (property_details_.kind()) {
-    case v8::internal::kData:
+    case v8::internal::PropertyKind::kData:
       return DATA;
-    case v8::internal::kAccessor:
+    case v8::internal::PropertyKind::kAccessor:
       return ACCESSOR;
   }
 
@@ -1537,7 +1544,7 @@ base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
                                                           kRelaxedLoad);
   if (!cell.has_value()) return {};
 
-  if (cell->property_details(kAcquireLoad).kind() == kAccessor) {
+  if (cell->property_details(kAcquireLoad).kind() == PropertyKind::kAccessor) {
     Object maybe_accessor_pair = cell->value(kAcquireLoad);
     if (!maybe_accessor_pair.IsAccessorPair()) return {};
 
@@ -1551,11 +1558,12 @@ base::Optional<PropertyCell> ConcurrentLookupIterator::TryGetPropertyCell(
         isolate, handle(*maybe_cached_property_name, local_isolate),
         kRelaxedLoad);
     if (!cell.has_value()) return {};
-    if (cell->property_details(kAcquireLoad).kind() != kData) return {};
+    if (cell->property_details(kAcquireLoad).kind() != PropertyKind::kData)
+      return {};
   }
 
   DCHECK(cell.has_value());
-  DCHECK_EQ(cell->property_details(kAcquireLoad).kind(), kData);
+  DCHECK_EQ(cell->property_details(kAcquireLoad).kind(), PropertyKind::kData);
   return cell;
 }
 

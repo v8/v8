@@ -227,7 +227,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // If |modified_descriptor_.is_found()|, then the fields below form
   // an "update" of the |old_map_|'s descriptors.
   InternalIndex modified_descriptor_ = InternalIndex::NotFound();
-  PropertyKind new_kind_ = kData;
+  PropertyKind new_kind_ = PropertyKind::kData;
   PropertyAttributes new_attributes_ = NONE;
   PropertyConstness new_constness_ = PropertyConstness::kMutable;
   PropertyLocation new_location_ = PropertyLocation::kField;

@@ -125,11 +125,11 @@ void GeneralizeAllTransitionsToFieldAsMutable(Isolate* isolate, Handle<Map> map,
           DCHECK_EQ(*name, target.GetLastDescriptorName(isolate));
           PropertyDetails details = target.GetLastDescriptorDetails(isolate);
           // Currently, we track constness only for fields.
-          if (details.kind() == kData &&
+          if (details.kind() == PropertyKind::kData &&
               details.constness() == PropertyConstness::kConst) {
             target_maps[target_maps_count++] = handle(target, isolate);
           }
-          DCHECK_IMPLIES(details.kind() == kAccessor,
+          DCHECK_IMPLIES(details.kind() == PropertyKind::kAccessor,
                          details.constness() == PropertyConstness::kConst);
         },
         &no_gc);
@@ -460,7 +460,8 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   DCHECK(name->IsUniqueName());
 
   PropertyDetails property_details(
-      kData, NONE, PropertyDetails::kConstIfDictConstnessTracking);
+      PropertyKind::kData, NONE,
+      PropertyDetails::kConstIfDictConstnessTracking);
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     Handle<SwissNameDictionary> dictionary(
         receiver->property_dictionary_swiss(), isolate);
@@ -778,7 +779,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         InternalIndex entry = dictionary.FindEntry(isolate, key);
         if (entry.is_found()) {
           PropertyCell cell = dictionary.CellAt(entry);
-          if (cell.property_details().kind() == kData) {
+          if (cell.property_details().kind() == PropertyKind::kData) {
             Object value = cell.value();
             if (!value.IsTheHole(isolate)) return value;
             // If value is the hole (meaning, absent) do the general lookup.
@@ -791,7 +792,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
               lookup_start_object->property_dictionary_swiss();
           InternalIndex entry = dictionary.FindEntry(isolate, *key);
           if (entry.is_found() &&
-              (dictionary.DetailsAt(entry).kind() == kData)) {
+              (dictionary.DetailsAt(entry).kind() == PropertyKind::kData)) {
             return dictionary.ValueAt(entry);
           }
         } else {
@@ -799,7 +800,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
               lookup_start_object->property_dictionary();
           InternalIndex entry = dictionary.FindEntry(isolate, key);
           if ((entry.is_found()) &&
-              (dictionary.DetailsAt(entry).kind() == kData)) {
+              (dictionary.DetailsAt(entry).kind() == PropertyKind::kData)) {
             return dictionary.ValueAt(entry);
           }
         }

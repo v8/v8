@@ -1526,7 +1526,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
       // Read the representation from the map.
       PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
       CHECK_EQ(details.location(), PropertyLocation::kField);
-      CHECK_EQ(kData, details.kind());
+      CHECK_EQ(PropertyKind::kData, details.kind());
       Representation r = details.representation();
       if (r.IsNone()) {
         // Switch over to wanted_representation.
