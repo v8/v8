@@ -1843,9 +1843,10 @@ void TranslatedState::InitializeJSObjectAt(
     Handle<Map> map, const DisallowGarbageCollection& no_gc) {
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
   DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
+  int children_count = slot->GetChildrenCount();
 
   // The object should have at least a map and some payload.
-  CHECK_GE(slot->GetChildrenCount(), 2);
+  CHECK_GE(children_count, 2);
 
   // Notify the concurrent marker about the layout change.
   isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
@@ -1862,8 +1863,8 @@ void TranslatedState::InitializeJSObjectAt(
   // For all the other fields we first look at the fixed array and check the
   // marker to see if we store an unboxed double.
   DCHECK_EQ(kTaggedSize, JSObject::kPropertiesOrHashOffset);
-  for (int i = 2; i < slot->GetChildrenCount(); i++) {
-    TranslatedValue* slot = GetResolvedSlotAndAdvance(frame, value_index);
+  for (int i = 2; i < children_count; i++) {
+    slot = GetResolvedSlotAndAdvance(frame, value_index);
     // Read out the marker and ensure the field is consistent with
     // what the markers in the storage say (note that all heap numbers
     // should be fully initialized by now).
@@ -1889,10 +1890,11 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
     Handle<Map> map, const DisallowGarbageCollection& no_gc) {
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
+  int children_count = slot->GetChildrenCount();
 
   // Skip the writes if we already have the canonical empty fixed array.
   if (*object_storage == ReadOnlyRoots(isolate()).empty_fixed_array()) {
-    CHECK_EQ(2, slot->GetChildrenCount());
+    CHECK_EQ(2, children_count);
     Handle<Object> length_value = GetValueAndAdvance(frame, value_index);
     CHECK_EQ(*length_value, Smi::FromInt(0));
     return;
@@ -1902,8 +1904,8 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
   isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
 
   // Write the fields to the object.
-  for (int i = 1; i < slot->GetChildrenCount(); i++) {
-    TranslatedValue* slot = GetResolvedSlotAndAdvance(frame, value_index);
+  for (int i = 1; i < children_count; i++) {
+    slot = GetResolvedSlotAndAdvance(frame, value_index);
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
     Handle<Object> field_value;

@@ -784,7 +784,7 @@ void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
   if (!FLAG_log_deopt) return;
   no_gc.Release();
   {
-    HandleScope scope(isolate);
+    HandleScope handle_scope(isolate);
     PROFILE(
         isolate,
         CodeDependencyChangeEvent(
@@ -1540,7 +1540,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   // Set the continuation for the topmost frame.
   if (is_topmost) {
-    Builtins* builtins = isolate_->builtins();
     DCHECK_EQ(DeoptimizeKind::kLazy, deopt_kind_);
     Code continuation = builtins->code(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
