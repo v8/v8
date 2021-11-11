@@ -2029,7 +2029,6 @@ class ResourceAvailableCurrencies {
     // Work around the issue that we do support the following currency codes
     // in DisplayNames but the ICU API is not reporting it.
     AddIfAvailable("SVC");
-    AddIfAvailable("VES");
     AddIfAvailable("XDR");
     AddIfAvailable("XSU");
     AddIfAvailable("ZWL");
