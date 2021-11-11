@@ -856,6 +856,15 @@ bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
          InstanceTypeChecker::IsContext(instance_type);
 }
 
+bool Code::IsWeakObjectInDeoptimizationLiteralArray(Object object) {
+  // Maps must be strong because they can be used as part of the description for
+  // how to materialize an object upon deoptimization, in which case it is
+  // possible to reach the code that requires the Map without anything else
+  // holding a strong pointer to that Map.
+  return object.IsHeapObject() && !object.IsMap() &&
+         Code::IsWeakObjectInOptimizedCode(HeapObject::cast(object));
+}
+
 bool Code::IsExecutable() {
   return !Builtins::IsBuiltinId(builtin_id()) || !is_off_heap_trampoline() ||
          Builtins::CodeObjectIsExecutable(builtin_id());
@@ -1214,8 +1223,7 @@ inline Object DeoptimizationLiteralArray::get(PtrComprCageBase cage_base,
 
 inline void DeoptimizationLiteralArray::set(int index, Object value) {
   MaybeObject maybe = MaybeObject::FromObject(value);
-  if (value.IsHeapObject() &&
-      Code::IsWeakObjectInOptimizedCode(HeapObject::cast(value))) {
+  if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
     maybe = MaybeObject::MakeWeak(maybe);
   }
   Set(index, maybe);
