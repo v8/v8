@@ -28,8 +28,10 @@ def branch_descriptor(
 def main_console_builder():
     def builder():
         console_view("main")
+        console_view("memory")
         console_view("ports")
         console_view("main-dev")
+        console_view("memory-dev")
         console_view("ports-dev")
 
     return builder
@@ -40,6 +42,7 @@ def branch_console_builder(bucket, version_tag, refs):
         base_display_name = version_tag + " "
         header = "//consoles/header_branch.textpb"
         console_view(base_name, title = base_display_name + "main", refs = refs, header = header)
+        console_view(base_name + ".memory", title = base_display_name + "memory", refs = refs, header = header)
         console_view(base_name + ".ports", title = base_display_name + "ports", refs = refs, header = header)
 
     return builder

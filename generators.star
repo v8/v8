@@ -2,6 +2,16 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+def consoles_map(ctx):
+    """
+    Returns a mapping of console ID to console config.
+    """
+    consoles = dict()
+    milo = ctx.output["luci-milo.cfg"]
+    for console in milo.consoles:
+        consoles[console.id] = console
+    return consoles
+
 def aggregate_builder_tester_console(ctx):
     """
     This callback collects and groups all builders by parent name in separate
@@ -26,16 +36,44 @@ def aggregate_builder_tester_console(ctx):
                             contents.append(builder.name)
                         else:
                             categories[parent] = [parent, builder.name]
-    milo = ctx.output["luci-milo.cfg"]
-    for console in milo.consoles:
-        if console.name == "builder-tester":
-            for category, contents in categories.items():
-                for builder in contents:
-                    cbuilder = dict(
-                        name = "buildbucket/luci.v8.ci/" + builder,
-                        category = category,
-                    )
-                    console.builders.append(cbuilder)
+    consoles = consoles_map(ctx)
+    for category, contents in categories.items():
+        for builder in contents:
+            cbuilder = dict(
+                name = "buildbucket/luci.v8.ci/" + builder,
+                category = category,
+            )
+            consoles["builder-tester"].builders.append(cbuilder)
+
+def single_temporary_memory_console(old_console, target_console):
+    for builder in old_console.builders:
+        if builder.category == "Sanitizers":
+            target_console.builders.append(
+                dict(name = builder.name),
+            )
+
+def temporary_memory_consoles(ctx):
+    """
+    Temporary generator for separate memory consoles. All builders of the
+    sanitizer category have this separate console.
+    """
+    consoles = consoles_map(ctx)
+    single_temporary_memory_console(
+        consoles["main"],
+        consoles["memory"],
+    )
+    single_temporary_memory_console(
+        consoles["br.beta"],
+        consoles["br.beta.memory"],
+    )
+    single_temporary_memory_console(
+        consoles["br.stable"],
+        consoles["br.stable.memory"],
+    )
+    single_temporary_memory_console(
+        consoles["br.extended"],
+        consoles["br.extended.memory"],
+    )
 
 def is_artifact_builder(builder):
     return builder.name.endswith("builder")
@@ -98,14 +136,12 @@ def mirror_console(original_console, dev_console):
 
 def mirror_dev_consoles(ctx):
     """
-    Mirror main and ports as main-dev and ports-dev with builders and testers
-    grouped under subcategories.
+    Mirror the three main consoles as dev consoles with additional
+    subcategories.
     """
-    consoles = dict()
-    milo = ctx.output["luci-milo.cfg"]
-    for console in milo.consoles:
-        consoles[console.name] = console
+    consoles = consoles_map(ctx)
     mirror_console(consoles["main"], consoles["main-dev"])
+    mirror_console(consoles["memory"], consoles["memory-dev"])
     mirror_console(consoles["ports"], consoles["ports-dev"])
 
 def ensure_forward_triggering_properties(ctx):
@@ -132,6 +168,8 @@ def ensure_forward_triggering_properties(ctx):
                 builder.properties = json.encode(properties)
 
 lucicfg.generator(aggregate_builder_tester_console)
+
+lucicfg.generator(temporary_memory_consoles)
 
 lucicfg.generator(mirror_dev_consoles)
 
