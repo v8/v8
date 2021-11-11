@@ -824,16 +824,14 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
 CodePageCollectionMemoryModificationScope::
     CodePageCollectionMemoryModificationScope(Heap* heap)
     : heap_(heap) {
-  if (heap_->write_protect_code_memory() &&
-      !heap_->code_space_memory_modification_scope_depth()) {
+  if (heap_->write_protect_code_memory()) {
     heap_->IncrementCodePageCollectionMemoryModificationScopeDepth();
   }
 }
 
 CodePageCollectionMemoryModificationScope::
     ~CodePageCollectionMemoryModificationScope() {
-  if (heap_->write_protect_code_memory() &&
-      !heap_->code_space_memory_modification_scope_depth()) {
+  if (heap_->write_protect_code_memory()) {
     heap_->DecrementCodePageCollectionMemoryModificationScopeDepth();
     if (heap_->code_page_collection_memory_modification_scope_depth() == 0) {
       heap_->ProtectUnprotectedMemoryChunks();
