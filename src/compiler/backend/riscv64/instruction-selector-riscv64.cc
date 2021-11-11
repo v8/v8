@@ -941,7 +941,7 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
   Int64BinopMatcher m(node);
   // TODO(dusmil): Add optimization for shifts larger than 32.
   if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
-    uint32_t value = static_cast<uint32_t>(m.right().ResolvedValue());
+    uint64_t value = static_cast<uint64_t>(m.right().ResolvedValue());
     if (base::bits::IsPowerOfTwo(value)) {
       Emit(kRiscvShl64 | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
