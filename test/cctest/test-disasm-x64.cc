@@ -1432,6 +1432,11 @@ UNINITIALIZED_TEST(DisasmX64YMMRegister) {
             vpbroadcastd(ymm7, xmm8));
     COMPARE("c4627d588c8b10270000 vpbroadcastd ymm9,[rbx+rcx*4+0x2710]",
             vpbroadcastd(ymm9, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4e27d1cca           vpabsb ymm1,ymm2", vpabsb(ymm1, ymm2));
+    COMPARE("c4e27d1c9c8b10270000 vpabsb ymm3,[rbx+rcx*4+0x2710]",
+            vpabsb(ymm3, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4e27d1df5           vpabsw ymm6,ymm5", vpabsw(ymm6, ymm5));
+    COMPARE("c4c27d1efa           vpabsd ymm7,ymm10", vpabsd(ymm7, ymm10));
   }
 }
 

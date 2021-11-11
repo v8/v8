@@ -2719,6 +2719,10 @@ TEST(AssemblerX64Integer256bit) {
   __ vpmaddubsw(ymm5, ymm7, ymm9);
   __ vpsignd(ymm7, ymm0, ymm1);
   __ vpmulhrsw(ymm4, ymm3, ymm1);
+  __ vpabsb(ymm1, ymm2);
+  __ vpabsb(ymm3, Operand(rbx, rcx, times_4, 10000));
+  __ vpabsw(ymm6, ymm5);
+  __ vpabsd(ymm7, ymm10);
 
   // SSE4_AVX_INSTRUCTION
   __ vpmuldq(ymm1, ymm5, ymm6);
@@ -2769,6 +2773,14 @@ TEST(AssemblerX64Integer256bit) {
                      0xC4, 0xE2, 0x7D, 0x0A, 0xF9,
                      // vpmulhrsw ymm4, ymm3, ymm1
                      0xC4, 0xE2, 0x65, 0x0B, 0xE1,
+                     // vpabsb ymm1, ymm2
+                     0xC4, 0xE2, 0x7D, 0x1C, 0xCA,
+                     // vpabsb ymm3, YMMWORD PTR [rbx+rcx+0x2710]
+                     0xC4, 0xE2, 0x7D, 0x1C, 0x9C, 0x8b, 0x10, 0x27, 0x00, 0x00,
+                     // vpabsw ymm6, ymm5
+                     0xC4, 0xE2, 0x7D, 0x1D, 0xF5,
+                     // vpabsd ymm7, ymm10
+                     0xC4, 0xC2, 0x7D, 0x1E, 0xFA,
 
                      // SSE4_AVX_INSTRUCTION
                      // vpmuldq ymm1, ymm5, ymm6
