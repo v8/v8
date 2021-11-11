@@ -3768,33 +3768,39 @@ void TurboAssembler::CountLeadingZerosU64(Register dst, Register src, RCBit r) {
   cntlzd(dst, src, r);
 }
 
+#define COUNT_TRAILING_ZEROES_SLOW(max_count, scratch1, scratch2) \
+  Label loop, done;                                               \
+  li(scratch1, Operand(max_count));                               \
+  mtctr(scratch1);                                                \
+  mr(scratch1, src);                                              \
+  li(dst, Operand::Zero());                                       \
+  bind(&loop); /* while ((src & 1) == 0) */                       \
+  andi(scratch2, scratch1, Operand(1));                           \
+  bne(&done, cr0);                                                \
+  srdi(scratch1, scratch1, Operand(1)); /* src >>= 1;*/           \
+  addi(dst, dst, Operand(1));           /* dst++ */               \
+  bdnz(&loop);                                                    \
+  bind(&done);
 void TurboAssembler::CountTrailingZerosU32(Register dst, Register src,
+                                           Register scratch1, Register scratch2,
                                            RCBit r) {
   if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
     cnttzw(dst, src, r);
   } else {
-    Register scratch1 = GetRegisterThatIsNotOneOf(dst, src, sp);
-    Register scratch2 = GetRegisterThatIsNotOneOf(dst, src, sp, scratch1);
-    Push(scratch1, scratch2);
-    ReverseBitsU32(dst, src, scratch1, scratch2);
-    Pop(scratch1, scratch2);
-    cntlzw(dst, dst, r);
+    COUNT_TRAILING_ZEROES_SLOW(32, scratch1, scratch2);
   }
 }
 
 void TurboAssembler::CountTrailingZerosU64(Register dst, Register src,
+                                           Register scratch1, Register scratch2,
                                            RCBit r) {
   if (CpuFeatures::IsSupported(PPC_9_PLUS)) {
     cnttzd(dst, src, r);
   } else {
-    Register scratch1 = GetRegisterThatIsNotOneOf(dst, src, sp);
-    Register scratch2 = GetRegisterThatIsNotOneOf(dst, src, sp, scratch1);
-    Push(scratch1, scratch2);
-    ReverseBitsU64(dst, src, scratch1, scratch2);
-    Pop(scratch1, scratch2);
-    cntlzd(dst, dst, r);
+    COUNT_TRAILING_ZEROES_SLOW(64, scratch1, scratch2);
   }
 }
+#undef COUNT_TRAILING_ZEROES_SLOW
 
 void TurboAssembler::ClearByteU64(Register dst, int byte_idx) {
   CHECK(0 <= byte_idx && byte_idx <= 7);

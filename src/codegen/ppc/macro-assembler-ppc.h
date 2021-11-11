@@ -263,8 +263,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CountLeadingZerosU32(Register dst, Register src, RCBit r = LeaveRC);
   void CountLeadingZerosU64(Register dst, Register src, RCBit r = LeaveRC);
-  void CountTrailingZerosU32(Register dst, Register src, RCBit r = LeaveRC);
-  void CountTrailingZerosU64(Register dst, Register src, RCBit r = LeaveRC);
+  void CountTrailingZerosU32(Register dst, Register src, Register scratch1 = ip,
+                             Register scratch2 = r0, RCBit r = LeaveRC);
+  void CountTrailingZerosU64(Register dst, Register src, Register scratch1 = ip,
+                             Register scratch2 = r0, RCBit r = LeaveRC);
 
   void ClearByteU64(Register dst, int byte_idx);
   void ReverseBitsU64(Register dst, Register src, Register scratch1,
