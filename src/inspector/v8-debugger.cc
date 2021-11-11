@@ -1124,6 +1124,7 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
     m_allAsyncStacks.pop_front();
   }
   cleanupExpiredWeakPointers(m_asyncTaskStacks);
+  cleanupExpiredWeakPointers(m_cachedStackFrames);
   cleanupExpiredWeakPointers(m_storedStackTraces);
   for (auto it = m_recurringTasks.begin(); it != m_recurringTasks.end();) {
     if (m_asyncTaskStacks.find(*it) == m_asyncTaskStacks.end()) {
@@ -1136,8 +1137,31 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
 
 std::shared_ptr<StackFrame> V8Debugger::symbolize(
     v8::Local<v8::StackFrame> v8Frame) {
-  CHECK(!v8Frame.IsEmpty());
-  return std::make_shared<StackFrame>(isolate(), v8Frame);
+  int scriptId = v8Frame->GetScriptId();
+  int lineNumber = v8Frame->GetLineNumber() - 1;
+  int columnNumber = v8Frame->GetColumn() - 1;
+  CachedStackFrameKey key{scriptId, lineNumber, columnNumber};
+  auto it = m_cachedStackFrames.find(key);
+  if (it != m_cachedStackFrames.end() && !it->second.expired()) {
+    auto stackFrame = it->second.lock();
+    DCHECK_EQ(
+        stackFrame->functionName(),
+        toProtocolString(isolate(), v8::debug::GetFunctionDebugName(v8Frame)));
+    DCHECK_EQ(stackFrame->sourceURL(),
+              toProtocolString(isolate(), v8Frame->GetScriptNameOrSourceURL()));
+    return stackFrame;
+  }
+  auto functionName =
+      toProtocolString(isolate(), v8::debug::GetFunctionDebugName(v8Frame));
+  auto sourceURL =
+      toProtocolString(isolate(), v8Frame->GetScriptNameOrSourceURL());
+  auto hasSourceURLComment =
+      v8Frame->GetScriptName() != v8Frame->GetScriptNameOrSourceURL();
+  auto stackFrame = std::make_shared<StackFrame>(
+      std::move(functionName), scriptId, std::move(sourceURL), lineNumber,
+      columnNumber, hasSourceURLComment);
+  m_cachedStackFrames.emplace(key, stackFrame);
+  return stackFrame;
 }
 
 void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
