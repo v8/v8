@@ -785,6 +785,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void name##_vf(VRegister vd, FPURegister fs1, VRegister vs2, \
                  MaskType mask = NoMask);
 
+#define DEFINE_OPMVV_VIE(name) \
+  void name(VRegister vd, VRegister vs2, MaskType mask = NoMask);
+
   DEFINE_OPIVV(vadd, VADD_FUNCT6)
   DEFINE_OPIVX(vadd, VADD_FUNCT6)
   DEFINE_OPIVI(vadd, VADD_FUNCT6)
@@ -918,6 +921,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPIVX(vnclipu, VNCLIPU_FUNCT6)
   DEFINE_OPIVI(vnclipu, VNCLIPU_FUNCT6)
 
+  // Vector Integer Extension
+  DEFINE_OPMVV_VIE(vzext_vf8)
+  DEFINE_OPMVV_VIE(vsext_vf8)
+  DEFINE_OPMVV_VIE(vzext_vf4)
+  DEFINE_OPMVV_VIE(vsext_vf4)
+  DEFINE_OPMVV_VIE(vzext_vf2)
+  DEFINE_OPMVV_VIE(vsext_vf2)
+
 #undef DEFINE_OPIVI
 #undef DEFINE_OPIVV
 #undef DEFINE_OPIVX
@@ -927,6 +938,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #undef DEFINE_OPFVF
 #undef DEFINE_OPFVV_FMA
 #undef DEFINE_OPFVF_FMA
+#undef DEFINE_OPMVV_VIE
 
 #define DEFINE_VFUNARY(name, funct6, vs1)                          \
   void name(VRegister vd, VRegister vs2, MaskType mask = NoMask) { \
@@ -1533,6 +1545,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                  VRegister vs2, MaskType mask = NoMask);
   void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, int8_t vs1,
                  VRegister vs2, MaskType mask = NoMask);
+  void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, VRegister vs2,
+                 MaskType mask = NoMask);
   // OPMVV OPFVV
   void GenInstrV(uint8_t funct6, Opcode opcode, Register rd, VRegister vs1,
                  VRegister vs2, MaskType mask = NoMask);

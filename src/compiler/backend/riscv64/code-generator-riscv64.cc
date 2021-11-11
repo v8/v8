@@ -2570,6 +2570,125 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
+    case kRiscvI64x2SConvertI32x4Low: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
+      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+
+      break;
+    }
+    case kRiscvI64x2SConvertI32x4High: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0), 2);
+      __ VU.set(kScratchReg, E64, m1);
+      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI64x2UConvertI32x4Low: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
+      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI64x2UConvertI32x4High: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0), 2);
+      __ VU.set(kScratchReg, E64, m1);
+      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI32x4SConvertI16x8Low: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
+      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI32x4SConvertI16x8High: {
+      __ VU.set(kScratchReg, E16, m1);
+      __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0), 4);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI32x4UConvertI16x8Low: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
+      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI32x4UConvertI16x8High: {
+      __ VU.set(kScratchReg, E16, m1);
+      __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0), 4);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI16x8SConvertI8x16Low: {
+      __ VU.set(kScratchReg, E16, m1);
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
+      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI16x8SConvertI8x16High: {
+      __ VU.set(kScratchReg, E8, m1);
+      __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0), 8);
+      __ VU.set(kScratchReg, E16, m1);
+      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI16x8UConvertI8x16Low: {
+      __ VU.set(kScratchReg, E16, m1);
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
+      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI16x8UConvertI8x16High: {
+      __ VU.set(kScratchReg, E8, m1);
+      __ vslidedown_vi(kSimd128ScratchReg, i.InputSimd128Register(0), 8);
+      __ VU.set(kScratchReg, E16, m1);
+      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI8x16SConvertI16x8: {
+      __ VU.set(kScratchReg, E16, m1);
+      __ vmv_vv(kSimd128ScratchReg2, i.InputSimd128Register(0));
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(1));
+      __ VU.set(kScratchReg, E8, m1);
+      __ VU.set(RoundingMode::RNE);
+      __ vnclip_vi(i.OutputSimd128Register(), kSimd128ScratchReg2, 0);
+      break;
+    }
+    case kRiscvI8x16UConvertI16x8: {
+      __ VU.set(kScratchReg, E16, m1);
+      __ vmv_vv(kSimd128ScratchReg2, i.InputSimd128Register(0));
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(1));
+      __ VU.set(kScratchReg, E16, m2);
+      __ vmax_vx(kSimd128ScratchReg2, kSimd128ScratchReg2, zero_reg);
+      __ VU.set(kScratchReg, E8, m1);
+      __ VU.set(RoundingMode::RNE);
+      __ vnclipu_vi(i.OutputSimd128Register(), kSimd128ScratchReg2, 0);
+      break;
+    }
+    case kRiscvI16x8SConvertI32x4: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_vv(kSimd128ScratchReg2, i.InputSimd128Register(0));
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(1));
+      __ VU.set(kScratchReg, E16, m1);
+      __ VU.set(RoundingMode::RNE);
+      __ vnclip_vi(i.OutputSimd128Register(), kSimd128ScratchReg2, 0);
+      break;
+    }
+    case kRiscvI16x8UConvertI32x4: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_vv(kSimd128ScratchReg2, i.InputSimd128Register(0));
+      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(1));
+      __ VU.set(kScratchReg, E32, m2);
+      __ vmax_vx(kSimd128ScratchReg2, kSimd128ScratchReg2, zero_reg);
+      __ VU.set(kScratchReg, E16, m1);
+      __ VU.set(RoundingMode::RNE);
+      __ vnclipu_vi(i.OutputSimd128Register(), kSimd128ScratchReg2, 0);
+      break;
+    }
     default:
 #ifdef DEBUG
       switch (arch_opcode) {

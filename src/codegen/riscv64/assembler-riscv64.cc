@@ -2584,6 +2584,12 @@ void Assembler::vrgather_vx(VRegister vd, VRegister vs2, Register rs1,
     GenInstrV(funct6, OP_FVF, vd, fs1, vs2, mask);                        \
   }
 
+// vector integer extension
+#define DEFINE_OPMVV_VIE(name, vs1)                                  \
+  void Assembler::name(VRegister vd, VRegister vs2, MaskType mask) { \
+    GenInstrV(VXUNARY0_FUNCT6, OP_MVV, vd, vs1, vs2, mask);          \
+  }
+
 void Assembler::vfmv_vf(VRegister vd, FPURegister fs1, MaskType mask) {
   GenInstrV(VMV_FUNCT6, OP_FVF, vd, fs1, v0, mask);
 }
@@ -2721,6 +2727,14 @@ DEFINE_OPIVV(vnclipu, VNCLIPU_FUNCT6)
 DEFINE_OPIVX(vnclipu, VNCLIPU_FUNCT6)
 DEFINE_OPIVI(vnclipu, VNCLIPU_FUNCT6)
 
+// Vector Integer Extension
+DEFINE_OPMVV_VIE(vzext_vf8, 0b00010)
+DEFINE_OPMVV_VIE(vsext_vf8, 0b00011)
+DEFINE_OPMVV_VIE(vzext_vf4, 0b00100)
+DEFINE_OPMVV_VIE(vsext_vf4, 0b00101)
+DEFINE_OPMVV_VIE(vzext_vf2, 0b00110)
+DEFINE_OPMVV_VIE(vsext_vf2, 0b00111)
+
 #undef DEFINE_OPIVI
 #undef DEFINE_OPIVV
 #undef DEFINE_OPIVX
@@ -2728,6 +2742,7 @@ DEFINE_OPIVI(vnclipu, VNCLIPU_FUNCT6)
 #undef DEFINE_OPFVF
 #undef DEFINE_OPFVV_FMA
 #undef DEFINE_OPFVF_FMA
+#undef DEFINE_OPMVV_VIE
 
 void Assembler::vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
                         TailAgnosticType tail, MaskAgnosticType mask) {

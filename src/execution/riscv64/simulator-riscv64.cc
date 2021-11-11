@@ -845,7 +845,6 @@ inline Dst unsigned_saturation(Src v, uint n) {
   RVV_VI_GENERAL_LOOP_BASE                                       \
   RVV_VI_LOOP_MASK_SKIP()                                        \
   if (rvv_vsew() == E8) {                                        \
-    UNREACHABLE();                                               \
     VN_UPARAMS(16);                                              \
     vd = unsigned_saturation<uint16_t, uint8_t>(                 \
         (static_cast<uint16_t>(vs2) >> uimm5) +                  \
@@ -875,7 +874,6 @@ inline Dst unsigned_saturation(Src v, uint n) {
   RVV_VI_GENERAL_LOOP_BASE                                                    \
   RVV_VI_LOOP_MASK_SKIP()                                                     \
   if (rvv_vsew() == E8) {                                                     \
-    UNREACHABLE();                                                            \
     VN_PARAMS(16);                                                            \
     vd = signed_saturation<int16_t, int8_t>(                                  \
         (vs2 >> uimm5) + get_round(static_cast<int>(rvv_vxrm()), vs2, uimm5), \
@@ -896,6 +894,81 @@ inline Dst unsigned_saturation(Src v, uint n) {
     UNREACHABLE();                                                            \
   }                                                                           \
   RVV_VI_LOOP_END                                                             \
+  rvv_trace_vd();
+
+#define RVV_VI_VIE_8_LOOP(signed)      \
+  RVV_VI_GENERAL_LOOP_BASE             \
+  RVV_VI_LOOP_MASK_SKIP()              \
+  if (rvv_vsew() == E64) {             \
+    if (signed) {                      \
+      VI_VIE_PARAMS(64, 8);            \
+      vd = static_cast<int64_t>(vs2);  \
+    } else {                           \
+      VI_VIE_UPARAMS(64, 8);           \
+      vd = static_cast<uint64_t>(vs2); \
+    }                                  \
+  } else {                             \
+    UNREACHABLE();                     \
+  }                                    \
+  RVV_VI_LOOP_END                      \
+  rvv_trace_vd();
+
+#define RVV_VI_VIE_4_LOOP(signed)      \
+  RVV_VI_GENERAL_LOOP_BASE             \
+  RVV_VI_LOOP_MASK_SKIP()              \
+  if (rvv_vsew() == E32) {             \
+    if (signed) {                      \
+      VI_VIE_PARAMS(32, 4);            \
+      vd = static_cast<int32_t>(vs2);  \
+    } else {                           \
+      VI_VIE_UPARAMS(32, 4);           \
+      vd = static_cast<uint32_t>(vs2); \
+    }                                  \
+  } else if (rvv_vsew() == E64) {      \
+    if (signed) {                      \
+      VI_VIE_PARAMS(64, 4);            \
+      vd = static_cast<int64_t>(vs2);  \
+    } else {                           \
+      VI_VIE_UPARAMS(64, 4);           \
+      vd = static_cast<uint64_t>(vs2); \
+    }                                  \
+  } else {                             \
+    UNREACHABLE();                     \
+  }                                    \
+  RVV_VI_LOOP_END                      \
+  rvv_trace_vd();
+
+#define RVV_VI_VIE_2_LOOP(signed)      \
+  RVV_VI_GENERAL_LOOP_BASE             \
+  RVV_VI_LOOP_MASK_SKIP()              \
+  if (rvv_vsew() == E16) {             \
+    if (signed) {                      \
+      VI_VIE_PARAMS(16, 2);            \
+      vd = static_cast<int16_t>(vs2);  \
+    } else {                           \
+      VI_VIE_UPARAMS(16, 2);           \
+      vd = static_cast<uint16_t>(vs2); \
+    }                                  \
+  } else if (rvv_vsew() == E32) {      \
+    if (signed) {                      \
+      VI_VIE_PARAMS(32, 2);            \
+      vd = static_cast<int32_t>(vs2);  \
+    } else {                           \
+      VI_VIE_UPARAMS(32, 2);           \
+      vd = static_cast<uint32_t>(vs2); \
+    }                                  \
+  } else if (rvv_vsew() == E64) {      \
+    if (signed) {                      \
+      VI_VIE_PARAMS(64, 2);            \
+      vd = static_cast<int64_t>(vs2);  \
+    } else {                           \
+      VI_VIE_UPARAMS(64, 2);           \
+      vd = static_cast<uint64_t>(vs2); \
+    }                                  \
+  } else {                             \
+    UNREACHABLE();                     \
+  }                                    \
+  RVV_VI_LOOP_END                      \
   rvv_trace_vd();
 
 namespace v8 {
@@ -3738,6 +3811,10 @@ bool Simulator::DecodeRvvVL() {
           RVV_VI_LD(0, (i * nf + fn), int32, false);
           break;
         }
+        case 64: {
+          RVV_VI_LD(0, (i * nf + fn), int64, false);
+          break;
+        }
         default:
           UNIMPLEMENTED_RISCV();
           break;
@@ -3797,6 +3874,10 @@ bool Simulator::DecodeRvvVS() {
         }
         case 32: {
           RVV_VI_ST(0, (i * nf + fn), uint32, false);
+          break;
+        }
+        case 64: {
+          RVV_VI_ST(0, (i * nf + fn), uint64, false);
           break;
         }
         default:
@@ -4806,7 +4887,7 @@ void Simulator::DecodeRvvIVI() {
         offset = sh;
       }
 
-      switch (rvv_sew()) {
+      switch (rvv_vsew()) {
         case E8: {
           VI_XI_SLIDEDOWN_PARAMS(8, offset);
           vd = is_valid ? vs2 : 0;
@@ -5104,6 +5185,23 @@ void Simulator::DecodeRvvMVV() {
     case RO_V_VREDMIN:
       RVV_VI_VV_LOOP_REDUCTION(
           { vd_0_res = (vd_0_res <= vs2) ? vd_0_res : vs2; })
+      break;
+    case RO_V_VXUNARY0:
+      if (rvv_vs1_reg() == 0b00010) {
+        RVV_VI_VIE_8_LOOP(false);
+      } else if (rvv_vs1_reg() == 0b00011) {
+        RVV_VI_VIE_8_LOOP(true);
+      } else if (rvv_vs1_reg() == 0b00100) {
+        RVV_VI_VIE_4_LOOP(false);
+      } else if (rvv_vs1_reg() == 0b00101) {
+        RVV_VI_VIE_4_LOOP(true);
+      } else if (rvv_vs1_reg() == 0b00110) {
+        RVV_VI_VIE_2_LOOP(false);
+      } else if (rvv_vs1_reg() == 0b00111) {
+        RVV_VI_VIE_2_LOOP(true);
+      } else {
+        UNSUPPORTED_RISCV();
+      }
       break;
     default:
       v8::base::EmbeddedVector<char, 256> buffer;

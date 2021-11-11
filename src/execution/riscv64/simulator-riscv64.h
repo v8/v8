@@ -792,6 +792,17 @@ class Simulator : public SimulatorBase {
   auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
   auto vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i - offset);
 
+/* Vector Integer Extension */
+#define VI_VIE_PARAMS(x, scale)                                  \
+  if ((x / scale) < 8) UNREACHABLE();                            \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
+  auto vs2 = Rvvelt<type_sew_t<x / scale>::type>(rvv_vs2_reg(), i);
+
+#define VI_VIE_UPARAMS(x, scale)                                 \
+  if ((x / scale) < 8) UNREACHABLE();                            \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
+  auto vs2 = Rvvelt<type_usew_t<x / scale>::type>(rvv_vs2_reg(), i);
+
   inline void rvv_trace_vd() {
     if (::v8::internal::FLAG_trace_sim) {
       __int128_t value = Vregister_[rvv_vd_reg()];

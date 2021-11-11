@@ -2218,6 +2218,23 @@ void Decoder::DecodeRvvMVV(Instruction* instr) {
     case RO_V_VREDMINU:
       Format(instr, "vredminu.vs  'vd, 'vs2, 'vs1'vm");
       break;
+    case RO_V_VXUNARY0:
+      if (instr->Vs1Value() == 0b00010) {
+        Format(instr, "vzext.vf8 'vd, 'vs2'vm");
+      } else if (instr->Vs1Value() == 0b00011) {
+        Format(instr, "vsext.vf8 'vd, 'vs2'vm");
+      } else if (instr->Vs1Value() == 0b00100) {
+        Format(instr, "vzext.vf4 'vd, 'vs2'vm");
+      } else if (instr->Vs1Value() == 0b00101) {
+        Format(instr, "vsext.vf4 'vd, 'vs2'vm");
+      } else if (instr->Vs1Value() == 0b00110) {
+        Format(instr, "vzext.vf2 'vd, 'vs2'vm");
+      } else if (instr->Vs1Value() == 0b00111) {
+        Format(instr, "vsext.vf2 'vd, 'vs2'vm");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
