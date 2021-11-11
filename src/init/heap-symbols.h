@@ -575,7 +575,6 @@
   F(MINOR_MC_MARKING_DEQUE)                          \
   F(MINOR_MC_RESET_LIVENESS)                         \
   F(MINOR_MC_SWEEPING)                               \
-  F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
   F(SCAVENGER_FAST_PROMOTE)                          \
@@ -592,8 +591,7 @@
   F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
   F(TIME_TO_GLOBAL_SAFEPOINT)                        \
   F(TIME_TO_SAFEPOINT)                               \
-  F(UNMAPPER)                                        \
-  F(UNPARK)
+  F(UNMAPPER)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \
   F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)          \

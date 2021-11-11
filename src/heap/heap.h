@@ -687,10 +687,6 @@ class Heap {
   bool IsTearingDown() const { return gc_state() == TEAR_DOWN; }
   bool force_oom() const { return force_oom_; }
 
-  bool ignore_local_gc_requests() const {
-    return ignore_local_gc_requests_depth_ > 0;
-  }
-
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
   bool IsGCWithoutStack() const;
@@ -2450,8 +2446,6 @@ class Heap {
 
   std::unique_ptr<CollectionBarrier> collection_barrier_;
 
-  int ignore_local_gc_requests_depth_ = 0;
-
   int gc_callbacks_depth_ = 0;
 
   bool deserialization_complete_ = false;
@@ -2508,7 +2502,6 @@ class Heap {
   friend class GCTracer;
   friend class HeapObjectIterator;
   friend class ScavengeTaskObserver;
-  friend class IgnoreLocalGCRequests;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
@@ -2665,15 +2658,6 @@ class V8_NODISCARD CodePageMemoryModificationScope {
   // Disallow any GCs inside this scope, as a relocation of the underlying
   // object would change the {MemoryChunk} that this scope targets.
   DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
-};
-
-class V8_NODISCARD IgnoreLocalGCRequests {
- public:
-  explicit inline IgnoreLocalGCRequests(Heap* heap);
-  inline ~IgnoreLocalGCRequests();
-
- private:
-  Heap* heap_;
 };
 
 // Visitor class to verify interior pointers in spaces that do not contain

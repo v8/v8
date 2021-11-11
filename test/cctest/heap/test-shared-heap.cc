@@ -164,24 +164,22 @@ UNINITIALIZED_TEST(SharedCollectionWithoutClients) {
   Isolate::Delete(shared_isolate);
 }
 
-void AllocateInSharedHeap(Isolate* shared_isolate, int iterations = 100) {
+void AllocateInSharedHeap(Isolate* shared_isolate) {
   SetupClientIsolateAndRunCallback(
       shared_isolate,
-      [iterations](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
+      [](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
         HandleScope scope(i_client_isolate);
         std::vector<Handle<FixedArray>> arrays;
         const int kKeptAliveArrays = 1000;
 
-        for (int i = 0; i < kNumIterations * iterations; i++) {
-          HandleScope scope(i_client_isolate);
+        for (int i = 0; i < kNumIterations * 100; i++) {
+          HandleScope new_scope(i_client_isolate);
           Handle<FixedArray> array = i_client_isolate->factory()->NewFixedArray(
               100, AllocationType::kSharedOld);
           if (i < kKeptAliveArrays) {
             // Keep some of those arrays alive across GCs.
-            arrays.push_back(scope.CloseAndEscape(array));
+            arrays.push_back(new_scope.CloseAndEscape(array));
           }
-          i_client_isolate->factory()->NewFixedArray(100,
-                                                     AllocationType::kYoung);
         }
 
         for (Handle<FixedArray> array : arrays) {
@@ -201,47 +199,6 @@ UNINITIALIZED_TEST(SharedCollectionWithOneClient) {
   Isolate* shared_isolate = Isolate::NewShared(create_params);
 
   AllocateInSharedHeap(shared_isolate);
-
-  Isolate::Delete(shared_isolate);
-}
-
-namespace {
-class SharedFixedArrayAllocationThread final : public v8::base::Thread {
- public:
-  explicit SharedFixedArrayAllocationThread(Isolate* shared)
-      : v8::base::Thread(
-            base::Thread::Options("SharedFixedArrayAllocationThread")),
-        shared_(shared) {}
-
-  void Run() override { AllocateInSharedHeap(shared_, 5); }
-
-  Isolate* shared_;
-};
-}  // namespace
-
-UNINITIALIZED_TEST(SharedCollectionWithMultipleClients) {
-  FLAG_max_old_space_size = 8;
-  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
-  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
-
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = allocator.get();
-  Isolate* shared_isolate = Isolate::NewShared(create_params);
-
-  std::vector<std::unique_ptr<SharedFixedArrayAllocationThread>> threads;
-  const int kThreads = 4;
-
-  for (int i = 0; i < kThreads; i++) {
-    auto thread =
-        std::make_unique<SharedFixedArrayAllocationThread>(shared_isolate);
-    CHECK(thread->Start());
-    threads.push_back(std::move(thread));
-  }
-
-  for (auto& thread : threads) {
-    thread->Join();
-  }
 
   Isolate::Delete(shared_isolate);
 }

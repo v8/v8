@@ -67,7 +67,6 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/paged-spaces-inl.h"
-#include "src/heap/parked-scope.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -1924,7 +1923,6 @@ void Heap::StartIncrementalMarking(int gc_flags,
     CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
   }
 
-  IgnoreLocalGCRequests ignore_gc_requests(this);
   SafepointScope safepoint(this);
 
 #ifdef DEBUG
@@ -2158,13 +2156,7 @@ size_t Heap::PerformGarbageCollection(
 
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
-  base::Optional<SafepointScope> safepoint_scope;
-
-  {
-    AllowGarbageCollection allow_shared_gc;
-    IgnoreLocalGCRequests ignore_gc_requests(this);
-    safepoint_scope.emplace(this);
-  }
+  SafepointScope safepoint_scope(this);
 
   collection_barrier_->StopTimeToCollectionTimer();
 
@@ -5482,16 +5474,14 @@ HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
   isolate()->counters()->gc_last_resort_from_handles()->Increment();
   if (IsSharedAllocationType(allocation)) {
     CollectSharedGarbage(GarbageCollectionReason::kLastResort);
-
-    AlwaysAllocateScope scope(isolate()->shared_isolate()->heap());
-    alloc = AllocateRaw(size, allocation, origin, alignment);
   } else {
     CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+  }
 
+  {
     AlwaysAllocateScope scope(this);
     alloc = AllocateRaw(size, allocation, origin, alignment);
   }
-
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
@@ -5885,21 +5875,11 @@ void Heap::StartTearDown() {
   // threads finish.
   collection_barrier_->NotifyShutdownRequested();
 
-  // Main thread isn't going to allocate anymore.
-  main_thread_local_heap()->FreeLinearAllocationArea();
-
-  if (isolate()->shared_isolate()) {
-    // Free LABs before detaching from the shared isolate.
-    shared_old_allocator_->FreeLinearAllocationArea();
-    shared_map_allocator_->FreeLinearAllocationArea();
-  }
-
 #ifdef VERIFY_HEAP
   // {StartTearDown} is called fairly early during Isolate teardown, so it's
   // a good time to run heap verification (if requested), before starting to
   // tear down parts of the Isolate.
   if (FLAG_verify_heap) {
-    IgnoreLocalGCRequests ignore_gc_requests(this);
     SafepointScope scope(this);
     Verify();
   }

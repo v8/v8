@@ -7,9 +7,6 @@
 #include <atomic>
 
 #include "src/base/logging.h"
-#include "src/base/optional.h"
-#include "src/base/platform/mutex.h"
-#include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
@@ -19,7 +16,6 @@
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/counters-scopes.h"
-#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -27,46 +23,22 @@ namespace internal {
 IsolateSafepoint::IsolateSafepoint(Heap* heap)
     : heap_(heap), local_heaps_head_(nullptr), active_safepoint_scopes_(0) {}
 
-void IsolateSafepoint::EnterLocalSafepointScope() {
+void IsolateSafepoint::EnterSafepointScope(StopMainThread stop_main_thread) {
   // Safepoints need to be initiated on the main thread.
   DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
   DCHECK_NULL(LocalHeap::Current());
 
-  LockMutex(heap_->isolate()->main_thread_local_heap());
   if (++active_safepoint_scopes_ > 1) return;
 
   TimedHistogramScope timer(
       heap_->isolate()->counters()->gc_time_to_safepoint());
   TRACE_GC(heap_->tracer(), GCTracer::Scope::TIME_TO_SAFEPOINT);
 
-  barrier_.Arm();
-  size_t running = SetSafepointRequestedFlags(IncludeMainThread::kNo);
-  barrier_.WaitUntilRunningThreadsInSafepoint(running);
-}
-
-void IsolateSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
-  {
-    IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
-    LockMutex(initiator->main_thread_local_heap());
-  }
-  CHECK_EQ(active_safepoint_scopes_.exchange(1), 0);
+  local_heaps_mutex_.Lock();
 
   barrier_.Arm();
 
-  size_t running =
-      SetSafepointRequestedFlags(IncludeMainThreadUnlessInitiator(initiator));
-  barrier_.WaitUntilRunningThreadsInSafepoint(running);
-}
-
-IsolateSafepoint::IncludeMainThread
-IsolateSafepoint::IncludeMainThreadUnlessInitiator(Isolate* initiator) {
-  const bool is_initiator = heap_->isolate() == initiator;
-  return is_initiator ? IncludeMainThread::kNo : IncludeMainThread::kYes;
-}
-
-size_t IsolateSafepoint::SetSafepointRequestedFlags(
-    IncludeMainThread include_main_thread) {
-  size_t running = 0;
+  int running = 0;
 
   // There needs to be at least one LocalHeap for the main thread.
   DCHECK_NOT_NULL(local_heaps_head_);
@@ -74,7 +46,7 @@ size_t IsolateSafepoint::SetSafepointRequestedFlags(
   for (LocalHeap* local_heap = local_heaps_head_; local_heap;
        local_heap = local_heap->next_) {
     if (local_heap->is_main_thread() &&
-        include_main_thread == IncludeMainThread::kNo) {
+        stop_main_thread == StopMainThread::kNo) {
       continue;
     }
 
@@ -87,42 +59,21 @@ size_t IsolateSafepoint::SetSafepointRequestedFlags(
     CHECK(!old_state.IsSafepointRequested());
   }
 
-  return running;
+  barrier_.WaitUntilRunningThreadsInSafepoint(running);
 }
 
-void IsolateSafepoint::LockMutex(LocalHeap* local_heap) {
-  if (!local_heaps_mutex_.TryLock()) {
-    ParkedScope parked_scope(local_heap);
-    local_heaps_mutex_.Lock();
-  }
-}
+void IsolateSafepoint::LeaveSafepointScope(StopMainThread stop_main_thread) {
+  // Safepoints need to be initiated on the main thread.
+  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
+  DCHECK_NULL(LocalHeap::Current());
 
-void IsolateSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
-  local_heaps_mutex_.AssertHeld();
-  CHECK_EQ(active_safepoint_scopes_.exchange(0), 1);
-  ClearSafepointRequestedFlags(IncludeMainThreadUnlessInitiator(initiator));
-  barrier_.Disarm();
-  local_heaps_mutex_.Unlock();
-}
-
-void IsolateSafepoint::LeaveLocalSafepointScope() {
-  local_heaps_mutex_.AssertHeld();
   DCHECK_GT(active_safepoint_scopes_, 0);
+  if (--active_safepoint_scopes_ > 0) return;
 
-  if (--active_safepoint_scopes_ == 0) {
-    ClearSafepointRequestedFlags(IncludeMainThread::kNo);
-    barrier_.Disarm();
-  }
-
-  local_heaps_mutex_.Unlock();
-}
-
-void IsolateSafepoint::ClearSafepointRequestedFlags(
-    IncludeMainThread include_main_thread) {
   for (LocalHeap* local_heap = local_heaps_head_; local_heap;
        local_heap = local_heap->next_) {
     if (local_heap->is_main_thread() &&
-        include_main_thread == IncludeMainThread::kNo) {
+        stop_main_thread == StopMainThread::kNo) {
       continue;
     }
 
@@ -134,6 +85,10 @@ void IsolateSafepoint::ClearSafepointRequestedFlags(
     CHECK_IMPLIES(old_state.IsCollectionRequested(),
                   local_heap->is_main_thread());
   }
+
+  barrier_.Disarm();
+
+  local_heaps_mutex_.Unlock();
 }
 
 void IsolateSafepoint::WaitInSafepoint() { barrier_.WaitInSafepoint(); }
@@ -158,7 +113,7 @@ void IsolateSafepoint::Barrier::Disarm() {
 }
 
 void IsolateSafepoint::Barrier::WaitUntilRunningThreadsInSafepoint(
-    size_t running) {
+    int running) {
   base::MutexGuard guard(&mutex_);
   DCHECK(IsArmed());
   while (stopped_ < running) {
@@ -193,8 +148,16 @@ void IsolateSafepoint::Barrier::WaitInUnpark() {
   }
 }
 
+SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
+  safepoint_->EnterSafepointScope(IsolateSafepoint::StopMainThread::kNo);
+}
+
+SafepointScope::~SafepointScope() {
+  safepoint_->LeaveSafepointScope(IsolateSafepoint::StopMainThread::kNo);
+}
+
 bool IsolateSafepoint::ContainsLocalHeap(LocalHeap* local_heap) {
-  base::RecursiveMutexGuard guard(&local_heaps_mutex_);
+  base::MutexGuard guard(&local_heaps_mutex_);
   LocalHeap* current = local_heaps_head_;
 
   while (current) {
@@ -206,7 +169,7 @@ bool IsolateSafepoint::ContainsLocalHeap(LocalHeap* local_heap) {
 }
 
 bool IsolateSafepoint::ContainsAnyLocalHeap() {
-  base::RecursiveMutexGuard guard(&local_heaps_mutex_);
+  base::MutexGuard guard(&local_heaps_mutex_);
   return local_heaps_head_ != nullptr;
 }
 
@@ -217,12 +180,6 @@ void IsolateSafepoint::Iterate(RootVisitor* visitor) {
     current->handles()->Iterate(visitor);
   }
 }
-
-SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
-  safepoint_->EnterLocalSafepointScope();
-}
-
-SafepointScope::~SafepointScope() { safepoint_->LeaveLocalSafepointScope(); }
 
 GlobalSafepoint::GlobalSafepoint(Isolate* isolate)
     : shared_isolate_(isolate), shared_heap_(isolate->heap()) {}
@@ -247,11 +204,7 @@ void GlobalSafepoint::AppendClient(Isolate* client) {
 
 void GlobalSafepoint::RemoveClient(Isolate* client) {
   DCHECK_EQ(client->heap()->gc_state(), Heap::TEAR_DOWN);
-
-  // A shared heap may have already acquired the client mutex to perform a
-  // shared GC. We need to park the Isolate here to allow for a shared GC.
-  IgnoreLocalGCRequests ignore_gc_requests(client->heap());
-  ParkedMutexGuard guard(client->main_thread_local_heap(), &clients_mutex_);
+  base::MutexGuard guard(&clients_mutex_);
 
   if (client->global_safepoint_next_client_isolate_) {
     client->global_safepoint_next_client_isolate_
@@ -275,7 +228,6 @@ void GlobalSafepoint::AssertNoClients() { DCHECK_NULL(clients_head_); }
 
 void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
   if (!clients_mutex_.TryLock()) {
-    IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
     ParkedScope parked_scope(initiator->main_thread_local_heap());
     clients_mutex_.Lock();
   }
@@ -287,7 +239,9 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
 
   IterateClientIsolates([this, initiator](Isolate* client) {
     Heap* client_heap = client->heap();
-    client_heap->safepoint()->EnterGlobalSafepointScope(initiator);
+    CHECK_EQ(initiator, client);
+    client_heap->safepoint()->EnterSafepointScope(
+        IsolateSafepoint::StopMainThread::kNo);
 
     USE(this);
     DCHECK_EQ(client->shared_isolate(), shared_isolate_);
@@ -296,9 +250,10 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
 }
 
 void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
-  IterateClientIsolates([initiator](Isolate* client) {
+  IterateClientIsolates([](Isolate* client) {
     Heap* client_heap = client->heap();
-    client_heap->safepoint()->LeaveGlobalSafepointScope(initiator);
+    client_heap->safepoint()->LeaveSafepointScope(
+        IsolateSafepoint::StopMainThread::kNo);
   });
 
   clients_mutex_.Unlock();

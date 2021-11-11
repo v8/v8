@@ -867,16 +867,6 @@ CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
   }
 }
 
-IgnoreLocalGCRequests::IgnoreLocalGCRequests(Heap* heap) : heap_(heap) {
-  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
-  heap_->ignore_local_gc_requests_depth_++;
-}
-
-IgnoreLocalGCRequests::~IgnoreLocalGCRequests() {
-  DCHECK_GT(heap_->ignore_local_gc_requests_depth_, 0);
-  heap_->ignore_local_gc_requests_depth_--;
-}
-
 }  // namespace internal
 }  // namespace v8
 

@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -18,7 +17,6 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
-#include "src/heap/heap.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/parked-scope.h"
@@ -175,42 +173,13 @@ void LocalHeap::ParkSlowPath() {
     DCHECK(current_state.IsRunning());
 
     if (is_main_thread()) {
-      DCHECK(current_state.IsSafepointRequested() ||
-             current_state.IsCollectionRequested());
-
-      if (current_state.IsSafepointRequested()) {
-        ThreadState old_state = state_.SetParked();
-        heap_->safepoint()->NotifyPark();
-        if (old_state.IsCollectionRequested())
-          heap_->collection_barrier_->CancelCollectionAndResumeThreads();
-        return;
-      }
-
-      if (current_state.IsCollectionRequested()) {
-        if (!heap()->ignore_local_gc_requests()) {
-          heap_->CollectGarbageForBackground(this);
-          continue;
-        }
-
-        DCHECK(!current_state.IsSafepointRequested());
-
-        if (state_.CompareExchangeStrong(current_state,
-                                         current_state.SetParked())) {
-          heap_->collection_barrier_->CancelCollectionAndResumeThreads();
-          return;
-        } else {
-          continue;
-        }
-      }
+      DCHECK(current_state.IsCollectionRequested());
+      heap_->CollectGarbageForBackground(this);
     } else {
       DCHECK(current_state.IsSafepointRequested());
       DCHECK(!current_state.IsCollectionRequested());
-
-      ThreadState old_state = state_.SetParked();
-      CHECK(old_state.IsRunning());
-      CHECK(old_state.IsSafepointRequested());
-      CHECK(!old_state.IsCollectionRequested());
-
+      CHECK(state_.CompareExchangeStrong(current_state,
+                                         current_state.SetParked()));
       heap_->safepoint()->NotifyPark();
       return;
     }
@@ -227,50 +196,19 @@ void LocalHeap::UnparkSlowPath() {
     DCHECK(current_state.IsParked());
 
     if (is_main_thread()) {
-      DCHECK(current_state.IsSafepointRequested() ||
-             current_state.IsCollectionRequested());
-
-      if (current_state.IsSafepointRequested()) {
-        SleepInUnpark();
-        continue;
-      }
-
-      if (current_state.IsCollectionRequested()) {
-        DCHECK(!current_state.IsSafepointRequested());
-
-        if (!state_.CompareExchangeStrong(current_state,
-                                          current_state.SetRunning()))
-          continue;
-
-        if (!heap()->ignore_local_gc_requests()) {
-          heap_->CollectGarbageForBackground(this);
-        }
-
-        return;
-      }
+      DCHECK(current_state.IsCollectionRequested());
+      CHECK(state_.CompareExchangeStrong(current_state,
+                                         current_state.SetRunning()));
+      heap_->CollectGarbageForBackground(this);
+      return;
     } else {
       DCHECK(current_state.IsSafepointRequested());
       DCHECK(!current_state.IsCollectionRequested());
-
-      SleepInUnpark();
+      TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_UNPARK,
+                ThreadKind::kBackground);
+      heap_->safepoint()->WaitInUnpark();
     }
   }
-}
-
-void LocalHeap::SleepInUnpark() {
-  GCTracer::Scope::ScopeId scope_id;
-  ThreadKind thread_kind;
-
-  if (is_main_thread()) {
-    scope_id = GCTracer::Scope::UNPARK;
-    thread_kind = ThreadKind::kMain;
-  } else {
-    scope_id = GCTracer::Scope::BACKGROUND_UNPARK;
-    thread_kind = ThreadKind::kBackground;
-  }
-
-  TRACE_GC1(heap_->tracer(), scope_id, thread_kind);
-  heap_->safepoint()->WaitInUnpark();
 }
 
 void LocalHeap::EnsureParkedBeforeDestruction() {
@@ -278,54 +216,32 @@ void LocalHeap::EnsureParkedBeforeDestruction() {
 }
 
 void LocalHeap::SafepointSlowPath() {
+#ifdef DEBUG
   ThreadState current_state = state_.load_relaxed();
   DCHECK(current_state.IsRunning());
+#endif
 
   if (is_main_thread()) {
-    DCHECK(current_state.IsSafepointRequested() ||
-           current_state.IsCollectionRequested());
-
-    if (current_state.IsSafepointRequested()) {
-      SleepInSafepoint();
-    }
-
-    if (current_state.IsCollectionRequested()) {
-      heap_->CollectGarbageForBackground(this);
-    }
+    DCHECK(current_state.IsCollectionRequested());
+    heap_->CollectGarbageForBackground(this);
   } else {
     DCHECK(current_state.IsSafepointRequested());
     DCHECK(!current_state.IsCollectionRequested());
 
-    SleepInSafepoint();
+    TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_SAFEPOINT,
+              ThreadKind::kBackground);
+
+    // Parking the running thread here is an optimization. We do not need to
+    // wake this thread up to reach the next safepoint.
+    ThreadState old_state = state_.SetParked();
+    CHECK(old_state.IsRunning());
+    CHECK(old_state.IsSafepointRequested());
+    CHECK(!old_state.IsCollectionRequested());
+
+    heap_->safepoint()->WaitInSafepoint();
+
+    Unpark();
   }
-}
-
-void LocalHeap::SleepInSafepoint() {
-  GCTracer::Scope::ScopeId scope_id;
-  ThreadKind thread_kind;
-
-  if (is_main_thread()) {
-    scope_id = GCTracer::Scope::SAFEPOINT;
-    thread_kind = ThreadKind::kMain;
-  } else {
-    scope_id = GCTracer::Scope::BACKGROUND_SAFEPOINT;
-    thread_kind = ThreadKind::kBackground;
-  }
-
-  TRACE_GC1(heap_->tracer(), scope_id, thread_kind);
-
-  // Parking the running thread here is an optimization. We do not need to
-  // wake this thread up to reach the next safepoint.
-  ThreadState old_state = state_.SetParked();
-  CHECK(old_state.IsRunning());
-  CHECK(old_state.IsSafepointRequested());
-  CHECK_IMPLIES(old_state.IsCollectionRequested(), is_main_thread());
-
-  heap_->safepoint()->WaitInSafepoint();
-
-  base::Optional<IgnoreLocalGCRequests> ignore_gc_requests;
-  if (is_main_thread()) ignore_gc_requests.emplace(heap());
-  Unpark();
 }
 
 void LocalHeap::FreeLinearAllocationArea() {
@@ -354,7 +270,7 @@ bool LocalHeap::TryPerformCollection() {
     return true;
   } else {
     DCHECK(IsRunning());
-    if (!heap_->collection_barrier_->TryRequestGC()) return false;
+    heap_->collection_barrier_->RequestGC();
 
     LocalHeap* main_thread = heap_->main_thread_local_heap();
 

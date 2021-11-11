@@ -7,7 +7,6 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
-#include "src/common/globals.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap.h"
 #include "src/objects/visitors.h"
@@ -19,11 +18,20 @@ class Heap;
 class LocalHeap;
 class RootVisitor;
 
-// Used to bring all threads with heap access in an isolate to a safepoint such
-// that e.g. a garbage collection can be performed.
+// Used to bring all threads with heap access to a safepoint such that e.g. a
+// garbage collection can be performed.
 class IsolateSafepoint final {
  public:
   explicit IsolateSafepoint(Heap* heap);
+
+  // Wait until unpark operation is safe again
+  void WaitInUnpark();
+
+  // Enter the safepoint from a running thread
+  void WaitInSafepoint();
+
+  // Running thread reached a safepoint by parking itself.
+  void NotifyPark();
 
   V8_EXPORT_PRIVATE bool ContainsLocalHeap(LocalHeap* local_heap);
   V8_EXPORT_PRIVATE bool ContainsAnyLocalHeap();
@@ -50,7 +58,7 @@ class IsolateSafepoint final {
     base::ConditionVariable cv_stopped_;
     bool armed_;
 
-    size_t stopped_ = 0;
+    int stopped_ = 0;
 
     bool IsArmed() { return armed_; }
 
@@ -59,42 +67,23 @@ class IsolateSafepoint final {
 
     void Arm();
     void Disarm();
-    void WaitUntilRunningThreadsInSafepoint(size_t running);
+    void WaitUntilRunningThreadsInSafepoint(int running);
 
     void WaitInSafepoint();
     void WaitInUnpark();
     void NotifyPark();
   };
 
-  enum class IncludeMainThread { kYes, kNo };
+  enum class StopMainThread { kYes, kNo };
 
-  // Wait until unpark operation is safe again.
-  void WaitInUnpark();
-
-  // Enter the safepoint from a running thread.
-  void WaitInSafepoint();
-
-  // Running thread reached a safepoint by parking itself.
-  void NotifyPark();
-
-  void EnterLocalSafepointScope();
-  void EnterGlobalSafepointScope(Isolate* initiator);
-
-  void LeaveLocalSafepointScope();
-  void LeaveGlobalSafepointScope(Isolate* initiator);
-
-  IncludeMainThread IncludeMainThreadUnlessInitiator(Isolate* initiator);
-
-  void LockMutex(LocalHeap* local_heap);
-
-  size_t SetSafepointRequestedFlags(IncludeMainThread include_main_thread);
-  void ClearSafepointRequestedFlags(IncludeMainThread include_main_thread);
+  void EnterSafepointScope(StopMainThread stop_main_thread);
+  void LeaveSafepointScope(StopMainThread stop_main_thread);
 
   template <typename Callback>
   void AddLocalHeap(LocalHeap* local_heap, Callback callback) {
     // Safepoint holds this lock in order to stop threads from starting or
     // stopping.
-    base::RecursiveMutexGuard guard(&local_heaps_mutex_);
+    base::MutexGuard guard(&local_heaps_mutex_);
 
     // Additional code protected from safepoint
     callback();
@@ -108,7 +97,7 @@ class IsolateSafepoint final {
 
   template <typename Callback>
   void RemoveLocalHeap(LocalHeap* local_heap, Callback callback) {
-    base::RecursiveMutexGuard guard(&local_heaps_mutex_);
+    base::MutexGuard guard(&local_heaps_mutex_);
 
     // Additional code protected from safepoint
     callback();
@@ -124,12 +113,10 @@ class IsolateSafepoint final {
   Barrier barrier_;
   Heap* heap_;
 
-  // Mutex is used both for safepointing and adding/removing threads. A
-  // RecursiveMutex is needed since we need to support nested SafepointScopes.
-  base::RecursiveMutex local_heaps_mutex_;
+  base::Mutex local_heaps_mutex_;
   LocalHeap* local_heaps_head_;
 
-  std::atomic<int> active_safepoint_scopes_;
+  int active_safepoint_scopes_;
 
   friend class Heap;
   friend class GlobalSafepoint;
