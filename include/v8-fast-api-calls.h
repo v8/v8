@@ -832,14 +832,14 @@ static constexpr CTypeInfo kTypeInfoFloat64 =
  * returns true on success. `type_info` will be used for conversions.
  */
 template <const CTypeInfo* type_info, typename T>
-V8_DEPRECATE_SOON(
+V8_DEPRECATED(
     "Use TryToCopyAndConvertArrayToCppBuffer<CTypeInfo::Identifier, T>()")
 bool V8_EXPORT V8_WARN_UNUSED_RESULT
     TryCopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
                                       uint32_t max_length);
 
 template <>
-V8_DEPRECATE_SOON(
+V8_DEPRECATED(
     "Use TryToCopyAndConvertArrayToCppBuffer<CTypeInfo::Identifier, T>()")
 inline bool V8_WARN_UNUSED_RESULT
     TryCopyAndConvertArrayToCppBuffer<&kTypeInfoInt32, int32_t>(
@@ -848,7 +848,7 @@ inline bool V8_WARN_UNUSED_RESULT
 }
 
 template <>
-V8_DEPRECATE_SOON(
+V8_DEPRECATED(
     "Use TryToCopyAndConvertArrayToCppBuffer<CTypeInfo::Identifier, T>()")
 inline bool V8_WARN_UNUSED_RESULT
     TryCopyAndConvertArrayToCppBuffer<&kTypeInfoFloat64, double>(
