@@ -91,7 +91,7 @@ in_category(
         name = "V8 Linux64",
         parent_builder = "V8 Linux64 - builder",
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 - internal snapshot",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
@@ -104,23 +104,23 @@ in_category(
         name = "V8 Linux64 - custom snapshot - debug",
         parent_builder = "V8 Linux64 - custom snapshot - debug builder",
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 - debug - header includes",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
         use_goma = GOMA.DEFAULT,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 - shared",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 - verify csa",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 - pointer compression",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
@@ -174,18 +174,18 @@ in_category(
         parent_builder = "V8 Win32 - debug builder",
         close_tree = False,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Win64",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"binary_size_tracking": {"category": "win64", "binary": "d8.exe"}},
         use_goma = GOMA.ATS,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Win64 - debug",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_goma = GOMA.ATS,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Win64 - msvc",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"use_goma": False},
