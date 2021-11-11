@@ -495,17 +495,18 @@ Handle<String> StringTable::LookupKey(IsolateT* isolate, StringTableKey* key) {
 
   // Load the current string table data, in case another thread updates the
   // data while we're reading.
-  const Data* data = data_.load(std::memory_order_acquire);
+  const Data* current_data = data_.load(std::memory_order_acquire);
 
   // First try to find the string in the table. This is safe to do even if the
   // table is now reallocated; we won't find a stale entry in the old table
   // because the new table won't delete it's corresponding entry until the
   // string is dead, in which case it will die in this table too and worst
   // case we'll have a false miss.
-  InternalIndex entry = data->FindEntry(isolate, key, key->hash());
+  InternalIndex entry = current_data->FindEntry(isolate, key, key->hash());
   if (entry.is_found()) {
-    Handle<String> result(String::cast(data->Get(isolate, entry)), isolate);
-    DCHECK_IMPLIES(FLAG_shared_string_table, result->IsShared());
+    Handle<String> result(String::cast(current_data->Get(isolate, entry)),
+                          isolate);
+    DCHECK_IMPLIES(FLAG_shared_string_table, result->InSharedHeap());
     return result;
   }
 
