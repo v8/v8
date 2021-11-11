@@ -2054,8 +2054,8 @@ TEST(InterpreterMixedComparisons) {
                {kInternalizedStringConstant, kComputedString}) {
             const char* lhs_cstr = inputs[i];
             const char* rhs_cstr = inputs[j];
-            double lhs = StringToDouble(lhs_cstr, ConversionFlags::NO_FLAGS);
-            double rhs = StringToDouble(rhs_cstr, ConversionFlags::NO_FLAGS);
+            double lhs = StringToDouble(lhs_cstr, NO_CONVERSION_FLAGS);
+            double rhs = StringToDouble(rhs_cstr, NO_CONVERSION_FLAGS);
             HandleAndZoneScope handles;
             Isolate* isolate = handles.main_isolate();
             Zone* zone = handles.main_zone();
@@ -2156,8 +2156,8 @@ TEST(InterpreterStrictNotEqual) {
   const char* inputs[] = {"-1.77", "-40.333", "0.01", "55.77e5", "2.01"};
   for (size_t i = 0; i < arraysize(inputs); i++) {
     for (size_t j = 0; j < arraysize(inputs); j++) {
-      double lhs = StringToDouble(inputs[i], ConversionFlags::NO_FLAGS);
-      double rhs = StringToDouble(inputs[j], ConversionFlags::NO_FLAGS);
+      double lhs = StringToDouble(inputs[i], NO_CONVERSION_FLAGS);
+      double rhs = StringToDouble(inputs[j], NO_CONVERSION_FLAGS);
       Handle<Object> lhs_obj = factory->NewNumber(lhs);
       Handle<Object> rhs_obj = factory->NewStringFromAsciiChecked(inputs[j]);
 
