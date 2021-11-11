@@ -139,7 +139,7 @@ deps = {
   'test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '42e21582f8ee7cbf533e1102959704165993d0c5',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '26f1f4567ee7e33163d961c867d689173cbb9065',
   'test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '278bcfaed0dcaa13936831fb1769d15e7c1e3b2b',
   'third_party/aemu-linux-x64': {
