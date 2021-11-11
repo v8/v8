@@ -518,6 +518,7 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 #if ENABLE_SPARKPLUG
 DEFINE_WEAK_IMPLICATION(future, sparkplug)
 DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
+DEFINE_WEAK_IMPLICATION(future, concurrent_sparkplug)
 #endif
 #if V8_SHORT_BUILTIN_CALLS
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
