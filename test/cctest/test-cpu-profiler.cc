@@ -1373,10 +1373,6 @@ static const char* call_function_test_source =
 //     1     1      bar [-1] #7
 //    19    19    (program) [-1] #2
 TEST(FunctionCallSample) {
-  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
-  // since it requires a precise trace.
-  if (i::FLAG_concurrent_sparkplug) return;
-
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1434,10 +1430,6 @@ static const char* function_apply_test_source =
 //     2     2        bar [-1] #16 6
 //    10    10    (program) [-1] #0 2
 TEST(FunctionApplySample) {
-  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
-  // since it requires a precise trace.
-  if (i::FLAG_concurrent_sparkplug) return;
-
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1917,10 +1909,6 @@ static const char* inlining_test_source2 = R"(
 //                        bailed out due to 'Optimization is always disabled'
 //     2    (program):0 0 #2
 TEST(Inlining2) {
-  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
-  // since it requires a precise trace.
-  if (FLAG_concurrent_sparkplug) return;
-
   FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
@@ -2009,10 +1997,6 @@ static const char* cross_script_source_b = R"(
   )";
 
 TEST(CrossScriptInliningCallerLineNumbers) {
-  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
-  // since it requires a precise trace.
-  if (i::FLAG_concurrent_sparkplug) return;
-
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
