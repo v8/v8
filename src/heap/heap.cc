@@ -1395,13 +1395,13 @@ void Heap::HandleGCRequest() {
   } else if (CollectionRequested()) {
     CheckCollectionRequested();
   } else if (incremental_marking()->request_type() ==
-             IncrementalMarking::COMPLETE_MARKING) {
+             IncrementalMarking::GCRequestType::COMPLETE_MARKING) {
     incremental_marking()->reset_request_type();
     CollectAllGarbage(current_gc_flags_,
                       GarbageCollectionReason::kFinalizeMarkingViaStackGuard,
                       current_gc_callback_flags_);
   } else if (incremental_marking()->request_type() ==
-                 IncrementalMarking::FINALIZATION &&
+                 IncrementalMarking::GCRequestType::FINALIZATION &&
              incremental_marking()->IsMarking() &&
              !incremental_marking()->finalize_marking_completed()) {
     incremental_marking()->reset_request_type();

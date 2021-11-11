@@ -639,7 +639,7 @@ void IncrementalMarking::FinalizeMarking(CompletionAction action) {
         "[IncrementalMarking] requesting finalization of incremental "
         "marking.\n");
   }
-  request_type_ = FINALIZATION;
+  request_type_ = GCRequestType::FINALIZATION;
   if (action == GC_VIA_STACK_GUARD) {
     heap_->isolate()->stack_guard()->RequestGC();
   }
@@ -709,7 +709,7 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Complete (normal).\n");
   }
-  request_type_ = COMPLETE_MARKING;
+  request_type_ = GCRequestType::COMPLETE_MARKING;
   if (action == GC_VIA_STACK_GUARD) {
     heap_->isolate()->stack_guard()->RequestGC();
   }
