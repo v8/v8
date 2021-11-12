@@ -318,7 +318,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(value_0 + value_1, instance.exports.main());
 })();
 
-(function EscapeAnalysis() {
+(function EscapeAnalysisWithLoadElimination() {
   print(arguments.callee.name);
 
   let builder = new WasmModuleBuilder();
@@ -337,6 +337,36 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
       kGCPrefix, kExprStructGet, struct2, 0,
       kGCPrefix, kExprStructGet, struct1, 0])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertEquals(42, instance.exports.main(42));
+})();
+
+(function EscapeAnalysisWithInterveningEffect() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let struct1 = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct2 = builder.addStruct([makeField(wasmOptRefType(struct1), true)]);
+
+  let nop = builder.addFunction("nop", kSig_v_v).addBody([]);
+
+  // TF should eliminate both allocations in this function, despite the
+  // intervening effectful call.
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRttCanon, struct1,
+      kGCPrefix, kExprStructNewWithRtt, struct1,
+
+      kExprCallFunction, nop.index,
+
+      kGCPrefix, kExprRttCanon, struct2,
+      kGCPrefix, kExprStructNewWithRtt, struct2,
+
+      kExprLocalGet, 0,
+      kExprReturn])
     .exportFunc();
 
   let instance = builder.instantiate({});

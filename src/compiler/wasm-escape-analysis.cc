@@ -44,6 +44,12 @@ Reduction WasmEscapeAnalysis::ReduceAllocateRaw(Node* node) {
     Node* use = edge.from();
     DCHECK(!use->IsDead());
     DCHECK_EQ(use->opcode(), IrOpcode::kStoreToObject);
+    // The value stored by this StoreToObject node might be another allocation
+    // which has no more uses. Therefore we have to revisit it. Note that this
+    // will not happen automatically: ReplaceWithValue does not trigger revisits
+    // of former inputs of the replaced node.
+    Node* stored_value = NodeProperties::GetValueInput(use, 2);
+    Revisit(stored_value);
     ReplaceWithValue(use, mcgraph_->Dead(), NodeProperties::GetEffectInput(use),
                      mcgraph_->Dead());
     use->Kill();
