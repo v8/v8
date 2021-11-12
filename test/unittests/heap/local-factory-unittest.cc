@@ -80,17 +80,11 @@ class LocalFactoryTest : public TestWithIsolateAndZone {
     parse_info_.set_character_stream(
         ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
 
-    {
-      DisallowGarbageCollection no_gc;
-      DisallowHeapAccess no_heap_access;
+    Parser parser(local_isolate(), parse_info(), script_);
+    parser.InitializeEmptyScopeChain(parse_info());
+    parser.ParseOnBackground(local_isolate(), parse_info(), 0, 0,
+                             kFunctionLiteralIdTopLevel);
 
-      Parser parser(isolate()->main_thread_local_isolate(), parse_info(),
-                    script_);
-      parser.InitializeEmptyScopeChain(parse_info());
-      parser.ParseOnBackground(parse_info(), 0, 0, kFunctionLiteralIdTopLevel);
-    }
-
-    parse_info()->ast_value_factory()->Internalize(local_isolate());
     DeclarationScope::AllocateScopeInfos(parse_info(), local_isolate());
 
     // Create the SFI list on the script so that SFI SetScript works.

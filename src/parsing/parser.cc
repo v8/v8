@@ -18,6 +18,7 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
+#include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -689,7 +690,8 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   return result;
 }
 
-void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
+template <typename IsolateT>
+void Parser::PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
                                     FunctionLiteral* literal) {
   if (literal == nullptr) return;
 
@@ -699,10 +701,7 @@ void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
     info->set_allow_eval_cache(allow_eval_cache());
   }
 
-  // We cannot internalize on a background thread; a foreground task will take
-  // care of calling AstValueFactory::Internalize just before compilation.
-  DCHECK_EQ(isolate != nullptr, parsing_on_main_thread_);
-  if (isolate) info->ast_value_factory()->Internalize(isolate);
+  info->ast_value_factory()->Internalize(isolate);
 
   {
     RCS_SCOPE(info->runtime_call_stats(), RuntimeCallCounterId::kCompileAnalyse,
@@ -714,6 +713,12 @@ void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
     }
   }
 }
+
+template void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,
+                                             FunctionLiteral* literal);
+template void Parser::PostProcessParseResult(LocalIsolate* isolate,
+                                             ParseInfo* info,
+                                             FunctionLiteral* literal);
 
 ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
     Isolate* isolate, ParseInfo* info, Zone* zone) {
@@ -3292,37 +3297,48 @@ void Parser::UpdateStatistics(Handle<Script> script, int* use_counts,
   *preparse_skipped = total_preparse_skipped_;
 }
 
-void Parser::ParseOnBackground(ParseInfo* info, int start_position,
-                               int end_position, int function_literal_id) {
+void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
+                               int start_position, int end_position,
+                               int function_literal_id) {
   RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseBackgroundProgram);
   parsing_on_main_thread_ = false;
 
   DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
+  {
+    // We can park the isolate while parsing, it doesn't need to allocate or
+    // access the main thread.
+    ParkedScope parked_scope(isolate);
 
-  scanner_.Initialize();
+    scanner_.Initialize();
 
-  DCHECK(original_scope_);
+    DCHECK(original_scope_);
 
-  // When streaming, we don't know the length of the source until we have parsed
-  // it. The raw data can be UTF-8, so we wouldn't know the source length until
-  // we have decoded it anyway even if we knew the raw data length (which we
-  // don't). We work around this by storing all the scopes which need their end
-  // position set at the end of the script (the top scope and possible eval
-  // scopes) and set their end position after we know the script length.
-  if (flags().is_toplevel()) {
-    DCHECK_EQ(start_position, 0);
-    DCHECK_EQ(end_position, 0);
-    DCHECK_EQ(function_literal_id, kFunctionLiteralIdTopLevel);
-    result = DoParseProgram(/* isolate = */ nullptr, info);
-  } else {
-    result = DoParseFunction(/* isolate = */ nullptr, info, start_position,
-                             end_position, function_literal_id,
-                             info->function_name());
+    // When streaming, we don't know the length of the source until we have
+    // parsed it. The raw data can be UTF-8, so we wouldn't know the source
+    // length until we have decoded it anyway even if we knew the raw data
+    // length (which we don't). We work around this by storing all the scopes
+    // which need their end position set at the end of the script (the top scope
+    // and possible eval scopes) and set their end position after we know the
+    // script length.
+    if (flags().is_toplevel()) {
+      DCHECK_EQ(start_position, 0);
+      DCHECK_EQ(end_position, 0);
+      DCHECK_EQ(function_literal_id, kFunctionLiteralIdTopLevel);
+      result = DoParseProgram(/* isolate = */ nullptr, info);
+    } else {
+      result = DoParseFunction(/* isolate = */ nullptr, info, start_position,
+                               end_position, function_literal_id,
+                               info->function_name());
+    }
+    MaybeResetCharacterStream(info, result);
+    MaybeProcessSourceRanges(info, result, stack_limit_);
   }
-  MaybeResetCharacterStream(info, result);
-  MaybeProcessSourceRanges(info, result, stack_limit_);
-  PostProcessParseResult(/* isolate = */ nullptr, info, result);
+  // We need to unpark by now though, to be able to internalize.
+  PostProcessParseResult(isolate, info, result);
+  if (flags().is_toplevel()) {
+    HandleSourceURLComments(isolate, script_);
+  }
 }
 
 Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {

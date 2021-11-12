@@ -1494,12 +1494,12 @@ void BackgroundCompileTask::Run() {
   bool toplevel_script_compilation = flags_.is_toplevel();
 
   LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
+  UnparkedScope unparked_scope(&isolate);
+  LocalHandleScope handle_scope(&isolate);
 
   if (toplevel_script_compilation) {
     DCHECK_NULL(persistent_handles_);
     DCHECK(input_shared_info_.is_null());
-    UnparkedScope unparked_scope(&isolate);
-    LocalHandleScope handle_scope(&isolate);
 
     // We don't have the script source, origin, or details yet, so use default
     // values for them. These will be fixed up during the main-thread merge.
@@ -1510,12 +1510,11 @@ void BackgroundCompileTask::Run() {
   } else {
     DCHECK_NOT_NULL(persistent_handles_);
     isolate.heap()->AttachPersistentHandles(std::move(persistent_handles_));
-    UnparkedScope unparked_scope(&isolate);
-
     Handle<SharedFunctionInfo> shared_info =
         input_shared_info_.ToHandleChecked();
     script_ = isolate.heap()->NewPersistentHandle(
         Script::cast(shared_info->script()));
+    info_->CheckFlagsForFunctionFromScript(*script_);
 
     SharedStringAccessGuardIfNeeded access_guard(&isolate);
     info_->set_function_name(info_->GetOrCreateAstValueFactory()->GetString(
@@ -1531,65 +1530,50 @@ void BackgroundCompileTask::Run() {
   Parser parser(&isolate, info_.get(), script_);
   parser.InitializeEmptyScopeChain(info_.get());
 
-  parser.ParseOnBackground(info_.get(), start_position_, end_position_,
-                           function_literal_id_);
+  parser.ParseOnBackground(&isolate, info_.get(), start_position_,
+                           end_position_, function_literal_id_);
+  parser.UpdateStatistics(script_, use_counts_, &total_preparse_skipped_);
 
   // Save the language mode.
   language_mode_ = info_->language_mode();
 
-  {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                 "V8.CompileCodeBackground");
-    RCS_SCOPE(info_->runtime_call_stats(),
-              RuntimeCallCounterIdForCompileBackground(info_.get()));
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompileCodeBackground");
+  RCS_SCOPE(info_->runtime_call_stats(),
+            RuntimeCallCounterIdForCompileBackground(info_.get()));
 
-    UnparkedScope unparked_scope(&isolate);
-    LocalHandleScope handle_scope(&isolate);
-
-    info_->ast_value_factory()->Internalize(&isolate);
-
+  MaybeHandle<SharedFunctionInfo> maybe_result;
+  if (info_->literal() != nullptr) {
+    Handle<SharedFunctionInfo> shared_info;
     if (toplevel_script_compilation) {
-      // The script is new, so we can mutate it here.
-      parser.HandleSourceURLComments(&isolate, script_);
+      shared_info =
+          CreateTopLevelSharedFunctionInfo(info_.get(), script_, &isolate);
     } else {
-      info_->CheckFlagsForFunctionFromScript(*script_);
+      // Clone into a placeholder SFI for storing the results.
+      shared_info = isolate.factory()->CloneSharedFunctionInfo(
+          input_shared_info_.ToHandleChecked());
     }
 
-    MaybeHandle<SharedFunctionInfo> maybe_result;
-    if (info_->literal() != nullptr) {
-      Handle<SharedFunctionInfo> shared_info;
-      if (toplevel_script_compilation) {
-        shared_info =
-            CreateTopLevelSharedFunctionInfo(info_.get(), script_, &isolate);
-      } else {
-        // Clone into a placeholder SFI for storing the results.
-        shared_info = isolate.factory()->CloneSharedFunctionInfo(
-            input_shared_info_.ToHandleChecked());
-      }
-
-      if (IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
-              &isolate, shared_info, script_, info_.get(),
-              compile_state_.allocator(), &is_compiled_scope_,
-              &finalize_unoptimized_compilation_data_,
-              &jobs_to_retry_finalization_on_main_thread_)) {
-        maybe_result = shared_info;
-      }
+    if (IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
+            &isolate, shared_info, script_, info_.get(),
+            compile_state_.allocator(), &is_compiled_scope_,
+            &finalize_unoptimized_compilation_data_,
+            &jobs_to_retry_finalization_on_main_thread_)) {
+      maybe_result = shared_info;
     }
-
-    if (maybe_result.is_null()) {
-      PreparePendingException(&isolate, info_.get());
-    }
-
-    outer_function_sfi_ =
-        isolate.heap()->NewPersistentMaybeHandle(maybe_result);
-    script_ = isolate.heap()->NewPersistentHandle(script_);
-
-    parser.UpdateStatistics(script_, use_counts_, &total_preparse_skipped_);
   }
 
+  if (maybe_result.is_null()) {
+    PreparePendingException(&isolate, info_.get());
+  }
+
+  outer_function_sfi_ = isolate.heap()->NewPersistentMaybeHandle(maybe_result);
+  DCHECK(isolate.heap()->ContainsPersistentHandle(script_.location()));
+  persistent_handles_ = isolate.heap()->DetachPersistentHandles();
+
+  // Make sure the language mode didn't change.
   DCHECK_EQ(language_mode_, info_->language_mode());
   info_.reset();
-  persistent_handles_ = isolate.heap()->DetachPersistentHandles();
 }
 
 MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
