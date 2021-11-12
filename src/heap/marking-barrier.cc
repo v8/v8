@@ -27,14 +27,16 @@ MarkingBarrier::MarkingBarrier(Heap* heap)
       collector_(heap_->mark_compact_collector()),
       incremental_marking_(heap_->incremental_marking()),
       worklist_(collector_->marking_worklists()->shared()),
-      is_main_thread_barrier_(true) {}
+      is_main_thread_barrier_(true),
+      is_shared_heap_(heap_->IsShared()) {}
 
 MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
     : heap_(local_heap->heap()),
       collector_(heap_->mark_compact_collector()),
       incremental_marking_(nullptr),
       worklist_(collector_->marking_worklists()->shared()),
-      is_main_thread_barrier_(false) {}
+      is_main_thread_barrier_(false),
+      is_shared_heap_(heap_->IsShared()) {}
 
 MarkingBarrier::~MarkingBarrier() { DCHECK(worklist_.IsLocalEmpty()); }
 
