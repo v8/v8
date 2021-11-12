@@ -3032,15 +3032,16 @@ Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
   }
 }
 
-Node* WasmGraphBuilder::CallDirect(uint32_t index, base::Vector<Node*> args,
+Node* WasmGraphBuilder::CallDirect(uint32_t index, wasm::FunctionSig* real_sig,
+                                   base::Vector<Node*> args,
                                    base::Vector<Node*> rets,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
-  const wasm::FunctionSig* sig = env_->module->functions[index].sig;
 
   if (env_ && index < env_->module->num_imported_functions) {
     // Call to an imported function.
-    return BuildImportCall(sig, args, rets, position, index, kCallContinues);
+    return BuildImportCall(real_sig, args, rets, position, index,
+                           kCallContinues);
   }
 
   // A direct call to a wasm function defined in this module.
@@ -3048,14 +3049,15 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, base::Vector<Node*> args,
   Address code = static_cast<Address>(index);
   args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
 
-  return BuildWasmCall(sig, args, rets, position, nullptr);
+  return BuildWasmCall(real_sig, args, rets, position, nullptr);
 }
 
 Node* WasmGraphBuilder::CallIndirect(uint32_t table_index, uint32_t sig_index,
+                                     wasm::FunctionSig* sig,
                                      base::Vector<Node*> args,
                                      base::Vector<Node*> rets,
                                      wasm::WasmCodePosition position) {
-  return BuildIndirectCall(table_index, sig_index, args, rets, position,
+  return BuildIndirectCall(table_index, sig_index, sig, args, rets, position,
                            kCallContinues);
 }
 
@@ -3108,12 +3110,10 @@ void WasmGraphBuilder::LoadIndirectFunctionTable(uint32_t table_index,
       wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset));
 }
 
-Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
-                                          uint32_t sig_index,
-                                          base::Vector<Node*> args,
-                                          base::Vector<Node*> rets,
-                                          wasm::WasmCodePosition position,
-                                          IsReturnCall continuation) {
+Node* WasmGraphBuilder::BuildIndirectCall(
+    uint32_t table_index, uint32_t sig_index, wasm::FunctionSig* real_sig,
+    base::Vector<Node*> args, base::Vector<Node*> rets,
+    wasm::WasmCodePosition position, IsReturnCall continuation) {
   DCHECK_NOT_NULL(args[0]);
   DCHECK_NOT_NULL(env_);
 
@@ -3124,8 +3124,6 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   Node* ift_instances;
   LoadIndirectFunctionTable(table_index, &ift_size, &ift_sig_ids, &ift_targets,
                             &ift_instances);
-
-  const wasm::FunctionSig* sig = env_->module->signature(sig_index);
 
   Node* key = args[0];
 
@@ -3171,9 +3169,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(sig, args, rets, position, target_instance);
+      return BuildWasmCall(real_sig, args, rets, position, target_instance);
     case kReturnCall:
-      return BuildWasmReturnCall(sig, args, position, target_instance);
+      return BuildWasmReturnCall(real_sig, args, position, target_instance);
   }
 }
 
@@ -3202,7 +3200,7 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
 }
 
 // TODO(9495): Support CAPI function refs.
-Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
+Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
                                      base::Vector<Node*> args,
                                      base::Vector<Node*> rets,
                                      CheckForNull null_check,
@@ -3252,9 +3250,10 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
 
   args[0] = end_label.PhiAt(0);
 
-  Node* call = continuation == kCallContinues
-                   ? BuildWasmCall(sig, args, rets, position, instance_node)
-                   : BuildWasmReturnCall(sig, args, position, instance_node);
+  Node* call =
+      continuation == kCallContinues
+          ? BuildWasmCall(real_sig, args, rets, position, instance_node)
+          : BuildWasmReturnCall(real_sig, args, position, instance_node);
   return call;
 }
 
@@ -3274,31 +3273,32 @@ void WasmGraphBuilder::CompareToExternalFunctionAtIndex(
                 failure_control, BranchHint::kTrue);
 }
 
-Node* WasmGraphBuilder::CallRef(const wasm::FunctionSig* sig,
+Node* WasmGraphBuilder::CallRef(const wasm::FunctionSig* real_sig,
                                 base::Vector<Node*> args,
                                 base::Vector<Node*> rets,
                                 WasmGraphBuilder::CheckForNull null_check,
                                 wasm::WasmCodePosition position) {
-  return BuildCallRef(sig, args, rets, null_check, IsReturnCall::kCallContinues,
-                      position);
+  return BuildCallRef(real_sig, args, rets, null_check,
+                      IsReturnCall::kCallContinues, position);
 }
 
-Node* WasmGraphBuilder::ReturnCallRef(const wasm::FunctionSig* sig,
+Node* WasmGraphBuilder::ReturnCallRef(const wasm::FunctionSig* real_sig,
                                       base::Vector<Node*> args,
                                       WasmGraphBuilder::CheckForNull null_check,
                                       wasm::WasmCodePosition position) {
-  return BuildCallRef(sig, args, {}, null_check, IsReturnCall::kReturnCall,
+  return BuildCallRef(real_sig, args, {}, null_check, IsReturnCall::kReturnCall,
                       position);
 }
 
-Node* WasmGraphBuilder::ReturnCall(uint32_t index, base::Vector<Node*> args,
+Node* WasmGraphBuilder::ReturnCall(uint32_t index,
+                                   const wasm::FunctionSig* real_sig,
+                                   base::Vector<Node*> args,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
-  const wasm::FunctionSig* sig = env_->module->functions[index].sig;
 
   if (env_ && index < env_->module->num_imported_functions) {
     // Return Call to an imported function.
-    return BuildImportCall(sig, args, {}, position, index, kReturnCall);
+    return BuildImportCall(real_sig, args, {}, position, index, kReturnCall);
   }
 
   // A direct tail call to a wasm function defined in this module.
@@ -3307,14 +3307,15 @@ Node* WasmGraphBuilder::ReturnCall(uint32_t index, base::Vector<Node*> args,
   Address code = static_cast<Address>(index);
   args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
 
-  return BuildWasmReturnCall(sig, args, position, nullptr);
+  return BuildWasmReturnCall(real_sig, args, position, nullptr);
 }
 
 Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t table_index,
                                            uint32_t sig_index,
+                                           wasm::FunctionSig* real_sig,
                                            base::Vector<Node*> args,
                                            wasm::WasmCodePosition position) {
-  return BuildIndirectCall(table_index, sig_index, args, {}, position,
+  return BuildIndirectCall(table_index, sig_index, real_sig, args, {}, position,
                            kReturnCall);
 }
 
@@ -4443,6 +4444,8 @@ void WasmGraphBuilder::PrintDebugName(Node* node) {
 }
 
 Graph* WasmGraphBuilder::graph() { return mcgraph()->graph(); }
+
+Zone* WasmGraphBuilder::graph_zone() { return graph()->zone(); }
 
 namespace {
 Signature<MachineRepresentation>* CreateMachineSignature(
@@ -8196,6 +8199,7 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
       flags,                              // flags
       "wasm-call",                        // debug name
       StackArgumentOrder::kDefault,       // order of the arguments in the stack
+      fsig,                               // signature
       0,                                  // allocatable registers
       return_slots);                      // return slot count
 }
@@ -8203,16 +8207,16 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
 namespace {
 CallDescriptor* ReplaceTypeInCallDescriptorWith(
     Zone* zone, const CallDescriptor* call_descriptor, size_t num_replacements,
-    MachineType input_type, MachineRepresentation output_type) {
+    wasm::ValueType input_type, wasm::ValueType output_type) {
   size_t parameter_count = call_descriptor->ParameterCount();
   size_t return_count = call_descriptor->ReturnCount();
   for (size_t i = 0; i < call_descriptor->ParameterCount(); i++) {
-    if (call_descriptor->GetParameterType(i) == input_type) {
+    if (call_descriptor->GetParameterType(i) == input_type.machine_type()) {
       parameter_count += num_replacements - 1;
     }
   }
   for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
-    if (call_descriptor->GetReturnType(i) == input_type) {
+    if (call_descriptor->GetReturnType(i) == input_type.machine_type()) {
       return_count += num_replacements - 1;
     }
   }
@@ -8233,12 +8237,12 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
   LinkageLocationAllocator params(
       wasm::kGpParamRegisters, wasm::kFpParamRegisters, 0 /* no slot offset */);
 
-  for (size_t i = 0, e = call_descriptor->ParameterCount() -
-                         (has_callable_param ? 1 : 0);
-       i < e; i++) {
-    if (call_descriptor->GetParameterType(i) == input_type) {
+  for (size_t i = 0;
+       i < call_descriptor->ParameterCount() - (has_callable_param ? 1 : 0);
+       i++) {
+    if (call_descriptor->GetParameterType(i) == input_type.machine_type()) {
       for (size_t j = 0; j < num_replacements; j++) {
-        locations.AddParam(params.Next(output_type));
+        locations.AddParam(params.Next(output_type.machine_representation()));
       }
     } else {
       locations.AddParam(
@@ -8256,9 +8260,9 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
                                 wasm::kFpReturnRegisters, parameter_slots);
 
   for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
-    if (call_descriptor->GetReturnType(i) == input_type) {
+    if (call_descriptor->GetReturnType(i) == input_type.machine_type()) {
       for (size_t j = 0; j < num_replacements; j++) {
-        locations.AddReturn(rets.Next(output_type));
+        locations.AddReturn(rets.Next(output_type.machine_representation()));
       }
     } else {
       locations.AddReturn(
@@ -8267,6 +8271,29 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
   }
 
   int return_slots = rets.NumStackSlots();
+
+  wasm::FunctionSig::Builder sig(
+      zone,
+      call_descriptor->wasm_sig()->return_count() + return_count -
+          call_descriptor->ReturnCount(),
+      call_descriptor->wasm_sig()->parameter_count() + parameter_count -
+          call_descriptor->ParameterCount());
+
+  for (wasm::ValueType ret : call_descriptor->wasm_sig()->returns()) {
+    if (ret == input_type) {
+      for (size_t i = 0; i < num_replacements; i++) sig.AddReturn(output_type);
+    } else {
+      sig.AddReturn(ret);
+    }
+  }
+
+  for (wasm::ValueType param : call_descriptor->wasm_sig()->parameters()) {
+    if (param == input_type) {
+      for (size_t i = 0; i < num_replacements; i++) sig.AddParam(output_type);
+    } else {
+      sig.AddParam(param);
+    }
+  }
 
   return zone->New<CallDescriptor>(               // --
       call_descriptor->kind(),                    // kind
@@ -8280,6 +8307,7 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
       call_descriptor->flags(),                   // flags
       call_descriptor->debug_name(),              // debug name
       call_descriptor->GetStackArgumentOrder(),   // stack order
+      sig.Build(),                                // signature
       call_descriptor->AllocatableRegisters(),    // allocatable registers
       return_slots);                              // return slot count
 }
@@ -8288,15 +8316,7 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
 CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, const CallDescriptor* call_descriptor) {
   return ReplaceTypeInCallDescriptorWith(zone, call_descriptor, 2,
-                                         MachineType::Int64(),
-                                         MachineRepresentation::kWord32);
-}
-
-CallDescriptor* GetI32WasmCallDescriptorForSimd(
-    Zone* zone, CallDescriptor* call_descriptor) {
-  return ReplaceTypeInCallDescriptorWith(zone, call_descriptor, 4,
-                                         MachineType::Simd128(),
-                                         MachineRepresentation::kWord32);
+                                         wasm::kWasmI64, wasm::kWasmI32);
 }
 
 AssemblerOptions WasmAssemblerOptions() {

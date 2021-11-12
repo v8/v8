@@ -517,6 +517,9 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       CallDescriptor::kCanUseRoots | flags,  // flags
       descriptor.DebugName(),                // debug name
       descriptor.GetStackArgumentOrder(),    // stack order
+#if V8_ENABLE_WEBASSEMBLY
+      nullptr,  // wasm function signature
+#endif
       allocatable_registers);
 }
 

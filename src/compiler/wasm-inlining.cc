@@ -12,6 +12,7 @@
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8 {
 namespace internal {
@@ -122,7 +123,26 @@ void WasmInliner::Finalize() {
         &module()->functions[candidate.inlinee_index];
     base::Vector<const byte> function_bytes =
         wire_bytes_->GetCode(inlinee->code);
-    const wasm::FunctionBody inlinee_body(inlinee->sig, inlinee->code.offset(),
+    // We use the signature based on the real argument types stored in the call
+    // node. This is more specific than the callee's formal signature and might
+    // enable some optimizations.
+    const wasm::FunctionSig* real_sig =
+        CallDescriptorOf(call->op())->wasm_sig();
+
+    // DCHECK that the real signature is a subtype of the formal one.
+    DCHECK_EQ(real_sig->parameter_count(), inlinee->sig->parameter_count());
+    DCHECK_EQ(real_sig->return_count(), inlinee->sig->return_count());
+    for (size_t i = 0; i < real_sig->parameter_count(); i++) {
+      DCHECK(wasm::IsSubtypeOf(real_sig->GetParam(i), inlinee->sig->GetParam(i),
+                               module()));
+    }
+    for (size_t i = 0; i < real_sig->return_count(); i++) {
+      DCHECK(wasm::IsSubtypeOf(inlinee->sig->GetReturn(i),
+                               real_sig->GetReturn(i), module()));
+    }
+    // End DCHECK.
+
+    const wasm::FunctionBody inlinee_body(real_sig, inlinee->code.offset(),
                                           function_bytes.begin(),
                                           function_bytes.end());
     wasm::WasmFeatures detected;
@@ -168,6 +188,7 @@ void WasmInliner::Finalize() {
     } else {
       InlineTailCall(call, inlinee_start, inlinee_end);
     }
+    call->Kill();
     // Returning after only one inlining has been tried and found worse.
   }
 }
