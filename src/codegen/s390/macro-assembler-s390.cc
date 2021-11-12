@@ -5553,6 +5553,22 @@ STORE_LANE_LIST(STORE_LANE)
 #undef CAN_LOAD_STORE_REVERSE
 #undef IS_BIG_ENDIAN
 
+void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(root_array_available());
+  Isolate* isolate = this->isolate();
+  ExternalReference limit =
+      kind == StackLimitKind::kRealStackLimit
+          ? ExternalReference::address_of_real_jslimit(isolate)
+          : ExternalReference::address_of_jslimit(isolate);
+  DCHECK(TurboAssembler::IsAddressableThroughRootRegister(isolate, limit));
+
+  intptr_t offset =
+      TurboAssembler::RootRegisterOffsetForExternalReference(isolate, limit);
+  CHECK(is_int32(offset));
+  LoadU64(destination, MemOperand(kRootRegister, offset));
+}
+
 #undef kScratchDoubleReg
 
 }  // namespace internal
