@@ -3522,13 +3522,18 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
 void Heap::MakeHeapIterable() {
   mark_compact_collector()->EnsureSweepingCompleted();
 
-  MakeLocalHeapLabsIterable();
-}
-
-void Heap::MakeLocalHeapLabsIterable() {
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->MakeLinearAllocationAreaIterable();
   });
+
+  PagedSpaceIterator spaces(this);
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
+    space->MakeLinearAllocationAreaIterable();
+  }
+
+  // New space is bump-pointer allocation only and therefore guaranteed to be
+  // iterable up to top().
 }
 
 namespace {
@@ -4598,8 +4603,6 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
 
 #ifdef DEBUG
 void Heap::VerifyCountersAfterSweeping() {
-  MakeLocalHeapLabsIterable();
-
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {

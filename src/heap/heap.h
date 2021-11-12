@@ -1652,6 +1652,10 @@ class Heap {
 
   void UpdateEpochFull();
 
+  // Ensure that we have swept all spaces in such a way that we can iterate
+  // over all objects.
+  void MakeHeapIterable();
+
  private:
   using ExternalStringTableUpdaterCallback = String (*)(Heap* heap,
                                                         FullObjectSlot pointer);
@@ -1780,13 +1784,6 @@ class Heap {
   // so that the GC does not confuse some unintialized/stale memory
   // with the allocation memento of the object at the top
   void EnsureFillerObjectAtTop();
-
-  // Ensure that we have swept all spaces in such a way that we can iterate
-  // over all objects.  May cause a GC.
-  void MakeHeapIterable();
-
-  // Ensure that LABs of local heaps are iterable.
-  void MakeLocalHeapLabsIterable();
 
   // Performs garbage collection in a safepoint.
   // Returns the number of freed global handles.

@@ -37,8 +37,8 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       cage_base_(heap->isolate())
 #endif  // V8_COMPRESS_POINTERS
 {
-  space_->MakeLinearAllocationAreaIterable();
-  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  heap->MakeHeapIterable();
+  USE(space_);
 }
 
 PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
@@ -54,8 +54,7 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
       cage_base_(heap->isolate())
 #endif  // V8_COMPRESS_POINTERS
 {
-  space_->MakeLinearAllocationAreaIterable();
-  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  heap->MakeHeapIterable();
 #ifdef DEBUG
   AllocationSpace owner = page->owner_identity();
   DCHECK(owner == OLD_SPACE || owner == MAP_SPACE || owner == CODE_SPACE);
