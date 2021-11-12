@@ -70,7 +70,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   static bool Compile(Isolate* isolate, Handle<SharedFunctionInfo> shared,
                       ClearExceptionFlag flag,
-                      IsCompiledScope* is_compiled_scope);
+                      IsCompiledScope* is_compiled_scope,
+                      CreateSourcePositions create_source_positions_flag =
+                          CreateSourcePositions::kNo);
   static bool Compile(Isolate* isolate, Handle<JSFunction> function,
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);

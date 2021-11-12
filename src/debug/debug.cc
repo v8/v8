@@ -1810,7 +1810,7 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
   IsCompiledScope is_compiled_scope = shared->is_compiled_scope(isolate_);
   if (!is_compiled_scope.is_compiled() &&
       !Compiler::Compile(isolate_, shared, Compiler::CLEAR_EXCEPTION,
-                         &is_compiled_scope)) {
+                         &is_compiled_scope, CreateSourcePositions::kYes)) {
     return false;
   }
   CreateBreakInfo(shared);

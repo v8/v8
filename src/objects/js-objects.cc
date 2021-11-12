@@ -5443,6 +5443,9 @@ void JSMessageObject::EnsureSourcePositionsAvailable(
     DCHECK_GE(message->bytecode_offset().value(), kFunctionEntryBytecodeOffset);
     Handle<SharedFunctionInfo> shared_info(
         SharedFunctionInfo::cast(message->shared_info()), isolate);
+    IsCompiledScope is_compiled_scope;
+    SharedFunctionInfo::EnsureBytecodeArrayAvailable(
+        isolate, shared_info, &is_compiled_scope, CreateSourcePositions::kYes);
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
     DCHECK(shared_info->HasBytecodeArray());
     int position = shared_info->abstract_code(isolate).SourcePosition(

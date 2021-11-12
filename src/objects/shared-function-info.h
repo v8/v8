@@ -49,6 +49,10 @@ using FunctionSig = Signature<ValueType>;
 
 #include "torque-generated/src/objects/shared-function-info-tq.inc"
 
+// Defines whether the source positions should be created during function
+// compilation.
+enum class CreateSourcePositions { kNo, kYes };
+
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
 //
@@ -571,6 +575,11 @@ class SharedFunctionInfo
   // start position.
   void SetFunctionTokenPosition(int function_token_position,
                                 int start_position);
+
+  static void EnsureBytecodeArrayAvailable(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+      IsCompiledScope* is_compiled,
+      CreateSourcePositions flag = CreateSourcePositions::kNo);
 
   inline bool CanCollectSourcePosition(Isolate* isolate);
   static void EnsureSourcePositionsAvailable(
