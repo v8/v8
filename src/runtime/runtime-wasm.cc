@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/memory.h"
+#include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
@@ -705,10 +706,12 @@ namespace {
 // contains a sentinel value, and it is also thread-safe. So if an interrupt is
 // requested before, during or after this call, it will be preserved and handled
 // at the next stack check.
-void SyncStackLimit(Isolate* isolate, Handle<WasmInstanceObject> instance) {
-  auto jmpbuf = Managed<wasm::JumpBuffer>::cast(
-                    instance->active_continuation().managed_jmpbuf())
-                    .get();
+void SyncStackLimit(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  auto continuation = WasmContinuationObject::cast(
+      *isolate->roots_table().slot(RootIndex::kActiveContinuation));
+  auto jmpbuf =
+      Managed<wasm::JumpBuffer>::cast(continuation.managed_jmpbuf()).get();
   uintptr_t limit = reinterpret_cast<uintptr_t>(jmpbuf->stack_limit);
   isolate->stack_guard()->SetStackLimit(limit);
 }
@@ -718,22 +721,21 @@ void SyncStackLimit(Isolate* isolate, Handle<WasmInstanceObject> instance) {
 // active continuation and setting the stack limit.
 RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   CHECK(FLAG_experimental_wasm_stack_switching);
-  DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  auto parent = instance->active_continuation();
-  auto target = WasmContinuationObject::New(isolate, parent);
-  instance->set_active_continuation(*target);
-  SyncStackLimit(isolate, instance);
+  auto parent =
+      handle(WasmContinuationObject::cast(
+                 *isolate->roots_table().slot(RootIndex::kActiveContinuation)),
+             isolate);
+  auto target = WasmContinuationObject::New(isolate, *parent);
+  isolate->roots_table().slot(RootIndex::kActiveContinuation).store(*target);
+  SyncStackLimit(isolate);
   return *target;
 }
 
 // Update the stack limit after a stack switch, and preserve pending interrupts.
 RUNTIME_FUNCTION(Runtime_WasmSyncStackLimit) {
   CHECK(FLAG_experimental_wasm_stack_switching);
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  SyncStackLimit(isolate, instance);
+  SyncStackLimit(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

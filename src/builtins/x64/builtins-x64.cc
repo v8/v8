@@ -3696,10 +3696,7 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   Register active_continuation = rax;
   Register foreign_jmpbuf = rbx;
-  __ LoadAnyTaggedField(
-      active_continuation,
-      FieldOperand(wasm_instance,
-                   WasmInstanceObject::kActiveContinuationOffset));
+  __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
   __ LoadAnyTaggedField(
       foreign_jmpbuf,
       FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
@@ -3726,10 +3723,9 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
-  __ Move(GCScanSlotPlace, 3);
+  __ Move(GCScanSlotPlace, 2);
   __ Push(wasm_instance);
   __ Push(function_data);
-  __ Push(wasm_instance);
   __ Move(kContextRegister, Smi::zero());
   __ CallRuntime(Runtime::kWasmAllocateContinuation);
   __ Pop(function_data);
@@ -3753,10 +3749,9 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // Switch stack!
   LoadJumpBuffer(masm, target_jmpbuf);
   __ movq(rbp, rsp);  // New stack, there is no frame yet.
-  __ Move(GCScanSlotPlace, 3);
+  __ Move(GCScanSlotPlace, 2);
   __ Push(wasm_instance);
   __ Push(function_data);
-  __ Push(wasm_instance);
   __ Move(kContextRegister, Smi::zero());
   __ CallRuntime(Runtime::kWasmSyncStackLimit);
   __ Pop(function_data);
@@ -3799,10 +3794,7 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // Reload parent continuation.
   // -------------------------------------------
   active_continuation = rbx;
-  __ LoadAnyTaggedField(
-      active_continuation,
-      FieldOperand(wasm_instance,
-                   WasmInstanceObject::kActiveContinuationOffset));
+  __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
   Register parent = rdx;
   __ LoadAnyTaggedField(
       parent,
@@ -3813,20 +3805,7 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Update instance active continuation.
   // -------------------------------------------
-  Register object = WriteBarrierDescriptor::ObjectRegister();
-  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
-  DCHECK_EQ(object, rdi);
-  DCHECK((slot_address == rbx || slot_address == r8));
-  // Save reg clobbered by the write barrier.
-  __ movq(rax, parent);
-  __ movq(object, wasm_instance);
-  __ StoreTaggedField(
-      FieldOperand(object, WasmInstanceObject::kActiveContinuationOffset),
-      parent);
-  __ RecordWriteField(object, WasmInstanceObject::kActiveContinuationOffset,
-                      parent, slot_address, SaveFPRegsMode::kIgnore);
-  // Restore reg clobbered by the write barrier.
-  __ movq(parent, rax);
+  __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation), parent);
   foreign_jmpbuf = rax;
   __ LoadAnyTaggedField(
       foreign_jmpbuf,
@@ -3838,9 +3817,8 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // Switch stack!
   LoadJumpBuffer(masm, jmpbuf);
   __ leaq(rbp, Operand(rsp, (kNumSpillSlots + 1) * kSystemPointerSize));
-  __ Move(GCScanSlotPlace, 2);
+  __ Move(GCScanSlotPlace, 1);
   __ Push(wasm_instance);  // Spill.
-  __ Push(wasm_instance);  // First arg.
   __ Move(kContextRegister, Smi::zero());
   __ CallRuntime(Runtime::kWasmSyncStackLimit);
   __ Pop(wasm_instance);

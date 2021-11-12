@@ -1208,15 +1208,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       module_object->native_module()->num_liftoff_function_calls_array());
   instance->set_break_on_entry(module_object->script().break_on_entry());
 
-  if (FLAG_experimental_wasm_stack_switching) {
-    // TODO(thibaudm): If there is already a continuation object for the current
-    // execution context, re-use that instead of creating a new one.
-    std::unique_ptr<wasm::StackMemory> stack(
-        wasm::StackMemory::GetCurrentStackView(isolate));
-    auto continuation = WasmContinuationObject::New(isolate, std::move(stack));
-    instance->set_active_continuation(*continuation);
-  }
-
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
   if (module_object->script().type() == Script::TYPE_WASM) {
