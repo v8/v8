@@ -470,7 +470,8 @@ void JSObject::InitializeBody(Map map, int start_offset,
 }
 
 DEF_GETTER(JSGlobalObject, native_context_unchecked, Object) {
-  return TaggedField<Object, kNativeContextOffset>::load(cage_base, *this);
+  return TaggedField<Object, kNativeContextOffset>::Relaxed_Load(cage_base,
+                                                                 *this);
 }
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
