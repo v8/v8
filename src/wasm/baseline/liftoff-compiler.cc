@@ -785,6 +785,13 @@ class LiftoffCompiler {
     DefineSafepoint();
   }
 
+  bool dynamic_tiering() {
+    return env_->dynamic_tiering == DynamicTiering::kEnabled &&
+           for_debugging_ == kNoDebugging &&
+           (FLAG_wasm_tier_up_filter == -1 ||
+            FLAG_wasm_tier_up_filter == func_index_);
+  }
+
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
       if (!CheckSupportedType(decoder, __ local_kind(i), "param")) return;
@@ -834,11 +841,11 @@ class LiftoffCompiler {
     } else {
       __ Spill(liftoff::kFeedbackVectorOffset, WasmValue::ForUintPtr(0));
     }
-    if (FLAG_new_wasm_dynamic_tiering) {
+    if (dynamic_tiering()) {
       LiftoffRegList pinned = parameter_registers;
       LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LOAD_INSTANCE_FIELD(tmp.gp(), NumLiftoffFunctionCallsArray,
-                          kSystemPointerSize, pinned);
+      LOAD_INSTANCE_FIELD(tmp.gp(), TieringBudgetArray, kSystemPointerSize,
+                          pinned);
       uint32_t offset =
           kInt32Size * declared_function_index(env_->module, func_index_);
       __ Load(tmp, tmp.gp(), no_reg, offset, LoadType::kI32Load, pinned);
@@ -903,49 +910,6 @@ class LiftoffCompiler {
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
     StackCheck(decoder, 0);
-
-    if (env_->dynamic_tiering == DynamicTiering::kEnabled &&
-        for_debugging_ == kNoDebugging) {
-      // TODO(arobin): Avoid spilling registers unconditionally.
-      __ SpillAllRegisters();
-      CODE_COMMENT("dynamic tiering");
-      LiftoffRegList pinned;
-
-      // Get the number of calls array address.
-      LiftoffRegister array_address =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LOAD_INSTANCE_FIELD(array_address.gp(), NumLiftoffFunctionCallsArray,
-                          kSystemPointerSize, pinned);
-
-      // Compute the correct offset in the array.
-      uint32_t offset =
-          kInt32Size * declared_function_index(env_->module, func_index_);
-
-      // Get the number of calls and update it.
-      LiftoffRegister old_number_of_calls =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LiftoffRegister new_number_of_calls =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ Load(old_number_of_calls, array_address.gp(), no_reg, offset,
-              LoadType::kI32Load, pinned);
-      __ emit_i32_addi(new_number_of_calls.gp(), old_number_of_calls.gp(), 1);
-      __ Store(array_address.gp(), no_reg, offset, new_number_of_calls,
-               StoreType::kI32Store, pinned);
-
-      // Emit the runtime call if necessary.
-      Label no_tierup;
-      // Check if the number of calls is a power of 2.
-      __ emit_i32_and(old_number_of_calls.gp(), old_number_of_calls.gp(),
-                      new_number_of_calls.gp());
-      __ emit_cond_jump(kNotEqualZero, &no_tierup, kI32,
-                        old_number_of_calls.gp());
-      TierUpFunction(decoder);
-      // After the runtime call, the instance cache register is clobbered (we
-      // reset it already in {SpillAllRegisters} above, but then we still access
-      // the instance afterwards).
-      __ cache_state()->ClearCachedInstanceRegister();
-      __ bind(&no_tierup);
-    }
 
     if (FLAG_trace_wasm) TraceFunctionEntry(decoder);
   }
@@ -1215,7 +1179,7 @@ class LiftoffCompiler {
 
     PushControl(loop);
 
-    if (!FLAG_new_wasm_dynamic_tiering) {
+    if (!dynamic_tiering()) {
       // When the budget-based tiering mechanism is enabled, use that to
       // check for interrupt requests; otherwise execute a stack check in the
       // loop header.
@@ -2271,13 +2235,13 @@ class LiftoffCompiler {
   }
 
   void TierupCheckOnExit(FullDecoder* decoder) {
-    if (!FLAG_new_wasm_dynamic_tiering) return;
+    if (!dynamic_tiering()) return;
     TierupCheck(decoder, decoder->position(), __ pc_offset());
     LiftoffRegList pinned;
     LiftoffRegister budget = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister array = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LOAD_INSTANCE_FIELD(array.gp(), NumLiftoffFunctionCallsArray,
-                        kSystemPointerSize, pinned);
+    LOAD_INSTANCE_FIELD(array.gp(), TieringBudgetArray, kSystemPointerSize,
+                        pinned);
     uint32_t offset =
         kInt32Size * declared_function_index(env_->module, func_index_);
     __ Fill(budget, liftoff::kTierupBudgetOffset, ValueKind::kI32);
@@ -2623,7 +2587,7 @@ class LiftoffCompiler {
           *__ cache_state(), __ num_locals(), target->br_merge()->arity,
           target->stack_depth + target->num_exceptions);
     }
-    if (FLAG_new_wasm_dynamic_tiering) {
+    if (dynamic_tiering()) {
       if (target->is_loop()) {
         DCHECK(target->label.get()->is_bound());
         int jump_distance = __ pc_offset() - target->label.get()->pos();

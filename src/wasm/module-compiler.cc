@@ -1327,7 +1327,7 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
 
   const WasmModule* module = native_module->module();
   size_t priority;
-  if (FLAG_new_wasm_dynamic_tiering) {
+  {
     base::MutexGuard mutex_guard(&module->type_feedback.mutex);
     int saved_priority =
         module->type_feedback.feedback_for_function[func_index].tierup_priority;
@@ -1353,11 +1353,6 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
         std::move(feedback);
   }
 
-  if (!FLAG_new_wasm_dynamic_tiering) {
-    uint32_t* call_array = native_module->num_liftoff_function_calls_array();
-    int offset = wasm::declared_function_index(module, func_index);
-    priority = base::Relaxed_Load(reinterpret_cast<int*>(&call_array[offset]));
-  }
   compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);
 }
 

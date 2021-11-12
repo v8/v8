@@ -75,8 +75,8 @@ WasmCode* CompileImportWrapper(
 // also lazy.
 bool CompileLazy(Isolate*, Handle<WasmInstanceObject>, int func_index);
 
-void TriggerTierUp(Isolate*, NativeModule*, int func_index,
-                   Handle<WasmInstanceObject> instance);
+V8_EXPORT_PRIVATE void TriggerTierUp(Isolate*, NativeModule*, int func_index,
+                                     Handle<WasmInstanceObject> instance);
 
 template <typename Key, typename Hash>
 class WrapperQueue {

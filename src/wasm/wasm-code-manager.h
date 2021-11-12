@@ -839,9 +839,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Get or create the debug info for this NativeModule.
   DebugInfo* GetDebugInfo();
 
-  uint32_t* num_liftoff_function_calls_array() {
-    return num_liftoff_function_calls_.get();
-  }
+  uint32_t* tiering_budget_array() { return tiering_budgets_.get(); }
 
  private:
   friend class WasmCode;
@@ -944,7 +942,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<WasmImportWrapperCache> import_wrapper_cache_;
 
   // Array to handle number of function calls.
-  std::unique_ptr<uint32_t[]> num_liftoff_function_calls_;
+  std::unique_ptr<uint32_t[]> tiering_budgets_;
 
   // This mutex protects concurrent calls to {AddCode} and friends.
   // TODO(dlehmann): Revert this to a regular {Mutex} again.

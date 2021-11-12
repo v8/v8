@@ -987,10 +987,6 @@ DEFINE_BOOL(wasm_tier_up, true,
             "have an effect)")
 DEFINE_BOOL(wasm_dynamic_tiering, false,
             "enable dynamic tier up to the optimizing compiler")
-DEFINE_BOOL(new_wasm_dynamic_tiering, false, "dynamic tier up (new impl)")
-// For dynamic tiering to have an effect, we have to turn off eager tierup.
-// This is handled in module-compiler.cc for --wasm-dynamic-tiering.
-DEFINE_NEG_IMPLICATION(new_wasm_dynamic_tiering, wasm_tier_up)
 DEFINE_INT(wasm_tiering_budget, 1800000,
            "budget for dynamic tiering (rough approximation of bytes executed")
 DEFINE_INT(
