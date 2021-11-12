@@ -137,8 +137,9 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
 
   using SharedToJobMap = IdentityMap<Job*, FreeStoreAllocationPolicy>;
 
-  void WaitForJobIfRunningOnBackground(Job* job);
-  Job* GetJobFor(Handle<SharedFunctionInfo> shared) const;
+  void WaitForJobIfRunningOnBackground(Job* job, const base::MutexGuard&);
+  Job* GetJobFor(Handle<SharedFunctionInfo> shared,
+                 const base::MutexGuard&) const;
   void ScheduleIdleTaskFromAnyThread(const base::MutexGuard&);
   void DoBackgroundWork(JobDelegate* delegate);
   void DoIdleWork(double deadline_in_seconds);
@@ -163,13 +164,13 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
 
   std::unique_ptr<CancelableTaskManager> idle_task_manager_;
 
+  // The following members can be accessed from any thread. Methods need to hold
+  // the mutex |mutex_| while accessing them.
+  mutable base::Mutex mutex_;
+
   // Mapping from SharedFunctionInfo to the corresponding unoptimized
   // compilation job.
   SharedToJobMap shared_to_unoptimized_job_;
-
-  // The following members can be accessed from any thread. Methods need to hold
-  // the mutex |mutex_| while accessing them.
-  base::Mutex mutex_;
 
   // True if an idle task is scheduled to be run.
   bool idle_task_scheduled_;
@@ -177,7 +178,8 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   // The set of jobs that can be run on a background thread.
   std::unordered_set<Job*> pending_background_jobs_;
 
-  // The total number of jobs, pending and running.
+  // The total number of jobs ready to execute on background, both those pending
+  // and those currently running.
   std::atomic<size_t> num_jobs_for_background_;
 
   // If not nullptr, then the main thread waits for the task processing

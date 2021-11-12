@@ -113,15 +113,16 @@ void LazyCompileDispatcher::Enqueue(
 
 bool LazyCompileDispatcher::IsEnqueued(
     Handle<SharedFunctionInfo> function) const {
+  base::MutexGuard lock(&mutex_);
   return shared_to_unoptimized_job_.Find(function) != nullptr;
 }
 
-void LazyCompileDispatcher::WaitForJobIfRunningOnBackground(Job* job) {
+void LazyCompileDispatcher::WaitForJobIfRunningOnBackground(
+    Job* job, const base::MutexGuard& lock) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompilerDispatcherWaitForBackgroundJob");
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileWaitForDispatcher);
 
-  base::MutexGuard lock(&mutex_);
   if (!job->is_running_on_background()) {
     num_jobs_for_background_ -= pending_background_jobs_.erase(job);
     if (job->state == Job::State::kPending) {
@@ -150,9 +151,14 @@ bool LazyCompileDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
     PrintF(" now\n");
   }
 
-  Job* job = GetJobFor(function);
-  WaitForJobIfRunningOnBackground(job);
-  shared_to_unoptimized_job_.Delete(function, &job);
+  Job* job;
+
+  {
+    base::MutexGuard lock(&mutex_);
+    job = GetJobFor(function, lock);
+    WaitForJobIfRunningOnBackground(job, lock);
+    shared_to_unoptimized_job_.Delete(function, &job);
+  }
 
   if (job->state == Job::State::kPendingToRunOnForeground) {
     job->task->Run();
@@ -174,9 +180,9 @@ void LazyCompileDispatcher::AbortJob(Handle<SharedFunctionInfo> shared_info) {
     shared_info->ShortPrint();
     PrintF("\n");
   }
-  Job* job = GetJobFor(shared_info);
-
   base::LockGuard<base::Mutex> lock(&mutex_);
+
+  Job* job = GetJobFor(shared_info, lock);
   num_jobs_for_background_ -= pending_background_jobs_.erase(job);
   if (job->is_running_on_background()) {
     // Job is currently running on the background thread, wait until it's done
@@ -201,6 +207,7 @@ void LazyCompileDispatcher::AbortAll() {
   idle_task_manager_->CancelAndWait();
 
   {
+    base::MutexGuard lock(&mutex_);
     SharedToJobMap::IteratableScope iteratable_scope(
         &shared_to_unoptimized_job_);
     for (Job** job_entry : iteratable_scope) {
@@ -214,7 +221,7 @@ void LazyCompileDispatcher::AbortAll() {
 }
 
 LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
-    Handle<SharedFunctionInfo> shared) const {
+    Handle<SharedFunctionInfo> shared, const base::MutexGuard&) const {
   return *shared_to_unoptimized_job_.Find(shared);
 }
 

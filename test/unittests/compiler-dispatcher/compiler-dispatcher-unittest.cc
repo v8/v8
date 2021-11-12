@@ -403,8 +403,9 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskNoIdleTime) {
 
   // Job should be ready to finalize.
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
-  ASSERT_EQ(dispatcher.GetJobFor(shared)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.IdleTaskPending());
 
   // Grant no idle time and have time advance beyond it in one step.
@@ -416,8 +417,9 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskNoIdleTime) {
 
   // Job should be ready to finalize.
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
-  ASSERT_EQ(dispatcher.GetJobFor(shared)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
@@ -448,10 +450,14 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskSmallIdleTime) {
 
   // Both jobs should be ready to finalize.
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 2);
-  ASSERT_EQ(dispatcher.GetJobFor(shared_1)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
-  ASSERT_EQ(dispatcher.GetJobFor(shared_2)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared_2, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.IdleTaskPending());
 
   // Grant a small anount of idle time and have time advance beyond it in one
@@ -461,11 +467,15 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskSmallIdleTime) {
   // Only one of the jobs should be finalized.
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
   if (dispatcher.IsEnqueued(shared_1)) {
-    ASSERT_EQ(dispatcher.GetJobFor(shared_1)->state,
-              LazyCompileDispatcher::Job::State::kReadyToFinalize);
+    ASSERT_EQ(
+        dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
+            ->state,
+        LazyCompileDispatcher::Job::State::kReadyToFinalize);
   } else {
-    ASSERT_EQ(dispatcher.GetJobFor(shared_2)->state,
-              LazyCompileDispatcher::Job::State::kReadyToFinalize);
+    ASSERT_EQ(
+        dispatcher.GetJobFor(shared_2, base::MutexGuard(&dispatcher.mutex_))
+            ->state,
+        LazyCompileDispatcher::Job::State::kReadyToFinalize);
   }
   ASSERT_NE(dispatcher.IsEnqueued(shared_1), dispatcher.IsEnqueued(shared_2));
   ASSERT_NE(shared_1->is_compiled(), shared_2->is_compiled());
@@ -524,8 +534,9 @@ TEST_F(LazyCompileDispatcherTest, FinishNowWithWorkerTask) {
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
-  ASSERT_NE(dispatcher.GetJobFor(shared)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.JobTaskPending());
 
   // This does not block, but races with the FinishNow() call below.
@@ -611,8 +622,9 @@ TEST_F(LazyCompileDispatcherTest, AbortJobNotStarted) {
 
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
-  ASSERT_NE(dispatcher.GetJobFor(shared)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.JobTaskPending());
 
   dispatcher.AbortJob(shared);
@@ -635,8 +647,9 @@ TEST_F(LazyCompileDispatcherTest, AbortJobAlreadyStarted) {
 
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
-  ASSERT_NE(dispatcher.GetJobFor(shared)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
   ASSERT_TRUE(platform.JobTaskPending());
 
   // Have dispatcher block on the background thread when running the job.
@@ -663,8 +676,9 @@ TEST_F(LazyCompileDispatcherTest, AbortJobAlreadyStarted) {
   // Job should have finished running and then been aborted.
   ASSERT_FALSE(shared->is_compiled());
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 1);
-  ASSERT_EQ(dispatcher.GetJobFor(shared)->state,
-            LazyCompileDispatcher::Job::State::kAborted);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared, base::MutexGuard(&dispatcher.mutex_))->state,
+      LazyCompileDispatcher::Job::State::kAborted);
   ASSERT_FALSE(platform.JobTaskPending());
   ASSERT_TRUE(platform.IdleTaskPending());
 
@@ -748,10 +762,14 @@ TEST_F(LazyCompileDispatcherTest, CompileMultipleOnBackgroundThread) {
   EnqueueUnoptimizedCompileJob(&dispatcher, i_isolate(), shared_2);
 
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 2);
-  ASSERT_NE(dispatcher.GetJobFor(shared_1)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
-  ASSERT_NE(dispatcher.GetJobFor(shared_2)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_NE(
+      dispatcher.GetJobFor(shared_2, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_1));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared_2));
@@ -765,10 +783,14 @@ TEST_F(LazyCompileDispatcherTest, CompileMultipleOnBackgroundThread) {
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.JobTaskPending());
   ASSERT_EQ(dispatcher.shared_to_unoptimized_job_.size(), 2);
-  ASSERT_EQ(dispatcher.GetJobFor(shared_1)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
-  ASSERT_EQ(dispatcher.GetJobFor(shared_2)->state,
-            LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared_1, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
+  ASSERT_EQ(
+      dispatcher.GetJobFor(shared_2, base::MutexGuard(&dispatcher.mutex_))
+          ->state,
+      LazyCompileDispatcher::Job::State::kReadyToFinalize);
 
   // Now grant a lot of idle time and freeze time.
   platform.RunIdleTask(1000.0, 0.0);
