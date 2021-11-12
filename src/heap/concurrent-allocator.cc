@@ -81,10 +81,22 @@ void StressConcurrentAllocatorTask::Schedule(Isolate* isolate) {
 }
 
 void ConcurrentAllocator::FreeLinearAllocationArea() {
+  // The code page of the linear allocation area needs to be unprotected
+  // because we are going to write a filler into that memory area below.
+  base::Optional<CodePageMemoryModificationScope> optional_scope;
+  if (lab_.IsValid() && space_->identity() == CODE_SPACE) {
+    optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
+  }
   lab_.CloseAndMakeIterable();
 }
 
 void ConcurrentAllocator::MakeLinearAllocationAreaIterable() {
+  // The code page of the linear allocation area needs to be unprotected
+  // because we are going to write a filler into that memory area below.
+  base::Optional<CodePageMemoryModificationScope> optional_scope;
+  if (lab_.IsValid() && space_->identity() == CODE_SPACE) {
+    optional_scope.emplace(MemoryChunk::FromAddress(lab_.top()));
+  }
   lab_.MakeIterable();
 }
 
