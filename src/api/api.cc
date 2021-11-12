@@ -10451,6 +10451,11 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
     v->VisitRootPointers(Root::kHandleScope, nullptr, start,
                          start + static_cast<int>(context_lists[i]->size()));
   }
+  // The shape of |entered_contexts_| and |is_microtask_context_| stacks must
+  // be in sync.
+  is_microtask_context_.shrink_to_fit();
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
+  DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
 }
 
 void HandleScopeImplementer::Iterate(RootVisitor* v) {
