@@ -175,9 +175,9 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
 }
 
 UNINITIALIZED_TEST(YoungInternalization) {
+  if (FLAG_single_generation) return;
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
-  if (FLAG_single_generation) return;
 
   FLAG_shared_string_table = true;
 
@@ -408,13 +408,15 @@ UNINITIALIZED_TEST(StringShare) {
   // All other strings are flattened then copied if the flatten didn't already
   // create a new copy.
 
-  {
+  if (!FLAG_single_generation) {
     // Young strings
     Handle<String> young_one_byte_seq = factory->NewStringFromAsciiChecked(
         raw_one_byte, AllocationType::kYoung);
     Handle<String> young_two_byte_seq =
         factory->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
             .ToHandleChecked();
+    CHECK(Heap::InYoungGeneration(*young_one_byte_seq));
+    CHECK(Heap::InYoungGeneration(*young_two_byte_seq));
     CHECK(!young_one_byte_seq->IsShared());
     CHECK(!young_two_byte_seq->IsShared());
     Handle<String> shared_one_byte =
