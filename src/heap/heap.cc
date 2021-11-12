@@ -2655,11 +2655,14 @@ void Heap::ComputeFastPromotionMode() {
 
 void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
                                            UnprotectMemoryOrigin origin) {
+  if (!write_protect_code_memory()) return;
   if (code_page_collection_memory_modification_scope_depth_ > 0) {
     base::MutexGuard guard(&unprotected_memory_chunks_mutex_);
     if (unprotected_memory_chunks_.insert(chunk).second) {
       chunk->SetCodeModificationPermissions();
     }
+  } else {
+    DCHECK_GT(code_space_memory_modification_scope_depth_, 0);
   }
 }
 

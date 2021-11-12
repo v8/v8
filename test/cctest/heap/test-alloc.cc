@@ -85,6 +85,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
 
   // Code space.
   heap::SimulateFullSpace(heap->code_space());
+  CodePageCollectionMemoryModificationScope code_scope(heap);
   size = CcTest::i_isolate()->builtins()->code(Builtin::kIllegal).Size();
   obj =
       heap->AllocateRaw(size, AllocationType::kCode, AllocationOrigin::kRuntime)
@@ -133,6 +134,7 @@ TEST(StressJS) {
   FLAG_stress_concurrent_allocation = false;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
+  CodePageCollectionMemoryModificationScope code_scope(isolate->heap());
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
