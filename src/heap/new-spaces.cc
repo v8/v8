@@ -741,8 +741,9 @@ void NewSpace::Verify(Isolate* isolate) {
 
       if (object.IsExternalString()) {
         ExternalString external_string = ExternalString::cast(object);
-        size_t size = external_string.ExternalPayloadSize();
-        external_space_bytes[ExternalBackingStoreType::kExternalString] += size;
+        size_t string_size = external_string.ExternalPayloadSize();
+        external_space_bytes[ExternalBackingStoreType::kExternalString] +=
+            string_size;
       }
 
       current += size;
