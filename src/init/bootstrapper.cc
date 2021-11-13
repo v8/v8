@@ -828,13 +828,15 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
   Handle<JSObject> object_function_prototype =
       factory->NewFunctionPrototype(object_fun);
 
-  Handle<Map> map =
-      Map::Copy(isolate(), handle(object_function_prototype->map(), isolate()),
-                "EmptyObjectPrototype");
-  map->set_is_prototype_map(true);
-  // Ban re-setting Object.prototype.__proto__ to prevent Proxy security bug
-  map->set_is_immutable_proto(true);
-  object_function_prototype->set_map(*map);
+  {
+    Handle<Map> map = Map::Copy(
+        isolate(), handle(object_function_prototype->map(), isolate()),
+        "EmptyObjectPrototype");
+    map->set_is_prototype_map(true);
+    // Ban re-setting Object.prototype.__proto__ to prevent Proxy security bug
+    map->set_is_immutable_proto(true);
+    object_function_prototype->set_map(*map);
+  }
 
   // Complete setting up empty function.
   {
@@ -1898,7 +1900,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install Number constants
     const double kMaxValue = 1.7976931348623157e+308;
     const double kMinValue = 5e-324;
-    const double kMinSafeInteger = -kMaxSafeInteger;
     const double kEPS = 2.220446049250313e-16;
 
     InstallConstant(isolate_, number_fun, "MAX_VALUE",

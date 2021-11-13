@@ -616,10 +616,10 @@ void WasmTableObject::ClearDispatchTables(Isolate* isolate,
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),
         isolate);
-    Handle<WasmIndirectFunctionTable> table =
+    Handle<WasmIndirectFunctionTable> function_table =
         target_instance->GetIndirectFunctionTable(isolate, table_index);
-    DCHECK_LT(index, table->size());
-    table->Clear(index);
+    DCHECK_LT(index, function_table->size());
+    function_table->Clear(index);
   }
 }
 
