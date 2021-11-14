@@ -43,7 +43,7 @@ vars = {
   'gn_version': 'git_revision:90294ccdcf9334ed25a76ac9b67689468e506342',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:bf56a119c5f056a1f7a04c8dbe19cdd86728b540',
+  'luci_go': 'git_revision:4cf9fa8105d30e3a6855bbfca50c5d6f88efb6b2',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '701766c3e735e325ea49e70af29afb3df8cb5c8d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2c7b24673f2f523c2953e43d4b3a9e9f42b4e6ca',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'b138e6ce86ae843c42a1a08f37903207bebcca75',
   'buildtools/clang_format/script':
@@ -217,7 +217,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '08a95d8392e2249bd1c0a0b9f37cc12afb7c31e0',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3fca89bbc87dda9d7fcb72cda23af4aa313d90d9',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
     'condition': 'checkout_fuchsia',
@@ -226,7 +226,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'a17480dd34b147109bd1f1776e11e613b4a27df7',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '9ca071b6e55568dff6960bebe1a5cfaa180fb3ce',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '1b18723e874b256c1e39378c6774a90701d70f7a',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '3e05d9daa98b765632fb5f79aa66f407efe1e262',
   'third_party/instrumented_libraries':
