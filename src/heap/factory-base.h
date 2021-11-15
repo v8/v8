@@ -280,7 +280,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> maybe_name,
       MaybeHandle<HeapObject> maybe_function_data, Builtin builtin,
-      FunctionKind kind = kNormalFunction);
+      FunctionKind kind = FunctionKind::kNormalFunction);
 
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 

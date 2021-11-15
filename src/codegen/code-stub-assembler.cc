@@ -2892,8 +2892,10 @@ TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
                                    SharedFunctionInfo::kFlagsOffset));
 
   // See IsGeneratorFunction(FunctionKind kind).
-  return IsInRange(function_kind, FunctionKind::kAsyncConciseGeneratorMethod,
-                   FunctionKind::kConciseGeneratorMethod);
+  return IsInRange(
+      function_kind,
+      static_cast<uint32_t>(FunctionKind::kAsyncConciseGeneratorMethod),
+      static_cast<uint32_t>(FunctionKind::kConciseGeneratorMethod));
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSFunctionWithPrototypeSlot(

@@ -641,7 +641,7 @@ class SharedFunctionInfo
   STATIC_ASSERT(BailoutReason::kLastErrorMessage <=
                 DisabledOptimizationReasonBits::kMax);
 
-  STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
+  STATIC_ASSERT(FunctionKind::kLastFunctionKind <= FunctionKindBits::kMax);
   STATIC_ASSERT(FunctionSyntaxKind::kLastFunctionSyntaxKind <=
                 FunctionSyntaxKindBits::kMax);
 

@@ -212,8 +212,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ movl(rbx, FieldOperand(rbx, SharedFunctionInfo::kFlagsOffset));
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(rbx);
-  __ JumpIfIsInRange(rbx, kDefaultDerivedConstructor, kDerivedConstructor,
-                     &not_create_implicit_receiver, Label::kNear);
+  __ JumpIfIsInRange(
+      rbx, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
+      &not_create_implicit_receiver, Label::kNear);
 
   // If not derived class constructor: Allocate the new receiver object.
   __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1);

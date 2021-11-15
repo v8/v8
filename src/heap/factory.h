@@ -739,7 +739,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForBuiltin(
       MaybeHandle<String> name, Builtin builtin,
-      FunctionKind kind = kNormalFunction);
+      FunctionKind kind = FunctionKind::kNormalFunction);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWebSnapshot();
 

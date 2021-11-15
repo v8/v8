@@ -850,7 +850,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
  public:
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
-                   FunctionKind function_kind = kNormalFunction);
+                   FunctionKind function_kind = FunctionKind::kNormalFunction);
   DeclarationScope(Zone* zone, ScopeType scope_type,
                    AstValueFactory* ast_value_factory,
                    Handle<ScopeInfo> scope_info);
@@ -987,7 +987,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   void set_is_async_module() {
     DCHECK(IsModule(function_kind_));
-    function_kind_ = kAsyncModule;
+    function_kind_ = FunctionKind::kAsyncModule;
   }
 
   void DeclareThis(AstValueFactory* ast_value_factory);

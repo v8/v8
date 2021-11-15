@@ -283,12 +283,13 @@ TEST(ObjectMethodsThatTruncateMinusZero) {
   CHECK(result->IsZero());
 }
 
-#define TEST_FUNCTION_KIND(Name)                                \
-  TEST(Name) {                                                  \
-    for (int i = 0; i < FunctionKind::kLastFunctionKind; i++) { \
-      FunctionKind kind = static_cast<FunctionKind>(i);         \
-      CHECK_EQ(FunctionKind##Name(kind), Name(kind));           \
-    }                                                           \
+#define TEST_FUNCTION_KIND(Name)                                            \
+  TEST(Name) {                                                              \
+    for (uint32_t i = 0;                                                    \
+         i < static_cast<uint32_t>(FunctionKind::kLastFunctionKind); i++) { \
+      FunctionKind kind = static_cast<FunctionKind>(i);                     \
+      CHECK_EQ(FunctionKind##Name(kind), Name(kind));                       \
+    }                                                                       \
   }
 
 bool FunctionKindIsArrowFunction(FunctionKind kind) {

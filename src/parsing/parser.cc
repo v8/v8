@@ -583,8 +583,8 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       DCHECK(flags().is_module());
 
       PrepareGeneratorVariables();
-      Expression* initial_yield =
-          BuildInitialYield(kNoSourcePosition, kGeneratorFunction);
+      Expression* initial_yield = BuildInitialYield(
+          kNoSourcePosition, FunctionKind::kGeneratorFunction);
       body.Add(
           factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
       if (flags().allow_harmony_top_level_await()) {
@@ -741,10 +741,11 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
       PrepareWrappedArguments(isolate, info, zone);
 
-  FunctionLiteral* function_literal = ParseFunctionLiteral(
-      function_name, location, kSkipFunctionNameCheck, kNormalFunction,
-      kNoSourcePosition, FunctionSyntaxKind::kWrapped, LanguageMode::kSloppy,
-      arguments_for_wrapped_function);
+  FunctionLiteral* function_literal =
+      ParseFunctionLiteral(function_name, location, kSkipFunctionNameCheck,
+                           FunctionKind::kNormalFunction, kNoSourcePosition,
+                           FunctionSyntaxKind::kWrapped, LanguageMode::kSloppy,
+                           arguments_for_wrapped_function);
 
   Statement* return_statement =
       factory()->NewReturnStatement(function_literal, kNoSourcePosition);

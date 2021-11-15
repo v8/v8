@@ -143,8 +143,9 @@ DeclarationScope::DeclarationScope(Zone* zone,
                                    AstValueFactory* ast_value_factory,
                                    REPLMode repl_mode)
     : Scope(zone),
-      function_kind_(repl_mode == REPLMode::kYes ? kAsyncFunction
-                                                 : kNormalFunction),
+      function_kind_(repl_mode == REPLMode::kYes
+                         ? FunctionKind::kAsyncFunction
+                         : FunctionKind::kNormalFunction),
       params_(4, zone) {
   DCHECK_EQ(scope_type_, SCRIPT_SCOPE);
   SetDefaults();
@@ -165,7 +166,8 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
 
 ModuleScope::ModuleScope(DeclarationScope* script_scope,
                          AstValueFactory* avfactory)
-    : DeclarationScope(avfactory->zone(), script_scope, MODULE_SCOPE, kModule),
+    : DeclarationScope(avfactory->zone(), script_scope, MODULE_SCOPE,
+                       FunctionKind::kModule),
       module_descriptor_(avfactory->zone()->New<SourceTextModuleDescriptor>(
           avfactory->zone())) {
   set_language_mode(LanguageMode::kStrict);
@@ -1823,7 +1825,7 @@ void Scope::Print(int n) {
   // Print header.
   FunctionKind function_kind = is_function_scope()
                                    ? AsDeclarationScope()->function_kind()
-                                   : kNormalFunction;
+                                   : FunctionKind::kNormalFunction;
   Indent(n0, Header(scope_type_, function_kind, is_declaration_scope()));
   if (scope_name_ != nullptr && !scope_name_->IsEmpty()) {
     PrintF(" ");

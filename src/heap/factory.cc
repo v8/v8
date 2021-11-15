@@ -1646,7 +1646,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmJSFunction(
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmCapiFunction(
     Handle<WasmCapiFunctionData> data) {
   return NewSharedFunctionInfo(MaybeHandle<String>(), data,
-                               Builtin::kNoBuiltinId, kConciseMethod);
+                               Builtin::kNoBuiltinId,
+                               FunctionKind::kConciseMethod);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

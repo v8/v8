@@ -194,8 +194,11 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ Lwu(func_info,
            FieldMemOperand(func_info, SharedFunctionInfo::kFlagsOffset));
     __ DecodeField<SharedFunctionInfo::FunctionKindBits>(func_info);
-    __ JumpIfIsInRange(func_info, kDefaultDerivedConstructor,
-                       kDerivedConstructor, &not_create_implicit_receiver);
+    __ JumpIfIsInRange(
+        func_info,
+        static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+        static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
+        &not_create_implicit_receiver);
     Register scratch = func_info;
     Register scratch2 = temps.Acquire();
     // If not derived class constructor: Allocate the new receiver object.
