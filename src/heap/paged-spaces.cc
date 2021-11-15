@@ -860,10 +860,6 @@ void PagedSpace::UpdateInlineAllocationLimit(size_t min_size) {
 // OldSpace implementation
 
 void PagedSpace::PrepareForMarkCompact() {
-  // We don't have a linear allocation area while sweeping.  It will be restored
-  // on the first allocation after the sweep.
-  FreeLinearAllocationArea();
-
   // Clear the free list before a full GC---it will be rebuilt afterward.
   free_list_->Reset();
 }

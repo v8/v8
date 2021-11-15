@@ -2273,9 +2273,7 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   DCHECK_NOT_NULL(isolate()->global_safepoint());
 
   isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-    Heap* client_heap = client->heap();
-    client_heap->shared_old_allocator_->FreeLinearAllocationArea();
-    client_heap->shared_map_allocator_->FreeLinearAllocationArea();
+    client->heap()->FreeSharedLinearAllocationAreas();
   });
 
   PerformGarbageCollection(GarbageCollector::MARK_COMPACTOR);
@@ -3534,6 +3532,26 @@ void Heap::MakeHeapIterable() {
 
   // New space is bump-pointer allocation only and therefore guaranteed to be
   // iterable up to top().
+}
+
+void Heap::FreeLinearAllocationAreas() {
+  safepoint()->IterateLocalHeaps(
+      [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
+
+  PagedSpaceIterator spaces(this);
+  for (PagedSpace* space = spaces.Next(); space != nullptr;
+       space = spaces.Next()) {
+    space->FreeLinearAllocationArea();
+  }
+
+  // New space is bump-pointer allocation only and therefore guaranteed to be
+  // iterable up to top().
+}
+
+void Heap::FreeSharedLinearAllocationAreas() {
+  if (!isolate()->shared_isolate()) return;
+  shared_old_allocator_->FreeLinearAllocationArea();
+  shared_map_allocator_->FreeLinearAllocationArea();
 }
 
 namespace {

@@ -1785,6 +1785,12 @@ class Heap {
   // with the allocation memento of the object at the top
   void EnsureFillerObjectAtTop();
 
+  // Free all LABs in the heap.
+  void FreeLinearAllocationAreas();
+
+  // Free all shared LABs.
+  void FreeSharedLinearAllocationAreas();
+
   // Performs garbage collection in a safepoint.
   // Returns the number of freed global handles.
   size_t PerformGarbageCollection(

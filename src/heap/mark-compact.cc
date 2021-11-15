@@ -919,15 +919,13 @@ void MarkCompactCollector::Prepare() {
     StartMarking();
   }
 
+  heap_->FreeLinearAllocationAreas();
+
   PagedSpaceIterator spaces(heap());
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
     space->PrepareForMarkCompact();
   }
-
-  // Fill and reset all background thread LABs
-  heap_->safepoint()->IterateLocalHeaps(
-      [](LocalHeap* local_heap) { local_heap->FreeLinearAllocationArea(); });
 
   // All objects are guaranteed to be initialized in atomic pause
   if (heap()->new_lo_space()) {
