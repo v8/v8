@@ -967,21 +967,16 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 
 // static
 AllocationAlignment HeapObject::RequiredAlignment(Map map) {
-  // TODO(bmeurer, v8:4153): We should think about requiring double alignment
+  // TODO(v8:4153): We should think about requiring double alignment
   // in general for ByteArray, since they are used as backing store for typed
   // arrays now.
-#ifdef V8_COMPRESS_POINTERS
-  // TODO(ishell, v8:8875): Consider using aligned allocations once the
-  // allocation alignment inconsistency is fixed. For now we keep using
-  // unaligned access since both x64 and arm64 architectures (where pointer
-  // compression is supported) allow unaligned access to doubles and full words.
-#endif  // V8_COMPRESS_POINTERS
-#ifdef V8_HOST_ARCH_32_BIT
-  int instance_type = map.instance_type();
-  if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) return kDoubleAligned;
-  if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
-#endif  // V8_HOST_ARCH_32_BIT
-  return kWordAligned;
+  // TODO(ishell, v8:8875): Consider using aligned allocations for BigInt.
+  if (USE_ALLOCATION_ALIGNMENT_BOOL) {
+    int instance_type = map.instance_type();
+    if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) return kDoubleAligned;
+    if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
+  }
+  return kTaggedAligned;
 }
 
 Address HeapObject::GetFieldAddress(int field_offset) const {

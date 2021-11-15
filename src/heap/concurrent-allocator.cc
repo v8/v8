@@ -36,7 +36,7 @@ void StressConcurrentAllocatorTask::RunInternal() {
 
     AllocationResult result = local_heap.AllocateRaw(
         kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
+        AllocationAlignment::kTaggedAligned);
     if (!result.IsRetry()) {
       heap->CreateFillerObjectAtBackground(
           result.ToAddress(), kSmallObjectSize,
@@ -47,7 +47,7 @@ void StressConcurrentAllocatorTask::RunInternal() {
 
     result = local_heap.AllocateRaw(kMediumObjectSize, AllocationType::kOld,
                                     AllocationOrigin::kRuntime,
-                                    AllocationAlignment::kWordAligned);
+                                    AllocationAlignment::kTaggedAligned);
     if (!result.IsRetry()) {
       heap->CreateFillerObjectAtBackground(
           result.ToAddress(), kMediumObjectSize,
@@ -58,7 +58,7 @@ void StressConcurrentAllocatorTask::RunInternal() {
 
     result = local_heap.AllocateRaw(kLargeObjectSize, AllocationType::kOld,
                                     AllocationOrigin::kRuntime,
-                                    AllocationAlignment::kWordAligned);
+                                    AllocationAlignment::kTaggedAligned);
     if (!result.IsRetry()) {
       heap->CreateFillerObjectAtBackground(
           result.ToAddress(), kLargeObjectSize,
@@ -133,7 +133,7 @@ AllocationResult ConcurrentAllocator::AllocateInLabSlow(
 
 bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
   auto result = space_->RawRefillLabBackground(
-      local_heap_, kLabSize, kMaxLabSize, kWordAligned, origin);
+      local_heap_, kLabSize, kMaxLabSize, kTaggedAligned, origin);
   if (!result) return false;
 
   if (local_heap_->heap()->incremental_marking()->black_allocation()) {

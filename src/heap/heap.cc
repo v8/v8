@@ -3005,13 +3005,12 @@ STATIC_ASSERT(IsAligned(ByteArray::kHeaderSize, kTaggedSize));
 STATIC_ASSERT(IsAligned(ByteArray::kHeaderSize, kDoubleAlignment));
 #endif
 
-#ifdef V8_HOST_ARCH_32_BIT
-STATIC_ASSERT((HeapNumber::kValueOffset & kDoubleAlignmentMask) == kTaggedSize);
-#endif
+STATIC_ASSERT(!USE_ALLOCATION_ALIGNMENT_BOOL ||
+              (HeapNumber::kValueOffset & kDoubleAlignmentMask) == kTaggedSize);
 
 int Heap::GetMaximumFillToAlign(AllocationAlignment alignment) {
   switch (alignment) {
-    case kWordAligned:
+    case kTaggedAligned:
       return 0;
     case kDoubleAligned:
     case kDoubleUnaligned:

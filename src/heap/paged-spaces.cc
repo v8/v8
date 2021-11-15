@@ -993,14 +993,10 @@ AllocationResult PagedSpace::AllocateRawSlow(int size_in_bytes,
         kGCCallbackScheduleIdleGarbageCollection);
   }
 
-#ifdef V8_HOST_ARCH_32_BIT
   AllocationResult result =
-      alignment != kWordAligned
+      USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
           ? AllocateRawAligned(size_in_bytes, alignment, origin)
           : AllocateRawUnaligned(size_in_bytes, origin);
-#else
-  AllocationResult result = AllocateRawUnaligned(size_in_bytes, origin);
-#endif
   return result;
 }
 

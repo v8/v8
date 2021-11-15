@@ -393,6 +393,10 @@ class V8_EXPORT_PRIVATE NewSpace
       int size_in_bytes, AllocationAlignment alignment,
       AllocationOrigin origin = AllocationOrigin::kRuntime);
 
+  V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
+                     AllocationOrigin origin = AllocationOrigin::kRuntime);
+
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetLinearAllocationArea();
 
@@ -510,10 +514,6 @@ class V8_EXPORT_PRIVATE NewSpace
   V8_WARN_UNUSED_RESULT AllocationResult
   AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
                   AllocationOrigin origin);
-
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
-                     AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRawUnaligned(
       int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);

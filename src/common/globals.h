@@ -868,8 +868,27 @@ inline constexpr bool IsSharedAllocationType(AllocationType kind) {
          kind == AllocationType::kSharedMap;
 }
 
-// TODO(ishell): review and rename kWordAligned to kTaggedAligned.
-enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
+enum AllocationAlignment {
+  // The allocated address is kTaggedSize aligned (this is default for most of
+  // the allocations).
+  kTaggedAligned,
+  // The allocated address is kDoubleSize aligned.
+  kDoubleAligned,
+  // The (allocated address + kTaggedSize) is kDoubleSize aligned.
+  kDoubleUnaligned
+};
+
+#ifdef V8_HOST_ARCH_32_BIT
+#define USE_ALLOCATION_ALIGNMENT_BOOL true
+#else
+#ifdef V8_COMPRESS_POINTERS
+// TODO(ishell, v8:8875): Consider using aligned allocations once the
+// allocation alignment inconsistency is fixed. For now we keep using
+// unaligned access since both x64 and arm64 architectures (where pointer
+// compression is supported) allow unaligned access to doubles and full words.
+#endif  // V8_COMPRESS_POINTERS
+#define USE_ALLOCATION_ALIGNMENT_BOOL false
+#endif  // V8_HOST_ARCH_32_BIT
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 

@@ -697,7 +697,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
   const int size_in_tagged = size_in_bytes / kTaggedSize;
 
   HeapObject raw_obj =
-      Allocate(SpaceToAllocation(space), size_in_bytes, kWordAligned);
+      Allocate(SpaceToAllocation(space), size_in_bytes, kTaggedAligned);
   raw_obj.set_map_after_allocation(Map::unchecked_cast(raw_obj));
   MemsetTagged(raw_obj.RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);

@@ -207,7 +207,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
-                 alignment == AllocationAlignment::kWordAligned);
+                 alignment == AllocationAlignment::kTaggedAligned);
   DCHECK_EQ(gc_state(), NOT_IN_GC);
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
@@ -321,7 +321,7 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   DCHECK_EQ(gc_state(), NOT_IN_GC);
   Heap* heap = isolate()->heap();
   if (allocation == AllocationType::kYoung &&
-      alignment == AllocationAlignment::kWordAligned &&
+      alignment == AllocationAlignment::kTaggedAligned &&
       size <= MaxRegularHeapObjectSize(allocation) &&
       V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
                 FLAG_gc_interval == -1)) {

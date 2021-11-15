@@ -96,7 +96,7 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
 
   AllocationResult result;
 
-  if (alignment != kWordAligned) {
+  if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {
     result = AllocateFastAligned(size_in_bytes, nullptr, alignment, origin);
   } else {
     result = AllocateFastUnaligned(size_in_bytes, origin);

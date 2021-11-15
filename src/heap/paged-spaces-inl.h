@@ -176,7 +176,7 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
   DCHECK(!FLAG_enable_third_party_heap);
   AllocationResult result;
 
-  if (alignment != kWordAligned) {
+  if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {
     result = AllocateFastAligned(size_in_bytes, nullptr, alignment);
   } else {
     result = AllocateFastUnaligned(size_in_bytes);

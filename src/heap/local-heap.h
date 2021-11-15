@@ -130,14 +130,14 @@ class V8_EXPORT_PRIVATE LocalHeap {
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kWordAligned);
+      AllocationAlignment alignment = kTaggedAligned);
 
   // Allocates an uninitialized object and crashes when object
   // cannot be allocated.
   V8_WARN_UNUSED_RESULT inline Address AllocateRawOrFail(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kWordAligned);
+      AllocationAlignment alignment = kTaggedAligned);
 
   inline void CreateFillerObjectAt(Address addr, int size,
                                    ClearRecordedSlots clear_slots_mode);

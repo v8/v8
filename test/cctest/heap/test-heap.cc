@@ -1757,7 +1757,7 @@ HEAP_TEST(TestSizeOfObjects) {
 TEST(TestAlignmentCalculations) {
   // Maximum fill amounts are consistent.
   int maximum_double_misalignment = kDoubleSize - kTaggedSize;
-  int max_word_fill = Heap::GetMaximumFillToAlign(kWordAligned);
+  int max_word_fill = Heap::GetMaximumFillToAlign(kTaggedAligned);
   CHECK_EQ(0, max_word_fill);
   int max_double_fill = Heap::GetMaximumFillToAlign(kDoubleAligned);
   CHECK_EQ(maximum_double_misalignment, max_double_fill);
@@ -1768,9 +1768,9 @@ TEST(TestAlignmentCalculations) {
   int fill = 0;
 
   // Word alignment never requires fill.
-  fill = Heap::GetFillToAlign(base, kWordAligned);
+  fill = Heap::GetFillToAlign(base, kTaggedAligned);
   CHECK_EQ(0, fill);
-  fill = Heap::GetFillToAlign(base + kTaggedSize, kWordAligned);
+  fill = Heap::GetFillToAlign(base + kTaggedSize, kTaggedAligned);
   CHECK_EQ(0, fill);
 
   // No fill is required when address is double aligned.
@@ -1789,7 +1789,8 @@ TEST(TestAlignmentCalculations) {
 static HeapObject NewSpaceAllocateAligned(int size,
                                           AllocationAlignment alignment) {
   Heap* heap = CcTest::heap();
-  AllocationResult allocation = heap->new_space()->AllocateRaw(size, alignment);
+  AllocationResult allocation =
+      heap->new_space()->AllocateRawAligned(size, alignment);
   HeapObject obj;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
@@ -1802,7 +1803,7 @@ static Address AlignNewSpace(AllocationAlignment alignment, int offset) {
   int fill = Heap::GetFillToAlign(*top_addr, alignment);
   int allocation = fill + offset;
   if (allocation) {
-    NewSpaceAllocateAligned(allocation, kWordAligned);
+    NewSpaceAllocateAligned(allocation, kTaggedAligned);
   }
   return *top_addr;
 }
@@ -1870,7 +1871,7 @@ static Address AlignOldSpace(AllocationAlignment alignment, int offset) {
   int fill = Heap::GetFillToAlign(*top_addr, alignment);
   int allocation = fill + offset;
   if (allocation) {
-    OldSpaceAllocateAligned(allocation, kWordAligned);
+    OldSpaceAllocateAligned(allocation, kTaggedAligned);
   }
   Address top = *top_addr;
   // Now force the remaining allocation onto the free list.
@@ -3721,8 +3722,7 @@ TEST(Regress169928) {
   // fill pointer value.
   HeapObject obj;
   AllocationResult allocation = CcTest::heap()->new_space()->AllocateRaw(
-      AllocationMemento::kSize + kTaggedSize,
-      AllocationAlignment::kWordAligned);
+      AllocationMemento::kSize + kTaggedSize, kTaggedAligned);
   CHECK(allocation.To(&obj));
   Address addr_obj = obj.address();
   CcTest::heap()->CreateFillerObjectAt(addr_obj,

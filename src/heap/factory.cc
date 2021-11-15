@@ -378,10 +378,10 @@ HeapObject Factory::New(Handle<Map> map, AllocationType allocation) {
   return result;
 }
 
-Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
+Handle<HeapObject> Factory::NewFillerObject(int size,
+                                            AllocationAlignment alignment,
                                             AllocationType allocation,
                                             AllocationOrigin origin) {
-  AllocationAlignment alignment = double_align ? kDoubleAligned : kWordAligned;
   Heap* heap = isolate()->heap();
   HeapObject result = heap->AllocateRawWith<Heap::kRetryOrFail>(
       size, allocation, origin, alignment);

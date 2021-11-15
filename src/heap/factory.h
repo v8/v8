@@ -444,7 +444,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.
   Handle<HeapObject> NewFillerObject(
-      int size, bool double_align, AllocationType allocation,
+      int size, AllocationAlignment alignment, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
@@ -989,7 +989,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // ------
   // Customization points for FactoryBase
   HeapObject AllocateRaw(int size, AllocationType allocation,
-                         AllocationAlignment alignment = kWordAligned);
+                         AllocationAlignment alignment = kTaggedAligned);
 
   Isolate* isolate() const {
     // Downcast to the privately inherited sub-class using c-style casts to

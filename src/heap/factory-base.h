@@ -269,7 +269,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
 
   HeapObject AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Map map,
-      AllocationAlignment alignment = kWordAligned);
+      AllocationAlignment alignment = kTaggedAligned);
   HeapObject NewWithImmortalMap(Map map, AllocationType allocation);
 
   Handle<FixedArray> NewFixedArrayWithFiller(Handle<Map> map, int length,
@@ -295,7 +295,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }
 
   HeapObject AllocateRaw(int size, AllocationType allocation,
-                         AllocationAlignment alignment = kWordAligned);
+                         AllocationAlignment alignment = kTaggedAligned);
 
   friend TorqueGeneratedFactory<Impl>;
 };

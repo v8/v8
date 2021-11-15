@@ -50,11 +50,11 @@ void AllocateSomeObjects(LocalHeap* local_heap) {
   for (int i = 0; i < kNumIterations; i++) {
     Address address = local_heap->AllocateRawOrFail(
         kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
+        AllocationAlignment::kTaggedAligned);
     CreateFixedArray(local_heap->heap(), address, kSmallObjectSize);
     address = local_heap->AllocateRawOrFail(
         kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
+        AllocationAlignment::kTaggedAligned);
     CreateFixedArray(local_heap->heap(), address, kMediumObjectSize);
     if (i % 10 == 0) {
       local_heap->Safepoint();
@@ -247,7 +247,7 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
     for (int i = 0; i < kNumIterations; i++) {
       AllocationResult result = local_heap.AllocateRaw(
           kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-          AllocationAlignment::kWordAligned);
+          AllocationAlignment::kTaggedAligned);
       if (result.IsRetry()) {
         local_heap.TryPerformCollection();
       } else {
@@ -322,12 +322,12 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
       }
       Address address = local_heap.AllocateRawOrFail(
           kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-          AllocationAlignment::kWordAligned);
+          AllocationAlignment::kTaggedAligned);
       objects_->push_back(address);
       CreateFixedArray(heap_, address, kSmallObjectSize);
       address = local_heap.AllocateRawOrFail(
           kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-          AllocationAlignment::kWordAligned);
+          AllocationAlignment::kTaggedAligned);
       objects_->push_back(address);
       CreateFixedArray(heap_, address, kMediumObjectSize);
     }
