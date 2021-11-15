@@ -417,7 +417,13 @@ float ExecuteF32Floor(float a, TrapReason* trap) { return floorf(a); }
 
 float ExecuteF32Trunc(float a, TrapReason* trap) { return truncf(a); }
 
-float ExecuteF32NearestInt(float a, TrapReason* trap) { return nearbyintf(a); }
+float ExecuteF32NearestInt(float a, TrapReason* trap) {
+  float value = nearbyintf(a);
+#if V8_OS_AIX
+  value = FpOpWorkaround<float>(a, value);
+#endif
+  return value;
+}
 
 float ExecuteF32Sqrt(float a, TrapReason* trap) {
   float result = sqrtf(a);
@@ -438,7 +444,13 @@ double ExecuteF64Floor(double a, TrapReason* trap) { return floor(a); }
 
 double ExecuteF64Trunc(double a, TrapReason* trap) { return trunc(a); }
 
-double ExecuteF64NearestInt(double a, TrapReason* trap) { return nearbyint(a); }
+double ExecuteF64NearestInt(double a, TrapReason* trap) {
+  double value = nearbyint(a);
+#if V8_OS_AIX
+  value = FpOpWorkaround<double>(a, value);
+#endif
+  return value;
+}
 
 double ExecuteF64Sqrt(double a, TrapReason* trap) { return sqrt(a); }
 
