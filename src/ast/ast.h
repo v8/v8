@@ -2192,6 +2192,13 @@ class FunctionLiteral final : public Expression {
     return HasDuplicateParameters::decode(bit_field_);
   }
 
+  bool should_parallel_compile() const {
+    return ShouldParallelCompileField::decode(bit_field_);
+  }
+  void set_should_parallel_compile() {
+    bit_field_ = ShouldParallelCompileField::update(bit_field_, true);
+  }
+
   // This is used as a heuristic on when to eagerly compile a function
   // literal. We consider the following constructs as hints that the
   // function will be called immediately:
@@ -2281,7 +2288,8 @@ class FunctionLiteral final : public Expression {
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
                   RequiresInstanceMembersInitializer::encode(false) |
-                  HasBracesField::encode(has_braces);
+                  HasBracesField::encode(has_braces) |
+                  ShouldParallelCompileField::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
   }
 
@@ -2296,6 +2304,7 @@ class FunctionLiteral final : public Expression {
   using HasStaticPrivateMethodsOrAccessorsField =
       ClassScopeHasPrivateBrandField::Next<bool, 1>;
   using HasBracesField = HasStaticPrivateMethodsOrAccessorsField::Next<bool, 1>;
+  using ShouldParallelCompileField = HasBracesField::Next<bool, 1>;
 
   // expected_property_count_ is the sum of instance fields and properties.
   // It can vary depending on whether a function is lazily or eagerly parsed.

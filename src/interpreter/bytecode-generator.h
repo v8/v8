@@ -32,9 +32,10 @@ class BytecodeJumpTable;
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
   explicit BytecodeGenerator(
-      Zone* zone, UnoptimizedCompilationInfo* info,
+      LocalIsolate* local_isolate, Zone* zone, UnoptimizedCompilationInfo* info,
       const AstStringConstants* ast_string_constants,
-      std::vector<FunctionLiteral*>* eager_inner_literals);
+      std::vector<FunctionLiteral*>* eager_inner_literals,
+      Handle<Script> script);
 
   void GenerateBytecode(uintptr_t stack_limit);
   template <typename IsolateT>
@@ -499,6 +500,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     current_loop_scope_ = loop_scope;
   }
 
+  LocalIsolate* local_isolate_;
   Zone* zone_;
   BytecodeArrayBuilder builder_;
   UnoptimizedCompilationInfo* info_;
@@ -508,6 +510,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // External vector of literals to be eagerly compiled.
   std::vector<FunctionLiteral*>* eager_inner_literals_;
+  Handle<Script> script_;
 
   FeedbackSlotCache* feedback_slot_cache_;
 

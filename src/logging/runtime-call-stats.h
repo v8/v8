@@ -711,6 +711,8 @@ class V8_NODISCARD RuntimeCallTimerScope {
  public:
   inline RuntimeCallTimerScope(Isolate* isolate,
                                RuntimeCallCounterId counter_id);
+  inline RuntimeCallTimerScope(LocalIsolate* isolate,
+                               RuntimeCallCounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
                                RuntimeCallCounterId counter_id,
                                RuntimeCallStats::CounterMode mode =

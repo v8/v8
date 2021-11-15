@@ -77,8 +77,9 @@ class LazyCompileDispatcherTest : public TestWithNativeContext {
     UnoptimizedCompileState state(isolate);
     std::unique_ptr<ParseInfo> outer_parse_info =
         test::OuterParseInfoForShared(isolate, shared, &state);
-    dispatcher->Enqueue(shared, outer_parse_info->character_stream()->Clone(),
-                        nullptr);
+    if (dispatcher->IsEnqueued(shared)) return;
+    dispatcher->Enqueue(isolate->main_thread_local_isolate(), shared,
+                        outer_parse_info->character_stream()->Clone(), nullptr);
   }
 };
 

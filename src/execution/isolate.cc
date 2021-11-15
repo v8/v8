@@ -3210,7 +3210,6 @@ void Isolate::Deinit() {
 
   ReleaseSharedPtrs();
 
-  string_table_.reset();
   builtins_.TearDown();
   bootstrapper_->TearDown();
 
@@ -3226,6 +3225,8 @@ void Isolate::Deinit() {
     lazy_compile_dispatcher_->AbortAll();
     lazy_compile_dispatcher_.reset();
   }
+
+  string_table_.reset();
 
   delete baseline_batch_compiler_;
   baseline_batch_compiler_ = nullptr;

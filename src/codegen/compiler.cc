@@ -687,7 +687,7 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
 
 std::unique_ptr<UnoptimizedCompilationJob>
 ExecuteSingleUnoptimizedCompilationJob(
-    ParseInfo* parse_info, FunctionLiteral* literal,
+    ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals,
     LocalIsolate* local_isolate) {
@@ -707,7 +707,8 @@ ExecuteSingleUnoptimizedCompilationJob(
 #endif
   std::unique_ptr<UnoptimizedCompilationJob> job(
       interpreter::Interpreter::NewCompilationJob(
-          parse_info, literal, allocator, eager_inner_literals, local_isolate));
+          parse_info, literal, script, allocator, eager_inner_literals,
+          local_isolate));
 
   if (job->ExecuteJob() != CompilationJob::SUCCEEDED) {
     // Compilation failed, return null.
@@ -751,8 +752,8 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
     if (shared_info->is_compiled()) continue;
 
     std::unique_ptr<UnoptimizedCompilationJob> job =
-        ExecuteSingleUnoptimizedCompilationJob(parse_info, literal, allocator,
-                                               &functions_to_compile,
+        ExecuteSingleUnoptimizedCompilationJob(parse_info, literal, script,
+                                               allocator, &functions_to_compile,
                                                isolate->AsLocalIsolate());
 
     if (!job) return false;
@@ -1493,7 +1494,8 @@ void BackgroundCompileTask::Run() {
 
   bool toplevel_script_compilation = flags_.is_toplevel();
 
-  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
+  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground,
+                       worker_thread_scope.Get());
   UnparkedScope unparked_scope(&isolate);
   LocalHandleScope handle_scope(&isolate);
 

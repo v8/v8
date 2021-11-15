@@ -553,7 +553,11 @@ class ZoneProducedPreparseData final : public ProducedPreparseData {
     return data_->Serialize(isolate);
   }
 
-  ZonePreparseData* Serialize(Zone* zone) final { return data_; }
+  ZonePreparseData* Serialize(Zone* zone) final {
+    base::Vector<uint8_t> data(data_->byte_data()->data(),
+                               data_->byte_data()->size());
+    return zone->New<ZonePreparseData>(zone, &data, data_->children_length());
+  }
 
  private:
   ZonePreparseData* data_;

@@ -78,12 +78,12 @@ LazyCompileDispatcher::~LazyCompileDispatcher() {
 }
 
 void LazyCompileDispatcher::Enqueue(
-    Handle<SharedFunctionInfo> shared_info,
+    LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
     std::unique_ptr<Utf16CharacterStream> character_stream,
     ProducedPreparseData* preparse_data) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompilerDispatcherEnqueue");
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
 
   std::unique_ptr<Job> job =
       std::make_unique<Job>(std::make_unique<BackgroundCompileTask>(

@@ -258,6 +258,8 @@ TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
   std::unique_ptr<BackgroundCompileTask> task(
       NewBackgroundCompileTask(isolate(), shared));
 
+  // There's already a task for this SFI.
+
   task->Run();
   ASSERT_TRUE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));

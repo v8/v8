@@ -83,7 +83,7 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   LazyCompileDispatcher& operator=(const LazyCompileDispatcher&) = delete;
   ~LazyCompileDispatcher();
 
-  void Enqueue(Handle<SharedFunctionInfo> shared_info,
+  void Enqueue(LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
                std::unique_ptr<Utf16CharacterStream> character_stream,
                ProducedPreparseData* preparse_data);
 

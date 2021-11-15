@@ -494,18 +494,6 @@ void Parser::DeserializeScopeChain(
 
 namespace {
 
-void MaybeResetCharacterStream(ParseInfo* info, FunctionLiteral* literal) {
-#if V8_ENABLE_WEBASSEMBLY
-  // Don't reset the character stream if there is an asm.js module since it will
-  // be used again by the asm-parser.
-  if (info->contains_asm_module()) {
-    if (FLAG_stress_validate_asm) return;
-    if (literal != nullptr && literal->scope()->ContainsAsmModule()) return;
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  info->ResetCharacterStream();
-}
-
 void MaybeProcessSourceRanges(ParseInfo* parse_info, Expression* root,
                               uintptr_t stack_limit_) {
   if (root != nullptr && parse_info->source_range_map() != nullptr) {
@@ -543,7 +531,6 @@ void Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
 
   scanner_.Initialize();
   FunctionLiteral* result = DoParseProgram(isolate, info);
-  MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
   PostProcessParseResult(isolate, info, result);
 
@@ -874,7 +861,6 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     result = DoParseFunction(isolate, info, start_position, end_position,
                              function_literal_id, info->function_name());
   }
-  MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
   if (result != nullptr) {
     Handle<String> inferred_name(shared_info->inferred_name(), isolate);
@@ -2702,13 +2688,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   RecordFunctionLiteralSourceRange(function_literal);
 
   if (should_post_parallel_task && !has_error()) {
-    // Start a parallel parse / compile task on the compiler dispatcher.
-    Handle<SharedFunctionInfo> shared_info =
-        local_isolate_->factory()->NewSharedFunctionInfoForLiteral(
-            function_literal, script_, false);
-    info()->dispatcher()->Enqueue(shared_info,
-                                  info()->character_stream()->Clone(),
-                                  function_literal->produced_preparse_data());
+    function_literal->set_should_parallel_compile();
   }
 
   if (should_infer_name) {
@@ -3331,7 +3311,6 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
                                end_position, function_literal_id,
                                info->function_name());
     }
-    MaybeResetCharacterStream(info, result);
     MaybeProcessSourceRanges(info, result, stack_limit_);
   }
   // We need to unpark by now though, to be able to internalize.
