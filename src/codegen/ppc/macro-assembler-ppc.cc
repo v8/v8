@@ -1493,20 +1493,27 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   // Underapplication. Move the arguments already in the stack, including the
   // receiver and the return address.
   {
-    Label copy;
+    Label copy, skip;
     Register src = r9, dest = r8;
     addi(src, sp, Operand(-kSystemPointerSize));
     ShiftLeftU64(r0, expected_parameter_count, Operand(kSystemPointerSizeLog2));
     sub(sp, sp, r0);
     // Update stack pointer.
     addi(dest, sp, Operand(-kSystemPointerSize));
-    addi(r0, actual_parameter_count, Operand(1));
+    if (!kJSArgcIncludesReceiver) {
+      addi(r0, actual_parameter_count, Operand(1));
+    } else {
+      mr(r0, actual_parameter_count);
+      cmpi(r0, Operand::Zero());
+      ble(&skip);
+    }
     mtctr(r0);
 
     bind(&copy);
     LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
     StoreU64WithUpdate(r0, MemOperand(dest, kSystemPointerSize));
     bdnz(&copy);
+    bind(&skip);
   }
 
   // Fill remaining expected arguments with undefined values.
