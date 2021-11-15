@@ -89,7 +89,7 @@ def _default_args():
     return struct(
         deps = [":define_flags"],
         defines = select({
-            "@v8//bazel/config:is_windows": [
+            "@config//:is_windows": [
                 "UNICODE",
                 "_UNICODE",
                 "_CRT_RAND_S",
@@ -98,7 +98,7 @@ def _default_args():
             "//conditions:default": [],
         }),
         copts = select({
-            "@v8//bazel/config:is_posix": [
+            "@config//:is_posix": [
                 "-fPIC",
                 "-Werror",
                 "-Wextra",
@@ -115,12 +115,12 @@ def _default_args():
         }),
         includes = ["include"],
         linkopts = select({
-            "@v8//bazel/config:is_windows": [
+            "@config//:is_windows": [
                 "Winmm.lib",
                 "DbgHelp.lib",
                 "Advapi32.lib",
             ],
-            "@v8//bazel/config:is_macos": ["-pthread"],
+            "@config//:is_macos": ["-pthread"],
             "//conditions:default": ["-Wl,--no-as-needed -ldl -pthread"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],
