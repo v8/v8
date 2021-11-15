@@ -25,7 +25,7 @@ links {
   }
 }
 links {
-  name: "extended coverage"
+  name: "Extended coverage"
   links {
     text: "extended"
     url: "/p/v8/g/br.extended"
