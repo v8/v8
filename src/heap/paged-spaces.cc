@@ -602,23 +602,26 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
         local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
     if (result) return result;
 
-    // Now contribute to sweeping from background thread and then try to
-    // reallocate.
-    Sweeper::FreeSpaceMayContainInvalidatedSlots
-        invalidated_slots_in_free_space =
-            Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
+    if (IsSweepingAllowedOnThread(local_heap)) {
+      // Now contribute to sweeping from background thread and then try to
+      // reallocate.
+      Sweeper::FreeSpaceMayContainInvalidatedSlots
+          invalidated_slots_in_free_space =
+              Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
 
-    const int kMaxPagesToSweep = 1;
-    int max_freed = collector->sweeper()->ParallelSweepSpace(
-        identity(), static_cast<int>(min_size_in_bytes), kMaxPagesToSweep,
-        invalidated_slots_in_free_space);
+      const int kMaxPagesToSweep = 1;
+      int max_freed = collector->sweeper()->ParallelSweepSpace(
+          identity(), static_cast<int>(min_size_in_bytes), kMaxPagesToSweep,
+          invalidated_slots_in_free_space);
 
-    RefillFreeList();
+      RefillFreeList();
 
-    if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
-      result = TryAllocationFromFreeListBackground(
-          local_heap, min_size_in_bytes, max_size_in_bytes, alignment, origin);
-      if (result) return result;
+      if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
+        result = TryAllocationFromFreeListBackground(
+            local_heap, min_size_in_bytes, max_size_in_bytes, alignment,
+            origin);
+        if (result) return result;
+      }
     }
   }
 
@@ -633,7 +636,9 @@ base::Optional<std::pair<Address, size_t>> PagedSpace::RawRefillLabBackground(
 
   if (collector->sweeping_in_progress()) {
     // Complete sweeping for this space.
-    collector->DrainSweepingWorklistForSpace(identity());
+    if (IsSweepingAllowedOnThread(local_heap)) {
+      collector->DrainSweepingWorklistForSpace(identity());
+    }
 
     RefillFreeList();
 
@@ -690,6 +695,11 @@ PagedSpace::TryAllocationFromFreeListBackground(LocalHeap* local_heap,
   }
 
   return std::make_pair(start, used_size_in_bytes);
+}
+
+bool PagedSpace::IsSweepingAllowedOnThread(LocalHeap* local_heap) {
+  // Code space sweeping is only allowed on main thread.
+  return local_heap->is_main_thread() || identity() != CODE_SPACE;
 }
 
 #ifdef DEBUG
