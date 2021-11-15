@@ -69,6 +69,60 @@ T Nabs(T a) {
   return a < 0 ? a : -a;
 }
 
+  template <uint64_t N>
+  struct type_usew_t;
+  template <>
+  struct type_usew_t<8> {
+    using type = uint8_t;
+  };
+
+  template <>
+  struct type_usew_t<16> {
+    using type = uint16_t;
+  };
+
+  template <>
+  struct type_usew_t<32> {
+    using type = uint32_t;
+  };
+
+  template <>
+  struct type_usew_t<64> {
+    using type = uint64_t;
+  };
+
+  template <>
+  struct type_usew_t<128> {
+    using type = __uint128_t;
+  };
+  template <uint64_t N>
+  struct type_sew_t;
+
+  template <>
+  struct type_sew_t<8> {
+    using type = int8_t;
+  };
+
+  template <>
+  struct type_sew_t<16> {
+    using type = int16_t;
+  };
+
+  template <>
+  struct type_sew_t<32> {
+    using type = int32_t;
+  };
+
+  template <>
+  struct type_sew_t<64> {
+    using type = int64_t;
+  };
+
+  template <>
+  struct type_sew_t<128> {
+    using type = __int128_t;
+  };
+
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
@@ -672,60 +726,6 @@ class Simulator : public SimulatorBase {
   // PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
   // HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
   // MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-  template <uint64_t N>
-  struct type_usew_t;
-  template <>
-  struct type_usew_t<8> {
-    using type = uint8_t;
-  };
-
-  template <>
-  struct type_usew_t<16> {
-    using type = uint16_t;
-  };
-
-  template <>
-  struct type_usew_t<32> {
-    using type = uint32_t;
-  };
-
-  template <>
-  struct type_usew_t<64> {
-    using type = uint64_t;
-  };
-
-  template <>
-  struct type_usew_t<128> {
-    using type = __uint128_t;
-  };
-  template <uint64_t N>
-  struct type_sew_t;
-
-  template <>
-  struct type_sew_t<8> {
-    using type = int8_t;
-  };
-
-  template <>
-  struct type_sew_t<16> {
-    using type = int16_t;
-  };
-
-  template <>
-  struct type_sew_t<32> {
-    using type = int32_t;
-  };
-
-  template <>
-  struct type_sew_t<64> {
-    using type = int64_t;
-  };
-
-  template <>
-  struct type_sew_t<128> {
-    using type = __int128_t;
-  };
-
 #define VV_PARAMS(x)                                                       \
   type_sew_t<x>::type& vd =                                                \
       Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);                  \
