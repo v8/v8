@@ -120,9 +120,11 @@ class SnapshotImpl : public AllStatic {
 
 }  // namespace
 
-SnapshotData MaybeDecompress(const base::Vector<const byte>& snapshot_data) {
-  TRACE_EVENT0("v8", "V8.SnapshotDecompress");
+SnapshotData MaybeDecompress(Isolate* isolate,
+                             const base::Vector<const byte>& snapshot_data) {
 #ifdef V8_SNAPSHOT_COMPRESSION
+  TRACE_EVENT0("v8", "V8.SnapshotDecompress");
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kSnapshotDecompress);
   return SnapshotCompression::Decompress(snapshot_data);
 #else
   return SnapshotData(snapshot_data);
@@ -182,9 +184,11 @@ bool Snapshot::Initialize(Isolate* isolate) {
     decompress_histogram.emplace(isolate->counters()->snapshot_decompress());
   }
 #endif
-  SnapshotData startup_snapshot_data(MaybeDecompress(startup_data));
-  SnapshotData read_only_snapshot_data(MaybeDecompress(read_only_data));
-  SnapshotData shared_heap_snapshot_data(MaybeDecompress(shared_heap_data));
+  SnapshotData startup_snapshot_data(MaybeDecompress(isolate, startup_data));
+  SnapshotData read_only_snapshot_data(
+      MaybeDecompress(isolate, read_only_data));
+  SnapshotData shared_heap_snapshot_data(
+      MaybeDecompress(isolate, shared_heap_data));
 #ifdef V8_SNAPSHOT_COMPRESSION
   decompress_histogram.reset();
 #endif
@@ -222,7 +226,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
           isolate->counters()->context_snapshot_decompress());
     }
 #endif
-    snapshot_data.emplace(MaybeDecompress(context_data));
+    snapshot_data.emplace(MaybeDecompress(isolate, context_data));
   }
 
   MaybeHandle<Context> maybe_result = ContextDeserializer::DeserializeContext(
