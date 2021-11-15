@@ -469,6 +469,12 @@ class V8_EXPORT_PRIVATE NewSpace
     return &pending_allocation_mutex_;
   }
 
+  // Creates a filler object in the linear allocation area.
+  void MakeLinearAllocationAreaIterable();
+
+  // Creates a filler object in the linear allocation area and closes it.
+  void FreeLinearAllocationArea();
+
  private:
   static const int kAllocationBufferParkingThreshold = 4 * KB;
 

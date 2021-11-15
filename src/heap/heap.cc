@@ -1647,20 +1647,6 @@ void Heap::ReportExternalMemoryPressure() {
 
 int64_t Heap::external_memory_limit() { return external_memory_.limit(); }
 
-void Heap::EnsureFillerObjectAtTop() {
-  // There may be an allocation memento behind objects in new space. Upon
-  // evacuation of a non-full new space (or if we are on the last page) there
-  // may be uninitialized memory behind top. We fill the remainder of the page
-  // with a filler.
-  if (!new_space_) return;
-  Address to_top = new_space_->top();
-  Page* page = Page::FromAddress(to_top - kTaggedSize);
-  if (page->Contains(to_top)) {
-    int remaining_in_page = static_cast<int>(page->area_end() - to_top);
-    CreateFillerObjectAt(to_top, remaining_in_page, ClearRecordedSlots::kNo);
-  }
-}
-
 Heap::DevToolsTraceEventScope::DevToolsTraceEventScope(Heap* heap,
                                                        const char* event_name,
                                                        const char* event_type)
@@ -1720,7 +1706,11 @@ bool Heap::CollectGarbage(AllocationSpace space,
   }
 #endif
 
-  EnsureFillerObjectAtTop();
+  // There may be an allocation memento behind objects in new space. Upon
+  // evacuation of a non-full new space (or if we are on the last page) there
+  // may be uninitialized memory behind top. We fill the remainder of the page
+  // with a filler.
+  if (new_space()) new_space()->MakeLinearAllocationAreaIterable();
 
   if (IsYoungGenerationCollector(collector) &&
       !incremental_marking()->IsStopped()) {
@@ -3530,8 +3520,7 @@ void Heap::MakeHeapIterable() {
     space->MakeLinearAllocationAreaIterable();
   }
 
-  // New space is bump-pointer allocation only and therefore guaranteed to be
-  // iterable up to top().
+  if (new_space()) new_space()->MakeLinearAllocationAreaIterable();
 }
 
 void Heap::FreeLinearAllocationAreas() {
@@ -3544,8 +3533,7 @@ void Heap::FreeLinearAllocationAreas() {
     space->FreeLinearAllocationArea();
   }
 
-  // New space is bump-pointer allocation only and therefore guaranteed to be
-  // iterable up to top().
+  if (new_space()) new_space()->FreeLinearAllocationArea();
 }
 
 void Heap::FreeSharedLinearAllocationAreas() {

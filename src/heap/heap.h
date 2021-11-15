@@ -1780,11 +1780,6 @@ class Heap {
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           const char** reason);
 
-  // Make sure there is a filler value behind the top of the new space
-  // so that the GC does not confuse some unintialized/stale memory
-  // with the allocation memento of the object at the top
-  void EnsureFillerObjectAtTop();
-
   // Free all LABs in the heap.
   void FreeLinearAllocationAreas();
 

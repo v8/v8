@@ -666,6 +666,21 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
   return result;
 }
 
+void NewSpace::MakeLinearAllocationAreaIterable() {
+  Address to_top = top();
+  Page* page = Page::FromAddress(to_top - kTaggedSize);
+  if (page->Contains(to_top)) {
+    int remaining_in_page = static_cast<int>(page->area_end() - to_top);
+    heap_->CreateFillerObjectAt(to_top, remaining_in_page,
+                                ClearRecordedSlots::kNo);
+  }
+}
+
+void NewSpace::FreeLinearAllocationArea() {
+  MakeLinearAllocationAreaIterable();
+  UpdateInlineAllocationLimit(0);
+}
+
 void NewSpace::VerifyTop() {
   // Ensure validity of LAB: start <= top <= limit
   DCHECK_LE(allocation_info_.start(), allocation_info_.top());
