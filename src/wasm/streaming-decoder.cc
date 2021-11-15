@@ -312,7 +312,7 @@ void AsyncStreamingDecoder::Abort() {
 
 namespace {
 
-class CompilationChunkFinishedCallback {
+class CompilationChunkFinishedCallback : public CompilationEventCallback {
  public:
   CompilationChunkFinishedCallback(
       std::weak_ptr<NativeModule> native_module,
@@ -320,7 +320,7 @@ class CompilationChunkFinishedCallback {
       : native_module_(std::move(native_module)),
         callback_(std::move(callback)) {}
 
-  void operator()(CompilationEvent event) const {
+  void call(CompilationEvent event) override {
     if (event != CompilationEvent::kFinishedCompilationChunk &&
         event != CompilationEvent::kFinishedTopTierCompilation) {
       return;
@@ -330,6 +330,10 @@ class CompilationChunkFinishedCallback {
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
       callback_(native_module);
     }
+  }
+
+  ReleaseAfterFinalEvent release_after_final_event() override {
+    return CompilationEventCallback::ReleaseAfterFinalEvent::kKeep;
   }
 
  private:
@@ -343,8 +347,9 @@ void AsyncStreamingDecoder::NotifyNativeModuleCreated(
     const std::shared_ptr<NativeModule>& native_module) {
   if (!module_compiled_callback_) return;
   auto* comp_state = native_module->compilation_state();
-  comp_state->AddCallback(CompilationChunkFinishedCallback{
-      std::move(native_module), std::move(module_compiled_callback_)});
+
+  comp_state->AddCallback(std::make_unique<CompilationChunkFinishedCallback>(
+      std::move(native_module), std::move(module_compiled_callback_)));
   module_compiled_callback_ = {};
 }
 

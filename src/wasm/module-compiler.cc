@@ -572,14 +572,14 @@ class CompilationStateImpl {
   // for recompilation and add the respective compilation units. The callback is
   // called immediately if no recompilation is needed, or called later
   // otherwise.
-  void InitializeRecompilation(
-      TieringState new_tiering_state,
-      CompilationState::callback_t recompilation_finished_callback);
+  void InitializeRecompilation(TieringState new_tiering_state,
+                               std::unique_ptr<CompilationEventCallback>
+                                   recompilation_finished_callback);
 
-  // Add the callback function to be called on compilation events. Needs to be
+  // Add the callback to be called on compilation events. Needs to be
   // set before {CommitCompilationUnits} is run to ensure that it receives all
   // events. The callback object must support being deleted from any thread.
-  void AddCallback(CompilationState::callback_t);
+  void AddCallback(std::unique_ptr<CompilationEventCallback> callback);
 
   // Inserts new functions to compile and kicks off compilation.
   void CommitCompilationUnits(
@@ -744,8 +744,8 @@ class CompilationStateImpl {
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {callbacks_mutex_}:
 
-  // Callback functions to be called on compilation events.
-  std::vector<CompilationState::callback_t> callbacks_;
+  // Callbacks to be called on compilation events.
+  std::vector<std::unique_ptr<CompilationEventCallback>> callbacks_;
 
   // Events that already happened.
   base::EnumSet<CompilationEvent> finished_events_;
@@ -836,7 +836,8 @@ std::shared_ptr<WireBytesStorage> CompilationState::GetWireBytesStorage()
   return Impl(this)->GetWireBytesStorage();
 }
 
-void CompilationState::AddCallback(CompilationState::callback_t callback) {
+void CompilationState::AddCallback(
+    std::unique_ptr<CompilationEventCallback> callback) {
   return Impl(this)->AddCallback(std::move(callback));
 }
 
@@ -1646,7 +1647,7 @@ bool MayCompriseLazyFunctions(const WasmModule* module,
   return false;
 }
 
-class CompilationTimeCallback {
+class CompilationTimeCallback : public CompilationEventCallback {
  public:
   enum CompileMode { kSynchronous, kAsync, kStreaming };
   explicit CompilationTimeCallback(
@@ -1661,7 +1662,12 @@ class CompilationTimeCallback {
         native_module_(std::move(native_module)),
         compile_mode_(compile_mode) {}
 
-  void operator()(CompilationEvent compilation_event) {
+  // Keep this callback alive to be able to record caching metrics.
+  ReleaseAfterFinalEvent release_after_final_event() override {
+    return CompilationEventCallback::ReleaseAfterFinalEvent::kKeep;
+  }
+
+  void call(CompilationEvent compilation_event) override {
     DCHECK(base::TimeTicks::IsHighResolution());
     std::shared_ptr<NativeModule> native_module = native_module_.lock();
     if (!native_module) return;
@@ -1756,9 +1762,9 @@ void CompileNativeModule(Isolate* isolate,
   // The callback captures a shared ptr to the semaphore.
   auto* compilation_state = Impl(native_module->compilation_state());
   if (base::TimeTicks::IsHighResolution()) {
-    compilation_state->AddCallback(CompilationTimeCallback{
+    compilation_state->AddCallback(std::make_unique<CompilationTimeCallback>(
         isolate->async_counters(), isolate->metrics_recorder(), context_id,
-        native_module, CompilationTimeCallback::kSynchronous});
+        native_module, CompilationTimeCallback::kSynchronous));
   }
 
   // Initialize the compilation units and kick off background compile tasks.
@@ -1892,16 +1898,29 @@ void RecompileNativeModule(NativeModule* native_module,
   auto recompilation_finished_semaphore = std::make_shared<base::Semaphore>(0);
   auto* compilation_state = Impl(native_module->compilation_state());
 
+  class RecompilationFinishedCallback : public CompilationEventCallback {
+   public:
+    explicit RecompilationFinishedCallback(
+        std::shared_ptr<base::Semaphore> recompilation_finished_semaphore)
+        : recompilation_finished_semaphore_(
+              std::move(recompilation_finished_semaphore)) {}
+
+    void call(CompilationEvent event) override {
+      DCHECK_NE(CompilationEvent::kFailedCompilation, event);
+      if (event == CompilationEvent::kFinishedRecompilation) {
+        recompilation_finished_semaphore_->Signal();
+      }
+    }
+
+   private:
+    std::shared_ptr<base::Semaphore> recompilation_finished_semaphore_;
+  };
+
   // The callback captures a shared ptr to the semaphore.
   // Initialize the compilation units and kick off background compile tasks.
   compilation_state->InitializeRecompilation(
-      tiering_state,
-      [recompilation_finished_semaphore](CompilationEvent event) {
-        DCHECK_NE(CompilationEvent::kFailedCompilation, event);
-        if (event == CompilationEvent::kFinishedRecompilation) {
-          recompilation_finished_semaphore->Signal();
-        }
-      });
+      tiering_state, std::make_unique<RecompilationFinishedCallback>(
+                         recompilation_finished_semaphore));
 
   constexpr JobDelegate* kNoDelegate = nullptr;
   ExecuteCompilationUnits(compilation_state->native_module_weak(),
@@ -2199,11 +2218,12 @@ void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
   resolver_->OnCompilationSucceeded(result);
 }
 
-class AsyncCompileJob::CompilationStateCallback {
+class AsyncCompileJob::CompilationStateCallback
+    : public CompilationEventCallback {
  public:
   explicit CompilationStateCallback(AsyncCompileJob* job) : job_(job) {}
 
-  void operator()(CompilationEvent event) {
+  void call(CompilationEvent event) override {
     // This callback is only being called from a foreground task.
     switch (event) {
       case CompilationEvent::kFinishedExportWrappers:
@@ -2516,14 +2536,15 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     CompilationStateImpl* compilation_state =
         Impl(job->native_module_->compilation_state());
-    compilation_state->AddCallback(CompilationStateCallback{job});
+    compilation_state->AddCallback(
+        std::make_unique<CompilationStateCallback>(job));
     if (base::TimeTicks::IsHighResolution()) {
       auto compile_mode = job->stream_ == nullptr
                               ? CompilationTimeCallback::kAsync
                               : CompilationTimeCallback::kStreaming;
-      compilation_state->AddCallback(CompilationTimeCallback{
+      compilation_state->AddCallback(std::make_unique<CompilationTimeCallback>(
           job->isolate_->async_counters(), job->isolate_->metrics_recorder(),
-          job->context_id_, job->native_module_, compile_mode});
+          job->context_id_, job->native_module_, compile_mode));
     }
 
     if (start_compilation_) {
@@ -2556,13 +2577,13 @@ class AsyncCompileJob::CompileFailed : public CompileStep {
 };
 
 namespace {
-class SampleTopTierCodeSizeCallback {
+class SampleTopTierCodeSizeCallback : public CompilationEventCallback {
  public:
   explicit SampleTopTierCodeSizeCallback(
       std::weak_ptr<NativeModule> native_module)
       : native_module_(std::move(native_module)) {}
 
-  void operator()(CompilationEvent event) {
+  void call(CompilationEvent event) override {
     if (event != CompilationEvent::kFinishedTopTierCompilation) return;
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
       GetWasmEngine()->SampleTopTierCodeSizeInAllIsolates(native_module);
@@ -2595,7 +2616,7 @@ class AsyncCompileJob::CompileFinished : public CompileStep {
       // Also, set a callback to sample the code size after top-tier compilation
       // finished. This callback will *not* keep the NativeModule alive.
       job->native_module_->compilation_state()->AddCallback(
-          SampleTopTierCodeSizeCallback{job->native_module_});
+          std::make_unique<SampleTopTierCodeSizeCallback>(job->native_module_));
     }
     // Then finalize and publish the generated module.
     job->FinishCompile(cached_native_module_ != nullptr);
@@ -3197,7 +3218,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
 
 void CompilationStateImpl::InitializeRecompilation(
     TieringState new_tiering_state,
-    CompilationState::callback_t recompilation_finished_callback) {
+    std::unique_ptr<CompilationEventCallback> recompilation_finished_callback) {
   DCHECK(!failed());
 
   // Hold the mutex as long as possible, to synchronize between multiple
@@ -3276,7 +3297,8 @@ void CompilationStateImpl::InitializeRecompilation(
   }
 }
 
-void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
+void CompilationStateImpl::AddCallback(
+    std::unique_ptr<CompilationEventCallback> callback) {
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
   // Immediately trigger events that already happened.
   for (auto event : {CompilationEvent::kFinishedExportWrappers,
@@ -3284,7 +3306,7 @@ void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
                      CompilationEvent::kFinishedTopTierCompilation,
                      CompilationEvent::kFailedCompilation}) {
     if (finished_events_.contains(event)) {
-      callback(event);
+      callback->call(event);
     }
   }
   constexpr base::EnumSet<CompilationEvent> kFinalEvents{
@@ -3545,19 +3567,23 @@ void CompilationStateImpl::TriggerCallbacks(
     DCHECK_NE(compilation_id_, kInvalidCompilationID);
     TRACE_EVENT1("v8.wasm", event.second, "id", compilation_id_);
     for (auto& callback : callbacks_) {
-      callback(event.first);
+      callback->call(event.first);
     }
   }
 
-  // With dynamic tiering, we don't know if we can ever delete the callback.
-  // TODO(https://crbug.com/v8/12289): Release some callbacks also when dynamic
-  // tiering is enabled.
-  if (dynamic_tiering_ == DynamicTiering::kDisabled &&
-      outstanding_baseline_units_ == 0 && outstanding_export_wrappers_ == 0 &&
+  if (outstanding_baseline_units_ == 0 && outstanding_export_wrappers_ == 0 &&
       outstanding_top_tier_functions_ == 0 &&
       outstanding_recompilation_functions_ == 0) {
-    // Clear the callbacks because no more events will be delivered.
-    callbacks_.clear();
+    for (auto it = callbacks_.begin(); it != callbacks_.end();) {
+      if ((*it)->release_after_final_event() ==
+          CompilationEventCallback::ReleaseAfterFinalEvent::kRelease) {
+        // Release all callbacks that can be released after the initial set of
+        // functions finished compilation.
+        it = callbacks_.erase(it);
+      } else {
+        ++it;
+      }
+    }
   }
 }
 
@@ -3664,6 +3690,27 @@ void CompilationStateImpl::SetError() {
 
 void CompilationStateImpl::WaitForCompilationEvent(
     CompilationEvent expect_event) {
+  class WaitForCompilationEventCallback : public CompilationEventCallback {
+   public:
+    WaitForCompilationEventCallback(std::shared_ptr<base::Semaphore> semaphore,
+                                    std::shared_ptr<std::atomic<bool>> done,
+                                    base::EnumSet<CompilationEvent> events)
+        : semaphore_(std::move(semaphore)),
+          done_(std::move(done)),
+          events_(events) {}
+
+    void call(CompilationEvent event) override {
+      if (!events_.contains(event)) return;
+      done_->store(true, std::memory_order_relaxed);
+      semaphore_->Signal();
+    }
+
+   private:
+    std::shared_ptr<base::Semaphore> semaphore_;
+    std::shared_ptr<std::atomic<bool>> done_;
+    base::EnumSet<CompilationEvent> events_;
+  };
+
   auto semaphore = std::make_shared<base::Semaphore>(0);
   auto done = std::make_shared<std::atomic<bool>>(false);
   base::EnumSet<CompilationEvent> events{expect_event,
@@ -3671,11 +3718,8 @@ void CompilationStateImpl::WaitForCompilationEvent(
   {
     base::MutexGuard callbacks_guard(&callbacks_mutex_);
     if (finished_events_.contains_any(events)) return;
-    callbacks_.emplace_back([semaphore, events, done](CompilationEvent event) {
-      if (!events.contains(event)) return;
-      done->store(true, std::memory_order_relaxed);
-      semaphore->Signal();
-    });
+    callbacks_.emplace_back(std::make_unique<WaitForCompilationEventCallback>(
+        semaphore, done, events));
   }
 
   class WaitForEventDelegate final : public JobDelegate {
