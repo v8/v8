@@ -234,6 +234,8 @@ class V8_EXPORT WebSnapshotDeserializer
 
  private:
   bool Deserialize();
+  bool DeserializeSnapshot();
+  bool DeserializeScript();
 
   WebSnapshotDeserializer(const WebSnapshotDeserializer&) = delete;
   WebSnapshotDeserializer& operator=(const WebSnapshotDeserializer&) = delete;

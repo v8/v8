@@ -1434,26 +1434,16 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
 
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
 
-  TryCatch try_catch(isolate);
-  try_catch.SetVerbose(true);
   int length = 0;
   std::unique_ptr<uint8_t[]> snapshot_data(
       reinterpret_cast<uint8_t*>(ReadChars(absolute_path.c_str(), &length)));
   if (length == 0) {
     isolate->ThrowError("Error reading the web snapshot");
-    DCHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
     return false;
   }
   i::WebSnapshotDeserializer deserializer(isolate);
-  if (!deserializer.UseWebSnapshot(snapshot_data.get(),
-                                   static_cast<size_t>(length))) {
-    DCHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
-    return false;
-  }
-  DCHECK(!try_catch.HasCaught());
-  return true;
+  return deserializer.UseWebSnapshot(snapshot_data.get(),
+                                     static_cast<size_t>(length));
 }
 
 PerIsolateData::PerIsolateData(Isolate* isolate)
