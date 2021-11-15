@@ -51,6 +51,7 @@ def console_id_resolver(bucket, has_console_name_prefix):
     def resolver(console_kind):
         if has_console_name_prefix:
             suffix = ".ports" if console_kind == "ports" else ""
+            suffix = ".memory" if console_kind == "memory" else ""
             return bucket[3:] + suffix
         else:
             return console_kind
@@ -362,6 +363,12 @@ def multibranch_builder(**kwargs):
         v8_basic_builder(defaults_ci, bucket = branch.bucket, **args)
         added_builders.append(branch.bucket + "/" + kwargs["name"])
     return added_builders
+
+def main_multibranch_builder(**kwargs):
+    props = kwargs.pop("properties", {})
+    props["builder_group"] = "client.v8"
+    kwargs["properties"] = props
+    return multibranch_builder(**kwargs)
 
 def resolve_parent_tiggering(args, bucket_name, parent_builder):
     # By the time the generators are executed the parent_builder property

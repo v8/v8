@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 exec("/multibranch/main.star")
+exec("/multibranch/memory.star")
 exec("/multibranch/ports.star")
 exec("/chromium.star")
 exec("/clusterfuzz.star")
