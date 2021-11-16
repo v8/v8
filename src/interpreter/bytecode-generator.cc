@@ -2776,8 +2776,14 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr, Register name) {
   CurrentScope current_scope(this, expr->scope());
   DCHECK_NOT_NULL(expr->scope());
   if (expr->scope()->NeedsContext()) {
+    // Make sure to associate the source position for the class
+    // after the block context is created. Otherwise we have a mismatch
+    // between the scope and the context, where we already are in a
+    // block context for the class, but not yet in the class scope.
+    BytecodeSourceInfo source_info = builder()->PopSourcePosition();
     BuildNewLocalBlockContext(expr->scope());
     ContextScope scope(this, expr->scope());
+    builder()->PushSourcePosition(source_info);
     BuildClassLiteral(expr, name);
   } else {
     BuildClassLiteral(expr, name);
