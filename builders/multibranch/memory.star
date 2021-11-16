@@ -9,17 +9,17 @@ main_multibranch_builder_pair = ci_pair_factory(main_multibranch_builder)
 
 in_category(
     "ASAN",
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 ASAN",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Mac64 ASAN",
         triggered_by_gitiles = True,
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Win64 ASAN",
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         use_goma = GOMA.ATS,
@@ -29,7 +29,7 @@ in_category(
 
 in_category(
     "MSAN",
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - MSAN",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
@@ -66,7 +66,7 @@ in_category(
 
 in_category(
     "UBSAN",
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 UBSan",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
@@ -75,12 +75,12 @@ in_category(
 
 in_category(
     "CFI",
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - CFI",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
     ),
-    main_multibranch_builder(
+    main_multibranch_builder_pair(
         name = "V8 Linux64 - cfi",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,

@@ -8,6 +8,11 @@ links {
     alt: "Main V8 Console"
   }
   links {
+    text: "memory"
+    url: "/p/v8/g/memory"
+    alt: "Memory V8 Console"
+  }
+  links {
     text: "ports"
     url: "/p/v8/g/ports"
     alt: "Ports V8 Console"
@@ -87,6 +92,7 @@ links {
 }
 
 console_groups {
+  console_ids: "v8/memory"
   console_ids: "v8/ports"
   console_ids: "v8/memory"
   console_ids: "v8/clusterfuzz"
