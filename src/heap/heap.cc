@@ -3534,6 +3534,9 @@ void Heap::FreeLinearAllocationAreas() {
 
 void Heap::FreeSharedLinearAllocationAreas() {
   if (!isolate()->shared_isolate()) return;
+  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->FreeSharedLinearAllocationArea();
+  });
   shared_old_allocator_->FreeLinearAllocationArea();
   shared_map_allocator_->FreeLinearAllocationArea();
 }

@@ -870,6 +870,7 @@ class Heap {
 
   NewSpace* new_space() { return new_space_; }
   OldSpace* old_space() { return old_space_; }
+  OldSpace* shared_old_space() { return shared_old_space_; }
   CodeSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
   OldLargeObjectSpace* lo_space() { return lo_space_; }
