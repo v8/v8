@@ -319,3 +319,23 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate({});
   assertEquals(11, instance.exports.main(10));
 })();
+
+(function Int64Lowering() {
+  print(arguments.callee.name);
+
+  let kSig_l_li = makeSig([kWasmI64, kWasmI32], [kWasmI64]);
+
+  let builder = new WasmModuleBuilder();
+
+  let callee = builder.addFunction("callee", kSig_l_li)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1, kExprI64SConvertI32, kExprI64Add]);
+
+  builder.addFunction("main", kSig_l_li)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1, kExprCallFunction, callee.index])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertEquals(BigInt(21), instance.exports.main(BigInt(10), 11));
+})();

@@ -544,6 +544,9 @@ class WasmGraphBuilder {
 
   void RemoveBytecodePositionDecorator();
 
+  static const wasm::FunctionSig* Int64LoweredSig(Zone* zone,
+                                                  const wasm::FunctionSig* sig);
+
  protected:
   V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
                                      MachineGraph* mcgraph,

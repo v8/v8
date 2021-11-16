@@ -129,18 +129,21 @@ void WasmInliner::Finalize() {
     const wasm::FunctionSig* real_sig =
         CallDescriptorOf(call->op())->wasm_sig();
 
-    // DCHECK that the real signature is a subtype of the formal one.
-    DCHECK_EQ(real_sig->parameter_count(), inlinee->sig->parameter_count());
-    DCHECK_EQ(real_sig->return_count(), inlinee->sig->return_count());
+#if DEBUG
+    // Check that the real signature is a subtype of the formal one.
+    const wasm::FunctionSig* formal_sig =
+        WasmGraphBuilder::Int64LoweredSig(zone(), inlinee->sig);
+    CHECK_EQ(real_sig->parameter_count(), formal_sig->parameter_count());
+    CHECK_EQ(real_sig->return_count(), formal_sig->return_count());
     for (size_t i = 0; i < real_sig->parameter_count(); i++) {
-      DCHECK(wasm::IsSubtypeOf(real_sig->GetParam(i), inlinee->sig->GetParam(i),
-                               module()));
+      CHECK(wasm::IsSubtypeOf(real_sig->GetParam(i), formal_sig->GetParam(i),
+                              module()));
     }
     for (size_t i = 0; i < real_sig->return_count(); i++) {
-      DCHECK(wasm::IsSubtypeOf(inlinee->sig->GetReturn(i),
-                               real_sig->GetReturn(i), module()));
+      CHECK(wasm::IsSubtypeOf(formal_sig->GetReturn(i), real_sig->GetReturn(i),
+                              module()));
     }
-    // End DCHECK.
+#endif
 
     const wasm::FunctionBody inlinee_body(real_sig, inlinee->code.offset(),
                                           function_bytes.begin(),
@@ -151,23 +154,24 @@ void WasmInliner::Finalize() {
     std::vector<WasmLoopInfo> infos;
 
     size_t subgraph_min_node_id = graph()->NodeCount();
-    wasm::DecodeResult result;
     Node* inlinee_start;
     Node* inlinee_end;
     {
       Graph::SubgraphScope scope(graph());
-      result = wasm::BuildTFGraph(
+      wasm::DecodeResult result = wasm::BuildTFGraph(
           zone()->allocator(), env_->enabled_features, module(), &builder,
           &detected, inlinee_body, &infos, node_origins_,
           candidate.inlinee_index, wasm::kInlinedFunction);
+      if (result.failed()) {
+        // This can happen if the inlinee has never been compiled before and is
+        // invalid. Return, as there is no point to keep optimizing.
+        TRACE("failed to compile]\n")
+        return;
+      }
+
+      builder.LowerInt64(WasmGraphBuilder::kCalledFromWasm);
       inlinee_start = graph()->start();
       inlinee_end = graph()->end();
-    }
-    if (result.failed()) {
-      // This can happen if the inlinee has never been compiled before and is
-      // invalid. Return, as there is no point to keep optimizing.
-      TRACE("failed to compile]\n")
-      return;
     }
 
     size_t additional_nodes = graph()->NodeCount() - subgraph_min_node_id;

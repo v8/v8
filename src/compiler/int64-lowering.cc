@@ -31,7 +31,7 @@ Int64Lowering::Int64Lowering(
       machine_(machine),
       common_(common),
       simplified_(simplified),
-      state_(graph, 3),
+      state_(),
       stack_(zone),
       replacements_(nullptr),
       signature_(signature),
@@ -48,19 +48,21 @@ void Int64Lowering::LowerGraph() {
     return;
   }
   stack_.push_back({graph()->end(), 0});
-  state_.Set(graph()->end(), State::kOnStack);
+  state_[graph()->end()] = State::kOnStack;
 
   while (!stack_.empty()) {
     NodeState& top = stack_.back();
     if (top.input_index == top.node->InputCount()) {
       // All inputs of top have already been lowered, now lower top.
       stack_.pop_back();
-      state_.Set(top.node, State::kVisited);
+      state_[top.node] = State::kVisited;
       LowerNode(top.node);
     } else {
       // Push the next input onto the stack.
       Node* input = top.node->InputAt(top.input_index++);
-      if (state_.Get(input) == State::kUnvisited) {
+      static_assert(State() == State::kUnvisited,
+                    "Default value for State has to be kUnvisited");
+      if (state_[input] == State::kUnvisited) {
         if (input->opcode() == IrOpcode::kPhi) {
           // To break cycles with phi nodes we push phis on a separate stack so
           // that they are processed after all other nodes.
@@ -72,7 +74,7 @@ void Int64Lowering::LowerGraph() {
         } else {
           stack_.push_back({input, 0});
         }
-        state_.Set(input, State::kOnStack);
+        state_[input] = State::kOnStack;
       }
     }
   }
