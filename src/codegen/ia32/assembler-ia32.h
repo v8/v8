@@ -1610,12 +1610,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #define FMA(instr, length, prefix, escape1, escape2, extension, opcode) \
   void instr(XMMRegister dst, XMMRegister src1, XMMRegister src2) {     \
-    fma_instr(0x##opcode, dst, src1, src2, k##length, k##prefix,        \
-              k##escape1##escape2, k##extension);                       \
+    vinstr(0x##opcode, dst, src1, src2, k##length, k##prefix,           \
+           k##escape1##escape2, k##extension, FMA3);                    \
   }                                                                     \
   void instr(XMMRegister dst, XMMRegister src1, Operand src2) {         \
-    fma_instr(0x##opcode, dst, src1, src2, k##length, k##prefix,        \
-              k##escape1##escape2, k##extension);                       \
+    vinstr(0x##opcode, dst, src1, src2, k##length, k##prefix,           \
+           k##escape1##escape2, k##extension, FMA3);                    \
   }
   FMA_INSTRUCTION_LIST(FMA)
 #undef FMA
@@ -1748,6 +1748,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
               SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature = AVX);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature = AVX);
+  void vinstr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
+              VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w,
+              CpuFeature = AVX);
+  void vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
+              VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w,
+              CpuFeature = AVX);
   // Most BMI instructions are similar.
   void bmi1(byte op, Register reg, Register vreg, Operand rm);
   void bmi2(SIMDPrefix pp, byte op, Register reg, Register vreg, Operand rm);

@@ -3205,37 +3205,29 @@ void Assembler::sse4_instr(XMMRegister dst, Operand src, byte prefix,
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
                        XMMRegister src2, SIMDPrefix pp, LeadingOpcode m, VexW w,
                        CpuFeature feature) {
-  DCHECK(IsEnabled(feature));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(src1, kL128, pp, m, w);
-  EMIT(op);
-  emit_sse_operand(dst, src2);
+  vinstr(op, dst, src1, src2, kL128, pp, m, w, feature);
 }
 
 void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
                        SIMDPrefix pp, LeadingOpcode m, VexW w,
                        CpuFeature feature) {
-  DCHECK(IsEnabled(feature));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(src1, kL128, pp, m, w);
-  EMIT(op);
-  emit_sse_operand(dst, src2);
+  vinstr(op, dst, src1, src2, kL128, pp, m, w, feature);
 }
 
-void Assembler::fma_instr(byte op, XMMRegister dst, XMMRegister src1,
-                          XMMRegister src2, VectorLength l, SIMDPrefix pp,
-                          LeadingOpcode m, VexW w) {
-  DCHECK(IsEnabled(FMA3));
+void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
+                       XMMRegister src2, VectorLength l, SIMDPrefix pp,
+                       LeadingOpcode m, VexW w, CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
   EnsureSpace ensure_space(this);
   emit_vex_prefix(src1, l, pp, m, w);
   EMIT(op);
   emit_sse_operand(dst, src2);
 }
 
-void Assembler::fma_instr(byte op, XMMRegister dst, XMMRegister src1,
-                          Operand src2, VectorLength l, SIMDPrefix pp,
-                          LeadingOpcode m, VexW w) {
-  DCHECK(IsEnabled(FMA3));
+void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
+                       VectorLength l, SIMDPrefix pp, LeadingOpcode m, VexW w,
+                       CpuFeature feature) {
+  DCHECK(IsEnabled(feature));
   EnsureSpace ensure_space(this);
   emit_vex_prefix(src1, l, pp, m, w);
   EMIT(op);
