@@ -33,6 +33,21 @@ namespace internal {
 template <ArgumentsType arguments_type>
 class Arguments {
  public:
+  // Scope to temporarily change the value of an argument.
+  class ChangeValueScope {
+   public:
+    ChangeValueScope(Arguments* args, int index, Object value)
+        : location_(args->address_of_arg_at(index)) {
+      old_value_ = *location_;
+      *location_ = value.ptr();
+    }
+    ~ChangeValueScope() { *location_ = old_value_; }
+
+   private:
+    Address* location_;
+    Address old_value_;
+  };
+
   Arguments(int length, Address* arguments)
       : length_(length), arguments_(arguments) {
     DCHECK_GE(length_, 0);
@@ -50,10 +65,6 @@ class Arguments {
   inline int tagged_index_at(int index) const;
 
   inline double number_at(int index) const;
-
-  inline void set_at(int index, Object value) {
-    *address_of_arg_at(index) = value.ptr();
-  }
 
   inline FullObjectSlot slot_at(int index) const {
     return FullObjectSlot(address_of_arg_at(index));
