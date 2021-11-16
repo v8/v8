@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef TEST_BENCHMARK_CPP_CPPGC_UTILS_H_
-#define TEST_BENCHMARK_CPP_CPPGC_UTILS_H_
+#ifndef TEST_BENCHMARK_CPP_CPPGC_BENCHMARK_UTILS_H_
+#define TEST_BENCHMARK_CPP_CPPGC_BENCHMARK_UTILS_H_
 
 #include "include/cppgc/heap.h"
-#include "include/cppgc/platform.h"
 #include "test/unittests/heap/cppgc/test-platform.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
@@ -15,22 +14,26 @@ namespace internal {
 namespace testing {
 
 class BenchmarkWithHeap : public benchmark::Fixture {
+ public:
+  static void InitializeProcess();
+  static void ShutdownProcess();
+
  protected:
-  void SetUp(const ::benchmark::State& state) override {
-    platform_ = std::make_shared<testing::TestPlatform>();
-    cppgc::InitializeProcess(platform_->GetPageAllocator());
-    heap_ = cppgc::Heap::Create(platform_);
+  void SetUp(::benchmark::State& state) override {
+    heap_ = cppgc::Heap::Create(GetPlatform());
   }
 
-  void TearDown(const ::benchmark::State& state) override {
-    heap_.reset();
-    cppgc::ShutdownProcess();
-  }
+  void TearDown(::benchmark::State& state) override { heap_.reset(); }
 
   cppgc::Heap& heap() const { return *heap_.get(); }
 
  private:
-  std::shared_ptr<testing::TestPlatform> platform_;
+  static std::shared_ptr<testing::TestPlatform> GetPlatform() {
+    return platform_;
+  }
+
+  static std::shared_ptr<testing::TestPlatform> platform_;
+
   std::unique_ptr<cppgc::Heap> heap_;
 };
 
@@ -38,4 +41,4 @@ class BenchmarkWithHeap : public benchmark::Fixture {
 }  // namespace internal
 }  // namespace cppgc
 
-#endif  // TEST_BENCHMARK_CPP_CPPGC_UTILS_H_
+#endif  // TEST_BENCHMARK_CPP_CPPGC_BENCHMARK_UTILS_H_
