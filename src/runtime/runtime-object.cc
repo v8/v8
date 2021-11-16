@@ -1100,11 +1100,11 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
         nexus.ConfigureMonomorphic(name, handle(object->map(), isolate),
                                    MaybeObjectHandle());
       } else {
-        nexus.ConfigureMegamorphic(PROPERTY);
+        nexus.ConfigureMegamorphic(IcCheckType::kProperty);
       }
     } else if (nexus.ic_state() == MONOMORPHIC) {
       if (nexus.GetFirstMap() != object->map() || nexus.GetName() != *name) {
-        nexus.ConfigureMegamorphic(PROPERTY);
+        nexus.ConfigureMegamorphic(IcCheckType::kProperty);
       }
     }
   }

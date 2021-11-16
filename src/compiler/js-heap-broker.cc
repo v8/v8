@@ -590,7 +590,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     // We rely on this invariant in JSGenericLowering.
     DCHECK_IMPLIES(maps.empty(), nexus.ic_state() == MEGAMORPHIC);
     return *zone()->New<NamedAccessFeedback>(*name, maps, kind);
-  } else if (nexus.GetKeyType() == ELEMENT && !maps.empty()) {
+  } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
         maps, KeyedAccessMode::FromNexus(nexus), kind);
   } else {

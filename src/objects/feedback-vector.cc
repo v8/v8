@@ -1170,7 +1170,7 @@ Name FeedbackNexus::GetName() const {
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedHasICKind(kind()));
 
-  if (GetKeyType() == PROPERTY) return STANDARD_LOAD;
+  if (GetKeyType() == IcCheckType::kProperty) return STANDARD_LOAD;
 
   std::vector<MapAndHandler> maps_and_handlers;
   ExtractMapsAndHandlers(&maps_and_handlers);
@@ -1238,7 +1238,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
          IsStoreDataPropertyInLiteralKind(kind()) || IsDefineOwnICKind(kind()));
   KeyedAccessStoreMode mode = STANDARD_STORE;
 
-  if (GetKeyType() == PROPERTY) return mode;
+  if (GetKeyType() == IcCheckType::kProperty) return mode;
 
   std::vector<MapAndHandler> maps_and_handlers;
   ExtractMapsAndHandlers(&maps_and_handlers);
@@ -1310,7 +1310,8 @@ IcCheckType FeedbackNexus::GetKeyType() const {
       IsStoreDataPropertyInLiteralKind(kind()) || IsDefineOwnICKind(kind())
           ? pair.second
           : feedback;
-  return IsPropertyNameFeedback(maybe_name) ? PROPERTY : ELEMENT;
+  return IsPropertyNameFeedback(maybe_name) ? IcCheckType::kProperty
+                                            : IcCheckType::kElement;
 }
 
 BinaryOperationHint FeedbackNexus::GetBinaryOperationFeedback() const {

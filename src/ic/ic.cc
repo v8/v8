@@ -353,8 +353,8 @@ bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   // Even though we don't change the feedback data, we still want to reset the
   // profiler ticks. Real-world observations suggest that optimizing these
   // functions doesn't improve performance.
-  bool changed =
-      nexus()->ConfigureMegamorphic(key->IsName() ? PROPERTY : ELEMENT);
+  bool changed = nexus()->ConfigureMegamorphic(
+      key->IsName() ? IcCheckType::kProperty : IcCheckType::kElement);
   OnFeedbackChanged("Megamorphic");
   return changed;
 }
