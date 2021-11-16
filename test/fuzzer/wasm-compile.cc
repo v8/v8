@@ -2065,7 +2065,11 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
 
 void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
                                 Nullability nullability) {
-  GeneratorRecursionScope rec_scope(this);
+  base::Optional<GeneratorRecursionScope> rec_scope;
+  if (nullability) {
+    rec_scope.emplace(this);
+  }
+
   if (recursion_limit_reached() || data->size() == 0) {
     if (nullability == kNullable) {
       ref_null(type, data);
