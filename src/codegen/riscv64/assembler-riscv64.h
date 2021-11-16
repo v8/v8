@@ -954,12 +954,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_VFUNARY(vfclass_v, VFUNARY1_FUNCT6, VFCLASS_V)
 #undef DEFINE_VFUNARY
 
-  void vnot_vv(VRegister dst, VRegister src) { vxor_vi(dst, src, -1); }
+  void vnot_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
+    vxor_vi(dst, src, -1, mask);
+  }
 
-  void vneg_vv(VRegister dst, VRegister src) { vrsub_vx(dst, src, zero_reg); }
+  void vneg_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
+    vrsub_vx(dst, src, zero_reg, mask);
+  }
 
-  void vfneg_vv(VRegister dst, VRegister src) { vfsngjn_vv(dst, src, src); }
-  void vfabs_vv(VRegister dst, VRegister src) { vfsngjx_vv(dst, src, src); }
+  void vfneg_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
+    vfsngjn_vv(dst, src, src, mask);
+  }
+  void vfabs_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
+    vfsngjx_vv(dst, src, src, mask);
+  }
   // Privileged
   void uret();
   void sret();

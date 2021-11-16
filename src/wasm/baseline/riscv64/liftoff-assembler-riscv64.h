@@ -2038,22 +2038,34 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "emit_f64x2_eq");
+  VU.set(kScratchReg, E64, m1);
+  vmfeq_vv(v0, rhs.fp().toV(), lhs.fp().toV());
+  vmv_vx(dst.fp().toV(), zero_reg);
+  vmerge_vi(dst.fp().toV(), -1, dst.fp().toV());
 }
 
 void LiftoffAssembler::emit_f64x2_ne(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "emit_f64x2_ne");
+  VU.set(kScratchReg, E64, m1);
+  vmfne_vv(v0, rhs.fp().toV(), lhs.fp().toV());
+  vmv_vx(dst.fp().toV(), zero_reg);
+  vmerge_vi(dst.fp().toV(), -1, dst.fp().toV());
 }
 
 void LiftoffAssembler::emit_f64x2_lt(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "emit_f64x2_lt");
+  VU.set(kScratchReg, E64, m1);
+  vmflt_vv(v0, rhs.fp().toV(), lhs.fp().toV());
+  vmv_vx(dst.fp().toV(), zero_reg);
+  vmerge_vi(dst.fp().toV(), -1, dst.fp().toV());
 }
 
 void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs) {
-  bailout(kSimd, "emit_f64x2_le");
+  VU.set(kScratchReg, E64, m1);
+  vmfle_vv(v0, rhs.fp().toV(), lhs.fp().toV());
+  vmv_vx(dst.fp().toV(), zero_reg);
+  vmerge_vi(dst.fp().toV(), -1, dst.fp().toV());
 }
 
 void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
@@ -2221,30 +2233,35 @@ void LiftoffAssembler::emit_i8x16_sub_sat_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i8x16_min_s");
+  VU.set(kScratchReg, E8, m1);
+  vmin_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i8x16_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i8x16_min_u");
+  VU.set(kScratchReg, E8, m1);
+  vminu_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i8x16_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i8x16_max_s");
+  VU.set(kScratchReg, E8, m1);
+  vmax_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i8x16_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i8x16_max_u");
+  VU.set(kScratchReg, E8, m1);
+  vmaxu_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i16x8_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "emit_i16x8_neg");
+  VU.set(kScratchReg, E16, m1);
+  vneg_vv(dst.fp().toV(), src.fp().toV());
 }
 
 void LiftoffAssembler::emit_i16x8_alltrue(LiftoffRegister dst,
@@ -2348,30 +2365,35 @@ void LiftoffAssembler::emit_i16x8_mul(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i16x8_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i16x8_min_s");
+  VU.set(kScratchReg, E16, m1);
+  vmin_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i16x8_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i16x8_min_u");
+  VU.set(kScratchReg, E16, m1);
+  vminu_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i16x8_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i16x8_max_s");
+  VU.set(kScratchReg, E16, m1);
+  vmax_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i16x8_max_u");
+  VU.set(kScratchReg, E16, m1);
+  vmaxu_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "emit_i32x4_neg");
+  VU.set(kScratchReg, E32, m1);
+  vneg_vv(dst.fp().toV(), src.fp().toV());
 }
 
 void LiftoffAssembler::emit_i32x4_alltrue(LiftoffRegister dst,
@@ -2453,25 +2475,29 @@ void LiftoffAssembler::emit_i32x4_mul(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_i32x4_min_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i32x4_min_s");
+  VU.set(kScratchReg, E32, m1);
+  vmin_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i32x4_min_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i32x4_min_u");
+  VU.set(kScratchReg, E32, m1);
+  vminu_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i32x4_max_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i32x4_max_s");
+  VU.set(kScratchReg, E32, m1);
+  vmax_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i32x4_max_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i32x4_max_u");
+  VU.set(kScratchReg, E32, m1);
+  vmaxu_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
@@ -2482,7 +2508,8 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "emit_i64x2_neg");
+  VU.set(kScratchReg, E64, m1);
+  vneg_vv(dst.fp().toV(), src.fp().toV());
 }
 
 void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
@@ -2585,13 +2612,13 @@ bool LiftoffAssembler::emit_f32x4_floor(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f32x4_trunc(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "emit_f32x4_trunc");
+  Trunc_f(dst.fp().toV(), src.fp().toV(), kScratchReg, kSimd128ScratchReg);
   return true;
 }
 
 bool LiftoffAssembler::emit_f32x4_nearest_int(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  bailout(kSimd, "emit_f32x4_nearest_int");
+  Round_f(dst.fp().toV(), src.fp().toV(), kScratchReg, kSimd128ScratchReg);
   return true;
 }
 
@@ -2687,13 +2714,13 @@ bool LiftoffAssembler::emit_f64x2_floor(LiftoffRegister dst,
 
 bool LiftoffAssembler::emit_f64x2_trunc(LiftoffRegister dst,
                                         LiftoffRegister src) {
-  bailout(kSimd, "emit_f64x2_trunc");
+  Trunc_d(dst.fp().toV(), src.fp().toV(), kScratchReg, kSimd128ScratchReg);
   return true;
 }
 
 bool LiftoffAssembler::emit_f64x2_nearest_int(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  bailout(kSimd, "emit_f64x2_nearest_int");
+  Round_d(dst.fp().toV(), src.fp().toV(), kScratchReg, kSimd128ScratchReg);
   return true;
 }
 
@@ -2711,22 +2738,41 @@ void LiftoffAssembler::emit_f64x2_sub(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_f64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "emit_f64x2_mul");
+  VU.set(kScratchReg, E64, m1);
+  vfmul_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_f64x2_div(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "emit_f64x2_div");
+  VU.set(kScratchReg, E64, m1);
+  vfdiv_vv(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
 }
 
 void LiftoffAssembler::emit_f64x2_min(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "emit_f64x2_min");
+  VU.set(kScratchReg, E64, m1);
+  const int64_t kNaN = 0x7ff8000000000000L;
+  vmfeq_vv(v0, lhs.fp().toV(), lhs.fp().toV());
+  vmfeq_vv(kSimd128ScratchReg, rhs.fp().toV(), rhs.fp().toV());
+  vand_vv(v0, v0, kSimd128ScratchReg);
+  li(kScratchReg, kNaN);
+  vmv_vx(kSimd128ScratchReg, kScratchReg);
+  vfmin_vv(kSimd128ScratchReg, rhs.fp().toV(), lhs.fp().toV(), Mask);
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_max(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
-  bailout(kSimd, "emit_f64x2_max");
+  VU.set(kScratchReg, E64, m1);
+  const int64_t kNaN = 0x7ff8000000000000L;
+  VU.set(kScratchReg, E32, m1);
+  vmfeq_vv(v0, lhs.fp().toV(), lhs.fp().toV());
+  vmfeq_vv(kSimd128ScratchReg, rhs.fp().toV(), rhs.fp().toV());
+  vand_vv(v0, v0, kSimd128ScratchReg);
+  li(kScratchReg, kNaN);
+  vmv_vx(kSimd128ScratchReg, kScratchReg);
+  vfmax_vv(kSimd128ScratchReg, rhs.fp().toV(), lhs.fp().toV(), Mask);
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2893,17 +2939,26 @@ void LiftoffAssembler::emit_i16x8_rounding_average_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i8x16_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "emit_i8x16_abs");
+  VU.set(kScratchReg, E8, m1);
+  vmv_vx(kSimd128RegZero, zero_reg);
+  vmslt_vv(v0, src.fp().toV(), kSimd128RegZero);
+  vneg_vv(dst.fp().toV(), src.fp().toV(), MaskType::Mask);
 }
 
 void LiftoffAssembler::emit_i16x8_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "emit_i16x8_abs");
+  VU.set(kScratchReg, E16, m1);
+  vmv_vx(kSimd128RegZero, zero_reg);
+  vmslt_vv(v0, src.fp().toV(), kSimd128RegZero);
+  vneg_vv(dst.fp().toV(), src.fp().toV(), MaskType::Mask);
 }
 
 void LiftoffAssembler::emit_i64x2_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "emit_i64x2_abs");
+  VU.set(kScratchReg, E64, m1);
+  vmv_vx(kSimd128RegZero, zero_reg);
+  vmslt_vv(v0, src.fp().toV(), kSimd128RegZero);
+  vneg_vv(dst.fp().toV(), src.fp().toV(), MaskType::Mask);
 }
 
 void LiftoffAssembler::emit_i32x4_extadd_pairwise_i16x8_s(LiftoffRegister dst,

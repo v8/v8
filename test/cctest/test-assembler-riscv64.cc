@@ -1993,7 +1993,6 @@ TEST(li_estimate) {
     CHECK(!memcmp(src, dst, sizeof(src)));                           \
   }
 
-#ifdef CAN_USE_RVV_INSTRUCTIONS
 UTEST_LOAD_STORE_RVV(vl, vs, E8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
                      15, 16)
 // UTEST_LOAD_STORE_RVV(vl, vs, E8, 127, 127, 127, 127, 127, 127, 127)
@@ -2497,8 +2496,6 @@ UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, uint8_t, 8, ARRAY(uint8_t),
 
 #undef UTEST_RVV_VP_VS_VI_FORM_WITH_RES
 #undef ARRAY
-
-#endif
 
 #undef __
 

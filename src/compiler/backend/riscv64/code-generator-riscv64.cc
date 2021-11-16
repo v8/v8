@@ -481,6 +481,70 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
           i.InputSimd128Register(1));                           \
   } while (0)
 
+#define ASSEMBLE_RVV_BINOP_INTEGER(instr, OP)                   \
+  case kRiscvI8x16##instr: {                                    \
+    __ VU.set(kScratchReg, E8, m1);                             \
+    __ OP(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+          i.InputSimd128Register(1));                           \
+    break;                                                      \
+  }                                                             \
+  case kRiscvI16x8##instr: {                                    \
+    __ VU.set(kScratchReg, E16, m1);                            \
+    __ OP(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+          i.InputSimd128Register(1));                           \
+    break;                                                      \
+  }                                                             \
+  case kRiscvI32x4##instr: {                                    \
+    __ VU.set(kScratchReg, E32, m1);                            \
+    __ OP(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+          i.InputSimd128Register(1));                           \
+    break;                                                      \
+  }
+
+#define ASSEMBLE_RVV_UNOP_INTEGER_VR(instr, OP)           \
+  case kRiscvI8x16##instr: {                              \
+    __ VU.set(kScratchReg, E8, m1);                       \
+    __ OP(i.OutputSimd128Register(), i.InputRegister(0)); \
+    break;                                                \
+  }                                                       \
+  case kRiscvI16x8##instr: {                              \
+    __ VU.set(kScratchReg, E16, m1);                      \
+    __ OP(i.OutputSimd128Register(), i.InputRegister(0)); \
+    break;                                                \
+  }                                                       \
+  case kRiscvI32x4##instr: {                              \
+    __ VU.set(kScratchReg, E32, m1);                      \
+    __ OP(i.OutputSimd128Register(), i.InputRegister(0)); \
+    break;                                                \
+  }                                                       \
+  case kRiscvI64x2##instr: {                              \
+    __ VU.set(kScratchReg, E64, m1);                      \
+    __ OP(i.OutputSimd128Register(), i.InputRegister(0)); \
+    break;                                                \
+  }
+
+#define ASSEMBLE_RVV_UNOP_INTEGER_VV(instr, OP)                  \
+  case kRiscvI8x16##instr: {                                     \
+    __ VU.set(kScratchReg, E8, m1);                              \
+    __ OP(i.OutputSimd128Register(), i.InputSimd128Register(0)); \
+    break;                                                       \
+  }                                                              \
+  case kRiscvI16x8##instr: {                                     \
+    __ VU.set(kScratchReg, E16, m1);                             \
+    __ OP(i.OutputSimd128Register(), i.InputSimd128Register(0)); \
+    break;                                                       \
+  }                                                              \
+  case kRiscvI32x4##instr: {                                     \
+    __ VU.set(kScratchReg, E32, m1);                             \
+    __ OP(i.OutputSimd128Register(), i.InputSimd128Register(0)); \
+    break;                                                       \
+  }                                                              \
+  case kRiscvI64x2##instr: {                                     \
+    __ VU.set(kScratchReg, E64, m1);                             \
+    __ OP(i.OutputSimd128Register(), i.InputSimd128Register(0)); \
+    break;                                                       \
+  }
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ Move(sp, fp);
   __ Pop(ra, fp);
@@ -1889,110 +1953,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vl(i.OutputSimd128Register(), src, 0, VSew::E8);
       break;
     }
-    case kRiscvS128Const: {
-      Simd128Register dst = i.OutputSimd128Register();
-      uint8_t imm[16];
-      *reinterpret_cast<uint64_t*>(imm) =
-          make_uint64(i.InputUint32(1), i.InputUint32(0));
-      *(reinterpret_cast<uint64_t*>(imm) + 1) =
-          make_uint64(i.InputUint32(3), i.InputUint32(2));
-      __ WasmRvvS128const(dst, imm);
-      break;
-    }
-    case kRiscvI64x2Add: {
-      (__ VU).set(kScratchReg, VSew::E64, Vlmul::m1);
-      __ vadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI32x4Add: {
-      (__ VU).set(kScratchReg, VSew::E32, Vlmul::m1);
-      __ vadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI16x8Add: {
-      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
-      __ vadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI16x8AddSatS: {
-      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
-      __ vsadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI16x8AddSatU: {
-      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
-      __ vsaddu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI8x16Add: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI8x16AddSatS: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vsadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI8x16AddSatU: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vsaddu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI64x2Sub: {
-      (__ VU).set(kScratchReg, VSew::E64, Vlmul::m1);
-      __ vsub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI32x4Sub: {
-      (__ VU).set(kScratchReg, VSew::E32, Vlmul::m1);
-      __ vsub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI16x8Sub: {
-      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
-      __ vsub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI16x8SubSatS: {
-      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
-      __ vssub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI16x8SubSatU: {
-      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
-      __ vssubu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI8x16Sub: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vsub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI8x16SubSatS: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vssub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvI8x16SubSatU: {
-      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vssubu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   i.InputSimd128Register(1));
+    case kRiscvS128Select: {
+      __ VU.set(kScratchReg, E8, m1);
+      __ vand_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
+                 i.InputSimd128Register(0));
+      __ vnot_vv(kSimd128ScratchReg2, i.InputSimd128Register(0));
+      __ vand_vv(kSimd128ScratchReg2, i.InputSimd128Register(2),
+                 kSimd128ScratchReg2);
+      __ vor_vv(i.OutputSimd128Register(), kSimd128ScratchReg,
+                kSimd128ScratchReg2);
       break;
     }
     case kRiscvS128And: {
@@ -2025,41 +1994,79 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.OutputSimd128Register());
       break;
     }
+    case kRiscvS128Const: {
+      Simd128Register dst = i.OutputSimd128Register();
+      uint8_t imm[16];
+      *reinterpret_cast<uint64_t*>(imm) =
+          make_uint64(i.InputUint32(1), i.InputUint32(0));
+      *(reinterpret_cast<uint64_t*>(imm) + 1) =
+          make_uint64(i.InputUint32(3), i.InputUint32(2));
+      __ WasmRvvS128const(dst, imm);
+      break;
+    }
+    case kRiscvI64x2Add: {
+      (__ VU).set(kScratchReg, VSew::E64, Vlmul::m1);
+      __ vadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvI16x8AddSatS: {
+      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
+      __ vsadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvI16x8AddSatU: {
+      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
+      __ vsaddu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvI8x16AddSatS: {
+      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
+      __ vsadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvI8x16AddSatU: {
+      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
+      __ vsaddu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvI64x2Sub: {
+      (__ VU).set(kScratchReg, VSew::E64, Vlmul::m1);
+      __ vsub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvI16x8SubSatS: {
+      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
+      __ vssub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvI16x8SubSatU: {
+      (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
+      __ vssubu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvI8x16SubSatS: {
+      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
+      __ vssub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvI8x16SubSatU: {
+      (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
+      __ vssubu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1));
+      break;
+    }
     case kRiscvI32x4ExtractLane: {
       __ WasmRvvExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
                             i.InputInt8(1), E32, m1);
-      break;
-    }
-    case kRiscvI8x16Splat: {
-      (__ VU).set(kScratchReg, E8, m1);
-      __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
-      break;
-    }
-    case kRiscvI16x8Splat: {
-      (__ VU).set(kScratchReg, E16, m1);
-      __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
-      break;
-    }
-    case kRiscvI32x4Splat: {
-      (__ VU).set(kScratchReg, E32, m1);
-      __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
-      break;
-    }
-    case kRiscvI64x2Splat: {
-      (__ VU).set(kScratchReg, E64, m1);
-      __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
-      break;
-    }
-    case kRiscvF32x4Splat: {
-      (__ VU).set(kScratchReg, E32, m1);
-      __ fmv_x_w(kScratchReg, i.InputSingleRegister(0));
-      __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
-      break;
-    }
-    case kRiscvF64x2Splat: {
-      (__ VU).set(kScratchReg, E64, m1);
-      __ fmv_x_d(kScratchReg, i.InputDoubleRegister(0));
-      __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
       break;
     }
     case kRiscvI32x4Abs: {
@@ -2405,9 +2412,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vor_vv(dst, dst, kSimd128ScratchReg);
       break;
     }
-    case kRiscvF32x4Abs: {
-      __ VU.set(kScratchReg, VSew::E32, Vlmul::m1);
-      __ vfabs_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
+    case kRiscvF64x2Splat: {
+      (__ VU).set(kScratchReg, E64, m1);
+      __ fmv_x_d(kScratchReg, i.InputDoubleRegister(0));
+      __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
       break;
     }
     case kRiscvF64x2Abs: {
@@ -2415,34 +2423,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vfabs_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kRiscvF32x4Neg: {
-      __ VU.set(kScratchReg, VSew::E32, Vlmul::m1);
-      __ vfneg_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kRiscvF64x2Neg: {
       __ VU.set(kScratchReg, VSew::E64, Vlmul::m1);
       __ vfneg_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kRiscvF32x4DemoteF64x2Zero: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vfncvt_f_f_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ vmv_vi(v0, 12);
-      __ vmerge_vx(i.OutputSimd128Register(), zero_reg,
-                   i.OutputSimd128Register());
-      break;
-    }
-    case kRiscvF32x4Add: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vfadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
-      break;
-    }
-    case kRiscvF32x4Sub: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vfsub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
       break;
     }
     case kRiscvF64x2Add: {
@@ -2457,19 +2440,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1));
       break;
     }
-    case kRiscvF32x4Ceil: {
-      __ Ceil_f(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                kScratchReg, kSimd128ScratchReg);
-      break;
-    }
     case kRiscvF64x2Ceil: {
       __ Ceil_d(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 kScratchReg, kSimd128ScratchReg);
-      break;
-    }
-    case kRiscvF32x4Floor: {
-      __ Floor_f(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 kScratchReg, kSimd128ScratchReg);
       break;
     }
     case kRiscvF64x2Floor: {
@@ -2477,15 +2450,106 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  kScratchReg, kSimd128ScratchReg);
       break;
     }
-    case kRiscvS128Select: {
-      __ VU.set(kScratchReg, E8, m1);
-      __ vand_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
-                 i.InputSimd128Register(0));
-      __ vnot_vv(kSimd128ScratchReg2, i.InputSimd128Register(0));
-      __ vand_vv(kSimd128ScratchReg2, i.InputSimd128Register(2),
-                 kSimd128ScratchReg2);
-      __ vor_vv(i.OutputSimd128Register(), kSimd128ScratchReg,
-                kSimd128ScratchReg2);
+    case kRiscvF64x2Ne: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vmfne_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
+      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
+      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
+      break;
+    }
+    case kRiscvF64x2Eq: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vmfeq_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
+      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
+      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
+      break;
+    }
+    case kRiscvF64x2Lt: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vmflt_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
+      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
+      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
+      break;
+    }
+    case kRiscvF64x2Le: {
+      __ VU.set(kScratchReg, E64, m1);
+      __ vmfle_vv(v0, i.InputSimd128Register(1), i.InputSimd128Register(0));
+      __ vmv_vx(i.OutputSimd128Register(), zero_reg);
+      __ vmerge_vi(i.OutputSimd128Register(), -1, i.OutputSimd128Register());
+      break;
+    }
+    case kRiscvF64x2Min: {
+      __ VU.set(kScratchReg, E64, m1);
+      const int64_t kNaN = 0x7ff8000000000000L;
+      __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vmfeq_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
+                  i.InputSimd128Register(1));
+      __ vand_vv(v0, v0, kSimd128ScratchReg);
+      __ li(kScratchReg, kNaN);
+      __ vmv_vx(kSimd128ScratchReg, kScratchReg);
+      __ vfmin_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
+                  i.InputSimd128Register(0), Mask);
+      __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvF64x2Max: {
+      __ VU.set(kScratchReg, E64, m1);
+      const int64_t kNaN = 0x7ff8000000000000L;
+      __ vmfeq_vv(v0, i.InputSimd128Register(0), i.InputSimd128Register(0));
+      __ vmfeq_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
+                  i.InputSimd128Register(1));
+      __ vand_vv(v0, v0, kSimd128ScratchReg);
+      __ li(kScratchReg, kNaN);
+      __ vmv_vx(kSimd128ScratchReg, kScratchReg);
+      __ vfmax_vv(kSimd128ScratchReg, i.InputSimd128Register(1),
+                  i.InputSimd128Register(0), Mask);
+      __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvF32x4DemoteF64x2Zero: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfncvt_f_f_w(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ vmv_vi(v0, 12);
+      __ vmerge_vx(i.OutputSimd128Register(), zero_reg,
+                   i.OutputSimd128Register());
+      break;
+    }
+    case kRiscvF32x4Neg: {
+      __ VU.set(kScratchReg, VSew::E32, Vlmul::m1);
+      __ vfneg_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kRiscvF32x4Abs: {
+      __ VU.set(kScratchReg, VSew::E32, Vlmul::m1);
+      __ vfabs_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kRiscvF32x4Splat: {
+      (__ VU).set(kScratchReg, E32, m1);
+      __ fmv_x_w(kScratchReg, i.InputSingleRegister(0));
+      __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
+      break;
+    }
+    case kRiscvF32x4Add: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfadd_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvF32x4Sub: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vfsub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
+    case kRiscvF32x4Ceil: {
+      __ Ceil_f(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                kScratchReg, kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvF32x4Floor: {
+      __ Floor_f(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 kScratchReg, kSimd128ScratchReg);
       break;
     }
     case kRiscvF32x4UConvertI32x4: {
@@ -2689,6 +2753,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vnclipu_vi(i.OutputSimd128Register(), kSimd128ScratchReg2, 0);
       break;
     }
+      ASSEMBLE_RVV_UNOP_INTEGER_VV(Neg, vneg_vv)
+      ASSEMBLE_RVV_BINOP_INTEGER(MaxU, vmaxu_vv)
+      ASSEMBLE_RVV_BINOP_INTEGER(MaxS, vmax_vv)
+      ASSEMBLE_RVV_BINOP_INTEGER(MinU, vminu_vv)
+      ASSEMBLE_RVV_BINOP_INTEGER(MinS, vmin_vv)
+      ASSEMBLE_RVV_UNOP_INTEGER_VR(Splat, vmv_vx)
+      ASSEMBLE_RVV_BINOP_INTEGER(Add, vadd_vv)
+      ASSEMBLE_RVV_BINOP_INTEGER(Sub, vsub_vv)
     default:
 #ifdef DEBUG
       switch (arch_opcode) {

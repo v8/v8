@@ -2205,6 +2205,26 @@ void TurboAssembler::Floor_d(VRegister vdst, VRegister vsrc, Register scratch,
   RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RDN);
 }
 
+void TurboAssembler::Trunc_d(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RTZ);
+}
+
+void TurboAssembler::Trunc_f(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RTZ);
+}
+
+void TurboAssembler::Round_f(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RNE);
+}
+
+void TurboAssembler::Round_d(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RNE);
+}
+
 void TurboAssembler::Floor_d_d(FPURegister dst, FPURegister src,
                                FPURegister fpu_scratch) {
   RoundHelper<double>(dst, src, fpu_scratch, RDN);

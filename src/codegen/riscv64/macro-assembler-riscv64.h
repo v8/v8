@@ -854,6 +854,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                VRegister v_scratch);
   void Floor_d(VRegister dst, VRegister src, Register scratch,
                VRegister v_scratch);
+  void Trunc_f(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
+  void Trunc_d(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
+  void Round_f(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
+  void Round_d(VRegister dst, VRegister src, Register scratch,
+               VRegister v_scratch);
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label);
 
