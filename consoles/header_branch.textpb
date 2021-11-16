@@ -15,11 +15,6 @@ links {
     url: "/p/v8/g/br.beta.ports"
     alt: "Beta Ports"
   }
-  links {
-    text: "beta.memory"
-    url: "/p/v8/g/br.beta.memory"
-    alt: "Beta Memory"
-  }
 }
 links {
   name: "Stable coverage"
@@ -37,11 +32,6 @@ links {
     text: "stable.ports"
     url: "/p/v8/g/br.stable.ports"
     alt: "Stable Ports"
-  }
-  links {
-    text: "stable.memory"
-    url: "/p/v8/g/br.stable.memory"
-    alt: "Stable Memory"
   }
 }
 links {
@@ -61,11 +51,6 @@ links {
     url: "/p/v8/g/br.extended.ports"
     alt: "Extended Ports"
   }
-  links {
-    text: "extended.memory"
-    url: "/p/v8/g/br.extended.memory"
-    alt: "Extended Memory"
-  }
 }
 links {
   name: "README"
@@ -80,13 +65,10 @@ console_groups {
   console_ids: "v8/br.beta"
   console_ids: "v8/br.beta.memory"
   console_ids: "v8/br.beta.ports"
-  console_ids: "v8/br.beta.memory"
   console_ids: "v8/br.stable"
   console_ids: "v8/br.stable.memory"
   console_ids: "v8/br.stable.ports"
-  console_ids: "v8/br.stable.memory"
   console_ids: "v8/br.extended"
   console_ids: "v8/br.extended.memory"
   console_ids: "v8/br.extended.ports"
-  console_ids: "v8/br.extended.memory"
 }
