@@ -3574,16 +3574,14 @@ void CompilationStateImpl::TriggerCallbacks(
   if (outstanding_baseline_units_ == 0 && outstanding_export_wrappers_ == 0 &&
       outstanding_top_tier_functions_ == 0 &&
       outstanding_recompilation_functions_ == 0) {
-    for (auto it = callbacks_.begin(); it != callbacks_.end();) {
-      if ((*it)->release_after_final_event() ==
-          CompilationEventCallback::ReleaseAfterFinalEvent::kRelease) {
-        // Release all callbacks that can be released after the initial set of
-        // functions finished compilation.
-        it = callbacks_.erase(it);
-      } else {
-        ++it;
-      }
-    }
+    callbacks_.erase(
+        std::remove_if(
+            callbacks_.begin(), callbacks_.end(),
+            [](std::unique_ptr<CompilationEventCallback>& event) {
+              return event->release_after_final_event() ==
+                     CompilationEventCallback::ReleaseAfterFinalEvent::kRelease;
+            }),
+        callbacks_.end());
   }
 }
 

@@ -138,8 +138,6 @@ class V8_EXPORT_PRIVATE CompilationEventCallback {
 // This is the PIMPL interface to that private class.
 class V8_EXPORT_PRIVATE CompilationState {
  public:
-  using callback_t = std::function<void(CompilationEvent)>;
-
   ~CompilationState();
 
   void InitCompileJob();
