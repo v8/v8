@@ -186,7 +186,7 @@ class LiveObjectVisitor : AllStatic {
 
 enum class AlwaysPromoteYoung { kYes, kNo };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
-enum MarkingTreatmentMode { KEEP, CLEAR };
+enum class MarkingTreatmentMode { KEEP, CLEAR };
 enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 
 // Base class for minor and full MC collectors.
