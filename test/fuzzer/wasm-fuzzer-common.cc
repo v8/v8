@@ -771,23 +771,38 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   Zone zone(&allocator, ZONE_NAME);
 
   ZoneBuffer buffer(&zone);
-  // The first byte builds the bitmask to control which function will be
-  // compiled with Turbofan and which one with Liftoff.
-  uint8_t tier_mask = data.empty() ? 0 : data[0];
+
+  // The first byte specifies some internal configuration, like which function
+  // is compiled with with compiler, and other flags.
+  uint8_t configuration_byte = data.empty() ? 0 : data[0];
   if (!data.empty()) data += 1;
-  // Build the bitmask to control which functions should be compiled for
-  // debugging.
-  uint8_t debug_mask = data.empty() ? 0 : data[0];
-  if (!data.empty()) data += 1;
-    // Control whether Liftoff or the interpreter will be used as the reference
-    // tier.
-    // TODO(thibaudm): Port nondeterminism detection to arm.
+
+  // Derive the compiler configuration for the first four functions from the
+  // configuration byte, to choose for each function between:
+  // 0: TurboFan
+  // 1: Liftoff
+  // 2: Liftoff for debugging
+  uint8_t tier_mask = 0;
+  uint8_t debug_mask = 0;
+  for (int i = 0; i < 4; ++i, configuration_byte /= 3) {
+    int compiler_config = configuration_byte % 3;
+    tier_mask |= (compiler_config == 0) << i;
+    debug_mask |= (compiler_config == 2) << i;
+  }
+  // Note: After dividing by 3 for 4 times, configuration_byte is within [0, 3].
+
+  // Control whether Liftoff or the interpreter will be used as the reference
+  // tier.
+  // TODO(thibaudm): Port nondeterminism detection to arm.
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_X86)
-  bool liftoff_as_reference = data.empty() ? false : data[0] % 2;
+  bool liftoff_as_reference = configuration_byte & 1;
 #else
   bool liftoff_as_reference = false;
 #endif
-  if (!data.empty()) data += 1;
+
+  FlagScope<bool> turbo_mid_tier_regalloc(&FLAG_turbo_force_mid_tier_regalloc,
+                                          configuration_byte == 0);
+
   if (!GenerateModule(i_isolate, &zone, data, &buffer, liftoff_as_reference)) {
     return;
   }
