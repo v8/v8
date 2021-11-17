@@ -22,6 +22,9 @@ class WasmCode;
 
 class SafepointEntry {
  public:
+  static constexpr int kNoDeoptIndex = -1;
+  static constexpr int kNoTrampolinePC = -1;
+
   SafepointEntry() = default;
 
   SafepointEntry(int deopt_index, uint8_t* bits, uint8_t* bits_end,
@@ -40,15 +43,12 @@ class SafepointEntry {
   }
 
   void Reset() {
-    deopt_index_ = 0;
+    deopt_index_ = kNoDeoptIndex;
     bits_ = nullptr;
     bits_end_ = nullptr;
   }
 
   int trampoline_pc() { return trampoline_pc_; }
-
-  static constexpr int kNoDeoptIndex = -1;
-  static constexpr int kNoTrampolinePC = -1;
 
   int deoptimization_index() const {
     DCHECK(is_valid() && has_deoptimization_index());
@@ -84,7 +84,7 @@ class SafepointEntry {
   size_t entry_size() const { return bits_end_ - bits_; }
 
  private:
-  int deopt_index_ = 0;
+  int deopt_index_ = kNoDeoptIndex;
   uint8_t* bits_ = nullptr;
   uint8_t* bits_end_ = nullptr;
   int trampoline_pc_ = kNoTrampolinePC;
@@ -191,13 +191,11 @@ class SafepointTable {
 
 class Safepoint {
  public:
-  static const int kNoDeoptimizationIndex = SafepointEntry::kNoDeoptIndex;
-
   void DefinePointerSlot(int index) { stack_indexes_->push_back(index); }
 
   void DefineRegister(int reg_code) {
     // Make sure the recorded index is always less than 31, so that we don't
-    // generate {kNoDeoptimizationIndex} by accident.
+    // generate {kNoDeoptIndex} by accident.
     DCHECK_LT(reg_code, 31);
     *register_indexes_ |= 1u << reg_code;
   }
@@ -247,8 +245,8 @@ class SafepointTableBuilder {
     uint32_t register_indexes;
     DeoptimizationInfo(Zone* zone, int pc)
         : pc(pc),
-          deopt_index(Safepoint::kNoDeoptimizationIndex),
-          trampoline(-1),
+          deopt_index(SafepointEntry::kNoDeoptIndex),
+          trampoline(SafepointEntry::kNoTrampolinePC),
           stack_indexes(zone->New<ZoneChunkList<int>>(
               zone, ZoneChunkList<int>::StartMode::kSmall)),
           register_indexes(0) {}

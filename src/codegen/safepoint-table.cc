@@ -143,7 +143,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
     if (info.register_indexes) {
       // We emit the register indexes in the same bits as the deopt_index.
       // Register indexes and deopt_index should not exist at the same time.
-      DCHECK_EQ(info.deopt_index, Safepoint::kNoDeoptimizationIndex);
+      DCHECK_EQ(info.deopt_index, SafepointEntry::kNoDeoptIndex);
       assembler->dd(info.register_indexes);
     } else {
       assembler->dd(info.deopt_index);

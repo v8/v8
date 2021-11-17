@@ -1642,9 +1642,9 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
     return JavaScriptFrame::Summarize(frames);
   }
 
-  int deopt_index = Safepoint::kNoDeoptimizationIndex;
+  int deopt_index = SafepointEntry::kNoDeoptIndex;
   DeoptimizationData const data = GetDeoptimizationData(&deopt_index);
-  if (deopt_index == Safepoint::kNoDeoptimizationIndex) {
+  if (deopt_index == SafepointEntry::kNoDeoptIndex) {
     CHECK(data.is_null());
     FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
   }
@@ -1754,7 +1754,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
     *deopt_index = safepoint_entry.deoptimization_index();
     return DeoptimizationData::cast(code.deoptimization_data());
   }
-  *deopt_index = Safepoint::kNoDeoptimizationIndex;
+  *deopt_index = SafepointEntry::kNoDeoptIndex;
   return DeoptimizationData();
 }
 
@@ -1771,10 +1771,10 @@ void OptimizedFrame::GetFunctions(
   }
 
   DisallowGarbageCollection no_gc;
-  int deopt_index = Safepoint::kNoDeoptimizationIndex;
+  int deopt_index = SafepointEntry::kNoDeoptIndex;
   DeoptimizationData const data = GetDeoptimizationData(&deopt_index);
   DCHECK(!data.is_null());
-  DCHECK_NE(Safepoint::kNoDeoptimizationIndex, deopt_index);
+  DCHECK_NE(SafepointEntry::kNoDeoptIndex, deopt_index);
   DeoptimizationLiteralArray const literal_array = data.LiteralArray();
 
   TranslationArrayIterator it(data.TranslationByteArray(),
