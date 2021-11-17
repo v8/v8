@@ -135,6 +135,13 @@ try_ng_pair(
 )
 
 try_ng_pair(
+    name = "v8_linux64_disable_runtime_call_stats_rel",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_ng_pair(
     name = "v8_linux64_external_code_space_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},

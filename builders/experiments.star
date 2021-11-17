@@ -80,8 +80,8 @@ in_category(
         use_goma = GOMA.DEFAULT,
         to_notify = ["ishell@chromium.org"],
     ),
-    experiment_builder(
-        name = "V8 Linux64 - disable runtime call stats - builder",
+    experiment_builder_pair(
+        name = "V8 Linux64 - disable runtime call stats",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
