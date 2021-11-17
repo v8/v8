@@ -137,7 +137,8 @@ void WasmStreaming::SetClient(std::shared_ptr<Client> client) {
 }
 
 void WasmStreaming::SetUrl(const char* url, size_t length) {
-  TRACE_EVENT0("v8.wasm", "wasm.SetUrl");
+  DCHECK_EQ('\0', url[length]);  // {url} is null-terminated.
+  TRACE_EVENT1("v8.wasm", "wasm.SetUrl", "url", url);
   impl_->SetUrl(base::VectorOf(url, length));
 }
 
