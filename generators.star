@@ -75,6 +75,17 @@ def temporary_memory_consoles(ctx):
         consoles["br.extended.memory"],
     )
 
+def headless_consoles(ctx):
+    """
+    Console duplicates without headers for being included in an iFrame-based
+    dashboard.
+    """
+    consoles = consoles_map(ctx)
+    for name in consoles:
+        headless_name = name + "-headless"
+        if headless_name in consoles:
+            consoles[headless_name].builders = list(consoles[name].builders)
+
 def is_artifact_builder(builder):
     return builder.name.endswith("builder")
 
@@ -170,6 +181,8 @@ def ensure_forward_triggering_properties(ctx):
 lucicfg.generator(aggregate_builder_tester_console)
 
 lucicfg.generator(temporary_memory_consoles)
+
+lucicfg.generator(headless_consoles)
 
 lucicfg.generator(mirror_dev_consoles)
 

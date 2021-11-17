@@ -27,9 +27,9 @@ def branch_descriptor(
 
 def main_console_builder():
     def builder():
-        console_view("main")
-        console_view("memory")
-        console_view("ports")
+        console_view("main", add_headless = True)
+        console_view("memory", add_headless = True)
+        console_view("ports", add_headless = True)
         console_view("main-dev")
         console_view("memory-dev")
         console_view("ports-dev")
@@ -547,7 +547,14 @@ greedy_batching_of_1 = scheduler.policy(
     max_batch_size = 1,
 )
 
-def console_view(name, title = None, repo = None, refs = None, exclude_ref = None, header = None):
+def console_view(
+        name,
+        title = None,
+        repo = None,
+        refs = None,
+        exclude_ref = None,
+        header = None,
+        add_headless = False):
     luci.console_view(
         name = name,
         title = title or name,
@@ -557,3 +564,12 @@ def console_view(name, title = None, repo = None, refs = None, exclude_ref = Non
         favicon = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico",
         header = header or "//consoles/header_main.textpb",
     )
+    if add_headless:
+        name += "-headless"
+        luci.console_view(
+            name = name,
+            title = title or name,
+            repo = repo or "https://chromium.googlesource.com/v8/v8",
+            refs = refs or ["refs/heads/main"],
+            exclude_ref = exclude_ref,
+        )
