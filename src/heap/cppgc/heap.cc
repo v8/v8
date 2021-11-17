@@ -92,9 +92,17 @@ Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
 }
 
 Heap::~Heap() {
-  subtle::NoGarbageCollectionScope no_gc(*this);
-  // Finish already running GC if any, but don't finalize live objects.
-  sweeper_.FinishIfRunning();
+  // Gracefully finish already running GC if any, but don't finalize live
+  // objects.
+  FinalizeIncrementalGarbageCollectionIfRunning(
+      {Config::CollectionType::kMajor,
+       Config::StackState::kMayContainHeapPointers,
+       Config::MarkingType::kIncrementalAndConcurrent,
+       Config::SweepingType::kIncrementalAndConcurrent});
+  {
+    subtle::NoGarbageCollectionScope no_gc(*this);
+    sweeper_.FinishIfRunning();
+  }
 }
 
 void Heap::CollectGarbage(Config config) {

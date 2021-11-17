@@ -62,10 +62,6 @@ class V8_EXPORT HeapHandle {
 
 namespace internal {
 
-namespace testing {
-class TestWithHeap;
-}  // namespace testing
-
 class FatalOutOfMemoryHandler;
 class PageBackend;
 class PreFinalizerHandler;
@@ -125,6 +121,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   }
 
   MarkerBase* marker() const { return marker_.get(); }
+  std::unique_ptr<MarkerBase>& GetMarkerRefForTesting() { return marker_; }
 
   Compactor& compactor() { return compactor_; }
 
@@ -277,7 +274,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   int creation_thread_id_ = v8::base::OS::GetCurrentThreadId();
 
   friend class MarkerBase::IncrementalMarkingTask;
-  friend class testing::TestWithHeap;
   friend class cppgc::subtle::DisallowGarbageCollectionScope;
   friend class cppgc::subtle::NoGarbageCollectionScope;
   friend class cppgc::testing::Heap;
