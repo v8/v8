@@ -234,7 +234,7 @@ WASM_RELAXED_SIMD_TEST(F32x4RecipSqrtApprox) {
                    false /* !exact */);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 namespace {
 // Helper to convert an array of T into an array of uint8_t to be used a v128
 // constants.
@@ -313,7 +313,9 @@ WASM_RELAXED_SIMD_TEST(I64x2RelaxedLaneSelect) {
   RelaxedLaneSelectTest<uint64_t, kElems>(execution_tier, v1, v2, s, expected,
                                           kExprI64x2RelaxedLaneSelect);
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 WASM_RELAXED_SIMD_TEST(F32x4RelaxedMin) {
   RunF32x4BinOpTest(execution_tier, kExprF32x4RelaxedMin, Minimum);
 }

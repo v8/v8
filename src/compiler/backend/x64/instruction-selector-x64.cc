@@ -3726,16 +3726,17 @@ namespace {
 void VisitRelaxedLaneSelect(InstructionSelector* selector, Node* node) {
   X64OperandGenerator g(selector);
   // pblendvb copies src2 when mask is set, opposite from Wasm semantics.
+  // node's inputs are: mask, lhs, rhs (determined in wasm-compiler.cc).
   if (selector->IsSupported(AVX)) {
     selector->Emit(
-        kX64Pblendvb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(1)),
-        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(2)));
+        kX64Pblendvb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(2)),
+        g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
   } else {
     // SSE4.1 pblendvb requires xmm0 to hold the mask as an implicit operand.
     selector->Emit(kX64Pblendvb, g.DefineSameAsFirst(node),
+                   g.UseRegister(node->InputAt(2)),
                    g.UseRegister(node->InputAt(1)),
-                   g.UseRegister(node->InputAt(0)),
-                   g.UseFixed(node->InputAt(2), xmm0));
+                   g.UseFixed(node->InputAt(0), xmm0));
   }
 }
 }  // namespace

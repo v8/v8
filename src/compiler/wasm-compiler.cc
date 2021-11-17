@@ -5147,17 +5147,18 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->I8x16Swizzle(true),
                               inputs[0], inputs[1]);
     case wasm::kExprI8x16RelaxedLaneSelect:
+      // Relaxed lane select puts the mask as first input (same as S128Select).
       return graph()->NewNode(mcgraph()->machine()->I8x16RelaxedLaneSelect(),
-                              inputs[0], inputs[1], inputs[2]);
+                              inputs[2], inputs[0], inputs[1]);
     case wasm::kExprI16x8RelaxedLaneSelect:
       return graph()->NewNode(mcgraph()->machine()->I16x8RelaxedLaneSelect(),
-                              inputs[0], inputs[1], inputs[2]);
+                              inputs[2], inputs[0], inputs[1]);
     case wasm::kExprI32x4RelaxedLaneSelect:
       return graph()->NewNode(mcgraph()->machine()->I32x4RelaxedLaneSelect(),
-                              inputs[0], inputs[1], inputs[2]);
+                              inputs[2], inputs[0], inputs[1]);
     case wasm::kExprI64x2RelaxedLaneSelect:
       return graph()->NewNode(mcgraph()->machine()->I64x2RelaxedLaneSelect(),
-                              inputs[0], inputs[1], inputs[2]);
+                              inputs[2], inputs[0], inputs[1]);
     case wasm::kExprF32x4RelaxedMin:
       return graph()->NewNode(mcgraph()->machine()->F32x4RelaxedMin(),
                               inputs[0], inputs[1]);
