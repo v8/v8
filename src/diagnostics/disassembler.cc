@@ -421,8 +421,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // bytes, a constant could accidentally match with the bit-pattern checked
     // by IsInConstantPool() below.
     if (pcs.empty() && !code.is_null() && !decoding_constant_pool) {
-      RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
-                            0, Code());
+      RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc),
+                            RelocInfo::NO_INFO, 0, Code());
       if (dummy_rinfo.IsInConstantPool()) {
         Address constant_pool_entry_address =
             dummy_rinfo.constant_pool_entry_address();

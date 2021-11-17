@@ -235,11 +235,11 @@ uint32_t RelocInfo::wasm_call_tag() const {
 
 Operand::Operand(Register base, int32_t disp, RelocInfo::Mode rmode) {
   // [base + disp/r]
-  if (disp == 0 && RelocInfo::IsNone(rmode) && base != ebp) {
+  if (disp == 0 && RelocInfo::IsNoInfo(rmode) && base != ebp) {
     // [base]
     set_modrm(0, base);
     if (base == esp) set_sib(times_1, esp, base);
-  } else if (is_int8(disp) && RelocInfo::IsNone(rmode)) {
+  } else if (is_int8(disp) && RelocInfo::IsNoInfo(rmode)) {
     // [base + disp8]
     set_modrm(1, base);
     if (base == esp) set_sib(times_1, esp, base);
@@ -256,11 +256,11 @@ Operand::Operand(Register base, Register index, ScaleFactor scale, int32_t disp,
                  RelocInfo::Mode rmode) {
   DCHECK(index != esp);  // illegal addressing mode
   // [base + index*scale + disp/r]
-  if (disp == 0 && RelocInfo::IsNone(rmode) && base != ebp) {
+  if (disp == 0 && RelocInfo::IsNoInfo(rmode) && base != ebp) {
     // [base + index*scale]
     set_modrm(0, esp);
     set_sib(scale, index, base);
-  } else if (is_int8(disp) && RelocInfo::IsNone(rmode)) {
+  } else if (is_int8(disp) && RelocInfo::IsNoInfo(rmode)) {
     // [base + index*scale + disp8]
     set_modrm(1, esp);
     set_sib(scale, index, base);
@@ -3378,7 +3378,7 @@ void Assembler::emit_operand(int code, Operand adr) {
   for (unsigned i = 1; i < length; i++) EMIT(adr.encoded_bytes()[i]);
 
   // Emit relocation information if necessary.
-  if (length >= sizeof(int32_t) && !RelocInfo::IsNone(adr.rmode())) {
+  if (length >= sizeof(int32_t) && !RelocInfo::IsNoInfo(adr.rmode())) {
     pc_ -= sizeof(int32_t);  // pc_ must be *at* disp32
     RecordRelocInfo(adr.rmode());
     if (adr.rmode() == RelocInfo::INTERNAL_REFERENCE) {  // Fixup for labels
@@ -3412,7 +3412,7 @@ void Assembler::db(uint8_t data) {
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -3422,7 +3422,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode));
     RecordRelocInfo(rmode);
   }

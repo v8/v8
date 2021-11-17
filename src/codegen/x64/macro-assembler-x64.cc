@@ -371,8 +371,8 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // turned on to provoke errors.
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Zap scratch registers");
-    Move(value, kZapValue, RelocInfo::NONE);
-    Move(slot_address, kZapValue, RelocInfo::NONE);
+    Move(value, kZapValue, RelocInfo::NO_INFO);
+    Move(slot_address, kZapValue, RelocInfo::NO_INFO);
   }
 }
 
@@ -669,8 +669,8 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   // turned on to provoke errors.
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Zap scratch registers");
-    Move(slot_address, kZapValue, RelocInfo::NONE);
-    Move(value, kZapValue, RelocInfo::NONE);
+    Move(slot_address, kZapValue, RelocInfo::NO_INFO);
+    Move(value, kZapValue, RelocInfo::NO_INFO);
   }
 }
 
@@ -1468,7 +1468,7 @@ void TurboAssembler::Move(Register dst, Smi source) {
   if (value == 0) {
     xorl(dst, dst);
   } else if (SmiValuesAre32Bits() || value < 0) {
-    Move(dst, source.ptr(), RelocInfo::NONE);
+    Move(dst, source.ptr(), RelocInfo::NO_INFO);
   } else {
     uint32_t uvalue = static_cast<uint32_t>(source.ptr());
     Move(dst, uvalue);
@@ -1503,7 +1503,7 @@ void TurboAssembler::Move(Register dst, Register src) {
 
 void TurboAssembler::Move(Register dst, Operand src) { movq(dst, src); }
 void TurboAssembler::Move(Register dst, Immediate src) {
-  if (src.rmode() == RelocInfo::Mode::NONE) {
+  if (src.rmode() == RelocInfo::Mode::NO_INFO) {
     Move(dst, src.value());
   } else {
     movl(dst, src);

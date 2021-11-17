@@ -2677,9 +2677,9 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
     BranchShort(&skip, NegateCondition(cond), rj, rk);
   }
   intptr_t offset_diff = target - pc_offset();
-  if (RelocInfo::IsNone(rmode) && is_int28(offset_diff)) {
+  if (RelocInfo::IsNoInfo(rmode) && is_int28(offset_diff)) {
     bl(offset_diff >> 2);
-  } else if (RelocInfo::IsNone(rmode) && is_int38(offset_diff)) {
+  } else if (RelocInfo::IsNoInfo(rmode) && is_int38(offset_diff)) {
     pcaddu18i(t7, static_cast<int32_t>(offset_diff) >> 18);
     jirl(ra, t7, (offset_diff & 0x3ffff) >> 2);
   } else {

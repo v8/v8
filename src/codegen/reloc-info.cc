@@ -394,7 +394,7 @@ bool RelocInfo::RequiresRelocation(Code code) {
 #ifdef ENABLE_DISASSEMBLER
 const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
   switch (rmode) {
-    case NONE:
+    case NO_INFO:
       return "no reloc";
     case COMPRESSED_EMBEDDED_OBJECT:
       return "compressed embedded object";
@@ -537,7 +537,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case VENEER_POOL:
     case WASM_CALL:
     case WASM_STUB_CALL:
-    case NONE:
+    case NO_INFO:
       break;
     case NUMBER_OF_MODES:
     case PC_JUMP:

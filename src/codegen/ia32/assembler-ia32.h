@@ -106,7 +106,7 @@ enum RoundingMode {
 class Immediate {
  public:
   // Calls where x is an Address (uintptr_t) resolve to this overload.
-  inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     value_.immediate = x;
     rmode_ = rmode;
   }
@@ -157,19 +157,21 @@ class Immediate {
     return bit_cast<ExternalReference>(immediate());
   }
 
-  bool is_zero() const { return RelocInfo::IsNone(rmode_) && immediate() == 0; }
+  bool is_zero() const {
+    return RelocInfo::IsNoInfo(rmode_) && immediate() == 0;
+  }
   bool is_int8() const {
-    return RelocInfo::IsNone(rmode_) && i::is_int8(immediate());
+    return RelocInfo::IsNoInfo(rmode_) && i::is_int8(immediate());
   }
   bool is_uint8() const {
-    return RelocInfo::IsNone(rmode_) && i::is_uint8(immediate());
+    return RelocInfo::IsNoInfo(rmode_) && i::is_uint8(immediate());
   }
   bool is_int16() const {
-    return RelocInfo::IsNone(rmode_) && i::is_int16(immediate());
+    return RelocInfo::IsNoInfo(rmode_) && i::is_int16(immediate());
   }
 
   bool is_uint16() const {
-    return RelocInfo::IsNone(rmode_) && i::is_uint16(immediate());
+    return RelocInfo::IsNoInfo(rmode_) && i::is_uint16(immediate());
   }
 
   RelocInfo::Mode rmode() const { return rmode_; }
@@ -234,7 +236,7 @@ class V8_EXPORT_PRIVATE Operand {
 
   // [base + disp/r]
   explicit Operand(Register base, int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
+                   RelocInfo::Mode rmode = RelocInfo::NO_INFO);
 
   // [rip + disp/r]
   explicit Operand(Label* label) {
@@ -244,11 +246,11 @@ class V8_EXPORT_PRIVATE Operand {
 
   // [base + index*scale + disp/r]
   explicit Operand(Register base, Register index, ScaleFactor scale,
-                   int32_t disp, RelocInfo::Mode rmode = RelocInfo::NONE);
+                   int32_t disp, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
 
   // [index*scale + disp/r]
   explicit Operand(Register index, ScaleFactor scale, int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
+                   RelocInfo::Mode rmode = RelocInfo::NO_INFO);
 
   static Operand JumpTable(Register index, ScaleFactor scale, Label* table) {
     return Operand(index, scale, reinterpret_cast<int32_t>(table),
@@ -301,7 +303,7 @@ class V8_EXPORT_PRIVATE Operand {
   // The number of bytes in buf_.
   uint8_t len_ = 0;
   // Only valid if len_ > 4.
-  RelocInfo::Mode rmode_ = RelocInfo::NONE;
+  RelocInfo::Mode rmode_ = RelocInfo::NO_INFO;
 };
 ASSERT_TRIVIALLY_COPYABLE(Operand);
 static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
@@ -1639,9 +1641,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     dd(data, rmode);
   }
   void dd(Label* label);

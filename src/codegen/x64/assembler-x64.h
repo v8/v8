@@ -130,7 +130,7 @@ class Immediate {
 
  private:
   const int32_t value_;
-  const RelocInfo::Mode rmode_ = RelocInfo::NONE;
+  const RelocInfo::Mode rmode_ = RelocInfo::NO_INFO;
 
   friend class Assembler;
 };
@@ -148,7 +148,7 @@ class Immediate64 {
 
  private:
   const int64_t value_;
-  const RelocInfo::Mode rmode_ = RelocInfo::NONE;
+  const RelocInfo::Mode rmode_ = RelocInfo::NO_INFO;
 
   friend class Assembler;
 };
@@ -1954,9 +1954,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     dq(data, rmode);
   }
   void dq(Label* label);

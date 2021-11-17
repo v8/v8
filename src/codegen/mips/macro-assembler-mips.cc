@@ -4047,7 +4047,7 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     int32_t imm32;
     imm32 = branch_long_offset(L);
-    GenPCRelativeJump(t8, t9, imm32, RelocInfo::NONE, bdslot);
+    GenPCRelativeJump(t8, t9, imm32, RelocInfo::NO_INFO, bdslot);
   }
 }
 
@@ -4057,7 +4057,7 @@ void TurboAssembler::BranchLong(int32_t offset, BranchDelaySlot bdslot) {
   } else {
     // Generate position independent long branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    GenPCRelativeJump(t8, t9, offset, RelocInfo::NONE, bdslot);
+    GenPCRelativeJump(t8, t9, offset, RelocInfo::NO_INFO, bdslot);
   }
 }
 
@@ -4070,7 +4070,7 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     int32_t imm32;
     imm32 = branch_long_offset(L);
-    GenPCRelativeJumpAndLink(t8, imm32, RelocInfo::NONE, bdslot);
+    GenPCRelativeJumpAndLink(t8, imm32, RelocInfo::NO_INFO, bdslot);
   }
 }
 
