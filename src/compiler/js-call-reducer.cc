@@ -17,6 +17,7 @@
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder-inl.h"
 #include "src/compiler/allocation-builder.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph-assembler.h"
@@ -24,6 +25,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
@@ -37,6 +39,11 @@
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/objects/string-inl.h"
+
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -4768,6 +4775,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceStringFromCodePoint(node);
     case Builtin::kStringPrototypeIterator:
       return ReduceStringPrototypeIterator(node);
+    case Builtin::kStringPrototypeLocaleCompare:
+      return ReduceStringPrototypeLocaleCompare(node);
     case Builtin::kStringIteratorPrototypeNext:
       return ReduceStringIteratorPrototypeNext(node);
     case Builtin::kStringPrototypeConcat:
@@ -6646,6 +6655,73 @@ Reduction JSCallReducer::ReduceStringPrototypeIterator(Node* node) {
                        jsgraph()->NoContextConstant(), effect);
   ReplaceWithValue(node, iterator, effect, control);
   return Replace(iterator);
+}
+
+Reduction JSCallReducer::ReduceStringPrototypeLocaleCompare(Node* node) {
+#ifdef V8_INTL_SUPPORT
+  JSCallNode n(node);
+  // Signature: receiver.localeCompare(compareString, locales, options)
+  if (n.ArgumentCount() < 1 || n.ArgumentCount() > 3) {
+    return NoChange();
+  }
+
+  {
+    Handle<Object> locales;
+    {
+      HeapObjectMatcher m(n.ArgumentOrUndefined(1, jsgraph()));
+      if (!m.HasResolvedValue()) return NoChange();
+      if (m.Is(factory()->undefined_value())) {
+        locales = factory()->undefined_value();
+      } else {
+        ObjectRef ref = m.Ref(broker());
+        if (!ref.IsString()) return NoChange();
+        StringRef sref = ref.AsString();
+        if (base::Optional<Handle<String>> maybe_locales =
+                sref.ObjectIfContentAccessible()) {
+          locales = *maybe_locales;
+        } else {
+          return NoChange();
+        }
+      }
+    }
+
+    TNode<Object> options = n.ArgumentOrUndefined(2, jsgraph());
+    {
+      HeapObjectMatcher m(options);
+      if (!m.Is(factory()->undefined_value())) {
+        return NoChange();
+      }
+    }
+
+    if (Intl::CompareStringsOptionsFor(broker()->local_isolate_or_isolate(),
+                                       locales, factory()->undefined_value()) !=
+        Intl::CompareStringsOptions::kTryFastPath) {
+      return NoChange();
+    }
+  }
+
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtin::kStringFastLocaleCompare);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(),
+      CallDescriptor::kNeedsFrameState);
+  node->RemoveInput(n.FeedbackVectorIndex());
+  if (n.ArgumentCount() == 3) {
+    node->RemoveInput(n.ArgumentIndex(2));
+  } else if (n.ArgumentCount() == 1) {
+    node->InsertInput(graph()->zone(), n.LastArgumentIndex() + 1,
+                      jsgraph()->UndefinedConstant());
+  } else {
+    DCHECK_EQ(2, n.ArgumentCount());
+  }
+  node->InsertInput(graph()->zone(), 0,
+                    jsgraph()->HeapConstant(callable.code()));
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+  return Changed(node);
+#else
+  return NoChange();
+#endif
 }
 
 Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {

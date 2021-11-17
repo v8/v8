@@ -123,6 +123,11 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     return isolate_->pending_message_address();
   }
 
+#ifdef V8_INTL_SUPPORT
+  // WARNING: This might be out-of-sync with the main-thread.
+  const std::string& DefaultLocale();
+#endif
+
  private:
   friend class v8::internal::LocalFactory;
   friend class LocalIsolateFactory;
@@ -141,6 +146,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   RuntimeCallStats* runtime_call_stats_;
   bigint::Processor* bigint_processor_{nullptr};
+#ifdef V8_INTL_SUPPORT
+  std::string default_locale_;
+#endif
 };
 
 template <base::MutexSharedType kIsShared>

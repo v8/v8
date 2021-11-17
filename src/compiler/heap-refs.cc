@@ -1803,6 +1803,17 @@ bool StringRef::SupportedStringKind() const {
   return IsInternalizedString() || object()->IsThinString();
 }
 
+base::Optional<Handle<String>> StringRef::ObjectIfContentAccessible() {
+  if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "content for kNeverSerialized unsupported string kind " << *this);
+    return base::nullopt;
+  } else {
+    return object();
+  }
+}
+
 base::Optional<int> StringRef::length() const {
   if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
     TRACE_BROKER_MISSING(

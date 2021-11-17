@@ -950,7 +950,6 @@ extern operator '+' macro ConstexprInt32Add(
 extern operator '*' macro ConstexprInt31Mul(
     constexpr int31, constexpr int31): constexpr int31;
 extern operator '-' macro Int32Sub(int16, int16): int32;
-extern operator '-' macro Int32Sub(uint16, uint16): int32;
 extern operator '-' macro Int32Sub(int32, int32): int32;
 extern operator '-' macro Uint32Sub(uint32, uint32): uint32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
@@ -1868,6 +1867,8 @@ extern macro FeedbackIteratorEntrySize(): intptr;
 extern macro FeedbackIteratorHandlerOffset(): intptr;
 extern operator '[]' macro LoadWeakFixedArrayElement(
     WeakFixedArray, intptr): MaybeObject;
+
+extern operator '[]' macro LoadUint8Ptr(RawPtr<uint8>, intptr): uint8;
 
 const kNoHashSentinel:
     constexpr int32 generates 'PropertyArray::kNoHashSentinel';

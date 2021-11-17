@@ -311,7 +311,9 @@ class StatsCounter;
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
   V(intl_convert_one_byte_to_lower, "intl_convert_one_byte_to_lower") \
-  V(intl_to_latin1_lower_table, "intl_to_latin1_lower_table")
+  V(intl_to_latin1_lower_table, "intl_to_latin1_lower_table")         \
+  V(intl_ascii_collation_weights_l1, "Intl::AsciiCollationWeightsL1") \
+  V(intl_ascii_collation_weights_l3, "Intl::AsciiCollationWeightsL3")
 #else
 #define EXTERNAL_REFERENCE_LIST_INTL(V)
 #endif  // V8_INTL_SUPPORT

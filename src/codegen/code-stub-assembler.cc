@@ -1679,6 +1679,11 @@ TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   return LoadFullTagged(frame_pointer, IntPtrConstant(offset));
 }
 
+TNode<Uint8T> CodeStubAssembler::LoadUint8Ptr(TNode<RawPtrT> ptr,
+                                              TNode<IntPtrT> offset) {
+  return Load<Uint8T>(IntPtrAdd(ReinterpretCast<IntPtrT>(ptr), offset));
+}
+
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
     TNode<HeapObject> object, int offset) {
   // Please use LoadMap(object) instead.
@@ -8089,6 +8094,25 @@ TNode<RawPtr<Uint16T>> CodeStubAssembler::ExternalTwoByteStringGetChars(
   return UncheckedCast<RawPtr<Uint16T>>(
       CallCFunction(function, MachineType::Pointer(),
                     std::make_pair(MachineType::AnyTagged(), string)));
+}
+
+TNode<RawPtr<Uint8T>> CodeStubAssembler::IntlAsciiCollationWeightsL1() {
+#ifdef V8_INTL_SUPPORT
+  TNode<RawPtrT> ptr =
+      ExternalConstant(ExternalReference::intl_ascii_collation_weights_l1());
+  return ReinterpretCast<RawPtr<Uint8T>>(ptr);
+#else
+  UNREACHABLE();
+#endif
+}
+TNode<RawPtr<Uint8T>> CodeStubAssembler::IntlAsciiCollationWeightsL3() {
+#ifdef V8_INTL_SUPPORT
+  TNode<RawPtrT> ptr =
+      ExternalConstant(ExternalReference::intl_ascii_collation_weights_l3());
+  return ReinterpretCast<RawPtr<Uint8T>>(ptr);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void CodeStubAssembler::TryInternalizeString(

@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/codegen/tnode.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler/code-assembler.h"
@@ -1178,6 +1179,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> LoadBufferIntptr(TNode<RawPtrT> buffer, int offset) {
     return LoadBufferData<IntPtrT>(buffer, offset);
   }
+  TNode<Uint8T> LoadUint8Ptr(TNode<RawPtrT> ptr, TNode<IntPtrT> offset);
+
   // Load a field from an object on the heap.
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<Object>>::value &&
@@ -2936,6 +2939,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<ExternalOneByteString> string);
   TNode<RawPtr<Uint16T>> ExternalTwoByteStringGetChars(
       TNode<ExternalTwoByteString> string);
+
+  TNode<RawPtr<Uint8T>> IntlAsciiCollationWeightsL1();
+  TNode<RawPtr<Uint8T>> IntlAsciiCollationWeightsL3();
 
   // Performs a hash computation and string table lookup for the given string,
   // and jumps to:

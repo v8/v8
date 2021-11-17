@@ -104,6 +104,8 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/type-stats.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#include "unicode/locid.h"
 #include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
 
@@ -4978,6 +4980,32 @@ bool StringEqualsLocales(Isolate* isolate, const std::string& str,
 }
 
 }  // namespace
+
+const std::string& Isolate::DefaultLocale() {
+  if (default_locale_.empty()) {
+    icu::Locale default_locale;
+    // Translate ICU's fallback locale to a well-known locale.
+    if (strcmp(default_locale.getName(), "en_US_POSIX") == 0 ||
+        strcmp(default_locale.getName(), "c") == 0) {
+      set_default_locale("en-US");
+    } else {
+      // Set the locale
+      set_default_locale(default_locale.isBogus()
+                             ? "und"
+                             : Intl::ToLanguageTag(default_locale).FromJust());
+    }
+    DCHECK(!default_locale_.empty());
+  }
+  return default_locale_;
+}
+
+void Isolate::ResetDefaultLocale() {
+  default_locale_.clear();
+  clear_cached_icu_objects();
+  // We inline fast paths assuming certain locales. Since this path is rarely
+  // taken, we deoptimize everything to keep things simple.
+  Deoptimizer::DeoptimizeAll(this);
+}
 
 icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type,
                                              Handle<Object> locales) {

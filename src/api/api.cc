@@ -9490,7 +9490,6 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 
 #ifdef V8_INTL_SUPPORT
   i_isolate->ResetDefaultLocale();
-  i_isolate->clear_cached_icu_objects();
 #endif  // V8_INTL_SUPPORT
 }
 

@@ -1367,9 +1367,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_INTL_SUPPORT
 
-  const std::string& default_locale() { return default_locale_; }
+  const std::string& DefaultLocale();
 
-  void ResetDefaultLocale() { default_locale_.clear(); }
+  void ResetDefaultLocale();
 
   void set_default_locale(const std::string& locale) {
     DCHECK_EQ(default_locale_.length(), 0);
