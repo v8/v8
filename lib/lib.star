@@ -50,8 +50,11 @@ def branch_console_builder(bucket, version_tag, refs):
 def console_id_resolver(bucket, has_console_name_prefix):
     def resolver(console_kind):
         if has_console_name_prefix:
-            suffix = ".ports" if console_kind == "ports" else ""
-            suffix = ".memory" if console_kind == "memory" else ""
+            suffix = ""
+            if console_kind == "ports":
+                suffix = ".ports"
+            if console_kind == "memory":
+                suffix = ".memory"
             return bucket[3:] + suffix
         else:
             return console_kind
