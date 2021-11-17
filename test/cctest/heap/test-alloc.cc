@@ -134,7 +134,6 @@ TEST(StressJS) {
   FLAG_stress_concurrent_allocation = false;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  CodePageCollectionMemoryModificationScope code_scope(isolate->heap());
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
