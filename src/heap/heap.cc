@@ -194,9 +194,6 @@ bool Heap::GCCallbackTuple::operator==(
   return other.callback == callback && other.data == data;
 }
 
-Heap::GCCallbackTuple& Heap::GCCallbackTuple::operator=(
-    const Heap::GCCallbackTuple& other) V8_NOEXCEPT = default;
-
 class ScavengeTaskObserver : public AllocationObserver {
  public:
   ScavengeTaskObserver(Heap* heap, intptr_t step_size)
