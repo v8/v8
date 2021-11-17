@@ -2594,6 +2594,7 @@ TEST(AssemblerX64AVX2Op256bit) {
   __ vpshufhw(ymm1, Operand(rbx, rcx, times_4, 10000), 85);
   __ vpblendw(ymm2, ymm3, ymm4, 23);
   __ vpblendw(ymm2, ymm3, Operand(rbx, rcx, times_4, 10000), 23);
+  __ vpblendvb(ymm1, ymm2, ymm3, ymm4);
   __ vpalignr(ymm10, ymm11, ymm12, 4);
   __ vpalignr(ymm10, ymm11, Operand(rbx, rcx, times_4, 10000), 4);
   __ vbroadcastss(ymm7, xmm0);
@@ -2628,6 +2629,8 @@ TEST(AssemblerX64AVX2Op256bit) {
       0xC4, 0xE3, 0x65, 0x0E, 0xD4, 0x17,
       // vpblendw ymm2, ymm3, YMMWORD PTR [rbx+rcx*4+0x2710], 23
       0xC4, 0xE3, 0x65, 0x0E, 0x94, 0x8B, 0x10, 0x27, 0x00, 0x00, 0x17,
+      // vpblendvb ymm1, ymm2, ymm3, ymm4
+      0xC4, 0xE3, 0x6D, 0x4C, 0xCB, 0x40,
       // vpalignr ymm10, ymm11, ymm12, 4
       0xC4, 0x43, 0x25, 0x0F, 0xD4, 0x04,
       // vpalignr ymm10, ymm11, YMMWORD PTR [rbx+rcx*4+0x2710], 4
@@ -2663,6 +2666,8 @@ TEST(AssemblerX64FloatingPoint256bit) {
   __ vroundpd(ymm9, ymm2, kRoundToNearest);
   __ vhaddps(ymm1, ymm2, ymm3);
   __ vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000));
+  __ vblendvps(ymm0, ymm3, ymm5, ymm9);
+  __ vblendvpd(ymm7, ymm4, ymm3, ymm1);
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2690,7 +2695,11 @@ TEST(AssemblerX64FloatingPoint256bit) {
                      // VHADDPS ymm1, ymm2, ymm3
                      0xC5, 0xEF, 0x7C, 0xCB,
                      // VHADDPS ymm0, ymm1, YMMWORD PTR [rbx+rcx*4+0x2710]
-                     0xc5, 0xf7, 0x7c, 0x84, 0x8b, 0x10, 0x27, 0x00, 0x00};
+                     0xc5, 0xf7, 0x7c, 0x84, 0x8b, 0x10, 0x27, 0x00, 0x00,
+                     // vblendvps ymm0, ymm3, ymm5, ymm9
+                     0xC4, 0xE3, 0x65, 0x4A, 0xC5, 0x90,
+                     // vblendvpd ymm7, ymm4, ymm3, ymm1
+                     0xC4, 0xE3, 0x5D, 0x4B, 0xFB, 0x10};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
