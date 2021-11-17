@@ -373,6 +373,14 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'v8_linux64_disable_runtime_call_stats_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
   'v8_linux64_external_code_space_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1238,6 +1246,14 @@
     },
     'tests': [
       {'name': 'v8testing', 'shards': 3},
+    ],
+  },
+  'V8 Linux64 - disable runtime call stats': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
     ],
   },
   'V8 Linux64 - debug - fyi': {
