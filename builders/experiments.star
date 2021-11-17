@@ -81,7 +81,7 @@ in_category(
         to_notify = ["ishell@chromium.org"],
     ),
     experiment_builder(
-        name = "V8 Linux64 - disable runtime call stats",
+        name = "V8 Linux64 - disable runtime call stats - builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -99,7 +99,7 @@ in_category(
         to_notify = ["ishell@chromium.org"],
     ),
     experiment_builder(
-        name = "V8 Linux64 - Fuzzilli",
+        name = "V8 Linux64 - Fuzzilli - builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -112,7 +112,7 @@ in_category(
 in_category(
     "FYI",
     experiment_builder(
-        name = "V8 Linux64 - bazel",
+        name = "V8 Linux64 - bazel - builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -139,7 +139,7 @@ in_category(
         properties = {"builder_group": "client.v8"},
         to_notify = ["jgruber@chromium.org"],
     ),
-    experiment_builder(
+    experiment_builder_pair(
         name = "V8 Linux gcc",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -153,7 +153,7 @@ in_category(
         ],
     ),
     experiment_builder(
-        name = "V8 Linux64 gcc - debug",
+        name = "V8 Linux64 gcc - debug builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -177,7 +177,7 @@ in_category(
             "mtv-sf-v8-sheriff@grotations.appspotmail.com",
         ],
     ),
-    experiment_builder(
+    experiment_builder_pair(
         name = "V8 Linux - predictable",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
@@ -234,7 +234,7 @@ in_category(
 in_category(
     "Mac",
     experiment_builder(
-        name = "V8 iOS - sim",
+        name = "V8 iOS - sim - builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
@@ -296,7 +296,7 @@ in_category(
         ],
     ),
     experiment_builder(
-        name = "V8 Mac64 - full debug",
+        name = "V8 Mac64 - full debug builder",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
