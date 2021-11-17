@@ -3329,7 +3329,7 @@ v8_binary_non_pointer_compression(
 
 alias(
     name = "v8ci",
-    actual = "noicu/v8",
+    actual = "icu/v8",
 )
 
 # =================================================
