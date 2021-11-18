@@ -410,14 +410,32 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kF32Load:
       if (is_load_mem) {
-        LoadF32LE(dst.fp(), src_op, r0, ip);
+        // `ip` could be used as offset_reg.
+        Register scratch = ip;
+        if (offset_reg == ip) {
+          scratch = GetRegisterThatIsNotOneOf(src_addr);
+          push(scratch);
+        }
+        LoadF32LE(dst.fp(), src_op, r0, scratch);
+        if (offset_reg == ip) {
+          pop(scratch);
+        }
       } else {
         LoadF32(dst.fp(), src_op, r0);
       }
       break;
     case LoadType::kF64Load:
       if (is_load_mem) {
+        // `ip` could be used as offset_reg.
+        Register scratch = ip;
+        if (offset_reg == ip) {
+          scratch = GetRegisterThatIsNotOneOf(src_addr);
+          push(scratch);
+        }
         LoadF64LE(dst.fp(), src_op, r0, ip);
+        if (offset_reg == ip) {
+          pop(scratch);
+        }
       } else {
         LoadF64(dst.fp(), src_op, r0);
       }
