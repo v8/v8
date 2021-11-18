@@ -45,36 +45,6 @@ def aggregate_builder_tester_console(ctx):
             )
             consoles["builder-tester"].builders.append(cbuilder)
 
-def single_temporary_memory_console(old_console, target_console):
-    for builder in old_console.builders:
-        if builder.category == "Sanitizers":
-            target_console.builders.append(
-                dict(name = builder.name),
-            )
-
-def temporary_memory_consoles(ctx):
-    """
-    Temporary generator for separate memory consoles. All builders of the
-    sanitizer category have this separate console.
-    """
-    consoles = consoles_map(ctx)
-    single_temporary_memory_console(
-        consoles["main"],
-        consoles["memory"],
-    )
-    single_temporary_memory_console(
-        consoles["br.beta"],
-        consoles["br.beta.memory"],
-    )
-    single_temporary_memory_console(
-        consoles["br.stable"],
-        consoles["br.stable.memory"],
-    )
-    single_temporary_memory_console(
-        consoles["br.extended"],
-        consoles["br.extended.memory"],
-    )
-
 def headless_consoles(ctx):
     """
     Console duplicates without headers for being included in an iFrame-based
@@ -179,8 +149,6 @@ def ensure_forward_triggering_properties(ctx):
                 builder.properties = json.encode(properties)
 
 lucicfg.generator(aggregate_builder_tester_console)
-
-lucicfg.generator(temporary_memory_consoles)
 
 lucicfg.generator(headless_consoles)
 
