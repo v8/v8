@@ -489,6 +489,10 @@ void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   set_objects(index, value, mode);
 }
 
+void WeakArrayList::Set(int index, Smi value) {
+  Set(index, MaybeObject::FromSmi(value), SKIP_WRITE_BARRIER);
+}
+
 MaybeObjectSlot WeakArrayList::data_start() {
   return RawMaybeWeakField(kObjectsOffset);
 }

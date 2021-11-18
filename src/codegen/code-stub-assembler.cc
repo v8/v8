@@ -11429,7 +11429,7 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
 
   // Store an empty fixed array for the code dependency.
   StoreObjectFieldRoot(site, AllocationSite::kDependentCodeOffset,
-                       RootIndex::kEmptyWeakFixedArray);
+                       DependentCode::kEmptyDependentCode);
 
   // Link the object to the allocation site list
   TNode<ExternalReference> site_list = ExternalConstant(

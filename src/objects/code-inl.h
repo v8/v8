@@ -34,7 +34,7 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(BytecodeArray)
 OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
+OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakArrayList)
 OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
@@ -133,47 +133,6 @@ Code AbstractCode::GetCode() { return Code::cast(*this); }
 
 BytecodeArray AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(*this);
-}
-
-DependentCode DependentCode::next_link() {
-  return DependentCode::cast(Get(kNextLinkIndex)->GetHeapObjectAssumeStrong());
-}
-
-void DependentCode::set_next_link(DependentCode next) {
-  Set(kNextLinkIndex, HeapObjectReference::Strong(next));
-}
-
-int DependentCode::flags() { return Smi::ToInt(Get(kFlagsIndex)->ToSmi()); }
-
-void DependentCode::set_flags(int flags) {
-  Set(kFlagsIndex, MaybeObject::FromObject(Smi::FromInt(flags)));
-}
-
-int DependentCode::count() { return CountField::decode(flags()); }
-
-void DependentCode::set_count(int value) {
-  set_flags(CountField::update(flags(), value));
-}
-
-DependentCode::DependencyGroup DependentCode::group() {
-  return static_cast<DependencyGroup>(GroupField::decode(flags()));
-}
-
-void DependentCode::set_object_at(int i, MaybeObject object) {
-  Set(kCodesStartIndex + i, object);
-}
-
-MaybeObject DependentCode::object_at(int i) {
-  return Get(kCodesStartIndex + i);
-}
-
-void DependentCode::clear_at(int i) {
-  Set(kCodesStartIndex + i,
-      HeapObjectReference::Strong(GetReadOnlyRoots().undefined_value()));
-}
-
-void DependentCode::copy(int from, int to) {
-  Set(kCodesStartIndex + to, Get(kCodesStartIndex + from));
 }
 
 OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)

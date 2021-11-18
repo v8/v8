@@ -299,32 +299,21 @@ DEF_GETTER(HeapObject, IsDeoptimizationData, bool) {
 }
 
 DEF_GETTER(HeapObject, IsHandlerTable, bool) {
-  if (!IsFixedArrayExact(cage_base)) return false;
-  // There's actually no way to see the difference between a fixed array and
-  // a handler table array.
-  return true;
+  return IsFixedArrayExact(cage_base);
 }
 
 DEF_GETTER(HeapObject, IsTemplateList, bool) {
   if (!IsFixedArrayExact(cage_base)) return false;
-  // There's actually no way to see the difference between a fixed array and
-  // a template list.
   if (FixedArray::cast(*this).length() < 1) return false;
   return true;
 }
 
 DEF_GETTER(HeapObject, IsDependentCode, bool) {
-  if (!IsWeakFixedArray(cage_base)) return false;
-  // There's actually no way to see the difference between a weak fixed array
-  // and a dependent codes array.
-  return true;
+  return IsWeakArrayList(cage_base);
 }
 
 DEF_GETTER(HeapObject, IsOSROptimizedCodeCache, bool) {
-  if (!IsWeakFixedArray(cage_base)) return false;
-  // There's actually no way to see the difference between a weak fixed array
-  // and a osr optimized code cache.
-  return true;
+  return IsWeakFixedArray(cage_base);
 }
 
 DEF_GETTER(HeapObject, IsAbstractCode, bool) {

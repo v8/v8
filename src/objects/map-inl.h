@@ -666,7 +666,7 @@ void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
   if (is_stable()) {
     mark_unstable();
     dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kPrototypeCheckGroup);
+        isolate, DependentCode::kPrototypeCheckGroup);
   }
 }
 

@@ -1702,8 +1702,9 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
   PropertyCell cell = PropertyCell::cast(AllocateRawWithImmortalMap(
       PropertyCell::kSize, allocation, *global_property_cell_map()));
   DisallowGarbageCollection no_gc;
-  cell.set_dependent_code(DependentCode::cast(*empty_weak_fixed_array()),
-                          SKIP_WRITE_BARRIER);
+  cell.set_dependent_code(
+      DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
+      SKIP_WRITE_BARRIER);
   WriteBarrierMode mode = allocation == AllocationType::kYoung
                               ? SKIP_WRITE_BARRIER
                               : UPDATE_WRITE_BARRIER;
@@ -1795,8 +1796,9 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
     map.set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
                                     SKIP_WRITE_BARRIER);
   }
-  map.set_dependent_code(DependentCode::cast(*empty_weak_fixed_array()),
-                         SKIP_WRITE_BARRIER);
+  map.set_dependent_code(
+      DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
+      SKIP_WRITE_BARRIER);
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()),
                           SKIP_WRITE_BARRIER);
   map.SetInObjectUnusedPropertyFields(inobject_properties);

@@ -3989,23 +3989,19 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
                 ->Get(context.local(), v8_str("bar"))
                 .ToLocalChecked())));
 
-    int dependency_group_count = 0;
-    DependentCode dependency = site->dependent_code();
-    while (dependency != ReadOnlyRoots(heap).empty_weak_fixed_array()) {
-      CHECK(dependency.group() ==
-                DependentCode::kAllocationSiteTransitionChangedGroup ||
-            dependency.group() ==
-                DependentCode::kAllocationSiteTenuringChangedGroup);
-      CHECK_EQ(1, dependency.count());
-      CHECK(dependency.object_at(0)->IsWeak());
-      Code function_bar = FromCodeT(
-          CodeT::cast(dependency.object_at(0)->GetHeapObjectAssumeWeak()));
-      CHECK_EQ(bar_handle->code(), function_bar);
-      dependency = dependency.next_link();
-      dependency_group_count++;
-    }
     // Expect a dependent code object for transitioning and pretenuring.
-    CHECK_EQ(2, dependency_group_count);
+    DependentCode dependency = site->dependent_code();
+    CHECK_NE(dependency,
+             DependentCode::empty_dependent_code(ReadOnlyRoots(isolate)));
+    CHECK_EQ(dependency.length(), DependentCode::kSlotsPerEntry);
+    MaybeObject code = dependency.Get(0 + DependentCode::kCodeSlotOffset);
+    CHECK(code->IsWeak());
+    CHECK_EQ(bar_handle->code(),
+             FromCodeT(CodeT::cast(code->GetHeapObjectAssumeWeak())));
+    Smi groups = dependency.Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
+    CHECK_EQ(static_cast<DependentCode::DependencyGroups>(groups.value()),
+             DependentCode::kAllocationSiteTransitionChangedGroup |
+                 DependentCode::kAllocationSiteTenuringChangedGroup);
   }
 
   // Now make sure that a gc should get rid of the function, even though we
@@ -4016,7 +4012,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
   // The site still exists because of our global handle, but the code is no
   // longer referred to by dependent_code().
-  CHECK(site->dependent_code().object_at(0)->IsCleared());
+  CHECK(site->dependent_code().Get(0)->IsCleared());
 }
 
 void CheckNumberOfAllocations(Heap* heap, const char* source,

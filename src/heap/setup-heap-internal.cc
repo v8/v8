@@ -189,7 +189,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
 
 void Heap::FinalizePartialMap(Map map) {
   ReadOnlyRoots roots(this);
-  map.set_dependent_code(DependentCode::cast(roots.empty_weak_fixed_array()));
+  map.set_dependent_code(DependentCode::empty_dependent_code(roots));
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
   map.SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
   map.set_prototype(roots.null_value());

@@ -1192,20 +1192,19 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
   UpdateFieldType(isolate, field_owner, modify_index, name, new_constness,
                   new_representation, wrapped_type);
 
+  DependentCode::DependencyGroups dep_groups;
   if (new_constness != old_constness) {
-    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kFieldConstGroup);
+    dep_groups |= DependentCode::kFieldConstGroup;
   }
-
   if (!new_field_type->Equals(*old_field_type)) {
-    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kFieldTypeGroup);
+    dep_groups |= DependentCode::kFieldTypeGroup;
+  }
+  if (!new_representation.Equals(old_representation)) {
+    dep_groups |= DependentCode::kFieldRepresentationGroup;
   }
 
-  if (!new_representation.Equals(old_representation)) {
-    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kFieldRepresentationGroup);
-  }
+  field_owner->dependent_code().DeoptimizeDependentCodeGroup(isolate,
+                                                             dep_groups);
 
   if (FLAG_trace_generalization) {
     PrintGeneralization(

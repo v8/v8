@@ -764,34 +764,26 @@ class AbstractCode : public HeapObject {
   inline ByteArray SourcePositionTableInternal();
 };
 
-// Dependent code is a singly linked list of weak fixed arrays. Each array
-// contains weak pointers to code objects for one dependent group. The suffix of
-// the array can be filled with the undefined value if the number of codes is
-// less than the length of the array.
+// Dependent code is conceptually the list of {Code, DependencyGroup} tuples
+// associated with an object, where the dependency group is a reason that could
+// lead to a deopt of the corresponding code.
 //
-// +------+-----------------+--------+--------+-----+--------+-----------+-----+
-// | next | count & group 1 | code 1 | code 2 | ... | code n | undefined | ... |
-// +------+-----------------+--------+--------+-----+--------+-----------+-----+
-//    |
-//    V
-// +------+-----------------+--------+--------+-----+--------+-----------+-----+
-// | next | count & group 2 | code 1 | code 2 | ... | code m | undefined | ... |
-// +------+-----------------+--------+--------+-----+--------+-----------+-----+
-//    |
-//    V
-// empty_weak_fixed_array()
+// Implementation details: DependentCode is a weak array list containing
+// entries, where each entry consists of a (weak) Code object and the
+// DependencyGroups bitset as a Smi.
 //
-// The list of weak fixed arrays is ordered by dependency groups.
-
-class DependentCode : public WeakFixedArray {
+// Note the underlying weak array list currently never shrinks physically (the
+// contents may shrink).
+// TODO(jgruber): Consider adding physical shrinking.
+class DependentCode : public WeakArrayList {
  public:
   DECL_CAST(DependentCode)
 
   enum DependencyGroup {
-    // Group of code that embed a transition to this map, and depend on being
-    // deoptimized when the transition is replaced by a new version.
-    kTransitionGroup,
-    // Group of code that omit run-time prototype checks for prototypes
+    // Group of code objects that embed a transition to this map, and depend on
+    // being deoptimized when the transition is replaced by a new version.
+    kTransitionGroup = 1 << 0,
+    // Group of code objects that omit run-time prototype checks for prototypes
     // described by this map. The group is deoptimized whenever the following
     // conditions hold, possibly invalidating the assumptions embedded in the
     // code:
@@ -800,88 +792,76 @@ class DependentCode : public WeakFixedArray {
     // b) A dictionary-mode prototype described by this map changes shape, the
     // const-ness of one of its properties changes, or its [[Prototype]]
     // changes (only the latter causes a transition).
-    kPrototypeCheckGroup,
-    // Group of code that depends on global property values in property cells
-    // not being changed.
-    kPropertyCellChangedGroup,
-    // Group of code that omit run-time checks for field(s) introduced by
-    // this map, i.e. for the field type.
-    kFieldTypeGroup,
-    kFieldConstGroup,
-    kFieldRepresentationGroup,
-    // Group of code that omit run-time type checks for initial maps of
+    kPrototypeCheckGroup = 1 << 1,
+    // Group of code objects that depends on global property values in property
+    // cells not being changed.
+    kPropertyCellChangedGroup = 1 << 2,
+    // Group of code objects that omit run-time checks for field(s) introduced
+    // by this map, i.e. for the field type.
+    kFieldTypeGroup = 1 << 3,
+    kFieldConstGroup = 1 << 4,
+    kFieldRepresentationGroup = 1 << 5,
+    // Group of code objects that omit run-time type checks for initial maps of
     // constructors.
-    kInitialMapChangedGroup,
-    // Group of code that depends on tenuring information in AllocationSites
-    // not being changed.
-    kAllocationSiteTenuringChangedGroup,
-    // Group of code that depends on element transition information in
+    kInitialMapChangedGroup = 1 << 6,
+    // Group of code objects that depends on tenuring information in
     // AllocationSites not being changed.
-    kAllocationSiteTransitionChangedGroup
+    kAllocationSiteTenuringChangedGroup = 1 << 7,
+    // Group of code objects that depends on element transition information in
+    // AllocationSites not being changed.
+    kAllocationSiteTransitionChangedGroup = 1 << 8,
+    // IMPORTANT: The last bit must fit into a Smi, i.e. into 31 bits.
   };
+  using DependencyGroups = base::Flags<DependencyGroup, uint32_t>;
 
-  // Register a dependency of {code} on {object}, of the kind given by {group}.
+  static const char* DependencyGroupName(DependencyGroup group);
+
+  // Register a dependency of {code} on {object}, of the kinds given by
+  // {groups}.
   V8_EXPORT_PRIVATE static void InstallDependency(Isolate* isolate,
                                                   Handle<Code> code,
                                                   Handle<HeapObject> object,
-                                                  DependencyGroup group);
+                                                  DependencyGroups groups);
 
-  void DeoptimizeDependentCodeGroup(DependencyGroup group);
+  void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroups groups);
 
-  bool MarkCodeForDeoptimization(DependencyGroup group);
+  bool MarkCodeForDeoptimization(DependencyGroups groups);
 
-  // The following low-level accessors are exposed only for tests.
-  inline DependencyGroup group();
-  inline MaybeObject object_at(int i);
-  inline int count();
-  inline DependentCode next_link();
+  V8_EXPORT_PRIVATE static DependentCode empty_dependent_code(
+      const ReadOnlyRoots& roots);
+  static constexpr RootIndex kEmptyDependentCode =
+      RootIndex::kEmptyWeakArrayList;
+
+  // Constants exposed for tests.
+  static constexpr int kSlotsPerEntry = 2;  // {code: weak Code, groups: Smi}.
+  static constexpr int kCodeSlotOffset = 0;
+  static constexpr int kGroupsSlotOffset = 1;
 
  private:
-  static const char* DependencyGroupName(DependencyGroup group);
-
   // Get/Set {object}'s {DependentCode}.
   static DependentCode GetDependentCode(Handle<HeapObject> object);
   static void SetDependentCode(Handle<HeapObject> object,
                                Handle<DependentCode> dep);
 
-  static Handle<DependentCode> New(Isolate* isolate, DependencyGroup group,
-                                   Handle<Code> code,
-                                   Handle<DependentCode> next);
-  static Handle<DependentCode> EnsureSpace(Isolate* isolate,
-                                           Handle<DependentCode> entries);
+  static Handle<DependentCode> New(Isolate* isolate, DependencyGroups groups,
+                                   Handle<Code> code);
   static Handle<DependentCode> InsertWeakCode(Isolate* isolate,
                                               Handle<DependentCode> entries,
-                                              DependencyGroup group,
+                                              DependencyGroups groups,
                                               Handle<Code> code);
 
-  // Compact by removing cleared weak cells and return true if there was
-  // any cleared weak cell.
-  bool Compact();
+  // Fills the given entry with the last non-cleared entry in this list, and
+  // returns the new length after the last non-cleared entry has been moved.
+  int FillEntryFromBack(int index, int length);
 
-  static int Grow(int number_of_entries) {
-    if (number_of_entries < 5) return number_of_entries + 1;
-    return number_of_entries * 5 / 4;
+  static constexpr int LengthFor(int number_of_entries) {
+    return number_of_entries * kSlotsPerEntry;
   }
 
-  static const int kGroupCount = kAllocationSiteTransitionChangedGroup + 1;
-  static const int kNextLinkIndex = 0;
-  static const int kFlagsIndex = 1;
-  static const int kCodesStartIndex = 2;
-
-  inline void set_next_link(DependentCode next);
-  inline void set_count(int value);
-  inline void set_object_at(int i, MaybeObject object);
-  inline void clear_at(int i);
-  inline void copy(int from, int to);
-
-  inline int flags();
-  inline void set_flags(int flags);
-  using GroupField = base::BitField<int, 0, 5>;
-  using CountField = base::BitField<int, 5, 27>;
-  STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
-
-  OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray);
+  OBJECT_CONSTRUCTORS(DependentCode, WeakArrayList);
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(DependentCode::DependencyGroups)
 
 // BytecodeArray represents a sequence of interpreter bytecodes.
 class BytecodeArray

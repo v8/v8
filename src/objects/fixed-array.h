@@ -367,6 +367,7 @@ class WeakArrayList
   // instead.
   inline void Set(int index, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void Set(int index, Smi value);
 
   static constexpr int SizeForCapacity(int capacity) {
     return SizeFor(capacity);

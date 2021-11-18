@@ -4743,8 +4743,10 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
   // of the validity cell is not used. Therefore, we always trigger the de-opt
   // here, even if the cell was already invalid.
   if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && map.is_dictionary_map()) {
+    // TODO(11527): pass Isolate as an argument.
+    Isolate* isolate = GetIsolateFromWritableObject(map);
     map.dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kPrototypeCheckGroup);
+        isolate, DependentCode::kPrototypeCheckGroup);
   }
 }
 
