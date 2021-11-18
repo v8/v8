@@ -586,8 +586,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if (has_safepoint_info()) {
     SafepointTable table(isolate, current_pc, *this);
     os << "Safepoints (size = " << table.size() << ")\n";
-    for (unsigned i = 0; i < table.length(); i++) {
-      unsigned pc_offset = table.GetPcOffset(i);
+    for (int i = 0; i < table.length(); i++) {
+      int pc_offset = table.GetPcOffset(i);
       os << reinterpret_cast<const void*>(InstructionStart() + pc_offset)
          << "  ";
       os << std::setw(6) << std::hex << pc_offset << "  " << std::setw(4);
