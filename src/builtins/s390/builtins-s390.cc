@@ -597,19 +597,6 @@ void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
 
-static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
-                                          Register sfi_data,
-                                          Register scratch1) {
-  Label done;
-
-  __ CompareObjectType(sfi_data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
-  __ bne(&done, Label::kNear);
-  __ LoadTaggedPointerField(
-      sfi_data,
-      FieldMemOperand(sfi_data, InterpreterData::kBytecodeArrayOffset));
-  __ bind(&done);
-}
-
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -701,13 +688,15 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Underlying function needs to have bytecode available.
   if (FLAG_debug_code) {
+    Label is_baseline;
     __ LoadTaggedPointerField(
         r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
     __ LoadTaggedPointerField(
         r5, FieldMemOperand(r5, SharedFunctionInfo::kFunctionDataOffset));
-    GetSharedFunctionInfoBytecode(masm, r5, ip);
+    GetSharedFunctionInfoBytecodeOrBaseline(masm, r5, ip, &is_baseline);
     __ CompareObjectType(r5, r5, r5, BYTECODE_ARRAY_TYPE);
     __ Assert(eq, AbortReason::kMissingBytecodeArray);
+    __ bind(&is_baseline);
   }
 
   // Resume (Ignition/TurboFan) generator object.
@@ -1557,7 +1546,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadTaggedPointerField(
       kInterpreterBytecodeArrayRegister,
       FieldMemOperand(r6, SharedFunctionInfo::kFunctionDataOffset));
-  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, ip);
+
+  Label is_baseline;
+  GetSharedFunctionInfoBytecodeOrBaseline(
+      masm, kInterpreterBytecodeArrayRegister, ip, &is_baseline);
 
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
@@ -1751,6 +1743,39 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&has_optimized_code_or_marker);
   MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
                                                feedback_vector);
+
+  __ bind(&is_baseline);
+  {
+    // Load the feedback vector from the closure.
+    __ LoadTaggedPointerField(
+        feedback_vector,
+        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+    __ LoadTaggedPointerField(
+        feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+
+    Label install_baseline_code;
+    // Check if feedback vector is valid. If not, call prepare for baseline to
+    // allocate it.
+    __ LoadTaggedPointerField(
+        ip, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
+    __ LoadU16(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
+    __ CmpS32(ip, Operand(FEEDBACK_VECTOR_TYPE));
+    __ b(ne, &install_baseline_code);
+
+    // Check for an optimization marker.
+    LoadOptimizationStateAndJumpIfNeedsProcessing(
+        masm, optimization_state, feedback_vector,
+        &has_optimized_code_or_marker);
+
+    // Load the baseline code into the closure.
+    __ mov(r4, kInterpreterBytecodeArrayRegister);
+    static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
+    ReplaceClosureCodeWithOptimizedCode(masm, r4, closure, ip, r1);
+    __ JumpCodeObject(r4);
+
+    __ bind(&install_baseline_code);
+    GenerateTailCallToReturnedCode(masm, Runtime::kInstallBaselineCode);
+  }
 
   __ bind(&compile_lazy);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
