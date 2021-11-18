@@ -1976,7 +1976,6 @@ void Logger::LogAccessorCallbacks() {
 }
 
 void Logger::LogAllMaps() {
-  DisallowGarbageCollection no_gc;
   Heap* heap = isolate_->heap();
   CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();

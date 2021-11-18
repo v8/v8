@@ -7,6 +7,7 @@
 #include <atomic>
 
 #include "src/base/logging.h"
+#include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
@@ -27,6 +28,7 @@ void IsolateSafepoint::EnterSafepointScope(StopMainThread stop_main_thread) {
   // Safepoints need to be initiated on the main thread.
   DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
   DCHECK_NULL(LocalHeap::Current());
+  DCHECK(AllowGarbageCollection::IsAllowed());
 
   if (++active_safepoint_scopes_ > 1) return;
 
@@ -261,11 +263,21 @@ void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
 
 GlobalSafepointScope::GlobalSafepointScope(Isolate* initiator)
     : initiator_(initiator), shared_isolate_(initiator->shared_isolate()) {
-  shared_isolate_->global_safepoint()->EnterGlobalSafepointScope(initiator_);
+  if (shared_isolate_) {
+    shared_isolate_->global_safepoint()->EnterGlobalSafepointScope(initiator_);
+  } else {
+    initiator_->heap()->safepoint()->EnterSafepointScope(
+        IsolateSafepoint::StopMainThread::kNo);
+  }
 }
 
 GlobalSafepointScope::~GlobalSafepointScope() {
-  shared_isolate_->global_safepoint()->LeaveGlobalSafepointScope(initiator_);
+  if (shared_isolate_) {
+    shared_isolate_->global_safepoint()->LeaveGlobalSafepointScope(initiator_);
+  } else {
+    initiator_->heap()->safepoint()->LeaveSafepointScope(
+        IsolateSafepoint::StopMainThread::kNo);
+  }
 }
 
 }  // namespace internal

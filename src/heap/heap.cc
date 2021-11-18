@@ -2143,12 +2143,20 @@ size_t Heap::PerformGarbageCollection(
 
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
-  SafepointScope safepoint_scope(this);
+  base::Optional<SafepointScope> safepoint_scope;
+
+  {
+    AllowGarbageCollection allow_shared_gc;
+    safepoint_scope.emplace(this);
+  }
 
   collection_barrier_->StopTimeToCollectionTimer();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
+    // We don't really perform a GC here but need this scope for the nested
+    // SafepointScope inside Verify().
+    AllowGarbageCollection allow_gc;
     Verify();
   }
 #endif
@@ -2219,6 +2227,9 @@ size_t Heap::PerformGarbageCollection(
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
+    // We don't really perform a GC here but need this scope for the nested
+    // SafepointScope inside Verify().
+    AllowGarbageCollection allow_gc;
     Verify();
   }
 #endif
@@ -3394,7 +3405,13 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   if (FLAG_enable_slow_asserts) {
     // Make sure the stack or other roots (e.g., Handles) don't contain pointers
     // to the original FixedArray (which is now the filler object).
-    SafepointScope scope(this);
+    base::Optional<SafepointScope> safepoint_scope;
+
+    {
+      AllowGarbageCollection allow_gc;
+      safepoint_scope.emplace(this);
+    }
+
     LeftTrimmerVerifierRootVisitor root_visitor(object);
     ReadOnlyRoots(this).Iterate(&root_visitor);
     IterateRoots(&root_visitor, {});
@@ -5891,7 +5908,7 @@ void Heap::StartTearDown() {
   // a good time to run heap verification (if requested), before starting to
   // tear down parts of the Isolate.
   if (FLAG_verify_heap) {
-    SafepointScope scope(this);
+    AllowGarbageCollection allow_gc;
     Verify();
   }
 #endif

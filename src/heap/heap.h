@@ -2757,8 +2757,6 @@ class V8_EXPORT_PRIVATE HeapObjectIterator {
  private:
   HeapObject NextObject();
 
-  DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
-
   Heap* heap_;
   std::unique_ptr<SafepointScope> safepoint_scope_;
   HeapObjectsFiltering filtering_;
@@ -2767,6 +2765,8 @@ class V8_EXPORT_PRIVATE HeapObjectIterator {
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.
   std::unique_ptr<ObjectIterator> object_iterator_;
+
+  DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
 };
 
 // Abstract base class for checking whether a weak object should be retained.

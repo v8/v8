@@ -253,8 +253,6 @@ void Snapshot::ClearReconstructableDataForSerialization(
     HandleScope scope(isolate);
     std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
     {
-      // Heap allocation is disallowed within this scope.
-      DisallowGarbageCollection disallow_gc;
       i::HeapObjectIterator it(isolate->heap());
       for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
         if (o.IsSharedFunctionInfo(cage_base)) {
@@ -334,6 +332,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
   // Test serialization.
   {
+    GlobalSafepointScope global_safepoint(isolate);
     DisallowGarbageCollection no_gc;
 
     Snapshot::SerializerFlags flags(
@@ -386,12 +385,9 @@ v8::StartupData Snapshot::Create(
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
 
-  // Enter a safepoint so that the heap is safe to iterate.
-  // TODO(leszeks): This safepoint's scope could be tightened to just string
-  // table iteration, as that iteration relies on there not being any concurrent
-  // threads mutating the string table. But, there's currently no harm in
-  // holding it for the entire snapshot serialization.
-  SafepointScope safepoint(isolate->heap());
+  // Ensure we are in a safepoint scope so that the string table is safe to
+  // iterate. Unlike mksnapshot, embedders may have background threads running.
+  isolate->heap()->safepoint()->AssertActive();
 
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.SerializeReadOnlyRoots();

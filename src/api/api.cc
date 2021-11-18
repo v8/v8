@@ -60,6 +60,7 @@
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/icu_util.h"
 #include "src/init/startup-data-util.h"
@@ -677,6 +678,7 @@ StartupData SnapshotCreator::CreateBlob(
   i::Snapshot::ClearReconstructableDataForSerialization(
       isolate, function_code_handling == FunctionCodeHandling::kClear);
 
+  i::GlobalSafepointScope global_safepoint(isolate);
   i::DisallowGarbageCollection no_gc_from_here_on;
 
   // Create a vector with all contexts and clear associated Persistent fields.

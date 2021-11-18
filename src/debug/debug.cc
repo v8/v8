@@ -14,6 +14,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug-evaluate.h"
@@ -1281,6 +1282,7 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
   DiscardBaselineCodeVisitor() : shared_(SharedFunctionInfo()) {}
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
+    DisallowGarbageCollection diallow_gc;
     bool deopt_all = shared_ == SharedFunctionInfo();
     for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       if (!deopt_all && it.frame()->function().shared() != shared_) continue;
@@ -1319,7 +1321,6 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
 
  private:
   SharedFunctionInfo shared_;
-  DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 }  // namespace
 

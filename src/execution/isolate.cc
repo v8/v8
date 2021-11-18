@@ -3728,10 +3728,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // LocalHeaps and not wait until this thread is ready for a GC.
   AttachToSharedIsolate();
 
-  // We need to ensure that we do not let a shared GC run before this isolate is
-  // fully set up.
-  DisallowSafepoints no_shared_gc;
-
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp(main_thread_local_heap());
@@ -4948,7 +4944,6 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
   HandleScope scope(this);
   std::vector<Handle<SharedFunctionInfo>> sfis;
   {
-    DisallowGarbageCollection no_gc;
     HeapObjectIterator iterator(heap());
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {

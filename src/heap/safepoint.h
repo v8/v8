@@ -120,6 +120,7 @@ class IsolateSafepoint final {
 
   friend class Heap;
   friend class GlobalSafepoint;
+  friend class GlobalSafepointScope;
   friend class LocalHeap;
   friend class PersistentHandles;
   friend class SafepointScope;
