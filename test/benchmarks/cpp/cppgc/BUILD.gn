@@ -57,4 +57,21 @@ if (v8_enable_google_benchmark) {
       deps += [ "../../../..:v8_for_testing" ]
     }
   }
+
+  v8_executable("cppgc_binary_trees_perf") {
+    testonly = true
+
+    configs = [
+      "../../../..:external_config",
+      "../../../..:internal_config_base",
+      "../../../..:cppgc_base_config",
+    ]
+    sources = [ "binary-trees_perf.cc" ]
+    deps = [ ":cppgc_benchmark_support" ]
+    if (cppgc_is_standalone) {
+      deps += [ "../../../..:cppgc_for_testing" ]
+    } else {
+      deps += [ "../../../..:v8_for_testing" ]
+    }
+  }
 }
