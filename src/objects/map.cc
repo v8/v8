@@ -1900,14 +1900,15 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
   if (!maybe_transition.is_null()) {
     Handle<Map> transition(maybe_transition, isolate);
     DescriptorArray descriptors = transition->instance_descriptors(isolate);
-    InternalIndex descriptor = transition->LastAdded();
-    DCHECK(descriptors.GetKey(descriptor).Equals(*name));
+    InternalIndex last_descriptor = transition->LastAdded();
+    DCHECK(descriptors.GetKey(last_descriptor).Equals(*name));
 
     DCHECK_EQ(PropertyKind::kAccessor,
-              descriptors.GetDetails(descriptor).kind());
-    DCHECK_EQ(attributes, descriptors.GetDetails(descriptor).attributes());
+              descriptors.GetDetails(last_descriptor).kind());
+    DCHECK_EQ(attributes, descriptors.GetDetails(last_descriptor).attributes());
 
-    Handle<Object> maybe_pair(descriptors.GetStrongValue(descriptor), isolate);
+    Handle<Object> maybe_pair(descriptors.GetStrongValue(last_descriptor),
+                              isolate);
     if (!maybe_pair->IsAccessorPair()) {
       return Map::Normalize(isolate, map, mode,
                             "TransitionToAccessorFromNonPair");

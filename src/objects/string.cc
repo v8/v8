@@ -417,7 +417,6 @@ bool String::SupportsExternalization() {
 const char* String::PrefixForDebugPrint() const {
   StringShape shape(*this);
   if (IsTwoByteRepresentation()) {
-    StringShape shape(*this);
     if (shape.IsInternalized()) {
       return "u#";
     } else if (shape.IsCons()) {
@@ -430,7 +429,6 @@ const char* String::PrefixForDebugPrint() const {
       return "u\"";
     }
   } else {
-    StringShape shape(*this);
     if (shape.IsInternalized()) {
       return "#";
     } else if (shape.IsCons()) {
