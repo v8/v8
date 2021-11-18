@@ -97,8 +97,7 @@ Heap::~Heap() {
   FinalizeIncrementalGarbageCollectionIfRunning(
       {Config::CollectionType::kMajor,
        Config::StackState::kMayContainHeapPointers,
-       Config::MarkingType::kIncrementalAndConcurrent,
-       Config::SweepingType::kIncrementalAndConcurrent});
+       Config::MarkingType::kAtomic, Config::SweepingType::kAtomic});
   {
     subtle::NoGarbageCollectionScope no_gc(*this);
     sweeper_.FinishIfRunning();
