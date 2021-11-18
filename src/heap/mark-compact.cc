@@ -3606,16 +3606,16 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     }
   }
 
-  const size_t pages_count = evacuation_items.size();
-  size_t wanted_num_tasks = 0;
-  if (!evacuation_items.empty()) {
-    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "MarkCompactCollector::EvacuatePagesInParallel", "pages",
-                 evacuation_items.size());
+  if (evacuation_items.empty()) return;
 
-    wanted_num_tasks = CreateAndExecuteEvacuationTasks<FullEvacuator>(
-        this, std::move(evacuation_items), nullptr);
-  }
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "MarkCompactCollector::EvacuatePagesInParallel", "pages",
+               evacuation_items.size());
+
+  const size_t pages_count = evacuation_items.size();
+  const size_t wanted_num_tasks =
+      CreateAndExecuteEvacuationTasks<FullEvacuator>(
+          this, std::move(evacuation_items), nullptr);
 
   // After evacuation there might still be swept pages that weren't
   // added to one of the compaction space but still reside in the
