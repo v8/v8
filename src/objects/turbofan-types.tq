@@ -154,12 +154,11 @@ macro TestTurbofanBitsetType(
           bitsetLow.other_unsigned_big_int_64 | bitsetLow.negative_big_int_63 |
           bitsetLow.other_big_int;
     }
-    case (Callable): {
-      return bitsetLow.other_callable;
-    }
     case (object: JSObject): {
       if (object.map.IsUndetectable()) {
         return bitsetLow.other_undetectable;
+      } else if (Is<Callable>(object)) {
+        return bitsetLow.other_callable;
       } else {
         return bitsetLow.other_object;
       }
