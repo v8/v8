@@ -896,7 +896,7 @@ DEFINE_BOOL(turbo_dynamic_map_checks, false,
             "if all handlers in an IC are the same for turboprop")
 DEFINE_BOOL(turbo_compress_translation_arrays, false,
             "compress translation arrays (experimental)")
-DEFINE_BOOL(turbo_inline_js_wasm_calls, true, "inline JS->Wasm calls")
+DEFINE_BOOL(turbo_inline_js_wasm_calls, false, "inline JS->Wasm calls")
 
 DEFINE_BOOL(turbo_optimize_apply, true, "optimize Function.prototype.apply")
 
