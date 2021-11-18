@@ -80,15 +80,9 @@ void SafepointTable::PrintEntry(int index, std::ostream& os) const {
 }
 
 Safepoint SafepointTableBuilder::DefineSafepoint(Assembler* assembler) {
-  deoptimization_info_.push_back(
-      DeoptimizationInfo(zone_, assembler->pc_offset_for_safepoint()));
-  DeoptimizationInfo& new_info = deoptimization_info_.back();
-  return Safepoint(new_info.stack_indexes, &new_info.register_indexes);
-}
-
-int SafepointTableBuilder::GetCodeOffset() const {
-  DCHECK(emitted_);
-  return offset_;
+  entries_.push_back(EntryBuilder(zone_, assembler->pc_offset_for_safepoint()));
+  EntryBuilder& new_entry = entries_.back();
+  return Safepoint(new_entry.stack_indexes, &new_entry.register_indexes);
 }
 
 int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
@@ -96,9 +90,9 @@ int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
                                                     int deopt_index) {
   DCHECK_NE(SafepointEntry::kNoTrampolinePC, trampoline);
   DCHECK_NE(SafepointEntry::kNoDeoptIndex, deopt_index);
-  auto it = deoptimization_info_.Find(start);
-  DCHECK(std::any_of(it, deoptimization_info_.end(),
-                     [pc](auto& info) { return info.pc == pc; }));
+  auto it = entries_.Find(start);
+  DCHECK(std::any_of(it, entries_.end(),
+                     [pc](auto& entry) { return entry.pc == pc; }));
   int index = start;
   while (it->pc != pc) ++it, ++index;
   it->trampoline = trampoline;
@@ -110,19 +104,19 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
 #ifdef DEBUG
   int last_pc = -1;
   int last_trampoline = -1;
-  for (const DeoptimizationInfo& info : deoptimization_info_) {
+  for (const EntryBuilder& entry : entries_) {
     // Entries are ordered by PC.
-    DCHECK_LT(last_pc, info.pc);
-    last_pc = info.pc;
+    DCHECK_LT(last_pc, entry.pc);
+    last_pc = entry.pc;
     // Trampoline PCs are increasing, and larger than regular PCs.
-    if (info.trampoline != SafepointEntry::kNoTrampolinePC) {
-      DCHECK_LT(last_trampoline, info.trampoline);
-      DCHECK_LT(deoptimization_info_.back().pc, info.trampoline);
-      last_trampoline = info.trampoline;
+    if (entry.trampoline != SafepointEntry::kNoTrampolinePC) {
+      DCHECK_LT(last_trampoline, entry.trampoline);
+      DCHECK_LT(entries_.back().pc, entry.trampoline);
+      last_trampoline = entry.trampoline;
     }
     // An entry either has trampoline and deopt index, or none of the two.
-    DCHECK_EQ(info.trampoline == SafepointEntry::kNoTrampolinePC,
-              info.deopt_index == SafepointEntry::kNoDeoptIndex);
+    DCHECK_EQ(entry.trampoline == SafepointEntry::kNoTrampolinePC,
+              entry.deopt_index == SafepointEntry::kNoDeoptIndex);
   }
 #endif  // DEBUG
 
@@ -147,7 +141,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   STATIC_ASSERT(SafepointTable::kLengthOffset == 0 * kIntSize);
   STATIC_ASSERT(SafepointTable::kEntrySizeOffset == 1 * kIntSize);
   STATIC_ASSERT(SafepointTable::kHeaderSize == 2 * kIntSize);
-  int length = static_cast<int>(deoptimization_info_.size());
+  int length = static_cast<int>(entries_.size());
   assembler->dd(length);
   assembler->dd(bytes_per_entry);
 
@@ -157,23 +151,23 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   STATIC_ASSERT(SafepointTable::kEncodedInfoOffset == 1 * kIntSize);
   STATIC_ASSERT(SafepointTable::kTrampolinePcOffset == 2 * kIntSize);
   STATIC_ASSERT(SafepointTable::kFixedEntrySize == 3 * kIntSize);
-  for (const DeoptimizationInfo& info : deoptimization_info_) {
-    assembler->dd(info.pc);
-    if (info.register_indexes) {
+  for (const EntryBuilder& entry : entries_) {
+    assembler->dd(entry.pc);
+    if (entry.register_indexes) {
       // We emit the register indexes in the same bits as the deopt_index.
       // Register indexes and deopt_index should not exist at the same time.
-      DCHECK_EQ(info.deopt_index, SafepointEntry::kNoDeoptIndex);
-      assembler->dd(info.register_indexes);
+      DCHECK_EQ(entry.deopt_index, SafepointEntry::kNoDeoptIndex);
+      assembler->dd(entry.register_indexes);
     } else {
-      assembler->dd(info.deopt_index);
+      assembler->dd(entry.deopt_index);
     }
-    assembler->dd(info.trampoline);
+    assembler->dd(entry.trampoline);
   }
 
   // Emit table of bitmaps.
   ZoneVector<uint8_t> bits(bytes_per_entry, 0, zone_);
-  for (const DeoptimizationInfo& info : deoptimization_info_) {
-    ZoneChunkList<int>* indexes = info.stack_indexes;
+  for (const EntryBuilder& entry : entries_) {
+    ZoneChunkList<int>* indexes = entry.stack_indexes;
     std::fill(bits.begin(), bits.end(), 0);
 
     // Run through the indexes and build a bitmap.
@@ -190,7 +184,6 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
       assembler->db(bits[k]);
     }
   }
-  emitted_ = true;
 }
 
 void SafepointTableBuilder::RemoveDuplicates() {
@@ -199,35 +192,35 @@ void SafepointTableBuilder::RemoveDuplicates() {
   // -1. This especially compacts the table for wasm code without tagged
   // pointers and without deoptimization info.
 
-  if (deoptimization_info_.size() < 2) return;
+  if (entries_.size() < 2) return;
 
   // Check that all entries (1, size] are identical to entry 0.
-  const DeoptimizationInfo& first_info = deoptimization_info_.front();
-  auto is_identical_except_for_pc = [](const DeoptimizationInfo& info1,
-                                       const DeoptimizationInfo& info2) {
-    if (info1.deopt_index != info2.deopt_index) return false;
-    DCHECK_EQ(info1.trampoline, info2.trampoline);
+  const EntryBuilder& first_entry = entries_.front();
+  auto is_identical_except_for_pc = [](const EntryBuilder& entry1,
+                                       const EntryBuilder& entry2) {
+    if (entry1.deopt_index != entry2.deopt_index) return false;
+    DCHECK_EQ(entry1.trampoline, entry2.trampoline);
 
-    ZoneChunkList<int>* indexes1 = info1.stack_indexes;
-    ZoneChunkList<int>* indexes2 = info2.stack_indexes;
+    ZoneChunkList<int>* indexes1 = entry1.stack_indexes;
+    ZoneChunkList<int>* indexes2 = entry2.stack_indexes;
     if (indexes1->size() != indexes2->size()) return false;
     if (!std::equal(indexes1->begin(), indexes1->end(), indexes2->begin())) {
       return false;
     }
 
-    if (info1.register_indexes != info2.register_indexes) return false;
+    if (entry1.register_indexes != entry2.register_indexes) return false;
 
     return true;
   };
 
-  if (std::all_of(deoptimization_info_.Find(1), deoptimization_info_.end(),
-                  [&](const DeoptimizationInfo& info) {
-                    return is_identical_except_for_pc(first_info, info);
+  if (std::all_of(entries_.Find(1), entries_.end(),
+                  [&](const EntryBuilder& entry) {
+                    return is_identical_except_for_pc(first_entry, entry);
                   })) {
     // All entries were identical. Rewind the list to just one
     // entry, and set the pc to -1.
-    deoptimization_info_.Rewind(1);
-    deoptimization_info_.front().pc = -1;
+    entries_.Rewind(1);
+    entries_.front().pc = -1;
   }
 }
 
@@ -235,8 +228,8 @@ void SafepointTableBuilder::TrimEntries(int* bits_per_entry) {
   int min_index = *bits_per_entry;
   if (min_index == 0) return;  // Early exit: nothing to trim.
 
-  for (auto& info : deoptimization_info_) {
-    for (int idx : *info.stack_indexes) {
+  for (auto& entry : entries_) {
+    for (int idx : *entry.stack_indexes) {
       DCHECK_GT(*bits_per_entry, idx);  // Validity check.
       if (idx >= min_index) continue;
       if (idx == 0) return;  // Early exit: nothing to trim.
@@ -246,8 +239,8 @@ void SafepointTableBuilder::TrimEntries(int* bits_per_entry) {
 
   DCHECK_LT(0, min_index);
   *bits_per_entry -= min_index;
-  for (auto& info : deoptimization_info_) {
-    for (int& idx : *info.stack_indexes) {
+  for (auto& entry : entries_) {
+    for (int& idx : *entry.stack_indexes) {
       idx -= min_index;
     }
   }

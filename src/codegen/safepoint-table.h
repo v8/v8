@@ -211,16 +211,18 @@ class Safepoint {
 
 class SafepointTableBuilder {
  public:
-  explicit SafepointTableBuilder(Zone* zone)
-      : deoptimization_info_(zone),
-        emitted_(false),
-        zone_(zone) {}
+  explicit SafepointTableBuilder(Zone* zone) : entries_(zone), zone_(zone) {}
 
   SafepointTableBuilder(const SafepointTableBuilder&) = delete;
   SafepointTableBuilder& operator=(const SafepointTableBuilder&) = delete;
 
+  bool emitted() const { return offset_ != -1; }
+
   // Get the offset of the emitted safepoint table in the code.
-  int GetCodeOffset() const;
+  int GetCodeOffset() const {
+    DCHECK(emitted());
+    return offset_;
+  }
 
   // Define a new safepoint for the current position in the body.
   Safepoint DefineSafepoint(Assembler* assembler);
@@ -237,13 +239,13 @@ class SafepointTableBuilder {
                                int deopt_index);
 
  private:
-  struct DeoptimizationInfo {
+  struct EntryBuilder {
     int pc;
     int deopt_index;
     int trampoline;
     ZoneChunkList<int>* stack_indexes;
     uint32_t register_indexes;
-    DeoptimizationInfo(Zone* zone, int pc)
+    EntryBuilder(Zone* zone, int pc)
         : pc(pc),
           deopt_index(SafepointEntry::kNoDeoptIndex),
           trampoline(SafepointEntry::kNoTrampolinePC),
@@ -259,10 +261,9 @@ class SafepointTableBuilder {
   // {bits_per_entry}).
   void TrimEntries(int* bits_per_entry);
 
-  ZoneChunkList<DeoptimizationInfo> deoptimization_info_;
+  ZoneChunkList<EntryBuilder> entries_;
 
-  int offset_;
-  bool emitted_;
+  int offset_ = -1;
 
   Zone* zone_;
 };
