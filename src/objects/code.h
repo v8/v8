@@ -825,7 +825,7 @@ class DependentCode : public WeakArrayList {
 
   void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroups groups);
 
-  bool MarkCodeForDeoptimization(DependencyGroups groups);
+  bool MarkCodeForDeoptimization(DependencyGroups deopt_groups);
 
   V8_EXPORT_PRIVATE static DependentCode empty_dependent_code(
       const ReadOnlyRoots& roots);
@@ -849,6 +849,11 @@ class DependentCode : public WeakArrayList {
                                               Handle<DependentCode> entries,
                                               DependencyGroups groups,
                                               Handle<Code> code);
+
+  // The callback is called for all non-cleared entries, and should return true
+  // iff the current entry should be cleared.
+  using IterateAndCompactFn = std::function<bool(CodeT, DependencyGroups)>;
+  void IterateAndCompact(const IterateAndCompactFn& fn);
 
   // Fills the given entry with the last non-cleared entry in this list, and
   // returns the new length after the last non-cleared entry has been moved.

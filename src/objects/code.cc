@@ -800,6 +800,11 @@ void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
 Handle<DependentCode> DependentCode::InsertWeakCode(
     Isolate* isolate, Handle<DependentCode> entries, DependencyGroups groups,
     Handle<Code> code) {
+  if (entries->length() == entries->capacity()) {
+    // We'd have to grow - try to compact first.
+    entries->IterateAndCompact([](CodeT, DependencyGroups) { return false; });
+  }
+
   MaybeObjectHandle code_slot(HeapObjectReference::Weak(ToCodeT(*code)),
                               isolate);
   MaybeObjectHandle group_slot(MaybeObject::FromSmi(Smi::FromInt(groups)),
@@ -819,19 +824,17 @@ Handle<DependentCode> DependentCode::New(Isolate* isolate,
   return result;
 }
 
-bool DependentCode::MarkCodeForDeoptimization(
-    DependentCode::DependencyGroups groups) {
+void DependentCode::IterateAndCompact(const IterateAndCompactFn& fn) {
   DisallowGarbageCollection no_gc;
 
   int len = length();
-  if (len == 0) return false;
+  if (len == 0) return;
 
   // We compact during traversal, thus use a somewhat custom loop construct:
   //
-  // - Loop back-to-front s.t. trailing deoptimized entries can simply drop off
+  // - Loop back-to-front s.t. trailing cleared entries can simply drop off
   //   the back of the list.
-  // - Any cleared or deoptimized slots are filled from the back of the list.
-  bool marked_something = false;
+  // - Any cleared slots are filled from the back of the list.
   int i = len - kSlotsPerEntry;
   while (i >= 0) {
     MaybeObject obj = Get(i + kCodeSlotOffset);
@@ -841,23 +844,36 @@ bool DependentCode::MarkCodeForDeoptimization(
       continue;
     }
 
-    if ((Get(i + kGroupsSlotOffset).ToSmi().value() & groups) == 0) {
-      i -= kSlotsPerEntry;
-      continue;
+    if (fn(CodeT::cast(obj->GetHeapObjectAssumeWeak()),
+           static_cast<DependencyGroups>(
+               Get(i + kGroupsSlotOffset).ToSmi().value()))) {
+      len = FillEntryFromBack(i, len);
     }
 
+    i -= kSlotsPerEntry;
+  }
+
+  set_length(len);
+}
+
+bool DependentCode::MarkCodeForDeoptimization(
+    DependentCode::DependencyGroups deopt_groups) {
+  DisallowGarbageCollection no_gc;
+
+  bool marked_something = false;
+  IterateAndCompact([&](CodeT codet, DependencyGroups groups) {
+    if ((groups & deopt_groups) == 0) return false;
+
     // TODO(v8:11880): avoid roundtrips between cdc and code.
-    Code code = FromCodeT(CodeT::cast(obj->GetHeapObjectAssumeWeak()));
+    Code code = FromCodeT(codet);
     if (!code.marked_for_deoptimization()) {
       code.SetMarkedForDeoptimization("code dependencies");
       marked_something = true;
     }
 
-    len = FillEntryFromBack(i, len);
-    i -= kSlotsPerEntry;
-  }
+    return true;
+  });
 
-  set_length(len);
   return marked_something;
 }
 
