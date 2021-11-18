@@ -717,6 +717,7 @@ DEFINE_BOOL(concurrent_sparkplug, false,
 DEFINE_BOOL(baseline_batch_compilation, false, "batch compile Sparkplug code")
 DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
                      "compile Sparkplug code in a background thread")
+DEFINE_WEAK_IMPLICATION(future, concurrent_sparkplug)
 #endif
 DEFINE_STRING(sparkplug_filter, "*", "filter for Sparkplug baseline compiler")
 DEFINE_BOOL(sparkplug_needs_short_builtins, false,
