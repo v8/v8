@@ -252,10 +252,6 @@ class SafepointTableBuilder {
           register_indexes(0) {}
   };
 
-  // Compares all fields of a {DeoptimizationInfo} except {pc} and {trampoline}.
-  bool IsIdenticalExceptForPc(const DeoptimizationInfo&,
-                              const DeoptimizationInfo&) const;
-
   // If all entries are identical, replace them by 1 entry with pc = kMaxUInt32.
   void RemoveDuplicates();
 

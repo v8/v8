@@ -94,19 +94,38 @@ int SafepointTableBuilder::GetCodeOffset() const {
 int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
                                                     int start,
                                                     int deopt_index) {
+  DCHECK_NE(SafepointEntry::kNoTrampolinePC, trampoline);
+  DCHECK_NE(SafepointEntry::kNoDeoptIndex, deopt_index);
+  auto it = deoptimization_info_.Find(start);
+  DCHECK(std::any_of(it, deoptimization_info_.end(),
+                     [pc](auto& info) { return info.pc == pc; }));
   int index = start;
-  for (auto it = deoptimization_info_.Find(start);
-       it != deoptimization_info_.end(); it++, index++) {
-    if (it->pc == pc) {
-      it->trampoline = trampoline;
-      it->deopt_index = deopt_index;
-      return index;
-    }
-  }
-  UNREACHABLE();
+  while (it->pc != pc) ++it, ++index;
+  it->trampoline = trampoline;
+  it->deopt_index = deopt_index;
+  return index;
 }
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
+#ifdef DEBUG
+  int last_pc = -1;
+  int last_trampoline = -1;
+  for (const DeoptimizationInfo& info : deoptimization_info_) {
+    // Entries are ordered by PC.
+    DCHECK_LT(last_pc, info.pc);
+    last_pc = info.pc;
+    // Trampoline PCs are increasing, and larger than regular PCs.
+    if (info.trampoline != SafepointEntry::kNoTrampolinePC) {
+      DCHECK_LT(last_trampoline, info.trampoline);
+      DCHECK_LT(deoptimization_info_.back().pc, info.trampoline);
+      last_trampoline = info.trampoline;
+    }
+    // An entry either has trampoline and deopt index, or none of the two.
+    DCHECK_EQ(info.trampoline == SafepointEntry::kNoTrampolinePC,
+              info.deopt_index == SafepointEntry::kNoDeoptIndex);
+  }
+#endif  // DEBUG
+
   RemoveDuplicates();
   TrimEntries(&bits_per_entry);
 
@@ -184,15 +203,32 @@ void SafepointTableBuilder::RemoveDuplicates() {
 
   // Check that all entries (1, size] are identical to entry 0.
   const DeoptimizationInfo& first_info = deoptimization_info_.front();
-  for (auto it = deoptimization_info_.Find(1); it != deoptimization_info_.end();
-       it++) {
-    if (!IsIdenticalExceptForPc(first_info, *it)) return;
-  }
+  auto is_identical_except_for_pc = [](const DeoptimizationInfo& info1,
+                                       const DeoptimizationInfo& info2) {
+    if (info1.deopt_index != info2.deopt_index) return false;
+    DCHECK_EQ(info1.trampoline, info2.trampoline);
 
-  // If we get here, all entries were identical. Rewind the list to just one
-  // entry, and set the pc to -1.
-  deoptimization_info_.Rewind(1);
-  deoptimization_info_.front().pc = -1;
+    ZoneChunkList<int>* indexes1 = info1.stack_indexes;
+    ZoneChunkList<int>* indexes2 = info2.stack_indexes;
+    if (indexes1->size() != indexes2->size()) return false;
+    if (!std::equal(indexes1->begin(), indexes1->end(), indexes2->begin())) {
+      return false;
+    }
+
+    if (info1.register_indexes != info2.register_indexes) return false;
+
+    return true;
+  };
+
+  if (std::all_of(deoptimization_info_.Find(1), deoptimization_info_.end(),
+                  [&](const DeoptimizationInfo& info) {
+                    return is_identical_except_for_pc(first_info, info);
+                  })) {
+    // All entries were identical. Rewind the list to just one
+    // entry, and set the pc to -1.
+    deoptimization_info_.Rewind(1);
+    deoptimization_info_.front().pc = -1;
+  }
 }
 
 void SafepointTableBuilder::TrimEntries(int* bits_per_entry) {
@@ -215,22 +251,6 @@ void SafepointTableBuilder::TrimEntries(int* bits_per_entry) {
       idx -= min_index;
     }
   }
-}
-
-bool SafepointTableBuilder::IsIdenticalExceptForPc(
-    const DeoptimizationInfo& info1, const DeoptimizationInfo& info2) const {
-  if (info1.deopt_index != info2.deopt_index) return false;
-
-  ZoneChunkList<int>* indexes1 = info1.stack_indexes;
-  ZoneChunkList<int>* indexes2 = info2.stack_indexes;
-  if (indexes1->size() != indexes2->size()) return false;
-  if (!std::equal(indexes1->begin(), indexes1->end(), indexes2->begin())) {
-    return false;
-  }
-
-  if (info1.register_indexes != info2.register_indexes) return false;
-
-  return true;
 }
 
 }  // namespace internal
