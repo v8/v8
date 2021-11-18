@@ -589,18 +589,33 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallUnnestedLoopFromHeader(
       case IrOpcode::kTailCall:
       case IrOpcode::kJSWasmCall:
       case IrOpcode::kJSCall:
-        // Call nodes are considered to have unbounded size, i.e. >max_size.
-        // An exception is the call to the stack guard builtin at the beginning
-        // of many loops.
+        // Call nodes are considered to have unbounded size, i.e. >max_size,
+        // with the exception of certain wasm builtins.
         return nullptr;
       case IrOpcode::kCall: {
         Node* callee = node->InputAt(0);
-        if (callee->opcode() == IrOpcode::kRelocatableInt32Constant ||
-            callee->opcode() == IrOpcode::kRelocatableInt64Constant) {
-          auto info = OpParameter<RelocatablePtrConstantInfo>(callee->op());
-          if (info.value() != v8::internal::wasm::WasmCode::kWasmStackGuard) {
-            return nullptr;
-          }
+        if (callee->opcode() != IrOpcode::kRelocatableInt32Constant &&
+            callee->opcode() != IrOpcode::kRelocatableInt64Constant) {
+          return nullptr;
+        }
+        intptr_t info =
+            OpParameter<RelocatablePtrConstantInfo>(callee->op()).value();
+        using WasmCode = v8::internal::wasm::WasmCode;
+        constexpr intptr_t unrollable_builtins[] = {
+            WasmCode::kWasmStackGuard,
+            WasmCode::kWasmTableGet,
+            WasmCode::kWasmTableSet,
+            WasmCode::kWasmTableGrow,
+            WasmCode::kWasmThrow,
+            WasmCode::kWasmRethrow,
+            WasmCode::kWasmRethrowExplicitContext,
+            WasmCode::kWasmRefFunc,
+            WasmCode::kWasmAllocateRtt,
+            WasmCode::kWasmAllocateFreshRtt};
+        if (std::count(unrollable_builtins,
+                       unrollable_builtins + arraysize(unrollable_builtins),
+                       info) == 0) {
+          return nullptr;
         }
         V8_FALLTHROUGH;
       }
