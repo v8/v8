@@ -1,0 +1,8 @@
+Test that all 'other' reasons are explicitly encoded on a pause event if they overlap with another reason
+
+Running test: testBreakpointPauseReason
+Paused with reason: instrumentation and data: {"url":"foo.js","scriptId":"3"}.
+Paused with reason: other and data: {}.
+
+Running test: testTriggeredPausePauseReason
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"foo.js","scriptId":"4"}},{"reason":"other"}]}.
