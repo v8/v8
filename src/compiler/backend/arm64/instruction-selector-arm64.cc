@@ -3554,11 +3554,15 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Add, kArm64FAdd, 64)                          \
   V(F64x2Sub, kArm64FSub, 64)                          \
   V(F64x2Div, kArm64FDiv, 64)                          \
+  V(F64x2RelaxedMin, kArm64FMin, 64)                   \
+  V(F64x2RelaxedMax, kArm64FMax, 64)                   \
   V(F32x4Min, kArm64FMin, 32)                          \
   V(F32x4Max, kArm64FMax, 32)                          \
   V(F32x4Add, kArm64FAdd, 32)                          \
   V(F32x4Sub, kArm64FSub, 32)                          \
   V(F32x4Div, kArm64FDiv, 32)                          \
+  V(F32x4RelaxedMin, kArm64FMin, 32)                   \
+  V(F32x4RelaxedMax, kArm64FMax, 32)                   \
   V(I64x2Sub, kArm64ISub, 64)                          \
   V(I32x4GtU, kArm64IGtU, 32)                          \
   V(I32x4GeU, kArm64IGeU, 32)                          \

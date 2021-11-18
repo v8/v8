@@ -313,9 +313,7 @@ WASM_RELAXED_SIMD_TEST(I64x2RelaxedLaneSelect) {
   RelaxedLaneSelectTest<uint64_t, kElems>(execution_tier, v1, v2, s, expected,
                                           kExprI64x2RelaxedLaneSelect);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 WASM_RELAXED_SIMD_TEST(F32x4RelaxedMin) {
   RunF32x4BinOpTest(execution_tier, kExprF32x4RelaxedMin, Minimum);
 }
@@ -331,7 +329,9 @@ WASM_RELAXED_SIMD_TEST(F64x2RelaxedMin) {
 WASM_RELAXED_SIMD_TEST(F64x2RelaxedMax) {
   RunF64x2BinOpTest(execution_tier, kExprF64x2RelaxedMax, Maximum);
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 namespace {
 // For relaxed trunc instructions, don't test out of range values.
 // FloatType comes later so caller can rely on template argument deduction and
