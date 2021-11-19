@@ -1150,6 +1150,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       buffer->pushed_nodes[stack_index] = param;
       pushed_count++;
     } else {
+      if (location.IsNullRegister()) {
+        EmitMoveFPRToParam(&op, location);
+      };
       buffer->instruction_args.push_back(op);
     }
   }
@@ -2836,14 +2839,18 @@ void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 void InstructionSelector::VisitParameter(Node* node) {
   OperandGenerator g(this);
   int index = ParameterIndexOf(node->op());
-  InstructionOperand op =
-      linkage()->ParameterHasSecondaryLocation(index)
-          ? g.DefineAsDualLocation(
-                node, linkage()->GetParameterLocation(index),
-                linkage()->GetParameterSecondaryLocation(index))
-          : g.DefineAsLocation(node, linkage()->GetParameterLocation(index));
 
-  Emit(kArchNop, op);
+  if (linkage()->GetParameterLocation(index).IsNullRegister()) {
+    EmitMoveParamToFPR(node, index);
+  } else {
+    InstructionOperand op =
+        linkage()->ParameterHasSecondaryLocation(index)
+            ? g.DefineAsDualLocation(
+                  node, linkage()->GetParameterLocation(index),
+                  linkage()->GetParameterSecondaryLocation(index))
+            : g.DefineAsLocation(node, linkage()->GetParameterLocation(index));
+    Emit(kArchNop, op);
+  }
 }
 
 namespace {

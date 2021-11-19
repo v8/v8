@@ -288,6 +288,11 @@ class OperandGenerator {
                               InstructionOperand::kInvalidVirtualRegister);
   }
 
+  InstructionOperand TempRegister(int code) {
+    return UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER, code,
+                              sequence()->NextVirtualRegister());
+  }
+
   template <typename FPRegType>
   InstructionOperand TempFpRegister(FPRegType reg) {
     UnallocatedOperand op =
@@ -429,7 +434,7 @@ class OperandGenerator {
 
   UnallocatedOperand ToUnallocatedOperand(LinkageLocation location,
                                           int virtual_register) {
-    if (location.IsAnyRegister()) {
+    if (location.IsAnyRegister() || location.IsNullRegister()) {
       // any machine register.
       return UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                 virtual_register);

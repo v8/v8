@@ -1664,6 +1664,23 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
       ->MarkAsCall();
 }
 
+void InstructionSelector::EmitMoveParamToFPR(Node* node, int32_t index) {
+  OperandGenerator g(this);
+  int count = linkage()->GetParameterLocation(index).GetLocation();
+  InstructionOperand out_op = g.TempRegister(-count);
+  Emit(kArchNop, out_op);
+  Emit(kLoong64BitcastLD, g.DefineAsRegister(node), out_op);
+}
+
+void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
+                                             LinkageLocation location) {
+  OperandGenerator g(this);
+  int count = location.GetLocation();
+  InstructionOperand new_op = g.TempRegister(-count);
+  Emit(kLoong64BitcastDL, new_op, *op);
+  *op = new_op;
+}
+
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
@@ -1671,8 +1688,10 @@ void InstructionSelector::EmitPrepareArguments(
 
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
-    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
-                                         call_descriptor->ParameterCount())),
+    int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
+    int fp_param_count = static_cast<int>(call_descriptor->FPParameterCount());
+    Emit(kArchPrepareCallCFunction | ParamField::encode(gp_param_count) |
+             FPParamField::encode(fp_param_count),
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.

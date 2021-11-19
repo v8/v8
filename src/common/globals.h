@@ -86,12 +86,16 @@ namespace internal {
 #endif
 
 // Helper macros to enable handling of direct C calls in the simulator.
-#if defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_ARM64)
+#if defined(USE_SIMULATOR) &&                                           \
+    (defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64) || \
+     defined(V8_TARGET_ARCH_LOONG64))
 #define V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 #define V8_IF_USE_SIMULATOR(V) , V
 #else
 #define V8_IF_USE_SIMULATOR(V)
-#endif  // defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_ARM64)
+#endif  // defined(USE_SIMULATOR) && \
+        // (defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64) || \
+        // defined(V8_TARGET_ARCH_LOONG64))
 
 // Minimum stack size in KB required by compilers.
 constexpr int kStackSpaceRequiredForCompilation = 40;
