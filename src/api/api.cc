@@ -7858,6 +7858,37 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
+MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
+    Isolate* isolate, MemorySpan<const uint8_t> wire_bytes) {
+#if V8_ENABLE_WEBASSEMBLY
+  const uint8_t* start = wire_bytes.data();
+  size_t length = wire_bytes.size();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
+    return MaybeLocal<WasmModuleObject>();
+  }
+  i::MaybeHandle<i::JSObject> maybe_compiled;
+  {
+    i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
+    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
+    maybe_compiled = i::wasm::GetWasmEngine()->SyncCompile(
+        i_isolate, enabled_features, &thrower,
+        i::wasm::ModuleWireBytes(start, start + length));
+  }
+  CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_pending_exception());
+  if (maybe_compiled.is_null()) {
+    i_isolate->OptionalRescheduleException(false);
+    return MaybeLocal<WasmModuleObject>();
+  }
+  return Local<WasmModuleObject>::Cast(
+      Utils::ToLocal(maybe_compiled.ToHandleChecked()));
+#else
+  Utils::ApiCheck(false, "WasmModuleObject::Compile",
+                  "WebAssembly support is not enabled.");
+  UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
     Isolate* isolate) {
   USE(isolate_);
