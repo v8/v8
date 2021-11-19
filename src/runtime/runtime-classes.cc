@@ -629,7 +629,12 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
 
   Handle<JSObject> prototype = CreateClassPrototype(isolate);
   DCHECK_EQ(*constructor, args[ClassBoilerplate::kConstructorArgumentIndex]);
-  args.set_at(ClassBoilerplate::kPrototypeArgumentIndex, *prototype);
+  // Temporarily change ClassBoilerplate::kPrototypeArgumentIndex for the
+  // subsequent calls, but use a scope to make sure to change it back before
+  // returning, to not corrupt the caller's argument frame (in particular, for
+  // the interpreter, to not clobber the register frame).
+  RuntimeArguments::ChangeValueScope set_prototype_value_scope(
+      isolate, &args, ClassBoilerplate::kPrototypeArgumentIndex, *prototype);
 
   if (!InitClassConstructor(isolate, class_boilerplate, constructor_parent,
                             constructor, args) ||
