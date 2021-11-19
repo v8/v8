@@ -129,6 +129,10 @@
 #include "src/heap/conservative-stack-visitor.h"
 #endif
 
+#if USE_SIMULATOR
+#include "src/execution/simulator-base.h"
+#endif
+
 extern "C" const uint8_t* v8_Default_embedded_blob_code_;
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
 extern "C" const uint8_t* v8_Default_embedded_blob_data_;
@@ -3264,6 +3268,11 @@ void Isolate::Deinit() {
 
   string_table_.reset();
 
+#if USE_SIMULATOR
+  delete simulator_data_;
+  simulator_data_ = nullptr;
+#endif
+
   // After all concurrent tasks are stopped, we know for sure that stats aren't
   // updated anymore.
   DumpAndResetStats();
@@ -3732,6 +3741,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         this, V8::GetCurrentPlatform(), FLAG_stack_size);
   }
   baseline_batch_compiler_ = new baseline::BaselineBatchCompiler(this);
+
+#if USE_SIMULATOR
+  simulator_data_ = new SimulatorData;
+#endif
 
   // Enable logging before setting up the heap
   logger_->SetUp(this);

@@ -591,6 +591,14 @@ V8 shared library set USING_V8_SHARED.
 #define V8_CAGED_POINTERS
 #endif
 
+// Helper macros to enable handling of direct C calls in the simulator.
+#if (V8_TARGET_ARCH_ARM64 && !V8_HOST_ARCH_ARM64)
+#define V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+#define V8_IF_USE_SIMULATOR(V) , V
+#else
+#define V8_IF_USE_SIMULATOR(V)
+#endif  // (V8_TARGET_ARCH_ARM64 && !V8_HOST_ARCH_ARM64)
+
 // clang-format on
 
 #undef V8_HAS_CPP_ATTRIBUTE

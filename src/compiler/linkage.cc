@@ -208,6 +208,25 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
   UNREACHABLE();
 }
 
+EncodedCSignature CallDescriptor::ToEncodedCSignature() const {
+  int parameter_count = static_cast<int>(ParameterCount());
+  EncodedCSignature sig(parameter_count);
+  CHECK_LT(parameter_count, EncodedCSignature::kInvalidParamCount);
+
+  for (int i = 0; i < parameter_count; ++i) {
+    if (IsFloatingPoint(GetParameterType(i).representation())) {
+      sig.SetFloat(i);
+    }
+  }
+  if (ReturnCount() > 0) {
+    DCHECK_EQ(1, ReturnCount());
+    if (IsFloatingPoint(GetReturnType(0).representation())) {
+      sig.SetFloat(EncodedCSignature::kReturnIndex);
+    }
+  }
+  return sig;
+}
+
 void CallDescriptor::ComputeParamCounts() const {
   gp_param_count_ = 0;
   fp_param_count_ = 0;
