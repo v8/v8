@@ -137,7 +137,8 @@ try_builder(
     name = "v8_linux_arm_lite_compile_dbg",
     bucket = "try",
     cq_properties = CQ.BLOCK,
-    cq_branch_properties = CQ.BLOCK,
+    # Make blocking after M99.
+    cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
 )
