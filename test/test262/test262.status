@@ -342,6 +342,10 @@
   'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-resolved-time-zone': [FAIL],
   'intl402/DateTimeFormat/prototype/format/temporal-objects-resolved-time-zone': [FAIL],
   'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-resolved-time-zone': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10776
   'intl402/NumberFormat/constructor-options-roundingMode-invalid': [FAIL],
