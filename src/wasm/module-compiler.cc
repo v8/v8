@@ -3185,6 +3185,11 @@ void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
 
 void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
     base::Vector<const int> missing_functions) {
+  TRACE_EVENT1("v8.wasm", "wasm.CompilationAfterDeserialization",
+               "num_missing_functions", missing_functions.size());
+  TimedHistogramScope lazy_compile_time_scope(
+      counters()->wasm_compile_after_deserialize());
+
   auto* module = native_module_->module();
   auto enabled_features = native_module_->enabled_features();
   const bool lazy_module = IsLazyModule(module);
