@@ -1321,9 +1321,7 @@ Type Typer::Visitor::TypeJSGetTemplateObject(Node* node) {
   return Type::Array();
 }
 
-Type Typer::Visitor::TypeJSLoadProperty(Node* node) {
-  return Type::NonInternal();
-}
+Type Typer::Visitor::TypeJSLoadProperty(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeJSLoadNamed(Node* node) { return Type::NonInternal(); }
 
