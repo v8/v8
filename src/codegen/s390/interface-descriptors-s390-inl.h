@@ -211,8 +211,7 @@ constexpr auto CompareDescriptor::registers() { return RegisterArray(r3, r2); }
 
 // static
 constexpr auto Compare_BaselineDescriptor::registers() {
-  // TODO(v8:11421): Implement on this platform.
-  return DefaultRegisterArray();
+  return RegisterArray(r3, r2, r4);
 }
 
 // static
@@ -220,8 +219,7 @@ constexpr auto BinaryOpDescriptor::registers() { return RegisterArray(r3, r2); }
 
 // static
 constexpr auto BinaryOp_BaselineDescriptor::registers() {
-  // TODO(v8:11421): Implement on this platform.
-  return DefaultRegisterArray();
+  return RegisterArray(r3, r2, r4);
 }
 
 // static
