@@ -750,6 +750,10 @@ static const char* cpu_profiler_test_source =
 //     2     2    (program) [-1]
 //     6     6    (garbage collector) [-1]
 TEST(CollectCpuProfile) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::FLAG_concurrent_sparkplug) return;
+
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -779,6 +783,10 @@ TEST(CollectCpuProfile) {
 }
 
 TEST(CollectCpuProfileCallerLineNumbers) {
+  // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
+  // since it requires a precise trace.
+  if (i::FLAG_concurrent_sparkplug) return;
+
   i::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
