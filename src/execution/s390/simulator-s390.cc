@@ -4055,15 +4055,12 @@ EVALUATE(VSEL) {
   DECODE_VRR_E_INSTRUCTION(r1, r2, r3, r4, m6, m5);
   USE(m5);
   USE(m6);
-  fpr_t scratch = get_simd_register(r2);
-  fpr_t mask = get_simd_register(r4);
-  scratch.int64[0] ^= get_simd_register_by_lane<int64_t>(r3, 0);
-  scratch.int64[1] ^= get_simd_register_by_lane<int64_t>(r3, 1);
-  mask.int64[0] &= scratch.int64[0];
-  mask.int64[1] &= scratch.int64[1];
-  mask.int64[0] ^= get_simd_register_by_lane<int64_t>(r3, 0);
-  mask.int64[1] ^= get_simd_register_by_lane<int64_t>(r3, 1);
-  set_simd_register(r1, mask);
+  unsigned __int128 src_1 = bit_cast<__int128>(get_simd_register(r2).int8);
+  unsigned __int128 src_2 = bit_cast<__int128>(get_simd_register(r3).int8);
+  unsigned __int128 src_3 = bit_cast<__int128>(get_simd_register(r4).int8);
+  unsigned __int128 tmp = (src_1 & src_3) | (src_2 & ~src_3);
+  fpr_t* result = bit_cast<fpr_t*>(&tmp);
+  set_simd_register(r1, *result);
   return length;
 }
 

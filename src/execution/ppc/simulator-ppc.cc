@@ -4931,14 +4931,12 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int vra = instr->RAValue();
       int vrb = instr->RBValue();
       int vrc = instr->RCValue();
-      FOR_EACH_LANE(i, int64_t) {
-        int64_t vra_val = get_simd_register_by_lane<int64_t>(vra, i);
-        int64_t vrb_val = get_simd_register_by_lane<int64_t>(vrb, i);
-        int64_t mask = get_simd_register_by_lane<int64_t>(vrc, i);
-        int64_t temp = vra_val ^ vrb_val;
-        temp = temp & mask;
-        set_simd_register_by_lane<int64_t>(vrt, i, temp ^ vra_val);
-      }
+      unsigned __int128 src_1 = bit_cast<__int128>(get_simd_register(vra).int8);
+      unsigned __int128 src_2 = bit_cast<__int128>(get_simd_register(vrb).int8);
+      unsigned __int128 src_3 = bit_cast<__int128>(get_simd_register(vrc).int8);
+      unsigned __int128 tmp = (src_1 & ~src_3) | (src_2 & src_3);
+      simdr_t* result = bit_cast<simdr_t*>(&tmp);
+      set_simd_register(vrt, *result);
       break;
     }
     case VPERM: {
