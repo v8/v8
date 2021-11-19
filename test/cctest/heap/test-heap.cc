@@ -3327,12 +3327,12 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  CheckVectorIC(f, 0, MONOMORPHIC);
+  CheckVectorIC(f, 0, InlineCacheState::MONOMORPHIC);
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage();
 
-  CheckVectorIC(f, 0, MONOMORPHIC);
+  CheckVectorIC(f, 0, InlineCacheState::MONOMORPHIC);
 }
 
 TEST(IncrementalMarkingPreservesPolymorphicIC) {
@@ -3369,13 +3369,13 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  CheckVectorIC(f, 0, POLYMORPHIC);
+  CheckVectorIC(f, 0, InlineCacheState::POLYMORPHIC);
 
   // Fire context dispose notification.
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage();
 
-  CheckVectorIC(f, 0, POLYMORPHIC);
+  CheckVectorIC(f, 0, InlineCacheState::POLYMORPHIC);
 }
 
 TEST(ContextDisposeDoesntClearPolymorphicIC) {
@@ -3412,14 +3412,14 @@ TEST(ContextDisposeDoesntClearPolymorphicIC) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  CheckVectorIC(f, 0, POLYMORPHIC);
+  CheckVectorIC(f, 0, InlineCacheState::POLYMORPHIC);
 
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage();
 
-  CheckVectorIC(f, 0, POLYMORPHIC);
+  CheckVectorIC(f, 0, InlineCacheState::POLYMORPHIC);
 }
 
 
@@ -4758,12 +4758,12 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
     CompileRun("(testIC())");
   }
   CcTest::CollectAllGarbage();
-  CheckIC(loadIC, 0, MONOMORPHIC);
+  CheckIC(loadIC, 0, InlineCacheState::MONOMORPHIC);
   {
     v8::HandleScope new_scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC, 0, MONOMORPHIC);
+  CheckIC(loadIC, 0, InlineCacheState::MONOMORPHIC);
 }
 
 
@@ -4797,12 +4797,12 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
     CompileRun("(testIC())");
   }
   CcTest::CollectAllGarbage();
-  CheckIC(loadIC, 0, POLYMORPHIC);
+  CheckIC(loadIC, 0, InlineCacheState::POLYMORPHIC);
   {
     v8::HandleScope new_scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC, 0, POLYMORPHIC);
+  CheckIC(loadIC, 0, InlineCacheState::POLYMORPHIC);
 }
 
 #ifdef DEBUG

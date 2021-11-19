@@ -50,6 +50,18 @@
 namespace v8 {
 namespace internal {
 
+// Aliases to avoid having to repeat the class.
+// With C++20 we can use "using" to introduce scoped enums.
+constexpr InlineCacheState NO_FEEDBACK = InlineCacheState::NO_FEEDBACK;
+constexpr InlineCacheState UNINITIALIZED = InlineCacheState::UNINITIALIZED;
+constexpr InlineCacheState MONOMORPHIC = InlineCacheState::MONOMORPHIC;
+constexpr InlineCacheState RECOMPUTE_HANDLER =
+    InlineCacheState::RECOMPUTE_HANDLER;
+constexpr InlineCacheState POLYMORPHIC = InlineCacheState::POLYMORPHIC;
+constexpr InlineCacheState MEGAMORPHIC = InlineCacheState::MEGAMORPHIC;
+constexpr InlineCacheState MEGADOM = InlineCacheState::MEGADOM;
+constexpr InlineCacheState GENERIC = InlineCacheState::GENERIC;
+
 char IC::TransitionMarkFromState(IC::State state) {
   switch (state) {
     case NO_FEEDBACK:

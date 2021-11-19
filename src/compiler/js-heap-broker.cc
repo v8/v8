@@ -582,13 +582,14 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
   // If no maps were found for a non-megamorphic access, then our maps died
   // and we should soft-deopt.
-  if (maps.empty() && nexus.ic_state() != MEGAMORPHIC) {
+  if (maps.empty() && nexus.ic_state() != InlineCacheState::MEGAMORPHIC) {
     return NewInsufficientFeedback(kind);
   }
 
   if (name.has_value()) {
     // We rely on this invariant in JSGenericLowering.
-    DCHECK_IMPLIES(maps.empty(), nexus.ic_state() == MEGAMORPHIC);
+    DCHECK_IMPLIES(maps.empty(),
+                   nexus.ic_state() == InlineCacheState::MEGAMORPHIC);
     return *zone()->New<NamedAccessFeedback>(*name, maps, kind);
   } else if (nexus.GetKeyType() == IcCheckType::kElement && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
@@ -596,7 +597,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   } else {
     // No actionable feedback.
     DCHECK(maps.empty());
-    DCHECK_EQ(nexus.ic_state(), MEGAMORPHIC);
+    DCHECK_EQ(nexus.ic_state(), InlineCacheState::MEGAMORPHIC);
     // TODO(neis): Using ElementAccessFeedback here is kind of an abuse.
     return *zone()->New<ElementAccessFeedback>(
         zone(), KeyedAccessMode::FromNexus(nexus), kind);
@@ -611,7 +612,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
          nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
          nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
-  if (nexus.ic_state() != MONOMORPHIC || nexus.GetFeedback()->IsCleared()) {
+  if (nexus.ic_state() != InlineCacheState::MONOMORPHIC ||
+      nexus.GetFeedback()->IsCleared()) {
     return *zone()->New<GlobalAccessFeedback>(nexus.kind());
   }
 

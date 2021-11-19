@@ -35,8 +35,8 @@ bool IC::IsHandler(MaybeObject object) {
 }
 
 bool IC::vector_needs_update() {
-  if (state() == NO_FEEDBACK) return false;
-  return (!vector_set_ && (state() != MEGAMORPHIC ||
+  if (state() == InlineCacheState::NO_FEEDBACK) return false;
+  return (!vector_set_ && (state() != InlineCacheState::MEGAMORPHIC ||
                            nexus()->GetKeyType() != IcCheckType::kElement));
 }
 

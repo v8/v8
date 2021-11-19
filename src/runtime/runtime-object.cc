@@ -1095,14 +1095,14 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
     DCHECK(maybe_vector->IsFeedbackVector());
     Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
     FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
-    if (nexus.ic_state() == UNINITIALIZED) {
+    if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
       if (name->IsUniqueName()) {
         nexus.ConfigureMonomorphic(name, handle(object->map(), isolate),
                                    MaybeObjectHandle());
       } else {
         nexus.ConfigureMegamorphic(IcCheckType::kProperty);
       }
-    } else if (nexus.ic_state() == MONOMORPHIC) {
+    } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
       if (nexus.GetFirstMap() != object->map() || nexus.GetName() != *name) {
         nexus.ConfigureMegamorphic(IcCheckType::kProperty);
       }

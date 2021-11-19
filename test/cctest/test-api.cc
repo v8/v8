@@ -10778,7 +10778,7 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
   CompileRun("foo(1)");
-  CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(i::InlineCacheState::MONOMORPHIC, nexus.ic_state());
   // We go a bit further, checking that the form of monomorphism is
   // a PropertyCell in the vector. This is because we want to make sure
   // we didn't settle for a "poor man's monomorphism," such as a
@@ -10828,7 +10828,7 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
   CompileRun("%OptimizeFunctionOnNextCall(foo); foo(1)");
-  CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
+  CHECK_EQ(i::InlineCacheState::MONOMORPHIC, nexus.ic_state());
   i::HeapObject heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
   CHECK(heap_object.IsPropertyCell());
