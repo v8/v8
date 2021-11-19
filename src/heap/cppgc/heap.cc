@@ -132,7 +132,6 @@ void Heap::StartIncrementalGarbageCollection(Config config) {
 }
 
 void Heap::FinalizeIncrementalGarbageCollectionIfRunning(Config config) {
-  DCHECK_NE(marking_support_, MarkingType::kAtomic);
   CheckConfig(config, marking_support_, sweeping_support_);
 
   if (!IsMarking()) return;
