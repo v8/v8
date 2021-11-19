@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -284,6 +285,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void UnparkSlowPath();
   void EnsureParkedBeforeDestruction();
   void SafepointSlowPath();
+  void SleepInSafepoint();
+  void SleepInUnpark();
 
   void EnsurePersistentHandles();
 
@@ -315,10 +318,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   friend class CollectionBarrier;
   friend class ConcurrentAllocator;
+  friend class GlobalSafepoint;
   friend class IsolateSafepoint;
   friend class Heap;
   friend class Isolate;
   friend class ParkedScope;
+  friend class SafepointScope;
   friend class UnparkedScope;
 };
 

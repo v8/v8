@@ -67,6 +67,7 @@
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/paged-spaces-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -1914,6 +1915,7 @@ void Heap::StartIncrementalMarking(int gc_flags,
 
   {
     AllowGarbageCollection allow_shared_gc;
+    IgnoreLocalGCRequests ignore_gc_requests(this);
     safepoint_scope.emplace(this);
   }
 
@@ -2152,6 +2154,7 @@ size_t Heap::PerformGarbageCollection(
 
   {
     AllowGarbageCollection allow_shared_gc;
+    IgnoreLocalGCRequests ignore_gc_requests(this);
     safepoint_scope.emplace(this);
   }
 
@@ -3414,6 +3417,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
 
     {
       AllowGarbageCollection allow_gc;
+      IgnoreLocalGCRequests ignore_gc_requests(this);
       safepoint_scope.emplace(this);
     }
 
@@ -3559,8 +3563,14 @@ void Heap::FreeSharedLinearAllocationAreas() {
   safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->FreeSharedLinearAllocationArea();
   });
+  FreeMainThreadSharedLinearAllocationAreas();
+}
+
+void Heap::FreeMainThreadSharedLinearAllocationAreas() {
+  if (!isolate()->shared_isolate()) return;
   shared_old_allocator_->FreeLinearAllocationArea();
   shared_map_allocator_->FreeLinearAllocationArea();
+  main_thread_local_heap()->FreeSharedLinearAllocationArea();
 }
 
 namespace {
@@ -3778,6 +3788,7 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
   TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
                  ThreadKind::kMain);
 
+  IgnoreLocalGCRequests ignore_gc_requests(this);
   SafepointScope safepoint(this);
   InvokeIncrementalMarkingPrologueCallbacks();
   incremental_marking()->FinalizeIncrementally();
@@ -4202,6 +4213,7 @@ std::unique_ptr<v8::MeasureMemoryDelegate> Heap::MeasureMemoryDelegate(
 
 void Heap::CollectCodeStatistics() {
   TRACE_EVENT0("v8", "Heap::CollectCodeStatistics");
+  IgnoreLocalGCRequests ignore_gc_requests(this);
   SafepointScope safepoint_scope(this);
   MakeHeapIterable();
   CodeStatistics::ResetCodeAndMetadataStatistics(isolate());
@@ -4415,6 +4427,7 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
 #ifdef VERIFY_HEAP
 void Heap::Verify() {
   CHECK(HasBeenSetUp());
+  IgnoreLocalGCRequests ignore_gc_requests(this);
   SafepointScope safepoint_scope(this);
   HandleScope scope(isolate());
 
@@ -5507,14 +5520,16 @@ HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
   isolate()->counters()->gc_last_resort_from_handles()->Increment();
   if (IsSharedAllocationType(allocation)) {
     CollectSharedGarbage(GarbageCollectionReason::kLastResort);
+
+    AlwaysAllocateScope scope(isolate()->shared_isolate()->heap());
+    alloc = AllocateRaw(size, allocation, origin, alignment);
   } else {
     CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
-  }
 
-  {
     AlwaysAllocateScope scope(this);
     alloc = AllocateRaw(size, allocation, origin, alignment);
   }
+
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
@@ -5908,12 +5923,19 @@ void Heap::StartTearDown() {
   // threads finish.
   collection_barrier_->NotifyShutdownRequested();
 
+  // Main thread isn't going to allocate anymore.
+  main_thread_local_heap()->FreeLinearAllocationArea();
+
+  FreeMainThreadSharedLinearAllocationAreas();
+
 #ifdef VERIFY_HEAP
   // {StartTearDown} is called fairly early during Isolate teardown, so it's
   // a good time to run heap verification (if requested), before starting to
   // tear down parts of the Isolate.
   if (FLAG_verify_heap) {
     AllowGarbageCollection allow_gc;
+    IgnoreLocalGCRequests ignore_gc_requests(this);
+    SafepointScope scope(this);
     Verify();
   }
 #endif

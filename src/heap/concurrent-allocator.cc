@@ -136,7 +136,7 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
       local_heap_, kLabSize, kMaxLabSize, kTaggedAligned, origin);
   if (!result) return false;
 
-  if (local_heap_->heap()->incremental_marking()->black_allocation()) {
+  if (IsBlackAllocationEnabled()) {
     Address top = result->first;
     Address limit = top + result->second;
     Page::FromAllocationAreaAddress(top)->CreateBlackAreaBackground(top, limit);
@@ -161,13 +161,19 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
 
   HeapObject object = HeapObject::FromAddress(result->first);
 
-  if (local_heap_->heap()->incremental_marking()->black_allocation()) {
-    local_heap_->heap()->incremental_marking()->MarkBlackBackground(
-        object, object_size);
+  if (IsBlackAllocationEnabled()) {
+    owning_heap()->incremental_marking()->MarkBlackBackground(object,
+                                                              object_size);
   }
 
   return AllocationResult(object);
 }
+
+bool ConcurrentAllocator::IsBlackAllocationEnabled() const {
+  return owning_heap()->incremental_marking()->black_allocation();
+}
+
+Heap* ConcurrentAllocator::owning_heap() const { return space_->heap(); }
 
 }  // namespace internal
 }  // namespace v8

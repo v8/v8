@@ -56,6 +56,9 @@
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
+#include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/safepoint.h"
 #include "src/ic/stub-cache.h"
@@ -3221,7 +3224,25 @@ void Isolate::Deinit() {
   // This stops cancelable tasks (i.e. concurrent marking tasks).
   // Stop concurrent tasks before destroying resources since they might still
   // use those.
-  cancelable_task_manager()->CancelAndWait();
+  {
+    IgnoreLocalGCRequests ignore_gc_requests(heap());
+    ParkedScope parked_scope(main_thread_local_heap());
+    cancelable_task_manager()->CancelAndWait();
+  }
+
+  // Cancel all baseline compiler tasks.
+  delete baseline_batch_compiler_;
+  baseline_batch_compiler_ = nullptr;
+
+  // At this point there are no more background threads left in this isolate.
+  heap_.safepoint()->AssertMainThreadIsOnlyThread();
+
+  {
+    // This isolate might have to park for a shared GC initiated by another
+    // client isolate before it can actually detach from the shared isolate.
+    AllowGarbageCollection allow_shared_gc;
+    DetachFromSharedIsolate();
+  }
 
   ReleaseSharedPtrs();
 
@@ -3243,16 +3264,9 @@ void Isolate::Deinit() {
 
   string_table_.reset();
 
-  delete baseline_batch_compiler_;
-  baseline_batch_compiler_ = nullptr;
-
   // After all concurrent tasks are stopped, we know for sure that stats aren't
   // updated anymore.
   DumpAndResetStats();
-
-  main_thread_local_isolate_->heap()->FreeLinearAllocationArea();
-
-  DetachFromSharedIsolate();
 
   heap_.TearDown();
 
@@ -3734,7 +3748,19 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   // Create LocalIsolate/LocalHeap for the main thread and set state to Running.
   main_thread_local_isolate_.reset(new LocalIsolate(this, ThreadKind::kMain));
-  main_thread_local_heap()->Unpark();
+
+  {
+    IgnoreLocalGCRequests ignore_gc_requests(heap());
+    main_thread_local_heap()->Unpark();
+  }
+
+  // Lock clients_mutex_ in order to prevent shared GCs from other clients
+  // during deserialization.
+  base::Optional<base::MutexGuard> clients_guard;
+
+  if (shared_isolate_) {
+    clients_guard.emplace(&shared_isolate_->global_safepoint()->clients_mutex_);
+  }
 
   // The main thread LocalHeap needs to be set up when attaching to the shared
   // isolate. Otherwise a global safepoint would find an isolate without
