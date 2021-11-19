@@ -1910,7 +1910,12 @@ void Heap::StartIncrementalMarking(int gc_flags,
     CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
   }
 
-  SafepointScope safepoint(this);
+  base::Optional<SafepointScope> safepoint_scope;
+
+  {
+    AllowGarbageCollection allow_shared_gc;
+    safepoint_scope.emplace(this);
+  }
 
 #ifdef DEBUG
   VerifyCountersAfterSweeping();
