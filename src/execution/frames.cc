@@ -995,8 +995,8 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
           entry->code.GetSafepointEntry(isolate(), inner_pointer);
       DCHECK(entry->safepoint_entry.is_valid());
     } else {
-      DCHECK(entry->safepoint_entry.Equals(
-          entry->code.GetSafepointEntry(isolate(), inner_pointer)));
+      DCHECK_EQ(entry->safepoint_entry,
+                entry->code.GetSafepointEntry(isolate(), inner_pointer));
     }
 
     code = entry->code;
@@ -1090,10 +1090,10 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
 
   // Visit pointer spill slots and locals.
   DCHECK_GE((stack_slots + kBitsPerByte) / kBitsPerByte,
-            safepoint_entry.entry_size());
+            safepoint_entry.tagged_slots().size());
   int slot_offset = 0;
   PtrComprCageBase cage_base(isolate());
-  for (uint8_t bits : safepoint_entry.iterate_bits()) {
+  for (uint8_t bits : safepoint_entry.tagged_slots()) {
     while (bits) {
       int bit = base::bits::CountTrailingZeros(bits);
       bits &= ~(1 << bit);
@@ -2042,12 +2042,11 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
   DCHECK(code);
   SafepointTable table(code);
   SafepointEntry safepoint_entry = table.FindEntry(caller_pc());
-  if (!safepoint_entry.has_register_bits()) return;
-  uint32_t register_bits = safepoint_entry.register_bits();
+  uint32_t tagged_register_indexes = safepoint_entry.tagged_register_indexes();
 
-  while (register_bits != 0) {
-    int reg_code = base::bits::CountTrailingZeros(register_bits);
-    register_bits &= ~(1 << reg_code);
+  while (tagged_register_indexes != 0) {
+    int reg_code = base::bits::CountTrailingZeros(tagged_register_indexes);
+    tagged_register_indexes &= ~(1 << reg_code);
     FullObjectSlot spill_slot(&Memory<Address>(
         fp() +
         WasmDebugBreakFrameConstants::GetPushedGpRegisterOffset(reg_code)));

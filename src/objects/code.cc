@@ -585,18 +585,16 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 
   if (has_safepoint_info()) {
     SafepointTable table(isolate, current_pc, *this);
-    os << "Safepoints (size = " << table.size() << ")\n";
+    os << "Safepoints (entries = " << table.length()
+       << ", byte size = " << table.byte_size() << ")\n";
     for (int i = 0; i < table.length(); i++) {
-      int pc_offset = table.GetPcOffset(i);
-      os << reinterpret_cast<const void*>(InstructionStart() + pc_offset)
-         << "  ";
-      os << std::setw(6) << std::hex << pc_offset << "  " << std::setw(4);
-      int trampoline_pc = table.GetTrampolinePcOffset(i);
-      print_pc(os, trampoline_pc);
+      SafepointEntry entry = table.GetEntry(i);
+      os << reinterpret_cast<const void*>(InstructionStart() + entry.pc())
+         << "  " << std::setw(6) << std::hex << entry.pc() << "  ";
+      print_pc(os, entry.trampoline_pc());
       os << std::dec << "  ";
       table.PrintEntry(i, os);
       os << " (sp -> fp)  ";
-      SafepointEntry entry = table.GetEntry(i);
       if (entry.has_deoptimization_index()) {
         os << std::setw(6) << entry.deoptimization_index();
       } else {
@@ -610,8 +608,9 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if (has_handler_table()) {
     HandlerTable table(*this);
     os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
-    if (CodeKindIsOptimizedJSFunction(kind()))
+    if (CodeKindIsOptimizedJSFunction(kind())) {
       table.HandlerTableReturnPrint(os);
+    }
     os << "\n";
   }
 

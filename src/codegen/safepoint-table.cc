@@ -20,29 +20,28 @@ namespace internal {
 
 SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
     : SafepointTable(code.InstructionStart(isolate, pc),
-                     code.SafepointTableAddress(), true) {}
+                     code.SafepointTableAddress()) {}
 
 #if V8_ENABLE_WEBASSEMBLY
 SafepointTable::SafepointTable(const wasm::WasmCode* code)
-    : SafepointTable(code->instruction_start(),
-                     code->instruction_start() + code->safepoint_table_offset(),
-                     false) {}
+    : SafepointTable(
+          code->instruction_start(),
+          code->instruction_start() + code->safepoint_table_offset()) {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 SafepointTable::SafepointTable(Address instruction_start,
-                               Address safepoint_table_address, bool has_deopt)
+                               Address safepoint_table_address)
     : instruction_start_(instruction_start),
-      has_deopt_(has_deopt),
       safepoint_table_address_(safepoint_table_address),
-      length_(ReadLength(safepoint_table_address)),
-      entry_size_(ReadEntrySize(safepoint_table_address)) {}
+      length_(base::Memory<int>(safepoint_table_address + kLengthOffset)),
+      entry_configuration_(base::Memory<uint32_t>(safepoint_table_address +
+                                                  kEntryConfigurationOffset)) {}
 
 int SafepointTable::find_return_pc(int pc_offset) {
   for (int i = 0; i < length(); i++) {
-    if (GetTrampolinePcOffset(i) == static_cast<int>(pc_offset)) {
-      return GetPcOffset(i);
-    } else if (GetPcOffset(i) == pc_offset) {
-      return pc_offset;
+    SafepointEntry entry = GetEntry(i);
+    if (entry.trampoline_pc() == pc_offset || entry.pc() == pc_offset) {
+      return entry.pc();
     }
   }
   UNREACHABLE();
@@ -54,27 +53,21 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   DCHECK_NE(kMaxUInt32, pc_offset);
   CHECK_LT(0, length_);
   // A single entry with pc == -1 covers all call sites in the function.
-  if (length_ == 1 && GetPcOffset(0) == -1) return GetEntry(0);
+  if (length_ == 1 && GetEntry(0).pc() == -1) return GetEntry(0);
   for (int i = 0; i < length_; i++) {
     // TODO(kasperl): Replace the linear search with binary search.
-    if (GetPcOffset(i) == pc_offset ||
-        (has_deopt_ &&
-         GetTrampolinePcOffset(i) == static_cast<int>(pc_offset))) {
-      return GetEntry(i);
+    SafepointEntry entry = GetEntry(i);
+    if (entry.pc() == pc_offset || entry.trampoline_pc() == pc_offset) {
+      return entry;
     }
   }
   UNREACHABLE();
 }
 
 void SafepointTable::PrintEntry(int index, std::ostream& os) const {
-  disasm::NameConverter converter;
-  SafepointEntry entry = GetEntry(index);
-  uint8_t* bits = entry.bits();
-
-  // Print the stack slot bits.
-  for (int i = 0; i < entry_size_; ++i) {
+  for (uint8_t bits : GetEntry(index).tagged_slots()) {
     for (int bit = 0; bit < kBitsPerByte; ++bit) {
-      os << ((bits[i] & (1 << bit)) ? "1" : "0");
+      os << ((bits >> bit) & 1);
     }
   }
 }
@@ -100,7 +93,7 @@ int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
   return index;
 }
 
-void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
+void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
 #ifdef DEBUG
   int last_pc = -1;
   int last_trampoline = -1;
@@ -121,7 +114,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
 #endif  // DEBUG
 
   RemoveDuplicates();
-  TrimEntries(&bits_per_entry);
+  TrimEntries(&tagged_slots_size);
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
   // We cannot emit a const pool within the safepoint table.
@@ -133,56 +126,58 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   assembler->RecordComment(";;; Safepoint table.");
   offset_ = assembler->pc_offset();
 
-  // Compute the number of bytes per safepoint entry.
-  int bytes_per_entry =
-      RoundUp(bits_per_entry, kBitsPerByte) >> kBitsPerByteLog2;
+  // Compute the number of bytes for tagged slots per safepoint entry.
+  int tagged_slots_bytes =
+      RoundUp(tagged_slots_size, kBitsPerByte) >> kBitsPerByteLog2;
+  bool has_deopt_data =
+      std::any_of(entries_.begin(), entries_.end(), [](auto& entry) {
+        return entry.deopt_index != SafepointEntry::kNoDeoptIndex;
+      });
+  bool has_register_indexes =
+      std::any_of(entries_.begin(), entries_.end(),
+                  [](auto& entry) { return entry.register_indexes != 0; });
+
+  uint32_t entry_configuration =
+      SafepointTable::TaggedSlotsBytesField::encode(tagged_slots_bytes) |
+      SafepointTable::HasDeoptDataField::encode(has_deopt_data) |
+      SafepointTable::HasRegisterIndexesField::encode(has_register_indexes);
 
   // Emit the table header.
   STATIC_ASSERT(SafepointTable::kLengthOffset == 0 * kIntSize);
-  STATIC_ASSERT(SafepointTable::kEntrySizeOffset == 1 * kIntSize);
+  STATIC_ASSERT(SafepointTable::kEntryConfigurationOffset == 1 * kIntSize);
   STATIC_ASSERT(SafepointTable::kHeaderSize == 2 * kIntSize);
   int length = static_cast<int>(entries_.size());
   assembler->dd(length);
-  assembler->dd(bytes_per_entry);
+  assembler->dd(entry_configuration);
 
-  // Emit sorted table of pc offsets together with additional info (i.e. the
-  // deoptimization index or arguments count) and trampoline offsets.
-  STATIC_ASSERT(SafepointTable::kPcOffset == 0 * kIntSize);
-  STATIC_ASSERT(SafepointTable::kEncodedInfoOffset == 1 * kIntSize);
-  STATIC_ASSERT(SafepointTable::kTrampolinePcOffset == 2 * kIntSize);
-  STATIC_ASSERT(SafepointTable::kFixedEntrySize == 3 * kIntSize);
+  // Emit entries, sorted by pc offsets.
   for (const EntryBuilder& entry : entries_) {
     assembler->dd(entry.pc);
-    if (entry.register_indexes) {
-      // We emit the register indexes in the same bits as the deopt_index.
-      // Register indexes and deopt_index should not exist at the same time.
-      DCHECK_EQ(entry.deopt_index, SafepointEntry::kNoDeoptIndex);
-      assembler->dd(entry.register_indexes);
-    } else {
+    if (has_deopt_data) {
       assembler->dd(entry.deopt_index);
+      assembler->dd(entry.trampoline);
     }
-    assembler->dd(entry.trampoline);
+    if (has_register_indexes) {
+      assembler->dd(entry.register_indexes);
+    }
   }
 
-  // Emit table of bitmaps.
-  ZoneVector<uint8_t> bits(bytes_per_entry, 0, zone_);
+  // Emit bitmaps of tagged stack slots.
+  ZoneVector<uint8_t> bits(tagged_slots_bytes, 0, zone_);
   for (const EntryBuilder& entry : entries_) {
-    ZoneChunkList<int>* indexes = entry.stack_indexes;
     std::fill(bits.begin(), bits.end(), 0);
 
     // Run through the indexes and build a bitmap.
-    for (int idx : *indexes) {
-      DCHECK_GT(bits_per_entry, idx);
-      int index = bits_per_entry - 1 - idx;
+    for (int idx : *entry.stack_indexes) {
+      DCHECK_GT(tagged_slots_size, idx);
+      int index = tagged_slots_size - 1 - idx;
       int byte_index = index >> kBitsPerByteLog2;
       int bit_index = index & (kBitsPerByte - 1);
-      bits[byte_index] |= (1U << bit_index);
+      bits[byte_index] |= (1u << bit_index);
     }
 
     // Emit the bitmap for the current entry.
-    for (int k = 0; k < bytes_per_entry; k++) {
-      assembler->db(bits[k]);
-    }
+    for (uint8_t byte : bits) assembler->db(byte);
   }
 }
 
@@ -224,13 +219,13 @@ void SafepointTableBuilder::RemoveDuplicates() {
   }
 }
 
-void SafepointTableBuilder::TrimEntries(int* bits_per_entry) {
-  int min_index = *bits_per_entry;
+void SafepointTableBuilder::TrimEntries(int* tagged_slots_size) {
+  int min_index = *tagged_slots_size;
   if (min_index == 0) return;  // Early exit: nothing to trim.
 
   for (auto& entry : entries_) {
     for (int idx : *entry.stack_indexes) {
-      DCHECK_GT(*bits_per_entry, idx);  // Validity check.
+      DCHECK_GT(*tagged_slots_size, idx);  // Validity check.
       if (idx >= min_index) continue;
       if (idx == 0) return;  // Early exit: nothing to trim.
       min_index = idx;
@@ -238,7 +233,7 @@ void SafepointTableBuilder::TrimEntries(int* bits_per_entry) {
   }
 
   DCHECK_LT(0, min_index);
-  *bits_per_entry -= min_index;
+  *tagged_slots_size -= min_index;
   for (auto& entry : entries_) {
     for (int& idx : *entry.stack_indexes) {
       idx -= min_index;
