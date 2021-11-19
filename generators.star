@@ -45,6 +45,27 @@ def aggregate_builder_tester_console(ctx):
             )
             consoles["builder-tester"].builders.append(cbuilder)
 
+def separate_builder_tester_console(ctx):
+    """
+    Two console duplicates, one with all artifact builders and one with all
+    testers separated.
+    """
+    consoles = consoles_map(ctx)
+    for name in consoles:
+        builders_name = name + "-builders"
+        testers_name = name + "-testers"
+        if builders_name in consoles and testers_name in consoles:
+            consoles[builders_name].builders = [
+                builder
+                for builder in consoles[name].builders
+                if is_artifact_builder(builder)
+            ]
+            consoles[testers_name].builders = [
+                tester
+                for tester in consoles[name].builders
+                if not is_artifact_builder(tester)
+            ]
+
 def headless_consoles(ctx):
     """
     Console duplicates without headers for being included in an iFrame-based
@@ -149,6 +170,8 @@ def ensure_forward_triggering_properties(ctx):
                 builder.properties = json.encode(properties)
 
 lucicfg.generator(aggregate_builder_tester_console)
+
+lucicfg.generator(separate_builder_tester_console)
 
 lucicfg.generator(headless_consoles)
 

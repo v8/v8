@@ -4,6 +4,8 @@
 
 load("//definitions.star", "versions")
 
+V8_ICON = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico"
+
 def branch_descriptor(
         bucket,
         poller_name,
@@ -27,9 +29,9 @@ def branch_descriptor(
 
 def main_console_builder():
     def builder():
-        console_view("main", add_headless = True)
-        console_view("memory", add_headless = True)
-        console_view("ports", add_headless = True)
+        console_view("main", add_headless = True, add_builder_tester = True)
+        console_view("memory", add_headless = True, add_builder_tester = True)
+        console_view("ports", add_headless = True, add_builder_tester = True)
         console_view("main-dev")
         console_view("memory-dev")
         console_view("ports-dev")
@@ -557,22 +559,35 @@ def console_view(
         refs = None,
         exclude_ref = None,
         header = None,
-        add_headless = False):
-    luci.console_view(
-        name = name,
-        title = title or name,
-        repo = repo or "https://chromium.googlesource.com/v8/v8",
-        refs = refs or ["refs/heads/main"],
-        exclude_ref = exclude_ref,
-        favicon = "https://storage.googleapis.com/chrome-infra-public/logo/v8.ico",
-        header = header or "//consoles/header_main.textpb",
-    )
-    if add_headless:
-        name += "-headless"
+        add_headless = False,
+        add_builder_tester = False):
+    def add_console(name, **kwargs):
         luci.console_view(
             name = name,
             title = title or name,
             repo = repo or "https://chromium.googlesource.com/v8/v8",
             refs = refs or ["refs/heads/main"],
             exclude_ref = exclude_ref,
+            **kwargs
+        )
+
+    add_console(
+        name = name,
+        favicon = V8_ICON,
+        header = header or "//consoles/header_main.textpb",
+    )
+
+    if add_headless:
+        add_console(name = name + "-headless")
+
+    if add_builder_tester:
+        add_console(
+            name = name + "-builders",
+            favicon = V8_ICON,
+            header = header or "//consoles/header_main.textpb",
+        )
+        add_console(
+            name = name + "-testers",
+            favicon = V8_ICON,
+            header = header or "//consoles/header_main.textpb",
         )
