@@ -168,7 +168,6 @@ static std::vector<PatternItem> BuildPatternItems() {
   items.push_back(PatternItem("second", {{"ss", "2-digit"}, {"s", "numeric"}},
                               k2DigitNumeric));
 
-  if (FLAG_harmony_intl_more_timezone) {
     const std::vector<const char*> kTimezone = {"long",        "short",
                                                 "longOffset",  "shortOffset",
                                                 "longGeneric", "shortGeneric"};
@@ -180,11 +179,7 @@ static std::vector<PatternItem> BuildPatternItems() {
                                  {"vvvv", "longGeneric"},
                                  {"v", "shortGeneric"}},
                                 kTimezone));
-  } else {
-    items.push_back(PatternItem(
-        "timeZoneName", {{"zzzz", "long"}, {"z", "short"}}, kLongShort));
-  }
-  return items;
+    return items;
 }
 
 class PatternItems {

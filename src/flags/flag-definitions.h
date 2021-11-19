@@ -344,11 +344,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_array_find_last, "harmony array find last helpers")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                               \
-  HARMONY_SHIPPING_BASE(V)                                \
-  V(harmony_intl_displaynames_v2, "Intl.DisplayNames v2") \
-  V(harmony_intl_more_timezone,                           \
-    "Extend Intl.DateTimeFormat timeZoneName Option")
+#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #endif
