@@ -7091,6 +7091,13 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
       return code;
     }
   }
+  // TODO(1241665): Remove once the issue is solved.
+  isolate()->PushParamsAndDie(
+      reinterpret_cast<void*>(inner_pointer),
+      const_cast<uint8_t*>(isolate()->embedded_blob_code()),
+      const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobCode()),
+      reinterpret_cast<void*>(Isolate::CurrentEmbeddedBlobCodeSize()));
+
   UNREACHABLE();
 }
 

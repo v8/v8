@@ -608,7 +608,17 @@ Handle<String> Isolate::StackTraceString() {
 
 void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2, void* ptr3,
                                    void* ptr4) {
-  StackTraceFailureMessage message(this, ptr1, ptr2, ptr3, ptr4);
+  StackTraceFailureMessage message(this,
+                                   StackTraceFailureMessage::kIncludeStackTrace,
+                                   ptr1, ptr2, ptr3, ptr4);
+  message.Print();
+  base::OS::Abort();
+}
+
+void Isolate::PushParamsAndDie(void* ptr1, void* ptr2, void* ptr3, void* ptr4) {
+  StackTraceFailureMessage message(
+      this, StackTraceFailureMessage::kDontIncludeStackTrace, ptr1, ptr2, ptr3,
+      ptr4);
   message.Print();
   base::OS::Abort();
 }
@@ -617,14 +627,14 @@ void StackTraceFailureMessage::Print() volatile {
   // Print the details of this failure message object, including its own address
   // to force stack allocation.
   base::OS::PrintError(
-      "Stacktrace:\n   ptr1=%p\n    ptr2=%p\n    ptr3=%p\n    ptr4=%p\n    "
+      "Stacktrace:\n    ptr1=%p\n    ptr2=%p\n    ptr3=%p\n    ptr4=%p\n    "
       "failure_message_object=%p\n%s",
       ptr1_, ptr2_, ptr3_, ptr4_, this, &js_stack_trace_[0]);
 }
 
-StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
-                                                   void* ptr2, void* ptr3,
-                                                   void* ptr4) {
+StackTraceFailureMessage::StackTraceFailureMessage(
+    Isolate* isolate, StackTraceFailureMessage::StackTraceMode mode, void* ptr1,
+    void* ptr2, void* ptr3, void* ptr4) {
   isolate_ = isolate;
   ptr1_ = ptr1;
   ptr2_ = ptr2;
@@ -633,17 +643,20 @@ StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
   // Write a stracktrace into the {js_stack_trace_} buffer.
   const size_t buffer_length = arraysize(js_stack_trace_);
   memset(&js_stack_trace_, 0, buffer_length);
-  FixedStringAllocator fixed(&js_stack_trace_[0], buffer_length - 1);
-  StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
-  isolate->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
-  // Keeping a reference to the last code objects to increase likelyhood that
-  // they get included in the minidump.
-  const size_t code_objects_length = arraysize(code_objects_);
-  size_t i = 0;
-  StackFrameIterator it(isolate);
-  for (; !it.done() && i < code_objects_length; it.Advance()) {
-    code_objects_[i++] =
-        reinterpret_cast<void*>(it.frame()->unchecked_code().ptr());
+  memset(&code_objects_, 0, sizeof(code_objects_));
+  if (mode == kIncludeStackTrace) {
+    FixedStringAllocator fixed(&js_stack_trace_[0], buffer_length - 1);
+    StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
+    isolate->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
+    // Keeping a reference to the last code objects to increase likelyhood that
+    // they get included in the minidump.
+    const size_t code_objects_length = arraysize(code_objects_);
+    size_t i = 0;
+    StackFrameIterator it(isolate);
+    for (; !it.done() && i < code_objects_length; it.Advance()) {
+      code_objects_[i++] =
+          reinterpret_cast<void*>(it.frame()->unchecked_code().ptr());
+    }
   }
 }
 
