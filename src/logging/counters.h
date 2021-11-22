@@ -228,35 +228,47 @@ class Histogram {
 
  protected:
   Histogram() = default;
-  Histogram(const char* name, int min, int max, int num_buckets,
-            Counters* counters)
-      : name_(name),
-        min_(min),
-        max_(max),
-        num_buckets_(num_buckets),
-        histogram_(nullptr),
-        counters_(counters) {
-    DCHECK(counters_);
+  Histogram(const Histogram&) = delete;
+  Histogram& operator=(const Histogram&) = delete;
+
+  void Initialize(const char* name, int min, int max, int num_buckets,
+                  Counters* counters) {
+    name_ = name;
+    min_ = min;
+    max_ = max;
+    num_buckets_ = num_buckets;
+    histogram_ = nullptr;
+    counters_ = counters;
+    DCHECK_NOT_NULL(counters_);
   }
 
   Counters* counters() const { return counters_; }
 
-  // Reset the cached internal pointer.
-  void Reset(bool create_new = true) {
-    histogram_ = create_new ? CreateHistogram() : nullptr;
+  // Reset the cached internal pointer to nullptr; the histogram will be
+  // created lazily, the first time it is needed.
+  void Reset() { histogram_ = nullptr; }
+
+  // Lazily create the histogram, if it has not been created yet.
+  void EnsureCreated(bool create_new = true) {
+    if (create_new && histogram_.load(std::memory_order_acquire) == nullptr) {
+      base::MutexGuard Guard(&mutex_);
+      if (histogram_.load(std::memory_order_relaxed) == nullptr)
+        histogram_.store(CreateHistogram(), std::memory_order_release);
+    }
   }
 
  private:
   friend class Counters;
 
-  void* CreateHistogram() const;
+  V8_EXPORT_PRIVATE void* CreateHistogram() const;
 
   const char* name_;
   int min_;
   int max_;
   int num_buckets_;
-  void* histogram_;
+  std::atomic<void*> histogram_;
   Counters* counters_;
+  base::Mutex mutex_;
 };
 
 enum class TimedHistogramResolution { MILLISECOND, MICROSECOND };
@@ -290,11 +302,15 @@ class TimedHistogram : public Histogram {
   TimedHistogramResolution resolution_;
 
   TimedHistogram() = default;
-  TimedHistogram(const char* name, int min, int max,
-                 TimedHistogramResolution resolution, int num_buckets,
-                 Counters* counters)
-      : Histogram(name, min, max, num_buckets, counters),
-        resolution_(resolution) {}
+  TimedHistogram(const TimedHistogram&) = delete;
+  TimedHistogram& operator=(const TimedHistogram&) = delete;
+
+  void Initialize(const char* name, int min, int max,
+                  TimedHistogramResolution resolution, int num_buckets,
+                  Counters* counters) {
+    Histogram::Initialize(name, min, max, num_buckets, counters);
+    resolution_ = resolution;
+  }
 };
 
 class NestedTimedHistogramScope;
@@ -307,7 +323,9 @@ class NestedTimedHistogram : public TimedHistogram {
   NestedTimedHistogram(const char* name, int min, int max,
                        TimedHistogramResolution resolution, int num_buckets,
                        Counters* counters)
-      : TimedHistogram(name, min, max, resolution, num_buckets, counters) {}
+      : NestedTimedHistogram() {
+    Initialize(name, min, max, resolution, num_buckets, counters);
+  }
 
  private:
   friend class Counters;
@@ -327,6 +345,8 @@ class NestedTimedHistogram : public TimedHistogram {
   NestedTimedHistogramScope* current_ = nullptr;
 
   NestedTimedHistogram() = default;
+  NestedTimedHistogram(const NestedTimedHistogram&) = delete;
+  NestedTimedHistogram& operator=(const NestedTimedHistogram&) = delete;
 };
 
 // A histogram timer that can aggregate events within a larger scope.
@@ -361,9 +381,9 @@ class AggregatableHistogramTimer : public Histogram {
   friend class Counters;
 
   AggregatableHistogramTimer() = default;
-  AggregatableHistogramTimer(const char* name, int min, int max,
-                             int num_buckets, Counters* counters)
-      : Histogram(name, min, max, num_buckets, counters) {}
+  AggregatableHistogramTimer(const AggregatableHistogramTimer&) = delete;
+  AggregatableHistogramTimer& operator=(const AggregatableHistogramTimer&) =
+      delete;
 
   base::TimeDelta time_;
 };
@@ -539,33 +559,58 @@ class Counters : public std::enable_shared_from_this<Counters> {
   }
 
 #define HR(name, caption, min, max, num_buckets) \
-  Histogram* name() { return &name##_; }
+  Histogram* name() {                            \
+    name##_.EnsureCreated();                     \
+    return &name##_;                             \
+  }
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
 #define HT(name, caption, max, res) \
-  NestedTimedHistogram* name() { return &name##_; }
+  NestedTimedHistogram* name() {    \
+    name##_.EnsureCreated();        \
+    return &name##_;                \
+  }
   NESTED_TIMED_HISTOGRAM_LIST(HT)
+#undef HT
+
+#define HT(name, caption, max, res)              \
+  NestedTimedHistogram* name() {                 \
+    name##_.EnsureCreated(FLAG_slow_histograms); \
+    return &name##_;                             \
+  }
   NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)
 #undef HT
 
 #define HT(name, caption, max, res) \
-  TimedHistogram* name() { return &name##_; }
+  TimedHistogram* name() {          \
+    name##_.EnsureCreated();        \
+    return &name##_;                \
+  }
   TIMED_HISTOGRAM_LIST(HT)
 #undef HT
 
-#define AHT(name, caption) \
-  AggregatableHistogramTimer* name() { return &name##_; }
+#define AHT(name, caption)             \
+  AggregatableHistogramTimer* name() { \
+    name##_.EnsureCreated();           \
+    return &name##_;                   \
+  }
   AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
 #undef AHT
 
-#define HP(name, caption) \
-  Histogram* name() { return &name##_; }
+#define HP(name, caption)    \
+  Histogram* name() {        \
+    name##_.EnsureCreated(); \
+    return &name##_;         \
+  }
   HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
-#define HM(name, caption) \
-  Histogram* name() { return &name##_; }
+#define HM(name, caption)    \
+  Histogram* name() {        \
+    name##_.EnsureCreated(); \
+    return &name##_;         \
+  }
   HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
 

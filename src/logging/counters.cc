@@ -73,7 +73,7 @@ void Histogram::AddSample(int sample) {
   }
 }
 
-void* Histogram::CreateHistogram() const {
+V8_EXPORT_PRIVATE void* Histogram::CreateHistogram() const {
   return counters_->CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
@@ -143,9 +143,9 @@ Counters::Counters(Isolate* isolate)
 #undef HR
   };
   for (const auto& histogram : kHistograms) {
-    this->*histogram.member =
-        Histogram(histogram.caption, histogram.min, histogram.max,
-                  histogram.num_buckets, this);
+    (this->*histogram.member)
+        .Initialize(histogram.caption, histogram.min, histogram.max,
+                    histogram.num_buckets, this);
   }
 
   const int DefaultTimedHistogramNumBuckets = 50;
@@ -162,9 +162,9 @@ Counters::Counters(Isolate* isolate)
 #undef HT
   };
   for (const auto& timer : kNestedTimedHistograms) {
-    this->*timer.member =
-        NestedTimedHistogram(timer.caption, 0, timer.max, timer.res,
-                             DefaultTimedHistogramNumBuckets, this);
+    (this->*timer.member)
+        .Initialize(timer.caption, 0, timer.max, timer.res,
+                    DefaultTimedHistogramNumBuckets, this);
   }
 
   static const struct {
@@ -179,8 +179,9 @@ Counters::Counters(Isolate* isolate)
 #undef HT
   };
   for (const auto& timer : kTimedHistograms) {
-    this->*timer.member = TimedHistogram(timer.caption, 0, timer.max, timer.res,
-                                         DefaultTimedHistogramNumBuckets, this);
+    (this->*timer.member)
+        .Initialize(timer.caption, 0, timer.max, timer.res,
+                    DefaultTimedHistogramNumBuckets, this);
   }
 
   static const struct {
@@ -192,8 +193,9 @@ Counters::Counters(Isolate* isolate)
 #undef AHT
   };
   for (const auto& aht : kAggregatableHistogramTimers) {
-    this->*aht.member = AggregatableHistogramTimer(
-        aht.caption, 0, 10000000, DefaultTimedHistogramNumBuckets, this);
+    (this->*aht.member)
+        .Initialize(aht.caption, 0, 10000000, DefaultTimedHistogramNumBuckets,
+                    this);
   }
 
   static const struct {
@@ -205,7 +207,8 @@ Counters::Counters(Isolate* isolate)
 #undef HP
   };
   for (const auto& percentage : kHistogramPercentages) {
-    this->*percentage.member = Histogram(percentage.caption, 0, 101, 100, this);
+    (this->*percentage.member)
+        .Initialize(percentage.caption, 0, 101, 100, this);
   }
 
   // Exponential histogram assigns bucket limits to points
@@ -223,8 +226,8 @@ Counters::Counters(Isolate* isolate)
 #undef HM
   };
   for (const auto& histogram : kLegacyMemoryHistograms) {
-    this->*histogram.member =
-        Histogram(histogram.caption, 1000, 500000, 50, this);
+    (this->*histogram.member)
+        .Initialize(histogram.caption, 1000, 500000, 50, this);
   }
 
   // clang-format off
@@ -303,7 +306,7 @@ void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
   NESTED_TIMED_HISTOGRAM_LIST(HT)
 #undef HT
 
-#define HT(name, caption, max, res) name##_.Reset(FLAG_slow_histograms);
+#define HT(name, caption, max, res) name##_.Reset();
   NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)
 #undef HT
 
