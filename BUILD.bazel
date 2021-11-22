@@ -360,6 +360,19 @@ v8_config(
 # =================================================
 
 filegroup(
+    name = "public_header_files",
+    srcs = glob(["include/**/*.h"]),
+)
+
+filegroup(
+    name = "public_wasm_c_api_header_files",
+    srcs = [
+        "third_party/wasm-api/wasm.h",
+        "third_party/wasm-api/wasm.hh",
+    ],
+)
+
+filegroup(
     name = "v8_config_headers_files",
     srcs = [
         "include/v8-platform.h",

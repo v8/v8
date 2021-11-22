@@ -206,6 +206,7 @@ def v8_library(
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
+            linkstatic = 1,
             **kwargs
         )
         # Alias target used because of cc_library bug in bazel on windows
@@ -223,6 +224,7 @@ def v8_library(
             copts = copts + default.copts + ENABLE_I18N_SUPPORT_DEFINES,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
+            linkstatic = 1,
             **kwargs
         )
         # Alias target used because of cc_library bug in bazel on windows
@@ -241,6 +243,7 @@ def v8_library(
             copts = copts + default.copts,
             linkopts = linkopts + default.linkopts,
             alwayslink = 1,
+            linkstatic = 1,
             **kwargs
         )
 
