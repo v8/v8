@@ -6742,8 +6742,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         // Call to a wasm function defined in this module.
         // The (cached) call target is the jump table slot for that function.
         args[0] = BuildLoadCallTargetFromExportedFunctionData(function_data);
+        Node* instance_node = gasm_->LoadFromObject(
+            MachineType::TaggedPointer(), function_data,
+            wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset));
         BuildWasmCall(sig_, base::VectorOf(args), base::VectorOf(rets),
-                      wasm::kNoCodePosition, nullptr, frame_state);
+                      wasm::kNoCodePosition, instance_node, frame_state);
       }
     }
 
