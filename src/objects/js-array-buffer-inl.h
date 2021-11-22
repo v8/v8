@@ -178,12 +178,12 @@ bool JSArrayBufferView::WasDetached() const {
   return JSArrayBuffer::cast(buffer()).was_detached();
 }
 
-BIT_FIELD_ACCESSORS(JSTypedArray, bit_field, is_length_tracking,
-                    JSTypedArray::IsLengthTrackingBit)
-BIT_FIELD_ACCESSORS(JSTypedArray, bit_field, is_backed_by_rab,
-                    JSTypedArray::IsBackedByRabBit)
+BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,
+                    JSArrayBufferView::IsLengthTrackingBit)
+BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_backed_by_rab,
+                    JSArrayBufferView::IsBackedByRabBit)
 
-bool JSTypedArray::IsVariableLength() const {
+bool JSArrayBufferView::IsVariableLength() const {
   return is_length_tracking() || is_backed_by_rab();
 }
 
