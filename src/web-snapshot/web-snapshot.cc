@@ -497,7 +497,8 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
   }
 
   SerializeSource(serializer, function);
-
+  serializer->WriteUint32(
+      function->shared().internal_formal_parameter_count_without_receiver());
   serializer->WriteUint32(
       FunctionKindToFunctionFlags(function->shared().kind()));
 }
@@ -662,9 +663,9 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
 // - String id (source snippet)
 // - Start position in the source snippet
 // - Length in the source snippet
+// - Formal parameter count
 // - Flags (see FunctionFlags)
 // TODO(v8:11525): Investigate whether the length is really needed.
-// TODO(v8:11525): Serialize the formal parameter count.
 void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
   SerializeFunctionInfo(&function_serializer_, function);
 
@@ -679,6 +680,7 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
 // - String id (source snippet)
 // - Start position in the source snippet
 // - Length in the source snippet
+// - Formal parameter count
 // - Flags (see FunctionFlags)
 // - Object id (function prototype)
 void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function) {
@@ -1380,7 +1382,7 @@ Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
 
 Handle<JSFunction> WebSnapshotDeserializer::CreateJSFunction(
     int shared_function_info_index, uint32_t start_position, uint32_t length,
-    uint32_t flags, uint32_t context_id) {
+    uint32_t parameter_count, uint32_t flags, uint32_t context_id) {
   // TODO(v8:11525): Deduplicate the SFIs for class methods.
   FunctionKind kind = FunctionFlagsToFunctionKind(flags);
   Handle<SharedFunctionInfo> shared =
@@ -1392,6 +1394,8 @@ Handle<JSFunction> WebSnapshotDeserializer::CreateJSFunction(
   }
   shared->set_script(*script_);
   shared->set_function_literal_id(shared_function_info_index);
+  shared->set_internal_formal_parameter_count(
+      JSParameterCount(parameter_count));
   // TODO(v8:11525): Decide how to handle language modes.
   shared->set_language_mode(LanguageMode::kStrict);
   shared->set_uncompiled_data(
@@ -1460,9 +1464,11 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
 
     uint32_t start_position;
     uint32_t length;
+    uint32_t parameter_count;
     uint32_t flags;
     if (!deserializer_->ReadUint32(&start_position) ||
         !deserializer_->ReadUint32(&length) ||
+        !deserializer_->ReadUint32(&parameter_count) ||
         !deserializer_->ReadUint32(&flags)) {
       Throw("Malformed function");
       return;
@@ -1470,8 +1476,9 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
 
     // Index 0 is reserved for top-level shared function info (which web
     // snapshot scripts don't have).
-    Handle<JSFunction> function = CreateJSFunction(
-        current_function_count_ + 1, start_position, length, flags, context_id);
+    Handle<JSFunction> function =
+        CreateJSFunction(current_function_count_ + 1, start_position, length,
+                         parameter_count, flags, context_id);
     functions_->set(current_function_count_, *function);
   }
 }
@@ -1511,9 +1518,11 @@ void WebSnapshotDeserializer::DeserializeClasses() {
 
     uint32_t start_position;
     uint32_t length;
+    uint32_t parameter_count;
     uint32_t flags;
     if (!deserializer_->ReadUint32(&start_position) ||
         !deserializer_->ReadUint32(&length) ||
+        !deserializer_->ReadUint32(&parameter_count) ||
         !deserializer_->ReadUint32(&flags)) {
       Throw("Malformed class");
       return;
@@ -1521,9 +1530,9 @@ void WebSnapshotDeserializer::DeserializeClasses() {
 
     // Index 0 is reserved for top-level shared function info (which web
     // snapshot scripts don't have).
-    Handle<JSFunction> function =
-        CreateJSFunction(function_count_ + current_class_count_ + 1,
-                         start_position, length, flags, context_id);
+    Handle<JSFunction> function = CreateJSFunction(
+        function_count_ + current_class_count_ + 1, start_position, length,
+        parameter_count, flags, context_id);
     classes_->set(current_class_count_, *function);
 
     uint32_t function_prototype;

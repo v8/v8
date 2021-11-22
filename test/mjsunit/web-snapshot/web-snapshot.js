@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-d8-web-snapshot-api
+// Flags: --experimental-d8-web-snapshot-api --allow-natives-syntax
+
 
 function use(exports) {
   const result = Object.create(null);
@@ -342,4 +343,30 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   const { one, two } = takeAndUseWebSnapshot(createObjects, ['one', 'two']);
   assertEquals(1, one.x);
   assertEquals(2, two.x);
+})();
+
+(function TestOptimizingFunctionFromSnapshot() {
+  function createObjects() {
+    globalThis.f = function(a, b) { return a + b; }
+  }
+  const { f } = takeAndUseWebSnapshot(createObjects, ['f']);
+  %PrepareFunctionForOptimization(f);
+  assertEquals(3, f(1, 2));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(4, f(1, 3));
+})();
+
+(function TestOptimizingConstructorFromSnapshot() {
+  function createObjects() {
+    globalThis.C = class {
+      constructor(a, b) {
+        this.x = a + b;
+      }
+    }
+  }
+  const { C } = takeAndUseWebSnapshot(createObjects, ['C']);
+  %PrepareFunctionForOptimization(C);
+  assertEquals(3, new C(1, 2).x);
+  %OptimizeFunctionOnNextCall(C);
+  assertEquals(4, new C(1, 3).x);
 })();

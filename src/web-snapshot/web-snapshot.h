@@ -247,8 +247,8 @@ class V8_EXPORT WebSnapshotDeserializer
   Handle<ScopeInfo> CreateScopeInfo(uint32_t variable_count, bool has_parent,
                                     ContextType context_type);
   Handle<JSFunction> CreateJSFunction(int index, uint32_t start,
-                                      uint32_t length, uint32_t flags,
-                                      uint32_t context_id);
+                                      uint32_t length, uint32_t parameter_count,
+                                      uint32_t flags, uint32_t context_id);
   void DeserializeFunctionData(uint32_t count, uint32_t current_count);
   void DeserializeFunctions();
   void DeserializeClasses();
