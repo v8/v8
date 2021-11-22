@@ -166,7 +166,14 @@ class ThreadSafeStack {
 struct SpaceState {
   struct SweptPageState {
     BasePage* page = nullptr;
+#if defined(CPPGC_CAGED_HEAP)
+    // The list of unfinalized objects may be extremely big. To save on space,
+    // if cage is enabled, the list of unfinalized objects is stored inlined in
+    // HeapObjectHeader.
+    HeapObjectHeader* unfinalized_objects_head = nullptr;
+#else   // !defined(CPPGC_CAGED_HEAP)
     std::vector<HeapObjectHeader*> unfinalized_objects;
+#endif  // !defined(CPPGC_CAGED_HEAP)
     FreeList cached_free_list;
     std::vector<FreeList::Block> unfinalized_free_list;
     bool is_empty = false;
@@ -230,7 +237,18 @@ class DeferredFinalizationBuilder final : public FreeHandler {
 
   void AddFinalizer(HeapObjectHeader* header, size_t size) {
     if (header->IsFinalizable()) {
+#if defined(CPPGC_CAGED_HEAP)
+      if (!current_unfinalized_) {
+        DCHECK_NULL(result_.unfinalized_objects_head);
+        current_unfinalized_ = header;
+        result_.unfinalized_objects_head = header;
+      } else {
+        current_unfinalized_->SetNextUnfinalized(header);
+        current_unfinalized_ = header;
+      }
+#else   // !defined(CPPGC_CAGED_HEAP)
       result_.unfinalized_objects.push_back({header});
+#endif  // !defined(CPPGC_CAGED_HEAP)
       found_finalizer_ = true;
     } else {
       SetMemoryInaccessible(header, size);
@@ -254,6 +272,7 @@ class DeferredFinalizationBuilder final : public FreeHandler {
 
  private:
   ResultType result_;
+  HeapObjectHeader* current_unfinalized_ = 0;
   bool found_finalizer_ = false;
 };
 
@@ -369,11 +388,27 @@ class SweepFinalizer final {
     BasePage* page = page_state->page;
 
     // Call finalizers.
-    for (HeapObjectHeader* object : page_state->unfinalized_objects) {
-      const size_t size = object->AllocatedSize();
-      object->Finalize();
-      SetMemoryInaccessible(object, size);
+    const auto finalize_header = [](HeapObjectHeader* header) {
+      const size_t size = header->AllocatedSize();
+      header->Finalize();
+      SetMemoryInaccessible(header, size);
+    };
+#if defined(CPPGC_CAGED_HEAP)
+    const uint64_t cage_base =
+        reinterpret_cast<uint64_t>(page->heap().caged_heap().base());
+    HeapObjectHeader* next_unfinalized = 0;
+
+    for (auto* unfinalized_header = page_state->unfinalized_objects_head;
+         unfinalized_header; unfinalized_header = next_unfinalized) {
+      next_unfinalized = unfinalized_header->GetNextUnfinalized(cage_base);
+      finalize_header(unfinalized_header);
     }
+#else   // !defined(CPPGC_CAGED_HEAP)
+    for (HeapObjectHeader* unfinalized_header :
+         page_state->unfinalized_objects) {
+      finalize_header(unfinalized_header);
+    }
+#endif  // !defined(CPPGC_CAGED_HEAP)
 
     // Unmap page if empty.
     if (page_state->is_empty) {
@@ -576,10 +611,15 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
       page.space().AddPage(&page);
       return true;
     }
+#if defined(CPPGC_CAGED_HEAP)
+    HeapObjectHeader* const unfinalized_objects =
+        header->IsFinalizable() ? page.ObjectHeader() : nullptr;
+#else   // !defined(CPPGC_CAGED_HEAP)
     std::vector<HeapObjectHeader*> unfinalized_objects;
     if (header->IsFinalizable()) {
       unfinalized_objects.push_back(page.ObjectHeader());
     }
+#endif  // !defined(CPPGC_CAGED_HEAP)
     const size_t space_index = page.space().index();
     DCHECK_GT(states_->size(), space_index);
     SpaceState& state = (*states_)[space_index];
