@@ -611,9 +611,15 @@ class PrepareForSweepVisitor final
   PrepareForSweepVisitor(SpaceStates* states,
                          CompactableSpaceHandling compactable_space_handling)
       : states_(states),
-        compactable_space_handling_(compactable_space_handling) {}
+        compactable_space_handling_(compactable_space_handling) {
+    DCHECK_NOT_NULL(states);
+  }
 
-  void Run(RawHeap& raw_heap) { Traverse(raw_heap); }
+  void Run(RawHeap& raw_heap) {
+    DCHECK(states_->empty());
+    *states_ = SpaceStates(raw_heap.size());
+    Traverse(raw_heap);
+  }
 
  protected:
   bool VisitNormalPageSpace(NormalPageSpace& space) {
@@ -655,9 +661,7 @@ class Sweeper::SweeperImpl final {
 
  public:
   SweeperImpl(RawHeap& heap, StatsCollector* stats_collector)
-      : heap_(heap),
-        stats_collector_(stats_collector),
-        space_states_(heap.size()) {}
+      : heap_(heap), stats_collector_(stats_collector) {}
 
   ~SweeperImpl() { CancelSweepers(); }
 
@@ -777,6 +781,10 @@ class Sweeper::SweeperImpl final {
   void FinalizeSweep() {
     // Synchronize with the concurrent sweeper and call remaining finalizers.
     SynchronizeAndFinalizeConcurrentSweeping();
+
+    // Clear space taken up by sweeper metadata.
+    space_states_.clear();
+
     platform_ = nullptr;
     is_in_progress_ = false;
     notify_done_pending_ = true;
