@@ -2179,6 +2179,49 @@ struct TorqueGrammar : Grammar {
     return true;
   }
 
+  template <class T, bool first>
+  static base::Optional<ParseResult> MakeExtendedVectorIfAnnotation(
+      ParseResultIterator* child_results) {
+    std::vector<T> l = {};
+    if (!first) l = child_results->NextAs<std::vector<T>>();
+    AnnotationSet annotations(child_results, {},
+                              {ANNOTATION_IF, ANNOTATION_IFNOT});
+    bool skipped = false;
+    if (base::Optional<std::string> condition =
+            annotations.GetStringParam(ANNOTATION_IF)) {
+      if (!BuildFlags::GetFlag(*condition, ANNOTATION_IF)) skipped = true;
+    }
+    if (base::Optional<std::string> condition =
+            annotations.GetStringParam(ANNOTATION_IFNOT)) {
+      if (BuildFlags::GetFlag(*condition, ANNOTATION_IFNOT)) skipped = true;
+    }
+    T x = child_results->NextAs<T>();
+
+    if (skipped) return ParseResult{std::move(l)};
+    l.push_back(std::move(x));
+    return ParseResult{std::move(l)};
+  }
+
+  template <class T>
+  Symbol* NonemptyListAllowIfAnnotation(
+      Symbol* element, base::Optional<Symbol*> separator = {}) {
+    Symbol* list = NewSymbol();
+    *list = {
+        Rule({annotations, element}, MakeExtendedVectorIfAnnotation<T, true>),
+        separator ? Rule({list, annotations, *separator, element},
+                         MakeExtendedVectorIfAnnotation<T, false>)
+                  : Rule({list, annotations, element},
+                         MakeExtendedVectorIfAnnotation<T, false>)};
+    return list;
+  }
+
+  template <class T>
+  Symbol* ListAllowIfAnnotation(Symbol* element,
+                                base::Optional<Symbol*> separator = {}) {
+    return TryOrDefault<std::vector<T>>(
+        NonemptyListAllowIfAnnotation<T>(element, separator));
+  }
+
   TorqueGrammar() : Grammar(&file) { SetWhitespace(MatchWhitespace); }
 
   // Result: Expression*
@@ -2515,9 +2558,10 @@ struct TorqueGrammar : Grammar {
            MakeAssignmentExpression)};
 
   // Result: Statement*
-  Symbol block = {Rule({CheckIf(Token("deferred")), Token("{"),
-                        List<Statement*>(&statement), Token("}")},
-                       MakeBlockStatement)};
+  Symbol block = {
+      Rule({CheckIf(Token("deferred")), Token("{"),
+            ListAllowIfAnnotation<Statement*>(&statement), Token("}")},
+           MakeBlockStatement)};
 
   // Result: TryHandler*
   Symbol tryHandler = {
@@ -2577,7 +2621,7 @@ struct TorqueGrammar : Grammar {
               expression,
               Token(")"),
               Token("{"),
-              NonemptyList<TypeswitchCase>(&typeswitchCase),
+              NonemptyListAllowIfAnnotation<TypeswitchCase>(&typeswitchCase),
               Token("}"),
           },
           MakeTypeswitchStatement),
@@ -2637,11 +2681,13 @@ struct TorqueGrammar : Grammar {
            MakeClassDeclaration),
       Rule({annotations, Token("struct"), &name,
             TryOrDefault<GenericParameters>(&genericParameters), Token("{"),
-            List<Declaration*>(&method),
-            List<StructFieldExpression>(&structField), Token("}")},
+            ListAllowIfAnnotation<Declaration*>(&method),
+            ListAllowIfAnnotation<StructFieldExpression>(&structField),
+            Token("}")},
            AsSingletonVector<Declaration*, MakeStructDeclaration>()),
       Rule({Token("bitfield"), Token("struct"), &name, Token("extends"), &type,
-            Token("{"), List<BitFieldDeclaration>(&bitFieldDeclaration),
+            Token("{"),
+            ListAllowIfAnnotation<BitFieldDeclaration>(&bitFieldDeclaration),
             Token("}")},
            AsSingletonVector<Declaration*, MakeBitFieldStructDeclaration>()),
       Rule({annotations, CheckIf(Token("transient")), Token("type"), &name,
@@ -2698,7 +2744,8 @@ struct TorqueGrammar : Grammar {
             Optional<TypeExpression*>(Sequence({Token("extends"), &type})),
             Optional<std::string>(
                 Sequence({Token("constexpr"), &externalString})),
-            Token("{"), NonemptyList<EnumEntry>(&enumEntry, Token(",")),
+            Token("{"),
+            NonemptyListAllowIfAnnotation<EnumEntry>(&enumEntry, Token(",")),
             CheckIf(Sequence({Token(","), Token("...")})), Token("}")},
            MakeEnumDeclaration),
       Rule({Token("namespace"), &identifier, Token("{"), &declarationList,
