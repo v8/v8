@@ -168,7 +168,7 @@ void AllocateInSharedHeap(Isolate* shared_isolate, int iterations = 100) {
   SetupClientIsolateAndRunCallback(
       shared_isolate,
       [iterations](v8::Isolate* client_isolate, Isolate* i_client_isolate) {
-        HandleScope scope(i_client_isolate);
+        HandleScope outer_scope(i_client_isolate);
         std::vector<Handle<FixedArray>> arrays;
         const int kKeptAliveArrays = 1000;
 
