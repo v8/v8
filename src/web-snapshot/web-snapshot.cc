@@ -257,7 +257,12 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
   }
 
   WriteSnapshot(data_out.buffer, data_out.buffer_size);
-  return !has_error();
+
+  if (has_error()) {
+    isolate_->ReportPendingMessages();
+    return false;
+  }
+  return true;
 }
 
 void WebSnapshotSerializer::SerializePendingItems() {

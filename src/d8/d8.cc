@@ -804,7 +804,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
                    snapshot_data.buffer_size);
       } else {
         CHECK(try_catch.HasCaught());
-        ReportException(isolate, &try_catch);
         return false;
       }
     } else if (options.web_snapshot_output) {
@@ -1933,10 +1932,13 @@ void Shell::RealmTakeWebSnapshot(
   // Take the snapshot in the specified Realm.
   auto snapshot_data_shared = std::make_shared<i::WebSnapshotData>();
   {
+    TryCatch try_catch(isolate);
+    try_catch.SetVerbose(true);
     PerIsolateData::ExplicitRealmScope realm_scope(data, index);
     i::WebSnapshotSerializer serializer(isolate);
     if (!serializer.TakeSnapshot(realm_scope.context(), exports,
                                  *snapshot_data_shared)) {
+      CHECK(try_catch.HasCaught());
       args.GetReturnValue().Set(Undefined(isolate));
       return;
     }
@@ -2653,6 +2655,9 @@ void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
                             Local<v8::Value> exception_obj) {
+  // Using ErrorPrototypeToString for converting the error to string will fail
+  // if there's a pending exception.
+  CHECK(!reinterpret_cast<i::Isolate*>(isolate)->has_pending_exception());
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   bool enter_context = context.IsEmpty();
