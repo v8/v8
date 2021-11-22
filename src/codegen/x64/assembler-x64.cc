@@ -3741,22 +3741,27 @@ void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1,
   emit(imm8);
 }
 
-void Assembler::vpd(byte op, XMMRegister dst, XMMRegister src1,
-                    XMMRegister src2) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F, kWIG);
-  emit(op);
-  emit_sse_operand(dst, src2);
-}
-
-void Assembler::vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
-  DCHECK(IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F, kWIG);
-  emit(op);
-  emit_sse_operand(dst, src2);
-}
+#define VPD(SIMDRegister, length)                                   \
+  void Assembler::vpd(byte op, SIMDRegister dst, SIMDRegister src1, \
+                      SIMDRegister src2) {                          \
+    DCHECK(IsEnabled(AVX));                                         \
+    EnsureSpace ensure_space(this);                                 \
+    emit_vex_prefix(dst, src1, src2, k##length, k66, k0F, kWIG);    \
+    emit(op);                                                       \
+    emit_sse_operand(dst, src2);                                    \
+  }                                                                 \
+                                                                    \
+  void Assembler::vpd(byte op, SIMDRegister dst, SIMDRegister src1, \
+                      Operand src2) {                               \
+    DCHECK(IsEnabled(AVX));                                         \
+    EnsureSpace ensure_space(this);                                 \
+    emit_vex_prefix(dst, src1, src2, k##length, k66, k0F, kWIG);    \
+    emit(op);                                                       \
+    emit_sse_operand(dst, src2);                                    \
+  }
+VPD(XMMRegister, L128)
+VPD(YMMRegister, L256)
+#undef VPD
 
 void Assembler::vucomiss(XMMRegister dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));

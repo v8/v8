@@ -2536,6 +2536,10 @@ TEST(AssemblerX64Regmove256bit) {
   __ vmovdqu(ymm10, ymm11);
   __ vmovdqu(ymm9, Operand(rbx, rcx, times_4, 10000));
   __ vmovdqu(Operand(rbx, rcx, times_4, 10000), ymm0);
+  __ vmovaps(ymm3, ymm1);
+  __ vmovups(Operand(rcx, rdx, times_4, 10000), ymm2);
+  __ vmovapd(ymm0, ymm5);
+  __ vmovupd(ymm6, Operand(r8, r9, times_4, 10000));
   __ vbroadcastss(ymm7, Operand(rbx, rcx, times_4, 10000));
   __ vmovddup(ymm3, ymm2);
   __ vmovddup(ymm4, Operand(rbx, rcx, times_4, 10000));
@@ -2563,6 +2567,15 @@ TEST(AssemblerX64Regmove256bit) {
                      0xC5, 0x7E, 0x6F, 0x8C, 0x8B, 0x10, 0x27, 0x00, 0x00,
                      // vmovdqu YMMWORD PTR [rbx+rcx*4+0x2710],ymm0
                      0xC5, 0xFE, 0x7F, 0x84, 0x8B, 0x10, 0x27, 0x00, 0x00,
+
+                     // vmovaps ymm3, ymm1
+                     0xC5, 0xFC, 0x28, 0xD9,
+                     // vmovups YMMWORD PTR [rcx+rdx*4+0x2710], ymm2
+                     0xC5, 0xFC, 0x11, 0x94, 0x91, 0x10, 0x27, 0x00, 0x00,
+                     // vmovapd ymm0, ymm5
+                     0xC5, 0xFD, 0x28, 0xC5,
+                     // vmovupd ymm6, YMMWORD PTR [r8+r9*4+0x2710]
+                     0xC4, 0x81, 0x7D, 0x10, 0xB4, 0x88, 0x10, 0x27, 0x00, 0x00,
 
                      // vbroadcastss ymm7, DWORD PTR [rbx+rcx*4+0x2710]
                      0xc4, 0xe2, 0x7d, 0x18, 0xbc, 0x8b, 0x10, 0x27, 0x00, 0x00,
