@@ -584,10 +584,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(size_t size,
                                                     ReadOnlySpace* owner) {
-  BasicMemoryChunk* chunk = nullptr;
-  if (chunk == nullptr) {
-    chunk = AllocateBasicChunk(size, size, NOT_EXECUTABLE, owner);
-  }
+  BasicMemoryChunk* chunk =
+      AllocateBasicChunk(size, size, NOT_EXECUTABLE, owner);
   if (chunk == nullptr) return nullptr;
   return owner->InitializePage(chunk);
 }
