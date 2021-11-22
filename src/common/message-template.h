@@ -321,6 +321,9 @@ namespace internal {
     "Invalid property descriptor. Cannot both specify accessors and a value "  \
     "or writable attribute, %")                                                \
   T(VarRedeclaration, "Identifier '%' has already been declared")              \
+  T(VarNotAllowedInEvalScope,                                                  \
+    "Identifier '%' cannot be declared with 'var' in current evaluation "      \
+    "scope, consider trying 'let' instead")                                    \
   T(WrongArgs, "%: Arguments list has wrong type")                             \
   /* ReferenceError */                                                         \
   T(NotDefined, "% is not defined")                                            \
