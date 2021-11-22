@@ -2190,7 +2190,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       dst_elms = BackingStore::cast(
           isolate->heap()->LeftTrimFixedArray(dst_elms, src_index));
       // Update all the copies of this backing_store handle.
-      *backing_store.location() = dst_elms.ptr();
+      backing_store.PatchValue(dst_elms);
       receiver->set_elements(dst_elms);
       // Adjust the hole offset as the array has been shrunk.
       hole_end -= src_index;
