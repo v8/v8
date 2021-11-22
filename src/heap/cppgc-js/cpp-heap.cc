@@ -10,6 +10,7 @@
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
+#include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-platform.h"
 #include "src/base/logging.h"
@@ -588,8 +589,9 @@ void CppHeap::CollectGarbageForTesting(
   SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
 
   if (isolate_) {
-    // Go through EmbedderHeapTracer API and perform a unified heap collection.
-    GarbageCollectionForTesting(stack_state);
+    reinterpret_cast<v8::Isolate*>(isolate_)
+        ->RequestGarbageCollectionForTesting(
+            v8::Isolate::kFullGarbageCollection, stack_state);
   } else {
     // Perform an atomic GC, with starting incremental/concurrent marking and
     // immediately finalizing the garbage collection.
