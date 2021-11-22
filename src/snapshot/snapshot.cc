@@ -341,7 +341,8 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
         (ReadOnlyHeap::IsReadOnlySpaceShared()
              ? Snapshot::kReconstructReadOnlyObjectCacheForTesting
              : 0));
-    serialized_data = Snapshot::Create(isolate, *default_context, no_gc, flags);
+    serialized_data = Snapshot::Create(isolate, *default_context,
+                                       global_safepoint, no_gc, flags);
     auto_delete_serialized_data.reset(serialized_data.data);
   }
 
@@ -379,15 +380,16 @@ v8::StartupData Snapshot::Create(
     Isolate* isolate, std::vector<Context>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
+    const GlobalSafepointScope& global_safepoint,
     const DisallowGarbageCollection& no_gc, SerializerFlags flags) {
   TRACE_EVENT0("v8", "V8.SnapshotCreate");
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
 
-  // Ensure we are in a safepoint scope so that the string table is safe to
-  // iterate. Unlike mksnapshot, embedders may have background threads running.
-  isolate->heap()->safepoint()->AssertActive();
+  // The GlobalSafepointScope ensures we are in a safepoint scope so that the
+  // string table is safe to iterate. Unlike mksnapshot, embedders may have
+  // background threads running.
 
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.SerializeReadOnlyRoots();
@@ -462,11 +464,13 @@ v8::StartupData Snapshot::Create(
 
 // static
 v8::StartupData Snapshot::Create(Isolate* isolate, Context default_context,
+                                 const GlobalSafepointScope& global_safepoint,
                                  const DisallowGarbageCollection& no_gc,
                                  SerializerFlags flags) {
   std::vector<Context> contexts{default_context};
   std::vector<SerializeInternalFieldsCallback> callbacks{{}};
-  return Snapshot::Create(isolate, &contexts, callbacks, no_gc, flags);
+  return Snapshot::Create(isolate, &contexts, callbacks, global_safepoint,
+                          no_gc, flags);
 }
 
 v8::StartupData SnapshotImpl::CreateSnapshotBlob(
