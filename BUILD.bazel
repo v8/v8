@@ -2746,6 +2746,7 @@ filegroup(
         "src/heap/cppgc/marking-visitor.h",
         "src/heap/cppgc/marking-worklists.cc",
         "src/heap/cppgc/marking-worklists.h",
+        "src/heap/cppgc/memory.cc",
         "src/heap/cppgc/memory.h",
         "src/heap/cppgc/metric-recorder.h",
         "src/heap/cppgc/name-trait.cc",
