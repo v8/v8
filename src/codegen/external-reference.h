@@ -11,7 +11,6 @@
 namespace v8 {
 
 class ApiFunction;
-class CFunctionInfo;
 
 namespace internal {
 
@@ -409,15 +408,6 @@ class ExternalReference {
   static ExternalReference Create(StatsCounter* counter);
   static V8_EXPORT_PRIVATE ExternalReference Create(ApiFunction* ptr,
                                                     Type type);
-  // The following version is used by JSCallReducer in the compiler
-  // to create a reference for a fast API call, with one or more
-  // overloads. In simulator builds, it additionally "registers"
-  // the overloads with the simulator to ensure it maintains a
-  // mapping of callable Address'es to a function signature, encoding
-  // GP and FP arguments.
-  static V8_EXPORT_PRIVATE ExternalReference
-  Create(Isolate* isolate, ApiFunction* ptr, Type type, Address* c_functions,
-         const CFunctionInfo* const* c_signatures, unsigned num_functions);
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
   static ExternalReference Create(Runtime::FunctionId id);

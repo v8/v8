@@ -50,15 +50,6 @@ class UMemory;
 }  // namespace U_ICU_NAMESPACE
 #endif  // V8_INTL_SUPPORT
 
-#if USE_SIMULATOR
-#include "src/execution/encoded-c-signature.h"
-namespace v8 {
-namespace internal {
-class SimulatorData;
-}
-}  // namespace v8
-#endif
-
 namespace v8_inspector {
 class V8Inspector;
 }  // namespace v8_inspector
@@ -1880,10 +1871,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool OwnsStringTable() { return !FLAG_shared_string_table || is_shared(); }
 
-#if USE_SIMULATOR
-  SimulatorData* simulator_data() { return simulator_data_; }
-#endif
-
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator,
                    bool is_shared);
@@ -2339,10 +2326,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.
   void* operator new(size_t, void* ptr) { return ptr; }
-
-#if USE_SIMULATOR
-  SimulatorData* simulator_data_ = nullptr;
-#endif
 
   friend class heap::HeapTester;
   friend class GlobalSafepoint;
