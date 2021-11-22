@@ -8562,6 +8562,17 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
   }
 }
 
+void Isolate::RequestGarbageCollectionForTesting(
+    GarbageCollectionType type,
+    EmbedderHeapTracer::EmbedderStackState stack_state) {
+  if (type == kFullGarbageCollection) {
+    reinterpret_cast<i::Isolate*>(this)
+        ->heap()
+        ->SetEmbedderStackStateForNextFinalization(stack_state);
+  }
+  RequestGarbageCollectionForTesting(type);
+}
+
 Isolate* Isolate::GetCurrent() {
   i::Isolate* isolate = i::Isolate::Current();
   return reinterpret_cast<Isolate*>(isolate);

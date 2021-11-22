@@ -1135,6 +1135,21 @@ class V8_EXPORT Isolate {
   void RequestGarbageCollectionForTesting(GarbageCollectionType type);
 
   /**
+   * Request garbage collection with a specific embedderstack state in this
+   * Isolate. It is only valid to call this function if --expose_gc was
+   * specified.
+   *
+   * This should only be used for testing purposes and not to enforce a garbage
+   * collection schedule. It has strong negative impact on the garbage
+   * collection performance. Use IdleNotificationDeadline() or
+   * LowMemoryNotification() instead to influence the garbage collection
+   * schedule.
+   */
+  void RequestGarbageCollectionForTesting(
+      GarbageCollectionType type,
+      EmbedderHeapTracer::EmbedderStackState stack_state);
+
+  /**
    * Set the callback to invoke for logging event.
    */
   void SetEventLogger(LogEventCallback that);
