@@ -219,6 +219,13 @@ bool WebSnapshotSerializer::TakeSnapshot(v8::Local<v8::Context> context,
     return false;
   }
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+
+  contexts_ = ArrayList::New(isolate_, 30);
+  functions_ = ArrayList::New(isolate_, 30);
+  classes_ = ArrayList::New(isolate_, 30);
+  arrays_ = ArrayList::New(isolate_, 30);
+  objects_ = ArrayList::New(isolate_, 30);
+
   std::unique_ptr<Handle<JSObject>[]> export_objects(
       new Handle<JSObject>[exports->Length()]);
   for (int i = 0, length = exports->Length(); i < length; ++i) {
@@ -497,12 +504,6 @@ void WebSnapshotSerializer::Discovery(Handle<Object> start_object) {
   // covers them before serializing the functions.
 
   // TODO(v8:11525): Serialize leaf objects first.
-
-  contexts_ = ArrayList::New(isolate_, 30);
-  functions_ = ArrayList::New(isolate_, 30);
-  classes_ = ArrayList::New(isolate_, 30);
-  arrays_ = ArrayList::New(isolate_, 30);
-  objects_ = ArrayList::New(isolate_, 30);
 
   discovery_queue_.push(start_object);
 

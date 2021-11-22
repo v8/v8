@@ -333,3 +333,13 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   const x = new Foo();
   assertEquals(6, await x.g());
 })();
+
+(function TwoExportedObjects() {
+  function createObjects() {
+    globalThis.one = {x: 1};
+    globalThis.two = {x: 2};
+  }
+  const { one, two } = takeAndUseWebSnapshot(createObjects, ['one', 'two']);
+  assertEquals(1, one.x);
+  assertEquals(2, two.x);
+})();
