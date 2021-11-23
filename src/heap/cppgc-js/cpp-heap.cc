@@ -331,7 +331,9 @@ CppHeap::CppHeap(
     : cppgc::internal::HeapBase(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
-              kSupportsConservativeStackScan),
+              kSupportsConservativeStackScan,
+          cppgc::internal::HeapBase::MarkingType::kIncrementalAndConcurrent,
+          cppgc::internal::HeapBase::SweepingType::kIncrementalAndConcurrent),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
