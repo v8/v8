@@ -382,7 +382,7 @@ void V8DebuggerAgentImpl::enableImpl() {
 
   if (isPaused()) {
     didPause(0, v8::Local<v8::Value>(), std::vector<v8::debug::BreakpointId>(),
-             v8::debug::kException, false, false, false);
+             v8::debug::kException, false, false, false, false);
   }
 }
 
@@ -1745,7 +1745,7 @@ void V8DebuggerAgentImpl::didPause(
     int contextId, v8::Local<v8::Value> exception,
     const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
     v8::debug::ExceptionType exceptionType, bool isUncaught, bool isOOMBreak,
-    bool isAssert) {
+    bool isAssert, bool isStepAction) {
   v8::HandleScope handles(m_isolate);
 
   std::vector<BreakReason> hitReasons;
@@ -1816,14 +1816,20 @@ void V8DebuggerAgentImpl::didPause(
     }
   }
 
-  if (hitRegularBreakpoint) {
-    hitReasons.push_back(
-        std::make_pair(protocol::Debugger::Paused::ReasonEnum::Other, nullptr));
-  }
   for (size_t i = 0; i < m_breakReason.size(); ++i) {
     hitReasons.push_back(std::move(m_breakReason[i]));
   }
   clearBreakDetails();
+
+  // Make sure that we only include (other: nullptr) once.
+  const BreakReason otherHitReason =
+      std::make_pair(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
+  if ((hitRegularBreakpoint || isStepAction) &&
+      std::find(hitReasons.begin(), hitReasons.end(), otherHitReason) ==
+          hitReasons.end()) {
+    hitReasons.push_back(
+        std::make_pair(protocol::Debugger::Paused::ReasonEnum::Other, nullptr));
+  }
 
   // TODO(kimanh): We should always know why we pause. Print a
   // warning if we don't and fall back to Other.

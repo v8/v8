@@ -221,6 +221,8 @@ enum ExceptionType { kException, kPromiseRejection };
 
 class DebugDelegate {
  public:
+  // Encodes whether a requested break is (also) due to a step action.
+  enum StepBreak { kIsStepBreak, kIsNoStepBreak };
   virtual ~DebugDelegate() = default;
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
@@ -228,7 +230,8 @@ class DebugDelegate {
   // debug::Script::SetBreakpoint API.
   virtual void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
-      const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
+      const std::vector<debug::BreakpointId>& inspector_break_points_hit,
+      StepBreak is_step_break) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
                                v8::Local<v8::Value> promise, bool is_uncaught,

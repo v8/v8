@@ -152,7 +152,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void didPause(int contextId, v8::Local<v8::Value> exception,
                 const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
                 v8::debug::ExceptionType exceptionType, bool isUncaught,
-                bool isOOMBreak, bool isAssert);
+                bool isOOMBreak, bool isAssert, bool isStepAction);
   void didContinue();
   void didParseSource(std::unique_ptr<V8DebuggerScript>, bool success);
 

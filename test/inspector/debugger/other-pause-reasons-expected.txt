@@ -6,3 +6,12 @@ Paused with reason: other and data: {}.
 
 Running test: testTriggeredPausePauseReason
 Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"foo.js","scriptId":"4"}},{"reason":"other"}]}.
+
+Running test: testSteppingPauseReason
+Paused with reason: instrumentation and data: {"url":"foo.js","scriptId":"5"}.
+Paused with reason: other and data: {}.
+Paused with reason: other and data: {}.
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"bar.js","scriptId":"6"}},{"reason":"other"}]}.
+
+Running test: testOnlyReportOtherWithEmptyDataOnce
+Paused with reason: other and data: {}.

@@ -2152,8 +2152,11 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
     Handle<Context> native_context(isolate_->native_context());
-    debug_delegate_->BreakProgramRequested(v8::Utils::ToLocal(native_context),
-                                           inspector_break_points_hit);
+    debug_delegate_->BreakProgramRequested(
+        v8::Utils::ToLocal(native_context), inspector_break_points_hit,
+        lastStepAction != StepAction::StepNone
+            ? debug::DebugDelegate::StepBreak::kIsStepBreak
+            : debug::DebugDelegate::StepBreak::kIsNoStepBreak);
   }
 }
 

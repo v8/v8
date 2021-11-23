@@ -397,7 +397,8 @@ void V8Debugger::clearContinueToLocation() {
 void V8Debugger::handleProgramBreak(
     v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
     const std::vector<v8::debug::BreakpointId>& breakpointIds,
-    v8::debug::ExceptionType exceptionType, bool isUncaught) {
+    StepBreak isStepAction, v8::debug::ExceptionType exceptionType,
+    bool isUncaught) {
   // Don't allow nested breaks.
   if (isPaused()) return;
 
@@ -471,7 +472,7 @@ void V8Debugger::handleProgramBreak(
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), {},
               instrumentationBreakpointIds,
-              v8::debug::ExceptionType::kException, false, false, false);
+              v8::debug::ExceptionType::kException, false, false, false, false);
         });
     {
       v8::Context::Scope scope(pausedContext);
@@ -504,14 +505,16 @@ void V8Debugger::handleProgramBreak(
   // want to trigger two pause events if we only break because of an
   // instrumentation.
   m_inspector->forEachSession(
-      contextGroupId, [&pausedContext, &exception, &regularBreakpointIds,
-                       &exceptionType, &isUncaught, &scheduledOOMBreak,
-                       &scheduledAssertBreak](V8InspectorSessionImpl* session) {
+      contextGroupId,
+      [&pausedContext, &exception, &regularBreakpointIds, &exceptionType,
+       &isUncaught, &scheduledOOMBreak, &scheduledAssertBreak,
+       &isStepAction](V8InspectorSessionImpl* session) {
         if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), exception,
               regularBreakpointIds, exceptionType, isUncaught,
-              scheduledOOMBreak, scheduledAssertBreak);
+              scheduledOOMBreak, scheduledAssertBreak,
+              isStepAction == kIsStepBreak);
         }
       });
   {
@@ -580,8 +583,10 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
 
 void V8Debugger::BreakProgramRequested(
     v8::Local<v8::Context> pausedContext,
-    const std::vector<v8::debug::BreakpointId>& break_points_hit) {
-  handleProgramBreak(pausedContext, v8::Local<v8::Value>(), break_points_hit);
+    const std::vector<v8::debug::BreakpointId>& break_points_hit,
+    StepBreak is_step_break) {
+  handleProgramBreak(pausedContext, v8::Local<v8::Value>(), break_points_hit,
+                     is_step_break);
 }
 
 void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
@@ -589,8 +594,8 @@ void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
                                  v8::Local<v8::Value> promise, bool isUncaught,
                                  v8::debug::ExceptionType exceptionType) {
   std::vector<v8::debug::BreakpointId> break_points_hit;
-  handleProgramBreak(pausedContext, exception, break_points_hit, exceptionType,
-                     isUncaught);
+  handleProgramBreak(pausedContext, exception, break_points_hit, kIsNoStepBreak,
+                     exceptionType, isUncaught);
 }
 
 bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,

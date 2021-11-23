@@ -142,6 +142,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void handleProgramBreak(
       v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
       const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
+      StepBreak isStepBreak = StepBreak::kIsNoStepBreak,
       v8::debug::ExceptionType exception_type = v8::debug::kException,
       bool isUncaught = false);
 
@@ -178,7 +179,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
                       bool has_compile_error) override;
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
-      const std::vector<v8::debug::BreakpointId>& break_points_hit) override;
+      const std::vector<v8::debug::BreakpointId>& break_points_hit,
+      StepBreak is_step_break) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Value> exception,
                        v8::Local<v8::Value> promise, bool is_uncaught,

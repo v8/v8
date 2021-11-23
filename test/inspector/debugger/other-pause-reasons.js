@@ -5,10 +5,11 @@
 const { session, contextGroup, Protocol } = InspectorTest.start(
     `Test that all 'other' reasons are explicitly encoded on a pause event if they overlap with another reason`);
 
-Protocol.Debugger.onPaused(({params: {reason, data}}) => {
-  InspectorTest.log(`Paused with reason: ${reason} and data: ${data ? JSON.stringify(data) : '{}'}.`)
+function resumeOnPause({params: {reason, data}}) {
+  InspectorTest.log(`Paused with reason: ${reason} and data: ${
+      data ? JSON.stringify(data) : '{}'}.`)
   Protocol.Debugger.resume();
-});
+}
 
 async function setUpEnvironment() {
   await Protocol.Debugger.enable();
@@ -23,6 +24,7 @@ async function tearDownEnvironment() {
 InspectorTest.runAsyncTestSuite([
   async function testBreakpointPauseReason() {
     await setUpEnvironment()
+    Protocol.Debugger.onPaused(resumeOnPause);
     await Protocol.Debugger .setInstrumentationBreakpoint({
       instrumentation: 'beforeScriptExecution'
     });
@@ -38,6 +40,7 @@ InspectorTest.runAsyncTestSuite([
   },
   async function testTriggeredPausePauseReason() {
     await setUpEnvironment();
+    Protocol.Debugger.onPaused(resumeOnPause);
     await Protocol.Debugger.setInstrumentationBreakpoint({
       instrumentation: 'beforeScriptExecution'
     });
@@ -45,5 +48,50 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Runtime.evaluate({
       expression: `console.log('foo');//# sourceURL=foo.js`});
     tearDownEnvironment();
-  }]
-);
+  },
+  async function testSteppingPauseReason() {
+    await setUpEnvironment();
+    await Protocol.Debugger.setInstrumentationBreakpoint(
+        {instrumentation: 'beforeScriptExecution'});
+    const stepOnPause = (({params: {reason, data}}) => {
+      InspectorTest.log(`Paused with reason: ${reason} and data: ${
+          data ? JSON.stringify(data) : '{}'}.`);
+      if (reason === 'instrumentation') {
+        Protocol.Debugger.resume();
+      } else {
+        Protocol.Debugger.stepInto();
+      }
+    });
+    Protocol.Debugger.onPaused(stepOnPause);
+
+    const {result: {scriptId}} = await Protocol.Runtime.compileScript({
+      expression: `setTimeout('console.log(3);//# sourceURL=bar.js', 0);`,
+      sourceURL: 'foo.js',
+      persistScript: true
+    });
+    await Protocol.Debugger.setBreakpointByUrl({
+      lineNumber: 0,
+      url: 'foo.js',
+    });
+
+    await Protocol.Runtime.runScript({scriptId});
+    await tearDownEnvironment();
+  },
+  async function testOnlyReportOtherWithEmptyDataOnce() {
+    await setUpEnvironment();
+    Protocol.Debugger.onPaused(resumeOnPause);
+    Protocol.Debugger.pause();
+    const {result: {scriptId}} = await Protocol.Runtime.compileScript({
+      expression: 'console.log(foo);',
+      sourceURL: 'foo.js',
+      persistScript: true
+    });
+    await Protocol.Debugger.setBreakpointByUrl({
+      lineNumber: 0,
+      url: 'foo.js',
+    });
+
+    await Protocol.Runtime.runScript({scriptId});
+    await tearDownEnvironment();
+  }
+]);
