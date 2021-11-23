@@ -1934,7 +1934,7 @@ class Heap {
   // reporting/verification activities when compiled with DEBUG set.
   void GarbageCollectionPrologue();
   void GarbageCollectionPrologueInSafepoint();
-  void GarbageCollectionEpilogue();
+  void GarbageCollectionEpilogue(GarbageCollector collector);
   void GarbageCollectionEpilogueInSafepoint(GarbageCollector collector);
 
   // Performs a major collection in the whole heap.

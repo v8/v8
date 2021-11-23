@@ -109,19 +109,19 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
   void VisitRootPointer(Root root, const char* description,
                         FullObjectSlot p) override {
     DCHECK(!MapWord::IsPacked((*p).ptr()));
-    MarkObjectByPointer(p);
+    MarkObjectByPointer(root, p);
   }
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot p = start; p < end; ++p) {
       DCHECK(!MapWord::IsPacked((*p).ptr()));
-      MarkObjectByPointer(p);
+      MarkObjectByPointer(root, p);
     }
   }
 
  private:
-  void MarkObjectByPointer(FullObjectSlot p) {
+  void MarkObjectByPointer(Root root, FullObjectSlot p) {
     Object object = *p;
     if (!object.IsHeapObject()) return;
     DCHECK(!MapWord::IsPacked(object.ptr()));
@@ -129,7 +129,7 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
     BasicMemoryChunk* target_page =
         BasicMemoryChunk::FromHeapObject(heap_object);
     if (target_page->InSharedHeap()) return;
-    heap_->incremental_marking()->WhiteToGreyAndPush(heap_object);
+    heap_->incremental_marking()->MarkRootObject(root, heap_object);
   }
 
   Heap* heap_;

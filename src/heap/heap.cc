@@ -936,11 +936,6 @@ void Heap::GarbageCollectionPrologue() {
   } else {
     maximum_size_scavenges_ = 0;
   }
-  if (FLAG_track_retaining_path) {
-    retainer_.clear();
-    ephemeron_retainer_.clear();
-    retaining_root_.clear();
-  }
   memory_allocator()->unmapper()->PrepareForGC();
 }
 
@@ -1335,11 +1330,18 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   collection_barrier_->ResumeThreadsAwaitingCollection();
 }
 
-void Heap::GarbageCollectionEpilogue() {
+void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE);
   AllowGarbageCollection for_the_rest_of_the_epilogue;
 
   UpdateMaximumCommitted();
+
+  if (FLAG_track_retaining_path &&
+      collector == GarbageCollector::MARK_COMPACTOR) {
+    retainer_.clear();
+    ephemeron_retainer_.clear();
+    retaining_root_.clear();
+  }
 
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));
@@ -1821,7 +1823,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
       }
     }
 
-    GarbageCollectionEpilogue();
+    GarbageCollectionEpilogue(collector);
     if (collector == GarbageCollector::MARK_COMPACTOR &&
         FLAG_track_detached_contexts) {
       isolate()->CheckDetachedContextsAfterGC();
