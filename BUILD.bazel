@@ -1987,6 +1987,8 @@ filegroup(
         "src/tasks/operations-barrier.h",
         "src/tasks/task-utils.cc",
         "src/tasks/task-utils.h",
+        "src/temporal/temporal-parser.cc",
+        "src/temporal/temporal-parser.h",
         "src/torque/runtime-macro-shims.h",
         "src/third_party/siphash/halfsiphash.cc",
         "src/third_party/siphash/halfsiphash.h",
