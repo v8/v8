@@ -3609,20 +3609,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
   // ResizableArrayBuffer.
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayLength(
-      TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
-      Label* detached_or_out_of_bounds);
+      TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer, Label* miss);
   // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
   // ResizableArrayBuffer.
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayByteLength(
       TNode<Context> context, TNode<JSTypedArray> array,
       TNode<JSArrayBuffer> buffer);
-  TNode<UintPtrT> LoadVariableLengthJSArrayBufferViewByteLength(
-      TNode<JSArrayBufferView> array, TNode<JSArrayBuffer> buffer,
-      Label* detached_or_out_of_bounds);
-
-  void IsJSArrayBufferViewDetachedOrOutOfBounds(TNode<JSArrayBufferView> array,
-                                                Label* detached_or_oob,
-                                                Label* not_detached_nor_oob);
+  void IsJSTypedArrayDetachedOrOutOfBounds(TNode<JSTypedArray> array,
+                                           Label* detached_or_oob,
+                                           Label* not_detached_nor_oob);
 
   TNode<IntPtrT> RabGsabElementsKindToElementByteSize(
       TNode<Int32T> elementsKind);

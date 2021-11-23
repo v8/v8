@@ -878,7 +878,8 @@ ExternalReference ExternalReference::search_string_raw() {
 FUNCTION_REFERENCE(jsarray_array_join_concat_to_sequential_string,
                    JSArray::ArrayJoinConcatToSequentialString)
 
-FUNCTION_REFERENCE(gsab_byte_length, JSArrayBuffer::GsabByteLength)
+FUNCTION_REFERENCE(length_tracking_gsab_backed_typed_array_length,
+                   JSTypedArray::LengthTrackingGsabBackedTypedArrayLength)
 
 ExternalReference ExternalReference::search_string_raw_one_one() {
   return search_string_raw<const uint8_t, const uint8_t>();

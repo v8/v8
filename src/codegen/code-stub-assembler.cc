@@ -13888,7 +13888,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndCheckDetached(
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
 
   Label variable_length(this), fixed_length(this), end(this);
-  Branch(IsVariableLengthJSArrayBufferView(typed_array), &variable_length,
+  Branch(IsVariableLengthTypedArray(typed_array), &variable_length,
          &fixed_length);
   BIND(&variable_length);
   {
@@ -13911,55 +13911,36 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndCheckDetached(
 
 // ES #sec-integerindexedobjectlength
 TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
-    TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
-    Label* detached_or_out_of_bounds) {
-  // byte_length already takes array's offset into account.
-  TNode<UintPtrT> byte_length = LoadVariableLengthJSArrayBufferViewByteLength(
-      array, buffer, detached_or_out_of_bounds);
-  TNode<IntPtrT> element_size =
-      RabGsabElementsKindToElementByteSize(LoadElementsKind(array));
-  return Unsigned(IntPtrDiv(Signed(byte_length), element_size));
-}
-
-TNode<UintPtrT>
-CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
-    TNode<JSArrayBufferView> array, TNode<JSArrayBuffer> buffer,
-    Label* detached_or_out_of_bounds) {
+    TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer, Label* miss) {
   Label is_gsab(this), is_rab(this), end(this);
   TVARIABLE(UintPtrT, result);
-  TNode<UintPtrT> array_byte_offset = LoadJSArrayBufferViewByteOffset(array);
 
   Branch(IsSharedArrayBuffer(buffer), &is_gsab, &is_rab);
   BIND(&is_gsab);
   {
-    // Non-length-tracking GSAB-backed ArrayBufferViews shouldn't end up here.
-    CSA_DCHECK(this, IsLengthTrackingJSArrayBufferView(array));
+    // Non-length-tracking GSAB-backed TypedArrays shouldn't end up here.
+    CSA_DCHECK(this, IsLengthTrackingTypedArray(array));
     // Read the byte length from the BackingStore.
-    const TNode<ExternalReference> byte_length_function =
-        ExternalConstant(ExternalReference::gsab_byte_length());
+    const TNode<ExternalReference> length_function = ExternalConstant(
+        ExternalReference::length_tracking_gsab_backed_typed_array_length());
     TNode<ExternalReference> isolate_ptr =
         ExternalConstant(ExternalReference::isolate_address(isolate()));
-    TNode<UintPtrT> buffer_byte_length = UncheckedCast<UintPtrT>(
-        CallCFunction(byte_length_function, MachineType::UintPtr(),
+    result = UncheckedCast<UintPtrT>(
+        CallCFunction(length_function, MachineType::UintPtr(),
                       std::make_pair(MachineType::Pointer(), isolate_ptr),
-                      std::make_pair(MachineType::AnyTagged(), buffer)));
-    // Since the SharedArrayBuffer can't shrink, and we've managed to create
-    // this JSArrayBufferDataView without throwing an exception, we know that
-    // buffer_byte_length >= array_byte_offset.
-    CSA_CHECK(this,
-              UintPtrGreaterThanOrEqual(buffer_byte_length, array_byte_offset));
-    result = UintPtrSub(buffer_byte_length, array_byte_offset);
+                      std::make_pair(MachineType::AnyTagged(), array)));
     Goto(&end);
   }
 
   BIND(&is_rab);
   {
-    GotoIf(IsDetachedBuffer(buffer), detached_or_out_of_bounds);
+    GotoIf(IsDetachedBuffer(buffer), miss);
 
     TNode<UintPtrT> buffer_byte_length = LoadJSArrayBufferByteLength(buffer);
+    TNode<UintPtrT> array_byte_offset = LoadJSArrayBufferViewByteOffset(array);
 
     Label is_length_tracking(this), not_length_tracking(this);
-    Branch(IsLengthTrackingJSArrayBufferView(array), &is_length_tracking,
+    Branch(IsLengthTrackingTypedArray(array), &is_length_tracking,
            &not_length_tracking);
 
     BIND(&is_length_tracking);
@@ -13967,8 +13948,16 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
       // The backing RAB might have been shrunk so that the start of the
       // TypedArray is already out of bounds.
       GotoIfNot(UintPtrLessThanOrEqual(array_byte_offset, buffer_byte_length),
-                detached_or_out_of_bounds);
-      result = UintPtrSub(buffer_byte_length, array_byte_offset);
+                miss);
+      // length = (buffer_byte_length - byte_offset) / element_size
+      // Conversion to signed is OK since buffer_byte_length <
+      // JSArrayBuffer::kMaxByteLength.
+      TNode<IntPtrT> element_size =
+          RabGsabElementsKindToElementByteSize(LoadElementsKind(array));
+      TNode<IntPtrT> length =
+          IntPtrDiv(Signed(UintPtrSub(buffer_byte_length, array_byte_offset)),
+                    element_size);
+      result = Unsigned(length);
       Goto(&end);
     }
 
@@ -13981,8 +13970,8 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
       GotoIfNot(UintPtrGreaterThanOrEqual(
                     buffer_byte_length,
                     UintPtrAdd(array_byte_offset, array_byte_length)),
-                detached_or_out_of_bounds);
-      result = array_byte_length;
+                miss);
+      result = LoadJSTypedArrayLength(array);
       Goto(&end);
     }
   }
@@ -13990,13 +13979,13 @@ CodeStubAssembler::LoadVariableLengthJSArrayBufferViewByteLength(
   return result.value();
 }
 
-void CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBounds(
-    TNode<JSArrayBufferView> array, Label* detached_or_oob,
+void CodeStubAssembler::IsJSTypedArrayDetachedOrOutOfBounds(
+    TNode<JSTypedArray> array, Label* detached_or_oob,
     Label* not_detached_nor_oob) {
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
 
   GotoIf(IsDetachedBuffer(buffer), detached_or_oob);
-  GotoIfNot(IsVariableLengthJSArrayBufferView(array), not_detached_nor_oob);
+  GotoIfNot(IsVariableLengthTypedArray(array), not_detached_nor_oob);
   GotoIf(IsSharedArrayBuffer(buffer), not_detached_nor_oob);
 
   {
@@ -14004,7 +13993,7 @@ void CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBounds(
     TNode<UintPtrT> array_byte_offset = LoadJSArrayBufferViewByteOffset(array);
 
     Label length_tracking(this), not_length_tracking(this);
-    Branch(IsLengthTrackingJSArrayBufferView(array), &length_tracking,
+    Branch(IsLengthTrackingTypedArray(array), &length_tracking,
            &not_length_tracking);
 
     BIND(&length_tracking);
