@@ -55,6 +55,11 @@ class BuildFlags : public ContextualClass<BuildFlags> {
 #else
     build_flags_["V8_SCRIPTORMODULE_LEGACY_LIFETIME"] = false;
 #endif
+#ifdef V8_ENABLE_WEBASSEMBLY
+    build_flags_["V8_ENABLE_WEBASSEMBLY"] = true;
+#else
+    build_flags_["V8_ENABLE_WEBASSEMBLY"] = false;
+#endif
   }
   static bool GetFlag(const std::string& name, const char* production) {
     auto it = Get().build_flags_.find(name);

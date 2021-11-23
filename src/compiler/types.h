@@ -132,9 +132,10 @@ namespace compiler {
   V(SandboxedExternalPointer, uint64_t{1} << 30)  \
   V(CagedPointer,             uint64_t{1} << 31)
 
-// For future use.
-// Types defined in the high 32 bit are currently only supported in C++.
-#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V)
+// We split the macro list into two parts because the Torque equivalent in
+// turbofan-types.tq uses two 32bit bitfield structs.
+#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V)  \
+  V(WasmObject,               uint64_t{1} << 32)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     uint64_t{0}) \
@@ -199,7 +200,7 @@ namespace compiler {
   V(DetectableReceiver,           kDetectableObject | kProxy) \
   V(DetectableReceiverOrNull,     kDetectableReceiver | kNull) \
   V(Object,                       kDetectableObject | kOtherUndetectable) \
-  V(Receiver,                     kObject | kProxy) \
+  V(Receiver,                     kObject | kProxy | kWasmObject) \
   V(ReceiverOrUndefined,          kReceiver | kUndefined) \
   V(ReceiverOrNullOrUndefined,    kReceiver | kNull | kUndefined) \
   V(SymbolOrReceiver,             kSymbol | kReceiver) \
