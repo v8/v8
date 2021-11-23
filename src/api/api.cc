@@ -10192,7 +10192,7 @@ void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
   UNREACHABLE();
 }
 
-void WasmStreaming::Finish() { UNREACHABLE(); }
+void WasmStreaming::Finish(bool can_use_compiled_module) { UNREACHABLE(); }
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) { UNREACHABLE(); }
 
