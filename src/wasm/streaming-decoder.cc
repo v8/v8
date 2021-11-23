@@ -321,7 +321,13 @@ class CompilationChunkFinishedCallback : public CompilationEventCallback {
       std::weak_ptr<NativeModule> native_module,
       AsyncStreamingDecoder::ModuleCompiledCallback callback)
       : native_module_(std::move(native_module)),
-        callback_(std::move(callback)) {}
+        callback_(std::move(callback)) {
+    // As a baseline we also count the modules that could be cached but
+    // never reach the threshold.
+    if (std::shared_ptr<NativeModule> module = native_module_.lock()) {
+      module->counters()->wasm_cache_count()->AddSample(0);
+    }
+  }
 
   void call(CompilationEvent event) override {
     if (event != CompilationEvent::kFinishedCompilationChunk &&
@@ -331,6 +337,7 @@ class CompilationChunkFinishedCallback : public CompilationEventCallback {
     // If the native module is still alive, get back a shared ptr and call the
     // callback.
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
+      native_module->counters()->wasm_cache_count()->AddSample(++cache_count_);
       callback_(native_module);
     }
   }
@@ -342,6 +349,7 @@ class CompilationChunkFinishedCallback : public CompilationEventCallback {
  private:
   const std::weak_ptr<NativeModule> native_module_;
   const AsyncStreamingDecoder::ModuleCompiledCallback callback_;
+  int cache_count_ = 0;
 };
 
 }  // namespace

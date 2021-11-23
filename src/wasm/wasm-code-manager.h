@@ -563,6 +563,8 @@ class WasmCodeAllocator {
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   size_t GetNumCodeSpaces() const;
 
+  Counters* counters() const { return async_counters_.get(); }
+
  private:
   // Sentinel value to be used for {AllocateForCodeInRegion} for specifying no
   // restriction on the region to allocate in.
@@ -840,6 +842,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   DebugInfo* GetDebugInfo();
 
   uint32_t* tiering_budget_array() { return tiering_budgets_.get(); }
+
+  Counters* counters() const { return code_allocator_.counters(); }
 
  private:
   friend class WasmCode;
