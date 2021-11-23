@@ -33,7 +33,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
 // elements.
 // TODO(bmeurer,v8:4153): Rename this and maybe fix up the implementation a bit.
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
-    TNode<Context> context, TNode<UintPtrT> byte_length) {
+    TNode<Context> context) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map =
       CAST(LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX));
@@ -49,7 +49,7 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   // Setup the ArrayBuffer.
   //  - Set BitField to 0.
   //  - Set IsExternal and IsDetachable bits of BitFieldSlot.
-  //  - Set the byte_length field to byte_length.
+  //  - Set the byte_length field to zero.
   //  - Set backing_store to null/Smi(0).
   //  - Set extension to null.
   //  - Set all embedder fields to Smi(0).
@@ -64,7 +64,7 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
                                  Int32Constant(bitfield_value));
 
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
-                                 byte_length);
+                                 UintPtrConstant(0));
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
                                  PointerConstant(nullptr));
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,

@@ -249,9 +249,9 @@ Deserializer<IsolateT>::Deserializer(IsolateT* isolate,
   isolate->RegisterDeserializerStarted();
 
   // We start the indices here at 1, so that we can distinguish between an
-  // actual index and a nullptr (serialized as kNullRefSentinel) in a
-  // deserialized object requiring fix-up.
-  STATIC_ASSERT(kNullRefSentinel == 0);
+  // actual index and an empty backing store (serialized as
+  // kEmptyBackingStoreRefSentinel) in a deserialized object requiring fix-up.
+  STATIC_ASSERT(kEmptyBackingStoreRefSentinel == 0);
   backing_stores_.push_back({});
 
 #ifdef DEBUG
@@ -488,7 +488,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     JSArrayBuffer buffer = JSArrayBuffer::cast(data_view->buffer());
     void* backing_store = nullptr;
     uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
-    if (store_index != kNullRefSentinel) {
+    if (store_index != kEmptyBackingStoreRefSentinel) {
       // The backing store of the JSArrayBuffer has not been correctly restored
       // yet, as that may trigger GC. The backing_store field currently contains
       // a numbered reference to an already deserialized backing store.
@@ -519,7 +519,8 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(obj);
     // Postpone allocation of backing store to avoid triggering the GC.
-    if (buffer->GetBackingStoreRefForDeserialization() != kNullRefSentinel) {
+    if (buffer->GetBackingStoreRefForDeserialization() !=
+        kEmptyBackingStoreRefSentinel) {
       new_off_heap_array_buffers_.push_back(buffer);
     } else {
       buffer->set_backing_store(nullptr);

@@ -44,6 +44,22 @@ void JSArrayBuffer::set_backing_store(void* value) {
   WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
 }
 
+std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
+  if (!extension()) return nullptr;
+  return extension()->backing_store();
+}
+
+size_t JSArrayBuffer::GetByteLength() const {
+  if V8_UNLIKELY (is_shared() && is_resizable()) {
+    // Invariant: byte_length for GSAB is 0 (it needs to be read from the
+    // BackingStore).
+    DCHECK_EQ(0, byte_length());
+
+    return GetBackingStore()->byte_length(std::memory_order_seq_cst);
+  }
+  return byte_length();
+}
+
 uint32_t JSArrayBuffer::GetBackingStoreRefForDeserialization() const {
   return static_cast<uint32_t>(ReadField<Address>(kBackingStoreOffset));
 }
@@ -114,20 +130,6 @@ uint32_t* JSArrayBuffer::extension_hi() const {
 }
 #endif
 
-size_t JSArrayBuffer::allocation_length() const {
-  if (backing_store() == nullptr) {
-    return 0;
-  }
-  return byte_length();
-}
-
-void* JSArrayBuffer::allocation_base() const {
-  if (backing_store() == nullptr) {
-    return nullptr;
-  }
-  return backing_store();
-}
-
 void JSArrayBuffer::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
@@ -157,6 +159,13 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable,
                     JSArrayBuffer::IsResizableBit)
+
+bool JSArrayBuffer::IsEmpty() const {
+  auto backing_store = GetBackingStore();
+  bool is_empty = !backing_store || backing_store->IsEmpty();
+  DCHECK_IMPLIES(is_empty, byte_length() == 0);
+  return is_empty;
+}
 
 size_t JSArrayBufferView::byte_offset() const {
   return ReadField<size_t>(kByteOffsetOffset);

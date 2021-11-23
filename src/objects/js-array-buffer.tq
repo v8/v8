@@ -78,6 +78,12 @@ extern class JSTypedArray extends JSArrayBufferView {
   base_pointer: ByteArray|Smi;
 }
 
+@export
+macro IsOnHeapTypedArray(array: JSTypedArray): bool {
+  // See JSTypedArray::is_on_heap()
+  return TaggedNotEqual(array.base_pointer, SmiConstant(0));
+}
+
 extern class JSDataView extends JSArrayBufferView {
   data_pointer: ExternalPointer;
 }

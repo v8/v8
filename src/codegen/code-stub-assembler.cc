@@ -14107,10 +14107,10 @@ TNode<JSArrayBuffer> CodeStubAssembler::GetTypedArrayBuffer(
   Label call_runtime(this), done(this);
   TVARIABLE(Object, var_result);
 
+  GotoIf(IsOnHeapTypedArray(array), &call_runtime);
+
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
   GotoIf(IsDetachedBuffer(buffer), &call_runtime);
-  TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStorePtr(buffer);
-  GotoIf(WordEqual(backing_store, IntPtrConstant(0)), &call_runtime);
   var_result = buffer;
   Goto(&done);
 

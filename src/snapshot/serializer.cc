@@ -528,16 +528,16 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   int32_t byte_length = static_cast<int32_t>(buffer->byte_length());
   ArrayBufferExtension* extension = buffer->extension();
 
-  // The embedder-allocated backing store only exists for the off-heap case.
-  if (backing_store != nullptr) {
+  // Only serialize non-empty backing stores.
+  if (buffer->IsEmpty()) {
+    buffer->SetBackingStoreRefForSerialization(kEmptyBackingStoreRefSentinel);
+  } else {
     uint32_t ref = SerializeBackingStore(backing_store, byte_length);
     buffer->SetBackingStoreRefForSerialization(ref);
 
     // Ensure deterministic output by setting extension to null during
     // serialization.
     buffer->set_extension(nullptr);
-  } else {
-    buffer->SetBackingStoreRefForSerialization(kNullRefSentinel);
   }
 
   SerializeObject();

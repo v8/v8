@@ -401,7 +401,7 @@ void NativeContextStats::IncrementExternalSize(Address context, Map map,
   InstanceType instance_type = map.instance_type();
   size_t external_size = 0;
   if (instance_type == JS_ARRAY_BUFFER_TYPE) {
-    external_size = JSArrayBuffer::cast(object).allocation_length();
+    external_size = JSArrayBuffer::cast(object).GetByteLength();
   } else {
     DCHECK(InstanceTypeChecker::IsExternalString(instance_type));
     external_size = ExternalString::cast(object).ExternalPayloadSize();

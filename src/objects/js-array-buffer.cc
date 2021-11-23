@@ -125,22 +125,6 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
   set_was_detached(true);
 }
 
-std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
-  if (!extension()) return nullptr;
-  return extension()->backing_store();
-}
-
-size_t JSArrayBuffer::GetByteLength() const {
-  if V8_UNLIKELY (is_shared() && is_resizable()) {
-    // Invariant: byte_length for GSAB is 0 (it needs to be read from the
-    // BackingStore).
-    DCHECK_EQ(0, byte_length());
-
-    return GetBackingStore()->byte_length(std::memory_order_seq_cst);
-  }
-  return byte_length();
-}
-
 size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
                                      Address raw_array_buffer) {
   // TODO(v8:11111): Cache the last seen length in JSArrayBuffer and use it
@@ -207,7 +191,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   DCHECK(!array_buffer->is_resizable());
 
   // The existing array buffer should be empty.
-  DCHECK_NULL(array_buffer->backing_store());
+  DCHECK(array_buffer->IsEmpty());
 
   // Allocate a new backing store and attach it to the existing array buffer.
   size_t byte_length = self->byte_length();

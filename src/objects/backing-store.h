@@ -98,6 +98,11 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   bool has_guard_regions() const { return has_guard_regions_; }
   bool free_on_destruct() const { return free_on_destruct_; }
 
+  bool IsEmpty() const {
+    DCHECK_GE(max_byte_length_, byte_length_);
+    return max_byte_length_ == 0;
+  }
+
   enum ResizeOrGrowResult { kSuccess, kFailure, kRace };
 
   ResizeOrGrowResult ResizeInPlace(Isolate* isolate, size_t new_byte_length,

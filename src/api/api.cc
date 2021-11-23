@@ -8030,21 +8030,20 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
 
 size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   i::Handle<i::JSArrayBufferView> self = Utils::OpenHandle(this);
-  size_t byte_offset = self->byte_offset();
   size_t bytes_to_copy = std::min(byte_length, self->byte_length());
   if (bytes_to_copy) {
     i::DisallowGarbageCollection no_gc;
     i::Isolate* isolate = self->GetIsolate();
-    i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()),
-                                       isolate);
-    const char* source = reinterpret_cast<char*>(buffer->backing_store());
-    if (source == nullptr) {
-      DCHECK(self->IsJSTypedArray());
-      i::Handle<i::JSTypedArray> typed_array(i::JSTypedArray::cast(*self),
-                                             isolate);
-      source = reinterpret_cast<char*>(typed_array->DataPtr());
+    const char* source;
+    if (self->IsJSTypedArray()) {
+      i::Handle<i::JSTypedArray> array(i::JSTypedArray::cast(*self), isolate);
+      source = reinterpret_cast<char*>(array->DataPtr());
+    } else {
+      DCHECK(self->IsJSDataView());
+      i::Handle<i::JSDataView> data_view(i::JSDataView::cast(*self), isolate);
+      source = reinterpret_cast<char*>(data_view->data_pointer());
     }
-    memcpy(dest, source + byte_offset, bytes_to_copy);
+    memcpy(dest, source, bytes_to_copy);
   }
   return bytes_to_copy;
 }

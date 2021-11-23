@@ -9,7 +9,7 @@ extern builtin IterableToListMayPreserveHoles(
     Context, Object, Callable): JSArray;
 
 extern macro TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
-    implicit context: Context)(uintptr): JSArrayBuffer;
+    implicit context: Context)(): JSArrayBuffer;
 extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
 extern macro TypedArrayBuiltinsAssembler::GetDefaultConstructor(
     implicit context: Context)(JSTypedArray): JSFunction;
@@ -93,7 +93,7 @@ transitioning macro TypedArrayInitialize(implicit context: Context)(
 
     if (byteLength > kMaxTypedArrayInHeap) goto AllocateOffHeap;
 
-    const buffer = AllocateEmptyOnHeapBuffer(byteLength);
+    const buffer = AllocateEmptyOnHeapBuffer();
 
     const isOnHeap: constexpr bool = true;
     const isLengthTracking: constexpr bool = false;
