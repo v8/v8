@@ -63,7 +63,9 @@ class WasmStreaming::WasmStreamingImpl {
   void OnBytesReceived(const uint8_t* bytes, size_t size) {
     streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
   }
-  void Finish() { streaming_decoder_->Finish(); }
+  void Finish(bool can_use_compiled_module) {
+    streaming_decoder_->Finish(can_use_compiled_module);
+  }
 
   void Abort(MaybeLocal<Value> exception) {
     i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate_));
@@ -116,9 +118,9 @@ void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
   impl_->OnBytesReceived(bytes, size);
 }
 
-void WasmStreaming::Finish() {
+void WasmStreaming::Finish(bool can_use_compiled_module) {
   TRACE_EVENT0("v8.wasm", "wasm.FinishStreaming");
-  impl_->Finish();
+  impl_->Finish(can_use_compiled_module);
 }
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) {
