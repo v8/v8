@@ -331,11 +331,6 @@ V8StackTraceImpl::buildInspectorObjectImpl(V8Debugger* debugger,
 }
 
 std::unique_ptr<protocol::Runtime::API::StackTrace>
-V8StackTraceImpl::buildInspectorObject() const {
-  return buildInspectorObjectImpl(nullptr);
-}
-
-std::unique_ptr<protocol::Runtime::API::StackTrace>
 V8StackTraceImpl::buildInspectorObject(int maxAsyncDepth) const {
   return buildInspectorObjectImpl(nullptr,
                                   std::min(maxAsyncDepth, m_maxAsyncDepth));

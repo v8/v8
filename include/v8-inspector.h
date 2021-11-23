@@ -118,8 +118,6 @@ class V8_EXPORT V8StackTrace {
 
   virtual ~V8StackTrace() = default;
   virtual std::unique_ptr<protocol::Runtime::API::StackTrace>
-  buildInspectorObject() const = 0;
-  virtual std::unique_ptr<protocol::Runtime::API::StackTrace>
   buildInspectorObject(int maxAsyncDepth) const = 0;
   virtual std::unique_ptr<StringBuffer> toString() const = 0;
 
