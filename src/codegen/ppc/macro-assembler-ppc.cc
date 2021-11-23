@@ -3579,21 +3579,37 @@ void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
   addi(sp, sp, Operand(2 * kSimd128Size));
 }
 
-void TurboAssembler::ByteReverseU16(Register dst, Register val) {
-  subi(sp, sp, Operand(kSystemPointerSize));
-  sth(val, MemOperand(sp));
-  lhbrx(dst, MemOperand(r0, sp));
-  addi(sp, sp, Operand(kSystemPointerSize));
+void TurboAssembler::ByteReverseU16(Register dst, Register val,
+                                    Register scratch) {
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    brh(dst, val);
+    ZeroExtHalfWord(dst, dst);
+    return;
+  }
+  rlwinm(scratch, val, 8, 16, 23);
+  rlwinm(dst, val, 24, 24, 31);
+  orx(dst, scratch, dst);
+  ZeroExtHalfWord(dst, dst);
 }
 
-void TurboAssembler::ByteReverseU32(Register dst, Register val) {
-  subi(sp, sp, Operand(kSystemPointerSize));
-  stw(val, MemOperand(sp));
-  lwbrx(dst, MemOperand(r0, sp));
-  addi(sp, sp, Operand(kSystemPointerSize));
+void TurboAssembler::ByteReverseU32(Register dst, Register val,
+                                    Register scratch) {
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    brw(dst, val);
+    ZeroExtWord32(dst, dst);
+    return;
+  }
+  rotlwi(scratch, val, 8);
+  rlwimi(scratch, val, 24, 0, 7);
+  rlwimi(scratch, val, 24, 16, 23);
+  ZeroExtWord32(dst, dst);
 }
 
 void TurboAssembler::ByteReverseU64(Register dst, Register val) {
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    brd(dst, val);
+    return;
+  }
   subi(sp, sp, Operand(kSystemPointerSize));
   std(val, MemOperand(sp));
   ldbrx(dst, MemOperand(r0, sp));
@@ -3826,7 +3842,7 @@ void TurboAssembler::ReverseBitsU64(Register dst, Register src,
 
 void TurboAssembler::ReverseBitsU32(Register dst, Register src,
                                     Register scratch1, Register scratch2) {
-  ByteReverseU32(dst, src);
+  ByteReverseU32(dst, src, scratch1);
   for (int i = 4; i < 8; i++) {
     ReverseBitsInSingleByteU64(dst, dst, scratch1, scratch2, i);
   }

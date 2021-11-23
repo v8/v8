@@ -2075,6 +2075,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register temp1 = r0;
       if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
         __ brw(output, input);
+        __ extsw(output, output);
         break;
       }
       __ rotlwi(temp1, input, 8);
