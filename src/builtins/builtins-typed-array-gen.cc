@@ -127,7 +127,8 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
       LoadJSArrayBufferViewBuffer(receiver_array);
 
   Label variable_length(this), normal(this);
-  Branch(IsVariableLengthTypedArray(receiver_array), &variable_length, &normal);
+  Branch(IsVariableLengthJSArrayBufferView(receiver_array), &variable_length,
+         &normal);
   BIND(&variable_length);
   {
     Return(ChangeUintPtrToTagged(LoadVariableLengthJSTypedArrayByteLength(
@@ -155,8 +156,8 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
 
   // Default to zero if the {receiver}s buffer was detached / out of bounds.
   Label detached_or_oob(this), not_detached_nor_oob(this);
-  IsJSTypedArrayDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
-                                      &not_detached_nor_oob);
+  IsJSArrayBufferViewDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
+                                           &not_detached_nor_oob);
   BIND(&detached_or_oob);
   Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
 

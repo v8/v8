@@ -938,6 +938,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
   WriteVarint(static_cast<uint8_t>(tag));
   WriteVarint(static_cast<uint32_t>(view.byte_offset()));
   WriteVarint(static_cast<uint32_t>(view.byte_length()));
+  WriteVarint(static_cast<uint8_t>(view.bit_field()));
   return ThrowIfOutOfMemory();
 }
 
@@ -1862,10 +1863,11 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   uint8_t tag = 0;
   uint32_t byte_offset = 0;
   uint32_t byte_length = 0;
+  uint8_t flags = 0;
   if (!ReadVarint<uint8_t>().To(&tag) ||
       !ReadVarint<uint32_t>().To(&byte_offset) ||
       !ReadVarint<uint32_t>().To(&byte_length) ||
-      byte_offset > buffer_byte_length ||
+      !ReadVarint<uint8_t>().To(&flags) || byte_offset > buffer_byte_length ||
       byte_length > buffer_byte_length - byte_offset) {
     return MaybeHandle<JSArrayBufferView>();
   }
@@ -1878,6 +1880,7 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       Handle<JSDataView> data_view =
           isolate_->factory()->NewJSDataView(buffer, byte_offset, byte_length);
       AddObjectWithID(id, data_view);
+      data_view->set_bit_field(flags);
       return data_view;
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
@@ -1894,6 +1897,7 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   }
   Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
       external_array_type, buffer, byte_offset, byte_length / element_size);
+  typed_array->set_bit_field(flags);
   AddObjectWithID(id, typed_array);
   return typed_array;
 }

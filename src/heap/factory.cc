@@ -2905,6 +2905,9 @@ Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
       map, empty_fixed_array(), buffer, byte_offset, byte_length));
   obj->set_data_pointer(
       isolate(), static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
+  // TODO(v8:11111): Support creating length tracking DataViews via the API.
+  obj->set_is_length_tracking(false);
+  obj->set_is_backed_by_rab(!buffer->is_shared() && buffer->is_resizable());
   return obj;
 }
 

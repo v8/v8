@@ -108,6 +108,8 @@ class JSArrayBuffer
 
   size_t GetByteLength() const;
 
+  static size_t GsabByteLength(Isolate* isolate, Address raw_array_buffer);
+
   // Allocates an ArrayBufferExtension for this array buffer, unless it is
   // already associated with an extension.
   ArrayBufferExtension* EnsureExtension();
@@ -236,7 +238,14 @@ class JSArrayBufferView
 
   DECL_VERIFIER(JSArrayBufferView)
 
+  // Bit positions for [bit_field].
+  DEFINE_TORQUE_GENERATED_JS_ARRAY_BUFFER_VIEW_FLAGS()
+
   inline bool WasDetached() const;
+
+  DECL_BOOLEAN_ACCESSORS(is_length_tracking)
+  DECL_BOOLEAN_ACCESSORS(is_backed_by_rab)
+  inline bool IsVariableLength() const;
 
   static constexpr int kEndOfTaggedFieldsOffset = kByteOffsetOffset;
 
@@ -252,9 +261,6 @@ class JSTypedArray
   // TODO(v8:4153): This should be equal to JSArrayBuffer::kMaxByteLength
   // eventually.
   static constexpr size_t kMaxLength = v8::TypedArray::kMaxLength;
-
-  // Bit positions for [bit_field].
-  DEFINE_TORQUE_GENERATED_JS_TYPED_ARRAY_FLAGS()
 
   // [length]: length of typed array in elements.
   DECL_PRIMITIVE_GETTER(length, size_t)
@@ -287,9 +293,6 @@ class JSTypedArray
   inline bool is_on_heap() const;
   inline bool is_on_heap(AcquireLoadTag tag) const;
 
-  DECL_BOOLEAN_ACCESSORS(is_length_tracking)
-  DECL_BOOLEAN_ACCESSORS(is_backed_by_rab)
-  inline bool IsVariableLength() const;
   inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
   inline size_t GetLength() const;
 
@@ -332,8 +335,9 @@ class JSTypedArray
   DECL_PRINTER(JSTypedArray)
   DECL_VERIFIER(JSTypedArray)
 
-  STATIC_ASSERT(IsAligned(kLengthOffset, kUIntptrSize));
-  STATIC_ASSERT(IsAligned(kExternalPointerOffset, kSystemPointerSize));
+  // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
+  // STATIC_ASSERT(IsAligned(kLengthOffset, kTaggedSize));
+  // STATIC_ASSERT(IsAligned(kExternalPointerOffset, kTaggedSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
@@ -379,7 +383,8 @@ class JSDataView
   DECL_PRINTER(JSDataView)
   DECL_VERIFIER(JSDataView)
 
-  STATIC_ASSERT(IsAligned(kDataPointerOffset, kUIntptrSize));
+  // TODO(v8:9287): Re-enable when GCMole stops mixing 32/64 bit configs.
+  // STATIC_ASSERT(IsAligned(kDataPointerOffset, kTaggedSize));
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
