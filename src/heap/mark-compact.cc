@@ -2862,6 +2862,12 @@ void MarkCompactCollector::RecordRelocSlot(Code host, RelocInfo* rinfo,
                                            HeapObject target) {
   RecordRelocSlotInfo info = PrepareRecordRelocSlot(host, rinfo, target);
   if (info.should_record) {
+    // Access to TypeSlots need to be protected, since LocalHeaps might
+    // publish code in the background thread.
+    base::Optional<base::MutexGuard> opt_guard;
+    if (FLAG_concurrent_sparkplug) {
+      opt_guard.emplace(info.memory_chunk->mutex());
+    }
     RememberedSet<OLD_TO_OLD>::InsertTyped(info.memory_chunk, info.slot_type,
                                            info.offset);
   }

@@ -158,6 +158,12 @@ void MarkingBarrier::Publish() {
     worklist_.Publish();
     for (auto& it : typed_slots_map_) {
       MemoryChunk* memory_chunk = it.first;
+      // Access to TypeSlots need to be protected, since LocalHeaps might
+      // publish code in the background thread.
+      base::Optional<base::MutexGuard> opt_guard;
+      if (FLAG_concurrent_sparkplug) {
+        opt_guard.emplace(memory_chunk->mutex());
+      }
       std::unique_ptr<TypedSlots>& typed_slots = it.second;
       RememberedSet<OLD_TO_OLD>::MergeTyped(memory_chunk,
                                             std::move(typed_slots));
