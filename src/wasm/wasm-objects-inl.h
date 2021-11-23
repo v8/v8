@@ -48,6 +48,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTableObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(AsmWasmData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmApiFunctionRef)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmInternalFunction)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTypeInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
@@ -177,13 +178,12 @@ void WasmGlobalObject::SetExternRef(Handle<Object> value) {
 
 bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
   DCHECK_EQ(type(), wasm::kWasmFuncRef);
-  if (!value->IsNull(isolate) &&
-      !WasmExternalFunction::IsWasmExternalFunction(*value) &&
-      !WasmCapiFunction::IsWasmCapiFunction(*value)) {
-    return false;
+  if (value->IsNull() ||
+      WasmInternalFunction::FromExternal(value, isolate).ToHandle(&value)) {
+    tagged_buffer().set(offset(), *value);
+    return true;
   }
-  tagged_buffer().set(offset(), *value);
-  return true;
+  return false;
 }
 
 // WasmInstanceObject
@@ -252,8 +252,8 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
 OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
                    kManagedNativeAllocationsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, tags_table, FixedArray, kTagsTableOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_external_functions, FixedArray,
-                   kWasmExternalFunctionsOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_internal_functions, FixedArray,
+                   kWasmInternalFunctionsOffset)
 ACCESSORS(WasmInstanceObject, managed_object_maps, FixedArray,
           kManagedObjectMapsOffset)
 ACCESSORS(WasmInstanceObject, feedback_vectors, FixedArray,
@@ -285,7 +285,7 @@ WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {
 CAST_ACCESSOR(WasmExportedFunction)
 
 // WasmFunctionData
-ACCESSORS(WasmFunctionData, ref, Object, kRefOffset)
+ACCESSORS(WasmFunctionData, internal, WasmInternalFunction, kInternalOffset)
 
 DEF_GETTER(WasmFunctionData, wrapper_code, Code) {
   return FromCodeT(TorqueGeneratedClass::wrapper_code(cage_base));
@@ -306,15 +306,15 @@ CAST_ACCESSOR(WasmJSFunction)
 
 // WasmJSFunctionData
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData)
-ACCESSORS(WasmJSFunctionData, raw_wasm_to_js_wrapper_code, CodeT,
-          kWasmToJsWrapperCodeOffset)
 
-DEF_GETTER(WasmJSFunctionData, wasm_to_js_wrapper_code, Code) {
-  return FromCodeT(raw_wasm_to_js_wrapper_code(cage_base));
+// WasmInternalFunction
+ACCESSORS(WasmInternalFunction, raw_code, CodeT, kCodeOffset)
+
+DEF_GETTER(WasmInternalFunction, code, Code) {
+  return FromCodeT(raw_code(cage_base));
 }
-void WasmJSFunctionData::set_wasm_to_js_wrapper_code(Code code,
-                                                     WriteBarrierMode mode) {
-  set_raw_wasm_to_js_wrapper_code(ToCodeT(code), mode);
+void WasmInternalFunction::set_code(Code code, WriteBarrierMode mode) {
+  set_raw_code(ToCodeT(code), mode);
 }
 
 // WasmCapiFunction

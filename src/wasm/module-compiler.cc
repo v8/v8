@@ -1253,10 +1253,11 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
       static_cast<int>(instance->module()->num_imported_functions);
   for (int i = 0; i < feedback.length(); i += 2) {
     Object value = feedback.get(i);
-    if (WasmExportedFunction::IsWasmExportedFunction(value)) {
+    if (value.IsWasmInternalFunction()) {
       // Monomorphic. Mark the target for inlining if it's defined in the
       // same module.
-      WasmExportedFunction target = WasmExportedFunction::cast(value);
+      WasmExportedFunction target = WasmExportedFunction::cast(
+          WasmInternalFunction::cast(value).external());
       if (target.instance() == *instance &&
           target.function_index() >= imported_functions) {
         if (FLAG_trace_wasm_speculative_inlining) {
@@ -1286,11 +1287,11 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
         if (frequency > best_frequency) best_frequency = frequency;
         if (frequency < 0.8) continue;
         Object maybe_target = polymorphic.get(j);
-        if (!WasmExportedFunction::IsWasmExportedFunction(maybe_target)) {
+        if (!maybe_target.IsWasmInternalFunction()) {
           continue;
         }
-        WasmExportedFunction target =
-            WasmExportedFunction::cast(polymorphic.get(j));
+        WasmExportedFunction target = WasmExportedFunction::cast(
+            WasmInternalFunction::cast(polymorphic.get(j)).external());
         if (target.instance() != *instance ||
             target.function_index() < imported_functions) {
           continue;

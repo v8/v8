@@ -3175,28 +3175,32 @@ Node* WasmGraphBuilder::BuildIndirectCall(
   }
 }
 
-Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
-    Node* function_data) {
-  // TODO(saelo) move this code into a common LoadExternalPointer routine?
+Node* WasmGraphBuilder::BuildUnsandboxExternalPointer(Node* external_pointer) {
 #ifdef V8_HEAP_SANDBOX
-  Node* index = gasm_->LoadFromObject(
-      MachineType::Pointer(), function_data,
-      wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset));
-
   Node* isolate_root = BuildLoadIsolateRoot();
   Node* table =
       gasm_->LoadFromObject(MachineType::Pointer(), isolate_root,
                             IsolateData::external_pointer_table_offset() +
                                 Internals::kExternalPointerTableBufferOffset);
-  Node* offset = gasm_->Int32Mul(index, gasm_->Int32Constant(8));
+  Node* offset = gasm_->Int32Mul(external_pointer, gasm_->Int32Constant(8));
   Node* decoded_ptr = gasm_->Load(MachineType::Pointer(), table, offset);
   Node* tag = gasm_->IntPtrConstant(~kForeignForeignAddressTag);
   return gasm_->WordAnd(decoded_ptr, tag);
 #else
-  return gasm_->LoadFromObject(
-      MachineType::Pointer(), function_data,
-      wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset));
+  return external_pointer;
 #endif
+}
+
+Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
+    Node* function) {
+  Node* internal = gasm_->LoadFromObject(
+      MachineType::TaggedPointer(), function,
+      wasm::ObjectAccess::ToTagged(WasmExportedFunctionData::kInternalOffset));
+  Node* external_pointer =
+      gasm_->LoadFromObject(MachineType::Pointer(), internal,
+                            wasm::ObjectAccess::ToTagged(
+                                WasmInternalFunction::kForeignAddressOffset));
+  return BuildUnsandboxExternalPointer(external_pointer);
 }
 
 // TODO(9495): Support CAPI function refs.
@@ -3211,25 +3215,29 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
                position);
   }
 
-  Node* function_data = gasm_->LoadFunctionDataFromJSFunction(args[0]);
+  Node* function = args[0];
 
   auto load_target = gasm_->MakeLabel();
   auto end_label = gasm_->MakeLabel(MachineType::PointerRepresentation());
 
-  Node* instance_node = gasm_->LoadFromObject(
-      MachineType::TaggedPointer(), function_data,
-      wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset));
+  Node* ref_node = gasm_->LoadFromObject(
+      MachineType::TaggedPointer(), function,
+      wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
 
-  Node* target = BuildLoadCallTargetFromExportedFunctionData(function_data);
+  Node* external_target =
+      gasm_->LoadFromObject(MachineType::Pointer(), function,
+                            wasm::ObjectAccess::ToTagged(
+                                WasmInternalFunction::kForeignAddressOffset));
+
+  Node* target = BuildUnsandboxExternalPointer(external_target);
   Node* is_null_target = gasm_->WordEqual(target, gasm_->IntPtrConstant(0));
   gasm_->GotoIfNot(is_null_target, &end_label, target);
   {
     // Compute the call target from the (on-heap) wrapper code. The cached
     // target can only be null for WasmJSFunctions.
     Node* wrapper_code = gasm_->LoadFromObject(
-        MachineType::TaggedPointer(), function_data,
-        wasm::ObjectAccess::ToTagged(
-            WasmJSFunctionData::kWasmToJsWrapperCodeOffset));
+        MachineType::TaggedPointer(), function,
+        wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
     Node* call_target;
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       CHECK(!V8_HEAP_SANDBOX_BOOL);  // Not supported yet.
@@ -3250,27 +3258,26 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
 
   args[0] = end_label.PhiAt(0);
 
-  Node* call =
-      continuation == kCallContinues
-          ? BuildWasmCall(real_sig, args, rets, position, instance_node)
-          : BuildWasmReturnCall(real_sig, args, position, instance_node);
+  Node* call = continuation == kCallContinues
+                   ? BuildWasmCall(real_sig, args, rets, position, ref_node)
+                   : BuildWasmReturnCall(real_sig, args, position, ref_node);
   return call;
 }
 
-void WasmGraphBuilder::CompareToExternalFunctionAtIndex(
+void WasmGraphBuilder::CompareToInternalFunctionAtIndex(
     Node* func_ref, uint32_t function_index, Node** success_control,
     Node** failure_control) {
   // Since we are comparing to a function reference, it is guaranteed that
-  // instance->wasm_external_functions() has been initialized.
-  Node* external_functions = gasm_->LoadFromObject(
+  // instance->wasm_internal_functions() has been initialized.
+  Node* internal_functions = gasm_->LoadFromObject(
       MachineType::TaggedPointer(), GetInstance(),
       wasm::ObjectAccess::ToTagged(
-          WasmInstanceObject::kWasmExternalFunctionsOffset));
-  Node* function_ref = gasm_->LoadFixedArrayElement(
-      external_functions, gasm_->IntPtrConstant(function_index),
+          WasmInstanceObject::kWasmInternalFunctionsOffset));
+  Node* function_ref_at_index = gasm_->LoadFixedArrayElement(
+      internal_functions, gasm_->IntPtrConstant(function_index),
       MachineType::AnyTagged());
-  gasm_->Branch(gasm_->WordEqual(function_ref, func_ref), success_control,
-                failure_control, BranchHint::kTrue);
+  gasm_->Branch(gasm_->WordEqual(function_ref_at_index, func_ref),
+                success_control, failure_control, BranchHint::kTrue);
 }
 
 Node* WasmGraphBuilder::CallRef(const wasm::FunctionSig* real_sig,
@@ -5843,8 +5850,9 @@ void WasmGraphBuilder::FuncCheck(Node* object, bool object_can_be_null,
     callbacks.fail_if(gasm_->WordEqual(object, RefNull()), BranchHint::kFalse);
   }
   callbacks.fail_if(gasm_->IsI31(object), BranchHint::kFalse);
-  callbacks.fail_if_not(gasm_->HasInstanceType(object, JS_FUNCTION_TYPE),
-                        BranchHint::kTrue);
+  callbacks.fail_if_not(
+      gasm_->HasInstanceType(object, WASM_INTERNAL_FUNCTION_TYPE),
+      BranchHint::kTrue);
 }
 
 void WasmGraphBuilder::BrOnCastAbs(
@@ -6369,8 +6377,27 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kOptRef:
         switch (type.heap_representation()) {
           case wasm::HeapType::kExtern:
-          case wasm::HeapType::kFunc:
             return node;
+          case wasm::HeapType::kFunc: {
+            if (type.kind() == wasm::kOptRef) {
+              auto done =
+                  gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
+              // Do not wrap {null}.
+              gasm_->GotoIf(gasm_->WordEqual(node, RefNull()), &done, node);
+              gasm_->Goto(&done,
+                          gasm_->LoadFromObject(
+                              MachineType::TaggedPointer(), node,
+                              wasm::ObjectAccess::ToTagged(
+                                  WasmInternalFunction::kExternalOffset)));
+              gasm_->Bind(&done);
+              return done.PhiAt(0);
+            } else {
+              return gasm_->LoadFromObject(
+                  MachineType::TaggedPointer(), node,
+                  wasm::ObjectAccess::ToTagged(
+                      WasmInternalFunction::kExternalOffset));
+            }
+          }
           case wasm::HeapType::kData:
           case wasm::HeapType::kEq:
           case wasm::HeapType::kI31:
@@ -6387,23 +6414,34 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
               return BuildAllocateObjectWrapper(node);
             }
           case wasm::HeapType::kAny: {
-            // Only wrap {node} if it is an array/struct/i31, i.e., do not wrap
-            // functions and null.
+            // Wrap {node} in object wrapper if it is an array/struct/i31.
+            // Extract external function if this is a WasmInternalFunction.
+            // Otherwise (i.e. null and external refs), return input.
             // TODO(7748): Update this when JS interop is settled.
             auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
             gasm_->GotoIf(IsSmi(node), &done, BuildAllocateObjectWrapper(node));
             // This includes the case where {node == null}.
-            gasm_->GotoIfNot(gasm_->IsDataRefMap(gasm_->LoadMap(node)), &done,
-                             node);
-            gasm_->Goto(&done, BuildAllocateObjectWrapper(node));
+            gasm_->GotoIf(gasm_->IsDataRefMap(gasm_->LoadMap(node)), &done,
+                          BuildAllocateObjectWrapper(node));
+            gasm_->GotoIf(
+                gasm_->HasInstanceType(node, WASM_INTERNAL_FUNCTION_TYPE),
+                &done,
+                gasm_->LoadFromObject(
+                    MachineType::TaggedPointer(), node,
+                    wasm::ObjectAccess::ToTagged(
+                        WasmInternalFunction::kExternalOffset)));
+            gasm_->Goto(&done, node);
             gasm_->Bind(&done);
             return done.PhiAt(0);
           }
           default:
             DCHECK(type.has_index());
             if (module_->has_signature(type.ref_index())) {
-              // Typed function
-              return node;
+              // Typed function. Extract the external function.
+              return gasm_->LoadFromObject(
+                  MachineType::TaggedPointer(), node,
+                  wasm::ObjectAccess::ToTagged(
+                      WasmInternalFunction::kExternalOffset));
             }
             // If this is reached, then IsJSCompatibleSignature() is too
             // permissive.
@@ -6434,24 +6472,43 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   // Assumes {input} has been checked for validity against the target wasm type.
-  // Returns the value of the property associated with
-  // {wasm_wrapped_object_symbol} in {input}, or {input} itself if the property
-  // is not found.
+  // If {input} is a function, returns the WasmInternalFunction associated with
+  // it. If {input} has the {wasm_wrapped_object_symbol} property, returns the
+  // value of that property. Otherwise, returns {input}.
   Node* BuildUnpackObjectWrapper(Node* input) {
-    if (FLAG_wasm_gc_js_interop) return input;
-    Node* obj = gasm_->CallBuiltin(
-        Builtin::kWasmGetOwnProperty, Operator::kEliminatable, input,
-        LOAD_ROOT(wasm_wrapped_object_symbol, wasm_wrapped_object_symbol),
-        LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
-    // Invalid object wrappers (i.e. any other JS object that doesn't have the
-    // magic hidden property) will return {undefined}. Map that to {null} or
-    // {input}, depending on the value of {failure}.
-    Node* undefined = UndefinedValue();
-    Node* is_undefined = gasm_->WordEqual(obj, undefined);
-    Diamond check(graph(), mcgraph()->common(), is_undefined,
-                  BranchHint::kFalse);
-    check.Chain(control());
-    return check.Phi(MachineRepresentation::kTagged, input, obj);
+    auto not_a_function = gasm_->MakeLabel();
+    auto end = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
+
+    gasm_->GotoIfNot(gasm_->HasInstanceType(input, JS_FUNCTION_TYPE),
+                     &not_a_function);
+
+    Node* function_data = gasm_->LoadFunctionDataFromJSFunction(input);
+
+    // Due to type checking, {function_data} will be a WasmFunctionData.
+    Node* internal = gasm_->LoadFromObject(
+        MachineType::TaggedPointer(), function_data,
+        wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
+    gasm_->Goto(&end, internal);
+
+    gasm_->Bind(&not_a_function);
+    if (!FLAG_wasm_gc_js_interop) {
+      Node* obj = gasm_->CallBuiltin(
+          Builtin::kWasmGetOwnProperty, Operator::kEliminatable, input,
+          LOAD_ROOT(wasm_wrapped_object_symbol, wasm_wrapped_object_symbol),
+          LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
+      // Invalid object wrappers (i.e. any other JS object that doesn't have the
+      // magic hidden property) will return {undefined}. Map that to {input}.
+      Node* is_undefined = gasm_->WordEqual(obj, UndefinedValue());
+      gasm_->GotoIf(is_undefined, &end, input);
+
+      gasm_->Goto(&end, obj);
+    } else {
+      gasm_->Goto(&end, input);
+    }
+
+    gasm_->Bind(&end);
+
+    return end.PhiAt(0);
   }
 
   Node* BuildChangeInt64ToBigInt(Node* input) {
@@ -6530,7 +6587,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             return BuildUnpackObjectWrapper(input);
           case wasm::HeapType::kFunc:
             BuildCheckValidRefValue(input, js_context, type);
-            return input;
+            return BuildUnpackObjectWrapper(input);
           case wasm::HeapType::kData:
           case wasm::HeapType::kEq:
           case wasm::HeapType::kI31:
@@ -6542,7 +6599,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           default:
             if (module_->has_signature(type.ref_index())) {
               BuildCheckValidRefValue(input, js_context, type);
-              return input;
+              return BuildUnpackObjectWrapper(input);
             }
             // If this is reached, then IsJSCompatibleSignature() is too
             // permissive.
@@ -6741,10 +6798,17 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       } else {
         // Call to a wasm function defined in this module.
         // The (cached) call target is the jump table slot for that function.
-        args[0] = BuildLoadCallTargetFromExportedFunctionData(function_data);
-        Node* instance_node = gasm_->LoadFromObject(
+        Node* internal = gasm_->LoadFromObject(
             MachineType::TaggedPointer(), function_data,
-            wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset));
+            wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
+        Node* sandboxed_pointer = gasm_->LoadFromObject(
+            MachineType::Pointer(), internal,
+            wasm::ObjectAccess::ToTagged(
+                WasmInternalFunction::kForeignAddressOffset));
+        args[0] = BuildUnsandboxExternalPointer(sandboxed_pointer);
+        Node* instance_node = gasm_->LoadFromObject(
+            MachineType::TaggedPointer(), internal,
+            wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
         BuildWasmCall(sig_, base::VectorOf(args), base::VectorOf(rets),
                       wasm::kNoCodePosition, instance_node, frame_state);
       }
@@ -7246,9 +7310,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Load the original callable from the closure.
     Node* func_data = gasm_->LoadFunctionDataFromJSFunction(closure);
-    Node* ref = gasm_->LoadFromObject(
+    Node* internal = gasm_->LoadFromObject(
         MachineType::AnyTagged(), func_data,
-        wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kRefOffset));
+        wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
+    Node* ref = gasm_->LoadFromObject(
+        MachineType::AnyTagged(), internal,
+        wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
     Node* callable = gasm_->LoadFromObject(
         MachineType::AnyTagged(), ref,
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kCallableOffset));

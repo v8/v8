@@ -695,7 +695,7 @@ class WasmGraphBuildingInterface {
 
     TFNode* success_control;
     TFNode* failure_control;
-    builder_->CompareToExternalFunctionAtIndex(
+    builder_->CompareToInternalFunctionAtIndex(
         func_ref.node, expected_function_index, &success_control,
         &failure_control);
     TFNode* initial_effect = effect();
@@ -766,7 +766,7 @@ class WasmGraphBuildingInterface {
 
     TFNode* success_control;
     TFNode* failure_control;
-    builder_->CompareToExternalFunctionAtIndex(
+    builder_->CompareToInternalFunctionAtIndex(
         func_ref.node, expected_function_index, &success_control,
         &failure_control);
     TFNode* initial_effect = effect();

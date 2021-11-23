@@ -64,7 +64,7 @@ extern macro WasmBuiltinsAssembler::LoadContextFromInstance(WasmInstanceObject):
     NativeContext;
 extern macro WasmBuiltinsAssembler::LoadTablesFromInstance(WasmInstanceObject):
     FixedArray;
-extern macro WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
+extern macro WasmBuiltinsAssembler::LoadInternalFunctionsFromInstance(
     WasmInstanceObject): FixedArray;
 extern macro WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
     WasmInstanceObject): FixedArray;
@@ -227,7 +227,7 @@ builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
 builtin WasmRefFunc(index: uint32): Object {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   try {
-    const table: FixedArray = LoadExternalFunctionsFromInstance(instance);
+    const table: FixedArray = LoadInternalFunctionsFromInstance(instance);
     if (table == Undefined) goto CallRuntime;
     const functionIndex: intptr = Signed(ChangeUint32ToWord(index));
     const result: Object = LoadFixedArrayElement(table, functionIndex);
@@ -475,16 +475,11 @@ struct TargetAndInstance {
   instance: HeapObject;  // WasmInstanceObject or WasmApiFunctionRef
 }
 
-macro GetTargetAndInstance(funcref: JSFunction): TargetAndInstance {
-  const sfi = funcref.shared_function_info;
-  dcheck(Is<WasmFunctionData>(sfi.function_data));
-  const funcData = UnsafeCast<WasmFunctionData>(sfi.function_data);
-  const ref = funcData.ref;
-  let target = funcData.foreign_address_ptr;
+macro GetTargetAndInstance(funcref: WasmInternalFunction): TargetAndInstance {
+  const ref = funcref.ref;
+  let target = funcref.foreign_address_ptr;
   if (Signed(target) == IntPtrConstant(0)) {
-    const wrapper =
-        UnsafeCast<WasmJSFunctionData>(funcData).wasm_to_js_wrapper_code;
-    target = GetCodeEntry(wrapper);
+    target = GetCodeEntry(funcref.code);
   }
   return TargetAndInstance{target: target, instance: ref};
 }
@@ -499,7 +494,8 @@ macro GetTargetAndInstance(funcref: JSFunction): TargetAndInstance {
 // - megamorphic: ("megamorphic" sentinel, <unused>)
 
 builtin CallRefIC(
-    vector: FixedArray, index: intptr, funcref: JSFunction): TargetAndInstance {
+    vector: FixedArray, index: intptr,
+    funcref: WasmInternalFunction): TargetAndInstance {
   const value = vector.objects[index];
   if (value == funcref) {
     // Monomorphic hit. Check for this case first to maximize its performance.
@@ -547,7 +543,7 @@ builtin CallRefIC(
       newEntries.objects[newIndex + 1] = data;
       vector.objects[index] = newEntries;
     }
-  } else if (Is<JSFunction>(value)) {
+  } else if (Is<WasmInternalFunction>(value)) {
     // Monomorphic miss.
     const data = new
     CallRefData{instance: result.instance, target: result.target, count: 1};

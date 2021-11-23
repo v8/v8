@@ -23,7 +23,11 @@ extern class WasmApiFunctionRef extends HeapObject {
   callable: JSReceiver|Undefined;
 }
 
-extern class WasmFunctionData extends Foreign {
+// This is the representation that is used internally by wasm to represent
+// function references.
+// The {foreign_address} field inherited from {Foreign} points to the call
+// target.
+extern class WasmInternalFunction extends Foreign {
   // This is the "reference" value that must be passed along in the "instance"
   // register when calling the given function. It is either the target instance
   // (for wasm functions), or a WasmApiFunctionRef object (for functions defined
@@ -31,6 +35,19 @@ extern class WasmFunctionData extends Foreign {
   // For imported functions, this value equals the respective entry in
   // the module's imported_function_refs array.
   ref: WasmInstanceObject|WasmApiFunctionRef;
+  // The external (JS) representation of this function reference.
+  external: JSFunction|Undefined;
+  // This field is used when the call target is null.
+  @if(V8_EXTERNAL_CODE_SPACE) code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) code: Code;
+}
+// WasmInternalFunction is safely comparable for pointer equality.
+extern operator '==' macro TaggedEqual(WasmInternalFunction, Object): bool;
+extern operator '==' macro TaggedEqual(Object, WasmInternalFunction): bool;
+
+extern class WasmFunctionData extends HeapObject {
+  // The wasm-internal representation of this function object.
+  internal: WasmInternalFunction;
   // Used for calling this function from JavaScript.
   @if(V8_EXTERNAL_CODE_SPACE) wrapper_code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) wrapper_code: Code;
@@ -52,8 +69,6 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
 }
 
 extern class WasmJSFunctionData extends WasmFunctionData {
-  @if(V8_EXTERNAL_CODE_SPACE) wasm_to_js_wrapper_code: CodeDataContainer;
-  @ifnot(V8_EXTERNAL_CODE_SPACE) wasm_to_js_wrapper_code: Code;
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;
   serialized_signature: PodArrayOfWasmValueType;

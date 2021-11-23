@@ -1518,43 +1518,55 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
   return handle(result, isolate());
 }
 
+Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
+    Address opt_call_target, Handle<HeapObject> ref, Handle<Map> rtt) {
+  HeapObject raw = AllocateRaw(rtt->instance_size(), AllocationType::kOld);
+  raw.set_map_after_allocation(*rtt);
+  WasmInternalFunction result = WasmInternalFunction::cast(raw);
+  DisallowGarbageCollection no_gc;
+  result.AllocateExternalPointerEntries(isolate());
+  result.set_foreign_address(isolate(), opt_call_target);
+  result.set_ref(*ref);
+  // Default values, will be overwritten by the caller.
+  result.set_code(isolate()->builtins()->code(Builtin::kAbort));
+  result.set_external(*undefined_value());
+  return handle(result, isolate());
+}
+
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Address opt_call_target, Handle<JSReceiver> callable, int return_count,
     int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-    Handle<Code> wrapper_code) {
+    Handle<Code> wrapper_code, Handle<Map> rtt) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(callable);
+  Handle<WasmInternalFunction> internal =
+      NewWasmInternalFunction(opt_call_target, ref, rtt);
   Map map = *wasm_js_function_data_map();
   WasmJSFunctionData result =
       WasmJSFunctionData::cast(AllocateRawWithImmortalMap(
           map.instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  result.AllocateExternalPointerEntries(isolate());
-  result.set_foreign_address(isolate(), opt_call_target);
-  result.set_ref(*ref);
+  result.set_internal(*internal);
   result.set_wrapper_code(*wrapper_code);
   result.set_serialized_return_count(return_count);
   result.set_serialized_parameter_count(parameter_count);
   result.set_serialized_signature(*serialized_sig);
-  // Default value, will be overwritten by the caller.
-  result.set_wasm_to_js_wrapper_code(
-      isolate()->builtins()->code(Builtin::kAbort));
   return handle(result, isolate());
 }
 
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     Handle<Code> export_wrapper, Handle<WasmInstanceObject> instance,
     Address call_target, Handle<Object> ref, int func_index,
-    Address sig_address, int wrapper_budget) {
+    Address sig_address, int wrapper_budget, Handle<Map> rtt) {
   Handle<Foreign> sig_foreign = NewForeign(sig_address);
+  Handle<WasmInternalFunction> internal =
+      NewWasmInternalFunction(call_target, Handle<HeapObject>::cast(ref), rtt);
   Map map = *wasm_exported_function_data_map();
   WasmExportedFunctionData result =
       WasmExportedFunctionData::cast(AllocateRawWithImmortalMap(
           map.instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  result.AllocateExternalPointerEntries(isolate());
-  result.set_foreign_address(isolate(), call_target);
   DCHECK(ref->IsWasmInstanceObject() || ref->IsWasmApiFunctionRef());
-  result.set_ref(*ref);
+  result.set_internal(*internal);
   result.set_wrapper_code(*export_wrapper);
   result.set_instance(*instance);
   result.set_function_index(func_index);
@@ -1568,17 +1580,17 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
 
 Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, Handle<Foreign> embedder_data,
-    Handle<Code> wrapper_code,
+    Handle<Code> wrapper_code, Handle<Map> rtt,
     Handle<PodArray<wasm::ValueType>> serialized_sig) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(Handle<JSReceiver>());
+  Handle<WasmInternalFunction> internal =
+      NewWasmInternalFunction(call_target, ref, rtt);
   Map map = *wasm_capi_function_data_map();
   WasmCapiFunctionData result =
       WasmCapiFunctionData::cast(AllocateRawWithImmortalMap(
           map.instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
-  result.AllocateExternalPointerEntries(isolate());
-  result.set_foreign_address(isolate(), call_target);
-  result.set_ref(*ref);
+  result.set_internal(*internal);
   result.set_wrapper_code(*wrapper_code);
   result.set_embedder_data(*embedder_data);
   result.set_serialized_signature(*serialized_sig);

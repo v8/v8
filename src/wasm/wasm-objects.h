@@ -232,6 +232,7 @@ class WasmTableObject
       int* function_index, MaybeHandle<WasmJSFunction>* maybe_js_function);
 
  private:
+  // {entry} is either {Null} or a {WasmInternalFunction}.
   static void SetFunctionTableEntry(Isolate* isolate,
                                     Handle<WasmTableObject> table,
                                     Handle<FixedArray> entries, int entry_index,
@@ -329,7 +330,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
   DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(wasm_external_functions, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(wasm_internal_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
   DECL_ACCESSORS(feedback_vectors, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
@@ -406,7 +407,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kIndirectFunctionTablesOffset, kTaggedSize)                           \
   V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
   V(kTagsTableOffset, kTaggedSize)                                        \
-  V(kWasmExternalFunctionsOffset, kTaggedSize)                            \
+  V(kWasmInternalFunctionsOffset, kTaggedSize)                            \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
   V(kFeedbackVectorsOffset, kTaggedSize)                                  \
   V(kBreakOnEntryOffset, kUInt8Size)                                      \
@@ -443,7 +444,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kIndirectFunctionTablesOffset,
       kManagedNativeAllocationsOffset,
       kTagsTableOffset,
-      kWasmExternalFunctionsOffset,
+      kWasmInternalFunctionsOffset,
       kManagedObjectMapsOffset,
       kFeedbackVectorsOffset};
 
@@ -483,21 +484,21 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
 
-  static MaybeHandle<WasmExternalFunction> GetWasmExternalFunction(
+  static MaybeHandle<WasmInternalFunction> GetWasmInternalFunction(
       Isolate* isolate, Handle<WasmInstanceObject> instance, int index);
 
-  // Acquires the {WasmExternalFunction} for a given {function_index} from the
-  // cache of the given {instance}, or creates a new {WasmExportedFunction} if
-  // it does not exist yet. The new {WasmExportedFunction} is added to the
+  // Acquires the {WasmInternalFunction} for a given {function_index} from the
+  // cache of the given {instance}, or creates a new {WasmInternalFunction} if
+  // it does not exist yet. The new {WasmInternalFunction} is added to the
   // cache of the {instance} immediately.
-  static Handle<WasmExternalFunction> GetOrCreateWasmExternalFunction(
+  static Handle<WasmInternalFunction> GetOrCreateWasmInternalFunction(
       Isolate* isolate, Handle<WasmInstanceObject> instance,
       int function_index);
 
-  static void SetWasmExternalFunction(Isolate* isolate,
+  static void SetWasmInternalFunction(Isolate* isolate,
                                       Handle<WasmInstanceObject> instance,
                                       int index,
-                                      Handle<WasmExternalFunction> val);
+                                      Handle<WasmInternalFunction> val);
 
   // Imports a constructed {WasmJSFunction} into the indirect function table of
   // this instance. Note that this might trigger wrapper compilation, since a
@@ -688,12 +689,14 @@ class WasmIndirectFunctionTable
 };
 
 class WasmFunctionData
-    : public TorqueGeneratedWasmFunctionData<WasmFunctionData, Foreign> {
+    : public TorqueGeneratedWasmFunctionData<WasmFunctionData, HeapObject> {
  public:
-  DECL_ACCESSORS(ref, Object)
+  DECL_ACCESSORS(internal, WasmInternalFunction)
   DECL_ACCESSORS(wrapper_code, Code)
 
   DECL_PRINTER(WasmFunctionData)
+
+  using BodyDescriptor = FlexibleBodyDescriptor<kStartOfStrongFieldsOffset>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmFunctionData)
 };
@@ -711,7 +714,8 @@ class WasmExportedFunctionData
   DECL_PRINTER(WasmExportedFunctionData)
   DECL_VERIFIER(WasmExportedFunctionData)
 
-  class BodyDescriptor;
+  using BodyDescriptor =
+      FlexibleBodyDescriptor<WasmFunctionData::kStartOfStrongFieldsOffset>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmExportedFunctionData)
 };
@@ -727,6 +731,28 @@ class WasmApiFunctionRef
   TQ_OBJECT_CONSTRUCTORS(WasmApiFunctionRef)
 };
 
+class WasmInternalFunction
+    : public TorqueGeneratedWasmInternalFunction<WasmInternalFunction,
+                                                 Foreign> {
+ public:
+  DECL_ACCESSORS(code, Code)
+
+  // Returns a handle to the corresponding WasmInternalFunction if {external} is
+  // a WasmExternalFunction, or an empty handle otherwise.
+  static MaybeHandle<WasmInternalFunction> FromExternal(Handle<Object> external,
+                                                        Isolate* isolate);
+
+  // Dispatched behavior.
+  DECL_PRINTER(WasmInternalFunction)
+
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(WasmInternalFunction)
+
+ private:
+  DECL_ACCESSORS(raw_code, CodeT)
+};
+
 // Information for a WasmJSFunction which is referenced as the function data of
 // the SharedFunctionInfo underlying the function. For details please see the
 // {SharedFunctionInfo::HasWasmJSFunctionData} predicate.
@@ -739,11 +765,10 @@ class WasmJSFunctionData
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)
 
-  class BodyDescriptor;
+  using BodyDescriptor =
+      FlexibleBodyDescriptor<WasmFunctionData::kStartOfStrongFieldsOffset>;
 
  private:
-  DECL_ACCESSORS(raw_wasm_to_js_wrapper_code, CodeT)
-
   TQ_OBJECT_CONSTRUCTORS(WasmJSFunctionData)
 };
 
@@ -753,7 +778,8 @@ class WasmCapiFunctionData
  public:
   DECL_PRINTER(WasmCapiFunctionData)
 
-  class BodyDescriptor;
+  using BodyDescriptor =
+      FlexibleBodyDescriptor<WasmFunctionData::kStartOfStrongFieldsOffset>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmCapiFunctionData)
 };

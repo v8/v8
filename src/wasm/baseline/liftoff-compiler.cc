@@ -5435,13 +5435,12 @@ class LiftoffCompiler {
                         obj.type.kind(), obj_reg.gp(), tmp1.gp());
     }
 
-    // Perform a regular type check. Check for exact match first.
     __ LoadMap(tmp1.gp(), obj_reg.gp());
     // {tmp1} now holds the object's map.
 
     if (decoder->module_->has_signature(rtt.type.ref_index())) {
-      // Function case: currently, the only way for a function to match an rtt
-      // is if its map is equal to that rtt.
+      // Function case: currently, the only way for the type check to succeed is
+      // that the function's map equals the rtt.
       __ emit_cond_jump(kUnequal, no_match, rtt.type.kind(), tmp1.gp(),
                         rtt_reg.gp());
       __ bind(&match);
@@ -5625,7 +5624,8 @@ class LiftoffCompiler {
     __ Load(tmp1, tmp1.gp(), no_reg,
             wasm::ObjectAccess::ToTagged(Map::kInstanceTypeOffset),
             LoadType::kI32Load16U, pinned);
-    __ emit_i32_cond_jumpi(kUnequal, no_match, tmp1.gp(), JS_FUNCTION_TYPE);
+    __ emit_i32_cond_jumpi(kUnequal, no_match, tmp1.gp(),
+                           WASM_INTERNAL_FUNCTION_TYPE);
 
     return obj_reg;
   }
@@ -6033,7 +6033,8 @@ class LiftoffCompiler {
       __ LoadConstant(index, WasmValue::ForUintPtr(vector_slot));
       LiftoffAssembler::VarState index_var(kIntPtrKind, index, 0);
 
-      // CallRefIC(vector: FixedArray, index: intptr, funcref: JSFunction)
+      // CallRefIC(vector: FixedArray, index: intptr,
+      //           funcref: WasmInternalFunction)
       CallRuntimeStub(WasmCode::kCallRefIC,
                       MakeSig::Returns(kPointerKind, kPointerKind)
                           .Params(kPointerKind, kIntPtrKind, kPointerKind),
@@ -6063,32 +6064,22 @@ class LiftoffCompiler {
       LiftoffRegister target = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
       LiftoffRegister temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
-      // Load the WasmFunctionData.
-      LiftoffRegister func_data = func_ref;
-      __ LoadTaggedPointer(
-          func_data.gp(), func_ref.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(JSFunction::kSharedFunctionInfoOffset),
-          pinned);
-      __ LoadTaggedPointer(
-          func_data.gp(), func_data.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(SharedFunctionInfo::kFunctionDataOffset),
-          pinned);
-
       // Load "ref" (instance or WasmApiFunctionRef) and target.
       __ LoadTaggedPointer(
-          instance.gp(), func_data.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(WasmFunctionData::kRefOffset), pinned);
+          instance.gp(), func_ref.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset),
+          pinned);
 
 #ifdef V8_HEAP_SANDBOX
       LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
       __ LoadExternalPointer(target.gp(), func_data.gp(),
-                             WasmFunctionData::kForeignAddressOffset,
+                             WasmInternalFunction::kForeignAddressOffset,
                              kForeignForeignAddressTag, temp.gp());
 #else
-      __ Load(
-          target, func_data.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(WasmFunctionData::kForeignAddressOffset),
-          kPointerLoadType, pinned);
+      __ Load(target, func_ref.gp(), no_reg,
+              wasm::ObjectAccess::ToTagged(
+                  WasmInternalFunction::kForeignAddressOffset),
+              kPointerLoadType, pinned);
 #endif
 
       Label perform_call;
@@ -6098,10 +6089,10 @@ class LiftoffCompiler {
       __ emit_cond_jump(kUnequal, &perform_call, kRef, target.gp(),
                         null_address.gp());
       // The cached target can only be null for WasmJSFunctions.
-      __ LoadTaggedPointer(target.gp(), func_data.gp(), no_reg,
-                           wasm::ObjectAccess::ToTagged(
-                               WasmJSFunctionData::kWasmToJsWrapperCodeOffset),
-                           pinned);
+      __ LoadTaggedPointer(
+          target.gp(), func_ref.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset),
+          pinned);
 #ifdef V8_EXTERNAL_CODE_SPACE
       __ LoadCodeDataContainerEntry(target.gp(), target.gp());
 #else

@@ -1443,7 +1443,7 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
   i::WasmApiFunctionRef::cast(
-      function->shared().wasm_capi_function_data().ref())
+      function->shared().wasm_capi_function_data().internal().ref())
       .set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
   return func;
@@ -1670,7 +1670,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   // TODO(v8:11880): avoid roundtrips between cdc and code.
   i::Handle<i::CodeT> wrapper_code = i::Handle<i::CodeT>(
       i::CodeT::cast(function_data->c_wrapper_code()), isolate);
-  i::Address call_target = function_data->foreign_address();
+  i::Address call_target = function_data->internal().foreign_address();
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
   PushArgs(sig, args, &packer, store);
@@ -1996,6 +1996,10 @@ auto Table::get(size_t index) const -> own<Ref> {
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
   // TODO(jkummerow): If we support both JavaScript and the C-API at the same
   // time, we need to handle Smis and other JS primitives here.
+  if (result->IsWasmInternalFunction()) {
+    result = handle(
+        i::Handle<i::WasmInternalFunction>::cast(result)->external(), isolate);
+  }
   DCHECK(result->IsNull(isolate) || result->IsJSReceiver());
   return V8RefValueToWasm(impl(this)->store(), result);
 }
@@ -2006,7 +2010,11 @@ auto Table::set(size_t index, const Ref* ref) -> bool {
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
-  i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index), obj);
+  i::Handle<i::Object> entry;
+  if (!i::WasmInternalFunction::FromExternal(obj, isolate).ToHandle(&entry)) {
+    entry = obj;
+  }
+  i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index), entry);
   return true;
 }
 
@@ -2019,7 +2027,12 @@ auto Table::grow(size_t delta, const Ref* ref) -> bool {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope scope(isolate);
-  i::Handle<i::Object> init_value = WasmRefToV8(isolate, ref);
+  i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
+  i::Handle<i::Object> init_value;
+  if (!i::WasmInternalFunction::FromExternal(obj, isolate)
+           .ToHandle(&init_value)) {
+    init_value = obj;
+  }
   int result = i::WasmTableObject::Grow(
       isolate, table, static_cast<uint32_t>(delta), init_value);
   return result >= 0;

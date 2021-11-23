@@ -187,8 +187,11 @@ void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   CHECK(!interpreter_);
   FreezeSignatureMapAndInitializeWrapperCache();
-  return WasmInstanceObject::GetOrCreateWasmExternalFunction(
-      isolate_, instance_object(), index);
+  return handle(
+      JSFunction::cast(WasmInstanceObject::GetOrCreateWasmInternalFunction(
+                           isolate_, instance_object(), index)
+                           ->external()),
+      isolate_);
 }
 
 void TestingModuleBuilder::AddIndirectFunctionTable(

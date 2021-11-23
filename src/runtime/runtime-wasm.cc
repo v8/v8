@@ -232,10 +232,12 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 namespace {
 void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
                     int function_index, Handle<Code> wrapper_code) {
-  Handle<WasmExternalFunction> exported_function =
-      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
+  Handle<WasmInternalFunction> internal =
+      WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
                                                   function_index)
           .ToHandleChecked();
+  Handle<WasmExternalFunction> exported_function =
+      handle(WasmExternalFunction::cast(internal->external()), isolate);
   exported_function->set_code(*wrapper_code, kReleaseStore);
   WasmExportedFunctionData function_data =
       exported_function->shared().wasm_exported_function_data();
@@ -260,11 +262,9 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   // an exported function (although it is called as one).
   // If there is no entry for the start function,
   // the tier-up is abandoned.
-  MaybeHandle<WasmExternalFunction> maybe_exported_function =
-      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
-                                                  function_index);
-  Handle<WasmExternalFunction> exported_function;
-  if (!maybe_exported_function.ToHandle(&exported_function)) {
+  if (WasmInstanceObject::GetWasmInternalFunction(isolate, instance,
+                                                  function_index)
+          .is_null()) {
     DCHECK_EQ(function_index, module->start_function_index);
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -398,11 +398,8 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_UINT32_ARG_CHECKED(function_index, 1);
 
-  Handle<WasmExternalFunction> function =
-      WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
-                                                          function_index);
-
-  return *function;
+  return *WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
+                                                              function_index);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {

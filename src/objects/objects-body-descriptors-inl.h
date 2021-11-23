@@ -624,24 +624,6 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
-class WasmJSFunctionData::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    UNREACHABLE();
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
-                                                        v);
-    IteratePointers(obj, WasmFunctionData::kStartOfStrongFieldsOffset,
-                    kEndOfStrongFieldsOffset, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
-};
-
 class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -658,8 +640,7 @@ class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
-class WasmExportedFunctionData::BodyDescriptor final
-    : public BodyDescriptorBase {
+class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     UNREACHABLE();
@@ -670,26 +651,8 @@ class WasmExportedFunctionData::BodyDescriptor final
                                  ObjectVisitor* v) {
     Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
                                                         v);
-    IteratePointers(obj, WasmFunctionData::kStartOfStrongFieldsOffset,
-                    kEndOfStrongFieldsOffset, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
-};
-
-class WasmCapiFunctionData::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    UNREACHABLE();
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
-                                                        v);
-    IteratePointers(obj, WasmFunctionData::kStartOfStrongFieldsOffset,
-                    kEndOfStrongFieldsOffset, v);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
@@ -1066,6 +1029,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case COVERAGE_INFO_TYPE:
       return Op::template apply<CoverageInfo::BodyDescriptor>(p1, p2, p3, p4);
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_API_FUNCTION_REF_TYPE:
+      return Op::template apply<WasmApiFunctionRef::BodyDescriptor>(p1, p2, p3,
+                                                                    p4);
     case WASM_ARRAY_TYPE:
       return Op::template apply<WasmArray::BodyDescriptor>(p1, p2, p3, p4);
     case WASM_CAPI_FUNCTION_DATA_TYPE:
@@ -1074,11 +1040,11 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
       return Op::template apply<WasmExportedFunctionData::BodyDescriptor>(
           p1, p2, p3, p4);
+    case WASM_INTERNAL_FUNCTION_TYPE:
+      return Op::template apply<WasmInternalFunction::BodyDescriptor>(p1, p2,
+                                                                      p3, p4);
     case WASM_JS_FUNCTION_DATA_TYPE:
       return Op::template apply<WasmJSFunctionData::BodyDescriptor>(p1, p2, p3,
-                                                                    p4);
-    case WASM_API_FUNCTION_REF_TYPE:
-      return Op::template apply<WasmApiFunctionRef::BodyDescriptor>(p1, p2, p3,
                                                                     p4);
     case WASM_STRUCT_TYPE:
       return Op::template apply<WasmStruct::BodyDescriptor>(p1, p2, p3, p4);

@@ -1206,6 +1206,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
           "with the type of the new table.");
       return;
     }
+    if (element->IsJSFunction()) {
+      element = i::WasmInternalFunction::FromExternal(element, i_isolate)
+                    .ToHandleChecked();
+    }
     for (uint32_t index = 0; index < static_cast<uint32_t>(initial); ++index) {
       i::WasmTableObject::Set(i_isolate, table_obj, index, element);
     }
@@ -1976,8 +1980,14 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     init_value = DefaultReferenceValue(i_isolate, receiver->type());
   }
 
-  int old_size =
-      i::WasmTableObject::Grow(i_isolate, receiver, grow_by, init_value);
+  i::Handle<i::Object> internal_init_value;
+  if (!i::WasmInternalFunction::FromExternal(init_value, i_isolate)
+           .ToHandle(&internal_init_value)) {
+    internal_init_value = init_value;
+  }
+
+  int old_size = i::WasmTableObject::Grow(i_isolate, receiver, grow_by,
+                                          internal_init_value);
 
   if (old_size < 0) {
     thrower.RangeError("failed to grow table by %u", grow_by);
@@ -2007,6 +2017,11 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(i_isolate, receiver, index);
+  if (result->IsWasmInternalFunction()) {
+    result =
+        handle(i::Handle<i::WasmInternalFunction>::cast(result)->external(),
+               i_isolate);
+  }
 
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(result));
@@ -2043,7 +2058,14 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
         "to 'this'");
     return;
   }
-  i::WasmTableObject::Set(i_isolate, table_object, index, element);
+
+  i::Handle<i::Object> value;
+  if (!i::WasmInternalFunction::FromExternal(element, i_isolate)
+           .ToHandle(&value)) {
+    value = element;
+  }
+
+  i::WasmTableObject::Set(i_isolate, table_object, index, value);
 }
 
 // WebAssembly.Table.type() -> TableType
@@ -2371,10 +2393,19 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kOptRef:
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kExtern:
-        case i::wasm::HeapType::kFunc:
-        case i::wasm::HeapType::kAny:
           return_value.Set(Utils::ToLocal(receiver->GetRef()));
           break;
+        case i::wasm::HeapType::kFunc:
+        case i::wasm::HeapType::kAny: {
+          i::Handle<i::Object> result = receiver->GetRef();
+          if (result->IsWasmInternalFunction()) {
+            result = handle(
+                i::Handle<i::WasmInternalFunction>::cast(result)->external(),
+                i_isolate);
+          }
+          return_value.Set(Utils::ToLocal(result));
+          break;
+        }
         case internal::wasm::HeapType::kBottom:
           UNREACHABLE();
         case internal::wasm::HeapType::kI31:
@@ -2527,7 +2558,7 @@ void WebAssemblySuspenderReturnPromiseOnSuspend(
   i::WasmExportedFunctionData data = sfi.wasm_exported_function_data();
   int index = data.function_index();
   i::Handle<i::WasmInstanceObject> instance(
-      i::WasmInstanceObject::cast(data.ref()), i_isolate);
+      i::WasmInstanceObject::cast(data.internal().ref()), i_isolate);
   i::Handle<i::Code> wrapper = i_isolate->builtins()->code_handle(
       i::Builtin::kWasmReturnPromiseOnSuspend);
   i::Handle<i::JSObject> result =

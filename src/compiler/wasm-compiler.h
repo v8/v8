@@ -356,7 +356,7 @@ class WasmGraphBuilder {
                       base::Vector<Node*> args, CheckForNull null_check,
                       wasm::WasmCodePosition position);
 
-  void CompareToExternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
+  void CompareToInternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
                                         Node** success_control,
                                         Node** failure_control);
 
@@ -754,6 +754,8 @@ class WasmGraphBuilder {
 
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context);
+
+  Node* BuildUnsandboxExternalPointer(Node* external_pointer);
 
   Node* BuildLoadCallTargetFromExportedFunctionData(Node* function_data);
 

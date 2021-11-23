@@ -3520,8 +3520,8 @@ class WasmInterpreterInternals {
                                                      "function index");
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
 
-          Handle<WasmExternalFunction> function =
-              WasmInstanceObject::GetOrCreateWasmExternalFunction(
+          Handle<WasmInternalFunction> function =
+              WasmInstanceObject::GetOrCreateWasmInternalFunction(
                   isolate_, instance_object_, imm.index);
           Push(WasmValue(function, kWasmFuncRef));
           len = 1 + imm.length;

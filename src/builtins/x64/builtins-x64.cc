@@ -3385,10 +3385,12 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   Register function_entry = function_data;
   Register scratch = r12;
+  __ LoadAnyTaggedField(
+      function_entry,
+      FieldOperand(function_data, WasmExportedFunctionData::kInternalOffset));
   __ LoadExternalPointerField(
       function_entry,
-      FieldOperand(function_data,
-                   WasmExportedFunctionData::kForeignAddressOffset),
+      FieldOperand(function_entry, WasmInternalFunction::kForeignAddressOffset),
       kForeignForeignAddressTag, scratch);
   function_data = no_reg;
   scratch = no_reg;
@@ -3786,10 +3788,12 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
       MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
   __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
   Register function_entry = function_data;
+  __ LoadAnyTaggedField(
+      function_entry,
+      FieldOperand(function_entry, WasmExportedFunctionData::kInternalOffset));
   __ LoadExternalPointerField(
       function_entry,
-      FieldOperand(function_data,
-                   WasmExportedFunctionData::kForeignAddressOffset),
+      FieldOperand(function_data, WasmInternalFunction::kForeignAddressOffset),
       kForeignForeignAddressTag, r8);
   __ Push(wasm_instance);
   __ call(function_entry);

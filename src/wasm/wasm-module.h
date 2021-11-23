@@ -314,9 +314,10 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<TypeDefinition> types;  // by type index
   std::vector<uint8_t> type_kinds;    // by type index
   std::vector<uint32_t> supertypes;   // by type index
-  // Map from each type index to the index of its corresponding canonical type.
+  // Map from each type index to the index of its corresponding canonical index.
+  // Canonical indices do not correspond to types.
   // Note: right now, only functions are canonicalized, and arrays and structs
-  // map to themselves.
+  // map to 0.
   std::vector<uint32_t> canonicalized_type_ids;
 
   bool has_type(uint32_t index) const { return index < types.size(); }
