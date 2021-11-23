@@ -139,8 +139,8 @@ namespace internal {
   /* Time to decompress context snapshot. */                                  \
   HT(context_snapshot_decompress, V8.ContextSnapshotDecompress, 10000000,     \
      MICROSECOND)                                                             \
-  HT(wasm_compile_after_deserialize, V8.WasmCompileAfterDeserialize, 1000000, \
-     MILLISECOND)
+  HT(wasm_compile_after_deserialize,                                          \
+     V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)
 
 #define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                               \
   /* Total V8 time (including JS and runtime calls, exluding callbacks) */ \
