@@ -4346,6 +4346,7 @@ static int GetCodeChainLength(Code code) {
 TEST(NextCodeLinkIsWeak) {
   FLAG_always_opt = false;
   FLAG_allow_natives_syntax = true;
+  FLAG_stress_concurrent_inlining = false;  // Test needs deterministic timing.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
@@ -4376,6 +4377,7 @@ TEST(NextCodeLinkIsWeak) {
 TEST(NextCodeLinkInCodeDataContainerIsCleared) {
   FLAG_always_opt = false;
   FLAG_allow_natives_syntax = true;
+  FLAG_stress_concurrent_inlining = false;  // Test needs deterministic timing.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
@@ -4424,6 +4426,7 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
 
 TEST(NextCodeLinkIsWeak2) {
   FLAG_allow_natives_syntax = true;
+  FLAG_stress_concurrent_inlining = false;  // Test needs deterministic timing.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();
