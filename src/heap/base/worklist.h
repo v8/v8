@@ -52,9 +52,9 @@ class Worklist {
   bool Pop(Segment** segment);
 
   // Returns true if the list of segments is empty.
-  bool IsEmpty();
+  bool IsEmpty() const;
   // Returns the number of segments in the list.
-  size_t Size();
+  size_t Size() const;
 
   // Moves the segments of the given marking worklist into this
   // marking worklist.
@@ -100,13 +100,13 @@ bool Worklist<EntryType, SegmentSize>::Pop(Segment** segment) {
 }
 
 template <typename EntryType, uint16_t SegmentSize>
-bool Worklist<EntryType, SegmentSize>::IsEmpty() {
+bool Worklist<EntryType, SegmentSize>::IsEmpty() const {
   return v8::base::AsAtomicPtr(&top_)->load(std::memory_order_relaxed) ==
          nullptr;
 }
 
 template <typename EntryType, uint16_t SegmentSize>
-size_t Worklist<EntryType, SegmentSize>::Size() {
+size_t Worklist<EntryType, SegmentSize>::Size() const {
   // It is safe to read |size_| without a lock since this variable is
   // atomic, keeping in mind that threads may not immediately see the new
   // value when it is updated.
