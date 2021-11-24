@@ -166,7 +166,8 @@ class ConcurrentBaselineCompiler {
         // we only switch back the memory chunks to RX at the end.
         CodePageCollectionMemoryModificationScope batch_alloc(isolate_->heap());
         std::unique_ptr<BaselineBatchCompilerJob> job;
-        incoming_queue_->Dequeue(&job);
+        if (!incoming_queue_->Dequeue(&job)) break;
+        DCHECK_NOT_NULL(job);
         job->Compile();
         outgoing_queue_->Enqueue(std::move(job));
       }
