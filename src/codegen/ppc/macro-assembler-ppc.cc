@@ -3602,7 +3602,7 @@ void TurboAssembler::ByteReverseU32(Register dst, Register val,
   rotlwi(scratch, val, 8);
   rlwimi(scratch, val, 24, 0, 7);
   rlwimi(scratch, val, 24, 16, 23);
-  ZeroExtWord32(dst, dst);
+  ZeroExtWord32(dst, scratch);
 }
 
 void TurboAssembler::ByteReverseU64(Register dst, Register val) {
