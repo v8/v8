@@ -6072,7 +6072,7 @@ class LiftoffCompiler {
 
 #ifdef V8_HEAP_SANDBOX
       LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
-      __ LoadExternalPointer(target.gp(), func_data.gp(),
+      __ LoadExternalPointer(target.gp(), func_ref.gp(),
                              WasmInternalFunction::kForeignAddressOffset,
                              kForeignForeignAddressTag, temp.gp());
 #else
