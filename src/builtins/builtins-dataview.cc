@@ -105,6 +105,7 @@ BUILTIN(DataViewConstructor) {
     // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
     data_view->SetEmbedderField(i, Smi::zero());
   }
+  data_view->set_bit_field(0);
   data_view->set_is_backed_by_rab(array_buffer->is_resizable() &&
                                   !array_buffer->is_shared());
   data_view->set_is_length_tracking(length_tracking);

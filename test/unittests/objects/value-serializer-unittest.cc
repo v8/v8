@@ -19,6 +19,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/build_config.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -1987,6 +1988,11 @@ TEST_F(ValueSerializerTest, RoundTripDataView) {
   EXPECT_EQ(2u, DataView::Cast(*value)->ByteLength());
   EXPECT_EQ(4u, DataView::Cast(*value)->Buffer()->ByteLength());
   ExpectScriptTrue("Object.getPrototypeOf(result) === DataView.prototype");
+  // TODO(v8:11111): Use API functions for testing these, once they're exposed
+  // via the API.
+  i::Handle<i::JSDataView> i_dv = v8::Utils::OpenHandle(DataView::Cast(*value));
+  EXPECT_EQ(false, i_dv->is_length_tracking());
+  EXPECT_EQ(false, i_dv->is_backed_by_rab());
 }
 
 TEST_F(ValueSerializerTest, DecodeDataView) {

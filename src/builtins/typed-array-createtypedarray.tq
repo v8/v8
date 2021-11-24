@@ -335,6 +335,7 @@ transitioning macro TypedArrayCreateByLength(implicit context: Context)(
   //    ValidateTypedArray currently returns the array, not the ViewBuffer.
   const newTypedArray: JSTypedArray =
       ValidateTypedArray(context, newTypedArrayObj, methodName);
+  // TODO(v8:11111): bit_field should be initialized to 0.
   newTypedArray.bit_field.is_length_tracking = false;
   newTypedArray.bit_field.is_backed_by_rab = false;
 
