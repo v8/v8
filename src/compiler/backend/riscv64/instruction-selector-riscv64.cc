@@ -2706,10 +2706,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2Neg, kRiscvI64x2Neg)                               \
   V(I64x2Abs, kRiscvI64x2Abs)                               \
   V(I64x2BitMask, kRiscvI64x2BitMask)                       \
-  V(I64x2Eq, kRiscvI64x2Eq)                                 \
-  V(I64x2Ne, kRiscvI64x2Ne)                                 \
-  V(I64x2GtS, kRiscvI64x2GtS)                               \
-  V(I64x2GeS, kRiscvI64x2GeS)                               \
   V(F32x4SConvertI32x4, kRiscvF32x4SConvertI32x4)           \
   V(F32x4UConvertI32x4, kRiscvF32x4UConvertI32x4)           \
   V(F32x4Abs, kRiscvF32x4Abs)                               \
@@ -2780,6 +2776,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Ne, kRiscvF64x2Ne)                             \
   V(F64x2Lt, kRiscvF64x2Lt)                             \
   V(F64x2Le, kRiscvF64x2Le)                             \
+  V(I64x2Eq, kRiscvI64x2Eq)                             \
+  V(I64x2Ne, kRiscvI64x2Ne)                             \
+  V(I64x2GtS, kRiscvI64x2GtS)                           \
+  V(I64x2GeS, kRiscvI64x2GeS)                           \
   V(I64x2Add, kRiscvI64x2Add)                           \
   V(I64x2Sub, kRiscvI64x2Sub)                           \
   V(I64x2Mul, kRiscvI64x2Mul)                           \

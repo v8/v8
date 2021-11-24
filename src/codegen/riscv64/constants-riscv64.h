@@ -712,6 +712,46 @@ enum Opcode : uint32_t {
   RO_V_VSUB_VX = OP_IVX | (VSUB_FUNCT6 << kRvvFunct6Shift),
   RO_V_VSUB_VV = OP_IVV | (VSUB_FUNCT6 << kRvvFunct6Shift),
 
+  VDIVU_FUNCT6 = 0b100000,
+  RO_V_VDIVU_VX = OP_MVX | (VDIVU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VDIVU_VV = OP_MVV | (VDIVU_FUNCT6 << kRvvFunct6Shift),
+
+  VDIV_FUNCT6 = 0b100001,
+  RO_V_VDIV_VX = OP_MVX | (VDIV_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VDIV_VV = OP_MVV | (VDIV_FUNCT6 << kRvvFunct6Shift),
+
+  VREMU_FUNCT6 = 0b100010,
+  RO_V_VREMU_VX = OP_MVX | (VREMU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VREMU_VV = OP_MVV | (VREMU_FUNCT6 << kRvvFunct6Shift),
+
+  VREM_FUNCT6 = 0b100011,
+  RO_V_VREM_VX = OP_MVX | (VREM_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VREM_VV = OP_MVV | (VREM_FUNCT6 << kRvvFunct6Shift),
+
+  VMULHU_FUNCT6 = 0b100100,
+  RO_V_VMULHU_VX = OP_MVX | (VMULHU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMULHU_VV = OP_MVV | (VMULHU_FUNCT6 << kRvvFunct6Shift),
+
+  VMUL_FUNCT6 = 0b100101,
+  RO_V_VMUL_VX = OP_MVX | (VMUL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMUL_VV = OP_MVV | (VMUL_FUNCT6 << kRvvFunct6Shift),
+
+  VMULHSU_FUNCT6 = 0b100110,
+  RO_V_VMULHSU_VX = OP_MVX | (VMULHSU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMULHSU_VV = OP_MVV | (VMULHSU_FUNCT6 << kRvvFunct6Shift),
+
+  VMULH_FUNCT6 = 0b100111,
+  RO_V_VMULH_VX = OP_MVX | (VMULH_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMULH_VV = OP_MVV | (VMULH_FUNCT6 << kRvvFunct6Shift),
+
+  VWADDU_FUNCT6 = 0b110000,
+  RO_V_VWADDU_VV = OP_MVV | (VWADDU_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWADDU_VX = OP_MVX | (VWADDU_FUNCT6 << kRvvFunct6Shift),
+
+  VWADDUW_FUNCT6 = 0b110101,
+  RO_V_VWADDUW_VX = OP_MVX | (VWADDUW_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VWADDUW_VV = OP_MVV | (VWADDUW_FUNCT6 << kRvvFunct6Shift),
+
   VSADDU_FUNCT6 = 0b100000,
   RO_V_VSADDU_VI = OP_IVI | (VSADDU_FUNCT6 << kRvvFunct6Shift),
   RO_V_VSADDU_VV = OP_IVV | (VSADDU_FUNCT6 << kRvvFunct6Shift),
@@ -829,10 +869,19 @@ enum Opcode : uint32_t {
   RO_V_VSRL_VV = OP_IVV | (VSRL_FUNCT6 << kRvvFunct6Shift),
   RO_V_VSRL_VX = OP_IVX | (VSRL_FUNCT6 << kRvvFunct6Shift),
 
+  VSRA_FUNCT6 = 0b101001,
+  RO_V_VSRA_VI = OP_IVI | (VSRA_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSRA_VV = OP_IVV | (VSRA_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSRA_VX = OP_IVX | (VSRA_FUNCT6 << kRvvFunct6Shift),
+
   VSLL_FUNCT6 = 0b100101,
   RO_V_VSLL_VI = OP_IVI | (VSLL_FUNCT6 << kRvvFunct6Shift),
   RO_V_VSLL_VV = OP_IVV | (VSLL_FUNCT6 << kRvvFunct6Shift),
   RO_V_VSLL_VX = OP_IVX | (VSLL_FUNCT6 << kRvvFunct6Shift),
+
+  VSMUL_FUNCT6 = 0b100111,
+  RO_V_VSMUL_VV = OP_IVV | (VSMUL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSMUL_VX = OP_IVX | (VSMUL_FUNCT6 << kRvvFunct6Shift),
 
   VADC_FUNCT6 = 0b010000,
   RO_V_VADC_VI = OP_IVI | (VADC_FUNCT6 << kRvvFunct6Shift),
@@ -856,6 +905,9 @@ enum Opcode : uint32_t {
   VWFUNARY0_FUNCT6 = 0b010000,
   RO_V_VFMV_FS = OP_FVV | (VWFUNARY0_FUNCT6 << kRvvFunct6Shift),
 
+  VRFUNARY0_FUNCT6 = 0b010000,
+  RO_V_VFMV_SF = OP_FVF | (VRFUNARY0_FUNCT6 << kRvvFunct6Shift),
+
   VREDMAXU_FUNCT6 = 0b000110,
   RO_V_VREDMAXU = OP_MVV | (VREDMAXU_FUNCT6 << kRvvFunct6Shift),
   VREDMAX_FUNCT6 = 0b000111,
@@ -878,6 +930,9 @@ enum Opcode : uint32_t {
   VFNCVT_F_F_W = 0b10100,
 
   VFCLASS_V = 0b10000,
+  VFSQRT_V = 0b00000,
+  VFSQRT7_V = 0b00100,
+  VFREC7_V = 0b00101,
 
   VFADD_FUNCT6 = 0b000000,
   RO_V_VFADD_VV = OP_FVV | (VFADD_FUNCT6 << kRvvFunct6Shift),
@@ -920,6 +975,9 @@ enum Opcode : uint32_t {
   VFMAX_FUNCT6 = 0b000110,
   RO_V_VFMAX_VV = OP_FVV | (VFMAX_FUNCT6 << kRvvFunct6Shift),
   RO_V_VFMAX_VF = OP_FVF | (VFMAX_FUNCT6 << kRvvFunct6Shift),
+
+  VFREDMAX_FUNCT6 = 0b0001111,
+  RO_V_VFREDMAX_VV = OP_FVV | (VFREDMAX_FUNCT6 << kRvvFunct6Shift),
 
   VFMIN_FUNCT6 = 0b000100,
   RO_V_VFMIN_VV = OP_FVV | (VFMIN_FUNCT6 << kRvvFunct6Shift),
@@ -1788,7 +1846,7 @@ class InstructionGetters : public T {
       RVV_LMUL(CAST_VLMUL)
       default:
         return "unknown";
-#undef CAST_VSEW
+#undef CAST_VLMUL
     }
   }
 

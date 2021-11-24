@@ -69,60 +69,6 @@ T Nabs(T a) {
   return a < 0 ? a : -a;
 }
 
-  template <uint64_t N>
-  struct type_usew_t;
-  template <>
-  struct type_usew_t<8> {
-    using type = uint8_t;
-  };
-
-  template <>
-  struct type_usew_t<16> {
-    using type = uint16_t;
-  };
-
-  template <>
-  struct type_usew_t<32> {
-    using type = uint32_t;
-  };
-
-  template <>
-  struct type_usew_t<64> {
-    using type = uint64_t;
-  };
-
-  template <>
-  struct type_usew_t<128> {
-    using type = __uint128_t;
-  };
-  template <uint64_t N>
-  struct type_sew_t;
-
-  template <>
-  struct type_sew_t<8> {
-    using type = int8_t;
-  };
-
-  template <>
-  struct type_sew_t<16> {
-    using type = int16_t;
-  };
-
-  template <>
-  struct type_sew_t<32> {
-    using type = int32_t;
-  };
-
-  template <>
-  struct type_sew_t<64> {
-    using type = int64_t;
-  };
-
-  template <>
-  struct type_sew_t<128> {
-    using type = __int128_t;
-  };
-
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
@@ -446,6 +392,13 @@ class Simulator : public SimulatorBase {
   inline uint64_t rvv_vlenb() const { return vlenb_; }
   inline uint32_t rvv_zimm() const { return instr_.Rvvzimm(); }
   inline uint32_t rvv_vlmul() const { return (rvv_vtype() & 0x7); }
+  inline float rvv_vflmul() const {
+    if ((rvv_vtype() & 0b100) == 0) {
+      return static_cast<float>(0x1 << (rvv_vtype() & 0x7));
+    } else {
+      return 1.0 / static_cast<float>(0x1 << (4 - rvv_vtype() & 0x7));
+    }
+  }
   inline uint32_t rvv_vsew() const { return ((rvv_vtype() >> 3) & 0x7); }
 
   inline const char* rvv_sew_s() const {
@@ -470,7 +423,7 @@ class Simulator : public SimulatorBase {
       RVV_LMUL(CAST_VLMUL)
       default:
         return "unknown";
-#undef CAST_VSEW
+#undef CAST_VLMUL
     }
   }
 
@@ -726,6 +679,60 @@ class Simulator : public SimulatorBase {
   // PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
   // HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
   // MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+  template <uint64_t N>
+  struct type_usew_t;
+  template <>
+  struct type_usew_t<8> {
+    using type = uint8_t;
+  };
+
+  template <>
+  struct type_usew_t<16> {
+    using type = uint16_t;
+  };
+
+  template <>
+  struct type_usew_t<32> {
+    using type = uint32_t;
+  };
+
+  template <>
+  struct type_usew_t<64> {
+    using type = uint64_t;
+  };
+
+  template <>
+  struct type_usew_t<128> {
+    using type = __uint128_t;
+  };
+  template <uint64_t N>
+  struct type_sew_t;
+
+  template <>
+  struct type_sew_t<8> {
+    using type = int8_t;
+  };
+
+  template <>
+  struct type_sew_t<16> {
+    using type = int16_t;
+  };
+
+  template <>
+  struct type_sew_t<32> {
+    using type = int32_t;
+  };
+
+  template <>
+  struct type_sew_t<64> {
+    using type = int64_t;
+  };
+
+  template <>
+  struct type_sew_t<128> {
+    using type = __int128_t;
+  };
+
 #define VV_PARAMS(x)                                                       \
   type_sew_t<x>::type& vd =                                                \
       Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);                  \
@@ -806,7 +813,7 @@ class Simulator : public SimulatorBase {
   inline void rvv_trace_vd() {
     if (::v8::internal::FLAG_trace_sim) {
       __int128_t value = Vregister_[rvv_vd_reg()];
-      SNPrintF(trace_buf_, "0x%016" PRIx64 "%016" PRIx64 " (%" PRId64 ")",
+      SNPrintF(trace_buf_, "%016" PRIx64 "%016" PRIx64 " (%" PRId64 ")",
                *(reinterpret_cast<int64_t*>(&value) + 1),
                *reinterpret_cast<int64_t*>(&value), icount_);
     }

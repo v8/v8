@@ -2159,11 +2159,25 @@ void TurboAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   // they also satisfy (scratch2 - kFloatExponentBias >= kFloatMantissaBits),
   // and JS round semantics specify that rounding of NaN (Infinity) returns NaN
   // (Infinity), so NaN and Infinity are considered rounded value too.
-  li(scratch, 64 - kFloat32MantissaBits - kFloat32ExponentBits);
+  const int kFloatMantissaBits =
+      sizeof(F) == 4 ? kFloat32MantissaBits : kFloat64MantissaBits;
+  const int kFloatExponentBits =
+      sizeof(F) == 4 ? kFloat32ExponentBits : kFloat64ExponentBits;
+  const int kFloatExponentBias =
+      sizeof(F) == 4 ? kFloat32ExponentBias : kFloat64ExponentBias;
+
+  // slli(rt, rs, 64 - (pos + size));
+  // if (sign_extend) {
+  //   srai(rt, rt, 64 - size);
+  // } else {
+  //   srli(rt, rt, 64 - size);
+  // }
+
+  li(scratch, 64 - kFloatMantissaBits - kFloatExponentBits);
   vsll_vx(v_scratch, src, scratch);
-  li(scratch, 64 - kFloat32ExponentBits);
+  li(scratch, 64 - kFloatExponentBits);
   vsrl_vx(v_scratch, v_scratch, scratch);
-  li(scratch, kFloat32ExponentBias + kFloat32MantissaBits);
+  li(scratch, kFloatExponentBias + kFloatMantissaBits);
   vmslt_vx(v0, v_scratch, scratch);
 
   VU.set(frm);

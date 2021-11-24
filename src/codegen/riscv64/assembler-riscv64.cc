@@ -2461,6 +2461,27 @@ void Assembler::EBREAK() {
 }
 
 // RVV
+
+void Assembler::vredmaxu_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                            MaskType mask) {
+  GenInstrV(VREDMAXU_FUNCT6, OP_MVV, vd, vs1, vs2, mask);
+}
+
+void Assembler::vredmax_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                           MaskType mask) {
+  GenInstrV(VREDMAX_FUNCT6, OP_MVV, vd, vs1, vs2, mask);
+}
+
+void Assembler::vredmin_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                           MaskType mask) {
+  GenInstrV(VREDMIN_FUNCT6, OP_MVV, vd, vs1, vs2, mask);
+}
+
+void Assembler::vredminu_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                            MaskType mask) {
+  GenInstrV(VREDMINU_FUNCT6, OP_MVV, vd, vs1, vs2, mask);
+}
+
 void Assembler::vmv_vv(VRegister vd, VRegister vs1) {
   GenInstrV(VMV_FUNCT6, OP_IVV, vd, vs1, v0, NoMask);
 }
@@ -2536,6 +2557,11 @@ void Assembler::vrgather_vx(VRegister vd, VRegister vs2, Register rs1,
   GenInstrV(VRGATHER_FUNCT6, OP_IVX, vd, rs1, vs2, mask);
 }
 
+void Assembler::vwaddu_wx(VRegister vd, VRegister vs2, Register rs1,
+                          MaskType mask) {
+  GenInstrV(VWADDUW_FUNCT6, OP_MVX, vd, rs1, vs2, mask);
+}
+
 #define DEFINE_OPIVV(name, funct6)                                      \
   void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
                             MaskType mask) {                            \
@@ -2544,6 +2570,12 @@ void Assembler::vrgather_vx(VRegister vd, VRegister vs2, Register rs1,
 
 #define DEFINE_OPFVV(name, funct6)                                      \
   void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_FVV, vd, vs1, vs2, mask);                      \
+  }
+
+#define DEFINE_OPFRED(name, funct6)                                     \
+  void Assembler::name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
                             MaskType mask) {                            \
     GenInstrV(funct6, OP_FVV, vd, vs1, vs2, mask);                      \
   }
@@ -2561,9 +2593,17 @@ void Assembler::vrgather_vx(VRegister vd, VRegister vs2, Register rs1,
   }
 
 #define DEFINE_OPMVV(name, funct6)                                      \
-  void Assembler::name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
+  void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
                             MaskType mask) {                            \
     GenInstrV(funct6, OP_MVV, vd, vs1, vs2, mask);                      \
+  }
+
+// void GenInstrV(uint8_t funct6, Opcode opcode, VRegister vd, Register rs1,
+//                  VRegister vs2, MaskType mask = NoMask);
+#define DEFINE_OPMVX(name, funct6)                                     \
+  void Assembler::name##_vx(VRegister vd, VRegister vs2, Register rs1, \
+                            MaskType mask) {                           \
+    GenInstrV(funct6, OP_MVX, vd, rs1, vs2, mask);                     \
   }
 
 #define DEFINE_OPFVF(name, funct6)                                        \
@@ -2594,8 +2634,12 @@ void Assembler::vfmv_vf(VRegister vd, FPURegister fs1, MaskType mask) {
   GenInstrV(VMV_FUNCT6, OP_FVF, vd, fs1, v0, mask);
 }
 
-void Assembler::vfmv_fs(FPURegister fd, VRegister vs2, MaskType mask) {
-  GenInstrV(VWFUNARY0_FUNCT6, OP_FVV, fd, v0, vs2, mask);
+void Assembler::vfmv_fs(FPURegister fd, VRegister vs2) {
+  GenInstrV(VWFUNARY0_FUNCT6, OP_FVV, fd, v0, vs2, NoMask);
+}
+
+void Assembler::vfmv_sf(VRegister vd, FPURegister fs) {
+  GenInstrV(VRFUNARY0_FUNCT6, OP_FVF, vd, fs, v0, NoMask);
 }
 
 DEFINE_OPIVV(vadd, VADD_FUNCT6)
@@ -2603,6 +2647,19 @@ DEFINE_OPIVX(vadd, VADD_FUNCT6)
 DEFINE_OPIVI(vadd, VADD_FUNCT6)
 DEFINE_OPIVV(vsub, VSUB_FUNCT6)
 DEFINE_OPIVX(vsub, VSUB_FUNCT6)
+DEFINE_OPMVX(vdiv, VDIV_FUNCT6)
+DEFINE_OPMVX(vdivu, VDIVU_FUNCT6)
+DEFINE_OPMVX(vmul, VMUL_FUNCT6)
+DEFINE_OPMVX(vmulhu, VMULHU_FUNCT6)
+DEFINE_OPMVX(vmulhsu, VMULHSU_FUNCT6)
+DEFINE_OPMVX(vmulh, VMULH_FUNCT6)
+DEFINE_OPMVV(vdiv, VDIV_FUNCT6)
+DEFINE_OPMVV(vdivu, VDIVU_FUNCT6)
+DEFINE_OPMVV(vmul, VMUL_FUNCT6)
+DEFINE_OPMVV(vmulhu, VMULHU_FUNCT6)
+DEFINE_OPMVV(vmulhsu, VMULHSU_FUNCT6)
+DEFINE_OPMVV(vmulh, VMULH_FUNCT6)
+DEFINE_OPMVV(vwaddu, VWADDU_FUNCT6)
 DEFINE_OPIVX(vsadd, VSADD_FUNCT6)
 DEFINE_OPIVV(vsadd, VSADD_FUNCT6)
 DEFINE_OPIVI(vsadd, VSADD_FUNCT6)
@@ -2670,14 +2727,16 @@ DEFINE_OPIVV(vsrl, VSRL_FUNCT6)
 DEFINE_OPIVX(vsrl, VSRL_FUNCT6)
 DEFINE_OPIVI(vsrl, VSRL_FUNCT6)
 
+DEFINE_OPIVV(vsra, VSRA_FUNCT6)
+DEFINE_OPIVX(vsra, VSRA_FUNCT6)
+DEFINE_OPIVI(vsra, VSRA_FUNCT6)
+
 DEFINE_OPIVV(vsll, VSLL_FUNCT6)
 DEFINE_OPIVX(vsll, VSLL_FUNCT6)
 DEFINE_OPIVI(vsll, VSLL_FUNCT6)
 
-DEFINE_OPMVV(vredmaxu, VREDMAXU_FUNCT6)
-DEFINE_OPMVV(vredmax, VREDMAX_FUNCT6)
-DEFINE_OPMVV(vredmin, VREDMIN_FUNCT6)
-DEFINE_OPMVV(vredminu, VREDMINU_FUNCT6)
+DEFINE_OPIVV(vsmul, VSMUL_FUNCT6)
+DEFINE_OPIVX(vsmul, VSMUL_FUNCT6)
 
 DEFINE_OPFVV(vfadd, VFADD_FUNCT6)
 DEFINE_OPFVF(vfadd, VFADD_FUNCT6)
@@ -2693,6 +2752,8 @@ DEFINE_OPFVV(vmflt, VMFLT_FUNCT6)
 DEFINE_OPFVV(vmfle, VMFLE_FUNCT6)
 DEFINE_OPFVV(vfmax, VFMAX_FUNCT6)
 DEFINE_OPFVV(vfmin, VFMIN_FUNCT6)
+
+DEFINE_OPFRED(vfredmax, VFREDMAX_FUNCT6)
 
 DEFINE_OPFVV(vfsngj, VFSGNJ_FUNCT6)
 DEFINE_OPFVF(vfsngj, VFSGNJ_FUNCT6)

@@ -739,6 +739,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmerge_vx(VRegister vd, Register rs1, VRegister vs2);
   void vmerge_vi(VRegister vd, uint8_t imm5, VRegister vs2);
 
+  void vredmaxu_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                   MaskType mask = NoMask);
+  void vredmax_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                  MaskType mask = NoMask);
+  void vredmin_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                  MaskType mask = NoMask);
+  void vredminu_vs(VRegister vd, VRegister vs2, VRegister vs1,
+                   MaskType mask = NoMask);
+
   void vadc_vv(VRegister vd, VRegister vs1, VRegister vs2);
   void vadc_vx(VRegister vd, Register rs1, VRegister vs2);
   void vadc_vi(VRegister vd, uint8_t imm5, VRegister vs2);
@@ -748,7 +757,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2);
 
   void vfmv_vf(VRegister vd, FPURegister fs1, MaskType mask = NoMask);
-  void vfmv_fs(FPURegister fd, VRegister vs2, MaskType mask = NoMask);
+  void vfmv_fs(FPURegister fd, VRegister vs2);
+  void vfmv_sf(VRegister vd, FPURegister fs);
+
+  void vwaddu_wx(VRegister vd, VRegister vs2, Register rs1,
+                 MaskType mask = NoMask);
 
 #define DEFINE_OPIVV(name, funct6)                           \
   void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
@@ -763,7 +776,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                  MaskType mask = NoMask);
 
 #define DEFINE_OPMVV(name, funct6)                           \
-  void name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
+  void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
                  MaskType mask = NoMask);
 
 #define DEFINE_OPMVX(name, funct6)                          \
@@ -772,6 +785,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #define DEFINE_OPFVV(name, funct6)                           \
   void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPFRED(name, funct6)                          \
+  void name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
                  MaskType mask = NoMask);
 
 #define DEFINE_OPFVF(name, funct6)                             \
@@ -794,6 +811,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPIVI(vadd, VADD_FUNCT6)
   DEFINE_OPIVV(vsub, VSUB_FUNCT6)
   DEFINE_OPIVX(vsub, VSUB_FUNCT6)
+  DEFINE_OPMVX(vdiv, VDIV_FUNCT6)
+  DEFINE_OPMVX(vdivu, VDIVU_FUNCT6)
+  DEFINE_OPMVX(vmul, VMUL_FUNCT6)
+  DEFINE_OPMVX(vmulhu, VMULHU_FUNCT6)
+  DEFINE_OPMVX(vmulhsu, VMULHSU_FUNCT6)
+  DEFINE_OPMVX(vmulh, VMULH_FUNCT6)
+  DEFINE_OPMVV(vdiv, VDIV_FUNCT6)
+  DEFINE_OPMVV(vdivu, VDIVU_FUNCT6)
+  DEFINE_OPMVV(vmul, VMUL_FUNCT6)
+  DEFINE_OPMVV(vmulhu, VMULHU_FUNCT6)
+  DEFINE_OPMVV(vmulhsu, VMULHSU_FUNCT6)
+  DEFINE_OPMVV(vmulh, VMULH_FUNCT6)
+  DEFINE_OPMVV(vwaddu, VWADDU_FUNCT6)
   DEFINE_OPIVX(vsadd, VSADD_FUNCT6)
   DEFINE_OPIVV(vsadd, VSADD_FUNCT6)
   DEFINE_OPIVI(vsadd, VSADD_FUNCT6)
@@ -864,14 +894,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPIVX(vsrl, VSRL_FUNCT6)
   DEFINE_OPIVI(vsrl, VSRL_FUNCT6)
 
+  DEFINE_OPIVV(vsra, VSRA_FUNCT6)
+  DEFINE_OPIVX(vsra, VSRA_FUNCT6)
+  DEFINE_OPIVI(vsra, VSRA_FUNCT6)
+
   DEFINE_OPIVV(vsll, VSLL_FUNCT6)
   DEFINE_OPIVX(vsll, VSLL_FUNCT6)
   DEFINE_OPIVI(vsll, VSLL_FUNCT6)
 
-  DEFINE_OPMVV(vredmaxu, VREDMAXU_FUNCT6)
-  DEFINE_OPMVV(vredmax, VREDMAX_FUNCT6)
-  DEFINE_OPMVV(vredmin, VREDMIN_FUNCT6)
-  DEFINE_OPMVV(vredminu, VREDMINU_FUNCT6)
+  DEFINE_OPIVV(vsmul, VSMUL_FUNCT6)
+  DEFINE_OPIVX(vsmul, VSMUL_FUNCT6)
 
   DEFINE_OPFVV(vfadd, VFADD_FUNCT6)
   DEFINE_OPFVF(vfadd, VFADD_FUNCT6)
@@ -888,6 +920,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPFVV(vmfle, VMFLE_FUNCT6)
   DEFINE_OPFVV(vfmax, VMFMAX_FUNCT6)
   DEFINE_OPFVV(vfmin, VMFMIN_FUNCT6)
+  DEFINE_OPFRED(vfredmax, VFREDMAX_FUNCT6)
 
   DEFINE_OPFVV(vfsngj, VFSGNJ_FUNCT6)
   DEFINE_OPFVF(vfsngj, VFSGNJ_FUNCT6)
@@ -940,6 +973,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #undef DEFINE_OPFVV_FMA
 #undef DEFINE_OPFVF_FMA
 #undef DEFINE_OPMVV_VIE
+#undef DEFINE_OPFRED
 
 #define DEFINE_VFUNARY(name, funct6, vs1)                          \
   void name(VRegister vd, VRegister vs2, MaskType mask = NoMask) { \
@@ -953,6 +987,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_VFUNARY(vfncvt_f_f_w, VFUNARY0_FUNCT6, VFNCVT_F_F_W)
 
   DEFINE_VFUNARY(vfclass_v, VFUNARY1_FUNCT6, VFCLASS_V)
+  DEFINE_VFUNARY(vfsqrt_v, VFUNARY1_FUNCT6, VFSQRT_V)
 #undef DEFINE_VFUNARY
 
   void vnot_vv(VRegister dst, VRegister src, MaskType mask = NoMask) {
