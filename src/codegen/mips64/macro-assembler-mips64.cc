@@ -5633,6 +5633,23 @@ void MacroAssembler::AssertFunction(Register object) {
   }
 }
 
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (FLAG_debug_code) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    STATIC_ASSERT(kSmiTag == 0);
+    SmiTst(object, t8);
+    Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, t8,
+          Operand(zero_reg));
+    push(object);
+    LoadMap(object, object);
+    GetInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE, t8);
+    Check(ls, AbortReason::kOperandIsNotACallableFunction, t8,
+          Operand(LAST_CALLABLE_JS_FUNCTION_TYPE -
+                  FIRST_CALLABLE_JS_FUNCTION_TYPE));
+    pop(object);
+  }
+}
+
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (FLAG_debug_code) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
