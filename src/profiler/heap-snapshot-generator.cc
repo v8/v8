@@ -27,6 +27,7 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/objects-inl.h"
@@ -824,6 +825,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
       ExtractJSPromiseReferences(entry, JSPromise::cast(obj));
     } else if (obj.IsJSGeneratorObject()) {
       ExtractJSGeneratorObjectReferences(entry, JSGeneratorObject::cast(obj));
+    } else if (obj.IsJSWeakRef()) {
+      ExtractJSWeakRefReferences(entry, JSWeakRef::cast(obj));
     }
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj.IsString()) {
@@ -869,6 +872,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
     ExtractEphemeronHashTableReferences(entry, EphemeronHashTable::cast(obj));
   } else if (obj.IsFixedArray()) {
     ExtractFixedArrayReferences(entry, FixedArray::cast(obj));
+  } else if (obj.IsWeakCell()) {
+    ExtractWeakCellReferences(entry, WeakCell::cast(obj));
   } else if (obj.IsHeapNumber()) {
     if (snapshot_->capture_numeric_value()) {
       ExtractNumberReference(entry, obj);
@@ -1214,6 +1219,20 @@ void V8HeapExplorer::ExtractAccessorPairReferences(HeapEntry* entry,
                        AccessorPair::kGetterOffset);
   SetInternalReference(entry, "setter", accessors.setter(),
                        AccessorPair::kSetterOffset);
+}
+
+void V8HeapExplorer::ExtractJSWeakRefReferences(HeapEntry* entry,
+                                                JSWeakRef js_weak_ref) {
+  SetWeakReference(entry, "target", js_weak_ref.target(),
+                   JSWeakRef::kTargetOffset);
+}
+
+void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
+                                               WeakCell weak_cell) {
+  SetWeakReference(entry, "target", weak_cell.target(),
+                   WeakCell::kTargetOffset);
+  SetWeakReference(entry, "unregister_token", weak_cell.unregister_token(),
+                   WeakCell::kUnregisterTokenOffset);
 }
 
 void V8HeapExplorer::TagBuiltinCodeObject(Object code, const char* name) {
