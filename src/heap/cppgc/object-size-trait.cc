@@ -26,7 +26,7 @@ size_t BaseObjectSizeTrait::GetObjectSizeForGarbageCollectedMixin(
   const auto& header =
       BasePage::FromPayload(address)
           ->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(address);
-  DCHECK(!header.IsLargeObject());
+  DCHECK(!header.IsLargeObject<AccessMode::kAtomic>());
   return header.ObjectSize<AccessMode::kAtomic>();
 }
 
