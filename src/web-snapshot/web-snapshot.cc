@@ -973,6 +973,39 @@ bool WebSnapshotDeserializer::UseWebSnapshot(
     deserializer_.reset(
         new ValueDeserializer(isolate_, data_copy.get(), length));
     return Deserialize();
+  } else if (source->IsExternalTwoByteString()) {
+    // TODO(v8:11525): Implement end-to-end snapshot processing which gets rid
+    // of the need to copy the data here.
+    const v8::String::ExternalStringResource* resource =
+        ExternalTwoByteString::cast(*source).resource();
+    auto length = resource->length();
+    std::unique_ptr<uint8_t[]> data_copy(new uint8_t[length]);
+    {
+      DisallowGarbageCollection no_gc;
+      const uint16_t* data = resource->data();
+      uint8_t* data_copy_ptr = data_copy.get();
+      for (size_t i = 0; i < length; ++i) {
+        data_copy_ptr[i] = static_cast<uint8_t>(data[i]);
+      }
+    }
+    deserializer_.reset(
+        new ValueDeserializer(isolate_, data_copy.get(), length));
+    return Deserialize();
+  } else if (source->IsSeqTwoByteString()) {
+    SeqTwoByteString source_as_seq = SeqTwoByteString::cast(*source);
+    auto length = source_as_seq.length();
+    std::unique_ptr<uint8_t[]> data_copy(new uint8_t[length]);
+    {
+      DisallowGarbageCollection no_gc;
+      uint16_t* data = source_as_seq.GetChars(no_gc);
+      uint8_t* data_copy_ptr = data_copy.get();
+      for (int i = 0; i < length; ++i) {
+        data_copy_ptr[i] = static_cast<uint8_t>(data[i]);
+      }
+    }
+    deserializer_.reset(
+        new ValueDeserializer(isolate_, data_copy.get(), length));
+    return Deserialize();
   }
   UNREACHABLE();
 }

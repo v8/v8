@@ -2804,7 +2804,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
 
   if (V8_UNLIKELY(
           i::FLAG_experimental_web_snapshots &&
-          (source->IsExternalOneByteString() || source->IsSeqOneByteString()) &&
+          (source->IsExternalOneByteString() || source->IsSeqOneByteString() ||
+           source->IsExternalTwoByteString() || source->IsSeqTwoByteString()) &&
           source_length > 4)) {
     // Experimental: Treat the script as a web snapshot if it starts with the
     // magic byte sequence. TODO(v8:11525): Remove this once proper embedder
