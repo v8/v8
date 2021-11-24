@@ -22,6 +22,7 @@
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
 #ifdef ENABLE_VTUNE_TRACEMARK
 #include "src/extensions/vtunedomain-support-extension.h"
@@ -244,7 +245,7 @@ class Genesis {
 
   Handle<JSFunction> InstallTypedArray(const char* name,
                                        ElementsKind elements_kind,
-                                       InstanceType type,
+                                       InstanceType constructor_type,
                                        int rab_gsab_initial_map_index);
   void InitializeMapCaches();
 
@@ -502,21 +503,30 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
                          instance_size, inobject_properties, prototype, call);
 }
 
-// This installs an instance type (|constructor_type|) on the constructor map
-// which will be used for protector cell checks -- this is separate from |type|
-// which is used to set the instance type of the object created by this
-// constructor. If protector cell checks are not required, continue to use the
-// default JS_FUNCTION_TYPE by directly calling InstallFunction.
-V8_NOINLINE Handle<JSFunction> InstallConstructor(
-    Isolate* isolate, Handle<JSObject> target, const char* name,
-    InstanceType type, int instance_size, int inobject_properties,
-    Handle<HeapObject> prototype, Builtin call, InstanceType constructor_type) {
-  Handle<JSFunction> function = InstallFunction(
-      isolate, target, isolate->factory()->InternalizeUtf8String(name), type,
-      instance_size, inobject_properties, prototype, call);
+// This sets a constructor instance type on the constructor map which will be
+// used in IsXxxConstructor() predicates. Having such predicates helps figuring
+// out if a protector cell should be invalidated. If there are no protector
+// cell checks required for constructor, this function must not be used.
+// Note, this function doesn't create a copy of the constructor's map. So it's
+// better to set constructor instance type after all the properties are added
+// to the constructor and thus the map is already guaranteed to be unique.
+V8_NOINLINE void SetConstructorInstanceType(Isolate* isolate,
+                                            Handle<JSFunction> constructor,
+                                            InstanceType constructor_type) {
   DCHECK(InstanceTypeChecker::IsJSFunction(constructor_type));
-  function->map().set_instance_type(constructor_type);
-  return function;
+  DCHECK_NE(constructor_type, JS_FUNCTION_TYPE);
+
+  Map map = constructor->map();
+
+  // Check we don't accidentally change one of the existing maps.
+  DCHECK_NE(map, *isolate->strict_function_map());
+  DCHECK_NE(map, *isolate->strict_function_with_readonly_prototype_map());
+  // Constructor function map is always a root map, and thus we don't have to
+  // deal with updating the whole transition tree.
+  DCHECK(map.GetBackPointer().IsUndefined(isolate));
+  DCHECK_EQ(JS_FUNCTION_TYPE, map.instance_type());
+
+  map.set_instance_type(constructor_type);
 }
 
 V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
@@ -1660,10 +1670,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   Handle<JSFunction> array_prototype_to_string_fun;
   {  // --- A r r a y ---
-    Handle<JSFunction> array_function = InstallConstructor(
+    Handle<JSFunction> array_function = InstallFunction(
         isolate_, global, "Array", JS_ARRAY_TYPE, JSArray::kHeaderSize, 0,
-        isolate_->initial_object_prototype(), Builtin::kArrayConstructor,
-        JS_ARRAY_CONSTRUCTOR_TYPE);
+        isolate_->initial_object_prototype(), Builtin::kArrayConstructor);
     array_function->shared().DontAdaptArguments();
 
     // This seems a bit hackish, but we need to make sure Array.length
@@ -1709,6 +1718,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           1, false);
     SimpleInstallFunction(isolate_, array_function, "of", Builtin::kArrayOf, 0,
                           false);
+    SetConstructorInstanceType(isolate_, array_function,
+                               JS_ARRAY_CONSTRUCTOR_TYPE);
 
     JSObject::AddProperty(isolate_, proto, factory->constructor_string(),
                           array_function, DONT_ENUM);
@@ -2347,10 +2358,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- P r o m i s e
-    Handle<JSFunction> promise_fun = InstallConstructor(
+    Handle<JSFunction> promise_fun = InstallFunction(
         isolate_, global, "Promise", JS_PROMISE_TYPE,
         JSPromise::kSizeWithEmbedderFields, 0, factory->the_hole_value(),
-        Builtin::kPromiseConstructor, JS_PROMISE_CONSTRUCTOR_TYPE);
+        Builtin::kPromiseConstructor);
     InstallWithIntrinsicDefaultProto(isolate_, promise_fun,
                                      Context::PROMISE_FUNCTION_INDEX);
 
@@ -2379,6 +2390,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     InstallFunctionWithBuiltinId(isolate_, promise_fun, "reject",
                                  Builtin::kPromiseReject, 1, true);
+
+    SetConstructorInstanceType(isolate_, promise_fun,
+                               JS_PROMISE_CONSTRUCTOR_TYPE);
 
     // Setup %PromisePrototype%.
     Handle<JSObject> prototype(
@@ -2410,11 +2424,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- R e g E x p
     // Builtin functions for RegExp.prototype.
-    Handle<JSFunction> regexp_fun = InstallConstructor(
+    Handle<JSFunction> regexp_fun = InstallFunction(
         isolate_, global, "RegExp", JS_REG_EXP_TYPE,
         JSRegExp::kHeaderSize + JSRegExp::kInObjectFieldCount * kTaggedSize,
         JSRegExp::kInObjectFieldCount, factory->the_hole_value(),
-        Builtin::kRegExpConstructor, JS_REG_EXP_CONSTRUCTOR_TYPE);
+        Builtin::kRegExpConstructor);
     InstallWithIntrinsicDefaultProto(isolate_, regexp_fun,
                                      Context::REGEXP_FUNCTION_INDEX);
     Handle<SharedFunctionInfo> shared(regexp_fun->shared(), isolate_);
@@ -2575,6 +2589,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       INSTALL_CAPTURE_GETTER(9);
 #undef INSTALL_CAPTURE_GETTER
     }
+    SetConstructorInstanceType(isolate_, regexp_fun,
+                               JS_REG_EXP_CONSTRUCTOR_TYPE);
 
     DCHECK(regexp_fun->has_initial_map());
     Handle<Map> initial_map(regexp_fun->initial_map(), isolate());
@@ -4021,7 +4037,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
 Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
                                               ElementsKind elements_kind,
-                                              InstanceType type,
+                                              InstanceType constructor_type,
                                               int rab_gsab_initial_map_index) {
   Handle<JSObject> global =
       Handle<JSObject>(native_context()->global_object(), isolate());
@@ -4029,10 +4045,10 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   Handle<JSObject> typed_array_prototype = isolate()->typed_array_prototype();
   Handle<JSFunction> typed_array_function = isolate()->typed_array_function();
 
-  Handle<JSFunction> result = InstallConstructor(
+  Handle<JSFunction> result = InstallFunction(
       isolate(), global, name, JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSizeWithEmbedderFields, 0, factory()->the_hole_value(),
-      Builtin::kTypedArrayConstructor, type);
+      Builtin::kTypedArrayConstructor);
   result->initial_map().set_elements_kind(elements_kind);
 
   result->shared().DontAdaptArguments();
@@ -4045,6 +4061,11 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
       Smi::FromInt(1 << ElementsKindToShiftSize(elements_kind)), isolate());
 
   InstallConstant(isolate(), result, "BYTES_PER_ELEMENT", bytes_per_element);
+
+  // TODO(v8:11256, ishell): given the granularity of typed array contructor
+  // protectors, consider creating only one constructor instance type for all
+  // typed array constructors.
+  SetConstructorInstanceType(isolate_, result, constructor_type);
 
   // Setup prototype object.
   DCHECK(result->prototype().IsJSObject());
