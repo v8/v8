@@ -100,9 +100,9 @@ class Intl {
     kNone,
     kTryFastPath,
   };
+  template <class IsolateT>
   V8_EXPORT_PRIVATE static CompareStringsOptions CompareStringsOptionsFor(
-      LocalIsolate* local_isolate, Handle<Object> locales,
-      Handle<Object> options);
+      IsolateT* isolate, Handle<Object> locales, Handle<Object> options);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static int CompareStrings(
       Isolate* isolate, const icu::Collator& collator, Handle<String> s1,
       Handle<String> s2,

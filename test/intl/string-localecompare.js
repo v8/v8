@@ -11,8 +11,7 @@ function check() {
     assertTrue("asdff".localeCompare("asdf") > 0);
 
     // Completely Ignorable.
-    // TODO (jgruber): This case is currently wrong in the C++ fast-path.
-    // assertEquals("asdf".localeCompare("asdf\01"), 0);
+    assertEquals("asdf".localeCompare("asdf\01"), 0);
     assertEquals("asdf".localeCompare("as\01df"), 0);
     assertEquals("asdf".localeCompare("\01asdf"), 0);
 
