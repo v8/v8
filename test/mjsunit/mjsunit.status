@@ -1087,13 +1087,6 @@
 }],  # 'gc_fuzzer'
 
 ##############################################################################
-# Skip for both deopt_fuzzer and gc_fuzzer
-['deopt_fuzzer or gc_fuzzer', {
-  # BUG(v8:12185).
-  'wasm/wasm-struct-js-interop': [SKIP],
-}], # deopt_fuzzer or gc_fuzzer
-
-##############################################################################
 ['endurance_fuzzer', {
   # BUG(v8:7400).
   'wasm/lazy-compilation': [SKIP],
