@@ -248,9 +248,7 @@ namespace {
 // Converts the given {type} into a string representation that can be used in
 // reflective functions. Should be kept in sync with the {GetValueType} helper.
 Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
-  return isolate->factory()->InternalizeUtf8String(
-      type == kWasmFuncRef ? base::CStrVector("anyfunc")
-                           : base::VectorOf(type.name()));
+  return isolate->factory()->InternalizeUtf8String(base::VectorOf(type.name()));
 }
 }  // namespace
 
@@ -336,14 +334,8 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  base::Optional<uint32_t> max_size) {
   Factory* factory = isolate->factory();
 
-  Handle<String> element;
-  if (type.is_reference_to(HeapType::kFunc)) {
-    // TODO(wasm): We should define the "anyfunc" string in one central
-    // place and then use that constant everywhere.
-    element = factory->InternalizeUtf8String("anyfunc");
-  } else {
-    element = factory->InternalizeUtf8String(base::VectorOf(type.name()));
-  }
+  Handle<String> element =
+      factory->InternalizeUtf8String(base::VectorOf(type.name()));
 
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);

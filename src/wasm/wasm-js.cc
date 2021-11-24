@@ -1153,6 +1153,11 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     // The JS api uses 'anyfunc' instead of 'funcref'.
     if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
       type = i::wasm::kWasmFuncRef;
+    } else if (enabled_features.has_type_reflection() &&
+               string->StringEquals(v8_str(isolate, "funcref"))) {
+      // With the type reflection proposal, "funcref" replaces "anyfunc",
+      // and anyfunc just becomes an alias for "funcref".
+      type = i::wasm::kWasmFuncRef;
     } else if (enabled_features.has_reftypes() &&
                string->StringEquals(v8_str(isolate, "externref"))) {
       type = i::wasm::kWasmExternRef;
@@ -1329,6 +1334,11 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "externref"))) {
     *type = i::wasm::kWasmExternRef;
+  } else if (enabled_features.has_type_reflection() &&
+             string->StringEquals(v8_str(isolate, "funcref"))) {
+    // The type reflection proposal renames "anyfunc" to "funcref", and makes
+    // "anyfunc" an alias of "funcref".
+    *type = i::wasm::kWasmFuncRef;
   } else if (enabled_features.has_reftypes() &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
     // The JS api spec uses 'anyfunc' instead of 'funcref'.

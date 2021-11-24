@@ -34,9 +34,15 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
+  global = new WebAssembly.Global({value: "funcref"});
+  type = global.type();
+  assertEquals("funcref", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
   global = new WebAssembly.Global({value: "anyfunc"});
   type = global.type();
-  assertEquals("anyfunc", type.value);
+  assertEquals("funcref", type.value);
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();
