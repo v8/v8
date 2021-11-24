@@ -275,8 +275,10 @@ declare_args() {
   # Generate comments describing the Torque intermediate representation.
   v8_annotate_torque_ir = false
 
-  # Disable all snapshot compression.
-  v8_enable_snapshot_compression = true
+  # Enable snapshot compression (enabled by default for desktop) devices.
+  v8_enable_snapshot_compression =
+      target_os == "android" || target_os == "chromeos" ||
+      target_os == "fuchsia"
 
   # Enable control-flow integrity features, such as pointer authentication for
   # ARM64.
