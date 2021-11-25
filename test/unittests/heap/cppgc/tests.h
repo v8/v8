@@ -87,8 +87,8 @@ class TestWithHeap : public TestWithPlatform {
   void ConservativeMemoryDiscardingGC() {
     internal::Heap::From(GetHeap())->CollectGarbage(
         {GarbageCollector::Config::CollectionType::kMajor,
-         Heap::StackState::kMayContainHeapPointers, Heap::MarkingType::kAtomic,
-         Heap::SweepingType::kAtomic,
+         Heap::StackState::kMayContainHeapPointers,
+         cppgc::Heap::MarkingType::kAtomic, cppgc::Heap::SweepingType::kAtomic,
          GarbageCollector::Config::FreeMemoryHandling::kDiscardWherePossible});
   }
 

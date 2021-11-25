@@ -331,7 +331,9 @@ CppHeap::CppHeap(
     : cppgc::internal::HeapBase(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
-              kSupportsConservativeStackScan),
+              kSupportsConservativeStackScan,
+          cppgc::internal::HeapBase::MarkingType::kIncrementalAndConcurrent,
+          cppgc::internal::HeapBase::SweepingType::kIncrementalAndConcurrent),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
@@ -480,10 +482,8 @@ void CppHeap::EnterFinalPause(EmbedderStackState stack_state) {
     stack_state = *override_stack_state_;
   }
   marker_->EnterAtomicPause(stack_state);
-  if (compactor_.CancelIfShouldNotCompact(cppgc::Heap::MarkingType::kAtomic,
-                                          stack_state)) {
-    marker_->NotifyCompactionCancelled();
-  }
+  compactor_.CancelIfShouldNotCompact(cppgc::Heap::MarkingType::kAtomic,
+                                      stack_state);
 }
 
 void CppHeap::TraceEpilogue(TraceSummary* trace_summary) {
