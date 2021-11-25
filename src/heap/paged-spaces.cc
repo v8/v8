@@ -738,8 +738,8 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space.
-      Map map = object.map();
-      CHECK(map.IsMap());
+      Map map = object.map(cage_base);
+      CHECK(map.IsMap(cage_base));
       CHECK(ReadOnlyHeap::Contains(map) ||
             isolate->heap()->map_space()->Contains(map));
 
@@ -754,7 +754,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       }
 
       // All the interior pointers should be contained in the heap.
-      int size = object.Size();
+      int size = object.Size(cage_base);
       object.IterateBody(map, size, visitor);
       CHECK(object.address() + size <= top);
       end_of_previous_object = object.address() + size;
@@ -793,6 +793,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
 void PagedSpace::VerifyLiveBytes() {
   IncrementalMarking::MarkingState* marking_state =
       heap()->incremental_marking()->marking_state();
+  PtrComprCageBase cage_base(heap()->isolate());
   for (Page* page : *this) {
     CHECK(page->SweepingDone());
     PagedSpaceObjectIterator it(heap(), this, page);
@@ -800,7 +801,7 @@ void PagedSpace::VerifyLiveBytes() {
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       // All the interior pointers should be contained in the heap.
       if (marking_state->IsBlack(object)) {
-        black_size += object.Size();
+        black_size += object.Size(cage_base);
       }
     }
     CHECK_LE(black_size, marking_state->live_bytes(page));
@@ -812,6 +813,7 @@ void PagedSpace::VerifyLiveBytes() {
 void PagedSpace::VerifyCountersAfterSweeping(Heap* heap) {
   size_t total_capacity = 0;
   size_t total_allocated = 0;
+  PtrComprCageBase cage_base(heap->isolate());
   for (Page* page : *this) {
     DCHECK(page->SweepingDone());
     total_capacity += page->area_size();
@@ -819,7 +821,7 @@ void PagedSpace::VerifyCountersAfterSweeping(Heap* heap) {
     size_t real_allocated = 0;
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       if (!object.IsFreeSpaceOrFiller()) {
-        real_allocated += object.Size();
+        real_allocated += object.Size(cage_base);
       }
     }
     total_allocated += page->allocated_bytes();

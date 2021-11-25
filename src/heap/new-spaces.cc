@@ -703,6 +703,7 @@ void NewSpace::Verify(Isolate* isolate) {
     external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
   }
 
+  PtrComprCageBase cage_base(isolate);
   while (current != top()) {
     if (!Page::IsAlignedToPageSize(current)) {
       // The allocation pointer should not be in the middle of an object.
@@ -713,23 +714,23 @@ void NewSpace::Verify(Isolate* isolate) {
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space or read-only space.
-      Map map = object.map();
-      CHECK(map.IsMap());
+      Map map = object.map(cage_base);
+      CHECK(map.IsMap(cage_base));
       CHECK(ReadOnlyHeap::Contains(map) || heap()->map_space()->Contains(map));
 
       // The object should not be code or a map.
-      CHECK(!object.IsMap());
-      CHECK(!object.IsAbstractCode());
+      CHECK(!object.IsMap(cage_base));
+      CHECK(!object.IsAbstractCode(cage_base));
 
       // The object itself should look OK.
       object.ObjectVerify(isolate);
 
       // All the interior pointers should be contained in the heap.
       VerifyPointersVisitor visitor(heap());
-      int size = object.Size();
+      int size = object.Size(cage_base);
       object.IterateBody(map, size, &visitor);
 
-      if (object.IsExternalString()) {
+      if (object.IsExternalString(cage_base)) {
         ExternalString external_string = ExternalString::cast(object);
         size_t string_size = external_string.ExternalPayloadSize();
         external_space_bytes[ExternalBackingStoreType::kExternalString] +=

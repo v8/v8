@@ -338,11 +338,12 @@ std::unique_ptr<v8::MeasureMemoryDelegate> MemoryMeasurement::DefaultDelegate(
 
 bool NativeContextInferrer::InferForContext(Isolate* isolate, Context context,
                                             Address* native_context) {
-  Map context_map = context.map(kAcquireLoad);
+  PtrComprCageBase cage_base(isolate);
+  Map context_map = context.map(cage_base, kAcquireLoad);
   Object maybe_native_context =
       TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
-          Acquire_Load(isolate, context_map);
-  if (maybe_native_context.IsNativeContext()) {
+          Acquire_Load(cage_base, context_map);
+  if (maybe_native_context.IsNativeContext(cage_base)) {
     *native_context = maybe_native_context.ptr();
     return true;
   }

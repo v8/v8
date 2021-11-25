@@ -897,7 +897,6 @@ class Heap {
   }
 
   inline Isolate* isolate();
-  inline const Isolate* isolate() const;
 
   MarkCompactCollector* mark_compact_collector() {
     return mark_compact_collector_.get();

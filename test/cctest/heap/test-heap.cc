@@ -239,16 +239,18 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
   __ nop();  // supported on all architectures
 
+  PtrComprCageBase cage_base(isolate);
+
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  CHECK(code->IsCode());
+  CHECK(code->IsCode(cage_base));
 
   HeapObject obj = HeapObject::cast(*code);
   Address obj_addr = obj.address();
 
-  for (int i = 0; i < obj.Size(); i += kTaggedSize) {
+  for (int i = 0; i < obj.Size(cage_base); i += kTaggedSize) {
     Object found = isolate->FindCodeObject(obj_addr + i);
     CHECK_EQ(*code, found);
   }
@@ -256,8 +258,8 @@ static void CheckFindCodeObject(Isolate* isolate) {
   Handle<Code> copy =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   HeapObject obj_copy = HeapObject::cast(*copy);
-  Object not_right =
-      isolate->FindCodeObject(obj_copy.address() + obj_copy.Size() / 2);
+  Object not_right = isolate->FindCodeObject(obj_copy.address() +
+                                             obj_copy.Size(cage_base) / 2);
   CHECK(not_right != *code);
 }
 
@@ -1971,12 +1973,13 @@ TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
   // are correct.
   CcTest::heap()->DisableInlineAllocation();
   HeapObjectIterator iterator(CcTest::heap());
+  PtrComprCageBase cage_base(CcTest::i_isolate());
   intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   intptr_t size_of_objects_2 = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (!obj.IsFreeSpace()) {
-      size_of_objects_2 += obj.Size();
+    if (!obj.IsFreeSpace(cage_base)) {
+      size_of_objects_2 += obj.Size(cage_base);
     }
   }
   // Delta must be within 5% of the larger result.

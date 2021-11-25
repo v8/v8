@@ -41,8 +41,9 @@ namespace internal {
 class ConcurrentMarkingState final
     : public MarkingStateBase<ConcurrentMarkingState, AccessMode::ATOMIC> {
  public:
-  explicit ConcurrentMarkingState(MemoryChunkDataMap* memory_chunk_data)
-      : memory_chunk_data_(memory_chunk_data) {}
+  ConcurrentMarkingState(PtrComprCageBase cage_base,
+                         MemoryChunkDataMap* memory_chunk_data)
+      : MarkingStateBase(cage_base), memory_chunk_data_(memory_chunk_data) {}
 
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const BasicMemoryChunk* chunk) {
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
@@ -95,7 +96,7 @@ class ConcurrentMarkingVisitor final
                            mark_compact_epoch, code_flush_mode,
                            embedder_tracing_enabled,
                            should_keep_ages_unchanged),
-        marking_state_(memory_chunk_data),
+        marking_state_(heap->isolate(), memory_chunk_data),
         memory_chunk_data_(memory_chunk_data) {}
 
   template <typename T>

@@ -3870,16 +3870,18 @@ class SlotCollectingVisitor final : public ObjectVisitor {
 void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
   if (!FLAG_verify_heap) return;
 
+  PtrComprCageBase cage_base(isolate());
+
   // Check that Heap::NotifyObjectLayoutChange was called for object transitions
   // that are not safe for concurrent marking.
   // If you see this check triggering for a freshly allocated object,
   // use object->set_map_after_allocation() to initialize its map.
   if (pending_layout_change_object_.is_null()) {
-    if (object.IsJSObject()) {
+    if (object.IsJSObject(cage_base)) {
       // Without double unboxing all in-object fields of a JSObject are tagged.
       return;
     }
-    if (object.IsString() &&
+    if (object.IsString(cage_base) &&
         (new_map == ReadOnlyRoots(this).thin_string_map() ||
          new_map == ReadOnlyRoots(this).thin_one_byte_string_map())) {
       // When transitioning a string to ThinString,
@@ -3887,7 +3889,7 @@ void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
       // tagged fields are introduced.
       return;
     }
-    if (FLAG_shared_string_table && object.IsString() &&
+    if (FLAG_shared_string_table && object.IsString(cage_base) &&
         InstanceTypeChecker::IsInternalizedString(new_map.instance_type())) {
       // In-place internalization does not change a string's fields.
       //
@@ -3898,12 +3900,12 @@ void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
     }
     // Check that the set of slots before and after the transition match.
     SlotCollectingVisitor old_visitor;
-    object.IterateFast(&old_visitor);
-    MapWord old_map_word = object.map_word(kRelaxedLoad);
+    object.IterateFast(cage_base, &old_visitor);
+    MapWord old_map_word = object.map_word(cage_base, kRelaxedLoad);
     // Temporarily set the new map to iterate new slots.
     object.set_map_word(MapWord::FromMap(new_map), kRelaxedStore);
     SlotCollectingVisitor new_visitor;
-    object.IterateFast(&new_visitor);
+    object.IterateFast(cage_base, &new_visitor);
     // Restore the old map.
     object.set_map_word(old_map_word, kRelaxedStore);
     DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
@@ -4627,8 +4629,9 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
   // In RO_SPACE chunk->mutex() may be nullptr, so just ignore it.
   base::LockGuard<base::Mutex, base::NullBehavior::kIgnoreIfNull> lock_guard(
       chunk->mutex());
+  PtrComprCageBase cage_base(isolate());
   Address start = object.address();
-  Address end = start + object.Size();
+  Address end = start + object.Size(cage_base);
   std::set<Address> old_to_new;
   std::set<std::pair<SlotType, Address>> typed_old_to_new;
   if (!InYoungGeneration(object)) {
@@ -4636,7 +4639,7 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
     OldToNewSlotVerifyingVisitor visitor(isolate(), &old_to_new,
                                          &typed_old_to_new,
                                          &this->ephemeron_remembered_set_);
-    object.IterateBody(&visitor);
+    object.IterateBody(cage_base, &visitor);
   }
   // TODO(v8:11797): Add old to old slot set verification once all weak objects
   // have their own instance types and slots are recorded for all weak fields.
@@ -4728,7 +4731,13 @@ void Heap::IterateSmiRoots(RootVisitor* v) {
 // the sweeper might actually free the underlying page).
 class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
  public:
-  explicit ClearStaleLeftTrimmedHandlesVisitor(Heap* heap) : heap_(heap) {
+  explicit ClearStaleLeftTrimmedHandlesVisitor(Heap* heap)
+      : heap_(heap)
+#if V8_COMPRESS_POINTERS
+        ,
+        cage_base_(heap->isolate())
+#endif  // V8_COMPRESS_POINTERS
+  {
     USE(heap_);
   }
 
@@ -4744,20 +4753,32 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
     }
   }
 
+  // The pointer compression cage base value used for decompression of all
+  // tagged values except references to Code objects.
+  PtrComprCageBase cage_base() const {
+#if V8_COMPRESS_POINTERS
+    return cage_base_;
+#else
+    return PtrComprCageBase{};
+#endif  // V8_COMPRESS_POINTERS
+  }
+
  private:
   inline void FixHandle(FullObjectSlot p) {
     if (!(*p).IsHeapObject()) return;
     HeapObject current = HeapObject::cast(*p);
-    if (!current.map_word(kRelaxedLoad).IsForwardingAddress() &&
-        current.IsFreeSpaceOrFiller()) {
+    if (!current.map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
+        current.IsFreeSpaceOrFiller(cage_base())) {
 #ifdef DEBUG
       // We need to find a FixedArrayBase map after walking the fillers.
-      while (!current.map_word(kRelaxedLoad).IsForwardingAddress() &&
-             current.IsFreeSpaceOrFiller()) {
+      while (
+          !current.map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
+          current.IsFreeSpaceOrFiller(cage_base())) {
         Address next = current.ptr();
-        if (current.map() == ReadOnlyRoots(heap_).one_pointer_filler_map()) {
+        if (current.map(cage_base()) ==
+            ReadOnlyRoots(heap_).one_pointer_filler_map()) {
           next += kTaggedSize;
-        } else if (current.map() ==
+        } else if (current.map(cage_base()) ==
                    ReadOnlyRoots(heap_).two_pointer_filler_map()) {
           next += 2 * kTaggedSize;
         } else {
@@ -4765,14 +4786,19 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
         }
         current = HeapObject::cast(Object(next));
       }
-      DCHECK(current.map_word(kRelaxedLoad).IsForwardingAddress() ||
-             current.IsFixedArrayBase());
+      DCHECK(
+          current.map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() ||
+          current.IsFixedArrayBase(cage_base()));
 #endif  // DEBUG
       p.store(Smi::zero());
     }
   }
 
   Heap* heap_;
+
+#if V8_COMPRESS_POINTERS
+  const PtrComprCageBase cage_base_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
@@ -6413,7 +6439,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
         : ObjectVisitorWithCageBases(filter->heap_), filter_(filter) {}
 
     void VisitMapPointer(HeapObject object) override {
-      MarkHeapObject(Map::unchecked_cast(object.map()));
+      MarkHeapObject(Map::unchecked_cast(object.map(cage_base())));
     }
     void VisitPointers(HeapObject host, ObjectSlot start,
                        ObjectSlot end) override {
@@ -6453,7 +6479,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       while (!marking_stack_.empty()) {
         HeapObject obj = marking_stack_.back();
         marking_stack_.pop_back();
-        obj.Iterate(this);
+        obj.Iterate(cage_base(), this);
       }
     }
 
@@ -6962,7 +6988,7 @@ void VerifyPointersVisitor::VerifyPointers(HeapObject host,
   // to one of objects in DATA_ONLY_VISITOR_ID_LIST. You can fix
   // this by moving that object to POINTER_VISITOR_ID_LIST.
   DCHECK_EQ(ObjectFields::kMaybePointers,
-            Map::ObjectFieldsFrom(host.map().visitor_id()));
+            Map::ObjectFieldsFrom(host.map(cage_base()).visitor_id()));
   VerifyPointersImpl(start, end);
 }
 

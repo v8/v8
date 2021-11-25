@@ -2158,10 +2158,23 @@ void CallableTask::BriefPrintDetails(std::ostream& os) {
   os << " callable=" << Brief(callable());
 }
 
-void HeapObject::Iterate(ObjectVisitor* v) { IterateFast<ObjectVisitor>(v); }
+// TODO(v8:11880): drop this version if favor of cage friendly one.
+void HeapObject::Iterate(ObjectVisitor* v) {
+  IterateFast<ObjectVisitor>(GetPtrComprCageBaseSlow(*this), v);
+}
 
+void HeapObject::Iterate(PtrComprCageBase cage_base, ObjectVisitor* v) {
+  IterateFast<ObjectVisitor>(cage_base, v);
+}
+
+// TODO(v8:11880): drop this version if favor of cage friendly one.
 void HeapObject::IterateBody(ObjectVisitor* v) {
   Map m = map();
+  IterateBodyFast<ObjectVisitor>(m, SizeFromMap(m), v);
+}
+
+void HeapObject::IterateBody(PtrComprCageBase cage_base, ObjectVisitor* v) {
+  Map m = map(cage_base);
   IterateBodyFast<ObjectVisitor>(m, SizeFromMap(m), v);
 }
 

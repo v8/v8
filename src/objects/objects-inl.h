@@ -752,20 +752,11 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots(PtrComprCageBase cage_base) const {
 }
 
 Map HeapObject::map() const {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // TODO(v8:11880): Ensure that cage friendly version is used for the cases
-    // when this could be a Code object. Replace this with
-    // DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeObject(*this));
-    Isolate* isolate;
-    if (GetIsolateFromHeapObject(*this, &isolate)) {
-      PtrComprCageBase cage_base(isolate);
-      return HeapObject::map(cage_base);
-    }
-    // If the Isolate can't be obtained then the heap object is a read-only
-    // one and therefore not a Code object, so fallback to auto-computing cage
-    // base value.
-  }
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  // TODO(v8:11880): Ensure that cage friendly version is used for the cases
+  // when this could be a Code object. Add
+  // DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(*this));
+  // and use GetPtrComprCageBase(*this) here.
+  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
   return HeapObject::map(cage_base);
 }
 Map HeapObject::map(PtrComprCageBase cage_base) const {
@@ -845,20 +836,11 @@ ObjectSlot HeapObject::map_slot() const {
 }
 
 MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // TODO(v8:11880): Ensure that cage friendly version is used for the cases
-    // when this could be a Code object. Replace this with
-    // DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeObject(*this));
-    Isolate* isolate;
-    if (GetIsolateFromHeapObject(*this, &isolate)) {
-      PtrComprCageBase cage_base(isolate);
-      return HeapObject::map_word(cage_base, tag);
-    }
-    // If the Isolate can't be obtained then the heap object is a read-only
-    // one and therefore not a Code object, so fallback to auto-computing cage
-    // base value.
-  }
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  // TODO(v8:11880): Ensure that cage friendly version is used for the cases
+  // when this could be a Code object. Add
+  // DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(*this));
+  // and use GetPtrComprCageBase(*this) here.
+  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
   return HeapObject::map_word(cage_base, tag);
 }
 MapWord HeapObject::map_word(PtrComprCageBase cage_base,
@@ -871,9 +853,10 @@ void HeapObject::set_map_word(MapWord map_word, RelaxedStoreTag) {
 }
 
 MapWord HeapObject::map_word(AcquireLoadTag tag) const {
-  // This method is never used for Code objects and thus it is fine to use
-  // auto-computed cage base value.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeObject(*this));
+  // This method is never used for objects located in code space (Code and
+  // free space fillers) and thus it is fine to use auto-computed cage base
+  // value.
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
 }
@@ -893,7 +876,18 @@ bool HeapObject::release_compare_and_swap_map_word(MapWord old_map_word,
   return result == static_cast<Tagged_t>(old_map_word.ptr());
 }
 
-int HeapObject::Size() const { return SizeFromMap(map()); }
+// TODO(v8:11880): consider dropping parameterless version.
+int HeapObject::Size() const {
+  // TODO(v8:11880): Ensure that cage friendly version is used for the cases
+  // when this could be a Code object. Add
+  // DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(*this));
+  // and use GetPtrComprCageBase(*this) here.
+  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
+  return HeapObject::Size(cage_base);
+}
+int HeapObject::Size(PtrComprCageBase cage_base) const {
+  return SizeFromMap(map(cage_base));
+}
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
   return instance_type <= LAST_SPECIAL_RECEIVER_TYPE;

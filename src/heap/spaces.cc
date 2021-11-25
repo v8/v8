@@ -136,7 +136,7 @@ Address SkipFillers(PtrComprCageBase cage_base, HeapObject filler,
   while (addr < end) {
     filler = HeapObject::FromAddress(addr);
     CHECK(filler.IsFreeSpaceOrFiller(cage_base));
-    addr = filler.address() + filler.Size();
+    addr = filler.address() + filler.Size(cage_base);
   }
   return addr;
 }
@@ -184,7 +184,7 @@ size_t Page::ShrinkToHighWaterMark() {
         this, address() + size() - unused, unused, area_end() - unused);
     if (filler.address() != area_end()) {
       CHECK(filler.IsFreeSpaceOrFiller(cage_base));
-      CHECK_EQ(filler.address() + filler.Size(), area_end());
+      CHECK_EQ(filler.address() + filler.Size(cage_base), area_end());
     }
   }
   return unused;

@@ -116,7 +116,7 @@ HEAP_OBJECT_TYPE_LIST(DECL_TYPE)
   /* the main pointer compression cage. */                                    \
   bool HeapObject::Is##type(PtrComprCageBase cage_base) const {               \
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {                                        \
-      if (IsCodeObject(*this)) {                                              \
+      if (IsCodeSpaceObject(*this)) {                                         \
         /* Code space contains only Code objects and free space fillers. */   \
         if (std::is_same<InstanceTypeTraits::type,                            \
                          InstanceTypeTraits::Code>::value ||                  \

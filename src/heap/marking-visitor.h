@@ -26,6 +26,23 @@ struct EphemeronMarking {
 template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {
  public:
+  explicit MarkingStateBase(PtrComprCageBase cage_base)
+#if V8_COMPRESS_POINTERS
+      : cage_base_(cage_base)
+#endif
+  {
+  }
+
+  // The pointer compression cage base value used for decompression of all
+  // tagged values except references to Code objects.
+  V8_INLINE PtrComprCageBase cage_base() const {
+#if V8_COMPRESS_POINTERS
+    return cage_base_;
+#else
+    return PtrComprCageBase{};
+#endif  // V8_COMPRESS_POINTERS
+  }
+
   V8_INLINE MarkBit MarkBitFrom(HeapObject obj) {
     return MarkBitFrom(BasicMemoryChunk::FromHeapObject(obj), obj.ptr());
   }
@@ -73,7 +90,7 @@ class MarkingStateBase {
     MarkBit markbit = MarkBitFrom(chunk, obj.address());
     if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
     static_cast<ConcreteState*>(this)->IncrementLiveBytes(
-        MemoryChunk::cast(chunk), obj.Size());
+        MemoryChunk::cast(chunk), obj.Size(cage_base()));
     return true;
   }
 
@@ -85,6 +102,11 @@ class MarkingStateBase {
     static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
     static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
   }
+
+ private:
+#if V8_COMPRESS_POINTERS
+  const PtrComprCageBase cage_base_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 // The base class for all marking visitors. It implements marking logic with

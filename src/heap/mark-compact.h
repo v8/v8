@@ -243,6 +243,9 @@ class MarkCompactCollectorBase {
 class MinorMarkingState final
     : public MarkingStateBase<MinorMarkingState, AccessMode::ATOMIC> {
  public:
+  explicit MinorMarkingState(PtrComprCageBase cage_base)
+      : MarkingStateBase(cage_base) {}
+
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
       const BasicMemoryChunk* chunk) const {
     return MemoryChunk::cast(chunk)
@@ -266,6 +269,9 @@ class MinorNonAtomicMarkingState final
     : public MarkingStateBase<MinorNonAtomicMarkingState,
                               AccessMode::NON_ATOMIC> {
  public:
+  explicit MinorNonAtomicMarkingState(PtrComprCageBase cage_base)
+      : MarkingStateBase(cage_base) {}
+
   ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
       const BasicMemoryChunk* chunk) const {
     return MemoryChunk::cast(chunk)
@@ -292,6 +298,9 @@ class MinorNonAtomicMarkingState final
 class MajorMarkingState final
     : public MarkingStateBase<MajorMarkingState, AccessMode::ATOMIC> {
  public:
+  explicit MajorMarkingState(PtrComprCageBase cage_base)
+      : MarkingStateBase(cage_base) {}
+
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
       const BasicMemoryChunk* chunk) const {
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
@@ -317,6 +326,9 @@ class MajorMarkingState final
 class MajorAtomicMarkingState final
     : public MarkingStateBase<MajorAtomicMarkingState, AccessMode::ATOMIC> {
  public:
+  explicit MajorAtomicMarkingState(PtrComprCageBase cage_base)
+      : MarkingStateBase(cage_base) {}
+
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
       const BasicMemoryChunk* chunk) const {
     return chunk->marking_bitmap<AccessMode::ATOMIC>();
@@ -331,6 +343,9 @@ class MajorNonAtomicMarkingState final
     : public MarkingStateBase<MajorNonAtomicMarkingState,
                               AccessMode::NON_ATOMIC> {
  public:
+  explicit MajorNonAtomicMarkingState(PtrComprCageBase cage_base)
+      : MarkingStateBase(cage_base) {}
+
   ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
       const BasicMemoryChunk* chunk) const {
     return chunk->marking_bitmap<AccessMode::NON_ATOMIC>();
@@ -779,10 +794,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   std::vector<std::pair<Address, Page*>>
       aborted_evacuation_candidates_due_to_flags_;
 
-  Sweeper* sweeper_;
-
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
+
+  Sweeper* sweeper_;
 
   // Counts the number of major mark-compact collections. The counter is
   // incremented right after marking. This is used for:
@@ -878,13 +893,13 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
   MarkingWorklist* worklist_;
 
+  MarkingState marking_state_;
+  NonAtomicMarkingState non_atomic_marking_state_;
+
   YoungGenerationMarkingVisitor* main_marking_visitor_;
   base::Semaphore page_parallel_job_semaphore_;
   std::vector<Page*> new_space_evacuation_pages_;
   std::vector<Page*> sweep_to_iterate_pages_;
-
-  MarkingState marking_state_;
-  NonAtomicMarkingState non_atomic_marking_state_;
 
   friend class YoungGenerationMarkingTask;
   friend class YoungGenerationMarkingJob;

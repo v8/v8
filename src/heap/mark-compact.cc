@@ -119,7 +119,9 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
     VerifyRootPointers(start, end);
   }
 
-  void VisitMapPointer(HeapObject object) override { VerifyMap(object.map()); }
+  void VisitMapPointer(HeapObject object) override {
+    VerifyMap(object.map(cage_base()));
+  }
 
   void VerifyRoots();
   void VerifyMarkingOnPage(const Page* page, Address start, Address end);
@@ -148,7 +150,7 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
     if (current >= end) break;
     CHECK(IsMarked(object));
     CHECK(current >= next_object_must_be_here_or_later);
-    object.Iterate(this);
+    object.Iterate(cage_base(), this);
     next_object_must_be_here_or_later = current + size;
     // The object is either part of a black area of black allocation or a
     // regular black object
@@ -190,7 +192,7 @@ void MarkingVerifier::VerifyMarking(LargeObjectSpace* lo_space) {
   LargeObjectSpaceObjectIterator it(lo_space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (IsBlackOrGrey(obj)) {
-      obj.Iterate(this);
+      obj.Iterate(cage_base(), this);
     }
   }
 }
@@ -316,7 +318,9 @@ class EvacuationVerifier : public ObjectVisitorWithCageBases,
     VerifyRootPointers(start, end);
   }
 
-  void VisitMapPointer(HeapObject object) override { VerifyMap(object.map()); }
+  void VisitMapPointer(HeapObject object) override {
+    VerifyMap(object.map(cage_base()));
+  }
 
  protected:
   explicit EvacuationVerifier(Heap* heap)
@@ -347,8 +351,10 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
   Address current = start;
   while (current < end) {
     HeapObject object = HeapObject::FromAddress(current);
-    if (!object.IsFreeSpaceOrFiller(cage_base())) object.Iterate(this);
-    current += object.Size();
+    if (!object.IsFreeSpaceOrFiller(cage_base())) {
+      object.Iterate(cage_base(), this);
+    }
+    current += object.Size(cage_base());
   }
 }
 
@@ -473,6 +479,8 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       state_(IDLE),
 #endif
       is_shared_heap_(heap->IsShared()),
+      marking_state_(heap->isolate()),
+      non_atomic_marking_state_(heap->isolate()),
       sweeper_(new Sweeper(heap, non_atomic_marking_state())) {
 }
 
@@ -1415,6 +1423,14 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
  protected:
   enum MigrationMode { kFast, kObserved };
 
+  PtrComprCageBase cage_base() {
+#if V8_COMPRESS_POINTERS
+    return PtrComprCageBase{heap_->isolate()};
+#else
+    return PtrComprCageBase{};
+#endif  // V8_COMPRESS_POINTERS
+  }
+
   using MigrateFunction = void (*)(EvacuateVisitorBase* base, HeapObject dst,
                                    HeapObject src, int size,
                                    AllocationSpace dest);
@@ -1424,7 +1440,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
                                HeapObject src, int size, AllocationSpace dest) {
     Address dst_addr = dst.address();
     Address src_addr = src.address();
-    DCHECK(base->heap_->AllowedToBeMigrated(src.map(), src, dest));
+    PtrComprCageBase cage_base = base->cage_base();
+    DCHECK(base->heap_->AllowedToBeMigrated(src.map(cage_base), src, dest));
     DCHECK_NE(dest, LO_SPACE);
     DCHECK_NE(dest, CODE_LO_SPACE);
     if (dest == OLD_SPACE) {
@@ -1433,7 +1450,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      dst.IterateBodyFast(dst.map(), size, base->record_visitor_);
+      dst.IterateBodyFast(dst.map(cage_base), size, base->record_visitor_);
       if (V8_UNLIKELY(FLAG_minor_mc)) {
         base->record_visitor_->MarkArrayBufferExtensionPromoted(dst);
       }
@@ -1444,7 +1461,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       code.Relocate(dst_addr - src_addr);
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      dst.IterateBodyFast(dst.map(), size, base->record_visitor_);
+      dst.IterateBodyFast(dst.map(cage_base), size, base->record_visitor_);
     } else {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
@@ -1473,7 +1490,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (FLAG_stress_compaction && AbortCompactionForTesting(object))
       return false;
 #endif  // DEBUG
-    Map map = object.map();
+    Map map = object.map(cage_base());
     AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
     AllocationResult allocation;
     if (ShouldPromoteIntoSharedHeap(map)) {
@@ -1682,7 +1699,9 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
       heap_->UpdateAllocationSite(object.map(), object,
                                   local_pretenuring_feedback_);
     } else if (mode == NEW_TO_OLD) {
-      object.IterateBodyFast(record_visitor_);
+      DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(object));
+      PtrComprCageBase cage_base = GetPtrComprCageBase(object);
+      object.IterateBodyFast(cage_base, record_visitor_);
       if (V8_UNLIKELY(FLAG_minor_mc)) {
         record_visitor_->MarkArrayBufferExtensionPromoted(object);
       }
@@ -1710,7 +1729,8 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
     HeapObject target_object;
     if (TryEvacuateObject(Page::FromHeapObject(object)->owner_identity(),
                           object, size, &target_object)) {
-      DCHECK(object.map_word(kRelaxedLoad).IsForwardingAddress());
+      DCHECK(object.map_word(heap_->isolate(), kRelaxedLoad)
+                 .IsForwardingAddress());
       return true;
     }
     return false;
@@ -1724,7 +1744,9 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   inline bool Visit(HeapObject object, int size) override {
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector(),
                                       &heap_->ephemeron_remembered_set_);
-    object.IterateBodyFast(&visitor);
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(object));
+    PtrComprCageBase cage_base = GetPtrComprCageBase(object);
+    object.IterateBodyFast(cage_base, &visitor);
     return true;
   }
 
@@ -1767,7 +1789,7 @@ void MarkCompactCollector::RevisitObject(HeapObject obj) {
   DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->ProgressBar().IsEnabled(),
                  0u == MemoryChunk::FromHeapObject(obj)->ProgressBar().Value());
   MarkingVisitor::RevisitScope revisit(marking_visitor_.get());
-  marking_visitor_->Visit(obj.map(), obj);
+  marking_visitor_->Visit(obj.map(marking_visitor_->cage_base()), obj);
 }
 
 bool MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
@@ -2078,7 +2100,8 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
       Code code = it.frame()->LookupCode();
       if (!code.CanDeoptAt(isolate, it.frame()->pc())) {
-        Code::BodyDescriptor::IterateBody(code.map(), code, visitor);
+        PtrComprCageBase cage_base(isolate);
+        Code::BodyDescriptor::IterateBody(code.map(cage_base), code, visitor);
       }
       return;
     }
@@ -3914,7 +3937,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
     PointersUpdatingVisitor visitor(heap_);
     for (Address cur = start_; cur < end_;) {
       HeapObject object = HeapObject::FromAddress(cur);
-      Map map = object.map();
+      Map map = object.map(visitor.cage_base());
       int size = object.SizeFromMap(map);
       object.IterateBodyFast(map, size, &visitor);
       cur += size;
@@ -3929,7 +3952,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
     PointersUpdatingVisitor visitor(heap_);
     for (auto object_and_size : LiveObjectRange<kAllLiveObjects>(
              chunk_, marking_state_->bitmap(chunk_))) {
-      object_and_size.first.IterateBodyFast(&visitor);
+      object_and_size.first.IterateBodyFast(visitor.cage_base(), &visitor);
     }
   }
 
@@ -4708,6 +4731,8 @@ void MinorMarkCompactCollector::TearDown() {}
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : MarkCompactCollectorBase(heap),
       worklist_(new MinorMarkCompactCollector::MarkingWorklist()),
+      marking_state_(heap->isolate()),
+      non_atomic_marking_state_(heap->isolate()),
       main_marking_visitor_(new YoungGenerationMarkingVisitor(
           heap->isolate(), marking_state(), worklist_, kMainMarker)),
       page_parallel_job_semaphore_(0) {
@@ -4969,7 +4994,8 @@ void MinorMarkCompactCollector::MakeIterable(
       p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
                                       ClearRecordedSlots::kNo);
     }
-    Map map = object.map(kAcquireLoad);
+    PtrComprCageBase cage_base(p->heap()->isolate());
+    Map map = object.map(cage_base, kAcquireLoad);
     int size = object.SizeFromMap(map);
     free_start = free_end + size;
   }

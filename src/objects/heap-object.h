@@ -122,9 +122,10 @@ class HeapObject : public Object {
   // If it's not performance critical iteration use the non-templatized
   // version.
   void Iterate(ObjectVisitor* v);
+  void Iterate(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateFast(ObjectVisitor* v);
+  inline void IterateFast(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   // Iterates over all pointers contained in the object except the
   // first map pointer.  The object type is given in the first
@@ -132,11 +133,12 @@ class HeapObject : public Object {
   // object, and so is safe to call while the map pointer is modified.
   // If it's not performance critical iteration use the non-templatized
   // version.
-  void IterateBody(ObjectVisitor* v);
+  inline void IterateBody(ObjectVisitor* v);
+  void IterateBody(PtrComprCageBase cage_base, ObjectVisitor* v);
   void IterateBody(Map map, int object_size, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateBodyFast(ObjectVisitor* v);
+  inline void IterateBodyFast(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
   inline void IterateBodyFast(Map map, int object_size, ObjectVisitor* v);
@@ -147,7 +149,7 @@ class HeapObject : public Object {
   V8_EXPORT_PRIVATE bool IsValidSlot(Map map, int offset);
 
   // Returns the heap object's size in bytes
-  inline int Size() const;
+  DECL_GETTER(Size, int)
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.

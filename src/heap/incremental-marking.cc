@@ -47,13 +47,15 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
   incremental_marking_->EnsureBlackAllocated(addr, size);
 }
 
-IncrementalMarking::IncrementalMarking(Heap* heap,
-                                       WeakObjects* weak_objects)
+IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
     : heap_(heap),
       collector_(heap->mark_compact_collector()),
       weak_objects_(weak_objects),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
-      old_generation_observer_(this, kOldGenerationAllocatedThreshold) {
+      old_generation_observer_(this, kOldGenerationAllocatedThreshold),
+      marking_state_(heap->isolate()),
+      atomic_marking_state_(heap->isolate()),
+      non_atomic_marking_state_(heap->isolate()) {
   SetState(STOPPED);
 }
 
@@ -436,6 +438,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 
   collector_->local_marking_worklists()->Publish();
   MarkingBarrier::PublishAll(heap());
+  PtrComprCageBase cage_base(heap_->isolate());
   collector_->marking_worklists()->Update(
       [
 #ifdef DEBUG
@@ -445,11 +448,11 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 #ifdef ENABLE_MINOR_MC
           minor_marking_state,
 #endif
-          filler_map](HeapObject obj, HeapObject* out) -> bool {
+          cage_base, filler_map](HeapObject obj, HeapObject* out) -> bool {
         DCHECK(obj.IsHeapObject());
         // Only pointers to from space have to be updated.
         if (Heap::InFromPage(obj)) {
-          MapWord map_word = obj.map_word(kRelaxedLoad);
+          MapWord map_word = obj.map_word(cage_base, kRelaxedLoad);
           if (!map_word.IsForwardingAddress()) {
             // There may be objects on the marking deque that do not exist
             // anymore, e.g. left trimmed objects or objects from the root set
@@ -490,10 +493,10 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
             return true;
           }
           DCHECK_IMPLIES(marking_state()->IsWhite(obj),
-                         obj.IsFreeSpaceOrFiller());
+                         obj.IsFreeSpaceOrFiller(cage_base));
           // Skip one word filler objects that appear on the
           // stack when we perform in place array shift.
-          if (obj.map() != filler_map) {
+          if (obj.map(cage_base) != filler_map) {
             *out = obj;
             return true;
           }

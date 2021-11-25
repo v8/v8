@@ -207,7 +207,7 @@ inline bool IsReadOnlyHeapObject(HeapObject object) {
   return chunk->InReadOnlySpace();
 }
 
-inline bool IsCodeObject(HeapObject object) {
+inline bool IsCodeSpaceObject(HeapObject object) {
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   return chunk->InCodeSpace();

@@ -1242,14 +1242,14 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
 }
 
 template <typename ObjectVisitor>
-void HeapObject::IterateFast(ObjectVisitor* v) {
+void HeapObject::IterateFast(PtrComprCageBase cage_base, ObjectVisitor* v) {
   v->VisitMapPointer(*this);
-  IterateBodyFast(v);
+  IterateBodyFast(cage_base, v);
 }
 
 template <typename ObjectVisitor>
-void HeapObject::IterateBodyFast(ObjectVisitor* v) {
-  Map m = map();
+void HeapObject::IterateBodyFast(PtrComprCageBase cage_base, ObjectVisitor* v) {
+  Map m = map(cage_base);
   IterateBodyFast(m, SizeFromMap(m), v);
 }
 
