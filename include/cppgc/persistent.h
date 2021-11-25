@@ -189,6 +189,9 @@ class BasicPersistent final : public PersistentBase,
   // heterogeneous assignments between different Member and Persistent handles
   // based on their actual types.
   V8_CLANG_NO_SANITIZE("cfi-unrelated-cast") T* Get() const {
+#ifdef V8_TARGET_OS_ANDROID
+    IsValid();
+#endif  // V8_TARGET_OS_ANDROID
     // The const_cast below removes the constness from PersistentBase storage.
     // The following static_cast re-adds any constness if specified through the
     // user-visible template parameter T.
@@ -231,7 +234,12 @@ class BasicPersistent final : public PersistentBase,
     // Ideally, handling kSentinelPointer would be done by the embedder. On the
     // other hand, having Persistent aware of it is beneficial since no node
     // gets wasted.
-    return GetValue() != nullptr && GetValue() != kSentinelPointer;
+    const auto* value = GetValue();
+    const bool is_valid = value != nullptr && value != kSentinelPointer;
+#ifdef V8_TARGET_OS_ANDROID
+    CPPGC_CHECK(!is_valid || GetNode());
+#endif  // V8_TARGET_OS_ANDROID
+    return is_valid;
   }
 
   void Assign(T* ptr) {
