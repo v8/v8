@@ -144,7 +144,7 @@
 
 ##############################################################################
 # Tests requiring Sparkplug.
-['arch not in (x64, arm64, ia32, arm, mips64el, mipsel)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, mipsel, loong64)', {
   'regress/regress-crbug-1199681': [SKIP],
 }],
 
