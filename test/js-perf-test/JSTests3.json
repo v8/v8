@@ -14,7 +14,7 @@
       "name": "ClassFields",
       "path": ["ClassFields"],
       "flags": ["--allow-natives-syntax"],
-      "resources": [ "evaluate-class.js", "classes.js" ],
+      "resources": [ "evaluate-class.js", "initialize-instance.js", "classes.js" ],
       "tests": [
         {
           "name": "EvaluateClassOpt",
