@@ -53,8 +53,7 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
 HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
-    StackSupport stack_support, MarkingType marking_support,
-    SweepingType sweeping_support)
+    StackSupport stack_support)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
       oom_handler_(std::make_unique<FatalOutOfMemoryHandler>(this)),
@@ -82,9 +81,7 @@ HeapBase::HeapBase(
       weak_persistent_region_(*oom_handler_.get()),
       strong_cross_thread_persistent_region_(*oom_handler_.get()),
       weak_cross_thread_persistent_region_(*oom_handler_.get()),
-      stack_support_(stack_support),
-      marking_support_(marking_support),
-      sweeping_support_(sweeping_support) {
+      stack_support_(stack_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
 }

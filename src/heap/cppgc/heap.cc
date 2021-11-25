@@ -78,12 +78,13 @@ void CheckConfig(Heap::Config config, Heap::MarkingType marking_support,
 
 Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
            cppgc::Heap::HeapOptions options)
-    : HeapBase(platform, options.custom_spaces, options.stack_support,
-               options.marking_support, options.sweeping_support),
+    : HeapBase(platform, options.custom_spaces, options.stack_support),
       gc_invoker_(this, platform_.get(), options.stack_support),
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints, options.marking_support,
-               options.sweeping_support) {
+               options.sweeping_support),
+      marking_support_(options.marking_support),
+      sweeping_support_(options.sweeping_support) {
   CHECK_IMPLIES(options.marking_support != MarkingType::kAtomic,
                 platform_->GetForegroundTaskRunner());
   CHECK_IMPLIES(options.sweeping_support != SweepingType::kAtomic,

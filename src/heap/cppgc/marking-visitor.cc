@@ -4,7 +4,6 @@
 
 #include "src/heap/cppgc/marking-visitor.h"
 
-#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-state.h"
 
@@ -55,7 +54,7 @@ ConservativeMarkingVisitor::ConservativeMarkingVisitor(
 
 void ConservativeMarkingVisitor::VisitFullyConstructedConservatively(
     HeapObjectHeader& header) {
-  if (header.IsMarked<AccessMode::kAtomic>()) {
+  if (header.IsMarked()) {
     if (marking_state_.IsMarkedWeakContainer(header))
       marking_state_.ReTraceMarkedWeakContainer(visitor_, header);
     return;

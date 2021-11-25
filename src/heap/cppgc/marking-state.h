@@ -415,17 +415,15 @@ void MutatorMarkingState::InvokeWeakRootsCallbackIfNeeded(
 #if DEBUG
   const HeapObjectHeader& header =
       HeapObjectHeader::FromObject(desc.base_object_payload);
-  DCHECK_IMPLIES(header.IsInConstruction(),
-                 header.IsMarked<AccessMode::kAtomic>());
+  DCHECK_IMPLIES(header.IsInConstruction(), header.IsMarked());
 #endif  // DEBUG
   weak_callback(LivenessBrokerFactory::Create(), parameter);
 }
 
 bool MutatorMarkingState::IsMarkedWeakContainer(HeapObjectHeader& header) {
-  const bool result =
-      weak_containers_worklist_.Contains<AccessMode::kAtomic>(&header) &&
-      !recently_retraced_weak_containers_.Contains(&header);
-  DCHECK_IMPLIES(result, header.IsMarked<AccessMode::kAtomic>());
+  const bool result = weak_containers_worklist_.Contains(&header) &&
+                      !recently_retraced_weak_containers_.Contains(&header);
+  DCHECK_IMPLIES(result, header.IsMarked());
   DCHECK_IMPLIES(result, !header.IsInConstruction());
   return result;
 }
@@ -495,7 +493,7 @@ template <AccessMode mode>
 void DynamicallyTraceMarkedObject(Visitor& visitor,
                                   const HeapObjectHeader& header) {
   DCHECK(!header.IsInConstruction<mode>());
-  DCHECK(header.IsMarked<AccessMode::kAtomic>());
+  DCHECK(header.IsMarked<mode>());
   header.Trace<mode>(&visitor);
 }
 

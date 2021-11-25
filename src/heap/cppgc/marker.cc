@@ -240,7 +240,6 @@ void MarkerBase::StartMarking() {
         MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
       mutator_marking_state_.Publish();
       concurrent_marker_->Start();
-      concurrent_marking_active_ = true;
     }
     incremental_marking_allocation_observer_ =
         std::make_unique<IncrementalMarkingAllocationObserver>(*this);
@@ -256,9 +255,8 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
                                            StatsCollector::kMarkAtomicPrologue);
 
   if (ExitIncrementalMarkingIfNeeded(config_, heap())) {
-    // Cancel remaining incremental tasks. Concurrent marking jobs are left to
-    // run in parallel with the atomic pause until the mutator thread runs out
-    // of work.
+    // Cancel remaining concurrent/incremental tasks.
+    concurrent_marker_->Cancel();
     incremental_marking_handle_.Cancel();
     heap().stats_collector()->UnregisterObserver(
         incremental_marking_allocation_observer_.get());
@@ -276,17 +274,6 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
       DCHECK(marking_worklists_.not_fully_constructed_worklist()->IsEmpty());
     } else {
       MarkNotFullyConstructedObjects();
-    }
-  }
-  if (heap().marking_support() ==
-      MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
-    // Start parallel marking.
-    mutator_marking_state_.Publish();
-    if (concurrent_marking_active_) {
-      concurrent_marker_->NotifyIncrementalMutatorStepCompleted();
-    } else {
-      concurrent_marker_->Start();
-      concurrent_marking_active_ = true;
     }
   }
 }
@@ -427,16 +414,6 @@ void MarkerBase::AdvanceMarkingOnAllocation() {
   }
 }
 
-bool MarkerBase::CancelConcurrentMarkingIfNeeded() {
-  if (config_.marking_type != MarkingConfig::MarkingType::kAtomic ||
-      !concurrent_marking_active_)
-    return false;
-
-  concurrent_marker_->Cancel();
-  concurrent_marking_active_ = false;
-  return true;
-}
-
 bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
                                           size_t marked_bytes_limit) {
   bool is_done = false;
@@ -454,9 +431,6 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
     if (is_done && VisitCrossThreadPersistentsIfNeeded()) {
       // Both limits are absolute and hence can be passed along without further
       // adjustment.
-      is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
-    }
-    if (is_done && CancelConcurrentMarkingIfNeeded()) {
       is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
     }
     schedule_.UpdateMutatorThreadMarkedBytes(
