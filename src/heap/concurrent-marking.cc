@@ -169,6 +169,10 @@ class ConcurrentMarkingVisitor final
     return marking_state_.GreyToBlack(object);
   }
 
+  bool ShouldVisitUnaccounted(HeapObject object) {
+    return marking_state_.GreyToBlackUnaccounted(object);
+  }
+
  private:
   // Helper class for collecting in-object slot addresses and values.
   class SlotSnapshottingVisitor final : public ObjectVisitorWithCageBases {
@@ -248,11 +252,15 @@ class ConcurrentMarkingVisitor final
     // The length() function checks that the length is a Smi.
     // This is not necessarily the case if the array is being left-trimmed.
     Object length = object.unchecked_length(kAcquireLoad);
-    if (!ShouldVisit(object)) return 0;
+    // No accounting here to avoid re-reading the length which could already
+    // contain a non-SMI value when left-trimming happens concurrently.
+    if (!ShouldVisitUnaccounted(object)) return 0;
     // The cached length must be the actual length as the array is not black.
     // Left trimming marks the array black before over-writing the length.
     DCHECK(length.IsSmi());
     int size = T::SizeFor(Smi::ToInt(length));
+    marking_state_.IncrementLiveBytes(MemoryChunk::FromHeapObject(object),
+                                      size);
     VisitMapPointer(object);
     T::BodyDescriptor::IterateBody(map, object, size, this);
     return size;

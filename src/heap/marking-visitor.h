@@ -77,6 +77,10 @@ class MarkingStateBase {
     return true;
   }
 
+  V8_INLINE bool GreyToBlackUnaccounted(HeapObject obj) {
+    return Marking::GreyToBlack<access_mode>(MarkBitFrom(obj));
+  }
+
   void ClearLiveness(MemoryChunk* chunk) {
     static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
     static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
