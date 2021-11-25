@@ -56,6 +56,12 @@ class BaselineCompilerTask {
     if (FLAG_print_code) {
       code->Print();
     }
+    // Don't install the code if the bytecode has been flushed or has
+    // already some baseline code installed.
+    if (!shared_function_info_->is_compiled() ||
+        shared_function_info_->HasBaselineCode()) {
+      return;
+    }
     shared_function_info_->set_baseline_code(ToCodeT(*code), kReleaseStore);
     if (V8_LIKELY(FLAG_use_osr)) {
       // Arm back edges for OSR
