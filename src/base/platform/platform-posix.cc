@@ -840,9 +840,8 @@ Thread::Thread(const Options& options)
     : data_(new PlatformData),
       stack_size_(options.stack_size()),
       start_semaphore_(nullptr) {
-  if (stack_size_ > 0 && static_cast<size_t>(stack_size_) < PTHREAD_STACK_MIN) {
-    stack_size_ = PTHREAD_STACK_MIN;
-  }
+  const int min_stack_size = static_cast<int>(PTHREAD_STACK_MIN);
+  if (stack_size_ > 0) stack_size_ = std::max(stack_size_, min_stack_size);
   set_name(options.name());
 }
 
