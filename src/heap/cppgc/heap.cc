@@ -84,9 +84,9 @@ Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
       growing_(&gc_invoker_, stats_collector_.get(),
                options.resource_constraints, options.marking_support,
                options.sweeping_support) {
-  CHECK_IMPLIES(options.marking_support != MarkingType::kAtomic,
+  CHECK_IMPLIES(options.marking_support != HeapBase::MarkingType::kAtomic,
                 platform_->GetForegroundTaskRunner());
-  CHECK_IMPLIES(options.sweeping_support != SweepingType::kAtomic,
+  CHECK_IMPLIES(options.sweeping_support != HeapBase::SweepingType::kAtomic,
                 platform_->GetForegroundTaskRunner());
 }
 
