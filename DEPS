@@ -335,7 +335,7 @@ hooks = [
     'name': 'disable_depot_tools_selfupdate',
     'pattern': '.',
     'action': [
-        'python',
+        'python3',
         'third_party/depot_tools/update_depot_tools_toggle.py',
         '--disable',
     ],
@@ -347,7 +347,7 @@ hooks = [
     'name': 'landmines',
     'pattern': '.',
     'action': [
-        'python',
+        'python3',
         'build/landmines.py',
         '--landmine-scripts',
         'tools/get_landmines.py',
@@ -449,28 +449,28 @@ hooks = [
     'name': 'sysroot_arm',
     'pattern': '.',
     'condition': '(checkout_linux and checkout_arm)',
-    'action': ['python', 'build/linux/sysroot_scripts/install-sysroot.py',
+    'action': ['python3', 'build/linux/sysroot_scripts/install-sysroot.py',
                '--arch=arm'],
   },
   {
     'name': 'sysroot_arm64',
     'pattern': '.',
     'condition': '(checkout_linux and checkout_arm64)',
-    'action': ['python', 'build/linux/sysroot_scripts/install-sysroot.py',
+    'action': ['python3', 'build/linux/sysroot_scripts/install-sysroot.py',
                '--arch=arm64'],
   },
   {
     'name': 'sysroot_x86',
     'pattern': '.',
     'condition': '(checkout_linux and (checkout_x86 or checkout_x64))',
-    'action': ['python', 'build/linux/sysroot_scripts/install-sysroot.py',
+    'action': ['python3', 'build/linux/sysroot_scripts/install-sysroot.py',
                '--arch=x86'],
   },
   {
     'name': 'sysroot_x64',
     'pattern': '.',
     'condition': 'checkout_linux and checkout_x64',
-    'action': ['python', 'build/linux/sysroot_scripts/install-sysroot.py',
+    'action': ['python3', 'build/linux/sysroot_scripts/install-sysroot.py',
                '--arch=x64'],
   },
   {
@@ -512,14 +512,14 @@ hooks = [
     'name': 'win_toolchain',
     'pattern': '.',
     'condition': 'checkout_win',
-    'action': ['python', 'build/vs_toolchain.py', 'update', '--force'],
+    'action': ['python3', 'build/vs_toolchain.py', 'update', '--force'],
   },
   {
     # Update the Mac toolchain if necessary.
     'name': 'mac_toolchain',
     'pattern': '.',
     'condition': 'checkout_mac',
-    'action': ['python', 'build/mac_toolchain.py'],
+    'action': ['python3', 'build/mac_toolchain.py'],
   },
   {
     # Note: On Win, this should run after win_toolchain, as it may use it.
@@ -540,7 +540,7 @@ hooks = [
     # Update LASTCHANGE.
     'name': 'lastchange',
     'pattern': '.',
-    'action': ['python', 'build/util/lastchange.py',
+    'action': ['python3', 'build/util/lastchange.py',
                '-o', 'build/util/LASTCHANGE'],
   },
   {
@@ -548,7 +548,7 @@ hooks = [
     'pattern': '.',
     'condition': 'checkout_fuchsia',
     'action': [
-      'python',
+      'python3',
       'build/fuchsia/update_sdk.py',
     ],
   },
@@ -557,7 +557,7 @@ hooks = [
     'pattern': '.',
     'condition': 'checkout_fuchsia',
     'action': [
-      'python',
+      'python3',
       'build/fuchsia/update_images.py',
       '--boot-images={checkout_fuchsia_boot_images}',
     ],
@@ -593,7 +593,7 @@ hooks = [
     'pattern': '.',
     'condition': 'check_v8_header_includes',
     'action': [
-      'python',
+      'python3',
       'tools/generate-header-include-checks.py',
     ],
   },
