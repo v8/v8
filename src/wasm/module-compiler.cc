@@ -1253,7 +1253,9 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
       static_cast<int>(instance->module()->num_imported_functions);
   for (int i = 0; i < feedback.length(); i += 2) {
     Object value = feedback.get(i);
-    if (value.IsWasmInternalFunction()) {
+    if (value.IsWasmInternalFunction() &&
+        WasmExportedFunction::IsWasmExportedFunction(
+            WasmInternalFunction::cast(value).external())) {
       // Monomorphic. Mark the target for inlining if it's defined in the
       // same module.
       WasmExportedFunction target = WasmExportedFunction::cast(
