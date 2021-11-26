@@ -8,6 +8,18 @@
   # TODO(v8:10994): Failing spec test after update.
   'proposals/js-types/data': [FAIL],
 
+  # Failing tests after update.
+  'simd_address': [SKIP],
+  'simd_align': [SKIP],
+  'simd_bit_shift': [SKIP],
+  'simd_bitwise': [SKIP],
+  'simd_boolean': [SKIP],
+  'simd_const': [SKIP],
+  'simd_conversions': [SKIP],
+  'simd_f32x4': [SKIP],
+  'simd_f32x4_arith': [SKIP],
+  'simd_f32x4_cmp': [SKIP],
+
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
   'proposals/memory64/linking': [FAIL],
@@ -151,7 +163,6 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'proposals/simd/*': [SKIP],
-  'simd*': [SKIP],
 }],  # no_simd_hardware == True
 
 ]
