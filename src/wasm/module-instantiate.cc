@@ -1474,12 +1474,11 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
       ReportLinkError(error_message, global_index, module_name, import_name);
       return false;
     }
-    auto stored_value =
-        WasmExternalFunction::IsWasmExternalFunction(*value)
-            ? WasmInternalFunction::FromExternal(value, isolate_)
-                  .ToHandleChecked()
-            : value;
-    WriteGlobalValue(global, WasmValue(stored_value, global.type));
+    if (IsSubtypeOf(global.type, kWasmFuncRef, module_) && !value->IsNull()) {
+      value =
+          WasmInternalFunction::FromExternal(value, isolate_).ToHandleChecked();
+    }
+    WriteGlobalValue(global, WasmValue(value, global.type));
     return true;
   }
 

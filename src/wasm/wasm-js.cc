@@ -1206,7 +1206,8 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
           "with the type of the new table.");
       return;
     }
-    if (element->IsJSFunction()) {
+    // TODO(7748): Generalize this if other table types are allowed.
+    if (type == i::wasm::kWasmFuncRef && !element->IsNull()) {
       element = i::WasmInternalFunction::FromExternal(element, i_isolate)
                     .ToHandleChecked();
     }
@@ -1980,14 +1981,16 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     init_value = DefaultReferenceValue(i_isolate, receiver->type());
   }
 
-  i::Handle<i::Object> internal_init_value;
-  if (!i::WasmInternalFunction::FromExternal(init_value, i_isolate)
-           .ToHandle(&internal_init_value)) {
-    internal_init_value = init_value;
+  // TODO(7748): Generalize this if other table types are allowed.
+  bool has_function_type =
+      receiver->type() == i::wasm::kWasmFuncRef || receiver->type().has_index();
+  if (has_function_type && !init_value->IsNull()) {
+    init_value = i::WasmInternalFunction::FromExternal(init_value, i_isolate)
+                     .ToHandleChecked();
   }
 
-  int old_size = i::WasmTableObject::Grow(i_isolate, receiver, grow_by,
-                                          internal_init_value);
+  int old_size =
+      i::WasmTableObject::Grow(i_isolate, receiver, grow_by, init_value);
 
   if (old_size < 0) {
     thrower.RangeError("failed to grow table by %u", grow_by);
@@ -2059,13 +2062,15 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::Object> value;
-  if (!i::WasmInternalFunction::FromExternal(element, i_isolate)
-           .ToHandle(&value)) {
-    value = element;
+  // TODO(7748): Generalize this if other table types are allowed.
+  bool has_function_type = table_object->type() == i::wasm::kWasmFuncRef ||
+                           table_object->type().has_index();
+  if (has_function_type && !element->IsNull()) {
+    element = i::WasmInternalFunction::FromExternal(element, i_isolate)
+                  .ToHandleChecked();
   }
 
-  i::WasmTableObject::Set(i_isolate, table_object, index, value);
+  i::WasmTableObject::Set(i_isolate, table_object, index, element);
 }
 
 // WebAssembly.Table.type() -> TableType

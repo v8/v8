@@ -2010,11 +2010,12 @@ auto Table::set(size_t index, const Ref* ref) -> bool {
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
-  i::Handle<i::Object> entry;
-  if (!i::WasmInternalFunction::FromExternal(obj, isolate).ToHandle(&entry)) {
-    entry = obj;
+  // TODO(7748): Generalize the condition if other table types are allowed.
+  if ((table->type() == i::wasm::kWasmFuncRef || table->type().has_index()) &&
+      !obj->IsNull()) {
+    obj = i::WasmInternalFunction::FromExternal(obj, isolate).ToHandleChecked();
   }
-  i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index), entry);
+  i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index), obj);
   return true;
 }
 
@@ -2028,13 +2029,13 @@ auto Table::grow(size_t delta, const Ref* ref) -> bool {
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
-  i::Handle<i::Object> init_value;
-  if (!i::WasmInternalFunction::FromExternal(obj, isolate)
-           .ToHandle(&init_value)) {
-    init_value = obj;
+  // TODO(7748): Generalize the condition if other table types are allowed.
+  if ((table->type() == i::wasm::kWasmFuncRef || table->type().has_index()) &&
+      !obj->IsNull()) {
+    obj = i::WasmInternalFunction::FromExternal(obj, isolate).ToHandleChecked();
   }
-  int result = i::WasmTableObject::Grow(
-      isolate, table, static_cast<uint32_t>(delta), init_value);
+  int result = i::WasmTableObject::Grow(isolate, table,
+                                        static_cast<uint32_t>(delta), obj);
   return result >= 0;
 }
 
