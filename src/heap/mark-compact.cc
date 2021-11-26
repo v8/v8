@@ -4645,9 +4645,9 @@ class YoungGenerationMarkingVisitor final
  public:
   YoungGenerationMarkingVisitor(
       Isolate* isolate, MinorMarkCompactCollector::MarkingState* marking_state,
-      MinorMarkCompactCollector::MarkingWorklist* global_worklist, int task_id)
+      MinorMarkCompactCollector::MarkingWorklist::Local* worklist_local)
       : NewSpaceVisitor(isolate),
-        worklist_(global_worklist, task_id),
+        worklist_local_(worklist_local),
         marking_state_(marking_state) {}
 
   V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
@@ -4716,11 +4716,11 @@ class YoungGenerationMarkingVisitor final
   inline void MarkObjectViaMarkingWorklist(HeapObject object) {
     if (marking_state_->WhiteToGrey(object)) {
       // Marking deque overflow is unsupported for the young generation.
-      CHECK(worklist_.Push(object));
+      worklist_local_->Push(object);
     }
   }
 
-  MinorMarkCompactCollector::MarkingWorklist::View worklist_;
+  MinorMarkCompactCollector::MarkingWorklist::Local* worklist_local_;
   MinorMarkCompactCollector::MarkingState* marking_state_;
 };
 
@@ -4728,18 +4728,18 @@ void MinorMarkCompactCollector::SetUp() {}
 
 void MinorMarkCompactCollector::TearDown() {}
 
+// static
+constexpr size_t MinorMarkCompactCollector::kMaxParallelTasks;
+
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : MarkCompactCollectorBase(heap),
       worklist_(new MinorMarkCompactCollector::MarkingWorklist()),
+      main_thread_worklist_local_(worklist_),
       marking_state_(heap->isolate()),
       non_atomic_marking_state_(heap->isolate()),
       main_marking_visitor_(new YoungGenerationMarkingVisitor(
-          heap->isolate(), marking_state(), worklist_, kMainMarker)),
-      page_parallel_job_semaphore_(0) {
-  static_assert(
-      kNumMarkers <= MinorMarkCompactCollector::MarkingWorklist::kMaxNumTasks,
-      "more marker tasks than marking deque can handle");
-}
+          heap->isolate(), marking_state(), &main_thread_worklist_local_)),
+      page_parallel_job_semaphore_(0) {}
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() {
   delete worklist_;
@@ -5164,10 +5164,10 @@ class YoungGenerationMarkingTask {
  public:
   YoungGenerationMarkingTask(
       Isolate* isolate, MinorMarkCompactCollector* collector,
-      MinorMarkCompactCollector::MarkingWorklist* global_worklist, int task_id)
-      : marking_worklist_(global_worklist, task_id),
+      MinorMarkCompactCollector::MarkingWorklist* global_worklist)
+      : marking_worklist_local_(global_worklist),
         marking_state_(collector->marking_state()),
-        visitor_(isolate, marking_state_, global_worklist, task_id) {
+        visitor_(isolate, marking_state_, &marking_worklist_local_) {
     local_live_bytes_.reserve(isolate->heap()->new_space()->Capacity() /
                               Page::kPageSize);
   }
@@ -5183,7 +5183,7 @@ class YoungGenerationMarkingTask {
 
   void EmptyMarkingWorklist() {
     HeapObject object;
-    while (marking_worklist_.Pop(&object)) {
+    while (marking_worklist_local_.Pop(&object)) {
       const int size = visitor_.Visit(object);
       IncrementLiveBytes(object, size);
     }
@@ -5200,7 +5200,7 @@ class YoungGenerationMarkingTask {
   }
 
  private:
-  MinorMarkCompactCollector::MarkingWorklist::View marking_worklist_;
+  MinorMarkCompactCollector::MarkingWorklist::Local marking_worklist_local_;
   MinorMarkCompactCollector::MarkingState* marking_state_;
   YoungGenerationMarkingVisitor visitor_;
   std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
@@ -5307,13 +5307,13 @@ class YoungGenerationMarkingJob : public v8::JobTask {
     // the amount of marking that is required.
     const int kPagesPerTask = 2;
     size_t items = remaining_marking_items_.load(std::memory_order_relaxed);
-    size_t num_tasks = std::max((items + 1) / kPagesPerTask,
-                                global_worklist_->GlobalPoolSize());
+    size_t num_tasks =
+        std::max((items + 1) / kPagesPerTask, global_worklist_->Size());
     if (!FLAG_parallel_marking) {
       num_tasks = std::min<size_t>(1, num_tasks);
     }
-    return std::min<size_t>(
-        num_tasks, MinorMarkCompactCollector::MarkingWorklist::kMaxNumTasks);
+    return std::min<size_t>(num_tasks,
+                            MinorMarkCompactCollector::kMaxParallelTasks);
   }
 
  private:
@@ -5321,8 +5321,7 @@ class YoungGenerationMarkingJob : public v8::JobTask {
     double marking_time = 0.0;
     {
       TimedScope scope(&marking_time);
-      YoungGenerationMarkingTask task(isolate_, collector_, global_worklist_,
-                                      delegate->GetTaskId());
+      YoungGenerationMarkingTask task(isolate_, collector_, global_worklist_);
       ProcessMarkingItems(&task);
       task.EmptyMarkingWorklist();
       task.FlushLiveBytes();
@@ -5389,7 +5388,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       // The main thread might hold local items, while GlobalPoolSize() == 0.
       // Flush to ensure these items are visible globally and picked up by the
       // job.
-      worklist()->FlushToGlobal(kMainThreadTask);
+      main_thread_worklist_local_.Publish();
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
       V8::GetCurrentPlatform()
           ->PostJob(v8::TaskPriority::kUserBlocking,
@@ -5398,6 +5397,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
           ->Join();
 
       DCHECK(worklist()->IsEmpty());
+      DCHECK(main_thread_worklist_local_.IsLocalEmpty());
     }
   }
 }
@@ -5434,17 +5434,16 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 }
 
 void MinorMarkCompactCollector::DrainMarkingWorklist() {
-  MarkingWorklist::View marking_worklist(worklist(), kMainMarker);
   PtrComprCageBase cage_base(isolate());
   HeapObject object;
-  while (marking_worklist.Pop(&object)) {
+  while (main_thread_worklist_local_.Pop(&object)) {
     DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
     DCHECK(object.IsHeapObject());
     DCHECK(heap()->Contains(object));
     DCHECK(non_atomic_marking_state()->IsGrey(object));
     main_marking_visitor()->Visit(object);
   }
-  DCHECK(marking_worklist.IsLocalEmpty());
+  DCHECK(main_thread_worklist_local_.IsLocalEmpty());
 }
 
 void MinorMarkCompactCollector::TraceFragmentation() {

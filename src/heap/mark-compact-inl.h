@@ -45,7 +45,7 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
 void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   if (Heap::InYoungGeneration(obj) &&
       non_atomic_marking_state_.WhiteToGrey(obj)) {
-    worklist_->Push(kMainThreadTask, obj);
+    main_thread_worklist_local_.Push(obj);
   }
 }
 

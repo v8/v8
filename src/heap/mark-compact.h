@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "include/v8-internal.h"
+#include "src/heap/base/worklist.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
@@ -837,6 +838,8 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   using MarkingState = MinorMarkingState;
   using NonAtomicMarkingState = MinorNonAtomicMarkingState;
 
+  static constexpr size_t kMaxParallelTasks = 8;
+
   explicit MinorMarkCompactCollector(Heap* heap);
   ~MinorMarkCompactCollector() override;
 
@@ -855,7 +858,8 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void CleanupSweepToIteratePages();
 
  private:
-  using MarkingWorklist = Worklist<HeapObject, 64 /* segment size */>;
+  using MarkingWorklist =
+      ::heap::base::Worklist<HeapObject, 64 /* segment size */>;
   class RootMarkingVisitor;
 
   static const int kNumMarkers = 8;
@@ -892,6 +896,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void SweepArrayBufferExtensions();
 
   MarkingWorklist* worklist_;
+  MarkingWorklist::Local main_thread_worklist_local_;
 
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
