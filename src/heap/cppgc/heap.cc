@@ -120,7 +120,7 @@ void Heap::CollectGarbage(Config config) {
 
 void Heap::StartIncrementalGarbageCollection(Config config) {
   DCHECK_NE(Config::MarkingType::kAtomic, config.marking_type);
-  DCHECK_NE(marking_support_, MarkingType::kAtomic);
+  DCHECK_NE(marking_support_, Config::MarkingType::kAtomic);
   CheckConfig(config, marking_support_, sweeping_support_);
 
   if (IsMarking() || in_no_gc_scope()) return;
