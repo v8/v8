@@ -270,10 +270,16 @@ class CompactionFuzzer(Fuzzer):
 class InterruptBudgetFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
-      # Higher likelyhood for --no-lazy-feedback-allocation since some
-      # code paths for --interrupt-budget are tied to it.
-      flags = rng.choice([], [], ['--no-lazy-feedback-allocation'])
-      yield flags + ['--interrupt-budget=%d' % rng.randint(0, 135168)]
+      # Half with half without lazy feedback allocation. The first flag
+      # overwrites potential flag negations from the extra flags list.
+      flag1 = rng.choice(
+          '--lazy-feedback-allocation', '--no-lazy-feedback-allocation')
+      # For most code paths, only one of the flags below has a meaning
+      # based on the flag above.
+      flag2 = '--interrupt-budget=%d' % rng.randint(0, 135168)
+      flag3 = '--budget-for-feedback-vector-allocation=%d' % rng.randint(0, 940)
+
+      yield [flag1, flag2, flag3]
 
 
 class StackSizeFuzzer(Fuzzer):
