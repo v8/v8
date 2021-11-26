@@ -13,8 +13,7 @@ from . import base
 EXTRA_FLAGS = [
   (0.1, '--always-opt'),
   (0.1, '--assert-types'),
-  # TODO(mythria): https://crbug.com/v8/10243
-  # (0.1, '--budget-for-feedback-vector-allocation=0'),
+  (0.1, '--budget-for-feedback-vector-allocation=0'),
   (0.1, '--cache=code'),
   (0.1, '--force-slow-path'),
   (0.2, '--future'),
