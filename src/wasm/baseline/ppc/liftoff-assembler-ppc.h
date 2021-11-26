@@ -570,6 +570,9 @@ constexpr bool is_be = false;
           }                                                              \
         };                                                               \
         AtomicOps<uint16_t>(dst, value.gp(), result.gp(), r0, op_func);  \
+        if (is_be) {                                                     \
+          ByteReverseU16(result.gp(), result.gp(), ip);                  \
+        }                                                                \
         break;                                                           \
       }                                                                  \
       case StoreType::kI32Store:                                         \
@@ -587,6 +590,9 @@ constexpr bool is_be = false;
           }                                                              \
         };                                                               \
         AtomicOps<uint32_t>(dst, value.gp(), result.gp(), r0, op_func);  \
+        if (is_be) {                                                     \
+          ByteReverseU32(result.gp(), result.gp(), ip);                  \
+        }                                                                \
         break;                                                           \
       }                                                                  \
       case StoreType::kI64Store: {                                       \
@@ -600,6 +606,9 @@ constexpr bool is_be = false;
           }                                                              \
         };                                                               \
         AtomicOps<uint64_t>(dst, value.gp(), result.gp(), r0, op_func);  \
+        if (is_be) {                                                     \
+          ByteReverseU64(result.gp(), result.gp());                      \
+        }                                                                \
         break;                                                           \
       }                                                                  \
       default:                                                           \
