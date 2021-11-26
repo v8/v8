@@ -2036,6 +2036,11 @@
         'suffix': 'deopt',
         'test_args': ['--total-timeout-sec=2100', '--stress-deopt=1']
       },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=2100', '--stress-interrupt-budget=1']
+      },
     ],
   },
   'V8 NumFuzz - TSAN': {
@@ -2058,6 +2063,11 @@
         'name': 'numfuzz',
         'suffix': 'delay',
         'test_args': ['--total-timeout-sec=2100', '--stress-delay-tasks=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=2100', '--stress-interrupt-budget=1']
       },
       {
         'name': 'numfuzz',
@@ -2116,6 +2126,11 @@
       },
       {
         'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=2100', '--stress-interrupt-budget=1']
+      },
+      {
+        'name': 'numfuzz',
         'suffix': 'threads',
         'test_args': ['--total-timeout-sec=2100', '--stress-thread-pool-size=1']
       },
@@ -2163,6 +2178,11 @@
         'suffix': 'deopt',
         'test_args': ['--total-timeout-sec=900', '--stress-deopt=1']
       },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=900', '--stress-interrupt-budget=1']
+      },
     ],
   },
   'v8_numfuzz_tsan_ng_triggered': {
@@ -2179,6 +2199,11 @@
         'name': 'numfuzz',
         'suffix': 'delay',
         'test_args': ['--total-timeout-sec=900', '--stress-delay-tasks=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=900', '--stress-interrupt-budget=1']
       },
       {
         'name': 'numfuzz',
@@ -2226,6 +2251,11 @@
         'name': 'numfuzz',
         'suffix': 'delay',
         'test_args': ['--total-timeout-sec=900', '--stress-delay-tasks=1']
+      },
+      {
+        'name': 'numfuzz',
+        'suffix': 'interrupt',
+        'test_args': ['--total-timeout-sec=900', '--stress-interrupt-budget=1']
       },
       {
         'name': 'numfuzz',

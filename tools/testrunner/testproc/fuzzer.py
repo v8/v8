@@ -267,10 +267,21 @@ class CompactionFuzzer(Fuzzer):
     while True:
       yield ['--stress-compaction-random']
 
+
+class InterruptBudgetFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      # Higher likelyhood for --no-lazy-feedback-allocation since some
+      # code paths for --interrupt-budget are tied to it.
+      flags = rng.choice([], [], ['--no-lazy-feedback-allocation'])
+      yield flags + ['--interrupt-budget=%d' % rng.randint(0, 135168)]
+
+
 class StackSizeFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
       yield ['--stack-size=%d' % rng.randint(54, 983)]
+
 
 class TaskDelayFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
@@ -326,6 +337,7 @@ FUZZERS = {
   'delay': (None, TaskDelayFuzzer),
   'deopt': (DeoptAnalyzer, DeoptFuzzer),
   'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
+  'interrupt': InterruptBudgetFuzzer,
   'marking': (MarkingAnalyzer, MarkingFuzzer),
   'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
   'stack': (None, StackSizeFuzzer),
