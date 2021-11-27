@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '26881c1164bdd356cfdaae003b56567bbf6bf937',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '78cedba84bd4f7dfcbcce11a0d049884d9396204',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '075dd7e22837a69189003e4fa84499acf63188cf',
   'buildtools/clang_format/script':
@@ -111,9 +111,9 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '79a2e924d96e2fc1e4b937c42efd08898fa472d7',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'e504863f9e2d6e6f32c4c6f06545bf9626308145',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '665b74f7d1b3bb295cd6ba7d8fcec1acd3d2ac84',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'f51a154281bdfe746c46c07cd4fb05be97f9441d',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'c936d73ff70ebf755c8fee3f3420dd16805e377a',
   'buildtools/win': {
     'packages': [
       {
@@ -226,7 +226,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '680d3fdbb594296269a0bb8ae63d5ac27bdaac8a',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '3e0e32ba300ce8afe695ad3ba7e81b21b7cf237a',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e2f3978937c0244508135f126e2617a7734a68be',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'bf66d373ae781a3498f2babe7b61d933dd774b82',
   'third_party/instrumented_libraries':
@@ -276,7 +276,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'f8964a5ccfffe976f3086c286b8e4cf7c9e2be00',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ace657580d2488eb572d6d3e7b1853ff7849c16b',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '11ea35f78e12113bca3cf57d79fb4dea93e5f19a',
   'tools/clang/dsymutil': {
     'packages': [
       {
