@@ -279,6 +279,7 @@ const Item* RunEarleyAlgorithm(
 }
 
 // static
+DISABLE_CFI_ICALL
 bool Grammar::MatchChar(int (*char_class)(int), InputPosition* pos) {
   if (**pos && char_class(static_cast<unsigned char>(**pos))) {
     ++*pos;
