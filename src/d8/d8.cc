@@ -1724,6 +1724,7 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 MaybeLocal<Context> Shell::CreateRealm(
     const v8::FunctionCallbackInfo<v8::Value>& args, int index,
     v8::MaybeLocal<Value> global_object) {
+  const char* kGlobalHandleLabel = "d8::realm";
   Isolate* isolate = args.GetIsolate();
   TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
@@ -1732,7 +1733,11 @@ MaybeLocal<Context> Shell::CreateRealm(
     index = data->realm_count_;
     data->realms_ = new Global<Context>[++data->realm_count_];
     for (int i = 0; i < index; ++i) {
-      data->realms_[i].Reset(isolate, old_realms[i]);
+      Global<Context>& realm = data->realms_[i];
+      realm.Reset(isolate, old_realms[i]);
+      if (!realm.IsEmpty()) {
+        realm.AnnotateStrongRetainer(kGlobalHandleLabel);
+      }
       old_realms[i].Reset();
     }
     delete[] old_realms;
@@ -1744,6 +1749,7 @@ MaybeLocal<Context> Shell::CreateRealm(
   if (context.IsEmpty()) return MaybeLocal<Context>();
   InitializeModuleEmbedderData(context);
   data->realms_[index].Reset(isolate, context);
+  data->realms_[index].AnnotateStrongRetainer(kGlobalHandleLabel);
   args.GetReturnValue().Set(index);
   return context;
 }
