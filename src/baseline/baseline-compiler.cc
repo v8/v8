@@ -1043,33 +1043,33 @@ void BaselineCompiler::VisitShiftRightLogical() {
 }
 
 void BaselineCompiler::VisitAddSmi() {
-  CallBuiltin<Builtin::kAdd_Baseline>(kInterpreterAccumulatorRegister,
-                                      IntAsSmi(0), Index(1));
-}
-
-void BaselineCompiler::VisitSubSmi() {
-  CallBuiltin<Builtin::kSubtract_Baseline>(kInterpreterAccumulatorRegister,
-                                           IntAsSmi(0), Index(1));
-}
-
-void BaselineCompiler::VisitMulSmi() {
-  CallBuiltin<Builtin::kMultiply_Baseline>(kInterpreterAccumulatorRegister,
-                                           IntAsSmi(0), Index(1));
-}
-
-void BaselineCompiler::VisitDivSmi() {
-  CallBuiltin<Builtin::kDivide_Baseline>(kInterpreterAccumulatorRegister,
+  CallBuiltin<Builtin::kAddSmi_Baseline>(kInterpreterAccumulatorRegister,
                                          IntAsSmi(0), Index(1));
 }
 
+void BaselineCompiler::VisitSubSmi() {
+  CallBuiltin<Builtin::kSubtractSmi_Baseline>(kInterpreterAccumulatorRegister,
+                                              IntAsSmi(0), Index(1));
+}
+
+void BaselineCompiler::VisitMulSmi() {
+  CallBuiltin<Builtin::kMultiplySmi_Baseline>(kInterpreterAccumulatorRegister,
+                                              IntAsSmi(0), Index(1));
+}
+
+void BaselineCompiler::VisitDivSmi() {
+  CallBuiltin<Builtin::kDivideSmi_Baseline>(kInterpreterAccumulatorRegister,
+                                            IntAsSmi(0), Index(1));
+}
+
 void BaselineCompiler::VisitModSmi() {
-  CallBuiltin<Builtin::kModulus_Baseline>(kInterpreterAccumulatorRegister,
-                                          IntAsSmi(0), Index(1));
+  CallBuiltin<Builtin::kModulusSmi_Baseline>(kInterpreterAccumulatorRegister,
+                                             IntAsSmi(0), Index(1));
 }
 
 void BaselineCompiler::VisitExpSmi() {
-  CallBuiltin<Builtin::kExponentiate_Baseline>(kInterpreterAccumulatorRegister,
-                                               IntAsSmi(0), Index(1));
+  CallBuiltin<Builtin::kExponentiateSmi_Baseline>(
+      kInterpreterAccumulatorRegister, IntAsSmi(0), Index(1));
 }
 
 void BaselineCompiler::VisitBitwiseOrSmi() {
