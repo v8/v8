@@ -2083,7 +2083,10 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
 
 Isolate::CatchType Isolate::PredictExceptionCatcher() {
   Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (IsExternalHandlerOnTop(Object())) return CAUGHT_BY_EXTERNAL;
+  if (TopExceptionHandlerType(Object()) ==
+      ExceptionHandlerType::kExternalTryCatch) {
+    return CAUGHT_BY_EXTERNAL;
+  }
 
   // Search for an exception handler by performing a full walk over the stack.
   for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
@@ -2151,7 +2154,8 @@ void Isolate::ScheduleThrow(Object exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.
   Throw(exception);
-  PropagatePendingExceptionToExternalTryCatch();
+  PropagatePendingExceptionToExternalTryCatch(
+      TopExceptionHandlerType(pending_exception()));
   if (has_pending_exception()) {
     set_scheduled_exception(pending_exception());
     thread_local_top()->external_caught_exception_ = false;
@@ -2323,20 +2327,25 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
       stack_trace_object);
 }
 
-bool Isolate::IsJavaScriptHandlerOnTop(Object exception) {
+Isolate::ExceptionHandlerType Isolate::TopExceptionHandlerType(
+    Object exception) {
   DCHECK_NE(ReadOnlyRoots(heap()).the_hole_value(), exception);
 
-  // For uncatchable exceptions, the JavaScript handler cannot be on top.
-  if (!is_catchable_by_javascript(exception)) return false;
-
-  // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
-  Address entry_handler = Isolate::handler(thread_local_top());
-  if (entry_handler == kNullAddress) return false;
-
-  // Get the address of the external handler so we can compare the address to
-  // determine which one is closer to the top of the stack.
+  Address js_handler = Isolate::handler(thread_local_top());
   Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (external_handler == kNullAddress) return true;
+
+  // A handler cannot be on top if it doesn't exist. For uncatchable exceptions,
+  // the JavaScript handler cannot be on top.
+  if (js_handler == kNullAddress || !is_catchable_by_javascript(exception)) {
+    if (external_handler == kNullAddress) {
+      return ExceptionHandlerType::kNone;
+    }
+    return ExceptionHandlerType::kExternalTryCatch;
+  }
+
+  if (external_handler == kNullAddress) {
+    return ExceptionHandlerType::kJavaScriptHandler;
+  }
 
   // The exception has been externally caught if and only if there is an
   // external handler which is on top of the top-most JS_ENTRY handler.
@@ -2344,31 +2353,12 @@ bool Isolate::IsJavaScriptHandlerOnTop(Object exception) {
   // Note, that finally clauses would re-throw an exception unless it's aborted
   // by jumps in control flow (like return, break, etc.) and we'll have another
   // chance to set proper v8::TryCatch later.
-  return (entry_handler < external_handler);
-}
-
-bool Isolate::IsExternalHandlerOnTop(Object exception) {
-  DCHECK_NE(ReadOnlyRoots(heap()).the_hole_value(), exception);
-
-  // Get the address of the external handler so we can compare the address to
-  // determine which one is closer to the top of the stack.
-  Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (external_handler == kNullAddress) return false;
-
-  // For uncatchable exceptions, the external handler is always on top.
-  if (!is_catchable_by_javascript(exception)) return true;
-
-  // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
-  Address entry_handler = Isolate::handler(thread_local_top());
-  if (entry_handler == kNullAddress) return true;
-
-  // The exception has been externally caught if and only if there is an
-  // external handler which is on top of the top-most JS_ENTRY handler.
-  //
-  // Note, that finally clauses would re-throw an exception unless it's aborted
-  // by jumps in control flow (like return, break, etc.) and we'll have another
-  // chance to set proper v8::TryCatch later.
-  return (entry_handler > external_handler);
+  DCHECK_NE(kNullAddress, external_handler);
+  DCHECK_NE(kNullAddress, js_handler);
+  if (external_handler < js_handler) {
+    return ExceptionHandlerType::kExternalTryCatch;
+  }
+  return ExceptionHandlerType::kJavaScriptHandler;
 }
 
 std::vector<MemoryRange>* Isolate::GetCodePages() const {
@@ -2386,11 +2376,13 @@ void Isolate::ReportPendingMessages() {
   AllowJavascriptExecutionDebugOnly allow_script(this);
 
   Object exception_obj = pending_exception();
+  ExceptionHandlerType top_handler = TopExceptionHandlerType(exception_obj);
 
   // Try to propagate the exception to an external v8::TryCatch handler. If
   // propagation was unsuccessful, then we will get another chance at reporting
   // the pending message if the exception is re-thrown.
-  bool has_been_propagated = PropagatePendingExceptionToExternalTryCatch();
+  bool has_been_propagated =
+      PropagatePendingExceptionToExternalTryCatch(top_handler);
   if (!has_been_propagated) return;
 
   // Clear the pending message object early to avoid endless recursion.
@@ -2402,15 +2394,16 @@ void Isolate::ReportPendingMessages() {
   if (!is_catchable_by_javascript(exception_obj)) return;
 
   // Determine whether the message needs to be reported to all message handlers
-  // depending on whether and external v8::TryCatch or an internal JavaScript
-  // handler is on top.
+  // depending on whether the topmost external v8::TryCatch is verbose. We know
+  // there's no JavaScript handler on top; if there was, we would've returned
+  // early.
+  DCHECK_NE(ExceptionHandlerType::kJavaScriptHandler, top_handler);
+
   bool should_report_exception;
-  if (IsExternalHandlerOnTop(exception_obj)) {
-    // Only report the exception if the external handler is verbose.
+  if (top_handler == ExceptionHandlerType::kExternalTryCatch) {
     should_report_exception = try_catch_handler()->is_verbose_;
   } else {
-    // Report the exception if it isn't caught by JavaScript code.
-    should_report_exception = !IsJavaScriptHandlerOnTop(exception_obj);
+    should_report_exception = true;
   }
 
   // Actually report the pending message to all message handlers.
@@ -2433,7 +2426,8 @@ void Isolate::ReportPendingMessages() {
 
 bool Isolate::OptionalRescheduleException(bool clear_exception) {
   DCHECK(has_pending_exception());
-  PropagatePendingExceptionToExternalTryCatch();
+  PropagatePendingExceptionToExternalTryCatch(
+      TopExceptionHandlerType(pending_exception()));
 
   bool is_termination_exception =
       pending_exception() == ReadOnlyRoots(this).termination_exception();
@@ -3420,19 +3414,21 @@ void Isolate::SetTerminationOnExternalTryCatch() {
       reinterpret_cast<void*>(ReadOnlyRoots(heap()).null_value().ptr());
 }
 
-bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
+bool Isolate::PropagatePendingExceptionToExternalTryCatch(
+    ExceptionHandlerType top_handler) {
   Object exception = pending_exception();
 
-  if (IsJavaScriptHandlerOnTop(exception)) {
+  if (top_handler == ExceptionHandlerType::kJavaScriptHandler) {
     thread_local_top()->external_caught_exception_ = false;
     return false;
   }
 
-  if (!IsExternalHandlerOnTop(exception)) {
+  if (top_handler == ExceptionHandlerType::kNone) {
     thread_local_top()->external_caught_exception_ = false;
     return true;
   }
 
+  DCHECK_EQ(ExceptionHandlerType::kExternalTryCatch, top_handler);
   thread_local_top()->external_caught_exception_ = true;
   if (!is_catchable_by_javascript(exception)) {
     SetTerminationOnExternalTryCatch();
@@ -3442,7 +3438,7 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
            pending_message().IsTheHole(this));
     handler->can_continue_ = true;
     handler->has_terminated_ = false;
-    handler->exception_ = reinterpret_cast<void*>(pending_exception().ptr());
+    handler->exception_ = reinterpret_cast<void*>(exception.ptr());
     // Propagate to the external try-catch only if we got an actual message.
     if (!has_pending_message()) return true;
     handler->message_obj_ = reinterpret_cast<void*>(pending_message().ptr());

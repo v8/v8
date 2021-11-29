@@ -766,8 +766,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline void clear_scheduled_exception();
   inline void set_scheduled_exception(Object exception);
 
-  bool IsJavaScriptHandlerOnTop(Object exception);
-  bool IsExternalHandlerOnTop(Object exception);
+  enum class ExceptionHandlerType {
+    kJavaScriptHandler,
+    kExternalTryCatch,
+    kNone
+  };
+
+  ExceptionHandlerType TopExceptionHandlerType(Object exception);
 
   inline bool is_catchable_by_javascript(Object exception);
   inline bool is_catchable_by_wasm(Object exception);
@@ -1970,7 +1975,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Propagate pending exception message to the v8::TryCatch.
   // If there is no external try-catch or message was successfully propagated,
   // then return true.
-  bool PropagatePendingExceptionToExternalTryCatch();
+  bool PropagatePendingExceptionToExternalTryCatch(
+      ExceptionHandlerType top_handler);
 
   void RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                                            Handle<JSPromise> promise);
