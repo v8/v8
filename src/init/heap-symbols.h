@@ -116,8 +116,7 @@
   V(_, useGrouping_string, "useGrouping")                           \
   V(_, unitDisplay_string, "unitDisplay")                           \
   V(_, weekday_string, "weekday")                                   \
-  V(_, weekendEnd_string, "weekendEnd")                             \
-  V(_, weekendStart_string, "weekendStart")                         \
+  V(_, weekend_string, "weekend")                                   \
   V(_, weekInfo_string, "weekInfo")                                 \
   V(_, yearName_string, "yearName")
 #else  // V8_INTL_SUPPORT
