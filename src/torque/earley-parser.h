@@ -248,7 +248,7 @@ class Rule final {
 // used in the parser.
 class Symbol {
  public:
-  Symbol() : Symbol({}) {}
+  Symbol() = default;
   Symbol(std::initializer_list<Rule> rules) { *this = rules; }
 
   // Disallow copying and moving to ensure Symbol has a stable address.
