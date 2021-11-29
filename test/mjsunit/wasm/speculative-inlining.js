@@ -3,7 +3,13 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-speculative-inlining --experimental-wasm-return-call
-// Flags: --experimental-wasm-typed-funcref
+// Flags: --experimental-wasm-typed-funcref --allow-natives-syntax
+// Flags: --no-wasm-tier-up --wasm-dynamic-tiering --wasm-tiering-budget=100
+
+// These tests check if functions are speculatively inlined as expected. We do
+// not check automatically which functions are inlined. To get more insight, run
+// with --trace-wasm-speculative-inlining, --trace-turbo, --trace-wasm and (for
+// the last test only) --trace.
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -25,8 +31,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   let instance = builder.instantiate();
-  // Run it 10 times to trigger tier-up.
-  for (var i = 0; i < 10; i++) assertEquals(14, instance.exports.main(10));
+  // Run 'main' until it is tiered-up.
+  while (%IsLiftoffFunction(instance.exports.main)) {
+    assertEquals(14, instance.exports.main(10));
+  }
+  // The tiered-up function should have {callee} speculatively inlined.
+  assertEquals(14, instance.exports.main(10));
 })();
 
 (function CallRefSpecFailedTest() {
@@ -60,18 +70,18 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   let instance = builder.instantiate();
-  // Run main 10 times with the same function reference to trigger tier-up.
-  // This will speculatively inline a call to function {h}.
-  for (var i = 0; i < 10; i++) assertEquals(14, instance.exports.main(10, 1));
-  // If tier-up is done, "callee0" should be inlined in the trace.
+   // Run 'main' until it is tiered-up.
+   while (%IsLiftoffFunction(instance.exports.main)) {
+    assertEquals(14, instance.exports.main(10, 1));
+  }
+  // Tier-up is done, and {callee0} should be inlined in the trace.
   assertEquals(14, instance.exports.main(10, 1))
 
-  // Now, run main with {f} instead. The correct reference should still be
-  // called, i.e., "callee1".
+  // Now, run main with {callee1} instead. The correct reference should still be
+  // called after inlining.
   assertEquals(15, instance.exports.main(10, 0));
 })();
 
-// TODO(manoskouk): Fix the following tests.
 (function CallReturnRefSpecSucceededTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -90,8 +100,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   let instance = builder.instantiate();
-  // Run it 10 times to trigger tier-up.
-  for (var i = 0; i < 10; i++) assertEquals(14, instance.exports.main(10));
+  // Run 'main' until it is tiered-up.
+  while (%IsLiftoffFunction(instance.exports.main)) {
+    assertEquals(14, instance.exports.main(10));
+  }
+  // After tier-up, the tail call should be speculatively inlined.
+  assertEquals(14, instance.exports.main(10));
 })();
 
 (function CallReturnRefSpecFailedTest() {
@@ -123,13 +137,55 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("main");
 
   let instance = builder.instantiate();
-  // Run main 10 times with the same function reference to trigger tier-up.
-  // This will speculatively inline a call to function {h}.
-  for (var i = 0; i < 10; i++) assertEquals(9, instance.exports.main(10, 1));
-  // If tier-up is done, "callee0" should be inlined in the trace.
+  // Run 'main' until it is tiered-up.
+  while (%IsLiftoffFunction(instance.exports.main)) {
+    assertEquals(9, instance.exports.main(10, 1));
+  }
+  // After tier-up, {callee0} should be inlined in the trace.
   assertEquals(9, instance.exports.main(10, 1))
 
-  // Now, run main with {f} instead. The correct reference should still be
-  // called, i.e., "callee1".
+  // Now, run main with {callee1} instead. The correct reference should still be
+  // called.
   assertEquals(8, instance.exports.main(10, 0));
+})();
+
+(function CallRefImportedFunction() {
+  print(arguments.callee.name);
+
+  let instance1 = function() {
+    let builder = new WasmModuleBuilder();
+
+    let f1 = builder.addImport("m", "i_f1", kSig_i_i);
+    let f2 = builder.addImport("m", "i_f2", kSig_i_i);
+
+    builder.addExport("f1", f1);
+    builder.addExport("f2", f2);
+
+    return builder.instantiate({m : { i_f1 : x => x + 1, i_f2 : x => x + 2}});
+  }();
+
+  let instance2 = function() {
+    let builder = new WasmModuleBuilder();
+
+    let sig1 = builder.addType(kSig_i_i);
+    let sig2 = builder.addType(kSig_i_ii);
+
+    builder.addFunction("callee", sig2)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add])
+      .exportFunc();
+
+    builder.addFunction("main", makeSig([kWasmI32,
+                                         wasmRefType(sig1)], [kWasmI32]))
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallRef])
+      .exportFunc();
+
+    return builder.instantiate({});
+  }();
+
+  // Run 'main' until it is tiered-up.
+  while (%IsLiftoffFunction(instance2.exports.main)) {
+    instance2.exports.main(0, instance1.exports.f1);
+  }
+  // The function f1 defined in another module should not be inlined.
+  instance2.exports.main(0, instance1.exports.f1);
 })();
