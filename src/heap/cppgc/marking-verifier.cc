@@ -124,7 +124,7 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
   }
 
   verifier_found_marked_bytes_ +=
-      ObjectView(header).Size() + sizeof(HeapObjectHeader);
+      ObjectView<>(header).Size() + sizeof(HeapObjectHeader);
 
   verification_state_.SetCurrentParent(nullptr);
 
