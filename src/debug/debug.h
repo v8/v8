@@ -448,6 +448,9 @@ class V8_EXPORT_PRIVATE Debug {
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
                                            bool* has_break_points = nullptr);
+  MaybeHandle<FixedArray> GetHitBreakpointsAtCurrentStatement(
+      JavaScriptFrame* frame, bool* hasBreakpoints);
+
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
   // Check whether a BreakPoint object is hit. Evaluate condition depending
   // on whether this is a regular break location or a break at function entry.
@@ -555,7 +558,7 @@ class V8_EXPORT_PRIVATE Debug {
 
 #if V8_ENABLE_WEBASSEMBLY
   // This is a global handle, lazily initialized.
-  Handle<WeakArrayList> wasm_scripts_with_breakpoints_;
+  Handle<WeakArrayList> wasm_scripts_with_break_points_;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   Isolate* isolate_;
