@@ -54,7 +54,10 @@ base::Optional<ParseResult> Rule::RunAction(const Item* completed_item,
   MatchedInput matched_input = completed_item->GetMatchedInput(tokens);
   CurrentSourcePosition::Scope pos_scope(matched_input.pos);
   ParseResultIterator iterator(std::move(results), matched_input);
-  return action_(&iterator);
+  auto result = action_(&iterator);
+  // Make sure the parse action consumed all the child results.
+  CHECK(!iterator.HasNext());
+  return result;
 }
 
 Symbol& Symbol::operator=(std::initializer_list<Rule> rules) {
