@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fstream>
+#include <memory>
+
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/numbers/double.h"
@@ -26,6 +29,7 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "src/regexp/regexp.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
@@ -825,6 +829,50 @@ RUNTIME_FUNCTION(Runtime_ScheduleGCInStackCheck) {
             v8::Isolate::kFullGarbageCollection);
       },
       nullptr);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+class FileOutputStream : public v8::OutputStream {
+ public:
+  explicit FileOutputStream(const char* filename) : os_(filename) {}
+  ~FileOutputStream() override { os_.close(); }
+
+  WriteResult WriteAsciiChunk(char* data, int size) override {
+    os_.write(data, size);
+    return kContinue;
+  }
+
+  void EndOfStream() override { os_.close(); }
+
+ private:
+  std::ofstream os_;
+};
+
+RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
+  if (FLAG_fuzzing) {
+    // We don't want to create snapshots in fuzzers.
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  std::string filename = "heap.heapsnapshot";
+
+  if (args.length() >= 1) {
+    HandleScope hs(isolate);
+    CONVERT_ARG_HANDLE_CHECKED(String, filename_as_js_string, 0);
+    std::unique_ptr<char[]> buffer = filename_as_js_string->ToCString();
+    filename = std::string(buffer.get());
+  }
+
+  HeapProfiler* heap_profiler = isolate->heap_profiler();
+  // Since this API is intended for V8 devs, we do not treat globals as roots
+  // here on purpose.
+  HeapSnapshot* snapshot = heap_profiler->TakeSnapshot(
+      /* control = */ nullptr, /* resolver = */ nullptr,
+      /* treat_global_objects_as_roots = */ false,
+      /* capture_numeric_value = */ true);
+  FileOutputStream stream(filename.c_str());
+  HeapSnapshotJSONSerializer serializer(snapshot);
+  serializer.Serialize(&stream);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
