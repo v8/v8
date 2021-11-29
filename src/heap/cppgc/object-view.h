@@ -15,13 +15,13 @@ namespace internal {
 
 // ObjectView allows accessing a header within the bounds of the actual object.
 // It is not exposed externally and does not keep the underlying object alive.
-template <AccessMode = AccessMode::kNonAtomic>
 class ObjectView final {
  public:
   V8_INLINE explicit ObjectView(const HeapObjectHeader& header);
 
   V8_INLINE Address Start() const;
   V8_INLINE ConstAddress End() const;
+  template <AccessMode = AccessMode::kNonAtomic>
   V8_INLINE size_t Size() const;
 
  private:
@@ -30,30 +30,25 @@ class ObjectView final {
   const bool is_large_object_;
 };
 
-template <AccessMode access_mode>
-ObjectView<access_mode>::ObjectView(const HeapObjectHeader& header)
+ObjectView::ObjectView(const HeapObjectHeader& header)
     : header_(header),
       base_page_(
           BasePage::FromPayload(const_cast<HeapObjectHeader*>(&header_))),
-      is_large_object_(header_.IsLargeObject<access_mode>()) {
+      is_large_object_(header_.IsLargeObject()) {
   DCHECK_EQ(Start() + Size(), End());
 }
 
-template <AccessMode access_mode>
-Address ObjectView<access_mode>::Start() const {
-  return header_.ObjectStart();
-}
+Address ObjectView::Start() const { return header_.ObjectStart(); }
 
-template <AccessMode access_mode>
-ConstAddress ObjectView<access_mode>::End() const {
+ConstAddress ObjectView::End() const {
   return is_large_object_ ? LargePage::From(base_page_)->PayloadEnd()
                           : header_.ObjectEnd();
 }
 
-template <AccessMode access_mode>
-size_t ObjectView<access_mode>::Size() const {
+template <AccessMode mode>
+size_t ObjectView::Size() const {
   return is_large_object_ ? LargePage::From(base_page_)->ObjectSize()
-                          : header_.ObjectSize<access_mode>();
+                          : header_.ObjectSize<mode>();
 }
 
 }  // namespace internal

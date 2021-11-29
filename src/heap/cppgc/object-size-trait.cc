@@ -14,8 +14,8 @@ namespace internal {
 // static
 size_t BaseObjectSizeTrait::GetObjectSizeForGarbageCollected(
     const void* object) {
-  return ObjectView<AccessMode::kAtomic>(HeapObjectHeader::FromObject(object))
-      .Size();
+  return ObjectView(HeapObjectHeader::FromObject(object))
+      .Size<AccessMode::kAtomic>();
 }
 
 // static
