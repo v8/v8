@@ -1256,8 +1256,9 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
     if (value.IsWasmInternalFunction() &&
         WasmExportedFunction::IsWasmExportedFunction(
             WasmInternalFunction::cast(value).external())) {
-      // Monomorphic. Mark the target for inlining if it's defined in the
-      // same module.
+      // Monomorphic, and the internal function points to a wasm-generated
+      // external function (WasmExportedFunction). Mark the target for inlining
+      // if it's defined in the same module.
       WasmExportedFunction target = WasmExportedFunction::cast(
           WasmInternalFunction::cast(value).external());
       if (target.instance() == *instance &&
@@ -1288,16 +1289,25 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
         double frequency = static_cast<double>(this_count) / total_count;
         if (frequency > best_frequency) best_frequency = frequency;
         if (frequency < 0.8) continue;
-        Object maybe_target = polymorphic.get(j);
-        if (!maybe_target.IsWasmInternalFunction()) {
+
+        // We reject this polymorphic entry if:
+        // - it is not defined,
+        // - it is not a wasm-defined function (WasmExportedFunction)
+        // - it was not defined in this module.
+        if (!polymorphic.get(j).IsWasmInternalFunction()) continue;
+        WasmInternalFunction internal =
+            WasmInternalFunction::cast(polymorphic.get(j));
+        if (!WasmExportedFunction::IsWasmExportedFunction(
+                internal.external())) {
           continue;
         }
-        WasmExportedFunction target = WasmExportedFunction::cast(
-            WasmInternalFunction::cast(polymorphic.get(j)).external());
+        WasmExportedFunction target =
+            WasmExportedFunction::cast(internal.external());
         if (target.instance() != *instance ||
             target.function_index() < imported_functions) {
           continue;
         }
+
         found_target = target.function_index();
         found_count = static_cast<int>(this_count);
         if (FLAG_trace_wasm_speculative_inlining) {
@@ -1317,6 +1327,10 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
     // If we fall through to here, then this call isn't eligible for inlining.
     // Possible reasons: uninitialized or megamorphic feedback; or monomorphic
     // or polymorphic that didn't meet our requirements.
+    if (FLAG_trace_wasm_speculative_inlining) {
+      PrintF("[Function #%d call_ref #%d *not* inlineable]\n", func_index,
+             i / 2);
+    }
     result[i / 2] = {-1, -1};
   }
   return result;
