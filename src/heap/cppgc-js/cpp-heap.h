@@ -12,8 +12,8 @@ static_assert(
 
 #include "include/v8-callbacks.h"
 #include "include/v8-cppgc.h"
-#include "include/v8-embedder-heap.h"
 #include "include/v8-metrics.h"
+#include "src/base/flags.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/stats-collector.h"
@@ -29,9 +29,15 @@ namespace internal {
 class V8_EXPORT_PRIVATE CppHeap final
     : public cppgc::internal::HeapBase,
       public v8::CppHeap,
-      public v8::EmbedderHeapTracer,
       public cppgc::internal::StatsCollector::AllocationObserver {
  public:
+  enum GarbageCollectionFlagValues {
+    kReduceMemory,
+    kForced,
+  };
+
+  using GarbageCollectionFlags = base::Flags<GarbageCollectionFlagValues>;
+
   class MetricRecorderAdapter final : public cppgc::internal::MetricRecorder {
    public:
     static constexpr int kMaxBatchedEvents = 16;
@@ -106,14 +112,13 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void FinishSweepingIfRunning();
 
-  // v8::EmbedderHeapTracer interface.
   void RegisterV8References(
-      const std::vector<std::pair<void*, void*> >& embedder_fields) final;
-  void TracePrologue(TraceFlags flags) final;
-  bool AdvanceTracing(double deadline_in_ms) final;
-  bool IsTracingDone() final;
-  void TraceEpilogue(TraceSummary* trace_summary) final;
-  void EnterFinalPause(EmbedderStackState stack_state) final;
+      const std::vector<std::pair<void*, void*>>& embedder_fields);
+  void TracePrologue(GarbageCollectionFlags);
+  bool AdvanceTracing(double max_duration);
+  bool IsTracingDone();
+  void TraceEpilogue();
+  void EnterFinalPause(cppgc::EmbedderStackState stack_state);
 
   // StatsCollector::AllocationObserver interface.
   void AllocatedObjectSizeIncreased(size_t) final;
@@ -121,6 +126,12 @@ class V8_EXPORT_PRIVATE CppHeap final
   void ResetAllocatedObjectSize(size_t) final {}
 
   MetricRecorderAdapter* GetMetricRecorder() const;
+
+  v8::WrapperDescriptor wrapper_descriptor() const {
+    return wrapper_descriptor_;
+  }
+
+  Isolate* isolate() const { return isolate_; }
 
  private:
   void FinalizeIncrementalGarbageCollectionIfNeeded(
@@ -132,11 +143,12 @@ class V8_EXPORT_PRIVATE CppHeap final
   void ReportBufferedAllocationSizeIfPossible();
 
   void StartIncrementalGarbageCollectionForTesting() final;
-  void FinalizeIncrementalGarbageCollectionForTesting(EmbedderStackState) final;
+  void FinalizeIncrementalGarbageCollectionForTesting(
+      cppgc::EmbedderStackState) final;
 
   Isolate* isolate_ = nullptr;
   bool marking_done_ = false;
-  TraceFlags current_flags_ = TraceFlags::kNoFlags;
+  GarbageCollectionFlags current_gc_flags_;
 
   // Buffered allocated bytes. Reporting allocated bytes to V8 can trigger a GC
   // atomic pause. Allocated bytes are buffer in case this is temporarily

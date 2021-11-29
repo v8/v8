@@ -5896,11 +5896,13 @@ EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
 void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
   CppHeap::From(cpp_heap)->AttachIsolate(isolate());
   cpp_heap_ = cpp_heap;
+  local_embedder_heap_tracer()->SetCppHeap(CppHeap::From(cpp_heap));
 }
 
 void Heap::DetachCppHeap() {
   CppHeap::From(cpp_heap_)->DetachIsolate();
   cpp_heap_ = nullptr;
+  local_embedder_heap_tracer()->SetCppHeap(nullptr);
 }
 
 EmbedderHeapTracer::TraceFlags Heap::flags_for_embedder_tracer() const {

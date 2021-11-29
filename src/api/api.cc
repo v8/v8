@@ -8481,6 +8481,7 @@ void Isolate::RemoveGCEpilogueCallback(GCCallback callback) {
 
 void Isolate::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  CHECK_NULL(isolate->heap()->cpp_heap());
   isolate->heap()->SetEmbedderHeapTracer(tracer);
 }
 
@@ -8496,6 +8497,7 @@ void Isolate::SetEmbedderRootsHandler(EmbedderRootsHandler* handler) {
 
 void Isolate::AttachCppHeap(CppHeap* cpp_heap) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  CHECK_NULL(GetEmbedderHeapTracer());
   isolate->heap()->AttachCppHeap(cpp_heap);
 }
 

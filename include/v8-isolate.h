@@ -914,11 +914,13 @@ class V8_EXPORT Isolate {
 
   /**
    * Sets the embedder heap tracer for the isolate.
+   * SetEmbedderHeapTracer cannot be used simultaneously with AttachCppHeap.
    */
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
 
   /*
-   * Gets the currently active heap tracer for the isolate.
+   * Gets the currently active heap tracer for the isolate that was set with
+   * SetEmbedderHeapTracer.
    */
   EmbedderHeapTracer* GetEmbedderHeapTracer();
 
@@ -938,6 +940,7 @@ class V8_EXPORT Isolate {
    * Attaches a managed C++ heap as an extension to the JavaScript heap. The
    * embedder maintains ownership of the CppHeap. At most one C++ heap can be
    * attached to V8.
+   * AttachCppHeap cannot be used simultaneously with SetEmbedderHeapTracer.
    *
    * This is an experimental feature and may still change significantly.
    */
