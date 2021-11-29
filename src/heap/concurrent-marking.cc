@@ -23,6 +23,7 @@
 #include "src/heap/memory-measurement.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/weak-object-worklists.h"
 #include "src/heap/worklist.h"
 #include "src/init/v8.h"
 #include "src/objects/data-handler-inl.h"
@@ -86,13 +87,13 @@ class ConcurrentMarkingVisitor final
  public:
   ConcurrentMarkingVisitor(int task_id,
                            MarkingWorklists::Local* local_marking_worklists,
-                           WeakObjects* weak_objects, Heap* heap,
+                           WeakObjects::Local* local_weak_objects, Heap* heap,
                            unsigned mark_compact_epoch,
                            base::EnumSet<CodeFlushMode> code_flush_mode,
                            bool embedder_tracing_enabled,
                            bool should_keep_ages_unchanged,
                            MemoryChunkDataMap* memory_chunk_data)
-      : MarkingVisitorBase(task_id, local_marking_worklists, weak_objects, heap,
+      : MarkingVisitorBase(local_marking_worklists, local_weak_objects, heap,
                            mark_compact_epoch, code_flush_mode,
                            embedder_tracing_enabled,
                            should_keep_ages_unchanged),
@@ -160,7 +161,7 @@ class ConcurrentMarkingVisitor final
       }
 
     } else if (marking_state_.IsWhite(value)) {
-      weak_objects_->next_ephemerons.Push(task_id_, Ephemeron{key, value});
+      local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
     }
     return false;
   }
@@ -447,8 +448,9 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
   uint8_t task_id = delegate->GetTaskId() + 1;
   TaskState* task_state = &task_state_[task_id];
   MarkingWorklists::Local local_marking_worklists(marking_worklists_);
+  WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
-      task_id, &local_marking_worklists, weak_objects_, heap_,
+      task_id, &local_marking_worklists, &local_weak_objects, heap_,
       mark_compact_epoch, code_flush_mode,
       heap_->local_embedder_heap_tracer()->InUse(), should_keep_ages_unchanged,
       &task_state->memory_chunk_data);
@@ -469,8 +471,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
 
     {
       Ephemeron ephemeron;
-
-      while (weak_objects_->current_ephemerons.Pop(task_id, &ephemeron)) {
+      while (local_weak_objects.current_ephemerons_local.Pop(&ephemeron)) {
         if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
           another_ephemeron_iteration = true;
         }
@@ -538,8 +539,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
 
     if (done) {
       Ephemeron ephemeron;
-
-      while (weak_objects_->discovered_ephemerons.Pop(task_id, &ephemeron)) {
+      while (local_weak_objects.discovered_ephemerons_local.Pop(&ephemeron)) {
         if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
           another_ephemeron_iteration = true;
         }
@@ -547,18 +547,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
     }
 
     local_marking_worklists.Publish();
-    weak_objects_->transition_arrays.FlushToGlobal(task_id);
-    weak_objects_->ephemeron_hash_tables.FlushToGlobal(task_id);
-    weak_objects_->current_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->next_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->discovered_ephemerons.FlushToGlobal(task_id);
-    weak_objects_->weak_references.FlushToGlobal(task_id);
-    weak_objects_->js_weak_refs.FlushToGlobal(task_id);
-    weak_objects_->weak_cells.FlushToGlobal(task_id);
-    weak_objects_->weak_objects_in_code.FlushToGlobal(task_id);
-    weak_objects_->code_flushing_candidates.FlushToGlobal(task_id);
-    weak_objects_->baseline_flushing_candidates.FlushToGlobal(task_id);
-    weak_objects_->flushed_js_functions.FlushToGlobal(task_id);
+    local_weak_objects.Publish();
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
 
@@ -579,10 +568,10 @@ size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {
     marking_items += worklist.worklist->Size();
   return std::min<size_t>(
       kMaxTasks,
-      worker_count + std::max<size_t>(
-                         {marking_items,
-                          weak_objects_->discovered_ephemerons.GlobalPoolSize(),
-                          weak_objects_->current_ephemerons.GlobalPoolSize()}));
+      worker_count +
+          std::max<size_t>({marking_items,
+                            weak_objects_->discovered_ephemerons.Size(),
+                            weak_objects_->current_ephemerons.Size()}));
 }
 
 void ConcurrentMarking::ScheduleJob(TaskPriority priority) {
@@ -603,8 +592,8 @@ void ConcurrentMarking::RescheduleJobIfNeeded(TaskPriority priority) {
   if (heap_->IsTearingDown()) return;
 
   if (marking_worklists_->shared()->IsEmpty() &&
-      weak_objects_->current_ephemerons.IsGlobalPoolEmpty() &&
-      weak_objects_->discovered_ephemerons.IsGlobalPoolEmpty()) {
+      weak_objects_->current_ephemerons.IsEmpty() &&
+      weak_objects_->discovered_ephemerons.IsEmpty()) {
     return;
   }
   if (!job_handle_ || !job_handle_->IsValid()) {

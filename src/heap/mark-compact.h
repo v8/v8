@@ -390,13 +390,13 @@ class MainMarkingVisitor final
 
   MainMarkingVisitor(MarkingState* marking_state,
                      MarkingWorklists::Local* local_marking_worklists,
-                     WeakObjects* weak_objects, Heap* heap,
+                     WeakObjects::Local* local_weak_objects, Heap* heap,
                      unsigned mark_compact_epoch,
                      base::EnumSet<CodeFlushMode> code_flush_mode,
                      bool embedder_tracing_enabled,
                      bool should_keep_ages_unchanged)
       : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
-            kMainThreadTask, local_marking_worklists, weak_objects, heap,
+            local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
             should_keep_ages_unchanged),
         marking_state_(marking_state),
@@ -551,6 +551,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   }
 
   WeakObjects* weak_objects() { return &weak_objects_; }
+
+  WeakObjects::Local* local_weak_objects() { return local_weak_objects_.get(); }
 
   inline void AddTransitionArray(TransitionArray array);
 
@@ -719,8 +721,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // those with dead values.
   void ClearJSWeakRefs();
 
-  void AbortWeakObjects();
-
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
   void StartSweepSpaces();
@@ -782,6 +782,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   std::unique_ptr<MarkingVisitor> marking_visitor_;
   std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
+  std::unique_ptr<WeakObjects::Local> local_weak_objects_;
   NativeContextInferrer native_context_inferrer_;
   NativeContextStats native_context_stats_;
 

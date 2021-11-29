@@ -60,6 +60,9 @@ class Worklist {
   // marking worklist.
   void Merge(Worklist<EntryType, SegmentSize>* other);
 
+  // Swaps the segments with the given marking worklist.
+  void Swap(Worklist<EntryType, SegmentSize>* other);
+
   // These functions are not thread-safe. They should be called only
   // if all local marking worklists that use the current worklist have
   // been published and are empty.
@@ -188,6 +191,17 @@ void Worklist<EntryType, SegmentSize>::Merge(
     end->set_next(top_);
     set_top(top);
   }
+}
+
+template <typename EntryType, uint16_t SegmentSize>
+void Worklist<EntryType, SegmentSize>::Swap(
+    Worklist<EntryType, SegmentSize>* other) {
+  Segment* top = top_;
+  set_top(other->top_);
+  other->set_top(top);
+  size_t other_size = other->size_.exchange(
+      size_.load(std::memory_order_relaxed), std::memory_order_relaxed);
+  size_.store(other_size, std::memory_order_relaxed);
 }
 
 template <typename EntryType, uint16_t SegmentSize>

@@ -504,6 +504,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
         }
       });
 
+  collector_->local_weak_objects()->Publish();
   weak_objects_->UpdateAfterScavenge();
 }
 

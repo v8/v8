@@ -40,6 +40,7 @@
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/sweeper.h"
+#include "src/heap/weak-object-worklists.h"
 #include "src/heap/worklist.h"
 #include "src/ic/stub-cache.h"
 #include "src/init/v8.h"
@@ -495,12 +496,13 @@ void MarkCompactCollector::SetUp() {
 
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
-  AbortWeakObjects();
   if (heap()->incremental_marking()->IsMarking()) {
     local_marking_worklists()->Publish();
     heap()->marking_barrier()->Publish();
     // Marking barriers of LocalHeaps will be published in their destructors.
     marking_worklists()->Clear();
+    local_weak_objects()->Publish();
+    weak_objects()->Clear();
   }
   sweeper()->TearDown();
 }
@@ -570,9 +572,11 @@ void MarkCompactCollector::StartMarking() {
   marking_worklists()->CreateContextWorklists(contexts);
   local_marking_worklists_ =
       std::make_unique<MarkingWorklists::Local>(marking_worklists());
+  local_weak_objects_ = std::make_unique<WeakObjects::Local>(weak_objects());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
-      marking_state(), local_marking_worklists(), weak_objects(), heap_,
-      epoch(), code_flush_mode(), heap_->local_embedder_heap_tracer()->InUse(),
+      marking_state(), local_marking_worklists(), local_weak_objects_.get(),
+      heap_, epoch(), code_flush_mode(),
+      heap_->local_embedder_heap_tracer()->InUse(),
       heap_->ShouldCurrentGCKeepAgesUnchanged());
 // Marking bits are cleared by the sweeper.
 #ifdef VERIFY_HEAP
@@ -991,6 +995,8 @@ void MarkCompactCollector::Finish() {
 
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
   CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
+  local_weak_objects_->next_ephemerons_local.Publish();
+  local_weak_objects_.reset();
   weak_objects_.next_ephemerons.Clear();
 
   sweeper()->StartSweeperTasks();
@@ -1808,7 +1814,9 @@ bool MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
 
     // Move ephemerons from next_ephemerons into current_ephemerons to
     // drain them in this iteration.
-    weak_objects_.current_ephemerons.Swap(weak_objects_.next_ephemerons);
+    DCHECK(
+        local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
+    weak_objects_.current_ephemerons.Swap(&weak_objects_.next_ephemerons);
     heap()->concurrent_marking()->set_another_ephemeron_iteration(false);
 
     {
@@ -1824,8 +1832,10 @@ bool MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
       FinishConcurrentMarking();
     }
 
-    CHECK(weak_objects_.current_ephemerons.IsEmpty());
-    CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
+    CHECK(
+        local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
+    CHECK(local_weak_objects()
+              ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
 
     ++iterations;
   } while (another_ephemeron_iteration_main_thread ||
@@ -1835,8 +1845,9 @@ bool MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
            !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
 
   CHECK(local_marking_worklists()->IsEmpty());
-  CHECK(weak_objects_.current_ephemerons.IsEmpty());
-  CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
+  CHECK(local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
+  CHECK(local_weak_objects()
+            ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
   return true;
 }
 
@@ -1846,7 +1857,7 @@ bool MarkCompactCollector::ProcessEphemerons() {
 
   // Drain current_ephemerons and push ephemerons where key and value are still
   // unreachable into next_ephemerons.
-  while (weak_objects_.current_ephemerons.Pop(kMainThreadTask, &ephemeron)) {
+  while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
     if (ProcessEphemeron(ephemeron.key, ephemeron.value)) {
       another_ephemeron_iteration = true;
     }
@@ -1865,15 +1876,15 @@ bool MarkCompactCollector::ProcessEphemerons() {
   // Drain discovered_ephemerons (filled in the drain MarkingWorklist-phase
   // before) and push ephemerons where key and value are still unreachable into
   // next_ephemerons.
-  while (weak_objects_.discovered_ephemerons.Pop(kMainThreadTask, &ephemeron)) {
+  while (local_weak_objects()->discovered_ephemerons_local.Pop(&ephemeron)) {
     if (ProcessEphemeron(ephemeron.key, ephemeron.value)) {
       another_ephemeron_iteration = true;
     }
   }
 
   // Flush local ephemerons for main task to global pool.
-  weak_objects_.ephemeron_hash_tables.FlushToGlobal(kMainThreadTask);
-  weak_objects_.next_ephemerons.FlushToGlobal(kMainThreadTask);
+  local_weak_objects()->ephemeron_hash_tables_local.Publish();
+  local_weak_objects()->next_ephemerons_local.Publish();
 
   return another_ephemeron_iteration;
 }
@@ -1885,10 +1896,10 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
   std::unordered_multimap<HeapObject, HeapObject, Object::Hasher> key_to_values;
   Ephemeron ephemeron;
 
-  DCHECK(weak_objects_.current_ephemerons.IsEmpty());
-  weak_objects_.current_ephemerons.Swap(weak_objects_.next_ephemerons);
-
-  while (weak_objects_.current_ephemerons.Pop(kMainThreadTask, &ephemeron)) {
+  DCHECK(
+      local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
+  weak_objects_.current_ephemerons.Swap(&weak_objects_.next_ephemerons);
+  while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
     ProcessEphemeron(ephemeron.key, ephemeron.value);
 
     if (non_atomic_marking_state()->IsWhite(ephemeron.value)) {
@@ -1915,8 +1926,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
               kTrackNewlyDiscoveredObjects>(0);
     }
 
-    while (
-        weak_objects_.discovered_ephemerons.Pop(kMainThreadTask, &ephemeron)) {
+    while (local_weak_objects()->discovered_ephemerons_local.Pop(&ephemeron)) {
       ProcessEphemeron(ephemeron.key, ephemeron.value);
 
       if (non_atomic_marking_state()->IsWhite(ephemeron.value)) {
@@ -1927,6 +1937,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
     if (ephemeron_marking_.newly_discovered_overflowed) {
       // If newly_discovered was overflowed just visit all ephemerons in
       // next_ephemerons.
+      local_weak_objects()->next_ephemerons_local.Publish();
       weak_objects_.next_ephemerons.Iterate([&](Ephemeron ephemeron) {
         if (non_atomic_marking_state()->IsBlackOrGrey(ephemeron.key) &&
             non_atomic_marking_state()->WhiteToGrey(ephemeron.value)) {
@@ -1954,7 +1965,8 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
     work_to_do = !local_marking_worklists()->IsEmpty() ||
                  !local_marking_worklists()->IsEmbedderEmpty() ||
                  !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone();
-    CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
+    CHECK(local_weak_objects()
+              ->discovered_ephemerons_local.IsLocalAndGlobalEmpty());
   }
 
   ResetNewlyDiscovered();
@@ -1965,8 +1977,8 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
   CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
 
   // Flush local ephemerons for main task to global pool.
-  weak_objects_.ephemeron_hash_tables.FlushToGlobal(kMainThreadTask);
-  weak_objects_.next_ephemerons.FlushToGlobal(kMainThreadTask);
+  local_weak_objects()->ephemeron_hash_tables_local.Publish();
+  local_weak_objects()->next_ephemerons_local.Publish();
 }
 
 void MarkCompactCollector::PerformWrapperTracing() {
@@ -2057,9 +2069,8 @@ bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
     }
 
   } else if (marking_state()->IsWhite(value)) {
-    weak_objects_.next_ephemerons.Push(kMainThreadTask, Ephemeron{key, value});
+    local_weak_objects()->next_ephemerons_local.Push(Ephemeron{key, value});
   }
-
   return false;
 }
 
@@ -2068,7 +2079,7 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
 
   // Incremental marking might leave ephemerons in main task's local
   // buffer, flush it into global pool.
-  weak_objects_.next_ephemerons.FlushToGlobal(kMainThreadTask);
+  local_weak_objects()->next_ephemerons_local.Publish();
 
   if (!ProcessEphemeronsUntilFixpoint()) {
     // Fixpoint iteration needed too many iterations and was cancelled. Use the
@@ -2080,9 +2091,10 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
   if (FLAG_verify_heap) {
     Ephemeron ephemeron;
 
-    weak_objects_.current_ephemerons.Swap(weak_objects_.next_ephemerons);
-
-    while (weak_objects_.current_ephemerons.Pop(kMainThreadTask, &ephemeron)) {
+    DCHECK(
+        local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
+    weak_objects_.current_ephemerons.Swap(&weak_objects_.next_ephemerons);
+    while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
       CHECK(!ProcessEphemeron(ephemeron.key, ephemeron.value));
     }
   }
@@ -2330,8 +2342,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
   std::pair<HeapObject, Code> weak_object_in_code;
-  while (weak_objects_.weak_objects_in_code.Pop(kMainThreadTask,
-                                                &weak_object_in_code)) {
+  while (local_weak_objects()->weak_objects_in_code_local.Pop(
+      &weak_object_in_code)) {
     HeapObject object = weak_object_in_code.first;
     Code code = weak_object_in_code.second;
     if (!non_atomic_marking_state()->IsBlackOrGrey(object) &&
@@ -2446,8 +2458,8 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   DCHECK(FLAG_flush_bytecode || FLAG_flush_baseline_code ||
          weak_objects_.code_flushing_candidates.IsEmpty());
   SharedFunctionInfo flushing_candidate;
-  while (weak_objects_.code_flushing_candidates.Pop(kMainThreadTask,
-                                                    &flushing_candidate)) {
+  while (local_weak_objects()->code_flushing_candidates_local.Pop(
+      &flushing_candidate)) {
     bool is_bytecode_live = non_atomic_marking_state()->IsBlackOrGrey(
         flushing_candidate.GetBytecodeArray(isolate()));
     if (FLAG_flush_baseline_code && flushing_candidate.HasBaselineCode()) {
@@ -2497,8 +2509,8 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
 void MarkCompactCollector::ClearFlushedJsFunctions() {
   DCHECK(FLAG_flush_bytecode || weak_objects_.flushed_js_functions.IsEmpty());
   JSFunction flushed_js_function;
-  while (weak_objects_.flushed_js_functions.Pop(kMainThreadTask,
-                                                &flushed_js_function)) {
+  while (local_weak_objects()->flushed_js_functions_local.Pop(
+      &flushed_js_function)) {
     auto gc_notify_updated_slot = [](HeapObject object, ObjectSlot slot,
                                      Object target) {
       RecordSlot(object, slot, HeapObject::cast(target));
@@ -2511,8 +2523,8 @@ void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
   DCHECK(FLAG_flush_baseline_code ||
          weak_objects_.baseline_flushing_candidates.IsEmpty());
   JSFunction flushed_js_function;
-  while (weak_objects_.baseline_flushing_candidates.Pop(kMainThreadTask,
-                                                        &flushed_js_function)) {
+  while (local_weak_objects()->baseline_flushing_candidates_local.Pop(
+      &flushed_js_function)) {
     auto gc_notify_updated_slot = [](HeapObject object, ObjectSlot slot,
                                      Object target) {
       RecordSlot(object, slot, HeapObject::cast(target));
@@ -2528,7 +2540,7 @@ void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
 
 void MarkCompactCollector::ClearFullMapTransitions() {
   TransitionArray array;
-  while (weak_objects_.transition_arrays.Pop(kMainThreadTask, &array)) {
+  while (local_weak_objects()->transition_arrays_local.Pop(&array)) {
     int num_transitions = array.number_of_entries();
     if (num_transitions > 0) {
       Map map;
@@ -2706,8 +2718,7 @@ void MarkCompactCollector::TrimEnumCache(Map map, DescriptorArray descriptors) {
 void MarkCompactCollector::ClearWeakCollections() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS);
   EphemeronHashTable table;
-
-  while (weak_objects_.ephemeron_hash_tables.Pop(kMainThreadTask, &table)) {
+  while (local_weak_objects()->ephemeron_hash_tables_local.Pop(&table)) {
     for (InternalIndex i : table.IterateEntries()) {
       HeapObject key = HeapObject::cast(table.KeyAt(i));
 #ifdef VERIFY_HEAP
@@ -2740,7 +2751,7 @@ void MarkCompactCollector::ClearWeakReferences() {
   std::pair<HeapObject, HeapObjectSlot> slot;
   HeapObjectReference cleared_weak_ref =
       HeapObjectReference::ClearedValue(isolate());
-  while (weak_objects_.weak_references.Pop(kMainThreadTask, &slot)) {
+  while (local_weak_objects()->weak_references_local.Pop(&slot)) {
     HeapObject value;
     // The slot could have been overwritten, so we have to treat it
     // as MaybeObjectSlot.
@@ -2763,7 +2774,7 @@ void MarkCompactCollector::ClearWeakReferences() {
 
 void MarkCompactCollector::ClearJSWeakRefs() {
   JSWeakRef weak_ref;
-  while (weak_objects_.js_weak_refs.Pop(kMainThreadTask, &weak_ref)) {
+  while (local_weak_objects()->js_weak_refs_local.Pop(&weak_ref)) {
     HeapObject target = HeapObject::cast(weak_ref.target());
     if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
       weak_ref.set_target(ReadOnlyRoots(isolate()).undefined_value());
@@ -2774,7 +2785,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
     }
   }
   WeakCell weak_cell;
-  while (weak_objects_.weak_cells.Pop(kMainThreadTask, &weak_cell)) {
+  while (local_weak_objects()->weak_cells_local.Pop(&weak_cell)) {
     auto gc_notify_updated_slot = [](HeapObject object, ObjectSlot slot,
                                      Object target) {
       if (target.IsHeapObject()) {
@@ -2826,21 +2837,6 @@ void MarkCompactCollector::ClearJSWeakRefs() {
     }
   }
   heap()->PostFinalizationRegistryCleanupTaskIfNeeded();
-}
-
-void MarkCompactCollector::AbortWeakObjects() {
-  weak_objects_.transition_arrays.Clear();
-  weak_objects_.ephemeron_hash_tables.Clear();
-  weak_objects_.current_ephemerons.Clear();
-  weak_objects_.next_ephemerons.Clear();
-  weak_objects_.discovered_ephemerons.Clear();
-  weak_objects_.weak_references.Clear();
-  weak_objects_.weak_objects_in_code.Clear();
-  weak_objects_.js_weak_refs.Clear();
-  weak_objects_.weak_cells.Clear();
-  weak_objects_.code_flushing_candidates.Clear();
-  weak_objects_.baseline_flushing_candidates.Clear();
-  weak_objects_.flushed_js_functions.Clear();
 }
 
 bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {
