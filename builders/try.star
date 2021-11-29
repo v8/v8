@@ -218,6 +218,15 @@ try_builder(
     use_goma = GOMA.DEFAULT,
 )
 
+#TODO(almuthanna): add this to Branch CQ after current milestone + 3 (i.e. M100).
+try_builder(
+    name = "v8_mac64_asan_compile_rel",
+    bucket = "try",
+    cq_properties = CQ.EXP_100_PERCENT,
+    dimensions = {"os": "Mac-10.15"},
+    use_goma = GOMA.DEFAULT,
+)
+
 try_builder(
     name = "v8_linux_torque_compare",
     bucket = "try",
