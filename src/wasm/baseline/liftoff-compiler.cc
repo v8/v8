@@ -771,11 +771,6 @@ class LiftoffCompiler {
     return false;
   }
 
-  void TierUpFunction(FullDecoder* decoder) {
-    __ CallRuntimeStub(WasmCode::kWasmTriggerTierUp);
-    DefineSafepoint();
-  }
-
   void TraceFunctionEntry(FullDecoder* decoder) {
     CODE_COMMENT("trace function entry");
     __ SpillAllRegisters();
