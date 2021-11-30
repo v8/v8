@@ -1136,6 +1136,7 @@ filegroup(
         "src/common/assert-scope.cc",
         "src/common/assert-scope.h",
         "src/common/checks.h",
+        "src/common/high-allocation-throughput-scope.h",
         "src/common/message-template.h",
         "src/common/ptr-compr-inl.h",
         "src/common/ptr-compr.h",

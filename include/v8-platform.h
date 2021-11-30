@@ -523,6 +523,16 @@ class ZoneBackingAllocator {
 };
 
 /**
+ * Observer used by V8 to notify the embedder about entering/leaving sections
+ * with high throughput of malloc/free operations.
+ */
+class HighAllocationThroughputObserver {
+ public:
+  virtual void EnterSection() {}
+  virtual void LeaveSection() {}
+};
+
+/**
  * V8 Platform abstraction layer.
  *
  * The embedder has to provide an implementation of this interface before
@@ -712,6 +722,16 @@ class Platform {
    * but non-critical scenario.
    */
   virtual void DumpWithoutCrashing() {}
+
+  /**
+   * Allows the embedder to observe sections with high throughput allocation
+   * operations.
+   */
+  virtual HighAllocationThroughputObserver*
+  GetHighAllocationThroughputObserver() {
+    static HighAllocationThroughputObserver default_observer;
+    return &default_observer;
+  }
 
  protected:
   /**
