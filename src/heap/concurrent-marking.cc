@@ -127,6 +127,10 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclass(map, object);
   }
 
+  int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+
   int VisitConsString(Map map, ConsString object) {
     return VisitFullyWithSnapshot(map, object);
   }
@@ -210,19 +214,21 @@ class ConcurrentMarkingVisitor final
 
     void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
       // This should never happen, because snapshotting is performed only on
-      // JSObjects (and derived classes).
+      // some String subclasses.
       UNREACHABLE();
     }
 
     void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
       // This should never happen, because snapshotting is performed only on
-      // JSObjects (and derived classes).
+      // some String subclasses.
       UNREACHABLE();
     }
 
     void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                  ObjectSlot end) override {
-      DCHECK(host.IsWeakCell() || host.IsJSWeakRef());
+      // This should never happen, because snapshotting is performed only on
+      // some String subclasses.
+      UNREACHABLE();
     }
 
    private:

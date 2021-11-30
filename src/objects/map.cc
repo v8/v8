@@ -249,7 +249,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_ERROR_TYPE:
-    case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
@@ -323,6 +322,9 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case WEAK_CELL_TYPE:
       return kVisitWeakCell;
+
+    case JS_FINALIZATION_REGISTRY_TYPE:
+      return kVisitJSFinalizationRegistry;
 
     case FILLER_TYPE:
     case FOREIGN_TYPE:

@@ -1748,6 +1748,9 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object parent,
   if (parent.IsContext() &&
       field_offset == Context::OffsetOfElementAt(Context::NEXT_CONTEXT_LINK))
     return false;
+  if (parent.IsJSFinalizationRegistry() &&
+      field_offset == JSFinalizationRegistry::kNextDirtyOffset)
+    return false;
   return true;
 }
 
