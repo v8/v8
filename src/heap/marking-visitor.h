@@ -12,7 +12,6 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/weak-object-worklists.h"
-#include "src/heap/worklist.h"
 
 namespace v8 {
 namespace internal {

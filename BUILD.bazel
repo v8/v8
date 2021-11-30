@@ -1429,7 +1429,6 @@ filegroup(
         "src/heap/sweeper.h",
         "src/heap/weak-object-worklists.cc",
         "src/heap/weak-object-worklists.h",
-        "src/heap/worklist.h",
         "src/ic/call-optimization.cc",
         "src/ic/call-optimization.h",
         "src/ic/handler-configuration-inl.h",

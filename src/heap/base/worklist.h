@@ -228,14 +228,14 @@ class Worklist<EntryType, SegmentSize>::Segment : public internal::SegmentBase {
 
   friend class Worklist<EntryType, SegmentSize>::Local;
 
-  FRIEND_TEST(CppgcWorkListTest, SegmentCreate);
-  FRIEND_TEST(CppgcWorkListTest, SegmentPush);
-  FRIEND_TEST(CppgcWorkListTest, SegmentPushPop);
-  FRIEND_TEST(CppgcWorkListTest, SegmentIsEmpty);
-  FRIEND_TEST(CppgcWorkListTest, SegmentIsFull);
-  FRIEND_TEST(CppgcWorkListTest, SegmentClear);
-  FRIEND_TEST(CppgcWorkListTest, SegmentUpdateFalse);
-  FRIEND_TEST(CppgcWorkListTest, SegmentUpdate);
+  FRIEND_TEST(WorkListTest, SegmentCreate);
+  FRIEND_TEST(WorkListTest, SegmentPush);
+  FRIEND_TEST(WorkListTest, SegmentPushPop);
+  FRIEND_TEST(WorkListTest, SegmentIsEmpty);
+  FRIEND_TEST(WorkListTest, SegmentIsFull);
+  FRIEND_TEST(WorkListTest, SegmentClear);
+  FRIEND_TEST(WorkListTest, SegmentUpdateFalse);
+  FRIEND_TEST(WorkListTest, SegmentUpdate);
 };
 
 template <typename EntryType, uint16_t SegmentSize>

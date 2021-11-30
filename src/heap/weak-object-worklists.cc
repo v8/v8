@@ -6,7 +6,6 @@
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/worklist.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-function.h"

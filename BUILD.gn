@@ -3011,7 +3011,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/stress-scavenge-observer.h",
     "src/heap/sweeper.h",
     "src/heap/weak-object-worklists.h",
-    "src/heap/worklist.h",
     "src/ic/call-optimization.h",
     "src/ic/handler-configuration-inl.h",
     "src/ic/handler-configuration.h",
