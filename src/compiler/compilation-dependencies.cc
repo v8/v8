@@ -119,10 +119,36 @@ class PendingDependencies final {
   }
 
   void InstallAll(Isolate* isolate, Handle<Code> code) {
+    if (V8_UNLIKELY(FLAG_predictable)) {
+      InstallAllPredictable(isolate, code);
+      return;
+    }
+
     // With deduplication done we no longer rely on the object address for
     // hashing.
     AllowGarbageCollection yes_gc;
     for (const auto& o_and_g : deps_) {
+      DependentCode::InstallDependency(isolate, code, o_and_g.first,
+                                       o_and_g.second);
+    }
+  }
+
+  void InstallAllPredictable(Isolate* isolate, Handle<Code> code) {
+    CHECK(FLAG_predictable);
+    // First, guarantee predictable iteration order.
+    using HandleAndGroup =
+        std::pair<Handle<HeapObject>, DependentCode::DependencyGroups>;
+    std::vector<HandleAndGroup> entries(deps_.begin(), deps_.end());
+
+    std::sort(entries.begin(), entries.end(),
+              [](const HandleAndGroup& lhs, const HandleAndGroup& rhs) {
+                return lhs.first->ptr() < rhs.first->ptr();
+              });
+
+    // With deduplication done we no longer rely on the object address for
+    // hashing.
+    AllowGarbageCollection yes_gc;
+    for (const auto& o_and_g : entries) {
       DependentCode::InstallDependency(isolate, code, o_and_g.first,
                                        o_and_g.second);
     }
