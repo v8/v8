@@ -43,6 +43,9 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
                            bool tracing_enabled, bool is_concurrent_inlining,
                            CodeKind code_kind)
     : isolate_(isolate),
+#if V8_COMPRESS_POINTERS
+      cage_base_(isolate),
+#endif  // V8_COMPRESS_POINTERS
       zone_(broker_zone),
       refs_(zone()->New<RefsMap>(kMinimalRefsBucketCount, AddressMatcher(),
                                  zone())),

@@ -121,8 +121,14 @@ Address AbstractCode::InstructionEnd() {
   }
 }
 
-bool AbstractCode::contains(Address inner_pointer) {
-  return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
+bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
+  PtrComprCageBase cage_base(isolate);
+  if (IsCode(cage_base)) {
+    return GetCode().contains(isolate, inner_pointer);
+  } else {
+    return (address() <= inner_pointer) &&
+           (inner_pointer <= address() + Size(cage_base));
+  }
 }
 
 CodeKind AbstractCode::kind() {
@@ -435,7 +441,8 @@ bool Code::contains(Isolate* isolate, Address inner_pointer) {
       return true;
     }
   }
-  return (address() <= inner_pointer) && (inner_pointer < address() + Size());
+  return (address() <= inner_pointer) &&
+         (inner_pointer < address() + CodeSize());
 }
 
 // static
