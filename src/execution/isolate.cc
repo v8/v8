@@ -2979,6 +2979,8 @@ Isolate* Isolate::NewShared(const v8::Isolate::CreateParams& params) {
 
 // static
 Isolate* Isolate::Allocate(bool is_shared) {
+  // v8::V8::Initialize() must be called before creating any isolates.
+  DCHECK_NOT_NULL(V8::GetCurrentPlatform());
   // IsolateAllocator allocates the memory for the Isolate object according to
   // the given allocation mode.
   std::unique_ptr<IsolateAllocator> isolate_allocator =
@@ -3002,6 +3004,8 @@ Isolate* Isolate::Allocate(bool is_shared) {
 // static
 void Isolate::Delete(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
+  // v8::V8::Dispose() must only be called after deleting all isolates.
+  DCHECK_NOT_NULL(V8::GetCurrentPlatform());
   // Temporarily set this isolate as current so that various parts of
   // the isolate can access it in their destructors without having a
   // direct pointer. We don't use Enter/Exit here to avoid

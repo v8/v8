@@ -168,7 +168,6 @@ static void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(42);
 }
 
-
 // Tests that call v8::V8::Dispose() cannot be threaded.
 UNINITIALIZED_TEST(InitializeAndDisposeOnce) {
   CHECK(v8::V8::Initialize());
@@ -6169,9 +6168,7 @@ static void TryCatchNested2Helper(int depth) {
   }
 }
 
-
 TEST(TryCatchNested) {
-  v8::V8::Initialize();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
@@ -6195,7 +6192,6 @@ TEST(TryCatchNested) {
                        "E2"));
   }
 }
-
 
 void TryCatchMixedNestingCheck(v8::TryCatch* try_catch) {
   CHECK(try_catch->HasCaught());
@@ -6231,7 +6227,6 @@ void TryCatchMixedNestingHelper(
 TEST(TryCatchMixedNesting) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::V8::Initialize();
   v8::TryCatch try_catch(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "TryCatchMixedNestingHelper",
@@ -6253,7 +6248,6 @@ void TryCatchNativeHelper(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(TryCatchNative) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::V8::Initialize();
   v8::TryCatch try_catch(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "TryCatchNativeHelper",
@@ -6278,7 +6272,6 @@ void TryCatchNativeResetHelper(
 TEST(TryCatchNativeReset) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  v8::V8::Initialize();
   v8::TryCatch try_catch(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->Set(isolate, "TryCatchNativeResetHelper",
@@ -13491,9 +13484,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
 
 TEST(DontLeakGlobalObjects) {
   // Regression test for issues 1139850 and 1174891.
-
   i::FLAG_expose_gc = true;
-  v8::V8::Initialize();
 
   for (int i = 0; i < 5; i++) {
     { v8::HandleScope scope(CcTest::isolate());
@@ -13698,10 +13689,7 @@ THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
   EmptyMessageQueues(isolate);
 }
 
-
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
-  v8::V8::Initialize();
-
   const int nof = 2;
   const char* sources[nof] = {
     "try { [ 2, 3, 4 ].forEach(5); } catch(e) { e.toString(); }",
@@ -13720,7 +13708,6 @@ THREADED_TEST(CheckForCrossContextObjectLiterals) {
     }
   }
 }
-
 
 static v8::Local<Value> NestedScope(v8::Local<Context> env) {
   v8::EscapableHandleScope inner(env->GetIsolate());
@@ -17332,7 +17319,6 @@ THREADED_TEST(SpaghettiStackReThrow) {
 
 TEST(Regress528) {
   ManualGCScope manual_gc_scope;
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   i::FLAG_retain_maps_for_n_gc = 0;
   v8::HandleScope scope(isolate);
@@ -18278,9 +18264,7 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
       ->SetResource(i_isolate, nullptr);
 }
 
-
 TEST(ContainsOnlyOneByte) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   // Make a buffer long enough that it won't automatically be converted.
@@ -18352,7 +18336,6 @@ TEST(ContainsOnlyOneByte) {
   }
 }
 
-
 // Failed access check callback that performs a GC on each invocation.
 void FailedAccessCheckCallbackGC(Local<v8::Object> target,
                                  v8::AccessType type,
@@ -18366,8 +18349,6 @@ void FailedAccessCheckCallbackGC(Local<v8::Object> target,
 TEST(GCInFailedAccessCheckCallback) {
   // Install a failed access check callback that performs a GC on each
   // invocation. Then force the callback to be called from va
-
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
 
   isolate->SetFailedAccessCheckCallbackFunction(&FailedAccessCheckCallbackGC);
@@ -20694,9 +20675,7 @@ TEST(StaticGetters) {
   CHECK(*v8::Utils::OpenHandle(*v8::False(isolate)) == *false_value);
 }
 
-
 UNINITIALIZED_TEST(IsolateEmbedderData) {
-  CcTest::DisableAutomaticDispose();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -20727,7 +20706,6 @@ UNINITIALIZED_TEST(IsolateEmbedderData) {
   isolate->Exit();
   isolate->Dispose();
 }
-
 
 TEST(StringEmpty) {
   LocalContext context;
@@ -21419,9 +21397,7 @@ void UnreachableCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   UNREACHABLE();
 }
 
-
 TEST(JSONStringifyAccessCheck) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -21459,7 +21435,6 @@ TEST(JSONStringifyAccessCheck) {
     CHECK(CompileRun("JSON.stringify([other, 'b', 'c'])").IsEmpty());
   }
 }
-
 
 bool access_check_fail_thrown = false;
 bool catch_callback_called = false;
@@ -21517,7 +21492,6 @@ void CheckCorrectThrow(const char* script) {
 
 TEST(AccessCheckThrows) {
   i::FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   isolate->SetFailedAccessCheckCallbackFunction(&FailedAccessCheckThrows);
   v8::HandleScope scope(isolate);
@@ -24972,7 +24946,6 @@ TEST(CodeCacheScriptModuleMismatch) {
 
 // Tests that compilation can handle a garbled cache.
 TEST(InvalidCodeCacheDataInCompileModule) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext local_context;
@@ -25027,17 +25000,13 @@ void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
       script->Run(context).ToLocalChecked()->Int32Value(context).FromJust());
 }
 
-
 TEST(InvalidCodeCacheData) {
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   TestInvalidCacheData(v8::ScriptCompiler::kConsumeCodeCache);
 }
 
-
 TEST(StringConcatOverflow) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   RandomLengthOneByteResource* r =
@@ -25056,7 +25025,6 @@ TEST(TurboAsmDisablesDetach) {
 #ifndef V8_LITE_MODE
   i::FLAG_opt = true;
   i::FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   LocalContext context;
   const char* load =

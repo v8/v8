@@ -443,7 +443,6 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
 TEST(EmbeddedObj) {
 #ifdef V8_COMPRESS_POINTERS
   FLAG_compact_on_every_full_gc = true;
-  v8::V8::Initialize();
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);

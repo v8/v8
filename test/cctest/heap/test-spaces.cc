@@ -312,7 +312,6 @@ TEST(OldLargeObjectSpace) {
   // incremental marker.
   FLAG_incremental_marking = false;
   FLAG_max_heap_size = 20;
-  v8::V8::Initialize();
 
   OldLargeObjectSpace* lo = CcTest::heap()->lo_space();
   CHECK_NOT_NULL(lo);

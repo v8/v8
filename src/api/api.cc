@@ -6059,7 +6059,7 @@ bool v8::V8::InitializeVirtualMemoryCage() {
 }
 #endif
 
-void v8::V8::ShutdownPlatform() { i::V8::ShutdownPlatform(); }
+void v8::V8::DisposePlatform() { i::V8::DisposePlatform(); }
 
 bool v8::V8::Initialize(const int build_config) {
   const bool kEmbedderPointerCompression =
@@ -6154,7 +6154,7 @@ void v8::V8::SetReturnAddressLocationResolver(
 }
 
 bool v8::V8::Dispose() {
-  i::V8::TearDown();
+  i::V8::Dispose();
   return true;
 }
 

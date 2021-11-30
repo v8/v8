@@ -610,9 +610,7 @@ TEST(ScanKeywords) {
   }
 }
 
-
 TEST(ScanHTMLEndComments) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = CcTest::i_isolate();
   v8::HandleScope handles(isolate);
@@ -746,9 +744,7 @@ class ScriptResource : public v8::String::ExternalOneByteStringResource {
   size_t length_;
 };
 
-
 TEST(StandAlonePreParser) {
-  v8::V8::Initialize();
   i::Isolate* i_isolate = CcTest::i_isolate();
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(i_isolate);
@@ -785,9 +781,7 @@ TEST(StandAlonePreParser) {
   }
 }
 
-
 TEST(StandAlonePreParserNoNatives) {
-  v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(isolate);
@@ -820,9 +814,7 @@ TEST(StandAlonePreParserNoNatives) {
   }
 }
 
-
 TEST(RegressChromium62639) {
-  v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(isolate);
@@ -855,9 +847,7 @@ TEST(RegressChromium62639) {
         pending_error_handler.has_error_unidentifiable_by_preparser());
 }
 
-
 TEST(PreParseOverflow) {
-  v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(isolate);
@@ -909,9 +899,7 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
   } while (expected_tokens[i] != i::Token::ILLEGAL);
 }
 
-
 TEST(StreamScanner) {
-  v8::V8::Initialize();
   const char* str1 = "{ foo get for : */ <- \n\n /*foo*/ bib";
   std::unique_ptr<i::Utf16CharacterStream> stream1(
       i::ScannerStream::ForTesting(str1));
@@ -989,10 +977,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   }
 }
 
-
 TEST(RegExpScanning) {
-  v8::V8::Initialize();
-
   // RegExp token with added garbage at the end. The scanner should only
   // scan the RegExp until the terminating slash just before "flipperwald".
   TestScanRegExp("/b/flipperwald", "b");
@@ -1175,7 +1160,6 @@ TEST(ScopeUsesArgumentsSuperThis) {
 }
 
 static void CheckParsesToNumber(const char* source) {
-  v8::V8::Initialize();
   HandleAndZoneScope handles;
 
   i::Isolate* isolate = CcTest::i_isolate();
@@ -1209,7 +1193,6 @@ static void CheckParsesToNumber(const char* source) {
   i::Literal* lit = ret->expression()->AsLiteral();
   CHECK(lit->IsNumberLiteral());
 }
-
 
 TEST(ParseNumbers) {
   CheckParsesToNumber("1.");
@@ -1866,7 +1849,6 @@ TEST(ParserSync) {
 TEST(StrictOctal) {
   // Test that syntax error caused by octal literal is reported correctly as
   // such (issue 2220).
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Context::Scope context_scope(v8::Context::New(isolate));

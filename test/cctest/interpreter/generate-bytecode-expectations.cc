@@ -362,7 +362,7 @@ V8InitializationScope::V8InitializationScope(const char* exec_path)
 V8InitializationScope::~V8InitializationScope() {
   isolate_->Dispose();
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::DisposePlatform();
 }
 
 std::string ReadRawJSSnippet(std::istream* stream) {

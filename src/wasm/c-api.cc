@@ -370,7 +370,7 @@ struct EngineImpl {
     delete counter_map_;
 #endif
     v8::V8::Dispose();
-    v8::V8::ShutdownPlatform();
+    v8::V8::DisposePlatform();
   }
 };
 

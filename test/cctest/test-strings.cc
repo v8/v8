@@ -1891,7 +1891,6 @@ TEST(HashArrayIndexStrings) {
 }
 
 TEST(StringEquals) {
-  v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -1928,7 +1927,6 @@ class OneByteStringResource : public v8::String::ExternalOneByteStringResource {
 TEST(Regress876759) {
   // Thin strings are used in conjunction with young gen
   if (FLAG_single_generation) return;
-  v8::V8::Initialize();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 

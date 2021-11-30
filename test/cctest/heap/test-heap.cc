@@ -1559,7 +1559,6 @@ int CountNativeContexts() {
 TEST(TestInternalWeakLists) {
   FLAG_always_opt = false;
   FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
 
   // Some flags turn Scavenge collections into Mark-sweep collections
   // and hence are incompatible with this test case.
@@ -1656,8 +1655,6 @@ TEST(TestSizeOfRegExpCode) {
   if (!FLAG_regexp_optimization) return;
   FLAG_stress_concurrent_allocation = false;
 
-  v8::V8::Initialize();
-
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
@@ -1713,7 +1710,6 @@ TEST(TestSizeOfRegExpCode) {
 
 HEAP_TEST(TestSizeOfObjects) {
   FLAG_stress_concurrent_allocation = false;
-  v8::V8::Initialize();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();
   // Disable LAB, such that calculations with SizeOfObjects() and object size

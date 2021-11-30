@@ -224,7 +224,8 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
 
   // Teardown.
   isolate->Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::Dispose();
+  v8::V8::DisposePlatform();
   return 0;
 }
 

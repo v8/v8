@@ -5377,7 +5377,7 @@ int Shell::Main(int argc, char* argv[]) {
   OnExit(isolate);
 
   V8::Dispose();
-  V8::ShutdownPlatform();
+  V8::DisposePlatform();
 
   // Delete the platform explicitly here to write the tracing output to the
   // tracing file.
