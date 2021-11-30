@@ -30,6 +30,11 @@ namespace compiler {
 
 #define TRACE(broker, x) TRACE_BROKER(broker, x)
 
+// These definitions are here in order to please the linker, which in debug mode
+// sometimes requires static constants to be defined in .cc files.
+const uint32_t JSHeapBroker::kMinimalRefsBucketCount;
+const uint32_t JSHeapBroker::kInitialRefsBucketCount;
+
 void JSHeapBroker::IncrementTracingIndentation() { ++trace_indentation_; }
 
 void JSHeapBroker::DecrementTracingIndentation() { --trace_indentation_; }
