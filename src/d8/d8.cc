@@ -1137,14 +1137,10 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
   CHECK(!try_catch.HasCaught());
   CHECK(!result.IsNothing() && result.FromJust());
 
-  if (i::FLAG_harmony_top_level_await) {
-    Local<Promise::Resolver> resolver =
-        Promise::Resolver::New(context).ToLocalChecked();
-    resolver->Resolve(context, Undefined(isolate)).ToChecked();
-    return resolver->GetPromise();
-  }
-
-  return Undefined(isolate);
+  Local<Promise::Resolver> resolver =
+      Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, Undefined(isolate)).ToChecked();
+  return resolver->GetPromise();
 }
 
 struct DynamicImportData {
@@ -1322,7 +1318,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   if (root_module->InstantiateModule(realm, ResolveModuleCallback)
           .FromMaybe(false)) {
     maybe_result = root_module->Evaluate(realm);
-    CHECK_IMPLIES(i::FLAG_harmony_top_level_await, !maybe_result.IsEmpty());
+    CHECK(!maybe_result.IsEmpty());
     EmptyMessageQueues(isolate);
   }
 
@@ -1334,28 +1330,21 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   }
 
   Local<Value> module_namespace = root_module->GetModuleNamespace();
-  if (i::FLAG_harmony_top_level_await) {
-    Local<Promise> result_promise(result.As<Promise>());
+  Local<Promise> result_promise(result.As<Promise>());
 
-    // Setup callbacks, and then chain them to the result promise.
-    // ModuleResolutionData will be deleted by the callbacks.
-    auto module_resolution_data =
-        new ModuleResolutionData(isolate, module_namespace, resolver);
-    Local<v8::External> edata = External::New(isolate, module_resolution_data);
-    Local<Function> callback_success;
-    CHECK(Function::New(realm, ModuleResolutionSuccessCallback, edata)
-              .ToLocal(&callback_success));
-    Local<Function> callback_failure;
-    CHECK(Function::New(realm, ModuleResolutionFailureCallback, edata)
-              .ToLocal(&callback_failure));
-    result_promise->Then(realm, callback_success, callback_failure)
-        .ToLocalChecked();
-  } else {
-    // TODO(cbruni): Clean up exception handling after introducing new
-    // API for evaluating async modules.
-    DCHECK(!try_catch.HasCaught());
-    resolver->Resolve(realm, module_namespace).ToChecked();
-  }
+  // Setup callbacks, and then chain them to the result promise.
+  // ModuleResolutionData will be deleted by the callbacks.
+  auto module_resolution_data =
+      new ModuleResolutionData(isolate, module_namespace, resolver);
+  Local<v8::External> edata = External::New(isolate, module_resolution_data);
+  Local<Function> callback_success;
+  CHECK(Function::New(realm, ModuleResolutionSuccessCallback, edata)
+            .ToLocal(&callback_success));
+  Local<Function> callback_failure;
+  CHECK(Function::New(realm, ModuleResolutionFailureCallback, edata)
+            .ToLocal(&callback_failure));
+  result_promise->Then(realm, callback_success, callback_failure)
+      .ToLocalChecked();
 }
 
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
@@ -1387,7 +1376,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   if (root_module->InstantiateModule(realm, ResolveModuleCallback)
           .FromMaybe(false)) {
     maybe_result = root_module->Evaluate(realm);
-    CHECK_IMPLIES(i::FLAG_harmony_top_level_await, !maybe_result.IsEmpty());
+    CHECK(!maybe_result.IsEmpty());
     EmptyMessageQueues(isolate);
   }
   Local<Value> result;
@@ -1396,28 +1385,27 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     ReportException(isolate, &try_catch);
     return false;
   }
-  if (i::FLAG_harmony_top_level_await) {
-    // Loop until module execution finishes
-    // TODO(cbruni): This is a bit wonky. "Real" engines would not be
-    // able to just busy loop waiting for execution to finish.
-    Local<Promise> result_promise(result.As<Promise>());
-    while (result_promise->State() == Promise::kPending) {
-      isolate->PerformMicrotaskCheckpoint();
-    }
 
-    if (result_promise->State() == Promise::kRejected) {
-      // If the exception has been caught by the promise pipeline, we rethrow
-      // here in order to ReportException.
-      // TODO(cbruni): Clean this up after we create a new API for the case
-      // where TLA is enabled.
-      if (!try_catch.HasCaught()) {
-        isolate->ThrowException(result_promise->Result());
-      } else {
-        DCHECK_EQ(try_catch.Exception(), result_promise->Result());
-      }
-      ReportException(isolate, &try_catch);
-      return false;
+  // Loop until module execution finishes
+  // TODO(cbruni): This is a bit wonky. "Real" engines would not be
+  // able to just busy loop waiting for execution to finish.
+  Local<Promise> result_promise(result.As<Promise>());
+  while (result_promise->State() == Promise::kPending) {
+    isolate->PerformMicrotaskCheckpoint();
+  }
+
+  if (result_promise->State() == Promise::kRejected) {
+    // If the exception has been caught by the promise pipeline, we rethrow
+    // here in order to ReportException.
+    // TODO(cbruni): Clean this up after we create a new API for the case
+    // where TLA is enabled.
+    if (!try_catch.HasCaught()) {
+      isolate->ThrowException(result_promise->Result());
+    } else {
+      DCHECK_EQ(try_catch.Exception(), result_promise->Result());
     }
+    ReportException(isolate, &try_catch);
+    return false;
   }
 
   DCHECK(!try_catch.HasCaught());

@@ -37,7 +37,6 @@ namespace internal {
   T(AwaitNotInAsyncContext,                                                    \
     "await is only valid in async functions and the top level bodies of "      \
     "modules")                                                                 \
-  T(AwaitNotInAsyncFunction, "await is only valid in async function")          \
   T(AwaitNotInDebugEvaluate,                                                   \
     "await can not be used when evaluating code "                              \
     "while paused in the debugger")                                            \

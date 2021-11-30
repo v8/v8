@@ -1307,12 +1307,6 @@
 }],
 
 ##############################################################################
-['variant == top_level_await', {
-  # specifically expects to fail on top level await.
-  'harmony/modules-import-15': [SKIP],
-}], # variant == top_level_await
-
-##############################################################################
 ['variant == stress_js_bg_compile_wasm_code_gc', {
   # Runs significantly slower with --stress-wasm-code-gc, problematic
   # especially in combination with tsan or other slow configurations.
