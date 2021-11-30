@@ -395,7 +395,7 @@ template <typename IsolateT>
 void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
                                                   Handle<HeapObject> obj,
                                                   SnapshotSpace space) {
-  DCHECK_EQ(*map, obj->map());
+  DCHECK_EQ(*map, obj->map(isolate_));
   DisallowGarbageCollection no_gc;
   InstanceType instance_type = map->instance_type();
 
@@ -1261,7 +1261,7 @@ HeapObject Deserializer<IsolateT>::Allocate(AllocationType allocation, int size,
   if (!previous_allocation_obj_.is_null()) {
     // Make sure that the previous object is initialized sufficiently to
     // be iterated over by the GC.
-    int object_size = previous_allocation_obj_->Size();
+    int object_size = previous_allocation_obj_->Size(isolate_);
     DCHECK_LE(object_size, previous_allocation_size_);
   }
 #endif

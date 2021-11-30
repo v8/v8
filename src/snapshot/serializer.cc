@@ -26,6 +26,9 @@ namespace internal {
 
 Serializer::Serializer(Isolate* isolate, Snapshot::SerializerFlags flags)
     : isolate_(isolate),
+#if V8_COMPRESS_POINTERS
+      cage_base_(isolate),
+#endif  // V8_COMPRESS_POINTERS
       hot_objects_(isolate->heap()),
       reference_map_(isolate),
       external_reference_encoder_(isolate),
@@ -764,8 +767,8 @@ SnapshotSpace GetSnapshotSpace(Handle<HeapObject> object) {
 }  // namespace
 
 void Serializer::ObjectSerializer::SerializeObject() {
-  int size = object_->Size();
-  Map map = object_->map();
+  Map map = object_->map(serializer_->cage_base());
+  int size = object_->SizeFromMap(map);
 
   // Descriptor arrays have complex element weakness, that is dependent on the
   // maps pointing to them. During deserialization, this can cause them to get

@@ -139,7 +139,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 
   if (SerializeReadOnlyObject(obj)) return;
 
-  CHECK(!obj->IsCode());
+  CHECK(!obj->IsCode(cage_base()));
 
   ReadOnlyRoots roots(isolate());
   if (ElideObject(*obj)) {
@@ -218,7 +218,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // There should be no references to the global object embedded.
   CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
   // Embedded FixedArrays that need rehashing must support rehashing.
-  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
+  CHECK_IMPLIES(obj->NeedsRehashing(cage_base()),
+                obj->CanBeRehashed(cage_base()));
   // We expect no instantiated function objects or contexts.
   CHECK(!obj->IsJSFunction() && !obj->IsContext());
 

@@ -448,6 +448,8 @@ void Code::CopyRelocInfoToByteArray(ByteArray dest, const CodeDesc& desc) {
 
 int Code::CodeSize() const { return SizeFor(raw_body_size()); }
 
+DEF_GETTER(Code, Size, int) { return CodeSize(); }
+
 CodeKind Code::kind() const {
   STATIC_ASSERT(FIELD_SIZE(kFlagsOffset) == kInt32Size);
   const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);

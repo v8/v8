@@ -519,11 +519,14 @@ class Code : public HeapObject {
     return RoundUp(kHeaderSize + body_size, kCodeAlignment);
   }
 
+  inline int CodeSize() const;
+
+  // Hides HeapObject::Size(...) and redirects queries to CodeSize().
+  DECL_GETTER(Size, int)
+
   DECL_CAST(Code)
 
   // Dispatched behavior.
-  inline int CodeSize() const;
-
   DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
 
