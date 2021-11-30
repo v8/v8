@@ -4151,8 +4151,9 @@ bool Isolate::use_optimizer() {
 }
 
 void Isolate::IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code) {
-  DCHECK(code->IsCode() || code->IsByteArray());
-  total_regexp_code_generated_ += code->Size();
+  PtrComprCageBase cage_base(this);
+  DCHECK(code->IsCode(cage_base) || code->IsByteArray(cage_base));
+  total_regexp_code_generated_ += code->Size(cage_base);
 }
 
 bool Isolate::NeedsDetailedOptimizedCodeLineInfo() const {

@@ -121,7 +121,6 @@ class HeapObject : public Object {
   // Iterates over pointers contained in the object (including the Map).
   // If it's not performance critical iteration use the non-templatized
   // version.
-  void Iterate(ObjectVisitor* v);
   void Iterate(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
@@ -133,7 +132,6 @@ class HeapObject : public Object {
   // object, and so is safe to call while the map pointer is modified.
   // If it's not performance critical iteration use the non-templatized
   // version.
-  inline void IterateBody(ObjectVisitor* v);
   void IterateBody(PtrComprCageBase cage_base, ObjectVisitor* v);
   void IterateBody(Map map, int object_size, ObjectVisitor* v);
 

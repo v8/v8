@@ -1838,23 +1838,24 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
 void Smi::SmiPrint(std::ostream& os) const { os << value(); }
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {
+  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
   os << AsHex::Address(this->ptr()) << " ";
 
-  if (IsString()) {
+  if (IsString(cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     String::cast(*this).StringShortPrint(&accumulator);
     os << accumulator.ToCString().get();
     return;
   }
-  if (IsJSObject()) {
+  if (IsJSObject(cage_base)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     JSObject::cast(*this).JSObjectShortPrint(&accumulator);
     os << accumulator.ToCString().get();
     return;
   }
-  switch (map().instance_type()) {
+  switch (map(cage_base).instance_type()) {
     case MAP_TYPE: {
       os << "<Map";
       Map mapInstance = Map::cast(*this);
@@ -2158,19 +2159,8 @@ void CallableTask::BriefPrintDetails(std::ostream& os) {
   os << " callable=" << Brief(callable());
 }
 
-// TODO(v8:11880): drop this version if favor of cage friendly one.
-void HeapObject::Iterate(ObjectVisitor* v) {
-  IterateFast<ObjectVisitor>(GetPtrComprCageBaseSlow(*this), v);
-}
-
 void HeapObject::Iterate(PtrComprCageBase cage_base, ObjectVisitor* v) {
   IterateFast<ObjectVisitor>(cage_base, v);
-}
-
-// TODO(v8:11880): drop this version if favor of cage friendly one.
-void HeapObject::IterateBody(ObjectVisitor* v) {
-  Map m = map();
-  IterateBodyFast<ObjectVisitor>(m, SizeFromMap(m), v);
 }
 
 void HeapObject::IterateBody(PtrComprCageBase cage_base, ObjectVisitor* v) {

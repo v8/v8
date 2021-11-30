@@ -170,22 +170,23 @@ void TaggedIndex::TaggedIndexVerify(Isolate* isolate) {
 
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   CHECK(IsHeapObject());
-  VerifyPointer(isolate, map(isolate));
-  CHECK(map(isolate).IsMap());
+  PtrComprCageBase cage_base(isolate);
+  VerifyPointer(isolate, map(cage_base));
+  CHECK(map(cage_base).IsMap(cage_base));
 
-  switch (map().instance_type()) {
+  switch (map(cage_base).instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
     STRING_TYPE_LIST(STRING_TYPE_CASE)
 #undef STRING_TYPE_CASE
-    if (IsConsString()) {
+    if (IsConsString(cage_base)) {
       ConsString::cast(*this).ConsStringVerify(isolate);
-    } else if (IsSlicedString()) {
+    } else if (IsSlicedString(cage_base)) {
       SlicedString::cast(*this).SlicedStringVerify(isolate);
-    } else if (IsThinString()) {
+    } else if (IsThinString(cage_base)) {
       ThinString::cast(*this).ThinStringVerify(isolate);
-    } else if (IsSeqString()) {
+    } else if (IsSeqString(cage_base)) {
       SeqString::cast(*this).SeqStringVerify(isolate);
-    } else if (IsExternalString()) {
+    } else if (IsExternalString(cage_base)) {
       ExternalString::cast(*this).ExternalStringVerify(isolate);
     } else {
       String::cast(*this).StringVerify(isolate);
