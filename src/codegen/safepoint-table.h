@@ -139,7 +139,7 @@ class SafepointTable {
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
 
-  void PrintEntry(int index, std::ostream& os) const;
+  void Print(std::ostream&) const;
 
  private:
   // Layout information.

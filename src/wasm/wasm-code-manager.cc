@@ -436,28 +436,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
 
   if (safepoint_table_offset_ > 0) {
     SafepointTable table(this);
-    // TODO(clemensb): Unify with printing in code.cc.
-    os << "Safepoints (entries = " << table.length()
-       << ", byte size = " << table.byte_size() << ")\n";
-    for (int i = 0; i < table.length(); i++) {
-      SafepointEntry entry = table.GetEntry(i);
-      os << reinterpret_cast<const void*>(instruction_start() + entry.pc())
-         << " " << std::setw(6) << std::hex << entry.pc() << "  ";
-      table.PrintEntry(i, os);
-      os << " (sp -> fp)";
-      if (entry.trampoline_pc() != SafepointEntry::kNoTrampolinePC) {
-        os << " trampoline: " << std::hex << entry.trampoline_pc() << std::dec;
-      }
-      if (entry.tagged_register_indexes() != 0) {
-        os << " registers: ";
-        uint32_t register_bits = entry.tagged_register_indexes();
-        int bits = 32 - base::bits::CountLeadingZeros32(register_bits);
-        for (int j = bits - 1; j >= 0; --j) {
-          os << ((register_bits >> j) & 1);
-        }
-      }
-      os << "\n";
-    }
+    table.Print(os);
     os << "\n";
   }
 

@@ -4,6 +4,8 @@
 
 #include "src/codegen/safepoint-table.h"
 
+#include <iomanip>
+
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -71,11 +73,39 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   UNREACHABLE();
 }
 
-void SafepointTable::PrintEntry(int index, std::ostream& os) const {
-  for (uint8_t bits : GetEntry(index).tagged_slots()) {
-    for (int bit = 0; bit < kBitsPerByte; ++bit) {
-      os << ((bits >> bit) & 1);
+void SafepointTable::Print(std::ostream& os) const {
+  os << "Safepoints (entries = " << length_ << ", byte size = " << byte_size()
+     << ")\n";
+
+  for (int index = 0; index < length_; index++) {
+    SafepointEntry entry = GetEntry(index);
+    os << reinterpret_cast<const void*>(instruction_start_ + entry.pc()) << " "
+       << std::setw(6) << std::hex << entry.pc();
+
+    if (!entry.tagged_slots().empty()) {
+      os << "  slots (sp->fp): ";
+      for (uint8_t bits : entry.tagged_slots()) {
+        for (int bit = 0; bit < kBitsPerByte; ++bit) {
+          os << ((bits >> bit) & 1);
+        }
+      }
     }
+
+    if (entry.tagged_register_indexes() != 0) {
+      os << "  registers: ";
+      uint32_t register_bits = entry.tagged_register_indexes();
+      int bits = 32 - base::bits::CountLeadingZeros32(register_bits);
+      for (int j = bits - 1; j >= 0; --j) {
+        os << ((register_bits >> j) & 1);
+      }
+    }
+
+    if (entry.has_deoptimization_index()) {
+      os << "  deopt " << std::setw(6) << entry.deoptimization_index()
+         << " trampoline: " << std::setw(6) << std::hex
+         << entry.trampoline_pc();
+    }
+    os << "\n";
   }
 }
 

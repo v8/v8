@@ -585,23 +585,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 
   if (has_safepoint_info()) {
     SafepointTable table(isolate, current_pc, *this);
-    os << "Safepoints (entries = " << table.length()
-       << ", byte size = " << table.byte_size() << ")\n";
-    for (int i = 0; i < table.length(); i++) {
-      SafepointEntry entry = table.GetEntry(i);
-      os << reinterpret_cast<const void*>(InstructionStart() + entry.pc())
-         << "  " << std::setw(6) << std::hex << entry.pc() << "  ";
-      print_pc(os, entry.trampoline_pc());
-      os << std::dec << "  ";
-      table.PrintEntry(i, os);
-      os << " (sp -> fp)  ";
-      if (entry.has_deoptimization_index()) {
-        os << std::setw(6) << entry.deoptimization_index();
-      } else {
-        os << "<none>";
-      }
-      os << "\n";
-    }
+    table.Print(os);
     os << "\n";
   }
 
