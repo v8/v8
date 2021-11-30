@@ -11,6 +11,7 @@
 
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
+#include "v8-primitive.h"     // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
 namespace v8 {
@@ -226,6 +227,18 @@ class V8_EXPORT Message {
 };
 
 Local<Value> ScriptOrigin::ResourceName() const { return resource_name_; }
+
+Local<Integer> ScriptOrigin::ResourceLineOffset() const {
+  return v8::Integer::New(isolate_, resource_line_offset_);
+}
+
+Local<Integer> ScriptOrigin::ResourceColumnOffset() const {
+  return v8::Integer::New(isolate_, resource_column_offset_);
+}
+
+Local<Integer> ScriptOrigin::ScriptID() const {
+  return v8::Integer::New(isolate_, script_id_);
+}
 
 Local<Data> ScriptOrigin::GetHostDefinedOptions() const {
   return host_defined_options_;

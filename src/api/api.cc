@@ -219,18 +219,6 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name, int line_offset,
       source_map_url_(source_map_url),
       host_defined_options_(host_defined_options) {}
 
-Local<Integer> ScriptOrigin::ResourceLineOffset() const {
-  return v8::Integer::New(isolate_, resource_line_offset_);
-}
-
-Local<Integer> ScriptOrigin::ResourceColumnOffset() const {
-  return v8::Integer::New(isolate_, resource_column_offset_);
-}
-
-Local<Integer> ScriptOrigin::ScriptID() const {
-  return v8::Integer::New(isolate_, script_id_);
-}
-
 Local<PrimitiveArray> ScriptOrigin::HostDefinedOptions() const {
   // TODO(cbruni, chromium:1244145): remove once migrated to the context.
   Utils::ApiCheck(!host_defined_options_->IsFixedArray(),
