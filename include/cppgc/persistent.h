@@ -190,7 +190,13 @@ class BasicPersistent final : public PersistentBase,
   // based on their actual types.
   V8_CLANG_NO_SANITIZE("cfi-unrelated-cast") T* Get() const {
     // TODO(chromium:1253650): Temporary CHECK to diagnose issues.
-    CPPGC_CHECK(IsValid() == !!GetNode());
+    if (IsValid()) {
+      CPPGC_CHECK(
+          WeaknessPolicy::GetPersistentRegion(GetValue()).IsCreationThread());
+      CPPGC_CHECK(GetNode() != nullptr);
+    } else {
+      CPPGC_CHECK(GetNode() == nullptr);
+    }
 
     // The const_cast below removes the constness from PersistentBase storage.
     // The following static_cast re-adds any constness if specified through the
@@ -200,7 +206,13 @@ class BasicPersistent final : public PersistentBase,
 
   void Clear() {
     // TODO(chromium:1253650): Temporary CHECK to diagnose issues.
-    CPPGC_CHECK(IsValid() == !!GetNode());
+    if (IsValid()) {
+      CPPGC_CHECK(
+          WeaknessPolicy::GetPersistentRegion(GetValue()).IsCreationThread());
+      CPPGC_CHECK(GetNode() != nullptr);
+    } else {
+      CPPGC_CHECK(GetNode() == nullptr);
+    }
     // Simplified version of `Assign()` to allow calling without a complete type
     // `T`.
     if (IsValid()) {

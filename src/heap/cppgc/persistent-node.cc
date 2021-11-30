@@ -103,6 +103,19 @@ void PersistentRegionBase::Trace(Visitor* visitor) {
                nodes_.end());
 }
 
+namespace {
+
+thread_local int thread_id = 0;
+
+int GetCurrentThreadId() {
+  if (thread_id == 0) {
+    thread_id = v8::base::OS::GetCurrentThreadId();
+  }
+  return thread_id;
+}
+
+}  // namespace
+
 PersistentRegion::PersistentRegion(const FatalOutOfMemoryHandler& oom_handler)
     : PersistentRegionBase(oom_handler),
       creation_thread_id_(v8::base::OS::GetCurrentThreadId()) {
@@ -110,7 +123,10 @@ PersistentRegion::PersistentRegion(const FatalOutOfMemoryHandler& oom_handler)
 }
 
 bool PersistentRegion::IsCreationThread() {
-  return creation_thread_id_ == v8::base::OS::GetCurrentThreadId();
+  // Short circuit using TLS cache. If that doesn't work (e.g. in TLS teardown)
+  // fall back to the more expensive call in base.
+  return creation_thread_id_ == GetCurrentThreadId() ||
+         creation_thread_id_ == v8::base::OS::GetCurrentThreadId();
 }
 
 PersistentRegionLock::PersistentRegionLock() {
