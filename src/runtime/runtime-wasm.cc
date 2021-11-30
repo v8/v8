@@ -295,6 +295,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
+  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
