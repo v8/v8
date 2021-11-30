@@ -136,11 +136,15 @@ class ThreadSafeStack {
   void Push(T t) {
     v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
     vector_.push_back(std::move(t));
+    is_empty_.store(false, std::memory_order_relaxed);
   }
 
   Optional<T> Pop() {
     v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
-    if (vector_.empty()) return v8::base::nullopt;
+    if (vector_.empty()) {
+      is_empty_.store(true, std::memory_order_relaxed);
+      return v8::base::nullopt;
+    }
     T top = std::move(vector_.back());
     vector_.pop_back();
     // std::move is redundant but is needed to avoid the bug in gcc-7.
@@ -151,16 +155,15 @@ class ThreadSafeStack {
   void Insert(It begin, It end) {
     v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
     vector_.insert(vector_.end(), begin, end);
+    is_empty_.store(false, std::memory_order_relaxed);
   }
 
-  bool IsEmpty() const {
-    v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
-    return vector_.empty();
-  }
+  bool IsEmpty() const { return is_empty_.load(std::memory_order_relaxed); }
 
  private:
   std::vector<T> vector_;
   mutable v8::base::Mutex mutex_;
+  std::atomic<bool> is_empty_{true};
 };
 
 struct SpaceState {
@@ -748,13 +751,20 @@ class Sweeper::SweeperImpl final {
     // allocate new memory.
     if (is_sweeping_on_mutator_thread_) return false;
 
+    SpaceState& space_state = space_states_[space->index()];
+
+    // Bail out if there's no pages to be processed for the space at this
+    // moment.
+    if (space_state.swept_unfinalized_pages.IsEmpty() &&
+        space_state.unswept_pages.IsEmpty()) {
+      return false;
+    }
+
     StatsCollector::EnabledScope stats_scope(stats_collector_,
                                              StatsCollector::kIncrementalSweep);
     StatsCollector::EnabledScope inner_scope(
         stats_collector_, StatsCollector::kSweepOnAllocation);
     MutatorThreadSweepingScope sweeping_in_progresss(*this);
-
-    SpaceState& space_state = space_states_[space->index()];
 
     {
       // First, process unfinalized pages as finalizing a page is faster than
