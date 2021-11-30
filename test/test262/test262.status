@@ -219,9 +219,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12209
   'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
 
-  # https://github.com/tc39/test262/pull/3309
-  'intl402/Locale/prototype/weekInfo/output-object-keys': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
@@ -359,6 +356,10 @@
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-ko-KR': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-zh-TW': [FAIL],
   'intl402/NumberFormat/prototype/resolvedOptions/roundingMode': [FAIL],
+  'intl402/NumberFormat/prototype/format/useGrouping-extended-de-DE': [FAIL],
+  'intl402/NumberFormat/prototype/format/useGrouping-extended-en-IN': [FAIL],
+  'intl402/NumberFormat/prototype/format/useGrouping-extended-en-US': [FAIL],
+  'intl402/NumberFormat/test-option-useGrouping-extended': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11989
   'built-ins/ShadowRealm/constructor': [FAIL],
