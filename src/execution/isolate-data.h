@@ -10,6 +10,7 @@
 #include "src/codegen/external-reference-table.h"
 #include "src/execution/stack-guard.h"
 #include "src/execution/thread-local-top.h"
+#include "src/heap/linear-allocation-area.h"
 #include "src/roots/roots.h"
 #include "src/security/external-pointer-table.h"
 #include "src/utils/utils.h"
@@ -48,6 +49,9 @@ class Isolate;
     builtin_entry_table)                                                      \
   V(kBuiltinTableOffset, Builtins::kBuiltinCount* kSystemPointerSize,         \
     builtin_table)                                                            \
+  /* Linear allocation areas for the heap's new and old space */              \
+  V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
+  V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)     \
   ISOLATE_DATA_FIELDS_EXTERNAL_CODE_SPACE(V)                                  \
   ISOLATE_DATA_FIELDS_HEAP_SANDBOX(V)                                         \
   V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)
@@ -228,6 +232,9 @@ class IsolateData final {
 
   // The entries in this array are tagged pointers to Code objects.
   Address builtin_table_[Builtins::kBuiltinCount] = {};
+
+  LinearAllocationArea new_allocation_info_;
+  LinearAllocationArea old_allocation_info_;
 
 #ifdef V8_EXTERNAL_CODE_SPACE
   Address builtin_code_data_container_table_[Builtins::kBuiltinCount] = {};

@@ -233,7 +233,8 @@ class V8_EXPORT_PRIVATE NewSpace
   using const_iterator = ConstPageIterator;
 
   NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
-           size_t initial_semispace_capacity, size_t max_semispace_capacity);
+           size_t initial_semispace_capacity, size_t max_semispace_capacity,
+           LinearAllocationArea* allocation_info);
 
   ~NewSpace() override { TearDown(); }
 
@@ -527,9 +528,9 @@ class V8_EXPORT_PRIVATE NewSpace
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
 #define DCHECK_SEMISPACE_ALLOCATION_INFO(info, space) \
-  SLOW_DCHECK((space).page_low() <= (info).top() &&   \
-              (info).top() <= (space).page_high() &&  \
-              (info).limit() <= (space).page_high())
+  SLOW_DCHECK((space).page_low() <= (info)->top() &&  \
+              (info)->top() <= (space).page_high() && \
+              (info)->limit() <= (space).page_high())
 
 }  // namespace internal
 }  // namespace v8

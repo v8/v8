@@ -433,23 +433,24 @@ class LocalAllocationBuffer {
 
 class SpaceWithLinearArea : public Space {
  public:
-  SpaceWithLinearArea(Heap* heap, AllocationSpace id, FreeList* free_list)
-      : Space(heap, id, free_list) {
-    allocation_info_.Reset(kNullAddress, kNullAddress);
-  }
+  SpaceWithLinearArea(Heap* heap, AllocationSpace id, FreeList* free_list,
+                      LinearAllocationArea* allocation_info)
+      : Space(heap, id, free_list), allocation_info_(allocation_info) {}
 
   virtual bool SupportsAllocationObserver() = 0;
 
   // Returns the allocation pointer in this space.
-  Address top() { return allocation_info_.top(); }
-  Address limit() { return allocation_info_.limit(); }
+  Address top() const { return allocation_info_->top(); }
+  Address limit() const { return allocation_info_->limit(); }
 
   // The allocation top address.
-  Address* allocation_top_address() { return allocation_info_.top_address(); }
+  Address* allocation_top_address() const {
+    return allocation_info_->top_address();
+  }
 
   // The allocation limit address.
-  Address* allocation_limit_address() {
-    return allocation_info_.limit_address();
+  Address* allocation_limit_address() const {
+    return allocation_info_->limit_address();
   }
 
   // Methods needed for allocation observers.
@@ -483,7 +484,7 @@ class SpaceWithLinearArea : public Space {
 
  protected:
   // TODO(ofrobots): make these private after refactoring is complete.
-  LinearAllocationArea allocation_info_;
+  LinearAllocationArea* const allocation_info_;
 
   size_t allocations_origins_[static_cast<int>(
       AllocationOrigin::kNumberOfAllocationOrigins)] = {0};

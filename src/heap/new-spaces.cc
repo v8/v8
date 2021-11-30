@@ -387,7 +387,7 @@ void SemiSpaceObjectIterator::Initialize(Address start, Address end) {
 
 size_t NewSpace::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
   size_t size = to_space_.CommittedPhysicalMemory();
   if (from_space_.IsCommitted()) {
     size += from_space_.CommittedPhysicalMemory();
@@ -400,8 +400,9 @@ size_t NewSpace::CommittedPhysicalMemory() {
 
 NewSpace::NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
                    size_t initial_semispace_capacity,
-                   size_t max_semispace_capacity)
-    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList()),
+                   size_t max_semispace_capacity,
+                   LinearAllocationArea* allocation_info)
+    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList(), allocation_info),
       to_space_(heap, kToSpace),
       from_space_(heap, kFromSpace) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
@@ -416,7 +417,7 @@ NewSpace::NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
 }
 
 void NewSpace::TearDown() {
-  allocation_info_.Reset(kNullAddress, kNullAddress);
+  allocation_info_->Reset(kNullAddress, kNullAddress);
 
   to_space_.TearDown();
   from_space_.TearDown();
@@ -468,8 +469,8 @@ void NewSpace::UpdateLinearAllocationArea(Address known_top) {
   AdvanceAllocationObservers();
 
   Address new_top = known_top == 0 ? to_space_.page_low() : known_top;
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-  allocation_info_.Reset(new_top, to_space_.page_high());
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
+  allocation_info_->Reset(new_top, to_space_.page_high());
   // The order of the following two stores is important.
   // See the corresponding loads in ConcurrentMarking::Run.
   {
@@ -499,7 +500,7 @@ void NewSpace::UpdateInlineAllocationLimit(size_t min_size) {
   Address new_limit = ComputeLimit(top(), to_space_.page_high(), min_size);
   DCHECK_LE(top(), new_limit);
   DCHECK_LE(new_limit, to_space_.page_high());
-  allocation_info_.SetLimit(new_limit);
+  allocation_info_->SetLimit(new_limit);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
 #if DEBUG
@@ -508,7 +509,7 @@ void NewSpace::UpdateInlineAllocationLimit(size_t min_size) {
 }
 
 bool NewSpace::AddFreshPage() {
-  Address top = allocation_info_.top();
+  Address top = allocation_info_->top();
   DCHECK(!OldSpace::IsAtPageStart(top));
 
   // Clear remainder of current page.
@@ -566,7 +567,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
                                 AllocationAlignment alignment) {
   AdvanceAllocationObservers();
 
-  Address old_top = allocation_info_.top();
+  Address old_top = allocation_info_->top();
   Address high = to_space_.page_high();
   int filler_size = Heap::GetFillToAlign(old_top, alignment);
   int aligned_size_in_bytes = size_in_bytes + filler_size;
@@ -584,7 +585,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
       return false;
   }
 
-  old_top = allocation_info_.top();
+  old_top = allocation_info_->top();
   high = to_space_.page_high();
   filler_size = Heap::GetFillToAlign(old_top, alignment);
   aligned_size_in_bytes = size_in_bytes + filler_size;
@@ -595,8 +596,8 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 }
 
 void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
-  if (allocation_info_.MergeIfAdjacent(info)) {
-    original_top_.store(allocation_info_.top(), std::memory_order_release);
+  if (allocation_info_->MergeIfAdjacent(info)) {
+    original_top_.store(allocation_info_->top(), std::memory_order_release);
   }
 
 #if DEBUG
@@ -623,7 +624,7 @@ AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes,
     return AllocationResult::Retry(NEW_SPACE);
   }
 
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+  DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
 
   AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
   DCHECK(!result.IsRetry());
@@ -642,7 +643,7 @@ AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
     return AllocationResult::Retry(NEW_SPACE);
   }
 
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+  DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
 
   int aligned_size_in_bytes;
 
@@ -673,16 +674,16 @@ void NewSpace::FreeLinearAllocationArea() {
 
 void NewSpace::VerifyTop() {
   // Ensure validity of LAB: start <= top <= limit
-  DCHECK_LE(allocation_info_.start(), allocation_info_.top());
-  DCHECK_LE(allocation_info_.top(), allocation_info_.limit());
+  DCHECK_LE(allocation_info_->start(), allocation_info_->top());
+  DCHECK_LE(allocation_info_->top(), allocation_info_->limit());
 
   // Ensure that original_top_ always >= LAB start. The delta between start_
   // and top_ is still to be processed by allocation observers.
-  DCHECK_GE(original_top_, allocation_info_.start());
+  DCHECK_GE(original_top_, allocation_info_->start());
 
   // Ensure that limit() is <= original_limit_, original_limit_ always needs
   // to be end of curent to space page.
-  DCHECK_LE(allocation_info_.limit(), original_limit_);
+  DCHECK_LE(allocation_info_->limit(), original_limit_);
   DCHECK_EQ(original_limit_, to_space_.page_high());
 }
 

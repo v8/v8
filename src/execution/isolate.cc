@@ -3784,7 +3784,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp(main_thread_local_heap());
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
-  heap_.SetUpSpaces();
+  heap_.SetUpSpaces(&isolate_data_.new_allocation_info_,
+                    &isolate_data_.old_allocation_info_);
 
   if (OwnsStringTable()) {
     string_table_ = std::make_shared<StringTable>(this);

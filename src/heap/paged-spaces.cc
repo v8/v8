@@ -90,8 +90,9 @@ Page* PagedSpace::InitializePage(MemoryChunk* chunk) {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable, FreeList* free_list,
+                       LinearAllocationArea* allocation_info_,
                        CompactionSpaceKind compaction_space_kind)
-    : SpaceWithLinearArea(heap, space, free_list),
+    : SpaceWithLinearArea(heap, space, free_list, allocation_info_),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
@@ -211,7 +212,7 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
 
 size_t PagedSpace::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
   base::MutexGuard guard(mutex());
   size_t size = 0;
   for (Page* page : *this) {
@@ -282,8 +283,8 @@ void PagedSpace::RemovePage(Page* page) {
 void PagedSpace::SetTopAndLimit(Address top, Address limit) {
   DCHECK(top == limit ||
          Page::FromAddress(top) == Page::FromAddress(limit - 1));
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-  allocation_info_.Reset(top, limit);
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
+  allocation_info_->Reset(top, limit);
 
   base::Optional<base::SharedMutexGuard<base::kExclusive>> optional_guard;
   if (!is_compaction_space())
@@ -308,7 +309,7 @@ void PagedSpace::ResetFreeList() {
 
 void PagedSpace::ShrinkImmortalImmovablePages() {
   DCHECK(!heap()->deserialization_complete());
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
   FreeLinearAllocationArea();
   ResetFreeList();
   for (Page* page : *this) {
@@ -482,7 +483,7 @@ void PagedSpace::ReleasePage(Page* page) {
 
   free_list_->EvictFreeListItems(page);
 
-  if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
+  if (Page::FromAllocationAreaAddress(allocation_info_->top()) == page) {
     SetTopAndLimit(kNullAddress, kNullAddress);
   }
 
@@ -558,7 +559,7 @@ bool PagedSpace::TryAllocationFromFreeListMain(size_t size_in_bytes,
   Page* page = Page::FromHeapObject(new_node);
   IncreaseAllocatedBytes(new_node_size, page);
 
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+  DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
   Address limit = ComputeLimit(start, end, size_in_bytes);
@@ -709,7 +710,7 @@ void PagedSpace::Print() {}
 #ifdef VERIFY_HEAP
 void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
   bool allocation_pointer_found_in_space =
-      (allocation_info_.top() == allocation_info_.limit());
+      (allocation_info_->top() == allocation_info_->limit());
   size_t external_space_bytes[kNumTypes];
   size_t external_page_bytes[kNumTypes];
 
@@ -725,7 +726,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       external_page_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
     }
 
-    if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
+    if (page == Page::FromAllocationAreaAddress(allocation_info_->top())) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->SweepingDone());
@@ -860,7 +861,7 @@ void PagedSpace::VerifyCountersBeforeConcurrentSweeping() {
 
 void PagedSpace::UpdateInlineAllocationLimit(size_t min_size) {
   // Ensure there are no unaccounted allocations.
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+  DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
 
   Address new_limit = ComputeLimit(top(), limit(), min_size);
   DCHECK_LE(top(), new_limit);

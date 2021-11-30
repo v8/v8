@@ -194,9 +194,10 @@ TEST(MemoryAllocator) {
 
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
+  LinearAllocationArea allocation_info;
 
   int total_pages = 0;
-  OldSpace faked_space(heap);
+  OldSpace faked_space(heap, &allocation_info);
   CHECK(!faked_space.first_page());
   CHECK(!faked_space.last_page());
   Page* first_page = memory_allocator->AllocatePage(
@@ -275,10 +276,11 @@ TEST(NewSpace) {
   Heap* heap = isolate->heap();
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
+  LinearAllocationArea allocation_info;
 
   NewSpace new_space(heap, memory_allocator->data_page_allocator(),
                      CcTest::heap()->InitialSemiSpaceSize(),
-                     CcTest::heap()->InitialSemiSpaceSize());
+                     CcTest::heap()->InitialSemiSpaceSize(), &allocation_info);
   CHECK(new_space.MaximumCapacity());
 
   while (new_space.Available() >= kMaxRegularHeapObjectSize) {
@@ -296,8 +298,9 @@ TEST(OldSpace) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
+  LinearAllocationArea allocation_info;
 
-  OldSpace* s = new OldSpace(heap);
+  OldSpace* s = new OldSpace(heap, &allocation_info);
   CHECK_NOT_NULL(s);
 
   while (s->Available() > 0) {
@@ -802,7 +805,8 @@ TEST(NoMemoryForNewPage) {
   FailingPageAllocator failing_allocator;
   TestMemoryAllocatorScope test_allocator_scope(isolate, 0, &failing_allocator);
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
-  OldSpace faked_space(heap);
+  LinearAllocationArea allocation_info;
+  OldSpace faked_space(heap, &allocation_info);
   Page* page = memory_allocator->AllocatePage(
       faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
       NOT_EXECUTABLE);

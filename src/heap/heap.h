@@ -86,6 +86,7 @@ class HeapObjectsFilter;
 class HeapStats;
 class Isolate;
 class JSFinalizationRegistry;
+class LinearAllocationArea;
 class LocalEmbedderHeapTracer;
 class LocalHeap;
 class MarkingBarrier;
@@ -842,7 +843,8 @@ class Heap {
   void ReplaceReadOnlySpace(SharedReadOnlySpace* shared_ro_space);
 
   // Sets up the heap memory without creating any objects.
-  void SetUpSpaces();
+  void SetUpSpaces(LinearAllocationArea* new_allocation_info,
+                   LinearAllocationArea* old_allocation_info);
 
   // Prepares the heap, setting up for deserialization.
   void InitializeMainThreadLocalHeap(LocalHeap* main_thread_local_heap);
