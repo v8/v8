@@ -594,7 +594,7 @@ V8 shared library set USING_V8_SHARED.
 // From C++17 onwards, static constexpr member variables are defined to be
 // "inline", and adding a separate definition for them can trigger deprecation
 // warnings. For C++14 and below, however, these definitions are required.
-#if __cplusplus < 201703L
+#if __cplusplus < 201703L && (!defined(_MSVC_LANG) || _MSVC_LANG < 201703L)
 #define V8_STATIC_CONSTEXPR_VARIABLES_NEED_DEFINITIONS
 #endif
 
