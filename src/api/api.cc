@@ -1493,23 +1493,27 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
   if (redirected != i::kNullAddress) {
     SET_FIELD_WRAPPED(isolate, obj, set_js_getter, redirected);
   }
-  if (data.IsEmpty()) {
-    data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
-  }
-  obj->set_data(*Utils::OpenHandle(*data));
-  obj->set_is_special_data_property(is_special_data_property);
-  obj->set_replace_on_access(replace_on_access);
+
   i::Handle<i::Name> accessor_name = Utils::OpenHandle(*name);
   if (!accessor_name->IsUniqueName()) {
     accessor_name = isolate->factory()->InternalizeString(
         i::Handle<i::String>::cast(accessor_name));
   }
-  obj->set_name(*accessor_name);
-  if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
-  if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
-  obj->set_initial_property_attributes(i::NONE);
+  i::DisallowGarbageCollection no_gc;
+  i::AccessorInfo raw_obj = *obj;
+  if (data.IsEmpty()) {
+    raw_obj.set_data(i::ReadOnlyRoots(isolate).undefined_value());
+  } else {
+    raw_obj.set_data(*Utils::OpenHandle(*data));
+  }
+  raw_obj.set_name(*accessor_name);
+  raw_obj.set_is_special_data_property(is_special_data_property);
+  raw_obj.set_replace_on_access(replace_on_access);
+  if (settings & ALL_CAN_READ) raw_obj.set_all_can_read(true);
+  if (settings & ALL_CAN_WRITE) raw_obj.set_all_can_write(true);
+  raw_obj.set_initial_property_attributes(i::NONE);
   if (!signature.IsEmpty()) {
-    obj->set_expected_receiver_type(*Utils::OpenHandle(*signature));
+    raw_obj.set_expected_receiver_type(*Utils::OpenHandle(*signature));
   }
   return obj;
 }
@@ -1642,10 +1646,14 @@ static void TemplateSetAccessor(
   i::Handle<i::AccessorInfo> accessor_info =
       MakeAccessorInfo(isolate, name, getter, setter, data, settings, signature,
                        is_special_data_property, replace_on_access);
-  accessor_info->set_initial_property_attributes(
-      static_cast<i::PropertyAttributes>(attribute));
-  accessor_info->set_getter_side_effect_type(getter_side_effect_type);
-  accessor_info->set_setter_side_effect_type(setter_side_effect_type);
+  {
+    i::DisallowGarbageCollection no_gc;
+    i::AccessorInfo raw = *accessor_info;
+    raw.set_initial_property_attributes(
+        static_cast<i::PropertyAttributes>(attribute));
+    raw.set_getter_side_effect_type(getter_side_effect_type);
+    raw.set_setter_side_effect_type(setter_side_effect_type);
+  }
   i::ApiNatives::AddNativeDataProperty(isolate, info, accessor_info);
 }
 
