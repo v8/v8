@@ -1705,9 +1705,6 @@ DEFINE_BOOL(correctness_fuzzer_suppressions, false,
             "fuzzing: Abort program when the stack overflows or a string "
             "exceeds maximum length (as opposed to throwing RangeError). "
             "Use a fixed suppression string for error messages.")
-DEFINE_BOOL(randomize_hashes, true,
-            "randomize hashes to avoid predictable hash collisions "
-            "(with snapshots this option cannot override the baked-in seed)")
 DEFINE_BOOL(rehash_snapshot, true,
             "rehash strings from the snapshot to override the baked-in seed")
 DEFINE_UINT64(hash_seed, 0,
