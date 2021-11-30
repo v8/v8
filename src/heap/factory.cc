@@ -1371,14 +1371,6 @@ void Factory::AddToScriptList(Handle<Script> script) {
   isolate()->heap()->set_script_list(*scripts);
 }
 
-void Factory::SetExternalCodeSpaceInDataContainer(
-    CodeDataContainer data_container) {
-  DCHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  data_container.AllocateExternalPointerEntries(isolate());
-  data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
-  data_container.set_code_entry_point(isolate(), kNullAddress);
-}
-
 Handle<Script> Factory::CloneScript(Handle<Script> script) {
   Heap* heap = isolate()->heap();
   int script_id = isolate()->GetNextScriptId();

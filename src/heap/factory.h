@@ -1001,12 +1001,22 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     // NOLINTNEXTLINE (google-readability-casting)
     return (Isolate*)this;  // NOLINT(readability/casting)
   }
+
+  // This is the real Isolate that will be used for allocating and accessing
+  // external pointer entries when V8_HEAP_SANDBOX is enabled.
+  Isolate* isolate_for_heap_sandbox() const {
+#ifdef V8_HEAP_SANDBOX
+    return isolate();
+#else
+    return nullptr;
+#endif  // V8_HEAP_SANDBOX
+  }
+
   bool CanAllocateInReadOnlySpace();
   bool EmptyStringRootIsInitialized();
   AllocationType AllocationTypeForInPlaceInternalizableString();
 
   void AddToScriptList(Handle<Script> shared);
-  void SetExternalCodeSpaceInDataContainer(CodeDataContainer data_container);
   // ------
 
   HeapObject AllocateRawWithAllocationSite(
