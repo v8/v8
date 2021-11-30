@@ -691,6 +691,8 @@ class WasmGraphBuilder {
   // generates {index > max ? Smi(max) : Smi(index)}
   Node* BuildConvertUint32ToSmiWithSaturation(Node* index, uint32_t maxval);
 
+  Node* IsNull(Node* object);
+
   using BranchBuilder = std::function<void(Node*, BranchHint)>;
   struct Callbacks {
     BranchBuilder succeed_if;
