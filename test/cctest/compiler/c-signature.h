@@ -111,8 +111,15 @@ class CSignatureOf : public CSignature {
         std::is_same<decltype(*reps_), decltype(*param_types.data())>::value,
         "type mismatch, cannot memcpy");
     if (kParamCount > 0) {
+#if V8_CC_GNU
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnonnull"
+#endif
       memcpy(storage_ + kReturnCount, param_types.data(),
              sizeof(*storage_) * kParamCount);
+#if V8_CC_GNU
+#pragma GCC diagnostic pop
+#endif
     }
   }
 
