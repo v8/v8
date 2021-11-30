@@ -103,28 +103,14 @@ void PersistentRegionBase::Trace(Visitor* visitor) {
                nodes_.end());
 }
 
-namespace {
-
-thread_local int thread_id = 0;
-std::atomic<int> next_thread_id{1};
-
-int GetCurrentThreadId() {
-  if (thread_id == 0) {
-    thread_id = next_thread_id.fetch_add(1);
-  }
-  return thread_id;
-}
-
-}  // namespace
-
 PersistentRegion::PersistentRegion(const FatalOutOfMemoryHandler& oom_handler)
     : PersistentRegionBase(oom_handler),
-      creation_thread_id_(GetCurrentThreadId()) {
+      creation_thread_id_(v8::base::OS::GetCurrentThreadId()) {
   USE(creation_thread_id_);
 }
 
 bool PersistentRegion::IsCreationThread() {
-  return creation_thread_id_ == GetCurrentThreadId();
+  return creation_thread_id_ == v8::base::OS::GetCurrentThreadId();
 }
 
 PersistentRegionLock::PersistentRegionLock() {
