@@ -1008,12 +1008,20 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
       isolate->native_context()->generator_next_internal(), isolate);
   Handle<Object> result;
 
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::TryCall(isolate, resume, generator, 0, nullptr,
-                         Execution::MessageHandling::kKeepPending, nullptr,
-                         false),
-      Object);
+  // With top_level_await, we need to catch any exceptions and reject
+  // the top level capability.
+  if (FLAG_harmony_top_level_await) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        Execution::TryCall(isolate, resume, generator, 0, nullptr,
+                           Execution::MessageHandling::kKeepPending, nullptr,
+                           false),
+        Object);
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        Execution::Call(isolate, resume, generator, 0, nullptr), Object);
+  }
   DCHECK(JSIteratorResult::cast(*result).done().BooleanValue(isolate));
   return handle(JSIteratorResult::cast(*result).value(), isolate);
 }

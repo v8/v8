@@ -2992,6 +2992,8 @@ TEST(Modules) {
 }
 
 TEST(AsyncModules) {
+  bool previous_top_level_await_flag = i::FLAG_harmony_top_level_await;
+  i::FLAG_harmony_top_level_await = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -3015,6 +3017,7 @@ TEST(AsyncModules) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("AsyncModules.golden")));
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag;
 }
 
 TEST(SuperCallAndSpread) {
