@@ -2133,6 +2133,8 @@ void BytecodeGenerator::BuildTryCatch(
     TryBodyFunc try_body_func, CatchBodyFunc catch_body_func,
     HandlerTable::CatchPrediction catch_prediction,
     TryCatchStatement* stmt_for_coverage) {
+  if (builder()->RemainderOfBlockIsDead()) return;
+
   TryCatchBuilder try_control_builder(
       builder(),
       stmt_for_coverage == nullptr ? nullptr : block_coverage_builder_,
@@ -2163,6 +2165,8 @@ void BytecodeGenerator::BuildTryFinally(
     TryBodyFunc try_body_func, FinallyBodyFunc finally_body_func,
     HandlerTable::CatchPrediction catch_prediction,
     TryFinallyStatement* stmt_for_coverage) {
+  if (builder()->RemainderOfBlockIsDead()) return;
+
   // We can't know whether the finally block will override ("catch") an
   // exception thrown in the try block, so we just adopt the outer prediction.
   TryFinallyBuilder try_control_builder(
