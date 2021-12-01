@@ -496,6 +496,13 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
   Call(ip);
 }
 
+void TurboAssembler::TailCallBuiltin(Builtin builtin) {
+  ASM_CODE_COMMENT_STRING(this,
+                          CommentForOffHeapTrampoline("tail call", builtin));
+  mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  b(ip);
+}
+
 void TurboAssembler::Drop(int count) {
   if (count > 0) {
     int total = count * kSystemPointerSize;
