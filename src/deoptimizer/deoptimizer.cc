@@ -656,7 +656,7 @@ Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
 
 bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
                                         DeoptimizeKind* type_out) {
-  Builtin builtin = InstructionStream::TryLookupCode(isolate, addr);
+  Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, addr);
   if (!Builtins::IsBuiltinId(builtin)) return false;
 
   switch (builtin) {

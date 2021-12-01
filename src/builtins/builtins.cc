@@ -107,7 +107,7 @@ void Builtins::TearDown() { initialized_ = false; }
 
 const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
-  Builtin builtin = InstructionStream::TryLookupCode(isolate_, pc);
+  Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate_, pc);
   if (Builtins::IsBuiltinId(builtin)) return name(builtin);
 
   // May be called during initialization (disassembler).
@@ -417,7 +417,7 @@ class OffHeapTrampolineGenerator {
       FrameScope scope(&masm_, StackFrame::NO_FRAME_TYPE);
       if (type == TrampolineType::kJump) {
         masm_.CodeEntry();
-        masm_.JumpToInstructionStream(off_heap_entry);
+        masm_.JumpToOffHeapInstructionStream(off_heap_entry);
       } else {
         DCHECK_EQ(type, TrampolineType::kAbort);
         masm_.Trap();

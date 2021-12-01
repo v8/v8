@@ -251,7 +251,7 @@ void FreeCurrentEmbeddedBlob() {
   CHECK_EQ(StickyEmbeddedBlobCode(), Isolate::CurrentEmbeddedBlobCode());
   CHECK_EQ(StickyEmbeddedBlobData(), Isolate::CurrentEmbeddedBlobData());
 
-  InstructionStream::FreeOffHeapInstructionStream(
+  OffHeapInstructionStream::FreeOffHeapOffHeapInstructionStream(
       const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobCode()),
       Isolate::CurrentEmbeddedBlobCodeSize(),
       const_cast<uint8_t*>(Isolate::CurrentEmbeddedBlobData()),
@@ -3545,8 +3545,8 @@ void Isolate::CreateAndSetEmbeddedBlob() {
     uint32_t code_size;
     uint8_t* data;
     uint32_t data_size;
-    InstructionStream::CreateOffHeapInstructionStream(this, &code, &code_size,
-                                                      &data, &data_size);
+    OffHeapInstructionStream::CreateOffHeapOffHeapInstructionStream(
+        this, &code, &code_size, &data, &data_size);
 
     CHECK_EQ(0, current_embedded_blob_refs_);
     const uint8_t* const_code = const_cast<const uint8_t*>(code);
@@ -3599,7 +3599,7 @@ void Isolate::TearDownEmbeddedBlob() {
   current_embedded_blob_refs_--;
   if (current_embedded_blob_refs_ == 0 && enable_embedded_blob_refcounting_) {
     // We own the embedded blob and are the last holder. Free it.
-    InstructionStream::FreeOffHeapInstructionStream(
+    OffHeapInstructionStream::FreeOffHeapOffHeapInstructionStream(
         const_cast<uint8_t*>(CurrentEmbeddedBlobCode()),
         embedded_blob_code_size(),
         const_cast<uint8_t*>(CurrentEmbeddedBlobData()),

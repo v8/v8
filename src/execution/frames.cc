@@ -249,7 +249,7 @@ namespace {
 
 bool IsInterpreterFramePc(Isolate* isolate, Address pc,
                           StackFrame::State* state) {
-  Builtin builtin = InstructionStream::TryLookupCode(isolate, pc);
+  Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, pc);
   if (builtin != Builtin::kNoBuiltinId &&
       (builtin == Builtin::kInterpreterEntryTrampoline ||
        builtin == Builtin::kInterpreterEnterAtBytecode ||
@@ -2310,8 +2310,8 @@ namespace {
 // from the embedded builtins start or from respective MemoryChunk.
 uint32_t PcAddressForHashing(Isolate* isolate, Address address) {
   uint32_t hashable_address;
-  if (InstructionStream::TryGetAddressForHashing(isolate, address,
-                                                 &hashable_address)) {
+  if (OffHeapInstructionStream::TryGetAddressForHashing(isolate, address,
+                                                        &hashable_address)) {
     return hashable_address;
   }
   return ObjectAddressForHashing(address);

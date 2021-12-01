@@ -65,7 +65,7 @@ using base::WriteUnalignedValue;
 
 // Forward declarations.
 class EmbeddedData;
-class InstructionStream;
+class OffHeapInstructionStream;
 class Isolate;
 class SCTableReference;
 class SourcePosition;

@@ -1049,7 +1049,7 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
   Address addr = rinfo->target_off_heap_target();
   CHECK_NE(kNullAddress, addr);
 
-  Builtin builtin = InstructionStream::TryLookupCode(isolate(), addr);
+  Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate(), addr);
   CHECK(Builtins::IsBuiltinId(builtin));
   CHECK(Builtins::IsIsolateIndependent(builtin));
 

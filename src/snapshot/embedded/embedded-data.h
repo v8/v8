@@ -19,7 +19,7 @@ class Isolate;
 
 // Wraps an off-heap instruction stream.
 // TODO(jgruber,v8:6666): Remove this class.
-class InstructionStream final : public AllStatic {
+class OffHeapInstructionStream final : public AllStatic {
  public:
   // Returns true, iff the given pc points into an off-heap instruction stream.
   static bool PcIsOffHeap(Isolate* isolate, Address pc);
@@ -38,12 +38,15 @@ class InstructionStream final : public AllStatic {
   // containing all off-heap code. The area is guaranteed to be contiguous.
   // Note that this only applies when building the snapshot, e.g. for
   // mksnapshot. Otherwise, off-heap code is embedded directly into the binary.
-  static void CreateOffHeapInstructionStream(Isolate* isolate, uint8_t** code,
-                                             uint32_t* code_size,
-                                             uint8_t** data,
-                                             uint32_t* data_size);
-  static void FreeOffHeapInstructionStream(uint8_t* code, uint32_t code_size,
-                                           uint8_t* data, uint32_t data_size);
+  static void CreateOffHeapOffHeapInstructionStream(Isolate* isolate,
+                                                    uint8_t** code,
+                                                    uint32_t* code_size,
+                                                    uint8_t** data,
+                                                    uint32_t* data_size);
+  static void FreeOffHeapOffHeapInstructionStream(uint8_t* code,
+                                                  uint32_t code_size,
+                                                  uint8_t* data,
+                                                  uint32_t data_size);
 };
 
 class EmbeddedData final {

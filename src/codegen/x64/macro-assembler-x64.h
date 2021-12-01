@@ -775,7 +775,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void PopQuad(Operand dst);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(Address entry);
+  void JumpToOffHeapInstructionStream(Address entry);
 
   // Compare object type for heap object.
   // Always use unsigned comparisons: above and below, not less and greater.

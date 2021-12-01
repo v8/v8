@@ -332,7 +332,8 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
     // thus process-independent. See also: FinalizeEmbeddedCodeTargets.
     if (RelocInfo::IsCodeTargetMode(it.rinfo()->rmode())) {
       Address target_address = it.rinfo()->target_address();
-      if (InstructionStream::PcIsOffHeap(isolate, target_address)) continue;
+      if (OffHeapInstructionStream::PcIsOffHeap(isolate, target_address))
+        continue;
 
       Code target = Code::GetCodeFromTargetAddress(target_address);
       CHECK(target.IsCode());

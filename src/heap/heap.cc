@@ -7086,7 +7086,8 @@ Code Heap::GcSafeCastToCode(HeapObject object, Address inner_pointer) {
 bool Heap::GcSafeCodeContains(Code code, Address addr) {
   Map map = GcSafeMapOfCodeSpaceObject(code);
   DCHECK(map == ReadOnlyRoots(this).code_map());
-  Builtin maybe_builtin = InstructionStream::TryLookupCode(isolate(), addr);
+  Builtin maybe_builtin =
+      OffHeapInstructionStream::TryLookupCode(isolate(), addr);
   if (Builtins::IsBuiltinId(maybe_builtin) &&
       code.builtin_id() == maybe_builtin) {
     return true;
@@ -7098,7 +7099,7 @@ bool Heap::GcSafeCodeContains(Code code, Address addr) {
 
 Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   Builtin maybe_builtin =
-      InstructionStream::TryLookupCode(isolate(), inner_pointer);
+      OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (Builtins::IsBuiltinId(maybe_builtin)) {
     return isolate()->builtins()->code(maybe_builtin);
   }

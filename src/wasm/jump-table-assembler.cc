@@ -266,7 +266,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  JumpToInstructionStream(target);
+  JumpToOffHeapInstructionStream(target);
 }
 
 // static
@@ -299,7 +299,7 @@ bool JumpTableAssembler::EmitJumpSlot(Address target) {
   return true;
 }
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
-  JumpToInstructionStream(target);
+  JumpToOffHeapInstructionStream(target);
 }
 void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
   UNREACHABLE();
