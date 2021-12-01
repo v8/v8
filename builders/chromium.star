@@ -14,6 +14,11 @@ def chromium_builder(name):
         properties = {"builder_group": "client.v8.chromium"},
         use_goma = GOMA.DEFAULT,
         in_console = "chromium/Future",
+        # TODO(crbug.com/1135718): This experiment can be removed after it's
+        # enabled by default in the recipe.
+        experiments = {
+            "chromium.chromium_tests.use_rdb_results": 100,
+        },
     )
 
 chromium_builder("Linux - Future")
