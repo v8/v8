@@ -2092,6 +2092,7 @@
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
           '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
         ],
         'shards': 4
       },
@@ -2152,6 +2153,7 @@
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
           '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
         ],
         'shards': 3
       },
@@ -2228,6 +2230,7 @@
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
           '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
         ],
       },
       {
@@ -2280,6 +2283,7 @@
           '--stress-scavenge=4',
           '--stress-thread-pool-size=2',
           '--stress-stack-size=1',
+          '--stress-interrupt-budget=1',
         ],
       },
       {
