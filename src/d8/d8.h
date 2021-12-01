@@ -478,7 +478,7 @@ class Shell : public i::AllStatic {
   static int RunMain(Isolate* isolate, bool last_run);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
-  static void OnExit(Isolate* isolate);
+  static void OnExit(Isolate* isolate, bool dispose);
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);
   static bool CompleteMessageLoop(Isolate* isolate);
@@ -669,6 +669,7 @@ class Shell : public i::AllStatic {
   static Global<Function> stringify_function_;
   static const char* stringify_source_;
   static CounterMap* counter_map_;
+  static base::SharedMutex counter_mutex_;
   // We statically allocate a set of local counters to be used if we
   // don't want to store the stats in a memory-mapped file
   static CounterCollection local_counters_;
