@@ -329,6 +329,29 @@ def v8_torque(name, noicu_srcs, icu_srcs, args, extras):
         }),
     )
 
+def _v8_target_cpu_transition_impl(settings, attr):
+    mapping = {
+        "haswell": "x64",
+        "k8": "x64",
+        "x86_64": "x64",
+        "darwin_x86_64": "x64",
+        "x86": "ia32",
+        "ppc": "ppc64",
+        "arm64-v8a": "arm64",
+        "arm": "arm64",
+        "armeabi-v7a": "arm32",
+    }
+    v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
+    return {"@config//:v8_target_cpu": v8_target_cpu}
+
+# Set the v8_target_cpu to be the correct architecture given the cpu specified
+# on the command line.
+v8_target_cpu_transition = transition(
+    implementation = _v8_target_cpu_transition_impl,
+    inputs = ["//command_line_option:cpu"],
+    outputs = ["@config//:v8_target_cpu"],
+)
+
 def _mksnapshot(ctx):
     outs = [
         ctx.actions.declare_file(ctx.attr.prefix + "/snapshot.cc"),
@@ -359,8 +382,12 @@ _v8_mksnapshot = rule(
             executable = True,
             cfg = "exec",
         ),
+        "_allowlist_function_transition": attr.label(
+            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
+        ),
         "prefix": attr.string(mandatory = True),
     },
+    cfg = v8_target_cpu_transition,
 )
 
 def v8_mksnapshot(name, args):
