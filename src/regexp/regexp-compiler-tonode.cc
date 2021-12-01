@@ -1420,6 +1420,7 @@ void CharacterSet::Canonicalize() {
   CharacterRange::Canonicalize(ranges_);
 }
 
+// static
 void CharacterRange::Canonicalize(ZoneList<CharacterRange>* character_ranges) {
   if (character_ranges->length() <= 1) return;
   // Check whether ranges are already canonical (increasing, non-overlapping,
@@ -1455,6 +1456,7 @@ void CharacterRange::Canonicalize(ZoneList<CharacterRange>* character_ranges) {
   DCHECK(CharacterRange::IsCanonical(character_ranges));
 }
 
+// static
 void CharacterRange::Negate(ZoneList<CharacterRange>* ranges,
                             ZoneList<CharacterRange>* negated_ranges,
                             Zone* zone) {
@@ -1476,6 +1478,27 @@ void CharacterRange::Negate(ZoneList<CharacterRange>* ranges,
   if (from < kMaxCodePoint) {
     negated_ranges->Add(CharacterRange::Range(from, kMaxCodePoint), zone);
   }
+}
+
+// static
+void CharacterRange::ClampToOneByte(ZoneList<CharacterRange>* ranges) {
+  DCHECK(IsCanonical(ranges));
+
+  // Drop all ranges that don't contain one-byte code units, and clamp the last
+  // range s.t. it likewise only contains one-byte code units. Note this relies
+  // on `ranges` being canonicalized, i.e. sorted and non-overlapping.
+
+  static constexpr base::uc32 max_char = String::kMaxOneByteCharCodeU;
+  int n = ranges->length();
+  for (; n > 0; n--) {
+    CharacterRange& r = ranges->at(n - 1);
+    if (r.from() <= max_char) {
+      r.to_ = std::min(r.to_, max_char);
+      break;
+    }
+  }
+
+  ranges->Rewind(n);
 }
 
 namespace {
