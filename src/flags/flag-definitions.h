@@ -709,9 +709,6 @@ DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
 #else
 DEFINE_BOOL(concurrent_sparkplug, false,
             "compile Sparkplug code in a background thread")
-DEFINE_UINT(
-    concurrent_sparkplug_max_threads, 0,
-    "max number of threads that concurrent Sparkplug can use (0 for unbounded)")
 DEFINE_WEAK_IMPLICATION(future, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sparkplug)

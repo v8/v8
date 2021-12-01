@@ -9,8 +9,6 @@
 #include "src/flags/flags.h"
 #if ENABLE_SPARKPLUG
 
-#include <algorithm>
-
 #include "src/baseline/baseline-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate.h"
@@ -183,10 +181,6 @@ class ConcurrentBaselineCompiler {
     }
 
     size_t GetMaxConcurrency(size_t worker_count) const override {
-      size_t max_threads = FLAG_concurrent_sparkplug_max_threads;
-      if (max_threads > 0) {
-        return std::min(max_threads, incoming_queue_->size());
-      }
       return incoming_queue_->size();
     }
 
