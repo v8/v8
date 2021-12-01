@@ -713,6 +713,9 @@ DEFINE_WEAK_IMPLICATION(future, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sparkplug)
 #endif
+DEFINE_UINT(
+    concurrent_sparkplug_max_threads, 0,
+    "max number of threads that concurrent Sparkplug can use (0 for unbounded)")
 #else
 DEFINE_BOOL(baseline_batch_compilation, false, "batch compile Sparkplug code")
 DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
