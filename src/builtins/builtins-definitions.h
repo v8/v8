@@ -716,11 +716,17 @@ namespace internal {
   TFC(Exponentiate_Baseline, BinaryOp_Baseline)                                \
   TFC(ExponentiateSmi_Baseline, BinaryOp_Baseline)                             \
   TFC(BitwiseAnd_Baseline, BinaryOp_Baseline)                                  \
+  TFC(BitwiseAndSmi_Baseline, BinaryOp_Baseline)                               \
   TFC(BitwiseOr_Baseline, BinaryOp_Baseline)                                   \
+  TFC(BitwiseOrSmi_Baseline, BinaryOp_Baseline)                                \
   TFC(BitwiseXor_Baseline, BinaryOp_Baseline)                                  \
+  TFC(BitwiseXorSmi_Baseline, BinaryOp_Baseline)                               \
   TFC(ShiftLeft_Baseline, BinaryOp_Baseline)                                   \
+  TFC(ShiftLeftSmi_Baseline, BinaryOp_Baseline)                                \
   TFC(ShiftRight_Baseline, BinaryOp_Baseline)                                  \
+  TFC(ShiftRightSmi_Baseline, BinaryOp_Baseline)                               \
   TFC(ShiftRightLogical_Baseline, BinaryOp_Baseline)                           \
+  TFC(ShiftRightLogicalSmi_Baseline, BinaryOp_Baseline)                        \
                                                                                \
   TFC(Add_WithFeedback, BinaryOp_WithFeedback)                                 \
   TFC(Subtract_WithFeedback, BinaryOp_WithFeedback)                            \

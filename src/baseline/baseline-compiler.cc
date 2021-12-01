@@ -1073,32 +1073,32 @@ void BaselineCompiler::VisitExpSmi() {
 }
 
 void BaselineCompiler::VisitBitwiseOrSmi() {
-  CallBuiltin<Builtin::kBitwiseOr_Baseline>(kInterpreterAccumulatorRegister,
-                                            IntAsSmi(0), Index(1));
+  CallBuiltin<Builtin::kBitwiseOrSmi_Baseline>(kInterpreterAccumulatorRegister,
+                                               IntAsSmi(0), Index(1));
 }
 
 void BaselineCompiler::VisitBitwiseXorSmi() {
-  CallBuiltin<Builtin::kBitwiseXor_Baseline>(kInterpreterAccumulatorRegister,
-                                             IntAsSmi(0), Index(1));
+  CallBuiltin<Builtin::kBitwiseXorSmi_Baseline>(kInterpreterAccumulatorRegister,
+                                                IntAsSmi(0), Index(1));
 }
 
 void BaselineCompiler::VisitBitwiseAndSmi() {
-  CallBuiltin<Builtin::kBitwiseAnd_Baseline>(kInterpreterAccumulatorRegister,
-                                             IntAsSmi(0), Index(1));
+  CallBuiltin<Builtin::kBitwiseAndSmi_Baseline>(kInterpreterAccumulatorRegister,
+                                                IntAsSmi(0), Index(1));
 }
 
 void BaselineCompiler::VisitShiftLeftSmi() {
-  CallBuiltin<Builtin::kShiftLeft_Baseline>(kInterpreterAccumulatorRegister,
-                                            IntAsSmi(0), Index(1));
+  CallBuiltin<Builtin::kShiftLeftSmi_Baseline>(kInterpreterAccumulatorRegister,
+                                               IntAsSmi(0), Index(1));
 }
 
 void BaselineCompiler::VisitShiftRightSmi() {
-  CallBuiltin<Builtin::kShiftRight_Baseline>(kInterpreterAccumulatorRegister,
-                                             IntAsSmi(0), Index(1));
+  CallBuiltin<Builtin::kShiftRightSmi_Baseline>(kInterpreterAccumulatorRegister,
+                                                IntAsSmi(0), Index(1));
 }
 
 void BaselineCompiler::VisitShiftRightLogicalSmi() {
-  CallBuiltin<Builtin::kShiftRightLogical_Baseline>(
+  CallBuiltin<Builtin::kShiftRightLogicalSmi_Baseline>(
       kInterpreterAccumulatorRegister, IntAsSmi(0), Index(1));
 }
 

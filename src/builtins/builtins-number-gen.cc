@@ -94,6 +94,13 @@ DEF_BINOP_RHS_SMI(MultiplySmi_Baseline, Generate_MultiplyWithFeedback)
 DEF_BINOP_RHS_SMI(DivideSmi_Baseline, Generate_DivideWithFeedback)
 DEF_BINOP_RHS_SMI(ModulusSmi_Baseline, Generate_ModulusWithFeedback)
 DEF_BINOP_RHS_SMI(ExponentiateSmi_Baseline, Generate_ExponentiateWithFeedback)
+DEF_BINOP_RHS_SMI(BitwiseOrSmi_Baseline, Generate_BitwiseOrWithFeedback)
+DEF_BINOP_RHS_SMI(BitwiseXorSmi_Baseline, Generate_BitwiseXorWithFeedback)
+DEF_BINOP_RHS_SMI(BitwiseAndSmi_Baseline, Generate_BitwiseAndWithFeedback)
+DEF_BINOP_RHS_SMI(ShiftLeftSmi_Baseline, Generate_ShiftLeftWithFeedback)
+DEF_BINOP_RHS_SMI(ShiftRightSmi_Baseline, Generate_ShiftRightWithFeedback)
+DEF_BINOP_RHS_SMI(ShiftRightLogicalSmi_Baseline,
+                  Generate_ShiftRightLogicalWithFeedback)
 #undef DEF_BINOP_RHS_SMI
 
 #define DEF_UNOP(Name, Generator)                                \

@@ -999,7 +999,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
     BinaryOpAssembler binop_asm(state());
     TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
-        bitwise_op, left, right, [=] { return context; }, &feedback);
+        bitwise_op, left, right, [=] { return context; }, &feedback, false);
 
     MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(result);
@@ -1013,29 +1013,15 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
-    TVARIABLE(Smi, var_left_feedback);
-    TVARIABLE(Word32T, var_left_word32);
-    TVARIABLE(BigInt, var_left_bigint);
-    Label do_smi_op(this), if_bigint_mix(this);
+    TVARIABLE(Smi, feedback);
 
-    TaggedToWord32OrBigIntWithFeedback(context, left, &do_smi_op,
-                                       &var_left_word32, &if_bigint_mix,
-                                       &var_left_bigint, &var_left_feedback);
-    BIND(&do_smi_op);
-    TNode<Number> result =
-        BitwiseOp(var_left_word32.value(), SmiToInt32(right), bitwise_op);
-    TNode<Smi> result_type = SelectSmiConstant(
-        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumber);
-    MaybeUpdateFeedback(SmiOr(result_type, var_left_feedback.value()),
-                        maybe_feedback_vector, slot_index);
+    BinaryOpAssembler binop_asm(state());
+    TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
+        bitwise_op, left, right, [=] { return context; }, &feedback, true);
+
+    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(result);
     Dispatch();
-
-    BIND(&if_bigint_mix);
-    MaybeUpdateFeedback(var_left_feedback.value(), maybe_feedback_vector,
-                        slot_index);
-    ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
   }
 };
 
