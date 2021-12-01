@@ -1222,20 +1222,11 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
   ZoneList<CharacterRange>* ranges = cc->ranges(zone);
   CharacterRange::Canonicalize(ranges);
 
-  const base::uc32 max_char = MaxCodeUnit(one_byte);
+  // Now that all processing (like case-insensitivity) is done, clamp the
+  // ranges to the set of ranges that may actually occur in the subject string.
+  if (one_byte) CharacterRange::ClampToOneByte(ranges);
 
-  // Determine the 'interesting' set of ranges; may be a subset of the given
-  // range set if it contains ranges not representable by the current string
-  // representation.
-  int ranges_length = ranges->length();
-  while (ranges_length > 0) {
-    CharacterRange& range = ranges->at(ranges_length - 1);
-    if (range.from() <= max_char) break;
-    ranges_length--;
-  }
-
-  ranges->Rewind(ranges_length);  // Drop all uninteresting ranges.
-
+  const int ranges_length = ranges->length();
   if (ranges_length == 0) {
     if (!cc->is_negated()) {
       macro_assembler->GoTo(on_failure);
@@ -1246,6 +1237,7 @@ void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     return;
   }
 
+  const base::uc32 max_char = MaxCodeUnit(one_byte);
   if (ranges_length == 1 && ranges->at(0).IsEverything(max_char)) {
     if (cc->is_negated()) {
       macro_assembler->GoTo(on_failure);

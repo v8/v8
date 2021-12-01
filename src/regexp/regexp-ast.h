@@ -138,6 +138,9 @@ class CharacterRange {
   static void Negate(ZoneList<CharacterRange>* src,
                      ZoneList<CharacterRange>* dst, Zone* zone);
 
+  // Remove all ranges outside the one-byte range.
+  static void ClampToOneByte(ZoneList<CharacterRange>* ranges);
+
  private:
   CharacterRange(base::uc32 from, base::uc32 to) : from_(from), to_(to) {}
 
