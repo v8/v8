@@ -194,10 +194,3 @@ extern class WasmArray extends WasmObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
-
-@export
-class CallRefData extends HeapObject {
-  instance: HeapObject;
-  target: RawPtr;
-  count: uint32;
-}

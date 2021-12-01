@@ -1267,9 +1267,8 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
           PrintF("[Function #%d call_ref #%d inlineable (monomorphic)]\n",
                  func_index, i / 2);
         }
-        CallRefData data = CallRefData::cast(feedback.get(i + 1));
-        result[i / 2] = {target.function_index(),
-                         static_cast<int>(data.count())};
+        int32_t count = Smi::cast(feedback.get(i + 1)).value();
+        result[i / 2] = {target.function_index(), count};
         continue;
       }
     } else if (value.IsFixedArray()) {
@@ -1279,13 +1278,13 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
       FixedArray polymorphic = FixedArray::cast(value);
       size_t total_count = 0;
       for (int j = 0; j < polymorphic.length(); j += 2) {
-        total_count += CallRefData::cast(polymorphic.get(j + 1)).count();
+        total_count += Smi::cast(polymorphic.get(j + 1)).value();
       }
       int found_target = -1;
       int found_count = -1;
       double best_frequency = 0;
       for (int j = 0; j < polymorphic.length(); j += 2) {
-        uint32_t this_count = CallRefData::cast(polymorphic.get(j + 1)).count();
+        int32_t this_count = Smi::cast(polymorphic.get(j + 1)).value();
         double frequency = static_cast<double>(this_count) / total_count;
         if (frequency > best_frequency) best_frequency = frequency;
         if (frequency < 0.8) continue;
