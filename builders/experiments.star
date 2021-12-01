@@ -118,7 +118,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         executable = "recipe:v8/bazel",
         to_notify = [
-            "victorgomes@chromium.org",
+            "v8-google3-sheriff@grotations.appspotmail.com",
         ],
     ),
     experiment_builder(
