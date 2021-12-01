@@ -1101,6 +1101,11 @@ DEFINE_IMPLICATION(wasm_speculative_inlining, experimental_wasm_typed_funcref)
 DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_dynamic_tiering)
 DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_inlining)
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, wasm_speculative_inlining)
+// Speculative inlining needs type feedback from Liftoff and compilation in
+// Turbofan.
+DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_speculative_inlining)
+DEFINE_NEG_IMPLICATION(liftoff_only, wasm_speculative_inlining)
+
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
 DEFINE_BOOL(wasm_fuzzer_gen_test, false,

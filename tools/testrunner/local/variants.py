@@ -73,7 +73,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
   "stress": ["--always-opt", "--no-always-opt",
              "--max-inlined-bytecode-size=*",
              "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",
-             "--liftoff-only"],
+             "--liftoff-only", "--wasm-speculative-inlining"],
   "sparkplug": ["--jitless"],
   "always_sparkplug": ["--jitless"],
   "code_serializer": ["--cache=after-execute", "--cache=full-code-cache",
