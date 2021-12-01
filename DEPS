@@ -83,7 +83,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '7f36dbc19d31e2aad895c60261ca8f726442bfbb',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c82934398aba2f49b455091a4699a5e35467f045',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '99a1dc10f8f752a0b8438479e11407f6d21bddcc',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '075dd7e22837a69189003e4fa84499acf63188cf',
   'buildtools/clang_format/script':
@@ -209,7 +209,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'bd8b0c2c47c1a9433c38123f2533c796fd7f8521',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5695a8426cf0e5f0f780769fec9baee8cb1c4353',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -217,9 +217,9 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8676aa925eafed18a7d21a566b602d1ea870125c',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '5deb9c9a5d47e8acee51013e401f187862e48140',
   'third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '18896843130c33372c455c153ad07d2217bd2085',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '5e0b0d0b67e889360eaa456cc17ce47d89a92167',
     'condition': 'checkout_fuchsia',
   },
   'third_party/google_benchmark/src': {
@@ -274,7 +274,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '2231b7c84b443385f2bd65dd6c46b3c7b957eae1',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'e8c257c917bc3a48a6167bf177fd3eaeacfa7fd2',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '401e727f2ae6663c4e13dfd3e1006cc9fa34bb10',
   'tools/clang/dsymutil': {
