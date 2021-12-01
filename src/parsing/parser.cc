@@ -474,8 +474,9 @@ void Parser::InitializeEmptyScopeChain(ParseInfo* info) {
   original_scope_ = script_scope;
 }
 
+template <typename IsolateT>
 void Parser::DeserializeScopeChain(
-    Isolate* isolate, ParseInfo* info,
+    IsolateT* isolate, ParseInfo* info,
     MaybeHandle<ScopeInfo> maybe_outer_scope_info,
     Scope::DeserializationMode mode) {
   InitializeEmptyScopeChain(info);
@@ -491,6 +492,15 @@ void Parser::DeserializeScopeChain(
     }
   }
 }
+
+template void Parser::DeserializeScopeChain(
+    Isolate* isolate, ParseInfo* info,
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+    Scope::DeserializationMode mode);
+template void Parser::DeserializeScopeChain(
+    LocalIsolate* isolate, ParseInfo* info,
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+    Scope::DeserializationMode mode);
 
 namespace {
 
@@ -2559,44 +2569,38 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
   const bool is_top_level = AllowsLazyParsingWithoutUnresolvedVariables();
   const bool is_eager_top_level_function = !is_lazy && is_top_level;
-  const bool is_lazy_top_level_function = is_lazy && is_top_level;
-  const bool is_lazy_inner_function = is_lazy && !is_top_level;
 
   RCS_SCOPE(runtime_call_stats_, RuntimeCallCounterId::kParseFunctionLiteral,
             RuntimeCallStats::kThreadSpecific);
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
-  // Determine whether we can still lazy parse the inner function.
-  // The preconditions are:
-  // - Lazy compilation has to be enabled.
-  // - Neither V8 natives nor native function declarations can be allowed,
-  //   since parsing one would retroactively force the function to be
-  //   eagerly compiled.
-  // - The invoker of this parser can't depend on the AST being eagerly
-  //   built (either because the function is about to be compiled, or
-  //   because the AST is going to be inspected for some reason).
-  // - Because of the above, we can't be attempting to parse a
-  //   FunctionExpression; even without enclosing parentheses it might be
-  //   immediately invoked.
-  // - The function literal shouldn't be hinted to eagerly compile.
+  // Determine whether we can lazy parse the inner function. Lazy compilation
+  // has to be enabled, which is either forced by overall parse flags or via a
+  // ParsingModeScope.
+  const bool can_preparse = parse_lazily();
 
-  // Inner functions will be parsed using a temporary Zone. After parsing, we
-  // will migrate unresolved variable into a Scope in the main Zone.
-
-  const bool should_preparse_inner = parse_lazily() && is_lazy_inner_function;
-
-  // If parallel compile tasks are enabled, and the function is an eager
-  // top level function, then we can pre-parse the function and parse / compile
-  // in a parallel task on a worker thread.
-  bool should_post_parallel_task =
-      parse_lazily() && is_eager_top_level_function &&
-      FLAG_parallel_compile_tasks && info()->dispatcher() &&
+  // Determine whether we can post any parallel compile tasks. Preparsing must
+  // be possible, there has to be a dispatcher, and the character stream must be
+  // cloneable.
+  const bool can_post_parallel_task =
+      can_preparse && info()->dispatcher() &&
       scanner()->stream()->can_be_cloned_for_parallel_access();
 
-  // This may be modified later to reflect preparsing decision taken
-  bool should_preparse = (parse_lazily() && is_lazy_top_level_function) ||
-                         should_preparse_inner || should_post_parallel_task;
+  // If parallel compile tasks are enabled, enable parallel compile for the
+  // subset of functions as defined by flags.
+  bool should_post_parallel_task =
+      can_post_parallel_task &&
+      ((is_eager_top_level_function &&
+        flags().post_parallel_compile_tasks_for_eager_toplevel()) ||
+       (is_lazy && flags().post_parallel_compile_tasks_for_lazy()));
+
+  // Determine whether we should lazy parse the inner function. This will be
+  // when either the function is lazy by inspection, or when we force it to be
+  // preparsed now so that we can then post a parallel full parse & compile task
+  // for it.
+  const bool should_preparse =
+      can_preparse && (is_lazy || should_post_parallel_task);
 
   ScopedPtrList<Statement> body(pointer_buffer());
   int expected_property_count = 0;
@@ -2607,8 +2611,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int function_literal_id = GetNextFunctionLiteralId();
   ProducedPreparseData* produced_preparse_data = nullptr;
 
-  // This Scope lives in the main zone. We'll migrate data into that zone later.
+  // Inner functions will be parsed using a temporary Zone. After parsing, we
+  // will migrate unresolved variable into a Scope in the main Zone.
   Zone* parse_zone = should_preparse ? &preparser_zone_ : zone();
+  // This Scope lives in the main zone. We'll migrate data into that zone later.
   DeclarationScope* scope = NewFunctionScope(kind, parse_zone);
   SetLanguageMode(scope, language_mode);
 #ifdef DEBUG
@@ -3308,6 +3314,14 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
       DCHECK_EQ(function_literal_id, kFunctionLiteralIdTopLevel);
       result = DoParseProgram(/* isolate = */ nullptr, info);
     } else {
+      base::Optional<ClassScope::HeritageParsingScope> heritage;
+      if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class() &&
+                      original_scope_->is_class_scope())) {
+        // If the function skips the outer class and the outer scope is a class,
+        // the function is in heritage position. Otherwise the function scope's
+        // skip bit will be correctly inherited from the outer scope.
+        heritage.emplace(original_scope_->AsClassScope());
+      }
       result = DoParseFunction(/* isolate = */ nullptr, info, start_position,
                                end_position, function_literal_id,
                                info->function_name());

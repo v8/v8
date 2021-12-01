@@ -13,6 +13,7 @@
 #include "src/execution/v8threads.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/logging/counters.h"
+#include "src/logging/metrics.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/managed-inl.h"
@@ -490,10 +491,13 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   ModuleOrigin origin = language_mode == LanguageMode::kSloppy
                             ? kAsmJsSloppyOrigin
                             : kAsmJsStrictOrigin;
+  // TODO(leszeks): If we want asm.js in UKM, we should figure out a way to pass
+  // the context id in here.
+  v8::metrics::Recorder::ContextId context_id =
+      v8::metrics::Recorder::ContextId::Empty();
   ModuleResult result = DecodeWasmModule(
       WasmFeatures::ForAsmjs(), bytes.start(), bytes.end(), false, origin,
-      isolate->counters(), isolate->metrics_recorder(),
-      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
+      isolate->counters(), isolate->metrics_recorder(), context_id,
       DecodingMethod::kSync, allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
@@ -510,7 +514,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
-      bytes, &export_wrappers, compilation_id);
+      bytes, &export_wrappers, compilation_id, context_id);
   if (!native_module) return {};
 
   return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,
@@ -534,11 +538,12 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     const ModuleWireBytes& bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
-  ModuleResult result = DecodeWasmModule(
-      enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
-      isolate->counters(), isolate->metrics_recorder(),
-      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kSync, allocator());
+  v8::metrics::Recorder::ContextId context_id =
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context());
+  ModuleResult result =
+      DecodeWasmModule(enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
+                       isolate->counters(), isolate->metrics_recorder(),
+                       context_id, DecodingMethod::kSync, allocator());
   if (result.failed()) {
     thrower->CompileFailed(result.error());
     return {};
@@ -549,7 +554,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, enabled, thrower, std::move(result).value(), bytes,
-      &export_wrappers, compilation_id);
+      &export_wrappers, compilation_id, context_id);
   if (!native_module) return {};
 
 #ifdef DEBUG

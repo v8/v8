@@ -163,7 +163,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
 
-  static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
+  template <typename IsolateT>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  static Scope* DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                       ScopeInfo scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
@@ -1363,8 +1365,7 @@ class ModuleScope final : public DeclarationScope {
   ModuleScope(DeclarationScope* script_scope, AstValueFactory* avfactory);
 
   // Deserialization. Does not restore the module descriptor.
-  ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
-              AstValueFactory* avfactory);
+  ModuleScope(Handle<ScopeInfo> scope_info, AstValueFactory* avfactory);
 
   // Returns nullptr in a deserialized scope.
   SourceTextModuleDescriptor* module() const { return module_descriptor_; }
@@ -1381,7 +1382,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
  public:
   ClassScope(Zone* zone, Scope* outer_scope, bool is_anonymous);
   // Deserialization.
-  ClassScope(Isolate* isolate, Zone* zone, AstValueFactory* ast_value_factory,
+  template <typename IsolateT>
+  ClassScope(IsolateT* isolate, Zone* zone, AstValueFactory* ast_value_factory,
              Handle<ScopeInfo> scope_info);
 
   struct HeritageParsingScope {

@@ -37,6 +37,10 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
   set_collect_source_positions(!FLAG_enable_lazy_source_positions ||
                                isolate->NeedsDetailedOptimizedCodeLineInfo());
   set_allow_harmony_top_level_await(FLAG_harmony_top_level_await);
+  set_post_parallel_compile_tasks_for_eager_toplevel(
+      FLAG_parallel_compile_tasks_for_eager_toplevel);
+  set_post_parallel_compile_tasks_for_lazy(
+      FLAG_parallel_compile_tasks_for_lazy);
 }
 
 // static
@@ -133,6 +137,8 @@ void UnoptimizedCompileFlags::SetFlagsFromFunction(T function) {
   set_class_scope_has_private_brand(function->class_scope_has_private_brand());
   set_has_static_private_methods_or_accessors(
       function->has_static_private_methods_or_accessors());
+  set_private_name_lookup_skips_outer_class(
+      function->private_name_lookup_skips_outer_class());
   set_is_toplevel(function->is_toplevel());
 }
 

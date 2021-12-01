@@ -79,6 +79,7 @@ class LazyCompileDispatcherTest : public TestWithNativeContext {
         test::OuterParseInfoForShared(isolate, shared, &state);
     if (dispatcher->IsEnqueued(shared)) return;
     dispatcher->Enqueue(isolate->main_thread_local_isolate(), shared,
+                        outer_parse_info->state(),
                         outer_parse_info->character_stream()->Clone(), nullptr);
   }
 };

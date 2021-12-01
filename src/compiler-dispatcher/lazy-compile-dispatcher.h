@@ -34,6 +34,7 @@ class AstValueFactory;
 class BackgroundCompileTask;
 class CancelableTaskManager;
 class UnoptimizedCompileJob;
+class UnoptimizedCompileState;
 class FunctionLiteral;
 class Isolate;
 class ParseInfo;
@@ -84,6 +85,7 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   ~LazyCompileDispatcher();
 
   void Enqueue(LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+               const UnoptimizedCompileState* compile_state,
                std::unique_ptr<Utf16CharacterStream> character_stream,
                ProducedPreparseData* preparse_data);
 

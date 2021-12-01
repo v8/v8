@@ -80,7 +80,8 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
             shared->function_literal_id(), nullptr);
 
     return new BackgroundCompileTask(
-        isolate, shared, outer_parse_info->character_stream()->Clone(),
+        isolate, shared, outer_parse_info->state(),
+        outer_parse_info->character_stream()->Clone(),
         function_literal->produced_preparse_data(),
         isolate->counters()->worker_thread_runtime_call_stats(),
         isolate->counters()->compile_function_on_background(), FLAG_stack_size);

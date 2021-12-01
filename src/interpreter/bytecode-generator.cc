@@ -2522,9 +2522,11 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
   // Only parallel compile when there's a script (not the case for source
   // position collection).
   if (!script_.is_null() && literal->should_parallel_compile()) {
-    // If we are already eagerly compiling this function, it must be because of
-    // --parallel-compile-tasks.
-    DCHECK_IMPLIES(!literal->ShouldEagerCompile(), FLAG_parallel_compile_tasks);
+    // If we should normally be eagerly compiling this function, we must be here
+    // because of post_parallel_compile_tasks_for_eager_toplevel.
+    DCHECK_IMPLIES(
+        literal->ShouldEagerCompile(),
+        info()->flags().post_parallel_compile_tasks_for_eager_toplevel());
     // There exists a lazy compile dispatcher.
     DCHECK(info()->state()->dispatcher());
     // There exists a cloneable character stream.
@@ -2541,7 +2543,8 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
       shared_info =
           Compiler::GetSharedFunctionInfo(literal, script_, local_isolate_);
       info()->state()->dispatcher()->Enqueue(
-          local_isolate_, shared_info, info()->character_stream()->Clone(),
+          local_isolate_, shared_info, info()->state(),
+          info()->character_stream()->Clone(),
           literal->produced_preparse_data());
     }
   } else if (eager_inner_literals_ && literal->ShouldEagerCompile()) {

@@ -12,6 +12,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -575,12 +576,20 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-  SharedFunctionInfo sfi = function->shared();
-  if (sfi.abstract_code(isolate).kind() != CodeKind::INTERPRETED_FUNCTION &&
-      sfi.abstract_code(isolate).kind() != CodeKind::BUILTIN) {
+  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
+  if (sfi->abstract_code(isolate).kind() != CodeKind::INTERPRETED_FUNCTION &&
+      sfi->abstract_code(isolate).kind() != CodeKind::BUILTIN) {
     return CrashUnlessFuzzing(isolate);
   }
-  sfi.DisableOptimization(BailoutReason::kNeverOptimize);
+  // Make sure to finish compilation if there is a parallel lazy compilation in
+  // progress, to make sure that the compilation finalization doesn't clobber
+  // the SharedFunctionInfo's disable_optimization field.
+  if (isolate->lazy_compile_dispatcher() &&
+      isolate->lazy_compile_dispatcher()->IsEnqueued(sfi)) {
+    isolate->lazy_compile_dispatcher()->FinishNow(sfi);
+  }
+
+  sfi->DisableOptimization(BailoutReason::kNeverOptimize);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

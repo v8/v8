@@ -511,6 +511,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // Compiler::FinalizeBackgroundCompileTask.
   BackgroundCompileTask(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+      const UnoptimizedCompileState* compile_state,
       std::unique_ptr<Utf16CharacterStream> character_stream,
       ProducedPreparseData* preparse_data,
       WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,

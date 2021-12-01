@@ -79,6 +79,7 @@ LazyCompileDispatcher::~LazyCompileDispatcher() {
 
 void LazyCompileDispatcher::Enqueue(
     LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    const UnoptimizedCompileState* compile_state,
     std::unique_ptr<Utf16CharacterStream> character_stream,
     ProducedPreparseData* preparse_data) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -87,16 +88,16 @@ void LazyCompileDispatcher::Enqueue(
 
   std::unique_ptr<Job> job =
       std::make_unique<Job>(std::make_unique<BackgroundCompileTask>(
-          isolate_, shared_info, std::move(character_stream), preparse_data,
-          worker_thread_runtime_call_stats_, background_compile_timer_,
-          static_cast<int>(max_stack_size_)));
+          isolate_, shared_info, compile_state, std::move(character_stream),
+          preparse_data, worker_thread_runtime_call_stats_,
+          background_compile_timer_, static_cast<int>(max_stack_size_)));
 
   // Post a a background worker task to perform the compilation on the worker
   // thread.
   {
     base::MutexGuard lock(&mutex_);
     if (trace_compiler_dispatcher_) {
-      PrintF("LazyCompileDispatcher: enqueued job for  ");
+      PrintF("LazyCompileDispatcher: enqueued job for ");
       shared_info->ShortPrint();
       PrintF("\n");
     }
@@ -208,16 +209,18 @@ void LazyCompileDispatcher::AbortAll() {
 
   {
     base::MutexGuard lock(&mutex_);
-    SharedToJobMap::IteratableScope iteratable_scope(
-        &shared_to_unoptimized_job_);
-    for (Job** job_entry : iteratable_scope) {
-      Job* job = *job_entry;
-      DCHECK_NE(job->state, Job::State::kRunning);
-      DCHECK_NE(job->state, Job::State::kAbortRequested);
-      delete job;
+    {
+      SharedToJobMap::IteratableScope iteratable_scope(
+          &shared_to_unoptimized_job_);
+      for (Job** job_entry : iteratable_scope) {
+        Job* job = *job_entry;
+        DCHECK_NE(job->state, Job::State::kRunning);
+        DCHECK_NE(job->state, Job::State::kAbortRequested);
+        delete job;
+      }
     }
+    shared_to_unoptimized_job_.Clear();
   }
-  shared_to_unoptimized_job_.Clear();
 }
 
 LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
@@ -311,27 +314,35 @@ void LazyCompileDispatcher::DoIdleWork(double deadline_in_seconds) {
     Job* job;
     {
       base::MutexGuard lock(&mutex_);
-      SharedToJobMap::IteratableScope iteratable_scope(
-          &shared_to_unoptimized_job_);
+      {
+        SharedToJobMap::IteratableScope iteratable_scope(
+            &shared_to_unoptimized_job_);
 
-      auto it = iteratable_scope.begin();
-      auto end = iteratable_scope.end();
-      for (; it != end; ++it) {
-        job = *it.entry();
-        if (job->state == Job::State::kReadyToFinalize ||
-            job->state == Job::State::kAborted) {
-          function = SharedFunctionInfo::cast(it.key());
-          break;
+        auto it = iteratable_scope.begin();
+        auto end = iteratable_scope.end();
+        for (; it != end; ++it) {
+          job = *it.entry();
+          if (job->state == Job::State::kReadyToFinalize ||
+              job->state == Job::State::kAborted) {
+            function = SharedFunctionInfo::cast(it.key());
+            break;
+          }
         }
+        // Since we hold the lock here, we can be sure no jobs have become ready
+        // for finalization while we looped through the list.
+        if (it == end) return;
       }
-      // Since we hold the lock here, we can be sure no jobs have become ready
-      // for finalization while we looped through the list.
-      if (it == end) return;
 
       DCHECK_EQ(pending_background_jobs_.find(job),
                 pending_background_jobs_.end());
+      shared_to_unoptimized_job_.Delete(function, &job);
     }
-    shared_to_unoptimized_job_.Delete(function, &job);
+
+    if (trace_compiler_dispatcher_) {
+      PrintF("LazyCompileDispatcher: idle finalizing job for ");
+      function.ShortPrint();
+      PrintF("\n");
+    }
 
     if (job->state == Job::State::kReadyToFinalize) {
       HandleScope scope(isolate_);

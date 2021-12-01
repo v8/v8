@@ -32,8 +32,8 @@ RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(LocalIsolate* isolate,
                                              RuntimeCallCounterId counter_id) {
-  DCHECK_NOT_NULL(isolate->runtime_call_stats());
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
+  DCHECK_NOT_NULL(isolate->runtime_call_stats());
   stats_ = isolate->runtime_call_stats();
   stats_->Enter(&timer_, counter_id);
 }

@@ -94,7 +94,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
   "lite_mode": ["--no-lazy-feedback-allocation", "--max-semi-space-size=*",
                 "--stress-concurrent-inlining"]
                + INCOMPATIBLE_FLAGS_PER_VARIANT["jitless"],
-  "predictable": ["--parallel-compile-tasks",
+  "predictable": ["--parallel-compile-tasks-for-eager-toplevel",
+                  "--parallel-compile-tasks-for-lazy",
                   "--concurrent-recompilation",
                   "--stress-concurrent-allocation",
                   "--stress-concurrent-inlining"],
@@ -111,7 +112,8 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
 # implications defined in flag-definitions.h.
 INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
   "--concurrent-recompilation": ["--predictable", "--assert-types"],
-  "--parallel-compile-tasks": ["--predictable"],
+  "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
+  "--parallel-compile-tasks-for-lazy": ["--predictable"],
   "--gc-interval=*": ["--gc-interval=*"],
   "--optimize-for-size": ["--max-semi-space-size=*"],
   "--stress_concurrent_allocation":

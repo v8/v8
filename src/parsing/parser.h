@@ -155,7 +155,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // This only deserializes the scope chain, but doesn't connect the scopes to
   // their corresponding scope infos. Therefore, looking up variables in the
   // deserialized scopes is not possible.
-  void DeserializeScopeChain(Isolate* isolate, ParseInfo* info,
+  template <typename IsolateT>
+  void DeserializeScopeChain(IsolateT* isolate, ParseInfo* info,
                              MaybeHandle<ScopeInfo> maybe_outer_scope_info,
                              Scope::DeserializationMode mode =
                                  Scope::DeserializationMode::kScopesOnly);

@@ -1406,14 +1406,17 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
 
 BackgroundCompileTask::BackgroundCompileTask(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    const UnoptimizedCompileState* compile_state,
     std::unique_ptr<Utf16CharacterStream> character_stream,
     ProducedPreparseData* preparse_data,
     WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
     TimedHistogram* timer, int max_stack_size)
     : isolate_for_local_isolate_(isolate),
+      // TODO(leszeks): Create this from parent compile flags, to avoid
+      // accessing the Isolate.
       flags_(
           UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info)),
-      compile_state_(isolate),
+      compile_state_(*compile_state),
       info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
       stack_size_(max_stack_size),
       worker_thread_runtime_call_stats_(worker_thread_runtime_stats),
@@ -1530,7 +1533,23 @@ void BackgroundCompileTask::Run() {
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
   Parser parser(&isolate, info_.get(), script_);
-  parser.InitializeEmptyScopeChain(info_.get());
+  if (flags().is_toplevel()) {
+    parser.InitializeEmptyScopeChain(info_.get());
+  } else {
+    // TODO(leszeks): Consider keeping Scope zones alive between compile tasks
+    // and passing the Scope for the FunctionLiteral through here directly
+    // without copying/deserializing.
+    Handle<SharedFunctionInfo> shared_info =
+        input_shared_info_.ToHandleChecked();
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info;
+    if (shared_info->HasOuterScopeInfo()) {
+      maybe_outer_scope_info =
+          handle(shared_info->GetOuterScopeInfo(), &isolate);
+    }
+    parser.DeserializeScopeChain(
+        &isolate, info_.get(), maybe_outer_scope_info,
+        Scope::DeserializationMode::kIncludingVariables);
+  }
 
   parser.ParseOnBackground(&isolate, info_.get(), start_position_,
                            end_position_, function_literal_id_);
@@ -1760,6 +1779,9 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info);
   flags.set_collect_source_positions(true);
+  // Prevent parallel tasks from being spawned by this job.
+  flags.set_post_parallel_compile_tasks_for_eager_toplevel(false);
+  flags.set_post_parallel_compile_tasks_for_lazy(false);
 
   UnoptimizedCompileState compile_state(isolate);
   ParseInfo parse_info(isolate, flags, &compile_state);

@@ -40,27 +40,30 @@ class Utf16CharacterStream;
 class Zone;
 
 // The flags for a parse + unoptimized compile operation.
-#define FLAG_FIELDS(V, _)                                \
-  V(is_toplevel, bool, 1, _)                             \
-  V(is_eager, bool, 1, _)                                \
-  V(is_eval, bool, 1, _)                                 \
-  V(outer_language_mode, LanguageMode, 1, _)             \
-  V(parse_restriction, ParseRestriction, 1, _)           \
-  V(is_module, bool, 1, _)                               \
-  V(allow_lazy_parsing, bool, 1, _)                      \
-  V(is_lazy_compile, bool, 1, _)                         \
-  V(collect_type_profile, bool, 1, _)                    \
-  V(coverage_enabled, bool, 1, _)                        \
-  V(block_coverage_enabled, bool, 1, _)                  \
-  V(is_asm_wasm_broken, bool, 1, _)                      \
-  V(class_scope_has_private_brand, bool, 1, _)           \
-  V(requires_instance_members_initializer, bool, 1, _)   \
-  V(has_static_private_methods_or_accessors, bool, 1, _) \
-  V(might_always_opt, bool, 1, _)                        \
-  V(allow_natives_syntax, bool, 1, _)                    \
-  V(allow_lazy_compile, bool, 1, _)                      \
-  V(collect_source_positions, bool, 1, _)                \
-  V(allow_harmony_top_level_await, bool, 1, _)           \
+#define FLAG_FIELDS(V, _)                                       \
+  V(is_toplevel, bool, 1, _)                                    \
+  V(is_eager, bool, 1, _)                                       \
+  V(is_eval, bool, 1, _)                                        \
+  V(outer_language_mode, LanguageMode, 1, _)                    \
+  V(parse_restriction, ParseRestriction, 1, _)                  \
+  V(is_module, bool, 1, _)                                      \
+  V(allow_lazy_parsing, bool, 1, _)                             \
+  V(is_lazy_compile, bool, 1, _)                                \
+  V(collect_type_profile, bool, 1, _)                           \
+  V(coverage_enabled, bool, 1, _)                               \
+  V(block_coverage_enabled, bool, 1, _)                         \
+  V(is_asm_wasm_broken, bool, 1, _)                             \
+  V(class_scope_has_private_brand, bool, 1, _)                  \
+  V(private_name_lookup_skips_outer_class, bool, 1, _)          \
+  V(requires_instance_members_initializer, bool, 1, _)          \
+  V(has_static_private_methods_or_accessors, bool, 1, _)        \
+  V(might_always_opt, bool, 1, _)                               \
+  V(allow_natives_syntax, bool, 1, _)                           \
+  V(allow_lazy_compile, bool, 1, _)                             \
+  V(post_parallel_compile_tasks_for_eager_toplevel, bool, 1, _) \
+  V(post_parallel_compile_tasks_for_lazy, bool, 1, _)           \
+  V(collect_source_positions, bool, 1, _)                       \
+  V(allow_harmony_top_level_await, bool, 1, _)                  \
   V(is_repl_mode, bool, 1, _)
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
