@@ -31,9 +31,10 @@ class V8_EXPORT_PRIVATE CppHeap final
       public v8::CppHeap,
       public cppgc::internal::StatsCollector::AllocationObserver {
  public:
-  enum GarbageCollectionFlagValues {
-    kReduceMemory,
-    kForced,
+  enum GarbageCollectionFlagValues : uint8_t {
+    kNoFlags = 0,
+    kReduceMemory = 1 << 1,
+    kForced = 1 << 2,
   };
 
   using GarbageCollectionFlags = base::Flags<GarbageCollectionFlagValues>;
@@ -164,6 +165,8 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   friend class MetricRecorderAdapter;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(CppHeap::GarbageCollectionFlags)
 
 }  // namespace internal
 }  // namespace v8
