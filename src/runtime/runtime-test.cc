@@ -1479,5 +1479,11 @@ RUNTIME_FUNCTION(Runtime_Is64Bit) {
   return isolate->heap()->ToBoolean(kSystemPointerSize == 8);
 }
 
+RUNTIME_FUNCTION(Runtime_BigIntMaxLengthBits) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  return *isolate->factory()->NewNumber(BigInt::kMaxLengthBits);
+}
+
 }  // namespace internal
 }  // namespace v8
