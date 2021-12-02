@@ -1137,6 +1137,13 @@
 }],  # 'predictable == True'
 
 ##############################################################################
+['predictable == True and arch == ia32', {
+  # BUG(v8:12463)
+  'regress/wasm/regress-1179065': [SKIP],
+  'wasm/speculative-inlining': [SKIP],
+}],  # 'predictable == True and arch == ia32'
+
+##############################################################################
 ['simulator_run and (arch in [ppc64, s390x])', {
 
   # take too long with the simulator.
