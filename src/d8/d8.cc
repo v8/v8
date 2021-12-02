@@ -2785,7 +2785,7 @@ Counter* Shell::GetCounter(const char* name, bool is_histogram) {
     }
   }
 
-  if (!counter) {
+  if (counter == nullptr) {
     base::SharedMutexGuard<base::kExclusive> mutex_guard(&counter_mutex_);
 
     counter = (*counter_map_)[name];
@@ -2807,12 +2807,7 @@ Counter* Shell::GetCounter(const char* name, bool is_histogram) {
 
 int* Shell::LookupCounter(const char* name) {
   Counter* counter = GetCounter(name, false);
-
-  if (counter != nullptr) {
-    return counter->ptr();
-  } else {
-    return nullptr;
-  }
+  return counter ? counter->ptr() : nullptr;
 }
 
 void* Shell::CreateHistogram(const char* name, int min, int max,
@@ -3365,18 +3360,22 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
     i::Isolate::Delete(reinterpret_cast<i::Isolate*>(shared_isolate));
   }
 
+  // {V8::Dispose} resets flags, thus get the flag values before disposing.
+  bool dump_counters = i::FLAG_dump_counters;
+  bool dump_counters_nvp = i::FLAG_dump_counters_nvp;
+
   if (dispose) {
     V8::Dispose();
     V8::DisposePlatform();
   }
 
-  if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
+  if (dump_counters || dump_counters_nvp) {
     base::SharedMutexGuard<base::kShared> mutex_guard(&counter_mutex_);
     std::vector<std::pair<std::string, Counter*>> counters(
         counter_map_->begin(), counter_map_->end());
     std::sort(counters.begin(), counters.end());
 
-    if (i::FLAG_dump_counters_nvp) {
+    if (dump_counters_nvp) {
       // Dump counters as name-value pairs.
       for (const auto& pair : counters) {
         std::string key = pair.first;
