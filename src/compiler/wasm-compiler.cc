@@ -5820,19 +5820,27 @@ void WasmGraphBuilder::TypeCheck(
 
   DCHECK(config.reference_kind == kArrayOrStruct);
 
+  // First, check if types happen to be equal. This has been shown to give large
+  // speedups.
   callbacks.succeed_if(gasm_->TaggedEqual(map, rtt), BranchHint::kTrue);
 
   Node* type_info = gasm_->LoadWasmTypeInfo(map);
   Node* supertypes = gasm_->LoadSupertypes(type_info);
-  Node* supertypes_length =
-      BuildChangeSmiToIntPtr(gasm_->LoadFixedArrayLengthAsSmi(supertypes));
   Node* rtt_depth =
       config.rtt_depth >= 0
           ? gasm_->IntPtrConstant(config.rtt_depth)
           : BuildChangeSmiToIntPtr(gasm_->LoadFixedArrayLengthAsSmi(
                 gasm_->LoadSupertypes(gasm_->LoadWasmTypeInfo(rtt))));
-  callbacks.fail_if_not(gasm_->UintLessThan(rtt_depth, supertypes_length),
-                        BranchHint::kTrue);
+  // If the depth of the rtt is known to be less that the minimum supertype
+  // array length, we can access the supertype without bounds-checking the
+  // supertype array.
+  if (config.rtt_depth < 0 || static_cast<uint32_t>(config.rtt_depth) >=
+                                  wasm::kMinimumSupertypeArraySize) {
+    Node* supertypes_length =
+        BuildChangeSmiToIntPtr(gasm_->LoadFixedArrayLengthAsSmi(supertypes));
+    callbacks.fail_if_not(gasm_->UintLessThan(rtt_depth, supertypes_length),
+                          BranchHint::kTrue);
+  }
   Node* maybe_match = gasm_->LoadFixedArrayElement(
       supertypes, rtt_depth, MachineType::TaggedPointer());
 

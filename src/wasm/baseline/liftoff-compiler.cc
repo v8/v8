@@ -5470,17 +5470,19 @@ class LiftoffCompiler {
     constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
         Map::kConstructorOrBackPointerOrNativeContextOffset);
     __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kTypeInfoOffset, pinned);
-    // Step 2: load the super types list into {tmp1}.
+    // Step 2: load the supertypes list into {tmp1}.
     constexpr int kSuperTypesOffset =
         wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset);
     __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kSuperTypesOffset,
                          pinned);
-    // Step 3: check the list's length.
-    LiftoffRegister list_length = tmp2;
-    __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
     if (rtt.type.has_depth()) {
-      __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
-                             rtt.type.depth());
+      // Step 3: check the list's length if needed.
+      if (rtt.type.depth() >= kMinimumSupertypeArraySize) {
+        LiftoffRegister list_length = tmp2;
+        __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
+        __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
+                               rtt.type.depth());
+      }
       // Step 4: load the candidate list slot into {tmp1}, and compare it.
       __ LoadTaggedPointer(
           tmp1.gp(), tmp1.gp(), no_reg,
@@ -5489,6 +5491,9 @@ class LiftoffCompiler {
       __ emit_cond_jump(kUnequal, no_match, rtt.type.kind(), tmp1.gp(),
                         rtt_reg.gp());
     } else {
+      // Step 3: if rtt's depth is unknown, we invoke a builtin to compute the
+      // result, as we might not have enough available registers.
+
       // Preserve {obj_reg} across the call.
       LiftoffRegList saved_regs = LiftoffRegList::ForRegs(obj_reg);
       __ PushRegisters(saved_regs);

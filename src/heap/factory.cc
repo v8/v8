@@ -1474,12 +1474,24 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   Handle<ArrayList> subtypes = ArrayList::New(isolate(), 0);
   Handle<FixedArray> supertypes;
   if (opt_parent.is_null()) {
-    supertypes = NewFixedArray(0);
+    supertypes = NewFixedArray(wasm::kMinimumSupertypeArraySize);
+    for (int i = 0; i < supertypes->length(); i++) {
+      supertypes->set(i, *undefined_value());
+    }
   } else {
-    supertypes = CopyArrayAndGrow(
-        handle(opt_parent->wasm_type_info().supertypes(), isolate()), 1,
-        AllocationType::kOld);
-    supertypes->set(supertypes->length() - 1, *opt_parent);
+    Handle<FixedArray> parent_supertypes =
+        handle(opt_parent->wasm_type_info().supertypes(), isolate());
+    int last_defined_index = parent_supertypes->length() - 1;
+    while (last_defined_index >= 0 &&
+           parent_supertypes->get(last_defined_index).IsUndefined()) {
+      last_defined_index--;
+    }
+    if (last_defined_index == parent_supertypes->length() - 1) {
+      supertypes = CopyArrayAndGrow(parent_supertypes, 1, AllocationType::kOld);
+    } else {
+      supertypes = CopyFixedArray(parent_supertypes);
+    }
+    supertypes->set(last_defined_index + 1, *opt_parent);
   }
   Map map = *wasm_type_info_map();
   WasmTypeInfo result = WasmTypeInfo::cast(AllocateRawWithImmortalMap(
@@ -1487,7 +1499,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   DisallowGarbageCollection no_gc;
   result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), type_address);
-  result.set_supertypes(*supertypes, SKIP_WRITE_BARRIER);
+  result.set_supertypes(*supertypes);
   result.set_subtypes(*subtypes);
   result.set_instance_size(instance_size_bytes);
   result.set_instance(*instance);
