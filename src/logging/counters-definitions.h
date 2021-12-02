@@ -65,8 +65,6 @@ namespace internal {
   HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 20,   \
      21)                                                                       \
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
-  HR(wasm_address_space_usage_mb, V8.WasmAddressSpaceUsageMiB, 0, 1 << 20,     \
-     128)                                                                      \
   /* committed code size per module, collected on GC */                        \
   HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)          \
   /* code size per module after baseline compilation */                        \
