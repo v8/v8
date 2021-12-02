@@ -513,7 +513,7 @@ builtin CallRefIC(
       if (entries.objects[i] == funcref) {
         // Polymorphic hit.
         const count = UnsafeCast<Smi>(entries.objects[i + 1]) + SmiConstant(1);
-        vector.objects[i + 1] = count;
+        entries.objects[i + 1] = count;
         return GetTargetAndInstance(funcref);
       }
     }
