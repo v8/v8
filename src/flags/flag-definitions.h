@@ -1578,6 +1578,8 @@ DEFINE_BOOL(cache_prototype_transitions, true, "cache prototype transitions")
 
 // lazy-compile-dispatcher.cc
 DEFINE_BOOL(lazy_compile_dispatcher, false, "enable compiler dispatcher")
+DEFINE_UINT(lazy_compile_dispatcher_max_threads, 0,
+            "max threads for compiler dispatcher (0 for unbounded)")
 DEFINE_BOOL(trace_compiler_dispatcher, false,
             "trace compiler dispatcher activity")
 DEFINE_BOOL(

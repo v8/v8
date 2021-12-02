@@ -35,8 +35,11 @@ class LazyCompileDispatcher::JobTask : public v8::JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const final {
-    return lazy_compile_dispatcher_->num_jobs_for_background_.load(
+    size_t n = lazy_compile_dispatcher_->num_jobs_for_background_.load(
         std::memory_order_relaxed);
+    if (FLAG_lazy_compile_dispatcher_max_threads == 0) return n;
+    return std::min(
+        n, static_cast<size_t>(FLAG_lazy_compile_dispatcher_max_threads));
   }
 
  private:
