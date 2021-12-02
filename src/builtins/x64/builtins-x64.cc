@@ -3765,13 +3765,6 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // Switch stack!
   LoadJumpBuffer(masm, target_jmpbuf);
   __ movq(rbp, rsp);  // New stack, there is no frame yet.
-  __ Move(GCScanSlotPlace, 2);
-  __ Push(wasm_instance);
-  __ Push(function_data);
-  __ Move(kContextRegister, Smi::zero());
-  __ CallRuntime(Runtime::kWasmSyncStackLimit);
-  __ Pop(function_data);
-  __ Pop(wasm_instance);
   foreign_jmpbuf = no_reg;
   target_jmpbuf = no_reg;
   // live: [rsi, rdi]
