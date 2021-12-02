@@ -531,7 +531,8 @@ class Utf8ExternalStreamingStream final : public BufferedUtf16CharacterStream {
   bool can_be_cloned() const final { return true; }
 
   std::unique_ptr<Utf16CharacterStream> Clone() const override {
-    return std::make_unique<Utf8ExternalStreamingStream>(*this);
+    return std::unique_ptr<Utf16CharacterStream>(
+        new Utf8ExternalStreamingStream(*this));
   }
 
  protected:
@@ -568,8 +569,6 @@ class Utf8ExternalStreamingStream final : public BufferedUtf16CharacterStream {
     StreamPosition start;
   };
 
-  friend std::unique_ptr<Utf8ExternalStreamingStream> std::make_unique<
-      Utf8ExternalStreamingStream>(const Utf8ExternalStreamingStream&);
   Utf8ExternalStreamingStream(const Utf8ExternalStreamingStream& source_stream)
       V8_NOEXCEPT : chunks_(source_stream.chunks_),
                     current_({0, {0, 0, 0, unibrow::Utf8::State::kAccept}}),
