@@ -126,7 +126,8 @@ enum class BreakReason : uint8_t {
   kException,
   kAssert,
   kDebuggerStatement,
-  kOOM
+  kOOM,
+  kScheduled
 };
 typedef base::EnumSet<BreakReason> BreakReasons;
 

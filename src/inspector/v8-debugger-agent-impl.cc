@@ -1827,7 +1827,8 @@ void V8DebuggerAgentImpl::didPause(
   const bool otherBreakReasons =
       hitRegularBreakpoint ||
       breakReasons.contains(v8::debug::BreakReason::kStep) ||
-      breakReasons.contains(v8::debug::BreakReason::kDebuggerStatement);
+      breakReasons.contains(v8::debug::BreakReason::kDebuggerStatement) ||
+      breakReasons.contains(v8::debug::BreakReason::kScheduled);
   if (otherBreakReasons && std::find(hitReasons.begin(), hitReasons.end(),
                                      otherHitReason) == hitReasons.end()) {
     hitReasons.push_back(
