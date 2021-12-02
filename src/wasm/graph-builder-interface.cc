@@ -784,7 +784,8 @@ class WasmGraphBuildingInterface {
                  args);
   }
 
-  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
+  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
+                bool pass_null_along_branch, Value* result_on_fallthrough) {
     SsaEnv* false_env = ssa_env_;
     SsaEnv* true_env = Split(decoder->zone(), false_env);
     false_env->SetNotMerged();
@@ -792,8 +793,9 @@ class WasmGraphBuildingInterface {
                        &false_env->control);
     builder_->SetControl(false_env->control);
     SetEnv(true_env);
-    BrOrRet(decoder, depth, 1);
+    BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
     SetEnv(false_env);
+    result_on_fallthrough->node = ref_object.node;
   }
 
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object,

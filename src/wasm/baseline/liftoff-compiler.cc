@@ -1736,7 +1736,10 @@ class LiftoffCompiler {
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
                                       nullptr);
             });
-      case kExprRefIsNull: {
+      case kExprRefIsNull:
+      // We abuse ref.as_non_null, which isn't otherwise used in this switch, as
+      // a sentinel for the negation of ref.is_null.
+      case kExprRefAsNonNull: {
         LiftoffRegList pinned;
         LiftoffRegister ref = pinned.set(__ PopToRegister());
         LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
@@ -1744,7 +1747,8 @@ class LiftoffCompiler {
         // Prefer to overwrite one of the input registers with the result
         // of the comparison.
         LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {ref, null}, {});
-        __ emit_ptrsize_set_cond(kEqual, dst.gp(), ref, null);
+        __ emit_ptrsize_set_cond(opcode == kExprRefIsNull ? kEqual : kUnequal,
+                                 dst.gp(), ref, null);
         __ PushRegister(kI32, dst);
         return;
       }
@@ -3347,7 +3351,9 @@ class LiftoffCompiler {
     CallRef(decoder, func_ref.type, sig, kTailCall);
   }
 
-  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
+  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
+                bool pass_null_along_branch,
+                Value* /* result_on_fallthrough */) {
     // Before branching, materialize all constants. This avoids repeatedly
     // materializing them for each conditional branch.
     if (depth != decoder->control_depth() - 1) {
@@ -3362,7 +3368,7 @@ class LiftoffCompiler {
     LoadNullValue(null, pinned);
     __ emit_cond_jump(kUnequal, &cont_false, ref_object.type.kind(), ref.gp(),
                       null);
-
+    if (pass_null_along_branch) LoadNullValue(null, pinned);
     BrOrRet(decoder, depth, 0);
     __ bind(&cont_false);
     __ PushRegister(kRef, ref);

@@ -1316,6 +1316,10 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
                  : BuildIntConvertFloat(input, position, opcode);
     case wasm::kExprRefIsNull:
       return IsNull(input);
+    // We abuse ref.as_non_null, which isn't otherwise used in this switch, as
+    // a sentinel for the negation of ref.is_null.
+    case wasm::kExprRefAsNonNull:
+      return gasm_->Int32Sub(gasm_->Int32Constant(1), IsNull(input));
     case wasm::kExprI32AsmjsLoadMem8S:
       return BuildAsmjsLoadMem(MachineType::Int8(), input);
     case wasm::kExprI32AsmjsLoadMem8U:

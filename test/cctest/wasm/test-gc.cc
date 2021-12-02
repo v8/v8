@@ -1446,6 +1446,7 @@ WASM_COMPILED_EXEC_TEST(RttFreshSub) {
 }
 
 WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
+  // TODO(7748): Add tests for branch_on_*.
   WasmGCTester tester(execution_tier);
   byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   byte subtype_index =
@@ -1458,6 +1459,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
       tester.sigs.i_v(), {},
       {WASM_REF_TEST(WASM_REF_NULL(type_index), WASM_RTT_CANON(subtype_index)),
        kExprEnd});
+  // Upcasts should not be optimized away for structural types.
   const byte kRefTestUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_TEST(
@@ -1465,6 +1467,12 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
                subtype_index,
                WASM_RTT_SUB(subtype_index, WASM_RTT_CANON(type_index))),
            WASM_RTT_CANON(type_index)),
+       kExprEnd});
+  const byte kRefTestUpcastFail = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_TEST(WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
+                         subtype_index, WASM_RTT_CANON(subtype_index)),
+                     WASM_RTT_CANON(type_index)),
        kExprEnd});
   const byte kRefTestUpcastNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
@@ -1532,6 +1540,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
 
   tester.CheckResult(kRefTestNull, 0);
   tester.CheckResult(kRefTestUpcast, 1);
+  tester.CheckResult(kRefTestUpcastFail, 0);
   tester.CheckResult(kRefTestUpcastNull, 0);
   tester.CheckResult(kRefTestUnrelated, 0);
   tester.CheckResult(kRefTestUnrelatedNull, 0);
@@ -1546,6 +1555,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCasts) {
 }
 
 WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
+  // TODO(7748): Add tests for branch_on_*.
   WasmGCTester tester(execution_tier);
   byte type_index =
       tester.DefineStruct({F(wasm::kWasmI32, true)}, kGenericSuperType);
@@ -1559,6 +1569,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
       tester.sigs.i_v(), {},
       {WASM_REF_TEST_STATIC(WASM_REF_NULL(type_index), subtype_index),
        kExprEnd});
+  // Upcasts should be optimized away for nominal types.
   const byte kRefTestUpcast = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_TEST_STATIC(WASM_STRUCT_NEW_DEFAULT(subtype_index), type_index),
