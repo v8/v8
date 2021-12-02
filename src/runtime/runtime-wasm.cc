@@ -706,9 +706,8 @@ void SyncStackLimit(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   auto continuation = WasmContinuationObject::cast(
       *isolate->roots_table().slot(RootIndex::kActiveContinuation));
-  auto jmpbuf =
-      Managed<wasm::JumpBuffer>::cast(continuation.managed_jmpbuf()).get();
-  uintptr_t limit = reinterpret_cast<uintptr_t>(jmpbuf->stack_limit);
+  auto stack = Managed<wasm::StackMemory>::cast(continuation.stack()).get();
+  uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
   isolate->stack_guard()->SetStackLimit(limit);
 }
 }  // namespace

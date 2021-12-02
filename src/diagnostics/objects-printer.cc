@@ -1853,8 +1853,7 @@ void WasmContinuationObject::WasmContinuationObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmContinuationObject");
   os << "\n - parent: " << parent();
   os << "\n - jmpbuf: " << jmpbuf();
-  os << "\n - managed_stack: " << managed_stack();
-  os << "\n - managed_jmpbuf: " << managed_jmpbuf();
+  os << "\n - stack: " << stack();
   os << "\n";
 }
 

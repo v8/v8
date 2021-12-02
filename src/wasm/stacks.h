@@ -45,6 +45,7 @@ class StackMemory {
 
   void* jslimit() { return limit_ + kJSLimitOffsetKB; }
   void* base() { return limit_ + size_; }
+  JumpBuffer* jmpbuf() { return &jmpbuf_; }
 
   // Track external memory usage for Managed<StackMemory> objects.
   size_t owned_size() { return sizeof(StackMemory) + (owned_ ? size_ : 0); }
@@ -68,6 +69,7 @@ class StackMemory {
   byte* limit_;
   size_t size_;
   bool owned_;
+  JumpBuffer jmpbuf_;
 };
 
 }  // namespace wasm

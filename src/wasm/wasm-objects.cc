@@ -1747,18 +1747,14 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
     HeapObject parent) {
   Handle<WasmContinuationObject> result = Handle<WasmContinuationObject>::cast(
       isolate->factory()->NewStruct(WASM_CONTINUATION_OBJECT_TYPE));
-  auto jmpbuf = std::make_unique<wasm::JumpBuffer>();
-  jmpbuf->stack_limit = stack->jslimit();
-  jmpbuf->sp = stack->base();
-  result->set_jmpbuf(
-      *isolate->factory()->NewForeign(reinterpret_cast<Address>(jmpbuf.get())));
+  stack->jmpbuf()->stack_limit = stack->jslimit();
+  stack->jmpbuf()->sp = stack->base();
+  result->set_jmpbuf(*isolate->factory()->NewForeign(
+      reinterpret_cast<Address>(stack->jmpbuf())));
   size_t external_size = stack->owned_size();
   Handle<Foreign> managed_stack = Managed<wasm::StackMemory>::FromUniquePtr(
       isolate, external_size, std::move(stack));
-  Handle<Foreign> managed_jmpbuf = Managed<wasm::JumpBuffer>::FromUniquePtr(
-      isolate, sizeof(wasm::JumpBuffer), std::move(jmpbuf));
-  result->set_managed_stack(*managed_stack);
-  result->set_managed_jmpbuf(*managed_jmpbuf);
+  result->set_stack(*managed_stack);
   result->set_parent(parent);
   return result;
 }
