@@ -43,7 +43,7 @@ class StackMemory {
     if (owned_) allocator->DecommitPages(limit_, size_);
   }
 
-  void* limit() { return limit_; }
+  void* jslimit() { return limit_ + kJSLimitOffsetKB; }
   void* base() { return limit_ + size_; }
 
   // Track external memory usage for Managed<StackMemory> objects.
@@ -53,14 +53,17 @@ class StackMemory {
   // This constructor allocates a new stack segment.
   StackMemory() : owned_(true) {
     PageAllocator* allocator = GetPlatformPageAllocator();
-    size_ = allocator->AllocatePageSize();
-    // TODO(thibaudm): Leave space for runtime functions.
-    limit_ = static_cast<byte*>(allocator->AllocatePages(
-        nullptr, size_, size_, PageAllocator::kReadWrite));
+    int kJsStackSizeKB = 4;
+    size_ = (kJsStackSizeKB + kJSLimitOffsetKB) * KB;
+    limit_ = static_cast<byte*>(
+        allocator->AllocatePages(nullptr, size_, allocator->AllocatePageSize(),
+                                 PageAllocator::kReadWrite));
   }
 
   // Overload to represent a view of the libc stack.
   explicit StackMemory(byte* limit) : limit_(limit), size_(0), owned_(false) {}
+
+  static constexpr int kJSLimitOffsetKB = 40;
 
   byte* limit_;
   size_t size_;

@@ -1748,7 +1748,7 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
   Handle<WasmContinuationObject> result = Handle<WasmContinuationObject>::cast(
       isolate->factory()->NewStruct(WASM_CONTINUATION_OBJECT_TYPE));
   auto jmpbuf = std::make_unique<wasm::JumpBuffer>();
-  jmpbuf->stack_limit = stack->limit();
+  jmpbuf->stack_limit = stack->jslimit();
   jmpbuf->sp = stack->base();
   result->set_jmpbuf(
       *isolate->factory()->NewForeign(reinterpret_cast<Address>(jmpbuf.get())));
