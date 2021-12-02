@@ -39,7 +39,7 @@ class JSArrayBuffer
   // [backing_store]: backing memory for this array
   // It should not be assumed that this will be nullptr for empty ArrayBuffers.
   DECL_GETTER(backing_store, void*)
-  inline void set_backing_store(void* value);
+  inline void set_backing_store(Isolate* isolate, void* value);
 
   // [extension]: extension object used for GC
   DECL_PRIMITIVE_ACCESSORS(extension, ArrayBufferExtension*)
@@ -289,8 +289,6 @@ class JSTypedArray
   inline void* DataPtr();
 
   inline void SetOffHeapDataPtr(Isolate* isolate, void* base, Address offset);
-  inline void SetOnHeapDataPtr(Isolate* isolate, HeapObject base,
-                               Address offset);
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;
@@ -329,6 +327,9 @@ class JSTypedArray
   // Subtracts external pointer compensation from the external pointer value.
   inline void RemoveExternalPointerCompensationForSerialization(
       Isolate* isolate);
+  // Adds external pointer compensation to the external pointer value.
+  inline void AddExternalPointerCompensationForDeserialization(
+      Isolate* isolate);
 
   static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
                                                    Handle<Object> receiver,
@@ -365,7 +366,6 @@ class JSTypedArray
   inline size_t LengthUnchecked() const;
 
   DECL_GETTER(external_pointer, Address)
-  DECL_GETTER(external_pointer_raw, ExternalPointer_t)
 
   DECL_SETTER(base_pointer, Object)
   DECL_RELEASE_SETTER(base_pointer, Object)

@@ -36,12 +36,14 @@ void JSArrayBuffer::set_byte_length(size_t value) {
 }
 
 DEF_GETTER(JSArrayBuffer, backing_store, void*) {
-  return reinterpret_cast<void*>(ReadField<Address>(kBackingStoreOffset));
+  Address value = ReadCagedPointerField(kBackingStoreOffset, cage_base);
+  return reinterpret_cast<void*>(value);
 }
 
-void JSArrayBuffer::set_backing_store(void* value) {
+void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
   DCHECK(IsValidBackingStorePointer(value));
-  WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
+  Address addr = reinterpret_cast<Address>(value);
+  WriteCagedPointerField(kBackingStoreOffset, isolate, addr);
 }
 
 std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
@@ -249,16 +251,12 @@ void JSTypedArray::set_length(size_t value) {
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {
-  return ReadField<Address>(kExternalPointerOffset);
-}
-
-DEF_GETTER(JSTypedArray, external_pointer_raw, Address) {
-  return ReadField<Address>(kExternalPointerOffset);
+  return ReadCagedPointerField(kExternalPointerOffset, cage_base);
 }
 
 void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
   DCHECK(IsValidBackingStorePointer(reinterpret_cast<void*>(value)));
-  WriteField<Address>(kExternalPointerOffset, value);
+  WriteCagedPointerField(kExternalPointerOffset, isolate, value);
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
@@ -283,19 +281,17 @@ void JSTypedArray::SetExternalBackingStoreRefForSerialization(uint32_t ref) {
 void JSTypedArray::RemoveExternalPointerCompensationForSerialization(
     Isolate* isolate) {
   DCHECK(is_on_heap());
-  // TODO(v8:10391): once we have an external table, avoid the need for
-  // compensation by replacing external_pointer and base_pointer fields
-  // with one data_pointer field which can point to either external data
-  // backing store or into on-heap backing store.
   Address offset =
       external_pointer() - ExternalPointerCompensationForOnHeapArray(isolate);
-#ifdef V8_HEAP_SANDBOX
-  // Write decompensated offset directly to the external pointer field, thus
-  // allowing the offset to be propagated through serialization-deserialization.
-  WriteField<ExternalPointer_t>(kExternalPointerOffset, offset);
-#else
-  set_external_pointer(isolate, offset);
-#endif
+  WriteField<Address>(kExternalPointerOffset, offset);
+}
+
+void JSTypedArray::AddExternalPointerCompensationForDeserialization(
+    Isolate* isolate) {
+  DCHECK(is_on_heap());
+  Address pointer = ReadField<Address>(kExternalPointerOffset) +
+                    ExternalPointerCompensationForOnHeapArray(isolate);
+  set_external_pointer(isolate, pointer);
 }
 
 void* JSTypedArray::DataPtr() {
@@ -320,14 +316,6 @@ void JSTypedArray::SetOffHeapDataPtr(Isolate* isolate, void* base,
   // with a release store, after external_pointer has been set.
   set_base_pointer(Smi::zero(), kReleaseStore, SKIP_WRITE_BARRIER);
   DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));
-}
-
-void JSTypedArray::SetOnHeapDataPtr(Isolate* isolate, HeapObject base,
-                                    Address offset) {
-  set_base_pointer(base);
-  set_external_pointer(
-      isolate, offset + ExternalPointerCompensationForOnHeapArray(isolate));
-  DCHECK_EQ(base.ptr() + offset, reinterpret_cast<Address>(DataPtr()));
 }
 
 bool JSTypedArray::is_on_heap() const {
@@ -378,12 +366,14 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 }
 
 DEF_GETTER(JSDataView, data_pointer, void*) {
-  return reinterpret_cast<void*>(ReadField<Address>(kDataPointerOffset));
+  Address value = ReadCagedPointerField(kDataPointerOffset, cage_base);
+  return reinterpret_cast<void*>(value);
 }
 
-void JSDataView::set_data_pointer(Isolate* isolate, void* value) {
-  DCHECK(IsValidBackingStorePointer(value));
-  WriteField<Address>(kDataPointerOffset, reinterpret_cast<Address>(value));
+void JSDataView::set_data_pointer(Isolate* isolate, void* ptr) {
+  DCHECK(IsValidBackingStorePointer(ptr));
+  Address value = reinterpret_cast<Address>(ptr);
+  WriteCagedPointerField(kDataPointerOffset, isolate, value);
 }
 
 }  // namespace internal

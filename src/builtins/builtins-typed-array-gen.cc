@@ -65,8 +65,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
 
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
                                  UintPtrConstant(0));
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
-                                 PointerConstant(nullptr));
+  StoreCagedPointerToObject(buffer, JSArrayBuffer::kBackingStoreOffset,
+                            EmptyBackingStoreBufferConstant());
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
                                  IntPtrConstant(0));
   for (int offset = JSArrayBuffer::kHeaderSize;
@@ -437,10 +437,10 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<IntPtrT> ptr_compr_cage_base =
         IntPtrSub(full_base, Signed(ChangeUint32ToWord(compressed_base)));
     // Add JSTypedArray::ExternalPointerCompensationForOnHeapArray() to offset.
+    // See JSTypedArray::AddExternalPointerCompensationForDeserialization().
     DCHECK_EQ(
         isolate()->cage_base(),
         JSTypedArray::ExternalPointerCompensationForOnHeapArray(isolate()));
-    // See JSTypedArray::SetOnHeapDataPtr() for details.
     offset = Unsigned(IntPtrAdd(offset, ptr_compr_cage_base));
   }
 

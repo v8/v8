@@ -99,8 +99,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   bool free_on_destruct() const { return free_on_destruct_; }
 
   bool IsEmpty() const {
-    DCHECK_GE(max_byte_length_, byte_length_);
-    return max_byte_length_ == 0;
+    DCHECK_GE(byte_capacity_, byte_length_);
+    return byte_capacity_ == 0;
   }
 
   enum ResizeOrGrowResult { kSuccess, kFailure, kRace };

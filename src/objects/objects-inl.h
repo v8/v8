@@ -630,7 +630,6 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   return value;
 }
 
-#ifdef V8_CAGED_POINTERS
 Address Object::ReadCagedPointerField(size_t offset,
                                       PtrComprCageBase cage_base) const {
   return i::ReadCagedPointerField(field_address(offset), cage_base);
@@ -646,7 +645,6 @@ void Object::WriteCagedPointerField(size_t offset, Isolate* isolate,
   i::WriteCagedPointerField(field_address(offset), PtrComprCageBase(isolate),
                             value);
 }
-#endif  // V8_CAGED_POINTERS
 
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
   i::InitExternalPointerField(field_address(offset), isolate);

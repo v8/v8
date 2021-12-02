@@ -318,13 +318,14 @@ class StatsCounter;
 #define EXTERNAL_REFERENCE_LIST_INTL(V)
 #endif  // V8_INTL_SUPPORT
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
+#ifdef V8_CAGED_POINTERS
 #define EXTERNAL_REFERENCE_LIST_VIRTUAL_MEMORY_CAGE(V)               \
   V(virtual_memory_cage_base_address, "V8VirtualMemoryCage::base()") \
-  V(virtual_memory_cage_end_address, "V8VirtualMemoryCage::end()")
+  V(virtual_memory_cage_end_address, "V8VirtualMemoryCage::end()")   \
+  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")
 #else
 #define EXTERNAL_REFERENCE_LIST_VIRTUAL_MEMORY_CAGE(V)
-#endif  // V8_VIRTUAL_MEMORY_CAGE
+#endif  // V8_CAGED_POINTERS
 
 #ifdef V8_HEAP_SANDBOX
 #define EXTERNAL_REFERENCE_LIST_HEAP_SANDBOX(V) \

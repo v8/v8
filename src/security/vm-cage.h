@@ -92,6 +92,27 @@ class V8_EXPORT_PRIVATE V8VirtualMemoryCage {
     return Contains(reinterpret_cast<Address>(ptr));
   }
 
+#ifdef V8_CAGED_POINTERS
+  class CagedPointerConstants final {
+   public:
+    Address empty_backing_store_buffer() const {
+      return empty_backing_store_buffer_;
+    }
+    Address empty_backing_store_buffer_address() const {
+      return reinterpret_cast<Address>(&empty_backing_store_buffer_);
+    }
+    void set_empty_backing_store_buffer(Address value) {
+      empty_backing_store_buffer_ = value;
+    }
+
+    void Reset() { empty_backing_store_buffer_ = 0; }
+
+   private:
+    Address empty_backing_store_buffer_ = 0;
+  };
+  const CagedPointerConstants& constants() const { return constants_; }
+#endif
+
  private:
   // The SequentialUnmapperTest calls the private Initialize method to create a
   // cage without guard regions, which would otherwise consume too much memory.
@@ -114,6 +135,10 @@ class V8_EXPORT_PRIVATE V8VirtualMemoryCage {
   bool InitializeAsFakeCage(v8::PageAllocator* page_allocator, size_t size,
                             size_t size_to_reserve);
 
+  // Initialize the caged pointer constants for this cage. Called by the
+  // Initialize methods above.
+  void InitializeConstants();
+
   Address base_ = kNullAddress;
   Address end_ = kNullAddress;
   size_t size_ = 0;
@@ -132,6 +157,11 @@ class V8_EXPORT_PRIVATE V8VirtualMemoryCage {
   v8::PageAllocator* page_allocator_ = nullptr;
   // The allocator to allocate pages inside the cage.
   std::unique_ptr<v8::PageAllocator> cage_page_allocator_;
+
+#ifdef V8_CAGED_POINTERS
+  // CagedPointer constants inside this cage.
+  CagedPointerConstants constants_;
+#endif
 };
 
 #endif  // V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
@@ -148,6 +178,16 @@ V8_INLINE bool IsValidBackingStorePointer(void* ptr) {
          GetProcessWideVirtualMemoryCage()->Contains(addr);
 #else
   return true;
+#endif
+}
+
+V8_INLINE void* EmptyBackingStoreBuffer() {
+#ifdef V8_CAGED_POINTERS
+  return reinterpret_cast<void*>(GetProcessWideVirtualMemoryCage()
+                                     ->constants()
+                                     .empty_backing_store_buffer());
+#else
+  return nullptr;
 #endif
 }
 

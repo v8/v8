@@ -486,7 +486,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsJSDataView(instance_type)) {
     Handle<JSDataView> data_view = Handle<JSDataView>::cast(obj);
     JSArrayBuffer buffer = JSArrayBuffer::cast(data_view->buffer());
-    void* backing_store = nullptr;
+    void* backing_store = EmptyBackingStoreBuffer();
     uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
     if (store_index != kEmptyBackingStoreRefSentinel) {
       // The backing store of the JSArrayBuffer has not been correctly restored
@@ -501,18 +501,15 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(obj);
     // Fixup typed array pointers.
     if (typed_array->is_on_heap()) {
-      Address raw_external_pointer = typed_array->external_pointer_raw();
-      typed_array->SetOnHeapDataPtr(
-          main_thread_isolate(), HeapObject::cast(typed_array->base_pointer()),
-          raw_external_pointer);
+      typed_array->AddExternalPointerCompensationForDeserialization(
+          main_thread_isolate());
     } else {
       // Serializer writes backing store ref as a DataPtr() value.
       uint32_t store_index =
           typed_array->GetExternalBackingStoreRefForDeserialization();
       auto backing_store = backing_stores_[store_index];
-      auto start = backing_store
-                       ? reinterpret_cast<byte*>(backing_store->buffer_start())
-                       : nullptr;
+      void* start = backing_store ? backing_store->buffer_start()
+                                  : EmptyBackingStoreBuffer();
       typed_array->SetOffHeapDataPtr(main_thread_isolate(), start,
                                      typed_array->byte_offset());
     }
@@ -523,7 +520,8 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
         kEmptyBackingStoreRefSentinel) {
       new_off_heap_array_buffers_.push_back(buffer);
     } else {
-      buffer->set_backing_store(nullptr);
+      buffer->set_backing_store(main_thread_isolate(),
+                                EmptyBackingStoreBuffer());
     }
   } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
     // TODO(mythria): Remove these once we store the default values for these

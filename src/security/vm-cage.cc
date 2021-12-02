@@ -11,6 +11,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/flags/flags.h"
+#include "src/security/caged-pointer.h"
 #include "src/utils/allocation.h"
 
 #if defined(V8_OS_WIN)
@@ -338,6 +339,8 @@ bool V8VirtualMemoryCage::Initialize(v8::PageAllocator* page_allocator,
   initialized_ = true;
   is_fake_cage_ = false;
 
+  InitializeConstants();
+
   return true;
 }
 
@@ -400,7 +403,17 @@ bool V8VirtualMemoryCage::InitializeAsFakeCage(
   cage_page_allocator_ = std::make_unique<FakeBoundedPageAllocator>(
       page_allocator_, base_, size_, reservation_size_);
 
+  InitializeConstants();
+
   return true;
+}
+
+void V8VirtualMemoryCage::InitializeConstants() {
+#ifdef V8_CAGED_POINTERS
+  // Place the empty backing store buffer at the end of the cage, so that any
+  // accidental access to it will most likely hit a guard page.
+  constants_.set_empty_backing_store_buffer(base_ + size_ - 1);
+#endif
 }
 
 void V8VirtualMemoryCage::TearDown() {
@@ -416,6 +429,9 @@ void V8VirtualMemoryCage::TearDown() {
     initialized_ = false;
     is_fake_cage_ = false;
     page_allocator_ = nullptr;
+#ifdef V8_CAGED_POINTERS
+    constants_.Reset();
+#endif
   }
   disabled_ = false;
 }

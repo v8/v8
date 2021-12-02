@@ -226,7 +226,7 @@ ExternalReference ExternalReference::handle_scope_implementer_address(
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
+#ifdef V8_CAGED_POINTERS
 ExternalReference ExternalReference::virtual_memory_cage_base_address() {
   return ExternalReference(GetProcessWideVirtualMemoryCage()->base_address());
 }
@@ -234,7 +234,13 @@ ExternalReference ExternalReference::virtual_memory_cage_base_address() {
 ExternalReference ExternalReference::virtual_memory_cage_end_address() {
   return ExternalReference(GetProcessWideVirtualMemoryCage()->end_address());
 }
-#endif
+
+ExternalReference ExternalReference::empty_backing_store_buffer() {
+  return ExternalReference(GetProcessWideVirtualMemoryCage()
+                               ->constants()
+                               .empty_backing_store_buffer_address());
+}
+#endif  // V8_CAGED_POINTERS
 
 #ifdef V8_HEAP_SANDBOX
 ExternalReference ExternalReference::external_pointer_table_address(
