@@ -80,7 +80,7 @@ void SafepointTable::Print(std::ostream& os) const {
   for (int index = 0; index < length_; index++) {
     SafepointEntry entry = GetEntry(index);
     os << reinterpret_cast<const void*>(instruction_start_ + entry.pc()) << " "
-       << std::setw(6) << std::hex << entry.pc();
+       << std::setw(6) << std::hex << entry.pc() << std::dec;
 
     if (!entry.tagged_slots().empty()) {
       os << "  slots (sp->fp): ";
@@ -163,21 +163,47 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
   assembler->RecordComment(";;; Safepoint table.");
   offset_ = assembler->pc_offset();
 
-  // Compute the number of bytes for tagged slots per safepoint entry.
+  // Compute the required sizes of the fields.
+  int used_register_indexes = 0;
+  int max_pc = 0;
+  STATIC_ASSERT(SafepointEntry::kNoDeoptIndex == -1);
+  int max_deopt_index = SafepointEntry::kNoDeoptIndex;
+  for (const EntryBuilder& entry : entries_) {
+    used_register_indexes |= entry.register_indexes;
+    max_pc = std::max(max_pc, std::max(entry.pc, entry.trampoline));
+    max_deopt_index = std::max(max_deopt_index, entry.deopt_index);
+  }
+
+  // Derive the bytes and bools for the entry configuration from the values.
+  auto value_to_bytes = [](int value) {
+    if (value == 0) return 0;
+    for (int bytes = 1;; ++bytes) {
+      DCHECK_GE(4, bytes);
+      int shifted_value = (value << (32 - 8 * bytes)) >> (32 - 8 * bytes);
+      if (shifted_value == value) return bytes;
+    }
+  };
+  bool has_deopt_data = max_deopt_index != SafepointEntry::kNoDeoptIndex;
+  int register_indexes_size = value_to_bytes(used_register_indexes);
+  int pc_size = value_to_bytes(max_pc);
+  int deopt_index_size = value_to_bytes(max_deopt_index);
   int tagged_slots_bytes =
-      RoundUp(tagged_slots_size, kBitsPerByte) >> kBitsPerByteLog2;
-  bool has_deopt_data =
-      std::any_of(entries_.begin(), entries_.end(), [](auto& entry) {
-        return entry.deopt_index != SafepointEntry::kNoDeoptIndex;
-      });
-  bool has_register_indexes =
-      std::any_of(entries_.begin(), entries_.end(),
-                  [](auto& entry) { return entry.register_indexes != 0; });
+      (tagged_slots_size + kBitsPerByte - 1) / kBitsPerByte;
+
+  // Add a CHECK to ensure we never overflow the space in the bitfield, even for
+  // huge functions which might not be covered by tests.
+  CHECK(SafepointTable::RegisterIndexesSizeField::is_valid(
+            register_indexes_size) &&
+        SafepointTable::PcSizeField::is_valid(pc_size) &&
+        SafepointTable::DeoptIndexSizeField::is_valid(deopt_index_size) &&
+        SafepointTable::TaggedSlotsBytesField::is_valid(tagged_slots_bytes));
 
   uint32_t entry_configuration =
-      SafepointTable::TaggedSlotsBytesField::encode(tagged_slots_bytes) |
       SafepointTable::HasDeoptDataField::encode(has_deopt_data) |
-      SafepointTable::HasRegisterIndexesField::encode(has_register_indexes);
+      SafepointTable::RegisterIndexesSizeField::encode(register_indexes_size) |
+      SafepointTable::PcSizeField::encode(pc_size) |
+      SafepointTable::DeoptIndexSizeField::encode(deopt_index_size) |
+      SafepointTable::TaggedSlotsBytesField::encode(tagged_slots_bytes);
 
   // Emit the table header.
   STATIC_ASSERT(SafepointTable::kLengthOffset == 0 * kIntSize);
@@ -187,16 +213,19 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
   assembler->dd(length);
   assembler->dd(entry_configuration);
 
+  auto emit_bytes = [assembler](int value, int bytes) {
+    for (int b = bytes - 1; b >= 0; --b) {
+      assembler->db(value >> (8 * b));
+    }
+  };
   // Emit entries, sorted by pc offsets.
   for (const EntryBuilder& entry : entries_) {
-    assembler->dd(entry.pc);
+    emit_bytes(entry.pc, pc_size);
     if (has_deopt_data) {
-      assembler->dd(entry.deopt_index);
-      assembler->dd(entry.trampoline);
+      emit_bytes(entry.deopt_index, deopt_index_size);
+      emit_bytes(entry.trampoline, pc_size);
     }
-    if (has_register_indexes) {
-      assembler->dd(entry.register_indexes);
-    }
+    emit_bytes(entry.register_indexes, register_indexes_size);
   }
 
   // Emit bitmaps of tagged stack slots.
