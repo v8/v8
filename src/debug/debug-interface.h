@@ -15,6 +15,7 @@
 #include "include/v8-promise.h"
 #include "include/v8-script.h"
 #include "include/v8-util.h"
+#include "src/base/enum-set.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -119,9 +120,20 @@ enum StepAction {
                  // in the current function.
 };
 
+// Record the reason for why the debugger breaks.
+enum class BreakReason : uint8_t {
+  kStep,
+  kException,
+  kAssert,
+  kDebuggerStatement,
+  kOOM
+};
+typedef base::EnumSet<BreakReason> BreakReasons;
+
 void PrepareStep(Isolate* isolate, StepAction action);
 void ClearStepping(Isolate* isolate);
-V8_EXPORT_PRIVATE void BreakRightNow(Isolate* isolate);
+V8_EXPORT_PRIVATE void BreakRightNow(
+    Isolate* isolate, base::EnumSet<BreakReason> break_reason = {});
 
 // Use `SetTerminateOnResume` to indicate that an TerminateExecution interrupt
 // should be set shortly before resuming, i.e. shortly before returning into
@@ -221,8 +233,6 @@ enum ExceptionType { kException, kPromiseRejection };
 
 class DebugDelegate {
  public:
-  // Encodes whether a requested break is (also) due to a step action.
-  enum StepBreak { kIsStepBreak, kIsNoStepBreak };
   virtual ~DebugDelegate() = default;
   virtual void ScriptCompiled(v8::Local<Script> script, bool is_live_edited,
                               bool has_compile_error) {}
@@ -231,7 +241,7 @@ class DebugDelegate {
   virtual void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
       const std::vector<debug::BreakpointId>& inspector_break_points_hit,
-      StepBreak is_step_break) {}
+      base::EnumSet<BreakReason> break_reasons = {}) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
                                v8::Local<v8::Value> promise, bool is_uncaught,

@@ -292,10 +292,12 @@ void ClearStepping(Isolate* v8_isolate) {
   isolate->debug()->ClearStepping();
 }
 
-void BreakRightNow(Isolate* v8_isolate) {
+void BreakRightNow(Isolate* v8_isolate,
+                   base::EnumSet<debug::BreakReason> break_reasons) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_DO_NOT_USE(isolate);
-  isolate->debug()->HandleDebugBreak(i::kIgnoreIfAllFramesBlackboxed);
+  isolate->debug()->HandleDebugBreak(i::kIgnoreIfAllFramesBlackboxed,
+                                     break_reasons);
 }
 
 void SetTerminateOnResume(Isolate* v8_isolate) {

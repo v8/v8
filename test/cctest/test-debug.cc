@@ -197,7 +197,7 @@ class DebugEventCounter : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context>,
                              const std::vector<v8::debug::BreakpointId>&,
-                             StepBreak is_step_break) override {
+                             v8::debug::BreakReasons break_reasons) override {
     break_point_hit_count++;
     // Perform a full deoptimization when the specified number of
     // breaks have been hit.
@@ -220,7 +220,7 @@ class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context>,
                              const std::vector<v8::debug::BreakpointId>&,
-                             StepBreak is_step_break) override {
+                             v8::debug::BreakReasons break_reasons) override {
     // Perform a garbage collection when break point is hit and continue. Based
     // on the number of break points hit either scavenge or mark compact
     // collector is used.
@@ -241,7 +241,7 @@ class DebugEventBreak : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context>,
                              const std::vector<v8::debug::BreakpointId>&,
-                             StepBreak is_step_break) override {
+                             v8::debug::BreakReasons break_reasons) override {
     // Count the number of breaks.
     break_point_hit_count++;
 
@@ -266,7 +266,7 @@ class DebugEventBreakMax : public v8::debug::DebugDelegate {
  public:
   void BreakProgramRequested(v8::Local<v8::Context>,
                              const std::vector<v8::debug::BreakpointId>&,
-                             StepBreak is_step_break) override {
+                             v8::debug::BreakReasons break_reasons) override {
     v8::Isolate* v8_isolate = CcTest::isolate();
     v8::internal::Isolate* isolate = CcTest::i_isolate();
     if (break_point_hit_count < max_break_point_hit_count) {
@@ -3312,7 +3312,7 @@ class ContextCheckEventListener : public v8::debug::DebugDelegate {
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
-      StepBreak is_step_break) override {
+      v8::debug::BreakReasons break_reasons) override {
     CheckContext();
   }
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
@@ -3828,7 +3828,7 @@ class DebugBreakInlineListener : public v8::debug::DebugDelegate {
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
-      StepBreak is_step_break) override {
+      v8::debug::BreakReasons break_reasons) override {
     int expected_frame_count = 4;
     int expected_line_number[] = {1, 4, 7, 13};
 
@@ -3911,7 +3911,7 @@ class DebugBreakStackTraceListener : public v8::debug::DebugDelegate {
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
-      StepBreak is_step_break) override {
+      v8::debug::BreakReasons break_reasons) override {
     v8::StackTrace::CurrentStackTrace(CcTest::isolate(), 10);
   }
 };
@@ -3952,7 +3952,7 @@ class DebugBreakTriggerTerminate : public v8::debug::DebugDelegate {
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
-      StepBreak is_step_break) override {
+      v8::debug::BreakReasons break_reasons) override {
     if (terminate_already_fired_) return;
     terminate_requested_semaphore.Signal();
     // Wait for at most 2 seconds for the terminate request.
@@ -4062,7 +4062,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
 
   void BreakProgramRequested(v8::Local<v8::Context> context,
                              const std::vector<v8::debug::BreakpointId>&,
-                             StepBreak is_step_break) override {
+                             v8::debug::BreakReasons break_reasons) override {
     auto stack_traces = v8::debug::StackTraceIterator::Create(isolate_);
     if (!stack_traces->Done()) {
       v8::debug::Location location = stack_traces->GetSourceLocation();
@@ -4283,7 +4283,7 @@ class DebugStepOverFunctionWithCaughtExceptionListener
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
-      StepBreak is_step_break) override {
+      v8::debug::BreakReasons break_reasons) override {
     ++break_point_hit_count;
     if (break_point_hit_count >= 3) return;
     PrepareStep(StepOver);
@@ -4785,7 +4785,7 @@ class SetBreakpointOnScriptCompiled : public v8::debug::DebugDelegate {
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
-      StepBreak is_step_break) override {
+      v8::debug::BreakReasons break_reasons) override {
     ++break_count_;
     CHECK_EQ(inspector_break_points_hit[0], id_);
   }
@@ -5212,7 +5212,7 @@ class SetTerminateOnResumeDelegate : public v8::debug::DebugDelegate {
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
-      StepBreak is_step_break) override {
+      v8::debug::BreakReasons break_reasons) override {
     break_count_++;
     v8::Isolate* isolate = paused_context->GetIsolate();
     v8::debug::SetTerminateOnResume(isolate);
@@ -5590,7 +5590,7 @@ class SemaphoreTriggerOnBreak : public v8::debug::DebugDelegate {
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& inspector_break_points_hit,
-      StepBreak is_step_break) override {
+      v8::debug::BreakReasons break_reasons) override {
     break_count_++;
     enter_.Signal();
     exit_.Wait();

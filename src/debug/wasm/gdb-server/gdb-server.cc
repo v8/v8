@@ -420,7 +420,7 @@ void GdbServer::DebugDelegate::BreakProgramRequested(
     // Executed in the isolate thread.
     Local<v8::Context> paused_context,
     const std::vector<debug::BreakpointId>& inspector_break_points_hit,
-    StepBreak is_step_break) {
+    v8::debug::BreakReasons break_reasons) {
   gdb_server_->GetTarget().OnProgramBreak(
       isolate_, WasmModuleDebug::GetCallStack(id_, isolate_));
   gdb_server_->RunMessageLoopOnPause();

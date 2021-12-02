@@ -153,7 +153,7 @@ class GdbServer {
     void BreakProgramRequested(
         Local<v8::Context> paused_context,
         const std::vector<debug::BreakpointId>& inspector_break_points_hit,
-        StepBreak is_step_break) override;
+        v8::debug::BreakReasons break_reasons) override;
     void ExceptionThrown(Local<v8::Context> paused_context,
                          Local<Value> exception, Local<Value> promise,
                          bool is_uncaught,

@@ -93,5 +93,17 @@ InspectorTest.runAsyncTestSuite([
 
     await Protocol.Runtime.runScript({scriptId});
     await tearDownEnvironment();
+  },
+  async function testDebuggerStatementReason() {
+    await setUpEnvironment();
+    Protocol.Debugger.onPaused(resumeOnPause);
+    await Protocol.Debugger.setInstrumentationBreakpoint(
+        {instrumentation: 'beforeScriptExecution'});
+
+    const {result: {scriptId}} = await Protocol.Runtime.compileScript(
+        {expression: 'debugger;', sourceURL: 'foo.js', persistScript: true});
+
+    await Protocol.Runtime.runScript({scriptId});
+    await tearDownEnvironment();
   }
 ]);

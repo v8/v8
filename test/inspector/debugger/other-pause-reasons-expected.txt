@@ -15,3 +15,6 @@ Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation",
 
 Running test: testOnlyReportOtherWithEmptyDataOnce
 Paused with reason: other and data: {}.
+
+Running test: testDebuggerStatementReason
+Paused with reason: ambiguous and data: {"reasons":[{"reason":"instrumentation","auxData":{"url":"foo.js","scriptId":"8"}},{"reason":"other"}]}.

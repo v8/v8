@@ -382,7 +382,7 @@ void V8DebuggerAgentImpl::enableImpl() {
 
   if (isPaused()) {
     didPause(0, v8::Local<v8::Value>(), std::vector<v8::debug::BreakpointId>(),
-             v8::debug::kException, false, false, false, false);
+             v8::debug::kException, false, {});
   }
 }
 
@@ -1744,19 +1744,19 @@ void V8DebuggerAgentImpl::setScriptInstrumentationBreakpointIfNeeded(
 void V8DebuggerAgentImpl::didPause(
     int contextId, v8::Local<v8::Value> exception,
     const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
-    v8::debug::ExceptionType exceptionType, bool isUncaught, bool isOOMBreak,
-    bool isAssert, bool isStepAction) {
+    v8::debug::ExceptionType exceptionType, bool isUncaught,
+    v8::debug::BreakReasons breakReasons) {
   v8::HandleScope handles(m_isolate);
 
   std::vector<BreakReason> hitReasons;
 
-  if (isOOMBreak) {
+  if (breakReasons.contains(v8::debug::BreakReason::kOOM)) {
     hitReasons.push_back(
         std::make_pair(protocol::Debugger::Paused::ReasonEnum::OOM, nullptr));
-  } else if (isAssert) {
+  } else if (breakReasons.contains(v8::debug::BreakReason::kAssert)) {
     hitReasons.push_back(std::make_pair(
         protocol::Debugger::Paused::ReasonEnum::Assert, nullptr));
-  } else if (!exception.IsEmpty()) {
+  } else if (breakReasons.contains(v8::debug::BreakReason::kException)) {
     InjectedScript* injectedScript = nullptr;
     m_session->findInjectedScript(contextId, injectedScript);
     if (injectedScript) {
@@ -1824,9 +1824,12 @@ void V8DebuggerAgentImpl::didPause(
   // Make sure that we only include (other: nullptr) once.
   const BreakReason otherHitReason =
       std::make_pair(protocol::Debugger::Paused::ReasonEnum::Other, nullptr);
-  if ((hitRegularBreakpoint || isStepAction) &&
-      std::find(hitReasons.begin(), hitReasons.end(), otherHitReason) ==
-          hitReasons.end()) {
+  const bool otherBreakReasons =
+      hitRegularBreakpoint ||
+      breakReasons.contains(v8::debug::BreakReason::kStep) ||
+      breakReasons.contains(v8::debug::BreakReason::kDebuggerStatement);
+  if (otherBreakReasons && std::find(hitReasons.begin(), hitReasons.end(),
+                                     otherHitReason) == hitReasons.end()) {
     hitReasons.push_back(
         std::make_pair(protocol::Debugger::Paused::ReasonEnum::Other, nullptr));
   }

@@ -2145,7 +2145,8 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
 }
 
 void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
-                         StepAction lastStepAction) {
+                         StepAction lastStepAction,
+                         v8::debug::BreakReasons break_reasons) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK(!break_points_hit.is_null());
   // The caller provided for DebugScope.
@@ -2178,11 +2179,11 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
     Handle<Context> native_context(isolate_->native_context());
-    debug_delegate_->BreakProgramRequested(
-        v8::Utils::ToLocal(native_context), inspector_break_points_hit,
-        lastStepAction != StepAction::StepNone
-            ? debug::DebugDelegate::StepBreak::kIsStepBreak
-            : debug::DebugDelegate::StepBreak::kIsNoStepBreak);
+    if (lastStepAction != StepAction::StepNone)
+      break_reasons.Add(debug::BreakReason::kStep);
+    debug_delegate_->BreakProgramRequested(v8::Utils::ToLocal(native_context),
+                                           inspector_break_points_hit,
+                                           break_reasons);
   }
 }
 
@@ -2370,7 +2371,8 @@ void Debug::UpdateHookOnFunctionCall() {
       thread_local_.break_on_next_function_call_;
 }
 
-void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
+void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
+                             v8::debug::BreakReasons break_reasons) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Ignore debug break during bootstrapping.
   if (isolate_->bootstrapper()->IsActive()) return;
@@ -2413,7 +2415,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
   DebugScope debug_scope(this);
   OnDebugBreak(break_points.is_null() ? isolate_->factory()->empty_fixed_array()
                                       : break_points.ToHandleChecked(),
-               lastStepAction);
+               lastStepAction, break_reasons);
 }
 
 #ifdef DEBUG

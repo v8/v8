@@ -239,7 +239,8 @@ void V8Debugger::breakProgramOnAssert(int targetContextGroupId) {
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
   m_scheduledAssertBreak = true;
-  v8::debug::BreakRightNow(m_isolate);
+  v8::debug::BreakRightNow(
+      m_isolate, v8::debug::BreakReasons({v8::debug::BreakReason::kAssert}));
 }
 
 void V8Debugger::stepIntoStatement(int targetContextGroupId,
@@ -397,8 +398,8 @@ void V8Debugger::clearContinueToLocation() {
 void V8Debugger::handleProgramBreak(
     v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
     const std::vector<v8::debug::BreakpointId>& breakpointIds,
-    StepBreak isStepAction, v8::debug::ExceptionType exceptionType,
-    bool isUncaught) {
+    v8::debug::BreakReasons breakReasons,
+    v8::debug::ExceptionType exceptionType, bool isUncaught) {
   // Don't allow nested breaks.
   if (isPaused()) return;
 
@@ -415,8 +416,11 @@ void V8Debugger::handleProgramBreak(
   m_taskWithScheduledBreakPauseRequested = false;
 
   bool scheduledOOMBreak = m_scheduledOOMBreak;
+  DCHECK(scheduledOOMBreak ==
+         breakReasons.contains(v8::debug::BreakReason::kOOM));
   bool scheduledAssertBreak = m_scheduledAssertBreak;
   bool hasAgents = false;
+
   m_inspector->forEachSession(
       contextGroupId,
       [&scheduledOOMBreak, &hasAgents](V8InspectorSessionImpl* session) {
@@ -472,7 +476,7 @@ void V8Debugger::handleProgramBreak(
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), {},
               instrumentationBreakpointIds,
-              v8::debug::ExceptionType::kException, false, false, false, false);
+              v8::debug::ExceptionType::kException, false, {});
         });
     {
       v8::Context::Scope scope(pausedContext);
@@ -505,16 +509,13 @@ void V8Debugger::handleProgramBreak(
   // want to trigger two pause events if we only break because of an
   // instrumentation.
   m_inspector->forEachSession(
-      contextGroupId,
-      [&pausedContext, &exception, &regularBreakpointIds, &exceptionType,
-       &isUncaught, &scheduledOOMBreak, &scheduledAssertBreak,
-       &isStepAction](V8InspectorSessionImpl* session) {
+      contextGroupId, [&pausedContext, &exception, &regularBreakpointIds,
+                       &exceptionType, &isUncaught, &scheduledOOMBreak,
+                       &breakReasons](V8InspectorSessionImpl* session) {
         if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), exception,
-              regularBreakpointIds, exceptionType, isUncaught,
-              scheduledOOMBreak, scheduledAssertBreak,
-              isStepAction == kIsStepBreak);
+              regularBreakpointIds, exceptionType, isUncaught, breakReasons);
         }
       });
   {
@@ -553,7 +554,14 @@ size_t V8Debugger::nearHeapLimitCallback(void* data, size_t current_heap_limit,
   thisPtr->m_targetContextGroupId =
       context.IsEmpty() ? 0 : thisPtr->m_inspector->contextGroupId(context);
   thisPtr->m_isolate->RequestInterrupt(
-      [](v8::Isolate* isolate, void*) { v8::debug::BreakRightNow(isolate); },
+      [](v8::Isolate* isolate, void*) {
+        // There's a redundancy  between setting `m_scheduledOOMBreak` and
+        // passing the reason along in `BreakRightNow`. The
+        // `m_scheduledOOMBreak` is used elsewhere, so we cannot remove it. And
+        // for being explicit, we still pass the break reason along.
+        v8::debug::BreakRightNow(
+            isolate, v8::debug::BreakReasons({v8::debug::BreakReason::kOOM}));
+      },
       nullptr);
   return HeapLimitForDebugging(initial_heap_limit);
 }
@@ -584,9 +592,9 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
 void V8Debugger::BreakProgramRequested(
     v8::Local<v8::Context> pausedContext,
     const std::vector<v8::debug::BreakpointId>& break_points_hit,
-    StepBreak is_step_break) {
+    v8::debug::BreakReasons reasons) {
   handleProgramBreak(pausedContext, v8::Local<v8::Value>(), break_points_hit,
-                     is_step_break);
+                     reasons);
 }
 
 void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
@@ -594,8 +602,10 @@ void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
                                  v8::Local<v8::Value> promise, bool isUncaught,
                                  v8::debug::ExceptionType exceptionType) {
   std::vector<v8::debug::BreakpointId> break_points_hit;
-  handleProgramBreak(pausedContext, exception, break_points_hit, kIsNoStepBreak,
-                     exceptionType, isUncaught);
+  handleProgramBreak(
+      pausedContext, exception, break_points_hit,
+      v8::debug::BreakReasons({v8::debug::BreakReason::kException}),
+      exceptionType, isUncaught);
 }
 
 bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
