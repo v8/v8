@@ -81,11 +81,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   static constexpr size_t kEmbedderActivationThreshold = 0;
 #endif
 
-#ifdef V8_ATOMIC_MARKING_STATE
   static const AccessMode kAtomicity = AccessMode::ATOMIC;
-#else
-  static const AccessMode kAtomicity = AccessMode::NON_ATOMIC;
-#endif
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 

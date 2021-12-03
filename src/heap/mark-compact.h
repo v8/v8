@@ -444,11 +444,7 @@ class MainMarkingVisitor final
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
-#ifdef V8_ATOMIC_MARKING_STATE
   using MarkingState = MajorMarkingState;
-#else
-  using MarkingState = MajorNonAtomicMarkingState;
-#endif  // V8_ATOMIC_MARKING_STATE
   using AtomicMarkingState = MajorAtomicMarkingState;
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
 

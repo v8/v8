@@ -434,10 +434,6 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap,
     : heap_(heap),
       marking_worklists_(marking_worklists),
       weak_objects_(weak_objects) {
-#ifndef V8_ATOMIC_MARKING_STATE
-  // Concurrent and parallel marking require atomic marking state.
-  CHECK(!FLAG_concurrent_marking && !FLAG_parallel_marking);
-#endif
 #ifndef V8_ATOMIC_OBJECT_FIELD_WRITES
   // Concurrent marking requires atomic object field writes.
   CHECK(!FLAG_concurrent_marking);

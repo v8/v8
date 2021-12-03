@@ -44,7 +44,6 @@ config_setting(
 # v8_enable_trace_baseline_exec
 # v8_enable_trace_feedback_updates
 # v8_enable_atomic_object_field_writes
-# v8_enable_atomic_marking_state
 # v8_enable_concurrent_marking
 # v8_enable_ignition_dispatch_counting
 # v8_enable_builtins_profiling

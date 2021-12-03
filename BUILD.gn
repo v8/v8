@@ -146,11 +146,8 @@ declare_args() {
   # into relaxed atomic operations.
   v8_enable_atomic_object_field_writes = ""
 
-  # Sets -dV8_ATOMIC_MARKING_STATE
-  v8_enable_atomic_marking_state = ""
-
-  # Controls the default values of v8_enable_atomic_object_field_writes and
-  # v8_enable_concurrent_marking_state. See the default setting code below.
+  # Controls the default value of v8_enable_concurrent_marking_state. See the
+  # default setting code below.
   v8_enable_concurrent_marking = true
 
   # Sets -dV8_IGNITION_DISPATCH_COUNTING.
@@ -430,9 +427,6 @@ if (v8_enable_single_generation == "") {
 if (v8_enable_atomic_object_field_writes == "") {
   v8_enable_atomic_object_field_writes = v8_enable_concurrent_marking
 }
-if (v8_enable_atomic_marking_state == "") {
-  v8_enable_atomic_marking_state = v8_enable_concurrent_marking
-}
 if (v8_enable_third_party_heap) {
   v8_disable_write_barriers = true
   v8_enable_single_generation = true
@@ -446,8 +440,6 @@ if (v8_enable_single_generation) {
 }
 assert(!v8_enable_concurrent_marking || v8_enable_atomic_object_field_writes,
        "Concurrent marking requires atomic object field writes.")
-assert(!v8_enable_concurrent_marking || v8_enable_atomic_marking_state,
-       "Concurrent marking requires atomic marking state.")
 if (v8_enable_trace_unoptimized == "") {
   v8_enable_trace_unoptimized =
       v8_enable_trace_ignition || v8_enable_trace_baseline_exec
@@ -903,9 +895,6 @@ config("features") {
   }
   if (v8_enable_atomic_object_field_writes) {
     defines += [ "V8_ATOMIC_OBJECT_FIELD_WRITES" ]
-  }
-  if (v8_enable_atomic_marking_state) {
-    defines += [ "V8_ATOMIC_MARKING_STATE" ]
   }
   if (v8_enable_ignition_dispatch_counting) {
     defines += [ "V8_IGNITION_DISPATCH_COUNTING" ]
@@ -2201,7 +2190,6 @@ action("v8_dump_build_config") {
     "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
     "v8_current_cpu=\"$v8_current_cpu\"",
-    "v8_enable_atomic_marking_state=$v8_enable_atomic_marking_state",
     "v8_enable_atomic_object_field_writes=" +
         "$v8_enable_atomic_object_field_writes",
     "v8_enable_concurrent_marking=$v8_enable_concurrent_marking",
