@@ -3360,22 +3360,18 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
     i::Isolate::Delete(reinterpret_cast<i::Isolate*>(shared_isolate));
   }
 
-  // {V8::Dispose} resets flags, thus get the flag values before disposing.
-  bool dump_counters = i::FLAG_dump_counters;
-  bool dump_counters_nvp = i::FLAG_dump_counters_nvp;
-
   if (dispose) {
     V8::Dispose();
     V8::DisposePlatform();
   }
 
-  if (dump_counters || dump_counters_nvp) {
+  if (options.dump_counters || options.dump_counters_nvp) {
     base::SharedMutexGuard<base::kShared> mutex_guard(&counter_mutex_);
     std::vector<std::pair<std::string, Counter*>> counters(
         counter_map_->begin(), counter_map_->end());
     std::sort(counters.begin(), counters.end());
 
-    if (dump_counters_nvp) {
+    if (options.dump_counters_nvp) {
       // Dump counters as name-value pairs.
       for (const auto& pair : counters) {
         std::string key = pair.first;
@@ -4358,6 +4354,14 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--no-fail") == 0) {
       options.no_fail = true;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--dump-counters") == 0) {
+      i::FLAG_slow_histograms = true;
+      options.dump_counters = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--dump-counters-nvp") == 0) {
+      i::FLAG_slow_histograms = true;
+      options.dump_counters_nvp = true;
+      argv[i] = nullptr;
     } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
       options.icu_data_file = argv[i] + 16;
       argv[i] = nullptr;
@@ -5208,7 +5212,7 @@ int Shell::Main(int argc, char* argv[]) {
       base::SysInfo::AmountOfVirtualMemory());
 
   Shell::counter_map_ = new CounterMap();
-  if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp ||
+  if (options.dump_counters || options.dump_counters_nvp ||
       i::TracingFlags::is_gc_stats_enabled()) {
     create_params.counter_lookup_callback = LookupCounter;
     create_params.create_histogram_callback = CreateHistogram;

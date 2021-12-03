@@ -1879,13 +1879,10 @@ DEFINE_BOOL_READONLY(minor_mc, false,
 DEFINE_BOOL(help, false, "Print usage message, including flags, on console")
 DEFINE_BOOL(print_flag_values, false, "Print all flag values of V8")
 
-DEFINE_BOOL(dump_counters, false, "Dump counters on exit")
+// Slow histograms are also enabled via --dump-counters in d8.
 DEFINE_BOOL(slow_histograms, false,
             "Enable slow histograms with more overhead.")
-DEFINE_IMPLICATION(dump_counters, slow_histograms)
 
-DEFINE_BOOL(dump_counters_nvp, false,
-            "Dump counters as name-value pairs on exit")
 DEFINE_BOOL(use_external_strings, false, "Use external strings for source code")
 DEFINE_STRING(map_counters, "", "Map counters to a file")
 DEFINE_BOOL(mock_arraybuffer_allocator, false,

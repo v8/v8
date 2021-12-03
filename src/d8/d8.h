@@ -393,6 +393,8 @@ class ShellOptions {
   bool test_shell = false;
   DisallowReassignment<bool> expected_to_throw = {"throws", false};
   DisallowReassignment<bool> no_fail = {"no-fail", false};
+  DisallowReassignment<bool> dump_counters = {"dump-counters", false};
+  DisallowReassignment<bool> dump_counters_nvp = {"dump-counters-nvp", false};
   DisallowReassignment<bool> ignore_unhandled_promises = {
       "ignore-unhandled-promises", false};
   DisallowReassignment<bool> mock_arraybuffer_allocator = {
