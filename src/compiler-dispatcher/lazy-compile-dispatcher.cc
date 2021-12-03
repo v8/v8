@@ -25,6 +25,10 @@
 namespace v8 {
 namespace internal {
 
+// The maximum amount of time we should allow a single function's FinishNow to
+// spend opportunistically finalizing other finalizable jobs.
+static constexpr int kMaxOpportunisticFinalizeTimeMs = 1;
+
 class LazyCompileDispatcher::JobTask : public v8::JobTask {
  public:
   explicit JobTask(LazyCompileDispatcher* lazy_compile_dispatcher)
@@ -175,6 +179,15 @@ bool LazyCompileDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
 
   DCHECK_NE(success, isolate_->has_pending_exception());
   delete job;
+
+  // Opportunistically finalize all other jobs for a maximum time of
+  // kMaxOpportunisticFinalizeTimeMs.
+  double deadline_in_seconds = platform_->MonotonicallyIncreasingTime() +
+                               kMaxOpportunisticFinalizeTimeMs / 1000.0;
+  while (deadline_in_seconds > platform_->MonotonicallyIncreasingTime()) {
+    if (!FinalizeSingleJob()) break;
+  }
+
   return success;
 }
 
@@ -297,6 +310,53 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
   // deleted.
 }
 
+std::tuple<SharedFunctionInfo, LazyCompileDispatcher::Job*>
+LazyCompileDispatcher::GetSingleFinalizableJob(const base::MutexGuard&) {
+  SharedToJobMap::IteratableScope iteratable_scope(&shared_to_unoptimized_job_);
+
+  auto it = iteratable_scope.begin();
+  auto end = iteratable_scope.end();
+  for (; it != end; ++it) {
+    Job* job = *it.entry();
+    if (job->state == Job::State::kReadyToFinalize ||
+        job->state == Job::State::kAborted) {
+      return {SharedFunctionInfo::cast(it.key()), job};
+    }
+  }
+  // Since we hold the lock here, we can be sure no jobs have become ready
+  // for finalization while we looped through the list.
+  return {SharedFunctionInfo(), nullptr};
+}
+
+bool LazyCompileDispatcher::FinalizeSingleJob() {
+  SharedFunctionInfo function;
+  Job* job;
+  {
+    base::MutexGuard lock(&mutex_);
+    std::tie(function, job) = GetSingleFinalizableJob(lock);
+    if (job == nullptr) return false;
+
+    // We're finalizing this job now, so remove it from the map.
+    shared_to_unoptimized_job_.Delete(function, &job);
+  }
+
+  if (trace_compiler_dispatcher_) {
+    PrintF("LazyCompileDispatcher: idle finalizing job for ");
+    function.ShortPrint();
+    PrintF("\n");
+  }
+
+  if (job->state == Job::State::kReadyToFinalize) {
+    HandleScope scope(isolate_);
+    Compiler::FinalizeBackgroundCompileTask(job->task.get(), isolate_,
+                                            Compiler::CLEAR_EXCEPTION);
+  } else {
+    DCHECK_EQ(job->state, Job::State::kAborted);
+  }
+  delete job;
+  return true;
+}
+
 void LazyCompileDispatcher::DoIdleWork(double deadline_in_seconds) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompilerDispatcherDoIdleWork");
@@ -312,49 +372,8 @@ void LazyCompileDispatcher::DoIdleWork(double deadline_in_seconds) {
   }
   while (deadline_in_seconds > platform_->MonotonicallyIncreasingTime()) {
     // Find a job which is pending finalization and has a shared function info
-
-    SharedFunctionInfo function;
-    Job* job;
-    {
-      base::MutexGuard lock(&mutex_);
-      {
-        SharedToJobMap::IteratableScope iteratable_scope(
-            &shared_to_unoptimized_job_);
-
-        auto it = iteratable_scope.begin();
-        auto end = iteratable_scope.end();
-        for (; it != end; ++it) {
-          job = *it.entry();
-          if (job->state == Job::State::kReadyToFinalize ||
-              job->state == Job::State::kAborted) {
-            function = SharedFunctionInfo::cast(it.key());
-            break;
-          }
-        }
-        // Since we hold the lock here, we can be sure no jobs have become ready
-        // for finalization while we looped through the list.
-        if (it == end) return;
-      }
-
-      DCHECK_EQ(pending_background_jobs_.find(job),
-                pending_background_jobs_.end());
-      shared_to_unoptimized_job_.Delete(function, &job);
-    }
-
-    if (trace_compiler_dispatcher_) {
-      PrintF("LazyCompileDispatcher: idle finalizing job for ");
-      function.ShortPrint();
-      PrintF("\n");
-    }
-
-    if (job->state == Job::State::kReadyToFinalize) {
-      HandleScope scope(isolate_);
-      Compiler::FinalizeBackgroundCompileTask(job->task.get(), isolate_,
-                                              Compiler::CLEAR_EXCEPTION);
-    } else {
-      DCHECK_EQ(job->state, Job::State::kAborted);
-    }
-    delete job;
+    auto there_was_a_job = FinalizeSingleJob();
+    if (!there_was_a_job) return;
   }
 
   // We didn't return above so there still might be jobs to finalize.
