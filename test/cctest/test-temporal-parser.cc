@@ -753,6 +753,65 @@ TEST(TemporalTimeStringSuccess) {
 
   VerifyParseTemporalTimeStringSuccess(
       isolate, "2021-11-09 01:23:45.678912345Z", 1, 23, 45, 678912345, "");
+
+  VerifyParseTemporalTimeStringSuccess(isolate, "2021-03-11[u-ca=iso8601]",
+                                       kUndefined, kUndefined, kUndefined,
+                                       kUndefined, "iso8601");
+  VerifyParseTemporalTimeStringSuccess(
+      isolate, "2021-03-11[u-ca=abcdefgh-wxyzefg]", kUndefined, kUndefined,
+      kUndefined, kUndefined, "abcdefgh-wxyzefg");
+  VerifyParseTemporalTimeStringSuccess(
+      isolate, "2021-03-11[u-ca=abcdefgh-wxyzefg-ijklmnop]", kUndefined,
+      kUndefined, kUndefined, kUndefined, "abcdefgh-wxyzefg-ijklmnop");
+  VerifyParseTemporalTimeStringSuccess(isolate, "2021-03-11T01[u-ca=iso8601]",
+                                       1, kUndefined, kUndefined, kUndefined,
+                                       "iso8601");
+  VerifyParseTemporalTimeStringSuccess(
+      isolate, "2021-03-11 02:34[u-ca=abcdefgh-wxyzefg]", 2, 34, kUndefined,
+      kUndefined, "abcdefgh-wxyzefg");
+
+  VerifyParseTemporalTimeStringSuccess(
+      isolate,
+      "2021-11-03 "
+      "123456.789-012345.789123456[aBcDEfGHiJ.L_N/"
+      "ABCbcdGfIJKLMN][u-ca=abc]",
+      12, 34, 56, 789000000, "abc");
+
+  VerifyParseTemporalTimeStringSuccess(
+      isolate, "2021-03-11[+12:34:56,789123456][u-ca=abcdefgh-wxyzefg]",
+      kUndefined, kUndefined, kUndefined, kUndefined, "abcdefgh-wxyzefg");
+  VerifyParseTemporalTimeStringSuccess(
+      isolate, "2021-03-11T23[+12:34:56,789123456][u-ca=abcdefgh-wxyzefg]", 23,
+      kUndefined, kUndefined, kUndefined, "abcdefgh-wxyzefg");
+  VerifyParseTemporalTimeStringSuccess(
+      isolate,
+      u8"20210311[\u221200:34:56.789123456][u-ca=abcdefgh-wxyzefg-ijklmnop]",
+      kUndefined, kUndefined, kUndefined, kUndefined,
+      "abcdefgh-wxyzefg-ijklmnop");
+  VerifyParseTemporalTimeStringSuccess(
+      isolate,
+      u8"20210311T22:11[\u221200:34:56.789123456][u-ca=abcdefgh-"
+      u8"wxyzefg-ijklmnop]",
+      22, 11, kUndefined, kUndefined, "abcdefgh-wxyzefg-ijklmnop");
+  VerifyParseTemporalTimeStringSuccess(isolate, "2021-11-03[u-ca=abc]",
+                                       kUndefined, kUndefined, kUndefined,
+                                       kUndefined, "abc");
+  VerifyParseTemporalTimeStringSuccess(isolate,
+                                       "2021-11-03T23:45:12.345[u-ca=abc]", 23,
+                                       45, 12, 345000000, "abc");
+  VerifyParseTemporalTimeStringSuccess(isolate, "2021-11-03[u-ca=iso-8601]",
+                                       kUndefined, kUndefined, kUndefined,
+                                       kUndefined, "iso-8601");
+  VerifyParseTemporalTimeStringSuccess(isolate,
+                                       "2021-11-03 234527[u-ca=iso-8601]", 23,
+                                       45, 27, kUndefined, "iso-8601");
+
+  VerifyParseTemporalTimeStringSuccess(isolate, "2021-11-03[u-ca=123456-789]",
+                                       kUndefined, kUndefined, kUndefined,
+                                       kUndefined, "123456-789");
+  VerifyParseTemporalTimeStringSuccess(
+      isolate, "2021-11-03t12[u-ca=123456-789]", 12, kUndefined, kUndefined,
+      kUndefined, "123456-789");
 }
 
 TEST(TemporalTimeStringIllegal) {
@@ -761,37 +820,9 @@ TEST(TemporalTimeStringIllegal) {
   v8::HandleScope scope(CcTest::isolate());
   VERIFY_PARSE_FAIL_ON_DATE(TemporalTimeString);
   VERIFY_PARSE_FAIL(TemporalTimeString, "");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2021-03-11[u-ca=iso8601]");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2021-03-11[u-ca=abcdefgh-wxyzefg]");
-  VERIFY_PARSE_FAIL(TemporalTimeString,
-                    "2021-03-11[u-ca=abcdefgh-wxyzefg-ijklmnop]");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2021-03-11T01[u-ca=iso8601]");
-  VERIFY_PARSE_FAIL(TemporalTimeString,
-                    "2021-03-11 02:34[u-ca=abcdefgh-wxyzefg]");
+
   VERIFY_PARSE_FAIL(TemporalTimeString,
                     "2021-03-11t03:45.67[u-ca=abcdefgh-wxyzefg-ijklmnop]");
-  VERIFY_PARSE_FAIL(TemporalTimeString,
-                    "2021-11-03 "
-                    "123456.789-012345.789123456[aBcDEfGHiJ.L_N/"
-                    "ABCbcdGfIJKLMN][u-ca=abc]");
-  VERIFY_PARSE_FAIL(TemporalTimeString,
-                    "2021-03-11[+12:34:56,789123456][u-ca=abcdefgh-wxyzefg]");
-  VERIFY_PARSE_FAIL(
-      TemporalTimeString,
-      "2021-03-11T23[+12:34:56,789123456][u-ca=abcdefgh-wxyzefg]");
-  VERIFY_PARSE_FAIL(
-      TemporalTimeString,
-      u8"20210311[\u221200:34:56.789123456][u-ca=abcdefgh-wxyzefg-ijklmnop]");
-  VERIFY_PARSE_FAIL(TemporalTimeString,
-                    u8"20210311T22:11[\u221200:34:56.789123456][u-ca=abcdefgh-"
-                    u8"wxyzefg-ijklmnop]");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2021-11-03[u-ca=abc]");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2021-11-03T23:45:12.345[u-ca=abc]");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2021-11-03[u-ca=iso-8601]");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2021-11-03 234527[u-ca=iso-8601]");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2021-11-03[u-ca=123456-789]");
-  VERIFY_PARSE_FAIL(TemporalTimeString, "2021-11-03t12[u-ca=123456-789]");
-
   // Single digit Hour
   VERIFY_PARSE_FAIL(TemporalTimeString, "0");
   VERIFY_PARSE_FAIL(TemporalTimeString, "9");

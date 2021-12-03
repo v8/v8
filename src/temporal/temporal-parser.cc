@@ -644,12 +644,69 @@ int32_t ScanTimeZoneNameRequired(base::Vector<Char> str, int32_t s,
 SCAN_EITHER_FORWARD(TimeZone, TimeZoneOffsetRequired, TimeZoneNameRequired,
                     ParsedISO8601Result)
 
-// Time: TimeSpec [TimeZone]
+// CalendarNameComponent:
+//   CalChar {3,8}
 template <typename Char>
-int32_t ScanTime(base::Vector<Char> str, int32_t s, ParsedISO8601Result* r) {
-  int32_t len = ScanTimeSpec(str, s, r);
+int32_t ScanCalendarNameComponent(base::Vector<Char> str, int32_t s) {
+  int32_t cur = s;
+  while ((cur < str.length()) && IsAlphaNumeric(str[cur])) cur++;
+  if ((cur - s) < 3 || (cur - s) > 8) return 0;
+  return (cur - s);
+}
+
+// CalendarNameTail :
+//   CalendarNameComponent
+//   CalendarNameComponent - CalendarNameTail
+// CalendarName :
+//   CalendarNameTail
+// The spec text use tail recusion with CalendarNameComponent and
+// CalendarNameTail. In our implementation, we use an iteration loop instead.
+template <typename Char>
+int32_t ScanCalendarName(base::Vector<Char> str, int32_t s,
+                         ParsedISO8601Result* r) {
+  int32_t cur = s;
+  int32_t len;
+  if ((len = ScanCalendarNameComponent(str, cur)) == 0) return 0;
+  cur += len;
+  while ((str.length() > (cur + 1)) && (str[cur++] == '-')) {
+    if ((len = ScanCalendarNameComponent(str, cur)) == 0) return 0;
+    // CalendarNameComponent - CalendarName
+    cur += len;
+  }
+  r->calendar_name_start = s;
+  r->calendar_name_length = cur - s;
+  return cur - s;
+}
+
+// Calendar: '[u-ca=' CalendarName ']'
+template <typename Char>
+int32_t ScanCalendar(base::Vector<Char> str, int32_t s,
+                     ParsedISO8601Result* r) {
+  if (str.length() < (s + 7)) return 0;
+  int32_t cur = s;
+  // "[u-ca="
+  if ((str[cur++] != '[') || (str[cur++] != 'u') || (str[cur++] != '-') ||
+      (str[cur++] != 'c') || (str[cur++] != 'a') || (str[cur++] != '=')) {
+    return 0;
+  }
+  int32_t len = ScanCalendarName(str, cur, r);
   if (len == 0) return 0;
-  return len + ScanTimeZone(str, s, r);
+  if ((str.length() < (cur + len + 1)) || (str[cur + len] != ']')) {
+    return 0;
+  }
+  return 6 + len + 1;
+}
+
+// CalendarTime: TimeSpec [TimeZone] [Calendar]
+template <typename Char>
+int32_t ScanCalendarTime(base::Vector<Char> str, int32_t s,
+                         ParsedISO8601Result* r) {
+  int32_t cur = s;
+  cur += ScanTimeSpec(str, cur, r);
+  if (cur - s == 0) return 0;
+  cur += ScanTimeZone(str, cur, r);
+  cur += ScanCalendar(str, cur, r);
+  return cur - s;
 }
 
 // DateTime: Date [TimeSpecSeparator][TimeZone]
@@ -705,59 +762,6 @@ int32_t ScanDateSpecMonthDay(base::Vector<Char> str, int32_t s,
   r->date_month = date_month;
   r->date_day = date_day;
   return cur + len - s;
-}
-
-// CalendarNameComponent:
-//   CalChar {3,8}
-template <typename Char>
-int32_t ScanCalendarNameComponent(base::Vector<Char> str, int32_t s) {
-  int32_t cur = s;
-  while ((cur < str.length()) && IsAlphaNumeric(str[cur])) cur++;
-  if ((cur - s) < 3 || (cur - s) > 8) return 0;
-  return (cur - s);
-}
-
-// CalendarNameTail :
-//   CalendarNameComponent
-//   CalendarNameComponent - CalendarNameTail
-// CalendarName :
-//   CalendarNameTail
-// The spec text use tail recusion with CalendarNameComponent and
-// CalendarNameTail. In our implementation, we use an iteration loop instead.
-template <typename Char>
-int32_t ScanCalendarName(base::Vector<Char> str, int32_t s,
-                         ParsedISO8601Result* r) {
-  int32_t cur = s;
-  int32_t len;
-  if ((len = ScanCalendarNameComponent(str, cur)) == 0) return 0;
-  cur += len;
-  while ((str.length() > (cur + 1)) && (str[cur++] == '-')) {
-    if ((len = ScanCalendarNameComponent(str, cur)) == 0) return 0;
-    // CalendarNameComponent - CalendarName
-    cur += len;
-  }
-  r->calendar_name_start = s;
-  r->calendar_name_length = cur - s;
-  return cur - s;
-}
-
-// Calendar: '[u-ca=' CalendarName ']'
-template <typename Char>
-int32_t ScanCalendar(base::Vector<Char> str, int32_t s,
-                     ParsedISO8601Result* r) {
-  if (str.length() < (s + 7)) return 0;
-  int32_t cur = s;
-  // "[u-ca="
-  if ((str[cur++] != '[') || (str[cur++] != 'u') || (str[cur++] != '-') ||
-      (str[cur++] != 'c') || (str[cur++] != 'a') || (str[cur++] != '=')) {
-    return 0;
-  }
-  int32_t len = ScanCalendarName(str, cur, r);
-  if (len == 0) return 0;
-  if ((str.length() < (cur + len + 1)) || (str[cur + len] != ']')) {
-    return 0;
-  }
-  return 6 + len + 1;
 }
 
 // TemporalTimeZoneIdentifier:
@@ -831,23 +835,24 @@ SCAN_EITHER_FORWARD(TemporalTimeZoneString, TemporalTimeZoneIdentifier,
                     ParsedISO8601Result)
 
 // TemporalTimeString
-//   Time
-//   DateTime
+//   CalendarTime
+//   CalendarDateTime
 // The lookahead is at most 7 chars.
-SCAN_EITHER_FORWARD(TemporalTimeString, Time, DateTime, ParsedISO8601Result)
+SCAN_EITHER_FORWARD(TemporalTimeString, CalendarTime, CalendarDateTime,
+                    ParsedISO8601Result)
 
 // TemporalYearMonthString:
 //   DateSpecYearMonth
-//   DateTime
+//   CalendarDateTime
 // The lookahead is at most 11 chars.
-SCAN_EITHER_FORWARD(TemporalYearMonthString, DateSpecYearMonth, DateTime,
-                    ParsedISO8601Result)
+SCAN_EITHER_FORWARD(TemporalYearMonthString, DateSpecYearMonth,
+                    CalendarDateTime, ParsedISO8601Result)
 
 // TemporalMonthDayString
 //   DateSpecMonthDay
-//   DateTime
+//   CalendarDateTime
 // The lookahead is at most 5 chars.
-SCAN_EITHER_FORWARD(TemporalMonthDayString, DateSpecMonthDay, DateTime,
+SCAN_EITHER_FORWARD(TemporalMonthDayString, DateSpecMonthDay, CalendarDateTime,
                     ParsedISO8601Result)
 
 // TemporalRelativeToString:
@@ -916,15 +921,17 @@ int32_t ScanTemporalInstantString(base::Vector<Char> str, int32_t s,
 
 SATISIFY(TemporalDateTimeString, ParsedISO8601Result)
 SATISIFY(TemporalDateString, ParsedISO8601Result)
-SATISIFY(Time, ParsedISO8601Result)
+SATISIFY(CalendarTime, ParsedISO8601Result)
 SATISIFY(DateTime, ParsedISO8601Result)
 SATISIFY(DateSpecYearMonth, ParsedISO8601Result)
 SATISIFY(DateSpecMonthDay, ParsedISO8601Result)
 SATISIFY(Date_TimeSpecSeparator_TimeZone_Calendar, ParsedISO8601Result)
-SATISIFY_EITHER(TemporalTimeString, Time, DateTime, ParsedISO8601Result)
-SATISIFY_EITHER(TemporalYearMonthString, DateSpecYearMonth, DateTime,
+SATISIFY(CalendarDateTime, ParsedISO8601Result)
+SATISIFY_EITHER(TemporalTimeString, CalendarTime, CalendarDateTime,
                 ParsedISO8601Result)
-SATISIFY_EITHER(TemporalMonthDayString, DateSpecMonthDay, DateTime,
+SATISIFY_EITHER(TemporalYearMonthString, DateSpecYearMonth, CalendarDateTime,
+                ParsedISO8601Result)
+SATISIFY_EITHER(TemporalMonthDayString, DateSpecMonthDay, CalendarDateTime,
                 ParsedISO8601Result)
 SATISIFY(TimeZoneNumericUTCOffset, ParsedISO8601Result)
 SATISIFY(TimeZoneIANAName, ParsedISO8601Result)
@@ -939,7 +946,6 @@ SATISIFY_EITHER(TemporalRelativeToString, TemporalDateTimeString,
                 TemporalZonedDateTimeString, ParsedISO8601Result)
 
 SATISIFY(CalendarName, ParsedISO8601Result)
-SATISIFY(CalendarDateTime, ParsedISO8601Result)
 
 template <typename Char>
 bool SatisfyTemporalCalendarString(base::Vector<Char> str,
@@ -947,7 +953,7 @@ bool SatisfyTemporalCalendarString(base::Vector<Char> str,
   IF_SATISFY_RETURN(CalendarName)
   IF_SATISFY_RETURN(TemporalInstantString)
   IF_SATISFY_RETURN(CalendarDateTime)
-  IF_SATISFY_RETURN(Time)
+  IF_SATISFY_RETURN(CalendarTime)
   IF_SATISFY_RETURN(DateSpecYearMonth)
   IF_SATISFY_RETURN(DateSpecMonthDay)
   return false;
