@@ -17,7 +17,7 @@ class SourceLocation;
 
 namespace internal {
 class ConcurrentMarkingState;
-class MarkingStateBase;
+class BasicMarkingState;
 class MutatorMarkingState;
 }  // namespace internal
 }  // namespace cppgc
@@ -33,7 +33,7 @@ using cppgc::internal::MutatorMarkingState;
 
 class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
  public:
-  UnifiedHeapMarkingVisitorBase(HeapBase&, cppgc::internal::MarkingStateBase&,
+  UnifiedHeapMarkingVisitorBase(HeapBase&, cppgc::internal::BasicMarkingState&,
                                 UnifiedHeapMarkingState&);
   ~UnifiedHeapMarkingVisitorBase() override = default;
 
@@ -51,7 +51,7 @@ class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
   // JS handling.
   void Visit(const TracedReferenceBase& ref) final;
 
-  cppgc::internal::MarkingStateBase& marking_state_;
+  cppgc::internal::BasicMarkingState& marking_state_;
   UnifiedHeapMarkingState& unified_heap_marking_state_;
 };
 

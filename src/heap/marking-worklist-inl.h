@@ -7,7 +7,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "src/heap/cppgc-js/cpp-marking-state-inl.h"
 #include "src/heap/marking-worklist.h"
+#include "src/objects/js-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -16,7 +18,7 @@ template <typename Callback>
 void MarkingWorklists::Update(Callback callback) {
   shared_.Update(callback);
   on_hold_.Update(callback);
-  embedder_.Update(callback);
+  wrapper_.Update(callback);
   other_.Update(callback);
   for (auto cw : context_worklists_) {
     if (cw.context == kSharedContext || cw.context == kOtherContext) {
@@ -45,12 +47,17 @@ bool MarkingWorklists::Local::PopOnHold(HeapObject* object) {
   return on_hold_.Pop(object);
 }
 
-void MarkingWorklists::Local::PushEmbedder(HeapObject object) {
-  embedder_.Push(object);
+void MarkingWorklists::Local::PushWrapper(HeapObject object) {
+  if (cpp_marking_state_) {
+    cpp_marking_state_->MarkAndPush(JSObject::cast(object));
+  } else {
+    wrapper_.Push(object);
+  }
 }
 
-bool MarkingWorklists::Local::PopEmbedder(HeapObject* object) {
-  return embedder_.Pop(object);
+bool MarkingWorklists::Local::PopWrapper(HeapObject* object) {
+  DCHECK(!cpp_marking_state_);
+  return wrapper_.Pop(object);
 }
 
 Address MarkingWorklists::Local::SwitchToContext(Address context) {
@@ -70,6 +77,12 @@ void MarkingWorklists::Local::SwitchToContext(
   active_owner_ = worklist;
   active_ = std::move(*worklist);
   active_context_ = context;
+}
+
+bool MarkingWorklists::Local::PublishWrapper() {
+  if (!cpp_marking_state_) return false;
+  cpp_marking_state_->Publish();
+  return true;
 }
 
 }  // namespace internal

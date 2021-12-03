@@ -268,7 +268,7 @@ int MarkingVisitorBase<ConcreteVisitor,
   if (size && is_embedder_tracing_enabled_) {
     // Success: The object needs to be processed for embedder references on
     // the main thread.
-    local_marking_worklists_->PushEmbedder(object);
+    local_marking_worklists_->PushWrapper(object);
   }
   return size;
 }

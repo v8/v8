@@ -579,8 +579,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // embedder fields as well as the number of embedder fields.
   // The |function_has_prototype_slot| parameter is needed only for
   // JSFunction objects.
-  static int GetHeaderSize(InstanceType instance_type,
-                           bool function_has_prototype_slot = false);
+  static V8_EXPORT_PRIVATE int GetHeaderSize(
+      InstanceType instance_type, bool function_has_prototype_slot = false);
   static inline int GetHeaderSize(Map map);
 
   static inline int GetEmbedderFieldsStartOffset(Map map);
@@ -598,10 +598,10 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // garbage collection treatment.
   // TODO(mlippautz): Make check exact and replace the pattern match in
   // Heap::TracePossibleWrapper.
-  bool IsApiWrapper();
+  V8_EXPORT_PRIVATE bool IsApiWrapper() const;
 
   // Same as IsApiWrapper() but also allow dropping the wrapper on minor GCs.
-  bool IsDroppableApiWrapper();
+  bool IsDroppableApiWrapper() const;
 
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.

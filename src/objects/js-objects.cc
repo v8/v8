@@ -5208,7 +5208,7 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
                                : Nothing<bool>();
 }
 
-bool JSObject::IsApiWrapper() {
+bool JSObject::IsApiWrapper() const {
   // These object types can carry information relevant for embedders. The
   // *_API_* types are generated through templates which can have embedder
   // fields. The other types have their embedder fields added at compile time.
@@ -5222,7 +5222,7 @@ bool JSObject::IsApiWrapper() {
          InstanceTypeChecker::IsJSApiObject(instance_type);
 }
 
-bool JSObject::IsDroppableApiWrapper() {
+bool JSObject::IsDroppableApiWrapper() const {
   auto instance_type = map().instance_type();
   return InstanceTypeChecker::IsJSApiObject(instance_type) ||
          instance_type == JS_SPECIAL_API_OBJECT_TYPE;

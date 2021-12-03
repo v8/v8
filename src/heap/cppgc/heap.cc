@@ -159,8 +159,8 @@ void Heap::StartGarbageCollection(Config config) {
   const Marker::MarkingConfig marking_config{
       config.collection_type, config.stack_state, config.marking_type,
       config.is_forced_gc};
-  marker_ = MarkerFactory::CreateAndStartMarking<Marker>(
-      AsBase(), platform_.get(), marking_config);
+  marker_ = std::make_unique<Marker>(AsBase(), platform_.get(), marking_config);
+  marker_->StartMarking();
 }
 
 void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {

@@ -86,7 +86,7 @@ static constexpr size_t kDefaultDeadlineCheckInterval = 150u;
 
 template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
           typename WorklistLocal, typename Callback>
-bool DrainWorklistWithBytesAndTimeDeadline(MarkingStateBase& marking_state,
+bool DrainWorklistWithBytesAndTimeDeadline(BasicMarkingState& marking_state,
                                            size_t marked_bytes_deadline,
                                            v8::base::TimeTicks time_deadline,
                                            WorklistLocal& worklist_local,
@@ -153,7 +153,7 @@ void MarkerBase::IncrementalMarkingTask::Run() {
   }
 }
 
-MarkerBase::MarkerBase(Key, HeapBase& heap, cppgc::Platform* platform,
+MarkerBase::MarkerBase(HeapBase& heap, cppgc::Platform* platform,
                        MarkingConfig config)
     : heap_(heap),
       config_(config),
@@ -624,9 +624,8 @@ void MarkerBase::WaitForConcurrentMarkingForTesting() {
   concurrent_marker_->JoinForTesting();
 }
 
-Marker::Marker(Key key, HeapBase& heap, cppgc::Platform* platform,
-               MarkingConfig config)
-    : MarkerBase(key, heap, platform, config),
+Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)
+    : MarkerBase(heap, platform, config),
       marking_visitor_(heap, mutator_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     marking_visitor_) {
