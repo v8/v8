@@ -15,6 +15,7 @@
 #include "include/v8-callbacks.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-date.h"
+#include "include/v8-embedder-state-scope.h"
 #include "include/v8-extension.h"
 #include "include/v8-fast-api-calls.h"
 #include "include/v8-function.h"
@@ -46,6 +47,7 @@
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/gdb-jit.h"
+#include "src/execution/embedder-state.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -9863,6 +9865,16 @@ int64_t CpuProfile::GetSampleTimestamp(int index) const {
   return profile->sample(index).timestamp.since_origin().InMicroseconds();
 }
 
+StateTag CpuProfile::GetSampleState(int index) const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->sample(index).state_tag;
+}
+
+EmbedderStateTag CpuProfile::GetSampleEmbedderState(int index) const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return profile->sample(index).embedder_state_tag;
+}
+
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return profile->start_time().since_origin().InMicroseconds();
@@ -10330,6 +10342,11 @@ void EmbedderHeapTracer::ResetHandleInNonTracingGC(
     const v8::TracedReference<v8::Value>& handle) {
   UNREACHABLE();
 }
+
+EmbedderStateScope::EmbedderStateScope(Isolate* isolate,
+                                       Local<v8::Context> context,
+                                       EmbedderStateTag tag)
+    : embedder_state_(new internal::EmbedderState(isolate, context, tag)) {}
 
 void TracedReferenceBase::CheckValue() const {
 #ifdef V8_HOST_ARCH_64_BIT

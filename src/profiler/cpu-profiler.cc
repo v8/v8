@@ -230,12 +230,15 @@ void ProfilerEventsProcessor::CodeEventHandler(
 
 void SamplingEventsProcessor::SymbolizeAndAddToProfiles(
     const TickSampleEventRecord* record) {
+  const TickSample& tick_sample = record->sample;
   Symbolizer::SymbolizedSample symbolized =
-      symbolizer_->SymbolizeTickSample(record->sample);
+      symbolizer_->SymbolizeTickSample(tick_sample);
   profiles_->AddPathToCurrentProfiles(
-      record->sample.timestamp, symbolized.stack_trace, symbolized.src_line,
-      record->sample.update_stats_, record->sample.sampling_interval_,
-      reinterpret_cast<Address>(record->sample.context));
+      tick_sample.timestamp, symbolized.stack_trace, symbolized.src_line,
+      tick_sample.update_stats_, tick_sample.sampling_interval_,
+      tick_sample.state, tick_sample.embedder_state,
+      reinterpret_cast<Address>(tick_sample.context),
+      reinterpret_cast<Address>(tick_sample.embedder_context));
 }
 
 ProfilerEventsProcessor::SampleProcessingResult
