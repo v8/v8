@@ -28153,7 +28153,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
       isolate, BasicApiChecker<Value, Impl, Ret>::SlowCallback,
       v8::Number::New(isolate, 42), v8::Local<v8::Signature>(), 1,
-      v8::ConstructorBehavior::kAllow, v8::SideEffectType::kHasSideEffect,
+      v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasSideEffect,
       &c_func);
   if (!accept_any_receiver) {
     checker_templ->SetAcceptAnyReceiver(false);
@@ -28286,6 +28286,48 @@ void CheckApiObjectArg() {
   CHECK(checker.DidCallFast());
   CHECK_EQ(embedder_obj.data, data);
   CHECK(!checker.DidCallSlow());
+}
+
+static const char* fast_calls_error_message = nullptr;
+static const char* fast_calls_error_location = nullptr;
+void FastCallsErrorCallback(const char* location, const char* message) {
+  fast_calls_error_message = message;
+  fast_calls_error_location = location;
+}
+
+void CheckFastCallsWithConstructor() {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  CcTest::isolate()->SetFatalErrorHandler(FastCallsErrorCallback);
+
+  CHECK_NULL(fast_calls_error_message);
+
+  v8::CFunction c_func_ctor =
+      v8::CFunction::Make(ApiObjectChecker::FastCallback);
+  v8::FunctionTemplate::New(isolate, ApiObjectChecker::SlowCallback,
+                            Local<v8::Value>(), v8::Local<v8::Signature>(), 1,
+                            v8::ConstructorBehavior::kAllow,
+                            v8::SideEffectType::kHasSideEffect, &c_func_ctor);
+  CHECK_NOT_NULL(fast_calls_error_message);
+  CHECK_EQ(
+      0, strcmp(fast_calls_error_message,
+                "Fast API calls are not supported for constructor functions."));
+  CHECK_NOT_NULL(fast_calls_error_location);
+  CHECK_EQ(0, strcmp(fast_calls_error_location, "FunctionTemplate::New"));
+
+  fast_calls_error_message = nullptr;
+  const v8::CFunction c_func_ctor_overloads[] = {c_func_ctor};
+  v8::FunctionTemplate::NewWithCFunctionOverloads(
+      isolate, ApiObjectChecker::SlowCallback, Local<v8::Value>(),
+      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+      v8::SideEffectType::kHasSideEffect, {c_func_ctor_overloads, 1});
+  CHECK_NOT_NULL(fast_calls_error_message);
+  CHECK_EQ(
+      0, strcmp(fast_calls_error_message,
+                "Fast API calls are not supported for constructor functions."));
+  CHECK_NOT_NULL(fast_calls_error_location);
+  CHECK_EQ(0, strcmp(fast_calls_error_location,
+                     "FunctionTemplate::NewWithCFunctionOverloads"));
 }
 
 template <typename T>
@@ -28547,6 +28589,7 @@ TEST(FastApiCalls) {
   v8::internal::FLAG_always_opt = false;
   v8::internal::FlagList::EnforceFlagImplications();
 
+  CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->set_embedder_wrapper_type_index(kV8WrapperTypeIndex);
@@ -28997,6 +29040,7 @@ TEST(FastApiCalls) {
   CallWithUnexpectedObjectType(CompileRun("new Proxy({}, {});"));
 
   CheckApiObjectArg();
+  CheckFastCallsWithConstructor();
 
   // TODO(mslekova): Restructure the tests so that the fast optimized calls
   // are compared against the slow optimized calls.
@@ -29111,7 +29155,7 @@ TEST(FastApiSequenceOverloads) {
   Local<v8::FunctionTemplate> sequence_callback_templ =
       v8::FunctionTemplate::NewWithCFunctionOverloads(
           isolate, SequenceSlowCallback, v8::Number::New(isolate, 42),
-          v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+          v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kThrow,
           v8::SideEffectType::kHasSideEffect, {sequece_overloads, 2});
 
   v8::Local<v8::ObjectTemplate> object_template =

@@ -4199,7 +4199,7 @@ TEST(FastApiCPUProfiler) {
 
   Local<v8::FunctionTemplate> receiver_templ = v8::FunctionTemplate::New(
       isolate, FastApiReceiver::SlowCallback, v8::Local<v8::Value>(),
-      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,
+      v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kThrow,
       v8::SideEffectType::kHasSideEffect, &c_func);
 
   v8::Local<v8::ObjectTemplate> object_template =
