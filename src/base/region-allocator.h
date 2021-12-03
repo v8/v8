@@ -89,6 +89,11 @@ class V8_BASE_EXPORT RegionAllocator final {
   // success or kAllocationFailure.
   Address AllocateAlignedRegion(size_t size, size_t alignment);
 
+  // Attempts to allocate a region of the given size and alignment at the
+  // specified address but fall back to allocating the region elsewhere if
+  // necessary.
+  Address AllocateRegion(Address hint, size_t size, size_t alignment);
+
   // Frees region at given |address|, returns the size of the region.
   // There must be a used region starting at given address otherwise nothing
   // will be freed and 0 will be returned.

@@ -236,6 +236,29 @@ RegionAllocator::Address RegionAllocator::AllocateAlignedRegion(
   return region->begin();
 }
 
+RegionAllocator::Address RegionAllocator::AllocateRegion(Address hint,
+                                                         size_t size,
+                                                         size_t alignment) {
+  DCHECK(IsAligned(alignment, page_size()));
+  DCHECK(IsAligned(hint, alignment));
+
+  if (hint && contains(hint, size)) {
+    if (AllocateRegionAt(hint, size)) {
+      return hint;
+    }
+  }
+
+  Address address;
+  if (alignment <= page_size()) {
+    // TODO(chromium:1218005): Consider using randomized version here.
+    address = AllocateRegion(size);
+  } else {
+    address = AllocateAlignedRegion(size, alignment);
+  }
+
+  return address;
+}
+
 size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {
   DCHECK(IsAligned(new_size, page_size_));
 

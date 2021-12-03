@@ -123,6 +123,8 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 class AddressSpaceReservation;
 class PageAllocator;
 class TimezoneCache;
+class VirtualAddressSpace;
+class VirtualAddressSubspace;
 
 // ----------------------------------------------------------------------------
 // OS
@@ -312,6 +314,8 @@ class V8_BASE_EXPORT OS {
   friend class MemoryMappedFile;
   friend class PosixMemoryMappedFile;
   friend class v8::base::PageAllocator;
+  friend class v8::base::VirtualAddressSpace;
+  friend class v8::base::VirtualAddressSubspace;
 
   static size_t AllocatePageSize();
 

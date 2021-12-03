@@ -15,6 +15,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/base/vector.h"
+#include "src/base/virtual-address-space.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/security/vm-cage.h"
@@ -82,6 +83,11 @@ const int kAllocationTries = 2;
 v8::PageAllocator* GetPlatformPageAllocator() {
   DCHECK_NOT_NULL(GetPageAllocatorInitializer()->page_allocator());
   return GetPageAllocatorInitializer()->page_allocator();
+}
+
+v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
+  static base::LeakyObject<base::VirtualAddressSpace> vas;
+  return vas.get();
 }
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE
@@ -189,7 +195,7 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
   DCHECK_EQ(hint, AlignedAddress(hint, alignment));
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
   if (FLAG_randomize_all_allocations) {
-    hint = page_allocator->GetRandomMmapAddr();
+    hint = AlignedAddress(page_allocator->GetRandomMmapAddr(), alignment);
   }
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {

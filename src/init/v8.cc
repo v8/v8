@@ -221,8 +221,8 @@ void V8::InitializePlatform(v8::Platform* platform) {
 bool V8::InitializeVirtualMemoryCage() {
   // Platform must have been initialized already.
   CHECK(platform_);
-  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
-  return GetProcessWideVirtualMemoryCage()->Initialize(page_allocator);
+  v8::VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
+  return GetProcessWideVirtualMemoryCage()->Initialize(vas);
 }
 #endif
 
