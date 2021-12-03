@@ -109,20 +109,18 @@ class SafepointTable {
     Address entry_ptr =
         safepoint_table_address_ + kHeaderSize + index * entry_size();
 
-    int pc = base::Memory<int>(entry_ptr);
-    entry_ptr += kPcSize;
+    int pc = read_bytes(&entry_ptr, pc_size());
     int deopt_index = SafepointEntry::kNoDeoptIndex;
     int trampoline_pc = SafepointEntry::kNoTrampolinePC;
     if (has_deopt_data()) {
-      deopt_index = base::Memory<int>(entry_ptr);
-      trampoline_pc = base::Memory<int>(entry_ptr + kIntSize);
-      entry_ptr += kDeoptDataSize;
+      deopt_index = read_bytes(&entry_ptr, deopt_index_size()) - 1;
+      trampoline_pc = read_bytes(&entry_ptr, pc_size()) - 1;
+      DCHECK(deopt_index >= 0 || deopt_index == SafepointEntry::kNoDeoptIndex);
+      DCHECK(trampoline_pc >= 0 ||
+             trampoline_pc == SafepointEntry::kNoTrampolinePC);
     }
-    int tagged_register_indexes = 0;
-    if (has_register_indexes()) {
-      tagged_register_indexes = base::Memory<int>(entry_ptr);
-      entry_ptr += kRegisterIndexesSize;
-    }
+    int tagged_register_indexes =
+        read_bytes(&entry_ptr, register_indexes_size());
 
     // Entry bits start after the the vector of entries (thus the pc offset of
     // the non-existing entry after the last one).
@@ -147,21 +145,20 @@ class SafepointTable {
   static constexpr int kEntryConfigurationOffset = kLengthOffset + kIntSize;
   static constexpr int kHeaderSize = kEntryConfigurationOffset + kUInt32Size;
 
-  // An entry consists of the pc, plus optional deopt data (deopt index and
-  // trampoline PC), plus optional register indexes.
-  static constexpr int kPcSize = kIntSize;
-  static constexpr int kDeoptDataSize = 2 * kIntSize;
-  static constexpr int kRegisterIndexesSize = kIntSize;
-
-  using TaggedSlotsBytesField = base::BitField<int, 0, 30>;
-  using HasDeoptDataField = TaggedSlotsBytesField::Next<bool, 1>;
-  using HasRegisterIndexesField = HasDeoptDataField::Next<bool, 1>;
+  using HasDeoptDataField = base::BitField<bool, 0, 1>;
+  using RegisterIndexesSizeField = HasDeoptDataField::Next<int, 3>;
+  using PcSizeField = RegisterIndexesSizeField::Next<int, 3>;
+  using DeoptIndexSizeField = PcSizeField::Next<int, 3>;
+  // In 22 bits, we can encode up to 4M bytes, corresponding to 32M frame slots,
+  // which is 128MB on 32-bit and 256MB on 64-bit systems. The stack size is
+  // limited to a bit below 1MB anyway (see FLAG_stack_size).
+  using TaggedSlotsBytesField = DeoptIndexSizeField::Next<int, 22>;
 
   SafepointTable(Address instruction_start, Address safepoint_table_address);
 
   int entry_size() const {
-    return kPcSize + (has_deopt_data() ? kDeoptDataSize : 0) +
-           (has_register_indexes() ? kRegisterIndexesSize : 0);
+    int deopt_data_size = has_deopt_data() ? pc_size() + deopt_index_size() : 0;
+    return pc_size() + deopt_data_size + register_indexes_size();
   }
 
   int tagged_slots_bytes() const {
@@ -170,8 +167,20 @@ class SafepointTable {
   bool has_deopt_data() const {
     return HasDeoptDataField::decode(entry_configuration_);
   }
-  bool has_register_indexes() const {
-    return HasRegisterIndexesField::decode(entry_configuration_);
+  int pc_size() const { return PcSizeField::decode(entry_configuration_); }
+  int deopt_index_size() const {
+    return DeoptIndexSizeField::decode(entry_configuration_);
+  }
+  int register_indexes_size() const {
+    return RegisterIndexesSizeField::decode(entry_configuration_);
+  }
+
+  static int read_bytes(Address* ptr, int bytes) {
+    uint32_t result = 0;
+    for (int b = 0; b < bytes; ++b, ++*ptr) {
+      result |= uint32_t{*reinterpret_cast<uint8_t*>(*ptr)} << (8 * b);
+    }
+    return static_cast<int>(result);
   }
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
