@@ -265,7 +265,7 @@ const Instr kLwSwOffsetMask = kImm16Mask;
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(at.bit()) {
+      scratch_register_list_(at.bit() | s0.bit()) {
   if (CpuFeatures::IsSupported(MIPS_SIMD)) {
     EnableCpuFeature(MIPS_SIMD);
   }
