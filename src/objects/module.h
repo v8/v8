@@ -181,6 +181,9 @@ class ScriptOrModule
     : public TorqueGeneratedScriptOrModule<ScriptOrModule, Struct> {
  public:
   DECL_PRINTER(ScriptOrModule)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(ScriptOrModule)
 };
 

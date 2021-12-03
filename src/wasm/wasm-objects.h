@@ -42,6 +42,7 @@ class WireBytesRef;
 class BreakPoint;
 class JSArrayBuffer;
 class SeqOneByteString;
+class StructBodyDescriptor;
 class WasmCapiFunction;
 class WasmExceptionTag;
 class WasmExportedFunction;
@@ -858,6 +859,8 @@ class WasmExceptionTag
   V8_EXPORT_PRIVATE static Handle<WasmExceptionTag> New(Isolate* isolate,
                                                         int index);
 
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(WasmExceptionTag)
 };
 
@@ -870,6 +873,8 @@ class AsmWasmData : public TorqueGeneratedAsmWasmData<AsmWasmData, Struct> {
       Handle<FixedArray> export_wrappers, Handle<HeapNumber> uses_bitset);
 
   DECL_PRINTER(AsmWasmData)
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(AsmWasmData)
 };
@@ -994,12 +999,15 @@ class WasmContinuationObject
                                             WasmContinuationObject parent);
 
   DECL_PRINTER(WasmContinuationObject)
-  TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
+
+  using BodyDescriptor = StructBodyDescriptor;
 
  private:
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
       HeapObject parent);
+
+  TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
 };
 
 // The suspender object provides an API to suspend and resume wasm code using

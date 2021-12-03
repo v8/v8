@@ -148,6 +148,8 @@ class UncompiledDataWithPreparseData
 class InterpreterData
     : public TorqueGeneratedInterpreterData<InterpreterData, Struct> {
  public:
+  using BodyDescriptor = StructBodyDescriptor;
+
  private:
   TQ_OBJECT_CONSTRUCTORS(InterpreterData)
 };

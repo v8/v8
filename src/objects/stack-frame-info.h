@@ -16,6 +16,7 @@ namespace internal {
 
 class MessageLocation;
 class WasmInstanceObject;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/stack-frame-info-tq.inc"
 
@@ -85,6 +86,8 @@ class StackFrameInfo
   // triggering source position table building for JavaScript frames.
   static bool ComputeLocation(Handle<StackFrameInfo> info,
                               MessageLocation* location);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
  private:
   // Bit position in the flag, from least significant bit position.

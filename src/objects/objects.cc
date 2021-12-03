@@ -2172,15 +2172,15 @@ void HeapObject::IterateBody(Map map, int object_size, ObjectVisitor* v) {
 
 struct CallIsValidSlot {
   template <typename BodyDescriptor>
-  static bool apply(Map map, HeapObject obj, int offset, int) {
+  static bool apply(Map map, HeapObject obj, int offset) {
     return BodyDescriptor::IsValidSlot(map, obj, offset);
   }
 };
 
 bool HeapObject::IsValidSlot(Map map, int offset) {
   DCHECK_NE(0, offset);
-  return BodyDescriptorApply<CallIsValidSlot, bool>(map.instance_type(), map,
-                                                    *this, offset, 0);
+  return BodyDescriptorApply<CallIsValidSlot>(map.instance_type(), map, *this,
+                                              offset);
 }
 
 int HeapObject::SizeFromMap(Map map) const {

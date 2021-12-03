@@ -17,6 +17,7 @@ namespace v8 {
 namespace internal {
 
 class UnorderedModuleSet;
+class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/source-text-module-tq.inc"
 
@@ -276,6 +277,8 @@ class ModuleRequest
   // a single assertion.
   static const size_t kAssertionEntrySize = 3;
 
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(ModuleRequest)
 };
 
@@ -291,6 +294,8 @@ class SourceTextModuleInfoEntry
       Handle<PrimitiveHeapObject> local_name,
       Handle<PrimitiveHeapObject> import_name, int module_request,
       int cell_index, int beg_pos, int end_pos);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(SourceTextModuleInfoEntry)
 };
