@@ -513,7 +513,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
       const UnoptimizedCompileState* compile_state,
       std::unique_ptr<Utf16CharacterStream> character_stream,
-      ProducedPreparseData* preparse_data,
       WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
       TimedHistogram* timer, int max_stack_size);
 
@@ -536,7 +535,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   Isolate* isolate_for_local_isolate_;
   UnoptimizedCompileFlags flags_;
   UnoptimizedCompileState compile_state_;
-  std::unique_ptr<ParseInfo> info_;
+  std::unique_ptr<Utf16CharacterStream> character_stream_;
   int stack_size_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   TimedHistogram* timer_;

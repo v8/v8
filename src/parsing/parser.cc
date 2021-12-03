@@ -658,6 +658,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     // conflicting var declarations with outer scope-info-backed scopes.
     if (flags().is_eval()) {
       DCHECK(parsing_on_main_thread_);
+      DCHECK(!overall_parse_is_parked_);
       info->ast_value_factory()->Internalize(isolate);
     }
     CheckConflictingVarDeclarations(scope);
@@ -2725,11 +2726,17 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     int num_inner_functions;
     bool uses_super_property;
     if (stack_overflow()) return true;
-    *produced_preparse_data =
-        consumed_preparse_data_->GetDataForSkippableFunction(
-            main_zone(), function_scope->start_position(), &end_position,
-            num_parameters, function_length, &num_inner_functions,
-            &uses_super_property, &language_mode);
+    {
+      base::Optional<UnparkedScope> unparked_scope;
+      if (overall_parse_is_parked_) {
+        unparked_scope.emplace(local_isolate_);
+      }
+      *produced_preparse_data =
+          consumed_preparse_data_->GetDataForSkippableFunction(
+              main_zone(), function_scope->start_position(), &end_position,
+              num_parameters, function_length, &num_inner_functions,
+              &uses_super_property, &language_mode);
+    }
 
     function_scope->outer_scope()->SetMustUsePreparseData();
     function_scope->set_is_skipped_function(true);
@@ -3296,6 +3303,7 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
     // We can park the isolate while parsing, it doesn't need to allocate or
     // access the main thread.
     ParkedScope parked_scope(isolate);
+    overall_parse_is_parked_ = true;
 
     scanner_.Initialize();
 

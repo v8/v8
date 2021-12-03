@@ -87,8 +87,7 @@ LazyCompileDispatcher::~LazyCompileDispatcher() {
 void LazyCompileDispatcher::Enqueue(
     LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
     const UnoptimizedCompileState* compile_state,
-    std::unique_ptr<Utf16CharacterStream> character_stream,
-    ProducedPreparseData* preparse_data) {
+    std::unique_ptr<Utf16CharacterStream> character_stream) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompilerDispatcherEnqueue");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileEnqueueOnDispatcher);
@@ -96,8 +95,8 @@ void LazyCompileDispatcher::Enqueue(
   std::unique_ptr<Job> job =
       std::make_unique<Job>(std::make_unique<BackgroundCompileTask>(
           isolate_, shared_info, compile_state, std::move(character_stream),
-          preparse_data, worker_thread_runtime_call_stats_,
-          background_compile_timer_, static_cast<int>(max_stack_size_)));
+          worker_thread_runtime_call_stats_, background_compile_timer_,
+          static_cast<int>(max_stack_size_)));
 
   // Post a a background worker task to perform the compilation on the worker
   // thread.

@@ -1066,6 +1066,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Zone preparser_zone_;
   PreParser* reusable_preparser_;
   Mode mode_;
+  bool overall_parse_is_parked_ = false;
 
   MaybeHandle<FixedArray> maybe_wrapped_arguments_;
 

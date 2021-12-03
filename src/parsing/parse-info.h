@@ -194,7 +194,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   ParseInfo(Isolate* isolate, const UnoptimizedCompileFlags flags,
             UnoptimizedCompileState* state);
   ParseInfo(LocalIsolate* isolate, const UnoptimizedCompileFlags flags,
-            UnoptimizedCompileState* state);
+            UnoptimizedCompileState* state, uintptr_t stack_limit);
 
   ~ParseInfo();
 
@@ -229,11 +229,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   // Accessors for per-thread state.
   uintptr_t stack_limit() const { return stack_limit_; }
   RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
-  void SetPerThreadState(uintptr_t stack_limit,
-                         RuntimeCallStats* runtime_call_stats) {
-    stack_limit_ = stack_limit;
-    runtime_call_stats_ = runtime_call_stats;
-  }
 
   // Accessor methods for output flags.
   bool allow_eval_cache() const { return allow_eval_cache_; }
@@ -307,8 +302,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   void CheckFlagsForFunctionFromScript(Script script);
 
  private:
-  ParseInfo(const UnoptimizedCompileFlags flags,
-            UnoptimizedCompileState* state);
+  ParseInfo(const UnoptimizedCompileFlags flags, UnoptimizedCompileState* state,
+            uintptr_t stack_limit, RuntimeCallStats* runtime_call_stats);
 
   void CheckFlagsForToplevelCompileFromScript(Script script,
                                               bool is_collecting_type_profile);

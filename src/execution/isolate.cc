@@ -3236,6 +3236,11 @@ void Isolate::Deinit() {
   delete baseline_batch_compiler_;
   baseline_batch_compiler_ = nullptr;
 
+  if (lazy_compile_dispatcher_) {
+    lazy_compile_dispatcher_->AbortAll();
+    lazy_compile_dispatcher_.reset();
+  }
+
   // At this point there are no more background threads left in this isolate.
   heap_.safepoint()->AssertMainThreadIsOnlyThread();
 
@@ -3258,11 +3263,6 @@ void Isolate::Deinit() {
 
   delete heap_profiler_;
   heap_profiler_ = nullptr;
-
-  if (lazy_compile_dispatcher_) {
-    lazy_compile_dispatcher_->AbortAll();
-    lazy_compile_dispatcher_.reset();
-  }
 
   string_table_.reset();
 

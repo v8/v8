@@ -186,19 +186,20 @@ UnoptimizedCompileState::UnoptimizedCompileState(
       dispatcher_(other.dispatcher()) {}
 
 ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
-                     UnoptimizedCompileState* state)
+                     UnoptimizedCompileState* state, uintptr_t stack_limit,
+                     RuntimeCallStats* runtime_call_stats)
     : flags_(flags),
       state_(state),
       zone_(std::make_unique<Zone>(state->allocator(), "parser-zone")),
       extension_(nullptr),
       script_scope_(nullptr),
-      stack_limit_(0),
+      stack_limit_(stack_limit),
       parameters_end_pos_(kNoSourcePosition),
       max_function_literal_id_(kFunctionLiteralIdInvalid),
       character_stream_(nullptr),
       ast_value_factory_(nullptr),
       function_name_(nullptr),
-      runtime_call_stats_(nullptr),
+      runtime_call_stats_(runtime_call_stats),
       source_range_map_(nullptr),
       literal_(nullptr),
       allow_eval_cache_(false),
@@ -213,16 +214,12 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
 
 ParseInfo::ParseInfo(Isolate* isolate, const UnoptimizedCompileFlags flags,
                      UnoptimizedCompileState* state)
-    : ParseInfo(flags, state) {
-  SetPerThreadState(isolate->stack_guard()->real_climit(),
-                    isolate->counters()->runtime_call_stats());
-}
+    : ParseInfo(flags, state, isolate->stack_guard()->real_climit(),
+                isolate->counters()->runtime_call_stats()) {}
 
 ParseInfo::ParseInfo(LocalIsolate* isolate, const UnoptimizedCompileFlags flags,
-                     UnoptimizedCompileState* state)
-    : ParseInfo(flags, state) {
-  SetPerThreadState(0, nullptr);
-}
+                     UnoptimizedCompileState* state, uintptr_t stack_limit)
+    : ParseInfo(flags, state, stack_limit, isolate->runtime_call_stats()) {}
 
 ParseInfo::~ParseInfo() = default;
 

@@ -528,8 +528,9 @@ class OnHeapProducedPreparseData final : public ProducedPreparseData {
   }
 
   Handle<PreparseData> Serialize(LocalIsolate* isolate) final {
-    // Not required.
-    UNREACHABLE();
+    DCHECK(!data_->is_null());
+    DCHECK(isolate->heap()->ContainsLocalHandle(data_.location()));
+    return data_;
   }
 
   ZonePreparseData* Serialize(Zone* zone) final {
@@ -769,7 +770,7 @@ ProducedPreparseData* OnHeapConsumedPreparseData::GetChildData(Zone* zone,
 }
 
 OnHeapConsumedPreparseData::OnHeapConsumedPreparseData(
-    Isolate* isolate, Handle<PreparseData> data)
+    LocalIsolate* isolate, Handle<PreparseData> data)
     : BaseConsumedPreparseData<PreparseData>(), isolate_(isolate), data_(data) {
   DCHECK_NOT_NULL(isolate);
   DCHECK(data->IsPreparseData());
@@ -833,6 +834,11 @@ ProducedPreparseData* ZoneConsumedPreparseData::GetChildData(Zone* zone,
 
 std::unique_ptr<ConsumedPreparseData> ConsumedPreparseData::For(
     Isolate* isolate, Handle<PreparseData> data) {
+  return ConsumedPreparseData::For(isolate->main_thread_local_isolate(), data);
+}
+
+std::unique_ptr<ConsumedPreparseData> ConsumedPreparseData::For(
+    LocalIsolate* isolate, Handle<PreparseData> data) {
   DCHECK(!data.is_null());
   return std::make_unique<OnHeapConsumedPreparseData>(isolate, data);
 }

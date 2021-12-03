@@ -2544,8 +2544,7 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
           Compiler::GetSharedFunctionInfo(literal, script_, local_isolate_);
       info()->state()->dispatcher()->Enqueue(
           local_isolate_, shared_info, info()->state(),
-          info()->character_stream()->Clone(),
-          literal->produced_preparse_data());
+          info()->character_stream()->Clone());
     }
   } else if (eager_inner_literals_ && literal->ShouldEagerCompile()) {
     DCHECK(!IsInEagerLiterals(literal, *eager_inner_literals_));

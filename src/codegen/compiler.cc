@@ -1382,7 +1382,8 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
           isolate, true, construct_language_mode(FLAG_use_strict),
           REPLMode::kNo, type, FLAG_lazy_streaming)),
       compile_state_(isolate),
-      info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
+      character_stream_(ScannerStream::For(streamed_data->source_stream.get(),
+                                           streamed_data->encoding)),
       stack_size_(i::FLAG_stack_size),
       worker_thread_runtime_call_stats_(
           isolate->counters()->worker_thread_runtime_call_stats()),
@@ -1390,25 +1391,17 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* streamed_data,
       start_position_(0),
       end_position_(0),
       function_literal_id_(kFunctionLiteralIdTopLevel),
-      language_mode_(info_->language_mode()) {
+      language_mode_(flags_.outer_language_mode()) {
   VMState<PARSER> state(isolate);
 
-  // Prepare the data for the internalization phase and compilation phase, which
-  // will happen in the main thread after parsing.
-
   LOG(isolate, ScriptEvent(Logger::ScriptEventType::kStreamingCompile,
-                           info_->flags().script_id()));
-
-  std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
-      streamed_data->source_stream.get(), streamed_data->encoding));
-  info_->set_character_stream(std::move(stream));
+                           flags_.script_id()));
 }
 
 BackgroundCompileTask::BackgroundCompileTask(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
     const UnoptimizedCompileState* compile_state,
     std::unique_ptr<Utf16CharacterStream> character_stream,
-    ProducedPreparseData* preparse_data,
     WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
     TimedHistogram* timer, int max_stack_size)
     : isolate_for_local_isolate_(isolate),
@@ -1417,7 +1410,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       flags_(
           UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared_info)),
       compile_state_(*compile_state),
-      info_(std::make_unique<ParseInfo>(isolate, flags_, &compile_state_)),
+      character_stream_(std::move(character_stream)),
       stack_size_(max_stack_size),
       worker_thread_runtime_call_stats_(worker_thread_runtime_stats),
       timer_(timer),
@@ -1425,26 +1418,15 @@ BackgroundCompileTask::BackgroundCompileTask(
       start_position_(shared_info->StartPosition()),
       end_position_(shared_info->EndPosition()),
       function_literal_id_(shared_info->function_literal_id()),
-      language_mode_(info_->language_mode()) {
+      language_mode_(flags_.outer_language_mode()) {
   DCHECK(!shared_info->is_toplevel());
 
-  // Clone the character stream so both can be accessed independently.
-  character_stream->Seek(start_position_);
-  info_->set_character_stream(std::move(character_stream));
+  character_stream_->Seek(start_position_);
 
   // Get the script out of the outer ParseInfo and turn it into a persistent
   // handle we can transfer to the background thread.
   persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
   input_shared_info_ = persistent_handles_->NewHandle(shared_info);
-
-  // Get preparsed scope data from the function literal.
-  if (preparse_data) {
-    ZonePreparseData* serialized_data = preparse_data->Serialize(info_->zone());
-    info_->set_consumed_preparse_data(
-        ConsumedPreparseData::For(info_->zone(), serialized_data));
-  }
-
-  info_->CheckFlagsForFunctionFromScript(Script::cast(shared_info->script()));
 }
 
 BackgroundCompileTask::~BackgroundCompileTask() = default;
@@ -1484,15 +1466,10 @@ void BackgroundCompileTask::Run() {
   TimedHistogramScope timer(timer_);
   WorkerThreadRuntimeCallStatsScope worker_thread_scope(
       worker_thread_runtime_call_stats_);
-  // Update the per-thread state of the ParseInfo to the off-thread state.
-  // TODO(leszeks): Fully initialize the ParseInfo here rather than passing it
-  // across from the main thread.
-  info_->SetPerThreadState(GetCurrentStackPosition() - stack_size_ * KB,
-                           worker_thread_scope.Get());
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "BackgroundCompileTask::Run");
-  RCS_SCOPE(info_->runtime_call_stats(),
+  RCS_SCOPE(worker_thread_scope.Get(),
             RuntimeCallCounterId::kCompileBackgroundCompileTask);
 
   bool toplevel_script_compilation = flags_.is_toplevel();
@@ -1502,15 +1479,19 @@ void BackgroundCompileTask::Run() {
   UnparkedScope unparked_scope(&isolate);
   LocalHandleScope handle_scope(&isolate);
 
+  ParseInfo info(&isolate, flags_, &compile_state_,
+                 GetCurrentStackPosition() - stack_size_ * KB);
+  info.set_character_stream(std::move(character_stream_));
+
   if (toplevel_script_compilation) {
     DCHECK_NULL(persistent_handles_);
     DCHECK(input_shared_info_.is_null());
 
     // We don't have the script source, origin, or details yet, so use default
     // values for them. These will be fixed up during the main-thread merge.
-    Handle<Script> script = info_->CreateScript(
+    Handle<Script> script = info.CreateScript(
         &isolate, isolate.factory()->empty_string(), kNullMaybeHandle,
-        ScriptOriginOptions(false, false, false, info_->flags().is_module()));
+        ScriptOriginOptions(false, false, false, info.flags().is_module()));
     script_ = isolate.heap()->NewPersistentHandle(script);
   } else {
     DCHECK_NOT_NULL(persistent_handles_);
@@ -1519,22 +1500,31 @@ void BackgroundCompileTask::Run() {
         input_shared_info_.ToHandleChecked();
     script_ = isolate.heap()->NewPersistentHandle(
         Script::cast(shared_info->script()));
-    info_->CheckFlagsForFunctionFromScript(*script_);
+    info.CheckFlagsForFunctionFromScript(*script_);
 
-    SharedStringAccessGuardIfNeeded access_guard(&isolate);
-    info_->set_function_name(info_->GetOrCreateAstValueFactory()->GetString(
-        shared_info->Name(), access_guard));
+    {
+      SharedStringAccessGuardIfNeeded access_guard(&isolate);
+      info.set_function_name(info.GetOrCreateAstValueFactory()->GetString(
+          shared_info->Name(), access_guard));
+    }
+
+    // Get preparsed scope data from the function literal.
+    if (shared_info->HasUncompiledDataWithPreparseData()) {
+      info.set_consumed_preparse_data(ConsumedPreparseData::For(
+          &isolate, handle(shared_info->uncompiled_data_with_preparse_data()
+                               .preparse_data(&isolate),
+                           &isolate)));
+    }
   }
 
   // Update the character stream's runtime call stats.
-  info_->character_stream()->set_runtime_call_stats(
-      info_->runtime_call_stats());
+  info.character_stream()->set_runtime_call_stats(info.runtime_call_stats());
 
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
-  Parser parser(&isolate, info_.get(), script_);
+  Parser parser(&isolate, &info, script_);
   if (flags().is_toplevel()) {
-    parser.InitializeEmptyScopeChain(info_.get());
+    parser.InitializeEmptyScopeChain(&info);
   } else {
     // TODO(leszeks): Consider keeping Scope zones alive between compile tasks
     // and passing the Scope for the FunctionLiteral through here directly
@@ -1547,28 +1537,27 @@ void BackgroundCompileTask::Run() {
           handle(shared_info->GetOuterScopeInfo(), &isolate);
     }
     parser.DeserializeScopeChain(
-        &isolate, info_.get(), maybe_outer_scope_info,
+        &isolate, &info, maybe_outer_scope_info,
         Scope::DeserializationMode::kIncludingVariables);
   }
 
-  parser.ParseOnBackground(&isolate, info_.get(), start_position_,
-                           end_position_, function_literal_id_);
+  parser.ParseOnBackground(&isolate, &info, start_position_, end_position_,
+                           function_literal_id_);
   parser.UpdateStatistics(script_, use_counts_, &total_preparse_skipped_);
 
   // Save the language mode.
-  language_mode_ = info_->language_mode();
+  language_mode_ = info.language_mode();
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileCodeBackground");
-  RCS_SCOPE(info_->runtime_call_stats(),
-            RuntimeCallCounterIdForCompileBackground(info_.get()));
+  RCS_SCOPE(info.runtime_call_stats(),
+            RuntimeCallCounterIdForCompileBackground(&info));
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
-  if (info_->literal() != nullptr) {
+  if (info.literal() != nullptr) {
     Handle<SharedFunctionInfo> shared_info;
     if (toplevel_script_compilation) {
-      shared_info =
-          CreateTopLevelSharedFunctionInfo(info_.get(), script_, &isolate);
+      shared_info = CreateTopLevelSharedFunctionInfo(&info, script_, &isolate);
     } else {
       // Clone into a placeholder SFI for storing the results.
       shared_info = isolate.factory()->CloneSharedFunctionInfo(
@@ -1576,16 +1565,15 @@ void BackgroundCompileTask::Run() {
     }
 
     if (IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
-            &isolate, shared_info, script_, info_.get(),
-            compile_state_.allocator(), &is_compiled_scope_,
-            &finalize_unoptimized_compilation_data_,
+            &isolate, shared_info, script_, &info, compile_state_.allocator(),
+            &is_compiled_scope_, &finalize_unoptimized_compilation_data_,
             &jobs_to_retry_finalization_on_main_thread_)) {
       maybe_result = shared_info;
     }
   }
 
   if (maybe_result.is_null()) {
-    PreparePendingException(&isolate, info_.get());
+    PreparePendingException(&isolate, &info);
   }
 
   outer_function_sfi_ = isolate.heap()->NewPersistentMaybeHandle(maybe_result);
@@ -1593,8 +1581,7 @@ void BackgroundCompileTask::Run() {
   persistent_handles_ = isolate.heap()->DetachPersistentHandles();
 
   // Make sure the language mode didn't change.
-  DCHECK_EQ(language_mode_, info_->language_mode());
-  info_.reset();
+  DCHECK_EQ(language_mode_, info.language_mode());
 }
 
 MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
