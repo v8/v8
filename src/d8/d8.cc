@@ -3419,8 +3419,13 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
     }
   }
 
-  delete counters_file_;
-  delete counter_map_;
+  // Only delete the counters if we are done executing; after calling `quit`,
+  // other isolates might still be running and accessing that memory. This is a
+  // memory leak, which is OK in this case.
+  if (dispose) {
+    delete counters_file_;
+    delete counter_map_;
+  }
 
   if (options.simulate_errors && is_valid_fuzz_script()) {
     // Simulate several errors detectable by fuzzers behind a flag if the
