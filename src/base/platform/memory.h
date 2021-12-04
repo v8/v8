@@ -96,7 +96,7 @@ inline void AlignedFree(void* ptr) {
 #if V8_OS_WIN
   _aligned_free(ptr);
 #elif V8_OS_STARBOARD
-  SbMemoryFreeAligned(ptr);
+  SbMemoryDeallocateAligned(ptr);
 #else
   // Using regular Free() is not correct in general. For most platforms,
   // including V8_LIBC_BIONIC, it is though.
