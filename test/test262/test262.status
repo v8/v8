@@ -360,6 +360,11 @@
   'intl402/NumberFormat/prototype/format/useGrouping-extended-en-IN': [FAIL],
   'intl402/NumberFormat/prototype/format/useGrouping-extended-en-US': [FAIL],
   'intl402/NumberFormat/test-option-useGrouping-extended': [FAIL],
+  'intl402/NumberFormat/prototype/format/value-decimal-string': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11660
+  'intl402/DurationFormat/prototype/prototype_attributes': [FAIL],
+  'intl402/DurationFormat/prototype/toStringTag': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11989
   'built-ins/ShadowRealm/constructor': [FAIL],
