@@ -60,9 +60,11 @@ class StringShape {
   V8_INLINE bool IsSequentialTwoByte() const;
   V8_INLINE bool IsInternalized() const;
   V8_INLINE bool IsShared() const;
+  V8_INLINE bool CanMigrateInParallel() const;
   V8_INLINE StringRepresentationTag representation_tag() const;
   V8_INLINE uint32_t encoding_tag() const;
-  V8_INLINE uint32_t full_representation_tag() const;
+  V8_INLINE uint32_t representation_and_encoding_tag() const;
+  V8_INLINE uint32_t representation_encoding_and_shared_tag() const;
 #ifdef DEBUG
   inline uint32_t type() const { return type_; }
   inline void invalidate() { valid_ = false; }

@@ -5870,7 +5870,8 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
   }
 
   internal::Address string = str.ptr();
-  int type = I::GetInstanceType(string) & I::kFullStringRepresentationMask;
+  int type =
+      I::GetInstanceType(string) & I::kStringRepresentationAndEncodingMask;
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {

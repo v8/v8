@@ -711,7 +711,7 @@ void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
     DCHECK_LT(0, length);
     DCHECK_LE(0, start);
     DCHECK_LE(length, source.length());
-    switch (StringShape(source, cage_base).full_representation_tag()) {
+    switch (StringShape(source, cage_base).representation_and_encoding_tag()) {
       case kOneByteStringTag | kExternalStringTag:
         CopyChars(
             sink,
@@ -1815,7 +1815,7 @@ const byte* String::AddressOfCharacterAt(
   }
   CHECK_LE(0, start_index);
   CHECK_LE(start_index, subject.length());
-  switch (shape.full_representation_tag()) {
+  switch (shape.representation_and_encoding_tag()) {
     case kOneByteStringTag | kSeqStringTag:
       return reinterpret_cast<const byte*>(
           SeqOneByteString::cast(subject).GetChars(no_gc) + start_index);

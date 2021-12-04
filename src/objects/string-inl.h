@@ -179,6 +179,24 @@ bool StringShape::IsShared() const {
          (FLAG_shared_string_table && IsInternalized());
 }
 
+bool StringShape::CanMigrateInParallel() const {
+  switch (representation_encoding_and_shared_tag()) {
+    case kSeqOneByteStringTag | kSharedStringTag:
+    case kSeqTwoByteStringTag | kSharedStringTag:
+      // Shared SeqStrings can migrate to ThinStrings.
+      return true;
+    case kThinStringTag | kOneByteStringTag | kSharedStringTag:
+    case kThinStringTag | kTwoByteStringTag | kSharedStringTag:
+      // Shared ThinStrings do not migrate.
+      return false;
+    default:
+      // If you crashed here, you probably added a new shared string
+      // type. Explicitly handle all shared string cases above.
+      DCHECK(!IsShared());
+      return false;
+  }
+}
+
 StringRepresentationTag StringShape::representation_tag() const {
   uint32_t tag = (type_ & kStringRepresentationMask);
   return static_cast<StringRepresentationTag>(tag);
@@ -188,26 +206,30 @@ uint32_t StringShape::encoding_tag() const {
   return type_ & kStringEncodingMask;
 }
 
-uint32_t StringShape::full_representation_tag() const {
+uint32_t StringShape::representation_and_encoding_tag() const {
   return (type_ & (kStringRepresentationAndEncodingMask));
 }
 
+uint32_t StringShape::representation_encoding_and_shared_tag() const {
+  return (type_ & (kStringRepresentationEncodingAndSharedMask));
+}
+
 STATIC_ASSERT((kStringRepresentationAndEncodingMask) ==
-              Internals::kFullStringRepresentationMask);
+              Internals::kStringRepresentationAndEncodingMask);
 
 STATIC_ASSERT(static_cast<uint32_t>(kStringEncodingMask) ==
               Internals::kStringEncodingMask);
 
 bool StringShape::IsSequentialOneByte() const {
-  return full_representation_tag() == kSeqOneByteStringTag;
+  return representation_and_encoding_tag() == kSeqOneByteStringTag;
 }
 
 bool StringShape::IsSequentialTwoByte() const {
-  return full_representation_tag() == kSeqTwoByteStringTag;
+  return representation_and_encoding_tag() == kSeqTwoByteStringTag;
 }
 
 bool StringShape::IsExternalOneByte() const {
-  return full_representation_tag() == kExternalOneByteStringTag;
+  return representation_and_encoding_tag() == kExternalOneByteStringTag;
 }
 
 STATIC_ASSERT(kExternalOneByteStringTag ==
@@ -216,7 +238,7 @@ STATIC_ASSERT(kExternalOneByteStringTag ==
 STATIC_ASSERT(v8::String::ONE_BYTE_ENCODING == kOneByteStringTag);
 
 bool StringShape::IsExternalTwoByte() const {
-  return full_representation_tag() == kExternalTwoByteStringTag;
+  return representation_and_encoding_tag() == kExternalTwoByteStringTag;
 }
 
 STATIC_ASSERT(kExternalTwoByteStringTag ==
@@ -226,7 +248,7 @@ STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
 template <typename TDispatcher, typename TResult, typename... TArgs>
 inline TResult StringShape::DispatchToSpecificTypeWithoutCast(TArgs&&... args) {
-  switch (full_representation_tag()) {
+  switch (representation_and_encoding_tag()) {
     case kSeqStringTag | kOneByteStringTag:
       return TDispatcher::HandleSeqOneByteString(std::forward<TArgs>(args)...);
     case kSeqStringTag | kTwoByteStringTag:
@@ -655,7 +677,7 @@ base::Optional<String::FlatContent> String::TryGetFlatContentFromDirectString(
   DCHECK_GE(offset, 0);
   DCHECK_GE(length, 0);
   DCHECK_LE(offset + length, string.length());
-  switch (StringShape{string, cage_base}.full_representation_tag()) {
+  switch (StringShape{string, cage_base}.representation_and_encoding_tag()) {
     case kSeqOneByteStringTag:
       return FlatContent(
           SeqOneByteString::cast(string).GetChars(no_gc, access_guard) + offset,
@@ -825,7 +847,8 @@ ConsString String::VisitFlat(
   DCHECK(offset <= length);
   PtrComprCageBase cage_base = GetPtrComprCageBase(string);
   while (true) {
-    int32_t tag = StringShape(string, cage_base).full_representation_tag();
+    int32_t tag =
+        StringShape(string, cage_base).representation_and_encoding_tag();
     switch (tag) {
       case kSeqOneByteStringTag:
         visitor->VisitOneByteString(

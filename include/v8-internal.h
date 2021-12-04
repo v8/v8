@@ -218,7 +218,7 @@ class Internals {
   static const int kEmbedderDataSlotRawPayloadOffset = kApiTaggedSize;
 #endif
   static const int kNativeContextEmbedderDataOffset = 6 * kApiTaggedSize;
-  static const int kFullStringRepresentationMask = 0x0f;
+  static const int kStringRepresentationAndEncodingMask = 0x0f;
   static const int kStringEncodingMask = 0x8;
   static const int kExternalTwoByteRepresentationTag = 0x02;
   static const int kExternalOneByteRepresentationTag = 0x0a;
@@ -337,7 +337,7 @@ class Internals {
   }
 
   V8_INLINE static bool IsExternalTwoByteString(int instance_type) {
-    int representation = (instance_type & kFullStringRepresentationMask);
+    int representation = (instance_type & kStringRepresentationAndEncodingMask);
     return representation == kExternalTwoByteRepresentationTag;
   }
 

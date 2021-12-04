@@ -85,6 +85,9 @@ const uint32_t kInternalizedTag = 0;
 const uint32_t kSharedStringMask = 1 << 6;
 const uint32_t kSharedStringTag = 1 << 6;
 
+constexpr uint32_t kStringRepresentationEncodingAndSharedMask =
+    kStringRepresentationAndEncodingMask | kSharedStringMask;
+
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector. We don't allocate any
 // non-flat internalized strings, so we do not shortcut them thereby

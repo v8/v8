@@ -806,7 +806,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
   using A = internal::Address;
   using I = internal::Internals;
   A obj = *reinterpret_cast<const A*>(this);
-  int type = I::GetInstanceType(obj) & I::kFullStringRepresentationMask;
+  int type = I::GetInstanceType(obj) & I::kStringRepresentationAndEncodingMask;
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
   ExternalStringResourceBase* resource;
   if (type == I::kExternalOneByteRepresentationTag ||
