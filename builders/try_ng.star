@@ -440,8 +440,7 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_mac64_rel",
     triggered_timeout = 7200,
-    # TODO(liviurau): BLOCK again after https://crbug.com/1276919 fix
-    cq_properties = CQ.OPTIONAL,
+    cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
