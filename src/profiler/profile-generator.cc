@@ -195,7 +195,6 @@ const std::vector<CodeEntryAndLineNumber>* CodeEntry::GetInlineStack(
 void CodeEntry::set_deopt_info(
     const char* deopt_reason, int deopt_id,
     std::vector<CpuProfileDeoptFrame> inlined_frames) {
-  DCHECK(!has_deopt_info());
   RareData* rare_data = EnsureRareData();
   rare_data->deopt_reason_ = deopt_reason;
   rare_data->deopt_id_ = deopt_id;
