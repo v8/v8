@@ -147,7 +147,7 @@ FunctionKind WebSnapshotSerializerDeserializer::FunctionFlagsToFunctionKind(
     kind = FunctionKind::kInvalid;
   }
   if (kind == FunctionKind::kInvalid) {
-    Throw("Web Snapshots: Invalid function flags\n");
+    Throw("Invalid function flags\n");
   }
   return kind;
 }
@@ -501,6 +501,15 @@ void WebSnapshotSerializer::SerializeFunctionInfo(ValueSerializer* serializer,
       function->shared().internal_formal_parameter_count_without_receiver());
   serializer->WriteUint32(
       FunctionKindToFunctionFlags(function->shared().kind()));
+
+  if (function->has_prototype_slot() && function->has_instance_prototype()) {
+    Handle<JSObject> prototype = Handle<JSObject>::cast(
+        handle(function->instance_prototype(), isolate_));
+    uint32_t prototype_id = GetObjectId(prototype);
+    serializer->WriteUint32(prototype_id + 1);
+  } else {
+    serializer->WriteUint32(0);
+  }
 }
 
 void WebSnapshotSerializer::Discovery(Handle<Object> start_object) {
@@ -556,13 +565,7 @@ void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
 
   DCHECK_EQ(id, functions_->Length());
   functions_ = ArrayList::Add(isolate_, functions_, function);
-
-  Handle<Context> context(function->context(), isolate_);
-  if (context->IsFunctionContext() || context->IsBlockContext()) {
-    DiscoverContext(context);
-  }
-
-  // TODO(v8:11525): Serialize .prototype.
+  DiscoverContextAndPrototype(function);
   // TODO(v8:11525): Support properties in functions.
 }
 
@@ -575,16 +578,29 @@ void WebSnapshotSerializer::DiscoverClass(Handle<JSFunction> function) {
   DCHECK_EQ(id, classes_->Length());
   classes_ = ArrayList::Add(isolate_, classes_, function);
 
+  DiscoverContextAndPrototype(function);
+  // TODO(v8:11525): Support properties in classes.
+  // TODO(v8:11525): Support class members.
+}
+
+void WebSnapshotSerializer::DiscoverContextAndPrototype(
+    Handle<JSFunction> function) {
   Handle<Context> context(function->context(), isolate_);
   if (context->IsFunctionContext() || context->IsBlockContext()) {
     DiscoverContext(context);
   }
 
-  Handle<JSObject> prototype =
-      Handle<JSObject>::cast(handle(function->prototype(), isolate_));
-  discovery_queue_.push(prototype);
-  // TODO(v8:11525): Support properties in classes.
-  // TODO(v8:11525): Support class members.
+  if (function->has_prototype_slot() &&
+      function->map().has_non_instance_prototype()) {
+    Throw("Functions with non-instance prototypes not supported");
+    return;
+  }
+
+  if (function->has_prototype_slot() && function->has_instance_prototype()) {
+    Handle<JSObject> prototype = Handle<JSObject>::cast(
+        handle(function->instance_prototype(), isolate_));
+    discovery_queue_.push(prototype);
+  }
 }
 
 void WebSnapshotSerializer::DiscoverContext(Handle<Context> context) {
@@ -647,6 +663,10 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
   DCHECK_EQ(id, objects_->Length());
   objects_ = ArrayList::Add(isolate_, objects_, object);
 
+  // TODO(v8:11525): Support objects with so many properties that they can't be
+  // in fast mode.
+  JSObject::MigrateSlowToFast(object, 0, "Web snapshot");
+
   Handle<Map> map(object->map(), isolate_);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details =
@@ -665,14 +685,12 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
 // - Length in the source snippet
 // - Formal parameter count
 // - Flags (see FunctionFlags)
+// - 0 if there's no function prototype, 1 + object id for the function
+// prototype otherwise
 // TODO(v8:11525): Investigate whether the length is really needed.
 void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
   SerializeFunctionInfo(&function_serializer_, function);
-
-  // TODO(v8:11525): Serialize .prototype.
   // TODO(v8:11525): Support properties in functions.
-  // TODO(v8:11525): Support function referencing a function indirectly (e.g.,
-  // function -> context -> array -> function).
 }
 
 // Format (serialized class):
@@ -682,18 +700,10 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
 // - Length in the source snippet
 // - Formal parameter count
 // - Flags (see FunctionFlags)
-// - Object id (function prototype)
+// - 1 + object id for the function prototype
 void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function) {
   SerializeFunctionInfo(&class_serializer_, function);
-
-  Handle<JSObject> prototype =
-      Handle<JSObject>::cast(handle(function->prototype(), isolate_));
-  uint32_t prototype_id = GetObjectId(prototype);
-  class_serializer_.WriteUint32(prototype_id);
-
   // TODO(v8:11525): Support properties in classes.
-  // TODO(v8:11525): Support class referencing a class indirectly (e.g.,
-  // class -> context -> array -> class).
   // TODO(v8:11525): Support class members.
 }
 
@@ -940,6 +950,8 @@ void WebSnapshotDeserializer::Throw(const char* message) {
   class_count_ = 0;
   function_count_ = 0;
   object_count_ = 0;
+  deferred_references_->SetLength(0);
+
   // Make sure we don't read any more data
   deserializer_->position_ = deserializer_->end_;
 
@@ -1056,13 +1068,10 @@ bool WebSnapshotDeserializer::DeserializeSnapshot() {
   DeserializeFunctions();
   DeserializeArrays();
   DeserializeObjects();
-  // It comes in handy to deserialize objects before classes. This
-  // way, we already have the function prototype for a class deserialized when
-  // processing the class and it's easier to adjust it as needed.
   DeserializeClasses();
   ProcessDeferredReferences();
   DeserializeExports();
-  DCHECK_EQ(deferred_references_->Length(), 0);
+  DCHECK_EQ(0, deferred_references_->Length());
 
   return !has_error();
 }
@@ -1480,6 +1489,8 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
         CreateJSFunction(current_function_count_ + 1, start_position, length,
                          parameter_count, flags, context_id);
     functions_->set(current_function_count_, *function);
+
+    ReadFunctionPrototype(function);
   }
 }
 
@@ -1535,28 +1546,7 @@ void WebSnapshotDeserializer::DeserializeClasses() {
         parameter_count, flags, context_id);
     classes_->set(current_class_count_, *function);
 
-    uint32_t function_prototype;
-    if (!deserializer_->ReadUint32(&function_prototype) ||
-        function_prototype >= object_count_) {
-      Throw("Malformed class");
-      return;
-    }
-
-    Handle<JSObject> prototype = Handle<JSObject>::cast(
-        handle(Object::cast(objects_->get(function_prototype)), isolate_));
-
-    // TODO(v8:11525): Enforce the invariant that no two prototypes share a map.
-    Map map = prototype->map();
-    map.set_is_prototype_map(true);
-    if (!map.constructor_or_back_pointer().IsNullOrUndefined()) {
-      Throw("Map already has a constructor or back pointer set");
-      return;
-    }
-    map.set_constructor_or_back_pointer(*function);
-
-    function->set_prototype_or_initial_map(*prototype, kReleaseStore);
-
-    classes_->set(current_class_count_, *function);
+    ReadFunctionPrototype(function);
   }
 }
 
@@ -1842,12 +1832,50 @@ void WebSnapshotDeserializer::ReadValue(
   }
 }
 
+void WebSnapshotDeserializer::ReadFunctionPrototype(
+    Handle<JSFunction> function) {
+  uint32_t object_id;
+
+  if (!deserializer_->ReadUint32(&object_id) || object_id > kMaxItemCount + 1) {
+    Throw("Malformed class / function");
+    return;
+  }
+  if (object_id == 0) {
+    // No prototype.
+    return;
+  }
+  --object_id;
+  if (object_id < current_object_count_) {
+    if (!SetFunctionPrototype(*function,
+                              JSReceiver::cast(objects_->get(object_id)))) {
+      Throw("Can't reuse function prototype");
+      return;
+    }
+  } else {
+    // The object hasn't been deserialized yet.
+    AddDeferredReference(function, 0, OBJECT_ID, object_id);
+  }
+}
+
+bool WebSnapshotDeserializer::SetFunctionPrototype(JSFunction function,
+                                                   JSReceiver prototype) {
+  // TODO(v8:11525): Enforce the invariant that no two prototypes share a map.
+  Map map = prototype.map();
+  map.set_is_prototype_map(true);
+  if (!map.constructor_or_back_pointer().IsNullOrUndefined()) {
+    return false;
+  }
+  map.set_constructor_or_back_pointer(function);
+  function.set_prototype_or_initial_map(prototype, kReleaseStore);
+  return true;
+}
+
 void WebSnapshotDeserializer::AddDeferredReference(Handle<Object> container,
                                                    uint32_t index,
                                                    ValueType target_type,
                                                    uint32_t target_index) {
   DCHECK(container->IsPropertyArray() || container->IsContext() ||
-         container->IsFixedArray());
+         container->IsFixedArray() || container->IsJSFunction());
   deferred_references_ = ArrayList::Add(
       isolate_, deferred_references_, container, Smi::FromInt(index),
       Smi::FromInt(target_type), Smi::FromInt(target_index));
@@ -1882,17 +1910,15 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
           // Throw can allocate, but it's ok, since we're not using the raw
           // pointers after that.
           AllowGarbageCollection allow_gc;
-          Throw("Web Snapshots: Invalid function reference");
+          Throw("Invalid function reference");
           return;
         }
         target = raw_functions.get(target_index);
         break;
       case CLASS_ID:
         if (static_cast<uint32_t>(target_index) >= class_count_) {
-          // Throw can allocate, but it's ok, since we're not using the raw
-          // pointers after that.
           AllowGarbageCollection allow_gc;
-          Throw("Web Snapshots: Invalid class reference");
+          Throw("Invalid class reference");
           return;
         }
         target = raw_classes.get(target_index);
@@ -1900,7 +1926,7 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
       case ARRAY_ID:
         if (static_cast<uint32_t>(target_index) >= array_count_) {
           AllowGarbageCollection allow_gc;
-          Throw("Web Snapshots: Invalid array reference");
+          Throw("Invalid array reference");
           return;
         }
         target = raw_arrays.get(target_index);
@@ -1908,7 +1934,7 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
       case OBJECT_ID:
         if (static_cast<uint32_t>(target_index) >= object_count_) {
           AllowGarbageCollection allow_gc;
-          Throw("Web Snapshots: Invalid object reference");
+          Throw("Invalid object reference");
           return;
         }
         target = raw_objects.get(target_index);
@@ -1922,6 +1948,17 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
       Context::cast(container).set(index, target);
     } else if (container.IsFixedArray()) {
       FixedArray::cast(container).set(index, target);
+    } else if (container.IsJSFunction()) {
+      // The only deferred reference allowed for a JSFunction is the function
+      // prototype.
+      DCHECK_EQ(index, 0);
+      DCHECK(target.IsJSReceiver());
+      if (!SetFunctionPrototype(JSFunction::cast(container),
+                                JSReceiver::cast(target))) {
+        AllowGarbageCollection allow_gc;
+        Throw("Can't reuse function prototype");
+        return;
+      }
     } else {
       UNREACHABLE();
     }

@@ -159,6 +159,7 @@ class V8_EXPORT WebSnapshotSerializer
   void Discovery(Handle<Object> object);
   void DiscoverFunction(Handle<JSFunction> function);
   void DiscoverClass(Handle<JSFunction> function);
+  void DiscoverContextAndPrototype(Handle<JSFunction> function);
   void DiscoverContext(Handle<Context> context);
   void DiscoverArray(Handle<JSArray> array);
   void DiscoverObject(Handle<JSObject> object);
@@ -259,6 +260,8 @@ class V8_EXPORT WebSnapshotDeserializer
       Handle<Object>& value, Representation& representation,
       Handle<Object> object_for_deferred_reference = Handle<Object>(),
       uint32_t index_for_deferred_reference = 0);
+  void ReadFunctionPrototype(Handle<JSFunction> function);
+  bool SetFunctionPrototype(JSFunction function, JSReceiver prototype);
 
   void AddDeferredReference(Handle<Object> container, uint32_t index,
                             ValueType target_type,

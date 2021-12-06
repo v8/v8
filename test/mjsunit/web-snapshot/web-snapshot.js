@@ -370,3 +370,18 @@ function takeAndUseWebSnapshot(createObjects, exports) {
   %OptimizeFunctionOnNextCall(C);
   assertEquals(4, new C(1, 3).x);
 })();
+
+(function TestFunctionPrototype() {
+  function createObjects() {
+    globalThis.F = function(p1, p2) {
+      this.x = p1 + p2;
+    }
+    globalThis.F.prototype.m = function(p1, p2) {
+      return this.x + p1 + p2;
+    }
+  }
+  const { F } = takeAndUseWebSnapshot(createObjects, ['F']);
+  const o = new F(1, 2);
+  assertEquals(3, o.x);
+  assertEquals(10, o.m(3, 4));
+})();
