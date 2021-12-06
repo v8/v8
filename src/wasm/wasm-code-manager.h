@@ -1045,8 +1045,13 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // lock when calling this method.
   void SetThreadWritable(bool writable);
 
-  // Returns true if there is PKU support, false otherwise.
+  // Returns true if there is hardware support for PKU. Use
+  // {MemoryProtectionKeysEnabled} to also check if PKU usage is enabled via
+  // flags.
   bool HasMemoryProtectionKeySupport() const;
+
+  // Returns true if PKU should be used.
+  bool MemoryProtectionKeysEnabled() const;
 
   // Returns {true} if the memory protection key is write-enabled for the
   // current thread.

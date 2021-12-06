@@ -1172,12 +1172,11 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   }
 
   // Record memory protection key support.
-  if (FLAG_wasm_memory_protection_keys && !isolate_info->pku_support_sampled) {
+  if (!isolate_info->pku_support_sampled) {
     isolate_info->pku_support_sampled = true;
     auto* histogram =
         isolate->counters()->wasm_memory_protection_keys_support();
-    bool has_mpk =
-        GetWasmCodeManager()->memory_protection_key_ != kNoMemoryProtectionKey;
+    bool has_mpk = GetWasmCodeManager()->HasMemoryProtectionKeySupport();
     histogram->AddSample(has_mpk ? 1 : 0);
   }
 

@@ -513,7 +513,7 @@ WasmCodeAllocator::WasmCodeAllocator(std::shared_ptr<Counters> async_counters)
     : protect_code_memory_(
           !V8_HAS_PTHREAD_JIT_WRITE_PROTECT &&
           FLAG_wasm_write_protect_code_memory &&
-          !GetWasmCodeManager()->HasMemoryProtectionKeySupport()),
+          !GetWasmCodeManager()->MemoryProtectionKeysEnabled()),
       async_counters_(std::move(async_counters)) {
   owned_code_space_.reserve(4);
 }
@@ -1852,17 +1852,13 @@ NativeModule::~NativeModule() {
 WasmCodeManager::WasmCodeManager()
     : max_committed_code_space_(FLAG_wasm_max_code_space * MB),
       critical_committed_code_space_(max_committed_code_space_ / 2),
-      memory_protection_key_(FLAG_wasm_memory_protection_keys
-                                 ? AllocateMemoryProtectionKey()
-                                 : kNoMemoryProtectionKey) {}
+      memory_protection_key_(AllocateMemoryProtectionKey()) {}
 
 WasmCodeManager::~WasmCodeManager() {
   // No more committed code space.
   DCHECK_EQ(0, total_committed_code_space_.load());
 
-  if (FLAG_wasm_memory_protection_keys) {
-    FreeMemoryProtectionKey(memory_protection_key_);
-  }
+  FreeMemoryProtectionKey(memory_protection_key_);
 }
 
 #if defined(V8_OS_WIN64)
@@ -1910,7 +1906,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
   PageAllocator::Permission permission = PageAllocator::kReadWriteExecute;
 
   bool success;
-  if (FLAG_wasm_memory_protection_keys) {
+  if (MemoryProtectionKeysEnabled()) {
     TRACE_HEAP(
         "Setting rwx permissions and memory protection key %d for 0x%" PRIxPTR
         ":0x%" PRIxPTR "\n",
@@ -1943,7 +1939,7 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   USE(old_committed);
   TRACE_HEAP("Discarding system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-  if (FLAG_wasm_memory_protection_keys) {
+  if (MemoryProtectionKeysEnabled()) {
     CHECK(SetPermissionsAndMemoryProtectionKey(
         allocator, region, PageAllocator::kNoAccess, kNoMemoryProtectionKey));
   } else {
@@ -2099,7 +2095,7 @@ size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
 }
 
 void WasmCodeManager::SetThreadWritable(bool writable) {
-  DCHECK(HasMemoryProtectionKeySupport());
+  DCHECK(MemoryProtectionKeysEnabled());
 
   MemoryProtectionKeyPermission permissions =
       writable ? kNoRestrictions : kDisableWrite;
@@ -2116,6 +2112,10 @@ void WasmCodeManager::SetThreadWritable(bool writable) {
 
 bool WasmCodeManager::HasMemoryProtectionKeySupport() const {
   return memory_protection_key_ != kNoMemoryProtectionKey;
+}
+
+bool WasmCodeManager::MemoryProtectionKeysEnabled() const {
+  return HasMemoryProtectionKeySupport() && FLAG_wasm_memory_protection_keys;
 }
 
 bool WasmCodeManager::MemoryProtectionKeyWritable() const {
