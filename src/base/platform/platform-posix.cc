@@ -153,11 +153,15 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
     flags |= MAP_LAZY;
 #endif  // V8_OS_QNX
   }
-#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
+#if V8_OS_MACOSX
+  // MAP_JIT is required to obtain writable and executable pages when the
+  // hardened runtime/memory protection is enabled, which is optional (via code
+  // signing) on Intel-based Macs but mandatory on Apple silicon ones. See also
+  // https://developer.apple.com/documentation/apple-silicon/porting-just-in-time-compilers-to-apple-silicon.
   if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
     flags |= MAP_JIT;
   }
-#endif
+#endif  // V8_OS_MACOSX
   return flags;
 }
 
@@ -525,6 +529,12 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
   }
 
   void* reservation = Allocate(hint, size, alignment, permission);
+  if (!reservation && permission == MemoryPermission::kNoAccessWillJitLater) {
+    // Retry without MAP_JIT, for example in case we are running on an old OS X.
+    permission = MemoryPermission::kNoAccess;
+    reservation = Allocate(hint, size, alignment, permission);
+  }
+
   if (!reservation) return {};
 
   return AddressSpaceReservation(reservation, size);
