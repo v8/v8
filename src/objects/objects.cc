@@ -1969,8 +1969,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
         os << "<FeedbackCell[";
         if (map() == roots.no_closures_cell_map()) {
           os << "no feedback";
-        } else if (map() == roots.no_closures_cell_map()) {
-          os << "no closures";
         } else if (map() == roots.one_closure_cell_map()) {
           os << "one closure";
         } else if (map() == roots.many_closures_cell_map()) {
